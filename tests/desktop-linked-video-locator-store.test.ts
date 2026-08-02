@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import type { PersistedLinkedVideoLocator } from '../desktop/linked-video-locator-registry.ts';
 import {
 	DesktopLinkedVideoLocatorStore,
 	type DesktopLinkedVideoReadCapabilityStore,
@@ -199,6 +200,188 @@ test('owner revocation during persistent publication rolls the locator record ba
 	assert.deepEqual(snapshots, [1, 0]);
 });
 
+test('startup reconciliation prunes only exact unreferenced startup locators', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-reconcile-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const retainedPath = join(root, 'retained.mp4');
+	const orphanPath = join(root, 'orphan.mp4');
+	const runtimePath = join(root, 'runtime.mp4');
+	const afterPath = join(root, 'after.mp4');
+	await Promise.all([
+		writeFile(retainedPath, 'retained'),
+		writeFile(orphanPath, 'orphan'),
+		writeFile(runtimePath, 'runtime'),
+		writeFile(afterPath, 'after'),
+	]);
+	const retained = await persistedLocator(retainedPath, 'a', 'b');
+	const orphan = await persistedLocator(orphanPath, 'c', 'd');
+	const writes: Array<readonly PersistedLinkedVideoLocator[]> = [];
+	let statCalls = 0;
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		randomBytes: deterministicTokens(),
+		maximumCount: 3,
+		registry: {
+			read: () => [retained, orphan],
+			write(entries) { writes.push([...entries]); },
+		},
+		stat: async (path) => { statCalls += 1; return stat(path); },
+	});
+	await store.ready();
+	const owner = {};
+	const runtimeLocator = await store.registerPath(runtimePath, {
+		owner, mimeType: 'video/mp4', displayName: 'runtime.mp4',
+	});
+	await assert.rejects(store.registerPath(afterPath, {
+		owner, mimeType: 'video/mp4', displayName: 'after.mp4',
+	}), /count.*limit|admission/iu);
+	const statCallsBeforeReconciliation = statCalls;
+
+	assert.equal(await store.reconcileStartup([{
+		locatorId: retained.locatorId,
+		locatorRevision: retained.locatorRevision,
+	}], { owner }), 1);
+	assert.equal(statCalls, statCallsBeforeReconciliation, 'reconciliation never stats external files');
+	assert.deepEqual(writes.at(-1)?.map(({ locatorId }) => locatorId).sort(), [
+		retained.locatorId,
+		runtimeLocator.locatorId,
+	].sort());
+	assert.equal(await store.load(orphan.locatorId, {
+		owner, expectedRevision: orphan.locatorRevision,
+	}), null);
+	assert.ok(await store.load(retained.locatorId, {
+		owner, expectedRevision: retained.locatorRevision,
+	}));
+	assert.ok(await store.load(runtimeLocator.locatorId, {
+		owner, expectedRevision: runtimeLocator.locatorRevision,
+	}));
+	assert.ok(await store.registerPath(afterPath, {
+		owner, mimeType: 'video/mp4', displayName: 'after.mp4',
+	}));
+	const writesAfterFirstPass = writes.length;
+	assert.equal(await store.reconcileStartup([], { owner }), 0);
+	assert.equal(writes.length, writesAfterFirstPass, 'the successful startup pass is one-shot');
+	for (const path of [retainedPath, orphanPath, runtimePath, afterPath]) {
+		assert.equal((await stat(path)).isFile(), true);
+	}
+});
+
+test('startup reconciliation rejects incomplete or stale inventories without mutation', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-reconcile-invalid-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const path = join(root, 'retained.mp4');
+	await writeFile(path, 'retained');
+	const retained = await persistedLocator(path, 'e', 'f');
+	const writes: Array<readonly PersistedLinkedVideoLocator[]> = [];
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		registry: {
+			read: () => [retained],
+			write(entries) { writes.push([...entries]); },
+		},
+	});
+	await store.ready();
+	const owner = {};
+	for (const references of [[{
+		locatorId: '1'.repeat(64),
+		locatorRevision: '2'.repeat(64),
+	}], [{
+		locatorId: retained.locatorId,
+		locatorRevision: '3'.repeat(64),
+	}]]) {
+		await assert.rejects(
+			store.reconcileStartup(references, { owner }),
+			/unknown|revision|inventory/iu,
+		);
+	}
+	store.revokeOwner(owner);
+	await assert.rejects(
+		store.reconcileStartup([], { owner }),
+		/revoked/iu,
+	);
+	assert.deepEqual(writes, []);
+	assert.ok(await store.load(retained.locatorId, {
+		owner: {}, expectedRevision: retained.locatorRevision,
+	}));
+	assert.equal(await store.reconcileStartup([{
+		locatorId: retained.locatorId,
+		locatorRevision: retained.locatorRevision,
+	}], { owner: {} }), 0);
+});
+
+test('failed startup reconciliation restores the complete locator inventory for retry', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-reconcile-rollback-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const retainedPath = join(root, 'retained.mp4');
+	const orphanPath = join(root, 'orphan.mp4');
+	await Promise.all([writeFile(retainedPath, 'retained'), writeFile(orphanPath, 'orphan')]);
+	const retained = await persistedLocator(retainedPath, '4', '5');
+	const orphan = await persistedLocator(orphanPath, '6', '7');
+	let rejectWrite = true;
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		registry: {
+			read: () => [retained, orphan],
+			write() {
+				if (rejectWrite) throw new Error('registry write failed');
+			},
+		},
+	});
+	await store.ready();
+	const owner = {};
+	const references = [{
+		locatorId: retained.locatorId,
+		locatorRevision: retained.locatorRevision,
+	}];
+
+	await assert.rejects(store.reconcileStartup(references, { owner }), /registry write failed/iu);
+	assert.ok(await store.load(orphan.locatorId, {
+		owner, expectedRevision: orphan.locatorRevision,
+	}));
+	rejectWrite = false;
+	assert.equal(await store.reconcileStartup(references, { owner }), 1);
+	assert.equal(await store.load(orphan.locatorId, {
+		owner, expectedRevision: orphan.locatorRevision,
+	}), null);
+});
+
+test('owner revocation during startup reconciliation restores startup metadata', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-reconcile-revoked-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const path = join(root, 'orphan.mp4');
+	await writeFile(path, 'orphan');
+	const orphan = await persistedLocator(path, '8', '9');
+	const publicationStarted = deferred<void>();
+	const allowPublication = deferred<void>();
+	const snapshots: string[][] = [];
+	let writes = 0;
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		registry: {
+			read: () => [orphan],
+			async write(entries) {
+				snapshots.push(entries.map(({ locatorId }) => locatorId));
+				writes += 1;
+				if (writes !== 1) return;
+				publicationStarted.resolve(undefined);
+				await allowPublication.promise;
+			},
+		},
+	});
+	await store.ready();
+	const owner = {};
+	const reconciliation = store.reconcileStartup([], { owner });
+	await publicationStarted.promise;
+	store.revokeOwner(owner);
+	allowPublication.resolve(undefined);
+
+	await assert.rejects(reconciliation, /revoked/iu);
+	assert.deepEqual(snapshots, [[], [orphan.locatorId]]);
+	assert.ok(await store.load(orphan.locatorId, {
+		owner: {}, expectedRevision: orphan.locatorRevision,
+	}));
+});
+
 test('linked-video locator registration rejects directories, empty files, and unsafe metadata', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-invalid-'));
 	context.after(async () => { await rm(root, { recursive: true, force: true }); });
@@ -271,6 +454,30 @@ function deterministicTokens(): (size: number) => Uint8Array {
 		value += 1;
 		return new Uint8Array(size).fill(value);
 	};
+}
+
+async function persistedLocator(
+	path: string,
+	locatorByte: string,
+	revisionByte: string,
+): Promise<Readonly<PersistedLinkedVideoLocator>> {
+	const metadata = await stat(path);
+	return Object.freeze({
+		locatorId: locatorByte.repeat(64),
+		locatorRevision: revisionByte.repeat(64),
+		path,
+		name: path.split(/[\\/]/u).at(-1) || 'selected.mp4',
+		size: metadata.size,
+		mimeType: 'video/mp4',
+		lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
+		identity: Object.freeze({
+			dev: metadata.dev,
+			ino: metadata.ino,
+			size: metadata.size,
+			mtimeMs: metadata.mtimeMs,
+			ctimeMs: metadata.ctimeMs,
+		}),
+	});
 }
 
 function deferred<Value>() {

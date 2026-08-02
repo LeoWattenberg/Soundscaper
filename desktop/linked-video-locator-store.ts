@@ -55,6 +55,11 @@ export interface LoadedDesktopLinkedVideoLocator {
 	readonly descriptor: DesktopLinkedVideoReadDescriptor;
 }
 
+export interface DesktopLinkedVideoLocatorReference {
+	readonly locatorId: string;
+	readonly locatorRevision: string;
+}
+
 interface FileStat {
 	readonly dev: number;
 	readonly ino: number;
@@ -95,11 +100,13 @@ export class DesktopLinkedVideoLocatorStore {
 	readonly #readCapabilities: DesktopLinkedVideoReadCapabilityStore;
 	readonly #registry: DesktopLinkedVideoLocatorRegistry | null;
 	readonly #stat: (path: string) => PromiseLike<FileStat> | FileStat;
+	readonly #startupEntries = new Map<string, LocatorEntry>();
 	#bytes = 0;
 	#count = 0;
 	#disposed = false;
 	#mutationTail: Promise<void> = Promise.resolve();
 	#readyPromise: Promise<void> | null = null;
+	#startupReconciled = false;
 
 	constructor(options: DesktopLinkedVideoLocatorStoreOptions) {
 		if (!options?.readCapabilities
@@ -264,6 +271,62 @@ export class DesktopLinkedVideoLocatorStore {
 		});
 	}
 
+	/** Remove only startup-loaded metadata absent from one complete durable binding inventory. */
+	async reconcileStartup(
+		referencesValue: unknown,
+		options: Readonly<{ owner: object }>,
+	): Promise<number> {
+		await this.ready();
+		this.#assertActive();
+		const references = locatorReferences(referencesValue);
+		const owner = requiredOwner(options?.owner);
+		const state = this.#ownerState(owner);
+		return this.#mutate(async () => {
+			this.#assertActive();
+			if (state.revoked) throw new Error('The linked-video locator owner was revoked.');
+			if (this.#startupReconciled) return 0;
+			const referencedRevisions = new Map<string, string>();
+			for (const reference of references) {
+				const entry = this.#entries.get(reference.locatorId);
+				if (!entry) throw new Error('Linked-video reconciliation references an unknown locator.');
+				if (entry.locatorRevision !== reference.locatorRevision) {
+					throw new Error('Linked-video reconciliation references a stale locator revision.');
+				}
+				referencedRevisions.set(reference.locatorId, reference.locatorRevision);
+			}
+			const removed: LocatorEntry[] = [];
+			for (const entry of this.#startupEntries.values()) {
+				if (this.#entries.get(entry.locatorId) !== entry
+					|| referencedRevisions.get(entry.locatorId) === entry.locatorRevision) continue;
+				this.#drop(entry);
+				removed.push(entry);
+			}
+			try {
+				if (removed.length) await this.#persist();
+			} catch (error) {
+				for (const entry of removed) this.#add(entry);
+				throw error;
+			}
+			if (state.revoked) {
+				const error = new Error('The linked-video locator owner was revoked during reconciliation.');
+				for (const entry of removed) this.#add(entry);
+				try {
+					if (removed.length) await this.#persist();
+				} catch (cleanupError) {
+					throw new AggregateError(
+						[error, cleanupError],
+						'Linked-video reconciliation revocation rollback failed.',
+						{ cause: error },
+					);
+				}
+				throw error;
+			}
+			this.#startupReconciled = true;
+			this.#startupEntries.clear();
+			return removed.length;
+		});
+	}
+
 	revokeOwner(ownerValue: object): void {
 		const owner = requiredOwner(ownerValue);
 		const state = this.#ownerState(owner);
@@ -277,6 +340,7 @@ export class DesktopLinkedVideoLocatorStore {
 		this.#disposed = true;
 		const removed = this.#entries.size;
 		this.#entries.clear();
+		this.#startupEntries.clear();
 		this.#count = 0;
 		this.#bytes = 0;
 		return removed;
@@ -295,6 +359,7 @@ export class DesktopLinkedVideoLocatorStore {
 				throw new RangeError('Persisted linked-video locator admission exceeds configured limits.');
 			}
 			this.#add(entry);
+			this.#startupEntries.set(entry.locatorId, entry);
 		}
 	}
 
@@ -467,6 +532,41 @@ function nullableRevision(value: unknown): string | null {
 	return value === null
 		? null
 		: opaqueToken(value, 'Invalid linked-video locator revision.');
+}
+
+function locatorReferences(value: unknown): readonly DesktopLinkedVideoLocatorReference[] {
+	if (!Array.isArray(value) || value.length > MAX_LINKED_VIDEO_LOCATORS) {
+		throw new RangeError('Linked-video reconciliation reference count exceeds its limit.');
+	}
+	const identifiers = new Set<string>();
+	return Object.freeze(value.map((item) => {
+		if (!item || typeof item !== 'object' || Array.isArray(item)) {
+			throw new TypeError('A linked-video reconciliation reference must be an object.');
+		}
+		const keys = Reflect.ownKeys(item);
+		if (keys.length !== 2 || !keys.includes('locatorId') || !keys.includes('locatorRevision')) {
+			throw new TypeError('A linked-video reconciliation reference contains an unsupported field.');
+		}
+		const candidate = item as Readonly<Record<string, unknown>>;
+		for (const key of ['locatorId', 'locatorRevision']) {
+			const descriptor = Object.getOwnPropertyDescriptor(item, key);
+			if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+				throw new TypeError(`Linked-video reconciliation ${key} must be an enumerable data field.`);
+			}
+		}
+		const locatorId = opaqueToken(candidate.locatorId, 'Invalid linked-video locator identifier.');
+		if (identifiers.has(locatorId)) {
+			throw new Error('Linked-video reconciliation references duplicate locator identifiers.');
+		}
+		identifiers.add(locatorId);
+		return Object.freeze({
+			locatorId,
+			locatorRevision: opaqueToken(
+				candidate.locatorRevision,
+				'Invalid linked-video locator revision.',
+			),
+		});
+	}));
 }
 
 function readTimestamp(value: number): number {
