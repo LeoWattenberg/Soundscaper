@@ -3,11 +3,16 @@
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 const MAXIMUM_WRITE_CHUNK_BYTES = 4 * 1024 * 1024;
 
+export const DIRECT_SAVE_FINAL_PREFIX_BYTE_LENGTH = 32;
+
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 export type DirectSaveSizeMode = 'maximum' | 'exact';
 
-type DesktopSaveDeclaration = Readonly<{ readonly targetId: string } & (
+type DesktopSaveDeclaration = Readonly<{
+	readonly targetId: string;
+	readonly finalPrefixByteLength?: number;
+} & (
 	| { readonly maximumSize: number; readonly size?: never }
 	| { readonly maximumSize?: never; readonly size: number }
 )>;
@@ -19,6 +24,10 @@ interface DesktopSaveBridge {
 		offset: number;
 		bytes: Uint8Array;
 	}>): PromiseLike<Readonly<{ nextOffset?: unknown }>>;
+	patchFinalPrefix?(request: Readonly<{
+		writeId: string;
+		bytes: Uint8Array;
+	}>): PromiseLike<Readonly<{ byteLength?: unknown }>>;
 	finishWrite(writeId: string): PromiseLike<Readonly<{ byteLength?: unknown }>>;
 	abortWrite?(writeId: string): PromiseLike<unknown> | unknown;
 }
@@ -34,7 +43,11 @@ interface FileSystemSaveTarget {
 }
 
 interface FileSystemSaveWriter {
-	write(bytes: Uint8Array): Awaitable<unknown>;
+	write(value: Uint8Array | Readonly<{
+		type: 'write';
+		position: number;
+		data: Uint8Array;
+	}>): Awaitable<unknown>;
 	close(): Awaitable<unknown>;
 	abort?(reason?: unknown): Awaitable<unknown>;
 }
@@ -42,8 +55,13 @@ interface FileSystemSaveWriter {
 interface DirectSaveBackend {
 	readonly maximumChunkBytes: number;
 	write(bytes: Uint8Array, offset: number): Promise<void>;
+	patchFinalPrefix?(bytes: Uint8Array): Promise<void>;
 	commit(byteLength: number): Promise<void>;
 	abort(reason?: unknown): Promise<void>;
+}
+
+export interface DirectSaveWritableOptions {
+	readonly finalPrefixByteLength?: number;
 }
 
 export interface DirectSavedFile extends Readonly<Record<string, unknown>> {
@@ -54,7 +72,12 @@ export interface DirectSavedFile extends Readonly<Record<string, unknown>> {
 
 export interface PreparedDirectSave {
 	readonly mode: 'stream';
-	createWritable(byteLength: number, sizeMode?: DirectSaveSizeMode): Promise<WritableStream<Uint8Array>>;
+	createWritable(
+		byteLength: number,
+		sizeMode?: DirectSaveSizeMode,
+		options?: DirectSaveWritableOptions,
+	): Promise<WritableStream<Uint8Array>>;
+	patchFinalPrefix(bytes: Uint8Array): Promise<void>;
 	bytesWritten(): number;
 	commit(): Promise<DirectSavedFile>;
 	abort(reason?: unknown): Promise<void>;
@@ -79,9 +102,19 @@ export function createDesktopPreparedSave(options: Readonly<{
 		fileName: String(options.target.name || options.fileName),
 		method: 'desktop',
 		signal: options.signal,
-		open: async (byteLength, sizeMode) => {
+		open: async (byteLength, sizeMode, writableOptions) => {
+			if (writableOptions.finalPrefixByteLength
+				&& typeof bridge.patchFinalPrefix !== 'function') {
+				throw new Error('Desktop final-prefix patching is unavailable.');
+			}
 			const declaration: DesktopSaveDeclaration = sizeMode === 'exact'
-				? { targetId, size: byteLength }
+				? {
+					targetId,
+					size: byteLength,
+					...(writableOptions.finalPrefixByteLength
+						? { finalPrefixByteLength: writableOptions.finalPrefixByteLength }
+						: {}),
+				}
 				: { targetId, maximumSize: byteLength };
 			const session = await bridge.beginWrite(declaration);
 			const writeId = String(session?.writeId || '');
@@ -96,6 +129,12 @@ export function createDesktopPreparedSave(options: Readonly<{
 					const result = await bridge.writeChunk({ writeId, offset, bytes });
 					if (Number(result?.nextOffset) !== offset + bytes.byteLength) {
 						throw new Error('The desktop save stream lost synchronization.');
+					}
+				},
+				async patchFinalPrefix(bytes) {
+					const result = await bridge.patchFinalPrefix!({ writeId, bytes });
+					if (Number(result?.byteLength) !== byteLength) {
+						throw new Error('The desktop final-prefix patch lost synchronization.');
 					}
 				},
 				async commit(byteLength) {
@@ -132,6 +171,9 @@ export function createFileSystemPreparedSave(options: Readonly<{
 			return {
 				maximumChunkBytes: MAXIMUM_WRITE_CHUNK_BYTES,
 				async write(bytes) { await writer.write(bytes); },
+				async patchFinalPrefix(bytes) {
+					await writer.write({ type: 'write', position: 0, data: bytes });
+				},
 				async commit() { await writer.close(); },
 				async abort(reason) { await writer.abort?.(reason); },
 			};
@@ -142,7 +184,11 @@ export function createFileSystemPreparedSave(options: Readonly<{
 function createPreparedDirectSave(options: Readonly<{
 	fileName: string;
 	method: DirectSavedFile['method'];
-	open(byteLength: number, sizeMode: DirectSaveSizeMode): Promise<DirectSaveBackend>;
+	open(
+		byteLength: number,
+		sizeMode: DirectSaveSizeMode,
+		options: Readonly<{ readonly finalPrefixByteLength: number }>,
+	): Promise<DirectSaveBackend>;
 	signal?: AbortSignal;
 }>): PreparedDirectSave {
 	let backend: DirectSaveBackend | null = null;
@@ -155,6 +201,9 @@ function createPreparedDirectSave(options: Readonly<{
 	let abortPromise: Promise<void> | null = null;
 	let abortReason: unknown;
 	let listening = false;
+	let finalPrefixByteLength = 0;
+	let finalPrefixAttempted = false;
+	let finalPrefixPatched = false;
 
 	const onAbort = () => {
 		abortReason = options.signal?.reason;
@@ -164,16 +213,25 @@ function createPreparedDirectSave(options: Readonly<{
 	async function createWritable(
 		value: number,
 		requestedSizeMode?: DirectSaveSizeMode,
+		requestedOptions?: DirectSaveWritableOptions,
 	): Promise<WritableStream<Uint8Array>> {
 		if (opened) throw new Error('The direct-save destination was already opened.');
-		sizeMode = normalizeSizeMode(requestedSizeMode);
-		maximumBytes = safeNonNegativeInteger(
+		const nextSizeMode = normalizeSizeMode(requestedSizeMode);
+		const nextMaximumBytes = safeNonNegativeInteger(
 			value,
-			sizeMode === 'exact' ? 'Direct-save declared size' : 'Direct-save admitted maximum',
+			nextSizeMode === 'exact' ? 'Direct-save declared size' : 'Direct-save admitted maximum',
 		);
+		const writableOptions = normalizeWritableOptions(
+			requestedOptions,
+			nextSizeMode,
+			nextMaximumBytes,
+		);
+		sizeMode = nextSizeMode;
+		maximumBytes = nextMaximumBytes;
+		finalPrefixByteLength = writableOptions.finalPrefixByteLength;
 		opened = true;
 		throwIfAborted(options.signal);
-		backend = await options.open(maximumBytes, sizeMode);
+		backend = await options.open(maximumBytes, sizeMode, writableOptions);
 		try {
 			throwIfAborted(options.signal);
 		} catch (error) {
@@ -189,10 +247,46 @@ function createPreparedDirectSave(options: Readonly<{
 		});
 	}
 
+	async function patchFinalPrefix(value: Uint8Array): Promise<void> {
+		try {
+			throwIfAborted(options.signal);
+			if (!backend || committed || abortPromise) {
+				throw new Error('The direct-save destination cannot patch its final prefix.');
+			}
+			if (!finalPrefixByteLength) {
+				throw new Error('The direct-save destination did not declare a final prefix.');
+			}
+			if (finalPrefixAttempted) {
+				throw new Error('The direct-save final prefix was already attempted.');
+			}
+			if (!sealed) {
+				throw new Error('The direct-save stream must be sealed before its final prefix is patched.');
+			}
+			const bytes = toBytes(value);
+			if (bytes.byteLength !== finalPrefixByteLength) {
+				throw new RangeError(`The direct-save final prefix must contain exactly ${finalPrefixByteLength} bytes.`);
+			}
+			if (sizeMode !== 'exact' || byteLength !== maximumBytes) {
+				throw new RangeError('The direct-save final prefix requires the exact declared size to be appended.');
+			}
+			if (typeof backend.patchFinalPrefix !== 'function') {
+				throw new Error('Direct-save final-prefix patching is unavailable.');
+			}
+			finalPrefixAttempted = true;
+			await backend.patchFinalPrefix(bytes);
+			throwIfAborted(options.signal);
+			finalPrefixPatched = true;
+		} catch (error) {
+			await abortAfterFailure(error);
+		}
+	}
+
 	async function writeChunk(value: Uint8Array): Promise<void> {
 		try {
 			throwIfAborted(options.signal);
-			if (!backend || sealed || committed) throw new Error('The direct-save destination is not writable.');
+			if (!backend || sealed || committed || abortPromise) {
+				throw new Error('The direct-save destination is not writable.');
+			}
 			const bytes = toBytes(value);
 			if (bytes.byteLength > maximumBytes - byteLength) {
 				throw new RangeError('The direct save exceeds its admitted maximum.');
@@ -217,6 +311,9 @@ function createPreparedDirectSave(options: Readonly<{
 			await abortAfterFailure(new RangeError(
 				'Exact direct-save output size does not match the declared size.',
 			));
+		}
+		if (finalPrefixByteLength && !finalPrefixPatched) {
+			await abortAfterFailure(new Error('The direct-save final prefix was not patched.'));
 		}
 		detachAbort();
 		await backend.commit(byteLength);
@@ -263,7 +360,15 @@ function createPreparedDirectSave(options: Readonly<{
 		listening = false;
 	}
 
-	return Object.freeze({ mode: 'stream', createWritable, bytesWritten, commit, abort: requestAbort, savedFile });
+	return Object.freeze({
+		mode: 'stream',
+		createWritable,
+		patchFinalPrefix,
+		bytesWritten,
+		commit,
+		abort: requestAbort,
+		savedFile,
+	});
 }
 
 function toBytes(value: unknown): Uint8Array {
@@ -283,6 +388,27 @@ function normalizeSizeMode(value: unknown): DirectSaveSizeMode {
 	if (value === undefined || value === 'maximum') return 'maximum';
 	if (value === 'exact') return 'exact';
 	throw new RangeError('Direct-save size mode must be "maximum" or "exact".');
+}
+
+function normalizeWritableOptions(
+	value: DirectSaveWritableOptions | undefined,
+	sizeMode: DirectSaveSizeMode,
+	maximumBytes: number,
+): Readonly<{ readonly finalPrefixByteLength: number }> {
+	const finalPrefixByteLength = value?.finalPrefixByteLength ?? 0;
+	if (finalPrefixByteLength !== 0
+		&& finalPrefixByteLength !== DIRECT_SAVE_FINAL_PREFIX_BYTE_LENGTH) {
+		throw new RangeError(
+			`Direct-save final prefixes must contain exactly ${DIRECT_SAVE_FINAL_PREFIX_BYTE_LENGTH} bytes.`,
+		);
+	}
+	if (finalPrefixByteLength && sizeMode !== 'exact') {
+		throw new RangeError('Direct-save final prefixes require exact-size mode.');
+	}
+	if (finalPrefixByteLength && maximumBytes < finalPrefixByteLength) {
+		throw new RangeError('The direct-save declared size is smaller than its final prefix.');
+	}
+	return Object.freeze({ finalPrefixByteLength });
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

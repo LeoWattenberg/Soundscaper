@@ -75,6 +75,7 @@ export const IPC = Object.freeze({
 	chooseSaveTarget: 'soundscaper:v1:save:choose',
 	beginWrite: 'soundscaper:v1:save:begin',
 	writeChunk: 'soundscaper:v1:save:chunk',
+	patchFinalPrefix: 'soundscaper:v1:save:prefix',
 	finishWrite: 'soundscaper:v1:save:finish',
 	abortWrite: 'soundscaper:v1:save:abort',
 	listSharedProjects: 'soundscaper:v1:projects:list',

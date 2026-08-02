@@ -41,6 +41,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'onMenuCommand',
 		'onOpenProject',
 		'openExternal',
+		'patchFinalPrefix',
 		'readSharedProject',
 		'readSharedProjectBundle',
 		'readSharedSourceChunk',

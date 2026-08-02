@@ -13,6 +13,7 @@ import {
 import { validateDeclaredSize } from './validation.js';
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
+const FINAL_PREFIX_BYTES = 32;
 
 export class SaveTargetStore {
 	#disposed = false;
@@ -176,6 +177,11 @@ export class AtomicSaveManager {
 				throw new RangeError('A save requires exactly one exact size or admitted maximum');
 			}
 			admittedSize = validateDeclaredSize(exactSize ? options.size : options.maximumSize);
+			if (options?.finalPrefixByteLength !== undefined) {
+				if (options.finalPrefixByteLength !== FINAL_PREFIX_BYTES) throw new RangeError('Final prefix must be exactly 32 bytes');
+				if (!exactSize) throw new RangeError('A final prefix requires an exact-size save');
+				if (admittedSize < FINAL_PREFIX_BYTES) throw new RangeError('A final-prefix save must be at least 32 bytes');
+			}
 			reservation = this.#reserve(admittedSize);
 		} catch (error) {
 			return Promise.reject(error);
@@ -187,7 +193,7 @@ export class AtomicSaveManager {
 			});
 	}
 
-	async #begin(owner, { targetId }, exactSize, admittedSize, reservation) {
+	async #begin(owner, { targetId, finalPrefixByteLength }, exactSize, admittedSize, reservation) {
 		try {
 			const target = this.#targets.consume(targetId, { owner });
 			if (!target) throw new Error('Save target expired or was already used');
@@ -216,6 +222,7 @@ export class AtomicSaveManager {
 				exactSize,
 				admittedSize,
 				chunkSize,
+				finalPrefixState: finalPrefixByteLength === undefined ? 'none' : 'required',
 				reservation,
 				written: 0,
 				busy: false,
@@ -261,6 +268,48 @@ export class AtomicSaveManager {
 		}
 	}
 
+	patchFinalPrefix(options = {}) {
+		return this.#admit(options.owner, () => this.#patchFinalPrefix(options.owner, options));
+	}
+
+	async #patchFinalPrefix(owner, { writeId, bytes }) {
+		const session = this.#session(writeId, owner);
+		if (session.busy) throw new Error('Concurrent save writes are not allowed');
+		if (session.finalPrefixState !== 'required') {
+			if (session.finalPrefixState === 'none') throw new Error('Save did not declare a final prefix');
+			throw new Error('Final prefix patch was already attempted');
+		}
+		if (session.written !== session.admittedSize) {
+			throw new Error('Final prefix can be patched only after all sequential bytes are written');
+		}
+		const buffer = toBuffer(bytes);
+		if (buffer.byteLength !== FINAL_PREFIX_BYTES) throw new RangeError('Final prefix must be exactly 32 bytes');
+		let markIdle;
+		session.idle = new Promise((resolve) => { markIdle = resolve; });
+		session.busy = true;
+		session.finalPrefixState = 'attempting';
+		try {
+			let cursor = 0;
+			while (cursor < buffer.byteLength) {
+				const remaining = buffer.byteLength - cursor;
+				const result = await session.handle.write(buffer, cursor, remaining, cursor);
+				if (!Number.isSafeInteger(result?.bytesWritten)
+					|| result.bytesWritten < 1 || result.bytesWritten > remaining) {
+					throw new Error('Final prefix write made invalid progress');
+				}
+				cursor += result.bytesWritten;
+			}
+			session.finalPrefixState = 'complete';
+			return Object.freeze({ byteLength: session.written });
+		} catch (error) {
+			session.finalPrefixState = 'failed';
+			throw error;
+		} finally {
+			session.busy = false;
+			markIdle();
+		}
+	}
+
 	finish(writeId, { owner } = {}) {
 		return this.#admit(owner, () => this.#finish(writeId, owner));
 	}
@@ -268,6 +317,8 @@ export class AtomicSaveManager {
 	async #finish(writeId, owner) {
 		const session = this.#session(writeId, owner);
 		if (session.busy) throw new Error('Save write is still in progress');
+		if (session.finalPrefixState === 'required') throw new Error('The required final prefix is missing');
+		if (session.finalPrefixState === 'failed') throw new Error('The final prefix patch failed');
 		if (session.exactSize && session.written !== session.admittedSize) {
 			throw new Error('Save ended before the declared size was written');
 		}

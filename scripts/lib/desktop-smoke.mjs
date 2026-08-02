@@ -26,6 +26,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'onMenuCommand',
 	'onOpenProject',
 	'openExternal',
+	'patchFinalPrefix',
 	'readSharedProject',
 	'readSharedProjectBundle',
 	'readSharedSourceChunk',

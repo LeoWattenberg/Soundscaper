@@ -19,6 +19,7 @@ const CHANNELS = Object.freeze({
 	chooseSaveTarget: 'soundscaper:v1:save:choose',
 	beginWrite: 'soundscaper:v1:save:begin',
 	writeChunk: 'soundscaper:v1:save:chunk',
+	patchFinalPrefix: 'soundscaper:v1:save:prefix',
 	finishWrite: 'soundscaper:v1:save:finish',
 	abortWrite: 'soundscaper:v1:save:abort',
 	listSharedProjects: 'soundscaper:v1:projects:list',
@@ -44,6 +45,7 @@ const CHANNELS = Object.freeze({
 	fullscreenChanged: 'soundscaper:v1:event:fullscreen-changed',
 });
 const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
+const FINAL_PREFIX_BYTES = 32;
 const READ_PROFILE_LINKED_VIDEO_RANGE_V1 = 'linked-video-range-v1';
 const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1';
 const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';
@@ -98,6 +100,13 @@ const api = Object.freeze({
 			offset: safeInteger(options?.offset),
 			bytes,
 		});
+	},
+	patchFinalPrefix: (options) => {
+		const bytes = binary(options?.bytes);
+		if (bytes.byteLength !== FINAL_PREFIX_BYTES) throw new RangeError('Final prefix must be exactly 32 bytes');
+		return ipcRenderer.invoke(CHANNELS.patchFinalPrefix, {
+			writeId: opaqueId(options?.writeId, 32), bytes,
+		}).then(finalPrefixAcknowledgement);
 	},
 	finishWrite: (writeId) => ipcRenderer.invoke(CHANNELS.finishWrite, opaqueId(writeId, 32)),
 	abortWrite: (writeId) => ipcRenderer.invoke(CHANNELS.abortWrite, opaqueId(writeId, 32)),
@@ -329,9 +338,14 @@ function saveDeclaration(options) {
 	if (exactSize === (options?.maximumSize !== undefined)) {
 		throw new RangeError('Expected exactly one exact size or admitted maximum');
 	}
-	return exactSize
+	const declaration = exactSize
 		? { targetId, size: saveSize(options.size) }
 		: { targetId, maximumSize: saveSize(options.maximumSize) };
+	if (options?.finalPrefixByteLength === undefined) return declaration;
+	if (options.finalPrefixByteLength !== FINAL_PREFIX_BYTES) throw new RangeError('Final prefix must be exactly 32 bytes');
+	if (!exactSize) throw new RangeError('A final prefix requires an exact-size save');
+	if (declaration.size < FINAL_PREFIX_BYTES) throw new RangeError('A final-prefix save must be at least 32 bytes');
+	return { ...declaration, finalPrefixByteLength: FINAL_PREFIX_BYTES };
 }
 function saveSize(value) {
 	const size = safeInteger(value);
@@ -555,6 +569,12 @@ function positiveSafeInteger(value) {
 function strictBoolean(value) {
 	if (typeof value !== 'boolean') throw new TypeError('Desktop shared-project delete result must be a boolean');
 	return value;
+}
+function finalPrefixAcknowledgement(value) {
+	if (typeof value?.byteLength !== 'number') throw new TypeError('Desktop returned an invalid final-prefix acknowledgement');
+	const byteLength = saveSize(value.byteLength);
+	if (byteLength < FINAL_PREFIX_BYTES) throw new TypeError('Desktop returned an invalid final-prefix acknowledgement');
+	return Object.freeze({ byteLength });
 }
 function utf8Bytes(value, maximumBytes) {
 	let bytes = 0;

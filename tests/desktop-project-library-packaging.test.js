@@ -267,7 +267,7 @@ test('desktop main owns file capabilities by committed renderer document', async
 	assert.match(chooseSource, /registerPath\(smokeFilePath, \{ owner, purpose: choice\.purpose \}\)/u);
 	assert.match(chooseSource, /registerPath\(result\.filePath, \{ owner,/u);
 
-	for (const channel of ['beginWrite', 'writeChunk', 'finishWrite', 'abortWrite']) {
+	for (const channel of ['beginWrite', 'writeChunk', 'patchFinalPrefix', 'finishWrite', 'abortWrite']) {
 		const handlerStart = mainSource.indexOf(`handle(IPC.${channel}`);
 		const handlerEnd = mainSource.indexOf('\n\thandle(', handlerStart + 1);
 		assert.ok(handlerStart >= 0, `missing ${channel} handler`);

@@ -5,6 +5,7 @@ import {
 	AUDIO_EDITOR_PCM_SINK_MAX_CHUNK_FRAMES,
 	AUDIO_EDITOR_PCM_SINK_MAX_PENDING_BYTES,
 } from '../pcm-sink-admission.ts';
+import { DIRECT_SAVE_FINAL_PREFIX_BYTE_LENGTH } from '../file-save-stream.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -46,7 +47,9 @@ interface PreparedPcmStream {
 	createWritable(
 		byteLength: number,
 		sizeMode: DirectPcmDestinationSizeMode,
+		options?: DirectPcmWritableOptions,
 	): Promise<WritableStream<Uint8Array>>;
+	patchFinalPrefix?(bytes: Uint8Array): Awaitable<void>;
 	bytesWritten(): number;
 	commit(): Awaitable<Readonly<Record<string, unknown>>>;
 	abort(reason?: unknown): Awaitable<unknown>;
@@ -60,6 +63,7 @@ export interface DirectPcmContainerEncoder {
 export interface DirectPcmDestination {
 	write(chunk: Uint8Array): Promise<void>;
 	close(): Promise<void>;
+	patchFinalPrefix?(bytes: Uint8Array): Promise<void>;
 	abort(reason?: unknown): Promise<void>;
 	bytesWritten(): number;
 	commit(): Promise<Readonly<Record<string, unknown>>>;
@@ -72,6 +76,10 @@ export interface DirectPcmEncoder {
 
 export type DirectPcmDestinationSizeMode = 'exact' | 'maximum';
 
+export interface DirectPcmWritableOptions {
+	readonly finalPrefixByteLength?: number;
+}
+
 export type DirectPcmPreparation = Readonly<{
 	cancelled: Readonly<Record<string, unknown>> | null;
 	destination: DirectPcmDestination | null;
@@ -82,10 +90,16 @@ export async function openDirectPcmDestination(
 	plannedByteLength: number,
 	containerLabel = 'PCM',
 	sizeMode: DirectPcmDestinationSizeMode = 'exact',
+	writableOptions: DirectPcmWritableOptions = {},
 ): Promise<DirectPcmPreparation> {
 	if (!prepared || typeof prepared !== 'object') {
 		throw new TypeError(`The prepared ${containerLabel} destination is invalid.`);
 	}
+	const normalizedWritableOptions = normalizeWritableOptions(
+		writableOptions,
+		sizeMode,
+		plannedByteLength,
+	);
 	const mode = (prepared as Readonly<{ mode?: unknown }>).mode;
 	if (mode === 'cancelled') {
 		return Object.freeze({
@@ -98,9 +112,9 @@ export async function openDirectPcmDestination(
 		throw new TypeError(`The prepared ${containerLabel} destination has an unsupported mode.`);
 	}
 	const stream = prepared as PreparedPcmStream;
-	assertPreparedStream(stream, containerLabel);
+	assertPreparedStream(stream, containerLabel, Boolean(normalizedWritableOptions.finalPrefixByteLength));
 	try {
-		const writable = await stream.createWritable(plannedByteLength, sizeMode);
+		const writable = await stream.createWritable(plannedByteLength, sizeMode, normalizedWritableOptions);
 		if (!writable || typeof writable.getWriter !== 'function') {
 			throw new TypeError(`The prepared ${containerLabel} destination is not writable.`);
 		}
@@ -260,6 +274,15 @@ function directDestination(
 			await writer.close();
 			closed = true;
 		},
+		async patchFinalPrefix(bytes: Uint8Array): Promise<void> {
+			if (committed || abortPromise) {
+				throw new Error(`The direct ${containerLabel} destination cannot patch its final prefix.`);
+			}
+			if (typeof prepared.patchFinalPrefix !== 'function') {
+				throw new Error(`The direct ${containerLabel} destination cannot patch a final prefix.`);
+			}
+			await prepared.patchFinalPrefix(bytes);
+		},
 		abort(reason?: unknown): Promise<void> {
 			if (committed) return Promise.resolve();
 			abortPromise ??= Promise.resolve().then(() => prepared.abort(reason)).then(() => undefined);
@@ -279,12 +302,40 @@ function directDestination(
 	});
 }
 
-function assertPreparedStream(value: PreparedPcmStream, containerLabel: string): void {
+function assertPreparedStream(
+	value: PreparedPcmStream,
+	containerLabel: string,
+	requireFinalPrefix: boolean,
+): void {
 	for (const method of ['createWritable', 'bytesWritten', 'commit', 'abort'] as const) {
 		if (typeof value[method] !== 'function') {
 			throw new TypeError(`The prepared ${containerLabel} destination lacks ${method}.`);
 		}
 	}
+	if (requireFinalPrefix && typeof value.patchFinalPrefix !== 'function') {
+		throw new TypeError(`The prepared ${containerLabel} destination lacks patchFinalPrefix.`);
+	}
+}
+
+function normalizeWritableOptions(
+	options: DirectPcmWritableOptions,
+	sizeMode: DirectPcmDestinationSizeMode,
+	plannedByteLength: number,
+): DirectPcmWritableOptions {
+	const finalPrefixByteLength = options.finalPrefixByteLength ?? 0;
+	if (finalPrefixByteLength === 0) return Object.freeze({});
+	if (finalPrefixByteLength !== DIRECT_SAVE_FINAL_PREFIX_BYTE_LENGTH) {
+		throw new RangeError(
+			`Direct destination final prefixes must contain exactly ${DIRECT_SAVE_FINAL_PREFIX_BYTE_LENGTH} bytes.`,
+		);
+	}
+	if (sizeMode !== 'exact') {
+		throw new RangeError('Direct destination final prefixes require exact-size mode.');
+	}
+	if (!Number.isSafeInteger(plannedByteLength) || plannedByteLength < finalPrefixByteLength) {
+		throw new RangeError('The direct destination size is smaller than its final prefix.');
+	}
+	return Object.freeze({ finalPrefixByteLength });
 }
 
 function emptyPreparation(): DirectPcmPreparation {

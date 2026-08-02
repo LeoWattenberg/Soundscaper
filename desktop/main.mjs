@@ -316,8 +316,10 @@ function registerIpcHandlers(projectLibraryService) {
 		targetId: opaqueId(value?.targetId, 48),
 		size: value?.size,
 		maximumSize: value?.maximumSize,
+		finalPrefixByteLength: value?.finalPrefixByteLength,
 	}));
 	handle(IPC.writeChunk, (event, value) => saves.writeChunk({ owner: rendererSaveOwnerFor(event), writeId: opaqueId(value?.writeId, 32), offset: value?.offset, bytes: value?.bytes }));
+	handle(IPC.patchFinalPrefix, (event, value) => saves.patchFinalPrefix({ owner: rendererSaveOwnerFor(event), writeId: opaqueId(value?.writeId, 32), bytes: value?.bytes }));
 	handle(IPC.finishWrite, (event, id) => saves.finish(opaqueId(id, 32), { owner: rendererSaveOwnerFor(event) }));
 	handle(IPC.abortWrite, (event, id) => saves.abort(opaqueId(id, 32), { owner: rendererSaveOwnerFor(event) }));
 	handle(IPC.setLocale, async (_event, value) => {
