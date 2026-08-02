@@ -36,10 +36,13 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const expectedStatuses = {
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented',
+		'current-linked-wav-portable-archive': 'implemented',
 		'current-desktop-project-catalog-commit': 'implemented',
 		'current-desktop-managed-mixed-media-handoff': 'implemented',
 		'current-desktop-recipient-media-admission': 'implemented',
 		'current-desktop-linked-retained-video-original': 'implemented',
+		'current-kindful-linked-original-save-roots': 'implemented',
+		'current-desktop-linked-wav-managed-handoff': 'implemented',
 		'current-disposable-video-preview-relationship': 'implemented',
 		'project-feature-requirements-core': 'implemented',
 		'current-scape-feature-requirements': 'implemented',

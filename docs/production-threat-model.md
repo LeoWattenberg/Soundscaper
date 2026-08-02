@@ -277,7 +277,40 @@ Bind and whole-Blob resolve validate project ID, source ID, storage key, MIME ty
 
 Each linked-enabled shared load or handoff builds a fresh per-operation alias session authenticated by a module-private WeakMap, so a structurally forged proof is rejected. The session inspects every complete reachable video alias group before any linked body read and rejects conflicting geometry, incomplete aliases, different locator or content identity, and sibling binding replacement. The maintained acquisition, availability, and handoff paths finish group, metadata, and aggregate budget preflight before lazy first body resolution. Storage key alone never authorizes a source: an authentic session must also bind every exact project/source identity and geometry plus matching MIME, length, and digest metadata. Import creates no durable product-owned original-video copy or media row. Binding, descriptor-free shared admission, and visual activation likewise create no durable product-owned copy; only explicit managed handoff feeds the verified Blob into the maintained managed sender. A bounded same-store/process lifecycle coordinator serializes binding mutations, project deletion and whole-store clear. It inventories at most 100,000 binding rows and 128 unique exact locator/revision pairs and deduplicates aliases. The local commit completes before exact metadata release; it then re-inventories so a live alias prevents release. Release rejection cannot undo the committed local mutation: it reports a committed cleanup error and retains a bounded pending retry that rechecks aliases on a later serialized operation. A fulfilled false result denotes a stale or missing locator and settles cleanup. The external target remains untouched. Source-level reachability within a surviving project remains open; separate store or process activity is not serialized, crash and persistence durability are not qualified, and packaged executable/UI and operating-system behavior remain unqualified.
 
-`maintained-save-linked-video-binding-reachability` narrows that residual for maintained save-triggered linked-video binding reachability. The controller supplies authoritative roots for queued autosave, explicit flush, project-switch, and inactive-tab saves; it collects the source identities when the write reaches the save queue from every live Undo/Redo history and the clipboard, then passes one frozen deduplicated snapshot. Direct unqualified saves without that authoritative option skip destructive source-level cleanup. After project admission, the pass accepts only the exact schema 9 current project and its retained revisions, derives video reachability from timeline clips, Project Bin clips, and all feature-fallback declarations without first- or third-party gating, and suppresses cleanup for future, invalid, missing-current-revision, duplicate, or over-bound root state. It admits at most 64 revisions, 100,000 aggregate roots, 100,000 closed binding rows, and 128 unique exact locator/revision pairs. Project publication and revision pruning complete before cleanup; Desktop waits for the exact remote acknowledgement and runs maintenance under the per-project latest-mutation lock. One atomic local binding transaction, or the memory path's compensating batch, removes only unreachable bindings. The same-store lifecycle serializes save and binding work and carries bounded transient bind-before-project protection until one durable project graph reaches the source. A prune failure after commit is a committed report-only error: the binding batch is preserved, the save succeeds, and a later maintained save retries. Successful removal re-inventories aliases before exact locator-revision release, so any surviving alias retains the locator; release failure remains pending under the existing exact retry contract. None of these steps loads, stats, hashes, writes, or deletes an external video body. This is cooperative housekeeping for one live store and renderer. Separate stores, profiles, renderers, or processes, abrupt crash or power loss, hostile IndexedDB authority, and hostile renderer authority remain unqualified. Project publication, the local binding transaction, and main locator retirement remain separate rather than one cross-boundary atomic operation.
+`maintained-save-kindful-linked-original-binding-reachability` narrows maintained
+save-triggered kindful linked-original binding reachability. The controller's
+queued autosaves, flushes, inactive-tab saves, and project-switch or analysis
+explicit saves collect authoritative roots from every live Undo/Redo history,
+the clipboard's media kind, audio recording, and render-cache state only when
+the queued write executes. The resulting kindful audio/video reference array is
+frozen and deduplicated. A direct unqualified save skips destructive cleanup.
+The same textual source ID remains kind-distinct, a wrong-kind root does not
+retain a binding, and `protectedLinkedVideoSourceIds` remains a compatibility
+facade for direct callers.
+
+After admission, the current exact schema 9 project and at most 64 retained
+revisions provide timeline, Project Bin, and all feature-fallback declarations
+without publisher gating. The pass admits at most 100,000 aggregate roots,
+100,000 closed binding rows, and 128 exact locator references. Desktop waits for
+the remote acknowledgement and keeps the latest-mutation lock through the
+atomic local binding transaction. Bounded transient bind-before-project
+protection remains until the durable or authoritative live graph acknowledges
+the source; suppressed or failed maintenance retains one-save transient
+protection. A post-commit prune failure is report-only, so the save succeeds and
+a later maintained save retries. Release re-inventories every same-store alias
+before exact locator retirement.
+
+A memory and IndexedDB witness proves a no-owned-PCM linked WAV whose last
+durable revision has aged out stays canonically readable while a live audio root
+exists. When the last root disappears, the next maintained save releases the
+exact locator once and leaves the external WAV untouched. This remains one live
+store and renderer control: separate stores, profiles, renderers, or processes,
+abrupt crash or power loss, hostile IndexedDB, and hostile renderer authority
+remain unqualified. Project publication, the local binding transaction, and main
+locator retirement are separate. Cross-store/process coordination, relink or
+watch, audio range playback, packaged executable or operating-system behavior,
+third-party activation gating, and legacy private libraries remain outside the
+claim.
 
 `same-store-linked-video-project-duplication` narrows the maintained stored-project copy path. It duplicates only the loaded current project snapshot at revision zero; it does not copy the source project's revision history. Reachability is derived from current timeline clips, Project Bin clips, and exact-schema fallback declarations under the portable-format ceiling of 4,094 reachable source identities. Before any alias write, the alias repository validates a complete inventory of at most 100,000 closed binding rows and 128 unique exact locator/revision pairs, rejects malformed rows and conflicting revisions, rejects any pre-existing destination binding, charges the prospective row count, and requires every copied source binding to match the reachable video source's storage key, canonical MIME, and complete video geometry. Only an existing source-project binding for a reachable video source becomes a destination alias. Each alias preserves the exact locator, locator revision, length, digest, and source shape but receives a fresh cryptographic binding token and bind time. The memory path performs its preflight before a synchronous rollback-capable batch; IndexedDB performs the inventory, preflight, and alias writes in one readwrite binding-store transaction. This operation does not invoke the platform locator port: it does not load, stat, hash, materialize, release, or otherwise touch the external video body or private path.
 

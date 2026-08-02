@@ -469,16 +469,20 @@ Either fulfilled `true` or `false` settles the pending exact reference because
 release failure never rolls back the local commit, and locator cleanup still
 never stats, writes, or deletes the external video file.
 
-An opt-in maintained controller save makes source-level cleanup a separate part
-of that same live-store lifecycle. Ordinary autosave and maintained explicit-save
-paths snapshot the complete live-session source identities when the queued
-write begins, after any earlier queued save has settled rather than when an
-autosave timer is scheduled. Those authoritative roots include every open
-tab's present, Undo, and Redo histories, the session clipboard, a recording in
-progress, and clip time/pitch render-cache protection. The maintained inactive
-dirty-tab close path takes the same live-session snapshot. Direct store callers
-that omit `protectedLinkedVideoSourceIds` still save normally but perform no
-destructive source-level cleanup: no project binding is pruned on that save.
+An opt-in maintained controller save makes kindful source-level cleanup a
+separate part of that same live-store lifecycle. Maintained queued autosaves,
+flushes, inactive-tab saves, and project-switch or analysis explicit saves
+capture the complete live-session roots when the queued write executes, after
+any earlier queued save has settled rather than when an autosave timer is
+scheduled. The resulting frozen, deduplicated kindful references derive exactly
+from every open tab's present, Undo, and Redo clip and fallback references, the
+session clipboard's media kind, an audio recording in progress, and audio clip
+time/pitch render-cache protection. The same textual source ID in audio and
+video remains distinct, and a wrong-kind root does not retain a binding.
+`protectedLinkedVideoSourceIds` remains a compatibility facade for direct
+callers. Direct store callers that omit authoritative kindful roots still save
+normally but perform no destructive source-level cleanup: no project binding is
+pruned on that save.
 
 After an opted-in save has published the current project and compacted its
 retained revision set, the reachability repository validates the current
@@ -486,10 +490,11 @@ exact-schema-9 project plus every retained exact-schema-9 revision. Each revisio
 must have its canonical key, project identity, and revision identity, and the
 set must contain an exact revision matching the current project. Current and
 retained graphs are conservatively unioned even if two validated documents at
-the same revision diverge. Durable video roots include timeline clips, Project
-Bin clips, and every feature-requirement fallback, without first-party or
-third-party provenance gating. Caller-supplied live roots and transient import
-roots are retention roots for this pass but do not become durable project roots.
+the same revision diverge. Durable audio and video roots include timeline
+clips, Project Bin clips, and every feature-requirement fallback, without
+first-party or third-party provenance gating. Caller-supplied live roots and
+transient import roots are retention roots for this pass but do not become
+durable project roots.
 
 The pass admits at most 64 retained revisions, 100,000 aggregate durable,
 caller, and transient source roots, 100,000 complete binding rows, and 128
@@ -517,10 +522,10 @@ Every successful binding publication is also remembered transiently by the
 coordinator. This gives the bind-before-canonical-import window transient
 protection until a later opted-in pass acknowledges the source in either the
 durable graph or the authoritative caller live roots. Suppressed and failed
-maintenance retain transient protection. The coordinator-wide transient set has its own
-100,000-source ceiling, and overflow blocks destructive cleanup for the
-affected project until project deletion or whole-store clear rather than
-guessing that the missing root is dead.
+maintenance retain one-save transient protection. The coordinator-wide
+transient set has its own 100,000-source ceiling, and overflow blocks destructive
+cleanup for the affected project until project deletion or whole-store clear
+rather than guessing that the missing root is dead.
 
 An unreachable binding deletion returns only sorted, deduplicated exact locator
 references. Before exact release, the coordinator re-inventories all current
@@ -531,7 +536,11 @@ and lets a later opted-in save retry the prune. Locator-release failure retains
 the exact ID/revision pair for the existing serialized retry path. Reachability
 inventory and release perform no external-file stat, write, deletion, or body
 load; a successful exact release changes only main-private locator registry
-metadata and never the user-selected video.
+metadata and never the user-selected media. The memory and IndexedDB acceptance
+witness proves that a no-owned-PCM linked WAV survives after its last durable
+revision ages out while a live audio root keeps it canonically readable. When
+the last root disappears, the next maintained save removes the binding and
+releases its exact locator once while leaving the external WAV untouched.
 
 This source-reachability claim covers one live `AudioEditorProjectStore` and its
 coordinator in one renderer lifecycle. Separate stores, profiles, renderer or
@@ -541,6 +550,9 @@ bounds do not qualify arbitrary hostile-row clone cost or process RSS. Project
 publication, the memory or IndexedDB binding prune, alias re-inventory, and
 main-process exact release are not one cross-boundary transaction; interruption
 between them may safely leak metadata until a later maintained pass.
+Cross-store or cross-process coordination, relink or watch, audio range
+playback, packaged executable or operating-system qualification, third-party
+activation gating, and legacy private libraries are outside this claim.
 
 That same lifecycle coordinator now serializes project duplication with binding
 publication, exact unlink, startup reconciliation, project deletion, and
