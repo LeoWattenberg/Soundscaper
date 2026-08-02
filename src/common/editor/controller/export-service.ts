@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { measureBextLoudness } from '../broadcast-loudness.ts';
+import { isProjectAudioFallbackIntegrityError } from '../project-fallback-integrity-audio.ts';
+import {
+	admitAudioRenderedFallbackExport,
+	assertAudioRenderedFallbackExportSettings,
+	projectForAudioRenderedFallbackExport,
+} from './audio-rendered-fallback-export.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
@@ -11,6 +17,12 @@ export interface ExportServiceRuntime {
 	readonly [name: string]: any;
 }
 type RuntimeValue = ExportServiceRuntime[string];
+
+interface ExportRenderSources {
+	readonly sourceMap: RuntimeValue;
+	readonly chunkSources: RuntimeValue | null;
+	readonly prepareTimePitchCaches: boolean;
+}
 
 const NO_TASK_PROGRESS = Object.freeze({
 	setPhase: () => false,
@@ -24,12 +36,12 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createWavStreamEncoder, encodeAiff, encodeWav,
 		ffmpeg, fileService,
-		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,
+		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings, playbackProjects,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches, productName,
 		getProject, projectGeneration, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
-		stemProject, throwIfAborted, toggleExport,
-		updateExportProgress, taskProgress,
+		stemProject, store, throwIfAborted, toggleExport,
+		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	} = runtime;
 	const exportVideo = createEditorVideoExportAction(runtime, renderSnapshot);
 	async function handleExportAction(action: RuntimeValue, requestedSettings: RuntimeValue = null) {
@@ -45,10 +57,23 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		if (String(requestedSettings?.format || '').startsWith('video-')) {
 			return exportVideo(requestedSettings);
 		}
-		if (!getProject().clips.length || state.exportAbort) return;
-		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
+		if (state.exportAbort) return;
+		const canonicalProject = getProject();
+		const delivery = projectForAudioRenderedFallbackExport(canonicalProject, playbackProjects);
+		let settings: RuntimeValue;
+		try {
+			settings = normalizeExportSettings(requestedSettings || {});
+			assertAudioRenderedFallbackExportSettings(delivery, settings);
+		} catch (error) {
+			handleError(error);
+			return;
+		}
+		if (!delivery.project.clips.length) return;
+		if (!delivery.audioRenderedFallback && hasMissingTimelineSources()) {
+			throw new Error(copy.localSourcesMissing);
+		}
 		const generation = ++state.exportGeneration;
-		const projectToken = projectGeneration.capture(getProject().id);
+		const projectToken = projectGeneration.capture(canonicalProject.id);
 		const exportTask = lifetime.startTask('export');
 		const abort = Object.freeze({ signal: exportTask.signal, abort: () => lifetime.cancelTask('export') });
 		const assertExportCurrent = () => {
@@ -60,12 +85,25 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		state.exportAbort = abort;
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
-		let exportProject = cloneProject(getProject());
-		const exportSources = new Map(sourceBuffers);
+		let exportProject = cloneProject(delivery.project);
+		let exportRenderSources: ExportRenderSources;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectPcmDestination | null = null;
 		try {
-			const settings = normalizeExportSettings(requestedSettings || {});
+			const fallbackProvider = await admitAudioRenderedFallbackExport(canonicalProject, delivery, {
+				store, verifyProjectFallbackIntegrity,
+			}, { signal: abort.signal, assertCurrent: assertExportCurrent });
+			exportRenderSources = fallbackProvider && delivery.audioRenderedFallback
+				? Object.freeze({
+					sourceMap: new Map(),
+					chunkSources: new Map([[delivery.audioRenderedFallback.sourceId, fallbackProvider]]),
+					prepareTimePitchCaches: false,
+				})
+				: Object.freeze({
+					sourceMap: new Map(sourceBuffers),
+					chunkSources: null,
+					prepareTimePitchCaches: true,
+				});
 			const plan = createExportPlan(exportProject, {
 				...settings,
 				inputChannelCount: exportProject.masterChannels,
@@ -100,7 +138,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			let directOutput = null;
 			if (plan.mode === 'mix') {
 				const encoded = await renderAndEncode(
-					exportProject, plan, settings, abort.signal, exportSources,
+					exportProject, plan, settings, abort.signal, exportRenderSources,
 					{ start: 0, end: 1 },
 					pendingDirectDestination,
 				);
@@ -119,7 +157,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 						throwIfAborted(abort.signal);
 						const output = plan.outputs[index];
 						const snapshot = stemProject(exportProject, output.trackId);
-						const encoded = await renderAndEncode(snapshot, plan, settings, abort.signal, exportSources, {
+						const encoded = await renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, {
 							start: index / plan.outputs.length,
 							end: (index + 1) / plan.outputs.length,
 						});
@@ -231,7 +269,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 
 	async function renderAndEncode(
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
-		sourceMap: RuntimeValue = sourceBuffers,
+		renderSources: ExportRenderSources,
 		progressRange: RuntimeValue = { start: 0, end: 1 },
 		directDestination: DirectPcmDestination | null = null,
 	) {
@@ -245,7 +283,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		if (plan.render.strategy === 'realtime-stream') {
 			setStatus(copy.largeProjectRealtimeExport);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, sourceMap, directDestination);
+			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination);
 		}
 		try {
 			const rendered = await renderSnapshot(snapshot, {
@@ -254,7 +292,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
 				outputFrames: plan.range.durationFrames + plan.tailFrames,
 				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
-			}, sourceMap, signal);
+			}, renderSources.sourceMap, signal, renderSources.chunkSources, renderSources.prepareTimePitchCaches);
 			throwIfAborted(signal);
 			taskProgress?.setActivePhase?.(copy.encoding, {
 				start: progressRange.start + progressSpan * 0.7,
@@ -263,23 +301,34 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			});
 			return await encodeRendered(rendered, plan, settings, signal);
 		} catch (error) {
-			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError') throw error;
+			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError'
+				|| isProjectAudioFallbackIntegrityError(error)) throw error;
 			setStatus(copy.realtimeExportFallback);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, sourceMap);
+			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination);
 		}
 	}
 
-	async function renderSnapshot(snapshot: RuntimeValue, range: RuntimeValue, sourceMap: RuntimeValue = sourceBuffers, signal: RuntimeValue = null) {
+	async function renderSnapshot(
+		snapshot: RuntimeValue,
+		range: RuntimeValue,
+		sourceMap: RuntimeValue = sourceBuffers,
+		signal: RuntimeValue = null,
+		chunkSources: RuntimeValue = null,
+		prepareTimePitchCaches = true,
+	) {
 		throwIfAborted(signal);
 		if (typeof options.renderSnapshot === 'function') {
-			const rendered = await options.renderSnapshot(snapshot, range, sourceMap, signal);
+			const rendered = chunkSources === null
+				? await options.renderSnapshot(snapshot, range, sourceMap, signal)
+				: await options.renderSnapshot(snapshot, range, sourceMap, signal, chunkSources);
 			throwIfAborted(signal);
 			return rendered;
 		}
-		await prepareCommittedTimePitchCaches(snapshot, signal);
+		if (prepareTimePitchCaches) await prepareCommittedTimePitchCaches(snapshot, signal);
 		const renderEngine = createCacheAwareRenderEngine();
 		try {
-			renderEngine.loadProject(snapshot, sourceMap);
+			if (chunkSources === null) renderEngine.loadProject(snapshot, sourceMap);
+			else renderEngine.loadProject(snapshot, sourceMap, { chunkSources });
 			const rendered = await renderEngine.renderMix({ ...withRenderProgress(range), signal });
 			throwIfAborted(signal);
 			return rendered;
@@ -357,10 +406,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 
 	async function renderRealtimeEncoded(
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
-		sourceMap: RuntimeValue = sourceBuffers,
+		renderSources: ExportRenderSources,
 		directDestination: DirectPcmDestination | null = null,
 	) {
-		await prepareCommittedTimePitchCaches(snapshot, signal);
+		if (renderSources.prepareTimePitchCaches) await prepareCommittedTimePitchCaches(snapshot, signal);
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		const nativeAiff = plan.format === 'aiff';
 		const nativeWav = plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64';
@@ -412,7 +461,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const outputTransform: { current: RealtimeExportPcmTransform | null } = { current: null };
 		let renderedSampleRate = renderSampleRate;
 		try {
-			renderEngine.loadProject(snapshot, sourceMap);
+			if (renderSources.chunkSources === null) renderEngine.loadProject(snapshot, renderSources.sourceMap);
+			else renderEngine.loadProject(snapshot, renderSources.sourceMap, {
+				chunkSources: renderSources.chunkSources,
+			});
 			await renderEngine.renderMixRealtime({
 				startFrame: plan.range.startFrame,
 				endFrame: plan.range.endFrame,
