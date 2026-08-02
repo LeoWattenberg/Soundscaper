@@ -89,6 +89,11 @@ export interface CanonicalCompressedPlanCore extends DirectCompressedDescriptor 
 	readonly sampleRate: number;
 }
 
+export interface CanonicalRealtimeCompressedPlanCapture {
+	readonly core: CanonicalCompressedPlanCore;
+	readonly plan: DirectCompressedPlan;
+}
+
 export interface DirectCompressedContract extends DirectCompressedDescriptor {
 	readonly fileName: string;
 	readonly fileTypes: readonly Readonly<Record<string, unknown>>[];
@@ -111,6 +116,21 @@ export function captureCanonicalCompressedPlanCore(
 		const snapshot = capturePlanSnapshot(plan);
 		if (!snapshot) return null;
 		return captureCanonicalCore(snapshot);
+	} catch {
+		return null;
+	}
+}
+
+/** Own one canonical realtime plan snapshot for downstream route admission. */
+export function captureCanonicalRealtimeCompressedPlan(
+	plan: DirectCompressedPlan,
+): CanonicalRealtimeCompressedPlanCapture | null {
+	try {
+		const snapshot = capturePlanSnapshot(plan);
+		const core = snapshot ? captureCanonicalCore(snapshot) : null;
+		if (!snapshot || !core || !isRecord(snapshot.render)
+			|| !canonicalRender(snapshot.render, 'realtime-stream', snapshot)) return null;
+		return Object.freeze({ core, plan: snapshot });
 	} catch {
 		return null;
 	}

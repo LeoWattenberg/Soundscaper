@@ -11,6 +11,10 @@ import {
 	type SequentialZip32Result,
 	type Zip32StreamInput,
 } from './sequential-zip32-stream.ts';
+import {
+	captureDirectCompressedStemArchiveContract,
+	type DirectCompressedStemArchiveContract,
+} from './direct-compressed-stem-archive-plan.ts';
 import { inspectZip32Layout, type Zip32Layout } from './zip32.ts';
 
 const ZIP_CONTAINER_LABEL = 'ZIP';
@@ -92,21 +96,37 @@ interface ExactDirectStemArchivePlan extends DirectStemArchivePlan {
 	readonly outputs: readonly DirectStemArchiveOutput[];
 }
 
-interface DirectStemArchiveContract {
+interface DirectNativeStemArchiveContract {
+	readonly kind: 'exact-native-pcm';
 	readonly archiveByteLength: number;
 	readonly archiveFileName: string;
 	readonly entryByteLength: number;
 	readonly format: 'wav' | 'aiff' | 'bwf';
 	readonly outputs: readonly DirectStemArchiveOutput[];
+	readonly stagingByteLength: number;
 	readonly zip32: Zip32Layout;
 }
+
+interface DirectCompressedStemContract {
+	readonly kind: 'bounded-realtime-compressed';
+	readonly archiveByteLength: number;
+	readonly archiveFileName: string;
+	readonly entryByteLength: number;
+	readonly fingerprint: string;
+	readonly format: DirectCompressedStemArchiveContract['format'];
+	readonly outputs: readonly DirectStemArchiveOutput[];
+	readonly stagingByteLength: number;
+	readonly zip32: Zip32Layout;
+}
+
+type DirectStemArchiveContract = DirectNativeStemArchiveContract | DirectCompressedStemContract;
 
 export type DirectStemArchiveDestination = DirectPcmDestination;
 export type DirectStemArchivePreparation = DirectPcmPreparation;
 
 const preparedContracts = new WeakMap<DirectStemArchiveDestination, DirectStemArchiveContract>();
 
-/** Select and open an exact direct destination only for validated native-PCM ZIP stems. */
+/** Select and open an exact native or bounded compressed ZIP stem destination. */
 export async function prepareDirectStemArchiveDestination(
 	fileService: DirectStemArchiveFileService,
 	plan: DirectStemArchivePlan,
@@ -131,6 +151,7 @@ export async function prepareDirectStemArchiveDestination(
 		prepared,
 		contract.archiveByteLength,
 		ZIP_CONTAINER_LABEL,
+		contract.kind === 'exact-native-pcm' ? 'exact' : 'maximum',
 	);
 	if (result.destination) {
 		preparedContracts.set(result.destination, contract);
@@ -143,9 +164,9 @@ export async function prepareDirectStemArchiveDestination(
 	return result;
 }
 
-/** Largest sequential intermediate retained while the final archive streams directly. */
+/** Raw one-render storage staging payload charged while the final archive streams directly. */
 export function directStemArchiveTemporaryBytes(plan: DirectStemArchivePlan): number | null {
-	return exactDirectStemArchivePlan(plan) ? plan.outputFileBytesPerRender : null;
+	return captureContract(plan)?.stagingByteLength ?? null;
 }
 
 export function commitDirectStemArchiveDestination(
@@ -163,12 +184,17 @@ export function commitDirectStemArchiveDestination(
 	);
 }
 
-/** Stream exact native-PCM stems into the already-opened ZIP destination in plan order. */
+/** Stream admitted stems into the already-opened ZIP destination in plan order. */
 export async function streamDirectStemArchive(
 	options: DirectStemArchiveStreamOptions,
 ): Promise<DirectStemArchiveStreamResult> {
 	const { destination, plan, signal } = options;
-	const contract = assertPreparedPlan(destination, plan);
+	let contract: DirectStemArchiveContract;
+	try {
+		contract = assertPreparedPlan(destination, plan);
+	} catch (error) {
+		throw await abortWithPrimary(destination, error);
+	}
 	const archive = await createSequentialZip32Archive<DirectStemArchiveDestination>({
 		write: (chunk) => destination.write(chunk),
 		async close() {
@@ -187,8 +213,7 @@ export async function streamDirectStemArchive(
 				assertReady(options);
 				const input = encoded.blob ?? encoded.bytes;
 				const inputBytes = zipInputByteLength(input);
-				if (inputBytes !== contract.entryByteLength
-					|| (encoded.byteLength !== undefined && encoded.byteLength !== contract.entryByteLength)) {
+				if (!validEntryByteLength(contract, inputBytes, encoded.byteLength)) {
 					throw new Error(`Direct stem archive input byte length does not match its plan: ${output.fileName}`);
 				}
 				await archive.add(output.fileName, input!, signal);
@@ -225,6 +250,15 @@ export function commitPreparedDirectStemArchiveDestination(
 	assertReadyToCommit: () => void,
 ): Promise<Readonly<Record<string, unknown>>> {
 	const contract = assertPreparedPlan(destination, plan);
+	if (contract.kind === 'bounded-realtime-compressed') {
+		return commitBoundedStemArchiveDestination(
+			destination,
+			plan,
+			contract,
+			emittedByteLength,
+			assertReadyToCommit,
+		);
+	}
 	return commitDirectPcmDestination(
 		destination,
 		contract.archiveByteLength,
@@ -284,17 +318,46 @@ function exactDirectStemArchivePlan(
 }
 
 function captureContract(plan: DirectStemArchivePlan): DirectStemArchiveContract | null {
+	const format = ownStringField(plan, 'format');
+	if (!format) return null;
+	if (!DIRECT_STEM_FORMATS.has(format)) return captureCompressedContract(plan);
 	if (!exactDirectStemArchivePlan(plan)) return null;
 	return Object.freeze({
+		kind: 'exact-native-pcm',
 		archiveByteLength: plan.archive.expectedByteLength,
 		archiveFileName: plan.archive.fileName,
 		entryByteLength: plan.outputFileBytesPerRender,
-		format: plan.format as DirectStemArchiveContract['format'],
+		format: plan.format as DirectNativeStemArchiveContract['format'],
 		outputs: Object.freeze(plan.outputs.map((output) => Object.freeze({
 			fileName: output.fileName,
 			trackId: output.trackId,
 		}))),
+		stagingByteLength: plan.outputFileBytesPerRender,
 		zip32: Object.freeze({ ...plan.archive.zip32 }),
+	});
+}
+
+function ownStringField(value: unknown, field: string): string | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, field);
+	return descriptor?.enumerable === true && 'value' in descriptor && typeof descriptor.value === 'string'
+		? descriptor.value
+		: null;
+}
+
+function captureCompressedContract(plan: DirectStemArchivePlan): DirectCompressedStemContract | null {
+	const contract = captureDirectCompressedStemArchiveContract(plan);
+	if (!contract) return null;
+	return Object.freeze({
+		kind: 'bounded-realtime-compressed',
+		archiveByteLength: contract.maximumZip32.archiveByteLength,
+		archiveFileName: contract.archiveFileName,
+		entryByteLength: contract.entryMaximumByteLength,
+		fingerprint: contract.fingerprint,
+		format: contract.format,
+		outputs: contract.outputs,
+		stagingByteLength: contract.stagingByteLength,
+		zip32: contract.maximumZip32,
 	});
 }
 
@@ -311,10 +374,14 @@ function assertPreparedPlan(
 }
 
 function sameContract(left: DirectStemArchiveContract, right: DirectStemArchiveContract): boolean {
-	return left.archiveByteLength === right.archiveByteLength
+	return left.kind === right.kind
+		&& left.archiveByteLength === right.archiveByteLength
 		&& left.archiveFileName === right.archiveFileName
 		&& left.entryByteLength === right.entryByteLength
 		&& left.format === right.format
+		&& left.stagingByteLength === right.stagingByteLength
+		&& (left.kind !== 'bounded-realtime-compressed'
+			|| (right.kind === 'bounded-realtime-compressed' && left.fingerprint === right.fingerprint))
 		&& sameZip32Layout(left.zip32, right.zip32)
 		&& left.outputs.length === right.outputs.length
 		&& left.outputs.every((output, index) => (
@@ -364,11 +431,58 @@ function assertArchiveResult(
 	destination: DirectStemArchiveDestination,
 	result: SequentialZip32Result<DirectStemArchiveDestination>,
 ): void {
+	const exact = contract.kind === 'exact-native-pcm';
 	if (result.output !== destination
-		|| result.byteLength !== contract.archiveByteLength
-		|| !sameZip32Layout(result.layout, contract.zip32)) {
+		|| result.byteLength !== result.layout.archiveByteLength
+		|| result.layout.entryCount !== contract.outputs.length
+		|| result.layout.eligible !== true
+		|| (exact
+			? result.byteLength !== contract.archiveByteLength
+				|| !sameZip32Layout(result.layout, contract.zip32)
+			: result.byteLength > contract.archiveByteLength
+				|| result.layout.localByteLength > contract.zip32.localByteLength
+				|| result.layout.centralDirectoryByteLength !== contract.zip32.centralDirectoryByteLength)) {
 		throw new Error('The streamed ZIP archive does not match its exact plan.');
 	}
+}
+
+function validEntryByteLength(
+	contract: DirectStemArchiveContract,
+	inputByteLength: number,
+	reportedByteLength: number | undefined,
+): boolean {
+	if (reportedByteLength !== undefined && reportedByteLength !== inputByteLength) return false;
+	return contract.kind === 'exact-native-pcm'
+		? inputByteLength === contract.entryByteLength
+		: inputByteLength > 0 && inputByteLength <= contract.entryByteLength;
+}
+
+async function commitBoundedStemArchiveDestination(
+	destination: DirectStemArchiveDestination,
+	plan: DirectStemArchivePlan,
+	contract: DirectCompressedStemContract,
+	emittedByteLength: number,
+	assertReadyToCommit: () => void,
+): Promise<Readonly<Record<string, unknown>>> {
+	if (!Number.isSafeInteger(emittedByteLength) || emittedByteLength <= 0
+		|| emittedByteLength > contract.archiveByteLength) {
+		throw new Error('The streamed ZIP archive byte count exceeds its admitted maximum.');
+	}
+	if (destination.bytesWritten() !== emittedByteLength) {
+		throw new Error('The streamed ZIP destination byte count does not match its actual archive size.');
+	}
+	assertPreparedPlan(destination, plan);
+	assertReadyToCommit();
+	const current = assertPreparedPlan(destination, plan);
+	if (current.kind !== 'bounded-realtime-compressed'
+		|| current.fingerprint !== contract.fingerprint) {
+		throw new Error('The direct stem archive plan changed before publication.');
+	}
+	const published = await destination.commit();
+	if (published.size !== emittedByteLength) {
+		throw new Error('The committed ZIP byte count does not match its actual archive size.');
+	}
+	return published;
 }
 
 async function abortWithPrimary(
