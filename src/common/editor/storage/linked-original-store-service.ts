@@ -160,10 +160,14 @@ export class LinkedOriginalStoreService {
 
 	reconcileOriginalLocators(inventory: LinkedOriginalReconciliationInventory): Promise<boolean> {
 		return this.#lifecycle.run(async () => {
-			if (!this.#repositories.linkedOriginals || !await inventory.isDurable()) return false;
-			return (await this.#repositories.linkedOriginals.reconcileLocators(
-				await inventory.projectIds(),
-			)) !== null;
+			const generic = this.#repositories.linkedOriginals;
+			const legacyVideo = this.#repositories.linkedVideoOriginals;
+			if ((!generic && !legacyVideo) || !await inventory.isDurable()) return false;
+			const projectIds = await inventory.projectIds();
+			if (generic && await generic.reconcileLocators(projectIds) !== null) return true;
+			return legacyVideo
+				? await legacyVideo.reconcileLocators(projectIds) !== null
+				: false;
 		});
 	}
 
