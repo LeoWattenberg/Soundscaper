@@ -137,6 +137,33 @@ test('linked-video chooser releases a locator when cancellation wins after selec
 	assert.deepEqual(releases, [LOCATOR_ID]);
 });
 
+test('linked-video load releases an admitted read when cancellation wins with the response', async () => {
+	const controller = new AbortController();
+	const reason = new Error('cancel linked load');
+	const releasedReads: string[] = [];
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseLinkedVideoOriginal() { return null; },
+			async loadLinkedVideoOriginal() {
+				controller.abort(reason);
+				return { locatorRevision: LOCATOR_REVISION, descriptor: readDescriptor() };
+			},
+			async releaseLinkedVideoOriginal() { return true; },
+			async releaseRead(id: string) { releasedReads.push(id); return true; },
+		},
+		fetch: async () => { throw new Error('must not fetch an aborted read'); },
+	});
+
+	await assert.rejects(
+		Promise.resolve(service.linkedVideoOriginalPort?.load(LOCATOR_ID, {
+			expectedRevision: LOCATOR_REVISION,
+			signal: controller.signal,
+		})),
+		(error: unknown) => error === reason,
+	);
+	assert.deepEqual(releasedReads, [READ_ID]);
+});
+
 test('linked-video chooser preserves primary and locator cleanup failures', async () => {
 	const service = createAudioEditorFileService({
 		bridge: {

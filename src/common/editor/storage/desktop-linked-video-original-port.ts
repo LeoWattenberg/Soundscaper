@@ -116,10 +116,14 @@ export function createDesktopLinkedVideoOriginalAccess(
 			: locatorToken(expectedRevisionValue, 'expected locator revision');
 		throwIfAborted(signal);
 		const raw = await bridge.loadLinkedVideoOriginal?.({ locatorId, expectedRevision });
-		throwIfAborted(signal);
-		if (raw === null) return null;
+		if (raw === null) {
+			throwIfAborted(signal);
+			return null;
+		}
 		const loaded = closedRecord(raw, LOAD_FIELDS, 'Linked-video load response');
 		const locatorRevision = locatorToken(loaded.locatorRevision, 'locator revision');
+		// Once main has returned a read descriptor, route cancellation through
+		// the ordinary descriptor opener so its capability cleanup always runs.
 		const file = await options.openReadDescriptor(loaded.descriptor, { signal });
 		throwIfAborted(signal);
 		return Object.freeze({ file, locatorRevision });
