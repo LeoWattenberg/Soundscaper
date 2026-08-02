@@ -68,6 +68,35 @@ test('late video derivatives are revoked and cannot resurrect a superseded visua
 	assert.deepEqual(urls.revoked, ['blob:1']);
 });
 
+test('video activation resolves an exact project-scoped linked original after retained media misses', async () => {
+	const project = projectFixture();
+	const linkedBody = new Blob(['linked-video']);
+	const resolutions: Array<Readonly<{ projectId: string; sourceId: string }>> = [];
+	const service = createProjectVisualService({
+		getProject: () => project,
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			resolveLinkedVideoOriginal: async (projectId, source) => {
+				resolutions.push({ projectId, sourceId: source.id });
+				return { blob: linkedBody };
+			},
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+
+	const visual = await service.activateVideoSource(project.sources[1]);
+
+	assert.equal(visual?.mediaUrl, 'blob:1');
+	assert.deepEqual(resolutions, [{ projectId: project.id, sourceId: 'video' }]);
+});
+
 test('replacing and disposing video visuals revokes every owned URL exactly once', async () => {
 	const urls = fakeUrlPort();
 	const project = projectFixture();

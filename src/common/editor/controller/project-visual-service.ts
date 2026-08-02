@@ -38,6 +38,10 @@ interface VideoDerivative extends Readonly<Record<string, unknown>> {
 
 interface ProjectVisualStore {
 	loadMediaAsset(sourceId: string): Promise<Blob | null>;
+	resolveLinkedVideoOriginal?(
+		projectId: string,
+		source: ProjectVisualSource,
+	): Promise<Readonly<{ readonly blob: Blob }> | null>;
 	listVideoDerivatives(sourceId: string): Promise<readonly VideoDerivative[]>;
 	loadVideoDerivative(sourceId: string, derivative: VideoDerivative): Promise<Blob | null>;
 }
@@ -182,8 +186,16 @@ export function createProjectVisualService(
 		const operation = nextGeneration(source.id);
 		const sourceId = source.storageKey || source.id;
 		const ownedUrls: string[] = [];
-		const mediaBlob = await dependencies.store.loadMediaAsset(sourceId);
+		let mediaBlob = await dependencies.store.loadMediaAsset(sourceId);
 		if (!isCurrent(source.id, operation)) return null;
+		if (!mediaBlob && dependencies.store.resolveLinkedVideoOriginal) {
+			const project = dependencies.getProject();
+			if (project) {
+				const linked = await dependencies.store.resolveLinkedVideoOriginal(project.id, source);
+				if (!isCurrent(source.id, operation) || dependencies.getProject()?.id !== project.id) return null;
+				mediaBlob = linked?.blob ?? null;
+			}
+		}
 		if (!mediaBlob) throw new Error('The original video file is missing.');
 		const mediaUrl = dependencies.url.createObjectURL(mediaBlob);
 		if (mediaUrl) ownedUrls.push(mediaUrl);
