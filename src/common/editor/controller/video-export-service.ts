@@ -6,6 +6,13 @@ import {
 	projectForVideoRenderedFallbackExport,
 	sanitizeVideoExportFileName,
 } from './video-rendered-fallback-export.ts';
+import {
+	commitDirectVideoDestination,
+	directVideoCancellation,
+	prepareDirectVideoDestination,
+	validateDirectVideoOutput,
+	type DirectVideoDestination,
+} from './direct-video-export.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -69,6 +76,7 @@ export function createEditorVideoExportAction(
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
 		let pendingCleanup = null;
+		let pendingDirectDestination: DirectVideoDestination | null = null;
 		try {
 			const admittedVideoFallback = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
@@ -81,6 +89,17 @@ export function createEditorVideoExportAction(
 				includeAudio,
 				canvas: requestedSettings.canvas,
 			});
+			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
+			const directPreparation = await prepareDirectVideoDestination(
+				fileService,
+				plan,
+				fileName,
+				requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
+				abort.signal,
+			);
+			if (directPreparation.cancelled) return directPreparation.cancelled;
+			assertVideoExportCurrent();
+			pendingDirectDestination = directPreparation.destination;
 			const rawVideoBytes = plan.inputs
 				.filter((input: RuntimeValue) => input.kind === 'video-source')
 				.reduce((total: RuntimeValue, input: RuntimeValue) => {
@@ -119,12 +138,65 @@ export function createEditorVideoExportAction(
 			}
 			setStatus(copy.encoding);
 			progressTask.setPhase(copy.encoding, { start: 0.4, end: 1, value: 0 });
-			const encoded = await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
-				signal: abort.signal,
-			});
+			let encoded;
+			if (pendingDirectDestination) {
+				try {
+					encoded = await ffmpeg.encodeVideoToSink(
+						videoBlobs,
+						audioMixBlob,
+						plan,
+						pendingDirectDestination,
+						{ signal: abort.signal, assertCurrent: assertVideoExportCurrent },
+					);
+				} catch (error) {
+					const cancellation = directVideoCancellation(error);
+					if (cancellation) {
+						pendingDirectDestination = null;
+						return cancellation;
+					}
+					throw error;
+				}
+			} else {
+				encoded = await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
+					signal: abort.signal,
+				});
+			}
 			assertVideoExportCurrent();
+			if (pendingDirectDestination) {
+				const directOutput = validateDirectVideoOutput(
+					encoded,
+					pendingDirectDestination,
+					plan,
+					fileName,
+				);
+				if (state.outputUrl) globalThis.URL?.revokeObjectURL?.(state.outputUrl);
+				await state.outputCleanup?.();
+				assertVideoExportCurrent();
+				state.outputUrl = null;
+				state.outputCleanup = null;
+				state.exportOutput = null;
+				const published = await commitDirectVideoDestination(
+					pendingDirectDestination,
+					plan,
+					fileName,
+					directOutput.byteLength,
+					assertVideoExportCurrent,
+				);
+				pendingDirectDestination = null;
+				const result = Object.freeze({
+					url: null,
+					fileName: published.fileName || fileName,
+					mimeType: directOutput.mimeType,
+					size: published.size,
+					method: published.method,
+				});
+				try { assertVideoExportCurrent(); } catch { return result; }
+				state.exportOutput = result;
+				setStatus(copy.done, 'success');
+				publishDocumentSnapshot();
+				return result;
+			}
 			const blob = new Blob([encoded.bytes], { type: encoded.mimeType });
-			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
 			if (state.outputUrl) globalThis.URL?.revokeObjectURL?.(state.outputUrl);
 			await state.outputCleanup?.();
 			assertVideoExportCurrent();
@@ -154,7 +226,18 @@ export function createEditorVideoExportAction(
 			setStatus(copy.done, 'success');
 			publishDocumentSnapshot();
 			return state.exportOutput;
-		} catch (error) {
+		} catch (caughtError) {
+			let error = caughtError;
+			if (pendingDirectDestination) {
+				try {
+					await pendingDirectDestination.abort(error);
+				} catch (cleanupError) {
+					error = new AggregateError(
+						[error, cleanupError],
+						'The streamed video export and destination cleanup both failed.',
+					);
+				}
+			}
 			await pendingCleanup?.().catch(() => undefined);
 			if ((error as Readonly<{ name?: string }>)?.name !== 'AbortError') handleError(error);
 			return null;
