@@ -240,6 +240,8 @@ test('direct MP3 retains nonpersistent staging refusal above 96 MiB', async () =
 	fixture.plan.requiredTemporaryBytes = byteLength;
 	fixture.plan.range.endFrame = fixture.plan.outputFrames;
 	fixture.plan.range.durationFrames = fixture.plan.outputFrames;
+	fixture.plan.render.totalBytes += byteLength - fixture.plan.render.outputBytes;
+	fixture.plan.render.outputBytes = byteLength;
 	assert.equal(await createEditorExportService(fixture.runtime).handleExportAction(
 		'export', { mode: 'mix', format: 'mp3' },
 	), undefined);
@@ -291,7 +293,11 @@ function eligiblePlan() {
 			sampleFormat: null, bitDepth: null, floatingPoint: false,
 			dither: 'none', metadata: {}, bitRate: 192,
 		},
-		render: { strategy: 'realtime-stream', fast: false, reason: 'output-memory' },
+		render: {
+			strategy: 'realtime-stream', fast: false, reason: 'total-memory',
+			outputBytes: 8, livePcmBytes: 2 * 1024 ** 3, totalBytes: 2 * 1024 ** 3 + 8,
+			thresholds: { outputBytes: 384 * 1024 ** 2, totalBytes: 1024 * 1024 ** 2 },
+		},
 		range: { startFrame: 0, endFrame: 1, durationFrames: 1 }, tailFrames: 0,
 		outputs: [{
 			kind: 'mix', fileName: 'session-mix.mp3', trackId: null,

@@ -32,6 +32,7 @@ interface ServicePlan {
 	outputFrames: number;
 	outputs: Array<{ fileName: string }>;
 	range: { durationFrames: number; endFrame: number };
+	render: { outputBytes: number; totalBytes: number };
 	requiredTemporaryBytes: number;
 }
 
@@ -173,6 +174,8 @@ test('new compressed routes refuse oversized nonpersistent staging before render
 	plan.requiredTemporaryBytes = byteLength;
 	plan.range.endFrame = plan.outputFrames;
 	plan.range.durationFrames = plan.outputFrames;
+	plan.render.totalBytes += byteLength - plan.render.outputBytes;
+	plan.render.outputBytes = byteLength;
 	const fixture = serviceFixture(entry, 'stream', { persistent: false, plan });
 	assert.equal(await createEditorExportService(fixture.runtime).handleExportAction(
 		'export', { mode: 'mix', format: entry.format },

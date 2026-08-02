@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { getMediaExportFormat, normalizeMediaExportSettings } from '../media-export.js';
+import { FAST_RENDER_THRESHOLDS } from '../export.js';
 import { directAudioRenderStrategy, type DirectAudioRenderStrategy } from './direct-audio-render-plan.ts';
 
 const DIRECT_COMPRESSED_FORMAT_IDS = new Set<DirectCompressedFormat>([
@@ -57,6 +58,15 @@ interface DirectCompressedDescriptor {
 	readonly mimeType: string;
 }
 
+export interface CanonicalCompressedPlanCore extends DirectCompressedDescriptor {
+	readonly channelCount: number;
+	readonly fingerprint: string;
+	readonly inputChannelCount: number;
+	readonly outputBytesPerRender: number;
+	readonly outputFrames: number;
+	readonly sampleRate: number;
+}
+
 export interface DirectCompressedContract extends DirectCompressedDescriptor {
 	readonly fileName: string;
 	readonly fileTypes: readonly Readonly<Record<string, unknown>>[];
@@ -66,21 +76,47 @@ export interface DirectCompressedContract extends DirectCompressedDescriptor {
 	readonly stagingByteLength: number;
 }
 
+/** Capture route-independent canonical format, encoding, and PCM render geometry. */
+export function captureCanonicalCompressedPlanCore(
+	plan: DirectCompressedPlan,
+): CanonicalCompressedPlanCore | null {
+	try {
+		const descriptor = canonicalDescriptor(plan?.format);
+		if (!descriptor || !exactCanonicalCompressedPlanCore(plan, descriptor)) return null;
+		return Object.freeze({
+			...descriptor,
+			channelCount: plan.channelCount as number,
+			fingerprint: coreFingerprint(plan),
+			inputChannelCount: Number(plan.encoding!.inputChannelCount),
+			outputBytesPerRender: plan.outputBytesPerRender as number,
+			outputFrames: plan.outputFrames as number,
+			sampleRate: plan.sampleRate as number,
+		});
+	} catch {
+		return null;
+	}
+}
+
 export function captureDirectCompressedContract(
 	plan: DirectCompressedPlan,
 ): DirectCompressedContract | null {
 	try {
-		const descriptor = canonicalDescriptor(plan?.format);
-		if (!descriptor || !exactDirectCompressedPlan(plan, descriptor)) return null;
+		const core = captureCanonicalCompressedPlanCore(plan);
+		if (!core || !exactDirectCompressedPlan(plan, core)) return null;
 		const renderStrategy = directAudioRenderStrategy(plan);
 		if (!renderStrategy) return null;
-		const extension = `.${descriptor.extension}`;
-		const pickerMimeType = descriptor.mimeType.split(';', 1)[0]!.trim();
+		const extension = `.${core.extension}`;
+		const pickerMimeType = core.mimeType.split(';', 1)[0]!.trim();
 		return Object.freeze({
-			...descriptor,
+			backend: core.backend,
+			extension: core.extension,
+			id: core.id,
+			label: core.label,
+			maximumChannels: core.maximumChannels,
+			mimeType: core.mimeType,
 			fileName: (plan.outputs as readonly DirectCompressedOutputPlan[])[0]!.fileName as string,
 			fileTypes: Object.freeze([Object.freeze({
-				description: `${descriptor.label} audio`,
+				description: `${core.label} audio`,
 				accept: Object.freeze({ [pickerMimeType]: Object.freeze([extension]) }),
 			})]),
 			fingerprint: planFingerprint(plan),
@@ -108,28 +144,39 @@ function exactDirectCompressedPlan(
 	plan: DirectCompressedPlan,
 	descriptor: DirectCompressedDescriptor,
 ): boolean {
-	const encoding = plan?.encoding;
 	const outputs = plan?.outputs;
+	const render = plan?.render;
+	const renderStrategy = directAudioRenderStrategy(plan);
+	if (plan?.mode !== 'mix'
+		|| plan.archive !== null
+		|| plan.requiredTemporaryBytes !== plan.outputBytesPerRender
+		|| !isRecord(render) || !canonicalRender(render, renderStrategy)
+		|| !Array.isArray(outputs) || outputs.length !== 1 || !canonicalOutput(outputs[0], descriptor.extension)) return false;
+	return planFingerprint(plan).length > 0;
+}
+
+function exactCanonicalCompressedPlanCore(
+	plan: DirectCompressedPlan,
+	descriptor: DirectCompressedDescriptor,
+): boolean {
+	const encoding = plan?.encoding;
 	const range = plan?.range;
 	const render = plan?.render;
 	const sampleRate = plan?.sampleRate;
 	const channelCount = plan?.channelCount;
 	const outputFrames = plan?.outputFrames;
-	const renderStrategy = directAudioRenderStrategy(plan);
-	if (plan?.mode !== 'mix' || plan.format !== descriptor.id || plan.mimeType !== descriptor.mimeType
-		|| plan.archive !== null || plan.outputFileBytesPerRender !== null
-		|| !safeIntegerInRange(sampleRate, 8_000, 384_000)
-		|| !safeIntegerInRange(channelCount, 1, descriptor.maximumChannels)
-		|| !safeIntegerInRange(outputFrames, 1, Number.MAX_SAFE_INTEGER)
-		|| plan.outputBytesPerRender !== multiplySafe(outputFrames as number, channelCount as number, 4)
-		|| plan.requiredTemporaryBytes !== plan.outputBytesPerRender
-		|| !isRecord(range) || !canonicalRange(range)
-		|| !safeIntegerInRange(plan.tailFrames, 0, Number.MAX_SAFE_INTEGER)
-		|| !isRecord(render) || !canonicalRender(render, renderStrategy)
-		|| !Array.isArray(outputs) || outputs.length !== 1 || !canonicalOutput(outputs[0], descriptor.extension)
-		|| !isRecord(plan.metadata) || !isRecord(plan.channelMapping)
-		|| !isRecord(encoding) || !canonicalEncoding(encoding, plan, descriptor)) return false;
-	return planFingerprint(plan).length > 0;
+	return plan.format === descriptor.id && plan.mimeType === descriptor.mimeType
+		&& plan.outputFileBytesPerRender === null
+		&& safeIntegerInRange(sampleRate, 8_000, 384_000)
+		&& safeIntegerInRange(channelCount, 1, descriptor.maximumChannels)
+		&& safeIntegerInRange(outputFrames, 1, Number.MAX_SAFE_INTEGER)
+		&& plan.outputBytesPerRender === multiplySafe(outputFrames as number, channelCount as number, 4)
+		&& isRecord(range) && canonicalRange(range)
+		&& safeIntegerInRange(plan.tailFrames, 0, Number.MAX_SAFE_INTEGER)
+		&& isRecord(render) && canonicalRenderGeometry(render, plan.outputBytesPerRender as number)
+		&& isRecord(plan.metadata) && isRecord(plan.channelMapping)
+		&& isRecord(encoding) && canonicalEncoding(encoding, plan, descriptor)
+		&& coreFingerprint(plan).length > 0;
 }
 
 function canonicalRender(
@@ -141,6 +188,27 @@ function canonicalRender(
 		&& render.strategy === 'realtime-stream'
 		&& render.fast === false
 		&& REALTIME_REASONS.has(String(render.reason));
+}
+
+function canonicalRenderGeometry(
+	render: Readonly<Record<string, unknown>>,
+	outputBytesPerRender: number,
+): boolean {
+	const actualThresholds = render.thresholds;
+	if (render.outputBytes !== outputBytesPerRender
+		|| !safeIntegerInRange(render.livePcmBytes, 0, Number.MAX_SAFE_INTEGER)
+		|| !safeIntegerInRange(render.totalBytes, 1, Number.MAX_SAFE_INTEGER)
+		|| render.totalBytes !== addSafe(outputBytesPerRender, Number(render.livePcmBytes))
+		|| !isRecord(actualThresholds)) return false;
+	const canonicalThresholds = Object.values(FAST_RENDER_THRESHOLDS) as readonly Readonly<{
+		outputBytes: number;
+		totalBytes: number;
+	}>[];
+	return canonicalThresholds.some((thresholds) => (
+		thresholds.outputBytes === actualThresholds.outputBytes
+		&& thresholds.totalBytes === actualThresholds.totalBytes
+		&& sameKeys(actualThresholds, ['outputBytes', 'totalBytes'])
+	));
 }
 
 function compressedStagingByteLength(
@@ -169,11 +237,31 @@ function canonicalOutput(output: unknown, extension: string): boolean {
 }
 
 function canonicalRange(range: Readonly<Record<string, unknown>>): boolean {
-	return safeIntegerInRange(range.startFrame, 0, Number.MAX_SAFE_INTEGER)
+	return sameKeys(range, ['startFrame', 'endFrame', 'durationFrames'])
+		&& safeIntegerInRange(range.startFrame, 0, Number.MAX_SAFE_INTEGER)
 		&& safeIntegerInRange(range.endFrame, 0, Number.MAX_SAFE_INTEGER)
 		&& safeIntegerInRange(range.durationFrames, 1, Number.MAX_SAFE_INTEGER)
 		&& Number(range.endFrame) > Number(range.startFrame)
 		&& range.durationFrames === Number(range.endFrame) - Number(range.startFrame);
+}
+
+function coreFingerprint(plan: DirectCompressedPlan): string {
+	const render = plan.render!;
+	return jsonValue({
+		format: plan.format, mimeType: plan.mimeType,
+		sampleRate: plan.sampleRate, channelCount: plan.channelCount,
+		outputFrames: plan.outputFrames, outputBytesPerRender: plan.outputBytesPerRender,
+		outputFileBytesPerRender: plan.outputFileBytesPerRender,
+		dither: plan.dither, ditherMode: plan.ditherMode,
+		metadata: plan.metadata, channelMapping: plan.channelMapping, encoding: plan.encoding,
+		range: plan.range, tailFrames: plan.tailFrames,
+		render: {
+			outputBytes: render.outputBytes,
+			livePcmBytes: render.livePcmBytes,
+			totalBytes: render.totalBytes,
+			thresholds: render.thresholds,
+		},
+	});
 }
 
 function canonicalEncoding(
@@ -231,8 +319,21 @@ function multiplySafe(...values: readonly number[]): number {
 	return result;
 }
 
+function addSafe(left: number, right: number): number {
+	if (!Number.isSafeInteger(left) || left < 0 || !Number.isSafeInteger(right) || right < 0
+		|| left > Number.MAX_SAFE_INTEGER - right) {
+		throw new RangeError('Direct compressed-audio render geometry exceeds JavaScript safe integers.');
+	}
+	return left + right;
+}
+
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function sameKeys(value: Readonly<Record<string, unknown>>, fields: readonly string[]): boolean {
+	const keys = Object.keys(value).sort();
+	return keys.length === fields.length && [...fields].sort().every((field, index) => field === keys[index]);
 }
 
 function jsonValue(value: unknown): string {
