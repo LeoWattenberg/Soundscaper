@@ -1,6 +1,8 @@
 import { cloneProject } from '../project.js';
-import { throwIfAborted } from './app-helpers.ts';
-import { EMPTY_ZIP32_LAYOUT, extendZip32Layout, type Zip32Layout } from './zip32.ts';
+import {
+	createSequentialZip32Archive,
+	type Zip32StreamInput,
+} from './sequential-zip32-stream.ts';
 
 export interface TemporaryExportCopy {
 	readonly temporaryExportClosed: string;
@@ -20,7 +22,7 @@ export interface TemporaryFileSink {
 export interface StreamingStemArchive {
 	add(
 		fileName: string,
-		input: Blob | Uint8Array | ArrayBuffer | ArrayBufferView,
+		input: Zip32StreamInput,
 		signal?: AbortSignal | null,
 	): Promise<void>;
 	finish(): Promise<{ readonly blob: Blob; readonly cleanup: () => Promise<void> }>;
@@ -130,132 +132,32 @@ export async function createStreamingZipArchive(
 		await sink.abort();
 		throw new Error(copy.largeStemsStorageRequired);
 	}
-	let fflate: typeof import('fflate');
-	try {
-		fflate = await import('fflate');
-	} catch (error) {
-		await sink.abort();
-		throw error;
-	}
-	const { Zip, ZipPassThrough } = fflate;
-	let writeQueue = Promise.resolve();
-	let closed = false;
-	let failed: Error | null = null;
-	let zip32Layout: Zip32Layout = EMPTY_ZIP32_LAYOUT;
-	let resolveFinished!: (value: { readonly blob: Blob; readonly cleanup: () => Promise<void> }) => void;
-	let rejectFinished!: (reason?: unknown) => void;
-	const finished = new Promise<{ readonly blob: Blob; readonly cleanup: () => Promise<void> }>((resolve, reject) => {
-		resolveFinished = resolve;
-		rejectFinished = reject;
+	const archive = await createSequentialZip32Archive({
+		write: (chunk) => sink.write(chunk),
+		close: () => sink.close('application/zip'),
+		abort: () => sink.abort(),
+	}, {
+		closedMessage: copy.stemArchiveClosed,
+		limitMessage: 'ZIP32 limits exceeded; use a 7z archive for these stems.',
+		concurrentAddMessage: 'Stem archive additions must be awaited in order.',
 	});
-	void finished.catch(() => undefined);
-	const zip = new Zip((error, chunk, final) => {
-		if (error) {
-			failed = error;
-			closed = true;
-			void sink.abort();
-			rejectFinished(error);
-			return;
-		}
-		if (chunk?.length) writeQueue = writeQueue.then(() => sink.write(chunk));
-		if (final) {
-			void writeQueue
-				.then(() => sink.close('application/zip'))
-				.then((blob) => resolveFinished({ blob, cleanup: () => sink.remove() }))
-				.catch(async (closeError: unknown) => {
-					failed = closeError instanceof Error ? closeError : new Error(String(closeError));
-					closed = true;
-					await sink.abort();
-					rejectFinished(failed);
-				});
-		}
-	});
+	let finishPromise: Promise<{ readonly blob: Blob; readonly cleanup: () => Promise<void> }> | null = null;
+	let finishedResult: { readonly blob: Blob; readonly cleanup: () => Promise<void> } | null = null;
 
 	return {
-		async add(fileName, input, signal = null): Promise<void> {
-			if (closed || failed) throw failed || new Error(copy.stemArchiveClosed);
-			throwIfAborted(signal);
-			const nextLayout = extendZip32Layout(zip32Layout, {
-				fileName,
-				byteLength: inputByteLength(input),
-			});
-			if (!nextLayout.eligible) {
-				failed = new RangeError('ZIP32 limits exceeded; use a 7z archive for these stems.');
-				closed = true;
-				try {
-					zip.terminate?.();
-				} catch {
-					// The stream may already be complete.
-				}
-				await sink.abort();
-				throw failed;
+		add: (fileName, input, signal = null) => archive.add(fileName, input, signal),
+		finish() {
+			if (finishedResult) return Promise.resolve(finishedResult);
+			if (!finishPromise) {
+				finishPromise = archive.finish().then(({ output: blob }) => {
+					finishedResult = { blob, cleanup: () => sink.remove() };
+					return finishedResult;
+				});
+				void finishPromise.catch(() => { finishPromise = null; });
 			}
-			zip32Layout = nextLayout;
-			try {
-				const entry = new ZipPassThrough(fileName);
-				zip.add(entry);
-				if (input instanceof Blob) {
-					const reader = input.stream().getReader();
-					try {
-						while (true) {
-							throwIfAborted(signal);
-							const { done, value } = await reader.read();
-							throwIfAborted(signal);
-							if (done) break;
-							entry.push(value instanceof Uint8Array ? value : new Uint8Array(value), false);
-							await writeQueue;
-						}
-					} catch (error) {
-						try {
-							await reader.cancel();
-						} catch {
-							// Cancellation is best effort after a source failure.
-						}
-						throw error;
-					} finally {
-						reader.releaseLock();
-					}
-				} else {
-					const bytes = toUint8Array(input);
-					if (bytes.length) entry.push(bytes, false);
-				}
-				entry.push(new Uint8Array(0), true);
-				await writeQueue;
-			} catch (error) {
-				failed = error instanceof Error ? error : new Error(String(error));
-				closed = true;
-				try {
-					zip.terminate?.();
-				} catch {
-					// The stream may already be complete.
-				}
-				await sink.abort();
-				throw error;
-			}
+			return finishPromise;
 		},
-		async finish() {
-			if (failed) throw failed;
-			if (closed) return finished;
-			closed = true;
-			zip.end();
-			return finished;
-		},
-		async abort(): Promise<void> {
-			const wasClosed = closed;
-			closed = true;
-			if (!failed) {
-				failed = new Error(copy.stemArchiveClosed);
-				rejectFinished(failed);
-			}
-			if (!wasClosed) {
-				try {
-					zip.terminate?.();
-				} catch {
-					// The stream may already be complete.
-				}
-			}
-			await sink.abort();
-		},
+		abort: () => archive.abort(),
 	};
 }
 
@@ -275,14 +177,6 @@ function toUint8Array(input: Uint8Array | ArrayBuffer | ArrayBufferView): Uint8A
 	if (input instanceof Uint8Array) return input;
 	if (ArrayBuffer.isView(input)) return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
 	return new Uint8Array(input);
-}
-
-function inputByteLength(input: Blob | Uint8Array | ArrayBuffer | ArrayBufferView): number {
-	const byteLength = input instanceof Blob ? input.size : toUint8Array(input).byteLength;
-	if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
-		throw new RangeError('Archive input sizes must be nonnegative safe integers.');
-	}
-	return byteLength;
 }
 
 function addSafeByteLengths(left: number, right: number): number {
