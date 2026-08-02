@@ -50,7 +50,11 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*maintained renderer.*at most 100,000 closed binding\s+rows.*at most 128 exact locator\/revision references.*durable-unavailable\s+storage sends nothing.*invalid scans reject before IPC.*at\s+most one successful serialized pass per store\/process.*only absent\s+startup-loaded metadata.*referenced and current-process\s+records.*external media.*never inspected or deleted.*binding-present but\s+canonical-project-unreachable records.*continuous same-process cleanup.*hostile-renderer inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS qualification remain open/isu,
+		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*authoritative point-in-time catalog.*at most 10,000 project IDs.*one atomic transaction.*at most\s+100,000 closed binding rows.*deletes only bindings whose project is absent.*preserves.*catalog-live alias.*at most 128 exact\s+locator\/revision references.*durable-unavailable\s+storage sends nothing.*invalid scans reject before IPC.*at\s+most one successful\s+serialized pass per store\/process.*only absent\s+startup-loaded\s+metadata.*referenced and current-process\s+records.*external\s+media.*never inspected or deleted.*source-level binding reachability inside\s+catalog-live projects.*continuous same-process cleanup.*hostile-renderer\s+inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS\s+qualification remain open/isu,
+	);
+	assert.match(
+		roadmap,
+		/Electron Enhanced — In progress.*continuous linked-locator\s+cleanup and source-level binding\s+reachability inside catalog-live\s+projects/isu,
 	);
 	assert.doesNotMatch(
 		roadmap,

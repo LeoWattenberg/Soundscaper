@@ -312,15 +312,18 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   Pre-commit failures roll back import-owned state.
 - **Electron Enhanced / Shared — Implemented for bounded cooperative startup
   locator reconciliation:** after persistent IndexedDB opens and before project
-  loading, the maintained renderer inventories at most 100,000 closed binding
-  rows into at most 128 exact locator/revision references. Durable-unavailable
-  storage sends nothing and invalid scans reject before IPC. Main performs at
-  most one successful serialized pass per store/process, retiring only absent
-  startup-loaded metadata while retaining referenced and current-process
-  records; external media is never inspected or deleted. Binding-present but
-  canonical-project-unreachable records, continuous same-process cleanup,
-  hostile-renderer inventory authority, abrupt-crash/power-loss durability, and
-  packaged/OS qualification remain open.
+  loading, the maintained renderer reads an authoritative point-in-time catalog
+  of at most 10,000 project IDs. One atomic transaction validates at most
+  100,000 closed binding rows, deletes only bindings whose project is absent,
+  preserves a locator with any catalog-live alias, and submits at most 128 exact
+  locator/revision references. Durable-unavailable storage sends nothing and
+  invalid scans reject before IPC. Main performs at most one successful
+  serialized pass per store/process, retiring only absent startup-loaded
+  metadata while retaining referenced and current-process records; external
+  media is never inspected or deleted. Source-level binding reachability inside
+  catalog-live projects, continuous same-process cleanup, hostile-renderer
+  inventory authority, abrupt-crash/power-loss durability, and packaged/OS
+  qualification remain open.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond the bounded chooser/import and maintained visual-playback slices, and
   finish broader
@@ -328,9 +331,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   rendered-fallback relationships beyond maintained first-party playback and
   managed handoff, fallback authoring and delivery use, exact or write-time
   capacity behavior, stable playback identity beyond that maintained visual
-  lifecycle, continuous linked-locator
-  cleanup and binding-to-project reachability beyond the bounded startup pass
-  where required, and packaged UI/OS/browser-codec qualification.
+  lifecycle, continuous linked-locator cleanup and source-level binding
+  reachability inside catalog-live projects where required, and packaged
+  UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest or exact linked binding and a
   versioned recipe while staying outside project history, portable archive
