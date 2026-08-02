@@ -16,6 +16,9 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	const managedHandoff = policy.rules.find(
 		({ id }) => id === 'current-desktop-managed-mixed-media-handoff',
 	);
+	const linkedVideoOriginal = policy.rules.find(
+		({ id }) => id === 'current-desktop-linked-retained-video-original',
+	);
 
 	assert.ok(rule);
 	assert.deepEqual(rule.evidence, [
@@ -350,7 +353,50 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/does not qualify.*packaged.*UI.*browser codec playback.*unmanaged or linked originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch.*copy or consolidation.*continuous runtime cleanup beyond the startup-bounded tracked inventory.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
+		/injected-port linked retained-video slice.*qualified separately.*does not qualify.*packaged.*UI.*browser codec playback.*linked audio.*other linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*product chooser.*relink.*watch.*copy or consolidation.*continuous runtime cleanup beyond the startup-bounded tracked inventory.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
+	);
+	assert.ok(linkedVideoOriginal);
+	assert.equal(linkedVideoOriginal.status, 'implemented');
+	assert.deepEqual(linkedVideoOriginal.evidence, [
+		'src/common/editor/storage/linked-video-original-binding.ts',
+		'src/common/editor/storage/linked-video-original-schema.ts',
+		'src/common/editor/storage/linked-video-original-repository.ts',
+		'src/common/editor/storage/linked-video-original-resolver.ts',
+		'src/common/editor/storage/desktop-shared-project-linked-video-originals.ts',
+		'src/common/editor/storage/desktop-shared-project-media-acquisition.ts',
+		'src/common/editor/storage/desktop-shared-project-media-sender.ts',
+		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/common/editor/storage/indexeddb-backend.ts',
+		'src/common/editor/storage/memory-backend.ts',
+		'src/common/editor/storage/project-repository.ts',
+		'src/common/editor/storage/repositories.ts',
+		'src/common/editor/storage.js',
+		'tests/audio-editor-linked-video-original-binding.test.ts',
+		'tests/audio-editor-linked-video-original-repository.test.ts',
+		'tests/audio-editor-linked-video-original-resolver.test.ts',
+		'tests/audio-editor-linked-video-original-cleanup.test.ts',
+		'tests/audio-editor-linked-video-original-storage-composition.test.ts',
+		'tests/audio-editor-derivative-cache-schema.test.ts',
+		'tests/browser/audio-editor-storage-migration.spec.js',
+		'tests/audio-editor-desktop-shared-project-linked-video-original-session.test.ts',
+		'tests/audio-editor-desktop-shared-project-linked-video-original.test.ts',
+		'tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts',
+	]);
+	assert.match(
+		linkedVideoOriginal.requiredOutcome,
+		/explicitly injected product-local platform port.*retained original-video body.*exact project ID, logical source ID, physical storage key.*maintained source geometry.*MIME type, byte length, SHA-256.*opaque local locator and revision.*version-7 binding store.*scalar-only.*locator identity and bodies out of project documents.*fresh document-only latest shared load.*aggregate logical-source, byte, and PCM-chunk admission.*before lazy revision- and binding-fenced body verification.*must not create an owned-media copy.*only explicit handoff.*existing managed original-video sender/iu,
+	);
+	assert.match(
+		linkedVideoOriginal.currentBehavior,
+		/closed linked-video binding schema 1.*exact project, source, storage-key, MIME, byte-length, SHA-256, frame\/sample\/video geometry.*opaque locator ID.*opaque locator revision.*compare-and-swap token.*canonical timestamp.*IndexedDB database version 7.*memory backend.*only those scalar values.*source-shape scalars.*no project document or stored binding.*linked body, Blob, filesystem path, URL, platform handle, or playback lease.*only when.*injects.*LinkedVideoOriginalPort/iu,
+	);
+	assert.match(
+		linkedVideoOriginal.currentBehavior,
+		/latest exact-schema-9 document-only shared load.*every reachable linked-video alias.*without reading its body.*complete groups.*identical physical-body identity.*exact managed source geometry.*bound byte length.*4,094-source.*aggregate 64 GiB.*65,536-PCM-chunk preflight.*only after.*preflight succeeds.*first body request.*opaque locator.*expected revision.*exact size and SHA-256.*4-MiB digest windows.*recheck every binding token.*malformed, incomplete, conflicting, replaced, stale, wrong-size, or wrong-digest.*before shadow publication/iu,
+	);
+	assert.match(
+		linkedVideoOriginal.currentBehavior,
+		/exact fresh load.*authoritative local shadow.*without any owned-media read, write, or copy.*explicit prepareHandoff.*exact linked metadata and verified Blob.*maintained managed sender.*normal video digest, bounded transfer, and publication path.*first owned-media copy.*no product chooser.*relink or watch.*durable operating-system handle.*playback lease.*background copy\/consolidation.*alternate publisher.*does not qualify packaged executable or UI.*browser codec playback.*linked audio.*other linked or unmanaged original.*authored proxies.*generic or video rendered fallbacks/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
@@ -416,7 +462,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
+		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*injected-port linked retained-video slice.*qualified separately.*linked audio.*every other linked or unmanaged original.*authored proxies.*generic or video rendered fallbacks.*product chooser.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -429,6 +475,18 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		documentation,
 		/transfer must match descriptor identity, kind and\s+storage key, exact byte length, SHA-256, and canonical audio byte geometry.*atomic if-absent publication.*retained original video.*opaque.*not decoded or probed for media geometry.*loses that absence race.*only its own staging.*preserves the winner.*partial acquisition, later admission failure.*roll back in reverse order.*exact\s+acquisition-owned audio\s+record or video publication.*source token, path, or media-chunk payload.*concurrent replacement is preserved.*source not acquired.*pre-existing latest\s+recipient-local exact-schema-9 snapshot.*same project/isu,
+	);
+	assert.match(
+		documentation,
+		/deliberately narrow linked retained-video path.*local binding.*exact project ID, logical video source ID.*physical storage key, MIME type, byte length, SHA-256.*frame\/sample\/video geometry.*opaque locator ID.*opaque locator\s+revision.*neither locator value appears in the project document.*IndexedDB\s+database version 7.*memory backend.*closed scalar-only binding\s+record.*scalar source-shape fields.*compare-and-swap token.*canonical\s+timestamp.*no linked body.*`Blob`.*filesystem path.*URL.*platform\s+handle.*playback lease/isu,
+	);
+	assert.match(
+		documentation,
+		/explicitly injected platform port.*fresh document-only latest shared\s+load.*complete exact linked-video alias group.*without a prior local\s+project snapshot or managed descriptor.*inspection performs\s+no privileged body read.*linked byte length.*complete logical-source, 64 GiB byte, and PCM-chunk preflight.*only after\s+that aggregate preflight succeeds.*opaque\s+locator.*expected revision.*exact byte length.*4-MiB windows.*recheck every binding token.*authoritative local shadow.*without\s+reading, writing, or copying an owned media asset.*malformed, incomplete,\s+conflicting, replaced, stale-revision, wrong-size, or wrong-digest bindings fail\s+closed before shadow publication/isu,
+	);
+	assert.match(
+		documentation,
+		/only an explicit `prepareHandoff`.*verified linked body.*owned\s+media.*exact linked-session overlay.*existing\s+managed original-video sender.*normal aggregate preflight,\s+digest, bounded-transfer, and publication contract.*no product\s+chooser, relink or watch flow.*durable operating-system handle.*playback\s+lease.*background\s+copy\/consolidation.*alternate publishing protocol.*linked\s+audio, every other\s+linked or unmanaged original.*authored proxies.*generic or\s+video rendered\s+fallbacks.*packaged executable\/UI behavior.*browser codec\s+playback remain\s+unqualified/isu,
 	);
 	assert.match(
 		documentation,

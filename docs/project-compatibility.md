@@ -304,6 +304,39 @@ Declared payload geometry is capped at 65,536 PCM chunks, while one cumulative
 64 GiB budget charges canonical audio archive bytes—including four framing
 bytes per chunk—and recipient-local video metadata sizes together.
 
+A deliberately narrow linked retained-video path is qualified at this same
+boundary. A local binding joins the exact project ID, logical video source ID,
+physical storage key, MIME type, byte length, SHA-256, and maintained
+frame/sample/video geometry to an opaque locator ID and opaque locator
+revision. Neither locator value appears in the project document. IndexedDB
+database version 7 and the memory backend retain a closed scalar-only binding
+record, including scalar source-shape fields, a compare-and-swap token, and a
+canonical timestamp; they retain no linked body, `Blob`, filesystem path, URL,
+platform handle, or playback lease.
+
+With an explicitly injected platform port, a fresh document-only latest shared
+load can admit a complete exact linked-video alias group without a prior local
+project snapshot or managed descriptor. Binding and group inspection performs
+no privileged body read. The declared linked byte length participates in the
+complete logical-source, 64 GiB byte, and PCM-chunk preflight above; only after
+that aggregate preflight succeeds does the first body request reload the opaque
+locator at its expected revision, require the exact byte length, hash through
+at-most-4-MiB windows, and recheck every binding token. The ordinary load may
+then save the authoritative local shadow and trust those exact sources without
+reading, writing, or copying an owned media asset. Malformed, incomplete,
+conflicting, replaced, stale-revision, wrong-size, or wrong-digest bindings fail
+closed before shadow publication.
+
+Only an explicit `prepareHandoff` turns that verified linked body into owned
+media: an exact linked-session overlay supplies the body to the existing
+managed original-video sender, which retains its normal aggregate preflight,
+digest, bounded-transfer, and publication contract. This adds no product
+chooser, relink or watch flow, durable operating-system handle or playback
+lease, background copy/consolidation, or alternate publishing protocol. Linked
+audio, every other linked or unmanaged original, authored proxies, generic or
+video rendered fallbacks, packaged executable/UI behavior, and browser codec
+playback remain unqualified.
+
 For a successfully qualified body, admission snapshots metadata before and
 after it, consumes the exact sequential PCM chunk count and ordered
 `Float32Array` channel/frame geometry, requires any supplied chunk index or
@@ -368,8 +401,10 @@ processes are not serialized. Source-bearing saves and explicit local revision
 loads bypass this admission. Explicit managed handoff supplies automatic
 fresh-recipient acquisition for canonical PCM—including the maintained exact
 schema 9 first-party audio whole-mix fallback—and retained original video.
-Linked and unmanaged originals, authored proxies, generic and video rendered
-fallbacks, relink and watch behavior, general copy/consolidate, managed-media
+Only the injected-port linked retained-video slice described above is also
+qualified. Linked audio and every other linked or unmanaged original, authored
+proxies, generic and video rendered fallbacks, product chooser/relink/watch
+behavior, general copy/consolidate, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, a stable byte lease through playback,
 browser codec playback, packaged executable and UI two-product source-bearing
@@ -414,8 +449,10 @@ evaluation remains editor-owned. Explicit managed canonical PCM and retained
 original video are the fresh-recipient source-byte transfers provided by this
 library; this includes a maintained exact-schema first-party audio whole-mix
 fallback when its manifest is the only reference. Ordinary saves remain
-document-only. Linked and unmanaged originals, authored proxies, generic and
-video rendered fallbacks, general copy/consolidate, relink and watch behavior,
+document-only. Only the injected-port linked retained-video slice described
+above is additionally qualified. Linked audio and every other linked or
+unmanaged original, authored proxies, generic and video rendered fallbacks,
+general copy/consolidate, product chooser/relink/watch behavior,
 managed-media runtime cleanup beyond the startup-bounded tracked inventory,
 recipient-local or whole-handoff capacity reservation, stable playback leasing,
 executable/UI and browser-codec qualification, portable hard-link capacity
