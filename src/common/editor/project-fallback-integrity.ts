@@ -2,14 +2,9 @@
 
 import {
 	createScapeAudioExportChunkBudget,
-	createScapeDigest,
 	scapeAudioSourceLayout,
-	scapeAudioSourceStream,
-	scapeHex,
-	type ScapeAudioSource,
 } from './scape-archive-media.ts';
 import {
-	aggregateScapeErrors,
 	awaitScapeOperation,
 	awaitScapeReadOperation,
 	throwIfScapeAborted,
@@ -24,6 +19,27 @@ import {
 	type ProjectFeatureRequirement,
 } from './project-feature-requirements.ts';
 import {
+	PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE,
+	isProjectAudioFallbackIntegrityError,
+	projectAudioFallbackSelectorMatches,
+	sameProjectAudioFallbackSelector,
+	selectProjectAudioFallbackTarget,
+	snapshotProjectAudioFallbackSelector,
+	verifyProjectAudioFallback,
+	verifySelectedProjectAudioFallback,
+	type ProjectAudioFallbackChunkProvider,
+	type ProjectAudioFallbackIntegritySelector,
+	type ProjectAudioFallbackSource,
+} from './project-fallback-integrity-audio.ts';
+export {
+	PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE,
+	isProjectAudioFallbackIntegrityError,
+};
+export type {
+	ProjectAudioFallbackChunkProvider,
+	ProjectAudioFallbackIntegritySelector,
+};
+import {
 	projectVideoFallbackSelectorMatches,
 	sameProjectVideoFallbackSelector,
 	selectProjectVideoFallbackTarget,
@@ -37,11 +53,11 @@ import {
 	digestMediaContent,
 } from './storage/media-content-digest.ts';
 
-interface ProjectFallbackSource extends ScapeAudioSource {
-	readonly kind?: 'audio' | 'video';
-}
+type ProjectFallbackSource = ProjectAudioFallbackSource;
 
 interface StoredSourceChunk {
+	readonly index?: unknown;
+	readonly frames?: unknown;
 	readonly channels?: readonly Float32Array[];
 }
 
@@ -53,6 +69,14 @@ export interface ProjectFallbackIntegrityStore {
 			migrateLegacyPcmOnAccess?: boolean;
 		}>,
 	): AsyncIterable<readonly Float32Array[] | StoredSourceChunk>;
+	readSourceChunk?(
+		sourceId: string,
+		chunkIndex: number,
+		options?: Readonly<{
+			signal?: AbortSignal;
+			migrateLegacyPcmOnAccess?: boolean;
+		}>,
+	): PromiseLike<unknown> | unknown;
 	loadMediaAsset?(
 		sourceId: string,
 		options?: Readonly<{
@@ -65,6 +89,8 @@ export interface ProjectFallbackIntegrityStore {
 
 export interface ProjectFallbackIntegrityOptions {
 	readonly signal?: AbortSignal;
+	readonly assertCurrent?: () => void;
+	readonly audioFallback?: ProjectAudioFallbackIntegritySelector;
 	readonly videoFallback?: ProjectVideoFallbackIntegritySelector;
 }
 
@@ -84,13 +110,9 @@ interface CapturedProjectFallbackIntegrity {
 	readonly sources: readonly ProjectFallbackSource[];
 }
 
-interface IteratorCleanupCapture {
-	failure: unknown;
-	failed: boolean;
-}
-
 export interface ProjectFallbackIntegrityAdmission {
 	assertCurrent(project: unknown): void;
+	getVerifiedAudioChunkProvider(selector: ProjectAudioFallbackIntegritySelector): ProjectAudioFallbackChunkProvider;
 	getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob;
 }
 
@@ -105,17 +127,35 @@ export async function verifyProjectFallbackIntegrity(
 ): Promise<ProjectFallbackIntegrityAdmission> {
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
+	const audioSelector = options.audioFallback === undefined
+		? null
+		: snapshotProjectAudioFallbackSelector(options.audioFallback);
 	const videoSelector = options.videoFallback === undefined
 		? null
 		: snapshotProjectVideoFallbackSelector(options.videoFallback);
-	const captured = captureProjectFallbackIntegrity(project);
+	if (audioSelector && videoSelector) {
+		throw new TypeError('Fallback integrity verification accepts only one exact rendered fallback selector.');
+	}
+	if (options.assertCurrent !== undefined && typeof options.assertCurrent !== 'function') {
+		throw new TypeError('Fallback integrity currentness must be a function.');
+	}
+	const captured = captureProjectFallbackIntegrity(project, Boolean(audioSelector));
+	if (audioSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+		throw new Error('A selected audio rendered fallback requires exact project schema 9.');
+	}
 	if (videoSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new Error('A selected video rendered fallback requires exact project schema 9.');
 	}
 	const admissionState = snapshotAdmissionState(captured);
-	if (!captured.claims.length && !videoSelector) return createAdmission(admissionState);
+	if (!captured.claims.length && !audioSelector && !videoSelector) return createAdmission(admissionState);
 	const targetValues: VerificationTarget[] = [];
-	if (videoSelector) {
+	if (audioSelector) {
+		targetValues.push(selectProjectAudioFallbackTarget(
+			captured.requirements,
+			captured.sources,
+			audioSelector,
+		));
+	} else if (videoSelector) {
 		targetValues.push(selectProjectVideoFallbackTarget(
 			captured.requirements,
 			captured.sources,
@@ -141,17 +181,42 @@ export async function verifyProjectFallbackIntegrity(
 	const audioSources = targetValues.filter(({ claim }) => claim.kind === 'audio').map(({ source }) => source);
 	const audioChunkBudget = createScapeAudioExportChunkBudget(audioSources);
 	const plans = await preflightVerification(targetValues, store, signal);
+	let verifiedAudioProvider: ProjectAudioFallbackChunkProvider | null = null;
 	let verifiedVideoBlob: Blob | null = null;
 	for (const plan of plans) {
 		throwIfScapeAborted(signal);
 		if (plan.claim.kind === 'audio') {
-			await verifyAudioFallback(plan, store, audioChunkBudget, signal);
+			if (audioSelector) {
+				const assertFullCurrent = (): void => {
+					options.assertCurrent?.();
+					assertAdmissionCurrent(admissionState, project, audioSelector);
+				};
+				verifiedAudioProvider = await verifySelectedProjectAudioFallback(
+					plan,
+					store as Required<Pick<ProjectFallbackIntegrityStore, 'readSourceChunks'>>,
+					audioChunkBudget,
+					{
+						signal,
+						assertCurrent: assertFullCurrent,
+						assertProviderCurrent: options.assertCurrent ?? assertFullCurrent,
+					},
+				);
+			} else {
+				await verifyProjectAudioFallback(
+					plan,
+					store as Required<Pick<ProjectFallbackIntegrityStore, 'readSourceChunks'>>,
+					audioChunkBudget,
+					signal,
+				);
+			}
 		} else {
 			const blob = await verifyVideoFallback(plan, store, signal);
 			if (videoSelector) verifiedVideoBlob = blob;
 		}
 	}
-	return createAdmission(admissionState, videoSelector && verifiedVideoBlob
+	return createAdmission(admissionState, audioSelector && verifiedAudioProvider
+		? Object.freeze({ selector: audioSelector, provider: verifiedAudioProvider })
+		: null, videoSelector && verifiedVideoBlob
 		? Object.freeze({ selector: videoSelector, blob: verifiedVideoBlob })
 		: null);
 }
@@ -197,45 +262,6 @@ async function preflightVerification(
 	return Object.freeze(plans);
 }
 
-async function verifyAudioFallback(
-	target: VerificationPlan,
-	store: ProjectFallbackIntegrityStore,
-	audioChunkBudget: ReturnType<typeof createScapeAudioExportChunkBudget>,
-	signal?: AbortSignal,
-): Promise<void> {
-	const digest = createScapeDigest();
-	let size = 0;
-	const cleanup: IteratorCleanupCapture = { failure: undefined, failed: false };
-	const stream = scapeAudioSourceStream(
-		cleanupPreservingAudioStore(
-			store as Required<Pick<ProjectFallbackIntegrityStore, 'readSourceChunks'>>,
-			cleanup,
-		),
-		target.source,
-		digest,
-		(byteLength) => { size += byteLength; },
-		signal,
-		audioChunkBudget,
-	);
-	try {
-		await drainStream(stream, signal);
-	} catch (error) {
-		if (cleanup.failed && cleanup.failure !== error) {
-			throw aggregateScapeErrors(
-				error,
-				[cleanup.failure],
-				'Rendered fallback verification and source cleanup both failed.',
-			);
-		}
-		throw error;
-	}
-	if (cleanup.failed) throw cleanup.failure;
-	if (size !== target.expectedBytes) {
-		throw new Error(`Rendered fallback source ${target.claim.sourceId} has an unexpected size.`);
-	}
-	assertDigest(target.claim, scapeHex(digest.digest()));
-}
-
 async function verifyVideoFallback(
 	target: VerificationPlan,
 	store: ProjectFallbackIntegrityStore,
@@ -256,30 +282,6 @@ async function verifyVideoFallback(
 	const digest = await digestMediaContent(blob, { signal });
 	assertDigest(target.claim, digest);
 	return blob;
-}
-
-async function drainStream(stream: ReadableStream<Uint8Array>, signal?: AbortSignal): Promise<void> {
-	const reader = stream.getReader();
-	try {
-		while (true) {
-			const next = await awaitScapeOperation(reader.read(), signal);
-			if (next.done) return;
-		}
-	} catch (error) {
-		try {
-			await reader.cancel(error);
-		} catch (cleanupError) {
-			if (cleanupError !== error) {
-				throw new AggregateError(
-					[error, cleanupError],
-					'Rendered fallback verification and source cleanup both failed.',
-				);
-			}
-		}
-		throw error;
-	} finally {
-		reader.releaseLock();
-	}
 }
 
 function assertDigest(claim: ScapeProjectFallbackClaim, digest: string): void {
@@ -305,7 +307,10 @@ function mediaAssetSize(metadata: unknown, sourceId: string): number {
 	return Number(size);
 }
 
-function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallbackIntegrity {
+function captureProjectFallbackIntegrity(
+	project: unknown,
+	includeAudioProviderMetadata = false,
+): CapturedProjectFallbackIntegrity {
 	const candidate = objectRecord(project, 'The project fallback integrity candidate');
 	const schemaVersion = ownDataValue(candidate, 'schemaVersion', 'project');
 	if (schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
@@ -319,7 +324,7 @@ function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallb
 	const sources = snapshotArray(
 		ownDataValue(candidate, 'sources', 'project'),
 		'project.sources',
-		(value, index) => snapshotSource(value, index),
+		(value, index) => snapshotSource(value, index, includeAudioProviderMetadata),
 	);
 	const featureRequirements = snapshotFeatureRequirements(
 		ownDataValue(candidate, 'featureRequirements', 'project'),
@@ -337,7 +342,11 @@ function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallb
 	});
 }
 
-function snapshotSource(value: unknown, index: number): ProjectFallbackSource {
+function snapshotSource(
+	value: unknown,
+	index: number,
+	includeAudioProviderMetadata: boolean,
+): ProjectFallbackSource {
 	const source = objectRecord(value, `project.sources[${String(index)}]`);
 	const id = ownDataValue(source, 'id', `project.sources[${String(index)}]`);
 	if (typeof id !== 'string' || !id) {
@@ -350,6 +359,9 @@ function snapshotSource(value: unknown, index: number): ProjectFallbackSource {
 		frameCount: optionalOwnDataValue(source, 'frameCount', `project source ${id}`) as number,
 		channelCount: optionalOwnDataValue(source, 'channelCount', `project source ${id}`) as number,
 		chunkFrames: optionalOwnDataValue(source, 'chunkFrames', `project source ${id}`) as number,
+		sampleRate: includeAudioProviderMetadata
+			? optionalOwnDataValue(source, 'sampleRate', `project source ${id}`) as number
+			: undefined,
 	});
 }
 
@@ -461,37 +473,6 @@ function defineData(record: Record<PropertyKey, unknown>, key: PropertyKey, valu
 	});
 }
 
-function cleanupPreservingAudioStore(
-	store: Required<Pick<ProjectFallbackIntegrityStore, 'readSourceChunks'>>,
-	capture: IteratorCleanupCapture,
-): Required<Pick<ProjectFallbackIntegrityStore, 'readSourceChunks'>> {
-	return {
-		readSourceChunks(sourceId, options) {
-			const iterable = store.readSourceChunks(sourceId, {
-				...options,
-				migrateLegacyPcmOnAccess: false,
-			});
-			const iterator = iterable[Symbol.asyncIterator]();
-			const wrapped: AsyncIterableIterator<readonly Float32Array[] | StoredSourceChunk> = {
-				next: () => iterator.next(),
-				async return() {
-					try {
-						return await iterator.return?.() ?? { done: true, value: undefined };
-					} catch (error) {
-						if (!capture.failed) {
-							capture.failed = true;
-							capture.failure = error;
-						}
-						return { done: true, value: undefined };
-					}
-				},
-				[Symbol.asyncIterator]() { return wrapped; },
-			};
-			return wrapped;
-		},
-	};
-}
-
 function snapshotAdmissionState(
 	captured: CapturedProjectFallbackIntegrity,
 ): CapturedProjectFallbackIntegrity {
@@ -505,6 +486,10 @@ function snapshotAdmissionState(
 
 function createAdmission(
 	verified: CapturedProjectFallbackIntegrity,
+	verifiedAudio: Readonly<{
+		selector: ProjectAudioFallbackIntegritySelector;
+		provider: ProjectAudioFallbackChunkProvider;
+	}> | null = null,
 	verifiedVideo: Readonly<{
 		selector: ProjectVideoFallbackIntegritySelector;
 		blob: Blob;
@@ -512,17 +497,15 @@ function createAdmission(
 ): ProjectFallbackIntegrityAdmission {
 	return Object.freeze({
 		assertCurrent(project: unknown): void {
-			const current = snapshotAdmissionState(captureProjectFallbackIntegrity(project));
-			if (!sameAdmissionState(verified, current)
-				|| (verifiedVideo && !projectVideoFallbackSelectorMatches(
-					current.requirements,
-					verifiedVideo.selector,
-				))) {
-				throw new DOMException(
-					'The rendered fallback integrity admission changed before activation.',
-					'AbortError',
-				);
+			assertAdmissionCurrent(verified, project, verifiedAudio?.selector ?? null, verifiedVideo?.selector ?? null);
+		},
+		getVerifiedAudioChunkProvider(selector: ProjectAudioFallbackIntegritySelector): ProjectAudioFallbackChunkProvider {
+			if (!verifiedAudio) throw new Error('No selected audio rendered fallback was verified.');
+			const requested = snapshotProjectAudioFallbackSelector(selector);
+			if (!sameProjectAudioFallbackSelector(requested, verifiedAudio.selector)) {
+				throw new Error('The requested selector does not match the verified audio rendered fallback.');
 			}
+			return verifiedAudio.provider;
 		},
 		getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob {
 			if (!verifiedVideo) throw new Error('No selected video rendered fallback was verified.');
@@ -533,6 +516,30 @@ function createAdmission(
 			return verifiedVideo.blob;
 		},
 	});
+}
+
+function assertAdmissionCurrent(
+	verified: CapturedProjectFallbackIntegrity,
+	project: unknown,
+	audioSelector: ProjectAudioFallbackIntegritySelector | null = null,
+	videoSelector: ProjectVideoFallbackIntegritySelector | null = null,
+): void {
+	const current = snapshotAdmissionState(captureProjectFallbackIntegrity(project, Boolean(audioSelector)));
+	if (!sameAdmissionState(verified, current)
+		|| (audioSelector && !projectAudioFallbackSelectorMatches(
+			current.requirements,
+			current.sources,
+			audioSelector,
+		))
+		|| (videoSelector && !projectVideoFallbackSelectorMatches(
+			current.requirements,
+			videoSelector,
+		))) {
+		throw new DOMException(
+			'The rendered fallback integrity admission changed before activation.',
+			'AbortError',
+		);
+	}
 }
 
 function sameAdmissionState(
@@ -553,7 +560,8 @@ function sameAdmissionState(
 		const second = right.sources[index];
 		if (!first || !second || first.id !== second.id || first.kind !== second.kind
 			|| first.storageKey !== second.storageKey || first.frameCount !== second.frameCount
-			|| first.channelCount !== second.channelCount || first.chunkFrames !== second.chunkFrames) return false;
+			|| first.channelCount !== second.channelCount || first.chunkFrames !== second.chunkFrames
+			|| first.sampleRate !== second.sampleRate) return false;
 	}
 	return true;
 }
