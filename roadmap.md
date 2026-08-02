@@ -370,10 +370,9 @@ release-blocking defect in its owning policy.
 
 #### 2.2 Remaining bounded pipelines
 
-- **Web Enhanced / Electron Enhanced — In progress:** stream remaining
-  reference-scale outputs, especially compressed audio, video, stems,
-  non-realtime renders, and final delivery paths, without a final
-  renderer-sized `Blob`.
+- **Web Enhanced / Electron Enhanced — In progress:** direct native-PCM ZIP
+  stems avoid a final archive `Blob`; scale qualification and compressed audio,
+  video, 7z, non-realtime, and final delivery paths remain.
 - **Web Enhanced — Planned:** move hot OPFS access to dedicated workers and use
   synchronous access handles only after capability detection; retain IndexedDB
   as the correctness fallback.
