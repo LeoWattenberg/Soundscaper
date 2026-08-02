@@ -38,6 +38,14 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
+		/Implemented for point-in-time linked retained\s+video.*exact product-local binding.*exact-revision.*digest-verified.*owner-scoped range playback.*maintained visual\s+lifecycle.*without another whole-original `Blob`.*fresh\s+descriptor-free\s+shared load.*without an owned-media copy.*explicit managed\s+handoff/isu,
+	);
+	assert.match(
+		roadmap,
+		/Electron Enhanced — In progress.*beyond the bounded chooser\/import and maintained visual-playback slices.*stable playback identity beyond that maintained visual\s+lifecycle/isu,
+	);
+	assert.match(
+		roadmap,
 		/Implemented for managed-media ownership and bounded\s+startup reclamation.*schema-3 canonical and stage inventories.*descriptor provenance.*lease.*fencing tokens.*before body or\s+optional hard-link work.*catalog publication.*materialized inventory.*published atomically.*retires stale tracked catalog rows.*registered regular stages and bodies.*lease-fenced.*persisted bounded passes.*unmanaged.*unregistered.*legacy.*symlinked.*non-regular.*foreign content stays untouched.*compiled desktop\s+runtime.*packaged source-bearing UI qualification remains\s+open/isu,
 	);
 	assert.match(
@@ -52,6 +60,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 		roadmap,
 		/In progress[^\n]*.*linked-locator reconciliation/isu,
 	);
+	assert.doesNotMatch(roadmap, /beyond bounded point-in-time whole-body import/iu);
 	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
 	assert.match(roadmap, /docs\/project-compatibility\.md/iu);
 	assert.doesNotMatch(roadmap, /\b\d+ test files\b/iu);

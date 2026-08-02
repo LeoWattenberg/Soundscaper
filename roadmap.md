@@ -267,9 +267,10 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   handoff supports fresh-recipient acquisition and exact same-content rebinding
   on return.
 - **Shared / Electron Enhanced — Implemented for point-in-time linked retained
-  video:** an exact product-local binding supports activation, a fresh
-  descriptor-free shared load without an owned-media copy, and explicit managed
-  handoff.
+  video:** an exact product-local binding supports exact-revision,
+  digest-verified owner-scoped range playback for the maintained visual
+  lifecycle without another whole-original `Blob`, a fresh descriptor-free
+  shared load without an owned-media copy, and explicit managed handoff.
 - **Electron Enhanced / Shared — Implemented for the maintained first-party
   audio fallback:** an exact-schema audio whole-mix source referenced only by
   its feature requirement crosses explicit managed handoff with the editable
@@ -321,11 +322,13 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   hostile-renderer inventory authority, abrupt-crash/power-loss durability, and
   packaged/OS qualification remain open.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
-  beyond bounded point-in-time whole-body import and finish broader
+  beyond the bounded chooser/import and maintained visual-playback slices, and
+  finish broader
   linked and unmanaged-original lifecycles, authored proxies plus generic
   rendered-fallback relationships beyond maintained first-party playback and
   managed handoff, fallback authoring and delivery use, exact or write-time
-  capacity behavior, durable playback identity, continuous linked-locator
+  capacity behavior, stable playback identity beyond that maintained visual
+  lifecycle, continuous linked-locator
   cleanup and binding-to-project reachability beyond the bounded startup pass
   where required, and packaged UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
