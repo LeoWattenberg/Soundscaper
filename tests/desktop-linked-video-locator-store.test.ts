@@ -56,7 +56,7 @@ test('linked-video locators expose only bounded opaque snapshot metadata', async
 	assert.equal('path' in loaded, false);
 });
 
-test('linked-video locators fail closed before read admission for the wrong owner or revision', async (context) => {
+test('linked-video locators fail closed before read admission for a revoked owner or revision', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-owner-'));
 	context.after(async () => { await rm(root, { recursive: true, force: true }); });
 	const path = join(root, 'selected.webm');
@@ -73,12 +73,13 @@ test('linked-video locators fail closed before read admission for the wrong owne
 		displayName: 'selected.webm',
 	});
 
+	store.revokeOwner(owner);
 	assert.equal(await store.load(locator.locatorId, {
-		owner: {},
+		owner,
 		expectedRevision: locator.locatorRevision,
 	}), null);
 	assert.equal(await store.load(locator.locatorId, {
-		owner,
+		owner: {},
 		expectedRevision: 'f'.repeat(64),
 	}), null);
 	assert.deepEqual(reads.registrations, []);
@@ -112,7 +113,7 @@ test('linked-video locators reject changed files and retire raced read capabilit
 		mimeType: 'video/mp4',
 		displayName: 'selected.mp4',
 	});
-	reads.afterRegister = () => { store.release(second.locatorId, { owner }); };
+	reads.afterRegister = async () => { await store.release(second.locatorId, { owner }); };
 	assert.equal(await store.load(second.locatorId, {
 		owner,
 		expectedRevision: second.locatorRevision,
@@ -120,7 +121,7 @@ test('linked-video locators reject changed files and retire raced read capabilit
 	assert.deepEqual(reads.releases, [{ id: 'a'.repeat(64), owner }]);
 });
 
-test('linked-video locator admission is bounded and owner revocation removes every grant', async (context) => {
+test('linked-video locator admission is bounded and owner revocation fences only that renderer', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-admission-'));
 	context.after(async () => { await rm(root, { recursive: true, force: true }); });
 	const firstPath = join(root, 'first.mp4');
@@ -148,12 +149,54 @@ test('linked-video locator admission is bounded and owner revocation removes eve
 		}),
 		/admission|limit/iu,
 	);
-	assert.equal(store.revokeOwner(owner), 1);
+	store.revokeOwner(owner);
 	assert.equal(await store.load(locator.locatorId, {
 		owner,
 		expectedRevision: locator.locatorRevision,
 	}), null);
-	assert.deepEqual(reads.registrations, []);
+	const nextOwner = {};
+	assert.ok(await store.load(locator.locatorId, {
+		owner: nextOwner,
+		expectedRevision: locator.locatorRevision,
+	}));
+	assert.equal(reads.registrations.length, 1);
+});
+
+test('owner revocation during persistent publication rolls the locator record back', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-revoked-publish-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const path = join(root, 'selected.mp4');
+	await writeFile(path, 'video');
+	const publicationStarted = deferred<void>();
+	const allowPublication = deferred<void>();
+	const snapshots: number[] = [];
+	let writes = 0;
+	const owner = {};
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		randomBytes: deterministicTokens(),
+		registry: {
+			read: () => [],
+			async write(entries) {
+				snapshots.push(entries.length);
+				writes += 1;
+				if (writes !== 1) return;
+				publicationStarted.resolve(undefined);
+				await allowPublication.promise;
+			},
+		},
+	});
+	const registration = store.registerPath(path, {
+		owner,
+		mimeType: 'video/mp4',
+		displayName: 'selected.mp4',
+	});
+	await publicationStarted.promise;
+	store.revokeOwner(owner);
+	allowPublication.resolve(undefined);
+
+	await assert.rejects(registration, /revoked/iu);
+	assert.deepEqual(snapshots, [1, 0]);
 });
 
 test('linked-video locator registration rejects directories, empty files, and unsafe metadata', async (context) => {
@@ -190,7 +233,7 @@ function readCapabilities() {
 		readonly registrations: Array<Record<string, unknown>>;
 		readonly releases: Array<Record<string, unknown>>;
 		readonly descriptors: Array<Record<string, unknown>>;
-		afterRegister: (() => void) | null;
+		afterRegister: (() => Promise<void> | void) | null;
 	} = {
 		registrations,
 		releases,
@@ -210,7 +253,7 @@ function readCapabilities() {
 					lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
 				});
 				descriptors.push(descriptor);
-				fixture.afterRegister?.();
+				await fixture.afterRegister?.();
 				return descriptor;
 			},
 			async release(id, options) {
@@ -228,4 +271,14 @@ function deterministicTokens(): (size: number) => Uint8Array {
 		value += 1;
 		return new Uint8Array(size).fill(value);
 	};
+}
+
+function deferred<Value>() {
+	let resolvePromise!: (value: Value | PromiseLike<Value>) => void;
+	let rejectPromise!: (reason?: unknown) => void;
+	const promise = new Promise<Value>((resolve, reject) => {
+		resolvePromise = resolve;
+		rejectPromise = reject;
+	});
+	return { promise, resolve: resolvePromise, reject: rejectPromise };
 }

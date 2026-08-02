@@ -4,8 +4,17 @@ import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import { stat as nodeStat } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 
-export const MAX_LINKED_VIDEO_LOCATORS = 32;
-export const MAX_LINKED_VIDEO_LOCATOR_BYTES = 512 * 1024 ** 2;
+import {
+	MAX_PERSISTED_LINKED_VIDEO_BYTES,
+	MAX_PERSISTED_LINKED_VIDEO_LOCATORS,
+	normalizePersistedLinkedVideoLocator,
+	type DesktopLinkedVideoLocatorRegistry,
+	type PersistedLinkedVideoFileIdentity,
+	type PersistedLinkedVideoLocator,
+} from './linked-video-locator-registry.ts';
+
+export const MAX_LINKED_VIDEO_LOCATORS = MAX_PERSISTED_LINKED_VIDEO_LOCATORS;
+export const MAX_LINKED_VIDEO_LOCATOR_BYTES = MAX_PERSISTED_LINKED_VIDEO_BYTES;
 
 export interface DesktopLinkedVideoReadDescriptor extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -53,24 +62,14 @@ interface FileStat {
 	isFile(): boolean;
 }
 
-interface FileIdentity {
-	readonly dev: number;
-	readonly ino: number;
-	readonly size: number;
-	readonly mtimeMs: number;
-	readonly ctimeMs: number;
-}
+type FileIdentity = PersistedLinkedVideoFileIdentity;
 
 interface OwnerState {
 	readonly owner: object;
-	bytes: number;
-	count: number;
 	revoked: boolean;
 }
 
 interface LocatorEntry extends DesktopLinkedVideoLocator {
-	readonly owner: object;
-	readonly ownerState: OwnerState;
 	readonly path: string;
 	readonly identity: FileIdentity;
 }
@@ -80,6 +79,7 @@ export interface DesktopLinkedVideoLocatorStoreOptions {
 	readonly maximumCount?: number;
 	readonly maximumBytes?: number;
 	readonly randomBytes?: (size: number) => Uint8Array;
+	readonly registry?: DesktopLinkedVideoLocatorRegistry | null;
 	readonly stat?: (path: string) => PromiseLike<FileStat> | FileStat;
 }
 
@@ -91,10 +91,13 @@ export class DesktopLinkedVideoLocatorStore {
 	readonly #ownerStates = new WeakMap<object, OwnerState>();
 	readonly #randomBytes: (size: number) => Uint8Array;
 	readonly #readCapabilities: DesktopLinkedVideoReadCapabilityStore;
+	readonly #registry: DesktopLinkedVideoLocatorRegistry | null;
 	readonly #stat: (path: string) => PromiseLike<FileStat> | FileStat;
 	#bytes = 0;
 	#count = 0;
 	#disposed = false;
+	#mutationTail: Promise<void> = Promise.resolve();
+	#readyPromise: Promise<void> | null = null;
 
 	constructor(options: DesktopLinkedVideoLocatorStoreOptions) {
 		if (!options?.readCapabilities
@@ -114,7 +117,14 @@ export class DesktopLinkedVideoLocatorStore {
 			'Linked-video locator bytes',
 		);
 		this.#randomBytes = options.randomBytes ?? nodeRandomBytes;
+		this.#registry = options.registry ?? null;
 		this.#stat = options.stat ?? nodeStat;
+	}
+
+	ready(): Promise<void> {
+		if (this.#readyPromise) return this.#readyPromise;
+		this.#readyPromise = this.#initialize();
+		return this.#readyPromise;
 	}
 
 	async registerPath(
@@ -125,6 +135,7 @@ export class DesktopLinkedVideoLocatorStore {
 			displayName: string;
 		}>,
 	): Promise<Readonly<DesktopLinkedVideoLocator>> {
+		await this.ready();
 		this.#assertActive();
 		const owner = requiredOwner(options?.owner);
 		const absolutePath = absoluteFilePath(path);
@@ -136,33 +147,49 @@ export class DesktopLinkedVideoLocatorStore {
 			throw new RangeError('Linked-video locator bytes exceed the admission limit.');
 		}
 		const state = this.#ownerState(owner);
-		if (state.revoked) throw new Error('The linked-video locator owner was revoked.');
-		if (this.#count >= this.#maximumCount || state.count >= this.#maximumCount) {
-			throw new RangeError('Linked-video locator count exceeds the admission limit.');
-		}
-		if (identity.size > this.#maximumBytes - this.#bytes
-			|| identity.size > this.#maximumBytes - state.bytes) {
-			throw new RangeError('Linked-video locator bytes exceed the admission limit.');
-		}
-		const locatorId = this.#newToken();
-		const entry: LocatorEntry = Object.freeze({
-			locatorId,
-			locatorRevision: this.#newToken(),
-			name,
-			size: identity.size,
-			mimeType,
-			lastModified: readTimestamp(identity.mtimeMs),
-			owner,
-			ownerState: state,
-			path: absolutePath,
-			identity,
+		return this.#mutate(async () => {
+			this.#assertActive();
+			if (state.revoked) throw new Error('The linked-video locator owner was revoked.');
+			if (this.#count >= this.#maximumCount) {
+				throw new RangeError('Linked-video locator count exceeds the admission limit.');
+			}
+			if (identity.size > this.#maximumBytes - this.#bytes) {
+				throw new RangeError('Linked-video locator bytes exceed the admission limit.');
+			}
+			const locatorId = this.#newToken();
+			const entry: LocatorEntry = Object.freeze({
+				locatorId,
+				locatorRevision: this.#newToken(),
+				name,
+				size: identity.size,
+				mimeType,
+				lastModified: readTimestamp(identity.mtimeMs),
+				path: absolutePath,
+				identity,
+			});
+			this.#add(entry);
+			try {
+				await this.#persist();
+			} catch (error) {
+				this.#drop(entry);
+				throw error;
+			}
+			if (state.revoked) {
+				this.#drop(entry);
+				const error = new Error('The linked-video locator owner was revoked before publication.');
+				try {
+					await this.#persist();
+				} catch (cleanupError) {
+					throw new AggregateError(
+						[error, cleanupError],
+						'Linked-video locator revocation cleanup failed.',
+						{ cause: error },
+					);
+				}
+				throw error;
+			}
+			return publicLocator(entry);
 		});
-		this.#entries.set(locatorId, entry);
-		this.#count += 1;
-		this.#bytes += entry.size;
-		state.count += 1;
-		state.bytes += entry.size;
-		return publicLocator(entry);
 	}
 
 	async load(
@@ -172,12 +199,14 @@ export class DesktopLinkedVideoLocatorStore {
 			expectedRevision: string | null;
 		}>,
 	): Promise<Readonly<LoadedDesktopLinkedVideoLocator> | null> {
+		await this.ready();
 		this.#assertActive();
 		const id = opaqueToken(locatorId, 'Invalid linked-video locator identifier.');
 		const owner = requiredOwner(options?.owner);
 		const expectedRevision = nullableRevision(options?.expectedRevision);
+		const state = this.#ownerState(owner);
 		const entry = this.#entries.get(id);
-		if (!entry || entry.owner !== owner || entry.ownerState.revoked
+		if (!entry || state.revoked
 			|| expectedRevision !== null && entry.locatorRevision !== expectedRevision) return null;
 		const before = await this.#currentIdentity(entry.path);
 		if (!before || !sameFileIdentity(before, entry.identity)
@@ -191,7 +220,7 @@ export class DesktopLinkedVideoLocatorStore {
 			assertDescriptorMatches(descriptor, entry);
 			const after = await this.#currentIdentity(entry.path);
 			if (!after || !sameFileIdentity(after, entry.identity)
-				|| this.#entries.get(id) !== entry || entry.ownerState.revoked) {
+				|| this.#entries.get(id) !== entry || state.revoked) {
 				await this.#readCapabilities.release(descriptor.id, { owner });
 				return null;
 			}
@@ -213,36 +242,58 @@ export class DesktopLinkedVideoLocatorStore {
 		}
 	}
 
-	release(locatorId: string, options: Readonly<{ owner: object }>): boolean {
+	async release(locatorId: string, options: Readonly<{ owner: object }>): Promise<boolean> {
+		await this.ready();
 		const id = opaqueToken(locatorId, 'Invalid linked-video locator identifier.');
 		const owner = requiredOwner(options?.owner);
-		const entry = this.#entries.get(id);
-		if (!entry || entry.owner !== owner) return false;
-		this.#drop(entry);
-		return true;
+		const state = this.#ownerState(owner);
+		return this.#mutate(async () => {
+			if (state.revoked) return false;
+			const entry = this.#entries.get(id);
+			if (!entry) return false;
+			this.#drop(entry);
+			try {
+				await this.#persist();
+			} catch (error) {
+				this.#add(entry);
+				throw error;
+			}
+			return true;
+		});
 	}
 
-	revokeOwner(ownerValue: object): number {
+	revokeOwner(ownerValue: object): void {
 		const owner = requiredOwner(ownerValue);
 		const state = this.#ownerState(owner);
 		state.revoked = true;
-		let removed = 0;
-		for (const entry of [...this.#entries.values()]) {
-			if (entry.owner !== owner) continue;
-			this.#drop(entry);
-			removed += 1;
-		}
-		return removed;
 	}
 
-	dispose(): number {
+	async dispose(): Promise<number> {
 		if (this.#disposed) return 0;
+		await this.ready();
+		await this.#mutationTail;
 		this.#disposed = true;
 		const removed = this.#entries.size;
 		this.#entries.clear();
 		this.#count = 0;
 		this.#bytes = 0;
 		return removed;
+	}
+
+	async #initialize(): Promise<void> {
+		if (!this.#registry) return;
+		const records = await this.#registry.read();
+		if (!Array.isArray(records)) throw new TypeError('Linked-video locator registry returned invalid entries.');
+		for (const record of records) {
+			const entry = normalizePersistedLinkedVideoLocator(record) as LocatorEntry;
+			if (this.#entries.has(entry.locatorId)) {
+				throw new Error('Linked-video locator registry returned duplicate identifiers.');
+			}
+			if (this.#count >= this.#maximumCount || entry.size > this.#maximumBytes - this.#bytes) {
+				throw new RangeError('Persisted linked-video locator admission exceeds configured limits.');
+			}
+			this.#add(entry);
+		}
 	}
 
 	async #currentIdentity(path: string): Promise<FileIdentity | null> {
@@ -258,8 +309,22 @@ export class DesktopLinkedVideoLocatorStore {
 		this.#entries.delete(entry.locatorId);
 		this.#count -= 1;
 		this.#bytes -= entry.size;
-		entry.ownerState.count -= 1;
-		entry.ownerState.bytes -= entry.size;
+	}
+
+	#add(entry: LocatorEntry): void {
+		this.#entries.set(entry.locatorId, entry);
+		this.#count += 1;
+		this.#bytes += entry.size;
+	}
+
+	#mutate<Value>(operation: () => Promise<Value>): Promise<Value> {
+		const result = this.#mutationTail.then(operation);
+		this.#mutationTail = result.then(() => undefined, () => undefined);
+		return result;
+	}
+
+	#persist(): PromiseLike<void> | void {
+		return this.#registry?.write([...this.#entries.values()].map(persistedEntry));
 	}
 
 	#newToken(): string {
@@ -277,7 +342,7 @@ export class DesktopLinkedVideoLocatorStore {
 	#ownerState(owner: object): OwnerState {
 		let state = this.#ownerStates.get(owner);
 		if (!state) {
-			state = { owner, bytes: 0, count: 0, revoked: false };
+			state = { owner, revoked: false };
 			this.#ownerStates.set(owner, state);
 		}
 		return state;
@@ -296,6 +361,19 @@ function publicLocator(entry: LocatorEntry): Readonly<DesktopLinkedVideoLocator>
 		size: entry.size,
 		mimeType: entry.mimeType,
 		lastModified: entry.lastModified,
+	});
+}
+
+function persistedEntry(entry: LocatorEntry): Readonly<PersistedLinkedVideoLocator> {
+	return normalizePersistedLinkedVideoLocator({
+		locatorId: entry.locatorId,
+		locatorRevision: entry.locatorRevision,
+		path: entry.path,
+		name: entry.name,
+		size: entry.size,
+		mimeType: entry.mimeType,
+		lastModified: entry.lastModified,
+		identity: entry.identity,
 	});
 }
 
