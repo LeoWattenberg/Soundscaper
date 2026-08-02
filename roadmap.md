@@ -272,9 +272,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   lifecycle without another whole-original `Blob`, a fresh descriptor-free
   shared load without an owned-media copy, and explicit managed handoff.
 - **Electron Enhanced / Shared — Implemented for point-in-time linked WAV:**
-  bounded RIFF/RF64 PCM and IEEE-float sources remain pathless and unowned by
-  the sender; portable `.scape` and managed handoff acquire ordinary canonical
-  PCM in a fresh recipient.
+  bounded RIFF/RF64 PCM and IEEE-float sources stay sender-unowned and pathless;
+  exact-revision range reads avoid another whole-original `Blob`, while portable
+  `.scape` and managed handoff acquire canonical PCM in a fresh recipient.
 - **Electron Enhanced / Shared — Implemented for registered first-party audio
   fallbacks:** an exact-schema audio whole-mix source referenced by one
   unavailable registered audio feature crosses explicit managed handoff with
@@ -340,8 +340,7 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Shared / Electron Enhanced — Implemented:** same-store project duplication
   preserves reachable linked-original bindings without copying external media.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
-  beyond the bounded chooser/import and maintained visual-playback slices, and
-  finish broader
+  beyond the bounded linked-WAV and retained-video slices, and finish broader
   linked and unmanaged-original lifecycles, generic rendered-fallback
   acquisition, activation, and delivery beyond maintained first-party playback,
   managed handoff, and audio/video export, exact or write-time
