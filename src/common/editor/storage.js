@@ -304,12 +304,12 @@ export class AudioEditorProjectStore {
 	}
 
 	/** Release a platform locator that was not retained by a committed import. */
-	async releaseLinkedVideoOriginalLocator(locatorId) {
+	async releaseLinkedVideoOriginalLocator(reference) {
 		this.#assertOpen();
 		if (!this.linkedVideoOriginalResolver) {
 			throw new Error('Linked video original resolution is unavailable.');
 		}
-		return this.linkedVideoOriginalResolver.release(locatorId);
+		return this.linkedVideoOriginalResolver.release(reference);
 	}
 
 	/** Reconcile main-private startup locators only from a complete durable binding inventory. */

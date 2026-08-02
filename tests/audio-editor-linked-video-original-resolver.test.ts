@@ -193,19 +193,31 @@ test('linked video binding rejects same-revision chooser body replacement', asyn
 });
 
 test('linked video resolver releases unused opaque locators when the platform supports it', async () => {
-	const released: string[] = [];
+	const released: unknown[] = [];
 	const resolver = fixtureResolver({
 		load() { return null; },
-		release(locatorId) {
-			released.push(locatorId);
+		release(reference) {
+			released.push(reference);
 			return true;
 		},
 	});
-	assert.equal(await resolver.release('locator_0000000000000001'), true);
-	assert.deepEqual(released, ['locator_0000000000000001']);
+	const reference = Object.freeze({
+		locatorId: 'locator_0000000000000001',
+		locatorRevision: 'revision_0000000000000001',
+	});
+	assert.equal(await resolver.release(reference), true);
+	assert.deepEqual(released, [reference]);
+	await assert.rejects(
+		resolver.release('locator_0000000000000001' as never),
+		/reference.*required/iu,
+	);
+	assert.deepEqual(released, [reference]);
 
 	const unsupported = fixtureResolver({ load() { return null; } });
-	assert.equal(await unsupported.release('locator_0000000000000002'), false);
+	assert.equal(await unsupported.release({
+		locatorId: 'locator_0000000000000002',
+		locatorRevision: 'revision_0000000000000002',
+	}), false);
 });
 
 test('linked video resolver reconciles only a complete durable binding inventory', async () => {

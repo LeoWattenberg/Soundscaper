@@ -74,7 +74,7 @@ export interface LinkedVideoOriginalPort {
 	reconcile?(
 		references: readonly LinkedVideoOriginalLocatorReference[],
 	): PromiseLike<number> | number;
-	release?(locatorId: string): PromiseLike<boolean> | boolean;
+	release?(reference: LinkedVideoOriginalLocatorReference): PromiseLike<boolean> | boolean;
 }
 
 export interface ResolvedLinkedVideoOriginal {
@@ -296,9 +296,14 @@ export class LinkedVideoOriginalResolver {
 		return this.#bindings.deleteIfCurrent(projectId, sourceId, expectedBindingToken);
 	}
 
-	async release(locatorId: string): Promise<boolean> {
+	async release(referenceValue: LinkedVideoOriginalLocatorReference): Promise<boolean> {
+		const reference = locatorReference(referenceValue);
 		if (typeof this.#port.release !== 'function') return false;
-		return Boolean(await this.#port.release(locatorId));
+		const released = await this.#port.release(reference);
+		if (released !== true && released !== false) {
+			throw new TypeError('Linked video locator release returned an invalid result.');
+		}
+		return released;
 	}
 
 	async reconcileLocators(canonicalProjectIds: readonly string[]): Promise<number | null> {
@@ -548,6 +553,31 @@ function linkedMetadata(binding: LinkedVideoOriginalBinding): ResolvedLinkedVide
 
 function sameBinding(left: LinkedVideoOriginalBinding, right: LinkedVideoOriginalBinding): boolean {
 	return left.bindingToken === right.bindingToken && JSON.stringify(left) === JSON.stringify(right);
+}
+
+function locatorReference(value: unknown): Readonly<LinkedVideoOriginalLocatorReference> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('A linked video locator reference is required.');
+	}
+	const fields = ['locatorId', 'locatorRevision'];
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(String(key)))) {
+		throw new TypeError('A linked video locator reference contains an unsupported field.');
+	}
+	const output: Record<string, string> = Object.create(null) as Record<string, string>;
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+			|| typeof descriptor.value !== 'string'
+			|| !/^[a-z0-9][a-z0-9_-]{15,127}$/iu.test(descriptor.value)) {
+			throw new TypeError(`Linked video ${field} is invalid.`);
+		}
+		output[field] = descriptor.value;
+	}
+	return Object.freeze({
+		locatorId: output.locatorId as string,
+		locatorRevision: output.locatorRevision as string,
+	});
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

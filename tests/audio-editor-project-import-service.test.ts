@@ -62,12 +62,12 @@ test('project import options reject unsupported destinations and non-finite fram
 });
 
 test('a linked video locator is refused and released for non-video imports', async () => {
-	const released: string[] = [];
+	const released: unknown[] = [];
 	const runtime = createRuntime() as Record<string, unknown>;
 	runtime.isLegacyAupFile = () => false;
 	runtime.isAudioEditorVideoFile = () => false;
 	runtime.store = {
-		async releaseLinkedVideoOriginalLocator(locatorId: string) { released.push(locatorId); return true; },
+		async releaseLinkedVideoOriginalLocator(reference: unknown) { released.push(reference); return true; },
 	};
 	const service = createProjectImportService(runtime as ProjectImportRuntime);
 	await assert.rejects(
@@ -77,7 +77,10 @@ test('a linked video locator is refused and released for non-video imports', asy
 		}),
 		/only be used for a video import/iu,
 	);
-	assert.deepEqual(released, ['locator_0000000000000001']);
+	assert.deepEqual(released, [{
+		locatorId: 'locator_0000000000000001',
+		locatorRevision: 'revision_0000000000000001',
+	}]);
 });
 
 test('already-normalized default placement remains implicit when routed to video import', async () => {
@@ -94,18 +97,18 @@ test('already-normalized default placement remains implicit when routed to video
 	assert.equal(routed.timelineStartExplicit, false);
 });
 
-test('normalization failures release a syntactically valid chosen locator', async () => {
-	const released: string[] = [];
+test('normalization cleanup requires an exact valid locator reference', async () => {
+	const released: unknown[] = [];
 	const runtime = createRuntime() as Record<string, unknown>;
 	runtime.store = {
-		async releaseLinkedVideoOriginalLocator(locatorId: string) { released.push(locatorId); return true; },
+		async releaseLinkedVideoOriginalLocator(reference: unknown) { released.push(reference); return true; },
 	};
 	const service = createProjectImportService(runtime as ProjectImportRuntime);
 	await assert.rejects(
 		service.importFile({ name: 'movie.mp4' }, {
 			destination: 'invalid',
 			linkedVideoLocatorId: 'locator_0000000000000001',
-			linkedVideoLocatorRevision: 'bad',
+			linkedVideoLocatorRevision: 'revision_0000000000000001',
 		}),
 		/Unsupported audio import destination/u,
 	);
@@ -116,7 +119,23 @@ test('normalization failures release a syntactically valid chosen locator', asyn
 		}),
 		/locator and revision.*together/iu,
 	);
-	assert.deepEqual(released, ['locator_0000000000000001', 'locator_0000000000000001']);
+	await assert.rejects(
+		service.importFile({ name: 'movie.mp4' }, {
+			destination: 'invalid', linkedVideoLocatorId: 'locator_0000000000000001',
+		}),
+		/Unsupported audio import destination/u,
+	);
+	let getterCalls = 0;
+	const accessorOptions = { destination: 'invalid', linkedVideoLocatorId: 'locator_0000000000000001' };
+	Object.defineProperty(accessorOptions, 'linkedVideoLocatorRevision', {
+		enumerable: true, get() { getterCalls += 1; return 'revision_0000000000000001'; },
+	});
+	await assert.rejects(service.importFile({ name: 'movie.mp4' }, accessorOptions), /Unsupported audio import destination/u);
+	assert.equal(getterCalls, 0);
+	assert.deepEqual(released, [{
+		locatorId: 'locator_0000000000000001',
+		locatorRevision: 'revision_0000000000000001',
+	}]);
 });
 
 test('empty, blocked, and multi-file linked imports release their unused locator', async () => {
@@ -125,19 +144,22 @@ test('empty, blocked, and multi-file linked imports release their unused locator
 		[[{ name: 'movie.mp4' }], true],
 		[[{ name: 'one.mp4' }, { name: 'two.mp4' }], false],
 	] as const) {
-		const released: string[] = [];
+		const released: unknown[] = [];
 		const runtime = createRuntime() as Record<string, unknown>;
 		runtime.editingBlocked = () => blocked;
 		runtime.isAudioEditorVideoFile = () => true;
 		runtime.handleError = () => undefined;
 		runtime.store = {
-			async releaseLinkedVideoOriginalLocator(locatorId: string) { released.push(locatorId); return true; },
+			async releaseLinkedVideoOriginalLocator(reference: unknown) { released.push(reference); return true; },
 		};
 		const service = createProjectImportService(runtime as ProjectImportRuntime);
 		await service.importFiles(files, {
 			linkedVideoLocatorId: 'locator_0000000000000001',
 			linkedVideoLocatorRevision: 'revision_0000000000000001',
 		});
-		assert.deepEqual(released, ['locator_0000000000000001']);
+		assert.deepEqual(released, [{
+			locatorId: 'locator_0000000000000001',
+			locatorRevision: 'revision_0000000000000001',
+		}]);
 	}
 });

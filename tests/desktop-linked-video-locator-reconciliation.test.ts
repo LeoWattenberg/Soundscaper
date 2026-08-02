@@ -143,7 +143,9 @@ function platformPort(
 			submitted.push(references.map((reference) => ({ ...reference })));
 			return main.reconcileStartup(references, { owner });
 		},
-		release: (locatorId) => main.release(locatorId, { owner }),
+		release: (reference) => main.release(reference.locatorId, {
+			owner, expectedRevision: reference.locatorRevision,
+		}),
 	};
 }
 

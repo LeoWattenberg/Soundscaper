@@ -102,7 +102,9 @@ test('linked-video locator grants survive store restart and release only registr
 	assert.ok(loaded);
 	assert.equal(loaded.locatorRevision, locator.locatorRevision);
 	assert.equal(secondReads.registrations, 1);
-	assert.equal(await second.release(locator.locatorId, { owner: nextOwner }), true);
+	assert.equal(await second.release(locator.locatorId, {
+		owner: nextOwner, expectedRevision: locator.locatorRevision,
+	}), true);
 	assert.equal((await stat(targetPath)).isFile(), true);
 	await second.dispose();
 

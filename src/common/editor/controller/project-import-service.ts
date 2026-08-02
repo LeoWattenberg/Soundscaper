@@ -7,6 +7,7 @@ import {
 } from './wav-import-metadata.ts';
 import {
 	freezeProjectImportOptions,
+	linkedVideoLocatorReferenceFromImportOptions,
 	normalizeProjectImportOptions,
 	normalizeProjectImportOptionsForUse,
 	normalizeProjectImportTimelineStartFrame,
@@ -48,13 +49,13 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const importOptions = await normalizedImportOptionsForUse(requestedOptions);
 		if (!files.length || editingBlocked()) {
 			if (importOptions.linkedVideoLocatorId) {
-				await releaseLinkedVideoLocator(importOptions.linkedVideoLocatorId);
+				await releaseLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(importOptions));
 			}
 			return;
 		}
 		if (importOptions.linkedVideoLocatorId
 			&& (files.length !== 1 || !isAudioEditorVideoFile(files[0]))) {
-			try { await rejectLinkedVideoLocator(importOptions.linkedVideoLocatorId); }
+			try { await rejectLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(importOptions)); }
 			catch (error) { handleError(error); }
 			return;
 		}
@@ -140,8 +141,8 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			releaseLinkedVideoLocator,
 		);
 	}
-	async function releaseLinkedVideoLocator(locatorId: RuntimeValue) {
-		const released = await store.releaseLinkedVideoOriginalLocator(locatorId);
+	async function releaseLinkedVideoLocator(reference: RuntimeValue) {
+		const released = await store.releaseLinkedVideoOriginalLocator(reference);
 		if (released === false) throw new Error('The unused linked-video locator was not released.');
 	}
 
@@ -281,7 +282,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const normalizedImportOptions = await normalizedImportOptionsForUse(importOptions);
 		const legacyFile = isLegacyAupFile(file);
 		if (normalizedImportOptions.linkedVideoLocatorId && legacyFile) {
-			return rejectLinkedVideoLocator(normalizedImportOptions.linkedVideoLocatorId);
+			return rejectLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(normalizedImportOptions));
 		}
 		if (legacyFile) {
 			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
@@ -289,7 +290,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		const videoFile = isAudioEditorVideoFile(file);
 		if (normalizedImportOptions.linkedVideoLocatorId && !videoFile) {
-			return rejectLinkedVideoLocator(normalizedImportOptions.linkedVideoLocatorId);
+			return rejectLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(normalizedImportOptions));
 		}
 		if (videoFile) return importVideoFile(file, normalizedImportOptions);
 		validateImportTimelineTrack(normalizedImportOptions);

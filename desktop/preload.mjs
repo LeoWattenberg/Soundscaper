@@ -72,7 +72,7 @@ const api = Object.freeze({
 			.then((result) => nullableLoadedLinkedVideoLocator(result, request.playback));
 	},
 	reconcileLinkedVideoOriginals: (value) => ipcRenderer.invoke(CHANNELS.reconcileLinkedVideoOriginals, linkedVideoReferences(value)).then(safeInteger),
-	releaseLinkedVideoOriginal: (locatorId) => ipcRenderer.invoke(CHANNELS.releaseLinkedVideoOriginal, opaqueId(locatorId, 64)).then(strictBoolean),
+	releaseLinkedVideoOriginal: (reference) => ipcRenderer.invoke(CHANNELS.releaseLinkedVideoOriginal, linkedVideoReferences([reference])[0]).then(strictBoolean),
 	chooseSaveTarget: (options) => ipcRenderer.invoke(CHANNELS.chooseSaveTarget, {
 		purpose: text(options?.purpose, 24),
 		suggestedName: text(options?.suggestedName, 220),

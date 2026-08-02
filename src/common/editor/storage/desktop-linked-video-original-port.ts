@@ -32,7 +32,7 @@ interface DesktopLinkedVideoOriginalBridge {
 	}>): PromiseLike<unknown> | unknown;
 	releaseRead?(id: string): PromiseLike<unknown> | unknown;
 	reconcileLinkedVideoOriginals?(references: readonly LinkedVideoOriginalLocatorReference[]): PromiseLike<unknown> | unknown;
-	releaseLinkedVideoOriginal?(locatorId: string): PromiseLike<unknown> | unknown;
+	releaseLinkedVideoOriginal?(reference: LinkedVideoOriginalLocatorReference): PromiseLike<unknown> | unknown;
 }
 
 interface DesktopLinkedVideoOriginalAccessOptions {
@@ -47,10 +47,10 @@ interface DesktopLinkedVideoOriginalAccessOptions {
 export interface DesktopLinkedVideoOriginalAccess {
 	readonly available: boolean;
 	readonly port: (LinkedVideoOriginalPort & Readonly<{
-		release(locatorId: string): Promise<boolean>;
+		release(reference: LinkedVideoOriginalLocatorReference): Promise<boolean>;
 	}>) | null;
 	choose(request?: Readonly<{ signal?: AbortSignal }>): Promise<Readonly<DesktopLinkedVideoOriginalChoice> | null>;
-	release(locatorId: string): Promise<boolean>;
+	release(reference: LinkedVideoOriginalLocatorReference): Promise<boolean>;
 }
 
 const LOCATOR_FIELDS = Object.freeze([
@@ -87,7 +87,7 @@ export function createDesktopLinkedVideoOriginalAccess(
 		throwIfAborted(request.signal);
 		const rawChoice = await bridge.chooseLinkedVideoOriginal?.();
 		if (rawChoice === null) return null;
-		const cleanupLocatorId = possibleLocatorId(rawChoice);
+		const cleanupLocatorReference = possibleLocatorReference(rawChoice);
 		try {
 			throwIfAborted(request.signal);
 			const choice = locatorValue(rawChoice);
@@ -99,7 +99,9 @@ export function createDesktopLinkedVideoOriginalAccess(
 			return Object.freeze({ ...choice, file: loaded.file });
 		} catch (error) {
 			try {
-				if (cleanupLocatorId) await release(cleanupLocatorId);
+				if (cleanupLocatorReference && !await release(cleanupLocatorReference)) {
+					throw new Error('The linked-video locator cleanup was not acknowledged.');
+				}
 			} catch (cleanupError) {
 				throw new AggregateError(
 					[error, cleanupError],
@@ -196,10 +198,10 @@ export function createDesktopLinkedVideoOriginalAccess(
 		}
 	}
 
-	async function release(locatorIdValue: string): Promise<boolean> {
+	async function release(referenceValue: LinkedVideoOriginalLocatorReference): Promise<boolean> {
 		if (!available) return false;
-		const locatorId = locatorToken(locatorIdValue, 'locator identifier');
-		return (await bridge.releaseLinkedVideoOriginal?.(locatorId)) === true;
+		const reference = locatorReferences([referenceValue])[0];
+		return (await bridge.releaseLinkedVideoOriginal?.(reference)) === true;
 	}
 
 	async function reconcile(
@@ -357,10 +359,19 @@ function linkedPlaybackUrl(value: unknown, descriptor: Readonly<{ id: string; na
 	return url.href;
 }
 
-function possibleLocatorId(value: unknown): string | null {
+function possibleLocatorReference(value: unknown): LinkedVideoOriginalLocatorReference | null {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const candidate = (value as Readonly<Record<string, unknown>>).locatorId;
-	return typeof candidate === 'string' && /^[a-f0-9]{64}$/u.test(candidate) ? candidate : null;
+	const output: Record<string, string> = Object.create(null) as Record<string, string>;
+	for (const field of ['locatorId', 'locatorRevision']) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+			|| typeof descriptor.value !== 'string' || !/^[a-f0-9]{64}$/u.test(descriptor.value)) return null;
+		output[field] = descriptor.value;
+	}
+	return Object.freeze({
+		locatorId: output.locatorId as string,
+		locatorRevision: output.locatorRevision as string,
+	});
 }
 
 function locatorValue(value: unknown): Omit<DesktopLinkedVideoOriginalChoice, 'file'> {

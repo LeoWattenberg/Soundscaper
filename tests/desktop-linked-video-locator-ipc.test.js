@@ -244,6 +244,7 @@ test('linked-video IPC rejects malformed store values and scopes release to the 
 		fixture.handlers.get(IPC.chooseLinkedVideoOriginal)(fixture.event),
 		/revision/iu,
 	);
+	assert.equal(fixture.storeCalls.some(({ method }) => method === 'release'), false);
 
 	fixture.loaded = {
 		locatorRevision: LOCATOR_REVISION,
@@ -259,16 +260,54 @@ test('linked-video IPC rejects malformed store values and scopes release to the 
 	);
 
 	assert.equal(
-		await fixture.handlers.get(IPC.releaseLinkedVideoOriginal)(fixture.event, LOCATOR_ID),
+		await fixture.handlers.get(IPC.releaseLinkedVideoOriginal)(fixture.event, {
+			locatorId: LOCATOR_ID,
+			locatorRevision: LOCATOR_REVISION,
+		}),
 		true,
 	);
 	assert.deepEqual(fixture.storeCalls.at(-1), {
-		method: 'release', locatorId: LOCATOR_ID, options: { owner: OWNER },
+		method: 'release', locatorId: LOCATOR_ID,
+		options: { owner: OWNER, expectedRevision: LOCATOR_REVISION },
 	});
-	await assert.rejects(
-		fixture.handlers.get(IPC.releaseLinkedVideoOriginal)(fixture.event, 'wrong'),
-		/identifier/iu,
+	const releaseCalls = fixture.storeCalls.length;
+	for (const value of [
+		LOCATOR_ID,
+		{ locatorId: LOCATOR_ID },
+		{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION, path: VIDEO_PATH },
+		Object.defineProperty({ locatorRevision: LOCATOR_REVISION }, 'locatorId', { enumerable: true, get() { throw new Error('must not read'); } }),
+	]) await assert.rejects(
+		fixture.handlers.get(IPC.releaseLinkedVideoOriginal)(fixture.event, value),
+		/field|identifier|reference/iu,
 	);
+	assert.equal(fixture.storeCalls.length, releaseCalls);
+});
+
+test('linked-video IPC treats an unacknowledged exact chooser rollback as cleanup failure', async () => {
+	const fixture = harness();
+	fixture.dialogResult = { canceled: false, filePaths: [VIDEO_PATH] };
+	fixture.locator = {
+		locatorId: LOCATOR_ID,
+		locatorRevision: LOCATOR_REVISION,
+		name: '../selected.mp4',
+		size: 42,
+		mimeType: 'video/mp4',
+		lastModified: 123,
+	};
+	fixture.releaseResult = false;
+	await assert.rejects(
+		fixture.handlers.get(IPC.chooseLinkedVideoOriginal)(fixture.event),
+		(error) => {
+			assert.ok(error instanceof AggregateError);
+			assert.match(String(error.errors[0]), /name/iu);
+			assert.match(String(error.errors[1]), /not acknowledged/iu);
+			return true;
+		},
+	);
+	assert.deepEqual(fixture.storeCalls.at(-1), {
+		method: 'release', locatorId: LOCATOR_ID,
+		options: { owner: OWNER, expectedRevision: LOCATOR_REVISION },
+	});
 });
 
 test('linked-video IPC accepts only a complete bounded exact startup inventory', async () => {
@@ -329,6 +368,7 @@ function harness() {
 		locator: null,
 		loaded: null,
 		reconciled: 0,
+		releaseResult: true,
 		releaseReadError: null,
 	};
 	const store = {
@@ -346,7 +386,7 @@ function harness() {
 		},
 		release(locatorId, options) {
 			storeCalls.push({ method: 'release', locatorId, options });
-			return true;
+			return fixture.releaseResult;
 		},
 		reconcileStartup(references, options) {
 			storeCalls.push({ method: 'reconcileStartup', references, options });

@@ -280,21 +280,41 @@ export class DesktopLinkedVideoLocatorStore {
 		}
 	}
 
-	async release(locatorId: string, options: Readonly<{ owner: object }>): Promise<boolean> {
+	async release(locatorId: string, options: Readonly<{
+		owner: object; expectedRevision: string;
+	}>): Promise<boolean> {
 		await this.ready();
 		const id = opaqueToken(locatorId, 'Invalid linked-video locator identifier.');
 		const owner = requiredOwner(options?.owner);
+		const expectedRevision = opaqueToken(
+			options?.expectedRevision,
+			'Invalid linked-video locator revision.',
+		);
 		const state = this.#ownerState(owner);
 		return this.#mutate(async () => {
 			if (state.revoked) return false;
 			const entry = this.#entries.get(id);
-			if (!entry) return false;
+			if (!entry || entry.locatorRevision !== expectedRevision) return false;
 			this.#drop(entry);
 			try {
 				await this.#persist();
 			} catch (error) {
 				this.#add(entry);
 				throw error;
+			}
+			if (state.revoked) {
+				this.#add(entry);
+				const error = new Error('The linked-video locator owner was revoked during release.');
+				try {
+					await this.#persist();
+				} catch (cleanupError) {
+					throw new AggregateError(
+						[error, cleanupError],
+						'Linked-video locator release revocation rollback failed.',
+						{ cause: error },
+					);
+				}
+				return false;
 			}
 			return true;
 		});

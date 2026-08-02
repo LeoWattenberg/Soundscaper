@@ -17,7 +17,7 @@ const LOCATOR_REVISION = 'revision_composition_0001';
 test('project storage composes pathless linked-video binding and resolution separately from media assets', async (context) => {
 	const body = new Blob(['linked video composition'], { type: 'video/mp4' });
 	const reads: Array<Readonly<{ locatorId: string; expectedRevision: string | null }>> = [];
-	const releases: string[] = [];
+	const releases: unknown[] = [];
 	let playbackReleases = 0;
 	let reconciliations = 0;
 	const port: LinkedVideoOriginalPort = {
@@ -35,8 +35,8 @@ test('project storage composes pathless linked-video binding and resolution sepa
 			},
 			async release() { playbackReleases += 1; },
 		}),
-		release(locatorId) {
-			releases.push(locatorId);
+		release(reference) {
+			releases.push(reference);
 			return true;
 		},
 		reconcile() { reconciliations += 1; return 0; },
@@ -140,8 +140,10 @@ test('project storage composes pathless linked-video binding and resolution sepa
 		store.listLinkedVideoDerivatives(PROJECT_ID, source, binding),
 		/binding.*changed|changed.*binding/iu,
 	);
-	assert.equal(await store.releaseLinkedVideoOriginalLocator(LOCATOR_ID), true);
-	assert.deepEqual(releases, [LOCATOR_ID]);
+	assert.equal(await store.releaseLinkedVideoOriginalLocator({
+		locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+	}), true);
+	assert.deepEqual(releases, [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }]);
 });
 
 test('linked-video resolver injection is optional and facade operations fail before platform access when absent', async (context) => {
@@ -168,7 +170,9 @@ test('linked-video resolver injection is optional and facade operations fail bef
 		/resolution is unavailable/iu,
 	);
 	await assert.rejects(
-		store.releaseLinkedVideoOriginalLocator(LOCATOR_ID),
+		store.releaseLinkedVideoOriginalLocator({
+			locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+		}),
 		/resolution is unavailable/iu,
 	);
 	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), false);

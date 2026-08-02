@@ -26,8 +26,8 @@ test('desktop file service chooses and materializes one pathless linked-video or
 				calls.push(['reconcile', references]);
 				return 2;
 			},
-			async releaseLinkedVideoOriginal(locatorId: unknown) {
-				calls.push(['release-locator', locatorId]);
+			async releaseLinkedVideoOriginal(reference: unknown) {
+				calls.push(['release-locator', reference]);
 				return true;
 			},
 			async releaseRead(id: unknown) {
@@ -72,13 +72,15 @@ test('desktop file service chooses and materializes one pathless linked-video or
 		locatorId: LOCATOR_ID,
 		locatorRevision: LOCATOR_REVISION,
 	}]), 2);
-	assert.equal(await service.linkedVideoOriginalPort.release(LOCATOR_ID), true);
+	assert.equal(await service.linkedVideoOriginalPort.release({
+		locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+	}), true);
 	assert.deepEqual(calls.slice(-5), [
 		['load', { locatorId: LOCATOR_ID, expectedRevision: null, playback: false }],
 		['fetch', descriptor.url],
 		['release-read', READ_ID],
 		['reconcile', [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }]],
-		['release-locator', LOCATOR_ID],
+		['release-locator', { locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }],
 	]);
 });
 
@@ -102,7 +104,7 @@ test('linked-video chooser cancellation is inert and the browser adapter stays a
 });
 
 test('linked-video chooser releases a new locator when materialization fails', async () => {
-	const releases: string[] = [];
+	const releases: unknown[] = [];
 	const service = createAudioEditorFileService({
 		bridge: {
 			async chooseLinkedVideoOriginal() { return locatorChoice(); },
@@ -110,8 +112,8 @@ test('linked-video chooser releases a new locator when materialization fails', a
 				return { locatorRevision: LOCATOR_REVISION, descriptor: readDescriptor() };
 			},
 			async reconcileLinkedVideoOriginals() { return 0; },
-			async releaseLinkedVideoOriginal(locatorId: string) {
-				releases.push(locatorId);
+			async releaseLinkedVideoOriginal(reference: unknown) {
+				releases.push(reference);
 				return true;
 			},
 			async releaseRead() { return true; },
@@ -120,13 +122,13 @@ test('linked-video chooser releases a new locator when materialization fails', a
 	});
 
 	await assert.rejects(service.chooseLinkedVideoOriginal(), /status 500/iu);
-	assert.deepEqual(releases, [LOCATOR_ID]);
+	assert.deepEqual(releases, [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }]);
 });
 
 test('linked-video chooser releases a locator when cancellation wins after selection', async () => {
 	const controller = new AbortController();
 	const reason = new Error('cancel linked selection');
-	const releases: string[] = [];
+	const releases: unknown[] = [];
 	const service = createAudioEditorFileService({
 		bridge: {
 			async chooseLinkedVideoOriginal() {
@@ -135,8 +137,8 @@ test('linked-video chooser releases a locator when cancellation wins after selec
 			},
 			async loadLinkedVideoOriginal() { throw new Error('must not load'); },
 			async reconcileLinkedVideoOriginals() { return 0; },
-			async releaseLinkedVideoOriginal(locatorId: string) {
-				releases.push(locatorId);
+			async releaseLinkedVideoOriginal(reference: unknown) {
+				releases.push(reference);
 				return true;
 			},
 		},
@@ -146,7 +148,7 @@ test('linked-video chooser releases a locator when cancellation wins after selec
 		service.chooseLinkedVideoOriginal({ signal: controller.signal }),
 		(error: unknown) => error === reason,
 	);
-	assert.deepEqual(releases, [LOCATOR_ID]);
+	assert.deepEqual(releases, [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }]);
 });
 
 test('linked-video load releases an admitted read when cancellation wins with the response', async () => {
@@ -177,27 +179,27 @@ test('linked-video load releases an admitted read when cancellation wins with th
 	assert.deepEqual(releasedReads, [READ_ID]);
 });
 
-test('linked-video chooser preserves primary and locator cleanup failures', async () => {
+test('linked-video chooser preserves primary and unacknowledged locator cleanup failures', async () => {
 	const service = createAudioEditorFileService({
 		bridge: {
 			async chooseLinkedVideoOriginal() { return locatorChoice(); },
 			async loadLinkedVideoOriginal() { return null; },
 			async reconcileLinkedVideoOriginals() { return 0; },
-			async releaseLinkedVideoOriginal() { throw new Error('locator cleanup failed'); },
+			async releaseLinkedVideoOriginal() { return false; },
 		},
 	});
 
 	await assert.rejects(service.chooseLinkedVideoOriginal(), (error: unknown) => {
 		assert.ok(error instanceof AggregateError);
 		assert.match(String(error.errors[0]), /unavailable|changed/iu);
-		assert.match(String(error.errors[1]), /cleanup failed/iu);
+		assert.match(String(error.errors[1]), /not acknowledged/iu);
 		return true;
 	});
 });
 
 test('linked-video port rejects malformed bridge DTOs before body fetch', async () => {
 	let fetchCalls = 0;
-	const releases: string[] = [];
+	const releases: unknown[] = [];
 	const service = createAudioEditorFileService({
 		bridge: {
 			async chooseLinkedVideoOriginal() {
@@ -205,8 +207,8 @@ test('linked-video port rejects malformed bridge DTOs before body fetch', async 
 			},
 			async loadLinkedVideoOriginal() { throw new Error('must not load'); },
 			async reconcileLinkedVideoOriginals() { return 0; },
-			async releaseLinkedVideoOriginal(locatorId: string) {
-				releases.push(locatorId);
+			async releaseLinkedVideoOriginal(reference: unknown) {
+				releases.push(reference);
 				return true;
 			},
 		},
@@ -217,7 +219,7 @@ test('linked-video port rejects malformed bridge DTOs before body fetch', async 
 	});
 	await assert.rejects(service.chooseLinkedVideoOriginal(), /closed|unsupported field/iu);
 	assert.equal(fetchCalls, 0);
-	assert.deepEqual(releases, [LOCATOR_ID]);
+	assert.deepEqual(releases, [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }]);
 
 	const loadService = createAudioEditorFileService({
 		bridge: {
@@ -239,6 +241,46 @@ test('linked-video port rejects malformed bridge DTOs before body fetch', async 
 		/locator revision/iu,
 	);
 	assert.equal(fetchCalls, 0);
+});
+
+test('linked-video cleanup requires an exact own-data locator reference', async () => {
+	let getterCalls = 0;
+	const accessorChoice = { ...locatorChoice() };
+	Object.defineProperty(accessorChoice, 'locatorRevision', {
+		enumerable: true,
+		get() { getterCalls += 1; return LOCATOR_REVISION; },
+	});
+	const { locatorRevision: _omitted, ...missingRevision } = locatorChoice();
+	for (const choice of [
+		{ ...locatorChoice(), locatorRevision: 'bad' }, missingRevision, accessorChoice,
+	]) {
+		const releases: unknown[] = [];
+		const service = createAudioEditorFileService({ bridge: {
+			async chooseLinkedVideoOriginal() { return choice; },
+			async loadLinkedVideoOriginal() { throw new Error('must not load'); },
+			async reconcileLinkedVideoOriginals() { return 0; },
+			async releaseLinkedVideoOriginal(reference: unknown) { releases.push(reference); return true; },
+		} });
+		await assert.rejects(service.chooseLinkedVideoOriginal(), /revision|unsupported field|data field/iu);
+		assert.deepEqual(releases, []);
+	}
+	assert.equal(getterCalls, 0);
+});
+
+test('linked-video release rejects non-exact references before invoking the bridge', async () => {
+	let releaseCalls = 0;
+	const service = createAudioEditorFileService({ bridge: {
+		async chooseLinkedVideoOriginal() { return null; },
+		async loadLinkedVideoOriginal() { return null; },
+		async reconcileLinkedVideoOriginals() { return 0; },
+		async releaseLinkedVideoOriginal() { releaseCalls += 1; return true; },
+	} });
+	assert.ok(service.linkedVideoOriginalPort);
+	const release = service.linkedVideoOriginalPort.release as (value: unknown) => Promise<boolean>;
+	for (const value of [LOCATOR_ID, { locatorId: LOCATOR_ID }, {
+		locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION, path: '/private/movie.mp4',
+	}]) await assert.rejects(release(value), /object|unsupported field/iu);
+	assert.equal(releaseCalls, 0);
 });
 
 test('linked-video reconciliation rejects malformed references and bridge results', async () => {

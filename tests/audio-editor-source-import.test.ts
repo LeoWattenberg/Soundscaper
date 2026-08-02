@@ -48,7 +48,7 @@ function createFixture() {
 	const deletedSources: string[] = [];
 	const deletedMedia: string[] = [];
 	const boundSnapshots: unknown[] = [];
-	const releasedLocators: string[] = [];
+	const releasedLocators: unknown[] = [];
 	const unlinkedBindings: Array<Readonly<{
 		projectId: string;
 		sourceId: string;
@@ -249,8 +249,8 @@ function createFixture() {
 				unlinkedBindings.push({ projectId, sourceId, bindingToken });
 				return true;
 			},
-			async releaseLinkedVideoOriginalLocator(locatorId: string) {
-				releasedLocators.push(locatorId);
+			async releaseLinkedVideoOriginalLocator(reference: unknown) {
+				releasedLocators.push(reference);
 				return true;
 			},
 		},
@@ -477,7 +477,7 @@ test('linked video import unlinks and releases its locator when activation fails
 		sourceId: 'video-source-1',
 		bindingToken: 'binding_token_0000000000001',
 	}]);
-	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.deepEqual(fixture.releasedLocators, [{ locatorId, locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
 	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
 	assert.equal(fixture.commits.length, 0);
@@ -494,7 +494,7 @@ test('linked video import releases an unused locator after an early admission fa
 		}),
 		/preflight failed/u,
 	);
-	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.deepEqual(fixture.releasedLocators, [{ locatorId, locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.unlinkedBindings, []);
 	assert.equal(fixture.calls.includes('dispose'), false);
 	assert.equal(fixture.commits.length, 0);
@@ -511,7 +511,7 @@ test('linked video import releases an unpublished locator when exact binding fai
 		}),
 		/binding failed/u,
 	);
-	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.deepEqual(fixture.releasedLocators, [{ locatorId, locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.unlinkedBindings, []);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
 	assert.deepEqual(fixture.deletedMedia, []);
@@ -529,7 +529,7 @@ test('linked video import rolls back its binding and local media when commit ref
 		}),
 		/commit failed/u,
 	);
-	assert.deepEqual(fixture.releasedLocators, [locatorId]);
+	assert.deepEqual(fixture.releasedLocators, [{ locatorId, locatorRevision: 'revision_0000000000000001' }]);
 	assert.equal(fixture.unlinkedBindings.length, 1);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
 	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
@@ -552,7 +552,7 @@ test('linked video import rolls back when the active project changes during acti
 	await assert.rejects(operation, /project changed during video import/iu);
 	assert.equal(fixture.commits.length, 0);
 	assert.equal(fixture.unlinkedBindings.length, 1);
-	assert.deepEqual(fixture.releasedLocators, ['locator_0000000000000001']);
+	assert.deepEqual(fixture.releasedLocators, [{ locatorId: 'locator_0000000000000001', locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
 	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
 	assert.deepEqual(fixture.getProject().sources, []);
@@ -574,7 +574,7 @@ test('linked video import rolls back when the active project generation changes 
 	await assert.rejects(operation, /project changed during video import/iu);
 	assert.equal(fixture.commits.length, 0);
 	assert.equal(fixture.unlinkedBindings.length, 1);
-	assert.deepEqual(fixture.releasedLocators, ['locator_0000000000000001']);
+	assert.deepEqual(fixture.releasedLocators, [{ locatorId: 'locator_0000000000000001', locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
 	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
 	assert.deepEqual(fixture.getProject().sources, []);

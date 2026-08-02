@@ -70,12 +70,13 @@ export function registerDesktopLinkedVideoLocatorIpc({
 		),
 		'Linked-video reconciliation removal count',
 	));
-	handle(IPC.releaseLinkedVideoOriginal, async (event, locatorId) => strictBoolean(
-		await store.release(
-			opaqueToken(locatorId, 'Invalid linked-video locator identifier.'),
-			{ owner: reference(ownerFor(event)) },
-		),
-	));
+	handle(IPC.releaseLinkedVideoOriginal, async (event, value) => {
+		const locator = linkedVideoReferences([value])[0];
+		return strictBoolean(await store.release(locator.locatorId, {
+			owner: reference(ownerFor(event)),
+			expectedRevision: locator.locatorRevision,
+		}));
+	});
 }
 
 function assertDependencies({ dialog, handle, ownerFor, releaseRead, store, windowFor }) {
@@ -171,18 +172,18 @@ function linkedVideoReferences(value) {
 
 function closedReference(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('A linked-video reconciliation reference is required.');
+		throw new TypeError('A linked-video locator reference is required.');
 	}
 	const fields = ['locatorId', 'locatorRevision'];
 	const keys = Reflect.ownKeys(value);
 	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
-		throw new TypeError('A linked-video reconciliation reference contains an unsupported field.');
+		throw new TypeError('A linked-video locator reference contains an unsupported field.');
 	}
 	const output = Object.create(null);
 	for (const field of fields) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, field);
 		if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`Linked-video reconciliation ${field} must be an enumerable data field.`);
+			throw new TypeError(`Linked-video locator ${field} must be an enumerable data field.`);
 		}
 		output[field] = descriptor.value;
 	}
@@ -305,9 +306,12 @@ function strictBoolean(value) {
 }
 
 async function rollbackLocator(store, locator, owner, cause) {
-	if (typeof locator?.locatorId !== 'string' || !/^[a-f0-9]{64}$/u.test(locator.locatorId)) throw cause;
+	const reference = possibleLocatorReference(locator);
+	if (!reference) throw cause;
 	try {
-		await store.release(locator.locatorId, { owner });
+		if (await store.release(reference.locatorId, {
+			owner, expectedRevision: reference.locatorRevision,
+		}) !== true) throw new Error('Linked-video locator cleanup was not acknowledged.');
 	} catch (cleanupError) {
 		throw new AggregateError(
 			[cause, cleanupError],
@@ -316,6 +320,19 @@ async function rollbackLocator(store, locator, owner, cause) {
 		);
 	}
 	throw cause;
+}
+
+function possibleLocatorReference(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const fields = ['locatorId', 'locatorRevision'];
+	const output = Object.create(null);
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+			|| typeof descriptor.value !== 'string' || !/^[a-f0-9]{64}$/u.test(descriptor.value)) return null;
+		output[field] = descriptor.value;
+	}
+	return Object.freeze(output);
 }
 
 async function rollbackReadCapability(releaseRead, loaded, owner, cause) {

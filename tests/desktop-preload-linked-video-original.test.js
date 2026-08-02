@@ -169,16 +169,23 @@ test('preload preserves linked-video response-validation and read-cleanup failur
 	]);
 });
 
-test('preload validates owner-scoped linked-video release identifiers', async () => {
+test('preload validates owner-scoped exact linked-video release references', async () => {
 	const fixture = await loadPreload([true]);
-	assert.equal(await fixture.bridge.releaseLinkedVideoOriginal(LOCATOR_ID), true);
-	assert.deepEqual(fixture.invocations, [[
-		'soundscaper:v1:linked-video:release', LOCATOR_ID,
+	const reference = { locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION };
+	assert.equal(await fixture.bridge.releaseLinkedVideoOriginal(reference), true);
+	assert.deepEqual(fixture.invocations.map(([channel, value]) => [channel, { ...value }]), [[
+		'soundscaper:v1:linked-video:release', reference,
 	]]);
-	assert.throws(
-		() => fixture.bridge.releaseLinkedVideoOriginal('../selected.mp4'),
-		/identifier/iu,
+	for (const value of [
+		LOCATOR_ID,
+		{ locatorId: LOCATOR_ID },
+		{ ...reference, path: '/private/selected.mp4' },
+		Object.defineProperty({ locatorRevision: LOCATOR_REVISION }, 'locatorId', { enumerable: true, get() { throw new Error('must not read'); } }),
+	]) assert.throws(
+		() => fixture.bridge.releaseLinkedVideoOriginal(value),
+		/field|identifier/iu,
 	);
+	assert.equal(fixture.invocations.length, 1);
 });
 
 test('preload validates and freezes the complete linked-video startup inventory', async () => {

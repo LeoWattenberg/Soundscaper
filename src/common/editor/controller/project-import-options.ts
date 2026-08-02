@@ -2,6 +2,11 @@
 
 type ImportOptionsRecord = Record<string, unknown>;
 
+export interface LinkedVideoImportLocatorReference {
+	readonly locatorId: string;
+	readonly locatorRevision: string;
+}
+
 const OPAQUE_LINKED_VIDEO_LOCATOR_PATTERN = /^[a-z0-9][a-z0-9_-]{15,127}$/iu;
 
 export function normalizeProjectImportOptions(
@@ -35,7 +40,7 @@ export function normalizeProjectImportOptions(
 export async function normalizeProjectImportOptionsForUse(
 	value: unknown,
 	timelineFramesFinite: string,
-	releaseLocator: (locatorId: string) => PromiseLike<unknown> | unknown,
+	releaseLocator: (reference: LinkedVideoImportLocatorReference) => PromiseLike<unknown> | unknown,
 ): Promise<Readonly<ImportOptionsRecord>> {
 	try {
 		if (isNormalizedProjectImportOptions(value)) {
@@ -44,10 +49,10 @@ export async function normalizeProjectImportOptionsForUse(
 		}
 		return normalizeProjectImportOptions(value, timelineFramesFinite);
 	} catch (error) {
-		const locatorId = validRequestedLinkedVideoLocatorId(value);
-		if (locatorId) {
+		const locatorReference = linkedVideoLocatorReferenceFromImportOptions(value);
+		if (locatorReference) {
 			try {
-				await releaseLocator(locatorId);
+				await releaseLocator(locatorReference);
 			} catch (cleanupError) {
 				throw new AggregateError(
 					[error, cleanupError],
@@ -94,9 +99,19 @@ function normalizeLinkedVideoImportLocator(candidate: ImportOptionsRecord): Impo
 	return { linkedVideoLocatorId: locatorId, linkedVideoLocatorRevision: locatorRevision };
 }
 
-function validRequestedLinkedVideoLocatorId(value: unknown): string | null {
-	const locatorId = optionRecord(value).linkedVideoLocatorId;
-	return opaqueLocatorToken(locatorId) ? locatorId : null;
+export function linkedVideoLocatorReferenceFromImportOptions(
+	value: unknown,
+): Readonly<LinkedVideoImportLocatorReference> | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const locatorId = Object.getOwnPropertyDescriptor(value, 'linkedVideoLocatorId');
+	const locatorRevision = Object.getOwnPropertyDescriptor(value, 'linkedVideoLocatorRevision');
+	if (!locatorId?.enumerable || !Object.hasOwn(locatorId, 'value')
+		|| !locatorRevision?.enumerable || !Object.hasOwn(locatorRevision, 'value')
+		|| !opaqueLocatorToken(locatorId.value) || !opaqueLocatorToken(locatorRevision.value)) return null;
+	return Object.freeze({
+		locatorId: locatorId.value,
+		locatorRevision: locatorRevision.value,
+	});
 }
 
 function opaqueLocatorToken(value: unknown): value is string {

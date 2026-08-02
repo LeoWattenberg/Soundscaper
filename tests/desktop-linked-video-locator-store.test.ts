@@ -114,7 +114,9 @@ test('linked-video locators reject changed files and retire raced read capabilit
 		mimeType: 'video/mp4',
 		displayName: 'selected.mp4',
 	});
-	reads.afterRegister = async () => { await store.release(second.locatorId, { owner }); };
+	reads.afterRegister = async () => { await store.release(second.locatorId, {
+		owner, expectedRevision: second.locatorRevision,
+	}); };
 	assert.equal(await store.load(second.locatorId, {
 		owner,
 		expectedRevision: second.locatorRevision,
@@ -161,6 +163,82 @@ test('linked-video locator admission is bounded and owner revocation fences only
 		expectedRevision: locator.locatorRevision,
 	}));
 	assert.equal(reads.registrations.length, 1);
+});
+
+test('linked-video locator release requires the exact revision and an active owner', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-exact-release-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const path = join(root, 'selected.mp4');
+	await writeFile(path, 'video');
+	const writes: Array<readonly PersistedLinkedVideoLocator[]> = [];
+	const owner = {};
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		randomBytes: deterministicTokens(),
+		registry: { read: () => [], write(entries) { writes.push([...entries]); } },
+	});
+	const locator = await store.registerPath(path, {
+		owner, mimeType: 'video/mp4', displayName: 'selected.mp4',
+	});
+	writes.length = 0;
+
+	assert.equal(await store.release(locator.locatorId, {
+		owner, expectedRevision: 'f'.repeat(64),
+	}), false);
+	assert.equal(await store.release('e'.repeat(64), {
+		owner, expectedRevision: locator.locatorRevision,
+	}), false);
+	store.revokeOwner(owner);
+	assert.equal(await store.release(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision,
+	}), false);
+	assert.equal(writes.length, 0);
+	assert.equal(await store.release(locator.locatorId, {
+		owner: {}, expectedRevision: locator.locatorRevision,
+	}), true);
+	assert.deepEqual(writes.map((entries) => entries.length), [0]);
+	assert.equal((await stat(path)).isFile(), true);
+});
+
+test('exact releases restore failed writes and serialize revocation with concurrent attempts', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-linked-video-release-race-'));
+	context.after(async () => { await rm(root, { recursive: true, force: true }); });
+	const path = join(root, 'selected.mp4');
+	await writeFile(path, 'video');
+	const publicationStarted = deferred<void>();
+	const allowPublication = deferred<void>();
+	let failNextRelease = true;
+	let releaseWrites = 0;
+	const owner = {};
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		randomBytes: deterministicTokens(),
+		registry: {
+			read: () => [],
+			async write(entries) {
+				if (entries.length) return;
+				releaseWrites += 1;
+				if (failNextRelease) { failNextRelease = false; throw new Error('release write failed'); }
+				publicationStarted.resolve(undefined);
+				await allowPublication.promise;
+			},
+		},
+	});
+	const locator = await store.registerPath(path, {
+		owner, mimeType: 'video/mp4', displayName: 'selected.mp4',
+	});
+	const exact = { owner, expectedRevision: locator.locatorRevision };
+	await assert.rejects(store.release(locator.locatorId, exact), /release write failed/iu);
+	const first = store.release(locator.locatorId, exact);
+	await publicationStarted.promise;
+	const fresh = { owner: {}, expectedRevision: locator.locatorRevision };
+	const second = store.release(locator.locatorId, fresh);
+	const third = store.release(locator.locatorId, fresh);
+	store.revokeOwner(owner);
+	allowPublication.resolve(undefined);
+	assert.deepEqual(await Promise.all([first, second, third]), [false, true, false]);
+	assert.equal(releaseWrites, 3);
+	assert.equal((await stat(path)).isFile(), true);
 });
 
 test('owner revocation during persistent publication rolls the locator record back', async (context) => {

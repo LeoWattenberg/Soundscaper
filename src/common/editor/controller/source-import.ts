@@ -4,7 +4,7 @@ import {
 	VideoPreviewEncodedPayloadTooLargeError,
 	VideoPreviewSourceGeometryTooLargeError,
 } from '../video-preview-capture-admission.ts';
-
+import { linkedVideoLocatorReferenceFromImportOptions } from './project-import-options.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,11 +26,11 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		store, stripExtension, warnEnvelope, writeBuffer,
 	} = runtime;
 	async function importVideoFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
-		const linkedVideoLocatorId = importOptions.linkedVideoLocatorId ?? null;
-		const linkedVideoLocatorRevision = importOptions.linkedVideoLocatorRevision ?? null;
+		const linkedVideoLocator = linkedVideoLocatorReferenceFromImportOptions(importOptions);
+		const { locatorId: linkedVideoLocatorId = null, locatorRevision: linkedVideoLocatorRevision = null } = linkedVideoLocator ?? {};
 		const releaseUnusedLinkedVideoLocator = async () => {
-			if (linkedVideoLocatorId) {
-				const released = await store.releaseLinkedVideoOriginalLocator(linkedVideoLocatorId);
+			if (linkedVideoLocator) {
+				const released = await store.releaseLinkedVideoOriginalLocator(linkedVideoLocator);
 				if (released === false) throw new Error('The unused linked-video locator was not released.');
 			}
 		};
