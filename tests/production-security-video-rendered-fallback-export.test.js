@@ -13,24 +13,31 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 		({ id }) => id === 'external-project-document-validation',
 	);
 	const control = projectDocuments?.currentControls.find(
-		({ id }) => id === 'first-party-video-effects-rendered-fallback-export',
+		({ id }) => id === 'first-party-video-rendered-fallback-export',
 	);
 	assert.ok(control);
+	assert.equal(projectDocuments?.currentControls.some(
+		({ id }) => id === 'first-party-video-effects-rendered-fallback-export',
+	), false);
 
 	for (const path of [
+		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-feature-video-rendered-fallback.ts',
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-video.ts',
 		'src/common/editor/controller/playback-project-service.ts',
 		'src/common/editor/controller/video-rendered-fallback-export.ts',
 		'src/common/editor/controller/export-service.ts',
+		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
 		'src/common/editor/video-export.js',
 		'src/common/editor/video-ffmpeg.js',
 		'src/common/editor/app.js',
+		'tests/audio-editor-project-feature-video-rendered-fallback.test.ts',
 		'tests/audio-editor-video-rendered-fallback-delivery-projection.test.ts',
 		'tests/audio-editor-video-rendered-fallback-export.test.ts',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
 		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
+		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
 		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
 		'tests/production-security-video-rendered-fallback-export.test.js',
 	]) {
@@ -40,11 +47,15 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 
 	assert.match(
 		control.summary,
-		/exact schema 9.*registered first-party videoEffects.*unavailable.*declared and effective rendered-fallback.*only.*final video delivery.*canonical manifest/iu,
+		/exact schema 9.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*unavailable.*declared and effective rendered-fallback.*only.*final video delivery.*canonical manifest/iu,
 	);
 	assert.match(
 		control.summary,
-		/selector.mode.*exact active.*video requirement.*source.*digest.*unrelated inactive audio.*storage.*not read/iu,
+		/report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256/iu,
+	);
+	assert.match(
+		control.summary,
+		/operation-time selector.mode.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*unrelated inactive audio.*storage.*not read/iu,
 	);
 	assert.match(
 		control.summary,
@@ -69,11 +80,11 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	);
 	assert.match(
 		control.summary,
-		/composed.*fresh.*managed handoff.*exact fallback body.*Framescaper.*Soundscaper.*successful video output/iu,
+		/videoCompositing.*composed Framescaper-to-fresh-Soundscaper.*manifest.*metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*operation-time selector.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*transfer.*descriptor.*body digest.*not.*manifest declaration.*tamper.*refus.*repair.*canonical.*shadow.*unchanged/iu,
 	);
 	assert.match(
 		control.summary,
-		/retained immutable Blob.*point-in-time bytes.*no durable storage-record lease.*external writer.*process durability.*generic or third-party.*simultaneous.*authored.*linked-only.*unmanaged.*reference-scale.*browser.*packaged.*broad.*parity/iu,
+		/retained immutable Blob.*point-in-time bytes.*no durable storage-record lease.*cross-process replacement.*more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future.*earlier.*simultaneous.*authored.*freeze.*proxy.*linked-only.*unmanaged.*embedded fallback audio.*other export parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*whole-handoff atomicity/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -83,11 +94,15 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	const documentation = threatModel.slice(sectionStart, sectionEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/final video rendered-fallback delivery.*exact schema 9.*registered first-party `videoEffects`.*unavailable.*declared and effective `rendered-fallback`.*only.*video delivery projection/iu,
+		/final video rendered-fallback delivery.*exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*unavailable.*declared and effective `rendered-fallback`.*only.*video delivery projection/iu,
 	);
 	assert.match(
 		documentation,
-		/selector.mode.*exact active.*video requirement.*source.*digest.*unrelated inactive audio.*storage.*not read/iu,
+		/report video descriptor.*canonical manifest.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256/iu,
+	);
+	assert.match(
+		documentation,
+		/operation-time selector.mode.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*unrelated inactive audio.*storage.*not read/iu,
 	);
 	assert.match(
 		documentation,
@@ -104,10 +119,10 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	assert.match(documentation, /canonical project.*history.*save.*unchanged/iu);
 	assert.match(
 		documentation,
-		/stale activation-time.*missing.*wrong.*digest.*before.*FFmpeg.*download.*fresh managed handoff.*successful video output/iu,
+		/`videoCompositing`.*composed Framescaper-to-fresh-Soundscaper.*manifest.*metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*operation-time selector.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*transfer.*descriptor.*body digest.*not.*manifest declaration.*tamper.*refus.*repair.*canonical.*shadow.*unchanged/iu,
 	);
 	assert.match(
 		documentation,
-		/retained immutable `Blob`.*point-in-time bytes.*not a durable storage-record lease.*external writer.*process durability.*generic or third-party.*simultaneous.*authored.*linked-only.*unmanaged.*reference-scale.*browser.*packaged.*broad.*parity/iu,
+		/retained immutable `Blob`.*point-in-time bytes.*not a durable storage-record lease.*cross-process replacement.*more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future.*earlier.*simultaneous.*authored.*freeze.*proxy.*linked-only.*unmanaged.*embedded fallback audio.*other export parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*whole-handoff atomicity/iu,
 	);
 });

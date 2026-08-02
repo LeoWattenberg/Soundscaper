@@ -1010,16 +1010,18 @@ workflows, operating-system behavior, browser audio behavior, reference-scale
 evidence, and a durable byte lease remain unqualified. The separate maintained
 video slice below does not broaden that boundary.
 
-The maintained exact schema 9 first-party video-effects rendered fallback is a
-separate narrow editor-playback and video-delivery projection. It activates only
-when exactly one registered `videoEffects` report item is unavailable with
-declared and effective `rendered-fallback` dispositions and its video descriptor
-exactly matches the canonical manifest requirement by requirement ID, feature
-ID, disposition, video kind, source ID, and SHA-256. The separate controller
-fallback-integrity admission verifies the actual local body against that digest
-before activation side effects. For maintained video delivery, a separate
-selector binds the exact requirement ID, feature ID, video kind, source ID, and
-SHA-256. Operation-time
+The maintained exact schema 9 first-party video rendered fallback uses the
+explicit host-owned registered video capability allowlist: `videoImport`,
+`videoPlayback`, `videoTimelineEditing`, `videoExport`, `videoEffects`, and
+`videoCompositing`. It is a separate narrow editor-playback and video-delivery
+projection. Exactly one report item using an ID from that allowlist must be
+unavailable with declared and effective `rendered-fallback` dispositions, and
+its video descriptor must exactly match the canonical manifest requirement by
+requirement ID, feature ID, disposition, video kind, source ID, and SHA-256. The
+separate controller fallback-integrity admission verifies the actual local body
+against that digest before activation side effects. For maintained video
+delivery, a separate selector binds the exact requirement ID, feature ID, video
+kind, source ID, and SHA-256. Operation-time
 admission loads only that selected local body under the export-task signal,
 size-checks and hashes its canonical native `Blob`, and retains that exact
 immutable `Blob` for delivery. It does not read or admit nonselected fallback
@@ -1064,35 +1066,41 @@ before output handling. It passes the owned signal into publication, rechecks
 currentness after publication, and cleans up a recoverable stale publication.
 A verification refusal or cancellation starts no video plan, storage preflight,
 canonical-audio render, FFmpeg call, or output publication. This is exact
-point-in-time immutable-`Blob` reuse within one operation, not a durable lease
-over the managed storage binding or a claim about cross-process replacement
-after admission. It qualifies no nonselected fallback body.
+point-in-time immutable-`Blob` reuse within one operation, not a durable
+storage-record lease or cross-process replacement guarantee after admission.
+It provides no nonselected fallback-body guarantee.
 
-A composed headless Framescaper-to-fresh-Soundscaper fixture separately
-qualifies this exact schema 9 slice at the managed desktop handoff boundary. The
-editable retained original and the manifest-only fallback, reachable only from
-its feature requirement, cross by explicit whole-`Blob` transfer as two exact
-video bodies. The fresh recipient persists the exact canonical shadow, remains
-intrinsically read-only, and the controller separately verifies the manifest
-fallback digest after shadow publication and before transient activation.
+`videoCompositing` supplies the composed headless
+Framescaper-to-fresh-Soundscaper exact schema 9 witness at the managed desktop
+handoff boundary. The editable retained original and the manifest-only fallback,
+reachable only from its feature requirement, cross by explicit managed
+whole-`Blob` transfer as two exact video bodies. Managed transfer authenticates
+each descriptor and body digest, not the manifest declaration. The fresh
+recipient persists the exact canonical shadow, remains intrinsically read-only,
+and the controller separately verifies the manifest fallback digest after shadow
+publication and before transient activation.
 Corrupting that recipient-local fallback after activation makes operation-time
 delivery verification reject before FFmpeg and output. Restoring the exact body
 lets selector-bound verification return the exact immutable `Blob`, which
 delivery reuses directly as the fallback's only video input without another
 storage lookup, and leaves the canonical document unchanged.
 
-Deeply frozen per-tab and document-snapshot metadata binds this projection to
-the exact requirement and drives one localized active-during-editor-playback
-indicator without exposing its source ID or digest. This slice is not generic,
-unknown, or third-party fallback selection. It authors no freeze, unfreeze, or
-proxy relationship and does not traverse future-schema project state. It does
-not qualify linked-only or unmanaged delivery, simultaneous rendered fallbacks,
-embedded fallback-video audio, range or reference-scale transport,
-codec or browser behavior, a packaged runtime, a durable byte lease, broad export
-or offline-render parity, whole-handoff atomicity, or earlier Soundscaper
-schemas. The operation provides no durable storage-record lease, guarantee
-against cross-process replacement of the backing storage binding after
-admission, or nonselected fallback-body guarantee.
+Deeply frozen per-tab and document-snapshot metadata and the localized
+source/component UI bind this projection only to the exact feature ID and
+requirement ID without exposing its source ID or digest. More than one
+qualifying registered video fallback, including across different registered
+video feature IDs, rejects as ambiguous. Audio IDs never qualify; unknown or
+third-party IDs, future
+schemas, and earlier Soundscaper schemas remain outside this slice. Linked-only
+or unmanaged delivery and simultaneous rendered fallback delivery are
+unqualified. Generic fallback authoring, freeze, unfreeze, and proxy
+relationships are unqualified, as are embedded fallback-video audio, every
+nonselected fallback-body claim, and other export or offline-render parity. The
+source/component UI indicator is qualified, but packaged runtime or UI
+workflows, browser behavior, codec qualification, range transport, and
+reference-scale evidence are not. The operation provides no durable
+storage-record or byte lease, guarantee against cross-process replacement after
+admission, or whole-handoff atomicity.
 
 For the maintained first-party video-effect slice, the controller likewise
 derives a transient activation projection only for exact schema 9 when the

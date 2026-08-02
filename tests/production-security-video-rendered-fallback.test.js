@@ -7,16 +7,20 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('first-party video-effects fallback playback and handoff stay exact and narrowly qualified', async () => {
+test('registered first-party video fallback playback and handoff stay exact and narrowly qualified', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const projectDocuments = matrix.risks.find(
 		({ id }) => id === 'external-project-document-validation',
 	);
 	const control = projectDocuments?.currentControls.find(
-		({ id }) => id === 'first-party-video-effects-rendered-fallback-playback',
+		({ id }) => id === 'first-party-video-rendered-fallback-playback',
 	);
 	assert.ok(control);
+	assert.equal(projectDocuments?.currentControls.some(
+		({ id }) => id === 'first-party-video-effects-rendered-fallback-playback',
+	), false);
 	for (const path of [
+		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-feature-video-rendered-fallback.ts',
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/controller/playback-project-service.ts',
@@ -48,7 +52,11 @@ test('first-party video-effects fallback playback and handoff stay exact and nar
 
 	assert.match(
 		control.summary,
-		/exact schema 9.*registered first-party videoEffects.*unavailable.*declared and effective rendered-fallback.*exactly matches.*canonical manifest/iu,
+		/exact schema 9.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*unavailable.*declared and effective rendered-fallback.*exactly matches.*canonical manifest/iu,
+	);
+	assert.match(
+		control.summary,
+		/report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		control.summary,
@@ -66,20 +74,20 @@ test('first-party video-effects fallback playback and handoff stay exact and nar
 		control.summary,
 		/manifest-only.*required video source.*activated.*before.*transient engine.*preview.*canonical clip.*exact fallback source ID.*canonical source.*synthetic clip ID.*never.*canonical/iu,
 	);
-	assert.match(control.summary, /deeply frozen.*metadata.*localized notice.*active during editor playback/iu);
+	assert.match(control.summary, /deeply frozen.*metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*without.*source identity.*digest/iu);
 	assert.match(
 		control.summary,
-		/explicit managed handoff.*manifest-only fallback.*editable retained original.*headless Framescaper-to-fresh-Soundscaper.*both exact video bodies.*canonical shadow.*controller independently verifies the manifest digest.*exact Blob URL.*transfer verifies its descriptor and body digest.*not the fallback declaration/iu,
+		/videoCompositing.*explicit managed handoff.*manifest-only fallback.*editable retained original.*headless Framescaper-to-fresh-Soundscaper.*both exact video bodies.*canonical shadow.*controller independently verifies the manifest digest.*exact Blob URL.*transfer verifies each descriptor and body digest.*not the fallback declaration/iu,
 	);
 	assert.match(
 		control.summary,
-		/no generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*packaged.*browser codec.*durable byte lease.*range.*reference-scale.*whole-handoff atomicity.*embedded video audio.*final-video fallback delivery.*separate control/iu,
+		/more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future.schemas.*earlier Soundscaper.*linked-only.*unmanaged.*generic.*author.*freeze.*proxy.*embedded fallback audio.*other export parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*durable byte lease.*cross-process.*whole-handoff atomicity.*final-video fallback delivery.*separate control/iu,
 	);
 
 	const documentation = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/first-party video-effects rendered-fallback preview and playback.*exact schema 9.*registered first-party `videoEffects`.*unavailable.*declared and effective `rendered-fallback`.*canonical manifest/iu,
+		/first-party video rendered-fallback preview and playback.*exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*unavailable.*declared and effective `rendered-fallback`.*report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		documentation,
@@ -91,10 +99,14 @@ test('first-party video-effects fallback playback and handoff stay exact and nar
 	);
 	assert.match(
 		documentation,
-		/same maintained first-party relationship.*explicit managed handoff.*headless Framescaper-to-fresh-Soundscaper.*manifest is its only project reference.*editable retained-video original.*two exact managed video bodies.*empty recipient.*both bodies.*exact canonical shadow.*controller independently authenticates.*fallback declaration.*exact fallback Blob URL.*transfer authenticates each descriptor and body digest.*not the manifest declaration/iu,
+		/frozen.*metadata.*localized source\/component UI.*bind only.*feature ID.*requirement ID.*without.*source identity.*digest/iu,
 	);
 	assert.match(
 		documentation,
-		/generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*packaged.*browser.codec.*durable byte lease.*range.*reference-scale.*embedded video audio.*final-video fallback delivery.*separate control/iu,
+		/`videoCompositing`.*same maintained first-party relationship.*explicit managed handoff.*headless Framescaper-to-fresh-Soundscaper.*manifest is its only project reference.*editable retained-video original.*two exact managed video bodies.*empty recipient.*both bodies.*exact canonical shadow.*controller independently authenticates.*fallback declaration.*exact fallback Blob URL.*transfer authenticates each descriptor and body digest.*not the manifest declaration/iu,
+	);
+	assert.match(
+		documentation,
+		/more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future.schemas.*earlier Soundscaper.*linked-only.*unmanaged.*generic.*author.*freeze.*proxy.*embedded fallback audio.*other export parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*durable byte lease.*cross-process.*whole-handoff atomicity.*final-video fallback delivery.*separate control/iu,
 	);
 });

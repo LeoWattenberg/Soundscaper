@@ -7,14 +7,14 @@ import test from 'node:test';
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
 
-test('compatibility policy qualifies only maintained first-party video-effects fallback playback, delivery, and handoff', async () => {
+test('compatibility policy qualifies only registered first-party video fallback playback, delivery, and handoff', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const rule = policy.rules.find(({ id }) => id === 'current-first-party-video-rendered-fallback-playback');
 	assert.ok(rule);
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/exact-current-schema.*registered first-party videoEffects.*rendered fallback.*editor playback.*maintained video export.*selector-bound operation-time admission.*export signal.*exact canonical native Blob.*size-checks and hashes.*direct immutable-byte reuse.*canonical.*read-only.*unmodified/iu,
+		/exact-current-schema.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*rendered fallback.*editor playback.*maintained video export.*selector-bound operation-time admission.*export signal.*exact canonical native Blob.*size-checks and hashes.*direct immutable-byte reuse.*canonical.*read-only.*unmodified/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
@@ -22,7 +22,7 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative.*exact schema 9.*exactly one registered videoEffects.*unavailable.*declared and effective rendered-fallback.*video descriptor.*canonical manifest.*source ID.*SHA-256/iu,
+		/authoritative.*exact schema 9.*exactly one.*host-owned registered video capability allowlist.*unavailable.*declared and effective rendered-fallback.*video descriptor.*canonical manifest.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -46,7 +46,7 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 	);
 	assert.match(
 		rule.currentBehavior,
-		/deeply frozen.*per-tab.*document-snapshot metadata.*localized.*active during editor playback.*source ID or digest/iu,
+		/deeply frozen.*per-tab.*document-snapshot metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*without.*source ID.*digest/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -62,7 +62,7 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 	);
 	assert.match(
 		rule.currentBehavior,
-		/composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*explicit managed whole-Blob.*editable retained original.*manifest-only.*video-effects fallback.*feature requirement.*two exact whole-Blob video bodies.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/iu,
+		/videoCompositing.*composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*explicit managed whole-Blob.*editable retained original.*manifest-only.*fallback.*feature requirement.*two exact whole-Blob video bodies.*transfer.*descriptor.*body digest.*not.*manifest declaration.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -70,13 +70,14 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 	);
 	assert.match(
 		rule.currentBehavior,
-		/not generic.*unknown.*third-party.*authors no freeze.*unfreeze.*proxy relationship.*future schemas.*linked-only.*unmanaged.*simultaneous.*embedded.*audio.*range.*reference-scale.*codec.*browser.*packaged.*durable storage-record or byte lease.*cross-process replacement.*nonselected fallback-body.*broad.*parity/iu,
+		/more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future schemas.*earlier Soundscaper.*linked-only.*unmanaged.*simultaneous rendered.*generic.*author.*freeze.*proxy.*embedded fallback-video audio.*other export.*parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
 	);
 
 	for (const reference of rule.evidence) {
 		await assert.doesNotReject(access(new URL(`../${reference}`, import.meta.url)), reference);
 	}
 	for (const reference of [
+		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-feature-video-rendered-fallback.ts',
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-video.ts',
@@ -102,12 +103,13 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
 	const documentation = await readFile(documentationUrl, 'utf8');
+	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
 	assert.match(
-		documentation,
-		/exact schema 9 first-party video-effects rendered fallback.*exactly one.*registered `videoEffects`.*unavailable.*declared and effective.*canonical manifest.*video kind.*source ID.*SHA-256/isu,
+		normalizedDocumentation,
+		/exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*exactly one.*unavailable.*declared and effective.*canonical manifest.*video kind.*source ID.*SHA-256/isu,
 	);
 	assert.match(
-		documentation,
+		normalizedDocumentation,
 		/separate controller\s+fallback-integrity\s+admission.*verifies.*actual local body.*before activation\s+side effects.*video delivery.*selector.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*operation-time.*selected local body.*export-task signal/isu,
 	);
 	assert.match(
@@ -127,8 +129,8 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 		/manifest-only.*required video source.*activated\s+before.*engine.*preview.*transient project.*source-level.*exact visual/isu,
 	);
 	assert.match(
-		documentation,
-		/deeply frozen.*per-tab.*document-snapshot\s+metadata.*localized.*active-during-editor-playback.*source ID or digest/isu,
+		normalizedDocumentation,
+		/deeply frozen.*per-tab.*document-snapshot metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*without.*source ID.*digest/isu,
 	);
 	assert.match(
 		documentation,
@@ -143,16 +145,16 @@ test('compatibility policy qualifies only maintained first-party video-effects f
 		/canonical project.*history.*persistence.*save.*read-only.*unmodified.*project.*currentness.*before.*verification.*after.*verification.*after.*FFmpeg.*owned signal.*publication.*rechecks.*cleanup/isu,
 	);
 	assert.match(
-		documentation,
-		/composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*editable retained original.*manifest-only\s+first-party video-effects fallback.*feature requirement.*explicit managed whole-`Blob` transfer.*two exact video bodies.*exact canonical shadow.*intrinsically read-only.*separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/isu,
+		normalizedDocumentation,
+		/`videoCompositing`.*composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*editable retained original.*manifest-only fallback.*feature requirement.*explicit managed whole-`Blob` transfer.*two exact video bodies.*transfer.*descriptor.*body digest.*not.*manifest declaration.*exact canonical shadow.*intrinsically read-only.*separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/isu,
 	);
 	assert.match(
 		documentation,
 		/corrupt.*after activation.*operation-time.*reject.*before.*FFmpeg.*output.*restor.*exact body.*exact immutable `Blob`.*reuses directly.*only video input.*storage lookup.*canonical.*unchanged/isu,
 	);
 	assert.match(
-		documentation,
-		/not.*generic.*unknown.*third-party.*freeze.*unfreeze.*proxy.*future-schema.*linked-only.*unmanaged.*simultaneous.*embedded.*audio.*range.*reference-scale.*codec.*browser.*packaged.*durable.*lease.*broad.*parity/isu,
+		normalizedDocumentation,
+		/more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future schemas.*earlier Soundscaper.*linked-only.*unmanaged.*simultaneous rendered.*generic.*author.*freeze.*proxy.*embedded fallback-video audio.*other export.*parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*durable.*lease.*cross-process replacement.*whole-handoff atomicity/isu,
 	);
-	assert.match(documentation, /no durable storage-record lease.*cross-process replacement.*nonselected fallback-body guarantee/isu);
+	assert.match(normalizedDocumentation, /not a durable storage-record lease.*cross-process replacement.*nonselected fallback-body guarantee/isu);
 });
