@@ -1,0 +1,319 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { createLinkedWavImporter } from '../src/common/editor/controller/linked-wav-import-service.ts';
+import {
+	createProjectImportService,
+	type ProjectImportRuntime,
+} from '../src/common/editor/controller/project-import-service.ts';
+
+const LOCATOR_ID = 'locator_0000000000000001';
+const LOCATOR_REVISION = 'revision_0000000000000001';
+
+test('linked WAV import binds and activates canonical PCM without publishing an owned body', async () => {
+	const fixture = importFixture();
+	const result = await fixture.importLinkedWav(
+		fixture.file,
+		fixture.descriptor,
+		fixture.options,
+		fixture.wavMetadata,
+	);
+
+	assert.deepEqual(result, { destination: 'project-bin', sourceId: 'source-1' });
+	assert.deepEqual(fixture.calls.map(([name]) => name), [
+		'capture-project', 'prepare-command', 'assert-project', 'bind-audio',
+		'get-source-metadata', 'activate-source', 'assert-project', 'commit-command',
+		'warn-envelope',
+	]);
+	const source = fixture.calls.find(([name]) => name === 'bind-audio')?.[1] as Record<string, unknown>;
+	assert.deepEqual(source, {
+		schemaVersion: 2,
+		kind: 'audio',
+		sampleFormat: 'float32',
+		chunkFrames: 65_536,
+		id: 'source-1',
+		storageKey: 'source-1',
+		name: 'field-recording.wav',
+		mimeType: 'audio/wav',
+		frameCount: 4,
+		channelCount: 2,
+		sampleRate: 48_000,
+		originalSampleRate: 48_000,
+	});
+	assert.deepEqual(fixture.calls.find(([name]) => name === 'bind-audio')?.[2], {
+		locatorId: LOCATOR_ID,
+		expectedLocatorRevision: LOCATOR_REVISION,
+		expectedSnapshot: fixture.file,
+	});
+	assert.equal(fixture.calls.some(([name]) => name === 'begin-source-write'), false);
+	assert.equal(fixture.calls.some(([name]) => name === 'release-locator'), false);
+});
+
+test('linked WAV import unlinks and releases its exact locator when activation fails', async () => {
+	const fixture = importFixture({ activationError: new Error('waveform failed') });
+	await assert.rejects(
+		fixture.importLinkedWav(fixture.file, fixture.descriptor, fixture.options, fixture.wavMetadata),
+		/waveform failed/u,
+	);
+	assert.deepEqual(fixture.calls.filter(([name]) => (
+		['unlink-audio', 'release-locator', 'delete-analysis'].includes(name)
+	)), [
+		['unlink-audio', {
+			projectId: 'project-1', sourceId: 'source-1', bindingToken: 'binding_token_00000001',
+		}],
+		['delete-analysis', 'peaks:source-1'],
+		['release-locator', {
+			kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+		}],
+	]);
+	assert.equal(fixture.sourceBuffers.has('source-1'), false);
+	assert.equal(fixture.sourceChunkProviders.has('source-1'), false);
+	assert.equal(fixture.sourcePeaks.has('source-1'), false);
+});
+
+test('linked WAV import releases an unpublished locator when exact binding fails', async () => {
+	const fixture = importFixture({ bindingError: new Error('binding rejected') });
+	await assert.rejects(
+		fixture.importLinkedWav(fixture.file, fixture.descriptor, fixture.options, fixture.wavMetadata),
+		/binding rejected/u,
+	);
+	assert.equal(fixture.calls.some(([name]) => name === 'unlink-audio'), false);
+	assert.deepEqual(fixture.calls.filter(([name]) => name === 'release-locator'), [[
+		'release-locator', {
+			kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+		},
+	]]);
+});
+
+test('linked WAV import releases its locator when local admission fails before binding', async () => {
+	for (const [file, descriptor] of [
+		[{ ...importFixture().file, type: 'audio/mpeg' }, importFixture().descriptor],
+		[importFixture().file, { ...importFixture().descriptor, frameCount: 0 }],
+	] as const) {
+		const fixture = importFixture();
+		await assert.rejects(
+			fixture.importLinkedWav(file, descriptor, fixture.options, fixture.wavMetadata),
+			/WAV|frame count/iu,
+		);
+		assert.equal(fixture.calls.some(([name]) => name === 'bind-audio'), false);
+		assert.deepEqual(fixture.calls.filter(([name]) => name === 'release-locator'), [[
+			'release-locator', {
+				kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+			},
+		]]);
+	}
+});
+
+test('project import routes an admitted linked WAV around owned PCM publication and browser decoders', async () => {
+	const calls: string[] = [];
+	let nextId = 0;
+	let project = projectFixture();
+	const file = riffFile();
+	const descriptor = {
+		frameCount: 4,
+		channelCount: 2,
+		sampleRate: 48_000,
+		pcmBytes: 32,
+		metadataWarnings: [],
+		bext: null,
+		markers: [],
+	};
+	const runtime: Record<string, unknown> = {
+		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 32 * 1024 ** 2,
+		SOURCE_CHUNK_FRAMES: 65_536,
+		activateStoredSource: async () => { calls.push('activate-source'); },
+		assertProject: () => { calls.push('assert-project'); },
+		captureProject: () => { calls.push('capture-project'); return 'generation-1'; },
+		commit: (command: { readonly commands?: readonly Record<string, unknown>[] }) => {
+			calls.push('commit-command');
+			const source = command.commands?.find((child) => child.type === 'source/add')?.source;
+			project = { ...project, sources: source ? [source] : [] };
+		},
+		copy: {
+			audioTrackNotFound: 'Audio track not found.',
+			timelineFramesFinite: 'Timeline frames must be finite.',
+			track: 'Track',
+		},
+		createAddClipCommand: (trackId: string, clip: unknown) => ({ type: 'clip/add', trackId, clip }),
+		createAddSourceCommand: (source: unknown) => ({ type: 'source/add', source }),
+		createAddTrackCommand: (track: unknown) => ({ type: 'track/add', track }),
+		createStableId: (prefix: string) => `${prefix}-${++nextId}`,
+		editingBlocked: () => false,
+		engine: {
+			getAudioContext: async () => { throw new Error('browser decoder path used'); },
+		},
+		ffmpeg: { decode: async () => { throw new Error('FFmpeg path used'); } },
+		findTrack: () => null,
+		getProject: () => project,
+		inspectWavBlobPcm: async () => descriptor,
+		isAudioEditorVideoFile: () => false,
+		isLegacyAupFile: () => false,
+		isWavFile: () => true,
+		peakCacheKey: (sourceId: string) => `peaks:${sourceId}`,
+		projectSampleRate: () => 48_000,
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		sourcePcmBytes: () => 32,
+		sourcePeaks: new Map(),
+		store: {
+			async beginSourceWrite() { calls.push('begin-source-write'); throw new Error('owned write used'); },
+			async bindLinkedAudioOriginal() {
+				calls.push('bind-audio');
+				return { bindingToken: 'binding_token_00000001' };
+			},
+			async getSourceMetadata() { return { sourceId: 'source-1', chunkCount: 1 }; },
+			async releaseLinkedOriginalLocator() { calls.push('release-locator'); return true; },
+			async unlinkLinkedAudioOriginal() { calls.push('unlink-audio'); return true; },
+		},
+		stripExtension: (name: string) => name.replace(/\.[^.]+$/u, ''),
+		warnEnvelope: () => undefined,
+	};
+	const result = await createProjectImportService(runtime as ProjectImportRuntime).importFile(file, {
+		destination: 'project-bin',
+		linkedAudioLocatorId: LOCATOR_ID,
+		linkedAudioLocatorRevision: LOCATOR_REVISION,
+	});
+	assert.equal(result.destination, 'project-bin');
+	assert.equal(calls.includes('bind-audio'), true);
+	assert.equal(calls.includes('activate-source'), true);
+	assert.equal(calls.includes('begin-source-write'), false);
+});
+
+interface FixtureOptions {
+	readonly activationError?: Error;
+	readonly bindingError?: Error;
+}
+
+function importFixture(options: FixtureOptions = {}) {
+	const calls: Array<readonly [string, unknown?, unknown?]> = [];
+	const sourceBuffers = new Map<string, unknown>();
+	const sourceChunkProviders = new Map<string, unknown>();
+	const sourcePeaks = new Map<string, unknown>();
+	let project = Object.freeze({ id: 'project-1', tracks: Object.freeze([]), sources: Object.freeze([]) });
+	let nextId = 0;
+	const file = Object.freeze({ name: 'field-recording.wav', type: 'audio/wav', size: 60 });
+	const descriptor = Object.freeze({
+		frameCount: 4,
+		channelCount: 2,
+		sampleRate: 48_000,
+		markers: Object.freeze([]),
+	});
+	const importOptions = Object.freeze({
+		destination: 'project-bin',
+		trackId: null,
+		timelineStartFrame: 0,
+		linkedAudioLocatorId: LOCATOR_ID,
+		linkedAudioLocatorRevision: LOCATOR_REVISION,
+	});
+	const wavMetadata = Object.freeze({
+		importOptions,
+		warnings: Object.freeze([]),
+		projectBext: null,
+		projectIxml: null,
+		projectCart: null,
+		projectAdmCandidate: null,
+		sourceBext: null,
+		sourceIxml: null,
+		sourceCart: null,
+		sourceAdm: null,
+	});
+	const importLinkedWav = createLinkedWavImporter({
+		SOURCE_CHUNK_FRAMES: 65_536,
+		activateStoredSource: async (_source, _metadata) => {
+			calls.push(['activate-source']);
+			sourceBuffers.set('source-1', {});
+			sourceChunkProviders.set('source-1', {});
+			sourcePeaks.set('source-1', {});
+			if (options.activationError) throw options.activationError;
+		},
+		assertProject: () => { calls.push(['assert-project']); },
+		captureProject: () => { calls.push(['capture-project']); return 'project-generation-1'; },
+		commit: (command) => {
+			calls.push(['commit-command', command]);
+			project = Object.freeze({ ...project, sources: Object.freeze([{ id: 'source-1' }]) }) as never;
+		},
+		copy: Object.freeze({ track: 'Track' }),
+		createStableId: (prefix) => `${prefix}-${++nextId}`,
+		getProject: () => project,
+		importResultWithWarnings: (result) => result,
+		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
+		prepareImportedMediaCommand: (source) => {
+			calls.push(['prepare-command', source]);
+			return {
+				command: Object.freeze({ type: 'source/add', source }),
+				selection: Object.freeze({}),
+				result: Object.freeze({ destination: 'project-bin', sourceId: source.id }),
+			};
+		},
+		projectSampleRate: () => 48_000,
+		sourceBuffers,
+		sourceChunkProviders,
+		sourcePeaks,
+		store: {
+			async bindLinkedAudioOriginal(projectId, source, locatorId, bindOptions) {
+				calls.push(['bind-audio', source, { locatorId, ...bindOptions }]);
+				assert.equal(projectId, 'project-1');
+				if (options.bindingError) throw options.bindingError;
+				return Object.freeze({ bindingToken: 'binding_token_00000001' });
+			},
+			async deleteAnalysis(key) { calls.push(['delete-analysis', key]); },
+			async getSourceMetadata(storageKey) {
+				calls.push(['get-source-metadata', storageKey]);
+				return Object.freeze({ sourceId: storageKey, chunkCount: 1 });
+			},
+			async releaseLinkedOriginalLocator(reference) {
+				calls.push(['release-locator', reference]);
+				return true;
+			},
+			async unlinkLinkedAudioOriginal(projectId, sourceId, bindingToken) {
+				calls.push(['unlink-audio', { projectId, sourceId, bindingToken }]);
+				return true;
+			},
+		},
+		stripExtension: (name) => name.replace(/\.[^.]+$/u, ''),
+		warnEnvelope: () => { calls.push(['warn-envelope']); },
+	});
+	return {
+		calls,
+		descriptor,
+		file,
+		importLinkedWav,
+		options: importOptions,
+		sourceBuffers,
+		sourceChunkProviders,
+		sourcePeaks,
+		wavMetadata,
+	};
+}
+
+function riffFile() {
+	const bytes = new Uint8Array(60);
+	bytes.set(new TextEncoder().encode('RIFF'), 0);
+	new DataView(bytes.buffer).setUint32(4, 52, true);
+	bytes.set(new TextEncoder().encode('WAVE'), 8);
+	return Object.freeze({
+		name: 'field-recording.wav',
+		type: 'audio/wav',
+		size: bytes.byteLength,
+		async arrayBuffer() { return bytes.slice().buffer; },
+		slice(start = 0, end = bytes.byteLength) {
+			const value = bytes.slice(start, end);
+			return { async arrayBuffer() { return value.buffer; } };
+		},
+	});
+}
+
+function projectFixture() {
+	return {
+		id: 'project-1',
+		revision: 0,
+		sampleRate: 48_000,
+		metadata: { bext: null, ixml: null, cart: null, adm: null },
+		sources: [] as unknown[],
+		clips: [] as unknown[],
+		tracks: [] as unknown[],
+		projectBin: { clips: [] as unknown[] },
+	};
+}

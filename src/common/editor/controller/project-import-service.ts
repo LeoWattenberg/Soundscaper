@@ -7,6 +7,7 @@ import {
 } from './wav-import-metadata.ts';
 import {
 	freezeProjectImportOptions,
+	linkedOriginalLocatorReferenceFromImportOptions,
 	linkedVideoLocatorReferenceFromImportOptions,
 	normalizeProjectImportOptions,
 	normalizeProjectImportOptionsForUse,
@@ -14,6 +15,7 @@ import {
 	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
 import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
+import { createLinkedWavImporter } from './linked-wav-import-service.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -34,7 +36,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
 		convertLegacyAupToProjectV2, copy, createAddClipCommand, createAddSourceCommand,
-		createAddTrackCommand, createStableId, decodeLegacyAupProject,
+		createAddTrackCommand, createStableId, decodeLegacyAupProject, assertProject, captureProject,
 		editingBlocked, engine, ffmpeg, findTrack,
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile,
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
@@ -57,15 +59,15 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {}) {
 		const files = [...(fileList || [])];
 		const importOptions = await normalizedImportOptionsForUse(requestedOptions);
+		const linkedOriginalLocator = linkedOriginalLocatorReferenceFromImportOptions(importOptions);
 		if (!files.length || editingBlocked()) {
-			if (importOptions.linkedVideoLocatorId) {
-				await releaseLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(importOptions));
-			}
+			if (linkedOriginalLocator) await releaseLinkedOriginalLocator(linkedOriginalLocator);
 			return;
 		}
-		if (importOptions.linkedVideoLocatorId
-			&& (files.length !== 1 || !isAudioEditorVideoFile(files[0]))) {
-			try { await rejectLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(importOptions)); }
+		if (linkedOriginalLocator && (files.length !== 1
+			|| (linkedOriginalLocator.kind === 'video' && !isAudioEditorVideoFile(files[0]))
+			|| (linkedOriginalLocator.kind === 'audio' && isAudioEditorVideoFile(files[0])))) {
+			try { await rejectLinkedOriginalLocator(linkedOriginalLocator); }
 			catch (error) { handleError(error); }
 			return;
 		}
@@ -166,11 +168,24 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	async function rejectLinkedVideoLocator(locatorId: RuntimeValue): Promise<never> {
-		const refusal = new TypeError('A linked video locator can only be used for a video import.');
+		const reference = linkedVideoLocatorReferenceFromImportOptions({
+			linkedVideoLocatorId: locatorId?.locatorId,
+			linkedVideoLocatorRevision: locatorId?.locatorRevision,
+		});
+		if (!reference) throw new TypeError('A valid linked video locator is required.');
+		return rejectLinkedOriginalLocator({ kind: 'video', ...reference });
+	}
+
+	async function rejectLinkedOriginalLocator(
+		reference: LinkedOriginalImportLocatorReference,
+	): Promise<never> {
+		const refusal = new TypeError(
+			`A linked ${reference.kind} locator can only be used for a ${reference.kind} import.`,
+		);
 		try {
-			await releaseLinkedVideoLocator(locatorId);
+			await releaseLinkedOriginalLocator(reference);
 		} catch (cleanupError) {
-			throw new AggregateError([refusal, cleanupError], 'Linked-video import refusal cleanup failed.', {
+			throw new AggregateError([refusal, cleanupError], 'Linked-original import refusal cleanup failed.', {
 				cause: refusal,
 			});
 		}
@@ -299,19 +314,26 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 
 	async function importFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
 		const normalizedImportOptions = await normalizedImportOptionsForUse(importOptions);
+		const linkedOriginalLocator = linkedOriginalLocatorReferenceFromImportOptions(normalizedImportOptions);
 		const legacyFile = isLegacyAupFile(file);
-		if (normalizedImportOptions.linkedVideoLocatorId && legacyFile) {
-			return rejectLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(normalizedImportOptions));
+		if (linkedOriginalLocator && legacyFile) {
+			return rejectLinkedOriginalLocator(linkedOriginalLocator);
 		}
 		if (legacyFile) {
 			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 			return importLegacyAudacityProject(file);
 		}
 		const videoFile = isAudioEditorVideoFile(file);
-		if (normalizedImportOptions.linkedVideoLocatorId && !videoFile) {
+		if (linkedOriginalLocator?.kind === 'video' && !videoFile) {
 			return rejectLinkedVideoLocator(linkedVideoLocatorReferenceFromImportOptions(normalizedImportOptions));
 		}
+		if (linkedOriginalLocator?.kind === 'audio' && videoFile) {
+			return rejectLinkedOriginalLocator(linkedOriginalLocator);
+		}
 		if (videoFile) return importVideoFile(file, normalizedImportOptions);
+		if (linkedOriginalLocator?.kind === 'audio') {
+			return importLinkedAudioWav(file, normalizedImportOptions, linkedOriginalLocator);
+		}
 		validateImportTimelineTrack(normalizedImportOptions);
 		const wavSignature = await inspectWavContainerSignature(file, isWavFile);
 		const wavDescriptor: RuntimeValue = await inspectWavForImport(
@@ -402,6 +424,45 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		warnEnvelope();
 		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
+	}
+
+	async function importLinkedAudioWav(
+		file: RuntimeValue,
+		importOptions: RuntimeValue,
+		locator: LinkedOriginalImportLocatorReference,
+	) {
+		let delegated = false;
+		try {
+			validateImportTimelineTrack(importOptions);
+			const signature = await inspectWavContainerSignature(file, isWavFile);
+			const descriptor = await inspectWavForImport(
+				file, isWavFile, inspectWavBlobPcm, signature,
+			);
+			if (!signature || !descriptor) {
+				throw new TypeError('Linked audio originals are limited to maintained PCM WAV and RF64 files.');
+			}
+			const wavMetadata = prepareWavImportMetadata(descriptor, importOptions);
+			const importer = createLinkedWavImporter({
+				SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
+				commit, copy, createStableId, getProject, importResultWithWarnings,
+				peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
+				sourceChunkProviders, sourcePeaks, store, stripExtension, warnEnvelope,
+			});
+			delegated = true;
+			return await importer(file, descriptor, wavMetadata.importOptions, wavMetadata);
+		} catch (error) {
+			if (delegated) throw error;
+			try {
+				await releaseLinkedOriginalLocator(locator);
+			} catch (cleanupError) {
+				throw new AggregateError(
+					[error, cleanupError],
+					'Linked WAV import admission and locator cleanup both failed.',
+					{ cause: error },
+				);
+			}
+			throw error;
+		}
 	}
 
 	function isIncrementalWav(descriptor: RuntimeValue) {

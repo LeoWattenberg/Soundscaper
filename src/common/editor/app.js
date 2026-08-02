@@ -1400,7 +1400,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
 		isLegacyAupFile, isLegacyBlockFile, isWavFile, migrateAudioEditorProject,
-		peakCacheKey, preflightStorage, getProject: () => project, projectSampleRate,
+		peakCacheKey, preflightStorage, getProject: () => project, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), projectSampleRate,
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
 		sourcePcmBytes, sourcePeaks, state, store,
 		streamWavBlobPcm, stripExtension, switchProject, warnEnvelope,
