@@ -170,6 +170,48 @@ test('an orphan destination binding blocks the whole copy before source validati
 	assert.equal(recordCount(fixture), 2);
 });
 
+test('a wrong-kind destination key cannot be overwritten by the video facade', async (context) => {
+	const fixture = await aliasFixture(context, 'memory');
+	const source = videoSource('shared-source-id', 'video-storage');
+	await seedBinding(fixture, SOURCE_PROJECT_ID, source, LOCATOR_A, REVISION_A);
+	const generic = new LinkedOriginalRepository(fixture.port, {
+		now: () => new Date(SEED_NOW),
+		createBindingToken: () => 'audio_destination_0000001',
+	});
+	const audio = await generic.putIfCurrent({
+		schemaVersion: LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
+		kind: 'audio',
+		projectId: DESTINATION_PROJECT_ID,
+		sourceId: source.id,
+		storageKey: 'audio-storage',
+		locatorId: 'audio_locator_0000000001',
+		locatorRevision: 'audio_snapshot_000000001',
+		mimeType: 'audio/wav',
+		byteLength: 1_024,
+		sha256: 'ab'.repeat(32),
+		sourceShape: {
+			frameCount: 120,
+			channelCount: 2,
+			sampleRate: 48_000,
+			originalSampleRate: 48_000,
+			sampleFormat: 'float32',
+			chunkFrames: 65_536,
+		},
+	}, null);
+	assert.ok(audio);
+
+	await assert.rejects(
+		fixture.aliases.copyReachableAliases(
+			SOURCE_PROJECT_ID,
+			DESTINATION_PROJECT_ID,
+			[source],
+		),
+		/occupied|destination.*key|destination.*binding/iu,
+	);
+	assert.deepEqual(await generic.get(DESTINATION_PROJECT_ID, source.id), audio);
+	assert.equal(recordCount(fixture), 2);
+});
+
 test('copy requires exact storage key, MIME type, and video geometry', async (context) => {
 	const fixture = await aliasFixture(context, 'memory');
 	const source = videoSource('source-exact', 'storage-exact');

@@ -44,6 +44,7 @@ interface ProjectOriginalSource {
 
 interface BindingInventory {
 	readonly bindings: readonly LinkedOriginalBinding[];
+	readonly bindingKeys: ReadonlySet<string>;
 	readonly bindingTokens: ReadonlySet<string>;
 	readonly recordCount: number;
 }
@@ -199,6 +200,11 @@ export class LinkedOriginalProjectAliasRepository {
 		const sourceBindings = inventory.bindings
 			.filter((binding) => binding.projectId === sourceProjectId && sources.has(binding.sourceId))
 			.sort((left, right) => left.sourceId.localeCompare(right.sourceId));
+		if (sourceBindings.some((binding) => inventory.bindingKeys.has(
+			linkedOriginalBindingKey(destinationProjectId, binding.sourceId),
+		))) {
+			throw new Error('A linked original alias destination key is already occupied.');
+		}
 		if (inventory.recordCount + sourceBindings.length > this.#maximumInventoryRecords) {
 			throw new RangeError('Linked original alias prospective rows exceed the record limit.');
 		}
@@ -349,11 +355,18 @@ function indexedDbInventory(
 
 function inventoryAccumulator(): {
 	bindings: LinkedOriginalBinding[];
+	bindingKeys: Set<string>;
 	bindingTokens: Set<string>;
 	references: Map<string, string>;
 	recordCount: number;
 } {
-	return { bindings: [], bindingTokens: new Set(), references: new Map(), recordCount: 0 };
+	return {
+		bindings: [],
+		bindingKeys: new Set(),
+		bindingTokens: new Set(),
+		references: new Map(),
+		recordCount: 0,
+	};
 }
 
 function addInventoryBinding(
@@ -369,6 +382,7 @@ function addInventoryBinding(
 		throw new RangeError('Linked original project-alias inventory exceeds its record limit.');
 	}
 	const binding = validateLinkedOriginalInventoryBinding(value, primaryKey);
+	accumulator.bindingKeys.add(linkedOriginalBindingKey(binding.projectId, binding.sourceId));
 	accumulator.bindingTokens.add(binding.bindingToken);
 	if (!managedKindsValue.has(binding.kind)) return;
 	const referenceKey = JSON.stringify([binding.kind, binding.locatorId]);
@@ -388,6 +402,7 @@ function finishInventory(
 ): BindingInventory {
 	return Object.freeze({
 		bindings: Object.freeze(accumulator.bindings),
+		bindingKeys: accumulator.bindingKeys,
 		bindingTokens: accumulator.bindingTokens,
 		recordCount: accumulator.recordCount,
 	});
