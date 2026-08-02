@@ -39,19 +39,72 @@ test('project save protects kindful transient audio and live video roots through
 			},
 		} as never,
 	}, project, {
+		protectedLinkedOriginalSourceReferences: [
+			{ kind: 'audio', sourceId: 'source-caller-audio' },
+			{ kind: 'video', sourceId: 'source-video' },
+		],
 		protectedLinkedVideoSourceIds: ['source-video'],
 	});
 
 	assert.equal(saved, project);
 	assert.deepEqual(roots, [[
 		{ kind: 'audio', sourceId: 'source-audio' },
+		{ kind: 'audio', sourceId: 'source-caller-audio' },
 		{ kind: 'video', sourceId: 'source-video' },
 	]]);
 	assert.deepEqual(durable, [{
 		durableSourceReferences: [
 			{ kind: 'audio', sourceId: 'source-audio' },
+			{ kind: 'audio', sourceId: 'source-caller-audio' },
 			{ kind: 'video', sourceId: 'source-video' },
 		],
+		removedLocatorReferences: [],
+	}]);
+});
+
+test('project save protection never retains the wrong media kind for a matching source ID', async () => {
+	const roots: unknown[] = [];
+	const durable: unknown[] = [];
+	await saveProjectWithLinkedOriginalReachability({
+		store: {
+			backend: 'memory',
+			async ready() {},
+			async estimateStorage() { return { usage: null, quota: null }; },
+		},
+		projects: {
+			async save(value: unknown, postCommit?: () => Promise<void>) {
+				await postCommit?.();
+				return value;
+			},
+		} as never,
+		lifecycle: {
+			async saveProject(
+				_projectId: string,
+				operation: (maintain: () => Promise<void>) => Promise<unknown>,
+				prune: (references: readonly unknown[]) => Promise<unknown>,
+			) {
+				return operation(async () => {
+					const result = await prune([]);
+					durable.push(result);
+				});
+			},
+		} as never,
+		reachability: {
+			async pruneProjectBindings(_projectId: string, references: readonly unknown[]) {
+				roots.push(references);
+				return {
+					durableSourceReferences: Object.freeze([]),
+					removedLocatorReferences: Object.freeze([]),
+				};
+			},
+		} as never,
+	}, { id: 'project-a', title: 'Project A' }, {
+		protectedLinkedOriginalSourceReferences: [{ kind: 'audio', sourceId: 'same-source' }],
+	});
+
+	assert.deepEqual(roots, [[{ kind: 'audio', sourceId: 'same-source' }]]);
+	assert.deepEqual(durable, [{
+		durableSourceReferences: [{ kind: 'audio', sourceId: 'same-source' }],
 		removedLocatorReferences: [],
 	}]);
 });

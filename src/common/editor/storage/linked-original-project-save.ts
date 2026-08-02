@@ -8,7 +8,7 @@ import type {
 import type { ProjectDocument, ProjectRepositoryPort } from './project-repository.ts';
 import {
 	admitProjectPublication,
-	projectProtectedLinkedVideoSourceIds,
+	projectProtectedLinkedOriginalSourceReferences,
 	type ProjectPublicationStore,
 } from './project-publication-options.ts';
 
@@ -25,21 +25,18 @@ export async function saveProjectWithLinkedOriginalReachability(
 	project: ProjectDocument,
 	options: unknown = {},
 ): Promise<ProjectDocument> {
-	const protectedVideoSourceIds = projectProtectedLinkedVideoSourceIds(options);
+	const protectedReferences = projectProtectedLinkedOriginalSourceReferences(options);
 	const save = async (postCommit?: () => Promise<void>): Promise<ProjectDocument> => {
 		await admitProjectPublication(dependencies.store, project, options);
 		return dependencies.projects.save(project, postCommit);
 	};
-	if (!protectedVideoSourceIds || !dependencies.reachability) {
+	if (!protectedReferences || !dependencies.reachability) {
 		return dependencies.lifecycle.saveProject(
 			project.id,
 			(maintain) => save(maintain),
 			async () => null,
 		);
 	}
-	const protectedReferences = Object.freeze(protectedVideoSourceIds.map((sourceId) => (
-		Object.freeze({ kind: 'video' as const, sourceId })
-	)));
 	return dependencies.lifecycle.saveProject(
 		project.id,
 		(maintain) => save(maintain),
