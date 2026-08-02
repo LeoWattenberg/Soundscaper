@@ -1,0 +1,72 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { LinkedOriginalLifecycleCoordinator } from './linked-original-lifecycle-coordinator.ts';
+import type {
+	LinkedOriginalProjectReachabilityRepository,
+	LinkedOriginalProjectSourceReference,
+} from './linked-original-project-reachability-repository.ts';
+import type { ProjectDocument, ProjectRepositoryPort } from './project-repository.ts';
+import {
+	admitProjectPublication,
+	projectProtectedLinkedVideoSourceIds,
+	type ProjectPublicationStore,
+} from './project-publication-options.ts';
+
+interface LinkedOriginalProjectSaveDependencies {
+	readonly store: ProjectPublicationStore;
+	readonly projects: ProjectRepositoryPort;
+	readonly lifecycle: LinkedOriginalLifecycleCoordinator;
+	readonly reachability?: LinkedOriginalProjectReachabilityRepository | null;
+}
+
+/** Serialize publication with authoritative mixed-media linked-original cleanup. */
+export async function saveProjectWithLinkedOriginalReachability(
+	dependencies: LinkedOriginalProjectSaveDependencies,
+	project: ProjectDocument,
+	options: unknown = {},
+): Promise<ProjectDocument> {
+	const protectedVideoSourceIds = projectProtectedLinkedVideoSourceIds(options);
+	const save = async (postCommit?: () => Promise<void>): Promise<ProjectDocument> => {
+		await admitProjectPublication(dependencies.store, project, options);
+		return dependencies.projects.save(project, postCommit);
+	};
+	if (!protectedVideoSourceIds || !dependencies.reachability) {
+		return dependencies.lifecycle.saveProject(
+			project.id,
+			(maintain) => save(maintain),
+			async () => null,
+		);
+	}
+	const protectedReferences = Object.freeze(protectedVideoSourceIds.map((sourceId) => (
+		Object.freeze({ kind: 'video' as const, sourceId })
+	)));
+	return dependencies.lifecycle.saveProject(
+		project.id,
+		(maintain) => save(maintain),
+		async (transientReferences) => {
+			const roots = frozenReferenceUnion(protectedReferences, transientReferences);
+			const result = await dependencies.reachability!.pruneProjectBindings(project.id, roots);
+			if (!result) return null;
+			return Object.freeze({
+				durableSourceReferences: frozenReferenceUnion(
+					result.durableSourceReferences,
+					protectedReferences,
+				),
+				removedLocatorReferences: result.removedLocatorReferences,
+			});
+		},
+	);
+}
+
+function frozenReferenceUnion(
+	left: readonly LinkedOriginalProjectSourceReference[],
+	right: readonly LinkedOriginalProjectSourceReference[],
+): readonly LinkedOriginalProjectSourceReference[] {
+	const references = new Map<string, LinkedOriginalProjectSourceReference>();
+	for (const reference of [...left, ...right]) {
+		references.set(JSON.stringify([reference.kind, reference.sourceId]), reference);
+	}
+	return Object.freeze([...references.values()].sort((first, second) => (
+		first.kind.localeCompare(second.kind) || first.sourceId.localeCompare(second.sourceId)
+	)));
+}
