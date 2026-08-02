@@ -6,7 +6,6 @@ import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
-
 test('shared desktop project publication is fenced and remains narrowly partial', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const rendererBoundary = matrix.boundaries.find(({ id }) => id === 'renderer-to-electron-main');
@@ -46,7 +45,6 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const revocationControl = ipcRisk?.currentControls.find(
 		({ id }) => id === 'authenticated-ipc-sender-and-navigation-fence',
 	);
-
 	assert.ok(rendererBoundary);
 	assert.deepEqual(rendererBoundary.entryPoints, [
 		'desktop/preload.mjs',
