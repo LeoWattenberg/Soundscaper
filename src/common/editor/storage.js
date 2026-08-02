@@ -39,6 +39,7 @@ export class AudioEditorProjectStore {
 		migrateLegacyPcmOnAccess = true,
 		derivativeCacheLimits = undefined,
 		derivativeCacheNow = undefined,
+		linkedVideoOriginalPort = null,
 		desktopProjectBridge = null,
 		onDesktopSharedProjectLocalCleanupError = reportDesktopSharedProjectLocalCleanupError,
 		repositoryFactory = /** @type {import('./storage/repositories.ts').StorageRepositoryFactory} */ (createStorageRepositories),
@@ -74,6 +75,7 @@ export class AudioEditorProjectStore {
 			migrateLegacyPcmOnAccess: Boolean(migrateLegacyPcmOnAccess),
 			derivativeCacheLimits,
 			derivativeCacheNow,
+			linkedVideoOriginalPort,
 			estimateStorage: () => this.estimateStorage(),
 			isMemoryBackend: () => this.backend === 'memory',
 		});
@@ -105,6 +107,8 @@ export class AudioEditorProjectStore {
 		this.analysisRepository = repositories.analysis;
 		this.sourceRepository = repositories.sources;
 		this.mediaRepository = repositories.media;
+		this.linkedVideoOriginalBindingRepository = repositories.linkedVideoOriginalBindings || null;
+		this.linkedVideoOriginalResolver = repositories.linkedVideoOriginals || null;
 		this.retentionRepository = repositories.retention;
 	}
 
@@ -245,6 +249,52 @@ export class AudioEditorProjectStore {
 
 	async getMediaAssetMetadata(sourceId) {
 		return this.mediaRepository.getAssetMetadata(sourceId);
+	}
+
+	/** Bind one exact project/video source to a pathless platform locator. */
+	async bindLinkedVideoOriginal(projectId, source, locatorId, options = {}) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) {
+			throw new Error('Linked video original resolution is unavailable.');
+		}
+		return this.linkedVideoOriginalResolver.bind(projectId, source, locatorId, options);
+	}
+
+	/** Resolve one exact project/video binding without consulting retained-media storage. */
+	async resolveLinkedVideoOriginal(projectId, source, options = {}) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) {
+			throw new Error('Linked video original resolution is unavailable.');
+		}
+		return this.linkedVideoOriginalResolver.resolve(projectId, source, options);
+	}
+
+	async getLinkedVideoOriginalMetadata(projectId, source) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) {
+			throw new Error('Linked video original resolution is unavailable.');
+		}
+		return this.linkedVideoOriginalResolver.metadata(projectId, source);
+	}
+
+	async getLinkedVideoOriginalBinding(projectId, sourceId) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalBindingRepository) {
+			throw new Error('Linked video original bindings are unavailable.');
+		}
+		return this.linkedVideoOriginalBindingRepository.get(projectId, sourceId);
+	}
+
+	async unlinkLinkedVideoOriginal(projectId, sourceId, expectedBindingToken) {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalBindingRepository) {
+			throw new Error('Linked video original bindings are unavailable.');
+		}
+		return this.linkedVideoOriginalBindingRepository.deleteIfCurrent(
+			projectId,
+			sourceId,
+			expectedBindingToken,
+		);
 	}
 
 	/**

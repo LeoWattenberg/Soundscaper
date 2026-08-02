@@ -2,6 +2,11 @@
 
 import { KeyValueRepository } from './key-value-repository.ts';
 import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
+import { LinkedVideoOriginalRepository } from './linked-video-original-repository.ts';
+import {
+	LinkedVideoOriginalResolver,
+	type LinkedVideoOriginalPort,
+} from './linked-video-original-resolver.ts';
 import { MediaRepository } from './media-repository.ts';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import { OpfsRepository } from './opfs-repository.ts';
@@ -21,6 +26,8 @@ export interface StorageRepositories {
 	readonly analysis: KeyValueRepository;
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
+	readonly linkedVideoOriginalBindings: LinkedVideoOriginalRepository;
+	readonly linkedVideoOriginals: LinkedVideoOriginalResolver | null;
 	readonly opfs: OpfsRepository;
 	readonly pcm: PcmRepository;
 	readonly retention: RetentionRepository;
@@ -39,6 +46,7 @@ export interface StorageRepositoryOptions {
 		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
 	>>;
 	readonly derivativeCacheNow?: () => number;
+	readonly linkedVideoOriginalPort?: LinkedVideoOriginalPort | null;
 	readonly estimateStorage: () => Promise<{ usage: number | null; quota: number | null }>;
 	readonly isMemoryBackend: () => boolean;
 }
@@ -77,6 +85,10 @@ export function createStorageRepositories(
 		cacheLimits: options.derivativeCacheLimits,
 		now: options.derivativeCacheNow,
 	});
+	const linkedVideoOriginalBindings = new LinkedVideoOriginalRepository(port);
+	const linkedVideoOriginals = options.linkedVideoOriginalPort
+		? new LinkedVideoOriginalResolver(linkedVideoOriginalBindings, options.linkedVideoOriginalPort)
+		: null;
 	const deleteStoredSource = async (source: StorageRecord): Promise<void> => {
 		if (isOpfsPcmStorage(source.storage) && source.path) await opfs.deletePath(source.path);
 		else if (source.sourceToken) await sourceRecords.deleteChunks(source.sourceToken);
@@ -105,6 +117,8 @@ export function createStorageRepositories(
 		analysis,
 		sources,
 		media,
+		linkedVideoOriginalBindings,
+		linkedVideoOriginals,
 		opfs,
 		pcm,
 		retention: new RetentionRepository({ port, sourceRecords, sources, media, opfs }),
