@@ -340,9 +340,17 @@ export class LinkedOriginalLifecycleCoordinator {
 		possible: readonly LinkedOriginalLocatorReference[] = [],
 	): Promise<void> {
 		if (!this.#canRelease() || (!possible.length && !this.#pending.size)) return;
-		const admittedPossible = possible.map((reference) => (
-			this.#resolver!.validateLocatorReference(reference)
+		const admittedPossible: LinkedOriginalLocatorReference[] = [];
+		const admissionFailures: unknown[] = [];
+		for (const reference of possible) {
+			try { admittedPossible.push(this.#resolver!.validateLocatorReference(reference)); }
+			catch (error) { admissionFailures.push(error); }
+		}
+		if (admissionFailures.length) this.#report(operation, new AggregateError(
+			admissionFailures,
+			'One or more linked-original cleanup references were invalid.',
 		));
+		if (!admittedPossible.length && !this.#pending.size) return;
 		let live: readonly LinkedOriginalLocatorReference[];
 		try { live = await this.#bindings!.listLocatorReferences(); }
 		catch (cause) {

@@ -12,6 +12,7 @@ import {
 	type LocalStoreClearAdmission,
 } from '../src/common/editor/storage/linked-original-lifecycle-coordinator.ts';
 import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
+import type { LinkedOriginalLocatorReference } from '../src/common/editor/storage/linked-original-repository.ts';
 import { LinkedOriginalResolver } from '../src/common/editor/storage/linked-original-resolver.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 
@@ -129,6 +130,26 @@ test('clear releases only after the local binding commit and never owns external
 	]);
 });
 
+test('an invalid post-commit cleanup reference is reported without undoing publication', async () => {
+	const reported: unknown[] = [];
+	const fixture = createFixture({ onCleanupError: (error) => { reported.push(error); } });
+	const invalid = Object.freeze({
+		kind: 'audio',
+		locatorId: 'not-valid',
+		locatorRevision: AUDIO_REVISION,
+	}) as unknown as LinkedOriginalLocatorReference;
+
+	assert.equal(await fixture.lifecycle.saveProject('project-a', async (maintain) => {
+		await maintain();
+		return 'committed';
+	}, async () => ({
+		durableSourceReferences: Object.freeze([]),
+		removedLocatorReferences: Object.freeze([invalid]),
+	})), 'committed');
+	assert.equal(reported.length, 1);
+	assert.equal((reported[0] as { committed?: unknown }).committed, true);
+});
+
 interface Fixture {
 	readonly bindings: LinkedOriginalRepository;
 	readonly lifecycle: LinkedOriginalLifecycleCoordinator;
@@ -142,6 +163,7 @@ interface Fixture {
 
 function createFixture(options: Readonly<{
 	release?: (reference: Fixture['releases'][number]) => Promise<boolean>;
+	onCleanupError?: (error: unknown) => void;
 }> = {}): Fixture {
 	const memory = getMemoryDatabase(`linked-original-lifecycle-${Date.now()}-${Math.random()}`);
 	const bindings = new LinkedOriginalRepository({ memory, database: async () => null });
@@ -159,7 +181,7 @@ function createFixture(options: Readonly<{
 	Object.assign(fixture, {
 		bindings,
 		lifecycle: new LinkedOriginalLifecycleCoordinator(bindings, resolver, {
-			onCleanupError: () => undefined,
+			onCleanupError: options.onCleanupError ?? (() => undefined),
 		}),
 		releases,
 	});
