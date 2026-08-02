@@ -85,7 +85,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 		documentation,
 		/reproducible.*not.*project history.*\.scape.*managed handoff.*rendered fallbacks.*durable/isu,
 	);
-	assert.match(documentation, /maintained exact-schema first-party audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*first-party video-effects full render.*separately qualified.*controller activation.*route-specific source and digest admission.*generic video fallback and proxy relationships remain unqualified/isu);
+	assert.match(documentation, /maintained exact-schema first-party audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*first-party video-effects full render.*separately qualified.*controller activation.*route-specific source and digest admission.*generic video fallback and proxy\s+relationships remain unqualified/isu);
 	assert.match(
 		documentation,
 		/not editorial proxies.*decoder.*RSS/isu,
