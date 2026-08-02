@@ -147,6 +147,25 @@ test('a current project without one exact matching revision suppresses cleanup',
 	), false);
 });
 
+test('same-revision divergence conservatively unions both validated source graphs', async (context) => {
+	const fixture = await reachabilityFixture(context, 'memory');
+	const revisionSource = videoSource('revision-graph-video');
+	const currentSource = videoSource('current-graph-video');
+	const stale = videoSource('divergent-stale-video');
+	await fixture.projects.save(rootedProject(1, { timeline: revisionSource }));
+	fixture.memory.projects.set(PROJECT_ID, rootedProject(1, { timeline: currentSource }));
+	await seedBinding(fixture, PROJECT_ID, revisionSource, 'locator_revision_graph_0001');
+	await seedBinding(fixture, PROJECT_ID, currentSource, 'locator_current_graph_0001');
+	await seedBinding(fixture, PROJECT_ID, stale, 'locator_divergent_stale_01');
+
+	const result = await fixture.reachability.pruneProjectBindings(PROJECT_ID, []);
+
+	assert.deepEqual(result?.durableVideoSourceIds, ['current-graph-video', 'revision-graph-video']);
+	assert.ok(await fixture.bindings.get(PROJECT_ID, revisionSource.id));
+	assert.ok(await fixture.bindings.get(PROJECT_ID, currentSource.id));
+	assert.equal(await fixture.bindings.get(PROJECT_ID, stale.id), null);
+});
+
 test('noncanonical, duplicate, and over-bound caller roots suppress cleanup before binding access', async (context) => {
 	const fixture = await reachabilityFixture(context, 'indexeddb');
 	await fixture.projects.save(rootedProject(1, {}));

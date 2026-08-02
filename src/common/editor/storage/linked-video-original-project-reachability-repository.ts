@@ -40,7 +40,6 @@ interface RootAccumulator {
 
 interface CurrentProjectRootState {
 	readonly accumulator: RootAccumulator;
-	readonly fingerprint: string;
 	readonly revision: number;
 }
 
@@ -176,7 +175,6 @@ function currentProjectRootState(
 		collectVideoRoots(value, projectId, accumulator);
 		return {
 			accumulator,
-			fingerprint: projectFingerprint(value),
 			revision: value.revision,
 		};
 	} catch { return null; }
@@ -205,8 +203,7 @@ function memoryRootState(
 			if (count > maximumRetainedRevisions) return null;
 			const revision = storedProjectRevision(value, primaryKey, projectId);
 			collectVideoRoots(revision.project, projectId, state.accumulator);
-			if (revision.revision === state.revision
-				&& projectFingerprint(revision.project) === state.fingerprint) matchingCurrent = true;
+			if (revision.revision === state.revision) matchingCurrent = true;
 		}
 	} catch { return null; }
 	return count > 0 && matchingCurrent ? state : null;
@@ -234,8 +231,7 @@ function collectIndexedDbRevisionRoots(
 				if (count > maximumRetainedRevisions) { resolve(false); return; }
 				const revision = storedProjectRevision(cursor.value, cursor.primaryKey, projectId);
 				collectVideoRoots(revision.project, projectId, state.accumulator);
-				if (revision.revision === state.revision
-					&& projectFingerprint(revision.project) === state.fingerprint) matchingCurrent = true;
+				if (revision.revision === state.revision) matchingCurrent = true;
 				cursor.continue();
 			} catch { resolve(false); }
 		};
@@ -448,12 +444,6 @@ function projectRevisionKey(projectId: string, revisionValue: unknown): string {
 		throw new TypeError('Stored project revision number must be a non-negative safe integer.');
 	}
 	return `${projectId}:${String(revision).padStart(12, '0')}`;
-}
-
-function projectFingerprint(project: AudioEditorProjectV9): string {
-	const fingerprint = JSON.stringify(project);
-	if (!fingerprint) throw new TypeError('A current project fingerprint could not be derived.');
-	return fingerprint;
 }
 
 function boundedLimit(value: unknown, maximum: number, label: string): number {
