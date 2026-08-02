@@ -2,7 +2,9 @@
 
 import { getMediaExportFormat, normalizeMediaExportSettings } from '../media-export.js';
 
-const DIRECT_COMPRESSED_FORMAT_IDS = new Set<DirectCompressedFormat>(['mp3']);
+const DIRECT_COMPRESSED_FORMAT_IDS = new Set<DirectCompressedFormat>([
+	'mp3', 'flac', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a',
+]);
 const REALTIME_REASONS = new Set(['output-memory', 'total-memory', 'offline-render-output-memory']);
 const STANDARD_MAPPING_MODES = new Set(['preserve', 'mono', 'stereo']);
 
