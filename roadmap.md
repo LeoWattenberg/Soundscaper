@@ -275,12 +275,12 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   bounded RIFF/RF64 PCM and IEEE-float sources remain pathless and unowned by
   the sender; portable `.scape` and managed handoff acquire ordinary canonical
   PCM in a fresh recipient.
-- **Electron Enhanced / Shared — Implemented for the maintained first-party
-  audio fallback:** an exact-schema audio whole-mix source referenced only by
-  its feature requirement crosses explicit managed handoff with the editable
-  original, is acquired into a fresh recipient, and activates there after the
-  separate controller-owned manifest digest check. The recipient document
-  remains read-only and canonical state stays unprojected.
+- **Electron Enhanced / Shared — Implemented for registered first-party audio
+  fallbacks:** an exact-schema audio whole-mix source referenced by one
+  unavailable registered audio feature crosses explicit managed handoff with
+  the editable original, is acquired into a fresh recipient, and activates
+  there after the separate controller-owned manifest digest check. The
+  recipient document remains read-only and canonical state stays unprojected.
 - **Shared / Electron Enhanced — Implemented for the maintained first-party
   video-effects fallback:** one admitted exact-schema video fallback bound to
   the unavailable video-effects requirement activates its required local source
