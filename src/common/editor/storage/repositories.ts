@@ -2,7 +2,12 @@
 
 import { KeyValueRepository } from './key-value-repository.ts';
 import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
+import { LinkedAudioOriginalSourceReader } from './linked-audio-original-source-reader.ts';
 import { LinkedOriginalRepository } from './linked-original-repository.ts';
+import {
+	LinkedOriginalResolver,
+	type LinkedOriginalPort,
+} from './linked-original-resolver.ts';
 import { LinkedVideoOriginalProjectAliasRepository } from './linked-video-original-project-alias-repository.ts';
 import { LinkedVideoOriginalProjectReachabilityRepository } from './linked-video-original-project-reachability-repository.ts';
 import { LinkedVideoOriginalRepository } from './linked-video-original-repository.ts';
@@ -30,6 +35,7 @@ export interface StorageRepositories {
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
 	readonly linkedOriginalBindings: LinkedOriginalRepository;
+	readonly linkedOriginals: LinkedOriginalResolver | null;
 	readonly linkedVideoOriginalBindings: LinkedVideoOriginalRepository;
 	readonly linkedVideoOriginalProjectAliases: LinkedVideoOriginalProjectAliasRepository;
 	readonly linkedVideoOriginalProjectReachability: LinkedVideoOriginalProjectReachabilityRepository;
@@ -52,6 +58,7 @@ export interface StorageRepositoryOptions {
 		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
 	>>;
 	readonly derivativeCacheNow?: () => number;
+	readonly linkedOriginalPort?: LinkedOriginalPort | null;
 	readonly linkedVideoOriginalPort?: LinkedVideoOriginalPort | null;
 	readonly estimateStorage: () => Promise<{ usage: number | null; quota: number | null }>;
 	readonly isMemoryBackend: () => boolean;
@@ -92,6 +99,9 @@ export function createStorageRepositories(
 		now: options.derivativeCacheNow,
 	});
 	const linkedOriginalBindings = new LinkedOriginalRepository(port);
+	const linkedOriginals = options.linkedOriginalPort
+		? new LinkedOriginalResolver(linkedOriginalBindings, options.linkedOriginalPort)
+		: null;
 	const linkedVideoOriginalBindings = new LinkedVideoOriginalRepository(port);
 	const linkedVideoOriginalProjectAliases = new LinkedVideoOriginalProjectAliasRepository(port);
 	const linkedVideoOriginalProjectReachability = new LinkedVideoOriginalProjectReachabilityRepository(port);
@@ -110,7 +120,16 @@ export function createStorageRepositories(
 		database: port.database,
 		deleteStoredSource,
 	});
-	const reader = new SourceReadRepository({ records: sourceRecords, pcm, opfs, migrations });
+	const linkedAudio = linkedOriginals
+		? new LinkedAudioOriginalSourceReader({ bindings: linkedOriginalBindings, resolver: linkedOriginals })
+		: null;
+	const reader = new SourceReadRepository({
+		records: sourceRecords,
+		pcm,
+		opfs,
+		migrations,
+		fallback: linkedAudio,
+	});
 	const sources = new SourceRepository({
 		records: sourceRecords,
 		writer,
@@ -127,6 +146,7 @@ export function createStorageRepositories(
 		sources,
 		media,
 		linkedOriginalBindings,
+		linkedOriginals,
 		linkedVideoOriginalBindings,
 		linkedVideoOriginalProjectAliases,
 		linkedVideoOriginalProjectReachability,
