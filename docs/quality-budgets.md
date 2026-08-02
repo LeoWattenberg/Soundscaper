@@ -212,6 +212,24 @@ operating-system behavior, packaged UI, quota, durability, crash, or power
 loss. Custom FFmpeg, stems, offline rendering, and video are excluded. It stays
 outside the milestone 2 bounded-memory workload, which stays planned.
 
+A fifth provisional milestone 2 fixture records direct MP4 and WebM final-video
+transport as focused Node evidence. The service cases bind canonical version-4
+plans and safe picker contracts, verify rendered-fallback admission before
+planning and selection, prepare browser targets before preflight and input work,
+and defer desktop target selection until sink open after FFmpeg stat. Both
+formats seal the sink before exact-count commit without a final video `Blob`, Object
+URL, or download; prepared Blob mode retains the legacy publication path.
+
+The lower fixture allocates a 2,097,169-byte body and transfers it in three
+exact ranges of 1,048,576, 1,048,576, and 17 bytes with one stat and zero output
+`readFile` calls. It proves transport arithmetic, serial backpressure, and
+ordering only. The complete output remains in worker MEMFS, while source-video
+and optional staged-audio `Blob` residency, codec execution and conformance,
+codec memory, heap, RSS, CPU, elapsed time, browser, operating-system, picker,
+packaged, quota, durability, crash, power-loss, and reference-scale behavior
+remain unqualified. The fixture stays outside the milestone 2 bounded-memory
+workload, which stays planned.
+
 The [collision-cancel inspection witness](../tests/desktop-scape-sparse-range-integration.test.ts)
 remains payload-lazy. It follows the real capability store, protocol, desktop
 range adapter, file service, project router, and inspector through single exact
@@ -268,8 +286,9 @@ The fixture specifications are deliberately concrete:
 
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
   inspection and counting-sink full-import witnesses, plus the exact 385 MiB
-  direct-WAV counting-SHA witness and the small direct native-PCM ZIP32 stem
-  and direct realtime compressed-audio correctness fixtures described above;
+  direct-WAV counting-SHA witness and the small direct native-PCM ZIP32 stem,
+  direct realtime compressed-audio, and direct MP4/WebM correctness fixtures
+  described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video

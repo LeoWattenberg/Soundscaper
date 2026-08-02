@@ -136,20 +136,27 @@ Export reuses it as the sole video input with no second fallback-store read,
 eliminating the selected fallback's storage-reread TOCTOU between admission and
 FFmpeg.
 
+That verified `Blob` may then enter either the separately governed exact direct
+MP4/WebM route or the legacy final-`Blob` route. Source digest verification and
+the delivery projection remain owned by this rendered-fallback control; direct
+target transport and commit are owned by their separate control.
+
 Task, project-generation, and operation currentness are asserted before
 verification and again after admission immediately before planning. The
 export-task signal fences verifier work, separately staged canonical-audio
-render, and FFmpeg. Post-encode currentness precedes output-`Blob` construction.
-After prior-output cleanup is awaited, cancellation and currentness are
-asserted again before download publication, and the same export-task signal is
-passed through that publication request. After publication returns,
+render, and FFmpeg. On the legacy prepared-`Blob` branch, post-encode
+currentness precedes output-`Blob` construction. After prior-output cleanup is
+awaited, cancellation and currentness are asserted again before download
+publication, and the same export-task signal is passed through that publication
+request. After publication returns,
 cancellation and currentness are checked again. When that check refuses a late
 result, its returned recoverable cleanup handle is awaited before refusal; this
 does not make publication transactional or undo an external destination that
 provides no such handle. FFmpeg maps canonical audio only from the separately
 staged mix, so embedded audio in the fallback container is ignored. A stale
 activation-time digest, missing managed body, wrong body, or digest mismatch
-refuses before planning, FFmpeg, or download.
+refuses before planning, FFmpeg, and either downstream publication route,
+including download.
 
 The composed fresh managed handoff test replaces the acquired fallback after
 activation, proves that corrupt bytes cannot authorize delivery, restores the
@@ -211,6 +218,52 @@ The exact native-PCM ZIP32 stem slice is deliberately separate from the direct m
 The direct realtime compressed whole-mix slice admits only the seven canonical built-in FFmpeg formats: MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A, with their exact descriptor MIME values, extensions, normalized settings, channel mappings, and metadata. Codec-qualified Vorbis and Opus result MIME values use base `audio/ogg` only as the picker hint, while MP3 and MP2 share `audio/mpeg`; canonical format identity and extension therefore remain part of admission. Every route has an exact four-byte-per-sample realtime admission and temporary-storage preflight budget, no compressed output-size claim, and `realtime-stream` selected for a maintained memory reason. That budget is not a claim about final staged-WAV geometry. FLAC stages integer 16- or 24-bit WAV and gives requested dither to the staging encoder. The other six stage Float32 WAV; FFmpeg owns requested dither only when WavPack converts that staging input to an integer output. The service selects a prepared target before render but keeps the exact writer unopened until after successful FFmpeg execution and a safe nonnegative stat. Realtime PCM becomes one staged WAV `Blob` mounted through WORKERFS; the complete encoded output remains in worker MEMFS. The patched worker returns exact monotonic ranges of at most one MiB, with one read and one awaited destination write at a time under sink backpressure and no whole-output `readFile` transfer into the renderer. Exact stat, emitted, and destination-written counts precede destination close and explicit commit; the committed-result size is checked afterward. The direct route creates no final renderer compressed-audio `Blob` and makes no download publication. Prepared Blob mode retains the legacy whole-read, final-Blob, and download path.
 
 Cancellation and currentness checks surround target preparation, FFmpeg execution, stat, range transfer, destination operations, staging cleanup, and commit admission for all seven formats. Cancellation during execution terminates the runtime; any pre-commit failure aborts the unpublished destination exactly once. Output deletion, WORKERFS unmount, and mount-directory deletion are all attempted, and a cleanup failure terminates the runtime and remains observable with an earlier primary failure. Ownership loss during the non-cancellable commit returns the committed file without stale success UI; committed-size drift is a post-publication integrity failure, not rollback. All-seven service cases use a mock five-byte output in two chunks. The virtual 269,484,049-byte, 258-range Node case proves transport arithmetic and backpressure only. The complete worker MEMFS output, staged-input residency, and native or WASM codec memory remain unbounded; renderer or browser heap, GC, RSS, CPU, elapsed time, actual codec execution and conformance, and reference-scale behavior are unqualified. Actual browser, operating-system, native-picker, packaged, quota, durability, crash, and power-loss behavior are also unqualified, as are custom FFmpeg, stems, video, and offline rendering.
+
+The direct MP4 and WebM final-video slice admits only a canonical version 4
+descriptor-bound plan and unchanged full-plan fingerprint. MP4 binds `mp4`,
+`.mp4`, `video/mp4`, `libx264`, optional `aac`, `yuv420p`, and `+faststart`;
+WebM binds `webm`, `.webm`, `video/webm`, `libvpx-vp9`, optional `libopus`, and
+`yuv420p`. Those encoder and muxer arguments are command facts, not codec or
+container conformance. Both use purpose `video` and a safe canonical suggested
+name. Any first-party rendered-fallback verification and projection finish
+before planning and target selection; their separate control owns the source
+digest and verified `Blob` while this control owns only downstream direct
+publication.
+
+For the browser branch, target preparation follows planning but occurs before
+storage preflight, ordinary source loading, optional canonical-audio rendering,
+and FFmpeg. Its writer remains unopened until FFmpeg has finalized the output
+and returned one safe nonnegative stat. For the desktop branch, preparation is
+deferred inside sink open after that stat because a selected main-owned save
+target has a 900,000-millisecond TTL. Avoiding target expiry during a long
+encoding is the design reason for this ordering, not a platform or long-duration
+qualification. Source-video `Blob` inputs and the optional staged WAV `Blob`
+remain WORKERFS inputs, and the complete final output remains in worker MEMFS.
+After one stat, the patched worker transfers exact monotonic ranges of at most
+one MiB with at most one read and one awaited write active. Sink close seals the
+exact count before explicit non-cancellable commit; stat, emitted,
+destination-written, and committed-result counts must agree. The direct path
+uses no output `readFile`, final renderer video `Blob`, Object URL, or download.
+Prepared Blob mode retains the legacy whole-read and final-Blob publication
+path.
+
+The owned signal and currentness checks surround verification, planning,
+selection, preflight, source and audio work, FFmpeg, stat, every range and
+write, sink close, cleanup, and pre-commit admission. Cancellation during
+FFmpeg terminates the runtime. Any pre-commit refusal aborts the unpublished
+destination exactly once; late desktop chooser cancellation returns silently
+without opening a writer or publishing. Output deletion, WORKERFS unmount, and
+mount-directory deletion are attempted, and cleanup failure terminates the
+runtime and remains visible with an earlier failure through `AggregateError`.
+Ownership lost during commit returns the committed result without stale success
+UI; committed-size drift is a post-publication integrity failure, not rollback.
+The focused transport body is 2,097,169 bytes in three ranges of 1,048,576,
+1,048,576, and 17 bytes with one stat and zero output `readFile` calls. Worker
+MEMFS, source-video and staged-audio `Blob` residency, codec execution and
+conformance, native or WASM codec memory, renderer or browser heap, GC, RSS,
+CPU, elapsed time, browser, operating-system, native-picker, packaged,
+reference-scale, quota, durability, crash, and power-loss behavior all remain
+unqualified.
 
 ### Electron renderer, IPC, and filesystem capabilities
 
