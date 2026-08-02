@@ -32,6 +32,14 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 		roadmap,
 		/Implemented for the maintained first-party\s+audio fallback.*exact-schema audio whole-mix source.*only by\s+its feature requirement.*explicit managed handoff.*editable\s+original.*fresh recipient.*controller-owned manifest digest check.*recipient document.*read-only.*canonical state.*unprojected/isu,
 	);
+	assert.match(
+		roadmap,
+		/Implemented for managed-media ownership and bounded\s+startup reclamation.*schema-3 canonical and stage inventories.*descriptor provenance.*lease.*fencing tokens.*before body or\s+optional hard-link work.*catalog publication.*materialized inventory.*published atomically.*retires stale tracked catalog rows.*registered regular stages and bodies.*lease-fenced.*persisted bounded passes.*unmanaged.*unregistered.*legacy.*symlinked.*non-regular.*foreign content stays untouched.*compiled desktop\s+runtime.*packaged source-bearing UI qualification remains\s+open/isu,
+	);
+	assert.doesNotMatch(
+		roadmap,
+		/In progress[^\n]*.*managed-media reclamation and logical row retirement/isu,
+	);
 	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
 	assert.match(roadmap, /docs\/project-compatibility\.md/iu);
 	assert.doesNotMatch(roadmap, /\b\d+ test files\b/iu);

@@ -276,10 +276,21 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   metadata, and aggregate pending body bytes, then reject failed, malformed, or
   known-insufficient destination capacity before body or hard-link work.
   Exact-present retries remain available at capacity after body reverification.
+- **Electron Enhanced — Implemented for managed-media ownership and bounded
+  startup reclamation:** schema-3 canonical and stage inventories bind exact
+  descriptor provenance, state, lease, and fencing tokens before body or
+  optional hard-link work; catalog publication requires materialized inventory
+  and marks it published atomically. Startup retires stale tracked catalog rows
+  and reclaims only registered regular stages and bodies through lease-fenced,
+  persisted bounded passes. Unmanaged, unregistered, legacy, symlinked,
+  non-regular, and foreign content stays untouched. The compiled desktop
+  runtime includes this path; packaged source-bearing UI qualification remains
+  open.
 - **Electron Enhanced — In progress:** complete linked and unmanaged originals,
   authored proxy plus generic/video rendered-fallback relationships,
-  managed-media reclamation and logical row retirement, exact or write-time
-  capacity behavior, durable playback identity, and packaged qualification.
+  exact or write-time capacity behavior, durable playback identity, cleanup
+  beyond the bounded startup tracked inventory where required, and packaged
+  UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest and versioned recipe while
   staying outside project history, portable archive media, and managed media
