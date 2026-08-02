@@ -5,10 +5,21 @@ import type {
 	LinkedVideoOriginalRepository,
 } from './linked-video-original-repository.ts';
 import type { LinkedVideoOriginalResolver } from './linked-video-original-resolver.ts';
+import { linkedVideoOriginalBindingKey } from './linked-video-original-schema.ts';
 
 const MAXIMUM_PENDING_REFERENCES = 128;
+const MAXIMUM_TRANSIENT_SOURCE_IDS = 100_000;
 
-export type LinkedVideoOriginalCleanupOperation = 'delete-project' | 'clear' | 'retry';
+export type LinkedVideoOriginalCleanupOperation = 'save-project' | 'delete-project' | 'clear' | 'retry';
+
+export interface LinkedVideoOriginalProjectBindingPruneResult {
+	readonly durableVideoSourceIds: readonly string[];
+	readonly removedLocatorReferences: readonly LinkedVideoOriginalLocatorReference[];
+}
+
+export type LinkedVideoOriginalCleanupError =
+	| LinkedVideoOriginalLocatorCleanupError
+	| LinkedVideoOriginalProjectBindingCleanupError;
 
 export interface LocalStoreClearOperation {
 	readonly localCommit: Promise<boolean>;
@@ -27,7 +38,7 @@ export interface LocalStoreClearPort {
 }
 
 export interface LinkedVideoOriginalLifecycleOptions {
-	readonly onCleanupError?: (error: LinkedVideoOriginalLocatorCleanupError) => void;
+	readonly onCleanupError?: (error: LinkedVideoOriginalCleanupError) => void;
 }
 
 /** A local binding mutation committed, but exact platform-locator cleanup remains pending. */
@@ -48,14 +59,30 @@ export class LinkedVideoOriginalLocatorCleanupError extends Error {
 	}
 }
 
+/** A project commit succeeded, but stale local binding retirement remains pending. */
+export class LinkedVideoOriginalProjectBindingCleanupError extends Error {
+	readonly committed = true;
+	readonly operation = 'save-project' as const;
+	readonly projectId: string;
+
+	constructor(projectId: string, cause: unknown) {
+		super(`Project ${projectId} committed, but linked-video binding cleanup failed.`, { cause });
+		this.name = 'LinkedVideoOriginalProjectBindingCleanupError';
+		this.projectId = projectId;
+	}
+}
+
 /** Serializes one store's binding mutations with alias-aware exact locator retirement. */
 export class LinkedVideoOriginalLifecycleCoordinator {
 	readonly #bindings: LinkedVideoOriginalRepository | null;
 	readonly #resolver: LinkedVideoOriginalResolver | null;
-	readonly #onCleanupError: (error: LinkedVideoOriginalLocatorCleanupError) => void;
+	readonly #onCleanupError: (error: LinkedVideoOriginalCleanupError) => void;
 	readonly #pending = new Map<string, Readonly<{
 		locatorRevision: string;
 	}>>();
+	readonly #transientSourceIds = new Map<string, Set<string>>();
+	readonly #blockedTransientProjects = new Set<string>();
+	#transientSourceCount = 0;
 	#tail: Promise<void> = Promise.resolve();
 
 	constructor(
@@ -78,12 +105,87 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 		});
 	}
 
-	deleteProject<Value>(operation: () => PromiseLike<Value> | Value): Promise<Value> {
+	bind<Value>(
+		projectId: string,
+		sourceId: string,
+		operation: () => PromiseLike<Value> | Value,
+	): Promise<Value> {
+		validateProjectSourceIds(projectId, sourceId);
 		return this.#enqueue(async () => {
-			if (!this.#canRelease()) return operation();
+			try {
+				const result = await operation();
+				this.#rememberTransientSource(projectId, sourceId);
+				return result;
+			} finally { await this.#drainPending('retry'); }
+		});
+	}
+
+	unlink(
+		projectId: string,
+		sourceId: string,
+		operation: () => PromiseLike<boolean> | boolean,
+	): Promise<boolean> {
+		validateProjectSourceIds(projectId, sourceId);
+		return this.#enqueue(async () => {
+			try {
+				const removed = await operation();
+				if (removed) this.#forgetTransientSource(projectId, sourceId);
+				return removed;
+			} finally { await this.#drainPending('retry'); }
+		});
+	}
+
+	saveProject<Value>(
+		projectId: string,
+		operation: (maintain: () => Promise<void>) => PromiseLike<Value> | Value,
+		prune: (
+			transientSourceIds: readonly string[],
+		) => PromiseLike<LinkedVideoOriginalProjectBindingPruneResult | null>
+			| LinkedVideoOriginalProjectBindingPruneResult | null,
+	): Promise<Value> {
+		validateProjectSourceIds(projectId, 'save-project-validation-source');
+		if (typeof operation !== 'function' || typeof prune !== 'function') {
+			throw new TypeError('Linked-video project save lifecycle operations must be functions.');
+		}
+		return this.#enqueue(async () => {
+			let maintenance: Promise<void> | null = null;
+			const maintain = (): Promise<void> => {
+				maintenance ??= this.#maintainProjectBindings(projectId, prune);
+				return maintenance;
+			};
+			try {
+				const result = await operation(maintain);
+				await maintain();
+				return result;
+			} catch (error) {
+				await this.#drainPending('retry');
+				throw error;
+			}
+		});
+	}
+
+	deleteProject<Value>(
+		projectIdOrOperation: string | (() => PromiseLike<Value> | Value),
+		requestedOperation?: () => PromiseLike<Value> | Value,
+	): Promise<Value> {
+		const projectId = typeof projectIdOrOperation === 'string' ? projectIdOrOperation : null;
+		const operation = typeof projectIdOrOperation === 'function'
+			? projectIdOrOperation
+			: requestedOperation;
+		if (projectId) validateProjectSourceIds(projectId, 'delete-project-validation-source');
+		if (typeof operation !== 'function') {
+			throw new TypeError('A linked-video project deletion operation is required.');
+		}
+		return this.#enqueue(async () => {
+			if (!this.#canRelease()) {
+				const result = await operation();
+				if (projectId) this.#clearTransientProject(projectId);
+				return result;
+			}
 			const before = await this.#bindings!.listLocatorReferences();
 			try {
 				const result = await operation();
+				if (projectId) this.#clearTransientProject(projectId);
 				await this.#drainPending('delete-project', before);
 				return result;
 			} catch (error) {
@@ -96,7 +198,11 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 	clear(admission: LocalStoreClearAdmission): Promise<void> {
 		return this.#enqueue(async () => {
 			try {
-				if (!this.#canRelease()) return admission.begin().completion;
+				if (!this.#canRelease()) {
+					const operation = admission.begin();
+					if (await operation.localCommit) this.#clearTransientSources();
+					return operation.completion;
+				}
 				const before = await this.#bindings!.listLocatorReferences();
 				const operation = admission.begin();
 				const committed = await operation.localCommit;
@@ -104,6 +210,7 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 					try { return await operation.completion; }
 					finally { await this.#drainPending('retry'); }
 				}
+				this.#clearTransientSources();
 				const [completion] = await Promise.allSettled([
 					operation.completion,
 					this.#drainPending('clear', before),
@@ -152,6 +259,69 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 
 	#canRelease(): boolean {
 		return Boolean(this.#bindings && this.#resolver?.canReleaseLocators());
+	}
+
+	async #maintainProjectBindings(
+		projectId: string,
+		prune: (
+			transientSourceIds: readonly string[],
+		) => PromiseLike<LinkedVideoOriginalProjectBindingPruneResult | null>
+			| LinkedVideoOriginalProjectBindingPruneResult | null,
+	): Promise<void> {
+		if (this.#blockedTransientProjects.has(projectId)) {
+			await this.#drainPending('retry');
+			return;
+		}
+		const transientSourceIds = Object.freeze([
+			...(this.#transientSourceIds.get(projectId) ?? []),
+		].sort());
+		let result: LinkedVideoOriginalProjectBindingPruneResult | null;
+		try {
+			result = normalizeProjectBindingPruneResult(await prune(transientSourceIds));
+		} catch (cause) {
+			this.#reportProjectBindingCleanup(projectId, cause);
+			return;
+		}
+		if (!result) {
+			await this.#drainPending('retry');
+			return;
+		}
+		for (const sourceId of result.durableVideoSourceIds) {
+			this.#forgetTransientSource(projectId, sourceId);
+		}
+		await this.#drainPending('save-project', result.removedLocatorReferences);
+	}
+
+	#rememberTransientSource(projectId: string, sourceId: string): void {
+		const sourceIds = this.#transientSourceIds.get(projectId) ?? new Set<string>();
+		if (sourceIds.has(sourceId)) return;
+		if (this.#transientSourceCount >= MAXIMUM_TRANSIENT_SOURCE_IDS) {
+			this.#blockedTransientProjects.add(projectId);
+			return;
+		}
+		sourceIds.add(sourceId);
+		this.#transientSourceCount += 1;
+		this.#transientSourceIds.set(projectId, sourceIds);
+	}
+
+	#forgetTransientSource(projectId: string, sourceId: string): void {
+		const sourceIds = this.#transientSourceIds.get(projectId);
+		if (!sourceIds?.delete(sourceId)) return;
+		this.#transientSourceCount -= 1;
+		if (!sourceIds.size) this.#transientSourceIds.delete(projectId);
+	}
+
+	#clearTransientSources(): void {
+		this.#transientSourceIds.clear();
+		this.#blockedTransientProjects.clear();
+		this.#transientSourceCount = 0;
+	}
+
+	#clearTransientProject(projectId: string): void {
+		const sourceIds = this.#transientSourceIds.get(projectId);
+		if (sourceIds) this.#transientSourceCount -= sourceIds.size;
+		this.#transientSourceIds.delete(projectId);
+		this.#blockedTransientProjects.delete(projectId);
 	}
 
 	async #drainPending(
@@ -216,6 +386,37 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 		const error = new LinkedVideoOriginalLocatorCleanupError(operation, this.#pending.size, cause);
 		try { this.#onCleanupError(error); } catch { /* Reporting cannot restore committed bindings. */ }
 	}
+
+	#reportProjectBindingCleanup(projectId: string, cause: unknown): void {
+		const error = new LinkedVideoOriginalProjectBindingCleanupError(projectId, cause);
+		try { this.#onCleanupError(error); } catch { /* Reporting cannot restore committed bindings. */ }
+	}
+}
+
+function validateProjectSourceIds(projectId: string, sourceId: string): void {
+	linkedVideoOriginalBindingKey(projectId, sourceId);
+}
+
+function normalizeProjectBindingPruneResult(
+	value: LinkedVideoOriginalProjectBindingPruneResult | null,
+): LinkedVideoOriginalProjectBindingPruneResult | null {
+	if (value === null) return null;
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| !Array.isArray(value.durableVideoSourceIds)
+		|| !Array.isArray(value.removedLocatorReferences)) {
+		throw new TypeError('Linked-video project binding cleanup returned an invalid result.');
+	}
+	const durableVideoSourceIds = value.durableVideoSourceIds.map((sourceId) => {
+		validateProjectSourceIds('save-project-validation-project', sourceId);
+		return sourceId;
+	});
+	if (new Set(durableVideoSourceIds).size !== durableVideoSourceIds.length) {
+		throw new Error('Linked-video project binding cleanup returned duplicate durable source IDs.');
+	}
+	return Object.freeze({
+		durableVideoSourceIds: Object.freeze(durableVideoSourceIds),
+		removedLocatorReferences: Object.freeze([...value.removedLocatorReferences]),
+	});
 }
 
 export function admitLocalStoreClear(port: LocalStoreClearPort): LocalStoreClearAdmission {
@@ -241,5 +442,5 @@ function beginLocalStoreClear(port: LocalStoreClearPort): LocalStoreClearOperati
 }
 
 function reportCleanupError(): void {
-	globalThis.console?.error?.('Committed linked-video locator cleanup remains pending.');
+	globalThis.console?.error?.('Committed linked-video cleanup remains pending.');
 }
