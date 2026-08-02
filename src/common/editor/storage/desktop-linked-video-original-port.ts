@@ -21,6 +21,7 @@ interface DesktopLinkedVideoOriginalBridge {
 	loadLinkedVideoOriginal?(request: Readonly<{
 		locatorId: string;
 		expectedRevision: string | null;
+		playback: boolean;
 	}>): PromiseLike<unknown> | unknown;
 	reconcileLinkedVideoOriginals?(references: readonly LinkedVideoOriginalLocatorReference[]): PromiseLike<unknown> | unknown;
 	releaseLinkedVideoOriginal?(locatorId: string): PromiseLike<unknown> | unknown;
@@ -119,7 +120,9 @@ export function createDesktopLinkedVideoOriginalAccess(
 			? null
 			: locatorToken(expectedRevisionValue, 'expected locator revision');
 		throwIfAborted(signal);
-		const raw = await bridge.loadLinkedVideoOriginal?.({ locatorId, expectedRevision });
+		const raw = await bridge.loadLinkedVideoOriginal?.({
+			locatorId, expectedRevision, playback: false,
+		});
 		if (raw === null) {
 			throwIfAborted(signal);
 			return null;

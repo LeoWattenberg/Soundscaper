@@ -13,7 +13,11 @@ export function createDesktopLinkedVideoLocatorRuntime({ readCapabilities, regis
 	return Object.freeze({
 		dispose: () => store.dispose(),
 		ready: () => store.ready(),
-		registerIpc: (options) => registerDesktopLinkedVideoLocatorIpc({ ...options, store }),
+		registerIpc: (options) => registerDesktopLinkedVideoLocatorIpc({
+			...options,
+			releaseRead: (id, owner) => readCapabilities.release(id, { owner }),
+			store,
+		}),
 		revokeOwner: (owner) => store.revokeOwner(owner),
 	});
 }

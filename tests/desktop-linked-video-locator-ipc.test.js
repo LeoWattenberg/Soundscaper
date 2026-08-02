@@ -4,7 +4,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { IPC, READ_PROFILE_MATERIALIZED_V1 } from '../desktop/constants.js';
+import {
+	IPC,
+	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
+	READ_PROFILE_MATERIALIZED_V1,
+} from '../desktop/constants.js';
 import { registerDesktopLinkedVideoLocatorIpc } from '../desktop/linked-video-locator-ipc.js';
 
 const LOCATOR_ID = 'a'.repeat(64);
@@ -91,6 +95,7 @@ test('linked-video IPC validates load input and returns a materialized pathless 
 	const result = await fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
 		locatorId: LOCATOR_ID,
 		expectedRevision: LOCATOR_REVISION,
+		playback: false,
 	});
 
 	assert.deepEqual(fixture.storeCalls, [{
@@ -111,11 +116,13 @@ test('linked-video IPC validates load input and returns a materialized pathless 
 	assert.equal(await fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
 		locatorId: LOCATOR_ID,
 		expectedRevision: null,
+		playback: false,
 	}), null);
 	await assert.rejects(
 		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
 			locatorId: LOCATOR_ID,
 			expectedRevision: undefined,
+			playback: false,
 		}),
 		/revision/iu,
 	);
@@ -123,8 +130,102 @@ test('linked-video IPC validates load input and returns a materialized pathless 
 		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
 			locatorId: '../selected.mp4',
 			expectedRevision: null,
+			playback: false,
 		}),
 		/identifier/iu,
+	);
+	await assert.rejects(
+		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
+			locatorId: LOCATOR_ID,
+			expectedRevision: null,
+			playback: false,
+			path: VIDEO_PATH,
+		}),
+		/unsupported field/iu,
+	);
+	let getterCalls = 0;
+	const accessorRequest = { locatorId: LOCATOR_ID, expectedRevision: null };
+	Object.defineProperty(accessorRequest, 'playback', {
+		enumerable: true,
+		get() { getterCalls += 1; return false; },
+	});
+	await assert.rejects(
+		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, accessorRequest),
+		/enumerable data field/iu,
+	);
+	assert.equal(getterCalls, 0);
+});
+
+test('linked-video IPC leases an exact pathless playback descriptor on the load channel', async () => {
+	const fixture = harness();
+	fixture.loaded = {
+		locatorRevision: LOCATOR_REVISION,
+		descriptor: readDescriptor(READ_PROFILE_LINKED_VIDEO_RANGE_V1),
+	};
+
+	const result = await fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
+		locatorId: LOCATOR_ID,
+		expectedRevision: LOCATOR_REVISION,
+		playback: true,
+	});
+
+	assert.deepEqual(fixture.storeCalls, [{
+		method: 'leasePlayback',
+		locatorId: LOCATOR_ID,
+		options: { owner: OWNER, expectedRevision: LOCATOR_REVISION },
+	}]);
+	assert.deepEqual(result, {
+		locatorRevision: LOCATOR_REVISION,
+		descriptor: readDescriptor(READ_PROFILE_LINKED_VIDEO_RANGE_V1),
+	});
+	await assert.rejects(
+		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
+			locatorId: LOCATOR_ID,
+			expectedRevision: null,
+			playback: true,
+		}),
+		/exact|revision/iu,
+	);
+});
+
+test('linked-video IPC rolls back an admitted descriptor when response validation fails', async () => {
+	const fixture = harness();
+	fixture.loaded = {
+		locatorRevision: LOCATOR_REVISION,
+		descriptor: { ...readDescriptor(), url: 'file:///private/selected.mp4' },
+	};
+	await assert.rejects(
+		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
+			locatorId: LOCATOR_ID,
+			expectedRevision: LOCATOR_REVISION,
+			playback: false,
+		}),
+		/capability URL/iu,
+	);
+	assert.deepEqual(fixture.readCapabilityCalls, [{
+		method: 'release', id: READ_ID, owner: OWNER,
+	}]);
+});
+
+test('linked-video IPC preserves response-validation and rollback failures', async () => {
+	const fixture = harness();
+	fixture.loaded = {
+		locatorRevision: LOCATOR_REVISION,
+		descriptor: { ...readDescriptor(), url: 'file:///private/selected.mp4' },
+	};
+	fixture.releaseReadError = new Error('read cleanup failed');
+	await assert.rejects(
+		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
+			locatorId: LOCATOR_ID,
+			expectedRevision: LOCATOR_REVISION,
+			playback: false,
+		}),
+		(error) => {
+			assert.ok(error instanceof AggregateError);
+			assert.match(String(error.errors[0]), /capability URL/iu);
+			assert.match(String(error.errors[1]), /cleanup failed/iu);
+			return true;
+		},
 	);
 });
 
@@ -152,6 +253,7 @@ test('linked-video IPC rejects malformed store values and scopes release to the 
 		fixture.handlers.get(IPC.loadLinkedVideoOriginal)(fixture.event, {
 			locatorId: LOCATOR_ID,
 			expectedRevision: null,
+			playback: false,
 		}),
 		/materialized/iu,
 	);
@@ -208,15 +310,17 @@ test('desktop main wires linked-video grants into renderer revocation and shutdo
 	assert.match(source, /linkedVideoLocators\.registerIpc\(/u);
 	assert.match(source, /linkedVideoLocators\?\.revokeOwner\(owner\)/u);
 	assert.match(source, /linkedVideoLocators\?\.dispose\(\)/u);
-	assert.match(runtimeSource, /registerDesktopLinkedVideoLocatorIpc\(\{ \.\.\.options, store \}\)/u);
+	assert.match(runtimeSource, /releaseRead: \(id, owner\) => readCapabilities\.release\(id, \{ owner \}\)/u);
 });
 
 function harness() {
 	const handlers = new Map();
 	const dialogCalls = [];
+	const readCapabilityCalls = [];
 	const storeCalls = [];
 	const fixture = {
 		dialogCalls,
+		readCapabilityCalls,
 		storeCalls,
 		handlers,
 		event: Object.freeze({ owner: OWNER }),
@@ -225,6 +329,7 @@ function harness() {
 		locator: null,
 		loaded: null,
 		reconciled: 0,
+		releaseReadError: null,
 	};
 	const store = {
 		async registerPath(path, options) {
@@ -233,6 +338,10 @@ function harness() {
 		},
 		async load(locatorId, options) {
 			storeCalls.push({ method: 'load', locatorId, options });
+			return fixture.loaded;
+		},
+		async leasePlayback(locatorId, options) {
+			storeCalls.push({ method: 'leasePlayback', locatorId, options });
 			return fixture.loaded;
 		},
 		release(locatorId, options) {
@@ -253,20 +362,25 @@ function harness() {
 		},
 		handle(channel, listener) { handlers.set(channel, listener); },
 		ownerFor: (event) => event.owner,
+		releaseRead(id, owner) {
+			readCapabilityCalls.push({ method: 'release', id, owner });
+			if (fixture.releaseReadError) throw fixture.releaseReadError;
+			return true;
+		},
 		store,
 		windowFor: () => fixture.window,
 	});
 	return fixture;
 }
 
-function readDescriptor() {
+function readDescriptor(readProfile = READ_PROFILE_MATERIALIZED_V1) {
 	return {
 		id: READ_ID,
-		url: `soundscaper-app://bundle/_desktop/read/${READ_PROFILE_MATERIALIZED_V1}/${READ_ID}/selected.mp4`,
+		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/selected.mp4`,
 		name: 'selected.mp4',
 		size: 42,
 		mimeType: 'video/mp4',
-		readProfile: READ_PROFILE_MATERIALIZED_V1,
+		readProfile,
 		lastModified: 123,
 	};
 }

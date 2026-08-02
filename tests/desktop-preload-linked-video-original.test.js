@@ -32,6 +32,7 @@ test('preload validates linked-video load requests and sanitizes materialized de
 	const result = await fixture.bridge.loadLinkedVideoOriginal({
 		locatorId: LOCATOR_ID,
 		expectedRevision: LOCATOR_REVISION,
+		playback: false,
 	});
 
 	assert.deepEqual({ ...result, descriptor: { ...result.descriptor } }, {
@@ -44,23 +45,62 @@ test('preload validates linked-video load requests and sanitizes materialized de
 	assert.equal('path' in result.descriptor, false);
 	assert.deepEqual([fixture.invocations[0][0], { ...fixture.invocations[0][1] }], [
 		'soundscaper:v1:linked-video:load',
-		{ locatorId: LOCATOR_ID, expectedRevision: LOCATOR_REVISION },
+		{ locatorId: LOCATOR_ID, expectedRevision: LOCATOR_REVISION, playback: false },
 	]);
 	assert.equal(await fixture.bridge.loadLinkedVideoOriginal({
 		locatorId: LOCATOR_ID,
 		expectedRevision: null,
+		playback: false,
 	}), null);
 	assert.deepEqual([fixture.invocations[1][0], { ...fixture.invocations[1][1] }], [
 		'soundscaper:v1:linked-video:load',
-		{ locatorId: LOCATOR_ID, expectedRevision: null },
+		{ locatorId: LOCATOR_ID, expectedRevision: null, playback: false },
 	]);
 
 	assert.throws(() => fixture.bridge.loadLinkedVideoOriginal({
-		locatorId: 'wrong', expectedRevision: null,
+		locatorId: 'wrong', expectedRevision: null, playback: false,
 	}), /identifier/iu);
 	assert.throws(() => fixture.bridge.loadLinkedVideoOriginal({
-		locatorId: LOCATOR_ID, expectedRevision: undefined,
+		locatorId: LOCATOR_ID, expectedRevision: undefined, playback: false,
 	}), /revision/iu);
+	assert.throws(() => fixture.bridge.loadLinkedVideoOriginal({
+		locatorId: LOCATOR_ID, expectedRevision: null, playback: false,
+		path: '/private/selected.mp4',
+	}), /unsupported field/iu);
+	let getterCalls = 0;
+	const accessorRequest = { locatorId: LOCATOR_ID, expectedRevision: null };
+	Object.defineProperty(accessorRequest, 'playback', {
+		enumerable: true,
+		get() { getterCalls += 1; return false; },
+	});
+	assert.throws(
+		() => fixture.bridge.loadLinkedVideoOriginal(accessorRequest),
+		/unsupported field/iu,
+	);
+	assert.equal(getterCalls, 0);
+});
+
+test('preload exposes exact linked-video playback leases on the existing load channel', async () => {
+	const descriptor = readDescriptor('linked-video-range-v1');
+	const fixture = await loadPreload([{ locatorRevision: LOCATOR_REVISION, descriptor }]);
+	const result = await fixture.bridge.loadLinkedVideoOriginal({
+		locatorId: LOCATOR_ID,
+		expectedRevision: LOCATOR_REVISION,
+		playback: true,
+	});
+	assert.deepEqual({ ...result, descriptor: { ...result.descriptor } }, {
+		locatorRevision: LOCATOR_REVISION,
+		descriptor,
+	});
+	assert.deepEqual([fixture.invocations[0][0], { ...fixture.invocations[0][1] }], [
+		'soundscaper:v1:linked-video:load',
+		{ locatorId: LOCATOR_ID, expectedRevision: LOCATOR_REVISION, playback: true },
+	]);
+	assert.throws(() => fixture.bridge.loadLinkedVideoOriginal({
+		locatorId: LOCATOR_ID,
+		expectedRevision: null,
+		playback: true,
+	}), /exact|revision/iu);
 });
 
 test('preload rejects malformed linked-video metadata and non-video read descriptors', async () => {
@@ -84,15 +124,49 @@ test('preload rejects malformed linked-video metadata and non-video read descrip
 		{ locatorRevision: LOCATOR_REVISION, descriptor: { ...readDescriptor(), url: 'file:///private/selected.mp4' } },
 		{ locatorRevision: 'wrong', descriptor: readDescriptor() },
 	];
-	const loadFixture = await loadPreload(loadCases);
+	const loadFixture = await loadPreload(loadCases.flatMap((value) => [value, true]));
 	for (const _candidate of loadCases) {
 		await assert.rejects(
 			loadFixture.bridge.loadLinkedVideoOriginal({
-				locatorId: LOCATOR_ID, expectedRevision: null,
+				locatorId: LOCATOR_ID, expectedRevision: null, playback: false,
 			}),
 			/materialized|MIME|capability URL|revision|Scape/iu,
 		);
 	}
+	const playbackFixture = await loadPreload([{
+		locatorRevision: LOCATOR_REVISION,
+		descriptor: readDescriptor(),
+	}, true]);
+	await assert.rejects(playbackFixture.bridge.loadLinkedVideoOriginal({
+		locatorId: LOCATOR_ID,
+		expectedRevision: LOCATOR_REVISION,
+		playback: true,
+	}), /linked-video-range|playback/iu);
+});
+
+test('preload preserves linked-video response-validation and read-cleanup failures', async () => {
+	const fixture = await loadPreload([{
+		locatorRevision: LOCATOR_REVISION,
+		descriptor: { ...readDescriptor(), url: 'file:///private/selected.mp4' },
+	}, new Error('read cleanup failed')]);
+	await assert.rejects(fixture.bridge.loadLinkedVideoOriginal({
+		locatorId: LOCATOR_ID,
+		expectedRevision: LOCATOR_REVISION,
+		playback: false,
+	}), (error) => {
+		assert.equal(error.name, 'AggregateError');
+		assert.match(String(error.errors[0]), /capability URL/iu);
+		assert.match(String(error.errors[1]), /cleanup failed/iu);
+		return true;
+	});
+	assert.deepEqual(fixture.invocations.map(([channel, value]) => [
+		channel, typeof value === 'object' ? { ...value } : value,
+	]), [
+		['soundscaper:v1:linked-video:load', {
+			locatorId: LOCATOR_ID, expectedRevision: LOCATOR_REVISION, playback: false,
+		}],
+		['soundscaper:v1:files:release', READ_ID],
+	]);
 });
 
 test('preload validates owner-scoped linked-video release identifiers', async () => {
@@ -145,14 +219,14 @@ function locator() {
 	};
 }
 
-function readDescriptor() {
+function readDescriptor(readProfile = 'materialized-v1') {
 	return {
 		id: READ_ID,
-		url: `soundscaper-app://bundle/_desktop/read/materialized-v1/${READ_ID}/selected.mp4`,
+		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/selected.mp4`,
 		name: 'selected.mp4',
 		size: 42,
 		mimeType: 'video/mp4',
-		readProfile: 'materialized-v1',
+		readProfile,
 		lastModified: 123,
 	};
 }
@@ -179,7 +253,8 @@ async function loadPreload(invocationResults) {
 			ipcRenderer: {
 				invoke(channel, value) {
 					invocations.push([channel, value]);
-					return Promise.resolve(invocationResults.shift());
+					const result = invocationResults.shift();
+					return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
 				},
 				send: () => {},
 				on: () => {},

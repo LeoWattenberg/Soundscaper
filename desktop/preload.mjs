@@ -4,7 +4,6 @@
  * available while BrowserWindow sandboxing is enabled.
  */
 const { contextBridge, ipcRenderer } = require('electron');
-
 const CHANNELS = Object.freeze({
 	environment: 'soundscaper:v1:environment',
 	chooseFiles: 'soundscaper:v1:files:choose',
@@ -40,8 +39,8 @@ const CHANNELS = Object.freeze({
 	closeRequested: 'soundscaper:v1:event:close-requested',
 	fullscreenChanged: 'soundscaper:v1:event:fullscreen-changed',
 });
-
 const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
+const READ_PROFILE_LINKED_VIDEO_RANGE_V1 = 'linked-video-range-v1';
 const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1';
 const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';
 const SCAPE_PROJECT_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -59,7 +58,6 @@ const MANAGED_BINDING_ID = /^[mv][a-f0-9]{64}$/u;
 const SOURCE_WRITE_ID = /^[a-f0-9]{32}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const SHARED_PROJECT_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
-
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
 	chooseFiles: (options) => ipcRenderer.invoke(CHANNELS.chooseFiles, {
@@ -68,9 +66,11 @@ const api = Object.freeze({
 	}).then(sanitizeReadDescriptors),
 	releaseRead: (id) => ipcRenderer.invoke(CHANNELS.releaseRead, opaqueId(id, 64)),
 	chooseLinkedVideoOriginal: () => ipcRenderer.invoke(CHANNELS.chooseLinkedVideoOriginal).then(nullableLinkedVideoLocator),
-	loadLinkedVideoOriginal: (value) => ipcRenderer.invoke(
-		CHANNELS.loadLinkedVideoOriginal, linkedVideoLoadRequest(value),
-	).then(nullableLoadedLinkedVideoLocator),
+	loadLinkedVideoOriginal: (value) => {
+		const request = linkedVideoLoadRequest(value);
+		return ipcRenderer.invoke(CHANNELS.loadLinkedVideoOriginal, request)
+			.then((result) => nullableLoadedLinkedVideoLocator(result, request.playback));
+	},
 	reconcileLinkedVideoOriginals: (value) => ipcRenderer.invoke(CHANNELS.reconcileLinkedVideoOriginals, linkedVideoReferences(value)).then(safeInteger),
 	releaseLinkedVideoOriginal: (locatorId) => ipcRenderer.invoke(CHANNELS.releaseLinkedVideoOriginal, opaqueId(locatorId, 64)).then(strictBoolean),
 	chooseSaveTarget: (options) => ipcRenderer.invoke(CHANNELS.chooseSaveTarget, {
@@ -145,19 +145,16 @@ const api = Object.freeze({
 	})),
 	onFullscreenChanged: (listener) => subscribe(CHANNELS.fullscreenChanged, listener, (value) => Object.freeze({ fullscreen: value?.fullscreen === true })),
 });
-
 const bridge = Object.freeze({ v1: api });
 contextBridge.exposeInMainWorld('scapeDesktop', bridge);
 contextBridge.exposeInMainWorld('soundscaperDesktop', bridge);
 contextBridge.exposeInMainWorld('framescaperDesktop', bridge);
-
 function subscribe(channel, listener, sanitize) {
 	if (typeof listener !== 'function') throw new TypeError('Event listener must be a function');
 	const handler = (_event, value) => listener(sanitize(value));
 	ipcRenderer.on(channel, handler);
 	return () => ipcRenderer.removeListener(channel, handler);
 }
-
 function sanitizeReadDescriptor(value) {
 	const id = opaqueId(value?.id, 64);
 	const readProfile = readDescriptorProfile(value?.readProfile);
@@ -174,12 +171,10 @@ function sanitizeReadDescriptor(value) {
 		lastModified: safeInteger(value?.lastModified),
 	});
 }
-
 function sanitizeReadDescriptors(values) {
 	if (!Array.isArray(values)) throw new TypeError('Expected read descriptors');
 	return Object.freeze(values.map(sanitizeReadDescriptor));
 }
-
 function nullableLinkedVideoLocator(value) {
 	if (value === null) return null;
 	const mimeType = linkedVideoMimeType(value?.mimeType);
@@ -191,13 +186,16 @@ function nullableLinkedVideoLocator(value) {
 		lastModified: safeInteger(value?.lastModified),
 	});
 }
-
 function linkedVideoLoadRequest(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('A linked-video load request is required');
-	return Object.freeze({
-		locatorId: opaqueId(value.locatorId, 64),
-		expectedRevision: value.expectedRevision === null ? null : linkedVideoRevision(value.expectedRevision),
-	});
+	const fields = ['locatorId', 'expectedRevision', 'playback']; const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key)) || fields.some((field) => {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field); return !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value');
+	})) throw new TypeError('A linked-video load request contains an unsupported field');
+	if (value.playback !== true && value.playback !== false) throw new TypeError('Linked-video load mode must be a boolean');
+	const expectedRevision = value.expectedRevision === null ? null : linkedVideoRevision(value.expectedRevision);
+	if (value.playback && expectedRevision === null) throw new TypeError('Linked-video playback requires an exact locator revision');
+	return Object.freeze({ locatorId: opaqueId(value.locatorId, 64), expectedRevision, playback: value.playback });
 }
 function linkedVideoReferences(value) {
 	if (!Array.isArray(value) || value.length > 128) throw new RangeError('Linked-video reconciliation reference count exceeds its limit');
@@ -214,12 +212,24 @@ function linkedVideoReferences(value) {
 		return Object.freeze({ locatorId, locatorRevision: linkedVideoRevision(reference.locatorRevision) });
 	}));
 }
-function nullableLoadedLinkedVideoLocator(value) {
+async function nullableLoadedLinkedVideoLocator(value, playback) {
 	if (value === null) return null;
-	const descriptor = sanitizeReadDescriptor(value?.descriptor);
-	if (descriptor.readProfile !== READ_PROFILE_MATERIALIZED_V1 || descriptor.size === 0) throw new TypeError('Linked-video reads require a positive materialized-v1 descriptor');
-	linkedVideoMimeType(descriptor.mimeType);
-	return Object.freeze({ locatorRevision: linkedVideoRevision(value?.locatorRevision), descriptor });
+	try {
+		const expectedProfile = playback ? READ_PROFILE_LINKED_VIDEO_RANGE_V1 : READ_PROFILE_MATERIALIZED_V1;
+		const descriptor = sanitizeReadDescriptor(value?.descriptor);
+		if (descriptor.readProfile !== expectedProfile || descriptor.size === 0) throw new TypeError(`Linked-video reads require a positive ${expectedProfile} descriptor`);
+		linkedVideoMimeType(descriptor.mimeType);
+		return Object.freeze({ locatorRevision: linkedVideoRevision(value?.locatorRevision), descriptor });
+	} catch (cause) {
+		let id;
+		try { id = opaqueId(value?.descriptor?.id, 64); } catch { throw cause; }
+		try {
+			if (await ipcRenderer.invoke(CHANNELS.releaseRead, id) !== true) throw new Error('Linked-video read cleanup was not acknowledged', { cause });
+		} catch (cleanupError) {
+			throw new AggregateError([cause, cleanupError], 'Linked-video read validation and cleanup both failed', { cause: cleanupError });
+		}
+		throw cause;
+	}
 }
 function linkedVideoRevision(value) { try { return opaqueId(value, 64); } catch { throw new TypeError('Invalid linked-video locator revision'); } }
 function linkedVideoMimeType(value) {
@@ -238,37 +248,31 @@ function trustedCapabilityUrl(value, { id, readProfile, name }) {
 	}
 	return url.href;
 }
-
 function opaqueId(value, length) {
 	const id = String(value || '');
 	if (id.length !== length || !/^[a-f0-9]+$/u.test(id)) throw new TypeError('Invalid opaque identifier');
 	return id;
 }
-
 function text(value, maxLength) {
 	return String(value || '').replace(/[\u0000-\u001f]/gu, '').slice(0, maxLength);
 }
-
 function textEditCommand(value) {
 	const command = String(value || '');
 	if (!['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll'].includes(command)) throw new TypeError('Unsupported text edit command');
 	return command;
 }
-
 function safeInteger(value) {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number < 0) throw new RangeError('Expected a non-negative safe integer');
 	return number;
 }
-
 function readDescriptorProfile(value) {
 	const profile = String(value || '');
-	if (![READ_PROFILE_MATERIALIZED_V1, READ_PROFILE_SCAPE_RANGE_V1].includes(profile)) {
+	if (![READ_PROFILE_LINKED_VIDEO_RANGE_V1, READ_PROFILE_MATERIALIZED_V1, READ_PROFILE_SCAPE_RANGE_V1].includes(profile)) {
 		throw new TypeError('Invalid read descriptor profile');
 	}
 	return profile;
 }
-
 function readDescriptorName(value) {
 	const name = text(value, 255);
 	if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
@@ -276,7 +280,6 @@ function readDescriptorName(value) {
 	}
 	return name;
 }
-
 function readDescriptorMimeType(value) {
 	const mimeType = text(value, 128);
 	if (!mimeType) throw new TypeError('Invalid read descriptor MIME type');

@@ -5,8 +5,10 @@ import { basename, isAbsolute } from 'node:path';
 import {
 	APP_ORIGIN,
 	IPC,
+	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES,
 	MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 	READ_CAPABILITY_PREFIX,
+	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 	READ_PROFILE_MATERIALIZED_V1,
 } from './constants.js';
 import { acceptsFile, mimeTypeForPath, validateFileChoice } from './validation.js';
@@ -19,10 +21,11 @@ export function registerDesktopLinkedVideoLocatorIpc({
 	dialog,
 	handle,
 	ownerFor,
+	releaseRead,
 	store,
 	windowFor,
 }) {
-	assertDependencies({ dialog, handle, ownerFor, store, windowFor });
+	assertDependencies({ dialog, handle, ownerFor, releaseRead, store, windowFor });
 	handle(IPC.chooseLinkedVideoOriginal, async (event) => {
 		const owner = reference(ownerFor(event));
 		const result = await dialog.showOpenDialog(windowFor(), {
@@ -45,11 +48,20 @@ export function registerDesktopLinkedVideoLocatorIpc({
 	});
 	handle(IPC.loadLinkedVideoOriginal, async (event, value) => {
 		const request = linkedVideoLoadRequest(value);
-		const loaded = await store.load(request.locatorId, {
-			owner: reference(ownerFor(event)),
-			expectedRevision: request.expectedRevision,
-		});
-		return loaded === null ? null : loadedLinkedVideoLocator(loaded);
+		const owner = reference(ownerFor(event));
+		const loadOptions = { owner, expectedRevision: request.expectedRevision };
+		const loaded = await (request.playback
+			? store.leasePlayback(request.locatorId, loadOptions)
+			: store.load(request.locatorId, loadOptions));
+		if (loaded === null) return null;
+		try {
+			return loadedLinkedVideoLocator(
+				loaded,
+				request.playback ? READ_PROFILE_LINKED_VIDEO_RANGE_V1 : READ_PROFILE_MATERIALIZED_V1,
+			);
+		} catch (error) {
+			await rollbackReadCapability(releaseRead, loaded, owner, error);
+		}
 	});
 	handle(IPC.reconcileLinkedVideoOriginals, async (event, value) => nonNegativeSafeInteger(
 		await store.reconcileStartup(
@@ -66,13 +78,14 @@ export function registerDesktopLinkedVideoLocatorIpc({
 	));
 }
 
-function assertDependencies({ dialog, handle, ownerFor, store, windowFor }) {
+function assertDependencies({ dialog, handle, ownerFor, releaseRead, store, windowFor }) {
 	if (!dialog || typeof dialog.showOpenDialog !== 'function'
 		|| typeof handle !== 'function' || typeof ownerFor !== 'function'
-		|| typeof windowFor !== 'function' || !store || typeof store !== 'object') {
+		|| typeof windowFor !== 'function' || typeof releaseRead !== 'function'
+		|| !store || typeof store !== 'object') {
 		throw new TypeError('Linked-video IPC requires its main-process dependencies.');
 	}
-	for (const method of ['registerPath', 'load', 'reconcileStartup', 'release']) {
+	for (const method of ['registerPath', 'load', 'leasePlayback', 'reconcileStartup', 'release']) {
 		if (typeof store[method] !== 'function') {
 			throw new TypeError(`Linked-video locator store is missing ${method}.`);
 		}
@@ -97,15 +110,41 @@ function selectedVideoPath(value) {
 }
 
 function linkedVideoLoadRequest(value) {
+	const request = closedLoadRequest(value);
+	if (request.playback !== true && request.playback !== false) {
+		throw new TypeError('Linked-video load mode must be a boolean.');
+	}
+	const expectedRevision = request.expectedRevision === null
+		? null
+		: opaqueToken(request.expectedRevision, 'Invalid linked-video locator revision.');
+	if (request.playback && expectedRevision === null) {
+		throw new TypeError('Linked-video playback requires an exact locator revision.');
+	}
+	return Object.freeze({
+		locatorId: opaqueToken(request.locatorId, 'Invalid linked-video locator identifier.'),
+		expectedRevision,
+		playback: request.playback,
+	});
+}
+
+function closedLoadRequest(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('A linked-video load request is required.');
 	}
-	return Object.freeze({
-		locatorId: opaqueToken(value.locatorId, 'Invalid linked-video locator identifier.'),
-		expectedRevision: value.expectedRevision === null
-			? null
-			: opaqueToken(value.expectedRevision, 'Invalid linked-video locator revision.'),
-	});
+	const keys = Reflect.ownKeys(value);
+	const fields = ['locatorId', 'expectedRevision', 'playback'];
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
+		throw new TypeError('A linked-video load request contains an unsupported field.');
+	}
+	const output = Object.create(null);
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`Linked-video load ${field} must be an enumerable data field.`);
+		}
+		output[field] = descriptor.value;
+	}
+	return output;
 }
 
 function linkedVideoReferences(value) {
@@ -164,38 +203,38 @@ function linkedVideoLocator(value) {
 	});
 }
 
-function loadedLinkedVideoLocator(value) {
+function loadedLinkedVideoLocator(value, readProfile) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('The loaded linked-video locator is invalid.');
 	}
 	return Object.freeze({
 		locatorRevision: opaqueToken(value.locatorRevision, 'Invalid linked-video locator revision.'),
-		descriptor: materializedVideoReadDescriptor(value.descriptor),
+		descriptor: videoReadDescriptor(value.descriptor, readProfile),
 	});
 }
 
-function materializedVideoReadDescriptor(value) {
+function videoReadDescriptor(value, readProfile) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| value.readProfile !== READ_PROFILE_MATERIALIZED_V1) {
-		throw new TypeError('Linked-video reads require a materialized-v1 descriptor.');
+		|| value.readProfile !== readProfile) {
+		throw new TypeError(`Linked-video reads require a ${readProfile} descriptor.`);
 	}
 	const id = opaqueToken(value.id, 'Invalid linked-video read identifier.');
 	const name = videoName(value.name);
 	const mimeType = videoMimeType(value.mimeType);
 	const descriptor = Object.freeze({
 		id,
-		url: capabilityUrl(value.url, { id, name }),
+		url: capabilityUrl(value.url, { id, name, readProfile }),
 		name,
-		size: videoSize(value.size),
+		size: videoSize(value.size, readProfile),
 		mimeType,
-		readProfile: READ_PROFILE_MATERIALIZED_V1,
+		readProfile,
 		lastModified: nonNegativeSafeInteger(value.lastModified, 'Linked-video modification time'),
 	});
 	return descriptor;
 }
 
-function capabilityUrl(value, { id, name }) {
-	const expected = `${APP_ORIGIN}${READ_CAPABILITY_PREFIX}${READ_PROFILE_MATERIALIZED_V1}/${id}/${encodeURIComponent(name)}`;
+function capabilityUrl(value, { id, name, readProfile }) {
+	const expected = `${APP_ORIGIN}${READ_CAPABILITY_PREFIX}${readProfile}/${id}/${encodeURIComponent(name)}`;
 	let url;
 	try {
 		url = new URL(String(value || ''));
@@ -235,10 +274,13 @@ function videoMimeType(value) {
 	return value;
 }
 
-function videoSize(value) {
+function videoSize(value, readProfile = READ_PROFILE_MATERIALIZED_V1) {
 	const size = nonNegativeSafeInteger(value, 'Linked-video size');
-	if (size < 1 || size > MAX_READ_CAPABILITY_BYTES_PER_OWNER) {
-		throw new RangeError('Linked-video size exceeds the materialized read limit.');
+	const maximum = readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1
+		? MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES
+		: MAX_READ_CAPABILITY_BYTES_PER_OWNER;
+	if (size < 1 || size > maximum) {
+		throw new RangeError('Linked-video size exceeds its read limit.');
 	}
 	return size;
 }
@@ -270,6 +312,27 @@ async function rollbackLocator(store, locator, owner, cause) {
 		throw new AggregateError(
 			[cause, cleanupError],
 			'Linked-video locator validation and cleanup both failed.',
+			{ cause: cleanupError },
+		);
+	}
+	throw cause;
+}
+
+async function rollbackReadCapability(releaseRead, loaded, owner, cause) {
+	let id;
+	try {
+		id = opaqueToken(loaded?.descriptor?.id, 'Invalid linked-video read identifier.');
+	} catch {
+		throw cause;
+	}
+	try {
+		if (await releaseRead(id, owner) !== true) {
+			throw new Error('Linked-video read cleanup was not acknowledged.');
+		}
+	} catch (cleanupError) {
+		throw new AggregateError(
+			[cause, cleanupError],
+			'Linked-video read validation and cleanup both failed.',
 			{ cause: cleanupError },
 		);
 	}

@@ -56,7 +56,7 @@ test('desktop file service chooses and materializes one pathless linked-video or
 	assert.equal(Object.isFrozen(choice), true);
 	assert.deepEqual(calls, [
 		['choose'],
-		['load', { locatorId: LOCATOR_ID, expectedRevision: LOCATOR_REVISION }],
+		['load', { locatorId: LOCATOR_ID, expectedRevision: LOCATOR_REVISION, playback: false }],
 		['fetch', descriptor.url],
 		['release-read', READ_ID],
 	]);
@@ -74,7 +74,7 @@ test('desktop file service chooses and materializes one pathless linked-video or
 	}]), 2);
 	assert.equal(await service.linkedVideoOriginalPort.release(LOCATOR_ID), true);
 	assert.deepEqual(calls.slice(-5), [
-		['load', { locatorId: LOCATOR_ID, expectedRevision: null }],
+		['load', { locatorId: LOCATOR_ID, expectedRevision: null, playback: false }],
 		['fetch', descriptor.url],
 		['release-read', READ_ID],
 		['reconcile', [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }]],
