@@ -439,6 +439,22 @@ function readCapabilities() {
 				await fixture.afterRegister?.();
 				return descriptor;
 			},
+			async registerLinkedVideoPlaybackPath(path, options) {
+				registrations.push({ path, ...options });
+				const metadata = await stat(path);
+				const descriptor = Object.freeze({
+					id: 'b'.repeat(64),
+					readProfile: 'linked-video-range-v1',
+					url: `soundscaper-app://bundle/read/${'b'.repeat(64)}`,
+					name: options.displayName,
+					size: metadata.size,
+					mimeType: options.mimeType,
+					lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
+				});
+				descriptors.push(descriptor);
+				await fixture.afterRegister?.();
+				return descriptor;
+			},
 			async release(id, options) {
 				releases.push({ id, ...options });
 				return true;

@@ -159,9 +159,23 @@ function readCapabilities(): DesktopLinkedVideoReadCapabilityStore & { registrat
 			const metadata = await stat(path);
 			return Object.freeze({
 				id: 'e'.repeat(64),
+				url: `soundscaper-app://bundle/read/${'e'.repeat(64)}`,
 				name: options.displayName,
 				size: metadata.size,
 				mimeType: options.mimeType,
+				readProfile: 'materialized-v1',
+				lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
+			});
+		},
+		async registerLinkedVideoPlaybackPath(path, options) {
+			const metadata = await stat(path);
+			return Object.freeze({
+				id: 'f'.repeat(64),
+				url: `soundscaper-app://bundle/read/${'f'.repeat(64)}`,
+				name: options.displayName,
+				size: metadata.size,
+				mimeType: options.mimeType,
+				readProfile: 'linked-video-range-v1',
 				lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
 			});
 		},

@@ -145,9 +145,25 @@ function readCapabilities(): DesktopLinkedVideoReadCapabilityStore & Readonly<{
 			paths.set(id, path);
 			return {
 				id,
+				url: `soundscaper-app://bundle/read/${id}`,
 				name: options.displayName,
 				size: metadata.size,
 				mimeType: options.mimeType,
+				readProfile: 'materialized-v1',
+				lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
+			};
+		},
+		async registerLinkedVideoPlaybackPath(path, options) {
+			const metadata = await stat(path);
+			const id = (++nextId).toString(16).padStart(64, '0');
+			paths.set(id, path);
+			return {
+				id,
+				url: `soundscaper-app://bundle/read/${id}`,
+				name: options.displayName,
+				size: metadata.size,
+				mimeType: options.mimeType,
+				readProfile: 'linked-video-range-v1',
 				lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
 			};
 		},

@@ -9,7 +9,10 @@ import {
 	MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES,
 	MAX_PERSISTED_LINKED_VIDEO_LOCATORS,
 	normalizePersistedLinkedVideoLocator,
+	persistedLinkedVideoFileIdentityFromStat,
+	samePersistedLinkedVideoFileIdentity,
 	type DesktopLinkedVideoLocatorRegistry,
+	type LinkedVideoFileStat,
 	type PersistedLinkedVideoFileIdentity,
 	type PersistedLinkedVideoLocator,
 } from './linked-video-locator-registry.ts';
@@ -20,9 +23,11 @@ export const MAX_LINKED_VIDEO_FILE_BYTES = MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES
 
 export interface DesktopLinkedVideoReadDescriptor extends Readonly<Record<string, unknown>> {
 	readonly id: string;
+	readonly url: string;
 	readonly name: string;
 	readonly size: number;
 	readonly mimeType: string;
+	readonly readProfile: string;
 	readonly lastModified: number;
 }
 
@@ -33,6 +38,15 @@ export interface DesktopLinkedVideoReadCapabilityStore {
 			owner: object;
 			mimeType: string;
 			displayName: string;
+		}>,
+	): PromiseLike<DesktopLinkedVideoReadDescriptor> | DesktopLinkedVideoReadDescriptor;
+	registerLinkedVideoPlaybackPath(
+		path: string,
+		options: Readonly<{
+			owner: object;
+			mimeType: string;
+			displayName: string;
+			expectedIdentity: PersistedLinkedVideoFileIdentity;
 		}>,
 	): PromiseLike<DesktopLinkedVideoReadDescriptor> | DesktopLinkedVideoReadDescriptor;
 	release(
@@ -60,15 +74,6 @@ export interface DesktopLinkedVideoLocatorReference {
 	readonly locatorRevision: string;
 }
 
-interface FileStat {
-	readonly dev: number;
-	readonly ino: number;
-	readonly size: number;
-	readonly mtimeMs: number;
-	readonly ctimeMs: number;
-	isFile(): boolean;
-}
-
 type FileIdentity = PersistedLinkedVideoFileIdentity;
 
 interface OwnerState {
@@ -87,7 +92,7 @@ export interface DesktopLinkedVideoLocatorStoreOptions {
 	readonly maximumBytes?: number;
 	readonly randomBytes?: (size: number) => Uint8Array;
 	readonly registry?: DesktopLinkedVideoLocatorRegistry | null;
-	readonly stat?: (path: string) => PromiseLike<FileStat> | FileStat;
+	readonly stat?: (path: string) => PromiseLike<LinkedVideoFileStat> | LinkedVideoFileStat;
 }
 
 /** Main-process, renderer-owner-scoped grants for point-in-time video originals. */
@@ -99,7 +104,7 @@ export class DesktopLinkedVideoLocatorStore {
 	readonly #randomBytes: (size: number) => Uint8Array;
 	readonly #readCapabilities: DesktopLinkedVideoReadCapabilityStore;
 	readonly #registry: DesktopLinkedVideoLocatorRegistry | null;
-	readonly #stat: (path: string) => PromiseLike<FileStat> | FileStat;
+	readonly #stat: (path: string) => PromiseLike<LinkedVideoFileStat> | LinkedVideoFileStat;
 	readonly #startupEntries = new Map<string, LocatorEntry>();
 	#bytes = 0;
 	#count = 0;
@@ -111,6 +116,7 @@ export class DesktopLinkedVideoLocatorStore {
 	constructor(options: DesktopLinkedVideoLocatorStoreOptions) {
 		if (!options?.readCapabilities
 			|| typeof options.readCapabilities.registerMaterializedPath !== 'function'
+			|| typeof options.readCapabilities.registerLinkedVideoPlaybackPath !== 'function'
 			|| typeof options.readCapabilities.release !== 'function') {
 			throw new TypeError('A linked-video read capability store is required.');
 		}
@@ -150,7 +156,7 @@ export class DesktopLinkedVideoLocatorStore {
 		const absolutePath = absoluteFilePath(path);
 		const mimeType = videoMimeType(options?.mimeType);
 		const name = displayName(options?.displayName);
-		const identity = fileIdentity(await this.#stat(absolutePath));
+		const identity = persistedLinkedVideoFileIdentityFromStat(await this.#stat(absolutePath));
 		if (identity.size < 1) throw new RangeError('A linked-video locator cannot reference an empty file.');
 		if (identity.size > MAX_LINKED_VIDEO_FILE_BYTES || identity.size > this.#maximumBytes) {
 			throw new RangeError('Linked-video file bytes exceed the admission limit.');
@@ -208,6 +214,24 @@ export class DesktopLinkedVideoLocatorStore {
 			expectedRevision: string | null;
 		}>,
 	): Promise<Readonly<LoadedDesktopLinkedVideoLocator> | null> {
+		return this.#load(locatorId, options, false);
+	}
+
+	async leasePlayback(
+		locatorId: string,
+		options: Readonly<{ owner: object; expectedRevision: string | null }>,
+	): Promise<Readonly<LoadedDesktopLinkedVideoLocator> | null> {
+		if (options?.expectedRevision === null) {
+			throw new TypeError('Linked-video playback requires an exact locator revision.');
+		}
+		return this.#load(locatorId, options, true);
+	}
+
+	async #load(
+		locatorId: string,
+		options: Readonly<{ owner: object; expectedRevision: string | null }>,
+		playback: boolean,
+	): Promise<Readonly<LoadedDesktopLinkedVideoLocator> | null> {
 		await this.ready();
 		this.#assertActive();
 		const id = opaqueToken(locatorId, 'Invalid linked-video locator identifier.');
@@ -218,17 +242,22 @@ export class DesktopLinkedVideoLocatorStore {
 		if (!entry || state.revoked
 			|| expectedRevision !== null && entry.locatorRevision !== expectedRevision) return null;
 		const before = await this.#currentIdentity(entry.path);
-		if (!before || !sameFileIdentity(before, entry.identity)
+		if (!before || !samePersistedLinkedVideoFileIdentity(before, entry.identity)
 			|| this.#entries.get(id) !== entry) return null;
-		const descriptor = await this.#readCapabilities.registerMaterializedPath(entry.path, {
-			owner,
-			mimeType: entry.mimeType,
-			displayName: entry.name,
-		});
+		const descriptor = await (playback
+			? this.#readCapabilities.registerLinkedVideoPlaybackPath(entry.path, {
+				owner, mimeType: entry.mimeType, displayName: entry.name,
+				expectedIdentity: entry.identity,
+			})
+			: this.#readCapabilities.registerMaterializedPath(entry.path, {
+				owner, mimeType: entry.mimeType, displayName: entry.name,
+			}));
 		try {
-			assertDescriptorMatches(descriptor, entry);
-			const after = await this.#currentIdentity(entry.path);
-			if (!after || !sameFileIdentity(after, entry.identity)
+			assertDescriptorMatches(
+				descriptor, entry, playback ? 'linked-video-range-v1' : 'materialized-v1',
+			);
+			const after = playback ? entry.identity : await this.#currentIdentity(entry.path);
+			if (!after || !samePersistedLinkedVideoFileIdentity(after, entry.identity)
 				|| this.#entries.get(id) !== entry || state.revoked) {
 				await this.#readCapabilities.release(descriptor.id, { owner });
 				return null;
@@ -365,7 +394,7 @@ export class DesktopLinkedVideoLocatorStore {
 
 	async #currentIdentity(path: string): Promise<FileIdentity | null> {
 		try {
-			return fileIdentity(await this.#stat(path));
+			return persistedLinkedVideoFileIdentityFromStat(await this.#stat(path));
 		} catch {
 			return null;
 		}
@@ -444,39 +473,14 @@ function persistedEntry(entry: LocatorEntry): Readonly<PersistedLinkedVideoLocat
 	});
 }
 
-function fileIdentity(value: FileStat): Readonly<FileIdentity> {
-	if (!value?.isFile()) throw new TypeError('A linked-video locator requires a regular file.');
-	if (!Number.isSafeInteger(value.size) || value.size < 0) {
-		throw new RangeError('Linked-video file size is invalid.');
-	}
-	for (const field of ['dev', 'ino', 'mtimeMs', 'ctimeMs'] as const) {
-		if (typeof value[field] !== 'number' || !Number.isFinite(value[field]) || value[field] < 0) {
-			throw new RangeError(`Linked-video file ${field} is invalid.`);
-		}
-	}
-	return Object.freeze({
-		dev: value.dev,
-		ino: value.ino,
-		size: value.size,
-		mtimeMs: value.mtimeMs,
-		ctimeMs: value.ctimeMs,
-	});
-}
-
-function sameFileIdentity(left: FileIdentity, right: FileIdentity): boolean {
-	return left.dev === right.dev
-		&& left.ino === right.ino
-		&& left.size === right.size
-		&& left.mtimeMs === right.mtimeMs
-		&& left.ctimeMs === right.ctimeMs;
-}
-
 function assertDescriptorMatches(
 	descriptor: DesktopLinkedVideoReadDescriptor,
 	entry: LocatorEntry,
+	expectedProfile: string,
 ): void {
 	if (!descriptor || typeof descriptor !== 'object'
 		|| !/^[a-f0-9]{64}$/u.test(descriptor.id)
+		|| descriptor.readProfile !== expectedProfile
 		|| descriptor.name !== entry.name
 		|| descriptor.size !== entry.size
 		|| descriptor.mimeType !== entry.mimeType

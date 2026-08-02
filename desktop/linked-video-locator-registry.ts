@@ -25,6 +25,39 @@ export interface PersistedLinkedVideoFileIdentity {
 	readonly ctimeMs: number;
 }
 
+export interface LinkedVideoFileStat extends PersistedLinkedVideoFileIdentity {
+	isFile(): boolean;
+}
+
+export function persistedLinkedVideoFileIdentityFromStat(
+	value: LinkedVideoFileStat,
+): Readonly<PersistedLinkedVideoFileIdentity> {
+	if (!value?.isFile()) throw new TypeError('A linked-video locator requires a regular file.');
+	if (!Number.isSafeInteger(value.size) || value.size < 0) {
+		throw new RangeError('Linked-video file size is invalid.');
+	}
+	for (const field of ['dev', 'ino', 'mtimeMs', 'ctimeMs'] as const) {
+		if (typeof value[field] !== 'number' || !Number.isFinite(value[field]) || value[field] < 0) {
+			throw new RangeError(`Linked-video file ${field} is invalid.`);
+		}
+	}
+	return Object.freeze({
+		dev: value.dev,
+		ino: value.ino,
+		size: value.size,
+		mtimeMs: value.mtimeMs,
+		ctimeMs: value.ctimeMs,
+	});
+}
+
+export function samePersistedLinkedVideoFileIdentity(
+	left: PersistedLinkedVideoFileIdentity,
+	right: PersistedLinkedVideoFileIdentity,
+): boolean {
+	return left.dev === right.dev && left.ino === right.ino && left.size === right.size
+		&& left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs;
+}
+
 export interface PersistedLinkedVideoLocator {
 	readonly locatorId: string;
 	readonly locatorRevision: string;
