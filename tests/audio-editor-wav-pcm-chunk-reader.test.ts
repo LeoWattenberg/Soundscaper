@@ -133,6 +133,18 @@ test('descriptor reuse rejects source and geometry drift before any PCM read', a
 	assert.equal(source.reads.length, 0);
 });
 
+test('descriptor reuse freezes the validated PCM geometry before later random reads', async () => {
+	const blob = createWaveBlob({ bitDepth: 16, channels: [[-32_768, 0, 32_767]] });
+	const inspected = await inspectWavBlobPcm(blob);
+	const descriptor = { ...inspected };
+	const reader = createWavBlobPcmChunkReader(blob, { descriptor, chunkFrames: 2 });
+
+	assert.equal(reader.descriptor, descriptor);
+	assert.equal(Object.isFrozen(reader.descriptor), true);
+	assert.equal(Reflect.set(descriptor, 'dataOffset', 0), false);
+	assertFloatArray((await reader.readChunk(0)).channels[0], [-1, 0]);
+});
+
 test('random-access reads observe AbortSignal before and after a pending slice', async () => {
 	const blob = createWaveBlob({ bitDepth: 16, channels: [[-1, 0, 1]] });
 	const descriptor = await inspectWavBlobPcm(blob);

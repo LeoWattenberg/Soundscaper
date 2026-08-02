@@ -296,7 +296,7 @@ export function validateWavPcmDescriptor(
 		|| dataEnd > (descriptor.riffByteLength as number) || (descriptor.riffByteLength as number) > source.size) {
 		throw new TypeError('WAV descriptor data range is invalid.');
 	}
-	return descriptorValue as WavPcmDescriptor;
+	return Object.freeze(descriptorValue) as WavPcmDescriptor;
 }
 
 const SAMPLE_FORMATS = Object.freeze({
