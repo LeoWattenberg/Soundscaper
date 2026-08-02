@@ -50,15 +50,15 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*authoritative point-in-time catalog.*at most 10,000 project IDs.*one atomic transaction.*at most\s+100,000 closed binding rows.*deletes only bindings whose project is absent.*preserves.*catalog-live alias.*at most 128 exact\s+locator\/revision references.*durable-unavailable\s+storage sends nothing.*invalid scans reject before IPC.*at\s+most one successful\s+serialized pass per store\/process.*only absent\s+startup-loaded\s+metadata.*referenced and current-process\s+records.*external\s+media.*never inspected or deleted.*source-level binding reachability during\s+startup reconciliation.*cleanup beyond the one-live-store maintained save.*project-delete.*whole-clear lifecycle.*cross-store\/process coordination.*hostile-renderer\s+inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS\s+qualification remain open/isu,
+		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*authoritative point-in-time catalog.*at most 10,000 project IDs.*one atomic transaction.*at most\s+100,000 closed binding rows.*deletes only bindings whose project is absent.*preserves.*catalog-live alias.*at most 128 exact\s+locator\/revision references.*durable-unavailable\s+storage sends nothing.*invalid scans reject before IPC.*at\s+most one successful\s+serialized pass per store\/process.*only absent\s+startup-loaded\s+metadata.*referenced and current-process\s+records.*external\s+media.*never inspected or deleted.*source-level binding reachability during\s+startup reconciliation.*cleanup beyond the one-live-store maintained save.*successful writable activation.*project-delete.*whole-clear lifecycle.*cross-store\/process coordination.*hostile-renderer\s+inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS\s+qualification remain open/isu,
 	);
 	assert.match(
 		roadmap,
-		/Electron Enhanced \/ Shared — Implemented:.*revision- and live-history-aware\s+same-store saves.*source-unreachable linked-original bindings.*exact\s+locator retirement after saves, project deletion, and clear.*live\s+aliases.*external files/isu,
+		/Electron Enhanced \/ Shared — Implemented:.*revision- and live-history-aware\s+same-store saves and successful writable activations.*source-unreachable\s+linked-original bindings.*exact locator retirement after saves, activations,\s+project deletion, and clear.*live aliases.*external files/isu,
 	);
 	assert.match(
 		roadmap,
-		/Electron Enhanced — In progress.*linked-locator cleanup beyond the one-live-store maintained save.*project-delete.*whole-clear lifecycle.*source-level binding reachability\s+outside maintained saves.*cross-store\/process coordination/isu,
+		/Electron Enhanced — In progress.*linked-locator cleanup beyond the one-live-store maintained save.*successful writable activation.*project-delete.*whole-clear lifecycle.*source-level binding reachability\s+outside maintained saves and activations.*cross-store\/process coordination/isu,
 	);
 	assert.doesNotMatch(
 		roadmap,

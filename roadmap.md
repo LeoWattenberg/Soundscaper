@@ -328,14 +328,15 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   metadata while retaining referenced and current-process records; external
   media is never inspected or deleted. Source-level binding reachability during
   startup reconciliation, cleanup beyond the one-live-store maintained save,
-  project-delete, and whole-clear lifecycle, cross-store/process coordination,
+  successful writable activation, project-delete, and whole-clear lifecycle,
+  cross-store/process coordination,
   hostile-renderer
   inventory authority, abrupt-crash/power-loss durability, and packaged/OS
   qualification remain open.
 - **Electron Enhanced / Shared — Implemented:** revision- and live-history-aware
-  same-store saves retire source-unreachable linked-original bindings; exact
-  locator retirement after saves, project deletion, and clear preserves live
-  aliases and external files.
+  same-store saves and successful writable activations retire source-unreachable
+  linked-original bindings; exact locator retirement after saves, activations,
+  project deletion, and clear preserves live aliases and external files.
 - **Shared / Electron Enhanced — Implemented:** same-store project duplication
   preserves reachable linked-original bindings without copying external media.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
@@ -346,8 +347,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   managed handoff, and audio/video export, exact or write-time
   capacity behavior, stable playback identity beyond that maintained visual
   lifecycle, linked-locator cleanup beyond the one-live-store maintained save,
-  project-delete, and whole-clear lifecycle, source-level binding reachability
-  outside maintained saves, cross-store/process coordination where required,
+  successful writable activation, project-delete, and whole-clear lifecycle,
+  source-level binding reachability outside maintained saves and activations,
+  cross-store/process coordination where required,
   and packaged
   UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
