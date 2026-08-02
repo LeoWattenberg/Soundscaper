@@ -27,6 +27,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'readSharedProject',
 	'readSharedProjectBundle',
 	'readSharedSourceChunk',
+	'reconcileLinkedVideoOriginals',
 	'releaseLinkedVideoOriginal',
 	'releaseRead',
 	'respondToClose',

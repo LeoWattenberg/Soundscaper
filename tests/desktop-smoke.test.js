@@ -42,6 +42,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'readSharedProject',
 		'readSharedProjectBundle',
 		'readSharedSourceChunk',
+		'reconcileLinkedVideoOriginals',
 		'releaseLinkedVideoOriginal',
 		'releaseRead',
 		'respondToClose',

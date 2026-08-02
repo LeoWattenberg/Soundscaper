@@ -12,6 +12,7 @@ import {
 import { acceptsFile, mimeTypeForPath, validateFileChoice } from './validation.js';
 
 const VIDEO_CHOICE = validateFileChoice({ purpose: 'video', multiple: false });
+const MAX_LINKED_VIDEO_LOCATOR_REFERENCES = 128;
 
 /** Registers the owner-scoped, pathless linked-original Electron boundary. */
 export function registerDesktopLinkedVideoLocatorIpc({
@@ -50,6 +51,13 @@ export function registerDesktopLinkedVideoLocatorIpc({
 		});
 		return loaded === null ? null : loadedLinkedVideoLocator(loaded);
 	});
+	handle(IPC.reconcileLinkedVideoOriginals, async (event, value) => nonNegativeSafeInteger(
+		await store.reconcileStartup(
+			linkedVideoReferences(value),
+			{ owner: reference(ownerFor(event)) },
+		),
+		'Linked-video reconciliation removal count',
+	));
 	handle(IPC.releaseLinkedVideoOriginal, async (event, locatorId) => strictBoolean(
 		await store.release(
 			opaqueToken(locatorId, 'Invalid linked-video locator identifier.'),
@@ -64,7 +72,7 @@ function assertDependencies({ dialog, handle, ownerFor, store, windowFor }) {
 		|| typeof windowFor !== 'function' || !store || typeof store !== 'object') {
 		throw new TypeError('Linked-video IPC requires its main-process dependencies.');
 	}
-	for (const method of ['registerPath', 'load', 'release']) {
+	for (const method of ['registerPath', 'load', 'reconcileStartup', 'release']) {
 		if (typeof store[method] !== 'function') {
 			throw new TypeError(`Linked-video locator store is missing ${method}.`);
 		}
@@ -98,6 +106,48 @@ function linkedVideoLoadRequest(value) {
 			? null
 			: opaqueToken(value.expectedRevision, 'Invalid linked-video locator revision.'),
 	});
+}
+
+function linkedVideoReferences(value) {
+	if (!Array.isArray(value) || value.length > MAX_LINKED_VIDEO_LOCATOR_REFERENCES) {
+		throw new RangeError('Linked-video reconciliation reference count exceeds its limit.');
+	}
+	const identifiers = new Set();
+	return Object.freeze(value.map((referenceValue) => {
+		const reference = closedReference(referenceValue);
+		const locatorId = opaqueToken(reference.locatorId, 'Invalid linked-video locator identifier.');
+		if (identifiers.has(locatorId)) {
+			throw new Error('Linked-video reconciliation contains duplicate locator identifiers.');
+		}
+		identifiers.add(locatorId);
+		return Object.freeze({
+			locatorId,
+			locatorRevision: opaqueToken(
+				reference.locatorRevision,
+				'Invalid linked-video locator revision.',
+			),
+		});
+	}));
+}
+
+function closedReference(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('A linked-video reconciliation reference is required.');
+	}
+	const fields = ['locatorId', 'locatorRevision'];
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
+		throw new TypeError('A linked-video reconciliation reference contains an unsupported field.');
+	}
+	const output = Object.create(null);
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`Linked-video reconciliation ${field} must be an enumerable data field.`);
+		}
+		output[field] = descriptor.value;
+	}
+	return output;
 }
 
 function linkedVideoLocator(value) {

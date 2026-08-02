@@ -169,6 +169,35 @@ test('linked-video IPC rejects malformed store values and scopes release to the 
 	);
 });
 
+test('linked-video IPC accepts only a complete bounded exact startup inventory', async () => {
+	const fixture = harness();
+	fixture.reconciled = 2;
+	const references = [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }];
+
+	assert.equal(await fixture.handlers.get(IPC.reconcileLinkedVideoOriginals)(
+		fixture.event,
+		references,
+	), 2);
+	assert.deepEqual(fixture.storeCalls.at(-1), {
+		method: 'reconcileStartup', references, options: { owner: OWNER },
+	});
+	for (const value of [
+		[{ ...references[0], path: VIDEO_PATH }],
+		[references[0], references[0]],
+		[{ locatorId: 'wrong', locatorRevision: LOCATOR_REVISION }],
+		Array.from({ length: 129 }, (_, index) => ({
+			locatorId: index.toString(16).padStart(64, '0'),
+			locatorRevision: LOCATOR_REVISION,
+		})),
+	]) {
+		await assert.rejects(
+			fixture.handlers.get(IPC.reconcileLinkedVideoOriginals)(fixture.event, value),
+			/field|duplicate|identifier|count|limit/iu,
+		);
+	}
+	assert.equal(fixture.storeCalls.filter(({ method }) => method === 'reconcileStartup').length, 1);
+});
+
 test('desktop main wires linked-video grants into renderer revocation and shutdown', async () => {
 	const [source, runtimeSource] = await Promise.all([
 		readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8'),
@@ -195,6 +224,7 @@ function harness() {
 		dialogResult: { canceled: true, filePaths: [] },
 		locator: null,
 		loaded: null,
+		reconciled: 0,
 	};
 	const store = {
 		async registerPath(path, options) {
@@ -208,6 +238,10 @@ function harness() {
 		release(locatorId, options) {
 			storeCalls.push({ method: 'release', locatorId, options });
 			return true;
+		},
+		reconcileStartup(references, options) {
+			storeCalls.push({ method: 'reconcileStartup', references, options });
+			return fixture.reconciled;
 		},
 	};
 	registerDesktopLinkedVideoLocatorIpc({

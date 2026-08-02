@@ -536,7 +536,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 			'deleteSharedProject', 'editText', 'finishSharedSourceWrite', 'finishWrite',
 			'getEnvironment', 'listSharedProjects', 'loadLinkedVideoOriginal', 'onCloseRequested', 'onFullscreenChanged',
 			'onMenuCommand', 'onOpenProject', 'openExternal', 'readSharedProject',
-			'readSharedProjectBundle', 'readSharedSourceChunk', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose',
+			'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedVideoOriginals', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose',
 			'setFullscreen', 'setLocale', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
 		].sort(),
 	);

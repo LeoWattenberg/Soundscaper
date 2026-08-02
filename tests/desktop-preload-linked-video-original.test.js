@@ -107,6 +107,33 @@ test('preload validates owner-scoped linked-video release identifiers', async ()
 	);
 });
 
+test('preload validates and freezes the complete linked-video startup inventory', async () => {
+	const fixture = await loadPreload([2]);
+	const references = [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }];
+	assert.equal(await fixture.bridge.reconcileLinkedVideoOriginals(references), 2);
+	assert.deepEqual(fixture.invocations.map(([channel, value]) => [
+		channel,
+		value.map((reference) => ({ ...reference })),
+	]), [[
+		'soundscaper:v1:linked-video:reconcile', references,
+	]]);
+	assert.equal(Object.isFrozen(fixture.invocations[0][1]), true);
+	assert.equal(Object.isFrozen(fixture.invocations[0][1][0]), true);
+	for (const value of [
+		[{ ...references[0], path: '/private/selected.mp4' }],
+		[references[0], references[0]],
+		[{ locatorId: 'wrong', locatorRevision: LOCATOR_REVISION }],
+		Array.from({ length: 129 }, (_, index) => ({
+			locatorId: index.toString(16).padStart(64, '0'),
+			locatorRevision: LOCATOR_REVISION,
+		})),
+	]) assert.throws(
+		() => fixture.bridge.reconcileLinkedVideoOriginals(value),
+		/field|duplicate|identifier|count|limit/iu,
+	);
+	assert.equal(fixture.invocations.length, 1);
+});
+
 function locator() {
 	return {
 		locatorId: LOCATOR_ID,

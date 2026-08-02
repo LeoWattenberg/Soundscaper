@@ -11,6 +11,7 @@ const CHANNELS = Object.freeze({
 	releaseRead: 'soundscaper:v1:files:release',
 	chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose',
 	loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load',
+	reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile',
 	releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release',
 	chooseSaveTarget: 'soundscaper:v1:save:choose',
 	beginWrite: 'soundscaper:v1:save:begin',
@@ -70,6 +71,7 @@ const api = Object.freeze({
 	loadLinkedVideoOriginal: (value) => ipcRenderer.invoke(
 		CHANNELS.loadLinkedVideoOriginal, linkedVideoLoadRequest(value),
 	).then(nullableLoadedLinkedVideoLocator),
+	reconcileLinkedVideoOriginals: (value) => ipcRenderer.invoke(CHANNELS.reconcileLinkedVideoOriginals, linkedVideoReferences(value)).then(safeInteger),
 	releaseLinkedVideoOriginal: (locatorId) => ipcRenderer.invoke(CHANNELS.releaseLinkedVideoOriginal, opaqueId(locatorId, 64)).then(strictBoolean),
 	chooseSaveTarget: (options) => ipcRenderer.invoke(CHANNELS.chooseSaveTarget, {
 		purpose: text(options?.purpose, 24),
@@ -191,48 +193,43 @@ function nullableLinkedVideoLocator(value) {
 }
 
 function linkedVideoLoadRequest(value) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('A linked-video load request is required');
-	}
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('A linked-video load request is required');
 	return Object.freeze({
 		locatorId: opaqueId(value.locatorId, 64),
-		expectedRevision: value.expectedRevision === null
-			? null
-			: linkedVideoRevision(value.expectedRevision),
+		expectedRevision: value.expectedRevision === null ? null : linkedVideoRevision(value.expectedRevision),
 	});
 }
-
+function linkedVideoReferences(value) {
+	if (!Array.isArray(value) || value.length > 128) throw new RangeError('Linked-video reconciliation reference count exceeds its limit');
+	const identifiers = new Set();
+	return Object.freeze(value.map((reference) => {
+		const fields = ['locatorId', 'locatorRevision'];
+		const keys = reference && typeof reference === 'object' && !Array.isArray(reference) ? Reflect.ownKeys(reference) : [];
+		if (keys.length !== fields.length || keys.some((key) => !fields.includes(key)) || fields.some((field) => {
+			const descriptor = Object.getOwnPropertyDescriptor(reference, field); return !descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value');
+		})) throw new TypeError('Linked-video reconciliation reference contains an unsupported field');
+		const locatorId = opaqueId(reference.locatorId, 64);
+		if (identifiers.has(locatorId)) throw new Error('Linked-video reconciliation contains a duplicate identifier');
+		identifiers.add(locatorId);
+		return Object.freeze({ locatorId, locatorRevision: linkedVideoRevision(reference.locatorRevision) });
+	}));
+}
 function nullableLoadedLinkedVideoLocator(value) {
 	if (value === null) return null;
 	const descriptor = sanitizeReadDescriptor(value?.descriptor);
-	if (descriptor.readProfile !== READ_PROFILE_MATERIALIZED_V1 || descriptor.size === 0) {
-		throw new TypeError('Linked-video reads require a positive materialized-v1 descriptor');
-	}
+	if (descriptor.readProfile !== READ_PROFILE_MATERIALIZED_V1 || descriptor.size === 0) throw new TypeError('Linked-video reads require a positive materialized-v1 descriptor');
 	linkedVideoMimeType(descriptor.mimeType);
-	return Object.freeze({
-		locatorRevision: linkedVideoRevision(value?.locatorRevision), descriptor,
-	});
+	return Object.freeze({ locatorRevision: linkedVideoRevision(value?.locatorRevision), descriptor });
 }
-
-function linkedVideoRevision(value) {
-	try { return opaqueId(value, 64); } catch { throw new TypeError('Invalid linked-video locator revision'); }
-}
-
+function linkedVideoRevision(value) { try { return opaqueId(value, 64); } catch { throw new TypeError('Invalid linked-video locator revision'); } }
 function linkedVideoMimeType(value) {
 	const mimeType = readDescriptorMimeType(value);
-	if (!/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) {
-		throw new TypeError('Invalid linked-video MIME type');
-	}
+	if (!/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) throw new TypeError('Invalid linked-video MIME type');
 	return mimeType;
 }
-
 function trustedCapabilityUrl(value, { id, readProfile, name }) {
 	let url;
-	try {
-		url = new URL(String(value || ''));
-	} catch {
-		throw new TypeError('Invalid read capability URL');
-	}
+	try { url = new URL(String(value || '')); } catch { throw new TypeError('Invalid read capability URL'); }
 	const expectedPath = `/_desktop/read/${readProfile}/${id}/${encodeURIComponent(name)}`;
 	if (!['soundscaper-app:', 'framescaper-app:'].includes(url.protocol)
 		|| url.hostname !== 'bundle' || url.port || url.username || url.password

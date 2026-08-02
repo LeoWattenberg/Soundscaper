@@ -60,6 +60,7 @@ export const IPC = Object.freeze({
 	releaseRead: 'soundscaper:v1:files:release',
 	chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose',
 	loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load',
+	reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile',
 	releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release',
 	chooseSaveTarget: 'soundscaper:v1:save:choose',
 	beginWrite: 'soundscaper:v1:save:begin',
