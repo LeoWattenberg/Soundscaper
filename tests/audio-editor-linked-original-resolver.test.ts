@@ -7,7 +7,10 @@ import {
 	LinkedOriginalResolver,
 	type LinkedOriginalPort,
 } from '../src/common/editor/storage/linked-original-resolver.ts';
-import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
+import {
+	LinkedOriginalRepository,
+	type LinkedOriginalLocatorReference,
+} from '../src/common/editor/storage/linked-original-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 
 const NOW = '2026-08-02T10:11:12.345Z';
@@ -144,6 +147,82 @@ test('generic locator release is kindful and closed', async () => {
 	assert.deepEqual(released, [reference]);
 });
 
+test('generic resolver reconciles only a complete durable kindful inventory', async () => {
+	const references = Object.freeze([Object.freeze({
+		kind: 'audio' as const,
+		locatorId: 'locator_0000000000000001',
+		locatorRevision: 'revision_0000000000000001',
+	}), Object.freeze({
+		kind: 'video' as const,
+		locatorId: 'locator_0000000000000001',
+		locatorRevision: 'revision_0000000000000002',
+	})]);
+	const canonicalProjectIds = Object.freeze(['project-linked-audio']);
+	const calls: unknown[] = [];
+	const repository = reconciliationRepository(async (value: readonly string[]) => {
+		calls.push({ projectIds: value });
+		return references;
+	});
+	const resolver = new LinkedOriginalResolver(repository, {
+		load() { throw new Error('external media must not be inspected during reconciliation'); },
+		release() { throw new Error('external media must not be released during reconciliation'); },
+		reconcile(value) { calls.push({ references: value }); return 2; },
+	});
+
+	assert.equal(await resolver.reconcileLocators(canonicalProjectIds), 2);
+	assert.deepEqual(calls, [
+		{ projectIds: canonicalProjectIds },
+		{ references },
+	]);
+});
+
+test('generic resolver skips binding mutation and IPC when reconciliation is unavailable', async () => {
+	const canonicalProjectIds = Object.freeze(['project-linked-audio']);
+	let repositoryCalls = 0;
+	const repository = reconciliationRepository(async () => {
+		repositoryCalls += 1;
+		return [];
+	});
+	const unsupported = new LinkedOriginalResolver(repository, { load: () => null });
+	assert.equal(await unsupported.reconcileLocators(canonicalProjectIds), null);
+	assert.equal(repositoryCalls, 0);
+
+	let ipcCalls = 0;
+	const ephemeral = new LinkedOriginalResolver(reconciliationRepository(async () => null), {
+		load: () => null,
+		reconcile() { ipcCalls += 1; return 0; },
+	});
+	assert.equal(await ephemeral.reconcileLocators(canonicalProjectIds), null);
+	assert.equal(ipcCalls, 0);
+});
+
+test('generic resolver fails before IPC on inventory errors and invalid removal counts', async () => {
+	const failure = new Error('generic binding inventory is corrupt');
+	let ipcCalls = 0;
+	const corrupt = new LinkedOriginalResolver(reconciliationRepository(async () => {
+		throw failure;
+	}), {
+		load: () => null,
+		reconcile() { ipcCalls += 1; return 0; },
+	});
+	await assert.rejects(
+		corrupt.reconcileLocators(['project-linked-audio']),
+		(error) => error === failure,
+	);
+	assert.equal(ipcCalls, 0);
+
+	for (const count of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+		const malformed = new LinkedOriginalResolver(reconciliationRepository(async () => []), {
+			load: () => null,
+			reconcile: () => count,
+		});
+		await assert.rejects(
+			malformed.reconcileLocators(['project-linked-audio']),
+			/removal count|non-negative|safe integer/iu,
+		);
+	}
+});
+
 function fixtureResolver(port: LinkedOriginalPort): LinkedOriginalResolver {
 	return fixtureResolverParts(port).resolver;
 }
@@ -156,6 +235,18 @@ function fixtureResolverParts(port: LinkedOriginalPort) {
 		createBindingToken: () => `binding_token_${String(++token).padStart(8, '0')}`,
 	});
 	return { repository, resolver: new LinkedOriginalResolver(repository, port) };
+}
+
+function reconciliationRepository(
+	reconcile: (
+		canonicalProjectIds: readonly string[],
+	) => Promise<readonly LinkedOriginalLocatorReference[] | null>,
+): LinkedOriginalRepository {
+	return {
+		get: async () => null,
+		putIfCurrent: async () => null,
+		reconcileDurableLocatorReferences: reconcile,
+	} as unknown as LinkedOriginalRepository;
 }
 
 function audioSource() {

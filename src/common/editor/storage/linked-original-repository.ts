@@ -13,6 +13,7 @@ import {
 import {
 	memoryLinkedOriginalBindingsByStorageKey,
 	memoryLinkedOriginalLocatorReferences,
+	reconcileStoredLinkedOriginalLocatorReferences,
 	reconcileStoredLinkedVideoLocatorReferences,
 	storedLinkedOriginalBinding,
 	storedLinkedOriginalBindingsByStorageKey,
@@ -141,7 +142,24 @@ export class LinkedOriginalRepository {
 		));
 	}
 
-	/** Compatibility-only video reconciliation; mixed generic reconciliation is intentionally unavailable. */
+	/** Validate and prune the complete durable mixed-kind binding catalog atomically. */
+	async reconcileDurableLocatorReferences(
+		canonicalProjectIdsValue: readonly string[],
+	): Promise<readonly LinkedOriginalLocatorReference[] | null> {
+		const database = await this.#port.database();
+		if (!database) return null;
+		const canonicalProjectIds = canonicalProjectIdSet(canonicalProjectIdsValue);
+		return transact(database, LINKED_ORIGINAL_STORE_NAME, 'readwrite', (stores) => (
+			reconcileStoredLinkedOriginalLocatorReferences(
+				stores[LINKED_ORIGINAL_STORE_NAME],
+				canonicalProjectIds,
+				this.#maximumInventoryRecords,
+				this.#maximumInventoryReferences,
+			)
+		));
+	}
+
+	/** Compatibility-only video reconciliation that preserves every audio row. */
 	async reconcileDurableVideoLocatorReferences(
 		canonicalProjectIdsValue: readonly string[],
 	): Promise<readonly LinkedOriginalLocatorReference[] | null> {

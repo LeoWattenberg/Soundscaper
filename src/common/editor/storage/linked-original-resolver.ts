@@ -251,6 +251,17 @@ export class LinkedOriginalResolver {
 		}
 		return released;
 	}
+
+	async reconcileLocators(canonicalProjectIds: readonly string[]): Promise<number | null> {
+		if (typeof this.#port.reconcile !== 'function') return null;
+		const references = await this.#bindings.reconcileDurableLocatorReferences(canonicalProjectIds);
+		if (references === null) return null;
+		const removed = await this.#port.reconcile(references);
+		if (!Number.isSafeInteger(removed) || Number(removed) < 0) {
+			throw new RangeError('Linked original locator reconciliation returned an invalid removal count.');
+		}
+		return Number(removed);
+	}
 }
 
 function bindingInput(

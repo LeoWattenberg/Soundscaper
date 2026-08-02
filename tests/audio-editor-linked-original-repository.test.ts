@@ -223,6 +223,192 @@ test('legacy durable video reconciliation preserves and never returns audio rows
 	assert.equal(await video.get('project-video-orphan', 'source-video-orphan'), null);
 });
 
+test('generic durable reconciliation prunes absent mixed aliases and returns live kindful locators', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-original-generic-reconcile-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused`),
+		database: async () => database,
+	}, deterministicOptions());
+	const sharedLocatorId = 'locator_shared_000000000001';
+	for (const input of [
+		audioInput({ locatorId: sharedLocatorId }),
+		audioInput({
+			projectId: 'project-audio-orphan-alias',
+			sourceId: 'source-audio-orphan-alias',
+			locatorId: sharedLocatorId,
+		}),
+		videoInput({ locatorId: sharedLocatorId }),
+		videoInput({
+			projectId: 'project-video-orphan',
+			sourceId: 'source-video-orphan',
+			locatorId: 'locator_video_000000000002',
+			locatorRevision: 'snapshot_video_0000000002',
+			storageKey: 'storage-video-orphan',
+		}),
+	]) assert.ok(await repository.putIfCurrent(input, null));
+
+	const references = await repository.reconcileDurableLocatorReferences([
+		'project-audio',
+		'project-video',
+	]);
+	assert.deepEqual(references, [{
+		kind: 'audio',
+		locatorId: sharedLocatorId,
+		locatorRevision: 'snapshot_audio_0000000001',
+	}, {
+		kind: 'video',
+		locatorId: sharedLocatorId,
+		locatorRevision: 'snapshot_video_0000000001',
+	}]);
+	assert.equal(Object.isFrozen(references), true);
+	assert.equal(references?.every(Object.isFrozen), true);
+	assert.ok(await repository.get('project-audio', 'source-audio'));
+	assert.ok(await repository.get('project-video', 'source-video'));
+	assert.equal(await repository.get(
+		'project-audio-orphan-alias',
+		'source-audio-orphan-alias',
+	), null);
+	assert.equal(await repository.get('project-video-orphan', 'source-video-orphan'), null);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 2);
+});
+
+test('generic reconciliation is durable-only and leaves memory bindings untouched', async () => {
+	const fixture = await repositoryFixture(undefined, 'generic-reconcile-memory', 'memory');
+	assert.ok(await fixture.repository.putIfCurrent(audioInput(), null));
+
+	assert.equal(await fixture.repository.reconcileDurableLocatorReferences([
+		'project-audio',
+		'project-audio',
+	]), null);
+	assert.ok(await fixture.repository.get('project-audio', 'source-audio'));
+});
+
+test('generic reconciliation validates the complete mixed inventory before deleting bindings', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-original-generic-invalid-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused`),
+		database: async () => database,
+	}, deterministicOptions());
+	assert.ok(await repository.putIfCurrent(audioInput({
+		projectId: 'project-audio-orphan',
+	}), null));
+	assert.ok(await repository.putIfCurrent(videoInput(), null));
+	const malformedKey = linkedOriginalBindingKey('project-malformed', 'source-malformed');
+	indexedDB.seedRecord(databaseName, LINKED_ORIGINAL_STORE_NAME, {
+		key: malformedKey,
+		projectId: 'project-malformed',
+		binding: { path: '/private/external.wav' },
+	}, malformedKey);
+
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences(['project-video']),
+		/binding|schema|field/iu,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 3);
+	assert.ok(await repository.get('project-audio-orphan', 'source-audio'));
+});
+
+test('generic reconciliation rejects duplicate identities and mixed alias conflicts without mutation', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-original-generic-conflicts-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused`),
+		database: async () => database,
+	}, deterministicOptions());
+	assert.ok(await repository.putIfCurrent(audioInput({ storageKey: 'storage-conflict' }), null));
+	assert.ok(await repository.putIfCurrent(videoInput({ storageKey: 'storage-conflict' }), null));
+
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences(['project-audio', 'project-audio']),
+		/duplicate.*project|project.*duplicate/iu,
+	);
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences([`project\u0000invalid`]),
+		/projectId|identity|control/iu,
+	);
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences(['project-audio', 'project-video']),
+		/storage.*conflict|conflict.*kind|alias.*conflict/iu,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 2);
+});
+
+test('generic reconciliation rejects mixed reference and revision conflicts before deletion', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-original-generic-reference-conflict-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused`),
+		database: async () => database,
+	}, { ...deterministicOptions(), maximumInventoryReferences: 2 });
+	assert.ok(await repository.putIfCurrent(audioInput(), null));
+	assert.ok(await repository.putIfCurrent(audioInput({
+		projectId: 'project-audio-conflict',
+		sourceId: 'source-audio-conflict',
+		storageKey: 'storage-audio-conflict',
+		locatorRevision: 'snapshot_audio_0000000002',
+	}), null));
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences([]),
+		/conflicting.*revision/iu,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 2);
+
+	const conflict = indexedDB.records(databaseName, LINKED_ORIGINAL_STORE_NAME)[1];
+	indexedDB.seedRecord(databaseName, LINKED_ORIGINAL_STORE_NAME, {
+		...conflict,
+		binding: {
+			...conflict.binding,
+			locatorId: 'locator_audio_000000000002',
+		},
+	}, conflict.key);
+	assert.ok(await repository.putIfCurrent(videoInput(), null));
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences([]),
+		/reference.*limit|limit.*reference/iu,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 3);
+});
+
+test('generic reconciliation rolls back a failed mixed-binding deletion', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-original-generic-delete-rollback-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused`),
+		database: async () => database,
+	}, deterministicOptions());
+	assert.ok(await repository.putIfCurrent(audioInput(), null));
+	assert.ok(await repository.putIfCurrent(videoInput({
+		projectId: 'project-video-orphan',
+		sourceId: 'source-video-orphan',
+	}), null));
+	const failure = new Error('planned generic binding delete failure');
+	indexedDB.failNextDeleteForStore(LINKED_ORIGINAL_STORE_NAME, failure);
+
+	await assert.rejects(
+		repository.reconcileDurableLocatorReferences(['project-audio']),
+		(error) => error === failure,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 2);
+	assert.deepEqual(await repository.reconcileDurableLocatorReferences(['project-audio']), [{
+		kind: 'audio',
+		locatorId: 'locator_audio_000000000001',
+		locatorRevision: 'snapshot_audio_0000000001',
+	}]);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 1);
+});
+
 function audioInput(overrides: Partial<LinkedOriginalBindingInput> = {}): LinkedOriginalBindingInput {
 	return {
 		schemaVersion: LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
@@ -290,7 +476,10 @@ async function repositoryFixture(
 	context: { after(callback: () => void): void } | undefined,
 	label: string,
 	backend: 'memory' | 'indexeddb',
-	limits: Readonly<{ maximumInventoryRecords?: number }> = {},
+	limits: Readonly<{
+		maximumInventoryRecords?: number;
+		maximumInventoryReferences?: number;
+	}> = {},
 ) {
 	const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
 	const databaseName = `linked-original-${label}-${Date.now()}-${Math.random()}`;

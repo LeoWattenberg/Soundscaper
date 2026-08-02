@@ -102,6 +102,55 @@ export function storedLinkedOriginalLocatorReferences(
 	});
 }
 
+/** Validate and prune one complete durable mixed-kind binding inventory atomically. */
+export function reconcileStoredLinkedOriginalLocatorReferences(
+	store: IDBObjectStore,
+	canonicalProjectIds: ReadonlySet<string>,
+	maximumRecords: number,
+	maximumReferences: number,
+): Promise<readonly LinkedOriginalLocatorReference[]> {
+	return new Promise((resolve, reject) => {
+		const references = new Map<string, LinkedOriginalLocatorReference>();
+		const reachableReferences = new Set<string>();
+		const storageAliases = new Map<string, string>();
+		const unreachableKeys: string[] = [];
+		let recordCount = 0;
+		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
+		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
+		cursorRequest.onerror = () => reject(
+			cursorRequest.error || new Error('Could not enumerate linked original bindings.'),
+		);
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) {
+				const liveReferences = new Map([...references]
+					.filter(([key]) => reachableReferences.has(key)));
+				let deletions: Promise<unknown>[];
+				try { deletions = unreachableKeys.map((key) => request(store.delete(key))); }
+				catch (error) { reject(error); return; }
+				void Promise.all(deletions).then(
+					() => resolve(frozenLocatorReferences(liveReferences)),
+					reject,
+				);
+				return;
+			}
+			try {
+				recordCount = nextInventoryRecordCount(recordCount, maximumRecords);
+				const binding = validateLinkedOriginalInventoryBinding(cursor.value, cursor.primaryKey);
+				assertConsistentStorageAlias(storageAliases, binding);
+				addLocatorReference(references, binding, maximumReferences);
+				const referenceKey = locatorReferenceKey(binding.kind, binding.locatorId);
+				if (canonicalProjectIds.has(binding.projectId)) {
+					reachableReferences.add(referenceKey);
+				} else {
+					unreachableKeys.push(linkedOriginalBindingKey(binding.projectId, binding.sourceId));
+				}
+				cursor.continue();
+			} catch (error) { reject(error); }
+		};
+	});
+}
+
 export function reconcileStoredLinkedVideoLocatorReferences(
 	store: IDBObjectStore,
 	canonicalProjectIds: ReadonlySet<string>,
@@ -251,7 +300,7 @@ function addLocatorReference(
 	binding: LinkedOriginalBinding,
 	maximumReferences: number,
 ): void {
-	const key = JSON.stringify([binding.kind, binding.locatorId]);
+	const key = locatorReferenceKey(binding.kind, binding.locatorId);
 	const reference = references.get(key);
 	if (reference && reference.locatorRevision !== binding.locatorRevision) {
 		throw new Error('Linked original binding inventory contains conflicting locator revisions.');
@@ -264,6 +313,13 @@ function addLocatorReference(
 	if (references.size > maximumReferences) {
 		throw new RangeError('Linked original binding inventory exceeds its reference limit.');
 	}
+}
+
+function locatorReferenceKey(
+	kind: LinkedOriginalBinding['kind'],
+	locatorId: string,
+): string {
+	return JSON.stringify([kind, locatorId]);
 }
 
 function frozenLocatorReferences(
@@ -300,6 +356,20 @@ function storageAliasIdentity(binding: LinkedOriginalBinding): string {
 		binding.sha256,
 		binding.sourceShape,
 	]);
+}
+
+function assertConsistentStorageAlias(
+	aliases: Map<string, string>,
+	binding: LinkedOriginalBinding,
+): void {
+	const identity = storageAliasIdentity(binding);
+	const expected = aliases.get(binding.storageKey);
+	if (expected !== undefined && expected !== identity) {
+		throw new Error(
+			'Linked original storage alias inventory contains conflicting kind, geometry, or content identity.',
+		);
+	}
+	aliases.set(binding.storageKey, identity);
 }
 
 function nextInventoryRecordCount(current: number, maximumRecords: number): number {
