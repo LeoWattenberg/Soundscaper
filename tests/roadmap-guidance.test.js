@@ -34,6 +34,10 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
+		/Implemented for the maintained first-party\s+video-effects fallback.*exact-schema video fallback.*unavailable video-effects requirement.*explicit managed handoff.*manifest-only fallback.*editable\s+retained original.*fresh recipient.*both exact bodies.*canonical shadow.*separate controller digest check.*Canonical project.*unchanged.*generic fallback.*browser or packaged qualification remain open/isu,
+	);
+	assert.match(
+		roadmap,
 		/Implemented for managed-media ownership and bounded\s+startup reclamation.*schema-3 canonical and stage inventories.*descriptor provenance.*lease.*fencing tokens.*before body or\s+optional hard-link work.*catalog publication.*materialized inventory.*published atomically.*retires stale tracked catalog rows.*registered regular stages and bodies.*lease-fenced.*persisted bounded passes.*unmanaged.*unregistered.*legacy.*symlinked.*non-regular.*foreign content stays untouched.*compiled desktop\s+runtime.*packaged source-bearing UI qualification remains\s+open/isu,
 	);
 	assert.doesNotMatch(

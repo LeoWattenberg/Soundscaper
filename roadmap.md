@@ -276,13 +276,16 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   original, is acquired into a fresh recipient, and activates there after the
   separate controller-owned manifest digest check. The recipient document
   remains read-only and canonical state stays unprojected.
-- **Shared — Implemented for maintained first-party video-effects fallback
-  activation:** one admitted exact-schema video fallback bound to the
-  unavailable video-effects requirement activates its required local source and
-  replaces preview video with a neutral full render from frame zero. The
-  projection leaves canonical project, history, audio, Project Bin, and effect
-  state unchanged. Acquisition and handoff, authored proxies, generic fallback
-  handling, export parity, and browser or packaged qualification remain open.
+- **Shared / Electron Enhanced — Implemented for the maintained first-party
+  video-effects fallback:** one admitted exact-schema video fallback bound to
+  the unavailable video-effects requirement activates its required local source
+  and replaces preview video with a neutral full render from frame zero. An
+  explicit managed handoff roots the manifest-only fallback with the editable
+  retained original, and a fresh recipient acquires both exact bodies and the
+  canonical shadow before the separate controller digest check and activation.
+  Canonical project, history, audio, Project Bin, and effect state stay
+  unchanged. Authored proxies, generic fallback handling, export parity, and
+  browser or packaged qualification remain open.
 - **Electron Enhanced — Implemented for point-in-time managed-media publication
   admission:** absent bindings reserve prospective catalog rows, serialized
   metadata, and aggregate pending body bytes, then reject failed, malformed, or
@@ -309,25 +312,25 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond bounded point-in-time whole-body import and finish broader
   linked and unmanaged-original lifecycles, authored proxies plus generic
-  rendered-fallback relationships and video-fallback acquisition/handoff beyond
-  maintained local activation, exact or write-time capacity behavior, durable
-  playback identity, linked-locator reconciliation and other cleanup beyond the
-  bounded startup tracked inventory where required, and packaged
-  UI/OS/browser-codec qualification.
+  rendered-fallback relationships beyond maintained first-party playback and
+  managed handoff, fallback authoring and delivery use, exact or write-time
+  capacity behavior, durable playback identity, linked-locator reconciliation
+  and other cleanup beyond the bounded startup tracked inventory where
+  required, and packaged UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest or exact linked binding and a
   versioned recipe while staying outside project history, portable archive
   media, and managed media transfer. They are not editorial proxies.
 - **Shared — In progress:** complete editorial original/proxy/rendered-fallback
   relationships for linked and unmanaged originals, authored proxies, and
-  generic fallback acquisition and activation plus video fallback
-  acquisition/handoff beyond the maintained first-party activation.
+  generic fallback authoring, acquisition, and activation beyond maintained
+  first-party playback and managed handoff.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
-  exact media, and retained histories; a narrower one-way fixture proves the
-  maintained first-party audio fallback reaches a fresh recipient from a
-  manifest-only reference. Packaged UI and browser-codec qualification remain
-  open.
+  exact media, and retained histories; narrower one-way fixtures prove the
+  maintained first-party audio and video fallbacks each reach a fresh recipient
+  from a manifest-only reference and activate their exact managed body.
+  Packaged UI and browser-codec qualification remain open.
 
 This is the main architectural blocker for closing milestone 2. Do not spend the
 next work cycle deepening already-qualified source-free handoff unless it fixes a
