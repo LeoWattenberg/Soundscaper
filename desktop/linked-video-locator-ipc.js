@@ -14,6 +14,11 @@ import {
 import { acceptsFile, mimeTypeForPath, validateFileChoice } from './validation.js';
 
 const VIDEO_CHOICE = validateFileChoice({ purpose: 'video', multiple: false });
+const AUDIO_CHOICE = Object.freeze({
+	filters: Object.freeze([Object.freeze({
+		name: 'Uncompressed WAV audio', extensions: Object.freeze(['rf64', 'wav']),
+	})]),
+});
 const MAX_LINKED_VIDEO_LOCATOR_REFERENCES = 128;
 
 /** Registers the owner-scoped, pathless linked-original Electron boundary. */
@@ -26,6 +31,39 @@ export function registerDesktopLinkedVideoLocatorIpc({
 	windowFor,
 }) {
 	assertDependencies({ dialog, handle, ownerFor, releaseRead, store, windowFor });
+	handle(IPC.chooseLinkedAudioOriginal, async (event) => {
+		const owner = reference(ownerFor(event));
+		const result = await dialog.showOpenDialog(windowFor(), {
+			title: 'Link WAV audio original',
+			properties: ['openFile'],
+			filters: AUDIO_CHOICE.filters,
+		});
+		const path = selectedAudioPath(result);
+		if (path === null) return null;
+		const locator = await store.registerPath(path, {
+			kind: 'audio', owner,
+			mimeType: mimeTypeForPath(path),
+			displayName: basename(path),
+		});
+		try {
+			return linkedAudioLocator(locator);
+		} catch (error) {
+			await rollbackLocator(store, locator, owner, error, 'audio');
+		}
+	});
+	handle(IPC.loadLinkedAudioOriginal, async (event, value) => {
+		const request = linkedAudioLoadRequest(value);
+		const owner = reference(ownerFor(event));
+		const loaded = await store.load(request.locatorId, {
+			owner, expectedRevision: request.expectedRevision, expectedKind: 'audio',
+		});
+		if (loaded === null) return null;
+		try {
+			return loadedLinkedAudioLocator(loaded);
+		} catch (error) {
+			await rollbackReadCapability(releaseRead, loaded, owner, error);
+		}
+	});
 	handle(IPC.chooseLinkedVideoOriginal, async (event) => {
 		const owner = reference(ownerFor(event));
 		const result = await dialog.showOpenDialog(windowFor(), {
@@ -77,6 +115,21 @@ export function registerDesktopLinkedVideoLocatorIpc({
 			expectedRevision: locator.locatorRevision,
 		}));
 	});
+	handle(IPC.reconcileLinkedOriginals, async (event, value) => nonNegativeSafeInteger(
+		await store.reconcileStartup(
+			linkedOriginalReferences(value),
+			{ owner: reference(ownerFor(event)) },
+		),
+		'Linked-original reconciliation removal count',
+	));
+	handle(IPC.releaseLinkedOriginal, async (event, value) => {
+		const locator = linkedOriginalReferences([value])[0];
+		return strictBoolean(await store.release(locator.locatorId, {
+			owner: reference(ownerFor(event)),
+			expectedRevision: locator.locatorRevision,
+			expectedKind: locator.kind,
+		}));
+	});
 }
 
 function assertDependencies({ dialog, handle, ownerFor, releaseRead, store, windowFor }) {
@@ -108,6 +161,48 @@ function selectedVideoPath(value) {
 		throw new TypeError('The selected video file type is not allowed.');
 	}
 	return path;
+}
+
+function selectedAudioPath(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| typeof value.canceled !== 'boolean' || !Array.isArray(value.filePaths)) {
+		throw new TypeError('The linked-audio chooser returned an invalid result.');
+	}
+	if (value.canceled) return null;
+	if (value.filePaths.length !== 1 || typeof value.filePaths[0] !== 'string'
+		|| !isAbsolute(value.filePaths[0])) {
+		throw new TypeError('The linked-audio chooser must return a single WAV audio path.');
+	}
+	const path = value.filePaths[0];
+	const mimeType = mimeTypeForPath(path);
+	if (!/\.(?:rf64|wav)$/iu.test(path)
+		|| !['audio/rf64', 'audio/wav'].includes(mimeType)) {
+		throw new TypeError('The selected WAV audio file type is not allowed.');
+	}
+	return path;
+}
+
+function linkedAudioLoadRequest(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('A linked-audio load request is required.');
+	}
+	const fields = ['locatorId', 'expectedRevision'];
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
+		throw new TypeError('A linked-audio load request contains an unsupported field.');
+	}
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`Linked-audio load ${field} must be an enumerable data field.`);
+		}
+	}
+	return Object.freeze({
+		locatorId: opaqueToken(value.locatorId, 'Invalid linked-audio locator identifier.'),
+		expectedRevision: value.expectedRevision === null
+			? null
+			: opaqueToken(value.expectedRevision, 'Invalid linked-audio locator revision.'),
+	});
 }
 
 function linkedVideoLoadRequest(value) {
@@ -170,6 +265,49 @@ function linkedVideoReferences(value) {
 	}));
 }
 
+function linkedOriginalReferences(value) {
+	if (!Array.isArray(value) || value.length > MAX_LINKED_VIDEO_LOCATOR_REFERENCES) {
+		throw new RangeError('Linked-original reconciliation reference count exceeds its limit.');
+	}
+	const identifiers = new Set();
+	return Object.freeze(value.map((referenceValue) => {
+		const reference = closedLinkedOriginalReference(referenceValue);
+		const locatorId = opaqueToken(reference.locatorId, 'Invalid linked-original locator identifier.');
+		if (identifiers.has(locatorId)) {
+			throw new Error('Linked-original reconciliation contains duplicate locator identifiers.');
+		}
+		identifiers.add(locatorId);
+		return Object.freeze({
+			kind: mediaKind(reference.kind),
+			locatorId,
+			locatorRevision: opaqueToken(
+				reference.locatorRevision,
+				'Invalid linked-original locator revision.',
+			),
+		});
+	}));
+}
+
+function closedLinkedOriginalReference(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('A linked-original locator reference is required.');
+	}
+	const fields = ['kind', 'locatorId', 'locatorRevision'];
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
+		throw new TypeError('A linked-original locator reference contains an unsupported field.');
+	}
+	const output = Object.create(null);
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`Linked-original locator ${field} must be an enumerable data field.`);
+		}
+		output[field] = descriptor.value;
+	}
+	return output;
+}
+
 function closedReference(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('A linked-video locator reference is required.');
@@ -204,6 +342,21 @@ function linkedVideoLocator(value) {
 	});
 }
 
+function linkedAudioLocator(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('The linked-audio locator is invalid.');
+	}
+	const name = audioName(value.name);
+	return Object.freeze({
+		locatorId: opaqueToken(value.locatorId, 'Invalid linked-audio locator identifier.'),
+		locatorRevision: opaqueToken(value.locatorRevision, 'Invalid linked-audio locator revision.'),
+		name,
+		size: videoSize(value.size),
+		mimeType: audioMimeType(value.mimeType, name),
+		lastModified: nonNegativeSafeInteger(value.lastModified, 'Linked-audio modification time'),
+	});
+}
+
 function loadedLinkedVideoLocator(value, readProfile) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('The loaded linked-video locator is invalid.');
@@ -211,6 +364,36 @@ function loadedLinkedVideoLocator(value, readProfile) {
 	return Object.freeze({
 		locatorRevision: opaqueToken(value.locatorRevision, 'Invalid linked-video locator revision.'),
 		descriptor: videoReadDescriptor(value.descriptor, readProfile),
+	});
+}
+
+function loadedLinkedAudioLocator(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('The loaded linked-audio locator is invalid.');
+	}
+	return Object.freeze({
+		locatorRevision: opaqueToken(value.locatorRevision, 'Invalid linked-audio locator revision.'),
+		descriptor: audioReadDescriptor(value.descriptor),
+	});
+}
+
+function audioReadDescriptor(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| value.readProfile !== READ_PROFILE_MATERIALIZED_V1) {
+		throw new TypeError('Linked-audio reads require a materialized-v1 descriptor.');
+	}
+	const id = opaqueToken(value.id, 'Invalid linked-audio read identifier.');
+	const name = audioName(value.name);
+	return Object.freeze({
+		id,
+		url: capabilityUrl(value.url, {
+			id, name, readProfile: READ_PROFILE_MATERIALIZED_V1,
+		}),
+		name,
+		size: videoSize(value.size),
+		mimeType: audioMimeType(value.mimeType, name),
+		readProfile: READ_PROFILE_MATERIALIZED_V1,
+		lastModified: nonNegativeSafeInteger(value.lastModified, 'Linked-audio modification time'),
 	});
 }
 
@@ -275,6 +458,25 @@ function videoMimeType(value) {
 	return value;
 }
 
+function audioName(value) {
+	const name = videoName(value);
+	if (!/\.(?:rf64|wav)$/iu.test(name)) throw new TypeError('Invalid linked-audio WAV name.');
+	return name;
+}
+
+function audioMimeType(value, name) {
+	if ((/\.wav$/iu.test(name) && value === 'audio/wav')
+		|| (/\.rf64$/iu.test(name) && value === 'audio/rf64')) return value;
+	throw new TypeError('Invalid linked-audio WAV MIME type.');
+}
+
+function mediaKind(value) {
+	if (value !== 'audio' && value !== 'video') {
+		throw new TypeError('Invalid linked-original media kind.');
+	}
+	return value;
+}
+
 function videoSize(value, readProfile = READ_PROFILE_MATERIALIZED_V1) {
 	const size = nonNegativeSafeInteger(value, 'Linked-video size');
 	const maximum = readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1
@@ -305,12 +507,13 @@ function strictBoolean(value) {
 	return value;
 }
 
-async function rollbackLocator(store, locator, owner, cause) {
+async function rollbackLocator(store, locator, owner, cause, kind = 'video') {
 	const reference = possibleLocatorReference(locator);
 	if (!reference) throw cause;
 	try {
 		if (await store.release(reference.locatorId, {
 			owner, expectedRevision: reference.locatorRevision,
+			...(kind === 'video' ? {} : { expectedKind: kind }),
 		}) !== true) throw new Error('Linked-video locator cleanup was not acknowledged.');
 	} catch (cleanupError) {
 		throw new AggregateError(

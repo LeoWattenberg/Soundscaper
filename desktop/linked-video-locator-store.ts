@@ -2,7 +2,6 @@
 
 import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import { stat as nodeStat } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
 
 import {
 	MAX_PERSISTED_LINKED_VIDEO_BYTES,
@@ -16,6 +15,18 @@ import {
 	type PersistedLinkedVideoFileIdentity,
 	type PersistedLinkedVideoLocator,
 } from './linked-video-locator-registry.ts';
+import {
+	absoluteLinkedOriginalPath,
+	boundedLimit,
+	linkedOriginalDisplayName,
+	linkedOriginalMediaKind,
+	linkedOriginalMimeType,
+	linkedOriginalOpaqueToken,
+	linkedOriginalReadTimestamp,
+	nullableLocatorRevision,
+	requiredLocatorOwner,
+	type LinkedOriginalMediaKind,
+} from './linked-original-locator-validation.ts';
 
 export const MAX_LINKED_VIDEO_LOCATORS = MAX_PERSISTED_LINKED_VIDEO_LOCATORS;
 export const MAX_LINKED_VIDEO_LOCATOR_BYTES = MAX_PERSISTED_LINKED_VIDEO_BYTES;
@@ -74,6 +85,10 @@ export interface DesktopLinkedVideoLocatorReference {
 	readonly locatorRevision: string;
 }
 
+export interface DesktopLinkedOriginalLocatorReference extends DesktopLinkedVideoLocatorReference {
+	readonly kind: LinkedOriginalMediaKind;
+}
+
 type FileIdentity = PersistedLinkedVideoFileIdentity;
 
 interface OwnerState {
@@ -82,6 +97,7 @@ interface OwnerState {
 }
 
 interface LocatorEntry extends DesktopLinkedVideoLocator {
+	readonly kind: LinkedOriginalMediaKind;
 	readonly path: string;
 	readonly identity: FileIdentity;
 }
@@ -145,6 +161,7 @@ export class DesktopLinkedVideoLocatorStore {
 	async registerPath(
 		path: string,
 		options: Readonly<{
+			kind?: LinkedOriginalMediaKind;
 			owner: object;
 			mimeType: string;
 			displayName: string;
@@ -152,10 +169,11 @@ export class DesktopLinkedVideoLocatorStore {
 	): Promise<Readonly<DesktopLinkedVideoLocator>> {
 		await this.ready();
 		this.#assertActive();
-		const owner = requiredOwner(options?.owner);
-		const absolutePath = absoluteFilePath(path);
-		const mimeType = videoMimeType(options?.mimeType);
-		const name = displayName(options?.displayName);
+		const owner = requiredLocatorOwner(options?.owner);
+		const absolutePath = absoluteLinkedOriginalPath(path);
+		const kind = linkedOriginalMediaKind(options?.kind, 'video');
+		const name = linkedOriginalDisplayName(options?.displayName);
+		const mimeType = linkedOriginalMimeType(kind, options?.mimeType, name);
 		const identity = persistedLinkedVideoFileIdentityFromStat(await this.#stat(absolutePath));
 		if (identity.size < 1) throw new RangeError('A linked-video locator cannot reference an empty file.');
 		if (identity.size > MAX_LINKED_VIDEO_FILE_BYTES || identity.size > this.#maximumBytes) {
@@ -173,12 +191,13 @@ export class DesktopLinkedVideoLocatorStore {
 			}
 			const locatorId = this.#newToken();
 			const entry: LocatorEntry = Object.freeze({
+				kind,
 				locatorId,
 				locatorRevision: this.#newToken(),
 				name,
 				size: identity.size,
 				mimeType,
-				lastModified: readTimestamp(identity.mtimeMs),
+				lastModified: linkedOriginalReadTimestamp(identity.mtimeMs),
 				path: absolutePath,
 				identity,
 			});
@@ -212,9 +231,15 @@ export class DesktopLinkedVideoLocatorStore {
 		options: Readonly<{
 			owner: object;
 			expectedRevision: string | null;
+			expectedKind?: LinkedOriginalMediaKind;
 		}>,
 	): Promise<Readonly<LoadedDesktopLinkedVideoLocator> | null> {
-		return this.#load(locatorId, options, false);
+		return this.#load(
+			locatorId,
+			options,
+			linkedOriginalMediaKind(options?.expectedKind, 'video'),
+			false,
+		);
 	}
 
 	async leasePlayback(
@@ -224,23 +249,27 @@ export class DesktopLinkedVideoLocatorStore {
 		if (options?.expectedRevision === null) {
 			throw new TypeError('Linked-video playback requires an exact locator revision.');
 		}
-		return this.#load(locatorId, options, true);
+		return this.#load(locatorId, options, 'video', true);
 	}
 
 	async #load(
 		locatorId: string,
 		options: Readonly<{ owner: object; expectedRevision: string | null }>,
+		expectedKind: LinkedOriginalMediaKind,
 		playback: boolean,
 	): Promise<Readonly<LoadedDesktopLinkedVideoLocator> | null> {
 		await this.ready();
 		this.#assertActive();
-		const id = opaqueToken(locatorId, 'Invalid linked-video locator identifier.');
-		const owner = requiredOwner(options?.owner);
-		const expectedRevision = nullableRevision(options?.expectedRevision);
+		const id = linkedOriginalOpaqueToken(locatorId, 'Invalid linked-video locator identifier.');
+		const owner = requiredLocatorOwner(options?.owner);
+		const expectedRevision = nullableLocatorRevision(options?.expectedRevision);
 		const state = this.#ownerState(owner);
 		const entry = this.#entries.get(id);
 		if (!entry || state.revoked
 			|| expectedRevision !== null && entry.locatorRevision !== expectedRevision) return null;
+		if (entry.kind !== expectedKind) {
+			throw new Error(`A linked-${entry.kind} locator cannot be loaded as linked-${expectedKind}.`);
+		}
 		const before = await this.#currentIdentity(entry.path);
 		if (!before || !samePersistedLinkedVideoFileIdentity(before, entry.identity)
 			|| this.#entries.get(id) !== entry) return null;
@@ -281,20 +310,24 @@ export class DesktopLinkedVideoLocatorStore {
 	}
 
 	async release(locatorId: string, options: Readonly<{
-		owner: object; expectedRevision: string;
+		owner: object; expectedRevision: string; expectedKind?: LinkedOriginalMediaKind;
 	}>): Promise<boolean> {
 		await this.ready();
-		const id = opaqueToken(locatorId, 'Invalid linked-video locator identifier.');
-		const owner = requiredOwner(options?.owner);
-		const expectedRevision = opaqueToken(
+		const id = linkedOriginalOpaqueToken(locatorId, 'Invalid linked-video locator identifier.');
+		const owner = requiredLocatorOwner(options?.owner);
+		const expectedRevision = linkedOriginalOpaqueToken(
 			options?.expectedRevision,
 			'Invalid linked-video locator revision.',
 		);
+		const expectedKind = linkedOriginalMediaKind(options?.expectedKind, 'video');
 		const state = this.#ownerState(owner);
 		return this.#mutate(async () => {
 			if (state.revoked) return false;
 			const entry = this.#entries.get(id);
 			if (!entry || entry.locatorRevision !== expectedRevision) return false;
+			if (entry.kind !== expectedKind) {
+				throw new Error(`A linked-${entry.kind} locator cannot be released as linked-${expectedKind}.`);
+			}
 			this.#drop(entry);
 			try {
 				await this.#persist();
@@ -328,7 +361,7 @@ export class DesktopLinkedVideoLocatorStore {
 		await this.ready();
 		this.#assertActive();
 		const references = locatorReferences(referencesValue);
-		const owner = requiredOwner(options?.owner);
+		const owner = requiredLocatorOwner(options?.owner);
 		const state = this.#ownerState(owner);
 		return this.#mutate(async () => {
 			this.#assertActive();
@@ -340,6 +373,10 @@ export class DesktopLinkedVideoLocatorStore {
 				if (!entry) throw new Error('Linked-video reconciliation references an unknown locator.');
 				if (entry.locatorRevision !== reference.locatorRevision) {
 					throw new Error('Linked-video reconciliation references a stale locator revision.');
+				}
+				const referenceKind = 'kind' in reference ? reference.kind : 'video';
+				if (entry.kind !== referenceKind) {
+					throw new Error('Linked-original reconciliation references the wrong media kind.');
 				}
 				referencedRevisions.set(reference.locatorId, reference.locatorRevision);
 			}
@@ -377,7 +414,7 @@ export class DesktopLinkedVideoLocatorStore {
 	}
 
 	revokeOwner(ownerValue: object): void {
-		const owner = requiredOwner(ownerValue);
+		const owner = requiredLocatorOwner(ownerValue);
 		const state = this.#ownerState(owner);
 		state.revoked = true;
 	}
@@ -482,6 +519,7 @@ function publicLocator(entry: LocatorEntry): Readonly<DesktopLinkedVideoLocator>
 
 function persistedEntry(entry: LocatorEntry): Readonly<PersistedLinkedVideoLocator> {
 	return normalizePersistedLinkedVideoLocator({
+		kind: entry.kind,
 		locatorId: entry.locatorId,
 		locatorRevision: entry.locatorRevision,
 		path: entry.path,
@@ -509,56 +547,9 @@ function assertDescriptorMatches(
 	}
 }
 
-function boundedLimit(value: number, maximum: number, label: string): number {
-	if (!Number.isSafeInteger(value) || value < 1 || value > maximum) {
-		throw new RangeError(`${label} must be a positive integer no greater than ${maximum}.`);
-	}
-	return value;
-}
-
-function requiredOwner(value: unknown): object {
-	if ((typeof value !== 'object' || value === null) && typeof value !== 'function') {
-		throw new TypeError('A linked-video locator owner is required.');
-	}
-	return value as object;
-}
-
-function absoluteFilePath(value: unknown): string {
-	if (typeof value !== 'string' || !isAbsolute(value)) {
-		throw new TypeError('A linked-video locator requires an absolute file path.');
-	}
-	return value;
-}
-
-function videoMimeType(value: unknown): string {
-	if (typeof value !== 'string' || value.length > 128
-		|| !/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(value)) {
-		throw new TypeError('A linked-video locator requires a canonical video MIME type.');
-	}
-	return value;
-}
-
-function displayName(value: unknown): string {
-	if (typeof value !== 'string' || !value || value !== value.trim()
-		|| value.length > 255 || value === '.' || value === '..'
-		|| value.includes('/') || value.includes('\\') || /[\u0000-\u001f]/u.test(value)) {
-		throw new TypeError('A linked-video locator display name is invalid.');
-	}
-	return value;
-}
-
-function opaqueToken(value: unknown, message: string): string {
-	if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) throw new TypeError(message);
-	return value;
-}
-
-function nullableRevision(value: unknown): string | null {
-	return value === null
-		? null
-		: opaqueToken(value, 'Invalid linked-video locator revision.');
-}
-
-function locatorReferences(value: unknown): readonly DesktopLinkedVideoLocatorReference[] {
+function locatorReferences(
+	value: unknown,
+): readonly (DesktopLinkedVideoLocatorReference | DesktopLinkedOriginalLocatorReference)[] {
 	if (!Array.isArray(value) || value.length > MAX_LINKED_VIDEO_LOCATORS) {
 		throw new RangeError('Linked-video reconciliation reference count exceeds its limit.');
 	}
@@ -568,33 +559,30 @@ function locatorReferences(value: unknown): readonly DesktopLinkedVideoLocatorRe
 			throw new TypeError('A linked-video reconciliation reference must be an object.');
 		}
 		const keys = Reflect.ownKeys(item);
-		if (keys.length !== 2 || !keys.includes('locatorId') || !keys.includes('locatorRevision')) {
+		const hasKind = keys.includes('kind');
+		const fields = hasKind ? ['kind', 'locatorId', 'locatorRevision'] : ['locatorId', 'locatorRevision'];
+		if (keys.length !== fields.length || fields.some((field) => !keys.includes(field))) {
 			throw new TypeError('A linked-video reconciliation reference contains an unsupported field.');
 		}
 		const candidate = item as Readonly<Record<string, unknown>>;
-		for (const key of ['locatorId', 'locatorRevision']) {
+		for (const key of fields) {
 			const descriptor = Object.getOwnPropertyDescriptor(item, key);
 			if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
 				throw new TypeError(`Linked-video reconciliation ${key} must be an enumerable data field.`);
 			}
 		}
-		const locatorId = opaqueToken(candidate.locatorId, 'Invalid linked-video locator identifier.');
+		const locatorId = linkedOriginalOpaqueToken(candidate.locatorId, 'Invalid linked-video locator identifier.');
 		if (identifiers.has(locatorId)) {
 			throw new Error('Linked-video reconciliation references duplicate locator identifiers.');
 		}
 		identifiers.add(locatorId);
 		return Object.freeze({
+			...(hasKind ? { kind: linkedOriginalMediaKind(candidate.kind) } : {}),
 			locatorId,
-			locatorRevision: opaqueToken(
+			locatorRevision: linkedOriginalOpaqueToken(
 				candidate.locatorRevision,
 				'Invalid linked-video locator revision.',
 			),
 		});
 	}));
-}
-
-function readTimestamp(value: number): number {
-	const timestamp = Math.max(0, Math.trunc(value));
-	if (!Number.isSafeInteger(timestamp)) throw new RangeError('Linked-video modification time is invalid.');
-	return timestamp;
 }

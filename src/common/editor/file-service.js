@@ -13,6 +13,7 @@ import {
 	isDesktopReadProfile,
 } from './desktop-read-profile.ts';
 import { createDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
+import { createDesktopLinkedOriginalAccess } from './desktop-linked-original-port.ts';
 import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
@@ -38,15 +39,29 @@ export function createAudioEditorFileService(options = {}) {
 	const linkedVideoOriginals = createDesktopLinkedVideoOriginalAccess({
 		bridge, fetch: fetchFile, openReadDescriptor,
 	});
+	const linkedOriginals = createDesktopLinkedOriginalAccess({
+		bridge,
+		videoPort: linkedVideoOriginals.port,
+		openReadDescriptor,
+	});
+	const linkedVideoOriginalPort = createLinkedVideoOriginalPortCompatibility(
+		linkedVideoOriginals.port,
+		linkedOriginals.port,
+	);
 
 	return Object.freeze({
 		kind: isDesktop ? 'desktop' : 'browser',
 		isDesktop,
 		bridge,
 		linkedVideoOriginalsAvailable: linkedVideoOriginals.available,
-		linkedVideoOriginalPort: linkedVideoOriginals.port,
+		linkedVideoOriginalPort,
 		chooseLinkedVideoOriginal: linkedVideoOriginals.choose,
 		releaseLinkedVideoOriginal: linkedVideoOriginals.release,
+		linkedOriginalsAvailable: linkedOriginals.available,
+		linkedAudioOriginalsAvailable: linkedOriginals.audioAvailable,
+		linkedOriginalPort: linkedOriginals.port,
+		chooseLinkedAudioOriginal: linkedOriginals.chooseAudio,
+		releaseLinkedAudioOriginal: linkedOriginals.releaseAudio,
 		getEnvironment: () => bridge?.getEnvironment?.() ?? null,
 		chooseFiles,
 		openReadDescriptor,
@@ -303,6 +318,53 @@ export function createAudioEditorFileService(options = {}) {
 		}
 		return { method: 'download', fileName, size: blob.size };
 	}
+}
+
+function createLinkedVideoOriginalPortCompatibility(videoPort, linkedOriginalPort) {
+	if (!videoPort || !linkedOriginalPort) return videoPort;
+	return Object.freeze({
+		load: (...args) => videoPort.load(...args),
+		...(typeof videoPort.leasePlayback === 'function'
+			? { leasePlayback: (...args) => videoPort.leasePlayback(...args) }
+			: {}),
+		reconcile: (references) => linkedOriginalPort.reconcile(
+			legacyLinkedVideoReferences(references).map((reference) => ({ kind: 'video', ...reference })),
+		),
+		release: (reference) => linkedOriginalPort.release({
+			kind: 'video', ...legacyLinkedVideoReferences([reference])[0],
+		}),
+	});
+}
+
+function legacyLinkedVideoReferences(value) {
+	if (!Array.isArray(value) || value.length > 128) {
+		throw new RangeError('Linked-video reference count exceeds its limit.');
+	}
+	const identifiers = new Set();
+	return Object.freeze(value.map((item) => {
+		if (!item || typeof item !== 'object' || Array.isArray(item)) {
+			throw new TypeError('A linked-video locator reference is required.');
+		}
+		const fields = ['locatorId', 'locatorRevision'];
+		const keys = Reflect.ownKeys(item);
+		if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
+			throw new TypeError('A linked-video locator reference contains an unsupported field.');
+		}
+		const reference = {};
+		for (const field of fields) {
+			const descriptor = Object.getOwnPropertyDescriptor(item, field);
+			if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+				|| typeof descriptor.value !== 'string' || !/^[a-f0-9]{64}$/u.test(descriptor.value)) {
+				throw new TypeError(`Linked-video ${field} is invalid.`);
+			}
+			reference[field] = descriptor.value;
+		}
+		if (identifiers.has(reference.locatorId)) {
+			throw new Error('Linked-video references contain a duplicate locator.');
+		}
+		identifiers.add(reference.locatorId);
+		return Object.freeze(reference);
+	}));
 }
 
 function subscribeBridgeEvent(bridge, method, listener) {

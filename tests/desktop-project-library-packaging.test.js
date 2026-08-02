@@ -23,6 +23,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	const result = await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot });
 	assert.deepEqual(result.files, [
 		'desktop/application-lifecycle.js',
+		'desktop/linked-original-locator-validation.js',
 		'desktop/linked-video-locator-registry.js',
 		'desktop/linked-video-locator-store.js',
 		'desktop/project-library-abort.js',
@@ -167,6 +168,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-original-locator-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-video-locator-registry.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-video-locator-store.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-media-service.js'));

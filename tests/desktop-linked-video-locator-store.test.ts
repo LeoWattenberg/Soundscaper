@@ -557,6 +557,7 @@ async function persistedLocator(
 ): Promise<Readonly<PersistedLinkedVideoLocator>> {
 	const metadata = await stat(path);
 	return Object.freeze({
+		kind: 'video',
 		locatorId: locatorByte.repeat(64),
 		locatorRevision: revisionByte.repeat(64),
 		path,

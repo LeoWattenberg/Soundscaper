@@ -6,6 +6,7 @@ import { extname, join, resolve } from 'node:path';
 
 const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/application-lifecycle.js',
+	'desktop/linked-original-locator-validation.js',
 	'desktop/linked-video-locator-registry.js',
 	'desktop/linked-video-locator-store.js',
 	'desktop/project-library-abort.js',

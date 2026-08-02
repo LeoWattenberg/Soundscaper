@@ -11,7 +11,13 @@ import {
 } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve } from 'node:path';
 
-export const LINKED_VIDEO_LOCATOR_REGISTRY_SCHEMA_VERSION = 1;
+import {
+	linkedOriginalMediaKind,
+	linkedOriginalMimeType,
+	type LinkedOriginalMediaKind,
+} from './linked-original-locator-validation.ts';
+
+export const LINKED_VIDEO_LOCATOR_REGISTRY_SCHEMA_VERSION = 2;
 export const MAX_PERSISTED_LINKED_VIDEO_LOCATORS = 128;
 export const MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES = 512 * 1024 ** 2;
 export const MAX_PERSISTED_LINKED_VIDEO_BYTES = 64 * 1024 ** 3;
@@ -59,6 +65,7 @@ export function samePersistedLinkedVideoFileIdentity(
 }
 
 export interface PersistedLinkedVideoLocator {
+	readonly kind: LinkedOriginalMediaKind;
 	readonly locatorId: string;
 	readonly locatorRevision: string;
 	readonly path: string;
@@ -122,7 +129,7 @@ export class FileDesktopLinkedVideoLocatorRegistry implements DesktopLinkedVideo
 	}
 
 	async write(entries: readonly PersistedLinkedVideoLocator[]): Promise<void> {
-		const normalized = normalizeEntries(entries);
+		const normalized = normalizeEntries(entries, false);
 		const document = Object.freeze({
 			schemaVersion: LINKED_VIDEO_LOCATOR_REGISTRY_SCHEMA_VERSION,
 			entries: normalized,
@@ -163,10 +170,21 @@ export class FileDesktopLinkedVideoLocatorRegistry implements DesktopLinkedVideo
 export function normalizePersistedLinkedVideoLocator(
 	value: unknown,
 ): Readonly<PersistedLinkedVideoLocator> {
+	return normalizePersistedLocator(value, true);
+}
+
+function normalizePersistedLocator(
+	value: unknown,
+	allowLegacyVideo: boolean,
+): Readonly<PersistedLinkedVideoLocator> {
+	const record = value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+	const legacy = allowLegacyVideo && record !== null && !Object.hasOwn(record, 'kind');
 	const candidate = closedRecord(value, [
+		...(legacy ? [] : ['kind']),
 		'locatorId', 'locatorRevision', 'path', 'name', 'size', 'mimeType',
 		'lastModified', 'identity',
 	], 'Persisted linked-video locator');
+	const kind = linkedOriginalMediaKind(legacy ? undefined : candidate.kind, 'video');
 	const identity = normalizeIdentity(candidate.identity);
 	const size = positiveSafeInteger(candidate.size, 'Persisted linked-video locator size');
 	if (size !== identity.size || size > MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES) {
@@ -179,13 +197,15 @@ export function normalizePersistedLinkedVideoLocator(
 	if (lastModified !== Math.max(0, Math.trunc(identity.mtimeMs))) {
 		throw new RangeError('Persisted linked-video locator modification time does not match its file identity.');
 	}
+	const name = displayName(candidate.name);
 	return Object.freeze({
+		kind,
 		locatorId: opaqueToken(candidate.locatorId, 'locator identifier'),
 		locatorRevision: opaqueToken(candidate.locatorRevision, 'locator revision'),
 		path: absolutePath(candidate.path),
-		name: displayName(candidate.name),
+		name,
 		size,
-		mimeType: videoMimeType(candidate.mimeType),
+		mimeType: linkedOriginalMimeType(kind, candidate.mimeType, name, 'Persisted linked-original locator'),
 		lastModified,
 		identity,
 	});
@@ -193,20 +213,24 @@ export function normalizePersistedLinkedVideoLocator(
 
 function normalizeRegistry(value: unknown): readonly PersistedLinkedVideoLocator[] {
 	const document = closedRecord(value, ['schemaVersion', 'entries'], 'Linked-video locator registry');
-	if (document.schemaVersion !== LINKED_VIDEO_LOCATOR_REGISTRY_SCHEMA_VERSION) {
+	if (document.schemaVersion !== 1
+		&& document.schemaVersion !== LINKED_VIDEO_LOCATOR_REGISTRY_SCHEMA_VERSION) {
 		throw new RangeError('Unsupported linked-video locator registry schema version.');
 	}
 	if (!Array.isArray(document.entries)) {
 		throw new TypeError('Linked-video locator registry entries must be an array.');
 	}
-	return normalizeEntries(document.entries);
+	return normalizeEntries(document.entries, document.schemaVersion === 1);
 }
 
-function normalizeEntries(value: readonly unknown[]): readonly PersistedLinkedVideoLocator[] {
+function normalizeEntries(
+	value: readonly unknown[],
+	allowLegacyVideo: boolean,
+): readonly PersistedLinkedVideoLocator[] {
 	if (!Array.isArray(value) || value.length > MAX_PERSISTED_LINKED_VIDEO_LOCATORS) {
 		throw new RangeError('Linked-video locator registry entry count exceeds its limit.');
 	}
-	const entries = value.map(normalizePersistedLinkedVideoLocator)
+	const entries = value.map((entry) => normalizePersistedLocator(entry, allowLegacyVideo))
 		.sort((left, right) => left.locatorId.localeCompare(right.locatorId));
 	if (new Set(entries.map(({ locatorId }) => locatorId)).size !== entries.length) {
 		throw new Error('Linked-video locator registry contains duplicate identifiers.');
@@ -277,14 +301,6 @@ function displayName(value: unknown): string {
 		|| value.length > 255 || value === '.' || value === '..'
 		|| value.includes('/') || value.includes('\\') || /[\u0000-\u001f]/u.test(value)) {
 		throw new TypeError('Persisted linked-video display name is invalid.');
-	}
-	return value;
-}
-
-function videoMimeType(value: unknown): string {
-	if (typeof value !== 'string' || value.length > 128
-		|| !/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(value)) {
-		throw new TypeError('Persisted linked-video MIME type is invalid.');
 	}
 	return value;
 }

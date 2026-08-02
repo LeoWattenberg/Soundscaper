@@ -15,7 +15,7 @@ import {
 	type DesktopLinkedVideoReadCapabilityStore,
 } from '../desktop/linked-video-locator-store.ts';
 
-test('file locator registry atomically persists a private closed v1 document', async (context) => {
+test('file locator registry atomically persists a private closed v2 document', async (context) => {
 	const root = await temporaryRoot(context, 'soundscaper-linked-registry-');
 	const registryPath = join(root, 'private', 'linked-video-locators-v1.json');
 	const targetPath = join(root, 'selected.mp4');
@@ -33,7 +33,7 @@ test('file locator registry atomically persists a private closed v1 document', a
 	assert.equal(metadata.mode & 0o777, 0o600);
 	const document = JSON.parse(await readFile(registryPath, 'utf8')) as Record<string, unknown>;
 	assert.deepEqual(Object.keys(document), ['schemaVersion', 'entries']);
-	assert.equal(document.schemaVersion, 1);
+	assert.equal(document.schemaVersion, 2);
 	assert.deepEqual(await registry.read(), [entry]);
 	assert.equal(Object.isFrozen(await registry.read()), true);
 
@@ -52,7 +52,7 @@ test('file locator registry rejects symbolic, malformed, open, and duplicate sta
 
 	for (const document of [
 		'{',
-		JSON.stringify({ schemaVersion: 2, entries: [] }),
+		JSON.stringify({ schemaVersion: 3, entries: [] }),
 		JSON.stringify({ schemaVersion: 1, entries: [], extra: true }),
 		JSON.stringify({ schemaVersion: 1, entries: [{ ...entry, path: 'relative.mp4' }] }),
 		JSON.stringify({ schemaVersion: 1, entries: [entry, entry] }),
@@ -135,6 +135,7 @@ async function persistedLocator(
 ): Promise<Readonly<PersistedLinkedVideoLocator>> {
 	const metadata = await stat(path);
 	return Object.freeze({
+		kind: 'video',
 		locatorId: locatorByte.repeat(64),
 		locatorRevision: revisionByte.repeat(64),
 		path,

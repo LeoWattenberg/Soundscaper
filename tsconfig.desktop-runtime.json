@@ -15,6 +15,7 @@
 	},
 	"include": [
 		"desktop/application-lifecycle.ts",
+		"desktop/linked-original-locator-validation.ts",
 		"desktop/linked-video-locator-registry.ts",
 		"desktop/linked-video-locator-store.ts",
 		"desktop/project-library-abort.ts",

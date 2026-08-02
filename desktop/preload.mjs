@@ -12,6 +12,10 @@ const CHANNELS = Object.freeze({
 	loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load',
 	reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile',
 	releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release',
+	chooseLinkedAudioOriginal: 'soundscaper:v1:linked-audio:choose',
+	loadLinkedAudioOriginal: 'soundscaper:v1:linked-audio:load',
+	reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile',
+	releaseLinkedOriginal: 'soundscaper:v1:linked-original:release',
 	chooseSaveTarget: 'soundscaper:v1:save:choose',
 	beginWrite: 'soundscaper:v1:save:begin',
 	writeChunk: 'soundscaper:v1:save:chunk',
@@ -65,14 +69,22 @@ const api = Object.freeze({
 		multiple: options?.multiple === true,
 	}).then(sanitizeReadDescriptors),
 	releaseRead: (id) => ipcRenderer.invoke(CHANNELS.releaseRead, opaqueId(id, 64)),
-	chooseLinkedVideoOriginal: () => ipcRenderer.invoke(CHANNELS.chooseLinkedVideoOriginal).then(nullableLinkedVideoLocator),
+	chooseLinkedVideoOriginal: () => ipcRenderer.invoke(CHANNELS.chooseLinkedVideoOriginal).then((value) => nullableLinkedLocator(value, 'video')),
 	loadLinkedVideoOriginal: (value) => {
 		const request = linkedVideoLoadRequest(value);
 		return ipcRenderer.invoke(CHANNELS.loadLinkedVideoOriginal, request)
-			.then((result) => nullableLoadedLinkedVideoLocator(result, request.playback));
+			.then((result) => nullableLoadedLinkedLocator(result, 'video', request.playback));
 	},
 	reconcileLinkedVideoOriginals: (value) => ipcRenderer.invoke(CHANNELS.reconcileLinkedVideoOriginals, linkedVideoReferences(value)).then(safeInteger),
 	releaseLinkedVideoOriginal: (reference) => ipcRenderer.invoke(CHANNELS.releaseLinkedVideoOriginal, linkedVideoReferences([reference])[0]).then(strictBoolean),
+	chooseLinkedAudioOriginal: () => ipcRenderer.invoke(CHANNELS.chooseLinkedAudioOriginal).then((value) => nullableLinkedLocator(value, 'audio')),
+	loadLinkedAudioOriginal: (value) => {
+		const request = linkedAudioLoadRequest(value);
+		return ipcRenderer.invoke(CHANNELS.loadLinkedAudioOriginal, request)
+			.then((result) => nullableLoadedLinkedLocator(result, 'audio', false));
+	},
+	reconcileLinkedOriginals: (value) => ipcRenderer.invoke(CHANNELS.reconcileLinkedOriginals, linkedOriginalReferences(value)).then(safeInteger),
+	releaseLinkedOriginal: (reference) => ipcRenderer.invoke(CHANNELS.releaseLinkedOriginal, linkedOriginalReferences([reference])[0]).then(strictBoolean),
 	chooseSaveTarget: (options) => ipcRenderer.invoke(CHANNELS.chooseSaveTarget, {
 		purpose: text(options?.purpose, 24),
 		suggestedName: text(options?.suggestedName, 220),
@@ -90,38 +102,14 @@ const api = Object.freeze({
 	finishWrite: (writeId) => ipcRenderer.invoke(CHANNELS.finishWrite, opaqueId(writeId, 32)),
 	abortWrite: (writeId) => ipcRenderer.invoke(CHANNELS.abortWrite, opaqueId(writeId, 32)),
 	listSharedProjects: () => ipcRenderer.invoke(CHANNELS.listSharedProjects).then(sharedProjectSummaries),
-	readSharedProject: (projectId) => ipcRenderer.invoke(
-		CHANNELS.readSharedProject,
-		sharedProjectId(projectId),
-	).then(nullableProjectDocument),
-	readSharedProjectBundle: (projectId) => ipcRenderer.invoke(
-		CHANNELS.readSharedProjectBundle,
-		sharedProjectId(projectId),
-	).then(nullableProjectBundle),
-	commitSharedProject: (document) => ipcRenderer.invoke(
-		CHANNELS.commitSharedProject,
-		projectDocument(document),
-	).then(projectDocument),
-	deleteSharedProject: (projectId) => ipcRenderer.invoke(
-		CHANNELS.deleteSharedProject,
-		sharedProjectId(projectId),
-	).then(strictBoolean),
-	beginSharedSourceWrite: (declaration) => ipcRenderer.invoke(
-		CHANNELS.beginSharedSourceWrite,
-		sharedSourceWriteDeclaration(declaration),
-	).then(sharedSourceWriteAdmission),
-	writeSharedSourceChunk: (value) => ipcRenderer.invoke(
-		CHANNELS.writeSharedSourceChunk,
-		sharedSourceChunkWrite(value),
-	).then(sharedSourceChunkAcknowledgement),
-	finishSharedSourceWrite: (value) => ipcRenderer.invoke(
-		CHANNELS.finishSharedSourceWrite,
-		sharedSourceWriteCompletion(value),
-	).then(sharedManagedSourceDescriptor),
-	abortSharedSourceWrite: (writeId) => ipcRenderer.invoke(
-		CHANNELS.abortSharedSourceWrite,
-		sharedSourceWriteId(writeId),
-	).then(strictBoolean),
+	readSharedProject: (projectId) => ipcRenderer.invoke(CHANNELS.readSharedProject, sharedProjectId(projectId)).then(nullableProjectDocument),
+	readSharedProjectBundle: (projectId) => ipcRenderer.invoke(CHANNELS.readSharedProjectBundle, sharedProjectId(projectId)).then(nullableProjectBundle),
+	commitSharedProject: (document) => ipcRenderer.invoke(CHANNELS.commitSharedProject, projectDocument(document)).then(projectDocument),
+	deleteSharedProject: (projectId) => ipcRenderer.invoke(CHANNELS.deleteSharedProject, sharedProjectId(projectId)).then(strictBoolean),
+	beginSharedSourceWrite: (declaration) => ipcRenderer.invoke(CHANNELS.beginSharedSourceWrite, sharedSourceWriteDeclaration(declaration)).then(sharedSourceWriteAdmission),
+	writeSharedSourceChunk: (value) => ipcRenderer.invoke(CHANNELS.writeSharedSourceChunk, sharedSourceChunkWrite(value)).then(sharedSourceChunkAcknowledgement),
+	finishSharedSourceWrite: (value) => ipcRenderer.invoke(CHANNELS.finishSharedSourceWrite, sharedSourceWriteCompletion(value)).then(sharedManagedSourceDescriptor),
+	abortSharedSourceWrite: (writeId) => ipcRenderer.invoke(CHANNELS.abortSharedSourceWrite, sharedSourceWriteId(writeId)).then(strictBoolean),
 	readSharedSourceChunk: (value) => {
 		const request = sharedSourceChunkRead(value);
 		return ipcRenderer.invoke(CHANNELS.readSharedSourceChunk, request)
@@ -175,14 +163,15 @@ function sanitizeReadDescriptors(values) {
 	if (!Array.isArray(values)) throw new TypeError('Expected read descriptors');
 	return Object.freeze(values.map(sanitizeReadDescriptor));
 }
-function nullableLinkedVideoLocator(value) {
+function nullableLinkedLocator(value, kind) {
 	if (value === null) return null;
-	const mimeType = linkedVideoMimeType(value?.mimeType);
+	const name = readDescriptorName(value?.name);
+	const mimeType = linkedOriginalMimeType(kind, value?.mimeType, name);
 	const size = readDescriptorSize(value?.size, READ_PROFILE_MATERIALIZED_V1);
-	if (size === 0) throw new RangeError('Linked-video size must be positive');
+	if (size === 0) throw new RangeError(`Linked-${kind} size must be positive`);
 	return Object.freeze({
-		locatorId: opaqueId(value?.locatorId, 64), locatorRevision: linkedVideoRevision(value?.locatorRevision),
-		name: readDescriptorName(value?.name), size, mimeType,
+		locatorId: opaqueId(value?.locatorId, 64), locatorRevision: linkedLocatorRevision(value?.locatorRevision),
+		name, size, mimeType,
 		lastModified: safeInteger(value?.lastModified),
 	});
 }
@@ -193,9 +182,20 @@ function linkedVideoLoadRequest(value) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, field); return !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value');
 	})) throw new TypeError('A linked-video load request contains an unsupported field');
 	if (value.playback !== true && value.playback !== false) throw new TypeError('Linked-video load mode must be a boolean');
-	const expectedRevision = value.expectedRevision === null ? null : linkedVideoRevision(value.expectedRevision);
+	const expectedRevision = value.expectedRevision === null ? null : linkedLocatorRevision(value.expectedRevision);
 	if (value.playback && expectedRevision === null) throw new TypeError('Linked-video playback requires an exact locator revision');
 	return Object.freeze({ locatorId: opaqueId(value.locatorId, 64), expectedRevision, playback: value.playback });
+}
+function linkedAudioLoadRequest(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('A linked-audio load request is required');
+	const fields = ['locatorId', 'expectedRevision']; const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key)) || fields.some((field) => {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field); return !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value');
+	})) throw new TypeError('A linked-audio load request contains an unsupported field');
+	return Object.freeze({
+		locatorId: opaqueId(value.locatorId, 64),
+		expectedRevision: value.expectedRevision === null ? null : linkedLocatorRevision(value.expectedRevision),
+	});
 }
 function linkedVideoReferences(value) {
 	if (!Array.isArray(value) || value.length > 128) throw new RangeError('Linked-video reconciliation reference count exceeds its limit');
@@ -209,17 +209,32 @@ function linkedVideoReferences(value) {
 		const locatorId = opaqueId(reference.locatorId, 64);
 		if (identifiers.has(locatorId)) throw new Error('Linked-video reconciliation contains a duplicate identifier');
 		identifiers.add(locatorId);
-		return Object.freeze({ locatorId, locatorRevision: linkedVideoRevision(reference.locatorRevision) });
+		return Object.freeze({ locatorId, locatorRevision: linkedLocatorRevision(reference.locatorRevision) });
 	}));
 }
-async function nullableLoadedLinkedVideoLocator(value, playback) {
+function linkedOriginalReferences(value) {
+	if (!Array.isArray(value) || value.length > 128) throw new RangeError('Linked-original reconciliation reference count exceeds its limit');
+	const identifiers = new Set();
+	return Object.freeze(value.map((reference) => {
+		const fields = ['kind', 'locatorId', 'locatorRevision'];
+		const keys = reference && typeof reference === 'object' && !Array.isArray(reference) ? Reflect.ownKeys(reference) : [];
+		if (keys.length !== fields.length || keys.some((key) => !fields.includes(key)) || fields.some((field) => {
+			const descriptor = Object.getOwnPropertyDescriptor(reference, field); return !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value');
+		})) throw new TypeError('Linked-original reconciliation reference contains an unsupported field');
+		const locatorId = opaqueId(reference.locatorId, 64);
+		if (identifiers.has(locatorId)) throw new Error('Linked-original reconciliation contains a duplicate identifier');
+		identifiers.add(locatorId);
+		return Object.freeze({ kind: linkedMediaKind(reference.kind), locatorId, locatorRevision: linkedLocatorRevision(reference.locatorRevision) });
+	}));
+}
+async function nullableLoadedLinkedLocator(value, kind, playback) {
 	if (value === null) return null;
 	try {
 		const expectedProfile = playback ? READ_PROFILE_LINKED_VIDEO_RANGE_V1 : READ_PROFILE_MATERIALIZED_V1;
 		const descriptor = sanitizeReadDescriptor(value?.descriptor);
-		if (descriptor.readProfile !== expectedProfile || descriptor.size === 0) throw new TypeError(`Linked-video reads require a positive ${expectedProfile} descriptor`);
-		linkedVideoMimeType(descriptor.mimeType);
-		return Object.freeze({ locatorRevision: linkedVideoRevision(value?.locatorRevision), descriptor });
+		if (descriptor.readProfile !== expectedProfile || descriptor.size === 0) throw new TypeError(`Linked-${kind} reads require a positive ${expectedProfile} descriptor`);
+		linkedOriginalMimeType(kind, descriptor.mimeType, descriptor.name);
+		return Object.freeze({ locatorRevision: linkedLocatorRevision(value?.locatorRevision), descriptor });
 	} catch (cause) {
 		let id;
 		try { id = opaqueId(value?.descriptor?.id, 64); } catch { throw cause; }
@@ -231,11 +246,17 @@ async function nullableLoadedLinkedVideoLocator(value, playback) {
 		throw cause;
 	}
 }
-function linkedVideoRevision(value) { try { return opaqueId(value, 64); } catch { throw new TypeError('Invalid linked-video locator revision'); } }
-function linkedVideoMimeType(value) {
+function linkedLocatorRevision(value) { try { return opaqueId(value, 64); } catch { throw new TypeError('Invalid linked-original locator revision'); } }
+function linkedOriginalMimeType(kind, value, name) {
 	const mimeType = readDescriptorMimeType(value);
-	if (!/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) throw new TypeError('Invalid linked-video MIME type');
-	return mimeType;
+	if (kind === 'video' && /^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) return mimeType;
+	if (kind === 'audio' && ((/\.wav$/iu.test(name) && mimeType === 'audio/wav')
+		|| (/\.rf64$/iu.test(name) && mimeType === 'audio/rf64'))) return mimeType;
+	throw new TypeError(`Invalid linked-${kind} WAV or video MIME type`);
+}
+function linkedMediaKind(value) {
+	if (value !== 'audio' && value !== 'video') throw new TypeError('Invalid linked-original media kind');
+	return value;
 }
 function trustedCapabilityUrl(value, { id, readProfile, name }) {
 	let url;
@@ -285,7 +306,6 @@ function readDescriptorMimeType(value) {
 	if (!mimeType) throw new TypeError('Invalid read descriptor MIME type');
 	return mimeType;
 }
-
 function assertReadDescriptorProfile(readProfile, name, mimeType) {
 	const hasScapeName = /\.scape$/iu.test(name);
 	const hasScapeMime = mimeType === SCAPE_PROJECT_MIME_TYPE;
@@ -295,7 +315,6 @@ function assertReadDescriptorProfile(readProfile, name, mimeType) {
 		throw new TypeError('Invalid materialized read descriptor profile');
 	}
 }
-
 function readDescriptorSize(value, readProfile) {
 	const size = safeInteger(value);
 	const maximum = readProfile === READ_PROFILE_SCAPE_RANGE_V1
@@ -304,7 +323,6 @@ function readDescriptorSize(value, readProfile) {
 	if (size > maximum) throw new RangeError('Read descriptor is too large for its profile');
 	return size;
 }
-
 function saveDeclaration(options) {
 	const targetId = opaqueId(options?.targetId, 48);
 	const exactSize = options?.size !== undefined;
@@ -315,39 +333,27 @@ function saveDeclaration(options) {
 		? { targetId, size: saveSize(options.size) }
 		: { targetId, maximumSize: saveSize(options.maximumSize) };
 }
-
 function saveSize(value) {
 	const size = safeInteger(value);
 	if (size > MAX_DESKTOP_SAVE_BYTES) throw new RangeError('Save size is too large');
 	return size;
 }
-
 function sharedProjectSummaries(value) {
-	if (!Array.isArray(value) || value.length > MAX_SHARED_PROJECTS) {
-		throw new RangeError('Desktop shared-project service returned an invalid project count');
-	}
+	if (!Array.isArray(value) || value.length > MAX_SHARED_PROJECTS) throw new RangeError('Desktop shared-project service returned an invalid project count');
 	const summaries = Array.from(value, (summary) => Object.freeze({
 		id: sharedProjectId(summary?.id),
 		title: sharedProjectTitle(summary?.title),
 		revision: safeInteger(summary?.revision),
 		updatedAt: sharedProjectInstant(summary?.updatedAt),
 	}));
-	if (new Set(summaries.map(({ id }) => id)).size !== summaries.length) {
-		throw new TypeError('Desktop shared-project service returned duplicate project ids');
-	}
+	if (new Set(summaries.map(({ id }) => id)).size !== summaries.length) throw new TypeError('Desktop shared-project service returned duplicate project ids');
 	return Object.freeze(summaries);
 }
-
 function sharedProjectId(value) {
-	if (typeof value !== 'string' || !value.trim()) {
-		throw new TypeError('Desktop shared-project id must be a non-empty string');
-	}
-	if (utf8Bytes(value, MAX_SHARED_PROJECT_ID_BYTES) > MAX_SHARED_PROJECT_ID_BYTES) {
-		throw new RangeError('Desktop shared-project id exceeds its byte limit');
-	}
+	if (typeof value !== 'string' || !value.trim()) throw new TypeError('Desktop shared-project id must be a non-empty string');
+	if (utf8Bytes(value, MAX_SHARED_PROJECT_ID_BYTES) > MAX_SHARED_PROJECT_ID_BYTES) throw new RangeError('Desktop shared-project id exceeds its byte limit');
 	return value;
 }
-
 function sharedProjectTitle(value) {
 	if (typeof value !== 'string' || !value || value.length > 255
 		|| value.trim() !== value || hasControlCharacters(value)) {
@@ -355,7 +361,6 @@ function sharedProjectTitle(value) {
 	}
 	return value;
 }
-
 function hasControlCharacters(value) {
 	for (let index = 0; index < value.length; index += 1) {
 		const code = value.charCodeAt(index);
@@ -363,18 +368,12 @@ function hasControlCharacters(value) {
 	}
 	return false;
 }
-
 function sharedProjectInstant(value) {
-	if (typeof value !== 'string' || !SHARED_PROJECT_INSTANT.test(value)) {
-		throw new TypeError('Desktop shared-project updatedAt must be a canonical ISO instant');
-	}
+	if (typeof value !== 'string' || !SHARED_PROJECT_INSTANT.test(value)) throw new TypeError('Desktop shared-project updatedAt must be a canonical ISO instant');
 	const date = new Date(value);
-	if (!Number.isFinite(date.getTime()) || date.toISOString() !== value) {
-		throw new TypeError('Desktop shared-project updatedAt must be a canonical ISO instant');
-	}
+	if (!Number.isFinite(date.getTime()) || date.toISOString() !== value) throw new TypeError('Desktop shared-project updatedAt must be a canonical ISO instant');
 	return value;
 }
-
 function projectDocument(value, maximumBytes = MAX_SHARED_PROJECT_DOCUMENT_BYTES) {
 	if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1
 		|| maximumBytes > MAX_SHARED_PROJECT_DOCUMENT_BYTES) {
@@ -388,11 +387,9 @@ function projectDocument(value, maximumBytes = MAX_SHARED_PROJECT_DOCUMENT_BYTES
 	}
 	return value;
 }
-
 function nullableProjectDocument(value) {
 	return value === null ? null : projectDocument(value);
 }
-
 function nullableProjectBundle(value) {
 	if (value === null) return null;
 	if (!value || typeof value !== 'object' || Array.isArray(value)
@@ -405,7 +402,6 @@ function nullableProjectBundle(value) {
 	}
 	return Object.freeze({ document: projectDocument(value.document), sources });
 }
-
 function sharedManagedSourceDescriptor(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source descriptor is invalid');
@@ -429,7 +425,6 @@ function sharedManagedSourceDescriptor(value) {
 		storageKey: sharedSourceIdentity(value.storageKey),
 	});
 }
-
 function sharedSourceWriteDeclaration(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source write declaration is invalid');
@@ -448,7 +443,6 @@ function sharedSourceWriteDeclaration(value) {
 		sourceId: sharedSourceIdentity(value.sourceId),
 	});
 }
-
 function sharedSourceWriteAdmission(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source write admission is invalid');
@@ -461,7 +455,6 @@ function sharedSourceWriteAdmission(value) {
 	if (chunkSize > MAX_CHUNK_BYTES) throw new RangeError('Desktop shared-source chunk size is too large');
 	return Object.freeze({ status: 'ready', chunkSize, writeId: sharedSourceWriteId(value.writeId) });
 }
-
 function sharedSourceChunkWrite(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source chunk write is invalid');
@@ -476,14 +469,12 @@ function sharedSourceChunkWrite(value) {
 		writeId: sharedSourceWriteId(value.writeId),
 	});
 }
-
 function sharedSourceChunkAcknowledgement(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source chunk acknowledgement is invalid');
 	}
 	return Object.freeze({ nextOffset: safeInteger(value.nextOffset) });
 }
-
 function sharedSourceWriteCompletion(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source write completion is invalid');
@@ -493,7 +484,6 @@ function sharedSourceWriteCompletion(value) {
 		writeId: sharedSourceWriteId(value.writeId),
 	});
 }
-
 function sharedSourceChunkRead(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Desktop shared-source chunk read is invalid');
@@ -506,7 +496,6 @@ function sharedSourceChunkRead(value) {
 		offset: safeInteger(value.offset),
 	});
 }
-
 function sharedSourceChunkResult(value, expectedLength) {
 	const bytes = binary(value);
 	if (bytes.byteLength !== expectedLength) {
@@ -514,7 +503,6 @@ function sharedSourceChunkResult(value, expectedLength) {
 	}
 	return bytes;
 }
-
 function sharedSourceIdentity(value) {
 	if (typeof value !== 'string' || !value.trim()) {
 		throw new TypeError('Desktop shared-source identity is invalid');
@@ -524,59 +512,50 @@ function sharedSourceIdentity(value) {
 	}
 	return value;
 }
-
 function sharedSourceBytes(value) {
 	const bytes = safeInteger(value);
 	if (bytes > MAX_SHARED_SOURCE_BYTES) throw new RangeError('Desktop shared-source byte length is too large');
 	return bytes;
 }
-
 function sharedSourceWriteId(value) {
 	if (typeof value !== 'string' || !SOURCE_WRITE_ID.test(value)) {
 		throw new TypeError('Desktop shared-source write id is invalid');
 	}
 	return value;
 }
-
 function sharedManagedBindingId(value) {
 	if (typeof value !== 'string' || !MANAGED_BINDING_ID.test(value)) {
 		throw new TypeError('Desktop shared-source binding id is invalid');
 	}
 	return value;
 }
-
 function sharedManagedEncoding(value) {
 	if (value !== MANAGED_AUDIO_ENCODING && value !== MANAGED_VIDEO_ENCODING) {
 		throw new TypeError('Desktop shared-source media encoding is unsupported');
 	}
 	return value;
 }
-
 function sharedManagedSourceEncoding(kind, encoding) {
 	const admitted = sharedManagedEncoding(encoding);
 	if ((kind === 'audio' && admitted === MANAGED_AUDIO_ENCODING)
 		|| (kind === 'video' && admitted === MANAGED_VIDEO_ENCODING)) return admitted;
 	throw new TypeError('Desktop shared-source kind and encoding do not match');
 }
-
 function sharedSourceSha256(value) {
 	if (typeof value !== 'string' || !SHA256.test(value)) {
 		throw new TypeError('Desktop shared-source SHA-256 digest is invalid');
 	}
 	return value;
 }
-
 function positiveSafeInteger(value) {
 	const number = safeInteger(value);
 	if (number === 0) throw new RangeError('Expected a positive safe integer');
 	return number;
 }
-
 function strictBoolean(value) {
 	if (typeof value !== 'boolean') throw new TypeError('Desktop shared-project delete result must be a boolean');
 	return value;
 }
-
 function utf8Bytes(value, maximumBytes) {
 	let bytes = 0;
 	for (let index = 0; index < value.length; index += 1) {
@@ -592,7 +571,6 @@ function utf8Bytes(value, maximumBytes) {
 	}
 	return bytes;
 }
-
 function binary(value) {
 	if (value instanceof ArrayBuffer) return new Uint8Array(value.slice(0));
 	if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
