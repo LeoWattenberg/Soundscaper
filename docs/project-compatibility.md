@@ -314,7 +314,38 @@ record, including scalar source-shape fields, a compare-and-swap token, and a
 canonical timestamp; they retain no linked body, `Blob`, filesystem path, URL,
 platform handle, or playback lease.
 
-With an explicitly injected platform port, a fresh document-only latest shared
+The maintained Electron source now supplies that platform port. Its native
+chooser accepts exactly one non-empty regular video no larger than 512 MiB and
+registers it in a product-local schema-1 file under main-owned `userData`. That
+private atomically replaced registry admits at most 128 locator records and
+64 GiB of declared files. Only it contains the raw absolute path plus the
+selected file's device, inode, size, modification time, and change time. The
+sandboxed renderer receives only random pathless 64-hex locator and revision
+tokens with bounded display metadata. Each load rechecks the persisted stat
+identity before and after minting a fresh owner-scoped `materialized-v1` read
+descriptor. Moving, deleting, replacing, or changing the file therefore fails
+closed. The locator persists across application restarts, but this point-in-time
+stat identity is not an operating-system bookmark, watch/relink handle, or
+durable playback byte lease. The body is materialized as a complete `Blob`
+through the existing 512 MiB tier; the later 4 MiB digest window is not a bound
+on provider allocation, decoder memory, or process RSS.
+
+The capability-gated Project Bin action passes that one pathless choice into the
+maintained video importer. The importer may derive canonical audio and
+disposable poster/thumbnail cache entries, but it skips the owned retained-video
+asset write. It constructs the exact video source, hashes and publishes its
+linked binding before visual activation and canonical project publication.
+Failures before the canonical source lands retire the unused locator,
+conditionally unlink only the import's exact binding, and roll back import-owned
+audio and previews. Once the canonical source has landed, a later publication or
+reporting failure retains its binding, locator, audio, and previews rather than
+attempting destructive rollback. Explicit locator release removes only the
+main-private registry metadata; it never deletes the user-selected external
+file. A renderer crash after locator persistence but before binding/commit, or
+owner revocation that prevents renderer release, can leave bindingless locator
+metadata. General orphan-locator reconciliation is not implemented.
+
+With this explicitly injected platform port, a fresh document-only latest shared
 load can admit a complete exact linked-video alias group without a prior local
 project snapshot or managed descriptor. Binding and group inspection performs
 no privileged body read. The declared linked byte length participates in the
@@ -330,14 +361,17 @@ closed before shadow publication.
 Only an explicit `prepareHandoff` turns that verified linked body into owned
 media: an exact linked-session overlay supplies the body to the existing
 managed original-video sender, which retains its normal aggregate preflight,
-digest, bounded-transfer, and publication contract. This adds no product
-chooser, relink or watch flow, durable operating-system handle or playback
-lease, background copy/consolidation, or alternate publishing protocol. Linked
-audio, every other linked or unmanaged original, authored proxies, generic
-video rendered-fallback relationships, packaged executable/UI behavior, and
-browser codec playback remain unqualified. The maintained first-party
+digest, bounded-transfer, and publication contract. This handoff path
+adds no product chooser, relink or watch flow, durable operating-system handle or
+playback lease, background copy/consolidation, or alternate publishing protocol.
+Linked audio, every other linked or unmanaged original, authored proxies,
+generic video rendered-fallback relationships, packaged executable/UI behavior,
+and browser codec playback remain unqualified. The maintained first-party
 video-effects fallback activation rule below is separate from this
-linked-original contract.
+linked-original contract. The separate source- and component-tested chooser and
+import described above still lacks packaged and operating-system qualification,
+range-scale transport, cleanup reconciliation, and generic fallback acquisition
+or handoff.
 
 For a successfully qualified body, admission snapshots metadata before and
 after it, consumes the exact sequential PCM chunk count and ordered
@@ -403,11 +437,12 @@ processes are not serialized. Source-bearing saves and explicit local revision
 loads bypass this admission. Explicit managed handoff supplies automatic
 fresh-recipient acquisition for canonical PCM—including the maintained exact
 schema 9 first-party audio whole-mix fallback—and retained original video.
-Only the injected-port linked retained-video slice described above is also
-qualified. Linked audio and every other linked or unmanaged original, authored
-proxies, generic rendered-fallback authoring and transfer semantics beyond the
-separately maintained controller playback slices, product chooser/relink/watch
-behavior, general copy/consolidate, managed-media
+Only the maintained pathless desktop linked retained-video slice described above
+is also qualified. Linked audio and every other linked or unmanaged original,
+authored proxies, generic rendered-fallback authoring and transfer semantics
+beyond the separately maintained controller playback slices, relink/watch
+behavior, general copy/consolidate, linked-locator cleanup reconciliation,
+packaged chooser/import qualification, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, a stable byte lease through playback,
 browser codec playback, packaged executable and UI two-product source-bearing
@@ -452,11 +487,12 @@ evaluation remains editor-owned. Explicit managed canonical PCM and retained
 original video are the fresh-recipient source-byte transfers provided by this
 library; this includes a maintained exact-schema first-party audio whole-mix
 fallback when its manifest is the only reference. Ordinary saves remain
-document-only. Only the injected-port linked retained-video slice described
-above is additionally qualified. Linked audio and every other linked or
-unmanaged original, authored proxies, generic rendered-fallback authoring and
-transfer semantics beyond the separately maintained controller playback
-slices, general copy/consolidate, product chooser/relink/watch behavior,
+document-only. Only the maintained pathless desktop linked retained-video slice
+described above is additionally qualified. Linked audio and every other linked
+or unmanaged original, authored proxies, generic rendered-fallback authoring
+and transfer semantics beyond the separately maintained controller playback
+slices, general copy/consolidate, relink/watch behavior, linked-locator cleanup
+reconciliation, packaged chooser/import qualification,
 managed-media runtime cleanup beyond the startup-bounded tracked inventory,
 recipient-local or whole-handoff capacity reservation, stable playback leasing,
 executable/UI and browser-codec qualification, portable hard-link capacity
@@ -866,14 +902,20 @@ code. Preservation does not imply activation.
 Imported-video posters and filmstrip thumbnails are reproducible local cache
 records. Each maintained record is related to a trusted retained original by
 its storage key and SHA-256 digest, the poster or thumbnail type and normalized
-timestamp, and a versioned recipe. Publication revalidates the current original
-before committing the payload and scalar companion; loading requires that pair
-to agree and verifies the exact output size and SHA-256. A different recipe
-revision can coexist, while an unbound legacy record or replacement original is
-a cache miss.
+timestamp, and a versioned recipe. For an owned original the repository derives
+the current local generation token. For a linked original the maintained storage
+facade refuses caller-supplied provenance, derives a generation token from the
+normalized exact project/source binding, and checks that binding before and
+after save, list, and load operations. Publication revalidates the applicable
+owned original or linked binding around committing the payload and scalar
+companion; loading requires that pair to agree and verifies the exact output
+size and SHA-256. A different recipe revision can coexist, while an unbound
+legacy record, replacement owned original, or changed linked binding is a cache
+miss or refusal.
 
-The reproducible preview cache records and bodies are not project history,
-`.scape` media, or managed handoff payloads. New video sources and maintained
+The reproducible preview cache records and bodies—including previews captured
+while importing a linked original—are not project history, `.scape` media, or
+managed handoff payloads. New video sources and maintained
 read-write `.scape` imports keep their nullable preview locators clear;
 maintained source-update commands cannot author them, desktop recipient binding
 ignores old locator values, and managed source declarations omit them. The
