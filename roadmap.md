@@ -321,9 +321,13 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   serialized pass per store/process, retiring only absent startup-loaded
   metadata while retaining referenced and current-process records; external
   media is never inspected or deleted. Source-level binding reachability inside
-  catalog-live projects, continuous same-process cleanup, hostile-renderer
+  catalog-live projects, cleanup beyond the one-live-store project-delete and
+  whole-clear lifecycle, cross-store/process coordination, hostile-renderer
   inventory authority, abrupt-crash/power-loss durability, and packaged/OS
   qualification remain open.
+- **Electron Enhanced / Shared — Implemented:** exact-revision linked-locator
+  retirement after same-store project deletion and clear preserves live aliases
+  and external files.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond the bounded chooser/import and maintained visual-playback slices, and
   finish broader
@@ -331,8 +335,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   rendered-fallback relationships beyond maintained first-party playback and
   managed handoff, fallback authoring and delivery use, exact or write-time
   capacity behavior, stable playback identity beyond that maintained visual
-  lifecycle, continuous linked-locator cleanup and source-level binding
-  reachability inside catalog-live projects where required, and packaged
+  lifecycle, linked-locator cleanup beyond the one-live-store project-delete and
+  whole-clear lifecycle, source-level binding reachability inside catalog-live
+  projects, cross-store/process coordination where required, and packaged
   UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest or exact linked binding and a

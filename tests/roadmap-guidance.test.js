@@ -50,11 +50,15 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*authoritative point-in-time catalog.*at most 10,000 project IDs.*one atomic transaction.*at most\s+100,000 closed binding rows.*deletes only bindings whose project is absent.*preserves.*catalog-live alias.*at most 128 exact\s+locator\/revision references.*durable-unavailable\s+storage sends nothing.*invalid scans reject before IPC.*at\s+most one successful\s+serialized pass per store\/process.*only absent\s+startup-loaded\s+metadata.*referenced and current-process\s+records.*external\s+media.*never inspected or deleted.*source-level binding reachability inside\s+catalog-live projects.*continuous same-process cleanup.*hostile-renderer\s+inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS\s+qualification remain open/isu,
+		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*authoritative point-in-time catalog.*at most 10,000 project IDs.*one atomic transaction.*at most\s+100,000 closed binding rows.*deletes only bindings whose project is absent.*preserves.*catalog-live alias.*at most 128 exact\s+locator\/revision references.*durable-unavailable\s+storage sends nothing.*invalid scans reject before IPC.*at\s+most one successful\s+serialized pass per store\/process.*only absent\s+startup-loaded\s+metadata.*referenced and current-process\s+records.*external\s+media.*never inspected or deleted.*source-level binding reachability inside\s+catalog-live projects.*cleanup beyond the one-live-store project-delete and\s+whole-clear lifecycle.*cross-store\/process coordination.*hostile-renderer\s+inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS\s+qualification remain open/isu,
 	);
 	assert.match(
 		roadmap,
-		/Electron Enhanced — In progress.*continuous linked-locator\s+cleanup and source-level binding\s+reachability inside catalog-live\s+projects/isu,
+		/Electron Enhanced \/ Shared — Implemented:.*exact-revision linked-locator\s+retirement.*same-store project deletion and clear.*live aliases.*external files/isu,
+	);
+	assert.match(
+		roadmap,
+		/Electron Enhanced — In progress.*linked-locator cleanup beyond the one-live-store project-delete and\s+whole-clear lifecycle.*source-level binding reachability inside catalog-live\s+projects.*cross-store\/process coordination/isu,
 	);
 	assert.doesNotMatch(
 		roadmap,
