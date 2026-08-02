@@ -469,12 +469,25 @@ Either fulfilled `true` or `false` settles the pending exact reference because
 release failure never rolls back the local commit, and locator cleanup still
 never stats, writes, or deletes the external video file.
 
-An opt-in maintained controller save makes kindful source-level cleanup a
-separate part of that same live-store lifecycle. Maintained queued autosaves,
-flushes, inactive-tab saves, and project-switch or analysis explicit saves
-capture the complete live-session roots when the queued write executes, after
-any earlier queued save has settled rather than when an autosave timer is
-scheduled. The resulting frozen, deduplicated kindful references derive exactly
+An opt-in maintained controller save or a terminal successful writable
+activation makes kindful source-level cleanup a separate part of that same
+live-store lifecycle. Maintained queued autosaves, flushes, inactive-tab saves,
+and project-switch or analysis explicit saves capture the complete live-session
+roots when the queued write executes, after any earlier queued save has settled
+rather than when an autosave timer is scheduled. Activation maintenance runs
+only after engine and session activation, state publication, and source garbage
+collection have succeeded. It is limited to a durable IndexedDB-backed store
+and skips a read-only or failed activation, an activation using `options.save`,
+and a memory or degraded store.
+
+The activation pass enters the linked-original lifecycle and
+latest-project-mutation locks in that order. Inside both serialized scopes it
+revalidates the controller lifetime and activation admission, the active project
+and write-lock identity, and both the controller and original lock's writable
+state. If ownership has changed, it returns no roots and suppresses destructive
+maintenance. Otherwise it collects the current live-session roots inside that
+serialized ownership window rather than using a pre-lock snapshot. For either
+route, the resulting frozen, deduplicated kindful references derive exactly
 from every open tab's present, Undo, and Redo clip and fallback references, the
 session clipboard's media kind, an audio recording in progress, and audio clip
 time/pitch render-cache protection. The same textual source ID in audio and
@@ -485,16 +498,16 @@ normally but perform no destructive source-level cleanup: no project binding is
 pruned on that save.
 
 After an opted-in save has published the current project and compacted its
-retained revision set, the reachability repository validates the current
-exact-schema-9 project plus every retained exact-schema-9 revision. Each revision
-must have its canonical key, project identity, and revision identity, and the
-set must contain an exact revision matching the current project. Current and
-retained graphs are conservatively unioned even if two validated documents at
-the same revision diverge. Durable audio and video roots include timeline
-clips, Project Bin clips, and every feature-requirement fallback, without
-first-party or third-party provenance gating. Caller-supplied live roots and
-transient import roots are retention roots for this pass but do not become
-durable project roots.
+retained revision set, or during serialized maintenance after a successful
+activation, the reachability repository validates the current exact-schema-9
+project plus every retained exact-schema-9 revision. Each revision must have its
+canonical key, project identity, and revision identity, and the set must contain
+an exact revision matching the current project. Current and retained graphs are
+conservatively unioned even if two validated documents at the same revision
+diverge. Durable audio and video roots include timeline clips, Project Bin
+clips, and every feature-requirement fallback, without first-party or
+third-party provenance gating. Caller-supplied live roots and transient import
+roots are retention roots for this pass but do not become durable project roots.
 
 The pass admits at most 64 retained revisions, 100,000 aggregate durable,
 caller, and transient source roots, 100,000 complete binding rows, and 128
@@ -507,40 +520,48 @@ begins, every row must be closed and authoritative; malformed or conflicting
 rows and row or exact-reference overflow fail the maintenance pass without a
 partial deletion.
 
-For memory storage, unreachable target-project bindings are removed as one
-compensated mutation batch; for IndexedDB, current project, retained revisions,
-complete binding validation, and binding removals share one readwrite
-transaction. This atomic binding prune runs only after the project/revision save
-and retained-revision compaction have committed. On Desktop, it runs only after
-the shared bridge returns an exact canonical remote acknowledgement, and it
-finishes while the repository's latest-project-mutation lock is still held, so
-a following latest load, save, or delete cannot interleave with the prune. A
-rejected or inexact remote publication never starts maintenance. Project
-publication and this later prune are nevertheless separate commits.
+For memory storage, save-triggered unreachable target-project bindings are
+removed as one compensated mutation batch; activation-triggered maintenance is
+a no-op there and in degraded storage. For IndexedDB, current project, retained
+revisions, complete binding validation, and binding removals share one
+readwrite transaction. This atomic binding prune runs only after the
+project/revision save and retained-revision compaction have committed or after
+the terminal activation has reached its post-garbage-collection maintenance
+point. On Desktop, a save-triggered pass runs only after the shared bridge
+returns an exact canonical remote acknowledgement. A successful activation
+does not publish another remote document; its maintenance instead finishes
+under the same latest-project-mutation lock, so a following latest load, save,
+delete, or activation cannot interleave with the prune. A rejected or inexact
+remote publication never starts save maintenance. Project publication and this
+later prune are nevertheless separate commits.
 
 Every successful binding publication is also remembered transiently by the
 coordinator. This gives the bind-before-canonical-import window transient
-protection until a later opted-in pass acknowledges the source in either the
-durable graph or the authoritative caller live roots. Suppressed and failed
-maintenance retain one-save transient protection. The coordinator-wide
-transient set has its own 100,000-source ceiling, and overflow blocks destructive
-cleanup for the affected project until project deletion or whole-store clear
-rather than guessing that the missing root is dead.
+protection until a later opted-in save or writable activation acknowledges the
+source in either the durable graph or the authoritative caller live roots.
+Suppressed and failed maintenance retain one-save transient protection. The
+coordinator-wide transient set has its own 100,000-source ceiling, and overflow
+blocks destructive cleanup for the affected project until project deletion or
+whole-store clear rather than guessing that the missing root is dead.
 
 An unreachable binding deletion returns only sorted, deduplicated exact locator
 references. Before exact release, the coordinator re-inventories all current
 same-store bindings; any surviving project/source alias suppresses retirement.
 A project-binding prune failure is reported as committed cleanup while the
-project save remains successful, safely leaves the binding and locator live,
-and lets a later opted-in save retry the prune. Locator-release failure retains
-the exact ID/revision pair for the existing serialized retry path. Reachability
-inventory and release perform no external-file stat, write, deletion, or body
-load; a successful exact release changes only main-private locator registry
-metadata and never the user-selected media. The memory and IndexedDB acceptance
-witness proves that a no-owned-PCM linked WAV survives after its last durable
-revision ages out while a live audio root keeps it canonically readable. When
-the last root disappears, the next maintained save removes the binding and
-releases its exact locator once while leaving the external WAV untouched.
+project save or activation remains successful, safely leaves the binding and
+locator live, and lets a later opted-in save or writable activation retry the
+prune. Locator-release failure retains the exact ID/revision pair for the
+existing serialized retry path. A stuck pending exact release is attempted once
+before an activation prune and excluded from that activation's later release
+batch, so it does not starve unrelated activation pruning or retry twice during
+one activation. Reachability inventory and release perform no external-file
+stat, write, deletion, or body load; a successful exact release changes only
+main-private locator registry metadata and never the user-selected media. The
+memory and IndexedDB acceptance witness proves that a no-owned-PCM linked WAV
+survives after its last durable revision ages out while a live audio root keeps
+it canonically readable. When the last root disappears, the next maintained
+save or writable activation removes the binding and releases its exact locator
+once while leaving the external WAV untouched.
 
 This source-reachability claim covers one live `AudioEditorProjectStore` and its
 coordinator in one renderer lifecycle. Separate stores, profiles, renderer or
@@ -549,7 +570,8 @@ connections are not serialized. Closed-row validation and the stated count
 bounds do not qualify arbitrary hostile-row clone cost or process RSS. Project
 publication, the memory or IndexedDB binding prune, alias re-inventory, and
 main-process exact release are not one cross-boundary transaction; interruption
-between them may safely leak metadata until a later maintained pass.
+between them may safely leak metadata until a later maintained save or writable
+activation.
 Cross-store or cross-process coordination, relink or watch, audio range
 playback, packaged executable or operating-system qualification, third-party
 activation gating, and legacy private libraries are outside this claim.
@@ -616,18 +638,19 @@ only later. If binding deletion commits before IPC or main rejects, the binding
 deletion remains committed; a later startup retry can prune the now-unreferenced
 locator. Project presence alone remains the startup reconciliation root: the
 catalog pass retains every binding for a still-present project, while the
-separate opted-in save path above owns source-level reachability inside that
-project. Current-process records abandoned outside the maintained binding,
-save, delete, and clear lifecycle may still wait for a later main-process
-restart. Main validates the DTO and exact revisions but cannot authenticate
-inventory completeness, so a compromised renderer can omit live references and
-delete startup locator metadata. This is cooperative availability maintenance,
-not a compromised-renderer integrity control. Cleanup beyond one live store's
-maintained save/delete/clear lifecycle, cross-store, cross-profile, or
-cross-process mutation serialization, abrupt-crash or power-loss durability, and a
-total cloned-byte or process-RSS bound for one hostile IndexedDB row are not
-implemented. Packaged executable/UI and operating-system behavior remain
-unqualified as described above.
+separate maintained save and successful writable activation paths above own
+source-level reachability inside that project. Current-process records
+abandoned outside the maintained binding, save, successful writable activation,
+delete, and clear lifecycle may still wait for a later main-process restart.
+Main validates the DTO and exact revisions but cannot authenticate inventory
+completeness, so a compromised renderer can omit live references and delete
+startup locator metadata. This is cooperative availability maintenance, not a
+compromised-renderer integrity control. Cleanup beyond one live store's
+maintained save/successful-writable-activation/delete/clear lifecycle,
+cross-store, cross-profile, or cross-process mutation serialization,
+abrupt-crash or power-loss durability, and a total cloned-byte or process-RSS
+bound for one hostile IndexedDB row are not implemented. Packaged executable/UI
+and operating-system behavior remain unqualified as described above.
 
 With this explicitly injected platform port, a fresh document-only latest shared
 load can admit a complete exact linked-video alias group without a prior local
@@ -757,8 +780,9 @@ generic rendered-fallback authoring and transfer semantics
 beyond the separately maintained controller playback slices and exact
 first-party video-delivery slice, relink/watch behavior, general
 copy/consolidate beyond the bounded same-store project-alias duplication above,
-linked-locator cleanup beyond the bounded startup and same-store
-save/delete/clear inventories,
+source-level linked-locator cleanup outside maintained same-store saves and
+successful writable activations, general linked-locator cleanup beyond the
+bounded startup and same-store save/activation/delete/clear inventories,
 packaged chooser/import qualification, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, content-frozen playback identity against
@@ -812,9 +836,10 @@ qualified. Other linked audio and every other linked or unmanaged original,
 authored proxies, generic rendered-fallback authoring
 and transfer semantics beyond the separately maintained controller playback
 slices, general copy/consolidate beyond the bounded same-store project-alias
-duplication above, relink/watch behavior, linked-locator cleanup beyond the
-bounded startup and same-store save/delete/clear inventories, packaged chooser/import
-qualification,
+duplication above, relink/watch behavior, source-level linked-locator cleanup
+outside maintained same-store saves and successful writable activations,
+general linked-locator cleanup beyond the bounded startup and same-store
+save/activation/delete/clear inventories, packaged chooser/import qualification,
 managed-media runtime cleanup beyond the startup-bounded tracked inventory,
 recipient-local or whole-handoff capacity reservation, content-frozen or
 cross-restart playback identity, executable/UI and
