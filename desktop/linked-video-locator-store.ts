@@ -51,9 +51,10 @@ export interface DesktopLinkedVideoReadCapabilityStore {
 			displayName: string;
 		}>,
 	): PromiseLike<DesktopLinkedVideoReadDescriptor> | DesktopLinkedVideoReadDescriptor;
-	registerLinkedVideoPlaybackPath(
+	registerLinkedOriginalRangePath(
 		path: string,
 		options: Readonly<{
+			kind: LinkedOriginalMediaKind;
 			owner: object;
 			mimeType: string;
 			displayName: string;
@@ -132,7 +133,7 @@ export class DesktopLinkedVideoLocatorStore {
 	constructor(options: DesktopLinkedVideoLocatorStoreOptions) {
 		if (!options?.readCapabilities
 			|| typeof options.readCapabilities.registerMaterializedPath !== 'function'
-			|| typeof options.readCapabilities.registerLinkedVideoPlaybackPath !== 'function'
+			|| typeof options.readCapabilities.registerLinkedOriginalRangePath !== 'function'
 			|| typeof options.readCapabilities.release !== 'function') {
 			throw new TypeError('A linked-video read capability store is required.');
 		}
@@ -242,14 +243,17 @@ export class DesktopLinkedVideoLocatorStore {
 		);
 	}
 
-	async leasePlayback(
+	async leaseRange(
 		locatorId: string,
-		options: Readonly<{ owner: object; expectedRevision: string | null }>,
+		options: Readonly<{
+			owner: object; expectedRevision: string | null; expectedKind: LinkedOriginalMediaKind;
+		}>,
 	): Promise<Readonly<LoadedDesktopLinkedVideoLocator> | null> {
+		const expectedKind = linkedOriginalMediaKind(options?.expectedKind);
 		if (options?.expectedRevision === null) {
-			throw new TypeError('Linked-video playback requires an exact locator revision.');
+			throw new TypeError(`Linked-${expectedKind} range reads require an exact locator revision.`);
 		}
-		return this.#load(locatorId, options, 'video', true);
+		return this.#load(locatorId, options, expectedKind, true);
 	}
 
 	async #load(
@@ -273,9 +277,10 @@ export class DesktopLinkedVideoLocatorStore {
 		const before = await this.#currentIdentity(entry.path);
 		if (!before || !samePersistedLinkedVideoFileIdentity(before, entry.identity)
 			|| this.#entries.get(id) !== entry) return null;
+		const rangeProfile = expectedKind === 'audio' ? 'linked-audio-range-v1' : 'linked-video-range-v1';
 		const descriptor = await (playback
-			? this.#readCapabilities.registerLinkedVideoPlaybackPath(entry.path, {
-				owner, mimeType: entry.mimeType, displayName: entry.name,
+			? this.#readCapabilities.registerLinkedOriginalRangePath(entry.path, {
+				kind: expectedKind, owner, mimeType: entry.mimeType, displayName: entry.name,
 				expectedIdentity: entry.identity,
 			})
 			: this.#readCapabilities.registerMaterializedPath(entry.path, {
@@ -283,7 +288,7 @@ export class DesktopLinkedVideoLocatorStore {
 			}));
 		try {
 			assertDescriptorMatches(
-				descriptor, entry, playback ? 'linked-video-range-v1' : 'materialized-v1',
+				descriptor, entry, playback ? rangeProfile : 'materialized-v1',
 			);
 			const after = playback ? entry.identity : await this.#currentIdentity(entry.path);
 			if (!after || !samePersistedLinkedVideoFileIdentity(after, entry.identity)

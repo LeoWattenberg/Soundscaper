@@ -12,7 +12,7 @@ import {
 	type DesktopLinkedVideoReadCapabilityStore,
 } from '../desktop/linked-video-locator-store.ts';
 
-test('linked WAV audio shares the persisted locator inventory and only materializes exact snapshots', async (context) => {
+test('linked WAV audio shares the persisted locator inventory and serves materialized or exact range snapshots', async (context) => {
 	const root = await temporaryRoot(context);
 	const wavPath = join(root, 'selected.wav');
 	const registryPath = join(root, 'linked-originals.json');
@@ -40,9 +40,29 @@ test('linked WAV audio shares the persisted locator inventory and only materiali
 	assert.deepEqual(reads.materialized, [{
 		path: wavPath, owner, mimeType: 'audio/wav', displayName: 'selected.wav',
 	}]);
-	assert.deepEqual(reads.playback, []);
-	await assert.rejects(first.leasePlayback(locator.locatorId, {
-		owner, expectedRevision: locator.locatorRevision,
+	const ranged = await first.leaseRange(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'audio',
+	});
+	assert.ok(ranged);
+	assert.equal(ranged.descriptor.readProfile, 'linked-audio-range-v1');
+	assert.deepEqual(reads.ranges, [{
+		path: wavPath,
+		options: {
+			kind: 'audio', owner, mimeType: 'audio/wav', displayName: 'selected.wav',
+			expectedIdentity: {
+				dev: (await stat(wavPath)).dev,
+				ino: (await stat(wavPath)).ino,
+				size: (await stat(wavPath)).size,
+				mtimeMs: (await stat(wavPath)).mtimeMs,
+				ctimeMs: (await stat(wavPath)).ctimeMs,
+			},
+		},
+	}]);
+	await assert.rejects(first.leaseRange(locator.locatorId, {
+		owner, expectedRevision: null, expectedKind: 'audio',
+	}), /audio|exact|revision|range/iu);
+	await assert.rejects(first.leaseRange(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'video',
 	}), /audio|kind|playback/iu);
 	await assert.rejects(first.load(locator.locatorId, {
 		owner, expectedRevision: locator.locatorRevision,
@@ -50,7 +70,7 @@ test('linked WAV audio shares the persisted locator inventory and only materiali
 	await assert.rejects(first.release(locator.locatorId, {
 		owner, expectedRevision: locator.locatorRevision, expectedKind: 'video',
 	}), /audio|kind|video/iu);
-	assert.deepEqual(reads.playback, []);
+	assert.equal(reads.ranges.length, 1);
 
 	const persisted = JSON.parse(await readFile(registryPath, 'utf8')) as {
 		schemaVersion: unknown; entries: Array<Record<string, unknown>>;
@@ -144,21 +164,27 @@ async function temporaryRoot(context: test.TestContext): Promise<string> {
 
 function readCapabilities() {
 	const materialized: Array<Record<string, unknown>> = [];
-	const playback: Array<Record<string, unknown>> = [];
+	const ranges: Array<Record<string, unknown>> = [];
 	const port: DesktopLinkedVideoReadCapabilityStore = {
 		async registerMaterializedPath(path, options) {
 			materialized.push({ path, ...options });
 			const metadata = await stat(path);
 			return descriptor('c', 'materialized-v1', metadata.size, metadata.mtimeMs, options);
 		},
-		async registerLinkedVideoPlaybackPath(path, options) {
-			playback.push({ path, ...options });
+		async registerLinkedOriginalRangePath(path, options) {
+			ranges.push({ path, options });
 			const metadata = await stat(path);
-			return descriptor('d', 'linked-video-range-v1', metadata.size, metadata.mtimeMs, options);
+			return descriptor(
+				'd',
+				options.kind === 'audio' ? 'linked-audio-range-v1' : 'linked-video-range-v1',
+				metadata.size,
+				metadata.mtimeMs,
+				options,
+			);
 		},
 		release: () => true,
 	};
-	return { materialized, playback, port };
+	return { materialized, ranges, port };
 }
 
 function descriptor(

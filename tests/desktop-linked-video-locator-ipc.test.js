@@ -101,7 +101,7 @@ test('linked-video IPC validates load input and returns a materialized pathless 
 	assert.deepEqual(fixture.storeCalls, [{
 		method: 'load',
 		locatorId: LOCATOR_ID,
-		options: { owner: OWNER, expectedRevision: LOCATOR_REVISION },
+		options: { owner: OWNER, expectedRevision: LOCATOR_REVISION, expectedKind: 'video' },
 	}]);
 	assert.deepEqual(result, {
 		locatorRevision: LOCATOR_REVISION,
@@ -170,9 +170,9 @@ test('linked-video IPC leases an exact pathless playback descriptor on the load 
 	});
 
 	assert.deepEqual(fixture.storeCalls, [{
-		method: 'leasePlayback',
+		method: 'leaseRange',
 		locatorId: LOCATOR_ID,
-		options: { owner: OWNER, expectedRevision: LOCATOR_REVISION },
+		options: { owner: OWNER, expectedRevision: LOCATOR_REVISION, expectedKind: 'video' },
 	}]);
 	assert.deepEqual(result, {
 		locatorRevision: LOCATOR_REVISION,
@@ -380,8 +380,8 @@ function harness() {
 			storeCalls.push({ method: 'load', locatorId, options });
 			return fixture.loaded;
 		},
-		async leasePlayback(locatorId, options) {
-			storeCalls.push({ method: 'leasePlayback', locatorId, options });
+		async leaseRange(locatorId, options) {
+			storeCalls.push({ method: 'leaseRange', locatorId, options });
 			return fixture.loaded;
 		},
 		release(locatorId, options) {

@@ -8,6 +8,7 @@ import {
 	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES,
 	MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 	READ_CAPABILITY_PREFIX,
+	READ_PROFILE_LINKED_AUDIO_RANGE_V1,
 	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 	READ_PROFILE_MATERIALIZED_V1,
 } from './constants.js';
@@ -54,12 +55,16 @@ export function registerDesktopLinkedVideoLocatorIpc({
 	handle(IPC.loadLinkedAudioOriginal, async (event, value) => {
 		const request = linkedAudioLoadRequest(value);
 		const owner = reference(ownerFor(event));
-		const loaded = await store.load(request.locatorId, {
-			owner, expectedRevision: request.expectedRevision, expectedKind: 'audio',
-		});
+		const loadOptions = { owner, expectedRevision: request.expectedRevision, expectedKind: 'audio' };
+		const loaded = await (request.range
+			? store.leaseRange(request.locatorId, loadOptions)
+			: store.load(request.locatorId, loadOptions));
 		if (loaded === null) return null;
 		try {
-			return loadedLinkedAudioLocator(loaded);
+			return loadedLinkedAudioLocator(
+				loaded,
+				request.range ? READ_PROFILE_LINKED_AUDIO_RANGE_V1 : READ_PROFILE_MATERIALIZED_V1,
+			);
 		} catch (error) {
 			await rollbackReadCapability(releaseRead, loaded, owner, error);
 		}
@@ -87,9 +92,9 @@ export function registerDesktopLinkedVideoLocatorIpc({
 	handle(IPC.loadLinkedVideoOriginal, async (event, value) => {
 		const request = linkedVideoLoadRequest(value);
 		const owner = reference(ownerFor(event));
-		const loadOptions = { owner, expectedRevision: request.expectedRevision };
+		const loadOptions = { owner, expectedRevision: request.expectedRevision, expectedKind: 'video' };
 		const loaded = await (request.playback
-			? store.leasePlayback(request.locatorId, loadOptions)
+			? store.leaseRange(request.locatorId, loadOptions)
 			: store.load(request.locatorId, loadOptions));
 		if (loaded === null) return null;
 		try {
@@ -139,7 +144,7 @@ function assertDependencies({ dialog, handle, ownerFor, releaseRead, store, wind
 		|| !store || typeof store !== 'object') {
 		throw new TypeError('Linked-video IPC requires its main-process dependencies.');
 	}
-	for (const method of ['registerPath', 'load', 'leasePlayback', 'reconcileStartup', 'release']) {
+	for (const method of ['registerPath', 'load', 'leaseRange', 'reconcileStartup', 'release']) {
 		if (typeof store[method] !== 'function') {
 			throw new TypeError(`Linked-video locator store is missing ${method}.`);
 		}
@@ -186,7 +191,7 @@ function linkedAudioLoadRequest(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('A linked-audio load request is required.');
 	}
-	const fields = ['locatorId', 'expectedRevision'];
+	const fields = ['locatorId', 'expectedRevision', 'range'];
 	const keys = Reflect.ownKeys(value);
 	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
 		throw new TypeError('A linked-audio load request contains an unsupported field.');
@@ -197,11 +202,19 @@ function linkedAudioLoadRequest(value) {
 			throw new TypeError(`Linked-audio load ${field} must be an enumerable data field.`);
 		}
 	}
+	if (value.range !== true && value.range !== false) {
+		throw new TypeError('Linked-audio range mode must be a boolean.');
+	}
+	const expectedRevision = value.expectedRevision === null
+		? null
+		: opaqueToken(value.expectedRevision, 'Invalid linked-audio locator revision.');
+	if (value.range && expectedRevision === null) {
+		throw new TypeError('Linked-audio range reads require an exact locator revision.');
+	}
 	return Object.freeze({
 		locatorId: opaqueToken(value.locatorId, 'Invalid linked-audio locator identifier.'),
-		expectedRevision: value.expectedRevision === null
-			? null
-			: opaqueToken(value.expectedRevision, 'Invalid linked-audio locator revision.'),
+		expectedRevision,
+		range: value.range,
 	});
 }
 
@@ -367,32 +380,32 @@ function loadedLinkedVideoLocator(value, readProfile) {
 	});
 }
 
-function loadedLinkedAudioLocator(value) {
+function loadedLinkedAudioLocator(value, readProfile) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('The loaded linked-audio locator is invalid.');
 	}
 	return Object.freeze({
 		locatorRevision: opaqueToken(value.locatorRevision, 'Invalid linked-audio locator revision.'),
-		descriptor: audioReadDescriptor(value.descriptor),
+		descriptor: audioReadDescriptor(value.descriptor, readProfile),
 	});
 }
 
-function audioReadDescriptor(value) {
+function audioReadDescriptor(value, readProfile) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| value.readProfile !== READ_PROFILE_MATERIALIZED_V1) {
-		throw new TypeError('Linked-audio reads require a materialized-v1 descriptor.');
+		|| value.readProfile !== readProfile) {
+		throw new TypeError(`Linked-audio reads require a ${readProfile} descriptor.`);
 	}
 	const id = opaqueToken(value.id, 'Invalid linked-audio read identifier.');
 	const name = audioName(value.name);
 	return Object.freeze({
 		id,
 		url: capabilityUrl(value.url, {
-			id, name, readProfile: READ_PROFILE_MATERIALIZED_V1,
+			id, name, readProfile,
 		}),
 		name,
-		size: videoSize(value.size),
+		size: videoSize(value.size, readProfile),
 		mimeType: audioMimeType(value.mimeType, name),
-		readProfile: READ_PROFILE_MATERIALIZED_V1,
+		readProfile,
 		lastModified: nonNegativeSafeInteger(value.lastModified, 'Linked-audio modification time'),
 	});
 }
@@ -479,7 +492,7 @@ function mediaKind(value) {
 
 function videoSize(value, readProfile = READ_PROFILE_MATERIALIZED_V1) {
 	const size = nonNegativeSafeInteger(value, 'Linked-video size');
-	const maximum = readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1
+	const maximum = [READ_PROFILE_LINKED_AUDIO_RANGE_V1, READ_PROFILE_LINKED_VIDEO_RANGE_V1].includes(readProfile)
 		? MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES
 		: MAX_READ_CAPABILITY_BYTES_PER_OWNER;
 	if (size < 1 || size > maximum) {

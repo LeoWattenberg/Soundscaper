@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+export const DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE = 'linked-audio-range-v1';
 export const DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE = 'linked-video-range-v1';
 export const DESKTOP_READ_PROFILE_MATERIALIZED = 'materialized-v1';
 export const DESKTOP_READ_PROFILE_SCAPE_RANGE = 'scape-range-v1';
@@ -7,6 +8,7 @@ export const DESKTOP_SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 export const DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES = 65 * 1024 ** 3;
 
 export type DesktopReadProfile =
+	| typeof DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE
 	| typeof DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
 	| typeof DESKTOP_READ_PROFILE_MATERIALIZED
 	| typeof DESKTOP_READ_PROFILE_SCAPE_RANGE;
@@ -19,9 +21,32 @@ export interface DesktopReadProfileDescriptor {
 }
 
 export function isDesktopReadProfile(value: unknown): value is DesktopReadProfile {
-	return value === DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
+	return value === DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE
+		|| value === DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
 		|| value === DESKTOP_READ_PROFILE_MATERIALIZED
 		|| value === DESKTOP_READ_PROFILE_SCAPE_RANGE;
+}
+
+export function assertDesktopLinkedAudioReadProfile(
+	descriptor: DesktopReadProfileDescriptor,
+): void {
+	if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE
+		|| typeof descriptor.name !== 'string'
+		|| !descriptor.name || descriptor.name !== descriptor.name.trim()
+		|| descriptor.name.length > 255 || descriptor.name === '.' || descriptor.name === '..'
+		|| descriptor.name.includes('/') || descriptor.name.includes('\\')
+		|| /[\u0000-\u001f]/u.test(descriptor.name)) {
+		throw new TypeError('A canonical linked-audio desktop read profile is required.');
+	}
+	const wav = /\.wav$/iu.test(descriptor.name) && descriptor.mimeType === 'audio/wav';
+	const rf64 = /\.rf64$/iu.test(descriptor.name) && descriptor.mimeType === 'audio/rf64';
+	if (!wav && !rf64) {
+		throw new TypeError('A linked-audio range descriptor requires an exact WAV or RF64 MIME/name pair.');
+	}
+	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1
+		|| (descriptor.size as number) > 512 * 1024 ** 2) {
+		throw new RangeError('The linked-audio desktop read size is outside its admitted range.');
+	}
 }
 
 export function assertDesktopLinkedVideoReadProfile(

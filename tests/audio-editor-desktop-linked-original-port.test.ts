@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createDesktopLinkedOriginalAccess } from '../src/common/editor/desktop-linked-original-port.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 
 const LOCATOR_ID = 'a'.repeat(64);
@@ -57,8 +58,8 @@ test('file service exposes a kind-aware materialized linked-original port and pr
 	assert.equal(await service.linkedVideoOriginalPort.release(legacyVideoReference), true);
 
 	assert.deepEqual(calls.filter(([method]) => method === 'loadLinkedAudioOriginal').map(([, value]) => value), [
-		{ locatorId: LOCATOR_ID, expectedRevision: REVISION },
-		{ locatorId: LOCATOR_ID, expectedRevision: REVISION },
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false },
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false },
 	]);
 	assert.deepEqual(calls.filter(([method]) => method === 'loadLinkedVideoOriginal').map(([, value]) => value), [[
 		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, playback: false },
@@ -98,6 +99,46 @@ test('kind-aware port rejects open records and cleans a failed linked-audio choi
 		} as never)),
 		/field|revision/iu,
 	);
+});
+
+test('kind-aware port releases delegated video range ownership when cancellation wins the handoff', async () => {
+	const controller = new AbortController();
+	const reason = new Error('cancel delegated video range handoff');
+	let releases = 0;
+	const lease = Object.freeze({
+		locatorRevision: REVISION,
+		byteLength: 5,
+		mimeType: 'video/mp4',
+		async readRange() { return new Uint8Array(1); },
+		async release() { releases += 1; },
+	});
+	const access = createDesktopLinkedOriginalAccess({
+		bridge: {
+			async loadLinkedAudioOriginal() { return null; },
+			async reconcileLinkedOriginals() { return 0; },
+			async releaseLinkedOriginal() { return true; },
+			async releaseRead() { return true; },
+		},
+		fetch: async () => new Response(),
+		videoPort: {
+			async load() { return null; },
+			leasePlayback() {
+				const result = Promise.resolve(lease);
+				controller.abort(reason);
+				return result;
+			},
+		},
+		async openReadDescriptor() { return new Blob(); },
+	});
+
+	await assert.rejects(
+		Promise.resolve(access.port?.leaseRange?.('video', LOCATOR_ID, {
+			expectedRevision: REVISION,
+			signal: controller.signal,
+		})),
+		(error: unknown) => error === reason,
+	);
+	assert.equal(releases, 1);
 });
 
 function bridgeFixture(calls: Array<readonly [string, unknown?]>) {

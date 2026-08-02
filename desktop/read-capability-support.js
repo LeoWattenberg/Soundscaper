@@ -3,6 +3,7 @@
 import {
 	APP_ORIGIN,
 	READ_CAPABILITY_PREFIX,
+	READ_PROFILE_LINKED_AUDIO_RANGE_V1,
 	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 } from './constants.js';
 import { createReadCapabilityRangeStream } from './read-capability-range-stream.js';
@@ -40,9 +41,26 @@ export function readCapabilityDescriptor(entry) {
 }
 
 export function createReadCapabilityStream(entry, options) {
-	return entry.readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1
+	return isLinkedOriginalRangeProfile(entry.readProfile)
 		? createReadCapabilityRangeStream(entry.handle, options)
 		: entry.handle.createReadStream(options);
+}
+
+export function linkedOriginalRangeProfile(kind, mimeType, displayName) {
+	if (kind === 'video' && typeof mimeType === 'string'
+		&& /^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) {
+		return READ_PROFILE_LINKED_VIDEO_RANGE_V1;
+	}
+	if (kind === 'audio' && ((/\.wav$/iu.test(displayName) && mimeType === 'audio/wav')
+		|| (/\.rf64$/iu.test(displayName) && mimeType === 'audio/rf64'))) {
+		return READ_PROFILE_LINKED_AUDIO_RANGE_V1;
+	}
+	throw new TypeError('Linked-original range kind, MIME type, and name do not match');
+}
+
+export function isLinkedOriginalRangeProfile(value) {
+	return value === READ_PROFILE_LINKED_AUDIO_RANGE_V1
+		|| value === READ_PROFILE_LINKED_VIDEO_RANGE_V1;
 }
 
 export function cleanReadCapabilityDisplayName(value) {
@@ -62,7 +80,7 @@ export function normalizeReadCapabilityFileIdentity(value) {
 	const fields = ['dev', 'ino', 'size', 'mtimeMs', 'ctimeMs'];
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| Reflect.ownKeys(value).length !== fields.length) {
-		throw new TypeError('A linked-video playback capability requires an exact file identity');
+		throw new TypeError('A linked-original range capability requires an exact file identity');
 	}
 	const identity = Object.create(null);
 	for (const field of fields) {
@@ -70,12 +88,12 @@ export function normalizeReadCapabilityFileIdentity(value) {
 		const number = descriptor?.value;
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
 			|| typeof number !== 'number' || !Number.isFinite(number) || number < 0) {
-			throw new TypeError('A linked-video playback capability requires an exact file identity');
+			throw new TypeError('A linked-original range capability requires an exact file identity');
 		}
 		identity[field] = number;
 	}
 	if (!Number.isSafeInteger(identity.size)) {
-		throw new TypeError('A linked-video playback capability requires an exact file identity');
+		throw new TypeError('A linked-original range capability requires an exact file identity');
 	}
 	return Object.freeze(identity);
 }
@@ -83,7 +101,7 @@ export function normalizeReadCapabilityFileIdentity(value) {
 export function assertReadCapabilityFileIdentity(details, expected) {
 	for (const field of ['dev', 'ino', 'size', 'mtimeMs', 'ctimeMs']) {
 		if (details?.[field] !== expected[field]) {
-			throw new Error('The linked-video file changed before playback admission');
+			throw new Error('The linked-original file changed before range admission');
 		}
 	}
 }

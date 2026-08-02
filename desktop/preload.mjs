@@ -46,6 +46,7 @@ const CHANNELS = Object.freeze({
 });
 const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
 const FINAL_PREFIX_BYTES = 32;
+const READ_PROFILE_LINKED_AUDIO_RANGE_V1 = 'linked-audio-range-v1';
 const READ_PROFILE_LINKED_VIDEO_RANGE_V1 = 'linked-video-range-v1';
 const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1';
 const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';
@@ -83,7 +84,7 @@ const api = Object.freeze({
 	loadLinkedAudioOriginal: (value) => {
 		const request = linkedAudioLoadRequest(value);
 		return ipcRenderer.invoke(CHANNELS.loadLinkedAudioOriginal, request)
-			.then((result) => nullableLoadedLinkedLocator(result, 'audio', false));
+			.then((result) => nullableLoadedLinkedLocator(result, 'audio', request.range));
 	},
 	reconcileLinkedOriginals: (value) => ipcRenderer.invoke(CHANNELS.reconcileLinkedOriginals, linkedOriginalReferences(value)).then(safeInteger),
 	releaseLinkedOriginal: (reference) => ipcRenderer.invoke(CHANNELS.releaseLinkedOriginal, linkedOriginalReferences([reference])[0]).then(strictBoolean),
@@ -185,26 +186,21 @@ function nullableLinkedLocator(value, kind) {
 	});
 }
 function linkedVideoLoadRequest(value) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('A linked-video load request is required');
-	const fields = ['locatorId', 'expectedRevision', 'playback']; const keys = Reflect.ownKeys(value);
-	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key)) || fields.some((field) => {
-		const descriptor = Object.getOwnPropertyDescriptor(value, field); return !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value');
-	})) throw new TypeError('A linked-video load request contains an unsupported field');
-	if (value.playback !== true && value.playback !== false) throw new TypeError('Linked-video load mode must be a boolean');
-	const expectedRevision = value.expectedRevision === null ? null : linkedLocatorRevision(value.expectedRevision);
-	if (value.playback && expectedRevision === null) throw new TypeError('Linked-video playback requires an exact locator revision');
-	return Object.freeze({ locatorId: opaqueId(value.locatorId, 64), expectedRevision, playback: value.playback });
+	return linkedOriginalLoadRequest(value, 'video', 'playback');
 }
 function linkedAudioLoadRequest(value) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('A linked-audio load request is required');
-	const fields = ['locatorId', 'expectedRevision']; const keys = Reflect.ownKeys(value);
+	return linkedOriginalLoadRequest(value, 'audio', 'range');
+}
+function linkedOriginalLoadRequest(value, kind, mode) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`A linked-${kind} load request is required`);
+	const fields = ['locatorId', 'expectedRevision', mode]; const keys = Reflect.ownKeys(value);
 	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key)) || fields.some((field) => {
 		const descriptor = Object.getOwnPropertyDescriptor(value, field); return !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value');
-	})) throw new TypeError('A linked-audio load request contains an unsupported field');
-	return Object.freeze({
-		locatorId: opaqueId(value.locatorId, 64),
-		expectedRevision: value.expectedRevision === null ? null : linkedLocatorRevision(value.expectedRevision),
-	});
+	})) throw new TypeError(`A linked-${kind} load request contains an unsupported field`);
+	if (value[mode] !== true && value[mode] !== false) throw new TypeError(`Linked-${kind} load mode must be a boolean`);
+	const expectedRevision = value.expectedRevision === null ? null : linkedLocatorRevision(value.expectedRevision);
+	if (value[mode] && expectedRevision === null) throw new TypeError(`Linked-${kind} ${mode} requires an exact locator revision`);
+	return Object.freeze({ locatorId: opaqueId(value.locatorId, 64), expectedRevision, [mode]: value[mode] });
 }
 function linkedVideoReferences(value) {
 	if (!Array.isArray(value) || value.length > 128) throw new RangeError('Linked-video reconciliation reference count exceeds its limit');
@@ -239,7 +235,9 @@ function linkedOriginalReferences(value) {
 async function nullableLoadedLinkedLocator(value, kind, playback) {
 	if (value === null) return null;
 	try {
-		const expectedProfile = playback ? READ_PROFILE_LINKED_VIDEO_RANGE_V1 : READ_PROFILE_MATERIALIZED_V1;
+		const expectedProfile = playback
+			? kind === 'audio' ? READ_PROFILE_LINKED_AUDIO_RANGE_V1 : READ_PROFILE_LINKED_VIDEO_RANGE_V1
+			: READ_PROFILE_MATERIALIZED_V1;
 		const descriptor = sanitizeReadDescriptor(value?.descriptor);
 		if (descriptor.readProfile !== expectedProfile || descriptor.size === 0) throw new TypeError(`Linked-${kind} reads require a positive ${expectedProfile} descriptor`);
 		linkedOriginalMimeType(kind, descriptor.mimeType, descriptor.name);
@@ -298,7 +296,7 @@ function safeInteger(value) {
 }
 function readDescriptorProfile(value) {
 	const profile = String(value || '');
-	if (![READ_PROFILE_LINKED_VIDEO_RANGE_V1, READ_PROFILE_MATERIALIZED_V1, READ_PROFILE_SCAPE_RANGE_V1].includes(profile)) {
+	if (![READ_PROFILE_LINKED_AUDIO_RANGE_V1, READ_PROFILE_LINKED_VIDEO_RANGE_V1, READ_PROFILE_MATERIALIZED_V1, READ_PROFILE_SCAPE_RANGE_V1].includes(profile)) {
 		throw new TypeError('Invalid read descriptor profile');
 	}
 	return profile;

@@ -6,7 +6,6 @@ import {
 	MAX_READ_CAPABILITIES_PER_OWNER,
 	MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES,
-	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 	READ_PROFILE_MATERIALIZED_V1,
 	READ_PROFILE_SCAPE_RANGE_V1,
 	SCAPE_PROJECT_MIME_TYPE,
@@ -14,7 +13,7 @@ import {
 import {
 	ReadCapabilityAdmissionError,
 	boundedReadLimit,
-	LinkedVideoPlaybackAdmission,
+	LinkedOriginalRangeAdmission,
 	safeReadFileSize,
 	ScapeRangeReadAdmission,
 } from './read-capability-admission.js';
@@ -22,6 +21,8 @@ import {
 	assertReadCapabilityFileIdentity,
 	cleanReadCapabilityDisplayName,
 	createReadCapabilityStream,
+	isLinkedOriginalRangeProfile,
+	linkedOriginalRangeProfile,
 	normalizeReadCapabilityFileIdentity,
 	readCapabilityDescriptor,
 	readCapabilityRequestRetiredError,
@@ -45,7 +46,7 @@ export class ReadCapabilityStore {
 	#open;
 	#operations = new Set();
 	#ownerStates = new WeakMap();
-	#playbackAdmission;
+	#linkedRangeAdmission;
 	#randomBytes;
 	#revocations = new Set();
 	#retirements = new Map();
@@ -81,7 +82,7 @@ export class ReadCapabilityStore {
 			maximumCount: maximumScapeRangeCount,
 			maximumBytes: maximumScapeRangeBytes,
 		});
-		this.#playbackAdmission = new LinkedVideoPlaybackAdmission({
+		this.#linkedRangeAdmission = new LinkedOriginalRangeAdmission({
 			maximumCount: maximumLinkedVideoPlaybackCount,
 			maximumBytes: maximumLinkedVideoPlaybackBytes,
 		});
@@ -112,18 +113,18 @@ export class ReadCapabilityStore {
 		}
 	}
 
-	registerLinkedVideoPlaybackPath(filePath, { owner, mimeType, displayName, expectedIdentity } = {}) {
+	registerLinkedOriginalRangePath(filePath, {
+		kind, owner, mimeType, displayName, expectedIdentity,
+	} = {}) {
 		try {
-			if (typeof mimeType !== 'string' || !/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) {
-				throw new TypeError('Linked-video playback capabilities require a canonical video MIME type');
-			}
+			const readProfile = linkedOriginalRangeProfile(kind, mimeType, displayName);
 			const identity = normalizeReadCapabilityFileIdentity(expectedIdentity);
 			if (identity.size > MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES) {
-				throw new ReadCapabilityAdmissionError('Linked-video playback file bytes exceed the limit');
+				throw new ReadCapabilityAdmissionError('Linked-original range file bytes exceed the limit');
 			}
 			return this.#admitPath(filePath, {
 				owner, mimeType, displayName, expectedIdentity: identity,
-			}, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
+			}, readProfile);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -261,7 +262,7 @@ export class ReadCapabilityStore {
 				rangeAdmission,
 				rangeTicket,
 				lastModified: safeReadCapabilityTimestamp(details.mtimeMs),
-				expiresAt: readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1
+				expiresAt: isLinkedOriginalRangeProfile(readProfile)
 					? null : this.#now() + this.#ttlMs,
 				request: null,
 				retirement: null,
@@ -564,7 +565,7 @@ export class ReadCapabilityStore {
 
 	#rangeAdmission(readProfile) {
 		if (readProfile === READ_PROFILE_SCAPE_RANGE_V1) return this.#scapeRangeAdmission;
-		if (readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1) return this.#playbackAdmission;
+		if (isLinkedOriginalRangeProfile(readProfile)) return this.#linkedRangeAdmission;
 		return null;
 	}
 

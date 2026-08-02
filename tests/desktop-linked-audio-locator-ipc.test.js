@@ -48,7 +48,7 @@ test('linked-audio IPC chooses only WAV originals and returns pathless metadata'
 test('linked-audio IPC loads only materialized WAV descriptors through the audio kind fence', async () => {
 	const fixture = harness();
 	fixture.loaded = { locatorRevision: REVISION, descriptor: readDescriptor() };
-	const request = { locatorId: LOCATOR_ID, expectedRevision: REVISION };
+	const request = { locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false };
 	const result = await fixture.handlers.get(IPC.loadLinkedAudioOriginal)(fixture.event, request);
 
 	assert.deepEqual(fixture.storeCalls, [{
@@ -71,7 +71,38 @@ test('linked-audio IPC loads only materialized WAV descriptors through the audio
 			/materialized|WAV|MIME|name/iu,
 		);
 	}
-	assert.equal(fixture.storeCalls.some(({ method }) => method === 'leasePlayback'), false);
+	assert.equal(fixture.storeCalls.some(({ method }) => method === 'leaseRange'), false);
+});
+
+test('linked-audio IPC requires an exact revision and leases the audio range profile', async () => {
+	const fixture = harness();
+	fixture.loaded = {
+		locatorRevision: REVISION,
+		descriptor: readDescriptor({ readProfile: 'linked-audio-range-v1' }),
+	};
+	const result = await fixture.handlers.get(IPC.loadLinkedAudioOriginal)(fixture.event, {
+		locatorId: LOCATOR_ID, expectedRevision: REVISION, range: true,
+	});
+
+	assert.deepEqual(fixture.storeCalls, [{
+		method: 'leaseRange', locatorId: LOCATOR_ID,
+		options: { owner: OWNER, expectedRevision: REVISION, expectedKind: 'audio' },
+	}]);
+	assert.equal(result.descriptor.readProfile, 'linked-audio-range-v1');
+	await assert.rejects(
+		fixture.handlers.get(IPC.loadLinkedAudioOriginal)(fixture.event, {
+			locatorId: LOCATOR_ID, expectedRevision: null, range: true,
+		}),
+		/exact|revision|range/iu,
+	);
+	for (const value of [
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION },
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, range: 'yes' },
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false, playback: false },
+	]) await assert.rejects(
+		fixture.handlers.get(IPC.loadLinkedAudioOriginal)(fixture.event, value),
+		/field|boolean|mode|range/iu,
+	);
 });
 
 test('linked-original IPC reconciles and releases one exact kind-aware inventory', async () => {
@@ -115,7 +146,7 @@ function harness() {
 	const store = {
 		registerPath(path, options) { storeCalls.push({ method: 'registerPath', path, options }); return fixture.locator; },
 		load(locatorId, options) { storeCalls.push({ method: 'load', locatorId, options }); return fixture.loaded; },
-		leasePlayback(locatorId, options) { storeCalls.push({ method: 'leasePlayback', locatorId, options }); return fixture.loaded; },
+		leaseRange(locatorId, options) { storeCalls.push({ method: 'leaseRange', locatorId, options }); return fixture.loaded; },
 		reconcileStartup(references, options) { storeCalls.push({ method: 'reconcileStartup', references, options }); return 0; },
 		release(locatorId, options) { storeCalls.push({ method: 'release', locatorId, options }); return true; },
 	};
@@ -137,11 +168,12 @@ function locator() {
 	};
 }
 
-function readDescriptor() {
+function readDescriptor(overrides = {}) {
+	const readProfile = overrides.readProfile || 'materialized-v1';
 	return {
 		id: READ_ID,
-		url: `soundscaper-app://bundle/_desktop/read/materialized-v1/${READ_ID}/selected.wav`,
+		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/selected.wav`,
 		name: 'selected.wav', size: 42, mimeType: 'audio/wav',
-		readProfile: 'materialized-v1', lastModified: 123,
+		readProfile, lastModified: 123, ...overrides,
 	};
 }

@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { DesktopReadFetch } from './desktop-read-materialization.ts';
+import {
+	admitDesktopLinkedAudioRange,
+	type DesktopReadRelease,
+} from './desktop-linked-audio-range-adapter.ts';
+
 export type LinkedOriginalKind = 'audio' | 'video';
 
 export interface LinkedOriginalReference {
@@ -13,12 +19,29 @@ export interface LinkedOriginalSnapshot {
 	readonly locatorRevision: string;
 }
 
+export interface LinkedOriginalRangeLease {
+	readonly locatorRevision: string;
+	readonly byteLength: number;
+	readonly mimeType: string;
+	readRange(request: Readonly<{
+		readonly offset: number;
+		readonly length: number;
+		readonly signal?: AbortSignal;
+	}>): Promise<Uint8Array>;
+	release(): Promise<void>;
+}
+
 export interface DesktopLinkedOriginalPort {
 	load(
 		kind: LinkedOriginalKind,
 		locatorId: string,
 		request: Readonly<{ expectedRevision: string | null; signal?: AbortSignal }>,
 	): Promise<Readonly<LinkedOriginalSnapshot> | null>;
+	leaseRange?(
+		kind: LinkedOriginalKind,
+		locatorId: string,
+		request: Readonly<{ expectedRevision: string; signal?: AbortSignal }>,
+	): Promise<Readonly<LinkedOriginalRangeLease> | null>;
 	reconcile(references: readonly LinkedOriginalReference[]): Promise<number>;
 	release(reference: LinkedOriginalReference): Promise<boolean>;
 }
@@ -38,6 +61,10 @@ interface MaterializedVideoPort {
 		locatorId: string,
 		request: Readonly<{ expectedRevision: string | null; signal?: AbortSignal }>,
 	): PromiseLike<LinkedOriginalSnapshot | null> | LinkedOriginalSnapshot | null;
+	leasePlayback?(
+		locatorId: string,
+		request: Readonly<{ expectedRevision: string; signal?: AbortSignal }>,
+	): PromiseLike<LinkedOriginalRangeLease | null> | LinkedOriginalRangeLease | null;
 }
 
 interface DesktopLinkedOriginalBridge {
@@ -45,6 +72,7 @@ interface DesktopLinkedOriginalBridge {
 	loadLinkedAudioOriginal?(request: Readonly<{
 		locatorId: string;
 		expectedRevision: string | null;
+		range: boolean;
 	}>): PromiseLike<unknown> | unknown;
 	reconcileLinkedOriginals?(references: readonly LinkedOriginalReference[]): PromiseLike<unknown> | unknown;
 	releaseLinkedOriginal?(reference: LinkedOriginalReference): PromiseLike<unknown> | unknown;
@@ -53,6 +81,7 @@ interface DesktopLinkedOriginalBridge {
 
 interface DesktopLinkedOriginalAccessOptions {
 	readonly bridge: DesktopLinkedOriginalBridge | null;
+	readonly fetch?: DesktopReadFetch | null;
 	readonly videoPort: MaterializedVideoPort | null;
 	readonly openReadDescriptor: (
 		descriptor: unknown,
@@ -83,18 +112,23 @@ const DESCRIPTOR_FIELDS = Object.freeze([
 const MAXIMUM_MATERIALIZED_BYTES = 512 * 1024 ** 2;
 const MAXIMUM_REFERENCES = 128;
 
-/** Kind-aware materialized originals; range playback remains on the video compatibility port. */
+/** Kind-aware materialized originals and owner-scoped platform range leases. */
 export function createDesktopLinkedOriginalAccess(
 	options: DesktopLinkedOriginalAccessOptions,
 ): Readonly<DesktopLinkedOriginalAccess> {
 	const bridge = options?.bridge;
+	const releaseRead = bridge ? ownedReleaseRead(bridge) : null;
 	const available = Boolean(options?.videoPort
 		&& typeof bridge?.loadLinkedAudioOriginal === 'function'
 		&& typeof bridge.reconcileLinkedOriginals === 'function'
 		&& typeof bridge.releaseLinkedOriginal === 'function'
 		&& typeof bridge.releaseRead === 'function');
 	const audioAvailable = available && typeof bridge?.chooseLinkedAudioOriginal === 'function';
-	const port = available ? Object.freeze({ load, reconcile, release }) : null;
+	const port: DesktopLinkedOriginalPort | null = available
+		? Object.freeze(typeof options.fetch === 'function' && releaseRead
+			? { leaseRange, load, reconcile, release }
+			: { load, reconcile, release })
+		: null;
 	return Object.freeze({ available, audioAvailable, port, chooseAudio, releaseAudio });
 
 	async function chooseAudio(
@@ -148,7 +182,11 @@ export function createDesktopLinkedOriginalAccess(
 			});
 			return snapshot ? Object.freeze(snapshot) : null;
 		}
-		const raw = await bridge?.loadLinkedAudioOriginal?.({ locatorId, expectedRevision });
+		const raw = await bridge?.loadLinkedAudioOriginal?.({
+			locatorId,
+			expectedRevision,
+			range: false,
+		});
 		if (raw === null) {
 			throwIfAborted(request?.signal);
 			return null;
@@ -168,6 +206,54 @@ export function createDesktopLinkedOriginalAccess(
 			if (!delegated && cleanupId) await cleanupRead(error, cleanupId, bridge);
 			throw error;
 		}
+	}
+
+	async function leaseRange(
+		kindValue: LinkedOriginalKind,
+		locatorIdValue: string,
+		request: Readonly<{ expectedRevision: string; signal?: AbortSignal }>,
+	): Promise<Readonly<LinkedOriginalRangeLease> | null> {
+		const kind = linkedOriginalKind(kindValue);
+		const locatorId = locatorToken(locatorIdValue, 'locator identifier');
+		const expectedRevision = locatorToken(request?.expectedRevision, 'expected locator revision');
+		throwIfAborted(request?.signal);
+		if (kind === 'video') {
+			const playback = await options.videoPort?.leasePlayback?.(locatorId, {
+				expectedRevision,
+				signal: request?.signal,
+			});
+			if (!playback) {
+				throwIfAborted(request?.signal);
+				return null;
+			}
+			try {
+				throwIfAborted(request?.signal);
+				return closeRangeLease(playback);
+			} catch (error) {
+				return failDelegatedRangeLease(error, playback);
+			}
+		}
+		if (typeof options.fetch !== 'function' || !releaseRead) return null;
+		let raw: unknown;
+		try {
+			raw = await bridge?.loadLinkedAudioOriginal?.({
+				locatorId,
+				expectedRevision,
+				range: true,
+			});
+		} catch (error) {
+			throwIfAborted(request?.signal);
+			throw error;
+		}
+		if (raw === null) {
+			throwIfAborted(request?.signal);
+			return null;
+		}
+		return admitDesktopLinkedAudioRange(raw, expectedRevision, {
+			fetch: options.fetch,
+			releaseRead,
+			signal: request?.signal,
+		});
 	}
 
 	async function reconcile(referencesValue: readonly LinkedOriginalReference[]): Promise<number> {
@@ -191,6 +277,43 @@ export function createDesktopLinkedOriginalAccess(
 		if (!port) return false;
 		return release({ kind: 'audio', ...reference });
 	}
+}
+
+function ownedReleaseRead(bridge: DesktopLinkedOriginalBridge): DesktopReadRelease | null {
+	const operation = bridge.releaseRead;
+	return typeof operation === 'function'
+		? (id: string): unknown => Reflect.apply(operation, bridge, [id]) as unknown
+		: null;
+}
+
+function closeRangeLease(
+	lease: LinkedOriginalRangeLease,
+): LinkedOriginalRangeLease {
+	return Object.freeze({
+		locatorRevision: lease.locatorRevision,
+		byteLength: lease.byteLength,
+		mimeType: lease.mimeType,
+		readRange: (request: Parameters<LinkedOriginalRangeLease['readRange']>[0]) => (
+			lease.readRange(request)
+		),
+		release: () => lease.release(),
+	});
+}
+
+async function failDelegatedRangeLease(
+	error: unknown,
+	lease: LinkedOriginalRangeLease,
+): Promise<never> {
+	try {
+		await lease.release();
+	} catch (cleanupError) {
+		throw new AggregateError(
+			[error, cleanupError],
+			'Linked-original range handoff and cleanup both failed.',
+			{ cause: error },
+		);
+	}
+	throw error;
 }
 
 function audioChoice(value: unknown): Omit<DesktopLinkedAudioOriginalChoice, 'file'> {

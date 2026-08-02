@@ -18,7 +18,7 @@ test('preload exposes pathless linked-WAV choose and materialized-load methods',
 	const fixture = await loadPreload([rawLocator, rawLoaded]);
 	const choice = await fixture.bridge.chooseLinkedAudioOriginal();
 	const loaded = await fixture.bridge.loadLinkedAudioOriginal({
-		locatorId: LOCATOR_ID, expectedRevision: REVISION,
+		locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false,
 	});
 
 	assert.deepEqual({ ...choice }, locator());
@@ -35,9 +35,39 @@ test('preload exposes pathless linked-WAV choose and materialized-load methods',
 	]), [
 		['soundscaper:v1:linked-audio:choose', undefined],
 		['soundscaper:v1:linked-audio:load', {
-			locatorId: LOCATOR_ID, expectedRevision: REVISION,
+			locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false,
 		}],
 	]);
+});
+
+test('preload accepts only exact linked-audio range requests and sanitizes their profile', async () => {
+	const rawLoaded = {
+		locatorRevision: REVISION,
+		descriptor: {
+			...readDescriptor('linked-audio-range-v1'),
+			path: '/private/selected.wav',
+		},
+	};
+	const fixture = await loadPreload([rawLoaded]);
+	const loaded = await fixture.bridge.loadLinkedAudioOriginal({
+		locatorId: LOCATOR_ID, expectedRevision: REVISION, range: true,
+	});
+
+	assert.equal(loaded.descriptor.readProfile, 'linked-audio-range-v1');
+	assert.equal('path' in loaded.descriptor, false);
+	assert.deepEqual(fixture.invocations.map(([channel, value]) => [channel, { ...value }]), [[
+		'soundscaper:v1:linked-audio:load',
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, range: true },
+	]]);
+	assert.throws(() => fixture.bridge.loadLinkedAudioOriginal({
+		locatorId: LOCATOR_ID, expectedRevision: null, range: true,
+	}), /exact|revision|range/iu);
+	for (const value of [
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION },
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, range: 'yes' },
+		{ locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false, path: '/private' },
+	]) assert.throws(() => fixture.bridge.loadLinkedAudioOriginal(value), /field|boolean|mode|range/iu);
+	assert.equal(fixture.invocations.length, 1);
 });
 
 test('preload rejects linked audio playback-shaped requests and non-WAV responses', async () => {
@@ -48,10 +78,10 @@ test('preload rejects linked audio playback-shaped requests and non-WAV response
 	]);
 	await assert.rejects(fixture.bridge.chooseLinkedAudioOriginal(), /WAV|MIME/iu);
 	await assert.rejects(fixture.bridge.loadLinkedAudioOriginal({
-		locatorId: LOCATOR_ID, expectedRevision: REVISION,
+		locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false,
 	}), /materialized|WAV|capability URL/iu);
 	assert.throws(() => fixture.bridge.loadLinkedAudioOriginal({
-		locatorId: LOCATOR_ID, expectedRevision: REVISION, playback: true,
+		locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false, playback: true,
 	}), /unsupported field|playback/iu);
 	assert.deepEqual(fixture.invocations.map(([channel]) => channel), [
 		'soundscaper:v1:linked-audio:choose',
@@ -92,12 +122,12 @@ function locator() {
 	};
 }
 
-function readDescriptor() {
+function readDescriptor(readProfile = 'materialized-v1') {
 	return {
 		id: READ_ID,
-		url: `soundscaper-app://bundle/_desktop/read/materialized-v1/${READ_ID}/selected.wav`,
+		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/selected.wav`,
 		name: 'selected.wav', size: 42, mimeType: 'audio/wav',
-		readProfile: 'materialized-v1', lastModified: 123,
+		readProfile, lastModified: 123,
 	};
 }
 

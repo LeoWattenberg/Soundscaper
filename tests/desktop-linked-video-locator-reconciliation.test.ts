@@ -170,7 +170,7 @@ function readCapabilities(): DesktopLinkedVideoReadCapabilityStore & Readonly<{
 				lastModified: Math.max(0, Math.trunc(metadata.mtimeMs)),
 			};
 		},
-		async registerLinkedVideoPlaybackPath(path, options) {
+		async registerLinkedOriginalRangePath(path, options) {
 			const metadata = await stat(path);
 			const id = (++nextId).toString(16).padStart(64, '0');
 			paths.set(id, path);

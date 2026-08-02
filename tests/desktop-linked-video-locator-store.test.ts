@@ -517,7 +517,7 @@ function readCapabilities() {
 				await fixture.afterRegister?.();
 				return descriptor;
 			},
-			async registerLinkedVideoPlaybackPath(path, options) {
+			async registerLinkedOriginalRangePath(path, options) {
 				registrations.push({ path, ...options });
 				const metadata = await stat(path);
 				const descriptor = Object.freeze({

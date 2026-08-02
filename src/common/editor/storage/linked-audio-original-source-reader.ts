@@ -3,10 +3,11 @@
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../pcm-chunks.js';
 import { DESKTOP_READ_HARD_LIMIT_BYTES } from '../desktop-read-materialization.ts';
 import { inspectWavBlobPcm } from '../wav-import.js';
-import { ascii, readBlobBytes } from '../wav-import-io.ts';
+import { ascii } from '../wav-import-io.ts';
 import {
 	createWavBlobPcmChunkReader,
 	type WavBlobPcmChunkReader,
+	type WavBlobPcmSource,
 	type WavPcmDescriptor,
 } from '../wav-pcm-chunk-reader.ts';
 import type { LinkedAudioOriginalBinding } from './linked-original-binding.ts';
@@ -14,6 +15,7 @@ import {
 	type LinkedAudioOriginalSource,
 	type LinkedOriginalResolver,
 } from './linked-original-resolver.ts';
+import { createLinkedOriginalRangeBlobSource } from './linked-original-range-blob-source.ts';
 import type { LinkedOriginalRepository } from './linked-original-repository.ts';
 import type { StorageRecord } from './media-records.ts';
 import type {
@@ -33,9 +35,11 @@ interface LinkedAudioReadSession {
 	readonly aliases: readonly LinkedAudioOriginalBinding[];
 	readonly binding: LinkedAudioOriginalBinding;
 	readonly reader: WavBlobPcmChunkReader;
+	release(): Promise<void>;
 }
 
 const WAV_MIME_TYPES = new Set(['audio/rf64', 'audio/wav']);
+const NO_PRIMARY_FAILURE = Symbol('no linked-audio read failure');
 
 /** Verified canonical Float32 reads from a bounded, pathless local WAV binding. */
 export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
@@ -46,6 +50,7 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 			throw new TypeError('A linked original binding repository is required.');
 		}
 		if (!options.resolver || typeof options.resolver.resolve !== 'function'
+			|| typeof options.resolver.resolveRange !== 'function'
 			|| typeof options.resolver.assertBindingCurrent !== 'function') {
 			throw new TypeError('A linked original resolver is required.');
 		}
@@ -66,7 +71,15 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 			throw new RangeError('Source chunk index must be a non-negative integer.');
 		}
 		const session = await this.#startRead(storageKey, signal);
-		return this.#readChunk(session, chunkIndex, signal);
+		let primaryFailure: unknown = NO_PRIMARY_FAILURE;
+		try {
+			return await this.#readChunk(session, chunkIndex, signal);
+		} catch (error) {
+			primaryFailure = error;
+			throw error;
+		} finally {
+			await releaseReadSession(session.release, primaryFailure);
+		}
 	}
 
 	async *chunks(
@@ -74,8 +87,16 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 		{ signal }: SourceReadOptions = {},
 	): AsyncGenerator<SourcePcmChunk> {
 		const session = await this.#startRead(storageKey, signal);
-		for (let index = 0; index < session.reader.chunkCount; index += 1) {
-			yield await this.#readChunk(session, index, signal);
+		let primaryFailure: unknown = NO_PRIMARY_FAILURE;
+		try {
+			for (let index = 0; index < session.reader.chunkCount; index += 1) {
+				yield await this.#readChunk(session, index, signal);
+			}
+		} catch (error) {
+			primaryFailure = error;
+			throw error;
+		} finally {
+			await releaseReadSession(session.release, primaryFailure);
 		}
 	}
 
@@ -88,6 +109,33 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 		if (!aliases) throw new Error('The requested audio source could not be found.');
 		const binding = aliases[0] as LinkedAudioOriginalBinding;
 		const source = sourceFromBinding(binding);
+		const ranged = await this.#options.resolver.resolveRange(
+			binding.projectId,
+			source,
+			signal ? { signal } : {},
+		);
+		if (ranged) {
+			try {
+				if (ranged.binding.kind !== 'audio' || !sameBinding(ranged.binding, binding)) {
+					throw new Error('The linked audio original binding changed during range resolution.');
+				}
+				assertMaterializedBinding(binding);
+				if (ranged.source.type !== binding.mimeType) {
+					throw new Error('The linked audio original MIME type changed during range resolution.');
+				}
+				const wavSource = createLinkedOriginalRangeBlobSource(ranged.source, signal);
+				const descriptor = await inspectLinkedWav(wavSource, signal);
+				assertCanonicalGeometry(binding, descriptor);
+				const reader = createWavBlobPcmChunkReader(wavSource, {
+					descriptor,
+					chunkFrames: binding.sourceShape.chunkFrames,
+				});
+				await this.#assertAliasesCurrent(aliases, binding, signal);
+				return Object.freeze({ aliases, binding, reader, release: ranged.release });
+			} catch (error) {
+				return failReadSessionStart(error, ranged.release);
+			}
+		}
 		const resolved = await this.#options.resolver.resolve(
 			binding.projectId,
 			source,
@@ -108,7 +156,7 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 			chunkFrames: binding.sourceShape.chunkFrames,
 		});
 		await this.#assertAliasesCurrent(aliases, binding, signal);
-		return Object.freeze({ aliases, binding, reader });
+		return Object.freeze({ aliases, binding, reader, release: noOpRelease });
 	}
 
 	async #readChunk(
@@ -157,14 +205,67 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 	}
 }
 
-async function inspectLinkedWav(blob: Blob, signal?: AbortSignal): Promise<WavPcmDescriptor> {
-	if (blob.size < 4) throw new Error('The linked WAV file is too small to contain a RIFF header.');
-	const signature = ascii(await readBlobBytes(blob, 0, 4, signal), 0, 4);
+async function inspectLinkedWav(source: WavBlobPcmSource, signal?: AbortSignal): Promise<WavPcmDescriptor> {
+	if (source.size < 4) throw new Error('The linked WAV file is too small to contain a RIFF header.');
+	const signature = ascii(await readWavSourceBytes(source, 0, 4, signal), 0, 4);
 	if (signature !== 'RIFF' && signature !== 'RF64') {
 		throw new Error('Linked audio fallback supports RIFF and RF64 WAV containers only.');
 	}
-	const descriptor = await inspectWavBlobPcm(blob, signal ? { signal } : {});
+	const descriptor = await inspectWavBlobPcm(source, signal ? { signal } : {});
 	return descriptor as WavPcmDescriptor;
+}
+
+async function readWavSourceBytes(
+	source: WavBlobPcmSource,
+	start: number,
+	end: number,
+	signal?: AbortSignal,
+): Promise<Uint8Array> {
+	throwIfAborted(signal);
+	const buffer = await source.slice(start, end).arrayBuffer();
+	throwIfAborted(signal);
+	if (!(buffer instanceof ArrayBuffer) || buffer.byteLength !== end - start) {
+		throw new Error('A linked WAV range returned an unexpected number of bytes.');
+	}
+	return new Uint8Array(buffer);
+}
+
+async function failReadSessionStart(
+	error: unknown,
+	release: () => Promise<void>,
+): Promise<never> {
+	try {
+		await release();
+	} catch (cleanupError) {
+		throw new AggregateError(
+			[error, cleanupError],
+			'Linked audio range setup and cleanup both failed.',
+			{ cause: error },
+		);
+	}
+	throw error;
+}
+
+async function releaseReadSession(
+	release: () => Promise<void>,
+	primaryFailure: unknown,
+): Promise<void> {
+	try {
+		await release();
+	} catch (cleanupError) {
+		if (primaryFailure !== NO_PRIMARY_FAILURE) {
+			throw new AggregateError(
+				[primaryFailure, cleanupError],
+				'Linked audio range reading and cleanup both failed.',
+				{ cause: primaryFailure },
+			);
+		}
+		throw cleanupError;
+	}
+}
+
+function noOpRelease(): Promise<void> {
+	return Promise.resolve();
 }
 
 function sourceMetadata(binding: LinkedAudioOriginalBinding): StorageRecord {

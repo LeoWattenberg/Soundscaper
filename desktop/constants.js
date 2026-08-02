@@ -31,6 +31,7 @@ export const SUPPORTED_LOCALES = Object.freeze([
 ]);
 
 export const READ_CAPABILITY_PREFIX = '/_desktop/read/';
+export const READ_PROFILE_LINKED_AUDIO_RANGE_V1 = 'linked-audio-range-v1';
 export const READ_PROFILE_LINKED_VIDEO_RANGE_V1 = 'linked-video-range-v1';
 export const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1';
 export const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';

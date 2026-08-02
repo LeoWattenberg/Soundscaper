@@ -13,6 +13,12 @@ import type {
 	LinkedOriginalLocatorReference,
 	LinkedOriginalRepository,
 } from './linked-original-repository.ts';
+import type { LinkedOriginalRangeByteSource } from './linked-original-range-byte-source.ts';
+import {
+	failLinkedOriginalRangeLease,
+	verifyLinkedOriginalRangeLease,
+	type LinkedOriginalRangeLease,
+} from './linked-original-range-lease.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -43,6 +49,8 @@ export interface LinkedOriginalSnapshot {
 	readonly locatorRevision: unknown;
 }
 
+export type { LinkedOriginalRangeLease } from './linked-original-range-lease.ts';
+
 export interface LinkedOriginalPort {
 	load(
 		kind: LinkedOriginalKind,
@@ -52,6 +60,14 @@ export interface LinkedOriginalPort {
 			signal?: AbortSignal;
 		}>,
 	): PromiseLike<LinkedOriginalSnapshot | null> | LinkedOriginalSnapshot | null;
+	leaseRange?(
+		kind: LinkedOriginalKind,
+		locatorId: string,
+		options: Readonly<{
+			expectedRevision: string;
+			signal?: AbortSignal;
+		}>,
+	): PromiseLike<LinkedOriginalRangeLease | null> | LinkedOriginalRangeLease | null;
 	reconcile?(
 		references: readonly LinkedOriginalLocatorReference[],
 	): PromiseLike<number> | number;
@@ -64,6 +80,12 @@ export interface ResolvedLinkedOriginal {
 	readonly binding: LinkedOriginalBinding;
 	readonly blob: Blob;
 	readonly metadata: LinkedOriginalMetadata;
+}
+
+export interface ResolvedLinkedOriginalRange {
+	readonly binding: LinkedOriginalBinding;
+	readonly source: LinkedOriginalRangeByteSource;
+	release(): Promise<void>;
 }
 
 export interface LinkedOriginalMetadata {
@@ -105,6 +127,9 @@ export class LinkedOriginalResolver {
 		}
 		if (!port || typeof port !== 'object' || typeof port.load !== 'function') {
 			throw new TypeError('A linked original platform port is required.');
+		}
+		if (port.leaseRange !== undefined && typeof port.leaseRange !== 'function') {
+			throw new TypeError('Linked original range leasing must be a function.');
 		}
 		this.#bindings = bindings;
 		this.#port = port;
@@ -193,6 +218,30 @@ export class LinkedOriginalResolver {
 		if (sha256 !== binding.sha256) throw new Error('The linked original failed SHA-256 verification.');
 		await this.assertBindingCurrent(projectId, source, binding, options);
 		return Object.freeze({ binding, blob, metadata: inspected.metadata });
+	}
+
+	/** Verify and hold one exact range capability; null means the platform has no range API. */
+	async resolveRange(
+		projectId: string,
+		source: LinkedOriginalSource,
+		options: Readonly<{ signal?: AbortSignal }> = {},
+	): Promise<ResolvedLinkedOriginalRange | null> {
+		if (typeof this.#port.leaseRange !== 'function') return null;
+		const inspected = await this.inspect(projectId, source, options);
+		if (!inspected) return null;
+		const { binding } = inspected;
+		throwIfAborted(options.signal);
+		const rawLease = await this.#port.leaseRange(binding.kind, binding.locatorId, {
+			expectedRevision: binding.locatorRevision,
+			...(options.signal ? { signal: options.signal } : {}),
+		});
+		const lease = await verifyLinkedOriginalRangeLease(rawLease, binding, options.signal);
+		try {
+			await this.assertBindingCurrent(projectId, source, binding, options);
+			return Object.freeze({ binding, source: lease.source, release: lease.release });
+		} catch (error) {
+			return failLinkedOriginalRangeLease(error, lease.release);
+		}
 	}
 
 	async inspect(

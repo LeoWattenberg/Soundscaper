@@ -143,13 +143,13 @@ export class ScapeRangeReadAdmission extends RangeReadAdmission {
 	}
 }
 
-export class LinkedVideoPlaybackAdmission extends RangeReadAdmission {
+export class LinkedOriginalRangeAdmission extends RangeReadAdmission {
 	constructor(options = {}) {
 		super({
 			...options,
 			hardMaximumCount: MAX_LINKED_VIDEO_PLAYBACK_CAPABILITIES,
 			hardMaximumBytes: MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES,
-			label: 'Linked-video playback',
+			label: 'Linked-original range',
 			maximumActiveRequests: MAX_LINKED_VIDEO_PLAYBACK_REQUESTS,
 		});
 	}

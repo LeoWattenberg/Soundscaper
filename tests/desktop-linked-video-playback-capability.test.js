@@ -34,18 +34,18 @@ test('linked-video playback admission is explicitly count- and byte-bounded', as
 		openImpl: async () => handles[opened++],
 	});
 	context.after(async () => { await store.dispose().catch(() => undefined); });
-	const first = await store.registerLinkedVideoPlaybackPath('/tmp/first.mp4', playbackOptions(6));
-	const boundary = await store.registerLinkedVideoPlaybackPath('/tmp/second.mp4', playbackOptions(4));
+	const first = await store.registerLinkedOriginalRangePath('/tmp/first.mp4', playbackOptions(6));
+	const boundary = await store.registerLinkedOriginalRangePath('/tmp/second.mp4', playbackOptions(4));
 	assert.equal(first.readProfile, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
 	assert.equal(boundary.readProfile, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
 	await assert.rejects(
-		store.registerLinkedVideoPlaybackPath('/tmp/excess.mp4', playbackOptions(7)),
+		store.registerLinkedOriginalRangePath('/tmp/excess.mp4', playbackOptions(7)),
 		/count|limit/iu,
 	);
 	assert.equal(opened, 2, 'count refusal precedes another file open');
 	assert.equal(await store.release(first.id, { owner: OWNER }), true);
 	await assert.rejects(
-		store.registerLinkedVideoPlaybackPath('/tmp/excess.mp4', playbackOptions(7)),
+		store.registerLinkedOriginalRangePath('/tmp/excess.mp4', playbackOptions(7)),
 		/byte|limit/iu,
 	);
 	assert.equal(handles[2].closeCalls, 1, 'byte refusal closes its candidate handle');
@@ -56,7 +56,7 @@ test('linked-video playback leases do not expire while their renderer owner rema
 	const handle = fakeHandle(5);
 	const store = new ReadCapabilityStore({ ttlMs: 1, now: () => now, openImpl: async () => handle });
 	context.after(async () => { await store.dispose().catch(() => undefined); });
-	const descriptor = await store.registerLinkedVideoPlaybackPath('/tmp/paused.mp4', playbackOptions(5));
+	const descriptor = await store.registerLinkedOriginalRangePath('/tmp/paused.mp4', playbackOptions(5));
 	now = Number.MAX_SAFE_INTEGER;
 	assert.deepEqual(store.get(descriptor.id), descriptor, 'paused playback remains owner-pinned');
 	await store.revokeOwner(OWNER);
@@ -69,7 +69,7 @@ test('playback admission binds the opened handle to the locator file identity', 
 	const store = new ReadCapabilityStore({ openImpl: async () => replacement });
 	context.after(async () => { await store.dispose().catch(() => undefined); });
 	await assert.rejects(
-		store.registerLinkedVideoPlaybackPath('/tmp/raced.mp4', playbackOptions(4)),
+		store.registerLinkedOriginalRangePath('/tmp/raced.mp4', playbackOptions(4)),
 		/changed|identity/iu,
 	);
 	assert.equal(replacement.closeCalls, 1);
@@ -79,7 +79,7 @@ test('one linked-video playback capability cannot exceed the locator file ceilin
 	let opened = false;
 	const store = new ReadCapabilityStore({ openImpl: async () => { opened = true; } });
 	await assert.rejects(
-		store.registerLinkedVideoPlaybackPath('/tmp/oversized.mp4', playbackOptions(
+		store.registerLinkedOriginalRangePath('/tmp/oversized.mp4', playbackOptions(
 			MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES + 1,
 		)),
 		/file bytes|limit/iu,
@@ -101,7 +101,7 @@ test('seek cancellation drains an admitted file read before releasing its reques
 	});
 	const store = new ReadCapabilityStore({ openImpl: async () => handle });
 	context.after(async () => { await store.dispose().catch(() => undefined); });
-	const descriptor = await store.registerLinkedVideoPlaybackPath('/tmp/deferred.mp4', playbackOptions(5));
+	const descriptor = await store.registerLinkedOriginalRangePath('/tmp/deferred.mp4', playbackOptions(5));
 	const request = store.acquireRequest(descriptor.id, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
 	assert.ok(request);
 	const stream = request.createReadStream({ start: 0, end: 0, autoClose: false });
@@ -127,7 +127,7 @@ test('the playback protocol serves bounded sequential ranges from the admitted o
 	await writeFile(selectedPath, original);
 	const store = new ReadCapabilityStore();
 	context.after(async () => { await store.dispose().catch(() => undefined); });
-	const descriptor = await store.registerLinkedVideoPlaybackPath(
+	const descriptor = await store.registerLinkedOriginalRangePath(
 		selectedPath,
 		playbackOptionsFromStat(await stat(selectedPath)),
 	);
@@ -168,6 +168,7 @@ test('the playback protocol serves bounded sequential ranges from the admitted o
 
 function playbackOptions(size) {
 	return {
+		kind: 'video',
 		owner: OWNER,
 		mimeType: 'video/mp4',
 		displayName: 'selected.mp4',
@@ -177,6 +178,7 @@ function playbackOptions(size) {
 
 function playbackOptionsFromStat(details) {
 	return {
+		kind: 'video',
 		owner: OWNER,
 		mimeType: 'video/mp4',
 		displayName: 'selected.mp4',

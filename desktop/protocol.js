@@ -9,6 +9,7 @@ import {
 	APP_SCHEME,
 	MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES,
 	READ_CAPABILITY_PREFIX,
+	READ_PROFILE_LINKED_AUDIO_RANGE_V1,
 	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 	READ_PROFILE_MATERIALIZED_V1,
 	READ_PROFILE_SCAPE_RANGE_V1,
@@ -224,7 +225,7 @@ async function serveCapability(request, url, store) {
 		const stream = lease.createReadStream({ start, end, autoClose: false });
 		streamCreated = true;
 		const body = leasedResponseBody(stream, lease, request.signal, {
-			retireOnCancel: readProfile !== READ_PROFILE_LINKED_VIDEO_RANGE_V1,
+			retireOnCancel: !isLinkedOriginalRangeProfile(readProfile),
 		});
 		const response = new Response(body, { status, headers });
 		bodyOwnsLease = true;
@@ -240,6 +241,12 @@ async function serveCapability(request, url, store) {
 function isReadProfile(value) {
 	return value === READ_PROFILE_MATERIALIZED_V1
 		|| value === READ_PROFILE_SCAPE_RANGE_V1
+		|| value === READ_PROFILE_LINKED_AUDIO_RANGE_V1
+		|| value === READ_PROFILE_LINKED_VIDEO_RANGE_V1;
+}
+
+function isLinkedOriginalRangeProfile(value) {
+	return value === READ_PROFILE_LINKED_AUDIO_RANGE_V1
 		|| value === READ_PROFILE_LINKED_VIDEO_RANGE_V1;
 }
 
@@ -247,7 +254,7 @@ function requestRange(request, readProfile, size) {
 	if (readProfile === READ_PROFILE_MATERIALIZED_V1) {
 		return parseSingleRange(request.headers.get('range'), size);
 	}
-	if (readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1) {
+	if (isLinkedOriginalRangeProfile(readProfile)) {
 		if (request.method === 'HEAD') return null;
 		if (request.method !== 'GET') throw new ProtocolError(405, 'Method not allowed');
 		const match = /^bytes=(\d+)-(\d*)$/u.exec(request.headers.get('range') || '');

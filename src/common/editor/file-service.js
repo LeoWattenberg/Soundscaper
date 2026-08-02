@@ -41,6 +41,7 @@ export function createAudioEditorFileService(options = {}) {
 	});
 	const linkedOriginals = createDesktopLinkedOriginalAccess({
 		bridge,
+		fetch: fetchFile,
 		videoPort: linkedVideoOriginals.port,
 		openReadDescriptor,
 	});

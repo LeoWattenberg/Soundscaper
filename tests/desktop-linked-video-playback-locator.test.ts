@@ -32,9 +32,8 @@ test('an exact locator mints one pathless stable-handle playback lease', async (
 		mimeType: 'video/mp4',
 		displayName: 'selected.mp4',
 	});
-	const lease = await store.leasePlayback(locator.locatorId, {
-		owner,
-		expectedRevision: locator.locatorRevision,
+	const lease = await store.leaseRange(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'video',
 	});
 	assert.ok(lease);
 	assert.equal(lease.locatorRevision, locator.locatorRevision);
@@ -54,9 +53,8 @@ test('an exact locator mints one pathless stable-handle playback lease', async (
 	assert.equal((await handler(new Request(lease.descriptor.url, {
 		headers: { Range: 'bytes=0-0' },
 	}))).status, 404);
-	assert.equal(await store.leasePlayback(locator.locatorId, {
-		owner,
-		expectedRevision: locator.locatorRevision,
+	assert.equal(await store.leaseRange(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'video',
 	}), null, 'a later lease rejects the replacement pathname');
 });
 
@@ -68,7 +66,7 @@ test('playback leasing requires an exact revision and forwards the locator ident
 	const store = new DesktopLinkedVideoLocatorStore({
 		readCapabilities: {
 			registerMaterializedPath: async () => { throw new Error('materialized read'); },
-			registerLinkedVideoPlaybackPath: async (path, options) => {
+			registerLinkedOriginalRangePath: async (path, options) => {
 				registrations.push({ path, options });
 				return playbackDescriptor();
 			},
@@ -83,17 +81,17 @@ test('playback leasing requires an exact revision and forwards the locator ident
 		displayName: 'selected.mp4',
 	});
 	await assert.rejects(
-		store.leasePlayback(locator.locatorId, { owner, expectedRevision: null }),
+		store.leaseRange(locator.locatorId, { owner, expectedRevision: null, expectedKind: 'video' }),
 		/exact|revision/iu,
 	);
-	const loaded = await store.leasePlayback(locator.locatorId, {
-		owner,
-		expectedRevision: locator.locatorRevision,
+	const loaded = await store.leaseRange(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'video',
 	});
 	assert.ok(loaded);
 	assert.deepEqual(registrations, [{
 		path: selectedPath,
 		options: {
+			kind: 'video',
 			owner,
 			mimeType: 'video/mp4',
 			displayName: 'selected.mp4',
@@ -109,7 +107,7 @@ test('playback leasing retires a descriptor that does not match its locator snap
 	const store = new DesktopLinkedVideoLocatorStore({
 		readCapabilities: {
 			registerMaterializedPath: async () => { throw new Error('materialized read'); },
-			registerLinkedVideoPlaybackPath: async () => ({
+			registerLinkedOriginalRangePath: async () => ({
 				...playbackDescriptor(),
 				readProfile: 'materialized-v1',
 			}),
@@ -126,9 +124,8 @@ test('playback leasing retires a descriptor that does not match its locator snap
 		mimeType: 'video/mp4',
 		displayName: 'selected.mp4',
 	});
-	await assert.rejects(store.leasePlayback(locator.locatorId, {
-		owner,
-		expectedRevision: locator.locatorRevision,
+	await assert.rejects(store.leaseRange(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'video',
 	}), /does not match/iu);
 	assert.deepEqual(releases, [{ id: 'f'.repeat(64), options: { owner } }]);
 });
