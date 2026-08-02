@@ -7,7 +7,9 @@ import { Readable } from 'node:stream';
 import {
 	APP_HOST,
 	APP_SCHEME,
+	MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES,
 	READ_CAPABILITY_PREFIX,
+	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 	READ_PROFILE_MATERIALIZED_V1,
 	READ_PROFILE_SCAPE_RANGE_V1,
 	RUNTIME_PREFIX,
@@ -221,7 +223,9 @@ async function serveCapability(request, url, store) {
 		}
 		const stream = lease.createReadStream({ start, end, autoClose: false });
 		streamCreated = true;
-		const body = leasedResponseBody(stream, lease, request.signal);
+		const body = leasedResponseBody(stream, lease, request.signal, {
+			retireOnCancel: readProfile !== READ_PROFILE_LINKED_VIDEO_RANGE_V1,
+		});
 		const response = new Response(body, { status, headers });
 		bodyOwnsLease = true;
 		return response;
@@ -234,12 +238,36 @@ async function serveCapability(request, url, store) {
 }
 
 function isReadProfile(value) {
-	return value === READ_PROFILE_MATERIALIZED_V1 || value === READ_PROFILE_SCAPE_RANGE_V1;
+	return value === READ_PROFILE_MATERIALIZED_V1
+		|| value === READ_PROFILE_SCAPE_RANGE_V1
+		|| value === READ_PROFILE_LINKED_VIDEO_RANGE_V1;
 }
 
 function requestRange(request, readProfile, size) {
 	if (readProfile === READ_PROFILE_MATERIALIZED_V1) {
 		return parseSingleRange(request.headers.get('range'), size);
+	}
+	if (readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1) {
+		if (request.method === 'HEAD') return null;
+		if (request.method !== 'GET') throw new ProtocolError(405, 'Method not allowed');
+		const match = /^bytes=(\d+)-(\d*)$/u.exec(request.headers.get('range') || '');
+		if (!match || size <= 0) throw new ProtocolError(416, 'Range not satisfiable');
+		const start = Number(match[1]);
+		const requestedEnd = match[2] ? Number(match[2]) : null;
+		if (!Number.isSafeInteger(start) || start >= size
+			|| requestedEnd !== null && (!Number.isSafeInteger(requestedEnd)
+				|| start > requestedEnd || requestedEnd >= size)) {
+			throw new ProtocolError(416, 'Range not satisfiable');
+		}
+		const end = requestedEnd ?? Math.min(
+			size - 1,
+			start + MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES - 1,
+		);
+		const length = end - start + 1;
+		if (length > MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES) {
+			throw new ProtocolError(416, 'Range not satisfiable');
+		}
+		return { start, end, length };
 	}
 	if (request.method !== 'GET') throw new ProtocolError(405, 'Method not allowed');
 	const match = /^bytes=(\d+)-(\d+)$/u.exec(request.headers.get('range') || '');
@@ -263,7 +291,7 @@ function requestRange(request, readProfile, size) {
 	return { start, end, length };
 }
 
-function leasedResponseBody(stream, lease, signal) {
+function leasedResponseBody(stream, lease, signal, { retireOnCancel = true } = {}) {
 	const reader = Readable.toWeb(stream).getReader();
 	let abortReason = null;
 	let abortAttached = false;
@@ -290,6 +318,9 @@ function leasedResponseBody(stream, lease, signal) {
 		if (!retirementPromise) retirementPromise = Promise.resolve().then(() => lease.retire());
 		return retirementPromise;
 	};
+	const cancelRequest = () => retireOnCancel
+		? retire()
+		: Promise.resolve().then(() => lease.cancel());
 	const fail = (failure, retirement = null) => {
 		if (failurePromise) return failurePromise;
 		failed = true;
@@ -318,7 +349,7 @@ function leasedResponseBody(stream, lease, signal) {
 				// Capability retirement retries and reports stream cleanup.
 			}
 		}
-		void fail(abortReason, retire());
+		void fail(abortReason, cancelRequest());
 	};
 	const body = new ReadableStream({
 		start(controller) {
@@ -376,7 +407,7 @@ function leasedResponseBody(stream, lease, signal) {
 					// Capability retirement retries and reports stream cleanup.
 				}
 			}
-			await retire();
+			await cancelRequest();
 		},
 	}, { highWaterMark: 0 });
 	void reader.closed.catch((error) => {

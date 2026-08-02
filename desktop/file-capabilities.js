@@ -3,10 +3,10 @@ import { open } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 
 import {
-	APP_ORIGIN,
 	MAX_READ_CAPABILITIES_PER_OWNER,
 	MAX_READ_CAPABILITY_BYTES_PER_OWNER,
-	READ_CAPABILITY_PREFIX,
+	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES,
+	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 	READ_PROFILE_MATERIALIZED_V1,
 	READ_PROFILE_SCAPE_RANGE_V1,
 	SCAPE_PROJECT_MIME_TYPE,
@@ -14,10 +14,23 @@ import {
 import {
 	ReadCapabilityAdmissionError,
 	boundedReadLimit,
+	LinkedVideoPlaybackAdmission,
 	safeReadFileSize,
 	ScapeRangeReadAdmission,
 } from './read-capability-admission.js';
+import {
+	assertReadCapabilityFileIdentity,
+	cleanReadCapabilityDisplayName,
+	createReadCapabilityStream,
+	normalizeReadCapabilityFileIdentity,
+	readCapabilityDescriptor,
+	readCapabilityRequestRetiredError,
+	requireReadCapabilityOwner,
+	safeReadCapabilityTimestamp,
+} from './read-capability-support.js';
 import { mimeTypeForPath } from './validation.js';
+
+export { throwAfterReadCapabilityRollback } from './read-capability-support.js';
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 
@@ -32,6 +45,7 @@ export class ReadCapabilityStore {
 	#open;
 	#operations = new Set();
 	#ownerStates = new WeakMap();
+	#playbackAdmission;
 	#randomBytes;
 	#revocations = new Set();
 	#retirements = new Map();
@@ -45,8 +59,8 @@ export class ReadCapabilityStore {
 		randomBytesImpl = randomBytes,
 		maximumCount = MAX_READ_CAPABILITIES_PER_OWNER,
 		maximumBytes = MAX_READ_CAPABILITY_BYTES_PER_OWNER,
-		maximumScapeRangeCount,
-		maximumScapeRangeBytes,
+		maximumScapeRangeCount, maximumScapeRangeBytes,
+		maximumLinkedVideoPlaybackCount, maximumLinkedVideoPlaybackBytes,
 	} = {}) {
 		this.#ttlMs = ttlMs;
 		this.#now = now;
@@ -66,6 +80,10 @@ export class ReadCapabilityStore {
 		this.#scapeRangeAdmission = new ScapeRangeReadAdmission({
 			maximumCount: maximumScapeRangeCount,
 			maximumBytes: maximumScapeRangeBytes,
+		});
+		this.#playbackAdmission = new LinkedVideoPlaybackAdmission({
+			maximumCount: maximumLinkedVideoPlaybackCount,
+			maximumBytes: maximumLinkedVideoPlaybackBytes,
 		});
 	}
 
@@ -94,8 +112,26 @@ export class ReadCapabilityStore {
 		}
 	}
 
-	#admitPath(filePath, { owner, mimeType, displayName }, readProfile) {
+	registerLinkedVideoPlaybackPath(filePath, { owner, mimeType, displayName, expectedIdentity } = {}) {
+		try {
+			if (typeof mimeType !== 'string' || !/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) {
+				throw new TypeError('Linked-video playback capabilities require a canonical video MIME type');
+			}
+			const identity = normalizeReadCapabilityFileIdentity(expectedIdentity);
+			if (identity.size > MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES) {
+				throw new ReadCapabilityAdmissionError('Linked-video playback file bytes exceed the limit');
+			}
+			return this.#admitPath(filePath, {
+				owner, mimeType, displayName, expectedIdentity: identity,
+			}, READ_PROFILE_LINKED_VIDEO_RANGE_V1);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	#admitPath(filePath, { owner, mimeType, displayName, expectedIdentity = null }, readProfile) {
 		let state;
+		const rangeAdmission = this.#rangeAdmission(readProfile);
 		let rangeTicket = null;
 		try {
 			if (this.#disposed) throw new Error('Read capability store is disposed');
@@ -107,9 +143,7 @@ export class ReadCapabilityStore {
 			}
 			state.count += 1;
 			try {
-				if (readProfile === READ_PROFILE_SCAPE_RANGE_V1) {
-					rangeTicket = this.#scapeRangeAdmission.reserve(owner);
-				}
+				if (rangeAdmission) rangeTicket = rangeAdmission.reserve(owner);
 			} catch (error) {
 				state.count -= 1;
 				throw error;
@@ -118,13 +152,13 @@ export class ReadCapabilityStore {
 			return Promise.reject(error);
 		}
 		return this.#trackOperation(() => this.#registerPath(filePath, {
-			owner, mimeType, displayName, readProfile, rangeTicket,
+			owner, mimeType, displayName, expectedIdentity, readProfile, rangeAdmission, rangeTicket,
 		}, state), state);
 	}
 
 	get(id) {
 		const entry = this.#liveEntry(id);
-		return entry ? descriptorFor(entry) : null;
+		return entry ? readCapabilityDescriptor(entry) : null;
 	}
 
 	acquireRequest(id, expectedProfile) {
@@ -132,7 +166,7 @@ export class ReadCapabilityStore {
 		if (!entry || entry.request
 			|| (expectedProfile !== undefined && entry.readProfile !== expectedProfile)) return null;
 		const rangeRequest = entry.rangeTicket
-			? this.#scapeRangeAdmission.acquireRequest(entry.rangeTicket)
+			? entry.rangeAdmission.acquireRequest(entry.rangeTicket)
 			: null;
 		if (entry.rangeTicket && !rangeRequest) return null;
 		this.#renewExpiry(entry);
@@ -146,7 +180,7 @@ export class ReadCapabilityStore {
 
 	release(id, { owner } = {}) {
 		try {
-			requireOwner(owner);
+			requireReadCapabilityOwner(owner);
 			const key = String(id || '');
 			const entry = this.#entries.get(key);
 			if (!entry) {
@@ -188,7 +222,8 @@ export class ReadCapabilityStore {
 		return this.#disposePromise;
 	}
 
-	async #registerPath(filePath, { owner, mimeType, displayName, readProfile, rangeTicket }, state) {
+	async #registerPath(filePath, { owner, mimeType, displayName, expectedIdentity,
+		readProfile, rangeAdmission, rangeTicket }, state) {
 		let handle = null;
 		let accountedBytes = 0;
 		try {
@@ -196,11 +231,12 @@ export class ReadCapabilityStore {
 			this.#assertAdmissionActive(state);
 			const details = await handle.stat();
 			if (!details.isFile()) throw new TypeError('Selected input is not a regular file');
+			if (expectedIdentity) assertReadCapabilityFileIdentity(details, expectedIdentity);
 			const size = safeReadFileSize(details.size);
 			this.#assertAdmissionActive(state);
 			this.#sweepExpired(state);
 			if (rangeTicket) {
-				this.#scapeRangeAdmission.charge(rangeTicket, size);
+				rangeAdmission.charge(rangeTicket, size);
 			} else {
 				if (size > this.#maximumBytes) {
 					throw new ReadCapabilityAdmissionError(`Read capability bytes exceed the per-owner limit of ${this.#maximumBytes}`);
@@ -212,7 +248,7 @@ export class ReadCapabilityStore {
 				accountedBytes = size;
 			}
 			const id = this.#newId();
-			const name = cleanDisplayName(displayName || basename(filePath));
+			const name = cleanReadCapabilityDisplayName(displayName || basename(filePath));
 			const entry = {
 				id,
 				handle,
@@ -222,42 +258,44 @@ export class ReadCapabilityStore {
 				size,
 				mimeType: mimeType || mimeTypeForPath(filePath),
 				readProfile,
+				rangeAdmission,
 				rangeTicket,
-				lastModified: safeReadTimestamp(details.mtimeMs),
-				expiresAt: this.#now() + this.#ttlMs,
+				lastModified: safeReadCapabilityTimestamp(details.mtimeMs),
+				expiresAt: readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1
+					? null : this.#now() + this.#ttlMs,
 				request: null,
 				retirement: null,
 				timer: null,
 			};
-			const descriptor = descriptorFor(entry);
+			const descriptor = readCapabilityDescriptor(entry);
 			this.#renewExpiry(entry);
 			this.#entries.set(id, entry);
 			handle = null;
 			return descriptor;
 		} catch (error) {
 			if (!handle) {
-				this.#rollbackAdmission(state, rangeTicket, accountedBytes);
+				this.#rollbackAdmission(state, rangeAdmission, rangeTicket, accountedBytes);
 				throw error;
 			}
 			try {
 				await this.#closeHandle(handle, state);
 			} catch (cleanupError) {
-				this.#scapeRangeAdmission.retainAndFence(rangeTicket);
+				rangeAdmission?.retainAndFence(rangeTicket);
 				throw new AggregateError(
 					[error, cleanupError],
 					'Read capability admission and candidate-handle cleanup both failed',
 					{ cause: cleanupError },
 				);
 			}
-			this.#rollbackAdmission(state, rangeTicket, accountedBytes);
+			this.#rollbackAdmission(state, rangeAdmission, rangeTicket, accountedBytes);
 			throw error;
 		}
 	}
 
-	#rollbackAdmission(state, rangeTicket, accountedBytes) {
+	#rollbackAdmission(state, rangeAdmission, rangeTicket, accountedBytes) {
 		state.count -= 1;
 		state.bytes -= accountedBytes;
-		this.#scapeRangeAdmission.release(rangeTicket);
+		rangeAdmission?.release(rangeTicket);
 	}
 
 	async #revokeOwner(state, releases) {
@@ -324,9 +362,9 @@ export class ReadCapabilityStore {
 			}
 			if (entry.rangeTicket) {
 				if (handleClosed && cleanupErrors.length === 0) {
-					this.#scapeRangeAdmission.release(entry.rangeTicket);
+					entry.rangeAdmission.release(entry.rangeTicket);
 				} else {
-					this.#scapeRangeAdmission.retainAndFence(entry.rangeTicket);
+					entry.rangeAdmission.retainAndFence(entry.rangeTicket);
 				}
 			}
 			if (cleanupErrors.length === 1) throw cleanupErrors[0];
@@ -392,7 +430,7 @@ export class ReadCapabilityStore {
 			if (stream) throw new Error('Desktop read request lease already has a stream');
 			let candidate;
 			try {
-				candidate = entry.handle.createReadStream(options);
+				candidate = createReadCapabilityStream(entry, options);
 			} catch (error) {
 				finishRequest();
 				throw error;
@@ -428,7 +466,7 @@ export class ReadCapabilityStore {
 				if (stream && !streamSettled) {
 					if (!stream.destroyed) {
 						try {
-							stream.destroy(readRequestRetiredError());
+							stream.destroy(readCapabilityRequestRetiredError());
 						} catch (error) {
 							settleStream();
 							finishRequest();
@@ -459,6 +497,7 @@ export class ReadCapabilityStore {
 			lastModified: entry.lastModified,
 			createReadStream,
 			close: complete,
+			cancel: forceClose,
 			retire: () => this.#releaseEntry(entry),
 		});
 	}
@@ -472,7 +511,7 @@ export class ReadCapabilityStore {
 	#liveEntry(id) {
 		const entry = this.#entries.get(String(id || ''));
 		if (!entry) return null;
-		if (entry.expiresAt <= this.#now()) {
+		if (entry.expiresAt !== null && entry.expiresAt <= this.#now()) {
 			void this.#releaseEntry(entry).catch(() => undefined);
 			return null;
 		}
@@ -481,6 +520,7 @@ export class ReadCapabilityStore {
 
 	#renewExpiry(entry) {
 		clearTimeout(entry.timer);
+		if (entry.expiresAt === null) return;
 		const expiresAt = this.#now() + this.#ttlMs;
 		entry.expiresAt = expiresAt;
 		entry.timer = setTimeout(() => {
@@ -493,7 +533,7 @@ export class ReadCapabilityStore {
 	#sweepExpired(state) {
 		const now = this.#now();
 		for (const entry of this.#entries.values()) {
-			if (entry.state === state && entry.expiresAt <= now) {
+			if (entry.state === state && entry.expiresAt !== null && entry.expiresAt <= now) {
 				void this.#releaseEntry(entry).catch(() => undefined);
 			}
 		}
@@ -505,7 +545,7 @@ export class ReadCapabilityStore {
 	}
 
 	#ownerState(owner) {
-		requireOwner(owner);
+		requireReadCapabilityOwner(owner);
 		let state = this.#ownerStates.get(owner);
 		if (!state) {
 			state = {
@@ -520,6 +560,12 @@ export class ReadCapabilityStore {
 			this.#ownerStates.set(owner, state);
 		}
 		return state;
+	}
+
+	#rangeAdmission(readProfile) {
+		if (readProfile === READ_PROFILE_SCAPE_RANGE_V1) return this.#scapeRangeAdmission;
+		if (readProfile === READ_PROFILE_LINKED_VIDEO_RANGE_V1) return this.#playbackAdmission;
+		return null;
 	}
 
 	#trackOperation(operation, state) {
@@ -548,52 +594,4 @@ export class ReadCapabilityStore {
 		do id = this.#randomBytes(32).toString('hex'); while (this.#entries.has(id) || this.#retirements.has(id));
 		return id;
 	}
-}
-
-export async function throwAfterReadCapabilityRollback(store, descriptors, owner, cause) {
-	const results = await Promise.allSettled(
-		descriptors.map((descriptor) => store.release(descriptor.id, { owner })),
-	);
-	const cleanupErrors = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
-	if (!cleanupErrors.length) throw cause;
-	throw new AggregateError(
-		[cause, ...cleanupErrors],
-		'Read capability registration and rollback cleanup both failed',
-		{ cause },
-	);
-}
-
-function requireOwner(owner) {
-	if ((typeof owner !== 'object' || owner === null) && typeof owner !== 'function') {
-		throw new TypeError('Read capabilities require an opaque renderer owner');
-	}
-	return owner;
-}
-
-function descriptorFor(entry) {
-	return Object.freeze({
-		id: entry.id,
-		url: `${APP_ORIGIN}${READ_CAPABILITY_PREFIX}${entry.readProfile}/${entry.id}/${encodeURIComponent(entry.name)}`,
-		name: entry.name,
-		size: entry.size,
-		mimeType: entry.mimeType,
-		readProfile: entry.readProfile,
-		lastModified: entry.lastModified,
-	});
-}
-
-function cleanDisplayName(value) {
-	const name = String(value || 'file').replace(/[\u0000-\u001f/\\]/gu, '-').slice(0, 255);
-	return name || 'file';
-}
-
-function safeReadTimestamp(value) {
-	const timestamp = Math.trunc(value);
-	return Number.isSafeInteger(timestamp) ? Math.max(0, timestamp) : 0;
-}
-
-function readRequestRetiredError() {
-	const error = new Error('Desktop read capability request was retired');
-	error.name = 'AbortError';
-	return error;
 }

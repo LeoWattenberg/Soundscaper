@@ -1,9 +1,4 @@
 {
-  "desktop/file-capabilities.js": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "desktop/main.mjs": {
     "no-unused-vars": {
       "count": 1

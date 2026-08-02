@@ -31,6 +31,7 @@ export const SUPPORTED_LOCALES = Object.freeze([
 ]);
 
 export const READ_CAPABILITY_PREFIX = '/_desktop/read/';
+export const READ_PROFILE_LINKED_VIDEO_RANGE_V1 = 'linked-video-range-v1';
 export const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1';
 export const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';
 export const SCAPE_PROJECT_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -39,6 +40,11 @@ export const MAX_READ_CAPABILITIES_PER_OWNER = 128;
 export const MAX_READ_CAPABILITY_BYTES_PER_OWNER = 512 * 1024 ** 2;
 export const MAX_SCAPE_RANGE_READ_CAPABILITIES = 4;
 export const MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES = 65 * 1024 ** 3;
+export const MAX_LINKED_VIDEO_PLAYBACK_CAPABILITIES = 128;
+export const MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES = 64 * 1024 ** 3;
+export const MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES = 512 * 1024 ** 2;
+export const MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES = 4 * 1024 ** 2;
+export const MAX_LINKED_VIDEO_PLAYBACK_REQUESTS = 16;
 export const MAX_SAVE_CHUNK_BYTES = 1024 * 1024;
 export const MAX_AUDIO_PCM_SAVE_CHUNK_BYTES = 4 * 1024 * 1024;
 export const MAX_SAVE_BYTES = Number.MAX_SAFE_INTEGER;

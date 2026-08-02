@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITIES,
+	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES,
+	MAX_LINKED_VIDEO_PLAYBACK_REQUESTS,
 	MAX_SCAPE_RANGE_READ_CAPABILITIES,
 	MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES,
 } from './constants.js';
@@ -17,34 +20,47 @@ export function isRetryableReadCapabilityAdmissionError(error) {
 	return error instanceof ReadCapabilityAdmissionError && error.retryable;
 }
 
-export class ScapeRangeReadAdmission {
-	#activeRequest = null;
+export class RangeReadAdmission {
+	#activeRequests = 0;
 	#bytes = 0;
 	#count = 0;
 	#fenced = false;
+	#label;
+	#maximumActiveRequests;
 	#maximumBytes;
 	#maximumCount;
 	#ownerStates = new WeakMap();
 
 	constructor({
-		maximumCount = MAX_SCAPE_RANGE_READ_CAPABILITIES,
-		maximumBytes = MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES,
-	} = {}) {
+		hardMaximumCount,
+		hardMaximumBytes,
+		label,
+		maximumActiveRequests,
+		maximumCount = hardMaximumCount,
+		maximumBytes = hardMaximumBytes,
+	}) {
+		this.#label = String(label || 'Range read');
 		this.#maximumCount = boundedReadLimit(
 			maximumCount,
-			MAX_SCAPE_RANGE_READ_CAPABILITIES,
-			'Scape range capability count',
+			hardMaximumCount,
+			`${this.#label} capability count`,
 			{ allowZero: false },
 		);
 		this.#maximumBytes = boundedReadLimit(
 			maximumBytes,
-			MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES,
-			'Scape range capability aggregate bytes',
+			hardMaximumBytes,
+			`${this.#label} capability aggregate bytes`,
+		);
+		this.#maximumActiveRequests = boundedReadLimit(
+			maximumActiveRequests,
+			hardMaximumCount,
+			`${this.#label} active request count`,
+			{ allowZero: false },
 		);
 	}
 
 	reserve(owner) {
-		if (this.#fenced) throw new Error('Scape range admission is fenced after a cleanup failure');
+		if (this.#fenced) throw new Error(`${this.#label} admission is fenced after a cleanup failure`);
 		let state = this.#ownerStates.get(owner);
 		if (!state) {
 			state = { bytes: 0, count: 0 };
@@ -52,7 +68,7 @@ export class ScapeRangeReadAdmission {
 		}
 		if (this.#count >= this.#maximumCount || state.count >= this.#maximumCount) {
 			throw new ReadCapabilityAdmissionError(
-				`Scape range capability count exceeds the limit of ${this.#maximumCount}`,
+				`${this.#label} capability count exceeds the limit of ${this.#maximumCount}`,
 				{ retryable: true },
 			);
 		}
@@ -63,16 +79,16 @@ export class ScapeRangeReadAdmission {
 
 	charge(ticket, size) {
 		assertLiveTicket(ticket);
-		if (ticket.charged) throw new Error('Scape range capability was already charged');
+		if (ticket.charged) throw new Error(`${this.#label} capability was already charged`);
 		if (size > this.#maximumBytes) {
 			throw new ReadCapabilityAdmissionError(
-				`Scape range capability bytes exceed the limit of ${this.#maximumBytes}`,
+				`${this.#label} capability bytes exceed the limit of ${this.#maximumBytes}`,
 			);
 		}
 		if (size > this.#maximumBytes - this.#bytes
 			|| size > this.#maximumBytes - ticket.state.bytes) {
 			throw new ReadCapabilityAdmissionError(
-				`Scape range capability bytes exceed the limit of ${this.#maximumBytes}`,
+				`${this.#label} capability bytes exceed the limit of ${this.#maximumBytes}`,
 				{ retryable: true },
 			);
 		}
@@ -101,17 +117,41 @@ export class ScapeRangeReadAdmission {
 
 	acquireRequest(ticket) {
 		assertLiveTicket(ticket);
-		if (this.#activeRequest) return null;
+		if (this.#activeRequests >= this.#maximumActiveRequests) return null;
 		let released = false;
+		this.#activeRequests += 1;
 		const request = Object.freeze({
 			release: () => {
 				if (released) return;
 				released = true;
-				if (this.#activeRequest === request) this.#activeRequest = null;
+				this.#activeRequests -= 1;
 			},
 		});
-		this.#activeRequest = request;
 		return request;
+	}
+}
+
+export class ScapeRangeReadAdmission extends RangeReadAdmission {
+	constructor(options = {}) {
+		super({
+			...options,
+			hardMaximumCount: MAX_SCAPE_RANGE_READ_CAPABILITIES,
+			hardMaximumBytes: MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES,
+			label: 'Scape range',
+			maximumActiveRequests: 1,
+		});
+	}
+}
+
+export class LinkedVideoPlaybackAdmission extends RangeReadAdmission {
+	constructor(options = {}) {
+		super({
+			...options,
+			hardMaximumCount: MAX_LINKED_VIDEO_PLAYBACK_CAPABILITIES,
+			hardMaximumBytes: MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_BYTES,
+			label: 'Linked-video playback',
+			maximumActiveRequests: MAX_LINKED_VIDEO_PLAYBACK_REQUESTS,
+		});
 	}
 }
 
