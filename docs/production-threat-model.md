@@ -76,27 +76,42 @@ retained, and audio fallback plus audio/video bypass projections are not
 composed. Canonical project, history, and save state stay unchanged.
 
 An active delivery does not reuse activation-time byte admission. Under the
-owned export-task signal, the controller freshly loads and verifies the actual
-local managed Blob's exact admitted size and SHA-256 through the non-raiseable
-4 MiB digest window before export planning or delivery-body reads. Task,
-project-generation, and operation currentness are asserted before verification
-and again after byte admission immediately before planning. The same signal
-fences the fallback body load, separately staged canonical-audio render, and
-FFmpeg operation; post-encode currentness is required before output Blob and
-download publication, and a late publication is cleaned up. The projected
-fallback body is the sole video input. FFmpeg maps canonical audio only from the
-separately staged mix, so embedded audio in the fallback container is ignored.
-A stale activation-time digest, missing managed body, wrong body, or digest
-mismatch refuses before FFmpeg or download.
+owned export-task signal, the selector-mode verifier reselects the exact active
+canonical video requirement, source, and digest and verifies only that target.
+Unrelated inactive audio fallback storage is not read. Selector mismatch or
+ambiguity rejects before storage. The verifier loads the selected local body
+once, constructs a canonical native `Blob`, and size-checks and hashes that
+same object with SHA-256 through non-raiseable 4 MiB windows. Its admission
+returns that same verified object.
+Export reuses it as the sole video input with no second fallback-store read,
+eliminating the selected fallback's storage-reread TOCTOU between admission and
+FFmpeg.
+
+Task, project-generation, and operation currentness are asserted before
+verification and again after admission immediately before planning. The
+export-task signal fences verifier work, separately staged canonical-audio
+render, and FFmpeg. Post-encode currentness precedes output-`Blob` construction.
+After prior-output cleanup is awaited, cancellation and currentness are
+asserted again before download publication, and the same export-task signal is
+passed through that publication request. After publication returns,
+cancellation and currentness are checked again. When that check refuses a late
+result, its returned recoverable cleanup handle is awaited before refusal; this
+does not make publication transactional or undo an external destination that
+provides no such handle. FFmpeg maps canonical audio only from the separately
+staged mix, so embedded audio in the fallback container is ignored. A stale
+activation-time digest, missing managed body, wrong body, or digest mismatch
+refuses before planning, FFmpeg, or download.
 
 The composed fresh managed handoff test replaces the acquired fallback after
 activation, proves that corrupt bytes cannot authorize delivery, restores the
 exact acquired body, and then proves that body alone reaches a successful video
-output while canonical state remains unchanged. This verification is
-point-in-time, not a durable byte lease. It makes no generic or third-party,
-simultaneous rendered-fallback, authored fallback or proxy, linked-only,
-unmanaged, reference-scale, browser-codec, packaged-runtime, whole-handoff
-atomicity, or broad preview/export parity claim.
+output while canonical state remains unchanged. The retained immutable `Blob`
+supplies point-in-time bytes for this export, not a durable storage-record
+lease. It does not qualify external writer or cross-process durability. It
+makes no generic or third-party, simultaneous rendered-fallback, authored
+fallback or proxy, linked-only, unmanaged, reference-scale, browser-codec,
+packaged-runtime, whole-handoff atomicity, or broad preview/export parity
+claim.
 
 Descriptor validation alone does not hash or authenticate the referenced media bytes; the separate exact-schema-9 controller admission described above verifies referenced local bytes at its narrower boundary.
 

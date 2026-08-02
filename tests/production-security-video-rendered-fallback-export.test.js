@@ -20,6 +20,7 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	for (const path of [
 		'src/common/editor/project-feature-video-rendered-fallback.ts',
 		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/project-fallback-integrity-video.ts',
 		'src/common/editor/controller/playback-project-service.ts',
 		'src/common/editor/controller/video-rendered-fallback-export.ts',
 		'src/common/editor/controller/export-service.ts',
@@ -29,6 +30,7 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 		'tests/audio-editor-video-rendered-fallback-delivery-projection.test.ts',
 		'tests/audio-editor-video-rendered-fallback-export.test.ts',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
+		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
 		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
 		'tests/production-security-video-rendered-fallback-export.test.js',
 	]) {
@@ -42,15 +44,23 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	);
 	assert.match(
 		control.summary,
-		/export task signal.*fresh.*actual local.*Blob.*exact admitted size.*SHA-256.*4 MiB.*before.*plan.*body/iu,
+		/selector.mode.*exact active.*video requirement.*source.*digest.*unrelated inactive audio.*storage.*not read/iu,
 	);
 	assert.match(
 		control.summary,
-		/current.*before verification.*after.*admission.*before planning.*task signal.*body load.*audio render.*FFmpeg.*post-encode.*before.*output/iu,
+		/canonical native Blob.*size.check.*hash.*same.*object.*sole video input.*no second fallback.store read.*TOCTOU/iu,
 	);
 	assert.match(
 		control.summary,
-		/sole video input.*canonical audio.*separate staged mix.*embedded fallback audio.*ignored/iu,
+		/current.*before verification.*after.*admission.*before planning.*task signal.*audio render.*FFmpeg.*post-encode.*prior-output cleanup.*current.*before.*download publication/iu,
+	);
+	assert.match(
+		control.summary,
+		/export signal.*passed.*download publication.*after.*returns.*current.*recoverable.*cleanup/iu,
+	);
+	assert.match(
+		control.summary,
+		/canonical audio.*separate staged mix.*embedded fallback audio.*ignored/iu,
 	);
 	assert.match(control.summary, /canonical project.*history.*save.*unchanged/iu);
 	assert.match(
@@ -63,21 +73,33 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	);
 	assert.match(
 		control.summary,
-		/point-in-time.*no durable byte lease.*generic or third-party.*simultaneous.*authored.*linked-only.*unmanaged.*reference-scale.*browser.*packaged.*broad.*parity/iu,
+		/retained immutable Blob.*point-in-time bytes.*no durable storage-record lease.*external writer.*process durability.*generic or third-party.*simultaneous.*authored.*linked-only.*unmanaged.*reference-scale.*browser.*packaged.*broad.*parity/iu,
 	);
 
-	const documentation = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
+	const threatModel = await readFile(threatModelUrl, 'utf8');
+	const sectionStart = threatModel.indexOf('Final video rendered-fallback delivery');
+	const sectionEnd = threatModel.indexOf('\nDescriptor validation alone', sectionStart);
+	assert.ok(sectionStart >= 0 && sectionEnd > sectionStart);
+	const documentation = threatModel.slice(sectionStart, sectionEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
 		/final video rendered-fallback delivery.*exact schema 9.*registered first-party `videoEffects`.*unavailable.*declared and effective `rendered-fallback`.*only.*video delivery projection/iu,
 	);
 	assert.match(
 		documentation,
-		/export-task signal.*fresh.*actual local.*Blob.*exact admitted size.*SHA-256.*4 MiB.*before.*planning.*body/iu,
+		/selector.mode.*exact active.*video requirement.*source.*digest.*unrelated inactive audio.*storage.*not read/iu,
 	);
 	assert.match(
 		documentation,
-		/sole video input.*canonical audio.*separately staged.*embedded audio.*fallback container.*ignored/iu,
+		/canonical native `Blob`.*size.check.*hash.*same.*object.*sole video input.*no second fallback-store read.*TOCTOU/iu,
+	);
+	assert.match(
+		documentation,
+		/prior-output cleanup.*current.*before.*download publication.*export-task signal.*passed.*publication.*after.*returns.*current.*recoverable.*cleanup/iu,
+	);
+	assert.match(
+		documentation,
+		/canonical audio.*separately staged.*embedded audio.*fallback container.*ignored/iu,
 	);
 	assert.match(documentation, /canonical project.*history.*save.*unchanged/iu);
 	assert.match(
@@ -86,6 +108,6 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	);
 	assert.match(
 		documentation,
-		/point-in-time.*not a durable byte lease.*generic or third-party.*simultaneous.*authored.*linked-only.*unmanaged.*reference-scale.*browser.*packaged.*broad.*parity/iu,
+		/retained immutable `Blob`.*point-in-time bytes.*not a durable storage-record lease.*external writer.*process durability.*generic or third-party.*simultaneous.*authored.*linked-only.*unmanaged.*reference-scale.*browser.*packaged.*broad.*parity/iu,
 	);
 });
