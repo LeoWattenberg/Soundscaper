@@ -40,9 +40,17 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 		roadmap,
 		/Implemented for managed-media ownership and bounded\s+startup reclamation.*schema-3 canonical and stage inventories.*descriptor provenance.*lease.*fencing tokens.*before body or\s+optional hard-link work.*catalog publication.*materialized inventory.*published atomically.*retires stale tracked catalog rows.*registered regular stages and bodies.*lease-fenced.*persisted bounded passes.*unmanaged.*unregistered.*legacy.*symlinked.*non-regular.*foreign content stays untouched.*compiled desktop\s+runtime.*packaged source-bearing UI qualification remains\s+open/isu,
 	);
+	assert.match(
+		roadmap,
+		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*maintained renderer.*at most 100,000 closed binding\s+rows.*at most 128 exact locator\/revision references.*durable-unavailable\s+storage sends nothing.*invalid scans reject before IPC.*at\s+most one successful serialized pass per store\/process.*only absent\s+startup-loaded metadata.*referenced and current-process\s+records.*external media.*never inspected or deleted.*binding-present but\s+canonical-project-unreachable records.*continuous same-process cleanup.*hostile-renderer inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS qualification remain open/isu,
+	);
 	assert.doesNotMatch(
 		roadmap,
 		/In progress[^\n]*.*managed-media reclamation and logical row retirement/isu,
+	);
+	assert.doesNotMatch(
+		roadmap,
+		/In progress[^\n]*.*linked-locator reconciliation/isu,
 	);
 	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
 	assert.match(roadmap, /docs\/project-compatibility\.md/iu);

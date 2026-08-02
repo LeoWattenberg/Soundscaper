@@ -309,14 +309,25 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   canonical source commit, skips an owned original-video copy, and retains
   canonical extracted audio plus binding-scoped disposable previews.
   Pre-commit failures roll back import-owned state.
+- **Electron Enhanced / Shared — Implemented for bounded cooperative startup
+  locator reconciliation:** after persistent IndexedDB opens and before project
+  loading, the maintained renderer inventories at most 100,000 closed binding
+  rows into at most 128 exact locator/revision references. Durable-unavailable
+  storage sends nothing and invalid scans reject before IPC. Main performs at
+  most one successful serialized pass per store/process, retiring only absent
+  startup-loaded metadata while retaining referenced and current-process
+  records; external media is never inspected or deleted. Binding-present but
+  canonical-project-unreachable records, continuous same-process cleanup,
+  hostile-renderer inventory authority, abrupt-crash/power-loss durability, and
+  packaged/OS qualification remain open.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond bounded point-in-time whole-body import and finish broader
   linked and unmanaged-original lifecycles, authored proxies plus generic
   rendered-fallback relationships beyond maintained first-party playback and
   managed handoff, fallback authoring and delivery use, exact or write-time
-  capacity behavior, durable playback identity, linked-locator reconciliation
-  and other cleanup beyond the bounded startup tracked inventory where
-  required, and packaged UI/OS/browser-codec qualification.
+  capacity behavior, durable playback identity, continuous linked-locator
+  cleanup and binding-to-project reachability beyond the bounded startup pass
+  where required, and packaged UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
   records bind a trusted retained-original digest or exact linked binding and a
   versioned recipe while staying outside project history, portable archive
