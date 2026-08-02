@@ -4,6 +4,13 @@ import {
 	assertProjectRevisionPublicationCapacity,
 	estimateProjectRevisionPublication,
 } from '../project-publication-admission.ts';
+import { linkedVideoOriginalBindingKey } from './linked-video-original-schema.ts';
+
+const MAXIMUM_PROTECTED_LINKED_VIDEO_SOURCE_IDS = 100_000;
+const PROJECT_SAVE_OPTION_NAMES = new Set([
+	'admitProjectPublication',
+	'protectedLinkedVideoSourceIds',
+]);
 
 export type ProjectPublicationAdmission = (
 	bytes: number,
@@ -38,6 +45,35 @@ export async function admitProjectPublication(
 
 /** Validate the closed optional admission hook accepted by project saves. */
 export function projectPublicationAdmission(options: unknown): ProjectPublicationAdmission | null {
+	const record = projectSaveOptionRecord(options);
+	const admission = record.admitProjectPublication;
+	if (admission === undefined) return null;
+	if (typeof admission !== 'function') {
+		throw new TypeError('Project publication admission must be a function.');
+	}
+	return admission as ProjectPublicationAdmission;
+}
+
+/** Snapshot the complete caller-owned roots that make source cleanup Undo-safe. */
+export function projectProtectedLinkedVideoSourceIds(
+	options: unknown,
+): readonly string[] | null {
+	const value = projectSaveOptionRecord(options).protectedLinkedVideoSourceIds;
+	if (value === undefined) return null;
+	if (!Array.isArray(value) || value.length > MAXIMUM_PROTECTED_LINKED_VIDEO_SOURCE_IDS) {
+		throw new RangeError('Protected linked-video source IDs exceed their array limit.');
+	}
+	const sourceIds = value.map((sourceId) => {
+		linkedVideoOriginalBindingKey('project-save-protection-validation', sourceId);
+		return sourceId as string;
+	});
+	if (new Set(sourceIds).size !== sourceIds.length) {
+		throw new Error('Protected linked-video source IDs contain duplicate identities.');
+	}
+	return Object.freeze(sourceIds);
+}
+
+function projectSaveOptionRecord(options: unknown): Record<string, unknown> {
 	if (!options
 		|| typeof options !== 'object'
 		|| Array.isArray(options)
@@ -46,14 +82,9 @@ export function projectPublicationAdmission(options: unknown): ProjectPublicatio
 	}
 	const record = options as Record<string, unknown>;
 	for (const name of Object.keys(record)) {
-		if (name !== 'admitProjectPublication') {
+		if (!PROJECT_SAVE_OPTION_NAMES.has(name)) {
 			throw new TypeError(`Unsupported project save option: ${name}.`);
 		}
 	}
-	const admission = record.admitProjectPublication;
-	if (admission === undefined) return null;
-	if (typeof admission !== 'function') {
-		throw new TypeError('Project publication admission must be a function.');
-	}
-	return admission as ProjectPublicationAdmission;
+	return record;
 }
