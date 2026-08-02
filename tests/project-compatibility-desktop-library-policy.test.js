@@ -391,14 +391,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'src/common/editor/storage/linked-video-original-resolver.ts',
 		'src/common/editor/storage/desktop-shared-project-linked-video-originals.ts',
 		'src/common/editor/storage/desktop-shared-project-media-acquisition.ts',
-		'src/common/editor/storage/desktop-shared-project-media-sender.ts',
-		'src/common/editor/storage/desktop-shared-project-duplication.ts',
-		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/common/editor/storage/desktop-shared-project-media-sender.ts', 'src/common/editor/storage/desktop-shared-project-duplication.ts', 'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'src/common/editor/storage/indexeddb-backend.ts',
 		'src/common/editor/storage/memory-backend.ts',
-		'src/common/editor/storage/linked-video-original-project-alias-repository.ts',
-		'src/common/editor/storage/project-duplication.ts',
-		'src/common/editor/storage/project-publication-options.ts',
+		'src/common/editor/storage/linked-video-original-project-alias-repository.ts', 'src/common/editor/storage/project-duplication.ts', 'src/common/editor/storage/project-publication-options.ts',
 		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/storage/repositories.ts', 'src/common/editor/storage/retention-repository.ts',
 		'src/common/editor/storage.js',
@@ -418,10 +414,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/audio-editor-linked-video-playback-resolver.test.ts',
 		'tests/audio-editor-linked-video-original-cleanup.test.ts',
 		'tests/audio-editor-linked-video-original-storage-composition.test.ts',
-		'tests/audio-editor-linked-video-project-alias-repository.test.ts',
-		'tests/audio-editor-linked-video-project-duplication.test.ts',
-		'tests/audio-editor-project-create-if-absent.test.ts',
-		'tests/audio-editor-project-store-publication-admission.test.ts',
+		'tests/audio-editor-linked-video-project-alias-repository.test.ts', 'tests/audio-editor-linked-video-project-duplication.test.ts', 'tests/audio-editor-project-create-if-absent.test.ts', 'tests/audio-editor-project-store-publication-admission.test.ts',
 		'tests/audio-editor-derivative-cache-schema.test.ts',
 		'tests/browser/audio-editor-storage-migration.spec.js',
 		'tests/audio-editor-desktop-shared-project-linked-video-original-session.test.ts',
@@ -432,10 +425,6 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		linkedVideoOriginal.requiredOutcome,
 		/explicitly injected product-local platform port.*retained original-video body.*exact project ID, logical source ID, physical storage key.*maintained source geometry.*MIME type, byte length, SHA-256.*opaque local locator and revision.*version-7 binding store.*scalar-only.*locator identity and bodies out of project documents.*fresh document-only latest shared load.*aggregate logical-source, byte, and PCM-chunk admission.*before lazy revision- and binding-fenced body verification.*must not create an owned-media copy.*only explicit handoff.*existing managed original-video sender.*concrete maintained desktop chooser.*raw paths main-private and bounded.*exact binding before canonical import commit.*at-most-10,000 authoritative project-ID snapshot.*at-most-100,000-row and 128-unique-reference readwrite transaction.*complete binding inventory.*retain live aliases.*delete only project-absent bindings.*Persistent-locator retirement.*closed exact locator-ID\/revision compare-and-swap.*no identifier-only compatibility.*stale, missing, or revoked request.*not retire replacement metadata.*one AudioEditorProjectStore.*one renderer process.*at-most-100,000-row and 128-reference inventories.*surviving same-store alias.*local project and binding deletion before metadata cleanup.*pending cleanup.*128 exact references.*report and retry.*rechecking aliases.*fulfilled false.*never delete the external file.*maintained Electron visual activation.*exact-revision.*owner-scoped ranged playback lease.*full bounded SHA-256 verification.*before URL exposure.*visual lifecycle/iu,
-	);
-	assert.match(
-		linkedVideoOriginal.requiredOutcome,
-		/same-store project duplicate.*bound reachable references.*complete alias inventory.*fresh pathless aliases.*exact reachable linked-video bindings.*normal project-publication admission.*project and revision rows only when no destination project or revision exists.*determinate failure.*exact creation and alias tokens.*preserving replacements.*Desktop commit recovery.*exact remote equality.*proven remote absence.*indeterminate error.*divergent or unreadable.*no linked, source, or media-body I\/O.*does not claim project-plus-alias atomicity.*crash or restart cleanup.*cross-store, cross-profile, cross-process, or browser-race serialization/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
@@ -456,10 +445,6 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
 		/exact fresh load.*authoritative local shadow.*without any owned-media read, write, or copy.*explicit prepareHandoff.*exact linked metadata and verified Blob.*maintained managed sender.*normal video digest, bounded transfer, and publication path.*first owned-media copy.*import, shared-load, and handoff paths.*whole-Blob.*do not use the ranged playback lease.*no product chooser.*relink or watch.*durable operating-system handle.*background copy\/consolidation.*alternate publisher.*does not qualify packaged executable or UI.*browser codec playback.*linked audio.*other linked or unmanaged original.*authored proxies.*generic video rendered-fallback relationships.*first-party video-effects fallback activation.*qualified separately/iu,
-	);
-	assert.match(
-		linkedVideoOriginal.currentBehavior,
-		/duplicateProject.*serialized.*source first.*Desktop.*canonical shared document.*without resolving media.*catalog check.*source ID.*absent destination ID.*revision 0.*4,094.*100,000-row.*128-unique-reference.*pre-existing destination binding.*storage key, MIME type.*source geometry.*fresh token and timestamp.*neither loads nor releases a locator.*does not read, stage, write, or copy.*bodies.*one IndexedDB readwrite transaction.*separate from project publication.*create-if-absent.*every destination revision.*staged source and media records remain unchanged.*determinate failure.*exact fresh tokens.*replacement prevents.*Desktop local-shadow rollback.*persisted creation fence.*identically republished project.*remote reread.*exact equality as success.*proven absence.*divergent or unreadable.*ProjectDuplicationIndeterminateError.*no durable duplication receipt or restart cleanup.*overlapping browser IndexedDB connections.*unqualified/isu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
