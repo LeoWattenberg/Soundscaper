@@ -48,6 +48,7 @@ export type ProjectPostCommitMaintenance = () => PromiseLike<void> | void;
 export interface ProjectRepositoryPort {
 	createIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
 	save(project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument>;
+	maintainCurrentProject?(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void>;
 	load(projectId: string, options?: ProjectLoadOptions): Promise<ProjectDocument | null>;
 	list(): Promise<ProjectDocument[]>;
 	listRevisions(projectId: string): Promise<ProjectRevision[]>;
@@ -155,6 +156,12 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		await this.#pruneRevisions(snapshot.id);
 		await postCommit?.();
 		return clone(snapshot);
+	}
+
+	async maintainCurrentProject(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void> {
+		if (typeof projectId !== 'string' || !projectId) throw new TypeError('A project ID is required for maintenance.');
+		if (typeof maintenance !== 'function') throw new TypeError('Project maintenance must be a function.');
+		await maintenance();
 	}
 
 	async load(

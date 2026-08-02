@@ -327,7 +327,7 @@ function createFixture(options: Readonly<{
 			loadedChunkSources = preparedSources?.chunkSources ?? null;
 			loadedProject = project;
 		},
-		recordOpenedProject: async () => undefined, saveProject: async () => undefined,
+		recordOpenedProject: async () => undefined, maintainOpenedProject: async () => undefined, saveProject: async () => undefined,
 		listProjects: async () => [], synchronizeMicrophoneMeterTarget: () => undefined,
 		publishProjectState: () => undefined, garbageCollectSources: async () => undefined,
 		setStatus: () => undefined, isDisposedError: () => false, clearSourceCaches: () => undefined,

@@ -7,6 +7,10 @@ import {
 } from './linked-original-lifecycle-coordinator.ts';
 import type { LinkedOriginalProjectAliasRepository } from './linked-original-project-alias-repository.ts';
 import type { LinkedOriginalProjectReachabilityRepository } from './linked-original-project-reachability-repository.ts';
+import {
+	maintainOpenedProjectWithLinkedOriginalReachability,
+	maintainOpenedProjectWithLinkedVideoOriginalReachability,
+} from './linked-original-project-open-maintenance.ts';
 import { saveProjectWithLinkedOriginalReachability } from './linked-original-project-save.ts';
 import type {
 	LinkedOriginalLocatorReference,
@@ -126,6 +130,27 @@ export class LinkedOriginalStoreService {
 			lifecycle: this.#lifecycle as LinkedVideoOriginalLifecycleCoordinator,
 			reachability: this.#repositories.linkedVideoOriginalProjectReachability,
 		}, project, options);
+	}
+
+	maintainOpenedProject(
+		projects: ProjectRepositoryPort,
+		projectId: string,
+		collectProtectedSourceReferences: () => unknown,
+		isDurable: () => PromiseLike<boolean> | boolean,
+	): Promise<boolean> {
+		return this.linkedOriginalLifecycle
+			? maintainOpenedProjectWithLinkedOriginalReachability({
+				projects,
+				lifecycle: this.linkedOriginalLifecycle,
+				reachability: this.#repositories.linkedOriginalProjectReachability,
+				isDurable,
+			}, projectId, collectProtectedSourceReferences)
+			: maintainOpenedProjectWithLinkedVideoOriginalReachability({
+				projects,
+				lifecycle: this.#lifecycle as LinkedVideoOriginalLifecycleCoordinator,
+				reachability: this.#repositories.linkedVideoOriginalProjectReachability,
+				isDurable,
+			}, projectId, collectProtectedSourceReferences);
 	}
 
 	deleteProject<Value>(

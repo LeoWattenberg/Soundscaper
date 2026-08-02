@@ -187,6 +187,10 @@ export interface ProjectSwitchServiceRuntime<
 		preparedSources?: PreparedProjectSourceInputs,
 	) => PromiseLike<unknown> | unknown;
 	readonly recordOpenedProject: (projectId: string, guard: ProjectSwitchGuard) => Promise<unknown>;
+	readonly maintainOpenedProject: (
+		projectId: string,
+		isCurrentWritable: () => boolean,
+	) => PromiseLike<unknown> | unknown;
 	readonly saveProject: (project: Project) => Promise<unknown>;
 	readonly listProjects: () => Promise<readonly unknown[]>;
 	readonly synchronizeMicrophoneMeterTarget: () => void;
@@ -465,6 +469,17 @@ export function createProjectSwitchService<
 			runtime.synchronizeMicrophoneMeterTarget();
 			runtime.publishProjectState();
 			await guard(runtime.garbageCollectSources());
+			if (!options.save && !runtime.state.readOnly) {
+				const isCurrentWritable = (): boolean => {
+					try { runtime.lifetime.assertActive(token); fallbackAdmission.assertCurrent(activeProject); }
+					catch { return false; }
+					return runtime.getProject()?.id === projectId
+						&& runtime.state.projectLock === activeLock
+						&& !runtime.state.readOnly && !activeLock.readOnly;
+				};
+				try { await runtime.maintainOpenedProject(projectId, isCurrentWritable); } catch { /* Optional maintenance is report-only. */ }
+				runtime.lifetime.assertActive(token);
+			}
 			if (lockReadOnly) runtime.setStatus(runtime.copy.projectOpenOtherTab, 'error');
 			else if (runtime.state.readOnly) {
 				runtime.setStatus(options.readOnlyReason || runtime.copy.projectReadOnly, 'error');

@@ -308,13 +308,18 @@ test('project switching cancels signal-ignoring playback source readiness before
 		),
 		retainLiveClipIds: () => undefined,
 		evictUnreferencedSourceCaches: () => undefined,
-		loadEngineProject: (candidate) => { loadedSwitchProjects.push(candidate.id); },
-		recordOpenedProject: async () => undefined,
+		loadEngineProject: (candidate) => { loadedSwitchProjects.push(candidate.id); events.push('activation:engine'); },
+		recordOpenedProject: async () => { events.push('activation:record'); },
+		maintainOpenedProject: async (_projectId, isCurrentWritable) => {
+			state.projectLock = lock('replacement-project-lock');
+			events.push(`activation:maintain:${isCurrentWritable() ? 'admitted' : 'suppressed'}`);
+			throw new Error('planned report-only maintenance failure');
+		},
 		saveProject: async () => undefined,
 		listProjects: async () => currentProject ? [currentProject] : [],
 		synchronizeMicrophoneMeterTarget: () => undefined,
 		publishProjectState: () => undefined,
-		garbageCollectSources: async () => undefined,
+		garbageCollectSources: async () => { events.push('activation:gc'); },
 		setStatus: (message) => { statuses.push(message); },
 		isDisposedError: (error) => isEditorDisposedError(error),
 		clearSourceCaches: () => undefined,
@@ -352,6 +357,9 @@ test('project switching cancels signal-ignoring playback source readiness before
 	assert.equal(taskReason.message, 'The editor task was superseded.');
 	assert.ok(events.indexOf('playback:abort') < events.indexOf('teardown:stop-recording'));
 	assert.deepEqual(loadedSwitchProjects, [next.id]);
+	assert.deepEqual(events.filter((event) => event.startsWith('activation:')), [
+		'activation:engine', 'activation:record', 'activation:gc', 'activation:maintain:suppressed',
+	]);
 	assert.deepEqual(appliedPlaybackProjects, []);
 	assert.equal(sourceBuffers.size, 0);
 	assert.equal(sourceChunkProviders.size, 0);

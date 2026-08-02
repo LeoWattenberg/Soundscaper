@@ -129,6 +129,38 @@ test('failed exact releases retry per kind after rechecking live aliases', async
 	}]);
 });
 
+test('a stuck pending release does not starve unrelated open maintenance or retry twice', async () => {
+	const stuckLocatorId = 'stuck_locator_0000000001';
+	const freshLocatorId = 'fresh_locator_0000000001';
+	const attempts: string[] = [];
+	const fixture = createFixture({
+		release: async (reference) => {
+			attempts.push(reference.locatorId);
+			if (reference.locatorId === stuckLocatorId) throw new Error('planned persistent release failure');
+			fixture.releases.push(reference);
+			return true;
+		},
+	});
+	const result = (locatorId: string) => ({
+		durableSourceReferences: Object.freeze([]),
+		removedLocatorReferences: Object.freeze([{
+			kind: 'audio' as const, locatorId, locatorRevision: AUDIO_REVISION,
+		}]),
+	});
+
+	assert.equal(await fixture.lifecycle.maintainOpenedProject('project-a', async () => result(stuckLocatorId)), true);
+	let pruned = false;
+	assert.equal(await fixture.lifecycle.maintainOpenedProject('project-b', async () => {
+		pruned = true;
+		return result(freshLocatorId);
+	}), true);
+	assert.equal(pruned, true);
+	assert.deepEqual(attempts, [stuckLocatorId, stuckLocatorId, freshLocatorId]);
+	assert.deepEqual(fixture.releases, [{
+		kind: 'audio', locatorId: freshLocatorId, locatorRevision: AUDIO_REVISION,
+	}]);
+});
+
 test('clear releases only after the local binding commit and never owns external bodies', async () => {
 	const fixture = createFixture();
 	await seedBinding(fixture, 'project-a', 'audio-a', 'audio');

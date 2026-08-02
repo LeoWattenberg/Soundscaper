@@ -146,6 +146,16 @@ export class AudioEditorProjectStore {
 		return this.linkedOriginalStoreService.saveProject(this, this.projectRepository, project, options);
 	}
 
+	/**
+	 * @param {string} projectId
+	 * @param {() => unknown} [collectProtectedSourceReferences]
+	 */
+	async maintainOpenedProject(projectId, collectProtectedSourceReferences = () => []) {
+		return this.linkedOriginalStoreService.maintainOpenedProject(
+			this.projectRepository, projectId, collectProtectedSourceReferences, async () => await this.#database() !== null,
+		);
+	}
+
 	async loadProject(projectId, { revision, signal } = {}) {
 		return this.projectRepository.load(projectId, { revision, signal });
 	}

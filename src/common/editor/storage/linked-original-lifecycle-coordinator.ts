@@ -12,7 +12,8 @@ import { linkedOriginalBindingKey } from './linked-original-schema.ts';
 const MAXIMUM_PENDING_REFERENCES = 128;
 const MAXIMUM_TRANSIENT_SOURCE_IDS = 100_000;
 
-export type LinkedOriginalCleanupOperation = 'save-project' | 'delete-project' | 'clear' | 'retry';
+export type LinkedOriginalCleanupOperation = 'save-project' | 'open-project' | 'delete-project' | 'clear' | 'retry';
+export type LinkedOriginalProjectBindingCleanupOperation = 'save-project' | 'open-project';
 
 export type LinkedOriginalCleanupError =
 	| LinkedOriginalLocatorCleanupError
@@ -66,15 +67,16 @@ export class LinkedOriginalLocatorCleanupError extends Error {
 	}
 }
 
-/** A project commit succeeded, but stale local binding retirement remains pending. */
+/** A project commit or activation succeeded, but stale local binding retirement remains pending. */
 export class LinkedOriginalProjectBindingCleanupError extends Error {
 	readonly committed = true;
-	readonly operation = 'save-project' as const;
+	readonly operation: LinkedOriginalProjectBindingCleanupOperation;
 	readonly projectId: string;
 
-	constructor(projectId: string, cause: unknown) {
-		super(`Project ${projectId} committed, but linked-original binding cleanup failed.`, { cause });
+	constructor(operation: LinkedOriginalProjectBindingCleanupOperation, projectId: string, cause: unknown) {
+		super(`Project ${projectId} ${operation === 'save-project' ? 'committed' : 'activated'}, but linked-original binding cleanup failed.`, { cause });
 		this.name = 'LinkedOriginalProjectBindingCleanupError';
+		this.operation = operation;
 		this.projectId = projectId;
 	}
 }
@@ -159,7 +161,7 @@ export class LinkedOriginalLifecycleCoordinator {
 		return this.#enqueue(async () => {
 			let maintenance: Promise<void> | null = null;
 			const maintain = (): Promise<void> => {
-				maintenance ??= this.#maintainProjectBindings(projectId, prune);
+				maintenance ??= this.#maintainProjectBindings(projectId, 'save-project', prune).then(() => undefined);
 				return maintenance;
 			};
 			try {
@@ -170,6 +172,22 @@ export class LinkedOriginalLifecycleCoordinator {
 				await this.#drainPending('retry');
 				throw error;
 			}
+		});
+	}
+
+	maintainOpenedProject(
+		projectId: string,
+		prune: (
+			transientSourceReferences: readonly LinkedOriginalProjectSourceReference[],
+		) => PromiseLike<LinkedOriginalProjectBindingPruneResult | null>
+			| LinkedOriginalProjectBindingPruneResult | null,
+	): Promise<boolean> {
+		linkedOriginalBindingKey(projectId, 'open-project-validation-source');
+		if (typeof prune !== 'function') throw new TypeError('Linked-original open maintenance must be a function.');
+		return this.#enqueue(async () => {
+			await this.#drainPending('retry');
+			const failedRetryKeys = new Set(this.#pending.keys());
+			return this.#maintainProjectBindings(projectId, 'open-project', prune, failedRetryKeys);
 		});
 	}
 
@@ -273,13 +291,15 @@ export class LinkedOriginalLifecycleCoordinator {
 
 	async #maintainProjectBindings(
 		projectId: string,
+		operation: LinkedOriginalProjectBindingCleanupOperation,
 		prune: (
 			transientSourceReferences: readonly LinkedOriginalProjectSourceReference[],
 		) => PromiseLike<LinkedOriginalProjectBindingPruneResult | null>
 			| LinkedOriginalProjectBindingPruneResult | null,
-	): Promise<void> {
+		releaseExclusions?: ReadonlySet<string>,
+	): Promise<boolean> {
 		if (this.#blockedTransientProjects.has(projectId)) {
-			return;
+			return false;
 		}
 		const transientSourceReferences = Object.freeze([
 			...(this.#transientSources.get(projectId)?.values() ?? []),
@@ -288,18 +308,19 @@ export class LinkedOriginalLifecycleCoordinator {
 		try {
 			result = normalizeProjectBindingPruneResult(await prune(transientSourceReferences));
 		} catch (cause) {
-			this.#reportProjectBindingCleanup(projectId, cause);
-			return;
+			this.#reportProjectBindingCleanup(operation, projectId, cause);
+			return false;
 		}
 		if (!result) {
-			return;
+			return false;
 		}
 		for (const source of transientSourceReferences) {
 			this.#forgetTransientSource(projectId, source);
 		}
 		if (result.removedLocatorReferences.length) {
-			await this.#drainPending('save-project', result.removedLocatorReferences);
+			await this.#drainPending(operation, result.removedLocatorReferences, releaseExclusions);
 		}
+		return true;
 	}
 
 	#rememberTransientSource(projectId: string, source: LinkedOriginalProjectSourceReference): void {
@@ -338,6 +359,7 @@ export class LinkedOriginalLifecycleCoordinator {
 	async #drainPending(
 		operation: LinkedOriginalCleanupOperation,
 		possible: readonly LinkedOriginalLocatorReference[] = [],
+		releaseExclusions?: ReadonlySet<string>,
 	): Promise<void> {
 		if (!this.#canRelease() || (!possible.length && !this.#pending.size)) return;
 		const admittedPossible: LinkedOriginalLocatorReference[] = [];
@@ -364,7 +386,9 @@ export class LinkedOriginalLifecycleCoordinator {
 			admittedPossible.filter((reference) => !liveIds.has(locatorReferenceKey(reference))),
 			operation,
 		);
-		const candidates = [...this.#pending.values()].map((pending) => ({
+		const candidates = [...this.#pending.values()].filter((pending) => (
+			!releaseExclusions?.has(locatorReferenceKey(pending))
+		)).map((pending) => ({
 			kind: pending.kind,
 			locatorId: pending.locatorId,
 			locatorRevision: pending.locatorRevision,
@@ -416,8 +440,12 @@ export class LinkedOriginalLifecycleCoordinator {
 		try { this.#onCleanupError(error); } catch { /* Reporting cannot restore committed bindings. */ }
 	}
 
-	#reportProjectBindingCleanup(projectId: string, cause: unknown): void {
-		const error = new LinkedOriginalProjectBindingCleanupError(projectId, cause);
+	#reportProjectBindingCleanup(
+		operation: LinkedOriginalProjectBindingCleanupOperation,
+		projectId: string,
+		cause: unknown,
+	): void {
+		const error = new LinkedOriginalProjectBindingCleanupError(operation, projectId, cause);
 		try { this.#onCleanupError(error); } catch { /* Reporting cannot restore committed bindings. */ }
 	}
 }

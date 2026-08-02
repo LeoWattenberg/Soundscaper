@@ -142,6 +142,11 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 				return snapshot;
 		});
 	}
+	maintainCurrentProject(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void> {
+		assertProjectId(projectId);
+		if (typeof maintenance !== 'function') throw new TypeError('Project maintenance must be a function.');
+		return this.#serializeLatestMutation(projectId, undefined, async () => { await maintenance(); });
+	}
 
 	async createIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
 		const admitted = admitCurrentProject(

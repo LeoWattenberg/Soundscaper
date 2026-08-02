@@ -32,7 +32,6 @@ interface TestProject extends ProjectLifecycleProject {
 	readonly tracks: readonly Readonly<{ id: string; type: string }>[];
 	readonly clips?: readonly Readonly<{ sourceId: string }>[];
 }
-
 interface TestHistory extends ProjectLifecycleHistory<TestProject> {
 	readonly present: TestProject;
 }
@@ -562,6 +561,7 @@ function createFixture(options: FixtureOptions) {
 			effects.push(`engine:load:${candidate.id}`);
 		},
 		recordOpenedProject: async (projectId: string) => { effects.push(`session:record:${projectId}`); },
+		maintainOpenedProject: async () => undefined,
 		saveProject: async () => undefined,
 		listProjects: async () => [],
 		synchronizeMicrophoneMeterTarget: () => undefined,

@@ -5,6 +5,7 @@ import {
 	LinkedOriginalLocatorCleanupError,
 	LinkedOriginalProjectBindingCleanupError,
 	type LinkedOriginalCleanupOperation,
+	type LinkedOriginalProjectBindingCleanupOperation,
 	type LinkedOriginalLifecycleBindingPort,
 	type LinkedOriginalLifecycleResolverPort,
 	type LocalStoreClearAdmission,
@@ -56,12 +57,13 @@ export class LinkedVideoOriginalLocatorCleanupError extends Error {
 
 export class LinkedVideoOriginalProjectBindingCleanupError extends Error {
 	readonly committed = true;
-	readonly operation = 'save-project' as const;
+	readonly operation: LinkedOriginalProjectBindingCleanupOperation;
 	readonly projectId: string;
 
-	constructor(projectId: string, cause: unknown) {
-		super(`Project ${projectId} committed, but linked-video binding cleanup failed.`, { cause });
+	constructor(operation: LinkedOriginalProjectBindingCleanupOperation, projectId: string, cause: unknown) {
+		super(`Project ${projectId} ${operation === 'save-project' ? 'committed' : 'activated'}, but linked-video binding cleanup failed.`, { cause });
 		this.name = 'LinkedVideoOriginalProjectBindingCleanupError';
+		this.operation = operation;
 		this.projectId = projectId;
 	}
 }
@@ -116,6 +118,27 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 			| LinkedVideoOriginalProjectBindingPruneResult | null,
 	): Promise<Value> {
 		return this.#coordinator.saveProject(projectId, operation, async (transientSources) => {
+			const result = await prune(transientSources.map(({ sourceId }) => sourceId));
+			if (!result) return null;
+			return Object.freeze({
+				durableSourceReferences: Object.freeze(result.durableVideoSourceIds.map((sourceId) => (
+					Object.freeze({ kind: 'video' as const, sourceId })
+				))),
+				removedLocatorReferences: Object.freeze(result.removedLocatorReferences.map((reference) => (
+					Object.freeze({ kind: 'video' as const, ...reference })
+				))),
+			});
+		});
+	}
+
+	maintainOpenedProject(
+		projectId: string,
+		prune: (
+			transientSourceIds: readonly string[],
+		) => PromiseLike<LinkedVideoOriginalProjectBindingPruneResult | null>
+			| LinkedVideoOriginalProjectBindingPruneResult | null,
+	): Promise<boolean> {
+		return this.#coordinator.maintainOpenedProject(projectId, async (transientSources) => {
 			const result = await prune(transientSources.map(({ sourceId }) => sourceId));
 			if (!result) return null;
 			return Object.freeze({
@@ -222,5 +245,5 @@ function legacyCleanupError(
 ): LinkedVideoOriginalCleanupError {
 	return error instanceof LinkedOriginalLocatorCleanupError
 		? new LinkedVideoOriginalLocatorCleanupError(error.operation, error.pendingCount, error.cause)
-		: new LinkedVideoOriginalProjectBindingCleanupError(error.projectId, error.cause);
+		: new LinkedVideoOriginalProjectBindingCleanupError(error.operation, error.projectId, error.cause);
 }

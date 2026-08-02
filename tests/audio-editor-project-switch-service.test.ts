@@ -17,14 +17,12 @@ function deferred<Value>() {
 	const promise = new Promise<Value>((complete) => { resolve = complete; });
 	return { promise, resolve };
 }
-
 interface TestTrack {
 	readonly id: string;
 	readonly type: string;
 	readonly name?: string;
 	readonly effectsActive?: boolean; readonly effects?: readonly Readonly<Record<string, unknown>>[];
 }
-
 interface TestProject extends ProjectLifecycleProject {
 	readonly title: string;
 	readonly sampleRate: number;
@@ -33,7 +31,6 @@ interface TestProject extends ProjectLifecycleProject {
 	readonly schemaVersion?: number;
 	readonly featureRequirements?: unknown;
 }
-
 interface TestHistory extends ProjectLifecycleHistory<TestProject> {
 	readonly present: TestProject;
 }
@@ -221,6 +218,10 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 			await guard(Promise.resolve());
 			events.push(`record-opened:${projectId}`);
 		},
+		maintainOpenedProject: async (projectId: string, isCurrentWritable: () => boolean) => {
+			if (isCurrentWritable()) events.push(`maintain-opened:${projectId}`);
+			throw new Error('planned report-only maintenance failure');
+		},
 		saveProject: async (value: TestProject) => { events.push(`save-project:${value.id}`); },
 		listProjects: async () => currentProject ? [currentProject] : [],
 		synchronizeMicrophoneMeterTarget: () => { events.push('sync-meter'); },
@@ -250,7 +251,6 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 		setMigrationReadOnly(value: boolean) { migrationReadOnly = value; },
 	};
 }
-
 test('project activation resets scoped state and publishes only after sources are loaded', async () => {
 	const fixture = createFixture();
 	const nativeSave = fixture.lifetime.startTask('native-project-save'), playbackApply = fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK);
@@ -272,7 +272,7 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.ok(fixture.events.indexOf('load-sources:next-project') < fixture.events.indexOf('engine-load:next-project'));
 	assert.ok(fixture.events.indexOf('engine-load:next-project') < fixture.events.indexOf('publish'));
 	assert.ok(fixture.events.includes('save-now'));
-	assert.ok(fixture.events.includes('save-project:next-project'));
+	assert.ok(fixture.events.includes('save-project:next-project') && !fixture.events.includes('maintain-opened:next-project'));
 	assert.equal(fixture.state.readOnly, false);
 	assert.equal(fixture.getTabMetadata(next.id)?.featureRequirementsReport != null, true);
 	assert.equal(fixture.getTabMetadata(next.id)?.featureRequirementsAudioEffectPlaybackBypass, null);
@@ -512,8 +512,8 @@ test('the project queue prevents a second activation from overlapping source loa
 		['engine-load:first', 'engine-load:second'],
 	);
 	assert.equal(fixture.getProject()?.id, 'second');
+	assert.deepEqual(fixture.events.filter((event) => event.startsWith('maintain-opened:')), ['maintain-opened:first', 'maintain-opened:second']);
 });
-
 test('a lock acquired after terminal disposal is released without activating the project', async () => {
 	const fixture = createFixture();
 	const acquired = deferred<ProjectLifecycleLock>();
@@ -553,8 +553,8 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 	await fixture.service.switchProject(project(future.id), { readOnly: false });
 	assert.equal(fixture.getProject(), future);
 	assert.equal(fixture.state.readOnly, true);
+	assert.equal(fixture.events.includes('maintain-opened:future-project'), false);
 });
-
 test('feature compatibility transiently bypasses affected audio effects before engine activation', async () => {
 	const fixture = createFixture({ audioEffects: false, videoEffects: false });
 	const effect = { id: 'compressor-a', type: 'compressor', enabled: true, bypassed: false, params: { threshold: -24 } };

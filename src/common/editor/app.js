@@ -814,7 +814,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		),
 		loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
 				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }),
-		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard),
+		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard), maintainOpenedProject: (projectId, isCurrentWritable) => store.maintainOpenedProject?.(projectId, () => isCurrentWritable() ? projectRetentionService.liveSessionLinkedOriginalSourceReferences() : null),
 		saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedOriginalSourceReferences: projectRetentionService.liveSessionLinkedOriginalSourceReferences() }),
 		listProjects: () => store.listProjects(),
 		synchronizeMicrophoneMeterTarget,

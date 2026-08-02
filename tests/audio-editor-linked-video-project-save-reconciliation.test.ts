@@ -53,6 +53,23 @@ test('one authoritative live-history save root protects then relinquishes a tran
 	assert.equal(fixture.releases.length, 1);
 });
 
+test('durable open maintenance preserves the current video-only lifecycle facade', async (context) => {
+	const fixture = await storeFixture(context, 'indexeddb');
+	const source = videoSource('open-maintenance-video');
+	await fixture.store.saveProject(project(1, source));
+	await fixture.store.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID);
+	await fixture.store.saveProject(project(2));
+	await fixture.store.saveProject(project(3));
+
+	assert.equal(await fixture.store.maintainOpenedProject(
+		PROJECT_ID, () => [{ kind: 'video', sourceId: source.id }],
+	), true);
+	assert.ok(await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, source.id));
+	assert.equal(await fixture.store.maintainOpenedProject(PROJECT_ID, () => []), true);
+	assert.equal(await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, source.id), null);
+	assert.equal(fixture.releases.length, 1);
+});
+
 test('direct saves without authoritative live roots never opt into source cleanup', async (context) => {
 	const fixture = await storeFixture(context, 'memory');
 	const source = videoSource('unqualified-video');
