@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { measureBextLoudness } from '../broadcast-loudness.ts';
 import { isProjectAudioFallbackIntegrityError } from '../project-fallback-integrity-audio.ts';
 import {
 	admitAudioRenderedFallbackExport,
@@ -12,6 +11,7 @@ import { commitDirectCompressedDestination, encodeDirectCompressedStagedFile, pr
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
+import { encodeRenderedAudio } from './rendered-audio-encoding.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -352,7 +352,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				end: progressRange.end,
 				value: 0,
 			});
-			return await encodeRendered(rendered, plan, settings, signal);
+			return await encodeRenderedAudio({
+				applyMediaChannelMapping, audioBufferChannels, copy, encodeAiff, encodeWav,
+				ffmpeg, resampleBuffer, setStatus, throwIfAborted,
+			}, { rendered, plan, settings, signal });
 		} catch (error) {
 			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError'
 				|| isProjectAudioFallbackIntegrityError(error)) throw error;
@@ -399,62 +402,6 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				else taskProgress.updateActive(value);
 			},
 		};
-	}
-
-	async function encodeRendered(rendered: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue) {
-		throwIfAborted(signal);
-		let output = rendered;
-		if (plan.sampleRate !== rendered.sampleRate) {
-			output = await resampleBuffer(rendered, plan.sampleRate, undefined, copy, plan.outputFrames);
-		}
-		throwIfAborted(signal);
-		const bitDepth = plan.encoding.bitDepth || (settings.bitDepth === 32 ? 32 : settings.bitDepth) || 24;
-		const sourceChannels = audioBufferChannels(output);
-		if (plan.format === 'wav' || plan.format === 'bwf' || plan.format === 'bw64' || plan.format === 'aiff') {
-			const mapped = applyMediaChannelMapping(sourceChannels, plan.channelMapping);
-			const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
-			const measuredBext = broadcast && settings.measureLoudness === true
-				? { ...plan.bext, ...measureBextLoudness(mapped, plan.sampleRate) }
-				: plan.bext;
-			const nativeOptions = {
-				container: plan.container,
-				sampleRate: plan.sampleRate,
-				bitDepth,
-				float: plan.encoding.floatingPoint,
-				sampleFormat: plan.encoding.sampleFormat,
-				dither: plan.ditherMode,
-				metadata: plan.metadata,
-				markers: plan.markers,
-				ixml: plan.ixml,
-				cart: plan.cart,
-				bext: broadcast ? measuredBext : undefined,
-				preDataChunks: plan.preDataChunks,
-				trailingChunks: plan.trailingChunks,
-			};
-			const bytes = plan.format === 'aiff' ? encodeAiff(mapped, nativeOptions) : encodeWav(mapped, nativeOptions);
-			return { bytes, mimeType: plan.mimeType };
-		}
-		const stagingFloat = plan.format !== 'flac';
-		const stagingBitDepth = stagingFloat
-			? 32
-			: plan.format === 'flac' || plan.format === 'wavpack'
-				? Math.min(24, bitDepth)
-				: 24;
-		const wav = encodeWav(sourceChannels, {
-			sampleRate: plan.sampleRate,
-			bitDepth: stagingBitDepth,
-			float: stagingFloat,
-			dither: stagingFloat ? 'none' : plan.ditherMode,
-		});
-		throwIfAborted(signal);
-		setStatus(copy.encoding);
-		return ffmpeg.encode(wav, plan.format, {
-			...plan.encoding,
-			bitDepth,
-			sampleRate: plan.sampleRate,
-			applyDither: plan.encoding.sampleFormat !== 'float32' && plan.ditherMode !== 'none' && plan.format !== 'flac',
-			signal,
-		});
 	}
 
 	async function renderRealtimeEncoded(
