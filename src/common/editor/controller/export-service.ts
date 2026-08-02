@@ -4,6 +4,7 @@ import { measureBextLoudness } from '../broadcast-loudness.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
+import { admitVideoRenderedFallbackExport, projectForVideoRenderedFallbackExport, sanitizeVideoExportFileName } from './video-rendered-fallback-export.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,12 +24,12 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createVideoExportPlan, createWavStreamEncoder, encodeAiff, encodeWav,
 		ffmpeg, fileService, findClip, findSource,
-		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,
+		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings, playbackProjects,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches, productName,
 		getProject, projectGeneration, projectSampleRate, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
 		stemProject, store, throwIfAborted, toggleExport,
-		updateExportProgress, taskProgress,
+		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	} = runtime;
 	async function handleExportAction(action: RuntimeValue, requestedSettings: RuntimeValue = null) {
 		if (action === 'cancel') {
@@ -229,26 +230,37 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 
 	async function exportVideo(requestedSettings: RuntimeValue = {}) {
 		if (state.exportAbort) return null;
-		const hasTimelineVideo = getProject().tracks.some((track: RuntimeValue) => (
+		const canonicalProject = getProject();
+		const delivery = projectForVideoRenderedFallbackExport(canonicalProject, playbackProjects);
+		const exportProject = cloneProject(delivery.project);
+		const hasTimelineVideo = exportProject.tracks.some((track: RuntimeValue) => (
 			track.type === 'video'
 			&& track.hidden !== true
-			&& (track.clipIds || []).some((clipId: RuntimeValue) => findClip(getProject(), clipId)?.kind === 'video')
+			&& (track.clipIds || []).some((clipId: RuntimeValue) => findClip(exportProject, clipId)?.kind === 'video')
 		));
 		if (!hasTimelineVideo) throw new Error('Add a visible video clip to the timeline before exporting video.');
-		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
+		if (hasMissingTimelineSources(exportProject)) throw new Error(copy.localSourcesMissing);
 		const generation = ++state.exportGeneration;
-		const projectToken = projectGeneration.capture(getProject().id);
+		const projectToken = projectGeneration.capture(canonicalProject.id);
 		const exportTask = lifetime.startTask('export');
 		const abort = Object.freeze({
 			signal: exportTask.signal,
 			abort: () => lifetime.cancelTask('export'),
 		});
+		const assertVideoExportCurrent = () => {
+			throwIfAborted(abort.signal);
+			exportTask.assertCurrent();
+			projectGeneration.assertCurrent(projectToken);
+			if (generation !== state.exportGeneration || state.disposed) throw abortError();
+		};
 		state.exportAbort = abort;
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
-		const exportProject = cloneProject(getProject());
 		let pendingCleanup = null;
 		try {
+			await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
+				store, verifyProjectFallbackIntegrity,
+			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
 			const format = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
 			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind !== 'video');
 			const plan = createVideoExportPlan(exportProject, {
@@ -296,12 +308,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			const encoded = await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 				signal: abort.signal,
 			});
-			throwIfAborted(abort.signal);
-			exportTask.assertCurrent();
-			projectGeneration.assertCurrent(projectToken);
-			if (generation !== state.exportGeneration) throw abortError();
+			assertVideoExportCurrent();
 			const blob = new Blob([encoded.bytes], { type: encoded.mimeType });
-			const fileName = `${sanitizeVideoFileName(exportProject.title)}.${plan.extension}`;
+			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
 			if (state.outputUrl) globalThis.URL?.revokeObjectURL?.(state.outputUrl);
 			await state.outputCleanup?.();
 			state.outputUrl = null;
@@ -345,16 +354,6 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			progressTask.finish();
 			exportTask.finish();
 		}
-	}
-
-	function sanitizeVideoFileName(value: RuntimeValue) {
-		return String(value || 'video-project')
-			.normalize('NFKD')
-			.replace(/[\u0300-\u036f]/g, '')
-			.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '-')
-			.replace(/-{2,}/g, '-')
-			.replace(/^[-_.]+|[-_.]+$/g, '')
-			.slice(0, 96) || 'video-project';
 	}
 
 	async function renderAndEncode(

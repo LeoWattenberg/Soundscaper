@@ -28,6 +28,7 @@ import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
 const ORIGINAL_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 111, 114, 105, 103);
 const FALLBACK_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 102, 97, 108, 108);
+const CORRUPT_FALLBACK_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 102, 97, 108, 120);
 const FRAME_OWNER = owner('framescaper', 701, 'video-fallback-handoff-frame');
 const SOUND_OWNER = owner('soundscaper', 702, 'video-fallback-handoff-sound');
 
@@ -51,7 +52,17 @@ interface TransportActions {
 }
 
 interface VideoActions {
+	readonly export: (settings?: Readonly<Record<string, unknown>>) => Promise<Readonly<{
+		fileName?: string;
+		mimeType?: string;
+	}> | null>;
 	readonly getSourceVisualData: (sourceId: string) => Readonly<{ mediaUrl?: string | null }> | null;
+}
+
+interface VideoExportCall {
+	readonly videoBlobs: ReadonlyMap<string, Blob>;
+	readonly audioMixBlob: Blob | null;
+	readonly plan: Readonly<Record<string, unknown>>;
 }
 
 test('fresh Soundscaper acquires and plays a managed first-party video rendered fallback', async (context) => {
@@ -112,8 +123,11 @@ test('fresh Soundscaper acquires and plays a managed first-party video rendered 
 	assert.deepEqual(await soundStore.listProjectRevisions(fixture.project.id), []);
 	await soundStore.saveSetting('soundscaper:last-project-id', fixture.project.id);
 	const engine = createHeadlessEngine();
+	const exportProbe = createVideoExportProbe();
 	const soundscaper = resources.trackController(createEditorController(null, {
 		engine: engine.engine,
+		ffmpeg: exportProbe.ffmpeg,
+		fileService: exportProbe.fileService,
 		headless: true,
 		productId: 'soundscaper',
 		store: soundStore,
@@ -162,6 +176,37 @@ test('fresh Soundscaper acquires and plays a managed first-party video rendered 
 	const visual = videoActions(soundscaper).getSourceVisualData(fixture.fallback.id);
 	assert.ok(visual?.mediaUrl);
 	assert.deepEqual(new Uint8Array(await (await fetch(visual.mediaUrl)).arrayBuffer()), FALLBACK_BYTES);
+	await soundStore.deleteMediaAsset(fixture.fallback.storageKey);
+	await writeVideo(soundStore, fixture.fallback, CORRUPT_FALLBACK_BYTES);
+	assert.equal(await videoActions(soundscaper).export({ format: 'video-mp4' }), null);
+	assert.equal(exportProbe.calls.length, 0, 'stale activation-time digest admission cannot authorize export');
+	assert.equal(exportProbe.downloads.length, 0);
+	await soundStore.deleteMediaAsset(fixture.fallback.storageKey);
+	await writeVideo(soundStore, fixture.fallback, FALLBACK_BYTES);
+	const exported = await videoActions(soundscaper).export({ format: 'video-mp4' });
+	assert.ok(exported);
+	assert.equal(exported.fileName, 'Video-rendered-fallback-handoff.mp4');
+	assert.equal(exported.mimeType, 'video/mp4');
+	assert.equal(exportProbe.calls.length, 1);
+	const exportCall = exportProbe.calls[0]!;
+	assert.deepEqual([...exportCall.videoBlobs.keys()], [fixture.fallback.id]);
+	assert.deepEqual(
+		new Uint8Array(await exportCall.videoBlobs.get(fixture.fallback.id)!.arrayBuffer()),
+		FALLBACK_BYTES,
+	);
+	assert.equal(exportCall.audioMixBlob, null, 'embedded fallback audio remains outside this delivery slice');
+	const plan = exportCall.plan as Readonly<{
+		intervals: readonly Readonly<{ layers: readonly Readonly<{
+			clips: readonly Readonly<{ sourceId: string }>[];
+		}>[] }>[];
+	}>;
+	assert.equal(plan.intervals[0]?.layers[0]?.clips[0]?.sourceId, fixture.fallback.id);
+	assert.deepEqual(exportProbe.downloads.map(({ purpose }) => purpose), ['video']);
+	assert.equal(
+		serializeScapeProjectDocument(soundscaper.getSnapshot().project),
+		serializeScapeProjectDocument(fixture.project),
+		'fallback delivery must not project canonical state',
+	);
 
 	await transportActions(soundscaper).playPause();
 	assert.equal(engine.state(), 'playing');
@@ -290,6 +335,38 @@ function createHeadlessEngine(): HeadlessEngineProbe {
 		async dispose() { state = 'stopped'; },
 	});
 	return Object.freeze({ engine, project: () => appliedProject, state: () => state });
+}
+
+function createVideoExportProbe() {
+	const calls: VideoExportCall[] = [];
+	const downloads: Array<Readonly<{ purpose?: unknown; suggestedName?: unknown }>> = [];
+	return Object.freeze({
+		calls,
+		downloads,
+		ffmpeg: Object.freeze({
+			async encodeVideo(
+				videoBlobs: ReadonlyMap<string, Blob>,
+				audioMixBlob: Blob | null,
+				plan: Readonly<Record<string, unknown>>,
+			) {
+				calls.push(Object.freeze({ videoBlobs, audioMixBlob, plan }));
+				return Object.freeze({ bytes: Uint8Array.of(0, 0, 0, 24), mimeType: 'video/mp4' });
+			},
+			dispose() {},
+		}),
+		fileService: Object.freeze({
+			isDesktop: false,
+			async createDownload(request: Readonly<{ purpose?: unknown; suggestedName?: unknown }>) {
+				downloads.push(request);
+				return Object.freeze({
+					url: null,
+					fileName: request.suggestedName,
+					method: 'test',
+					async cleanup() {},
+				});
+			},
+		}),
+	});
 }
 
 class HeadlessAudioBuffer {

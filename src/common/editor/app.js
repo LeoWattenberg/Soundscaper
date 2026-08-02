@@ -1095,12 +1095,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createVideoExportPlan, createWavStreamEncoder, encodeAiff, encodeWav,
 		ffmpeg, fileService, findClip, findSource,
-		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings,
+		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings, playbackProjects: playbackProjectService,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches,
 		getProject: () => project, productName: product.name, projectGeneration, projectSampleRate, publishDocumentSnapshot,
 		resampleBuffer, setStatus, sourceBuffers, state,
 		stemProject, store, throwIfAborted, toggleExport,
-		updateExportProgress, taskProgress,
+		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	});
 	const mixRenderService = createMixRenderService({
 		lifetime, copy, derivedSources: derivedSourceService,
