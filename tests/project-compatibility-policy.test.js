@@ -39,6 +39,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-desktop-project-catalog-commit': 'implemented',
 		'current-desktop-managed-mixed-media-handoff': 'implemented',
 		'current-desktop-recipient-media-admission': 'implemented',
+		'current-desktop-linked-retained-video-original': 'implemented',
 		'current-disposable-video-preview-relationship': 'implemented',
 		'project-feature-requirements-core': 'implemented',
 		'current-scape-feature-requirements': 'implemented',
