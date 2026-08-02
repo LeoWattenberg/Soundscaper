@@ -8,9 +8,12 @@ import {
 } from './direct-pcm-export.ts';
 import {
 	createSequentialZip32Archive,
-	type SequentialZip32Result,
 	type Zip32StreamInput,
 } from './sequential-zip32-stream.ts';
+import {
+	createSequentialSevenZipCopyArchive,
+	SEVEN_ZIP_COPY_PREFIX_BYTE_LENGTH,
+} from './sequential-seven-zip-copy.ts';
 import {
 	captureDirectCompressedStemArchiveContract,
 	type DirectCompressedStemArchiveContract,
@@ -28,6 +31,11 @@ const ZIP_CONTAINER_LABEL = 'ZIP';
 const ZIP_FILE_TYPES = Object.freeze([Object.freeze({
 	description: 'ZIP stem archive',
 	accept: Object.freeze({ 'application/zip': Object.freeze(['.zip']) }),
+})]);
+const SEVEN_ZIP_CONTAINER_LABEL = '7z';
+const SEVEN_ZIP_FILE_TYPES = Object.freeze([Object.freeze({
+	description: '7z stem archive',
+	accept: Object.freeze({ 'application/x-7z-compressed': Object.freeze(['.7z']) }),
 })]);
 const DIRECT_STEM_FORMATS = new Set(['wav', 'aiff', 'bwf']);
 
@@ -59,7 +67,7 @@ export interface DirectStemArchiveStreamOptions {
 export interface DirectStemArchiveStreamResult {
 	readonly byteLength: number;
 	readonly destination: DirectStemArchiveDestination;
-	readonly mimeType: 'application/zip';
+	readonly mimeType: 'application/zip' | 'application/x-7z-compressed';
 }
 
 interface DirectStemArchiveFileService {
@@ -82,12 +90,24 @@ interface DirectCompressedStemContract {
 
 type DirectStemArchiveContract = DirectNativeStemArchiveContract | DirectCompressedStemContract;
 
+interface DirectSequentialStemArchiveResult {
+	readonly byteLength: number;
+	readonly output: DirectStemArchiveDestination;
+	readonly zip32: Zip32Layout | null;
+}
+
+interface DirectSequentialStemArchive {
+	add(fileName: string, input: Zip32StreamInput, signal?: AbortSignal | null): Promise<void>;
+	abort(): Promise<void>;
+	finish(): Promise<DirectSequentialStemArchiveResult>;
+}
+
 export type DirectStemArchiveDestination = DirectPcmDestination;
 export type DirectStemArchivePreparation = DirectPcmPreparation;
 
 const preparedContracts = new WeakMap<DirectStemArchiveDestination, DirectStemArchiveContract>();
 
-/** Select and open an exact native or bounded compressed ZIP stem destination. */
+/** Select and open an exact native ZIP/7z or bounded compressed ZIP stem destination. */
 export async function prepareDirectStemArchiveDestination(
 	fileService: DirectStemArchiveFileService,
 	plan: DirectStemArchivePlan,
@@ -99,20 +119,23 @@ export async function prepareDirectStemArchiveDestination(
 		return emptyPreparation();
 	}
 	const settings = requestedSettings || {};
+	const sevenZip = directSevenZipContract(contract);
+	const mimeType = archiveMimeType(contract);
 	const prepared = await fileService.prepareSave({
 		purpose: 'audio',
 		suggestedName: contract.archiveFileName,
-		mimeType: 'application/zip',
+		mimeType,
 		target: settings.saveTarget,
-		types: ZIP_FILE_TYPES,
+		types: sevenZip ? SEVEN_ZIP_FILE_TYPES : ZIP_FILE_TYPES,
 		useFileSystemAccess: settings.useFileSystemAccess !== false,
 		signal,
 	});
 	const result = await openDirectPcmDestination(
 		prepared,
 		contract.archiveByteLength,
-		ZIP_CONTAINER_LABEL,
+		archiveContainerLabel(contract),
 		contract.kind === 'exact-native-pcm' ? 'exact' : 'maximum',
+		sevenZip ? { finalPrefixByteLength: SEVEN_ZIP_COPY_PREFIX_BYTE_LENGTH } : {},
 	);
 	if (result.destination) {
 		preparedContracts.set(result.destination, contract);
@@ -145,7 +168,7 @@ export function commitDirectStemArchiveDestination(
 	);
 }
 
-/** Stream admitted stems into the already-opened ZIP destination in plan order. */
+/** Stream admitted stems into the already-opened archive destination in plan order. */
 export async function streamDirectStemArchive(
 	options: DirectStemArchiveStreamOptions,
 ): Promise<DirectStemArchiveStreamResult> {
@@ -156,15 +179,7 @@ export async function streamDirectStemArchive(
 	} catch (error) {
 		throw await abortWithPrimary(destination, error);
 	}
-	const archive = await createSequentialZip32Archive<DirectStemArchiveDestination>({
-		write: (chunk) => destination.write(chunk),
-		async close() {
-			assertReady(options);
-			await destination.close();
-			return destination;
-		},
-		abort: () => destination.abort(),
-	});
+	const archive = await createDirectSequentialStemArchive(options, contract);
 	let finished = false;
 	try {
 		for (const [index, output] of contract.outputs.entries()) {
@@ -190,7 +205,7 @@ export async function streamDirectStemArchive(
 		return Object.freeze({
 			byteLength: result.byteLength,
 			destination,
-			mimeType: 'application/zip',
+			mimeType: archiveMimeType(contract),
 		});
 	} catch (error) {
 		if (finished) throw await abortWithPrimary(destination, error);
@@ -228,7 +243,7 @@ export function commitPreparedDirectStemArchiveDestination(
 			assertPreparedPlan(destination, plan);
 			assertReadyToCommit();
 		},
-		ZIP_CONTAINER_LABEL,
+		archiveContainerLabel(contract),
 	);
 }
 
@@ -236,8 +251,7 @@ function captureContract(plan: DirectStemArchivePlan): DirectStemArchiveContract
 	const format = ownStringField(plan, 'format');
 	if (!format) return null;
 	if (!DIRECT_STEM_FORMATS.has(format)) return captureCompressedContract(plan);
-	const contract = captureDirectNativeStemArchiveContract(plan);
-	return contract?.archiveFormat === 'zip' ? contract : null;
+	return captureDirectNativeStemArchiveContract(plan);
 }
 
 function ownStringField(value: unknown, field: string): string | null {
@@ -302,6 +316,65 @@ function assertReady(options: DirectStemArchiveStreamOptions): void {
 	assertPreparedPlan(options.destination, options.plan);
 }
 
+async function createDirectSequentialStemArchive(
+	options: DirectStemArchiveStreamOptions,
+	contract: DirectStemArchiveContract,
+): Promise<DirectSequentialStemArchive> {
+	const { destination } = options;
+	if (directSevenZipContract(contract)) {
+		const archive = await createSequentialSevenZipCopyArchive(
+			contract.outputs.map(({ fileName }) => ({
+				fileName,
+				expectedByteLength: contract.entryByteLength,
+			})),
+			{
+				write: (chunk) => destination.write(chunk),
+				async finalize(finalPrefix) {
+					assertReady(options);
+					await destination.close();
+					assertReady(options);
+					if (typeof destination.patchFinalPrefix !== 'function') {
+						throw new Error('The direct 7z destination cannot patch its final prefix.');
+					}
+					await destination.patchFinalPrefix(finalPrefix);
+					assertReady(options);
+					return destination;
+				},
+				abort: () => destination.abort(),
+			},
+		);
+		return Object.freeze({
+			add: archive.add,
+			abort: archive.abort,
+			async finish(): Promise<DirectSequentialStemArchiveResult> {
+				const result = await archive.finish();
+				return Object.freeze({ ...result, zip32: null });
+			},
+		});
+	}
+	const archive = await createSequentialZip32Archive<DirectStemArchiveDestination>({
+		write: (chunk) => destination.write(chunk),
+		async close() {
+			assertReady(options);
+			await destination.close();
+			return destination;
+		},
+		abort: () => destination.abort(),
+	});
+	return Object.freeze({
+		add: archive.add,
+		abort: archive.abort,
+		async finish(): Promise<DirectSequentialStemArchiveResult> {
+			const result = await archive.finish();
+			return Object.freeze({
+				byteLength: result.byteLength,
+				output: result.output,
+				zip32: result.layout,
+			});
+		},
+	});
+}
+
 function zipInputByteLength(input: Zip32StreamInput | null | undefined): number {
 	if (input instanceof Blob) return input.size;
 	if (input instanceof ArrayBuffer) return input.byteLength;
@@ -335,19 +408,30 @@ async function consumeEncodedStem(
 function assertArchiveResult(
 	contract: DirectStemArchiveContract,
 	destination: DirectStemArchiveDestination,
-	result: SequentialZip32Result<DirectStemArchiveDestination>,
+	result: DirectSequentialStemArchiveResult,
 ): void {
+	if (directSevenZipContract(contract)) {
+		if (result.output !== destination
+			|| result.zip32 !== null
+			|| result.byteLength !== contract.archiveByteLength
+			|| destination.bytesWritten() !== contract.archiveByteLength) {
+			throw new Error('The streamed 7z archive does not match its exact plan.');
+		}
+		return;
+	}
+	const layout = result.zip32;
 	const exact = contract.kind === 'exact-native-pcm';
 	if (result.output !== destination
-		|| result.byteLength !== result.layout.archiveByteLength
-		|| result.layout.entryCount !== contract.outputs.length
-		|| result.layout.eligible !== true
+		|| !layout
+		|| result.byteLength !== layout.archiveByteLength
+		|| layout.entryCount !== contract.outputs.length
+		|| layout.eligible !== true
 		|| (exact
 			? result.byteLength !== contract.archiveByteLength
-				|| !sameZip32Layout(result.layout, contract.zip32)
+				|| !sameZip32Layout(layout, contract.zip32)
 			: result.byteLength > contract.archiveByteLength
-				|| result.layout.localByteLength > contract.zip32.localByteLength
-				|| result.layout.centralDirectoryByteLength !== contract.zip32.centralDirectoryByteLength)) {
+				|| layout.localByteLength > contract.zip32.localByteLength
+				|| layout.centralDirectoryByteLength !== contract.zip32.centralDirectoryByteLength)) {
 		throw new Error('The streamed ZIP archive does not match its exact plan.');
 	}
 }
@@ -410,6 +494,22 @@ function combineErrors(primary: unknown, cleanup: unknown, message: string): Agg
 
 function normalizeError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error));
+}
+
+function directSevenZipContract(
+	contract: DirectStemArchiveContract,
+): contract is DirectNativeStemArchiveContract & { readonly archiveFormat: '7z' } {
+	return contract.kind === 'exact-native-pcm' && contract.archiveFormat === '7z';
+}
+
+function archiveMimeType(
+	contract: DirectStemArchiveContract,
+): DirectStemArchiveStreamResult['mimeType'] {
+	return contract.kind === 'exact-native-pcm' ? contract.archiveMimeType : 'application/zip';
+}
+
+function archiveContainerLabel(contract: DirectStemArchiveContract): string {
+	return directSevenZipContract(contract) ? SEVEN_ZIP_CONTAINER_LABEL : ZIP_CONTAINER_LABEL;
 }
 
 function sameZip32Layout(left: Zip32Layout, right: Zip32Layout): boolean {
