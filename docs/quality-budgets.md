@@ -186,27 +186,31 @@ which stays planned. Compressed stems, BW64, video, 7z, and final-Blob direct
 publication are outside this fixture; the existing browser Blob/download
 fallback remains unchanged.
 
-A fourth provisional milestone 2 fixture records direct realtime MP3 output as
-small focused Node transport evidence. Closed admission covers one canonical
-realtime mix. The service fixture selects its prepared target before render,
-preflights an eight-byte staged WAV, opens the exact target only after a
-five-byte FFmpeg stat, transfers two chunks, closes, and commits without the
-legacy encoder or download publisher. Prepared Blob mode retains that legacy
-path. The lower-level fixture presents a virtual 269,484,049-byte output and
-observes 258 exact monotonic reads of at most 1,048,576 bytes, at most one range
-read and sink write at a time, and awaited backpressure without whole-output
-`readFile` use. The planner's separate 33,685,504-frame case establishes only
+A fourth provisional milestone 2 fixture records direct realtime compressed
+whole-mix output as small focused Node transport evidence. Closed admission
+covers all seven canonical built-in formats: MP3, FLAC, Ogg Vorbis, Opus,
+WavPack, MP2, and AAC/M4A. Each service case selects its prepared target before
+render, preflights an eight-byte staging budget, and opens the exact target only
+after a five-byte FFmpeg stat. It transfers two chunks, closes, and commits
+without the legacy download publisher. These cases also check the exact result
+and picker contracts and the format-specific staging and dither ownership.
+Prepared Blob mode retains the legacy whole-read and download path. The
+lower-level fixture presents a virtual 269,484,049-byte output and observes 258
+exact monotonic reads of at most 1,048,576 bytes, at most one range read and
+sink write at a time, and awaited backpressure without whole-output `readFile` use. The
+representative MP3 planner's separate 33,685,504-frame case establishes only
 the 269,484,032-byte staging arithmetic and realtime admission reason.
 
-These are transport arithmetic and backpressure only. The virtual body is not
-allocated, the actual FFmpeg codec is not executed by this fixture, and the
-complete encoded output still exists in worker MEMFS. Native or WASM codec
-memory, staged-input residency, renderer or browser heap, GC, process RSS, CPU,
-elapsed time, and codec conformance remain unqualified. The fixture is not
-reference-scale and does not exercise File System Access, Electron filesystem
-publication, a native picker, actual browser or operating-system behavior,
-packaged UI, quota, durability, crash, or power loss. It stays outside the
-milestone 2 bounded-memory workload, which stays planned.
+These witnesses establish transport arithmetic and backpressure only. The
+virtual body is not allocated, the actual FFmpeg codecs are not executed by
+this fixture, and the complete encoded output still exists in worker MEMFS.
+Native or WASM codec memory, staged-input residency, renderer or browser heap,
+GC, process RSS, CPU, elapsed time, and codec conformance remain unqualified.
+The fixture is not reference-scale and does not exercise File System Access,
+Electron filesystem publication, a native picker, actual browser or
+operating-system behavior, packaged UI, quota, durability, crash, or power
+loss. Custom FFmpeg, stems, offline rendering, and video are excluded. It stays
+outside the milestone 2 bounded-memory workload, which stays planned.
 
 The [collision-cancel inspection witness](../tests/desktop-scape-sparse-range-integration.test.ts)
 remains payload-lazy. It follows the real capability store, protocol, desktop
@@ -265,7 +269,7 @@ The fixture specifications are deliberately concrete:
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
   inspection and counting-sink full-import witnesses, plus the exact 385 MiB
   direct-WAV counting-SHA witness and the small direct native-PCM ZIP32 stem
-  and direct realtime MP3 correctness fixtures described above;
+  and direct realtime compressed-audio correctness fixtures described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video
