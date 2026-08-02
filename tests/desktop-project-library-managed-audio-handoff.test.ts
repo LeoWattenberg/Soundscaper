@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -26,10 +27,15 @@ import { createProjectStore, type AudioEditorProjectStore } from '../src/common/
 import type {
 	DesktopSharedProjectBridge,
 } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
+import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import type { EditorController } from '../src/common/editor/types.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const MANAGED_PCM_BYTES = 20;
 const MANAGED_PCM_SHA256 = '6f2c7d30e1887852cdf1ee60c14b93214f029d7fa0de1af6e709972e2d1693c7';
+const LOCATOR_ID = 'locator_audio_managed_handoff_0001';
+const LOCATOR_REVISION = 'snapshot_audio_managed_handoff_0001';
 const PCM_SAMPLES = Object.freeze([0.125, -0.25, 0.5, -1]);
 const SOUND_OWNER = Object.freeze({
 	product: 'soundscaper' as const,
@@ -44,13 +50,32 @@ const FRAME_OWNER = Object.freeze({
 
 interface ProjectActions {
 	readonly prepareHandoff: () => Promise<Readonly<{ projectId: string; revision: number }>>;
-	readonly rename: (title: string) => unknown;
-	readonly flush: () => Promise<unknown>;
 }
 
-test('explicit handoff manages canonical PCM for a fresh Framescaper profile', async (context) => {
+test('explicit handoff turns a linked WAV into recipient-owned canonical PCM', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-managed-audio-handoff-'));
 	const resources = trackResources(context, appDataPath);
+	const indexedDB = createInstrumentedIndexedDB();
+	const soundDatabaseName = `linked-wav-handoff-sound-${Date.now()}-${Math.random()}`;
+	const frameDatabaseName = `linked-wav-handoff-frames-${Date.now()}-${Math.random()}`;
+	const encodedWav = encodeWav([Float32Array.from(PCM_SAMPLES)], {
+		float: true,
+		dither: false,
+		sampleRate: 48_000,
+	});
+	const externalWavBytes = new Uint8Array(encodedWav.byteLength);
+	externalWavBytes.set(encodedWav);
+	const externalWav = new Blob([externalWavBytes], { type: 'audio/wav' });
+	let linkedLoads = 0;
+	const linkedOriginalPort: LinkedOriginalPort = {
+		load(kind, locatorId, { expectedRevision }) {
+			linkedLoads += 1;
+			assert.equal(kind, 'audio');
+			assert.equal(locatorId, LOCATOR_ID);
+			if (expectedRevision !== null && expectedRevision !== LOCATOR_REVISION) return null;
+			return { blob: externalWav, locatorRevision: LOCATOR_REVISION };
+		},
+	};
 	const soundHost = await resources.startHost(SOUND_OWNER);
 	const soundService = new DesktopSharedProjectLibraryService(soundHost, {
 		now: () => 30_000,
@@ -91,28 +116,28 @@ test('explicit handoff manages canonical PCM for a fresh Framescaper profile', a
 		tracks: [track],
 	}));
 	const soundStore = resources.trackStore(createProjectStore({
-		indexedDB: null,
+		indexedDB: indexedDB as unknown as IDBFactory,
+		memoryFallback: false,
 		preferOpfs: false,
-		databaseName: `managed-handoff-sound-${Date.now()}-${Math.random()}`,
+		databaseName: soundDatabaseName,
 		desktopProjectBridge: serviceBridge(soundService),
+		linkedOriginalPort,
 	}));
-	const writer = await soundStore.beginSourceWrite(source.storageKey, {
-		name: source.name,
-		mimeType: source.mimeType,
-		sampleRate: source.sampleRate,
-		channelCount: source.channelCount,
-		chunkFrames: source.chunkFrames,
-	});
-	await writer.write([Float32Array.from(PCM_SAMPLES)]);
-	await writer.commit({
-		sampleRate: source.sampleRate,
-		channelCount: source.channelCount,
-		chunkFrames: source.chunkFrames,
+	await soundStore.ready();
+	await soundStore.bindLinkedAudioOriginal(project.id, source, LOCATOR_ID, {
+		expectedLocatorRevision: LOCATOR_REVISION,
+		expectedSnapshot: externalWav,
 	});
 	await soundStore.saveProject(project);
 	await soundStore.saveSetting('soundscaper:last-project-id', project.id);
 
 	assert.deepEqual(soundHost.readCatalog().media, [], 'ordinary project saves remain document-only');
+	assert.deepEqual(await soundStore.listSources(), [], 'the linked sender must own no PCM source row');
+	assert.deepEqual(persistentPcmInventory(indexedDB, soundDatabaseName), {
+		sourceChunks: 0,
+		sources: 0,
+	});
+	assert.equal((await soundStore.getSourceMetadata(source.storageKey))?.storage, 'linked-audio-original-v1');
 	const soundscaper = resources.trackController(createEditorController(null, {
 		headless: true,
 		productId: 'soundscaper',
@@ -129,6 +154,28 @@ test('explicit handoff manages canonical PCM for a fresh Framescaper profile', a
 	assert.equal(managedCatalog.media.length, 1, 'explicit handoff publishes one managed source');
 	assert.equal(managedCatalog.media[0]?.byteLength, MANAGED_PCM_BYTES);
 	assert.equal(managedCatalog.media[0]?.sha256, MANAGED_PCM_SHA256);
+	assert.match(managedCatalog.media[0]?.relativeFile ?? '', /\.f32c$/u);
+	const bundle = await soundService.readSharedProjectBundle(project.id);
+	assert.ok(bundle);
+	assert.equal(bundle.sources.length, 1);
+	const managedSource = bundle.sources[0];
+	assert.ok(managedSource);
+	assert.equal(managedSource.encoding, 'audio-f32le-chunks-v1');
+	assert.equal(managedSource.kind, 'audio');
+	assert.equal(managedSource.byteLength, MANAGED_PCM_BYTES);
+	assert.equal(managedSource.sha256, MANAGED_PCM_SHA256);
+	const managedBytes = await soundService.readSharedSourceChunk(managedSource.bindingId, {
+		offset: 0,
+		length: managedSource.byteLength,
+	});
+	assert.deepEqual(managedBytes, canonicalPcmBytes(PCM_SAMPLES));
+	assert.notEqual(managedSource.sha256, digest(externalWavBytes));
+	assert.notEqual(managedSource.byteLength, externalWavBytes.byteLength);
+	assert.ok(linkedLoads >= 3, 'binding and the two handoff read passes must resolve the linked WAV');
+	assert.deepEqual(persistentPcmInventory(indexedDB, soundDatabaseName), {
+		sourceChunks: 0,
+		sources: 0,
+	}, 'managed handoff must not consolidate PCM into the sender store');
 	await resources.disposeController(soundscaper);
 	await resources.closeStore(soundStore);
 	const soundToken = soundHost.snapshot().fencingToken;
@@ -141,12 +188,15 @@ test('explicit handoff manages canonical PCM for a fresh Framescaper profile', a
 		createEntryId: () => { throw new Error('handoff must preserve its shared entry'); },
 	});
 	const frameStore = resources.trackStore(createProjectStore({
-		indexedDB: null,
+		indexedDB: indexedDB as unknown as IDBFactory,
+		memoryFallback: false,
 		preferOpfs: false,
-		databaseName: `managed-handoff-frames-${Date.now()}-${Math.random()}`,
+		databaseName: frameDatabaseName,
 		desktopProjectBridge: serviceBridge(frameService),
 	}));
+	await frameStore.ready();
 	assert.equal(await frameStore.getSourceMetadata(source.storageKey), null);
+	assert.equal(await frameStore.getLinkedOriginalBinding(project.id, source.id), null);
 	assert.deepEqual(await frameStore.listProjectRevisions(project.id), []);
 	await frameStore.saveSetting('framescaper:last-project-id', project.id);
 	const framescaper = resources.trackController(createEditorController(null, {
@@ -164,18 +214,28 @@ test('explicit handoff manages canonical PCM for a fresh Framescaper profile', a
 	assert.deepEqual(reopened.tracks, project.tracks);
 	assert.deepEqual(reopened.clips, project.clips);
 	assert.deepEqual(await readMonoPcm(frameStore, source.storageKey), PCM_SAMPLES);
+	assert.equal((await frameStore.getSourceMetadata(source.storageKey))?.storage, 'indexeddb-chunks');
+	assert.deepEqual(persistentPcmInventory(indexedDB, frameDatabaseName), {
+		sourceChunks: 1,
+		sources: 1,
+	});
 
-	const frameActions = framescaper.actions.project as unknown as ProjectActions;
-	frameActions.rename('Edited in Framescaper');
-	const edited = exactProject(framescaper.getSnapshot().project);
-	assert.equal(edited.revision, project.revision + 1);
-	await frameActions.flush();
-	const sharedEdit = exactProject(await frameService.readSharedProject(project.id));
-	assert.equal(sharedEdit.title, 'Edited in Framescaper');
-	assert.equal(sharedEdit.revision, project.revision + 1);
-	assert.deepEqual(sharedEdit.sources, project.sources);
-	assert.equal(frameHost.readCatalog().media.length, 1);
-	assert.equal(frameHost.readCatalog().media[0]?.sha256, MANAGED_PCM_SHA256);
+	await resources.disposeController(framescaper);
+	await resources.closeStore(frameStore);
+	await resources.closeHost(frameHost);
+	const plainStore = resources.trackStore(createProjectStore({
+		indexedDB: indexedDB as unknown as IDBFactory,
+		memoryFallback: false,
+		preferOpfs: false,
+		databaseName: frameDatabaseName,
+	}));
+	await plainStore.ready();
+	const locallyReopened = exactProject(await plainStore.loadProject(project.id));
+	assert.equal(locallyReopened.id, project.id);
+	assert.equal(locallyReopened.revision, project.revision);
+	assert.equal(await plainStore.getLinkedOriginalBinding(project.id, source.id), null);
+	assert.equal((await plainStore.getSourceMetadata(source.storageKey))?.storage, 'indexeddb-chunks');
+	assert.deepEqual(await readMonoPcm(plainStore, source.storageKey), PCM_SAMPLES);
 });
 
 function serviceBridge(service: DesktopSharedProjectLibraryService): DesktopSharedProjectBridge {
@@ -212,6 +272,28 @@ async function readMonoPcm(store: AudioEditorProjectStore, sourceId: string): Pr
 		samples.push(...channels[0]);
 	}
 	return samples;
+}
+
+function canonicalPcmBytes(samples: readonly number[]): Uint8Array {
+	const bytes = new Uint8Array(4 + samples.length * Float32Array.BYTES_PER_ELEMENT);
+	const view = new DataView(bytes.buffer);
+	view.setUint32(0, samples.length, true);
+	for (const [index, sample] of samples.entries()) view.setFloat32(4 + index * 4, sample, true);
+	return bytes;
+}
+
+function digest(bytes: Uint8Array): string {
+	return createHash('sha256').update(bytes).digest('hex');
+}
+
+function persistentPcmInventory(
+	indexedDB: ReturnType<typeof createInstrumentedIndexedDB>,
+	databaseName: string,
+) {
+	return Object.freeze({
+		sourceChunks: indexedDB.recordCount(databaseName, 'sourceChunks'),
+		sources: indexedDB.recordCount(databaseName, 'sources'),
+	});
 }
 
 function trackResources(context: TestContext, appDataPath: string) {
