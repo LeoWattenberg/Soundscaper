@@ -35,7 +35,9 @@ export function createAudioEditorFileService(options = {}) {
 	const isDesktop = Boolean(bridge);
 	const readMaximumBytes = desktopReadMaximum(options.readMaximumBytes);
 	const scapeReadMaximumBytes = desktopScapeReadMaximum(options.scapeReadMaximumBytes);
-	const linkedVideoOriginals = createDesktopLinkedVideoOriginalAccess({ bridge, openReadDescriptor });
+	const linkedVideoOriginals = createDesktopLinkedVideoOriginalAccess({
+		bridge, fetch: fetchFile, openReadDescriptor,
+	});
 
 	return Object.freeze({
 		kind: isDesktop ? 'desktop' : 'browser',
@@ -84,8 +86,8 @@ export function createAudioEditorFileService(options = {}) {
 			throwIfAborted(request.signal);
 			return descriptor;
 		}
-		if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
-		return withReadCleanup([descriptor.id], releaseRead, async () => {
+		return withReadCleanup(uniqueReadIds([descriptor]), releaseRead, async () => {
+			if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
 			assertDesktopMaterializedReadProfile(descriptor);
 			const blob = await materializeReadDescriptor(descriptor, request.signal);
 			return createNamedFile(blob, descriptor, scope);

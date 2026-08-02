@@ -17,12 +17,23 @@ test('project storage composes pathless linked-video binding and resolution sepa
 	const body = new Blob(['linked video composition'], { type: 'video/mp4' });
 	const reads: Array<Readonly<{ locatorId: string; expectedRevision: string | null }>> = [];
 	const releases: string[] = [];
+	let playbackReleases = 0;
 	let reconciliations = 0;
 	const port: LinkedVideoOriginalPort = {
 		load(locatorId, { expectedRevision }) {
 			reads.push({ locatorId, expectedRevision });
 			return Promise.resolve({ blob: body, locatorRevision: LOCATOR_REVISION });
 		},
+		leasePlayback: () => ({
+			locatorRevision: LOCATOR_REVISION,
+			mediaUrl: 'soundscaper-app://bundle/_desktop/read/linked-video-range-v1/composition/video.mp4',
+			byteLength: body.size,
+			mimeType: body.type,
+			async readRange({ offset, length }) {
+				return new Uint8Array(await body.slice(offset, offset + length).arrayBuffer());
+			},
+			async release() { playbackReleases += 1; },
+		}),
 		release(locatorId) {
 			releases.push(locatorId);
 			return true;
@@ -104,6 +115,11 @@ test('project storage composes pathless linked-video binding and resolution sepa
 		expectedRevision: LOCATOR_REVISION,
 	});
 	assert.equal(await store.getMediaAssetMetadata(source.storageKey), null);
+	const playback = await store.leaseLinkedVideoOriginalPlayback(PROJECT_ID, source);
+	assert.ok(playback);
+	assert.match(playback.mediaUrl, /linked-video-range-v1/u);
+	await playback.release();
+	assert.equal(playbackReleases, 1);
 
 	assert.equal(await store.unlinkLinkedVideoOriginal(
 		PROJECT_ID,
@@ -142,6 +158,7 @@ test('linked-video resolver injection is optional and facade operations fail bef
 		store.resolveLinkedVideoOriginal(PROJECT_ID, source),
 		/resolution is unavailable/iu,
 	);
+	assert.equal(await store.leaseLinkedVideoOriginalPlayback(PROJECT_ID, source), null);
 	await assert.rejects(
 		store.getLinkedVideoOriginalMetadata(PROJECT_ID, source),
 		/resolution is unavailable/iu,

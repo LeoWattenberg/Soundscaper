@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+
 import {
 	LINKED_VIDEO_ORIGINAL_BINDING_SCHEMA_VERSION,
 	normalizeLinkedVideoOriginalBindingInput,
@@ -14,9 +17,11 @@ import type {
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
+	MEDIA_CONTENT_DIGEST_CHUNK_BYTES,
 } from './media-content-digest.ts';
 
 export const LINKED_VIDEO_ORIGINAL_STORAGE_TYPE = 'linked-video-original-v1' as const;
+export const LINKED_VIDEO_PLAYBACK_VERIFY_CHUNK_BYTES = MEDIA_CONTENT_DIGEST_CHUNK_BYTES;
 
 export interface LinkedVideoOriginalSource extends Readonly<Record<string, unknown>> {
 	readonly kind: 'video';
@@ -38,6 +43,19 @@ export interface LinkedVideoOriginalSnapshot {
 	readonly locatorRevision: unknown;
 }
 
+export interface LinkedVideoOriginalPlaybackLease {
+	readonly locatorRevision: string;
+	readonly mediaUrl: string;
+	readonly byteLength: number;
+	readonly mimeType: string;
+	readRange(request: Readonly<{
+		offset: number;
+		length: number;
+		signal?: AbortSignal;
+	}>): PromiseLike<Uint8Array> | Uint8Array;
+	release(): PromiseLike<void> | void;
+}
+
 export interface LinkedVideoOriginalPort {
 	load(
 		locatorId: string,
@@ -46,6 +64,13 @@ export interface LinkedVideoOriginalPort {
 			signal?: AbortSignal;
 		}>,
 	): PromiseLike<LinkedVideoOriginalSnapshot | null> | LinkedVideoOriginalSnapshot | null;
+	leasePlayback?(
+		locatorId: string,
+		options: Readonly<{
+			expectedRevision: string;
+			signal?: AbortSignal;
+		}>,
+	): PromiseLike<LinkedVideoOriginalPlaybackLease | null> | LinkedVideoOriginalPlaybackLease | null;
 	reconcile?(
 		references: readonly LinkedVideoOriginalLocatorReference[],
 	): PromiseLike<number> | number;
@@ -64,6 +89,12 @@ export interface ResolvedLinkedVideoOriginal {
 		readonly size: number;
 		readonly sha256: string;
 	}>;
+}
+
+export interface ResolvedLinkedVideoOriginalPlayback {
+	readonly binding: LinkedVideoOriginalBinding;
+	readonly mediaUrl: string;
+	release(): Promise<void>;
 }
 
 export interface InspectedLinkedVideoOriginal {
@@ -181,6 +212,45 @@ export class LinkedVideoOriginalResolver {
 			blob,
 			metadata: inspected.metadata,
 		});
+	}
+
+	async leasePlayback(
+		projectId: string,
+		source: LinkedVideoOriginalSource,
+		options: Readonly<{ signal?: AbortSignal }> = {},
+	): Promise<ResolvedLinkedVideoOriginalPlayback | null> {
+		const inspected = await this.inspect(projectId, source, options);
+		if (!inspected || typeof this.#port.leasePlayback !== 'function') return null;
+		const { binding } = inspected;
+		const rawLease = await this.#port.leasePlayback(binding.locatorId, {
+			expectedRevision: binding.locatorRevision,
+			signal: options.signal,
+		});
+		const rawRelease = possiblePlaybackRelease(rawLease);
+		let release = rawRelease ? oneShotRelease(rawRelease) : null;
+		try {
+			throwIfAborted(options.signal);
+			if (rawLease === null) {
+				throw new Error('The linked video original is unavailable or changed.');
+			}
+			const lease = playbackLeaseValue(rawLease);
+			release ??= oneShotRelease(() => lease.release());
+			if (lease.locatorRevision !== binding.locatorRevision) {
+				throw new Error('The linked video original locator changed during playback admission.');
+			}
+			if (lease.byteLength !== binding.byteLength) {
+				throw new Error('The linked video original changed byte length before playback.');
+			}
+			if (lease.mimeType !== binding.mimeType) {
+				throw new Error('The linked video original changed MIME type before playback.');
+			}
+			await verifyPlaybackBytes(lease, binding.sha256, options.signal);
+			await this.assertBindingCurrent(projectId, source, binding, options);
+			return Object.freeze({ binding, mediaUrl: lease.mediaUrl, release });
+		} catch (error) {
+			if (release) return failPlaybackLease(error, release);
+			throw error;
+		}
 	}
 
 	async inspect(
@@ -321,7 +391,14 @@ function snapshotValue(value: LinkedVideoOriginalSnapshot | null): Readonly<{
 		}
 	}
 	const candidate = value as unknown as Readonly<Record<string, unknown>>;
-	const locatorRevision = candidate.locatorRevision;
+	const locatorRevision = locatorRevisionValue(candidate.locatorRevision);
+	return Object.freeze({
+		blob: candidate.blob,
+		locatorRevision,
+	});
+}
+
+function locatorRevisionValue(locatorRevision: unknown): string {
 	const normalized = normalizeLinkedVideoOriginalBindingInput({
 		schemaVersion: 1,
 		projectId: 'validation-project',
@@ -343,10 +420,117 @@ function snapshotValue(value: LinkedVideoOriginalSnapshot | null): Readonly<{
 			hasAudio: false,
 		},
 	});
+	return normalized.locatorRevision;
+}
+
+function playbackLeaseValue(value: LinkedVideoOriginalPlaybackLease): LinkedVideoOriginalPlaybackLease {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('A linked video original playback lease is required.');
+	}
+	const fields = ['locatorRevision', 'mediaUrl', 'byteLength', 'mimeType', 'readRange', 'release'];
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => !fields.includes(String(key)))) {
+		throw new TypeError('A linked video original playback lease must be a closed object.');
+	}
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError('A linked video original playback lease must use enumerable data fields.');
+		}
+	}
+	if (typeof value.mediaUrl !== 'string' || !value.mediaUrl) {
+		throw new TypeError('A linked video original playback lease requires a media URL.');
+	}
+	if (!Number.isSafeInteger(value.byteLength) || value.byteLength < 1) {
+		throw new RangeError('A linked video original playback lease requires a positive byte length.');
+	}
+	if (typeof value.mimeType !== 'string'
+		|| !/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(value.mimeType)) {
+		throw new TypeError('A linked video original playback lease requires a video MIME type.');
+	}
+	if (typeof value.readRange !== 'function' || typeof value.release !== 'function') {
+		throw new TypeError('A linked video original playback lease requires owned range operations.');
+	}
+	const readRange = value.readRange;
+	const release = value.release;
 	return Object.freeze({
-		blob: candidate.blob,
-		locatorRevision: normalized.locatorRevision,
+		locatorRevision: locatorRevisionValue(value.locatorRevision),
+		mediaUrl: value.mediaUrl,
+		byteLength: value.byteLength,
+		mimeType: value.mimeType,
+		readRange: (request: Parameters<LinkedVideoOriginalPlaybackLease['readRange']>[0]) => (
+			Reflect.apply(readRange, value, [request]) as ReturnType<LinkedVideoOriginalPlaybackLease['readRange']>
+		),
+		release: () => Reflect.apply(
+			release,
+			value,
+			[],
+		) as ReturnType<LinkedVideoOriginalPlaybackLease['release']>,
 	});
+}
+
+function possiblePlaybackRelease(value: unknown): (() => PromiseLike<void> | void) | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'release');
+	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
+		&& typeof descriptor.value === 'function'
+		? () => Reflect.apply(descriptor.value, value, []) as PromiseLike<void> | void
+		: null;
+}
+
+async function verifyPlaybackBytes(
+	lease: LinkedVideoOriginalPlaybackLease,
+	expectedSha256: string,
+	signal?: AbortSignal,
+): Promise<void> {
+	const digest = sha256.create();
+	for (let offset = 0; offset < lease.byteLength;) {
+		throwIfAborted(signal);
+		const length = Math.min(
+			LINKED_VIDEO_PLAYBACK_VERIFY_CHUNK_BYTES,
+			lease.byteLength - offset,
+		);
+		let bytes: Uint8Array;
+		try {
+			bytes = await lease.readRange({ offset, length, ...(signal ? { signal } : {}) });
+		} catch (error) {
+			throwIfAborted(signal);
+			throw error;
+		}
+		throwIfAborted(signal);
+		if (!(bytes instanceof Uint8Array) || bytes.byteLength !== length) {
+			throw new Error('The linked video original playback range returned inexact bytes.');
+		}
+		digest.update(bytes);
+		offset += length;
+	}
+	if (bytesToHex(digest.digest()) !== expectedSha256) {
+		throw new Error('The linked video original playback lease failed SHA-256 verification.');
+	}
+}
+
+function oneShotRelease(operation: () => PromiseLike<void> | void): () => Promise<void> {
+	let result: Promise<void> | null = null;
+	return () => {
+		result ??= Promise.resolve().then(operation);
+		return result;
+	};
+}
+
+async function failPlaybackLease(
+	error: unknown,
+	release: () => Promise<void>,
+): Promise<never> {
+	try {
+		await release();
+	} catch (cleanupError) {
+		throw new AggregateError(
+			[error, cleanupError],
+			'Linked video playback verification and cleanup both failed.',
+			{ cause: cleanupError },
+		);
+	}
+	throw error;
 }
 
 function linkedMetadata(binding: LinkedVideoOriginalBinding): ResolvedLinkedVideoOriginal['metadata'] {

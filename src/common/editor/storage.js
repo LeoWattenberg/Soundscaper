@@ -270,6 +270,10 @@ export class AudioEditorProjectStore {
 		}
 		return this.linkedVideoOriginalResolver.resolve(projectId, source, options);
 	}
+	async leaseLinkedVideoOriginalPlayback(projectId, source, options = {}) {
+		this.#assertOpen();
+		return this.linkedVideoOriginalResolver?.leasePlayback?.(projectId, source, options) ?? null;
+	}
 
 	async getLinkedVideoOriginalMetadata(projectId, source) {
 		this.#assertOpen();

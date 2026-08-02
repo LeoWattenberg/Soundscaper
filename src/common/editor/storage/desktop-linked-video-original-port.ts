@@ -2,9 +2,16 @@
 
 import type {
 	LinkedVideoOriginalPort,
+	LinkedVideoOriginalPlaybackLease,
 	LinkedVideoOriginalSnapshot,
 } from './linked-video-original-resolver.ts';
 import type { LinkedVideoOriginalLocatorReference } from './linked-video-original-repository.ts';
+import type { DesktopReadFetch } from '../desktop-read-materialization.ts';
+import {
+	DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE,
+	assertDesktopLinkedVideoReadProfile,
+} from '../desktop-read-profile.ts';
+import { readDesktopLinkedVideoRange } from './desktop-linked-video-range-reader.ts';
 
 export interface DesktopLinkedVideoOriginalChoice {
 	readonly locatorId: string;
@@ -23,12 +30,14 @@ interface DesktopLinkedVideoOriginalBridge {
 		expectedRevision: string | null;
 		playback: boolean;
 	}>): PromiseLike<unknown> | unknown;
+	releaseRead?(id: string): PromiseLike<unknown> | unknown;
 	reconcileLinkedVideoOriginals?(references: readonly LinkedVideoOriginalLocatorReference[]): PromiseLike<unknown> | unknown;
 	releaseLinkedVideoOriginal?(locatorId: string): PromiseLike<unknown> | unknown;
 }
 
 interface DesktopLinkedVideoOriginalAccessOptions {
 	readonly bridge: DesktopLinkedVideoOriginalBridge | null;
+	readonly fetch?: DesktopReadFetch | null;
 	readonly openReadDescriptor: (
 		descriptor: unknown,
 		request?: Readonly<{ signal?: AbortSignal }>,
@@ -48,6 +57,9 @@ const LOCATOR_FIELDS = Object.freeze([
 	'locatorId', 'locatorRevision', 'name', 'size', 'mimeType', 'lastModified',
 ]);
 const LOAD_FIELDS = Object.freeze(['locatorRevision', 'descriptor']);
+const PLAYBACK_DESCRIPTOR_FIELDS = Object.freeze([
+	'id', 'url', 'name', 'size', 'mimeType', 'readProfile', 'lastModified',
+]);
 const MATERIALIZED_VIDEO_MAXIMUM_BYTES = 512 * 1024 ** 2;
 const MAXIMUM_LINKED_VIDEO_REFERENCES = 128;
 
@@ -56,12 +68,15 @@ export function createDesktopLinkedVideoOriginalAccess(
 	options: DesktopLinkedVideoOriginalAccessOptions,
 ): Readonly<DesktopLinkedVideoOriginalAccess> {
 	const bridge = options?.bridge;
+	const releaseRead = bridge ? ownedReleaseRead(bridge) : null;
 	const available = typeof bridge?.chooseLinkedVideoOriginal === 'function'
 		&& typeof bridge.loadLinkedVideoOriginal === 'function'
 		&& typeof bridge.reconcileLinkedVideoOriginals === 'function'
 		&& typeof bridge.releaseLinkedVideoOriginal === 'function';
 	const port: DesktopLinkedVideoOriginalAccess['port'] = available
-		? Object.freeze({ load, reconcile, release })
+		? Object.freeze(typeof options.fetch === 'function' && releaseRead
+			? { leasePlayback, load, reconcile, release }
+			: { load, reconcile, release })
 		: null;
 	return Object.freeze({ available, port, choose, release });
 
@@ -106,6 +121,41 @@ export function createDesktopLinkedVideoOriginalAccess(
 			: null;
 	}
 
+	async function leasePlayback(
+		locatorIdValue: string,
+		request: Readonly<{ expectedRevision: string; signal?: AbortSignal }>,
+	): Promise<LinkedVideoOriginalPlaybackLease | null> {
+		if (!available || typeof options.fetch !== 'function' || !releaseRead) return null;
+		const locatorId = locatorToken(locatorIdValue, 'locator identifier');
+		const expectedRevision = locatorToken(
+			request?.expectedRevision,
+			'expected locator revision',
+		);
+		throwIfAborted(request.signal);
+		const raw = await bridge.loadLinkedVideoOriginal?.({
+			locatorId, expectedRevision, playback: true,
+		});
+		if (raw === null) {
+			throwIfAborted(request.signal);
+			return null;
+		}
+		const cleanupId = possibleReadId(raw);
+		let lease: LinkedVideoOriginalPlaybackLease | null = null;
+		try {
+			const loaded = closedRecord(raw, LOAD_FIELDS, 'Linked-video playback response');
+			const locatorRevision = locatorToken(loaded.locatorRevision, 'locator revision');
+			if (locatorRevision !== expectedRevision) {
+				throw new Error('The linked-video playback locator revision changed during admission.');
+			}
+			const descriptor = playbackDescriptor(loaded.descriptor);
+			lease = playbackLease(descriptor, locatorRevision, options.fetch, releaseRead);
+			throwIfAborted(request.signal);
+			return lease;
+		} catch (error) {
+			return cleanupPlaybackAdmission(error, lease, cleanupId, releaseRead);
+		}
+	}
+
 	async function loadFile(
 		locatorIdValue: unknown,
 		expectedRevisionValue: unknown,
@@ -127,13 +177,23 @@ export function createDesktopLinkedVideoOriginalAccess(
 			throwIfAborted(signal);
 			return null;
 		}
-		const loaded = closedRecord(raw, LOAD_FIELDS, 'Linked-video load response');
-		const locatorRevision = locatorToken(loaded.locatorRevision, 'locator revision');
-		// Once main has returned a read descriptor, route cancellation through
-		// the ordinary descriptor opener so its capability cleanup always runs.
-		const file = await options.openReadDescriptor(loaded.descriptor, { signal });
-		throwIfAborted(signal);
-		return Object.freeze({ file, locatorRevision });
+		const cleanupId = possibleReadId(raw);
+		let delegated = false;
+		try {
+			const loaded = closedRecord(raw, LOAD_FIELDS, 'Linked-video load response');
+			const locatorRevision = locatorToken(loaded.locatorRevision, 'locator revision');
+			// Once main has returned a descriptor, the ordinary opener owns cleanup.
+			const opening = options.openReadDescriptor(loaded.descriptor, { signal });
+			delegated = true;
+			const file = await opening;
+			throwIfAborted(signal);
+			return Object.freeze({ file, locatorRevision });
+		} catch (error) {
+			if (!delegated && cleanupId && releaseRead) {
+				await cleanupPlaybackAdmission(error, null, cleanupId, releaseRead);
+			}
+			throw error;
+		}
 	}
 
 	async function release(locatorIdValue: string): Promise<boolean> {
@@ -153,6 +213,148 @@ export function createDesktopLinkedVideoOriginalAccess(
 		}
 		return Number(removed);
 	}
+}
+
+function ownedReleaseRead(
+	bridge: DesktopLinkedVideoOriginalBridge,
+): NonNullable<DesktopLinkedVideoOriginalBridge['releaseRead']> | null {
+	const operation = bridge.releaseRead;
+	return typeof operation === 'function'
+		? (id: string): unknown => Reflect.apply(operation, bridge, [id]) as unknown
+		: null;
+}
+
+interface PlaybackDescriptor {
+	readonly id: string;
+	readonly url: string;
+	readonly name: string;
+	readonly size: number;
+	readonly mimeType: string;
+	readonly readProfile: typeof DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE;
+	readonly lastModified: number;
+}
+
+function playbackDescriptor(value: unknown): Readonly<PlaybackDescriptor> {
+	const candidate = closedRecord(
+		value,
+		PLAYBACK_DESCRIPTOR_FIELDS,
+		'Linked-video playback descriptor',
+	);
+	assertDesktopLinkedVideoReadProfile(candidate);
+	const id = readToken(candidate.id, 'identifier');
+	const name = readName(candidate.name);
+	const url = linkedPlaybackUrl(candidate.url, { id, name });
+	const lastModified = candidate.lastModified;
+	if (!Number.isSafeInteger(lastModified) || Number(lastModified) < 0) {
+		throw new RangeError('Linked-video playback modification time is invalid.');
+	}
+	return Object.freeze({
+		id,
+		url,
+		name,
+		size: Number(candidate.size),
+		mimeType: String(candidate.mimeType),
+		readProfile: DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE,
+		lastModified: Number(lastModified),
+	});
+}
+
+function playbackLease(
+	descriptor: PlaybackDescriptor,
+	locatorRevision: string,
+	fetchRange: DesktopReadFetch,
+	releaseRead: NonNullable<DesktopLinkedVideoOriginalBridge['releaseRead']>,
+): LinkedVideoOriginalPlaybackLease {
+	let releasePromise: Promise<void> | null = null;
+	const release = (): Promise<void> => {
+		releasePromise ??= Promise.resolve().then(() => releaseRead(descriptor.id)).then((result) => {
+			if (result !== true && result !== false) {
+				throw new TypeError('Linked-video playback release returned an invalid result.');
+			}
+		});
+		return releasePromise;
+	};
+	return Object.freeze({
+		locatorRevision,
+		mediaUrl: descriptor.url,
+		byteLength: descriptor.size,
+		mimeType: descriptor.mimeType,
+		readRange(request: Parameters<LinkedVideoOriginalPlaybackLease['readRange']>[0]) {
+			if (releasePromise) {
+				return Promise.reject(new Error('The linked-video playback lease was released.'));
+			}
+			return readDesktopLinkedVideoRange(descriptor, request, fetchRange);
+		},
+		release,
+	});
+}
+
+async function cleanupPlaybackAdmission(
+	error: unknown,
+	lease: LinkedVideoOriginalPlaybackLease | null,
+	readId: string | null,
+	releaseRead: NonNullable<DesktopLinkedVideoOriginalBridge['releaseRead']>,
+): Promise<never> {
+	try {
+		if (lease) await lease.release();
+		else if (readId) {
+			const result = await releaseRead(readId);
+			if (result !== true && result !== false) {
+				throw new TypeError('Linked-video playback cleanup returned an invalid result.');
+			}
+		}
+	} catch (cleanupError) {
+		throw new AggregateError(
+			[error, cleanupError],
+			'Linked-video playback admission and cleanup both failed.',
+			{ cause: cleanupError },
+		);
+	}
+	throw error;
+}
+
+function possibleReadId(value: unknown): string | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const response = value as Readonly<Record<string, unknown>>;
+	const descriptorProperty = Object.getOwnPropertyDescriptor(response, 'descriptor');
+	const descriptor = descriptorProperty?.value;
+	if (!descriptorProperty?.enumerable || !Object.hasOwn(descriptorProperty, 'value')
+		|| !descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)) return null;
+	const idProperty = Object.getOwnPropertyDescriptor(descriptor, 'id');
+	return idProperty?.enumerable && Object.hasOwn(idProperty, 'value')
+		&& typeof idProperty.value === 'string' && /^[a-f0-9]{64}$/u.test(idProperty.value)
+		? idProperty.value
+		: null;
+}
+
+function readToken(value: unknown, label: string): string {
+	if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) {
+		throw new TypeError(`Linked-video playback ${label} is invalid.`);
+	}
+	return value;
+}
+
+function readName(value: unknown): string {
+	const name = String(value ?? '');
+	if (!name || name !== name.trim() || name.length > 255 || name === '.' || name === '..'
+		|| name.includes('/') || name.includes('\\') || /[\u0000-\u001f]/u.test(name)) {
+		throw new TypeError('Linked-video playback name is invalid.');
+	}
+	return name;
+}
+
+function linkedPlaybackUrl(value: unknown, descriptor: Readonly<{ id: string; name: string }>): string {
+	let url: URL;
+	try { url = new URL(String(value ?? '')); } catch {
+		throw new TypeError('Linked-video playback capability URL is invalid.');
+	}
+	const expectedPath = `/_desktop/read/${DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE}/${descriptor.id}/${encodeURIComponent(descriptor.name)}`;
+	if (!['soundscaper-app:', 'framescaper-app:'].includes(url.protocol)
+		|| url.hostname !== 'bundle' || url.port || url.username || url.password
+		|| url.search || url.hash || url.pathname !== expectedPath) {
+		throw new TypeError('Linked-video playback capability URL is invalid.');
+	}
+	return url.href;
 }
 
 function possibleLocatorId(value: unknown): string | null {

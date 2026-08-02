@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+export const DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE = 'linked-video-range-v1';
 export const DESKTOP_READ_PROFILE_MATERIALIZED = 'materialized-v1';
 export const DESKTOP_READ_PROFILE_SCAPE_RANGE = 'scape-range-v1';
 export const DESKTOP_SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 export const DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES = 65 * 1024 ** 3;
 
 export type DesktopReadProfile =
+	| typeof DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
 	| typeof DESKTOP_READ_PROFILE_MATERIALIZED
 	| typeof DESKTOP_READ_PROFILE_SCAPE_RANGE;
 
@@ -17,8 +19,24 @@ export interface DesktopReadProfileDescriptor {
 }
 
 export function isDesktopReadProfile(value: unknown): value is DesktopReadProfile {
-	return value === DESKTOP_READ_PROFILE_MATERIALIZED
+	return value === DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
+		|| value === DESKTOP_READ_PROFILE_MATERIALIZED
 		|| value === DESKTOP_READ_PROFILE_SCAPE_RANGE;
+}
+
+export function assertDesktopLinkedVideoReadProfile(
+	descriptor: DesktopReadProfileDescriptor,
+): void {
+	if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
+		|| typeof descriptor.mimeType !== 'string'
+		|| !/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(descriptor.mimeType)
+		|| isScapeName(descriptor.name)) {
+		throw new TypeError('A canonical linked-video desktop read profile is required.');
+	}
+	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1
+		|| (descriptor.size as number) > 512 * 1024 ** 2) {
+		throw new RangeError('The linked-video desktop read size is outside its admitted range.');
+	}
 }
 
 export function assertDesktopMaterializedReadProfile(
