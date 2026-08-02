@@ -75,6 +75,10 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		libraryBoundary.data,
 		/maintained-domain-validated exact schemaVersion-9 project documents.*revision-and-document-digest-bound.*canonical-PCM and retained-original-video descriptors and bodies/iu,
 	);
+	assert.match(
+		libraryBoundary.data,
+		/fresh v2 filesystem scope.*database schema 3.*project-file and stage-attempt inventories.*managed-media canonical and stage-attempt inventories.*persisted bounded reclamation state.*collector-owned quarantine files/iu,
+	);
 	assert.deepEqual(libraryBoundary.entryPoints, [
 		'desktop/project-library-api.ts',
 		'desktop/project-library-contract.ts',
@@ -89,6 +93,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/project-library-editor-media-service.ts',
 		'desktop/project-library-media-binding.ts',
 		'desktop/project-library-media-capacity.ts',
+		'desktop/project-library-media-inventory-reclamation.ts',
+		'desktop/project-library-media-inventory-schema.ts',
+		'desktop/project-library-media-inventory-store.ts',
+		'desktop/project-library-media-inventory.ts',
+		'desktop/project-library-media-reclamation.ts',
 		'desktop/project-library-media-reuse.ts',
 		'desktop/project-library-media.ts',
 	]);
@@ -100,12 +109,21 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/project-library-reclamation.ts',
 		'desktop/project-library-media-binding.ts',
 		'desktop/project-library-media-capacity.ts',
+		'desktop/project-library-media-inventory-reclamation.ts',
+		'desktop/project-library-media-inventory-schema.ts',
+		'desktop/project-library-media-inventory-store.ts',
+		'desktop/project-library-media-inventory.ts',
+		'desktop/project-library-media-reclamation.ts',
 		'desktop/project-library-media-reuse.ts',
+		'scripts/lib/desktop-project-library-runtime.mjs',
 		'tests/desktop-project-library-file-inventory.test.ts',
 		'tests/desktop-project-library-reclamation.test.ts',
 		'tests/desktop-project-library-reclamation-progress.test.ts',
 		'tests/desktop-project-library-stage-reclamation.test.ts',
 		'tests/desktop-project-library-media-capacity.test.ts',
+		'tests/desktop-project-library-media-inventory-store.test.ts',
+		'tests/desktop-project-library-media-inventory.test.ts',
+		'tests/desktop-project-library-media-reclamation.test.ts',
 		'tests/desktop-project-library-video-media.test.ts',
 		'tests/desktop-project-library-media-reuse.test.ts',
 		'tests/desktop-project-library-editor-media-reuse-fallback.test.ts',
@@ -201,7 +219,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	]) assert.ok(stageReclamationControl.evidence.some((item) => item.path === path));
 	assert.match(
 		control.summary,
-		/fresh filesystem library scope v2.*ignores rather than migrates.*prior shared v1 scope.*schema 1 database.*v2 path.*rejected instead of implicitly migrated.*metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*non-raiseable 256 MiB.*lower-only test seam.*persistence root identity.*reserves.*lease.*fencing-token.*authoritative project-file inventory.*before stage creation.*private file.*syncs it.*atomically renames it.*materialized.*every catalog reference.*before an exact plus-one catalog journal publication.*before staging.*before publication.*transactionally at catalog commit.*serializes commits.*renews its lease while close drains admitted work/isu,
+		/fresh filesystem library scope v2.*ignores rather than migrates.*prior shared v1 scope.*database schema 3(?:.*schema 1.*schema 2.*v2 path.*reject|.*v2 path.*rejects schemas 1 and 2).*instead of implicitly migrat(?:ed|ing).*metadata schema 2.*separate opaque library entry ID.*exact schema 9.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*non-raiseable 256 MiB.*lower-only test seam.*persistence root identity.*reserves.*lease.*fencing-token.*authoritative project-file inventory.*before stage creation.*private file.*syncs it.*atomically renames it.*materialized.*every catalog reference.*before an exact plus-one catalog journal publication.*before staging.*before publication.*transactionally at catalog commit.*serializes commits.*renews its lease while close drains admitted work/isu,
 	);
 	assert.match(
 		control.summary,
@@ -246,6 +264,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	for (const path of [
 		'desktop/project-library-editor-media-service.ts',
 		'desktop/project-library-media-binding.ts',
+		'desktop/project-library-media-inventory-reclamation.ts',
+		'desktop/project-library-media-inventory-schema.ts',
+		'desktop/project-library-media-inventory-store.ts',
+		'desktop/project-library-media-inventory.ts',
+		'desktop/project-library-media-reclamation.ts',
 		'desktop/project-library-media-reuse.ts',
 		'desktop/project-library-media.ts',
 		'desktop/project-library-host.ts',
@@ -253,6 +276,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/project-library-ipc.js',
 		'desktop/preload.mjs',
 		'desktop/main.mjs',
+		'scripts/lib/desktop-project-library-runtime.mjs',
 		'src/common/editor/controller/project-admin-service.ts',
 		'src/common/editor/storage/desktop-shared-project-media-contract.ts',
 		'src/common/editor/storage/desktop-shared-project-media-sources.ts',
@@ -277,8 +301,12 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/desktop-project-library-media.test.ts',
 		'tests/desktop-project-library-video-media.test.ts',
 		'tests/desktop-project-library-editor-video-media-service.test.ts',
+		'tests/desktop-project-library-media-inventory-store.test.ts',
+		'tests/desktop-project-library-media-inventory.test.ts',
+		'tests/desktop-project-library-media-reclamation.test.ts',
 		'tests/desktop-project-library-media-reuse.test.ts',
 		'tests/desktop-project-library-editor-media-reuse-fallback.test.ts',
+		'tests/desktop-project-library-packaging.test.js',
 		'tests/audio-editor-desktop-shared-project-media-transfer.test.ts',
 		'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts',
 		'tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts',
@@ -302,7 +330,15 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedHandoffControl.summary,
-		/same-kind canonical binding.*fully verify a donor.*private random staged hard link.*promote it exclusively.*opaque or corrupt donors.*skipped.*exhausted donor.*another.*target races never overwrite.*unsupported hard-link failures.*bounded upload.*operational failures propagate.*linked catalog-publication retry.*without another renderer upload.*normal-upload retry.*consumes and validates.*offered stream/isu,
+		/same-kind canonical binding.*fully verify a donor.*private random staged hard link.*promote it exclusively.*opaque or corrupt donors.*skipped.*exhausted donor.*another.*target races never overwrite.*unsupported hard-link failures.*bounded upload.*operational failures propagate.*catalog-publication retry.*uploaded or linked materialized target.*reverifies.*without consuming.*offered stream/isu,
+	);
+	assert.match(
+		managedHandoffControl.summary,
+		/after point-in-time capacity admission.*before directory or stage creation, hard-link work, or body consumption.*exact canonical row.*random upload or reuse stage.*schema-3 authoritative inventory.*descriptor provenance.*live lease and fencing token.*registered regular stage.*directory-syncs.*canonical row materialized.*removes the stage row.*catalog preparation.*exact materialized or published row.*catalog commit.*published atomically with metadata/isu,
+	);
+	assert.match(
+		managedHandoffControl.summary,
+		/after metadata-journal recovery.*project-file reclamation.*startup logically retires.*tracked descriptors.*exact project ID, revision, and document digest.*preserves unmanaged or opaque.*settles retirement.*normal journal.*before physical work.*current recognized descriptor.*exact materialized or published inventory.*fails startup before managed-media filesystem mutation.*physical cleanup alternates persisted stage and canonical high-water cycles.*100,000-total-row startup cap.*64-row lease-fenced transactions.*exact tracked regular stages and canonical bodies.*deterministic quarantine.*protects current catalog rows.*restarts the canonical cursor.*non-regular, symlinked, unregistered, legacy, and foreign paths untouched.*startup failure releases the lease/isu,
 	);
 	assert.match(
 		managedHandoffControl.summary,
@@ -310,7 +346,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedHandoffControl.summary,
-		/headless Soundscaper-to-Framescaper edit\/save\/return fixture.*fresh acquisition.*exact PCM engine input.*exact Blob video bytes.*play\/stop state.*distinct revision-bound rows.*one inode per exact body.*tested Linux filesystem.*product-local histories.*no bridge or shared-library body read or upload.*original profile.*does not qualify packaged Electron UI or browser video-codec playback/isu,
+		/headless Soundscaper-to-Framescaper edit\/save\/return fixture.*fresh acquisition.*exact PCM engine input.*exact Blob video bytes.*play\/stop state.*distinct revision-bound rows.*one inode per exact body.*tested Linux filesystem.*product-local histories.*no bridge or shared-library body read or upload.*original profile.*does not qualify packaged Electron UI.*source-bearing executable workflows.*browser video-codec playback/isu,
 	);
 	assert.match(
 		managedHandoffControl.summary,
@@ -335,7 +371,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMediaCapacityControl.summary,
-		/store-instance, point-in-time admission.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*reclamation.*orphan recovery.*logical catalog-row retirement.*hard-link reuse.*full declared body.*reject a feasible link/isu,
+		/store-instance, point-in-time admission.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*continuous runtime cleanup beyond the bounded startup tracked inventory.*empty-directory cleanup.*SQLite\/WAL space reclamation remain unqualified.*hard-link reuse.*full declared body.*reject a feasible link/isu,
 	);
 	for (const [kind, path] of [
 		['implementation', 'desktop/desktop-smoke.js'],
@@ -461,7 +497,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/exact-absent managed-media binding.*same-store point-in-time prospective catalog and destination-capacity admission.*before body or optional hard-link work.*exact-present retries.*body reverification.*beginSourceWrite.*report ready before asynchronous host\/store capacity refusal.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*SQLite\/WAL or allocation-overhead.*UI.*later-external-allocation.*write-time guarantee.*full-body charging.*refuse.*feasible hard link.*reclamation.*orphan recovery.*logical catalog-row retirement.*absent/isu,
+		/exact-absent managed-media binding.*same-store point-in-time prospective catalog and destination-capacity admission.*before body or optional hard-link work.*exact-present retries.*body reverification.*beginSourceWrite.*report ready before asynchronous host\/store capacity refusal.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*SQLite\/WAL or allocation-overhead.*UI.*later-external-allocation.*write-time guarantee.*full-body charging.*refuse.*feasible hard link.*authoritative managed canonical and stage inventories.*bind publication.*startup-only logical retirement.*orphan recovery.*physical reclamation.*tracked rows.*100,000.*later startup.*continuous runtime cleanup.*empty-directory.*SQLite\/WAL space reclamation.*external-writer mutation.*unregistered, legacy, or foreign content remain absent/isu,
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
@@ -473,7 +509,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
-		/portable mixed-media handoff.*stable original and authored-proxy relationships.*generic and video rendered-fallback relationships.*linked or otherwise unmanaged media.*relink.*watch.*copy or consolidation.*managed-media reclamation.*orphan recovery.*logical catalog-row retirement.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate byte identity through playback.*durable lease.*packaged Electron UI two-product source-bearing save and return lifecycle.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
+		/portable mixed-media handoff.*stable original and authored-proxy relationships.*generic and video rendered-fallback relationships.*linked or otherwise unmanaged media.*relink.*watch.*copy or consolidation.*extend the bounded managed-media collector.*continuous runtime.*empty-directory.*database-space.*foreign-file cleanup.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate byte identity through playback.*durable lease.*packaged Electron UI two-product source-bearing save and return lifecycle.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
 	);
 	assert.match(
 		managedMedia?.acceptanceCriteria.join(' ') ?? '',
