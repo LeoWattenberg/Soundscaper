@@ -54,7 +54,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Electron Enhanced \/ Shared — Implemented:.*revision- and live-history-aware\s+same-store saves.*source-unreachable linked-video bindings.*exact\s+locator retirement after saves, project deletion, and clear.*live\s+aliases.*external files/isu,
+		/Electron Enhanced \/ Shared — Implemented:.*revision- and live-history-aware\s+same-store saves.*source-unreachable linked-original bindings.*exact\s+locator retirement after saves, project deletion, and clear.*live\s+aliases.*external files/isu,
 	);
 	assert.match(
 		roadmap,
