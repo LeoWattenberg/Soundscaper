@@ -20,6 +20,13 @@ export type LinkedVideoOriginalBindingInput = Omit<
 interface LinkedVideoOriginalRepositoryOptions {
 	readonly now?: () => Date;
 	readonly createBindingToken?: () => string;
+	readonly maximumInventoryRecords?: number;
+	readonly maximumInventoryReferences?: number;
+}
+
+export interface LinkedVideoOriginalLocatorReference {
+	readonly locatorId: string;
+	readonly locatorRevision: string;
 }
 
 interface StoredLinkedVideoOriginalBinding {
@@ -46,12 +53,16 @@ const RECORD_FIELD_SET: ReadonlySet<string> = new Set(RECORD_FIELDS);
 const VALIDATION_TOKEN = 'binding_validation_token_0001';
 const VALIDATION_INSTANT = '1970-01-01T00:00:00.000Z';
 const OPAQUE_TOKEN_PATTERN = /^[a-z0-9][a-z0-9_-]{15,127}$/iu;
+export const MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_RECORDS = 100_000;
+export const MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_REFERENCES = 128;
 
 /** Product-local, pathless linked-original declarations with exact CAS fencing. */
 export class LinkedVideoOriginalRepository {
 	readonly #port: StorageRepositoryPort;
 	readonly #now: () => Date;
 	readonly #createBindingToken: () => string;
+	readonly #maximumInventoryRecords: number;
+	readonly #maximumInventoryReferences: number;
 
 	constructor(
 		port: StorageRepositoryPort,
@@ -69,6 +80,16 @@ export class LinkedVideoOriginalRepository {
 		this.#port = port;
 		this.#now = options.now ?? (() => new Date());
 		this.#createBindingToken = options.createBindingToken ?? createSecureBindingToken;
+		this.#maximumInventoryRecords = inventoryLimit(
+			options.maximumInventoryRecords ?? MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_RECORDS,
+			MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_RECORDS,
+			'Linked video original inventory record',
+		);
+		this.#maximumInventoryReferences = inventoryLimit(
+			options.maximumInventoryReferences ?? MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_REFERENCES,
+			MAX_LINKED_VIDEO_ORIGINAL_INVENTORY_REFERENCES,
+			'Linked video original inventory reference',
+		);
 	}
 
 	async get(projectId: string, sourceId: string): Promise<LinkedVideoOriginalBinding | null> {
@@ -80,6 +101,22 @@ export class LinkedVideoOriginalRepository {
 				request(stores[LINKED_VIDEO_ORIGINAL_STORE_NAME].get(key))
 			));
 		return storedBinding(value, key, projectId, sourceId);
+	}
+
+	/** Enumerate one bounded, transactionally complete durable locator inventory. */
+	async listDurableLocatorReferences(): Promise<readonly LinkedVideoOriginalLocatorReference[] | null> {
+		const database = await this.#port.database();
+		if (!database) return null;
+		return transact(
+			database,
+			LINKED_VIDEO_ORIGINAL_STORE_NAME,
+			'readonly',
+			(stores) => scanDurableLocatorReferences(
+				stores[LINKED_VIDEO_ORIGINAL_STORE_NAME],
+				this.#maximumInventoryRecords,
+				this.#maximumInventoryReferences,
+			),
+		);
 	}
 
 	async putIfCurrent(
@@ -217,6 +254,57 @@ function storedBinding(
 	return binding;
 }
 
+function inventoryBinding(value: unknown, primaryKey: IDBValidKey): LinkedVideoOriginalBinding {
+	const record = closedDataRecord(value, RECORD_FIELDS, RECORD_FIELD_SET, 'stored binding record');
+	const binding = checkedBinding(record.binding);
+	const expectedKey = linkedVideoOriginalBindingKey(binding.projectId, binding.sourceId);
+	if (record.key !== expectedKey || primaryKey !== expectedKey || record.projectId !== binding.projectId) {
+		throw new Error('Stored linked video original binding record does not match its authoritative key.');
+	}
+	return binding;
+}
+
+function scanDurableLocatorReferences(
+	store: IDBObjectStore,
+	maximumRecords: number,
+	maximumReferences: number,
+): Promise<readonly LinkedVideoOriginalLocatorReference[]> {
+	return new Promise((resolve, reject) => {
+		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
+		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
+		const references = new Map<string, string>();
+		let recordCount = 0;
+		cursorRequest.onerror = () => reject(
+			cursorRequest.error || new Error('Could not enumerate linked video original bindings.'),
+		);
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) {
+				resolve(Object.freeze([...references]
+					.sort(([left], [right]) => left.localeCompare(right))
+					.map(([locatorId, locatorRevision]) => Object.freeze({ locatorId, locatorRevision }))));
+				return;
+			}
+			try {
+				recordCount += 1;
+				if (recordCount > maximumRecords) {
+					throw new RangeError('Linked video original binding inventory exceeds its record limit.');
+				}
+				const binding = inventoryBinding(cursor.value, cursor.primaryKey);
+				const currentRevision = references.get(binding.locatorId);
+				if (currentRevision !== undefined && currentRevision !== binding.locatorRevision) {
+					throw new Error('Linked video original binding inventory contains conflicting locator revisions.');
+				}
+				references.set(binding.locatorId, binding.locatorRevision);
+				if (references.size > maximumReferences) {
+					throw new RangeError('Linked video original binding inventory exceeds its reference limit.');
+				}
+				cursor.continue();
+			} catch (error) { reject(error); }
+		};
+	});
+}
+
 function storedRecord(
 	key: string,
 	binding: LinkedVideoOriginalBinding,
@@ -242,6 +330,13 @@ function requiredBindingToken(value: unknown): string {
 		throw new TypeError('A valid linked video original binding CAS token is required.');
 	}
 	return value;
+}
+
+function inventoryLimit(value: unknown, maximum: number, label: string): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > maximum) {
+		throw new RangeError(`${label} limit must be a positive safe integer no greater than ${maximum}.`);
+	}
+	return Number(value);
 }
 
 function closedDataRecord(

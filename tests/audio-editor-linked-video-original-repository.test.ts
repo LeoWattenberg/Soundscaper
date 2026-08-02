@@ -141,6 +141,85 @@ test('linked video bindings persist through the IndexedDB repository', async (co
 	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 0);
 });
 
+test('durable linked-video inventory is complete, bounded, and deduplicated by exact locator revision', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-video-inventory-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedVideoOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused-memory`),
+		database: async () => database,
+	}, deterministicOptions());
+	for (const input of [
+		bindingInput(),
+		bindingInput({ projectId: 'project-linked-video-copy', sourceId: 'source-linked-video-copy' }),
+		bindingInput({
+			projectId: 'project-linked-video-second',
+			sourceId: 'source-linked-video-second',
+			locatorId: 'locator_0000000000000002',
+			locatorRevision: 'snapshot_0000000000000002',
+		}),
+	]) assert.ok(await repository.putIfCurrent(input, null));
+
+	assert.deepEqual(await repository.listDurableLocatorReferences(), [{
+		locatorId: 'locator_0000000000000001',
+		locatorRevision: 'snapshot_0000000000000001',
+	}, {
+		locatorId: 'locator_0000000000000002',
+		locatorRevision: 'snapshot_0000000000000002',
+	}]);
+	assert.equal(Object.isFrozen(await repository.listDurableLocatorReferences()), true);
+	assert.equal((await memoryRepository('inventory-memory').repository.listDurableLocatorReferences()), null);
+});
+
+test('durable linked-video inventory fails closed for conflicting, corrupt, or over-limit records', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-video-inventory-invalid-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const repository = new LinkedVideoOriginalRepository({
+		memory: getMemoryDatabase(`${databaseName}-unused-memory`),
+		database: async () => database,
+	}, { ...deterministicOptions(), maximumInventoryRecords: 2 });
+	assert.ok(await repository.putIfCurrent(bindingInput(), null));
+	assert.ok(await repository.putIfCurrent(bindingInput({
+		projectId: 'project-linked-video-conflict',
+		sourceId: 'source-linked-video-conflict',
+		locatorRevision: 'snapshot_0000000000000002',
+	}), null));
+	await assert.rejects(repository.listDurableLocatorReferences(), /conflicting.*revision/iu);
+
+	const conflict = indexedDB.records(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME)[1];
+	const independent = {
+		...conflict,
+		binding: {
+			...conflict.binding,
+			locatorId: 'locator_0000000000000002',
+			locatorRevision: 'snapshot_0000000000000002',
+		},
+	};
+	indexedDB.seedRecord(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME, {
+		...independent,
+		key: 'spoofed-key',
+	}, independent.key);
+	await assert.rejects(repository.listDurableLocatorReferences(), /binding|record|key/iu);
+	indexedDB.seedRecord(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME, independent, independent.key);
+
+	indexedDB.seedRecord(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME, {
+		...independent,
+		key: linkedVideoOriginalBindingKey('project-linked-video-third', 'source-linked-video-third'),
+		projectId: 'project-linked-video-third',
+		binding: {
+			...independent.binding,
+			projectId: 'project-linked-video-third',
+			sourceId: 'source-linked-video-third',
+			locatorId: 'locator_0000000000000003',
+			locatorRevision: 'snapshot_0000000000000003',
+		},
+	}, linkedVideoOriginalBindingKey('project-linked-video-third', 'source-linked-video-third'));
+	await assert.rejects(repository.listDurableLocatorReferences(), /inventory.*limit|limit.*inventory/iu);
+});
+
 function bindingInput(overrides: Partial<LinkedVideoOriginalBindingInput> = {}): LinkedVideoOriginalBindingInput {
 	return {
 		schemaVersion: 1,
