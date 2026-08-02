@@ -79,7 +79,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/fresh filesystem library scope v2.*ignores rather than migrates.*prior shared v1 scope.*schema 1 database.*v2 path.*rejected instead of implicitly migrated.*metadata schema 2.*separate opaque library entry ID.*project identity.*exact schema 9.*project revision.*byte length.*SHA-256.*immutable revision-and-digest path/iu,
+		/fresh filesystem library scope v2.*ignores rather than migrates.*prior shared v1 scope.*schema 3 database.*v2 path.*rejects schemas 1 and 2.*implicitly migrating.*adopting.*backfilling.*metadata schema 2.*separate opaque library entry ID.*project identity.*exact schema 9.*project revision.*byte length.*SHA-256.*immutable revision-and-digest path/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -142,7 +142,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/fresh filesystem library scope `v2`.*ignores rather than migrates.*prior\s+shared `v1` scope.*at the `v2` path.*SQLite database schema 2 rejects schema 1.*implicitly migrating/isu,
+		/fresh filesystem library scope `v2`.*ignores rather than migrates.*prior\s+shared `v1` scope.*at the `v2` path.*SQLite database schema 3 rejects schemas 1.*and 2.*implicitly migrating.*adopting.*backfilling/isu,
 	);
 	assert.match(
 		documentation,
@@ -226,7 +226,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/new\s+upload.*syncs\s+and\s+atomically\s+renames\s+the\s+complete\s+regular\s+body\s+before\s+publishing\s+its\s+catalog\s+descriptor.*current binding is absent.*main.*not the renderer.*same-kind.*donor.*byte length and SHA-256.*fully\s+verifies.*random same-directory hard-link stage.*verifies.*promotes it without overwriting.*syncs.*distinct\s+revision-bound descriptor.*unsupported linking.*missing or corrupt donor.*exhausted link count.*bounded upload fallback.*operational or\s+access failures.*fail closed/isu,
+		/new\s+upload.*same digest.*current binding is absent.*main.*not the renderer.*same-kind.*donor.*byte length and SHA-256.*fully\s+verifies.*random same-directory hard-link stage.*verifies.*promotes it without overwriting.*syncs.*distinct\s+revision-bound descriptor.*unsupported linking.*missing or corrupt donor.*exhausted link count.*bounded upload fallback.*operational or\s+access failures.*fail closed/isu,
 	);
 	assert.match(
 		documentation,
@@ -252,6 +252,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'desktop/project-library-editor-media-service.ts',
 		'desktop/project-library-media-binding.ts',
 		'desktop/project-library-media-capacity.ts',
+		'desktop/project-library-media-inventory-reclamation.ts',
+		'desktop/project-library-media-inventory-schema.ts',
+		'desktop/project-library-media-inventory-store.ts',
+		'desktop/project-library-media-inventory.ts',
+		'desktop/project-library-media-reclamation.ts',
 		'desktop/project-library-media-reuse.ts',
 		'desktop/project-library-media.ts',
 		'desktop/project-library-host.ts',
@@ -283,6 +288,9 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/desktop-project-library-editor-media-reuse-fallback.test.ts',
 		'tests/desktop-project-library-editor-video-media-service.test.ts',
 		'tests/desktop-project-library-media-capacity.test.ts',
+		'tests/desktop-project-library-media-inventory-store.test.ts',
+		'tests/desktop-project-library-media-inventory.test.ts',
+		'tests/desktop-project-library-media-reclamation.test.ts',
 		'tests/desktop-project-library-media-reuse.test.ts',
 		'tests/desktop-project-library-media.test.ts',
 		'tests/desktop-project-library-video-media.test.ts',
@@ -298,6 +306,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
 		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
+		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.match(
 		managedHandoff.requiredOutcome,
@@ -321,6 +330,14 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
+		/after point-in-time capacity admission.*before directory or stage creation, hard-link work, or body consumption.*exact canonical row.*random upload or reuse stage.*schema-3 authoritative inventory.*descriptor provenance.*live lease and fencing token.*promotion.*registered regular stage.*atomically renames.*directory-syncs.*materialized.*removes the stage row.*persisted before-and-after lease checks.*catalog preparation.*exact materialized or published row.*catalog commit.*published atomically.*metadata.*catalog failure.*reverified.*without consuming another offered stream/isu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
+		/after metadata-journal recovery and project-file reclamation.*startup logically retires only tracked catalog descriptors.*project ID, revision, and document digest.*preserving unmanaged rows.*normal journal.*persisted stage and canonical high-water batches.*100,000 rows.*64-row.*lease-fenced transactions.*registered regular stages.*deterministic quarantine.*current catalog rows.*protected.*non-regular, symlinked, unregistered, legacy, and foreign paths.*untouched.*restart.*canonical cursor.*snapshot counts.*startup failure.*releases the lease/isu,
+	);
+	assert.match(
+		managedHandoff.currentBehavior,
 		/fresh-recipient acquisition.*audio.*staged source writer.*video.*owned media-asset writer.*exact bounded reads.*descriptor identity, kind and storage key.*byte length.*SHA-256.*canonical audio byte geometry.*atomic if-absent.*retained original video.*opaque.*not decoded or probed for media geometry.*rolls back.*reverse order.*exact acquisition-owned.*source-token, path, or media-chunk payload.*preserving.*concurrent replacement.*exact authoritative shadow is durable.*retains.*acquired managed media/isu,
 	);
 	assert.match(
@@ -333,7 +350,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/does not qualify.*packaged.*UI.*browser codec playback.*unmanaged or linked originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch.*copy or consolidation.*managed-media cleanup, reclamation, or logical catalog-row retirement.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
+		/does not qualify.*packaged.*UI.*browser codec playback.*unmanaged or linked originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch.*copy or consolidation.*continuous runtime cleanup beyond the startup-bounded tracked inventory.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
@@ -399,7 +416,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*shared managed-media cleanup, reclamation, and logical catalog-row retirement.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
+		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -427,7 +444,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/managed-media\s+cleanup, reclamation, and logical catalog-row retirement.*recipient-local or\s+whole-handoff capacity reservation.*stable byte\s+lease through playback.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
+		/managed-media\s+runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or\s+whole-handoff capacity reservation.*stable byte\s+lease through playback.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
 	);
 	assert.match(
 		documentation,
@@ -435,6 +452,10 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/point-in-time in-process admission.*not an operating-system reservation.*exact allocation or write-time capacity guarantee.*allocation-unit rounding.*SQLite or WAL overhead.*external writers.*other store instances or processes.*whole handoff.*not reserved atomically.*hard-link\s+reuse.*does not establish a portable capacity.*claim.*cleanup, reclamation, and logical row.*retirement.*remain open/isu,
+		/point-in-time in-process admission.*not an operating-system reservation.*exact allocation or write-time capacity guarantee.*allocation-unit rounding.*SQLite or WAL overhead.*external writers.*other store instances or processes.*whole handoff.*not reserved atomically.*hard-link\s+reuse.*does not establish a portable capacity.*claim/isu,
+	);
+	assert.match(
+		documentation,
+		/managed-media collector.*logical\s+retirement.*project ID, revision, and document digest.*unmanaged or opaque descriptors.*untouched.*normal\s+fenced metadata journal.*materialized or published\s+inventory row.*fails startup before managed-media filesystem mutation.*100,000 total\s+inventory rows.*64-row transactions.*canonical\s+rescan.*deterministic noncatalogable\s+quarantine.*unregistered and legacy.*neither adopted nor removed.*startup-only cooperative-writer reclamation.*not continuous runtime\s+cleanup.*later startup pass.*third-party database corruption/isu,
 	);
 });

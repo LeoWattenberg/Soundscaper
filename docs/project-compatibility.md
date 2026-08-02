@@ -54,9 +54,10 @@ remains a separate compatibility boundary.
 The desktop editor has one implemented current-schema shared persistence
 envelope. A fresh filesystem library scope `v2`
 (`kw.media/scape-project-library/v2`) ignores rather than migrates the prior
-shared `v1` scope. At the `v2` path, SQLite database schema 2 rejects schema 1
-instead of implicitly migrating it. Metadata schema 2 binds a separate opaque
-library entry ID to the project identity, exact schema 9, project revision,
+shared `v1` scope. At the `v2` path, SQLite database schema 3 rejects schemas 1
+and 2 instead of implicitly migrating, adopting, or backfilling them. Metadata
+schema 2 binds a separate opaque library entry ID to the project identity,
+exact schema 9, project revision,
 byte length, SHA-256 digest, and a derived immutable revision-and-digest path.
 No filesystem path, catalog entry ID, project-document digest, product
 preference, timestamp source, or lease capability is exposed to a renderer.
@@ -190,11 +191,20 @@ revision-and-document-digest check inside serialized publication, so a
 prior-revision row or same-revision document variant is neither advertised by
 the current bundle nor accepted as already present. Exact-present reuse also
 requires the declared byte length and SHA-256 and reverifies the body. A new
-upload must retain the same digest on both sender passes. Main syncs and
-atomically renames the complete regular body before publishing its catalog
-descriptor; stale revisions, immutable binding conflicts, changed source bytes,
-malformed ranges, symlinked storage boundaries, and incomplete bodies fail
-closed.
+upload must retain the same digest on both sender passes. After point-in-time
+capacity admission, and before directory or stage creation, hard-link work, or
+body consumption, main commits an authoritative canonical row and exact random
+stage attempt. The canonical row binds the descriptor and its
+encoding, project identity, exact revision, document digest, and storage key;
+both rows carry the live lease ID and fencing token. Promotion accepts only that
+registered regular stage, atomically renames it to its canonical path, syncs the
+directory where supported, advances the row to materialized, and removes the
+stage row under persisted before-and-after lease checks. Catalog preparation
+requires every recognized managed descriptor to have an exact materialized or
+published row, and catalog commit marks those rows published in the same SQLite
+transaction as metadata publication. Stale revisions, immutable binding
+conflicts, changed source bytes, malformed ranges, symlinked storage boundaries,
+and incomplete bodies fail closed.
 
 When the exact current binding is absent, main, not the renderer, may select a
 canonical same-kind catalog donor with the same byte length and SHA-256. Main
@@ -204,9 +214,9 @@ syncs cleanup and directory state, and only then publishes a distinct
 revision-bound descriptor. Unsupported linking, a missing or corrupt donor, or
 an exhausted link count uses the normal bounded upload fallback; operational or
 access failures fail closed. The renderer supplies neither a path nor a donor
-selector. If catalog publication fails after an uploaded immutable body lands, a
-matching retry still consumes and validates its offered stream before reusing
-that body.
+selector. If catalog publication fails after an uploaded or linked immutable
+body lands, an exact retry reverifies the inventoried body and publishes without
+consuming another offered stream.
 
 Each absent managed audio or video binding synchronously reserves its
 prospective catalog row and metadata bytes together with other in-flight
@@ -227,8 +237,42 @@ for allocation-unit rounding, SQLite or WAL overhead, external writers, or
 other store instances or processes. Every binding is admitted independently;
 the whole handoff is not reserved atomically. Charging declared bytes before
 hard-link reuse is conservative and does not establish a portable capacity
-claim for hard links. Managed-media cleanup, reclamation, and logical row
-retirement remain open.
+claim for hard links.
+
+After metadata-journal recovery and project-document reclamation, and before
+host exposure, a separate managed-media collector first performs logical
+retirement. For recognized inventoried descriptors, it removes catalog rows
+whose exact project ID, revision, and document digest are no longer current;
+unmanaged or opaque descriptors remain untouched. Retirement uses the normal
+fenced metadata journal and must settle it before physical work. A recognized
+descriptor that remains current but lacks an exact materialized or published
+inventory row fails startup before managed-media filesystem mutation.
+
+Physical managed-media reclamation uses independent persisted canonical and
+stage high-waters plus an alternating schedule. It scans at most 100,000 total
+inventory rows per startup in at-most-64-row transactions, rechecking the
+unexpired lease before and after filesystem work and yielding between nonempty
+batches. Stale registered regular upload and hard-link stages are removed;
+missing stages retire their registration; non-regular targets and non-direct
+parents remain untouched and inventoried. Stage cleanup requests a canonical
+rescan so a newly unblocked row cannot be skipped. Catalog retirement restarts
+the canonical cycle so a row already behind its cursor becomes eligible in the
+same invocation. Current catalog descriptors are protected exactly. Eligible
+registered canonical bodies are moved through deterministic noncatalogable
+quarantine names before unlink, so crash-left promotion, quarantine, missing,
+and hard-link-name states are retryable without deleting another live link.
+Unregistered and legacy lookalikes, symlinks, foreign files, and unmanaged
+catalog rows are neither adopted nor removed. Counts, logical retirements, and
+bounded completion are exposed in the host snapshot, and startup failure
+releases the still-owned lease.
+
+This is startup-only cooperative-writer reclamation, not continuous runtime
+cleanup or a hostile-filesystem sweep. More than 100,000 tracked rows require a
+later startup pass. Empty directories, SQLite/WAL space, unregistered legacy
+files, external-writer races, platform-specific power-loss behavior, and
+write-time capacity remain unqualified. Structural inventory validation is
+performed for exact references and bounded batches; it is deliberately not an
+unbounded eager scan of arbitrary third-party database corruption.
 
 Before local shadow save or activation, a latest exact-schema-9 source-bearing
 shared load performs bounded sequential recipient-local admission. It collects
@@ -326,7 +370,7 @@ fresh-recipient acquisition for canonical PCM—including the maintained exact
 schema 9 first-party audio whole-mix fallback—and retained original video.
 Linked and unmanaged originals, authored proxies, generic and video rendered
 fallbacks, relink and watch behavior, general copy/consolidate, managed-media
-cleanup, reclamation, and logical catalog-row retirement, recipient-local or
+runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, a stable byte lease through playback,
 browser codec playback, packaged executable and UI two-product source-bearing
 handoff, portable hard-link capacity qualification, and a shared cross-product
@@ -372,7 +416,7 @@ library; this includes a maintained exact-schema first-party audio whole-mix
 fallback when its manifest is the only reference. Ordinary saves remain
 document-only. Linked and unmanaged originals, authored proxies, generic and
 video rendered fallbacks, general copy/consolidate, relink and watch behavior,
-managed-media cleanup, reclamation, and logical catalog-row retirement,
+managed-media runtime cleanup beyond the startup-bounded tracked inventory,
 recipient-local or whole-handoff capacity reservation, stable playback leasing,
 executable/UI and browser-codec qualification, portable hard-link capacity
 behavior, and shared cross-product revision or undo history remain outside it.
