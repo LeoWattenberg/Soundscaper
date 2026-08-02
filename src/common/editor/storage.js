@@ -12,6 +12,7 @@ import { DesktopSharedProjectRepository } from './storage/desktop-shared-project
 import { admitLocalStoreClear, LinkedVideoOriginalLifecycleCoordinator } from './storage/linked-video-original-lifecycle-coordinator.ts';
 import { admitProjectPublication } from './storage/project-publication-options.ts';
 import { duplicateProjectWithLinkedVideoOriginals } from './storage/project-duplication.ts';
+import { saveProjectWithLinkedVideoOriginalReachability } from './storage/linked-video-original-project-save.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -111,6 +112,7 @@ export class AudioEditorProjectStore {
 		this.mediaRepository = repositories.media;
 		this.linkedVideoOriginalBindingRepository = repositories.linkedVideoOriginalBindings || null;
 		this.linkedVideoOriginalProjectAliasRepository = repositories.linkedVideoOriginalProjectAliases || null;
+		this.linkedVideoOriginalProjectReachabilityRepository = repositories.linkedVideoOriginalProjectReachability || null;
 		this.linkedVideoOriginalResolver = repositories.linkedVideoOriginals || null;
 		this.retentionRepository = repositories.retention;
 		this.linkedVideoOriginalLifecycle = new LinkedVideoOriginalLifecycleCoordinator(
@@ -136,8 +138,12 @@ export class AudioEditorProjectStore {
 	}
 
 	async saveProject(project, options = {}) {
-		await admitProjectPublication(this, project, options);
-		return this.projectRepository.save(project);
+		return saveProjectWithLinkedVideoOriginalReachability({
+			store: this,
+			projects: this.projectRepository,
+			lifecycle: this.linkedVideoOriginalLifecycle,
+			reachability: this.linkedVideoOriginalProjectReachabilityRepository,
+		}, project, options);
 	}
 
 	async loadProject(projectId, { revision, signal } = {}) {
@@ -153,7 +159,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async deleteProject(projectId) {
-		return this.linkedVideoOriginalLifecycle.deleteProject(() => this.projectRepository.delete(projectId));
+		return this.linkedVideoOriginalLifecycle.deleteProject(projectId, () => this.projectRepository.delete(projectId));
 	}
 
 	async prepareProjectHandoff(project, { signal } = {}) {
@@ -259,9 +265,10 @@ export class AudioEditorProjectStore {
 		if (!this.linkedVideoOriginalResolver) {
 			throw new Error('Linked video original resolution is unavailable.');
 		}
-		return this.linkedVideoOriginalLifecycle.run(() => this.linkedVideoOriginalResolver.bind(
-			projectId, source, locatorId, options,
-		));
+		return this.linkedVideoOriginalLifecycle.bind(
+			projectId, source?.id,
+			() => this.linkedVideoOriginalResolver.bind(projectId, source, locatorId, options),
+		);
 	}
 
 	/** Resolve one exact project/video binding without consulting retained-media storage. */
@@ -298,7 +305,7 @@ export class AudioEditorProjectStore {
 		if (!this.linkedVideoOriginalBindingRepository) {
 			throw new Error('Linked video original bindings are unavailable.');
 		}
-		return this.linkedVideoOriginalLifecycle.run(() => this.linkedVideoOriginalBindingRepository.deleteIfCurrent(
+		return this.linkedVideoOriginalLifecycle.unlink(projectId, sourceId, () => this.linkedVideoOriginalBindingRepository.deleteIfCurrent(
 			projectId,
 			sourceId,
 			expectedBindingToken,

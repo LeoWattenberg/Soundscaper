@@ -269,7 +269,6 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 			| LinkedVideoOriginalProjectBindingPruneResult | null,
 	): Promise<void> {
 		if (this.#blockedTransientProjects.has(projectId)) {
-			await this.#drainPending('retry');
 			return;
 		}
 		const transientSourceIds = Object.freeze([
@@ -283,13 +282,14 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 			return;
 		}
 		if (!result) {
-			await this.#drainPending('retry');
 			return;
 		}
 		for (const sourceId of result.durableVideoSourceIds) {
 			this.#forgetTransientSource(projectId, sourceId);
 		}
-		await this.#drainPending('save-project', result.removedLocatorReferences);
+		if (result.removedLocatorReferences.length) {
+			await this.#drainPending('save-project', result.removedLocatorReferences);
+		}
 	}
 
 	#rememberTransientSource(projectId: string, sourceId: string): void {
