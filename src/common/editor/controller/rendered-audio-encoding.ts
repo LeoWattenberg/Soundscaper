@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { measureBextLoudness } from '../broadcast-loudness.ts';
+import type {
+	DirectCompressedDestination,
+	DirectCompressedEncodeOptions,
+} from './direct-compressed-export.ts';
+import { encodeDirectOfflineCompressed } from './direct-offline-compressed-export.ts';
 import { encodeDirectOfflinePcm } from './direct-offline-pcm-export.ts';
 import type {
 	DirectPcmContainerEncoder,
@@ -48,7 +53,7 @@ export interface RenderedAudioEncodedOutput extends Readonly<Record<string, unkn
 	readonly byteLength?: number;
 	readonly bytes?: Uint8Array | null;
 	readonly cleanup?: () => Awaitable<void>;
-	readonly directDestination?: DirectPcmDestination;
+	readonly directDestination?: DirectCompressedDestination | DirectPcmDestination;
 	readonly mimeType: string;
 }
 
@@ -73,7 +78,7 @@ export interface RenderedAudioEncodingRuntime {
 		channels: readonly Float32Array[],
 		options: Readonly<Record<string, unknown>>,
 	): Uint8Array;
-	readonly ffmpeg: Readonly<{
+	readonly ffmpeg: DirectCompressedEncodeOptions['ffmpeg'] & Readonly<{
 		encode(
 			input: Uint8Array,
 			format: string,
@@ -93,6 +98,7 @@ export interface RenderedAudioEncodingRuntime {
 
 export interface EncodeRenderedAudioOptions {
 	readonly assertCurrent?: () => void;
+	readonly directCompressedDestination?: DirectCompressedDestination | null;
 	readonly directDestination?: DirectPcmDestination | null;
 	readonly plan: RenderedAudioEncodingPlan;
 	readonly rendered: RenderedAudioBuffer;
@@ -178,6 +184,19 @@ export async function encodeRenderedAudio(
 			? encodeAiff(mapped, nativeOptions)
 			: encodeWav(mapped, nativeOptions);
 		return { bytes, mimeType: plan.mimeType };
+	}
+	if (options.directCompressedDestination) {
+		assertActive();
+		return encodeDirectOfflineCompressed({
+			assertCurrent: options.assertCurrent ?? (() => undefined),
+			channels: sourceChannels,
+			destination: options.directCompressedDestination,
+			encodeWav,
+			ffmpeg,
+			onEncoding: () => { setStatus(copy.encoding); },
+			plan,
+			signal,
+		});
 	}
 	const stagingFloat = plan.format !== 'flac';
 	const stagingBitDepth = stagingFloat

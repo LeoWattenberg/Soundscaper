@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { getMediaExportFormat, normalizeMediaExportSettings } from '../media-export.js';
+import { directAudioRenderStrategy, type DirectAudioRenderStrategy } from './direct-audio-render-plan.ts';
 
 const DIRECT_COMPRESSED_FORMAT_IDS = new Set<DirectCompressedFormat>([
 	'mp3', 'flac', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a',
@@ -61,6 +62,7 @@ export interface DirectCompressedContract extends DirectCompressedDescriptor {
 	readonly fileTypes: readonly Readonly<Record<string, unknown>>[];
 	readonly fingerprint: string;
 	readonly pickerMimeType: string;
+	readonly renderStrategy: DirectAudioRenderStrategy;
 	readonly stagingByteLength: number;
 }
 
@@ -70,6 +72,8 @@ export function captureDirectCompressedContract(
 	try {
 		const descriptor = canonicalDescriptor(plan?.format);
 		if (!descriptor || !exactDirectCompressedPlan(plan, descriptor)) return null;
+		const renderStrategy = directAudioRenderStrategy(plan);
+		if (!renderStrategy) return null;
 		const extension = `.${descriptor.extension}`;
 		const pickerMimeType = descriptor.mimeType.split(';', 1)[0]!.trim();
 		return Object.freeze({
@@ -81,7 +85,8 @@ export function captureDirectCompressedContract(
 			})]),
 			fingerprint: planFingerprint(plan),
 			pickerMimeType,
-			stagingByteLength: plan.outputBytesPerRender as number,
+			renderStrategy,
+			stagingByteLength: compressedStagingByteLength(plan, renderStrategy),
 		});
 	} catch {
 		return null;
@@ -110,6 +115,7 @@ function exactDirectCompressedPlan(
 	const sampleRate = plan?.sampleRate;
 	const channelCount = plan?.channelCount;
 	const outputFrames = plan?.outputFrames;
+	const renderStrategy = directAudioRenderStrategy(plan);
 	if (plan?.mode !== 'mix' || plan.format !== descriptor.id || plan.mimeType !== descriptor.mimeType
 		|| plan.archive !== null || plan.outputFileBytesPerRender !== null
 		|| !safeIntegerInRange(sampleRate, 8_000, 384_000)
@@ -119,12 +125,36 @@ function exactDirectCompressedPlan(
 		|| plan.requiredTemporaryBytes !== plan.outputBytesPerRender
 		|| !isRecord(range) || !canonicalRange(range)
 		|| !safeIntegerInRange(plan.tailFrames, 0, Number.MAX_SAFE_INTEGER)
-		|| !isRecord(render) || render.strategy !== 'realtime-stream' || render.fast !== false
-		|| !REALTIME_REASONS.has(String(render.reason))
+		|| !isRecord(render) || !canonicalRender(render, renderStrategy)
 		|| !Array.isArray(outputs) || outputs.length !== 1 || !canonicalOutput(outputs[0], descriptor.extension)
 		|| !isRecord(plan.metadata) || !isRecord(plan.channelMapping)
 		|| !isRecord(encoding) || !canonicalEncoding(encoding, plan, descriptor)) return false;
 	return planFingerprint(plan).length > 0;
+}
+
+function canonicalRender(
+	render: Readonly<Record<string, unknown>>,
+	strategy: DirectAudioRenderStrategy | null,
+): boolean {
+	if (strategy === 'offline') return true;
+	return strategy === 'realtime-stream'
+		&& render.strategy === 'realtime-stream'
+		&& render.fast === false
+		&& REALTIME_REASONS.has(String(render.reason));
+}
+
+function compressedStagingByteLength(
+	plan: DirectCompressedPlan,
+	strategy: DirectAudioRenderStrategy,
+): number {
+	if (strategy === 'realtime-stream') return plan.outputBytesPerRender as number;
+	const encoding = plan.encoding!;
+	const bytesPerSample = plan.format === 'flac' ? Number(encoding.bitDepth) / 8 : 4;
+	return multiplySafe(
+		plan.outputFrames as number,
+		Number(encoding.inputChannelCount),
+		bytesPerSample,
+	);
 }
 
 function canonicalOutput(output: unknown, extension: string): boolean {

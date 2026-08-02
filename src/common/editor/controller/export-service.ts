@@ -7,7 +7,11 @@ import {
 } from './audio-rendered-fallback-export.ts';
 import { renderAndEncodeAudioExport, type ExportRenderSources } from './audio-export-render-orchestration.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
-import { commitDirectCompressedDestination, encodeDirectCompressedStagedFile, prepareDirectCompressedDestination, type DirectCompressedDestination } from './direct-compressed-export.ts';
+import {
+	commitDirectCompressedDestination, directCompressedStagingTemporaryBytes,
+	encodeDirectCompressedStagedFile, prepareDirectCompressedDestination,
+	type DirectCompressedDestination,
+} from './direct-compressed-export.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
@@ -116,6 +120,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				};
 			}
 			const directStemTemporaryBytes = directStemArchiveTemporaryBytes(plan);
+			const directCompressedTemporaryBytes = directCompressedStagingTemporaryBytes(plan);
 			const stemPreparation = await prepareDirectStemArchiveDestination(
 				fileService, plan,
 				requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
@@ -148,7 +153,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				await preflightStorage(directStemTemporaryBytes, 'export');
 			} else if (!pendingDirectDestination || directCompressed) {
 				await preflightStorage(
-					plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
+					directCompressed
+						? Math.max(plan.requiredTemporaryBytes ?? 0, directCompressedTemporaryBytes ?? 0)
+						: plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
 					'export',
 				);
 			}

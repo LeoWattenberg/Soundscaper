@@ -165,7 +165,8 @@ export async function renderAndEncodeAudioExport(
 			value: 0,
 		});
 		return await encodeRenderedAudio(encodingRuntime, {
-			assertCurrent: directDestination ? assertDirectCurrent : undefined,
+			assertCurrent: directDestination || directCompressedDestination ? assertDirectCurrent : undefined,
+			directCompressedDestination,
 			directDestination,
 			plan,
 			rendered,

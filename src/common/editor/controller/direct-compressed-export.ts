@@ -35,12 +35,12 @@ interface DirectCompressedFfmpegResult {
 }
 
 interface DirectCompressedFfmpeg {
-	encodeFileToSink(
+	readonly encodeFileToSink?: (
 		file: Blob,
 		format: DirectCompressedFormat,
 		sink: FfmpegOutputSink<DirectCompressedDestination>,
 		settings: Readonly<Record<string, unknown>>,
-	): PromiseLike<DirectCompressedFfmpegResult>;
+	) => PromiseLike<DirectCompressedFfmpegResult>;
 }
 
 export interface DirectCompressedDestination extends FfmpegOutputSink<DirectCompressedDestination> {
@@ -119,7 +119,7 @@ export async function prepareDirectCompressedDestination(
 	return Object.freeze({ cancelled: null, destination });
 }
 
-/** The direct route retains only the staged realtime WAV, never a renderer-side encoded Blob. */
+/** The direct route retains only the staged WAV, never a renderer-side encoded output Blob. */
 export function directCompressedStagingTemporaryBytes(plan: DirectCompressedPlan): number | null {
 	return captureContract(plan)?.stagingByteLength ?? null;
 }
@@ -264,7 +264,7 @@ function directCompressedDestination(
 		},
 		abort(reason?: unknown): Promise<void> {
 			if (committed) return Promise.resolve();
-			abortPromise ??= Promise.resolve(prepared.abort(reason)).then(() => undefined);
+			abortPromise ??= Promise.resolve().then(() => prepared.abort(reason)).then(() => undefined);
 			return abortPromise;
 		},
 		bytesWritten(): number { return prepared.bytesWritten(); },

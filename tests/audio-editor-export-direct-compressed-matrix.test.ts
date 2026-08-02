@@ -123,12 +123,41 @@ test('canonical realtime compressed plans select, encode, and commit exact descr
 	}
 });
 
+test('canonical centrally admitted offline plans select unopened targets for all compressed formats', async () => {
+	for (const entry of FORMAT_CASES) {
+		const plan = actualPlan(entry.format, { ...entry.options, livePcmBytes: 0 });
+		assert.equal(plan.render.strategy, 'offline', entry.format);
+		const events: string[] = [];
+		const target = preparedTarget(plan.outputs[0].fileName, events);
+		const preparation = await prepareDirectCompressedDestination(
+			{ prepareSave() { events.push('picker'); return target; } },
+			plan,
+			null,
+			new AbortController().signal,
+		);
+		assert.ok(preparation.destination, entry.format);
+		assert.deepEqual(events, ['picker'], entry.format);
+		assert.equal(target.opens(), 0, entry.format);
+		const inputChannels = Number(plan.encoding.inputChannelCount);
+		const stagingBytesPerSample = entry.format === 'flac' ? Number(plan.encoding.bitDepth) / 8 : 4;
+		assert.equal(
+			directCompressedStagingTemporaryBytes(plan),
+			plan.outputFrames * inputChannels * stagingBytesPerSample,
+			entry.format,
+		);
+	}
+});
+
 test('direct compressed admission rejects every noncanonical route and plan drift', async () => {
 	const mp3 = canonicalPlan(FORMAT_CASES[0]!);
+	const offline = actualPlan('mp3', { livePcmBytes: 0 });
 	const ineligible: Array<Readonly<{ label: string; plan: DirectCompressedPlan }>> = [
 		{ label: 'native backend', plan: actualPlan('wav') },
 		{ label: 'custom backend', plan: actualPlan('custom-ffmpeg', { extension: 'foo', mimeType: 'audio/x-foo', customArguments: ['-c:a', 'copy'] }) },
-		{ label: 'offline render', plan: actualPlan('mp3', { livePcmBytes: 0 }) },
+		changedPlan(offline, 'bare offline render', (plan) => { plan.render = { strategy: 'offline' }; }),
+		changedPlan(offline, 'forged offline admission', (plan) => {
+			record(record(plan.render).offlineRenderAdmission).maximumUsefulBinaryBytes = 1;
+		}),
 		{ label: 'stems archive', plan: actualPlan('mp3', { mode: 'stems' }) },
 		changedPlan(mp3, 'backend drift', (plan) => { record(plan.encoding).backend = 'custom-ffmpeg'; }),
 		changedPlan(mp3, 'setting drift', (plan) => { record(plan.encoding).bitRate = 191; }),
