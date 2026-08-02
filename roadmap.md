@@ -248,7 +248,8 @@ products before adding new editorial models or native engines.
   reclamation, pathless IPC, and source-free packaged handoff.
 - **Shared — Implemented for maintained first-party slices:** feature-requirement
   reporting, read-only incompatible opens, opaque state preservation, audio/video
-  effect bypass, and first-party audio rendered-fallback playback.
+  effect bypass, and first-party audio and video-effects rendered-fallback
+  playback.
 - **Web Enhanced / Electron Enhanced — Implemented for direct PCM slices:**
   bounded direct WAV, AIFF, BWF, and admitted BW64 publication. Other render
   families remain below.
@@ -275,6 +276,13 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   original, is acquired into a fresh recipient, and activates there after the
   separate controller-owned manifest digest check. The recipient document
   remains read-only and canonical state stays unprojected.
+- **Shared — Implemented for maintained first-party video-effects fallback
+  activation:** one admitted exact-schema video fallback bound to the
+  unavailable video-effects requirement activates its required local source and
+  replaces preview video with a neutral full render from frame zero. The
+  projection leaves canonical project, history, audio, Project Bin, and effect
+  state unchanged. Acquisition and handoff, authored proxies, generic fallback
+  handling, export parity, and browser or packaged qualification remain open.
 - **Electron Enhanced — Implemented for point-in-time managed-media publication
   admission:** absent bindings reserve prospective catalog rows, serialized
   metadata, and aggregate pending body bytes, then reject failed, malformed, or
@@ -292,7 +300,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   open.
 - **Electron Enhanced — In progress:** complete the concrete platform
   chooser/locator and broader linked and unmanaged-original lifecycles, authored
-  proxy plus generic/video rendered-fallback relationships, exact or write-time
+  proxies plus generic rendered-fallback relationships and video-fallback
+  acquisition/handoff beyond maintained local activation, exact or write-time
   capacity behavior, durable playback identity, cleanup beyond the bounded
   startup tracked inventory where required, and packaged UI/OS/browser-codec
   qualification.
@@ -302,7 +311,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   transfer. They are not editorial proxies.
 - **Shared — In progress:** complete editorial original/proxy/rendered-fallback
   relationships for linked and unmanaged originals, authored proxies, and
-  generic or video fallback acquisition and activation.
+  generic fallback acquisition and activation plus video fallback
+  acquisition/handoff beyond the maintained first-party activation.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories; a narrower one-way fixture proves the
@@ -334,7 +344,7 @@ release-blocking defect in its owning policy.
 - **Shared — In progress:** provide generic affected-object visibility and
   bypass behavior beyond the maintained first-party audio/video slices.
 - Add runtime use for required rendered fallbacks beyond the maintained
-  first-party audio whole-mix path.
+  first-party audio whole-mix and video-effects preview paths.
 - Preserve and re-export arbitrary future-schema `.scape` archives without
   interpreting unknown state.
 - Verify that a project opened on a less-capable platform subsequently
