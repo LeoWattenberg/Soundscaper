@@ -44,6 +44,7 @@ export interface SourceLifecycleLoadOptions {
 	readonly excludedAudioSourceIds?: readonly string[];
 	readonly onlyRequiredAudioSources?: boolean;
 	readonly requiredAudioSourceIds?: readonly string[];
+	readonly requiredVideoSourceIds?: readonly string[];
 	readonly signal?: AbortSignal;
 }
 
@@ -196,22 +197,24 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 
 	async function loadProjectSources(project: any, options: SourceLifecycleLoadOptions = {}) {
 		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
+		const requiredVideoSourceIds = requiredVideoSourceIdSet(project, options);
 		const excludedSourceIds = sourceIdSet(options.excludedAudioSourceIds ?? [], 'excluded audio source');
 		const usedSourceIds = options.onlyRequiredAudioSources
 			? new Set<string>()
 			: new Set<string>(allProjectClips(project).map((clip: any) => clip.sourceId));
 		for (const sourceId of excludedSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
+		for (const sourceId of requiredVideoSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, any>();
 		if (!usedSourceIds.size) return transientBuffers;
 		throwIfSourceLoadAborted(options.signal);
 		let context: any = null;
 		for (const source of project.sources.filter((candidate: any) => usedSourceIds.has(candidate.id))) {
-			const required = requiredSourceIds.has(source.id);
+			const required = requiredSourceIds.has(source.id) || requiredVideoSourceIds.has(source.id);
 			try {
 				if (source.kind === 'video') {
-					if (required) throw new TypeError(`Required rendered fallback source ${source.id} must be audio.`);
-					await activateVideoSource(source);
+					await awaitSourceLoadOperation(() => activateVideoSource(source), options.signal);
+					throwIfSourceLoadAborted(options.signal);
 					continue;
 				}
 				const metadata = await awaitSourceLoadOperation(
@@ -436,12 +439,21 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		options: SourceLifecycleLoadOptions = {},
 	) {
 		const requiredSourceIds = requiredAudioSourceIdSet(snapshot, options);
+		const requiredVideoSourceIds = requiredVideoSourceIdSet(snapshot, options);
+		const excludedAudioSourceIds = sourceIdSet(options.excludedAudioSourceIds ?? [], 'excluded audio source');
 		const usedSourceIds = new Set((snapshot?.clips || [])
 			.filter((clip: any) => clip.kind !== 'video')
 			.map((clip: any) => clip.sourceId));
+		for (const sourceId of excludedAudioSourceIds) usedSourceIds.delete(sourceId);
 		for (const sourceId of requiredSourceIds) usedSourceIds.add(sourceId);
 		const transientBuffers = new Map<string, any>();
 		throwIfSourceLoadAborted(options.signal);
+		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
+			requiredVideoSourceIds.has(candidate.id)
+		))) {
+			await awaitSourceLoadOperation(() => activateVideoSource(source), options.signal);
+			throwIfSourceLoadAborted(options.signal);
+		}
 		let context: any = null;
 		for (const source of (snapshot?.sources || []).filter((candidate: any) => (
 			candidate.kind !== 'video' && usedSourceIds.has(candidate.id)
@@ -521,6 +533,22 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			}
 			if (matches[0]?.kind !== 'audio') {
 				throw new TypeError(`Required rendered fallback source ${sourceId} must be audio.`);
+			}
+		}
+		return ids;
+	}
+
+	function requiredVideoSourceIdSet(project: any, options: SourceLifecycleLoadOptions) {
+		const ids = sourceIdSet(options.requiredVideoSourceIds ?? [], 'required video source');
+		if (!ids.size) return ids;
+		const sources = Array.isArray(project?.sources) ? project.sources : [];
+		for (const sourceId of ids) {
+			const matches = sources.filter((source: any) => source?.id === sourceId);
+			if (matches.length !== 1) {
+				throw new Error(`Required rendered fallback source ${sourceId} is unavailable.`);
+			}
+			if (matches[0]?.kind !== 'video') {
+				throw new TypeError(`Required rendered fallback source ${sourceId} must be video.`);
 			}
 		}
 		return ids;

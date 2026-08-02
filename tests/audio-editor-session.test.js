@@ -153,21 +153,32 @@ test('feature compatibility metadata remains deeply frozen across session clones
 		trackId: 'soundscaper:rendered-audio-fallback:track',
 		clipId: 'soundscaper:rendered-audio-fallback:clip',
 	};
+	const videoRenderedFallback = {
+		...renderedFallback,
+		featureId: 'org.soundscaper.capability.video-effects',
+		requirementId: 'soundscaper.video-effects',
+		sourceId: 'rendered-video',
+		trackId: 'framescaper:rendered-video-fallback:track',
+		clipId: 'framescaper:rendered-video-fallback:clip',
+	};
 	const updated = controller.updateProjectMetadata(project.id, {
 		featureRequirementsReport: report,
 		featureRequirementsAudioEffectPlaybackBypass: bypass,
 		featureRequirementsAudioRenderedFallback: renderedFallback,
 		featureRequirementsVideoEffectPlaybackBypass: videoBypass,
+		featureRequirementsVideoRenderedFallback: videoRenderedFallback,
 	});
 	const retained = controller.getSnapshot().tabs[0].metadata.featureRequirementsReport;
 	const retainedBypass = controller.getSnapshot().tabs[0].metadata.featureRequirementsAudioEffectPlaybackBypass;
 	const retainedRenderedFallback = controller.getSnapshot().tabs[0].metadata.featureRequirementsAudioRenderedFallback;
 	const retainedVideoBypass = controller.getSnapshot().tabs[0].metadata.featureRequirementsVideoEffectPlaybackBypass;
+	const retainedVideoRenderedFallback = controller.getSnapshot().tabs[0].metadata.featureRequirementsVideoRenderedFallback;
 
 	assert.notEqual(updated.featureRequirementsReport, report);
 	assert.notEqual(updated.featureRequirementsAudioEffectPlaybackBypass, bypass);
 	assert.notEqual(updated.featureRequirementsAudioRenderedFallback, renderedFallback);
 	assert.notEqual(updated.featureRequirementsVideoEffectPlaybackBypass, videoBypass);
+	assert.notEqual(updated.featureRequirementsVideoRenderedFallback, videoRenderedFallback);
 	for (const value of [
 		updated.featureRequirementsReport, updated.featureRequirementsReport.counts,
 		updated.featureRequirementsReport.items, updated.featureRequirementsReport.items[0],
@@ -190,14 +201,19 @@ test('feature compatibility metadata remains deeply frozen across session clones
 	for (const value of [updated.featureRequirementsAudioRenderedFallback, retainedRenderedFallback]) {
 		assert.equal(Object.isFrozen(value), true);
 	}
+	for (const value of [updated.featureRequirementsVideoRenderedFallback, retainedVideoRenderedFallback]) {
+		assert.equal(Object.isFrozen(value), true);
+	}
 	const serialized = controller.serialize();
 	assert.deepEqual(serialized.tabs[0].metadata.featureRequirementsAudioEffectPlaybackBypass, bypass);
 	assert.deepEqual(serialized.tabs[0].metadata.featureRequirementsAudioRenderedFallback, renderedFallback);
 	assert.deepEqual(serialized.tabs[0].metadata.featureRequirementsVideoEffectPlaybackBypass, videoBypass);
+	assert.deepEqual(serialized.tabs[0].metadata.featureRequirementsVideoRenderedFallback, videoRenderedFallback);
 	const restored = createAudioEditorSessionController({ snapshot: serialized });
 	const restoredBypass = restored.getSnapshot().tabs[0].metadata.featureRequirementsAudioEffectPlaybackBypass;
 	const restoredRenderedFallback = restored.getSnapshot().tabs[0].metadata.featureRequirementsAudioRenderedFallback;
 	const restoredVideoBypass = restored.getSnapshot().tabs[0].metadata.featureRequirementsVideoEffectPlaybackBypass;
+	const restoredVideoRenderedFallback = restored.getSnapshot().tabs[0].metadata.featureRequirementsVideoRenderedFallback;
 	for (const value of [restoredBypass, restoredBypass.requirementIds, restoredBypass.placeholders, restoredBypass.placeholders[0]]) {
 		assert.equal(Object.isFrozen(value), true);
 	}
@@ -206,6 +222,7 @@ test('feature compatibility metadata remains deeply frozen across session clones
 		restoredVideoBypass.placeholders, restoredVideoBypass.placeholders[0],
 	]) assert.equal(Object.isFrozen(value), true);
 	assert.equal(Object.isFrozen(restoredRenderedFallback), true);
+	assert.equal(Object.isFrozen(restoredVideoRenderedFallback), true);
 });
 
 test('cross-project clipboard retains source metadata and owns source roots after its origin closes', () => {

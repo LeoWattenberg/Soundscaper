@@ -14,11 +14,15 @@ import type { ControllerTrack } from '../src/common/editor/controller/track-doma
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClipV9,
 	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
+	createVideoClipV9,
+	createVideoSourceV9,
+	createVideoTrackV9,
 } from '../src/common/editor/project-v9.ts';
 
 const DIGEST = 'cd'.repeat(32);
@@ -79,6 +83,33 @@ function fallbackProject() {
 	});
 }
 
+function videoFallbackProject() {
+	const original = createVideoSourceV9({
+		id: 'original-video', storageKey: 'original-video', frameCount: 4,
+		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
+	});
+	const fallback = createVideoSourceV9({
+		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 6,
+		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
+	});
+	const clip = createVideoClipV9({
+		id: 'original-video-clip', sourceId: original.id, durationFrames: 4,
+		videoEffects: [{ id: 'effect-a', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
+	});
+	const track = createVideoTrackV9({ id: 'original-video-track', clipIds: [clip.id] });
+	return createAudioEditorProjectV9({
+		id: 'video-fallback-project', now: '2026-08-01T12:00:00.000Z',
+		sources: [original, fallback], clips: [clip], tracks: [track],
+		featureRequirements: { schemaVersion: 1, requirements: [{
+			id: 'publisher-video-render',
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			displayName: 'Publisher video render',
+			disposition: 'rendered-fallback',
+			fallback: { kind: 'video', sourceId: fallback.id, sha256: DIGEST },
+		}] },
+	});
+}
+
 test('the playback service composes capability evaluation with a required rendered-audio source', () => {
 	const canonical = fallbackProject();
 	const service = createPlaybackProjectService({
@@ -100,6 +131,98 @@ test('the playback service composes capability evaluation with a required render
 	assert.equal(Object.isFrozen(result.requiredAudioSourceIds), true);
 });
 
+test('the playback service composes a required rendered-video preview without mutating its source project', () => {
+	const canonical = videoFallbackProject();
+	const service = createPlaybackProjectService({ audioEffects: true, videoEffects: false });
+	const result = service.projectForPlayback(canonical);
+
+	assert.equal(result.featureRequirementsReport?.compatible, false);
+	assert.equal(result.audioRenderedFallback, null);
+	assert.equal(result.audioEffectPlaybackBypass, null);
+	assert.equal(result.videoEffectPlaybackBypass, null);
+	assert.equal(result.videoRenderedFallback?.sourceId, 'fallback-video');
+	assert.deepEqual(result.requiredAudioSourceIds, []);
+	assert.deepEqual(result.requiredVideoSourceIds, ['fallback-video']);
+	assert.deepEqual(result.project.tracks.map((track) => track.id), [
+		PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
+	]);
+	assert.equal(result.project.clips[0]?.sourceId, 'fallback-video');
+	assert.equal(canonical.clips[0]?.sourceId, 'original-video');
+	assert.equal(Object.isFrozen(result.requiredVideoSourceIds), true);
+});
+
+test('playback reapply requires the rendered-video body before applying its transient preview project', async () => {
+	const canonical = videoFallbackProject();
+	const service = createPlaybackProjectService({ audioEffects: true, videoEffects: false });
+	const events: string[] = [];
+	const result = await applyCanonicalProjectToPlaybackEngine(canonical, {
+		projectForPlayback: (project) => service.projectForPlayback(project),
+		getCurrentProject: () => canonical,
+		ensureProjectSourcesAvailable: async (project, options) => {
+			events.push('video');
+			assert.equal(project.clips[0]?.sourceId, 'fallback-video');
+			assert.deepEqual(options.excludedAudioSourceIds, []);
+			assert.deepEqual(options.requiredAudioSourceIds, []);
+			assert.deepEqual(options.requiredVideoSourceIds, ['fallback-video']);
+			return new Map();
+		},
+		prepareRequiredProjectSources: async () => assert.fail('video fallback does not prepare PCM'),
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		engine: {
+			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			applyProject(project) {
+				events.push('engine');
+				assert.equal(project.clips[0]?.sourceId, 'fallback-video');
+			},
+		},
+		setReadyStatus() {},
+	});
+
+	assert.equal(result, true);
+	assert.deepEqual(events, ['video', 'engine']);
+});
+
+test('combined fallback reapply keeps staged audio out of direct video readiness', async () => {
+	const canonical: Record<string, unknown> = { id: 'combined-canonical' };
+	const projected: Record<string, unknown> = { id: 'combined-projected' };
+	const events: string[] = [];
+	const result = await applyCanonicalProjectToPlaybackEngine(canonical, {
+		projectForPlayback: () => Object.freeze({
+			project: projected,
+			featureRequirementsReport: null,
+			audioEffectPlaybackBypass: null,
+			audioRenderedFallback: null,
+			videoEffectPlaybackBypass: null,
+			videoRenderedFallback: null,
+			requiredAudioSourceIds: Object.freeze(['fallback-audio']),
+			requiredVideoSourceIds: Object.freeze(['fallback-video']),
+		}),
+		getCurrentProject: () => canonical,
+		ensureProjectSourcesAvailable: async (_project, options) => {
+			events.push('video');
+			assert.deepEqual(options.excludedAudioSourceIds, ['fallback-audio']);
+			assert.deepEqual(options.requiredAudioSourceIds, []);
+			assert.deepEqual(options.requiredVideoSourceIds, ['fallback-video']);
+			return new Map();
+		},
+		prepareRequiredProjectSources: async (_project, options) => {
+			events.push('audio');
+			assert.deepEqual(options.requiredAudioSourceIds, ['fallback-audio']);
+			return preparedSources();
+		},
+		sourceBuffers: new Map(), sourceChunkProviders: new Map(),
+		engine: {
+			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			applyProject(project) { events.push('engine'); assert.strictEqual(project, projected); },
+		},
+		setReadyStatus() {},
+	});
+
+	assert.equal(result, true);
+	assert.deepEqual(events, ['audio', 'video', 'engine']);
+});
+
 test('the playback service retains the existing bounded bypass path and never traverses future projects', () => {
 	const bypass = createAudioEditorProjectV9({
 		id: 'bypass', now: '2026-07-30T12:00:00.000Z',
@@ -111,6 +234,8 @@ test('the playback service retains the existing bounded bypass path and never tr
 	const projected = service.projectForPlayback(bypass);
 	assert.equal(projected.audioRenderedFallback, null);
 	assert.deepEqual(projected.requiredAudioSourceIds, []);
+	assert.equal(projected.videoRenderedFallback, null);
+	assert.deepEqual(projected.requiredVideoSourceIds, []);
 	assert.equal(projected.audioEffectPlaybackBypass?.placeholders[0]?.effectId, 'limiter-a');
 	assert.equal((projected.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed, true);
 
@@ -125,6 +250,8 @@ test('the playback service retains the existing bounded bypass path and never tr
 	assert.equal(unchanged.featureRequirementsReport, null);
 	assert.equal(unchanged.audioRenderedFallback, null);
 	assert.deepEqual(unchanged.requiredAudioSourceIds, []);
+	assert.equal(unchanged.videoRenderedFallback, null);
+	assert.deepEqual(unchanged.requiredVideoSourceIds, []);
 });
 
 test('playback reapplies only the projected document after required sources are ready', async () => {

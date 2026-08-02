@@ -172,6 +172,7 @@ export interface ProjectSwitchServiceRuntime<
 		readonly excludedAudioSourceIds?: readonly string[];
 		readonly onlyRequiredAudioSources?: boolean;
 		readonly requiredAudioSourceIds?: readonly string[];
+		readonly requiredVideoSourceIds?: readonly string[];
 		readonly signal?: AbortSignal;
 	}>) => PromiseLike<ReadonlyMap<string, unknown>> | ReadonlyMap<string, unknown>;
 	readonly prepareRequiredProjectSources: (project: Project, options: Readonly<{
@@ -393,6 +394,7 @@ export function createProjectSwitchService<
 					featureRequirementsAudioEffectPlaybackBypass: playbackProjection.audioEffectPlaybackBypass,
 					featureRequirementsAudioRenderedFallback: playbackProjection.audioRenderedFallback,
 					featureRequirementsVideoEffectPlaybackBypass: playbackProjection.videoEffectPlaybackBypass,
+					featureRequirementsVideoRenderedFallback: playbackProjection.videoRenderedFallback,
 				},
 			});
 			runtime.session.updateProjectMetadata(projectId, {
@@ -405,6 +407,7 @@ export function createProjectSwitchService<
 				featureRequirementsAudioEffectPlaybackBypass: playbackProjection.audioEffectPlaybackBypass,
 				featureRequirementsAudioRenderedFallback: playbackProjection.audioRenderedFallback,
 				featureRequirementsVideoEffectPlaybackBypass: playbackProjection.videoEffectPlaybackBypass,
+				featureRequirementsVideoRenderedFallback: playbackProjection.videoRenderedFallback,
 			});
 			runtime.session.setProjectReadOnly(projectId, {
 				readOnly: runtime.state.readOnly,
@@ -435,6 +438,8 @@ export function createProjectSwitchService<
 			runtime.clearWaveformPcmWindows();
 			const loadedSourceBuffers = await guard(runtime.loadProjectSources(activeProject, {
 				excludedAudioSourceIds: playbackProjection.requiredAudioSourceIds,
+				requiredVideoSourceIds: playbackProjection.requiredVideoSourceIds,
+				signal: runtime.lifetime.signal,
 			}));
 			runtime.retainLiveClipIds();
 			runtime.evictUnreferencedSourceCaches();

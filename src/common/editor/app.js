@@ -440,8 +440,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			formatBytes,
 		},
 	});
+	const playbackProjectService = createPlaybackProjectService(product.capabilities);
 	const documentSnapshotRuntime = {
-		state, product, productId, capabilities, locale,
+		state, product, productId, capabilities, locale, projectForPlayback: (candidate) => playbackProjectService.projectForPlayback(candidate).project,
 		getCurrentProject: () => projectWithVideoEffectGestures(state.history?.present ?? null),
 		getProjectTabs: () => sessionController.getSnapshot().tabs,
 		getCurrentTabMetadata: (projectId) => sessionTab(projectId)?.metadata || {},
@@ -566,7 +567,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceChunkProviders, sourcePcmBytes, sourcePeaks, state, store,
 		waveformPcmWindowContains, waveformPeaksHaveRms,
 	});
-	const playbackProjectService = createPlaybackProjectService(product.capabilities);
 	const playbackProjectApplyService = createPlaybackProjectApplyService({
 		lifetime, projectForPlayback: playbackProjectService.projectForPlayback, getCurrentProject: () => project,
 		ensureProjectSourcesAvailable, prepareRequiredProjectSources: sourceLifecycleService.prepareRequiredProjectSources, sourceBuffers, sourceChunkProviders, engine,
@@ -1710,7 +1710,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		duplicateProject, duplicateTrack, engine, exportEffectPreset,
 		exportLabels, exportVideo, findClip, findTrack,
 		flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
-		getProjectBinClipVisualData, getVisibleClips, handleClipAction, handleEdit,
+		getProjectBinClipVisualData, getVideoSourceVisualData: projectVisualService.getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
 		importEffectPresets, importFiles, importLabelFile, inspectScape,
 		listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,

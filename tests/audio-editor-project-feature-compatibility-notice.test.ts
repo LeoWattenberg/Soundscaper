@@ -10,6 +10,7 @@ import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../src/common/
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import type { ProjectFeatureVideoEffectBypassMetadata } from '../src/common/editor/project-feature-video-effect-bypass.ts';
+import type { ProjectFeatureVideoRenderedFallbackMetadata } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import ProjectFeatureCompatibilityNotice from '../src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx';
 import {
@@ -306,6 +307,36 @@ test('audio rendered fallback activation is localized and bound to its exact req
 	assert.doesNotMatch(english, /rendered-source|soundscaper:rendered-audio-fallback/iu);
 	assert.doesNotMatch(mismatched, /data-project-feature-audio-rendered-fallback/iu);
 	for (const markup of malformed) assert.doesNotMatch(markup, /data-project-feature-audio-rendered-fallback/iu);
+});
+
+test('video rendered fallback activation is localized and bound to its exact requirement', () => {
+	const metadata = {
+		schemaVersion: 1,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		requirementId: 'video-effects',
+		sourceId: 'rendered-video',
+		trackId: 'framescaper:rendered-video-fallback:track',
+		clipId: 'framescaper:rendered-video-fallback:clip',
+	} satisfies ProjectFeatureVideoRenderedFallbackMetadata;
+	const incompatible = report(false, [
+		item('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects', 'unavailable', 'rendered-fallback'),
+		item('other', 'org.example.other', 'Other', 'unknown', 'rendered-fallback'),
+	]);
+	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: ENGLISH_COPY,
+		videoRenderedFallback: metadata,
+	}));
+	const mismatched = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: ENGLISH_COPY,
+		videoRenderedFallback: { ...metadata, requirementId: 'missing' },
+	}));
+
+	assert.equal(english.match(/data-project-feature-video-rendered-fallback/gu)?.length, 1);
+	assert.match(english, /Rendered fallback active during editor playback/u);
+	assert.doesNotMatch(english, /rendered-video|framescaper:rendered-video-fallback/iu);
+	assert.doesNotMatch(mismatched, /data-project-feature-video-rendered-fallback/iu);
 });
 
 test('video-effect playback bypass renders localized timeline and Project Bin placeholders', () => {

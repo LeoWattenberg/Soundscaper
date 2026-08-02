@@ -150,3 +150,21 @@ test('controller action facade routes Scape file opens through continuation owne
 	assert.equal(await open(file, choose), expected);
 	assert.deepEqual(calls, [[file, choose]]);
 });
+
+test('controller action facade exposes source-level video visuals for transient preview clips', () => {
+	const expected = Object.freeze({ mediaUrl: 'blob:fallback-video' });
+	const base = createRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'getVideoSourceVisualData') return (sourceId: unknown) => {
+				assert.equal(sourceId, 'fallback-video');
+				return expected;
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime);
+	const getSourceVisualData = actions.video.getSourceVisualData;
+	if (typeof getSourceVisualData !== 'function') throw new TypeError('Video source lookup must be callable.');
+	assert.strictEqual(getSourceVisualData('fallback-video'), expected);
+});

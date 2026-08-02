@@ -80,6 +80,14 @@ export interface ClipVisualData {
 	readonly videoClip?: ProjectVisualClip;
 }
 
+export interface VideoSourceVisualData {
+	readonly source: ProjectVisualSource;
+	readonly available: boolean;
+	readonly mediaUrl: string | null;
+	readonly posterUrl: string | null;
+	readonly thumbnails: readonly VideoThumbnail[];
+}
+
 export interface ProjectVisualServiceDependencies {
 	getProject(): ProjectVisualProject | null;
 	readonly missingSourceIds: ReadonlySet<string>;
@@ -94,6 +102,7 @@ export interface ProjectVisualServiceDependencies {
 export interface ProjectVisualService {
 	getClipVisualData(clipId: string): Readonly<ClipVisualData> | null;
 	getProjectBinClipVisualData(clipId: string): Readonly<ClipVisualData> | null;
+	getVideoSourceVisualData(sourceId: string): Readonly<VideoSourceVisualData> | null;
 	activateVideoSource(source: ProjectVisualSource): Promise<Readonly<VideoVisual> | null>;
 	revokeVideoVisual(sourceId: string): boolean;
 	revokeVideoVisuals(): void;
@@ -121,6 +130,7 @@ export function createProjectVisualService(
 	return Object.freeze({
 		getClipVisualData,
 		getProjectBinClipVisualData,
+		getVideoSourceVisualData,
 		activateVideoSource,
 		revokeVideoVisual,
 		revokeVideoVisuals,
@@ -176,6 +186,20 @@ export function createProjectVisualService(
 				posterUrl: video?.posterUrl ?? null,
 				thumbnails: video?.thumbnails ?? Object.freeze([]),
 			} : {}),
+		});
+	}
+
+	function getVideoSourceVisualData(sourceId: string): Readonly<VideoSourceVisualData> | null {
+		const project = dependencies.getProject();
+		const source = project ? findSource(project, sourceId) : null;
+		if (!source || source.kind !== 'video') return null;
+		const visual = videoVisuals.get(source.id);
+		return Object.freeze({
+			source,
+			available: !dependencies.missingSourceIds.has(source.id),
+			mediaUrl: visual?.mediaUrl ?? null,
+			posterUrl: visual?.posterUrl ?? null,
+			thumbnails: visual?.thumbnails ?? Object.freeze([]),
 		});
 	}
 

@@ -9,7 +9,7 @@ import {
 	type SourceLifecycleServiceRuntime,
 } from '../src/common/editor/controller/source-lifecycle-service.ts';
 
-function createFixture() {
+function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 	const source = { id: 'source', kind: 'audio', frameCount: 100, storageKey: 'source' };
 	const clip = { id: 'clip', sourceId: source.id, durationFrames: 100 };
 	let project = { id: 'project-a', clips: [clip], sources: [source] };
@@ -20,6 +20,7 @@ function createFixture() {
 	const sourceChunkProviders = new Map<string, unknown>([['source', { id: 'provider' }]]);
 	const sourcePeaks = new Map<string, unknown>();
 	const cachedBuffers = new Map<string, unknown>();
+	const activatedVideoSources: Array<Readonly<Record<string, unknown>>> = [];
 	const sourceBuffers = {
 		has: (id: string) => cachedBuffers.has(id),
 		get: (id: string) => cachedBuffers.get(id),
@@ -33,7 +34,10 @@ function createFixture() {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
 		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: 100,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 1_024,
-		activateVideoSource: async () => undefined,
+		activateVideoSource: async (candidate) => {
+			if (options.videoFailure) throw options.videoFailure;
+			activatedVideoSources.push(candidate);
+		},
 		allProjectClips: (value) => value.clips,
 		audioBufferChannels: () => [],
 		clipSourceWindowRange: (_value, startFrame, endFrame) => ({ startFrame, endFrame }),
@@ -67,6 +71,7 @@ function createFixture() {
 	return {
 		service: createSourceLifecycleService(runtime),
 		cachedBuffers,
+		activatedVideoSources,
 		clipWaveformPcmRequests,
 		clipWaveformPcmWindows,
 		publishes: () => publishes,
@@ -78,6 +83,52 @@ function createFixture() {
 		},
 	};
 }
+
+test('a required rendered-video source activates even when only its manifest references it', async () => {
+	const fixture = createFixture();
+	const source = Object.freeze({
+		id: 'fallback-video', kind: 'video', storageKey: 'fallback-video',
+		frameCount: 48, sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
+	});
+	const project = Object.freeze({
+		id: 'video-fallback-project', clips: Object.freeze([]), sources: Object.freeze([source]),
+	});
+
+	await fixture.service.loadProjectSources(project, { requiredVideoSourceIds: [source.id] });
+	assert.deepEqual(fixture.activatedVideoSources, [source]);
+
+	await fixture.service.ensureProjectSourcesAvailable(project, { requiredVideoSourceIds: [source.id] });
+	assert.deepEqual(fixture.activatedVideoSources, [source, source]);
+});
+
+test('required rendered-video activation rejects missing, wrong-kind, and unreadable sources', async () => {
+	const audio = Object.freeze({ id: 'fallback-video', kind: 'audio' });
+	const wrongKind = createFixture();
+	await assert.rejects(
+		wrongKind.service.loadProjectSources(
+			{ id: 'project', clips: [], sources: [audio] },
+			{ requiredVideoSourceIds: [audio.id] },
+		),
+		/must be video/iu,
+	);
+	await assert.rejects(
+		wrongKind.service.loadProjectSources(
+			{ id: 'project', clips: [], sources: [] },
+			{ requiredVideoSourceIds: ['missing-video'] },
+		),
+		/unavailable/iu,
+	);
+
+	const failure = new Error('video body disappeared');
+	const unreadable = createFixture({ videoFailure: failure });
+	await assert.rejects(
+		unreadable.service.loadProjectSources(
+			{ id: 'project', clips: [], sources: [{ id: 'fallback-video', kind: 'video' }] },
+			{ requiredVideoSourceIds: ['fallback-video'] },
+		),
+		(error) => error === failure,
+	);
+});
 
 test('late waveform PCM completion is discarded after a project switch', async () => {
 	const fixture = createFixture();

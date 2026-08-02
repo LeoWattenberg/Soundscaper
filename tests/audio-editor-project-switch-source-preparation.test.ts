@@ -23,11 +23,15 @@ import {
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClipV9,
 	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
+	createVideoClipV9,
+	createVideoSourceV9,
+	createVideoTrackV9,
 	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 
@@ -110,11 +114,33 @@ test('currentness failure after engine return blocks prepared provider publicati
 	assert.deepEqual(fixture.chunkSourcePublications, []);
 });
 
+test('project activation loads a manifest-only video fallback before applying its preview projection', async () => {
+	const incoming = videoRenderedFallbackProject('video-fallback-project');
+	const fixture = createFixture({
+		incoming,
+		productCapabilities: { audioEffects: true, videoEffects: false },
+	});
+
+	await fixture.service.switchProject(incoming, { skipFlush: true });
+
+	assert.deepEqual(fixture.activatedVideoSourceIds, ['original-video', 'fallback-video']);
+	assert.equal(fixture.loadedProject()?.tracks[0]?.id, PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track);
+	assert.equal(fixture.loadedProject()?.clips[0]?.sourceId, 'fallback-video');
+	assert.equal(
+		(fixture.tabMetadata()?.featureRequirementsVideoRenderedFallback as
+			Readonly<{ sourceId?: unknown }> | undefined)?.sourceId,
+		'fallback-video',
+	);
+	assert.ok(fixture.events.indexOf('source:video:fallback-video') < fixture.events.indexOf('engine:load'));
+});
+
 function createFixture(options: Readonly<{
 	collideDuringPreparation?: boolean;
 	failCurrentnessAt?: number;
+	incoming?: TestProject;
+	productCapabilities?: Readonly<Record<string, unknown>>;
 }> = {}) {
-	const incoming = renderedFallbackProject('incoming-project');
+	const incoming = options.incoming ?? renderedFallbackProject('incoming-project');
 	const active = createAudioEditorProjectV9({ id: 'active-project' }) as unknown as TestProject;
 	const lifetime = new EditorControllerLifetime();
 	const events: string[] = [];
@@ -134,12 +160,16 @@ function createFixture(options: Readonly<{
 	let activeLock = lock(active.id);
 	let activationToken: object | null = null;
 	let currentnessChecks = 0;
+	const activatedVideoSourceIds: string[] = [];
 
 	const sourceLifecycle = createSourceLifecycleService({
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
 		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: 100,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 16,
-		activateVideoSource: async () => undefined,
+		activateVideoSource: async (source: Readonly<{ id: string }>) => {
+			events.push(`source:video:${source.id}`);
+			activatedVideoSourceIds.push(source.id);
+		},
 		allProjectClips: (project: TestProject) => project.clips,
 		audioBufferChannels: () => [],
 		clipSourceWindowRange: () => ({ startFrame: 0, endFrame: 0 }),
@@ -256,7 +286,7 @@ function createFixture(options: Readonly<{
 		clipboardForProject: () => null, markProjectSaved() {},
 	};
 	const runtime = {
-		state, productCapabilities: { audioEffects: false, videoEffects: true },
+		state, productCapabilities: options.productCapabilities ?? { audioEffects: false, videoEffects: true },
 		lifetime, scapeInspectionQuiescence: createScapeInspectionQuiescence(),
 		projectGeneration: new EditorProjectGeneration(),
 		copy: { ready: 'Ready', projectOpenOtherTab: 'Open elsewhere', projectReadOnly: 'Read-only',
@@ -304,8 +334,9 @@ function createFixture(options: Readonly<{
 	} satisfies ProjectSwitchServiceRuntime<TestProject, TestHistory>;
 	return Object.freeze({
 		incoming, events, reservationFailure, currentnessFailure, priorBuffer, priorProvider, preparedProvider,
-		sourceBuffers, sourceChunkProviders, chunkSourcePublications,
+		sourceBuffers, sourceChunkProviders, chunkSourcePublications, activatedVideoSourceIds,
 		loadedProject: () => loadedProject, loadedChunkSources: () => loadedChunkSources,
+		tabMetadata: () => tabs.get(incoming.id)?.metadata,
 		service: createProjectSwitchService(runtime),
 	});
 }
@@ -330,6 +361,27 @@ function renderedFallbackProject(id: string): TestProject {
 			id: 'publisher-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 			displayName: 'Publisher render', disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: fallback.id, sha256: 'ef'.repeat(32) },
+		}] },
+	}) as unknown as TestProject;
+}
+
+function videoRenderedFallbackProject(id: string): TestProject {
+	const original = createVideoSourceV9({
+		id: 'original-video', storageKey: 'original-video', frameCount: 4,
+		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
+	});
+	const fallback = createVideoSourceV9({
+		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 6,
+		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
+	});
+	const clip = createVideoClipV9({ id: 'original-video-clip', sourceId: original.id, durationFrames: 4 });
+	const track = createVideoTrackV9({ id: 'original-video-track', clipIds: [clip.id] });
+	return createAudioEditorProjectV9({
+		id, now: '2026-08-01T12:00:00.000Z', sources: [original, fallback], clips: [clip], tracks: [track],
+		featureRequirements: { schemaVersion: 1, requirements: [{
+			id: 'publisher-video-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			displayName: 'Publisher video render', disposition: 'rendered-fallback',
+			fallback: { kind: 'video', sourceId: fallback.id, sha256: 'ab'.repeat(32) },
 		}] },
 	}) as unknown as TestProject;
 }

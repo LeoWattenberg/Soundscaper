@@ -46,6 +46,7 @@ interface CurrentTabMetadata {
 	readonly featureRequirementsAudioEffectPlaybackBypass?: unknown;
 	readonly featureRequirementsAudioRenderedFallback?: unknown;
 	readonly featureRequirementsVideoEffectPlaybackBypass?: unknown;
+	readonly featureRequirementsVideoRenderedFallback?: unknown;
 }
 
 export interface EditorDocumentSnapshotState {
@@ -129,6 +130,7 @@ export interface EditorDocumentSnapshotRuntime<Project extends SnapshotProject> 
 	readonly capabilities: unknown;
 	readonly locale: string;
 	getCurrentProject(): Project | null;
+	projectForPlayback(project: Project): Project;
 	getProjectTabs(): readonly ProjectTabSnapshot[];
 	getCurrentTabMetadata(projectId: string): CurrentTabMetadata;
 	recordingPreviewSnapshot(preview: unknown): unknown;
@@ -155,6 +157,9 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 	const currentTabMetadata = currentProject
 		? runtime.getCurrentTabMetadata(currentProject.id)
 		: {};
+	const videoPreviewProject = currentProject && currentTabMetadata.featureRequirementsVideoRenderedFallback
+		? runtime.projectForPlayback(currentProject)
+		: currentProject;
 	const selection = currentProject?.selection
 		&& currentProject.selection.endFrame > currentProject.selection.startFrame
 		? currentProject.selection
@@ -169,6 +174,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		headless: true,
 		locale: runtime.locale,
 		project: currentProject,
+		videoPreviewProject,
 		projects: state.projects,
 		recentProjects: Object.freeze(state.recentProjectIds
 			.map((projectId) => state.projects.find((candidate) => candidate.id === projectId))
@@ -259,6 +265,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		audioEffectPlaybackBypass: currentTabMetadata.featureRequirementsAudioEffectPlaybackBypass ?? null,
 		audioRenderedFallback: currentTabMetadata.featureRequirementsAudioRenderedFallback ?? null,
 		videoEffectPlaybackBypass: currentTabMetadata.featureRequirementsVideoEffectPlaybackBypass ?? null,
+		videoRenderedFallback: currentTabMetadata.featureRequirementsVideoRenderedFallback ?? null,
 		storage: Object.freeze({ ...state.storageEstimate, ...runtime.getStorageStatus() }),
 		analysis: state.analysisResult,
 		analysisVisuals: state.analysisVisuals,

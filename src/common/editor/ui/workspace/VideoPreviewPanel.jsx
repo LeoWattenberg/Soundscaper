@@ -5,6 +5,7 @@ import { resolveActiveVideoLayers, resolveVideoCompositionIntervals } from '../.
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { createVideoPreviewCompositor } from '../video-preview-compositor.js';
 import { createVideoPreviewEffectBypass } from './video-preview-effect-bypass.ts';
+import { resolveVideoPreviewVisual } from './video-preview-visual.ts';
 
 const EMPTY_VIDEO_EFFECT_STACK = Object.freeze([]);
 
@@ -52,8 +53,7 @@ function createVideoPreviewTimeline(project, controller, missingSourceIds, faile
 		const clipStateById = new Map();
 		for (const clip of project.clips || []) {
 			if (clip?.kind !== 'video') continue;
-			const visual = controller.actions.video?.getClipVisualData?.(clip.id)
-				|| controller.actions.timeline.getClipVisualData?.(clip.id);
+			const visual = resolveVideoPreviewVisual(controller, clip.id, clip.sourceId);
 			const sourceUrl = visual?.mediaUrl || visual?.url || null;
 			clipStateById.set(clip.id, {
 				available: Boolean(
@@ -231,7 +231,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 		controller,
 		(value) => Math.max(0.001, Number(value.playbackRate) || 1),
 	);
-	const project = snapshot.project;
+	const project = snapshot.videoPreviewProject || snapshot.project;
 	const videoEffectBypass = useMemo(
 		() => createVideoPreviewEffectBypass(snapshot.videoEffectPlaybackBypass),
 		[snapshot.videoEffectPlaybackBypass],
@@ -273,8 +273,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy }) {
 		return layers.map((layer) => ({
 			...layer,
 			clips: (layer.clips || []).map((entry) => {
-				const visual = controller.actions.video?.getClipVisualData?.(entry.clipId)
-					|| controller.actions.timeline.getClipVisualData?.(entry.clipId);
+				const visual = resolveVideoPreviewVisual(controller, entry.clipId, entry.sourceId);
 				const sourceUrl = visual?.mediaUrl || visual?.url || null;
 				return {
 					...entry,

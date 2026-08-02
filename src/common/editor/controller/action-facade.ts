@@ -29,7 +29,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	duplicateProject, duplicateTrack, engine, exportEffectPreset,
 	exportLabels, exportVideo, findTrack,
 	flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
-	getProjectBinClipVisualData, getVisibleClips, handleClipAction, handleEdit,
+	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 	handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
 	importEffectPresets, importFiles, importLabelFile, inspectScape,
 	listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
@@ -139,6 +139,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		}),
 		video: Object.freeze({
 			getClipVisualData,
+			getSourceVisualData: getVideoSourceVisualData,
 			export: exportVideo,
 			effects: Object.freeze({
 				add: restricted('videoEffects', addVideoClipEffect),

@@ -13,6 +13,10 @@ import {
 	projectFeatureVideoEffectPlaybackBypass,
 	type ProjectFeatureVideoEffectBypassMetadata,
 } from '../project-feature-video-effect-bypass.ts';
+import {
+	projectFeatureVideoRenderedFallbackPlayback,
+	type ProjectFeatureVideoRenderedFallbackMetadata,
+} from '../project-feature-video-rendered-fallback.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import type { PreparedRequiredProjectSources } from './source-lifecycle-service.ts';
 
@@ -22,7 +26,9 @@ export interface PlaybackProjectProjection<Project extends object> {
 	readonly audioEffectPlaybackBypass: ProjectFeatureAudioEffectBypassMetadata | null;
 	readonly audioRenderedFallback: ProjectFeatureAudioRenderedFallbackMetadata | null;
 	readonly videoEffectPlaybackBypass: ProjectFeatureVideoEffectBypassMetadata | null;
+	readonly videoRenderedFallback: ProjectFeatureVideoRenderedFallbackMetadata | null;
 	readonly requiredAudioSourceIds: readonly string[];
+	readonly requiredVideoSourceIds: readonly string[];
 }
 
 export interface PlaybackProjectService {
@@ -52,7 +58,9 @@ export interface ApplyCanonicalProjectRuntime<Project extends object> {
 	readonly ensureProjectSourcesAvailable: (
 		project: Project,
 		options: Readonly<{
+			readonly excludedAudioSourceIds?: readonly string[];
 			readonly requiredAudioSourceIds: readonly string[];
+			readonly requiredVideoSourceIds: readonly string[];
 			readonly signal?: AbortSignal;
 		}>,
 	) => PromiseLike<ReadonlyMap<unknown, unknown>> | ReadonlyMap<unknown, unknown>;
@@ -93,8 +101,12 @@ export function createPlaybackProjectService(
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
 		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(project, featureRequirementsReport);
-		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
 			renderedAudio.project,
+			featureRequirementsReport,
+		);
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			renderedVideo.project,
 			featureRequirementsReport,
 		);
 		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
@@ -107,8 +119,12 @@ export function createPlaybackProjectService(
 			audioEffectPlaybackBypass: bypassedAudio.metadata,
 			audioRenderedFallback: renderedAudio.metadata,
 			videoEffectPlaybackBypass: bypassedVideo.metadata,
+			videoRenderedFallback: renderedVideo.metadata,
 			requiredAudioSourceIds: Object.freeze(
 				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
+			),
+			requiredVideoSourceIds: Object.freeze(
+				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
 			),
 		});
 	}
@@ -150,10 +166,12 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 		})
 		: null;
 	try {
-		const transientBuffers = preparedSources
+		const transientBuffers = preparedSources && projection.requiredVideoSourceIds.length === 0
 			? new Map<unknown, unknown>()
 			: await runtime.ensureProjectSourcesAvailable(projection.project, {
-				requiredAudioSourceIds: projection.requiredAudioSourceIds,
+				excludedAudioSourceIds: preparedSources ? projection.requiredAudioSourceIds : [],
+				requiredAudioSourceIds: preparedSources ? [] : projection.requiredAudioSourceIds,
+				requiredVideoSourceIds: projection.requiredVideoSourceIds,
 				signal: options.signal,
 			});
 		throwIfPlaybackProjectApplyAborted(options.signal);

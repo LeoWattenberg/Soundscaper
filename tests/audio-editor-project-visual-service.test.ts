@@ -94,6 +94,15 @@ test('video activation resolves an exact project-scoped linked original after re
 	const visual = await service.activateVideoSource(project.sources[1]);
 
 	assert.equal(visual?.mediaUrl, 'blob:1');
+	assert.deepEqual(service.getVideoSourceVisualData('video'), {
+		source: project.sources[1],
+		available: true,
+		mediaUrl: 'blob:1',
+		posterUrl: null,
+		thumbnails: [],
+	});
+	assert.equal(service.getVideoSourceVisualData('audio'), null);
+	assert.equal(service.getVideoSourceVisualData('unknown'), null);
 	assert.deepEqual(resolutions, [{ projectId: project.id, sourceId: 'video' }]);
 });
 

@@ -13,6 +13,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		id: 'project',
 		selection: { startFrame: 10, endFrame: 20 },
 	};
+	const videoPreviewProject = Object.freeze({ ...project, transientVideoFallback: true });
 	const state = stateFixture({
 		projects: [{ id: 'older' }, { id: 'project' }],
 		recentProjectIds: ['project', 'missing'],
@@ -28,6 +29,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		capabilities: { recording: true },
 		locale: 'en',
 		getCurrentProject: () => project,
+		projectForPlayback: () => videoPreviewProject,
 		getProjectTabs: () => [{
 			projectId: 'project', title: 'Project', dirty: true, readOnly: false,
 		}],
@@ -52,6 +54,14 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 				placeholders: [{
 					location: 'timeline', clipId: 'clip', effectId: 'video-effect', effectType: 'pixelate',
 				}],
+			},
+			featureRequirementsVideoRenderedFallback: {
+				schemaVersion: 1,
+				featureId: 'org.soundscaper.capability.video-effects',
+				requirementId: 'video-effects',
+				sourceId: 'rendered-video',
+				trackId: 'framescaper:rendered-video-fallback:track',
+				clipId: 'framescaper:rendered-video-fallback:clip',
 			},
 		}),
 		recordingPreviewSnapshot: (preview) => preview,
@@ -110,6 +120,15 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 			location: 'timeline', clipId: 'clip', effectId: 'video-effect', effectType: 'pixelate',
 		}],
 	});
+	assert.deepEqual(snapshot.videoRenderedFallback, {
+		schemaVersion: 1,
+		featureId: 'org.soundscaper.capability.video-effects',
+		requirementId: 'video-effects',
+		sourceId: 'rendered-video',
+		trackId: 'framescaper:rendered-video-fallback:track',
+		clipId: 'framescaper:rendered-video-fallback:clip',
+	});
+	assert.strictEqual(snapshot.videoPreviewProject, videoPreviewProject);
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);
 });
@@ -129,6 +148,7 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 		getCurrentProject: () => ({
 			id: 'project', selection: { startFrame: 12, endFrame: 12 },
 		}),
+		projectForPlayback: () => assert.fail('compatible projects do not need a video preview projection'),
 		getProjectTabs: () => [],
 		getCurrentTabMetadata: () => ({}),
 		recordingPreviewSnapshot: () => null,
@@ -151,6 +171,8 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 
 	assert.equal(snapshot.selection, null);
 	assert.equal(snapshot.audioRenderedFallback, null);
+	assert.equal(snapshot.videoRenderedFallback, null);
+	assert.strictEqual(snapshot.videoPreviewProject, snapshot.project);
 	assert.equal(snapshot.recording, false);
 	assert.equal(snapshot.locale, 'de');
 });

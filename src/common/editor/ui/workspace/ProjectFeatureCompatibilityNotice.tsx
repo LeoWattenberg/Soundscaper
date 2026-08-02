@@ -14,6 +14,7 @@ import type {
 	ProjectFeatureVideoEffectBypassMetadata,
 	ProjectFeatureVideoEffectPlaceholder,
 } from '../../project-feature-video-effect-bypass.ts';
+import type { ProjectFeatureVideoRenderedFallbackMetadata } from '../../project-feature-video-rendered-fallback.ts';
 import { videoEffectDefinition } from '../../video-effects.js';
 import {
 	createProjectFeatureCompatibilityNotice,
@@ -69,6 +70,7 @@ interface ProjectFeatureCompatibilityNoticeProps {
 	readonly audioEffectPlaybackBypass?: ProjectFeatureAudioEffectBypassMetadata | null;
 	readonly audioRenderedFallback?: ProjectFeatureAudioRenderedFallbackMetadata | null;
 	readonly videoEffectPlaybackBypass?: ProjectFeatureVideoEffectBypassMetadata | null;
+	readonly videoRenderedFallback?: ProjectFeatureVideoRenderedFallbackMetadata | null;
 	readonly copy: ProjectFeatureCompatibilityNoticeCopy;
 }
 
@@ -78,6 +80,7 @@ export default function ProjectFeatureCompatibilityNotice({
 	audioEffectPlaybackBypass,
 	audioRenderedFallback,
 	videoEffectPlaybackBypass,
+	videoRenderedFallback,
 	copy,
 }: ProjectFeatureCompatibilityNoticeProps) {
 	const headingId = useId();
@@ -136,6 +139,11 @@ export default function ProjectFeatureCompatibilityNotice({
 						</small>
 						{audioRenderedFallbackApplies(item, audioRenderedFallback) && <small
 							data-project-feature-audio-rendered-fallback
+						>
+							{copy.scapeCompatibilityEditorPlaybackFallback}
+						</small>}
+						{videoRenderedFallbackApplies(item, videoRenderedFallback) && <small
+							data-project-feature-video-rendered-fallback
 						>
 							{copy.scapeCompatibilityEditorPlaybackFallback}
 						</small>}
@@ -198,6 +206,25 @@ function audioRenderedFallbackApplies(
 ): boolean {
 	return metadata?.schemaVersion === 1
 		&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		&& item.featureId === metadata.featureId
+		&& item.requirementId === metadata.requirementId
+		&& item.availability === 'unavailable'
+		&& item.declaredDisposition === 'rendered-fallback'
+		&& item.effectiveDisposition === 'rendered-fallback';
+}
+
+function videoRenderedFallbackApplies(
+	item: Readonly<{
+		requirementId: string;
+		featureId: string;
+		availability: string;
+		declaredDisposition: string;
+		effectiveDisposition: string;
+	}>,
+	metadata: ProjectFeatureVideoRenderedFallbackMetadata | null | undefined,
+): boolean {
+	return metadata?.schemaVersion === 1
+		&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
 		&& item.availability === 'unavailable'

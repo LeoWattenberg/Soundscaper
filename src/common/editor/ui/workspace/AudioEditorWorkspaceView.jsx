@@ -255,6 +255,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				audioEffectPlaybackBypass={snapshot.audioEffectPlaybackBypass}
 				audioRenderedFallback={snapshot.audioRenderedFallback}
 				videoEffectPlaybackBypass={snapshot.videoEffectPlaybackBypass}
+				videoRenderedFallback={snapshot.videoRenderedFallback}
 				copy={copy}
 			/>
 			{aup4Compatibility?.report && !aup4Compatibility.dismissed && (
