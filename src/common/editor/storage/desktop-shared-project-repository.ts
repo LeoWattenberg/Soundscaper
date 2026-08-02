@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { validateAudioEditorProjectV9, type AudioEditorProjectV9 } from '../project-v9.ts';
+import { compactProjectSourceMetadata } from '../retention.js';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -31,6 +32,7 @@ import {
 	type DesktopSharedSourceTransferStore,
 } from './desktop-shared-project-media-transfer.ts';
 import type { LinkedVideoOriginalResolver } from './linked-video-original-resolver.ts';
+import { DesktopSharedProjectDuplication } from './desktop-shared-project-duplication.ts';
 
 type CurrentProjectDocument = AudioEditorProjectV9 & ProjectDocument & Readonly<{
 	id: string;
@@ -87,6 +89,7 @@ export interface DesktopSharedProjectRepositoryOptions {
  */
 export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 	readonly #bridge: DesktopSharedProjectBridge;
+	readonly #duplication: DesktopSharedProjectDuplication;
 	readonly #maximumDocumentBytes: number;
 	readonly #latestMutations = new Map<string, Promise<void>>();
 	readonly #onLocalCleanupError: (error: DesktopSharedProjectLocalCleanupError) => void;
@@ -106,6 +109,15 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 		}
 		this.#onLocalCleanupError = options.onLocalCleanupError;
 		this.#maximumDocumentBytes = maximumDocumentBytes(options.maximumDocumentBytes);
+		this.#duplication = new DesktopSharedProjectDuplication({
+			bridge: this.#bridge,
+			shadow: this.#shadow,
+			parseDocument: (document, label) => parseCanonicalProject(document, this.#maximumDocumentBytes, label),
+			serializeDocument: (project) => serializeBoundedProject(
+				admitCurrentProject(project, this.#maximumDocumentBytes),
+				this.#maximumDocumentBytes,
+			),
+		});
 	}
 
 	async save(project: ProjectDocument): Promise<ProjectDocument> {
@@ -124,6 +136,18 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			}
 			return snapshot;
 		});
+	}
+
+	async createIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
+		const admitted = admitCurrentProject(
+			compactProjectSourceMetadata(project),
+			this.#maximumDocumentBytes,
+		);
+		return this.#serializeLatestMutation(
+			admitted.id,
+			undefined,
+			() => this.#duplication.createIfAbsent(admitted),
+		);
 	}
 
 	async load(projectId: string, options: ProjectLoadOptions = {}): Promise<ProjectDocument | null> {
@@ -191,6 +215,12 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			throwIfAborted(options.signal);
 			return snapshot;
 		});
+	}
+
+	/** Read the authoritative document without resolving or admitting its media. */
+	loadProjectForDuplication(projectId: string): Promise<ProjectDocument | null> {
+		assertProjectId(projectId);
+		return this.#serializeLatestMutation(projectId, undefined, () => this.#duplication.loadProject(projectId));
 	}
 
 	async prepareHandoff(project: ProjectDocument, signal?: AbortSignal) {

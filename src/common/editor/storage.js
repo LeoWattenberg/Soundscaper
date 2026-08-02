@@ -10,11 +10,8 @@ import { createStorageRepositories } from './storage/repositories.ts';
 import { linkedVideoDerivativeOriginal } from './storage/video-derivative-relationship.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
 import { admitLocalStoreClear, LinkedVideoOriginalLifecycleCoordinator } from './storage/linked-video-original-lifecycle-coordinator.ts';
-import { projectPublicationAdmission } from './storage/project-publication-options.ts';
-import {
-	assertProjectRevisionPublicationCapacity,
-	estimateProjectRevisionPublication,
-} from './project-publication-admission.ts';
+import { admitProjectPublication } from './storage/project-publication-options.ts';
+import { duplicateProjectWithLinkedVideoOriginals } from './storage/project-duplication.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -113,6 +110,7 @@ export class AudioEditorProjectStore {
 		this.sourceRepository = repositories.sources;
 		this.mediaRepository = repositories.media;
 		this.linkedVideoOriginalBindingRepository = repositories.linkedVideoOriginalBindings || null;
+		this.linkedVideoOriginalProjectAliasRepository = repositories.linkedVideoOriginalProjectAliases || null;
 		this.linkedVideoOriginalResolver = repositories.linkedVideoOriginals || null;
 		this.retentionRepository = repositories.retention;
 		this.linkedVideoOriginalLifecycle = new LinkedVideoOriginalLifecycleCoordinator(
@@ -138,19 +136,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async saveProject(project, options = {}) {
-		const admitProjectPublication = projectPublicationAdmission(options);
-		const publication = estimateProjectRevisionPublication(project, {
-			maximumDocumentBytes: this.maximumProjectDocumentBytes,
-		});
-		await this.#database();
-		if (admitProjectPublication) {
-			await admitProjectPublication(publication.currentAndRevision.bytes);
-		} else if (this.backend === 'indexeddb') {
-			assertProjectRevisionPublicationCapacity(
-				publication.currentAndRevision.bytes,
-				await this.estimateStorage(),
-			);
-		}
+		await admitProjectPublication(this, project, options);
 		return this.projectRepository.save(project);
 	}
 
@@ -180,18 +166,24 @@ export class AudioEditorProjectStore {
 	}
 
 	async duplicateProject(projectId, { id, title } = {}) {
-		const source = await this.loadProject(projectId);
-		if (!source) throw new Error('The project to duplicate could not be found.');
-		const timestamp = new Date().toISOString();
-		const copy = {
-			...source,
-			id: id || createId('project'),
-			title: title || `${source.title || 'Untitled'} copy`,
-			revision: 0,
-			createdAt: timestamp,
-			updatedAt: timestamp,
-		};
-		return this.saveProject(copy);
+		return this.linkedVideoOriginalLifecycle.run(() => duplicateProjectWithLinkedVideoOriginals({
+			aliases: this.linkedVideoOriginalProjectAliasRepository,
+			loadProject: (requestedId) => this.projectRepository instanceof DesktopSharedProjectRepository
+				? this.projectRepository.loadProjectForDuplication(requestedId)
+				: this.loadProject(requestedId),
+			listProjects: () => this.listProjects(),
+			createProjectIfAbsent: async (project) => {
+				await admitProjectPublication(this, project);
+				const create = this.projectRepository.createIfAbsent;
+				if (typeof create !== 'function') throw new Error('Create-only project storage is unavailable.');
+				return create.call(this.projectRepository, project);
+			},
+		}, {
+			sourceProjectId: projectId,
+			copyProjectId: id || createId('project'),
+			title,
+			timestamp: new Date().toISOString(),
+		}));
 	}
 
 	async saveSetting(key, value) {
