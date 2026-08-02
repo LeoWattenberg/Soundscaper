@@ -308,6 +308,13 @@ export class AudioEditorProjectStore {
 		return this.linkedVideoOriginalResolver.release(locatorId);
 	}
 
+	/** Reconcile main-private startup locators only from a complete durable binding inventory. */
+	async reconcileLinkedVideoOriginalLocators() {
+		this.#assertOpen();
+		if (!this.linkedVideoOriginalResolver) return false;
+		return (await this.linkedVideoOriginalResolver.reconcileLocators()) !== null;
+	}
+
 	/**
 	 * Remove a raw media asset and all of its cached derivatives. Timeline
 	 * source metadata is deliberately left alone; `deleteSource()` owns that

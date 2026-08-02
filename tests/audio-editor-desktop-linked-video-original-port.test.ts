@@ -22,6 +22,10 @@ test('desktop file service chooses and materializes one pathless linked-video or
 				calls.push(['load', request]);
 				return { locatorRevision: LOCATOR_REVISION, descriptor };
 			},
+			async reconcileLinkedVideoOriginals(references: unknown) {
+				calls.push(['reconcile', references]);
+				return 2;
+			},
 			async releaseLinkedVideoOriginal(locatorId: unknown) {
 				calls.push(['release-locator', locatorId]);
 				return true;
@@ -64,11 +68,16 @@ test('desktop file service chooses and materializes one pathless linked-video or
 	assert.equal(snapshot.locatorRevision, LOCATOR_REVISION);
 	assert.ok(snapshot.blob instanceof Blob);
 	assert.equal(await snapshot.blob.text(), 'video body');
+	assert.equal(await service.linkedVideoOriginalPort.reconcile?.([{
+		locatorId: LOCATOR_ID,
+		locatorRevision: LOCATOR_REVISION,
+	}]), 2);
 	assert.equal(await service.linkedVideoOriginalPort.release(LOCATOR_ID), true);
-	assert.deepEqual(calls.slice(-4), [
+	assert.deepEqual(calls.slice(-5), [
 		['load', { locatorId: LOCATOR_ID, expectedRevision: null }],
 		['fetch', descriptor.url],
 		['release-read', READ_ID],
+		['reconcile', [{ locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION }]],
 		['release-locator', LOCATOR_ID],
 	]);
 });
@@ -79,6 +88,7 @@ test('linked-video chooser cancellation is inert and the browser adapter stays a
 		bridge: {
 			async chooseLinkedVideoOriginal() { return null; },
 			async loadLinkedVideoOriginal() { loadCalls += 1; return null; },
+			async reconcileLinkedVideoOriginals() { return 0; },
 			async releaseLinkedVideoOriginal() { return true; },
 		},
 	});
@@ -99,6 +109,7 @@ test('linked-video chooser releases a new locator when materialization fails', a
 			async loadLinkedVideoOriginal() {
 				return { locatorRevision: LOCATOR_REVISION, descriptor: readDescriptor() };
 			},
+			async reconcileLinkedVideoOriginals() { return 0; },
 			async releaseLinkedVideoOriginal(locatorId: string) {
 				releases.push(locatorId);
 				return true;
@@ -123,6 +134,7 @@ test('linked-video chooser releases a locator when cancellation wins after selec
 				return locatorChoice();
 			},
 			async loadLinkedVideoOriginal() { throw new Error('must not load'); },
+			async reconcileLinkedVideoOriginals() { return 0; },
 			async releaseLinkedVideoOriginal(locatorId: string) {
 				releases.push(locatorId);
 				return true;
@@ -148,6 +160,7 @@ test('linked-video load releases an admitted read when cancellation wins with th
 				controller.abort(reason);
 				return { locatorRevision: LOCATOR_REVISION, descriptor: readDescriptor() };
 			},
+			async reconcileLinkedVideoOriginals() { return 0; },
 			async releaseLinkedVideoOriginal() { return true; },
 			async releaseRead(id: string) { releasedReads.push(id); return true; },
 		},
@@ -169,6 +182,7 @@ test('linked-video chooser preserves primary and locator cleanup failures', asyn
 		bridge: {
 			async chooseLinkedVideoOriginal() { return locatorChoice(); },
 			async loadLinkedVideoOriginal() { return null; },
+			async reconcileLinkedVideoOriginals() { return 0; },
 			async releaseLinkedVideoOriginal() { throw new Error('locator cleanup failed'); },
 		},
 	});
@@ -190,6 +204,7 @@ test('linked-video port rejects malformed bridge DTOs before body fetch', async 
 				return { ...locatorChoice(), path: '/private/selected.mp4' };
 			},
 			async loadLinkedVideoOriginal() { throw new Error('must not load'); },
+			async reconcileLinkedVideoOriginals() { return 0; },
 			async releaseLinkedVideoOriginal(locatorId: string) {
 				releases.push(locatorId);
 				return true;
@@ -210,6 +225,7 @@ test('linked-video port rejects malformed bridge DTOs before body fetch', async 
 			async loadLinkedVideoOriginal() {
 				return { locatorRevision: 'bad', descriptor: readDescriptor() };
 			},
+			async reconcileLinkedVideoOriginals() { return 0; },
 			async releaseLinkedVideoOriginal() { return true; },
 		},
 		fetch: async () => {
@@ -223,6 +239,32 @@ test('linked-video port rejects malformed bridge DTOs before body fetch', async 
 		/locator revision/iu,
 	);
 	assert.equal(fetchCalls, 0);
+});
+
+test('linked-video reconciliation rejects malformed references and bridge results', async () => {
+	const service = createAudioEditorFileService({
+		bridge: {
+			async chooseLinkedVideoOriginal() { return null; },
+			async loadLinkedVideoOriginal() { return null; },
+			async reconcileLinkedVideoOriginals() { return -1; },
+			async releaseLinkedVideoOriginal() { return true; },
+		},
+	});
+	assert.ok(service.linkedVideoOriginalPort);
+	await assert.rejects(
+		Promise.resolve(service.linkedVideoOriginalPort.reconcile?.([{
+			locatorId: LOCATOR_ID,
+			locatorRevision: LOCATOR_REVISION,
+		}])),
+		/removal count|non-negative/iu,
+	);
+	await assert.rejects(
+		Promise.resolve(service.linkedVideoOriginalPort.reconcile?.([{
+			locatorId: '../selected.mp4',
+			locatorRevision: LOCATOR_REVISION,
+		}])),
+		/locator identifier/iu,
+	);
 });
 
 function locatorChoice() {

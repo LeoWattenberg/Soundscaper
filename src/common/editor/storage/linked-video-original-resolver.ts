@@ -7,7 +7,10 @@ import {
 	type LinkedVideoOriginalBindingInput,
 	type LinkedVideoOriginalSourceShape,
 } from './linked-video-original-binding.ts';
-import type { LinkedVideoOriginalRepository } from './linked-video-original-repository.ts';
+import type {
+	LinkedVideoOriginalLocatorReference,
+	LinkedVideoOriginalRepository,
+} from './linked-video-original-repository.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -43,6 +46,9 @@ export interface LinkedVideoOriginalPort {
 			signal?: AbortSignal;
 		}>,
 	): PromiseLike<LinkedVideoOriginalSnapshot | null> | LinkedVideoOriginalSnapshot | null;
+	reconcile?(
+		references: readonly LinkedVideoOriginalLocatorReference[],
+	): PromiseLike<number> | number;
 	release?(locatorId: string): PromiseLike<boolean> | boolean;
 }
 
@@ -223,6 +229,16 @@ export class LinkedVideoOriginalResolver {
 	async release(locatorId: string): Promise<boolean> {
 		if (typeof this.#port.release !== 'function') return false;
 		return Boolean(await this.#port.release(locatorId));
+	}
+
+	async reconcileLocators(): Promise<number | null> {
+		const references = await this.#bindings.listDurableLocatorReferences();
+		if (references === null || typeof this.#port.reconcile !== 'function') return null;
+		const removed = await this.#port.reconcile(references);
+		if (!Number.isSafeInteger(removed) || Number(removed) < 0) {
+			throw new RangeError('Linked video locator reconciliation returned an invalid removal count.');
+		}
+		return Number(removed);
 	}
 }
 

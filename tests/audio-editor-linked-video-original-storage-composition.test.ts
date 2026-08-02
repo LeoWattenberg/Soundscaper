@@ -17,6 +17,7 @@ test('project storage composes pathless linked-video binding and resolution sepa
 	const body = new Blob(['linked video composition'], { type: 'video/mp4' });
 	const reads: Array<Readonly<{ locatorId: string; expectedRevision: string | null }>> = [];
 	const releases: string[] = [];
+	let reconciliations = 0;
 	const port: LinkedVideoOriginalPort = {
 		load(locatorId, { expectedRevision }) {
 			reads.push({ locatorId, expectedRevision });
@@ -26,6 +27,7 @@ test('project storage composes pathless linked-video binding and resolution sepa
 			releases.push(locatorId);
 			return true;
 		},
+		reconcile() { reconciliations += 1; return 0; },
 	};
 	const store = createProjectStore({
 		indexedDB: null,
@@ -35,6 +37,8 @@ test('project storage composes pathless linked-video binding and resolution sepa
 	});
 	context.after(async () => { await store.close(); });
 	const source = videoSource();
+	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), false);
+	assert.equal(reconciliations, 0, 'ephemeral memory bindings never authorize main-process pruning');
 
 	const binding = await store.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID);
 	assert.equal(binding.projectId, PROJECT_ID);
@@ -146,6 +150,7 @@ test('linked-video resolver injection is optional and facade operations fail bef
 		store.releaseLinkedVideoOriginalLocator(LOCATOR_ID),
 		/resolution is unavailable/iu,
 	);
+	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), false);
 });
 
 test('linked original bindings and disposable posters reopen through a fresh store composition', async (context) => {

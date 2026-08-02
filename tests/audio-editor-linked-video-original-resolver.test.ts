@@ -208,6 +208,37 @@ test('linked video resolver releases unused opaque locators when the platform su
 	assert.equal(await unsupported.release('locator_0000000000000002'), false);
 });
 
+test('linked video resolver reconciles only a complete durable binding inventory', async () => {
+	const references = Object.freeze([Object.freeze({
+		locatorId: '1'.repeat(64),
+		locatorRevision: '2'.repeat(64),
+	})]);
+	const calls: unknown[] = [];
+	const repository = {
+		listDurableLocatorReferences: async () => references,
+	} as unknown as LinkedVideoOriginalRepository;
+	const resolver = new LinkedVideoOriginalResolver(repository, {
+		load: () => null,
+		reconcile(value) { calls.push(value); return 3; },
+	});
+	assert.equal(await resolver.reconcileLocators(), 3);
+	assert.deepEqual(calls, [references]);
+
+	const ephemeral = new LinkedVideoOriginalResolver({
+		listDurableLocatorReferences: async () => null,
+	} as unknown as LinkedVideoOriginalRepository, {
+		load: () => null,
+		reconcile() { throw new Error('must not reconcile ephemeral bindings'); },
+	});
+	assert.equal(await ephemeral.reconcileLocators(), null);
+
+	const malformed = new LinkedVideoOriginalResolver(repository, {
+		load: () => null,
+		reconcile: () => -1,
+	});
+	await assert.rejects(malformed.reconcileLocators(), /removal count|non-negative/iu);
+});
+
 function fixtureResolver(port: LinkedVideoOriginalPort): LinkedVideoOriginalResolver {
 	return fixtureResolverParts(port).resolver;
 }

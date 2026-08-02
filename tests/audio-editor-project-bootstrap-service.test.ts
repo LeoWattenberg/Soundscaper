@@ -74,6 +74,7 @@ function createFixture() {
 		lifetimeSignal: lifetime.signal,
 		store: {
 			ready: () => ready(),
+			reconcileLinkedVideoOriginalLocators: () => { events.push('reconcile-linked-video'); },
 			cleanupTemporaryAssets: () => { events.push('cleanup-assets'); },
 			requestPersistentStorage: () => { events.push('request-persistence'); },
 			async loadSetting(key, fallback) {
@@ -185,6 +186,8 @@ test('bootstrap applies settings before opening the saved project', async () => 
 	assert.equal(fixture.state.latencyOffsetMs, 42);
 	assert.equal(fixture.state.showVerticalRulers, false);
 	assert.equal(fixture.state.preferredInputChannelCount, 2);
+	assert.ok(fixture.events.includes('reconcile-linked-video'));
+	assert.ok(fixture.events.indexOf('reconcile-linked-video') < fixture.events.indexOf('cleanup-assets'));
 	assert.ok(fixture.events.indexOf('output:output-a') < fixture.events.indexOf('open-project:saved-project'));
 	assert.ok(fixture.events.includes('listen-devices'));
 	assert.ok(fixture.events.includes('save-now'));
@@ -209,6 +212,7 @@ test('terminal disposal during store readiness prevents later resource acquisiti
 
 	await assert.rejects(() => bootstrap, { code: 'DISPOSED' });
 	assert.equal(fixture.events.includes('cleanup-assets'), false);
+	assert.equal(fixture.events.includes('reconcile-linked-video'), false);
 	assert.equal(fixture.events.includes('listen-devices'), false);
 	assert.equal(fixture.events.includes('new-project'), false);
 	assert.equal(fixture.events.includes('publish'), false);

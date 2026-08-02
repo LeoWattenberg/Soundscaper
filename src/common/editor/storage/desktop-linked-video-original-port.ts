@@ -4,6 +4,7 @@ import type {
 	LinkedVideoOriginalPort,
 	LinkedVideoOriginalSnapshot,
 } from './linked-video-original-resolver.ts';
+import type { LinkedVideoOriginalLocatorReference } from './linked-video-original-repository.ts';
 
 export interface DesktopLinkedVideoOriginalChoice {
 	readonly locatorId: string;
@@ -21,6 +22,7 @@ interface DesktopLinkedVideoOriginalBridge {
 		locatorId: string;
 		expectedRevision: string | null;
 	}>): PromiseLike<unknown> | unknown;
+	reconcileLinkedVideoOriginals?(references: readonly LinkedVideoOriginalLocatorReference[]): PromiseLike<unknown> | unknown;
 	releaseLinkedVideoOriginal?(locatorId: string): PromiseLike<unknown> | unknown;
 }
 
@@ -46,6 +48,7 @@ const LOCATOR_FIELDS = Object.freeze([
 ]);
 const LOAD_FIELDS = Object.freeze(['locatorRevision', 'descriptor']);
 const MATERIALIZED_VIDEO_MAXIMUM_BYTES = 512 * 1024 ** 2;
+const MAXIMUM_LINKED_VIDEO_REFERENCES = 128;
 
 /** Adapts the frozen preload DTOs to the renderer's pathless storage port. */
 export function createDesktopLinkedVideoOriginalAccess(
@@ -54,9 +57,10 @@ export function createDesktopLinkedVideoOriginalAccess(
 	const bridge = options?.bridge;
 	const available = typeof bridge?.chooseLinkedVideoOriginal === 'function'
 		&& typeof bridge.loadLinkedVideoOriginal === 'function'
+		&& typeof bridge.reconcileLinkedVideoOriginals === 'function'
 		&& typeof bridge.releaseLinkedVideoOriginal === 'function';
 	const port: DesktopLinkedVideoOriginalAccess['port'] = available
-		? Object.freeze({ load, release })
+		? Object.freeze({ load, reconcile, release })
 		: null;
 	return Object.freeze({ available, port, choose, release });
 
@@ -134,6 +138,18 @@ export function createDesktopLinkedVideoOriginalAccess(
 		const locatorId = locatorToken(locatorIdValue, 'locator identifier');
 		return (await bridge.releaseLinkedVideoOriginal?.(locatorId)) === true;
 	}
+
+	async function reconcile(
+		referencesValue: readonly LinkedVideoOriginalLocatorReference[],
+	): Promise<number> {
+		if (!available) return 0;
+		const references = locatorReferences(referencesValue);
+		const removed = await bridge.reconcileLinkedVideoOriginals?.(references);
+		if (!Number.isSafeInteger(removed) || Number(removed) < 0) {
+			throw new RangeError('Linked-video reconciliation returned an invalid removal count.');
+		}
+		return Number(removed);
+	}
 }
 
 function possibleLocatorId(value: unknown): string | null {
@@ -201,6 +217,29 @@ function locatorToken(value: unknown, label: string): string {
 		throw new TypeError(`Linked-video ${label} is invalid.`);
 	}
 	return value;
+}
+
+function locatorReferences(value: unknown): readonly LinkedVideoOriginalLocatorReference[] {
+	if (!Array.isArray(value) || value.length > MAXIMUM_LINKED_VIDEO_REFERENCES) {
+		throw new RangeError('Linked-video reconciliation reference count exceeds its limit.');
+	}
+	const identifiers = new Set<string>();
+	return Object.freeze(value.map((item) => {
+		const reference = closedRecord(
+			item,
+			['locatorId', 'locatorRevision'],
+			'Linked-video reconciliation reference',
+		);
+		const locatorId = locatorToken(reference.locatorId, 'locator identifier');
+		if (identifiers.has(locatorId)) {
+			throw new Error('Linked-video reconciliation contains a duplicate locator identifier.');
+		}
+		identifiers.add(locatorId);
+		return Object.freeze({
+			locatorId,
+			locatorRevision: locatorToken(reference.locatorRevision, 'locator revision'),
+		});
+	}));
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
