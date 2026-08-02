@@ -15,7 +15,14 @@ import {
 	captureDirectCompressedStemArchiveContract,
 	type DirectCompressedStemArchiveContract,
 } from './direct-compressed-stem-archive-plan.ts';
-import { inspectZip32Layout, type Zip32Layout } from './zip32.ts';
+import {
+	captureDirectNativeStemArchiveContract,
+	sameDirectNativeStemArchiveContract,
+	type DirectNativeStemArchiveContract,
+	type DirectNativeStemArchiveOutput,
+	type DirectNativeStemArchivePlan,
+} from './direct-native-stem-archive-plan.ts';
+import { type Zip32Layout } from './zip32.ts';
 
 const ZIP_CONTAINER_LABEL = 'ZIP';
 const ZIP_FILE_TYPES = Object.freeze([Object.freeze({
@@ -26,33 +33,9 @@ const DIRECT_STEM_FORMATS = new Set(['wav', 'aiff', 'bwf']);
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
-export interface DirectStemArchiveOutput {
-	readonly fileName: string;
-	readonly trackId: string;
-}
+export type DirectStemArchiveOutput = DirectNativeStemArchiveOutput;
 
-interface DirectStemArchiveEntry {
-	readonly expectedByteLength?: unknown;
-	readonly fileName?: unknown;
-}
-
-interface DirectStemArchive {
-	readonly entries?: unknown;
-	readonly expectedByteLength?: unknown;
-	readonly fileName?: unknown;
-	readonly format?: unknown;
-	readonly mimeType?: unknown;
-	readonly zip32?: unknown;
-}
-
-interface DirectStemArchivePlan {
-	readonly archive?: DirectStemArchive | null;
-	readonly format?: unknown;
-	readonly mimeType?: unknown;
-	readonly mode?: unknown;
-	readonly outputFileBytesPerRender?: unknown;
-	readonly outputs?: unknown;
-}
+type DirectStemArchivePlan = DirectNativeStemArchivePlan;
 
 export interface DirectStemArchiveEncodedOutput {
 	readonly blob?: Blob | null;
@@ -83,28 +66,6 @@ interface DirectStemArchiveFileService {
 	readonly prepareSave?: (
 		request: Readonly<Record<string, unknown>>,
 	) => PromiseLike<unknown> | unknown;
-}
-
-interface ExactDirectStemArchivePlan extends DirectStemArchivePlan {
-	readonly archive: DirectStemArchive & {
-		readonly entries: readonly DirectStemArchiveEntry[];
-		readonly expectedByteLength: number;
-		readonly fileName: string;
-		readonly zip32: Zip32Layout;
-	};
-	readonly outputFileBytesPerRender: number;
-	readonly outputs: readonly DirectStemArchiveOutput[];
-}
-
-interface DirectNativeStemArchiveContract {
-	readonly kind: 'exact-native-pcm';
-	readonly archiveByteLength: number;
-	readonly archiveFileName: string;
-	readonly entryByteLength: number;
-	readonly format: 'wav' | 'aiff' | 'bwf';
-	readonly outputs: readonly DirectStemArchiveOutput[];
-	readonly stagingByteLength: number;
-	readonly zip32: Zip32Layout;
 }
 
 interface DirectCompressedStemContract {
@@ -271,70 +232,12 @@ export function commitPreparedDirectStemArchiveDestination(
 	);
 }
 
-function exactDirectStemArchivePlan(
-	plan: DirectStemArchivePlan,
-): plan is ExactDirectStemArchivePlan {
-	try {
-		const nativeFormat = String(plan?.format);
-		const nativeMimeType = nativeFormat === 'aiff' ? 'audio/aiff' : 'audio/wav';
-		const nativeExtension = nativeFormat === 'aiff' ? '.aiff' : '.wav';
-		if (plan?.mode !== 'stems'
-			|| !DIRECT_STEM_FORMATS.has(nativeFormat)
-			|| plan.mimeType !== nativeMimeType
-			|| !Number.isSafeInteger(plan.outputFileBytesPerRender)
-			|| Number(plan.outputFileBytesPerRender) <= 0
-			|| !Array.isArray(plan.outputs)
-			|| !plan.outputs.length
-			|| plan.archive?.format !== 'zip'
-			|| plan.archive.mimeType !== 'application/zip'
-			|| typeof plan.archive.fileName !== 'string'
-			|| !plan.archive.fileName.toLowerCase().endsWith('.zip')
-			|| !Number.isSafeInteger(plan.archive.expectedByteLength)
-			|| Number(plan.archive.expectedByteLength) <= 0
-			|| !Array.isArray(plan.archive.entries)
-			|| plan.archive.entries.length !== plan.outputs.length
-			|| !isZip32Layout(plan.archive.zip32)) return false;
-		const entryBytes = plan.outputFileBytesPerRender as number;
-		const entries = plan.archive.entries as readonly DirectStemArchiveEntry[];
-		const outputs = plan.outputs as readonly DirectStemArchiveOutput[];
-		for (const [index, entry] of entries.entries()) {
-			if (typeof entry?.fileName !== 'string'
-				|| entry.fileName !== outputs[index]?.fileName
-				|| !entry.fileName.toLowerCase().endsWith(nativeExtension)
-				|| typeof outputs[index]?.trackId !== 'string'
-				|| !outputs[index]?.trackId
-				|| entry.expectedByteLength !== entryBytes) return false;
-		}
-		const expected = inspectZip32Layout(entries.map((entry) => ({
-			fileName: entry.fileName as string,
-			byteLength: entry.expectedByteLength as number,
-		})));
-		return expected.eligible
-			&& sameZip32Layout(expected, plan.archive.zip32)
-			&& expected.archiveByteLength === plan.archive.expectedByteLength;
-	} catch {
-		return false;
-	}
-}
-
 function captureContract(plan: DirectStemArchivePlan): DirectStemArchiveContract | null {
 	const format = ownStringField(plan, 'format');
 	if (!format) return null;
 	if (!DIRECT_STEM_FORMATS.has(format)) return captureCompressedContract(plan);
-	if (!exactDirectStemArchivePlan(plan)) return null;
-	return Object.freeze({
-		kind: 'exact-native-pcm',
-		archiveByteLength: plan.archive.expectedByteLength,
-		archiveFileName: plan.archive.fileName,
-		entryByteLength: plan.outputFileBytesPerRender,
-		format: plan.format as DirectNativeStemArchiveContract['format'],
-		outputs: Object.freeze(plan.outputs.map((output) => Object.freeze({
-			fileName: output.fileName,
-			trackId: output.trackId,
-		}))),
-		stagingByteLength: plan.outputFileBytesPerRender,
-		zip32: Object.freeze({ ...plan.archive.zip32 }),
-	});
+	const contract = captureDirectNativeStemArchiveContract(plan);
+	return contract?.archiveFormat === 'zip' ? contract : null;
 }
 
 function ownStringField(value: unknown, field: string): string | null {
@@ -374,14 +277,17 @@ function assertPreparedPlan(
 }
 
 function sameContract(left: DirectStemArchiveContract, right: DirectStemArchiveContract): boolean {
-	return left.kind === right.kind
+	if (left.kind === 'exact-native-pcm') {
+		return right.kind === 'exact-native-pcm'
+			&& sameDirectNativeStemArchiveContract(left, right);
+	}
+	return right.kind === 'bounded-compressed'
 		&& left.archiveByteLength === right.archiveByteLength
 		&& left.archiveFileName === right.archiveFileName
 		&& left.entryByteLength === right.entryByteLength
 		&& left.format === right.format
 		&& left.stagingByteLength === right.stagingByteLength
-		&& (left.kind !== 'bounded-compressed'
-			|| (right.kind === 'bounded-compressed' && left.fingerprint === right.fingerprint))
+		&& left.fingerprint === right.fingerprint
 		&& sameZip32Layout(left.zip32, right.zip32)
 		&& left.outputs.length === right.outputs.length
 		&& left.outputs.every((output, index) => (
@@ -504,14 +410,6 @@ function combineErrors(primary: unknown, cleanup: unknown, message: string): Agg
 
 function normalizeError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error));
-}
-
-function isZip32Layout(value: unknown): value is Zip32Layout {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const layout = value as Readonly<Record<string, unknown>>;
-	return layout.eligible === true
-		&& ['entryCount', 'localByteLength', 'centralDirectoryByteLength', 'archiveByteLength']
-			.every((field) => Number.isSafeInteger(layout[field]) && Number(layout[field]) >= 0);
 }
 
 function sameZip32Layout(left: Zip32Layout, right: Zip32Layout): boolean {
