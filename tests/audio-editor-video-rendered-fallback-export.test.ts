@@ -62,6 +62,7 @@ interface ExportFixtureOptions {
 const ORIGINAL_VIDEO_SOURCE_ID = 'original-video';
 const FALLBACK_VIDEO_SOURCE_ID = 'fallback-video';
 const AUDIO_SOURCE_ID = 'canonical-audio';
+const FALLBACK_FEATURE_ID = PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing;
 
 function canonicalProject(): ExportProject {
 	return Object.freeze({
@@ -116,8 +117,8 @@ function fallbackReport() {
 		counts: Object.freeze({ available: 0, unavailable: 1, unknown: 0 }),
 		items: Object.freeze([Object.freeze({
 			requirementId: 'publisher-video-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-			displayName: 'Video effects render',
+			featureId: FALLBACK_FEATURE_ID,
+			displayName: 'Video compositing render',
 			availability: 'unavailable' as const,
 			declaredDisposition: 'rendered-fallback' as const,
 			disposition: 'rendered-fallback' as const,
@@ -126,7 +127,7 @@ function fallbackReport() {
 				sourceId: FALLBACK_VIDEO_SOURCE_ID,
 				sha256: 'ab'.repeat(32),
 			}),
-			message: 'Video effects are unavailable and will use the rendered fallback.',
+			message: 'Video compositing is unavailable and will use the rendered fallback.',
 		})]),
 	});
 }
@@ -159,7 +160,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 		assert.strictEqual(project, canonical);
 		assert.deepEqual(verifyOptions.videoFallback, {
 			requirementId: 'publisher-video-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			featureId: FALLBACK_FEATURE_ID,
 			kind: 'video',
 			sourceId: FALLBACK_VIDEO_SOURCE_ID,
 			sha256: 'ab'.repeat(32),
@@ -261,7 +262,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 					featureRequirementsReport: fallback ? fallbackReport() : null,
 					videoRenderedFallback: fallback ? Object.freeze({
 						schemaVersion: 1,
-						featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+						featureId: FALLBACK_FEATURE_ID,
 						requirementId: 'publisher-video-render',
 						sourceId: FALLBACK_VIDEO_SOURCE_ID,
 						trackId: 'fallback-video-track',
@@ -436,4 +437,25 @@ test('video delivery rejects a simultaneous rendered fallback it cannot honor', 
 		}),
 		/simultaneous rendered fallbacks/iu,
 	);
+});
+
+test('video delivery rejects feature metadata drift before integrity admission', () => {
+	const fixture = createFixture();
+	const delivery = fixture.runtime.playbackProjects.projectForVideoRenderedFallbackDelivery(fixture.canonical);
+	for (const featureId of [
+		PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+	]) {
+		assert.throws(
+			() => projectForVideoRenderedFallbackExport(fixture.canonical, {
+				projectForVideoRenderedFallbackDelivery: () => Object.freeze({
+					...delivery,
+					videoRenderedFallback: Object.freeze({
+						...delivery.videoRenderedFallback!, featureId,
+					}),
+				}),
+			}),
+			/metadata|report|source|invalid|simultaneous/iu,
+		);
+	}
 });

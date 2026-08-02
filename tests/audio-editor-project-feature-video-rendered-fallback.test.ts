@@ -3,7 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import {
+	PROJECT_FEATURE_CAPABILITY_IDS,
+	PROJECT_FEATURE_VIDEO_CAPABILITY_IDS,
+	type ProjectFeatureVideoCapabilityId,
+} from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import {
 	PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS,
@@ -43,7 +47,7 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 	};
 }
 
-function project() {
+function project(featureId: ProjectFeatureVideoCapabilityId = VIDEO_EFFECTS) {
 	const audioSource = createAudioSourceV9({
 		id: 'audio-source', storageKey: 'audio-source', frameCount: 12,
 		channelCount: 2, sampleRate: 48_000,
@@ -72,12 +76,32 @@ function project() {
 		clips: [audioClip, videoClip], tracks: [audioTrack, videoTrack, labelTrack],
 		projectBin: { clips: [{ ...videoClip, id: 'bin-video-clip', binItemId: 'bin-video-clip' }] },
 		featureRequirements: { schemaVersion: 1, requirements: [{
-			id: 'publisher-video-render', featureId: VIDEO_EFFECTS,
+			id: 'publisher-video-render', featureId,
 			displayName: 'Publisher video render', disposition: 'rendered-fallback',
 			fallback: { kind: 'video', sourceId: fallbackVideo.id, sha256: DIGEST },
 		}] },
 	});
 }
+
+test('every registered first-party video capability can bind one full-render fallback', () => {
+	assert.equal(Object.isFrozen(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS), true);
+	assert.deepEqual(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS, [
+		PROJECT_FEATURE_CAPABILITY_IDS.videoImport,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoPlayback,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoTimelineEditing,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoExport,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+	]);
+	for (const featureId of PROJECT_FEATURE_VIDEO_CAPABILITY_IDS) {
+		const input = project(featureId);
+		const projected = projectFeatureVideoRenderedFallbackPlayback(input, report({ featureId }));
+		assert.equal(projected.metadata?.featureId, featureId);
+		assert.equal(projected.metadata?.requirementId, 'publisher-video-render');
+		assert.equal(projected.metadata?.sourceId, 'fallback-video');
+		assert.equal((projected.project as typeof input).clips[1]?.sourceId, 'fallback-video');
+	}
+});
 
 test('an admitted first-party video-effects render becomes one neutral full-length preview clip', () => {
 	const input = project();
@@ -138,6 +162,7 @@ test('the video fallback projector ignores unrelated reports and never traverses
 	for (const candidate of [
 		report({ availability: 'unknown' }),
 		report({ featureId: 'org.example.video-effects' }),
+		report({ featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects }),
 		report({ declaredDisposition: 'bypass', disposition: 'bypassed', fallback: null }),
 		report({ fallback: { kind: 'audio', sourceId: 'fallback-video', sha256: DIGEST } }),
 		null,
@@ -170,10 +195,29 @@ test('video fallback playback requires one exact manifest binding and valid geom
 		/ambiguous/iu,
 	);
 	assert.throws(
+		() => projectFeatureVideoRenderedFallbackPlayback(input, {
+			...report(), items: [...report().items, {
+				...report().items[0]!,
+				requirementId: 'publisher-video-compositing-render',
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+			}],
+		}),
+		/ambiguous/iu,
+	);
+	assert.throws(
 		() => projectFeatureVideoRenderedFallbackPlayback(
-			input,
-			report({ fallback: { kind: 'video', sourceId: 'fallback-video', sha256: 'de'.repeat(32) } }),
+			project(PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing),
+			report({
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+				fallback: { kind: 'video', sourceId: 'fallback-video', sha256: 'de'.repeat(32) },
+			}),
 		),
+		/does not match the project manifest/iu,
+	);
+	assert.throws(
+		() => projectFeatureVideoRenderedFallbackPlayback(input, report({
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+		})),
 		/does not match the project manifest/iu,
 	);
 

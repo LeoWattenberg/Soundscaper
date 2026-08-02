@@ -10,6 +10,7 @@ import type {
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../project-feature-audio-rendered-fallback.ts';
 import {
 	isProjectFeatureAudioCapabilityId,
+	isProjectFeatureVideoCapabilityId,
 	PROJECT_FEATURE_CAPABILITY_IDS,
 } from '../../project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
@@ -227,7 +228,7 @@ function videoRenderedFallbackApplies(
 	metadata: ProjectFeatureVideoRenderedFallbackMetadata | null | undefined,
 ): boolean {
 	return metadata?.schemaVersion === 1
-		&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
+		&& isProjectFeatureVideoCapabilityId(metadata.featureId)
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
 		&& item.availability === 'unavailable'

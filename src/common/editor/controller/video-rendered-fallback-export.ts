@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../project-feature-capabilities.ts';
+import { isProjectFeatureVideoCapabilityId } from '../project-feature-capabilities.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
@@ -139,7 +139,7 @@ function assertActiveMetadata(
 	requiredSourceIds: readonly string[],
 ): void {
 	if (metadata.schemaVersion !== 1
-		|| metadata.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
+		|| !isProjectFeatureVideoCapabilityId(metadata.featureId)
 		|| requiredSourceIds.length !== 1
 		|| requiredSourceIds[0] !== metadata.sourceId) {
 		throw new TypeError('Video rendered-fallback delivery metadata does not match its required source.');

@@ -319,14 +319,14 @@ test('audio rendered fallback activation is localized and bound to its exact req
 test('video rendered fallback activation is localized and bound to its exact requirement', () => {
 	const metadata = {
 		schemaVersion: 1,
-		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-		requirementId: 'video-effects',
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+		requirementId: 'video-compositing',
 		sourceId: 'rendered-video',
 		trackId: 'framescaper:rendered-video-fallback:track',
 		clipId: 'framescaper:rendered-video-fallback:clip',
 	} satisfies ProjectFeatureVideoRenderedFallbackMetadata;
 	const incompatible = report(false, [
-		item('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects', 'unavailable', 'rendered-fallback'),
+		item('video-compositing', PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing, 'Video compositing', 'unavailable', 'rendered-fallback'),
 		item('other', 'org.example.other', 'Other', 'unknown', 'rendered-fallback'),
 	]);
 	const english = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
@@ -339,11 +339,21 @@ test('video rendered fallback activation is localized and bound to its exact req
 		copy: ENGLISH_COPY,
 		videoRenderedFallback: { ...metadata, requirementId: 'missing' },
 	}));
+	const malformed = [
+		{ ...metadata, schemaVersion: 2 },
+		{ ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects },
+		{ ...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects },
+	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: incompatible,
+		copy: ENGLISH_COPY,
+		videoRenderedFallback: candidate as never,
+	})));
 
 	assert.equal(english.match(/data-project-feature-video-rendered-fallback/gu)?.length, 1);
 	assert.match(english, /Rendered fallback active during editor playback/u);
 	assert.doesNotMatch(english, /rendered-video|framescaper:rendered-video-fallback/iu);
 	assert.doesNotMatch(mismatched, /data-project-feature-video-rendered-fallback/iu);
+	for (const markup of malformed) assert.doesNotMatch(markup, /data-project-feature-video-rendered-fallback/iu);
 });
 
 test('video-effect playback bypass renders localized timeline and Project Bin placeholders', () => {

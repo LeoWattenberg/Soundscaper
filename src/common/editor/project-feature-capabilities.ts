@@ -49,6 +49,26 @@ export function isProjectFeatureAudioCapabilityId(
 	return typeof value === 'string' && PROJECT_FEATURE_AUDIO_CAPABILITY_ID_SET.has(value);
 }
 
+/** Registered first-party video capabilities eligible for one full-render fallback. */
+export const PROJECT_FEATURE_VIDEO_CAPABILITY_IDS = Object.freeze([
+	PROJECT_FEATURE_CAPABILITY_IDS.videoImport,
+	PROJECT_FEATURE_CAPABILITY_IDS.videoPlayback,
+	PROJECT_FEATURE_CAPABILITY_IDS.videoTimelineEditing,
+	PROJECT_FEATURE_CAPABILITY_IDS.videoExport,
+	PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+	PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+] as const);
+
+export type ProjectFeatureVideoCapabilityId = typeof PROJECT_FEATURE_VIDEO_CAPABILITY_IDS[number];
+
+const PROJECT_FEATURE_VIDEO_CAPABILITY_ID_SET = new Set<string>(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS);
+
+export function isProjectFeatureVideoCapabilityId(
+	value: unknown,
+): value is ProjectFeatureVideoCapabilityId {
+	return typeof value === 'string' && PROJECT_FEATURE_VIDEO_CAPABILITY_ID_SET.has(value);
+}
+
 /** Maintained rack processors owned by the first-party audio-effects capability. */
 export const PROJECT_FEATURE_AUDIO_EFFECT_TYPES = Object.freeze([
 	'highpass',

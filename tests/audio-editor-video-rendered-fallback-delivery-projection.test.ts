@@ -55,7 +55,7 @@ test('video delivery applies only the maintained rendered fallback and preserves
 	);
 });
 
-test('video delivery leaves available, bypass-only, and third-party requirements unprojected', () => {
+test('video delivery leaves available, bypass-only, audio, and third-party requirements unprojected', () => {
 	const qualifying = combinedFallbackProject();
 	const available = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
 		.projectForVideoRenderedFallbackDelivery(qualifying);
@@ -70,6 +70,11 @@ test('video delivery leaves available, bypass-only, and third-party requirements
 			fallback: null,
 		}),
 		videoRequirementProject({
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			disposition: 'rendered-fallback',
+			fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
+		}),
+		videoRequirementProject({
 			featureId: 'org.example.video-effects',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
@@ -81,6 +86,21 @@ test('video delivery leaves available, bypass-only, and third-party requirements
 		assert.equal(delivery.videoRenderedFallback, null);
 		assert.deepEqual(delivery.requiredVideoSourceIds, []);
 	}
+});
+
+test('video delivery identifies the actual registered unavailable feature', () => {
+	const canonical = videoRequirementProject({
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
+	});
+	const delivery = createPlaybackProjectService({ videoCompositing: false, audioEffects: true })
+		.projectForVideoRenderedFallbackDelivery(canonical);
+
+	assert.equal(delivery.videoRenderedFallback?.featureId, PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing);
+	assert.equal(delivery.videoRenderedFallback?.requirementId, 'publisher-video-requirement');
+	assert.deepEqual(delivery.requiredVideoSourceIds, ['fallback-video']);
+	assert.equal(delivery.project.clips[0]?.sourceId, 'fallback-video');
 });
 
 test('video delivery does not traverse future project feature or media state', () => {

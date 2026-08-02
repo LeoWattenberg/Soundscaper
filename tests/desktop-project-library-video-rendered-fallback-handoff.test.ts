@@ -65,7 +65,7 @@ interface VideoExportCall {
 	readonly plan: Readonly<Record<string, unknown>>;
 }
 
-test('fresh Soundscaper acquires and plays a managed first-party video rendered fallback', async (context) => {
+test('fresh Soundscaper acquires, plays, and delivers a video-compositing fallback', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-video-fallback-handoff-'));
 	const resources = trackResources(context, appDataPath);
 	const fixture = fallbackProjectFixture();
@@ -170,9 +170,18 @@ test('fresh Soundscaper acquires and plays a managed first-party video rendered 
 		sourceId: fixture.fallback.id,
 	}]);
 	const snapshot = soundscaper.getSnapshot() as typeof ready & Readonly<{
-		videoRenderedFallback?: Readonly<{ sourceId?: string }> | null;
+		videoRenderedFallback?: Readonly<{
+			featureId?: string;
+			requirementId?: string;
+			sourceId?: string;
+		}> | null;
 	}>;
 	assert.equal(snapshot.videoRenderedFallback?.sourceId, fixture.fallback.id);
+	assert.equal(
+		snapshot.videoRenderedFallback?.featureId,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+	);
+	assert.equal(snapshot.videoRenderedFallback?.requirementId, 'publisher-video-render');
 	const visual = videoActions(soundscaper).getSourceVisualData(fixture.fallback.id);
 	assert.ok(visual?.mediaUrl);
 	assert.deepEqual(new Uint8Array(await (await fetch(visual.mediaUrl)).arrayBuffer()), FALLBACK_BYTES);
@@ -241,7 +250,7 @@ function fallbackProjectFixture() {
 		})],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-video-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
 			displayName: 'Publisher video render',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'video', sourceId: fallback.id, sha256: fallbackSha256 },
