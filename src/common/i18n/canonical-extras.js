@@ -353,6 +353,7 @@ const COPY_ENTRIES = Object.freeze([
 	["offlineRuntimeFailed","The update failed; the previous verified runtime remains available if one was installed.","Die Aktualisierung ist fehlgeschlagen; eine zuvor installierte verifizierte Laufzeit bleibt verfügbar."],
 	["offlineRuntimeRelease","Verified release {release}","Verifizierte Version {release}"],
 	["projectBinLinkVideo","Link video","Video verknüpfen"],
+	["projectBinLinkAudio","Link WAV","WAV verknüpfen"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

@@ -52,6 +52,16 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			if (files.length) await importFiles(files);
 		});
 	});
+	const chooseLinkedAudio = () => run(async () => {
+		if (mutationBlocked) return;
+		const choice = await fileService.chooseLinkedAudioOriginal();
+		if (!choice) return;
+		await controller.actions.project.importFiles([choice.file], {
+			destination: 'project-bin',
+			linkedAudioLocatorId: choice.locatorId,
+			linkedAudioLocatorRevision: choice.locatorRevision,
+		});
+	});
 	const chooseLinkedVideo = () => run(async () => {
 		if (mutationBlocked) return;
 		const choice = await fileService.chooseLinkedVideoOriginal();
@@ -174,6 +184,11 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 				<Button variant="secondary" disabled={mutationBlocked} onClick={chooseFiles}>
 					{copy.projectBinImport}
 				</Button>
+				{fileService.linkedAudioOriginalsAvailable && (
+					<Button variant="secondary" disabled={mutationBlocked} onClick={chooseLinkedAudio}>
+						{copy.projectBinLinkAudio}
+					</Button>
+				)}
 				{fileService.linkedVideoOriginalsAvailable && (
 					<Button variant="secondary" disabled={mutationBlocked} onClick={chooseLinkedVideo}>
 						{copy.projectBinLinkVideo}
