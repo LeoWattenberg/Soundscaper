@@ -154,21 +154,32 @@ measurement. Run it with `npm run test:reference:wav-385mib`; direct invocation
 may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and
 coverage discovery fast-skips it with that command.
 
-A third provisional milestone 2 fixture records the direct ZIP32 stem
-publication contracts for native-PCM and canonical realtime and centrally
-admitted offline compressed audio as small focused Node correctness evidence.
-The native service case preflights only the four-byte largest sequential
-intermediate, then selects and opens an
-exact 268-byte destination before rendering `01-dialogue.wav` and
-`02-music.wav` with four marker bytes apiece. It reconstructs the archive,
-closes before commit, cleans each staged result, and leaves failures and
-cancellation unpublished. Those markers isolate archive publication rather
-than native-container conformance; format-specific WAV, AIFF, and BWF evidence
-still owns encoder correctness. The native admission and shared ZIP32 fixtures
-retain the two 60-byte/exact-380-byte largest-intermediate case, the 468-byte
-3/1/2/2-byte archive, and the 256 KiB source sliced at 64 KiB under serial
-backpressure. Prepared Blob mode retains the legacy 272-byte preflight, ordered
-archive additions, and browser download publication.
+A third provisional milestone 2 fixture records direct stem-archive publication
+for exact native-PCM ZIP32 and 7z Copy plus canonical realtime and centrally
+admitted offline compressed ZIP32 audio as small focused Node correctness
+evidence. The native ZIP32 service case preflights only the four-byte largest
+sequential intermediate, then selects and opens an exact 268-byte destination
+before rendering `01-dialogue.wav` and `02-music.wav` with four marker bytes
+apiece. It reconstructs the archive, closes before commit, cleans each staged
+result, and leaves failures and cancellation unpublished. Those markers isolate
+archive publication rather than native-container conformance; format-specific
+WAV, AIFF, and BWF evidence still owns encoder correctness. The native admission
+and shared ZIP32 fixtures retain the two 60-byte/exact-380-byte
+largest-intermediate case, the 468-byte 3/1/2/2-byte archive, and the 256 KiB
+source sliced at 64 KiB under serial backpressure. Prepared Blob mode retains
+the legacy 272-byte preflight, ordered archive additions, and browser download
+publication.
+
+The maintained planner selects 7z only when an exact native stem plan exceeds
+ZIP32 limits. A deliberately small injected route fixture avoids making that a
+scale run: it preflights the same four-byte largest sequential intermediate,
+opens one exact 151-byte destination, writes a zero-filled 32-byte prefix before
+rendering, retains at most one complete four-byte stem, and appends the complete
+next header. After the exact stream is sealed, the destination replaces only
+that fixed 32-byte prefix once without changing its written-byte count, then
+commits. The completed bytes match the checked-in 7z Copy golden, and the route
+constructs no final archive `Blob` and calls neither the legacy archive nor the
+download publisher.
 
 The compressed service cases admit MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2,
 and AAC/M4A for owned canonical `realtime-stream` plans and exact centrally
@@ -200,17 +211,17 @@ FFmpeg canonical channel mapping. An ordinary offline renderer or encoder
 failure may retry only the current stem in realtime before its ZIP entry begins;
 currentness loss refuses that retry, and post-entry failure never retries.
 
-This direct ZIP32 stem witness uses a provider-injected prepared streaming
+This direct stem-archive witness uses a provider-injected prepared streaming
 destination. It does not exercise File System Access, an Electron filesystem,
 a native picker, packaged UI, or real browser or operating-system behavior.
 The compressed bytes are injected, so it does not qualify actual FFmpeg codec
 execution, codec conformance or expansion, worker MEMFS allocation, heap or RSS
-amplification, garbage collection, CPU, or elapsed time. Custom FFmpeg stems,
-7z, BW64 stems, video, and final-Blob direct publication remain excluded, and
-reference scale remains excluded. These small fixtures are not renderer-heap,
-process-RSS, browser, operating-system, quota, crash, power-loss, or
-filesystem-durability evidence. They remain outside the inputs to the milestone
-2 bounded-memory workload, which stays planned.
+amplification, garbage collection, CPU, or elapsed time. Custom FFmpeg and
+compressed 7z stems, BW64 stems, video, and final-Blob direct publication remain
+excluded, and reference scale remains excluded. These small fixtures are not
+renderer-heap, process-RSS, browser, operating-system, quota, crash, power-loss,
+or filesystem-durability evidence. They remain outside the inputs to the
+milestone 2 bounded-memory workload, which stays planned.
 
 A fourth provisional milestone 2 fixture records direct compressed whole-mix
 output across both maintained render strategies as small focused Node evidence.
@@ -328,10 +339,10 @@ The fixture specifications are deliberately concrete:
 
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
   inspection and counting-sink full-import witnesses, plus the exact 385 MiB
-  direct-WAV counting-SHA witness and the small direct ZIP32 native-PCM and
-  canonical realtime and centrally admitted offline compressed stem,
-  direct compressed-audio, and direct MP4/WebM correctness fixtures
-  described above;
+  direct-WAV counting-SHA witness and the small direct native-PCM ZIP32/7z,
+  canonical realtime and centrally admitted offline compressed ZIP32 stem,
+  direct compressed-audio, and direct MP4/WebM correctness fixtures described
+  above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video
