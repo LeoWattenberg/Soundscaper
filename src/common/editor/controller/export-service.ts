@@ -8,13 +8,9 @@ import {
 	projectForAudioRenderedFallbackExport,
 } from './audio-rendered-fallback-export.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
+import { commitDirectMp3Destination, encodeDirectMp3StagedFile, prepareDirectMp3Destination, type DirectMp3Destination } from './direct-mp3-export.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
-import {
-	commitPreparedDirectStemArchiveDestination,
-	directStemArchiveTemporaryBytes,
-	prepareDirectStemArchiveDestination,
-	streamDirectStemArchive,
-} from './direct-stem-archive-export.ts';
+import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
 export interface ExportServiceRuntime {
@@ -94,8 +90,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		let exportProject = cloneProject(delivery.project);
 		let exportRenderSources: ExportRenderSources;
 		let pendingCleanup = null;
-		let pendingDirectDestination: DirectPcmDestination | null = null;
+		let pendingDirectDestination: DirectPcmDestination | DirectMp3Destination | null = null;
 		let directStemArchive = false;
+		let directMp3 = false;
 		try {
 			const fallbackProvider = await admitAudioRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
@@ -135,6 +132,16 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			pendingDirectDestination = stemPreparation.destination;
 			directStemArchive = Boolean(pendingDirectDestination);
 			if (!pendingDirectDestination) {
+				const mp3Preparation = await prepareDirectMp3Destination(
+					fileService, plan,
+					requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
+					abort.signal,
+				);
+				if (mp3Preparation.cancelled) return mp3Preparation.cancelled;
+				pendingDirectDestination = mp3Preparation.destination;
+				directMp3 = Boolean(pendingDirectDestination);
+			}
+			if (!pendingDirectDestination) {
 				const directPreparation = await prepareDirectPcmExportDestination(
 					fileService, plan,
 					requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
@@ -146,7 +153,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			if (directStemArchive) {
 				if (directStemTemporaryBytes === null) throw new Error('The direct stem archive plan changed before rendering.');
 				await preflightStorage(directStemTemporaryBytes, 'export');
-			} else if (!pendingDirectDestination) {
+			} else if (!pendingDirectDestination || directMp3) {
 				await preflightStorage(
 					plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
 					'export',
@@ -161,7 +168,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				const encoded = await renderAndEncode(
 					exportProject, plan, settings, abort.signal, exportRenderSources,
 					{ start: 0, end: 1 },
-					pendingDirectDestination,
+					directMp3 ? null : pendingDirectDestination as DirectPcmDestination | null,
+					directMp3 ? pendingDirectDestination as DirectMp3Destination : null,
+					assertExportCurrent,
 				);
 				if (encoded.directDestination) directOutput = encoded;
 				else {
@@ -173,7 +182,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			} else if (directStemArchive) {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
 				directOutput = await streamDirectStemArchive({
-					destination: pendingDirectDestination!, plan, signal: abort.signal,
+					destination: pendingDirectDestination as DirectPcmDestination, plan, signal: abort.signal,
 					assertCurrent: assertExportCurrent,
 					async renderStem(output, index) {
 						const snapshot = stemProject(exportProject, output.trackId);
@@ -219,10 +228,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				await clearPreviousExportOutput();
 				const published = directStemArchive
 					? await commitPreparedDirectStemArchiveDestination(
-						pendingDirectDestination!, plan, directOutput.byteLength, assertExportCurrent,
+						pendingDirectDestination as DirectPcmDestination, plan, directOutput.byteLength, assertExportCurrent,
 					)
+					: directMp3
+						? await commitDirectMp3Destination(
+							pendingDirectDestination as DirectMp3Destination, plan, directOutput.byteLength, assertExportCurrent,
+						)
 					: await commitDirectPcmDestination(
-						pendingDirectDestination!, plan.outputFileBytesPerRender, directOutput.byteLength,
+						pendingDirectDestination as DirectPcmDestination, plan.outputFileBytesPerRender, directOutput.byteLength,
 						assertExportCurrent, directPcmContainerLabel(plan.format),
 					);
 				pendingDirectDestination = null;
@@ -281,7 +294,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				} catch (cleanupError) {
 					error = new AggregateError(
 						[error, cleanupError],
-						'The streamed PCM export and destination cleanup both failed.',
+						'The streamed audio export and destination cleanup both failed.',
 					);
 				}
 			}
@@ -310,6 +323,8 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		renderSources: ExportRenderSources,
 		progressRange: RuntimeValue = { start: 0, end: 1 },
 		directDestination: DirectPcmDestination | null = null,
+		directMp3Destination: DirectMp3Destination | null = null,
+		assertDirectCurrent: () => void = () => undefined,
 	) {
 		throwIfAborted(signal);
 		const progressSpan = progressRange.end - progressRange.start;
@@ -321,7 +336,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
 		if (plan.render.strategy === 'realtime-stream') {
 			setStatus(copy.largeProjectRealtimeExport);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination);
+			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination, directMp3Destination, assertDirectCurrent);
 		}
 		try {
 			const rendered = await renderSnapshot(snapshot, {
@@ -342,7 +357,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			if ((error as Readonly<{ name?: string }>)?.name === 'AbortError'
 				|| isProjectAudioFallbackIntegrityError(error)) throw error;
 			setStatus(copy.realtimeExportFallback);
-			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination);
+			return renderRealtimeEncoded(snapshot, plan, settings, signal, renderSources, directDestination, directMp3Destination, assertDirectCurrent);
 		}
 	}
 
@@ -446,6 +461,8 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
 		renderSources: ExportRenderSources,
 		directDestination: DirectPcmDestination | null = null,
+		directMp3Destination: DirectMp3Destination | null = null,
+		assertDirectCurrent: () => void = () => undefined,
 	) {
 		if (renderSources.prepareTimePitchCaches) await prepareCommittedTimePitchCaches(snapshot, signal);
 		const renderSampleRate = normalizeProjectSampleRate(snapshot.sampleRate);
@@ -498,6 +515,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		const renderEngine = createCacheAwareRenderEngine();
 		const outputTransform: { current: RealtimeExportPcmTransform | null } = { current: null };
 		let renderedSampleRate = renderSampleRate;
+		let directMp3Handoff = false;
 		try {
 			if (renderSources.chunkSources === null) renderEngine.loadProject(snapshot, renderSources.sourceMap);
 			else renderEngine.loadProject(snapshot, renderSources.sourceMap, {
@@ -542,17 +560,26 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				return { blob: stagingFile, bytes: null, mimeType: plan.mimeType, cleanup: () => sink.remove() };
 			}
 			setStatus(copy.encoding);
-			const encoded = await ffmpeg.encodeFile(stagingFile, plan.format, {
+			const transcodeSettings = {
 				...plan.encoding,
 				bitDepth,
 				sampleRate: plan.sampleRate,
 				applyDither: plan.encoding.sampleFormat !== 'float32' && plan.ditherMode !== 'none' && plan.format !== 'flac',
 				signal,
-			});
+			};
+			if (directMp3Destination) {
+				directMp3Handoff = true;
+				return encodeDirectMp3StagedFile({
+					destination: directMp3Destination, plan, stagedFile: stagingFile, ffmpeg, signal,
+					encodingSettings: transcodeSettings, assertCurrent: assertDirectCurrent,
+					cleanupStagedFile: () => sink.remove(), abortStagedFile: () => sink.abort(),
+				});
+			}
+			const encoded = await ffmpeg.encodeFile(stagingFile, plan.format, transcodeSettings);
 			await sink.remove();
 			return encoded;
 		} catch (error) {
-			if (sink) await sink.abort();
+			if (sink && !directMp3Handoff) await sink.abort();
 			throw error;
 		} finally {
 			await renderEngine.dispose();
