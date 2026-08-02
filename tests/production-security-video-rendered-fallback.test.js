@@ -73,7 +73,7 @@ test('first-party video-effects fallback playback and handoff stay exact and nar
 	);
 	assert.match(
 		control.summary,
-		/no generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*video.export.*packaged.*browser codec.*durable byte lease.*range.*reference-scale.*whole-handoff atomicity.*embedded video audio/iu,
+		/no generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*packaged.*browser codec.*durable byte lease.*range.*reference-scale.*whole-handoff atomicity.*embedded video audio.*final-video fallback delivery.*separate control/iu,
 	);
 
 	const documentation = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
@@ -95,6 +95,6 @@ test('first-party video-effects fallback playback and handoff stay exact and nar
 	);
 	assert.match(
 		documentation,
-		/generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*video.export.*packaged.*browser.codec.*durable byte lease.*range.*reference-scale.*embedded video audio/iu,
+		/generic or third-party fallback.*authored proxy or freeze.*future.schema.*offline render.*packaged.*browser.codec.*durable byte lease.*range.*reference-scale.*embedded video audio.*final-video fallback delivery.*separate control/iu,
 	);
 });

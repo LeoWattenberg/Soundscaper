@@ -52,7 +52,7 @@ First-party audio rendered-fallback playback is a separate exact schema 9 contro
 
 When exact schema 9 reports registered `videoEffects` as unavailable with declared `bypass` and effective `bypassed`, activation derives a bounded, non-persisted preview-playback projection before activation side effects. Enabled maintained first-party effects on timeline and Project Bin video clips become minimal disabled copies for engine loading; the canonical project, history, source loading, persistence, save paths, offline render, and video export remain unchanged. The lower-only 4,096-effect ceiling, 256-character stable-ID ceiling, and 128-character effect-type ceiling reject instead of truncating, and inventory construction does not read effect `params`, `context`, `state`, or opaque payloads. Each placeholder entry in the deep-frozen per-tab and snapshot metadata records only Timeline or Project Bin location, clip ID, effect ID, and effect type and drives localized, control-free placeholders with canonical clip ownership. A cached selector removes only exact timeline clip ID, effect ID, and effect type matches before compositor rendering and active-effect counting; Project Bin inventory is not applied to the compositor. Future schemas return before clip or Project Bin traversal. Already-disabled, foreign, unknown, and third-party effects, rendered fallback, offline render or export behavior, activation controls, earlier Soundscaper schema compatibility, and complete third-party activation gating remain outside this video slice.
 
-First-party video-effects rendered-fallback preview and playback is a separate exact schema 9 control. Exactly one registered first-party `videoEffects` item must be unavailable with declared and effective `rendered-fallback`, and its video descriptor must match the canonical manifest requirement. Existing controller admission fully reads the genuine immutable video Blob, verifies its exact admitted size and SHA-256 through non-raiseable 4 MiB digest windows before activation, and the project-switch path rechecks admission currentness after required-source activation and before transient engine entry. The fallback source must be the one exact video source named by the manifest. Project and source sample rates must be positive safe integers and equal; frame count, width, and height must be positive safe integers, and frame rate must be positive and finite. Missing, duplicated, wrong-kind, ambiguous, or drifted sources, unsafe geometry, and reserved synthetic track or clip IDs in the timeline or Project Bin reject. The transient full-length render begins at frame zero, replaces only timeline video tracks and clips, and preserves audio, labels, Project Bin, and sources; canonical document and history state stay unchanged. Initial activation and later playback reapply explicitly activate a required manifest-only video source before the transient engine project and preview. Preview lookup first asks the canonical clip surfaces; because the synthetic projected clip is not canonical, it then resolves the exact fallback source ID through canonical source lookup and never treats the synthetic clip ID as canonical state. Deeply frozen session and snapshot metadata drives the localized notice that the fallback is active during editor playback without exposing source identity or digest. This narrow control does not provide generic or third-party fallback, an authored proxy or freeze contract, future-schema behavior, offline render or video-export fallback, packaged or browser-codec qualification, a durable byte lease, range protocol, or reference-scale evidence, and it makes no promise about embedded video audio extraction or playback.
+First-party video-effects rendered-fallback preview and playback is a separate exact schema 9 control. Exactly one registered first-party `videoEffects` item must be unavailable with declared and effective `rendered-fallback`, and its video descriptor must match the canonical manifest requirement. Existing controller admission fully reads the genuine immutable video Blob, verifies its exact admitted size and SHA-256 through non-raiseable 4 MiB digest windows before activation, and the project-switch path rechecks admission currentness after required-source activation and before transient engine entry. The fallback source must be the one exact video source named by the manifest. Project and source sample rates must be positive safe integers and equal; frame count, width, and height must be positive safe integers, and frame rate must be positive and finite. Missing, duplicated, wrong-kind, ambiguous, or drifted sources, unsafe geometry, and reserved synthetic track or clip IDs in the timeline or Project Bin reject. The transient full-length render begins at frame zero, replaces only timeline video tracks and clips, and preserves audio, labels, Project Bin, and sources; canonical document and history state stay unchanged. Initial activation and later playback reapply explicitly activate a required manifest-only video source before the transient engine project and preview. Preview lookup first asks the canonical clip surfaces; because the synthetic projected clip is not canonical, it then resolves the exact fallback source ID through canonical source lookup and never treats the synthetic clip ID as canonical state. Deeply frozen session and snapshot metadata drives the localized notice that the fallback is active during editor playback without exposing source identity or digest. This narrow playback control does not provide generic or third-party fallback, an authored proxy or freeze contract, future-schema behavior, offline render, packaged or browser-codec qualification, a durable byte lease, range protocol, or reference-scale evidence, and it makes no promise about embedded video audio extraction or playback. Maintained final-video fallback delivery is governed only by the separate control below.
 
 The same maintained first-party relationship crosses explicit managed handoff in
 one composed headless Framescaper-to-fresh-Soundscaper workflow. Retention roots
@@ -65,6 +65,38 @@ transfer authenticates each descriptor and body digest, not the manifest
 declaration. This point-in-time whole-Blob evidence is per binding and does not
 claim whole-handoff atomicity, a durable playback lease, packaged UI, browser
 codec playback, or reference-scale range transport.
+
+Final video rendered-fallback delivery is another narrow exact schema 9
+control. Exactly one registered first-party `videoEffects` item must be
+unavailable with declared and effective `rendered-fallback`, exactly match the
+canonical manifest, and be the only rendered fallback in the report. The
+capability-evaluated service applies only the video delivery projection: the
+full fallback replaces timeline video from frame zero while canonical audio is
+retained, and audio fallback plus audio/video bypass projections are not
+composed. Canonical project, history, and save state stay unchanged.
+
+An active delivery does not reuse activation-time byte admission. Under the
+owned export-task signal, the controller freshly loads and verifies the actual
+local managed Blob's exact admitted size and SHA-256 through the non-raiseable
+4 MiB digest window before export planning or delivery-body reads. Task,
+project-generation, and operation currentness are asserted before verification
+and again after byte admission immediately before planning. The same signal
+fences the fallback body load, separately staged canonical-audio render, and
+FFmpeg operation; post-encode currentness is required before output Blob and
+download publication, and a late publication is cleaned up. The projected
+fallback body is the sole video input. FFmpeg maps canonical audio only from the
+separately staged mix, so embedded audio in the fallback container is ignored.
+A stale activation-time digest, missing managed body, wrong body, or digest
+mismatch refuses before FFmpeg or download.
+
+The composed fresh managed handoff test replaces the acquired fallback after
+activation, proves that corrupt bytes cannot authorize delivery, restores the
+exact acquired body, and then proves that body alone reaches a successful video
+output while canonical state remains unchanged. This verification is
+point-in-time, not a durable byte lease. It makes no generic or third-party,
+simultaneous rendered-fallback, authored fallback or proxy, linked-only,
+unmanaged, reference-scale, browser-codec, packaged-runtime, whole-handoff
+atomicity, or broad preview/export parity claim.
 
 Descriptor validation alone does not hash or authenticate the referenced media bytes; the separate exact-schema-9 controller admission described above verifies referenced local bytes at its narrower boundary.
 
