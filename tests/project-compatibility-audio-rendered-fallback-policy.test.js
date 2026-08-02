@@ -6,19 +6,22 @@ import test from 'node:test';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 
-test('compatibility policy qualifies only first-party audio whole-mix fallback playback and delivery', async () => {
+test('compatibility policy qualifies only registered first-party audio whole-mix fallback playback and delivery', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const rule = policy.rules.find(({ id }) => id === 'current-first-party-audio-rendered-fallback-playback');
 	assert.ok(rule);
 	assert.equal(rule.status, 'implemented');
-	assert.match(rule.requiredOutcome, /exact-current-schema.*audioEffects.*rendered fallback.*whole-mix.*editor playback.*final-mix audio export.*selector-bound operation-time.*private chunk provider.*canonical state/iu);
+	assert.match(
+		rule.requiredOutcome,
+		/exact-current-schema.*host-owned registered audio capability allowlist.*audioImport.*audioPlayback.*audioTimelineEditing.*audioMixing.*audioRecording.*audioGenerators.*audioEffects.*audioSpectralEditing.*audioAnalysis.*audioMacros.*audioSampleEditing.*rendered fallback.*whole-mix.*editor playback.*final-mix audio export.*selector-bound operation-time.*private chunk provider.*canonical state/iu,
+	);
 	assert.match(
 		rule.requiredOutcome,
 		/explicit managed desktop handoff.*fallback source.*only by that requirement.*fresh-recipient acquisition.*controller digest verification.*activation/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative.*exact schema 9.*registered audioEffects.*unavailable.*declared and effective rendered-fallback.*descriptor.*canonical manifest/iu,
+		/authoritative.*exact schema 9.*exactly one.*host-owned registered audio capability allowlist.*unavailable.*declared and effective rendered-fallback.*descriptor.*canonical manifest/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -70,13 +73,22 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
-		/engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation failure.*successful commit.*not roll back.*ordinary-source loading.*outside.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*generic fallback.*video fallback beyond.*separately maintained first-party video-effects rule.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
+		/audioSpectralEditing.*composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/operation-time.*selector.*exact requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*tamper.*refus.*repair.*canonical project.*shadow.*unchanged/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation failure.*successful commit.*not roll back.*ordinary-source loading.*outside.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*more than one.*different registered audio feature IDs.*video IDs.*unknown or third-party.*future schemas.*earlier Soundscaper.*linked-only.*unmanaged.*generic.*authoring.*freeze.*proxy.*packaged.*UI.*browser.*reference-scale.*durable byte lease/iu,
 	);
 
 	for (const reference of rule.evidence) {
 		await assert.doesNotReject(access(new URL(`../${reference}`, import.meta.url)), reference);
 	}
 	for (const reference of [
+		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-feature-audio-rendered-fallback.ts',
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-audio.ts',
@@ -91,6 +103,7 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 		'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'tests/audio-editor-project-feature-audio-rendered-fallback.test.ts',
 		'tests/audio-editor-playback-project-service.test.ts',
+		'tests/audio-editor-audio-rendered-fallback-delivery-projection.test.ts',
 		'tests/audio-editor-audio-rendered-fallback-export.test.ts',
 		'tests/audio-editor-audio-rendered-fallback-export-service.test.ts',
 		'tests/audio-editor-project-fallback-integrity-audio-selection.test.ts',
@@ -106,7 +119,8 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
 	const documentation = await readFile(new URL('../docs/project-compatibility.md', import.meta.url), 'utf8');
-	assert.match(documentation, /exact schema 9.*first-party audio-effects rendered fallback.*whole-mix.*frame zero.*editor playback/isu);
+	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
+	assert.match(normalizedDocumentation, /exact schema 9.*host-owned registered audio capability allowlist.*`audioImport`.*`audioPlayback`.*`audioTimelineEditing`.*`audioMixing`.*`audioRecording`.*`audioGenerators`.*`audioEffects`.*`audioSpectralEditing`.*`audioAnalysis`.*`audioMacros`.*`audioSampleEditing`.*whole-mix.*frame zero.*editor playback/isu);
 	assert.match(documentation, /initial activation.*required fallback source.*decoded buffer or stream-provider candidate.*privately.*before.*activation reservation.*without changing.*shared buffer.*provider.*engine.*chunk-source state.*currentness.*reservation.*fails.*discarded.*prior buffer.*provider.*identities.*active project.*tab.*lock.*unchanged/isu);
 	assert.match(documentation, /ordinary-source loading.*excludes.*required fallback.*private source-buffer.*chunk-source snapshots.*staged required representation.*wins.*engine.*engine callback.*succeeds.*lifetime signal.*active.*synchronous project-identity or.*activation-admission assertion.*immediately\s+before shared publication.*no.*intervening await.*shared\s+source maps/isu);
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact signal reason.*late settlement.*buffer.*provider.*engine-source.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
@@ -116,6 +130,9 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	assert.match(documentation, /final-mix.*only.*stems.*BW64.*ADM.*reject.*before.*verification.*planning.*destination.*render/isu);
 	assert.match(documentation, /operation-time.*selector.*requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*full canonical.*chunk scan.*private.*chunk provider.*sole.*render source.*global.*cache.*unchanged/isu);
 	assert.match(documentation, /provider.*read.*rereads.*stored chunk.*geometry.*digest.*currentness.*chang.*integrity.*offline.*does not retry.*realtime/isu);
-	assert.match(documentation, /corrupt.*after activation.*reject.*before.*render.*output.*restor.*exact PCM.*final-mix.*canonical.*unchanged/isu);
+	assert.match(normalizedDocumentation, /Corrupt same-shaped recipient-local PCM after activation.*rejects delivery before rendering or output.*exact repair restores the exact PCM.*final-mix.*canonical project.*shadow.*unchanged/isu);
+	assert.match(normalizedDocumentation, /`audioSpectralEditing`.*composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/isu);
+	assert.match(normalizedDocumentation, /operation-time.*selector.*exact requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*tamper.*refus.*repair.*canonical project.*shadow.*unchanged/isu);
 	assert.match(documentation, /point-in-time.*not a durable.*lease.*first-party.*audio whole-mix and video-effects full-render.*narrow editor-playback and delivery.*generic.*unknown.*third-party.*rendered-fallback substitution/isu);
+	assert.match(normalizedDocumentation, /more than one.*different registered audio feature IDs.*video IDs.*future schemas.*earlier Soundscaper schemas.*linked-only.*unmanaged.*generic.*authoring.*freeze.*proxy.*packaged.*UI.*browser.*reference-scale/isu);
 });

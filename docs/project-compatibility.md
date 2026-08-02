@@ -896,15 +896,19 @@ document snapshot identify each affected scope, owner ID, effect ID, and effect
 type without reading or retaining effect params, context, state, or other
 payloads.
 
-The maintained exact schema 9 first-party audio-effects rendered fallback is a
-separate, narrower playback projection. It activates only when exactly one
-registered `audioEffects` report item is unavailable with declared and effective
-`rendered-fallback` dispositions and its audio descriptor exactly matches the
-canonical manifest. The referenced source must be mono or stereo, cover a safe
-positive frame range, and match the project sample rate and master channel
-count. ADM and surround projects, ambiguous candidates, descriptor drift,
-missing sources, unsafe geometry, and collisions with the reserved synthetic
-track or clip IDs reject rather than guessing.
+The maintained exact schema 9 first-party audio rendered fallback uses the
+explicit host-owned registered audio capability allowlist: `audioImport`,
+`audioPlayback`, `audioTimelineEditing`, `audioMixing`, `audioRecording`,
+`audioGenerators`, `audioEffects`, `audioSpectralEditing`, `audioAnalysis`,
+`audioMacros`, and `audioSampleEditing`. It is a separate, narrower playback
+projection. It activates only when exactly one report item uses an ID from that
+allowlist, is unavailable with declared and effective `rendered-fallback`
+dispositions, and has an audio descriptor that exactly matches the canonical
+manifest. The referenced source must be mono or stereo, cover a safe positive
+frame range, and match the project sample rate and master channel count. ADM and
+surround projects, ambiguous candidates, descriptor drift, missing sources,
+unsafe geometry, and collisions with the reserved synthetic track or clip IDs
+reject rather than guessing.
 
 On explicit desktop handoff, manifest reachability retains this fallback even
 when no timeline or Project Bin clip references it. A real Soundscaper sender
@@ -916,11 +920,15 @@ read-only activation. The engine alone receives the synthetic whole-mix
 projection and exact fallback samples, while the document snapshot remains the
 publisher's canonical project.
 
-The same composed handoff fixture corrupts that recipient-local fallback with
-same-shaped PCM after activation. Fresh operation-time verification rejects the
-delivery before rendering or output. Restoring the exact PCM then produces a
-final-mix float WAV containing the expected fallback samples, while the
-canonical controller project and stored project shadow remain unchanged.
+`audioSpectralEditing` supplies the composed Soundscaper-to-fresh-Framescaper
+witness. The canonical manifest, frozen metadata, and localized source/component
+UI stay bound to the exact feature ID and requirement ID without exposing
+fallback internals. Its operation-time export selector cross-binds the exact
+requirement ID and feature ID with the audio kind, source ID, and SHA-256.
+Corrupt same-shaped recipient-local PCM after activation triggers tamper refusal
+and rejects delivery before rendering or output; exact repair restores the exact
+PCM and produces a final-mix float WAV containing the expected fallback samples
+while the canonical project and stored project shadow remain unchanged.
 
 For editor playback, that source becomes one neutral whole-mix clip using its
 full frame range from frame zero. The transient projection removes every
@@ -985,14 +993,22 @@ audio export keeps its existing source and renderer contracts.
 The canonical project, history, persistence, and save paths never receive the
 playback or delivery projection and remain unchanged by final-mix output.
 
-Deeply frozen per-tab and document-snapshot metadata drives one localized
-active-during-editor-playback indicator bound to the exact report requirement;
-the UI does not read or expose the source ID or digest. This audio slice is not
-generic fallback selection and does not activate or deliver video, unknown, or
-third-party requirements. It does not qualify stems, BW64 or ADM delivery,
-simultaneous fallback delivery, authored fallback relationships, future
-schemas, or earlier Soundscaper schemas. The separate maintained video slice
-below does not broaden that boundary.
+Deeply frozen per-tab and document-snapshot metadata retains the selected
+feature ID, requirement ID, and source ID and drives one localized
+active-during-editor-playback source/component UI indicator. The UI matches the
+exact feature and requirement without reading or exposing the audio kind,
+source ID, or digest; operation-time export separately binds the exact audio
+kind and SHA-256 from the canonical manifest. More than one qualifying
+registered audio fallback, including across different registered audio feature
+IDs, rejects as ambiguous. Video IDs never qualify for this audio projection,
+and simultaneous audio/video rendered fallbacks reject at delivery. Unknown or
+third-party IDs, future schemas, and earlier Soundscaper schemas remain outside
+this slice. Linked-only and unmanaged delivery are unqualified. Generic fallback
+authoring, freeze, and proxy relationships remain unqualified, as do stems,
+BW64 or ADM delivery and ADM or surround playback. Packaged runtime or UI
+workflows, operating-system behavior, browser audio behavior, reference-scale
+evidence, and a durable byte lease remain unqualified. The separate maintained
+video slice below does not broaden that boundary.
 
 The maintained exact schema 9 first-party video-effects rendered fallback is a
 separate narrow editor-playback and video-delivery projection. It activates only
