@@ -616,7 +616,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history),
 		isReadOnly: () => state.readOnly,
-		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedVideoSourceIds: liveSessionSourceIds,
+		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
 			await persistSetting(lastProjectSettingKey, projectId);
@@ -716,7 +716,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		clearWaveformPcmWindows,
 		clipTimePitchCache, commit, copy, currentTimeMs, editorHistoryProjects, engine,
 		evictUnreferencedSourceCaches, flushProject, getProject: () => project, handleError,
-		liveSessionClipIds, liveSessionSourceIds, newProject, openProject, persistSetting,
+		liveSessionClipIds, liveSessionLinkedOriginalSourceReferences: projectRetentionService.liveSessionLinkedOriginalSourceReferences, liveSessionSourceIds, newProject, openProject, persistSetting,
 		projectSaveService, projectSessionService, publishDocumentSnapshot,
 		recordingRoutingSettingKey, releaseProjectLock, revokeVideoVisuals, saveNow,
 		scheduleTimer: globalThis.setTimeout.bind(globalThis), sessionController, sessionTab,
@@ -815,7 +815,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
 				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }),
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard),
-		saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedVideoSourceIds: Object.freeze([...projectRetentionService.liveSessionSourceIds()]) }),
+		saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedOriginalSourceReferences: projectRetentionService.liveSessionLinkedOriginalSourceReferences() }),
 		listProjects: () => store.listProjects(),
 		synchronizeMicrophoneMeterTarget,
 		publishProjectState,

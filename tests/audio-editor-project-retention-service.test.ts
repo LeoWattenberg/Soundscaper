@@ -10,7 +10,15 @@ import {
 } from '../src/common/editor/controller/project-retention-service.ts';
 
 interface TestProject extends RetentionProject {
-	readonly clips: readonly Readonly<{ id: string; sourceId?: string }>[];
+	readonly clips: readonly Readonly<{
+		readonly id: string;
+		readonly sourceId?: string;
+		readonly kind?: 'audio' | 'video';
+	}>[];
+	readonly sources?: readonly Readonly<{
+		readonly id: string;
+		readonly kind: 'audio' | 'video';
+	}>[];
 }
 
 interface TestHistory extends RetentionHistory<TestProject> {
@@ -104,6 +112,91 @@ test('retention roots include every tab history clip and preserve existing dirty
 	assert.deepEqual([...service.liveSessionClipIds()].sort(), ['current-clip', 'other-clip', 'undo-clip']);
 	service.retainLiveClipIds();
 	assert.deepEqual(retained, [['current-clip', 'other-clip', 'undo-clip']]);
+});
+
+test('linked-original roots preserve audio and video kinds across histories and live state', () => {
+	const audio: TestProject = {
+		id: 'audio-project',
+		clips: [
+			{ id: 'audio-clip', sourceId: 'audio-history', kind: 'audio' },
+			{ id: 'audio-shared-clip', sourceId: 'same-id', kind: 'audio' },
+			{ id: 'audio-only-clip', sourceId: 'audio-only', kind: 'audio' },
+		],
+		sources: [
+			{ id: 'audio-history', kind: 'audio' },
+			{ id: 'audio-only', kind: 'audio' },
+			{ id: 'fallback-only', kind: 'audio' },
+			{ id: 'same-id', kind: 'audio' },
+		],
+		featureRequirements: {
+			requirements: [{ fallback: { kind: 'audio', sourceId: 'fallback-only' } }],
+		},
+	};
+	const video: TestProject = {
+		id: 'video-project',
+		clips: [
+			{ id: 'video-clip', sourceId: 'video-history', kind: 'video' },
+			{ id: 'video-shared-clip', sourceId: 'same-id', kind: 'video' },
+		],
+		sources: [
+			{ id: 'audio-only', kind: 'video' },
+			{ id: 'video-history', kind: 'video' },
+			{ id: 'same-id', kind: 'video' },
+		],
+	};
+	const service = createProjectRetentionService<TestProject, TestHistory>({
+		state: {
+			history: { present: audio },
+			clipboard: {
+				tracks: [
+					{ clips: [{ sourceId: 'clipboard-audio', kind: 'audio' }] },
+					{ clips: [{ sourceId: 'clipboard-video', kind: 'video' }] },
+				],
+			},
+			readOnly: false,
+			recordingSourceId: 'recording-audio',
+		},
+		getProject: () => audio,
+		setProject: () => undefined,
+		compactHistory: (value) => value,
+		sessionTab: () => ({ dirty: false }),
+		updateProjectHistory: () => undefined,
+		getSourceReferenceCounts: () => ({
+			'audio-history': 1,
+			'audio-only': 1,
+			'fallback-only': 1,
+			'same-id': 2,
+			'video-history': 1,
+			'clipboard-audio': 1,
+			'clipboard-video': 1,
+		}),
+		getSessionTabs: () => [
+			{ history: { present: audio } },
+			{ history: { present: video } },
+		],
+		editorHistoryProjects: (value) => [value.present],
+		allProjectClips: (value) => value.clips,
+		clipCache: { getProtectedSourceIds: () => ['render-cache-audio'] },
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		evictSourceCaches: () => undefined,
+	});
+
+	const references = service.liveSessionLinkedOriginalSourceReferences();
+	assert.deepEqual(references, [
+		{ kind: 'audio', sourceId: 'audio-history' },
+		{ kind: 'audio', sourceId: 'audio-only' },
+		{ kind: 'audio', sourceId: 'clipboard-audio' },
+		{ kind: 'audio', sourceId: 'fallback-only' },
+		{ kind: 'audio', sourceId: 'recording-audio' },
+		{ kind: 'audio', sourceId: 'render-cache-audio' },
+		{ kind: 'audio', sourceId: 'same-id' },
+		{ kind: 'video', sourceId: 'clipboard-video' },
+		{ kind: 'video', sourceId: 'same-id' },
+		{ kind: 'video', sourceId: 'video-history' },
+	]);
+	assert.equal(Object.isFrozen(references), true);
+	assert.equal(references.every(Object.isFrozen), true);
 });
 
 test('read-only and missing projects never update session history', () => {

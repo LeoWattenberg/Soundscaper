@@ -19,6 +19,7 @@ export interface ProjectAdminServiceRuntime {
 	readonly getProject: LegacyPort;
 	readonly handleError: LegacyPort;
 	readonly liveSessionClipIds: LegacyPort;
+	readonly liveSessionLinkedOriginalSourceReferences: LegacyPort;
 	readonly liveSessionSourceIds: LegacyPort;
 	readonly newProject: LegacyPort;
 	readonly openProject: LegacyPort;
@@ -48,7 +49,8 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		cancelPlaybackCachePreparation, clearScheduledTimer, clearWaveformPcmWindows,
 		clipTimePitchCache, commit, copy, currentTimeMs, editorHistoryProjects, engine,
 		evictUnreferencedSourceCaches, flushProject, getProject, handleError,
-		liveSessionClipIds, liveSessionSourceIds, newProject, openProject, persistSetting,
+		liveSessionClipIds, liveSessionLinkedOriginalSourceReferences,
+		liveSessionSourceIds, newProject, openProject, persistSetting,
 		projectSaveService, projectSessionService, publishDocumentSnapshot,
 		recordingRoutingSettingKey, releaseProjectLock, revokeVideoVisuals, saveNow,
 		scheduleTimer, sessionController, sessionTab, setProject, sourceBuffers,
@@ -88,7 +90,9 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 				if (!state.readOnly) await saveNow();
 			} else if (!tab.readOnly) {
 				await store.saveProject(tab.history.present, {
-					protectedLinkedVideoSourceIds: Object.freeze([...liveSessionSourceIds()]),
+					protectedLinkedOriginalSourceReferences: Object.freeze([
+						...liveSessionLinkedOriginalSourceReferences(),
+					]),
 				});
 				sessionController.markProjectSaved(projectId);
 			}

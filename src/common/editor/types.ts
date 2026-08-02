@@ -1,6 +1,7 @@
 import type { EditorControllerPhase } from './controller/lifecycle.ts';
 import type { StorageCapacitySnapshot } from './controller/storage-capacity-service.ts';
 import type { EditorStoreStatus } from './storage/status.ts';
+import type { ProjectLinkedOriginalSourceReference } from './storage/project-publication-options.ts';
 import type { EditorTaskProgress } from './controller/task-progress.ts';
 import type { ProjectBextMetadata } from './project-bext-metadata.ts';
 import type { IxmlMetadata } from './ixml.ts';
@@ -262,6 +263,7 @@ export interface EditorProjectStore {
 	): Promise<EditorProject | null>;
 	saveProject(project: EditorProject, options?: Readonly<{
 		admitProjectPublication?: (bytes: number) => Promise<unknown>;
+		protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
 		protectedLinkedVideoSourceIds?: readonly string[];
 	}>): Promise<unknown>;
 	prepareProjectHandoff?(project: EditorProject, options?: Readonly<{

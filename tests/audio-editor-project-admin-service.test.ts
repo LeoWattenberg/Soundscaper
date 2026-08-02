@@ -58,6 +58,7 @@ function createFixture() {
 		getProject: () => project,
 		handleError: noop,
 		liveSessionClipIds: () => new Set<string>(),
+		liveSessionLinkedOriginalSourceReferences: () => [],
 		liveSessionSourceIds: () => new Set<string>(),
 		newProject: async () => undefined,
 		openProject: async () => { openCalls += 1; },

@@ -1,11 +1,27 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { ProjectLinkedOriginalSourceReference } from '../storage/project-publication-options.ts';
+
 export interface RetentionClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
+	readonly sourceId?: string | null;
+	readonly kind?: 'audio' | 'video';
 }
 
 export interface RetentionProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
+	readonly sources?: readonly Readonly<{
+		readonly id: string;
+		readonly kind?: 'audio' | 'video';
+	}>[];
+	readonly featureRequirements?: Readonly<{
+		readonly requirements?: readonly Readonly<{
+			readonly fallback?: Readonly<{
+				readonly kind?: 'audio' | 'video';
+				readonly sourceId?: string | null;
+			}> | null;
+		}>[];
+	}>;
 }
 
 export interface RetentionHistory<Project extends RetentionProject> {
@@ -14,7 +30,11 @@ export interface RetentionHistory<Project extends RetentionProject> {
 
 interface RetentionClipboard {
 	readonly tracks?: readonly Readonly<{
-		readonly clips?: readonly Readonly<{ readonly sourceId?: string | null }>[];
+		readonly sourceTrackType?: 'audio' | 'video';
+		readonly clips?: readonly Readonly<{
+			readonly sourceId?: string | null;
+			readonly kind?: 'audio' | 'video';
+		}>[];
 	}>[];
 }
 
@@ -72,6 +92,7 @@ export interface ProjectRetentionServiceDependencies<
 export interface ProjectRetentionService<Project extends RetentionProject> {
 	clipboardSourceIds(): ReadonlySet<string>;
 	compactLiveSourceState(dirty?: boolean | null): Project | null;
+	liveSessionLinkedOriginalSourceReferences(): readonly ProjectLinkedOriginalSourceReference[];
 	liveSessionSourceIds(): Set<string>;
 	liveSessionClipIds(): Set<string>;
 	retainLiveClipIds(): void;
@@ -87,6 +108,7 @@ export function createProjectRetentionService<
 	return Object.freeze({
 		clipboardSourceIds,
 		compactLiveSourceState,
+		liveSessionLinkedOriginalSourceReferences,
 		liveSessionSourceIds,
 		liveSessionClipIds,
 		retainLiveClipIds,
@@ -130,6 +152,52 @@ export function createProjectRetentionService<
 
 	function liveSessionSourceIds(): Set<string> {
 		const sourceIds = new Set(Object.keys(dependencies.getSourceReferenceCounts()));
+		for (const sourceId of transientAudioSourceIds()) sourceIds.add(sourceId);
+		return sourceIds;
+	}
+
+	function liveSessionLinkedOriginalSourceReferences(): readonly ProjectLinkedOriginalSourceReference[] {
+		const transientAudioIds = transientAudioSourceIds();
+		const references = new Map<string, ProjectLinkedOriginalSourceReference>();
+		const add = (kind: 'audio' | 'video', sourceId: string | null | undefined) => {
+			if (!sourceId) return;
+			const reference = Object.freeze({ kind, sourceId });
+			references.set(`${kind}:${sourceId}`, reference);
+		};
+		for (const tab of dependencies.getSessionTabs()) {
+			for (const project of dependencies.editorHistoryProjects(tab.history)) {
+				const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
+				const sourceKind = (sourceId: string): 'audio' | 'video' | null => {
+					const kind = sourceById.get(sourceId)?.kind;
+					return kind === undefined || kind === 'audio' ? 'audio' : kind === 'video' ? 'video' : null;
+				};
+				for (const clip of dependencies.allProjectClips(project)) {
+					if (!clip.sourceId) continue;
+					const kind = clip.kind ?? sourceKind(clip.sourceId);
+					if (kind) add(kind, clip.sourceId);
+				}
+				for (const requirement of project.featureRequirements?.requirements || []) {
+					const fallback = requirement.fallback;
+					if (!fallback?.sourceId) continue;
+					const kind = fallback.kind ?? sourceKind(fallback.sourceId);
+					if (kind) add(kind, fallback.sourceId);
+				}
+			}
+		}
+		for (const track of dependencies.state.clipboard?.tracks || []) {
+			for (const clip of track.clips || []) {
+				const kind = clip.kind ?? track.sourceTrackType ?? 'audio';
+				add(kind, clip.sourceId);
+			}
+		}
+		for (const sourceId of transientAudioIds) add('audio', sourceId);
+		return Object.freeze([...references.values()].sort((left, right) => (
+			left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId)
+		)));
+	}
+
+	function transientAudioSourceIds(): Set<string> {
+		const sourceIds = new Set<string>();
 		if (dependencies.state.recordingSourceId) sourceIds.add(dependencies.state.recordingSourceId);
 		for (const sourceId of dependencies.clipCache.getProtectedSourceIds?.() || []) {
 			sourceIds.add(sourceId);

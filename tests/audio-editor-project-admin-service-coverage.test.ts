@@ -7,6 +7,7 @@ import {
 	createProjectAdminService,
 	type ProjectAdminServiceRuntime,
 } from '../src/common/editor/controller/project-admin-service.ts';
+import type { ProjectLinkedOriginalSourceReference } from '../src/common/editor/storage/project-publication-options.ts';
 
 interface Project {
 	readonly id: string;
@@ -27,7 +28,9 @@ function createFixture() {
 	const calls: string[] = [];
 	let stopRecording = async () => { calls.push('stop-recording'); };
 	const savedProjects: Project[] = [];
-	const savedProjectOptions: Array<Readonly<{ protectedLinkedVideoSourceIds?: readonly string[] }>> = [];
+	const savedProjectOptions: Array<Readonly<{
+		protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
+	}>> = [];
 	const scheduled: Array<{ callback: () => void; delay: number }> = [];
 	const tabs = new Map<string, { projectId: string; dirty: boolean; readOnly: boolean; history: { present: Project } }>();
 	tabs.set('project-a', {
@@ -71,7 +74,7 @@ function createFixture() {
 			return [{ id: 'listed', title: 'Listed', revision: 1 }];
 		},
 		async saveProject(value: Project, options: Readonly<{
-			protectedLinkedVideoSourceIds?: readonly string[];
+			protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
 		}> = {}) {
 			savedProjects.push(value);
 			savedProjectOptions.push(options);
@@ -107,6 +110,10 @@ function createFixture() {
 		getProject: () => project,
 		handleError: (error: unknown) => { calls.push(`error:${String(error)}`); },
 		liveSessionClipIds: () => new Set(['clip']),
+		liveSessionLinkedOriginalSourceReferences: () => Object.freeze([
+			Object.freeze({ kind: 'audio' as const, sourceId: 'live' }),
+			Object.freeze({ kind: 'video' as const, sourceId: 'live' }),
+		]),
 		liveSessionSourceIds: () => new Set<string>(['live']),
 		newProject: async () => { calls.push('new-project'); },
 		openProject: async (value: Project) => { calls.push(`open:${value.id}`); },
@@ -190,8 +197,13 @@ test('closing inactive tabs persists dirty history and prunes session-only sourc
 	const result = await service.closeProjectTab('project-b');
 	assert.equal(result.closed, true);
 	assert.deepEqual(fixture.savedProjects, [other]);
-	assert.deepEqual(fixture.savedProjectOptions[0]?.protectedLinkedVideoSourceIds, ['live']);
-	assert.equal(Object.isFrozen(fixture.savedProjectOptions[0]?.protectedLinkedVideoSourceIds), true);
+	assert.deepEqual(fixture.savedProjectOptions[0]?.protectedLinkedOriginalSourceReferences, [
+		{ kind: 'audio', sourceId: 'live' },
+		{ kind: 'video', sourceId: 'live' },
+	]);
+	assert.equal(Object.isFrozen(
+		fixture.savedProjectOptions[0]?.protectedLinkedOriginalSourceReferences,
+	), true);
 	assert.equal(fixture.calls.includes('marked:project-b'), true);
 	assert.equal(fixture.calls.includes('release'), false);
 	assert.equal(fixture.sourceBuffers.has('deleted'), false);

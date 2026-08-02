@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createEditorPreferencesService } from '../src/common/editor/controller/preferences-service.ts';
 import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
 import { createProjectSessionService } from '../src/common/editor/controller/project-session-service.ts';
+import type { ProjectLinkedOriginalSourceReference } from '../src/common/editor/storage/project-publication-options.ts';
 
 interface TestProject {
 	readonly id: string;
@@ -21,7 +22,9 @@ test('project saves serialize queued snapshots and only publish the newest gener
 	};
 	const timers = new Map<number, () => void>();
 	const saved: number[] = [];
-	const saveOptions: Array<Readonly<{ protectedLinkedVideoSourceIds?: readonly string[] }>> = [];
+	const saveOptions: Array<Readonly<{
+		protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
+	}>> = [];
 	const marked: number[] = [];
 	let nextTimer = 1;
 	const service = createProjectSaveService({
@@ -59,13 +62,13 @@ test('project saves serialize queued snapshots and only publish the newest gener
 	timers.get(state.autosaveTimer)?.();
 	await service.drain();
 	assert.deepEqual(saved, [2]);
-	assert.equal(Object.hasOwn(saveOptions[0] ?? {}, 'protectedLinkedVideoSourceIds'), false);
+	assert.equal(Object.hasOwn(saveOptions[0] ?? {}, 'protectedLinkedOriginalSourceReferences'), false);
 	assert.deepEqual(marked, [2]);
 	assert.equal(state.saveState, 'saved');
 	assert.equal(state.pendingSaveSnapshots.size, 0);
 });
 
-test('autosaves collect immutable deduplicated linked-video roots when the queued write starts', async () => {
+test('autosaves collect immutable deduplicated kindful roots when the queued write starts', async () => {
 	const project: TestProject = { id: 'project', revision: 1 };
 	let releaseQueue: () => void = () => undefined;
 	const queueGate = new Promise<void>((resolve) => { releaseQueue = resolve; });
@@ -77,9 +80,11 @@ test('autosaves collect immutable deduplicated linked-video roots when the queue
 		saveState: 'saved',
 	};
 	const timers = new Map<number, () => void>();
-	let roots = ['scheduled-root'];
+	let roots: ProjectLinkedOriginalSourceReference[] = [
+		{ kind: 'video', sourceId: 'scheduled-root' },
+	];
 	let collectionCount = 0;
-	const writtenRoots: Array<readonly string[]> = [];
+	const writtenRoots: Array<readonly ProjectLinkedOriginalSourceReference[]> = [];
 	const service = createProjectSaveService({
 		state,
 		getProject: () => project,
@@ -87,14 +92,14 @@ test('autosaves collect immutable deduplicated linked-video roots when the queue
 		isReadOnly: () => false,
 		cloneProject: (value) => ({ ...value }),
 		admitProjectPublication: async () => undefined,
-		collectProtectedLinkedVideoSourceIds: () => {
+		collectProtectedLinkedOriginalSourceReferences: () => {
 			collectionCount += 1;
 			return roots;
 		},
 		saveProject: async (_snapshot, options) => {
-			const protectedSourceIds = options.protectedLinkedVideoSourceIds;
-			assert.ok(protectedSourceIds);
-			writtenRoots.push(protectedSourceIds);
+			const protectedReferences = options.protectedLinkedOriginalSourceReferences;
+			assert.ok(protectedReferences);
+			writtenRoots.push(protectedReferences);
 		},
 		persistActiveProjectId: async () => undefined,
 		isCurrentProject: () => true,
@@ -115,16 +120,30 @@ test('autosaves collect immutable deduplicated linked-video roots when the queue
 	timers.get(state.autosaveTimer)?.();
 	await Promise.resolve();
 	assert.equal(collectionCount, 0);
-	roots = ['write-root', 'shared-root', 'write-root'];
+	roots = [
+		{ kind: 'video', sourceId: 'write-root' },
+		{ kind: 'audio', sourceId: 'shared-root' },
+		{ kind: 'video', sourceId: 'shared-root' },
+		{ kind: 'audio', sourceId: 'shared-root' },
+	];
 	releaseQueue();
 	await service.drain();
 
 	assert.equal(collectionCount, 1);
-	assert.deepEqual(writtenRoots, [['write-root', 'shared-root']]);
+	assert.deepEqual(writtenRoots, [[
+		{ kind: 'audio', sourceId: 'shared-root' },
+		{ kind: 'video', sourceId: 'shared-root' },
+		{ kind: 'video', sourceId: 'write-root' },
+	]]);
 	assert.equal(Object.isFrozen(writtenRoots[0]), true);
-	roots.push('later-root');
-	assert.deepEqual(writtenRoots[0], ['write-root', 'shared-root']);
-	assert.throws(() => { (writtenRoots[0] as string[]).push('mutation'); }, TypeError);
+	assert.equal(writtenRoots[0]?.every(Object.isFrozen), true);
+	roots.push({ kind: 'audio', sourceId: 'later-root' });
+	assert.equal(writtenRoots[0]?.some(({ sourceId }) => sourceId === 'later-root'), false);
+	assert.throws(() => {
+		(writtenRoots[0] as ProjectLinkedOriginalSourceReference[]).push({
+			kind: 'audio', sourceId: 'mutation',
+		});
+	}, TypeError);
 });
 
 test('terminal project flush waits behind queued work and rejects later autosaves', async () => {
