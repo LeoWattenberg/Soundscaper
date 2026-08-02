@@ -19,7 +19,18 @@ import {
 	snapshotScapeProjectFallbackIntegrity,
 	type ScapeProjectFallbackClaim,
 } from './scape-project-assets.ts';
-import { PROJECT_FEATURE_REQUIREMENTS_LIMITS } from './project-feature-requirements.ts';
+import {
+	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
+	type ProjectFeatureRequirement,
+} from './project-feature-requirements.ts';
+import {
+	projectVideoFallbackSelectorMatches,
+	sameProjectVideoFallbackSelector,
+	selectProjectVideoFallbackTarget,
+	snapshotProjectVideoFallbackSelector,
+	type ProjectVideoFallbackIntegritySelector,
+} from './project-fallback-integrity-video.ts';
+export type { ProjectVideoFallbackIntegritySelector } from './project-fallback-integrity-video.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
 import {
 	canonicalMediaContentBlob,
@@ -54,6 +65,7 @@ export interface ProjectFallbackIntegrityStore {
 
 export interface ProjectFallbackIntegrityOptions {
 	readonly signal?: AbortSignal;
+	readonly videoFallback?: ProjectVideoFallbackIntegritySelector;
 }
 
 interface VerificationTarget {
@@ -68,6 +80,7 @@ interface VerificationPlan extends VerificationTarget {
 interface CapturedProjectFallbackIntegrity {
 	readonly schemaVersion: unknown;
 	readonly claims: readonly ScapeProjectFallbackClaim[];
+	readonly requirements: readonly ProjectFeatureRequirement[];
 	readonly sources: readonly ProjectFallbackSource[];
 }
 
@@ -78,6 +91,7 @@ interface IteratorCleanupCapture {
 
 export interface ProjectFallbackIntegrityAdmission {
 	assertCurrent(project: unknown): void;
+	getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob;
 }
 
 /**
@@ -91,41 +105,55 @@ export async function verifyProjectFallbackIntegrity(
 ): Promise<ProjectFallbackIntegrityAdmission> {
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
+	const videoSelector = options.videoFallback === undefined
+		? null
+		: snapshotProjectVideoFallbackSelector(options.videoFallback);
 	const captured = captureProjectFallbackIntegrity(project);
+	if (videoSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+		throw new Error('A selected video rendered fallback requires exact project schema 9.');
+	}
 	const admissionState = snapshotAdmissionState(captured);
-	const admission = createAdmission(admissionState);
-	if (!captured.claims.length) return admission;
-	const sourcesById = new Map<string, ProjectFallbackSource>();
-	for (const source of captured.sources) {
-		sourcesById.set(source.id, source);
-	}
-
-	const targets = new Map<string, VerificationTarget>();
-	for (const claim of captured.claims) {
-		const existing = targets.get(claim.sourceId);
-		if (existing) {
-			if (existing.claim.kind !== claim.kind || existing.claim.sha256 !== claim.sha256) {
-				throw new Error(`Rendered fallback source ${claim.sourceId} has conflicting SHA-256 claims.`);
+	if (!captured.claims.length && !videoSelector) return createAdmission(admissionState);
+	const targetValues: VerificationTarget[] = [];
+	if (videoSelector) {
+		targetValues.push(selectProjectVideoFallbackTarget(
+			captured.requirements,
+			captured.sources,
+			videoSelector,
+		));
+	} else {
+		const sourcesById = new Map(captured.sources.map((source) => [source.id, source]));
+		const targets = new Map<string, VerificationTarget>();
+		for (const claim of captured.claims) {
+			const existing = targets.get(claim.sourceId);
+			if (existing) {
+				if (existing.claim.kind !== claim.kind || existing.claim.sha256 !== claim.sha256) {
+					throw new Error(`Rendered fallback source ${claim.sourceId} has conflicting SHA-256 claims.`);
+				}
+				continue;
 			}
-			continue;
+			const source = sourcesById.get(claim.sourceId);
+			if (!source) throw new Error(`Rendered fallback source ${claim.sourceId} is unavailable.`);
+			targets.set(claim.sourceId, Object.freeze({ claim, source }));
 		}
-		const source = sourcesById.get(claim.sourceId);
-		if (!source) throw new Error(`Rendered fallback source ${claim.sourceId} is unavailable.`);
-		targets.set(claim.sourceId, Object.freeze({ claim, source }));
+		targetValues.push(...targets.values());
 	}
-	const targetValues = [...targets.values()];
 	const audioSources = targetValues.filter(({ claim }) => claim.kind === 'audio').map(({ source }) => source);
 	const audioChunkBudget = createScapeAudioExportChunkBudget(audioSources);
 	const plans = await preflightVerification(targetValues, store, signal);
+	let verifiedVideoBlob: Blob | null = null;
 	for (const plan of plans) {
 		throwIfScapeAborted(signal);
 		if (plan.claim.kind === 'audio') {
 			await verifyAudioFallback(plan, store, audioChunkBudget, signal);
 		} else {
-			await verifyVideoFallback(plan, store, signal);
+			const blob = await verifyVideoFallback(plan, store, signal);
+			if (videoSelector) verifiedVideoBlob = blob;
 		}
 	}
-	return admission;
+	return createAdmission(admissionState, videoSelector && verifiedVideoBlob
+		? Object.freeze({ selector: videoSelector, blob: verifiedVideoBlob })
+		: null);
 }
 
 async function preflightVerification(
@@ -212,7 +240,7 @@ async function verifyVideoFallback(
 	target: VerificationPlan,
 	store: ProjectFallbackIntegrityStore,
 	signal?: AbortSignal,
-): Promise<void> {
+): Promise<Blob> {
 	const storageKey = sourceStorageKey(target.source);
 	const loaded = await awaitScapeOperation(store.loadMediaAsset?.(storageKey, {
 		signal,
@@ -227,6 +255,7 @@ async function verifyVideoFallback(
 	}
 	const digest = await digestMediaContent(blob, { signal });
 	assertDigest(target.claim, digest);
+	return blob;
 }
 
 async function drainStream(stream: ReadableStream<Uint8Array>, signal?: AbortSignal): Promise<void> {
@@ -280,7 +309,12 @@ function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallb
 	const candidate = objectRecord(project, 'The project fallback integrity candidate');
 	const schemaVersion = ownDataValue(candidate, 'schemaVersion', 'project');
 	if (schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		return Object.freeze({ schemaVersion, claims: Object.freeze([]), sources: Object.freeze([]) });
+		return Object.freeze({
+			schemaVersion,
+			claims: Object.freeze([]),
+			requirements: Object.freeze([]),
+			sources: Object.freeze([]),
+		});
 	}
 	const sources = snapshotArray(
 		ownDataValue(candidate, 'sources', 'project'),
@@ -295,7 +329,12 @@ function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallb
 		sources,
 		featureRequirements,
 	}));
-	return Object.freeze({ schemaVersion, claims: snapshot.claims, sources });
+	return Object.freeze({
+		schemaVersion,
+		claims: snapshot.claims,
+		requirements: snapshot.featureRequirements?.requirements ?? Object.freeze([]),
+		sources,
+	});
 }
 
 function snapshotSource(value: unknown, index: number): ProjectFallbackSource {
@@ -459,22 +498,39 @@ function snapshotAdmissionState(
 	return Object.freeze({
 		schemaVersion: captured.schemaVersion,
 		claims: captured.claims,
+		requirements: captured.requirements,
 		sources: captured.sources,
 	});
 }
 
 function createAdmission(
 	verified: CapturedProjectFallbackIntegrity,
+	verifiedVideo: Readonly<{
+		selector: ProjectVideoFallbackIntegritySelector;
+		blob: Blob;
+	}> | null = null,
 ): ProjectFallbackIntegrityAdmission {
 	return Object.freeze({
 		assertCurrent(project: unknown): void {
 			const current = snapshotAdmissionState(captureProjectFallbackIntegrity(project));
-			if (!sameAdmissionState(verified, current)) {
+			if (!sameAdmissionState(verified, current)
+				|| (verifiedVideo && !projectVideoFallbackSelectorMatches(
+					current.requirements,
+					verifiedVideo.selector,
+				))) {
 				throw new DOMException(
 					'The rendered fallback integrity admission changed before activation.',
 					'AbortError',
 				);
 			}
+		},
+		getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob {
+			if (!verifiedVideo) throw new Error('No selected video rendered fallback was verified.');
+			const requested = snapshotProjectVideoFallbackSelector(selector);
+			if (!sameProjectVideoFallbackSelector(requested, verifiedVideo.selector)) {
+				throw new Error('The requested selector does not match the verified video rendered fallback.');
+			}
+			return verifiedVideo.blob;
 		},
 	});
 }
