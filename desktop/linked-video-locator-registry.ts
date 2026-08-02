@@ -12,8 +12,9 @@ import {
 import { dirname, isAbsolute, resolve } from 'node:path';
 
 export const LINKED_VIDEO_LOCATOR_REGISTRY_SCHEMA_VERSION = 1;
-export const MAX_PERSISTED_LINKED_VIDEO_LOCATORS = 32;
-export const MAX_PERSISTED_LINKED_VIDEO_BYTES = 512 * 1024 ** 2;
+export const MAX_PERSISTED_LINKED_VIDEO_LOCATORS = 128;
+export const MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES = 512 * 1024 ** 2;
+export const MAX_PERSISTED_LINKED_VIDEO_BYTES = 64 * 1024 ** 3;
 const MAX_REGISTRY_FILE_BYTES = 1024 * 1024;
 
 export interface PersistedLinkedVideoFileIdentity {
@@ -135,7 +136,7 @@ export function normalizePersistedLinkedVideoLocator(
 	], 'Persisted linked-video locator');
 	const identity = normalizeIdentity(candidate.identity);
 	const size = positiveSafeInteger(candidate.size, 'Persisted linked-video locator size');
-	if (size !== identity.size || size > MAX_PERSISTED_LINKED_VIDEO_BYTES) {
+	if (size !== identity.size || size > MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES) {
 		throw new RangeError('Persisted linked-video locator size does not match its file identity.');
 	}
 	const lastModified = nonnegativeSafeInteger(

@@ -6,6 +6,7 @@ import { isAbsolute } from 'node:path';
 
 import {
 	MAX_PERSISTED_LINKED_VIDEO_BYTES,
+	MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES,
 	MAX_PERSISTED_LINKED_VIDEO_LOCATORS,
 	normalizePersistedLinkedVideoLocator,
 	type DesktopLinkedVideoLocatorRegistry,
@@ -15,6 +16,7 @@ import {
 
 export const MAX_LINKED_VIDEO_LOCATORS = MAX_PERSISTED_LINKED_VIDEO_LOCATORS;
 export const MAX_LINKED_VIDEO_LOCATOR_BYTES = MAX_PERSISTED_LINKED_VIDEO_BYTES;
+export const MAX_LINKED_VIDEO_FILE_BYTES = MAX_PERSISTED_LINKED_VIDEO_FILE_BYTES;
 
 export interface DesktopLinkedVideoReadDescriptor extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -143,8 +145,8 @@ export class DesktopLinkedVideoLocatorStore {
 		const name = displayName(options?.displayName);
 		const identity = fileIdentity(await this.#stat(absolutePath));
 		if (identity.size < 1) throw new RangeError('A linked-video locator cannot reference an empty file.');
-		if (identity.size > this.#maximumBytes) {
-			throw new RangeError('Linked-video locator bytes exceed the admission limit.');
+		if (identity.size > MAX_LINKED_VIDEO_FILE_BYTES || identity.size > this.#maximumBytes) {
+			throw new RangeError('Linked-video file bytes exceed the admission limit.');
 		}
 		const state = this.#ownerState(owner);
 		return this.#mutate(async () => {
