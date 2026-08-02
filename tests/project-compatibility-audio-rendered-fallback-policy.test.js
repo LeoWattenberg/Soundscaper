@@ -54,7 +54,7 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	);
 	assert.match(
 		rule.currentBehavior,
-		/engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation failure.*successful commit.*not roll back.*ordinary-source loading.*outside.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*generic or video fallback.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
+		/engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation failure.*successful commit.*not roll back.*ordinary-source loading.*outside.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*generic fallback.*video fallback beyond.*separately maintained first-party video-effects rule.*unknown or third-party.*future schemas.*earlier Soundscaper/iu,
 	);
 
 	for (const reference of rule.evidence) {
@@ -88,5 +88,5 @@ test('compatibility policy qualifies only first-party audio whole-mix fallback p
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact signal reason.*late settlement.*buffer.*provider.*engine-source.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
 	assert.match(documentation, /engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation.*failure.*successful commit.*does not roll back.*ordinary-source loading.*outside.*cache-fit policy.*does not.*prefetch or revalidate/isu);
 	assert.match(documentation, /explicit desktop handoff.*manifest reachability.*fallback.*no timeline or Project Bin clip.*Soundscaper.*canonical original and fallback PCM.*fresh Framescaper.*both exact managed bodies.*canonical project shadow.*managed descriptor and body digest.*controller.*manifest fallback digest.*before.*read-only activation.*engine.*synthetic whole-mix.*exact fallback samples.*document snapshot.*canonical project/isu);
-	assert.match(documentation, /point-in-time.*not a durable byte lease.*generic and video.*fallback.*remain/isu);
+	assert.match(documentation, /point-in-time.*not a durable byte lease.*first-party audio whole-mix and video-effects full-render.*narrow editor-playback substitutions.*generic.*unknown.*third-party.*rendered-fallback substitution/isu);
 });

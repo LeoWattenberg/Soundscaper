@@ -353,7 +353,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/injected-port linked retained-video slice.*qualified separately.*does not qualify.*packaged.*UI.*browser codec playback.*linked audio.*other linked and unmanaged originals.*authored proxies.*generic or video rendered fallbacks.*product chooser.*relink.*watch.*copy or consolidation.*continuous runtime cleanup beyond the startup-bounded tracked inventory.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
+		/injected-port linked retained-video slice.*qualified separately.*does not qualify.*packaged.*UI.*browser codec playback.*linked audio.*other linked and unmanaged originals.*authored proxies or generic rendered-fallback authoring and transfer semantics beyond.*separately maintained controller playback slices.*product chooser.*relink.*watch.*copy or consolidation.*continuous runtime cleanup beyond the startup-bounded tracked inventory.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
 	);
 	assert.ok(linkedVideoOriginal);
 	assert.equal(linkedVideoOriginal.status, 'implemented');
@@ -396,7 +396,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
-		/exact fresh load.*authoritative local shadow.*without any owned-media read, write, or copy.*explicit prepareHandoff.*exact linked metadata and verified Blob.*maintained managed sender.*normal video digest, bounded transfer, and publication path.*first owned-media copy.*no product chooser.*relink or watch.*durable operating-system handle.*playback lease.*background copy\/consolidation.*alternate publisher.*does not qualify packaged executable or UI.*browser codec playback.*linked audio.*other linked or unmanaged original.*authored proxies.*generic or video rendered fallbacks/iu,
+		/exact fresh load.*authoritative local shadow.*without any owned-media read, write, or copy.*explicit prepareHandoff.*exact linked metadata and verified Blob.*maintained managed sender.*normal video digest, bounded transfer, and publication path.*first owned-media copy.*no product chooser.*relink or watch.*durable operating-system handle.*playback lease.*background copy\/consolidation.*alternate publisher.*does not qualify packaged executable or UI.*browser codec playback.*linked audio.*other linked or unmanaged original.*authored proxies.*generic video rendered-fallback relationships.*first-party video-effects fallback activation.*qualified separately/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
@@ -462,7 +462,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*injected-port linked retained-video slice.*qualified separately.*linked audio.*every other linked or unmanaged original.*authored proxies.*generic or video rendered fallbacks.*product chooser.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
+		/first-party audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*injected-port linked retained-video slice.*qualified separately.*linked audio.*every other linked or unmanaged original.*authored proxies or generic rendered-fallback authoring and transfer semantics beyond.*separately maintained controller playback slices.*product chooser.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -486,7 +486,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/only an explicit `prepareHandoff`.*verified linked body.*owned\s+media.*exact linked-session overlay.*existing\s+managed original-video sender.*normal aggregate preflight,\s+digest, bounded-transfer, and publication contract.*no product\s+chooser, relink or watch flow.*durable operating-system handle.*playback\s+lease.*background\s+copy\/consolidation.*alternate publishing protocol.*linked\s+audio, every other\s+linked or unmanaged original.*authored proxies.*generic or\s+video rendered\s+fallbacks.*packaged executable\/UI behavior.*browser codec\s+playback remain\s+unqualified/isu,
+		/only an explicit `prepareHandoff`.*verified linked body.*owned\s+media.*exact linked-session overlay.*existing\s+managed original-video sender.*normal aggregate preflight,\s+digest, bounded-transfer, and publication contract.*no product\s+chooser, relink or watch flow.*durable operating-system handle.*playback\s+lease.*background\s+copy\/consolidation.*alternate publishing protocol.*linked\s+audio, every other\s+linked or unmanaged original.*authored proxies.*generic\s+video rendered-fallback relationships.*packaged executable\/UI behavior.*browser codec\s+playback remain\s+unqualified.*first-party\s+video-effects fallback activation.*separate/isu,
 	);
 	assert.match(
 		documentation,

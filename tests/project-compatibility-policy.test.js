@@ -49,6 +49,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-first-party-audio-effect-playback-bypass': 'implemented',
 		'current-first-party-audio-rendered-fallback-playback': 'implemented',
 		'current-first-party-video-effect-playback-bypass': 'implemented',
+		'current-first-party-video-rendered-fallback-playback': 'implemented',
 		'current-controller-rendered-fallback-integrity': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
@@ -219,7 +220,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(postOpenFeatureReport.currentBehavior, /future schemas.*null report.*does not inspect.*featureRequirements/iu);
 	assert.match(
 		postOpenFeatureReport.currentBehavior,
-		/outside.*separate first-party audio- and video-effect rules.*not a generic affected-object placeholder.*per-feature bypass control/iu,
+		/outside.*separate first-party audio- and video-effect bypass and rendered-fallback rules.*not a generic affected-object placeholder.*per-feature bypass control/iu,
 	);
 
 	const audioEffectPlaybackBypass = rules.get('current-first-party-audio-effect-playback-bypass');
@@ -443,13 +444,20 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		unavailable.currentBehavior,
-		/first-party audio.*whole-mix.*rendered-fallback.*editor playback.*generic per-object placeholders.*beyond.*first-party audio- and video-effect slices.*rendered-fallback runtime use beyond.*audio.*whole-mix.*future-schema archive preservation.*not implemented/iu,
+		/first-party audio whole-mix and video-effects full-render fallback slices.*editor playback.*video slice.*neutral full-source clip.*frame zero.*separate controller body verification.*required-source activation.*generic per-object placeholders.*beyond.*first-party slices.*generic or third-party rendered-fallback runtime use.*authored fallback relationships.*future-schema archive preservation.*not implemented/iu,
 	);
+	assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-rendered-fallback.ts'));
+	assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-rendered-fallback.test.ts'));
 
 	const audioFreezeFallback = rules.get('audio-freeze-fallback');
 	assert.match(
 		audioFreezeFallback.currentBehavior,
-		/narrow exact-schema-9 playback fallback exist.*no canonical authored freeze, unfreeze, commit, relink, or rendered-fallback document state.*no generic cross-platform fallback-authoring contract.*implemented/iu,
+		/narrow exact-schema-9 audio and video playback fallbacks exist.*no canonical authored freeze, unfreeze, commit, relink, or rendered-fallback document state.*no generic cross-platform fallback-authoring contract.*implemented/iu,
+	);
+	const videoProxyFallback = rules.get('video-proxy-fallback');
+	assert.match(
+		videoProxyFallback.currentBehavior,
+		/first-party video-effects fallback.*transiently replace.*editor playback.*without changing canonical state.*no original-to-render or original-to-proxy relationship.*proxy.*freeze.*unfreeze.*offline-render.*relink.*not implemented/iu,
 	);
 });
 
@@ -564,7 +572,15 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /raw and stored-project.*controller activation.*verif(?:y|ies).*authoritative project.*fallback media at runtime.*complete\s+third-party\s+activation gate/isu);
 	assert.match(
 		documentation,
-		/first-party audio- and video-effect bypass slices.*first two\s+steps.*editor playback only.*exact-schema-9 mono\/stereo.*audio whole-mix.*step 3.*does not create.*freeze.*unknown or third-party.*Generic and video fallback.*planned.*video export.*offline render.*outside/isu,
+		/first-party audio- and video-effect bypass slices.*first two\s+steps.*editor playback only/isu,
+	);
+	assert.match(
+		documentation,
+		/exact-schema-9 mono\/stereo first-party audio whole-mix.*first-party\s+video-effects full-render slices.*narrow forms of step 3.*editor\s+playback/isu,
+	);
+	assert.match(
+		documentation,
+		/do not create, freeze, unfreeze, relink, export, or offline-render.*unknown or third-party.*Generic fallback selection.*authored video fallback or proxy\s+relationships remain planned.*video export and offline render remain outside/isu,
 	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });

@@ -333,9 +333,11 @@ managed original-video sender, which retains its normal aggregate preflight,
 digest, bounded-transfer, and publication contract. This adds no product
 chooser, relink or watch flow, durable operating-system handle or playback
 lease, background copy/consolidation, or alternate publishing protocol. Linked
-audio, every other linked or unmanaged original, authored proxies, generic or
-video rendered fallbacks, packaged executable/UI behavior, and browser codec
-playback remain unqualified.
+audio, every other linked or unmanaged original, authored proxies, generic
+video rendered-fallback relationships, packaged executable/UI behavior, and
+browser codec playback remain unqualified. The maintained first-party
+video-effects fallback activation rule below is separate from this
+linked-original contract.
 
 For a successfully qualified body, admission snapshots metadata before and
 after it, consumes the exact sequential PCM chunk count and ordered
@@ -403,7 +405,8 @@ fresh-recipient acquisition for canonical PCM—including the maintained exact
 schema 9 first-party audio whole-mix fallback—and retained original video.
 Only the injected-port linked retained-video slice described above is also
 qualified. Linked audio and every other linked or unmanaged original, authored
-proxies, generic and video rendered fallbacks, product chooser/relink/watch
+proxies, generic rendered-fallback authoring and transfer semantics beyond the
+separately maintained controller playback slices, product chooser/relink/watch
 behavior, general copy/consolidate, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, a stable byte lease through playback,
@@ -451,8 +454,9 @@ library; this includes a maintained exact-schema first-party audio whole-mix
 fallback when its manifest is the only reference. Ordinary saves remain
 document-only. Only the injected-port linked retained-video slice described
 above is additionally qualified. Linked audio and every other linked or
-unmanaged original, authored proxies, generic and video rendered fallbacks,
-general copy/consolidate, product chooser/relink/watch behavior,
+unmanaged original, authored proxies, generic rendered-fallback authoring and
+transfer semantics beyond the separately maintained controller playback
+slices, general copy/consolidate, product chooser/relink/watch behavior,
 managed-media runtime cleanup beyond the startup-bounded tracked inventory,
 recipient-local or whole-handoff capacity reservation, stable playback leasing,
 executable/UI and browser-codec qualification, portable hard-link capacity
@@ -592,9 +596,45 @@ paths never receive this projection.
 
 Deeply frozen per-tab and document-snapshot metadata drives one localized
 active-during-editor-playback indicator bound to the exact report requirement;
-the UI does not read or expose the source ID or digest. This narrow slice is not
-generic fallback selection and does not activate video, unknown, or third-party
-requirements.
+the UI does not read or expose the source ID or digest. This audio slice is not
+generic fallback selection and does not itself activate video, unknown, or
+third-party requirements. The separate maintained video slice below does not
+broaden that boundary.
+
+The maintained exact schema 9 first-party video-effects rendered fallback is a
+separate narrow editor-playback projection. It activates only when exactly one
+registered `videoEffects` report item is unavailable with declared and effective
+`rendered-fallback` dispositions and its video descriptor exactly matches the
+canonical manifest requirement by requirement ID, feature ID, disposition,
+video kind, source ID, and SHA-256. The separate controller fallback-integrity
+admission verifies the actual local body against that digest before activation
+side effects; the projection does not replace that admission.
+
+The referenced source must have the exact video kind, match the project sample
+rate, carry positive safe-integer frame count, width, and height, and carry a
+positive finite frame rate. A missing or duplicated source, multiple qualifying
+report candidates, descriptor drift, invalid geometry, or any reserved
+synthetic track and clip ID collision across the timeline or Project Bin rejects
+rather than guessing.
+
+For editor playback, the transient projection replaces all timeline video clips
+and tracks with one neutral clip and track using the fallback's full source from
+frame zero. It preserves audio and label clips and tracks, the exact Project Bin
+and sources, and every other canonical field. The canonical project, history,
+persistence, and save state remain read-only and unmodified. A manifest-only
+fallback source becomes an explicit required video source and is activated
+before the transient project reaches the engine or preview. The
+document snapshot gives the WebGL preview that transient project, while visual
+resolution falls through exact clip lookups to the source-level exact visual for
+the synthetic clip.
+
+Deeply frozen per-tab and document-snapshot metadata binds this projection to
+the exact requirement and drives one localized active-during-editor-playback
+indicator without exposing its source ID or digest. This slice is not generic,
+unknown, or third-party fallback selection. It authors no freeze, unfreeze, or
+proxy relationship, does not traverse future-schema project state, and makes no
+browser-codec or packaged-runtime qualification, whole-video fallback audio
+handling claim, or export or offline-render substitution claim.
 
 For the maintained first-party video-effect slice, the controller likewise
 derives a transient activation projection only for exact schema 9 when the
@@ -614,8 +654,9 @@ offline-render paths do not receive the projection. Each placeholder entry in
 the deeply frozen per-tab session metadata and document snapshot identifies
 only location, clip ID, effect ID, and effect type without reading or retaining
 params, context, state, or other opaque payloads.
-This exact-schema-9 slice does not attempt compatibility with earlier
-Soundscaper project schemas.
+This exact-schema-9 bypass slice does not attempt compatibility with earlier
+Soundscaper project schemas. Its separate rendered-fallback rule above does not
+broaden that boundary.
 
 For an incompatible active document, the maintained active workspace consumes
 `featureRequirementsCompatibility` directly and derives a separate frozen
@@ -627,8 +668,9 @@ disposition remains structured metadata rather than being mislabeled as the
 declaration. The region is keyboard-focusable when its bounded list scrolls.
 It does not render the evaluator's message, read fallback internals, expose an
 activation control, or claim generic rendered-fallback substitution or
-third-party loading. For the exact first-party audio rendered-fallback slice it
-shows only the metadata-bound active-playback indicator described above. For
+third-party loading. For the exact first-party audio and video
+rendered-fallback slices it shows only each metadata-bound active-playback
+indicator described above. For
 qualifying audio- or video-effects items with bypass metadata, the same notice
 matches the corresponding frozen projection metadata to one requirement and nests
 persistent localized, control-free affected-effect placeholders. Audio rows use
@@ -676,9 +718,10 @@ This is a point-in-time guarantee at the maintained controller admission
 boundary, not a durable byte lease. Calling `store.loadProject()` directly does
 not verify fallback bytes, and admission does not continuously bind them against
 a later low-level source replacement or establish publisher authenticity.
-Admission itself does not substitute fallback media at runtime; the separate exact-schema-9
-first-party audio whole-mix projection described above performs the narrow
-editor-playback substitution. Initial required-source preparation is
+Admission itself does not substitute fallback media at runtime; the separate
+exact-schema-9 first-party audio whole-mix and video-effects full-render
+projections described above perform their narrow editor-playback substitutions.
+Initial required-source preparation is
 lifetime-abortable and occurs before activation reservation and side effects.
 A signal-ignoring metadata, context, or decoded-body operation may continue
 internally after cancellation, but its late settlement is fenced from buffer,
@@ -690,9 +733,10 @@ state or earlier activation effects. Ordinary-source loading remains outside
 this required-source staging transaction, and short-buffer retention after
 engine application remains subject to cache-fit policy. Readiness does not
 prefetch or revalidate streamed chunks. The maintained projections do not
-provide generic
-per-feature bypass controls, generic or video rendered-fallback substitution,
-ADM or surround fallback playback, export or offline-render substitution,
+provide generic per-feature bypass controls, generic, unknown, or third-party
+rendered-fallback substitution, authored freeze or proxy relationships, whole-video
+fallback audio handling, ADM or surround fallback playback, export or
+offline-render substitution,
 future-schema preservation, earlier Soundscaper-schema compatibility, or a
 complete third-party activation gate.
 
@@ -776,9 +820,10 @@ separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route and does not
 cover direct store loads. Runtime use belongs only to the separate first-party
-audio whole-mix editor-playback slice; generic and video fallback remain
-planned. The remaining outcomes stay governed by the planned compatibility
-rows and roadmap exit gate.
+audio whole-mix and video-effects full-render editor-playback slices. Generic,
+unknown, and third-party fallback selection and authored fallback relationships
+remain planned. The remaining outcomes stay governed by the planned
+compatibility rows and roadmap exit gate.
 
 ## Opaque state
 
@@ -837,8 +882,10 @@ Archive export includes only its canonical source assets, not derivative cache
 entries. By contrast, rendered fallbacks and their referenced sources remain
 durable project, retention, and portable-archive state under the fallback rules
 below. The maintained exact-schema first-party audio whole-mix fallback is
-separately qualified for fresh-recipient managed acquisition and activation;
-generic and video fallbacks remain unqualified.
+separately qualified for fresh-recipient managed acquisition and activation.
+The maintained first-party video-effects full render is separately qualified
+for controller activation after route-specific source and digest admission;
+generic video fallback and proxy relationships remain unqualified.
 
 Posters and thumbnails are not editorial proxies. They provide no relink,
 watch, freeze, export, decoder-isolation, browser-heap, or process-RSS guarantee;
@@ -857,12 +904,13 @@ Unavailable capabilities follow this order once their owning milestones land:
 
 The maintained first-party audio- and video-effect bypass slices now implement
 the first two steps for active known effects during editor playback only. The
-exact-schema-9 mono/stereo first-party audio whole-mix slice implements a narrow
-form of step 3 during editor playback. It does not create, freeze, unfreeze,
-relink, export, or offline-render that fallback, and neither behavior
-generalizes to unknown or third-party effects. Generic and video fallback or
-proxy use remains planned; video export and offline render remain outside the
-video preview bypass.
+exact-schema-9 mono/stereo first-party audio whole-mix and first-party
+video-effects full-render slices implement narrow forms of step 3 during editor
+playback. They do not create, freeze, unfreeze, relink, export, or offline-render
+either fallback, and neither behavior generalizes to unknown or third-party
+effects. Generic fallback selection and authored video fallback or proxy
+relationships remain planned; video export and offline render remain outside
+the video preview projection.
 
 Video proxy relationships are owned by milestone 3. Canonical audio freeze,
 unfreeze, commit, relink, and authored rendered-fallback document state are
