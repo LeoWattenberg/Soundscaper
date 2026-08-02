@@ -278,7 +278,11 @@ function storedBinding(
 	return binding;
 }
 
-function inventoryBinding(value: unknown, primaryKey: IDBValidKey): LinkedVideoOriginalBinding {
+/** Validate one complete inventory row against its authoritative primary key. */
+export function validateLinkedVideoOriginalInventoryBinding(
+	value: unknown,
+	primaryKey: IDBValidKey,
+): LinkedVideoOriginalBinding {
 	const record = closedDataRecord(value, RECORD_FIELDS, RECORD_FIELD_SET, 'stored binding record');
 	const binding = checkedBinding(record.binding);
 	const expectedKey = linkedVideoOriginalBindingKey(binding.projectId, binding.sourceId);
@@ -324,7 +328,7 @@ function reconcileDurableLocatorReferences(
 				if (recordCount > maximumRecords) {
 					throw new RangeError('Linked video original binding inventory exceeds its record limit.');
 				}
-				const binding = inventoryBinding(cursor.value, cursor.primaryKey);
+				const binding = validateLinkedVideoOriginalInventoryBinding(cursor.value, cursor.primaryKey);
 				const current = references.get(binding.locatorId);
 				if (current && current.locatorRevision !== binding.locatorRevision) {
 					throw new Error('Linked video original binding inventory contains conflicting locator revisions.');
@@ -361,7 +365,7 @@ function memoryLocatorReferences(
 		}
 		addLocatorReference(
 			references,
-			inventoryBinding(value, key),
+			validateLinkedVideoOriginalInventoryBinding(value, key),
 			maximumReferences,
 		);
 	}
@@ -391,7 +395,7 @@ function storedLocatorReferences(
 				}
 				addLocatorReference(
 					references,
-					inventoryBinding(cursor.value, cursor.primaryKey),
+					validateLinkedVideoOriginalInventoryBinding(cursor.value, cursor.primaryKey),
 					maximumReferences,
 				);
 				cursor.continue();

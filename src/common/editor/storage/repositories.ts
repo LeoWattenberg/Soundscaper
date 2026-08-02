@@ -3,6 +3,7 @@
 import { KeyValueRepository } from './key-value-repository.ts';
 import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
 import { LinkedVideoOriginalProjectAliasRepository } from './linked-video-original-project-alias-repository.ts';
+import { LinkedVideoOriginalProjectReachabilityRepository } from './linked-video-original-project-reachability-repository.ts';
 import { LinkedVideoOriginalRepository } from './linked-video-original-repository.ts';
 import {
 	LinkedVideoOriginalResolver,
@@ -29,6 +30,7 @@ export interface StorageRepositories {
 	readonly media: MediaRepository;
 	readonly linkedVideoOriginalBindings: LinkedVideoOriginalRepository;
 	readonly linkedVideoOriginalProjectAliases: LinkedVideoOriginalProjectAliasRepository;
+	readonly linkedVideoOriginalProjectReachability: LinkedVideoOriginalProjectReachabilityRepository;
 	readonly linkedVideoOriginals: LinkedVideoOriginalResolver | null;
 	readonly opfs: OpfsRepository;
 	readonly pcm: PcmRepository;
@@ -89,6 +91,7 @@ export function createStorageRepositories(
 	});
 	const linkedVideoOriginalBindings = new LinkedVideoOriginalRepository(port);
 	const linkedVideoOriginalProjectAliases = new LinkedVideoOriginalProjectAliasRepository(port);
+	const linkedVideoOriginalProjectReachability = new LinkedVideoOriginalProjectReachabilityRepository(port);
 	const linkedVideoOriginals = options.linkedVideoOriginalPort
 		? new LinkedVideoOriginalResolver(linkedVideoOriginalBindings, options.linkedVideoOriginalPort)
 		: null;
@@ -122,6 +125,7 @@ export function createStorageRepositories(
 		media,
 		linkedVideoOriginalBindings,
 		linkedVideoOriginalProjectAliases,
+		linkedVideoOriginalProjectReachability,
 		linkedVideoOriginals,
 		opfs,
 		pcm,
