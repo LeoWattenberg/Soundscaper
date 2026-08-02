@@ -41,9 +41,15 @@ interface ProjectVisualStore {
 	resolveLinkedVideoOriginal?(
 		projectId: string,
 		source: ProjectVisualSource,
-	): Promise<Readonly<{ readonly blob: Blob }> | null>;
+	): Promise<Readonly<{ readonly blob: Blob; readonly binding: unknown }> | null>;
 	listVideoDerivatives(sourceId: string): Promise<readonly VideoDerivative[]>;
 	loadVideoDerivative(sourceId: string, derivative: VideoDerivative): Promise<Blob | null>;
+	listLinkedVideoDerivatives?(
+		projectId: string, source: ProjectVisualSource, binding: unknown,
+	): Promise<readonly VideoDerivative[]>;
+	loadLinkedVideoDerivative?(
+		projectId: string, source: ProjectVisualSource, binding: unknown, derivative: VideoDerivative,
+	): Promise<Blob | null>;
 }
 
 interface ObjectUrlPort {
@@ -211,50 +217,74 @@ export function createProjectVisualService(
 		const sourceId = source.storageKey || source.id;
 		const ownedUrls: string[] = [];
 		let mediaBlob = await dependencies.store.loadMediaAsset(sourceId);
+		let linkedOriginal: Readonly<{ readonly blob: Blob; readonly binding: unknown }> | null = null;
+		let linkedProject: ProjectVisualProject | null = null;
 		if (!isCurrent(source.id, operation)) return null;
 		if (!mediaBlob && dependencies.store.resolveLinkedVideoOriginal) {
 			const project = dependencies.getProject();
 			if (project) {
-				const linked = await dependencies.store.resolveLinkedVideoOriginal(project.id, source);
+				linkedOriginal = await dependencies.store.resolveLinkedVideoOriginal(project.id, source);
 				if (!isCurrent(source.id, operation) || dependencies.getProject()?.id !== project.id) return null;
-				mediaBlob = linked?.blob ?? null;
+				linkedProject = project;
+				mediaBlob = linkedOriginal?.blob ?? null;
 			}
 		}
 		if (!mediaBlob) throw new Error('The original video file is missing.');
 		const mediaUrl = dependencies.url.createObjectURL(mediaBlob);
 		if (mediaUrl) ownedUrls.push(mediaUrl);
-		let posterUrl: string | null = null;
-		const thumbnails: VideoThumbnail[] = [];
-		const derivatives = await dependencies.store.listVideoDerivatives(sourceId);
-		if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
-		for (const derivative of derivatives) {
-			const blob = await dependencies.store.loadVideoDerivative(sourceId, derivative);
+		try {
+			let posterUrl: string | null = null;
+			const thumbnails: VideoThumbnail[] = [];
+			const listLinkedDerivatives = dependencies.store.listLinkedVideoDerivatives;
+			const loadLinkedDerivative = dependencies.store.loadLinkedVideoDerivative;
+			const linkedDerivativeAccess = linkedOriginal && linkedProject
+				&& listLinkedDerivatives && loadLinkedDerivative
+				? { binding: linkedOriginal.binding, projectId: linkedProject.id,
+					list: listLinkedDerivatives, load: loadLinkedDerivative }
+				: null;
+			const derivatives = linkedDerivativeAccess
+				? await linkedDerivativeAccess.list.call(
+					dependencies.store, linkedDerivativeAccess.projectId, source, linkedDerivativeAccess.binding,
+				)
+				: await dependencies.store.listVideoDerivatives(sourceId);
 			if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
-			if (!blob) continue;
-			const url = dependencies.url.createObjectURL(blob);
-			if (!url) continue;
-			ownedUrls.push(url);
-			if (derivative.type === 'poster') posterUrl = url;
-			else if (derivative.type === 'thumbnail') {
-				const timestamp = Number(derivative.timestamp) || 0;
-				thumbnails.push(Object.freeze({
-					sourceTimeSeconds: timestamp,
-					timestampSeconds: timestamp,
-					url,
-					width: derivative.width,
-					height: derivative.height,
-				}));
-			} else revokeUrls([url]);
+			for (const derivative of derivatives) {
+				const blob = linkedDerivativeAccess
+					? await linkedDerivativeAccess.load.call(
+						dependencies.store, linkedDerivativeAccess.projectId,
+						source, linkedDerivativeAccess.binding, derivative,
+					)
+					: await dependencies.store.loadVideoDerivative(sourceId, derivative);
+				if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
+				if (!blob) continue;
+				const url = dependencies.url.createObjectURL(blob);
+				if (!url) continue;
+				ownedUrls.push(url);
+				if (derivative.type === 'poster') posterUrl = url;
+				else if (derivative.type === 'thumbnail') {
+					const timestamp = Number(derivative.timestamp) || 0;
+					thumbnails.push(Object.freeze({
+						sourceTimeSeconds: timestamp,
+						timestampSeconds: timestamp,
+						url,
+						width: derivative.width,
+						height: derivative.height,
+					}));
+				} else revokeUrls([url]);
+			}
+			if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
+			dropVisual(source.id);
+			const visual = Object.freeze({
+				mediaUrl,
+				posterUrl: posterUrl || thumbnails[0]?.url || null,
+				thumbnails: Object.freeze(thumbnails),
+			});
+			videoVisuals.set(source.id, visual);
+			return visual;
+		} catch (error) {
+			cleanupLate(ownedUrls);
+			throw error;
 		}
-		if (!isCurrent(source.id, operation)) return cleanupLate(ownedUrls);
-		dropVisual(source.id);
-		const visual = Object.freeze({
-			mediaUrl,
-			posterUrl: posterUrl || thumbnails[0]?.url || null,
-			thumbnails: Object.freeze(thumbnails),
-		});
-		videoVisuals.set(source.id, visual);
-		return visual;
 	}
 
 	function revokeVideoVisual(sourceId: string): boolean {

@@ -72,6 +72,8 @@ test('video activation resolves an exact project-scoped linked original after re
 	const project = projectFixture();
 	const linkedBody = new Blob(['linked-video']);
 	const resolutions: Array<Readonly<{ projectId: string; sourceId: string }>> = [];
+	const derivativeReads: string[] = [];
+	const binding = Object.freeze({ bindingToken: 'binding-linked-video' });
 	const service = createProjectVisualService({
 		getProject: () => project,
 		missingSourceIds: new Set(),
@@ -82,10 +84,22 @@ test('video activation resolves an exact project-scoped linked original after re
 			loadMediaAsset: async () => null,
 			resolveLinkedVideoOriginal: async (projectId, source) => {
 				resolutions.push({ projectId, sourceId: source.id });
-				return { blob: linkedBody };
+				return { blob: linkedBody, binding };
 			},
-			listVideoDerivatives: async () => [],
+			listVideoDerivatives: async () => { throw new Error('retained derivative lookup'); },
 			loadVideoDerivative: async () => null,
+			listLinkedVideoDerivatives: async (projectId, source, currentBinding) => {
+				assert.equal(projectId, project.id);
+				assert.equal(source.id, 'video');
+				assert.equal(currentBinding, binding);
+				derivativeReads.push('list');
+				return [{ type: 'poster', timestamp: 0, width: 320, height: 180 }];
+			},
+			loadLinkedVideoDerivative: async (_projectId, _source, currentBinding) => {
+				assert.equal(currentBinding, binding);
+				derivativeReads.push('load');
+				return new Blob(['linked-poster']);
+			},
 		},
 		projectDurationFrames: () => 1_000,
 		url: fakeUrlPort(),
@@ -98,12 +112,41 @@ test('video activation resolves an exact project-scoped linked original after re
 		source: project.sources[1],
 		available: true,
 		mediaUrl: 'blob:1',
-		posterUrl: null,
+		posterUrl: 'blob:2',
 		thumbnails: [],
 	});
 	assert.equal(service.getVideoSourceVisualData('audio'), null);
 	assert.equal(service.getVideoSourceVisualData('unknown'), null);
 	assert.deepEqual(resolutions, [{ projectId: project.id, sourceId: 'video' }]);
+	assert.deepEqual(derivativeReads, ['list', 'load']);
+});
+
+test('linked derivative refusal revokes the already-created media URL', async () => {
+	const project = projectFixture();
+	const urls = fakeUrlPort();
+	const service = createProjectVisualService({
+		getProject: () => project,
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => null,
+			resolveLinkedVideoOriginal: async () => ({
+				blob: new Blob(['linked-video']), binding: { bindingToken: 'stale' },
+			}),
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+			listLinkedVideoDerivatives: async () => { throw new Error('binding changed'); },
+			loadLinkedVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: urls,
+	});
+
+	await assert.rejects(service.activateVideoSource(project.sources[1]), /binding changed/u);
+	assert.deepEqual(urls.revoked, ['blob:1']);
+	assert.equal(service.getVideoSourceVisualData('video')?.mediaUrl, null);
 });
 
 test('replacing and disposing video visuals revokes every owned URL exactly once', async () => {
