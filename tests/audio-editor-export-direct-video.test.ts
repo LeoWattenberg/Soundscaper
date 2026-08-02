@@ -134,6 +134,14 @@ test('direct video write and close failures roll back once and aggregate cleanup
 	assert.equal(aggregate.events.filter((event) => event === 'abort').length, 1);
 	assert.equal(aggregate.events.includes('commit'), false);
 	assert.equal(aggregate.events.includes('download'), false);
+
+	const synchronous = createFixture({
+		writeFailure: primary, abortFailure: cleanup, abortSynchronously: true,
+	});
+	assert.equal(await synchronous.exportVideo(), null);
+	assert.ok(synchronous.errors[0] instanceof AggregateError);
+	assert.deepEqual((synchronous.errors[0] as AggregateError).errors, [primary, cleanup]);
+	assert.equal(synchronous.events.filter((event) => event === 'abort').length, 1);
 });
 
 test('rendered-fallback integrity admission precedes direct target preparation and supplies verified media', async () => {
@@ -150,6 +158,7 @@ test('rendered-fallback integrity admission precedes direct target preparation a
 
 interface FixtureOptions {
 	readonly abortFailure?: Error;
+	readonly abortSynchronously?: boolean;
 	readonly afterOpen?: (plan: ReturnType<typeof videoPlan>) => void;
 	readonly closeFailure?: Error;
 	readonly desktop?: boolean;
@@ -310,7 +319,6 @@ interface DirectSink {
 
 function preparedStream(events: string[], options: FixtureOptions) {
 	let written = 0;
-	let aborted = false;
 	return {
 		mode: 'stream' as const,
 		async createWritable(exactByteLength: number, sizeMode: string) {
@@ -333,10 +341,10 @@ function preparedStream(events: string[], options: FixtureOptions) {
 			options.onCommit?.();
 			return { fileName: `Direct-video.${options.format ?? 'mp4'}`, method: options.desktop ? 'desktop' : 'file-system-access', size: written };
 		},
-		async abort() {
-			if (!aborted) events.push('abort');
-			aborted = true;
-			if (options.abortFailure) throw options.abortFailure;
+		abort() {
+			events.push('abort');
+			if (options.abortFailure && options.abortSynchronously) throw options.abortFailure;
+			return options.abortFailure ? Promise.reject(options.abortFailure) : Promise.resolve();
 		},
 	};
 }

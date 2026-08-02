@@ -256,7 +256,7 @@ function directDestination(
 		},
 		abort(reason?: unknown): Promise<void> {
 			if (committed) return Promise.resolve();
-			abortPromise ??= Promise.resolve(prepared.abort(reason)).then(() => undefined);
+			abortPromise ??= Promise.resolve().then(() => prepared.abort(reason)).then(() => undefined);
 			return abortPromise;
 		},
 		bytesWritten(): number {

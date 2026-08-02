@@ -7,7 +7,7 @@ import { MAX_DESKTOP_SAVE_BYTES } from '../desktop/constants.js';
 import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
 import {
 	DIRECT_PCM_DESTINATION_WRITE_BYTES, DIRECT_PCM_MAXIMUM_PENDING_BYTES, DIRECT_PCM_RENDER_CHUNK_FRAMES,
-	createDirectPcmEncoder, directPcmMaximumPendingChunks,
+	createDirectPcmEncoder, directPcmMaximumPendingChunks, openDirectPcmDestination,
 } from '../src/common/editor/controller/direct-pcm-export.ts';
 import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/direct-wav-export.ts';
 import type { IxmlMetadataInput } from '../src/common/editor/ixml.ts';
@@ -122,6 +122,29 @@ test('direct PCM encoder coalesces bounded container writes and awaits each dest
 	await second;
 	assert.equal(await encoder.finalize(), 1 + 2 * half);
 	assert.equal(closed, true);
+});
+
+test('direct PCM destination memoizes a synchronously throwing prepared abort', async () => {
+	const cleanup = new Error('synchronous PCM cleanup failed');
+	let aborts = 0;
+	const preparation = await openDirectPcmDestination({
+		mode: 'stream',
+		async createWritable() { return new WritableStream<Uint8Array>(); },
+		bytesWritten() { return 0; },
+		async commit() { return {}; },
+		abort() { aborts += 1; throw cleanup; },
+	}, 4, 'WAV');
+	assert.ok(preparation.destination);
+	const reason = new Error('PCM output failed');
+
+	for (let attempt = 0; attempt < 2; attempt += 1) {
+		await assert.rejects(
+			Promise.resolve().then(() => preparation.destination!.abort(reason)),
+			cleanup,
+		);
+	}
+	assert.equal(aborts, 1);
+	await assert.rejects(preparation.destination.write(Uint8Array.of(1)), /not writable/iu);
 });
 
 test('exact realtime WAV mixes await coalesced destination writes and publish no Blob', async () => {

@@ -267,8 +267,9 @@ function directVideoDestination(
 		abort(reason?: unknown): Promise<void> {
 			if (committed) return Promise.resolve();
 			if (abortPromise) return abortPromise.catch(() => undefined);
-			abortPromise = prepared
-				? Promise.resolve(prepared.abort(reason)).then(() => undefined)
+			const abortTarget = prepared;
+			abortPromise = abortTarget
+				? Promise.resolve().then(() => abortTarget.abort(reason)).then(() => undefined)
 				: Promise.resolve();
 			return abortPromise;
 		},
