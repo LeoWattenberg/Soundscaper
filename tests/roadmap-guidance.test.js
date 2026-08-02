@@ -34,7 +34,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Implemented for the maintained first-party\s+video-effects fallback.*exact-schema video fallback.*unavailable video-effects requirement.*explicit managed handoff.*manifest-only fallback.*editable\s+retained original.*fresh recipient.*both exact bodies.*canonical shadow.*separate controller digest check.*Canonical project.*unchanged.*generic fallback.*browser or packaged qualification remain open/isu,
+		/Implemented for registered first-party video\s+fallbacks.*exact-schema video fallback.*one unavailable\s+registered video feature.*explicit managed handoff.*manifest-only fallback.*editable\s+retained original.*fresh recipient.*both exact bodies.*canonical shadow.*separate controller digest check.*Canonical project.*unchanged.*generic fallback.*browser or packaged qualification remain open/isu,
 	);
 	assert.match(
 		roadmap,

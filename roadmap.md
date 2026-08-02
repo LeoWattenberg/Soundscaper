@@ -281,9 +281,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   the editable original, is acquired into a fresh recipient, and activates
   there after the separate controller-owned manifest digest check. The
   recipient document remains read-only and canonical state stays unprojected.
-- **Shared / Electron Enhanced — Implemented for the maintained first-party
-  video-effects fallback:** one admitted exact-schema video fallback bound to
-  the unavailable video-effects requirement activates its required local source
+- **Shared / Electron Enhanced — Implemented for registered first-party video
+  fallbacks:** one admitted exact-schema video fallback bound to one unavailable
+  registered video feature activates its required local source
   and replaces preview video with a neutral full render from frame zero. An
   explicit managed handoff roots the manifest-only fallback with the editable
   retained original, and a fresh recipient acquires both exact bodies and the
