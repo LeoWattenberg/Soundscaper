@@ -76,4 +76,6 @@ test('the threat model records the same maintained save boundary and residuals',
 	assert.match(documentation, /memory and IndexedDB.*no-owned-PCM linked WAV.*last durable revision.*canonical.*readable.*live audio root.*last root disappears.*exact locator.*once.*external WAV.*untouched/isu);
 	assert.match(documentation, /one live store and renderer.*separate stores, profiles, renderers, or processes.*abrupt crash or power loss.*hostile IndexedDB.*hostile renderer.*unqualified/isu);
 	assert.match(documentation, /project publication, (?:the )?local binding transaction, and main locator retirement.*separate/isu);
+	assert.match(documentation, /Source-level cleanup outside maintained saves and successful writable activations.*general continuous cleanup beyond same-store save\/activation\/delete\/clear/isu);
+	assert.doesNotMatch(documentation, /Source-level and general continuous cleanup beyond same-store project deletion and clear/iu);
 });

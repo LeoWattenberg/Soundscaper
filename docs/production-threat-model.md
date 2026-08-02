@@ -628,7 +628,10 @@ with this reconciliation. The pass is cooperative first-party lifecycle
 housekeeping, not a renderer-compromise integrity control. The composed restart
 witness uses orderly close, dispose, and reopen; abrupt process death,
 persistence write boundaries, fsync, and power loss are not qualified.
-Source-level and general continuous cleanup beyond same-store project deletion and clear, plus a total cloned-byte or process-RSS bound for one hostile IndexedDB row, remain open.
+Source-level cleanup outside maintained saves and successful writable
+activations, general continuous cleanup beyond same-store
+save/activation/delete/clear, and a total cloned-byte or process-RSS bound for
+one hostile IndexedDB row remain open.
 
 The rendered-fallback limitation in the preceding residual is narrowed by two
 maintained editor exceptions. Exact-schema first-party audio whole-mix PCM remains
