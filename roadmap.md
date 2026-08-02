@@ -298,17 +298,26 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   non-regular, and foreign content stays untouched. The compiled desktop
   runtime includes this path; packaged source-bearing UI qualification remains
   open.
-- **Electron Enhanced — In progress:** complete the concrete platform
-  chooser/locator and broader linked and unmanaged-original lifecycles, authored
-  proxies plus generic rendered-fallback relationships and video-fallback
-  acquisition/handoff beyond maintained local activation, exact or write-time
-  capacity behavior, durable playback identity, cleanup beyond the bounded
-  startup tracked inventory where required, and packaged UI/OS/browser-codec
-  qualification.
+- **Electron Enhanced / Shared — Implemented for the bounded first-party linked
+  retained-video import slice:** the capability-gated Project Bin chooser keeps
+  filesystem paths in main-private product-local locator state and passes only
+  opaque snapshot identity plus materialized video into shared import. Import
+  verifies the selected content, publishes its exact local binding before the
+  canonical source commit, skips an owned original-video copy, and retains
+  canonical extracted audio plus binding-scoped disposable previews.
+  Pre-commit failures roll back import-owned state.
+- **Electron Enhanced — In progress:** broaden the concrete platform locator
+  beyond bounded point-in-time whole-body import and finish broader
+  linked and unmanaged-original lifecycles, authored proxies plus generic
+  rendered-fallback relationships and video-fallback acquisition/handoff beyond
+  maintained local activation, exact or write-time capacity behavior, durable
+  playback identity, linked-locator reconciliation and other cleanup beyond the
+  bounded startup tracked inventory where required, and packaged
+  UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache
-  records bind a trusted retained-original digest and versioned recipe while
-  staying outside project history, portable archive media, and managed media
-  transfer. They are not editorial proxies.
+  records bind a trusted retained-original digest or exact linked binding and a
+  versioned recipe while staying outside project history, portable archive
+  media, and managed media transfer. They are not editorial proxies.
 - **Shared — In progress:** complete editorial original/proxy/rendered-fallback
   relationships for linked and unmanaged originals, authored proxies, and
   generic fallback acquisition and activation plus video fallback
