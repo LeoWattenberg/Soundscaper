@@ -186,31 +186,47 @@ which stays planned. Compressed stems, BW64, video, 7z, and final-Blob direct
 publication are outside this fixture; the existing browser Blob/download
 fallback remains unchanged.
 
-A fourth provisional milestone 2 fixture records direct realtime compressed
-whole-mix output as small focused Node transport evidence. Closed admission
-covers all seven canonical built-in formats: MP3, FLAC, Ogg Vorbis, Opus,
-WavPack, MP2, and AAC/M4A. Each service case selects its prepared target before
-render, preflights an eight-byte staging budget, and opens the exact target only
-after a five-byte FFmpeg stat. It transfers two chunks, closes, and commits
-without the legacy download publisher. These cases also check the exact result
-and picker contracts and the format-specific staging and dither ownership.
-Prepared Blob mode retains the legacy whole-read and download path. The
-lower-level fixture presents a virtual 269,484,049-byte output and observes 258
-exact monotonic reads of at most 1,048,576 bytes, at most one range read and
-sink write at a time, and awaited backpressure without whole-output `readFile` use. The
-representative MP3 planner's separate 33,685,504-frame case establishes only
-the 269,484,032-byte staging arithmetic and realtime admission reason.
+A fourth provisional milestone 2 fixture records direct compressed whole-mix
+output across both maintained render strategies as small focused Node evidence.
+Closed admission covers all seven canonical built-in formats: MP3, FLAC, Ogg
+Vorbis, Opus, WavPack, MP2, and AAC/M4A. Realtime cases map and resample before
+WAV staging and give FFmpeg preserve geometry. Centrally admitted offline cases
+recompute the exact planner-owned output admission, resample before staging the
+unmapped input width, and give FFmpeg the canonical mapping, so each route has
+one mapping owner. An ordinary offline renderer failure may reuse the same
+unopened target in realtime; cancellation, integrity or currentness loss, and
+every post-render failure do not retry. The first-party rendered-fallback case
+also keeps its verified provider private and its canonical and global source
+state unchanged through direct offline publication.
+
+Each realtime service case preflights an eight-byte staging payload. The small
+offline cases preflight 32 bytes; the mono MP3 case establishes that input width,
+not mapped output width alone, is charged. These are raw PCM payload counts and
+exclude WAV framing and padding. Each case selects its prepared target before
+render and opens the exact target only after a five-byte FFmpeg stat, then
+closes and commits without the legacy download publisher. Prepared Blob mode
+retains the legacy whole-read and download path. The lower-level fixture
+presents a virtual 269,484,049-byte output and observes 258 exact monotonic reads
+of at most 1,048,576 bytes, at most one range read and sink write at a time, and
+awaited backpressure without whole-output `readFile` use. The representative
+MP3 planner's separate 33,685,504-frame case establishes only the
+269,484,032-byte staging arithmetic and realtime admission reason.
 
 These witnesses establish transport arithmetic and backpressure only. The
-virtual body is not allocated, the actual FFmpeg codecs are not executed by
-this fixture, and the complete encoded output still exists in worker MEMFS.
-Native or WASM codec memory, staged-input residency, renderer or browser heap,
-GC, process RSS, CPU, elapsed time, and codec conformance remain unqualified.
-The fixture is not reference-scale and does not exercise File System Access,
-Electron filesystem publication, a native picker, actual browser or
-operating-system behavior, packaged UI, quota, durability, crash, or power
-loss. Custom FFmpeg, stems, offline rendering, and video are excluded. It stays
-outside the milestone 2 bounded-memory workload, which stays planned.
+central 256 MiB offline ceiling covers exact useful-binary render-context and
+crop output, not end-to-end memory. Offline staging synchronously materializes a
+complete WAV byte array and Blob, and the complete encoded output still exists
+in worker MEMFS. The virtual body is not allocated and the actual FFmpeg codecs
+are not executed by this fixture. Native or WASM codec memory, staged-input
+residency, renderer or browser heap, GC, process RSS, CPU, elapsed time, and
+codec conformance remain unqualified. The fixture is not reference-scale and
+does not exercise File System Access, Electron filesystem publication, a native
+picker, actual browser or operating-system behavior, packaged UI, quota,
+durability, crash, or power loss. A desktop prepared target expires after
+900,000 milliseconds, so long offline desktop elapsed-time behavior is also
+unqualified. Custom FFmpeg, compressed stems, video, and other noncanonical
+delivery are excluded. It stays outside the milestone 2 bounded-memory
+workload, which stays planned.
 
 A fifth provisional milestone 2 fixture records direct MP4 and WebM final-video
 transport as focused Node evidence. The service cases bind canonical version-4
@@ -287,7 +303,7 @@ The fixture specifications are deliberately concrete:
 - milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
   inspection and counting-sink full-import witnesses, plus the exact 385 MiB
   direct-WAV counting-SHA witness and the small direct native-PCM ZIP32 stem,
-  direct realtime compressed-audio, and direct MP4/WebM correctness fixtures
+  direct compressed-audio, and direct MP4/WebM correctness fixtures
   described above;
 - milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
   session with 10,000 edits;

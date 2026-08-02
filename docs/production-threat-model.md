@@ -215,9 +215,78 @@ Packaged Soundscaper Linux x64 completion acceptance covers WAV, integer AIFF, B
 
 The exact native-PCM ZIP32 stem slice is deliberately separate from the direct mix claim and owns archive publication rather than native-container conformance. It admits only WAV, AIFF, and BWF stem plans whose output list and ZIP entries have identical names, order, and exact sizes and whose full ZIP32 geometry is recomputed before target selection. Closed positive admission covers canonical WAV and BWF with `audio/wav` and `.wav`, and AIFF with `audio/aiff` and `.aiff`. A prepared exact-size Web or Electron streaming destination is selected and opened before render. Prepared Blob mode declines this route and leaves the existing browser Blob/download fallback unchanged. Direct publication retains one complete per-stem staging result at a time; temporary-storage preflight charges the largest sequential intermediate rather than the aggregate of all staged stems or the directly streamed archive. The pass-through ZIP32 writer takes at most 64 KiB from a non-Blob source before awaiting sink backpressure, preserves entry order, and checks its emitted bytes against the exact layout before closing the destination. After close, planned, emitted, destination-written, and committed-result byte counts must agree around one explicit commit, with no final renderer `Blob`. Failure or cancellation cancels a pending source read when present, cleans current per-stem staging, aborts the unpublished destination, and performs no commit or publication. The focused provider-injected Node service fixture preflights exactly four bytes, opens the target before rendering two ordered four-byte WAV-plan marker outputs, reconstructs their exact 268-byte ZIP32 archive, closes before commit, constructs no `Blob`, and calls neither the legacy archive nor download publisher. Those marker outputs isolate the archive protocol and are not WAV conformance vectors; existing format-specific evidence continues to own WAV, AIFF, and BWF encoding. Prepared Blob mode instead proves the unchanged 272-byte legacy temporary-storage preflight, ordered additions, and download publication. Compressed and BW64 stems, video, 7z, inexact or reordered archives, and a final-Blob direct route remain excluded. This fixture does not qualify File System Access, an Electron filesystem, a native picker, packaged UI, browsers or operating systems, reference scale, renderer heap, process RSS, quota, crash, power loss, or durability.
 
-The direct realtime compressed whole-mix slice admits only the seven canonical built-in FFmpeg formats: MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A, with their exact descriptor MIME values, extensions, normalized settings, channel mappings, and metadata. Codec-qualified Vorbis and Opus result MIME values use base `audio/ogg` only as the picker hint, while MP3 and MP2 share `audio/mpeg`; canonical format identity and extension therefore remain part of admission. Every route has an exact four-byte-per-sample realtime admission and temporary-storage preflight budget, no compressed output-size claim, and `realtime-stream` selected for a maintained memory reason. That budget is not a claim about final staged-WAV geometry. FLAC stages integer 16- or 24-bit WAV and gives requested dither to the staging encoder. The other six stage Float32 WAV; FFmpeg owns requested dither only when WavPack converts that staging input to an integer output. The service selects a prepared target before render but keeps the exact writer unopened until after successful FFmpeg execution and a safe nonnegative stat. Realtime PCM becomes one staged WAV `Blob` mounted through WORKERFS; the complete encoded output remains in worker MEMFS. The patched worker returns exact monotonic ranges of at most one MiB, with one read and one awaited destination write at a time under sink backpressure and no whole-output `readFile` transfer into the renderer. Exact stat, emitted, and destination-written counts precede destination close and explicit commit; the committed-result size is checked afterward. The direct route creates no final renderer compressed-audio `Blob` and makes no download publication. Prepared Blob mode retains the legacy whole-read, final-Blob, and download path.
+The direct compressed whole-mix slice admits only the seven canonical built-in
+FFmpeg formats: MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A, with
+their exact descriptor MIME values, extensions, normalized settings, channel
+mappings, and metadata. Codec-qualified Vorbis and Opus result MIME values use
+base `audio/ogg` only as the picker hint, while MP3 and MP2 share `audio/mpeg`;
+canonical format identity and extension therefore remain part of admission.
+The `realtime-stream` branch still requires its maintained memory reason and
+exact four-byte-per-output-sample plan. The centrally admitted offline branch
+accepts only one canonical mix with exact range, tail, output geometry, input
+width, mapping, planner thresholds, pre-roll, and reported graph latency, and
+whose complete central offline-output admission recomputes exactly. Its
+non-raiseable 256 MiB ceiling
+covers the exact useful-binary context and crop output only; it is not an
+end-to-end memory bound for sources, graph state, staging, heap, RSS, or GC.
 
-Cancellation and currentness checks surround target preparation, FFmpeg execution, stat, range transfer, destination operations, staging cleanup, and commit admission for all seven formats. Cancellation during execution terminates the runtime; any pre-commit failure aborts the unpublished destination exactly once. Output deletion, WORKERFS unmount, and mount-directory deletion are all attempted, and a cleanup failure terminates the runtime and remains observable with an earlier primary failure. Ownership loss during the non-cancellable commit returns the committed file without stale success UI; committed-size drift is a post-publication integrity failure, not rollback. All-seven service cases use a mock five-byte output in two chunks. The virtual 269,484,049-byte, 258-range Node case proves transport arithmetic and backpressure only. The complete worker MEMFS output, staged-input residency, and native or WASM codec memory remain unbounded; renderer or browser heap, GC, RSS, CPU, elapsed time, actual codec execution and conformance, and reference-scale behavior are unqualified. Actual browser, operating-system, native-picker, packaged, quota, durability, crash, and power-loss behavior are also unqualified, as are custom FFmpeg, stems, video, and offline rendering.
+Realtime rendering maps and resamples PCM before staging and gives FFmpeg
+preserve geometry. Offline rendering resamples first, validates exact
+`Float32Array` input-channel and frame geometry, stages the unmapped input
+width, and gives FFmpeg the canonical mapping, so mapping is applied exactly
+once on either route. FLAC stages an integer 16- or 24-bit WAV and gives
+requested dither to the staging encoder. Every non-FLAC format stages Float32
+WAV. FFmpeg dither is enabled exactly when the normalized sample format is not
+`float32`, dither is not `none`, and the format is not FLAC; this covers integer
+WavPack and explicitly dither-enabled lossy settings, while float WavPack
+disables it. Realtime preflight retains its output-width Float32 payload claim.
+Offline preflight takes the maximum of the plan's required temporary bytes and
+a raw staging PCM payload: input channels times frames times requested FLAC
+integer bytes, or four bytes for the other six formats. That count excludes WAV
+framing and padding and is not an exact staged-file size or storage reservation.
+
+The service selects a prepared target before render but keeps its exact writer
+unopened until after successful FFmpeg execution and a safe nonnegative stat.
+Only an ordinary offline renderer failure may reuse that same unopened target
+through the realtime branch; cancellation, fallback-integrity or currentness
+loss, and every post-render failure do not retry. A maintained first-party
+rendered fallback reaches this route only after projection and fresh private
+provider verification; its canonical project and global buffers, providers,
+and caches remain unchanged. Each complete staged WAV is mounted through
+WORKERFS, and the complete encoded output remains in worker MEMFS. The patched
+worker returns exact monotonic ranges of at most one MiB, with one read and one
+awaited destination write at a time under sink backpressure and no whole-output
+`readFile` transfer into the renderer. Exact stat, emitted, and
+destination-written counts precede destination close and explicit commit; the
+committed-result size is checked afterward. The direct route creates no final
+renderer compressed-audio `Blob` and makes no download publication. Prepared
+Blob mode retains the legacy whole-read, final-Blob, and download path.
+
+Cancellation and currentness checks surround target preparation, rendering,
+resampling, synchronous offline WAV construction, FFmpeg execution, stat, range
+transfer, destination operations, staging cleanup, and commit admission for all
+seven formats. Synchronous WAV construction cannot be interrupted while it is
+running, but checks immediately before and after it fence cancellation,
+currentness loss, and plan drift before FFmpeg. Cancellation during FFmpeg
+execution terminates the runtime; any pre-commit failure aborts the unpublished
+destination exactly once, including when its underlying abort throws
+synchronously. Output deletion, WORKERFS unmount, and mount-directory deletion
+are all attempted, and a cleanup failure terminates the runtime and remains
+observable with an earlier primary failure. Ownership loss during the
+non-cancellable commit returns the committed file without stale success UI;
+committed-size drift is a post-publication integrity failure, not rollback.
+All-seven service cases use a mock five-byte output. The virtual
+269,484,049-byte, 258-range Node case proves transport arithmetic and
+backpressure only. Offline staging materializes a complete WAV byte array and
+Blob, and the complete worker MEMFS output, staged-input residency, and native
+or WASM codec memory remain unbounded. Renderer or browser heap, GC, RSS, CPU,
+elapsed time, actual codec execution and conformance, and reference-scale
+behavior are unqualified. Actual browser, operating-system, native-picker,
+packaged, quota, durability, crash, and power-loss behavior are also
+unqualified, as are custom FFmpeg, compressed stems, video, and other
+noncanonical delivery. A desktop prepared target has a 900,000-millisecond
+TTL, so long offline packaged elapsed-time behavior is specifically not
+qualified.
 
 The direct MP4 and WebM final-video slice admits only a canonical version 4
 descriptor-bound plan and unchanged full-plan fingerprint. MP4 binds `mp4`,
