@@ -8,6 +8,12 @@ import {
 	normalizeMediaDecodeSampleRate,
 	normalizeMediaExportSettings,
 } from './media-export.js';
+import {
+	abortFfmpegOutputSink,
+	assertFfmpegOutputReady,
+	cleanupFfmpegOutputRuntime,
+	streamFfmpegOutputFile,
+} from './ffmpeg-output-stream.ts';
 import { getVideoExportFormat } from './video-export.js';
 import { buildVideoFfmpegArgs } from './video-ffmpeg.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
@@ -297,6 +303,74 @@ export function createEditorFfmpeg(options = {}) {
 		});
 	}
 
+	async function encodeFileToSink(file, format, sink, settings = {}) {
+		let streamOwnsFailure = false;
+		const signal = settings.signal;
+		try {
+			const normalizedFormat = canonicalMediaExportFormat(format);
+			const descriptor = getMediaExportFormat(normalizedFormat);
+			if (descriptor.backend !== 'ffmpeg' && descriptor.backend !== 'custom-ffmpeg') {
+				throw new Error(`${descriptor.label} uses a native encoder.`);
+			}
+			assertMediaExportAvailable(normalizedFormat, settings.capabilities || capabilities);
+			const normalized = normalizeMediaExportSettings(normalizedFormat, { ...settings, capabilities: settings.capabilities || capabilities });
+			if (!(file instanceof Blob)) throw new TypeError('Expected a staged WAV Blob.');
+			assertFfmpegOutputReady(settings);
+			const result = await run(async (instance) => {
+				const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+				const mountPoint = `/editor-encode-${stamp}`;
+				const inputName = typeof File !== 'undefined' && file instanceof File
+					? file.name.replace(/[\\/]/g, '-').replaceAll('\u0000', '-')
+					: `editor-${stamp}.wav`;
+				const output = `editor-${stamp}.${normalized.extension}`;
+				const onAbort = () => terminateRuntime();
+				const cleanupSteps = [];
+				let operationError;
+				signal?.addEventListener('abort', onAbort, { once: true });
+				try {
+					assertFfmpegOutputReady(settings);
+					await instance.createDir(mountPoint);
+					cleanupSteps.push(() => instance.deleteDir(mountPoint));
+					const mountOptions = typeof File !== 'undefined' && file instanceof File
+						? { files: [file] }
+						: { blobs: [{ name: inputName, data: file }] };
+					await instance.mount(module.FFFSType.WORKERFS, mountOptions, mountPoint);
+					cleanupSteps.unshift(() => instance.unmount(mountPoint));
+					assertFfmpegOutputReady(settings);
+					cleanupSteps.unshift(() => instance.deleteFile(output));
+					const code = await instance.exec(encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
+						...normalized,
+						applyDither: settings.applyDither === true,
+					}), -1, { signal });
+					assertFfmpegOutputReady(settings);
+					if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
+					streamOwnsFailure = true;
+					const streamed = await streamFfmpegOutputFile(instance, output, sink, {
+						signal,
+						assertCurrent: settings.assertCurrent,
+						maximumChunkBytes: settings.maximumOutputChunkBytes,
+					});
+					streamOwnsFailure = false;
+					return { ...streamed, extension: `.${normalized.extension}`, mimeType: normalized.mimeType };
+				} catch (error) {
+					operationError = error;
+					throw error;
+				} finally {
+					signal?.removeEventListener('abort', onAbort);
+					if (!terminatedInstances.has(instance)) {
+						await cleanupFfmpegOutputRuntime(cleanupSteps, terminateRuntime, operationError);
+					}
+				}
+			});
+			assertFfmpegOutputReady(settings);
+			return result;
+		} catch (error) {
+			if (streamOwnsFailure) throw error;
+			const primary = signal?.aborted ? signal.reason ?? abortError() : error;
+			throw await abortFfmpegOutputSink(sink, primary);
+		}
+	}
+
 	async function decode(file, settings = {}) {
 		const signal = settings.signal;
 		if (settings.sampleRate != null) normalizeMediaDecodeSampleRate(settings.sampleRate);
@@ -411,7 +485,7 @@ export function createEditorFfmpeg(options = {}) {
 		if (disposed || generation !== expected) throw new FfmpegDisposedError();
 	}
 
-	return { load, encode, encodeFile, encodeVideo, decode, dispose, capabilities: () => capabilities };
+	return { load, encode, encodeFile, encodeFileToSink, encodeVideo, decode, dispose, capabilities: () => capabilities };
 }
 
 function normalizeIdleTimeout(value) {

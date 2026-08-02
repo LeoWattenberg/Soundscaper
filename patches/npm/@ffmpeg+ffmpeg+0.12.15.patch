@@ -1,0 +1,201 @@
+diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts
+index c853bee..a45922b 100644
+--- a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts
++++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts
+@@ -1,4 +1,4 @@
+-import { FSNode, FFMessageLoadConfig, OK, IsFirst, LogEventCallback, ProgressEventCallback, FileData, FFFSType, FFFSMountOptions, FFFSPath } from "./types.js";
++import { FSNode, FSFileStat, FFMessageLoadConfig, OK, IsFirst, LogEventCallback, ProgressEventCallback, FileData, FFFSType, FFFSMountOptions, FFFSPath } from "./types.js";
+ type FFMessageOptions = {
+     signal?: AbortSignal;
+ };
+@@ -128,6 +128,19 @@ export declare class FFmpeg {
+      * @category File System
+      */
+     readFile: (path: string, encoding?: string, { signal }?: FFMessageOptions) => Promise<FileData>;
++    /**
++     * Return the exact byte length of a regular file in ffmpeg.wasm.
++     *
++     * @category File System
++     */
++    statFile: (path: string, { signal }?: FFMessageOptions) => Promise<FSFileStat>;
++    /**
++     * Read a bounded binary range from a regular file in ffmpeg.wasm.
++     * At most 1 MiB can be requested per call.
++     *
++     * @category File System
++     */
++    readFileRange: (path: string, offset: number, maximumBytes: number, { signal }?: FFMessageOptions) => Promise<Uint8Array>;
+     /**
+      * Delete a file.
+      *
+diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js
+index fae4753..38e4b06 100644
+--- a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js
++++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js
+@@ -37,6 +37,8 @@ export class FFmpeg {
+                     case FFMessageType.FFPROBE:
+                     case FFMessageType.WRITE_FILE:
+                     case FFMessageType.READ_FILE:
++                    case FFMessageType.STAT_FILE:
++                    case FFMessageType.READ_FILE_RANGE:
+                     case FFMessageType.DELETE_FILE:
+                     case FFMessageType.RENAME:
+                     case FFMessageType.CREATE_DIR:
+@@ -258,6 +260,33 @@ export class FFmpeg {
+         type: FFMessageType.READ_FILE,
+         data: { path, encoding },
+     }, undefined, signal);
++    /**
++     * Return the exact byte length of a regular file in ffmpeg.wasm.
++     *
++     * @category File System
++     */
++    statFile = (path, { signal } = {}) => this.#send({
++        type: FFMessageType.STAT_FILE,
++        data: { path },
++    }, undefined, signal);
++    /**
++     * Read a bounded binary range from a regular file in ffmpeg.wasm.
++     * At most 1 MiB can be requested per call.
++     *
++     * @category File System
++     */
++    readFileRange = (path, offset, maximumBytes, { signal } = {}) => {
++        if (!Number.isSafeInteger(offset) || offset < 0) {
++            return Promise.reject(new RangeError("FFmpeg file range offset must be a safe non-negative integer."));
++        }
++        if (!Number.isSafeInteger(maximumBytes) || maximumBytes <= 0 || maximumBytes > 1048576) {
++            return Promise.reject(new RangeError("FFmpeg file range maximumBytes must be a positive safe integer no greater than 1048576."));
++        }
++        return this.#send({
++            type: FFMessageType.READ_FILE_RANGE,
++            data: { path, offset, maximumBytes },
++        }, undefined, signal);
++    };
+     /**
+      * Delete a file.
+      *
+diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts
+index d208c23..662b1ba 100644
+--- a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts
++++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts
+@@ -8,6 +8,8 @@ export declare enum FFMessageType {
+     FFPROBE = "FFPROBE",
+     WRITE_FILE = "WRITE_FILE",
+     READ_FILE = "READ_FILE",
++    STAT_FILE = "STAT_FILE",
++    READ_FILE_RANGE = "READ_FILE_RANGE",
+     DELETE_FILE = "DELETE_FILE",
+     RENAME = "RENAME",
+     CREATE_DIR = "CREATE_DIR",
+diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
+index 9ee05d8..0c66684 100644
+--- a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
++++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
+@@ -9,6 +9,8 @@ export var FFMessageType;
+     FFMessageType["FFPROBE"] = "FFPROBE";
+     FFMessageType["WRITE_FILE"] = "WRITE_FILE";
+     FFMessageType["READ_FILE"] = "READ_FILE";
++    FFMessageType["STAT_FILE"] = "STAT_FILE";
++    FFMessageType["READ_FILE_RANGE"] = "READ_FILE_RANGE";
+     FFMessageType["DELETE_FILE"] = "DELETE_FILE";
+     FFMessageType["RENAME"] = "RENAME";
+     FFMessageType["CREATE_DIR"] = "CREATE_DIR";
+diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts b/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts
+index 8b0eda3..454b0f2 100644
+--- a/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts
++++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts
+@@ -42,6 +42,14 @@ export interface FFMessageReadFileData {
+     path: FFFSPath;
+     encoding: string;
+ }
++export interface FFMessageStatFileData {
++    path: FFFSPath;
++}
++export interface FFMessageReadFileRangeData {
++    path: FFFSPath;
++    offset: number;
++    maximumBytes: number;
++}
+ export interface FFMessageDeleteFileData {
+     path: FFFSPath;
+ }
+@@ -88,7 +96,7 @@ export interface FFMessageMountData {
+ export interface FFMessageUnmountData {
+     mountPoint: FFFSPath;
+ }
+-export type FFMessageData = FFMessageLoadConfig | FFMessageExecData | FFMessageWriteFileData | FFMessageReadFileData | FFMessageDeleteFileData | FFMessageRenameData | FFMessageCreateDirData | FFMessageListDirData | FFMessageDeleteDirData | FFMessageMountData | FFMessageUnmountData;
++export type FFMessageData = FFMessageLoadConfig | FFMessageExecData | FFMessageWriteFileData | FFMessageReadFileData | FFMessageStatFileData | FFMessageReadFileRangeData | FFMessageDeleteFileData | FFMessageRenameData | FFMessageCreateDirData | FFMessageListDirData | FFMessageDeleteDirData | FFMessageMountData | FFMessageUnmountData;
+ export interface Message {
+     type: string;
+     data?: FFMessageData;
+@@ -116,7 +124,10 @@ export interface FSNode {
+     name: string;
+     isDir: boolean;
+ }
+-export type CallbackData = FileData | ExitCode | ErrorMessage | LogEvent | ProgressEvent | IsFirst | OK | Error | FSNode[] | undefined;
++export interface FSFileStat {
++    size: number;
++}
++export type CallbackData = FileData | ExitCode | ErrorMessage | LogEvent | ProgressEvent | IsFirst | OK | Error | FSNode[] | FSFileStat | undefined;
+ export interface Callbacks {
+     [id: number | string]: (data: CallbackData) => void;
+ }
+diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js b/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js
+index cca2a61..8fb7175 100644
+--- a/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js
++++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js
+@@ -58,6 +58,40 @@ const writeFile = ({ path, data }) => {
+     return true;
+ };
+ const readFile = ({ path, encoding }) => ffmpeg.FS.readFile(path, { encoding });
++const statFile = ({ path }) => {
++    const stat = ffmpeg.FS.stat(path);
++    if (!ffmpeg.FS.isFile(stat.mode))
++        throw new TypeError("FFmpeg path is not a regular file.");
++    if (!Number.isSafeInteger(stat.size) || stat.size < 0)
++        throw new RangeError("FFmpeg file size must be a safe non-negative integer.");
++    return { size: stat.size };
++};
++const readFileRange = ({ path, offset, maximumBytes }) => {
++    if (!Number.isSafeInteger(offset) || offset < 0)
++        throw new RangeError("FFmpeg file range offset must be a safe non-negative integer.");
++    if (!Number.isSafeInteger(maximumBytes) || maximumBytes <= 0 || maximumBytes > 1048576)
++        throw new RangeError("FFmpeg file range maximumBytes must be a positive safe integer no greater than 1048576.");
++    const stat = ffmpeg.FS.stat(path);
++    if (!ffmpeg.FS.isFile(stat.mode))
++        throw new TypeError("FFmpeg path is not a regular file.");
++    if (!Number.isSafeInteger(stat.size) || stat.size < 0)
++        throw new RangeError("FFmpeg file size must be a safe non-negative integer.");
++    if (offset > stat.size)
++        throw new RangeError("FFmpeg file range offset exceeds the file size.");
++    const buffer = new Uint8Array(Math.min(maximumBytes, stat.size - offset));
++    if (buffer.byteLength === 0)
++        return buffer;
++    const stream = ffmpeg.FS.open(path, "r");
++    try {
++        const bytesRead = ffmpeg.FS.read(stream, buffer, 0, buffer.byteLength, offset);
++        if (!Number.isSafeInteger(bytesRead) || bytesRead < 0 || bytesRead > buffer.byteLength)
++            throw new Error("FFmpeg returned an invalid file range byte count.");
++        return bytesRead === buffer.byteLength ? buffer : buffer.slice(0, bytesRead);
++    }
++    finally {
++        ffmpeg.FS.close(stream);
++    }
++};
+ // TODO: check if deletion works.
+ const deleteFile = ({ path }) => {
+     ffmpeg.FS.unlink(path);
+@@ -121,6 +155,12 @@ self.onmessage = async ({ data: { id, type, data: _data }, }) => {
+             case FFMessageType.READ_FILE:
+                 data = readFile(_data);
+                 break;
++            case FFMessageType.STAT_FILE:
++                data = statFile(_data);
++                break;
++            case FFMessageType.READ_FILE_RANGE:
++                data = readFileRange(_data);
++                break;
+             case FFMessageType.DELETE_FILE:
+                 data = deleteFile(_data);
+                 break;

@@ -190,6 +190,136 @@ test('cancelling an active encode terminates immediately and does not arm an idl
 	ffmpeg.dispose();
 });
 
+test('encodeFileToSink streams bounded FFmpeg ranges without a whole-file read', async () => {
+	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
+	const events = [];
+	const output = Object.freeze({ prepared: true });
+	const sink = {
+		async open(exactByteLength) { events.push(`open:${exactByteLength}`); },
+		async write(chunk) { events.push(`write:${chunk.byteLength}:${[...chunk].join(',')}`); },
+		async close() { events.push('close'); return output; },
+		async abort(reason) { events.push(`abort:${String(reason)}`); },
+	};
+	let currentnessChecks = 0;
+
+	const encoded = await ffmpeg.encodeFileToSink(
+		new Blob([Uint8Array.of(1, 2, 3)], { type: 'audio/wav' }),
+		'mp3',
+		sink,
+		{
+			maximumOutputChunkBytes: 2,
+			assertCurrent() { currentnessChecks += 1; },
+		},
+	);
+	const runtime = MockFfmpegRuntime.instances[0];
+	assert.deepEqual(encoded, {
+		output,
+		byteLength: 3,
+		chunkCount: 2,
+		extension: '.mp3',
+		mimeType: 'audio/mpeg',
+	});
+	assert.deepEqual(events, ['open:3', 'write:2:9,8', 'write:1:7', 'close']);
+	assert.equal(runtime.readFileCalls, 0);
+	assert.equal(runtime.statFileCalls, 1);
+	assert.deepEqual(runtime.rangeRequests.map(({ offset, maximumBytes }) => [offset, maximumBytes]), [[0, 2], [2, 1]]);
+	assert.equal(runtime.mountCalls.length, 1);
+	assert.equal(runtime.mountCalls[0].fsType, 'WORKERFS');
+	assert.equal(runtime.mountCalls[0].options.blobs.length, 1);
+	assert.match(runtime.lastExec[1], /^\/editor-encode-.+\/editor-.+\.wav$/u);
+	assert.match(runtime.lastExec.at(-1), /^editor-.+\.mp3$/u);
+	assert.equal(currentnessChecks > 0, true);
+	assert.equal(runtime.unmountCalls.length, 1);
+	assert.equal(runtime.deleteDirCalls.length, 1);
+	ffmpeg.dispose();
+});
+
+test('encodeFileToSink terminates cancellation and aborts the uncommitted sink exactly once', async () => {
+	MockFfmpegRuntime.pauseExecByDefault = true;
+	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
+	const controller = new AbortController();
+	const reason = new Error('export cancelled');
+	const abortReasons = [];
+	let closeCount = 0;
+	const encoding = ffmpeg.encodeFileToSink(new Blob([Uint8Array.of(1)]), 'mp3', {
+		async open() {},
+		async write() {},
+		async close() { closeCount += 1; },
+		async abort(primary) { abortReasons.push(primary); },
+	}, { signal: controller.signal });
+	await waitFor(() => MockFfmpegRuntime.instances[0]?.pendingExec.length === 1);
+	const runtime = MockFfmpegRuntime.instances[0];
+
+	controller.abort(reason);
+	await assert.rejects(encoding, (error) => error === reason);
+	assert.equal(runtime.terminateCalls, 1);
+	assert.equal(runtime.statFileCalls, 0);
+	assert.deepEqual(abortReasons, [reason]);
+	assert.equal(closeCount, 0);
+	ffmpeg.dispose();
+});
+
+test('encodeFileToSink preserves pre-stream encoding and sink cleanup failures', async () => {
+	MockFfmpegRuntime.execCodeByDefault = 1;
+	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
+	const cleanup = new Error('sink abort failed');
+	let abortCount = 0;
+	let caught;
+	try {
+		await ffmpeg.encodeFileToSink(new Blob([Uint8Array.of(1)]), 'mp3', {
+			async open() {},
+			async write() {},
+			async close() {},
+			async abort() { abortCount += 1; throw cleanup; },
+		});
+	} catch (error) {
+		caught = error;
+	}
+	assert(caught instanceof AggregateError);
+	assert.equal(caught.errors[0].code, 'FFMPEG_ENCODING_FAILED');
+	assert.equal(caught.errors[1], cleanup);
+	assert.equal(abortCount, 1);
+	ffmpeg.dispose();
+});
+
+test('encodeFileToSink terminates on worker cleanup failure and preserves an earlier stream error', async () => {
+	const cleanup = new Error('output delete failed');
+	MockFfmpegRuntime.outputDeleteFailureByDefault = cleanup;
+	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
+	const abortReasons = [];
+	await assert.rejects(ffmpeg.encodeFileToSink(new Blob([Uint8Array.of(1)]), 'mp3', {
+		async open() {},
+		async write() {},
+		async close() { return 'sealed'; },
+		async abort(reason) { abortReasons.push(reason); },
+	}), (error) => error === cleanup);
+	const cleanupRuntime = MockFfmpegRuntime.instances[0];
+	assert.deepEqual(abortReasons, [cleanup]);
+	assert.equal(cleanupRuntime.terminateCalls, 1);
+	assert.equal(cleanupRuntime.unmountCalls.length, 1);
+	assert.equal(cleanupRuntime.deleteDirCalls.length, 1);
+	ffmpeg.dispose();
+
+	const primary = new Error('range failed');
+	MockFfmpegRuntime.rangeFailureByDefault = primary;
+	const second = createEditorFfmpeg({ idleTimeoutMs: false });
+	let abortCount = 0;
+	let caught;
+	try {
+		await second.encodeFileToSink(new Blob([Uint8Array.of(1)]), 'mp3', {
+			async open() {},
+			async write() {},
+			async close() {},
+			async abort(reason) { abortCount += 1; assert.equal(reason, primary); },
+		});
+	} catch (error) { caught = error; }
+	assert(caught instanceof AggregateError);
+	assert.deepEqual(caught.errors, [primary, cleanup]);
+	assert.equal(abortCount, 1);
+	assert.equal(MockFfmpegRuntime.instances[1].terminateCalls, 1);
+	second.dispose();
+});
+
 test('disposing during FFmpeg core loading is terminal and cannot resurrect the runtime', async () => {
 	MockFfmpegRuntime.pauseLoadByDefault = true;
 	const ready = [];
@@ -280,11 +410,17 @@ class MockFfmpegRuntime {
 	static instances = [];
 	static pauseExecByDefault = false;
 	static pauseLoadByDefault = false;
+	static execCodeByDefault = 0;
+	static outputDeleteFailureByDefault = null;
+	static rangeFailureByDefault = null;
 
 	static reset() {
 		this.instances = [];
 		this.pauseExecByDefault = false;
 		this.pauseLoadByDefault = false;
+		this.execCodeByDefault = 0;
+		this.outputDeleteFailureByDefault = null;
+		this.rangeFailureByDefault = null;
 	}
 
 	constructor() {
@@ -294,6 +430,15 @@ class MockFfmpegRuntime {
 		this.pendingExec = [];
 		this.pauseExec = MockFfmpegRuntime.pauseExecByDefault;
 		this.terminateCalls = 0;
+		this.outputBytes = Uint8Array.of(9, 8, 7);
+		this.readFileCalls = 0;
+		this.statFileCalls = 0;
+		this.rangeRequests = [];
+		this.outputDeleteFailure = MockFfmpegRuntime.outputDeleteFailureByDefault;
+		this.rangeFailure = MockFfmpegRuntime.rangeFailureByDefault;
+		this.mountCalls = [];
+		this.unmountCalls = [];
+		this.deleteDirCalls = [];
 		MockFfmpegRuntime.instances.push(this);
 	}
 
@@ -328,7 +473,7 @@ class MockFfmpegRuntime {
 		this.lastStamp = inputMatch && outputMatch && inputMatch[1] === outputMatch[1]
 			? inputMatch[1]
 			: null;
-		if (!this.pauseExec) return Promise.resolve(0);
+		if (!this.pauseExec) return Promise.resolve(MockFfmpegRuntime.execCodeByDefault);
 		return new Promise((resolve, reject) => {
 			this.pendingExec.push({ resolve, reject });
 		});
@@ -341,6 +486,7 @@ class MockFfmpegRuntime {
 	}
 
 	async readFile(path) {
+		this.readFileCalls += 1;
 		if (!path.endsWith('.wav')) return Uint8Array.of(9, 8, 7);
 		return encodeWav([Float32Array.of(0.25, 0.75)], {
 			sampleRate: 32_000,
@@ -350,7 +496,34 @@ class MockFfmpegRuntime {
 		});
 	}
 
-	async deleteFile() {}
+	async statFile() {
+		this.statFileCalls += 1;
+		return { size: this.outputBytes.byteLength };
+	}
+
+	async readFileRange(path, offset, maximumBytes) {
+		this.rangeRequests.push({ path, offset, maximumBytes });
+		if (this.rangeFailure) throw this.rangeFailure;
+		return this.outputBytes.slice(offset, offset + maximumBytes);
+	}
+
+	async createDir() {}
+
+	async mount(fsType, options, mountPoint) {
+		this.mountCalls.push({ fsType, options, mountPoint });
+	}
+
+	async unmount(mountPoint) {
+		this.unmountCalls.push(mountPoint);
+	}
+
+	async deleteDir(path) {
+		this.deleteDirCalls.push(path);
+	}
+
+	async deleteFile(path) {
+		if (this.outputDeleteFailure && path === this.lastExec?.at(-1)) throw this.outputDeleteFailure;
+	}
 
 	terminate() {
 		this.terminateCalls += 1;
