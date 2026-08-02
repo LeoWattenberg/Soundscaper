@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 import {
 	DESKTOP_SMOKE_EXPECTED_BRIDGE,
@@ -17,30 +18,56 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 test('desktop smoke pins the complete sorted preload v1 bridge contract', () => {
 	assert.equal(Object.isFrozen(DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
 	assert.deepEqual(DESKTOP_SMOKE_EXPECTED_BRIDGE, [
+		'abortSharedSourceWrite',
 		'abortWrite',
+		'beginSharedSourceWrite',
 		'beginWrite',
 		'checkForUpdates',
 		'chooseFiles',
+		'chooseLinkedVideoOriginal',
 		'chooseSaveTarget',
 		'commitSharedProject',
 		'deleteSharedProject',
 		'editText',
+		'finishSharedSourceWrite',
 		'finishWrite',
 		'getEnvironment',
 		'listSharedProjects',
+		'loadLinkedVideoOriginal',
 		'onCloseRequested',
 		'onFullscreenChanged',
 		'onMenuCommand',
 		'onOpenProject',
 		'openExternal',
 		'readSharedProject',
+		'readSharedProjectBundle',
+		'readSharedSourceChunk',
+		'releaseLinkedVideoOriginal',
 		'releaseRead',
 		'respondToClose',
 		'setFullscreen',
 		'setLocale',
 		'signalReady',
 		'writeChunk',
+		'writeSharedSourceChunk',
 	]);
+});
+
+test('desktop smoke bridge inventory equals the sandbox preload surface', async () => {
+	let bridge;
+	const source = await readFile(resolve(ROOT, 'desktop', 'preload.mjs'), 'utf8');
+	vm.runInNewContext(source, {
+		ArrayBuffer, Object, Promise, RangeError, String, TypeError, Uint8Array, URL,
+		require: () => ({
+			contextBridge: {
+				exposeInMainWorld(name, value) {
+					if (name === 'scapeDesktop') bridge = value.v1;
+				},
+			},
+			ipcRenderer: { invoke: () => Promise.resolve(), send: () => {}, on: () => {}, removeListener: () => {} },
+		}),
+	});
+	assert.deepEqual(Object.keys(bridge).sort(), DESKTOP_SMOKE_EXPECTED_BRIDGE);
 });
 
 test('desktop smoke resolves an explicit package architecture independently of the Node host', () => {

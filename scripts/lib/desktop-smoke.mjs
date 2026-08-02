@@ -3,29 +3,38 @@ import { resolve } from 'node:path';
 const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 
 export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
+	'abortSharedSourceWrite',
 	'abortWrite',
+	'beginSharedSourceWrite',
 	'beginWrite',
 	'checkForUpdates',
 	'chooseFiles',
+	'chooseLinkedVideoOriginal',
 	'chooseSaveTarget',
 	'commitSharedProject',
 	'deleteSharedProject',
 	'editText',
+	'finishSharedSourceWrite',
 	'finishWrite',
 	'getEnvironment',
 	'listSharedProjects',
+	'loadLinkedVideoOriginal',
 	'onCloseRequested',
 	'onFullscreenChanged',
 	'onMenuCommand',
 	'onOpenProject',
 	'openExternal',
 	'readSharedProject',
+	'readSharedProjectBundle',
+	'readSharedSourceChunk',
+	'releaseLinkedVideoOriginal',
 	'releaseRead',
 	'respondToClose',
 	'setFullscreen',
 	'setLocale',
 	'signalReady',
 	'writeChunk',
+	'writeSharedSourceChunk',
 ]);
 
 export function resolveSmokeArchitecture(configuredArchitecture, hostArchitecture) {
