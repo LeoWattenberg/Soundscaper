@@ -16,6 +16,18 @@ import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
 } from './media-content-digest.ts';
+import {
+	DesktopSharedProjectSourceUnavailableError,
+	assertPriorBindings,
+	captureReachableSources,
+	sameRecord,
+	uniqueStorageBindings,
+	type CapturedAudioSource,
+	type CapturedSource,
+	type CapturedVideoSource,
+} from './desktop-shared-project-source-bindings.ts';
+
+export { DesktopSharedProjectSourceUnavailableError };
 
 interface StoredSourceChunk {
 	readonly index?: unknown;
@@ -48,35 +60,6 @@ export interface DesktopSharedProjectSourceAvailabilityOptions {
 	readonly signal?: AbortSignal;
 	/** Source identities populated from a digest-verified managed transfer in this load. */
 	readonly trustedSourceIds?: ReadonlySet<string>;
-}
-
-type CapturedSource = CapturedAudioSource | CapturedVideoSource;
-
-interface CapturedSourceBase {
-	readonly id: string;
-	readonly kind: 'audio' | 'video';
-	readonly storageKey: string;
-	readonly mimeType: string;
-	readonly frameCount: number;
-	readonly sampleRate: number;
-}
-
-interface CapturedAudioSource extends CapturedSourceBase {
-	readonly kind: 'audio';
-	readonly channelCount: number;
-	readonly originalSampleRate: number;
-	readonly sampleFormat: string;
-	readonly chunkFrames: number;
-}
-
-interface CapturedVideoSource extends CapturedSourceBase {
-	readonly kind: 'video';
-	readonly width: number;
-	readonly height: number;
-	readonly frameRate: number;
-	readonly videoCodec: string;
-	readonly audioCodec: string | null;
-	readonly hasAudio: boolean;
 }
 
 interface AudioStorageSnapshot {
@@ -120,29 +103,6 @@ interface VideoAvailabilityPlan {
 
 const MAXIMUM_SOURCE_TARGETS = SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
-
-/** A shared source has no explicitly bound, completely readable recipient-local payload. */
-export class DesktopSharedProjectSourceUnavailableError extends Error {
-	readonly projectId: string;
-	readonly sourceId: string;
-	readonly sourceKind: 'audio' | 'video';
-
-	constructor(
-		projectId: string,
-		sourceId: string,
-		sourceKind: 'audio' | 'video',
-		cause?: unknown,
-	) {
-		super(
-			`Recipient-local ${sourceKind} source ${sourceId} is unavailable for desktop shared project ${projectId}.`,
-			cause === undefined ? undefined : { cause },
-		);
-		this.name = 'DesktopSharedProjectSourceUnavailableError';
-		this.projectId = projectId;
-		this.sourceId = sourceId;
-		this.sourceKind = sourceKind;
-	}
-}
 
 export function desktopSharedProjectHasSourceReferences(project: AudioEditorProjectV9): boolean {
 	return collectProjectSourceIds(project).size > 0;
@@ -217,102 +177,6 @@ export async function verifyDesktopSharedProjectSourceAvailability(
 		throwIfScapeAborted(signal);
 		if (plan.kind === 'audio') await verifyAudio(plan, current.id, store, signal);
 		else await verifyVideo(plan, current.id, store, signal);
-	}
-}
-
-function captureReachableSources(project: AudioEditorProjectV9): readonly CapturedSource[] {
-	const sourceById = new Map(project.sources.map((source) => [String(source.id), source]));
-	const captured: CapturedSource[] = [];
-	for (const sourceId of collectProjectSourceIds(project)) {
-		const source = sourceById.get(sourceId);
-		if (!source) throw new ReferenceError(`Desktop shared project source ${sourceId} is missing.`);
-		captured.push(captureSource(source));
-	}
-	return Object.freeze(captured);
-}
-
-function captureSource(source: Readonly<Record<string, unknown>>): CapturedSource {
-	const base = {
-		id: source.id as string,
-		kind: source.kind as 'audio' | 'video',
-		storageKey: source.storageKey as string,
-		mimeType: source.mimeType as string,
-		frameCount: source.frameCount as number,
-		sampleRate: source.sampleRate as number,
-	};
-	if (base.kind === 'audio') {
-		return Object.freeze({
-			...base,
-			kind: 'audio',
-			channelCount: source.channelCount as number,
-			originalSampleRate: source.originalSampleRate as number,
-			sampleFormat: source.sampleFormat as string,
-			chunkFrames: source.chunkFrames as number,
-		});
-	}
-	return Object.freeze({
-		...base,
-		kind: 'video',
-		width: source.width as number,
-		height: source.height as number,
-		frameRate: source.frameRate as number,
-		videoCodec: source.videoCodec as string,
-		audioCodec: source.audioCodec as string | null,
-		hasAudio: source.hasAudio as boolean,
-	});
-}
-
-function uniqueStorageBindings(sources: readonly CapturedSource[]): readonly CapturedSource[] {
-	const ownerByKey = new Map<string, CapturedSource>();
-	const unique: CapturedSource[] = [];
-	for (const source of sources) {
-		const domainKey = `${source.kind}\u0000${source.storageKey}`;
-		const owner = ownerByKey.get(domainKey);
-		if (owner) {
-			if (!sameStorageBinding(owner, source)) {
-				throw new RangeError(`Desktop shared project sources ${owner.id} and ${source.id} conflict for one storage key.`);
-			}
-			continue;
-		}
-		ownerByKey.set(domainKey, source);
-		unique.push(source);
-	}
-	return Object.freeze(unique);
-}
-
-function sameStorageBinding(left: CapturedSource, right: CapturedSource): boolean {
-	if (left.kind !== right.kind) return false;
-	const leftRecord = left as unknown as Readonly<Record<string, unknown>>;
-	const rightRecord = right as unknown as Readonly<Record<string, unknown>>;
-	const leftKeys = Object.keys(leftRecord).filter((key) => key !== 'id');
-	const rightKeys = Object.keys(rightRecord).filter((key) => key !== 'id');
-	return leftKeys.length === rightKeys.length
-		&& leftKeys.every((key) => Object.is(leftRecord[key], rightRecord[key]));
-}
-
-function assertPriorBindings(
-	projectId: string,
-	sources: readonly CapturedSource[],
-	priorLocalProject: unknown,
-	trustedSourceIds: ReadonlySet<string> | undefined,
-): void {
-	const unavailable = (source: CapturedSource, cause?: unknown): never => {
-		throw new DesktopSharedProjectSourceUnavailableError(projectId, source.id, source.kind, cause);
-	};
-	const untrusted = sources.filter(({ id }) => !trustedSourceIds?.has(id));
-	if (!untrusted.length) return;
-	if (priorLocalProject == null) unavailable(untrusted[0] as CapturedSource);
-	try {
-		validateAudioEditorProjectV9(priorLocalProject);
-	} catch (cause) {
-		unavailable(untrusted[0] as CapturedSource, cause);
-	}
-	const prior = priorLocalProject as AudioEditorProjectV9;
-	if (prior.id !== projectId) unavailable(untrusted[0] as CapturedSource);
-	const priorById = new Map(prior.sources.map((source) => [String(source.id), captureSource(source)]));
-	for (const source of untrusted) {
-		const bound = priorById.get(source.id);
-		if (!bound || !sameRecord(source, bound)) unavailable(source);
 	}
 }
 
@@ -585,12 +449,4 @@ function ownDataValue(
 		throw new TypeError(`Recipient-local metadata.${String(key)} must be a data property.`);
 	}
 	return descriptor.value;
-}
-
-function sameRecord(left: object, right: object): boolean {
-	const leftRecord = left as Readonly<Record<string, unknown>>;
-	const rightRecord = right as Readonly<Record<string, unknown>>;
-	const keys = Object.keys(leftRecord);
-	if (keys.length !== Object.keys(rightRecord).length) return false;
-	return keys.every((key) => Object.is(leftRecord[key], rightRecord[key]));
 }
