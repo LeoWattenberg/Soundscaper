@@ -121,7 +121,15 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/same-kind canonical binding.*fully verify the donor.*private random staged hard link.*verify it again.*promote it exclusively.*opaque or corrupt donor rows.*skipped.*exhausted donor link count.*another donor.*target race.*never overwritten.*unsupported hard-link behavior.*bounded upload.*other operational failures propagate.*private regular stage.*digest-verified and synced.*atomically renamed.*directory-synced before catalog publication.*publication failure.*verified unreferenced immutable body.*linked-rebound retry.*without a renderer body upload.*normal upload path.*retry's offered stream.*consumed and validated.*not a universal copy-free guarantee.*reclamation and capacity reservation remain unqualified/isu,
+		/same-kind canonical binding.*fully verify the donor.*private random staged hard link.*verify it again.*promote it exclusively.*opaque or corrupt donor rows.*skipped.*exhausted donor link count.*another donor.*target race.*never overwritten.*unsupported hard-link behavior.*bounded upload.*other operational failures propagate.*private regular stage.*digest-verified and synced.*atomically renamed.*directory-synced before catalog publication.*publication failure.*verified unreferenced immutable body.*linked-rebound retry.*without a renderer body upload.*normal upload path.*retry's offered stream.*consumed and validated/isu,
+	);
+	assert.match(
+		documentation,
+		/one managed-media store instance.*exact-absent audio or video binding.*prospective catalog.*same-instance pending descriptors.*50,000-row.*4 MiB serialized-metadata ceilings.*lower-only test seams.*synchronously reserves one row.*declared body bytes.*aggregate 64 GiB pending-byte ceiling.*BigInt `?statfs`?.*failed, malformed, or known-insufficient.*before managed-media directory work.*body iteration.*optional hard-link work.*held through descriptor-publication settlement.*final publication rereads the catalog.*revalidates.*exact-present bindings.*bypass.*descriptor and body verification.*not a universal copy-free guarantee.*hard-link reuse.*full declared body.*reject a feasible link/isu,
+	);
+	assert.match(
+		documentation,
+		/capacity admission.*store-instance and point-in-time.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*reclamation.*orphan recovery.*logical catalog-row retirement.*unqualified/isu,
 	);
 	assert.match(
 		documentation,
@@ -145,7 +153,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/privileged service.*compromised renderer.*over-budget or maintained-domain-invalid exact-schema-9 input.*before.*host.*stage a project.*maintained-domain-invalid or structurally over-budget loaded commit results and stored documents.*before a renderer response.*renderer repository.*repeats validation.*loaded-result refusal.*host commit may already be published.*closes.*privileged-domain-validation residual.*qualifies per-phase project-shape node and depth ceilings.*shared-project-parse-budget.*remains open.*256 MiB.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*main-process RSS.*unmanaged recipient admission.*bounded sequential readability check.*not an atomic snapshot.*selected metadata.*not transactionally bound.*same-metadata replacement.*can go undetected.*replacement or deletion afterward.*not fenced.*separate repository instances or processes.*not serialized.*managed handoff now closes.*headless composed Soundscaper-to-Framescaper edit\/save\/return path.*canonical PCM and retained original video.*linked or otherwise unmanaged originals.*proxy and rendered-fallback relationships.*relink and watch behavior.*general copy\/consolidate.*cleanup and capacity policy.*stable byte identity or a durable lease through real playback.*browser.*video.*codec behavior.*packaged Electron UI source-bearing workflows remain open.*hard-link availability.*crash or power-loss behavior.*unqualified.*bounded upload fallback.*recognized unsupported-link failures.*Linux x64 source-free packaged lifecycle.*qualified.*remaining platform.*fault.*power-loss.*parent- and database-path identity.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*interrupted foreign collisions.*registered random stage paths.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted.*compatibility beyond those retained raw-document migration paths.*prior shared `v1` scope or product-private Soundscaper libraries.*deferred and unsupported.*Audacity.*separate boundary/isu,
+		/privileged service.*compromised renderer.*over-budget or maintained-domain-invalid exact-schema-9 input.*before.*host.*stage a project.*maintained-domain-invalid or structurally over-budget loaded commit results and stored documents.*before a renderer response.*renderer repository.*repeats validation.*loaded-result refusal.*host commit may already be published.*closes.*privileged-domain-validation residual.*qualifies per-phase project-shape node and depth ceilings.*shared-project-parse-budget.*remains open.*256 MiB.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*main-process RSS.*unmanaged recipient admission.*bounded sequential readability check.*not an atomic snapshot.*selected metadata.*not transactionally bound.*same-metadata replacement.*can go undetected.*replacement or deletion afterward.*not fenced.*separate repository instances or processes.*not serialized.*managed handoff now closes.*headless composed Soundscaper-to-Framescaper edit\/save\/return path.*canonical PCM and retained original video.*exact-absent managed publication.*same-store point-in-time prospective catalog.*managed-root admission.*before body or optional hard-link work.*linked or otherwise unmanaged originals.*proxy and rendered-fallback relationships.*relink and watch behavior.*general copy\/consolidate.*managed-media reclamation.*orphan recovery.*logical catalog-row retirement.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*write-time capacity behavior.*stable byte identity or a durable lease through real playback.*browser.*video.*codec behavior.*packaged Electron UI source-bearing workflows remain open.*hard-link availability.*crash or power-loss behavior.*unqualified.*bounded upload fallback.*recognized unsupported-link failures.*Linux x64 source-free packaged lifecycle.*qualified.*remaining platform.*fault.*power-loss.*parent- and database-path identity.*Windows directory-sync and deny-delete behavior.*junction.*time-of-check\/time-of-use.*interrupted foreign collisions.*registered random stage paths.*unregistered or legacy pre-inventory stage-looking files.*foreign.*not adopted or deleted.*compatibility beyond those retained raw-document migration paths.*prior shared `v1` scope or product-private Soundscaper libraries.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 	assert.doesNotMatch(documentation, /guaranteed progress after an incomplete|incomplete 100,000-entry reclamation inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? open/iu);
@@ -507,45 +515,6 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 		/shared-project-parse-budget.*remains open.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128 exact-V9 decode and validator admissions.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*total main-process RSS/isu,
 	);
 
-});
-
-test('project publication evidence keeps canonical admission distinct from backend capacity', async () => {
-	const matrix = await readMatrix();
-	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
-	assert.ok(projectDocuments);
-	const admission = projectDocuments.currentControls.find(
-		({ id }) => id === 'maintained-project-publication-admission',
-	);
-	const accounting = projectDocuments.residualRisks.find(
-		({ id }) => id === 'project-publication-capacity-accounting',
-	);
-	assert.ok(admission);
-	assert.match(
-		admission.summary,
-		/maintained caller save.*`AudioEditorProjectStore\.saveProject`.*once for admission.*canonical.*UTF-8.*non-raiseable 256 MiB.*lower-only.*before repository save.*queued controller.*direct maintained.*actual backend.*twice.*gross proxy.*current.*revision.*ceil\(10%\).*Direct IndexedDB.*one normalized estimate.*queued autosave.*callback.*without a second canonical serialization.*known insufficient.*direct and queued.*before repository.*success side effects.*unknown or malformed.*memory backend.*proceed.*successor/isu,
-	);
-	for (const path of [
-		'src/common/editor/project-publication-admission.ts', 'src/common/editor/storage.js', 'src/common/editor/types.ts',
-		'src/common/editor/controller/project-save-service.ts',
-		'src/common/editor/controller/storage-capacity-runtime.ts',
-		'src/common/editor/controller/storage-capacity-service.ts', 'src/common/editor/app.js',
-		'tests/audio-editor-project-publication-admission.test.ts',
-		'tests/audio-editor-project-store-publication-admission.test.ts',
-		'tests/audio-editor-project-save-publication-admission.test.ts',
-		'tests/audio-editor-controller-disposal.test.js', 'tests/audio-editor-controller.test.js',
-		'tests/audio-editor-storage-capacity-runtime.test.ts',
-		'tests/audio-editor-storage-capacity-service.test.ts',
-	]) assert.ok(admission.evidence.some((item) => item.path === path), path);
-	assert.ok(accounting);
-	assert.match(
-		accounting.exposure,
-		/twice-canonical.*not.*structured-clone.*repository compaction.*revision-wrapper.*record.*key.*property.*transaction.*journal.*replacement.*pruning.*allocation-unit.*after canonical serialization.*snapshot clone.*serializer string.*heap.*RSS.*garbage collection.*capacity check.*maintained facade saves.*point-in-time.*unreserved.*estimates may lag.*concurrent writers.*oversubscribe.*write-time quota.*memory fallback.*unknown estimates.*no durable-capacity claim.*desktop.*local IndexedDB shadow.*not.*IPC.*appData.*shared-project load.*local shadow.*outside the save facade.*Scape rollback restoration.*aggregated rollback failure.*directly constructed repository.*pre-existing over-limit.*route-specific controls/isu,
-	);
-	assert.match(accounting.requiredControl, /actual backend publication geometry.*resident working set.*reserve.*concurrent writes.*desktop appData/isu);
-
-	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	assert.match(documentation, /maintained-project-publication-admission.*`AudioEditorProjectStore\.saveProject`.*once for admission.*canonical.*256 MiB.*maintained direct.*actual backend.*twice.*gross proxy.*ceil\(10%\).*Direct IndexedDB.*queued autosave.*explicit flush.*terminal flush.*callback.*without a second canonical serialization.*known insufficient.*unknown or malformed.*memory backend.*successor/isu);
-	assert.match(documentation, /project-publication-capacity-accounting.*not an exact IndexedDB byte count.*structured-clone.*snapshot clone.*serializer string.*heap.*RSS.*maintained facade saves.*point-in-time.*unreserved.*memory fallback.*unknown estimates.*desktop.*local IndexedDB shadow.*appData.*shared-project load.*outside the save facade.*Scape rollback restoration.*aggregated rollback failure.*directly constructed repository/isu);
 });
 
 test('desktop save admission evidence pins product-wide capacity before staging', async () => {

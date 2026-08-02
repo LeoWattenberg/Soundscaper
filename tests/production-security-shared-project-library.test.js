@@ -22,6 +22,9 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const managedHandoffControl = risk?.currentControls.find(
 		({ id }) => id === 'explicit-managed-mixed-media-handoff',
 	);
+	const managedMediaCapacityControl = risk?.currentControls.find(
+		({ id }) => id === 'point-in-time-managed-media-publication-capacity-admission',
+	);
 	const reclamationControl = risk?.currentControls.find(
 		({ id }) => id === 'lease-fenced-immutable-project-reclamation',
 	);
@@ -85,6 +88,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/project-library-editor-service.ts',
 		'desktop/project-library-editor-media-service.ts',
 		'desktop/project-library-media-binding.ts',
+		'desktop/project-library-media-capacity.ts',
 		'desktop/project-library-media-reuse.ts',
 		'desktop/project-library-media.ts',
 	]);
@@ -95,11 +99,13 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/project-library-stage-inventory.ts',
 		'desktop/project-library-reclamation.ts',
 		'desktop/project-library-media-binding.ts',
+		'desktop/project-library-media-capacity.ts',
 		'desktop/project-library-media-reuse.ts',
 		'tests/desktop-project-library-file-inventory.test.ts',
 		'tests/desktop-project-library-reclamation.test.ts',
 		'tests/desktop-project-library-reclamation-progress.test.ts',
 		'tests/desktop-project-library-stage-reclamation.test.ts',
+		'tests/desktop-project-library-media-capacity.test.ts',
 		'tests/desktop-project-library-video-media.test.ts',
 		'tests/desktop-project-library-media-reuse.test.ts',
 		'tests/desktop-project-library-editor-media-reuse-fallback.test.ts',
@@ -116,6 +122,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	]);
 	assert.ok(control);
 	assert.ok(managedHandoffControl);
+	assert.ok(managedMediaCapacityControl);
 	assert.ok(mediaAdmissionControl);
 	assert.ok(reclamationControl);
 	assert.ok(stageReclamationControl);
@@ -309,6 +316,27 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		managedHandoffControl.summary,
 		/narrower fixture.*manifest-only exact-schema first-party audio fallback PCM.*empty recipient.*original and exact shadow.*controller independently verifies the manifest digest.*exact fallback samples.*transfer verifies only the managed descriptor and body digest/isu,
 	);
+	assert.deepEqual(managedMediaCapacityControl.evidence, [
+		{ kind: 'implementation', path: 'desktop/project-library-contract.ts' },
+		{ kind: 'implementation', path: 'desktop/project-library-media-capacity.ts' },
+		{ kind: 'implementation', path: 'desktop/project-library-media.ts' },
+		{ kind: 'implementation', path: 'scripts/lib/desktop-project-library-runtime.mjs' },
+		{ kind: 'test', path: 'tests/desktop-project-library-media-capacity.test.ts' },
+		{ kind: 'test', path: 'tests/desktop-project-library-packaging.test.js' },
+		{ kind: 'test', path: 'tests/production-security-shared-project-library.test.js' },
+	]);
+	assert.match(
+		managedMediaCapacityControl.summary,
+		/one DesktopLibraryManagedMediaStore instance.*exact-absent audio or video binding.*prospective catalog.*same-instance pending descriptors.*50,000-row.*4 MiB serialized-metadata ceilings.*lower-only test seams.*synchronously reserves one row.*declared body bytes.*aggregate 64 GiB pending-byte ceiling.*before awaiting.*BigInt statfs.*managed-media root/isu,
+	);
+	assert.match(
+		managedMediaCapacityControl.summary,
+		/failed, malformed, or known-insufficient.*reject before managed-media directory work.*body iteration.*optional hard-link work.*reservation remains held through descriptor-publication settlement.*final publication rereads the catalog.*revalidates.*lower-only and hard catalog ceilings.*exact-present binding.*bypasses.*capacity admission.*descriptor and body verification/isu,
+	);
+	assert.match(
+		managedMediaCapacityControl.summary,
+		/store-instance, point-in-time admission.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*reclamation.*orphan recovery.*logical catalog-row retirement.*hard-link reuse.*full declared body.*reject a feasible link/isu,
+	);
 	for (const [kind, path] of [
 		['implementation', 'desktop/desktop-smoke.js'],
 		['implementation', 'scripts/lib/desktop-project-library-handoff-smoke.mjs'],
@@ -429,7 +457,15 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*exact-schema first-party audio whole-mix fallback.*manifest.*only reference.*fresh recipient.*manifest-digest verified by the controller.*transfer verifies its own descriptor and body digest.*unmanaged recipient admission.*sequential point-in-time check.*metadata.*not transactionally bound.*same-metadata replacement.*undetected.*later replacement or deletion.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative work.*continue after rejection.*unmanaged audio.*lacks a publisher digest.*linked or otherwise unmanaged originals.*authored proxies.*generic and video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*cleanup and capacity reservation.*unqualified.*no stable lease through real playback.*browser video-codec behavior.*packaged Electron UI two-product source-bearing lifecycle.*open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu,
+		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*exact-schema first-party audio whole-mix fallback.*manifest.*only reference.*fresh recipient.*manifest-digest verified by the controller.*transfer verifies its own descriptor and body digest/isu,
+	);
+	assert.match(
+		managedMedia?.exposure ?? '',
+		/exact-absent managed-media binding.*same-store point-in-time prospective catalog and destination-capacity admission.*before body or optional hard-link work.*exact-present retries.*body reverification.*beginSourceWrite.*report ready before asynchronous host\/store capacity refusal.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*SQLite\/WAL or allocation-overhead.*UI.*later-external-allocation.*write-time guarantee.*full-body charging.*refuse.*feasible hard link.*reclamation.*orphan recovery.*logical catalog-row retirement.*absent/isu,
+	);
+	assert.match(
+		managedMedia?.exposure ?? '',
+		/unmanaged recipient admission.*sequential point-in-time check.*metadata.*not transactionally bound.*same-metadata replacement.*undetected.*later replacement or deletion.*not fenced.*separate repository instances or processes.*not serialized.*non-cooperative work.*continue after rejection.*unmanaged audio.*lacks a publisher digest.*linked or otherwise unmanaged originals.*authored proxies.*generic and video rendered fallbacks.*relink.*watch behavior.*copy or consolidation.*no stable lease through real playback.*browser video-codec behavior.*packaged Electron UI two-product source-bearing lifecycle.*open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu,
 	);
 	assert.doesNotMatch(
 		managedMedia?.exposure ?? '',
@@ -437,7 +473,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
-		/portable mixed-media handoff.*stable original and authored-proxy relationships.*generic and video rendered-fallback relationships.*linked or otherwise unmanaged media.*relink.*watch.*copy or consolidation.*cleanup.*capacity policy.*hold or revalidate byte identity through playback.*durable lease.*packaged Electron UI two-product source-bearing save and return lifecycle.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
+		/portable mixed-media handoff.*stable original and authored-proxy relationships.*generic and video rendered-fallback relationships.*linked or otherwise unmanaged media.*relink.*watch.*copy or consolidation.*managed-media reclamation.*orphan recovery.*logical catalog-row retirement.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate byte identity through playback.*durable lease.*packaged Electron UI two-product source-bearing save and return lifecycle.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
 	);
 	assert.match(
 		managedMedia?.acceptanceCriteria.join(' ') ?? '',
