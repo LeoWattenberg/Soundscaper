@@ -3,9 +3,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {
+	createAudioClipV9,
+	createAudioEditorProjectV9,
+	createAudioSourceV9,
+} from '../src/common/editor/project-v9.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
+import { createProjectStore } from '../src/common/editor/storage.js';
 import { createStorageRepositories } from '../src/common/editor/storage/repositories.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
+import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const LOCATOR_ID = 'locator_audio_000000000001';
 const LOCATOR_REVISION = 'snapshot_audio_0000000001';
@@ -60,6 +68,179 @@ test('storage composition exposes verified linked WAV PCM through canonical sour
 	assert.deepEqual([...chunk.channels[0]], [0.25, 1]);
 	assert.equal(loads, 2);
 });
+
+test('project store binds, reads, duplicates, and cleans a linked WAV without owning its body', async (context) => {
+	const body = wavBlob(Float32Array.of(-1, -0.25, 0.25, 1));
+	const releases: unknown[] = [];
+	const port: LinkedOriginalPort = {
+		load(kind, locatorId, { expectedRevision }) {
+			assert.equal(kind, 'audio');
+			assert.equal(locatorId, LOCATOR_ID);
+			return { blob: body, locatorRevision: expectedRevision ?? LOCATOR_REVISION };
+		},
+		release(reference) {
+			releases.push(reference);
+			return true;
+		},
+	};
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `linked-audio-project-store-${Date.now()}-${Math.random()}`,
+		linkedOriginalPort: port,
+	});
+	context.after(async () => { await store.close(); });
+	const source = audioSource();
+	const project = audioProject('linked-audio-project', source);
+
+	const binding = await store.bindLinkedAudioOriginal(
+		project.id,
+		source,
+		LOCATOR_ID,
+		{ expectedLocatorRevision: LOCATOR_REVISION, expectedSnapshot: body },
+	);
+	assert.deepEqual(await store.getLinkedOriginalBinding(project.id, source.id), binding);
+	assert.equal((await store.getLinkedAudioOriginalMetadata(project.id, source))?.kind, 'audio');
+	assert.equal((await store.getSourceMetadata(source.storageKey))?.storage, 'linked-audio-original-v1');
+	assert.deepEqual(
+		[...(await store.readSourceChunk(source.storageKey, 1)).channels[0]],
+		[0.25, 1],
+	);
+	assert.deepEqual(await store.listSources(), [], 'the linked WAV must not create an owned PCM row');
+
+	await store.saveProject(project, { protectedLinkedVideoSourceIds: [] });
+	const copy = await store.duplicateProject(project.id, { id: 'linked-audio-project-copy' });
+	const copiedBinding = await store.getLinkedOriginalBinding(copy.id, source.id);
+	assert.ok(copiedBinding);
+	assert.equal(copiedBinding.kind, 'audio');
+	assert.notEqual(copiedBinding.bindingToken, binding.bindingToken);
+	assert.equal(await body.arrayBuffer().then(({ byteLength }) => byteLength), body.size);
+
+	await store.deleteProject(project.id);
+	assert.deepEqual(releases, [], 'the copied alias must retain the external locator');
+	await store.deleteProject(copy.id);
+	assert.deepEqual(releases, [{
+		kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+	}]);
+});
+
+test('generic lifecycle retires audio and legacy-video locators through one kindful port', async (context) => {
+	const audioBody = wavBlob(Float32Array.of(-1, 1));
+	const videoBody = new Blob(['linked video'], { type: 'video/mp4' });
+	const genericReleases: unknown[] = [];
+	const legacyReleases: unknown[] = [];
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `mixed-linked-original-project-store-${Date.now()}-${Math.random()}`,
+		linkedOriginalPort: {
+			load(kind: 'audio' | 'video', _locatorId: string, { expectedRevision }: { expectedRevision: string | null }) {
+				return {
+					blob: kind === 'audio' ? audioBody : videoBody,
+					locatorRevision: expectedRevision ?? (kind === 'audio' ? LOCATOR_REVISION : 'snapshot_video_0000000001'),
+				};
+			},
+			release(reference: unknown) { genericReleases.push(reference); return true; },
+		},
+		linkedVideoOriginalPort: {
+			load: (_locatorId: string, { expectedRevision }: { expectedRevision: string | null }) => ({
+				blob: videoBody,
+				locatorRevision: expectedRevision ?? 'snapshot_video_0000000001',
+			}),
+			release(reference: unknown) { legacyReleases.push(reference); return true; },
+		},
+	});
+	context.after(async () => { await store.close(); });
+	const audio = audioSource({ frameCount: 2 });
+	const video = Object.freeze({
+		kind: 'video' as const,
+		id: 'linked-video-source', storageKey: 'linked-video-storage', mimeType: 'video/mp4',
+		frameCount: 2, sampleRate: 48_000, width: 16, height: 9, frameRate: 30,
+		videoCodec: 'h264', audioCodec: null, hasAudio: false,
+	});
+	const project = createAudioEditorProjectV9({
+		id: 'mixed-linked-project',
+		sources: [audio, video],
+		clips: [
+			createAudioClipV9({
+				id: 'linked-audio-clip', sourceId: audio.id,
+				durationFrames: 2, sourceDurationFrames: 2,
+			}),
+		],
+	});
+
+	await store.bindLinkedAudioOriginal(project.id, audio, LOCATOR_ID, {
+		expectedLocatorRevision: LOCATOR_REVISION,
+		expectedSnapshot: audioBody,
+	});
+	await store.bindLinkedVideoOriginal(project.id, video, 'locator_video_0000000001', {
+		expectedLocatorRevision: 'snapshot_video_0000000001',
+		expectedSnapshot: videoBody,
+	});
+	await store.saveProject(project, { protectedLinkedVideoSourceIds: [video.id] });
+	await store.deleteProject(project.id);
+
+	assert.deepEqual(genericReleases, [
+		{ kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION },
+		{
+			kind: 'video',
+			locatorId: 'locator_video_0000000001',
+			locatorRevision: 'snapshot_video_0000000001',
+		},
+	]);
+	assert.deepEqual(legacyReleases, [], 'a competing video lifecycle must not release locators');
+});
+
+test('project store reconciles one complete durable kindful locator inventory', async (context) => {
+	const body = wavBlob(Float32Array.of(-1, 1));
+	const inventories: unknown[] = [];
+	const store = createProjectStore({
+		indexedDB: createInstrumentedIndexedDB(),
+		memoryFallback: false,
+		preferOpfs: false,
+		databaseName: `linked-audio-reconciliation-${Date.now()}-${Math.random()}`,
+		linkedOriginalPort: {
+			load: (_kind: 'audio' | 'video', _locatorId: string, { expectedRevision }: { expectedRevision: string | null }) => ({
+				blob: body,
+				locatorRevision: expectedRevision ?? LOCATOR_REVISION,
+			}),
+			reconcile(references: unknown) { inventories.push(references); return 0; },
+		},
+	});
+	context.after(async () => { await store.close(); });
+	await store.ready();
+	const source = audioSource({ frameCount: 2 });
+	const project = audioProject('linked-audio-reconciliation-project', source);
+	await store.bindLinkedAudioOriginal(project.id, source, LOCATOR_ID, {
+		expectedLocatorRevision: LOCATOR_REVISION,
+		expectedSnapshot: body,
+	});
+	await store.saveProject(project, { protectedLinkedVideoSourceIds: [] });
+
+	assert.equal(await store.reconcileLinkedOriginalLocators(), true);
+	assert.deepEqual(inventories, [[{
+		kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+	}]]);
+});
+
+function audioSource({ frameCount = 4 } = {}) {
+	return createAudioSourceV9({
+		id: 'source-audio', storageKey: 'physical-audio', mimeType: 'audio/wav',
+		frameCount, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
+		sampleFormat: 'float32', chunkFrames: 2,
+	});
+}
+
+function audioProject(id: string, source: ReturnType<typeof audioSource>) {
+	return createAudioEditorProjectV9({
+		id,
+		sources: [source],
+		clips: [createAudioClipV9({
+			id: `${id}-clip`, sourceId: source.id,
+			durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
+		})],
+	});
+}
 
 function wavBlob(channel: Float32Array): Blob {
 	const encoded = encodeWav([channel], { float: true, dither: false, sampleRate: 48_000 });

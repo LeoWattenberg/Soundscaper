@@ -7,12 +7,10 @@ import {
 import { openDatabase } from './storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
-import { linkedVideoDerivativeOriginal } from './storage/video-derivative-relationship.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
-import { admitLocalStoreClear, LinkedVideoOriginalLifecycleCoordinator } from './storage/linked-video-original-lifecycle-coordinator.ts';
+import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-coordinator.ts';
+import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
 import { admitProjectPublication } from './storage/project-publication-options.ts';
-import { duplicateProjectWithLinkedVideoOriginals } from './storage/project-duplication.ts';
-import { saveProjectWithLinkedVideoOriginalReachability } from './storage/linked-video-original-project-save.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -40,6 +38,7 @@ export class AudioEditorProjectStore {
 		migrateLegacyPcmOnAccess = true,
 		derivativeCacheLimits = undefined,
 		derivativeCacheNow = undefined,
+		linkedOriginalPort = null,
 		linkedVideoOriginalPort = null,
 		desktopProjectBridge = null,
 		onDesktopSharedProjectLocalCleanupError = reportDesktopSharedProjectLocalCleanupError,
@@ -77,6 +76,7 @@ export class AudioEditorProjectStore {
 			migrateLegacyPcmOnAccess: Boolean(migrateLegacyPcmOnAccess),
 			derivativeCacheLimits,
 			derivativeCacheNow,
+			linkedOriginalPort,
 			linkedVideoOriginalPort,
 			estimateStorage: () => this.estimateStorage(),
 			isMemoryBackend: () => this.backend === 'memory',
@@ -110,16 +110,21 @@ export class AudioEditorProjectStore {
 		this.analysisRepository = repositories.analysis;
 		this.sourceRepository = repositories.sources;
 		this.mediaRepository = repositories.media;
+		this.linkedOriginalBindingRepository = repositories.linkedOriginalBindings || null;
+		this.linkedOriginalProjectAliasRepository = repositories.linkedOriginalProjectAliases || null;
+		this.linkedOriginalProjectReachabilityRepository = repositories.linkedOriginalProjectReachability || null;
+		this.linkedOriginalResolver = repositories.linkedOriginals || null;
 		this.linkedVideoOriginalBindingRepository = repositories.linkedVideoOriginalBindings || null;
 		this.linkedVideoOriginalProjectAliasRepository = repositories.linkedVideoOriginalProjectAliases || null;
 		this.linkedVideoOriginalProjectReachabilityRepository = repositories.linkedVideoOriginalProjectReachability || null;
 		this.linkedVideoOriginalResolver = repositories.linkedVideoOriginals || null;
 		this.retentionRepository = repositories.retention;
-		this.linkedVideoOriginalLifecycle = new LinkedVideoOriginalLifecycleCoordinator(
-			this.linkedVideoOriginalBindingRepository,
-			this.linkedVideoOriginalResolver,
+		this.linkedOriginalStoreService = new LinkedOriginalStoreService(
+			repositories,
 			{ onCleanupError: onLinkedVideoOriginalLocatorCleanupError },
 		);
+		this.linkedOriginalLifecycle = this.linkedOriginalStoreService.linkedOriginalLifecycle;
+		this.linkedVideoOriginalLifecycle = this.linkedOriginalStoreService.linkedVideoOriginalLifecycle;
 	}
 
 	async ready() {
@@ -138,12 +143,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async saveProject(project, options = {}) {
-		return saveProjectWithLinkedVideoOriginalReachability({
-			store: this,
-			projects: this.projectRepository,
-			lifecycle: this.linkedVideoOriginalLifecycle,
-			reachability: this.linkedVideoOriginalProjectReachabilityRepository,
-		}, project, options);
+		return this.linkedOriginalStoreService.saveProject(this, this.projectRepository, project, options);
 	}
 
 	async loadProject(projectId, { revision, signal } = {}) {
@@ -159,7 +159,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async deleteProject(projectId) {
-		return this.linkedVideoOriginalLifecycle.deleteProject(projectId, () => this.projectRepository.delete(projectId));
+		return this.linkedOriginalStoreService.deleteProject(projectId, () => this.projectRepository.delete(projectId));
 	}
 
 	async prepareProjectHandoff(project, { signal } = {}) {
@@ -172,8 +172,7 @@ export class AudioEditorProjectStore {
 	}
 
 	async duplicateProject(projectId, { id, title } = {}) {
-		return this.linkedVideoOriginalLifecycle.run(() => duplicateProjectWithLinkedVideoOriginals({
-			aliases: this.linkedVideoOriginalProjectAliasRepository,
+		return this.linkedOriginalStoreService.duplicateProject({
 			loadProject: (requestedId) => this.projectRepository instanceof DesktopSharedProjectRepository
 				? this.projectRepository.loadProjectForDuplication(requestedId)
 				: this.loadProject(requestedId),
@@ -189,7 +188,7 @@ export class AudioEditorProjectStore {
 			copyProjectId: id || createId('project'),
 			title,
 			timestamp: new Date().toISOString(),
-		}));
+		});
 	}
 
 	async saveSetting(key, value) {
@@ -259,74 +258,86 @@ export class AudioEditorProjectStore {
 		return this.mediaRepository.getAssetMetadata(sourceId);
 	}
 
-	/** Bind one exact project/video source to a pathless platform locator. */
+	async bindLinkedAudioOriginal(projectId, source, locatorId, options = {}) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.bindAudio(projectId, source, locatorId, options);
+	}
+
+	async resolveLinkedAudioOriginal(projectId, source, options = {}) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.resolveAudio(projectId, source, options);
+	}
+
+	async getLinkedAudioOriginalMetadata(projectId, source) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.metadataAudio(projectId, source);
+	}
+
+	async getLinkedOriginalBinding(projectId, sourceId) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.getBinding(projectId, sourceId);
+	}
+
+	async unlinkLinkedAudioOriginal(projectId, sourceId, expectedBindingToken) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.unlinkAudio(projectId, sourceId, expectedBindingToken);
+	}
+
+	async releaseLinkedOriginalLocator(reference) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.releaseOriginal(reference);
+	}
+
 	async bindLinkedVideoOriginal(projectId, source, locatorId, options = {}) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) {
-			throw new Error('Linked video original resolution is unavailable.');
-		}
-		return this.linkedVideoOriginalLifecycle.bind(
-			projectId, source?.id,
-			() => this.linkedVideoOriginalResolver.bind(projectId, source, locatorId, options),
-		);
+		return this.linkedOriginalStoreService.bindVideo(projectId, source, locatorId, options);
 	}
 
 	/** Resolve one exact project/video binding without consulting retained-media storage. */
 	async resolveLinkedVideoOriginal(projectId, source, options = {}) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) {
-			throw new Error('Linked video original resolution is unavailable.');
-		}
-		return this.linkedVideoOriginalResolver.resolve(projectId, source, options);
+		return this.linkedOriginalStoreService.resolveVideo(projectId, source, options);
 	}
 	async leaseLinkedVideoOriginalPlayback(projectId, source, options = {}) {
 		this.#assertOpen();
-		return this.linkedVideoOriginalResolver?.leasePlayback?.(projectId, source, options) ?? null;
+		return this.linkedOriginalStoreService.leaseVideoPlayback(projectId, source, options);
 	}
 
 	async getLinkedVideoOriginalMetadata(projectId, source) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) {
-			throw new Error('Linked video original resolution is unavailable.');
-		}
-		return this.linkedVideoOriginalResolver.metadata(projectId, source);
+		return this.linkedOriginalStoreService.metadataVideo(projectId, source);
 	}
 
 	async getLinkedVideoOriginalBinding(projectId, sourceId) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalBindingRepository) {
-			throw new Error('Linked video original bindings are unavailable.');
-		}
-		return this.linkedVideoOriginalBindingRepository.get(projectId, sourceId);
+		return this.linkedOriginalStoreService.getVideoBinding(projectId, sourceId);
 	}
 
 	async unlinkLinkedVideoOriginal(projectId, sourceId, expectedBindingToken) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalBindingRepository) {
-			throw new Error('Linked video original bindings are unavailable.');
-		}
-		return this.linkedVideoOriginalLifecycle.unlink(projectId, sourceId, () => this.linkedVideoOriginalBindingRepository.deleteIfCurrent(
-			projectId,
-			sourceId,
-			expectedBindingToken,
-		));
+		return this.linkedOriginalStoreService.unlinkVideo(projectId, sourceId, expectedBindingToken);
 	}
 
 	/** Release a platform locator that was not retained by a committed import. */
 	async releaseLinkedVideoOriginalLocator(reference) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) {
-			throw new Error('Linked video original resolution is unavailable.');
-		}
-		return this.linkedVideoOriginalLifecycle.releaseUnused(reference);
+		return this.linkedOriginalStoreService.releaseVideo(reference);
 	}
 
 	/** Reconcile main-private startup locators only from a complete durable binding inventory. */
 	async reconcileLinkedVideoOriginalLocators() {
 		this.#assertOpen();
-		return this.linkedVideoOriginalLifecycle.run(async () => {
-			if (!this.linkedVideoOriginalResolver || await this.#database() === null) return false;
-			return (await this.linkedVideoOriginalResolver.reconcileLocators((await this.projectRepository.list()).map(({ id }) => id))) !== null;
+		return this.linkedOriginalStoreService.reconcileVideoLocators({
+			isDurable: async () => await this.#database() !== null,
+			projectIds: async () => (await this.projectRepository.list()).map(({ id }) => id),
+		});
+	}
+
+	async reconcileLinkedOriginalLocators() {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.reconcileOriginalLocators({
+			isDurable: async () => await this.#database() !== null,
+			projectIds: async () => (await this.projectRepository.list()).map(({ id }) => id),
 		});
 	}
 
@@ -361,13 +372,7 @@ export class AudioEditorProjectStore {
 
 	async saveLinkedVideoDerivative(projectId, source, binding, input = {}) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) throw new Error('Linked video original resolution is unavailable.');
-		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
-		const result = await this.mediaRepository.saveDerivative(source.storageKey || source.id, {
-			...input, original: linkedVideoDerivativeOriginal(binding),
-		});
-		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
-		return result;
+		return this.linkedOriginalStoreService.saveLinkedVideoDerivative(projectId, source, binding, input);
 	}
 
 	async loadVideoDerivative(sourceId, { timestamp = 0, type, recipe } = {}) {
@@ -376,13 +381,7 @@ export class AudioEditorProjectStore {
 
 	async loadLinkedVideoDerivative(projectId, source, binding, selector = {}) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) throw new Error('Linked video original resolution is unavailable.');
-		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
-		const result = await this.mediaRepository.loadDerivative(source.storageKey || source.id, {
-			...selector, original: linkedVideoDerivativeOriginal(binding),
-		});
-		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
-		return result;
+		return this.linkedOriginalStoreService.loadLinkedVideoDerivative(projectId, source, binding, selector);
 	}
 
 	async listVideoDerivatives(sourceId, { type, recipe } = {}) {
@@ -391,13 +390,7 @@ export class AudioEditorProjectStore {
 
 	async listLinkedVideoDerivatives(projectId, source, binding, selector = {}) {
 		this.#assertOpen();
-		if (!this.linkedVideoOriginalResolver) throw new Error('Linked video original resolution is unavailable.');
-		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
-		const result = await this.mediaRepository.listDerivatives(source.storageKey || source.id, {
-			...selector, original: linkedVideoDerivativeOriginal(binding),
-		});
-		await this.linkedVideoOriginalResolver.assertBindingCurrent(projectId, source, binding);
-		return result;
+		return this.linkedOriginalStoreService.listLinkedVideoDerivatives(projectId, source, binding, selector);
 	}
 
 	async deleteVideoDerivative(sourceId, selector = {}) {
@@ -484,7 +477,7 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		if (!this.clearPromise) {
 			const admission = admitLocalStoreClear(this.retentionRepository);
-			const operation = this.linkedVideoOriginalLifecycle.clear(
+			const operation = this.linkedOriginalStoreService.clear(
 				admission,
 			);
 			this.clearPromise = operation;

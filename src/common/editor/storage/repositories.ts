@@ -3,6 +3,8 @@
 import { KeyValueRepository } from './key-value-repository.ts';
 import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
 import { LinkedAudioOriginalSourceReader } from './linked-audio-original-source-reader.ts';
+import { LinkedOriginalProjectAliasRepository } from './linked-original-project-alias-repository.ts';
+import { LinkedOriginalProjectReachabilityRepository } from './linked-original-project-reachability-repository.ts';
 import { LinkedOriginalRepository } from './linked-original-repository.ts';
 import {
 	LinkedOriginalResolver,
@@ -35,6 +37,8 @@ export interface StorageRepositories {
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
 	readonly linkedOriginalBindings: LinkedOriginalRepository;
+	readonly linkedOriginalProjectAliases: LinkedOriginalProjectAliasRepository;
+	readonly linkedOriginalProjectReachability: LinkedOriginalProjectReachabilityRepository;
 	readonly linkedOriginals: LinkedOriginalResolver | null;
 	readonly linkedVideoOriginalBindings: LinkedVideoOriginalRepository;
 	readonly linkedVideoOriginalProjectAliases: LinkedVideoOriginalProjectAliasRepository;
@@ -99,6 +103,8 @@ export function createStorageRepositories(
 		now: options.derivativeCacheNow,
 	});
 	const linkedOriginalBindings = new LinkedOriginalRepository(port);
+	const linkedOriginalProjectAliases = new LinkedOriginalProjectAliasRepository(port);
+	const linkedOriginalProjectReachability = new LinkedOriginalProjectReachabilityRepository(port);
 	const linkedOriginals = options.linkedOriginalPort
 		? new LinkedOriginalResolver(linkedOriginalBindings, options.linkedOriginalPort)
 		: null;
@@ -146,6 +152,8 @@ export function createStorageRepositories(
 		sources,
 		media,
 		linkedOriginalBindings,
+		linkedOriginalProjectAliases,
+		linkedOriginalProjectReachability,
 		linkedOriginals,
 		linkedVideoOriginalBindings,
 		linkedVideoOriginalProjectAliases,
