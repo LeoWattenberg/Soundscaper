@@ -72,6 +72,35 @@ test('save maintenance keeps kindful transient roots until their exact durable s
 	assert.deepEqual(roots, [[{ kind: 'audio', sourceId: 'source-a' }], []]);
 });
 
+test('successful maintenance consumes transient grace without a wrong-kind promotion', async () => {
+	const fixture = createFixture();
+	await fixture.lifecycle.bind(
+		'project-a',
+		{ kind: 'audio', sourceId: 'same-source' },
+		async () => true,
+	);
+	const roots: unknown[] = [];
+
+	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
+		roots.push(transient);
+		return {
+			durableSourceReferences: Object.freeze([{
+				kind: 'video' as const, sourceId: 'same-source',
+			}]),
+			removedLocatorReferences: Object.freeze([]),
+		};
+	});
+	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
+		roots.push(transient);
+		return {
+			durableSourceReferences: Object.freeze([]),
+			removedLocatorReferences: Object.freeze([]),
+		};
+	});
+
+	assert.deepEqual(roots, [[{ kind: 'audio', sourceId: 'same-source' }], []]);
+});
+
 test('failed exact releases retry per kind after rechecking live aliases', async () => {
 	let attempts = 0;
 	const fixture = createFixture({

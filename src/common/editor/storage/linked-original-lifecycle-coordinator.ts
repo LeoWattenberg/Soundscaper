@@ -294,7 +294,7 @@ export class LinkedOriginalLifecycleCoordinator {
 		if (!result) {
 			return;
 		}
-		for (const source of result.durableSourceReferences) {
+		for (const source of transientSourceReferences) {
 			this.#forgetTransientSource(projectId, source);
 		}
 		if (result.removedLocatorReferences.length) {
