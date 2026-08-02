@@ -44,6 +44,24 @@ test('direct stem admission opens one exact ZIP destination before rendering', a
 	assert.equal(directStemArchiveTemporaryBytes(plan), 60);
 });
 
+test('direct stem admission accepts canonical WAV, BWF, and AIFF archive families', async () => {
+	for (const format of ['wav', 'bwf', 'aiff'] as const) {
+		const plan = nativePlan(format);
+		let pickerCalls = 0;
+		const opened: unknown[] = [];
+		const result = await prepareDirectStemArchiveDestination({
+			prepareSave() {
+				pickerCalls += 1;
+				return preparedStream({ opened });
+			},
+		}, plan, null, new AbortController().signal);
+		assert.equal(pickerCalls, 1, format);
+		assert.ok(result.destination, format);
+		assert.deepEqual(opened, [[plan.archive.expectedByteLength, 'exact']], format);
+		await result.destination.abort();
+	}
+});
+
 test('direct stem admission returns cancellation and rejects inexact pipeline families before a picker', async () => {
 	const cancellation = Object.freeze({ mode: 'cancelled' as const, cancelled: true, fileName: 'session-stems.zip' });
 	const cancelled = await prepareDirectStemArchiveDestination({
@@ -141,6 +159,22 @@ function ineligiblePlans(): Array<ReturnType<typeof eligiblePlan> & { label: str
 	return [
 		{ ...base, label: 'mix mode', mode: 'mix' },
 		{ ...base, label: 'compressed output', format: 'mp3' },
+		{ ...base, label: 'mismatched native MIME', mimeType: 'audio/aiff' },
+		{
+			...base,
+			label: 'mismatched native extension',
+			outputs: [
+				{ fileName: '01-dialogue.aif', trackId: 'track-0' },
+				base.outputs[1]!,
+			],
+			archive: {
+				...base.archive,
+				entries: [
+					{ fileName: '01-dialogue.aif', expectedByteLength: 60 },
+					base.archive.entries[1]!,
+				],
+			},
+		},
 		{ ...base, label: 'BW64 output', format: 'bw64' },
 		{ ...base, label: '7z archive', archive: { ...base.archive, format: '7z' } },
 		{ ...base, label: 'inexact archive', archive: { ...base.archive, expectedByteLength: null } },
@@ -165,6 +199,34 @@ function ineligiblePlans(): Array<ReturnType<typeof eligiblePlan> & { label: str
 		},
 		{ ...base, label: 'entry-size drift', outputFileBytesPerRender: 61 },
 	] as Array<ReturnType<typeof eligiblePlan> & { label: string }>;
+}
+
+function nativePlan(format: 'wav' | 'bwf' | 'aiff') {
+	const base = eligiblePlan();
+	const extension = format === 'aiff' ? 'aiff' : 'wav';
+	const outputs = base.outputs.map((output) => ({
+		...output,
+		fileName: output.fileName.replace(/\.wav$/u, `.${extension}`),
+	}));
+	const entries = outputs.map((output) => ({
+		fileName: output.fileName,
+		expectedByteLength: base.outputFileBytesPerRender,
+	}));
+	const zip32 = inspectZip32Layout(entries.map(({ fileName, expectedByteLength }) => ({
+		fileName, byteLength: expectedByteLength,
+	})));
+	return {
+		...base,
+		format,
+		mimeType: format === 'aiff' ? 'audio/aiff' : 'audio/wav',
+		outputs,
+		archive: {
+			...base.archive,
+			entries,
+			zip32,
+			expectedByteLength: zip32.archiveByteLength,
+		},
+	};
 }
 
 function preparedStream(options: Readonly<{

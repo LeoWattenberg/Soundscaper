@@ -9,6 +9,12 @@ import {
 } from './audio-rendered-fallback-export.ts';
 import { directPcmContainerLabel, prepareDirectPcmExportDestination } from './direct-export-dispatch.ts';
 import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination } from './direct-pcm-export.ts';
+import {
+	commitPreparedDirectStemArchiveDestination,
+	directStemArchiveTemporaryBytes,
+	prepareDirectStemArchiveDestination,
+	streamDirectStemArchive,
+} from './direct-stem-archive-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
 export interface ExportServiceRuntime {
@@ -89,6 +95,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		let exportRenderSources: ExportRenderSources;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectPcmDestination | null = null;
+		let directStemArchive = false;
 		try {
 			const fallbackProvider = await admitAudioRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
@@ -118,14 +125,28 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					metadata: { ...exportProject.metadata, adm: plan.adm.metadata },
 				};
 			}
-			const directPreparation = await prepareDirectPcmExportDestination(
+			const directStemTemporaryBytes = directStemArchiveTemporaryBytes(plan);
+			const stemPreparation = await prepareDirectStemArchiveDestination(
 				fileService, plan,
 				requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
 				abort.signal,
 			);
-			if (directPreparation.cancelled) return directPreparation.cancelled;
-			pendingDirectDestination = directPreparation.destination;
+			if (stemPreparation.cancelled) return stemPreparation.cancelled;
+			pendingDirectDestination = stemPreparation.destination;
+			directStemArchive = Boolean(pendingDirectDestination);
 			if (!pendingDirectDestination) {
+				const directPreparation = await prepareDirectPcmExportDestination(
+					fileService, plan,
+					requestedSettings && typeof requestedSettings === 'object' ? requestedSettings : null,
+					abort.signal,
+				);
+				if (directPreparation.cancelled) return directPreparation.cancelled;
+				pendingDirectDestination = directPreparation.destination;
+			}
+			if (directStemArchive) {
+				if (directStemTemporaryBytes === null) throw new Error('The direct stem archive plan changed before rendering.');
+				await preflightStorage(directStemTemporaryBytes, 'export');
+			} else if (!pendingDirectDestination) {
 				await preflightStorage(
 					plan.requiredTemporaryBytes ?? plan.outputBytesPerRender * Math.max(1, plan.outputs.length),
 					'export',
@@ -149,6 +170,21 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					pendingCleanup = outputCleanup;
 				}
 				fileName = plan.outputs[0].fileName;
+			} else if (directStemArchive) {
+				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
+				directOutput = await streamDirectStemArchive({
+					destination: pendingDirectDestination!, plan, signal: abort.signal,
+					assertCurrent: assertExportCurrent,
+					async renderStem(output, index) {
+						const snapshot = stemProject(exportProject, output.trackId);
+						return renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, {
+							start: index / plan.outputs.length,
+							end: (index + 1) / plan.outputs.length,
+						});
+					},
+					onStemComplete(progress) { updateExportProgress(progress); },
+				});
+				fileName = plan.archive.fileName;
 			} else {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
 				const archive = await createStreamingStemArchive(plan.archive, copy);
@@ -181,12 +217,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			assertExportCurrent();
 			if (directOutput) {
 				await clearPreviousExportOutput();
-				const published = await commitDirectPcmDestination(
-					pendingDirectDestination!,
-					plan.outputFileBytesPerRender,
-					directOutput.byteLength,
-					assertExportCurrent, directPcmContainerLabel(plan.format),
-				);
+				const published = directStemArchive
+					? await commitPreparedDirectStemArchiveDestination(
+						pendingDirectDestination!, plan, directOutput.byteLength, assertExportCurrent,
+					)
+					: await commitDirectPcmDestination(
+						pendingDirectDestination!, plan.outputFileBytesPerRender, directOutput.byteLength,
+						assertExportCurrent, directPcmContainerLabel(plan.format),
+					);
 				pendingDirectDestination = null;
 				const result = Object.freeze({
 					url: null,
