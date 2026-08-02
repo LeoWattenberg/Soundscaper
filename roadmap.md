@@ -328,6 +328,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Electron Enhanced / Shared — Implemented:** exact-revision linked-locator
   retirement after same-store project deletion and clear preserves live aliases
   and external files.
+- **Shared / Electron Enhanced — Implemented:** same-store project duplication
+  preserves reachable linked-video bindings without copying external media.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond the bounded chooser/import and maintained visual-playback slices, and
   finish broader
