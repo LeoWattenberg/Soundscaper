@@ -225,6 +225,7 @@ test('replacement cancellation removes staged audio/video assets and rejects sta
 		/project changed/,
 	);
 	await Promise.resolve();
+	await Promise.resolve();
 	assert.deepEqual(staleHarness.deletedSources, ['new']);
 
 	const importedVideo = projectFixture({
@@ -272,15 +273,23 @@ test('replacement cancellation drains its staged chunk provider before deleting 
 	});
 	const drainStarted = deferred();
 	const drainGate = deferred();
+	const events: string[] = [];
 	const providers = Object.assign(new Map<string, unknown>([['new', {}]]), {
 		async drain() {
+			events.push('drain-providers:start');
 			drainStarted.resolve();
 			await drainGate.promise;
+			events.push('drain-providers:done');
 		},
 	});
 	const harnessRef: { current?: ReturnType<typeof createHarness> } = {};
 	const harness = createHarness(base, {
 		sourceChunkProviders: providers,
+		retireSourceChunkProvider: async (sourceId) => {
+			providers.delete(sourceId);
+			events.push('publish-engine-providers');
+			await providers.drain();
+		},
 		importProjectBinFile: async () => {
 			harnessRef.current?.replaceImportedDocument(imported);
 			return { clipId: 'new-bin' };
@@ -292,9 +301,13 @@ test('replacement cancellation drains its staged chunk provider before deleting 
 
 	await drainStarted.promise;
 	assert.equal(providers.has('new'), false);
+	assert.deepEqual(events, ['publish-engine-providers', 'drain-providers:start']);
 	assert.deepEqual(harness.deletedSources, []);
 	drainGate.resolve();
 	assert.equal(await cancellation, true);
+	assert.deepEqual(events, [
+		'publish-engine-providers', 'drain-providers:start', 'drain-providers:done',
+	]);
 	assert.deepEqual(harness.deletedSources, ['new']);
 });
 
@@ -384,6 +397,7 @@ interface HarnessOptions {
 	readonly importProjectBinFile?: ProjectBinServiceDependencies['importProjectBinFile'];
 	readonly revokeVideoVisual?: ProjectBinServiceDependencies['revokeVideoVisual'];
 	readonly sourceChunkProviders?: ProjectBinServiceDependencies['sourceChunkProviders'];
+	readonly retireSourceChunkProvider?: ProjectBinServiceDependencies['retireSourceChunkProvider'];
 	readonly previewEngine?: ReturnType<typeof createPreviewEngine>;
 	readonly editingBlocked?: () => boolean;
 	readonly playbackState?: string;
@@ -413,6 +427,8 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		selection?: Readonly<{ selectTrackId?: string | null; selectClipId?: string | null }>;
 	}> = [];
 	const previewEngine = options.previewEngine ?? createPreviewEngine(Promise.resolve());
+	const sourceChunkProviders = options.sourceChunkProviders
+		?? Object.assign(new Map<string, unknown>(), { drain: async () => undefined });
 	const dependencies: ProjectBinServiceDependencies = {
 		lifetime,
 		copy: {
@@ -427,7 +443,11 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 			stop: () => { playbackStopCount += 1; },
 		},
 		sourceBuffers: new Map<string, AudioBuffer>(),
-		sourceChunkProviders: options.sourceChunkProviders ?? Object.assign(new Map<string, unknown>(), { drain: async () => undefined }),
+		sourceChunkProviders,
+		retireSourceChunkProvider: options.retireSourceChunkProvider ?? (async (sourceId) => {
+			sourceChunkProviders.delete(sourceId);
+			await sourceChunkProviders.drain();
+		}),
 		sourcePeaks: new Map<string, unknown>(),
 		missingSourceIds,
 		store: {

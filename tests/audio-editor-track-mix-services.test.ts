@@ -160,6 +160,7 @@ test('derived source persistence removes a committed source when project ownersh
 	const deleted: string[] = [];
 	const buffers = new Map<string, { length: number; numberOfChannels: number; sampleRate: number; getChannelData(channel: number): Float32Array }>();
 	const peakCache = new Map<string, unknown>();
+	const providers = new SourceChunkProviderRegistry<string, unknown>();
 	const service = createDerivedSourceService({
 		lifetime: { assertActive() {} },
 		copy: { effectInvalidAudio: 'Invalid audio' },
@@ -170,6 +171,10 @@ test('derived source persistence removes a committed source when project ownersh
 		},
 		createId: () => 'derived',
 		projectSampleRate: () => 48_000,
+		retireSourceChunkProvider: async (sourceId) => {
+			providers.delete(sourceId);
+			await providers.drain();
+		},
 		getAudioContext: async () => ({}),
 		createBufferFromChannels: async (channels, sampleRate) => audioBufferFixture(channels, sampleRate),
 		loadSourceChannels: async () => [new Float32Array([1, 2])],
@@ -180,7 +185,6 @@ test('derived source persistence removes a committed source when project ownersh
 		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
 		cacheSourceBuffer: (sourceId, buffer) => { buffers.set(sourceId, buffer); },
 		sourceBuffers: buffers,
-		sourceChunkProviders: new SourceChunkProviderRegistry(),
 		sourcePeaks: peakCache,
 		sourceChunkFrames: 65_536,
 		store: {
@@ -230,6 +234,11 @@ test('derived source failure drains its provider before backing deletion and pre
 		assertProject() {},
 		createId: () => 'derived',
 		projectSampleRate: () => 48_000,
+		retireSourceChunkProvider: async (sourceId) => {
+			providers.delete(sourceId);
+			events.push('publish-engine-providers');
+			await providers.drain();
+		},
 		getAudioContext: async () => ({}),
 		createBufferFromChannels: async (channels, sampleRate) => audioBufferFixture(channels, sampleRate),
 		loadSourceChannels: async () => [new Float32Array([1, 2])],
@@ -249,7 +258,6 @@ test('derived source failure drains its provider before backing deletion and pre
 			});
 		},
 		sourceBuffers: buffers,
-		sourceChunkProviders: providers,
 		sourcePeaks: new Map(),
 		sourceChunkFrames: 65_536,
 		store: {
@@ -270,7 +278,7 @@ test('derived source failure drains its provider before backing deletion and pre
 	);
 	await cleanupStarted;
 	assert.equal(providers.has('derived'), false);
-	assert.deepEqual(events, ['provider-dispose-start']);
+	assert.deepEqual(events, ['provider-dispose-start', 'publish-engine-providers']);
 	assert.deepEqual(deleted, []);
 	resolveCleanup();
 	await assert.rejects(pending, (error: unknown) => {
@@ -279,7 +287,9 @@ test('derived source failure drains its provider before backing deletion and pre
 		assert.deepEqual(error.errors, [primaryFailure, cleanupFailure]);
 		return true;
 	});
-	assert.deepEqual(events, ['provider-dispose-start', 'provider-dispose-end']);
+	assert.deepEqual(events, [
+		'provider-dispose-start', 'publish-engine-providers', 'provider-dispose-end',
+	]);
 	assert.deepEqual(deleted, []);
 });
 

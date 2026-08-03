@@ -22,18 +22,14 @@ interface CachePort<Value> {
 	delete(key: string): boolean;
 }
 
-interface RetiringCachePort<Value> extends Pick<CachePort<Value>, 'delete'> {
-	drain(): PromiseLike<void> | void;
-}
-
 export interface DerivedSourceServiceDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
 	readonly copy: DerivedSourceCopy;
 	readonly store: SourceStoragePort;
 	readonly sourceBuffers: CachePort<AudioBufferLike>;
-	readonly sourceChunkProviders: RetiringCachePort<unknown>;
 	readonly sourcePeaks: CachePort<unknown>;
 	readonly sourceChunkFrames: number;
+	retireSourceChunkProvider(sourceId: string): PromiseLike<void> | void;
 	getProject(): ControllerProject;
 	captureProject(): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
@@ -202,10 +198,9 @@ export function createDerivedSourceService(
 	}
 
 	async function discardSource(sourceId: string): Promise<void> {
-		dependencies.sourceChunkProviders.delete(sourceId);
+		await dependencies.retireSourceChunkProvider(sourceId);
 		dependencies.sourceBuffers.delete(sourceId);
 		dependencies.sourcePeaks.delete(sourceId);
-		await dependencies.sourceChunkProviders.drain();
 		await Promise.resolve(dependencies.store.deleteAnalysis?.(dependencies.peakCacheKey(sourceId)))
 			.catch(() => undefined);
 		await dependencies.store.deleteSource(sourceId).catch(() => undefined);

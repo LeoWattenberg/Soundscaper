@@ -40,11 +40,6 @@ interface LinkedPcmImportStore {
 	): Promise<boolean>;
 }
 
-interface SourceChunkProviderMap {
-	delete(sourceId: string): boolean;
-	drain?(): PromiseLike<void> | void;
-}
-
 export interface LinkedPcmImportRuntime {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly activateStoredSource: LegacyPort;
@@ -62,8 +57,8 @@ export interface LinkedPcmImportRuntime {
 	readonly peakCacheKey: (sourceId: string) => string;
 	readonly prepareImportedMediaCommand: LegacyPort;
 	readonly projectSampleRate: () => number;
+	readonly retireSourceChunkProvider: (sourceId: string) => PromiseLike<void> | void;
 	readonly sourceBuffers: Readonly<{ delete(sourceId: string): unknown }>;
-	readonly sourceChunkProviders: SourceChunkProviderMap;
 	readonly sourcePeaks: Readonly<{ delete(sourceId: string): unknown }>;
 	readonly store: LinkedPcmImportStore;
 	readonly stripExtension: (name: string) => string;
@@ -76,7 +71,7 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 		SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
 		commit, copy, createStableId, getProject, importResultWithWarnings,
 		peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
-		sourceChunkProviders, sourcePeaks, store, stripExtension, warnEnvelope,
+		retireSourceChunkProvider, sourcePeaks, store, stripExtension, warnEnvelope,
 	} = runtime;
 
 	return async function importLinkedPcm(
@@ -160,12 +155,7 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 			const cleanupErrors: unknown[] = [];
 			let providerRetired = true;
 			if (activationStarted && sourceId !== null) {
-				try { sourceChunkProviders.delete(sourceId); }
-				catch (cleanupError) {
-					providerRetired = false;
-					cleanupErrors.push(cleanupError);
-				}
-				try { await sourceChunkProviders.drain?.(); }
+				try { await retireSourceChunkProvider(sourceId); }
 				catch (cleanupError) {
 					providerRetired = false;
 					cleanupErrors.push(cleanupError);

@@ -4,11 +4,6 @@
 
 type LegacyPort = (...args: any[]) => any;
 
-interface SourceChunkProviderMap {
-	delete(sourceId: string): boolean;
-	drain?(): PromiseLike<void> | void;
-}
-
 export interface IncrementalWavImportRuntime {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly activateStoredSource: LegacyPort;
@@ -21,8 +16,8 @@ export interface IncrementalWavImportRuntime {
 	readonly prepareImportedMediaCommand: LegacyPort;
 	readonly projectSampleRate: () => number;
 	readonly reportProgress: (value: number) => void;
+	readonly retireSourceChunkProvider: (sourceId: string) => PromiseLike<void> | void;
 	readonly sourceBuffers: Readonly<{ delete(sourceId: string): unknown }>;
-	readonly sourceChunkProviders: SourceChunkProviderMap;
 	readonly sourcePcmBytes: (source: unknown) => number;
 	readonly sourcePeaks: Readonly<{ delete(sourceId: string): unknown }>;
 	readonly store: Readonly<{
@@ -39,7 +34,7 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		SOURCE_CHUNK_FRAMES, activateStoredSource, commit, copy, createStableId,
 		getProject, importResultWithWarnings, preflightStorage,
 		prepareImportedMediaCommand, projectSampleRate, reportProgress, sourceBuffers,
-		sourceChunkProviders, sourcePcmBytes, sourcePeaks, store, streamWavBlobPcm,
+		retireSourceChunkProvider, sourcePcmBytes, sourcePeaks, store, streamWavBlobPcm,
 		stripExtension, warnEnvelope,
 	} = runtime;
 
@@ -124,12 +119,7 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		} catch (error) {
 			const cleanupErrors: unknown[] = [];
 			let providerRetired = true;
-			try { sourceChunkProviders.delete(sourceId); }
-			catch (cleanupError) {
-				providerRetired = false;
-				cleanupErrors.push(cleanupError);
-			}
-			try { await sourceChunkProviders.drain?.(); }
+			try { await retireSourceChunkProvider(sourceId); }
 			catch (cleanupError) {
 				providerRetired = false;
 				cleanupErrors.push(cleanupError);

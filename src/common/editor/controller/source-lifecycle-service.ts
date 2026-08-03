@@ -15,6 +15,10 @@ export type {
 
 type LegacyPort = (...args: any[]) => any;
 
+interface SourceChunkProviderRegistryPort extends Map<string, any> {
+	drain?(): PromiseLike<void> | void;
+}
+
 export interface SourceLifecycleServiceRuntime {
 	readonly MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: number;
 	readonly MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: number;
@@ -42,7 +46,7 @@ export interface SourceLifecycleServiceRuntime {
 	readonly setStatus: LegacyPort;
 	readonly sourceAudioBufferBytes: LegacyPort;
 	readonly sourceBuffers: any;
-	readonly sourceChunkProviders: Map<string, any>;
+	readonly sourceChunkProviders: SourceChunkProviderRegistryPort;
 	readonly sourcePcmBytes: LegacyPort;
 	readonly sourcePeaks: Map<string, any>;
 	readonly state: any;
@@ -368,6 +372,18 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		engine.setChunkSources?.(sourceChunkProviders);
 	}
 
+	async function retireSourceChunkProvider(sourceId: string): Promise<void> {
+		const failures: unknown[] = [];
+		try { forgetChunkProvider(sourceId); }
+		catch (error) { failures.push(error); }
+		try { await sourceChunkProviders.drain?.(); }
+		catch (error) { failures.push(error); }
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) {
+			throw new AggregateError(failures, 'Source chunk provider retirement failed.');
+		}
+	}
+
 	async function activateStoredSource(source: any, metadata: any, { buffer = null }: any = {}) {
 		const provider = registerStoredChunkProvider(source, metadata);
 		let peakBuffer = buffer;
@@ -545,6 +561,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		loadProjectSources,
 		prepareRequiredProjectSources,
 		registerStoredChunkProvider,
+		retireSourceChunkProvider,
 		requestWaveformPcmWindow,
 	});
 }

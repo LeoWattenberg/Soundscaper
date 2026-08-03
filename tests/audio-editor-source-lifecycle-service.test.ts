@@ -342,6 +342,28 @@ test('fallback-only required long sources replace stale providers before playbac
 	assert.equal(fixture.bufferReads(), 0);
 });
 
+test('provider retirement republishes the engine map before awaiting registry cleanup', async () => {
+	const fixture = createRequiredSourceFixture({ long: true });
+	await fixture.service.loadProjectSources(fixture.project, {
+		requiredAudioSourceIds: [fixture.source.id],
+	});
+	const cleanupStarted = deferred<void>();
+	const cleanupGate = deferred<void>();
+	Object.assign(fixture.sourceChunkProviders, {
+		async drain() {
+			cleanupStarted.resolve();
+			await cleanupGate.promise;
+		},
+	});
+
+	const pending = fixture.service.retireSourceChunkProvider(fixture.source.id);
+	await cleanupStarted.promise;
+	assert.equal(fixture.sourceChunkProviders.has(fixture.source.id), false);
+	assert.equal(fixture.publishedProviders.at(-1)?.has(fixture.source.id), false);
+	cleanupGate.resolve();
+	await pending;
+});
+
 test('discard and failed apply retire a staged long-source provider exactly once', async () => {
 	const discarded = createRequiredSourceFixture({ long: true });
 	const preparation = await discarded.service.prepareRequiredProjectSources(discarded.project, {

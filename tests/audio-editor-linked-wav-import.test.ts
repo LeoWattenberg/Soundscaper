@@ -105,10 +105,11 @@ test('linked WAV import unlinks and releases its exact locator when activation f
 		(error: unknown) => error === cancellation,
 	);
 	assert.deepEqual(fixture.calls.filter(([name]) => (
-		['delete-provider', 'drain-providers:start', 'drain-providers:done',
+		['delete-provider', 'publish-engine-providers', 'drain-providers:start', 'drain-providers:done',
 			'unlink-audio', 'release-locator', 'delete-analysis'].includes(name)
 	)), [
 		['delete-provider', 'source-1'],
+		['publish-engine-providers'],
 		['drain-providers:start'],
 		['drain-providers:done'],
 		['unlink-audio', {
@@ -418,8 +419,12 @@ function importFixture(options: FixtureOptions = {}) {
 			};
 		},
 		projectSampleRate: () => 48_000,
+		retireSourceChunkProvider: async (sourceId) => {
+			sourceChunkProviders.delete(sourceId);
+			calls.push(['publish-engine-providers']);
+			await sourceChunkProviders.drain();
+		},
 		sourceBuffers,
-		sourceChunkProviders,
 		sourcePeaks,
 		store: {
 			async bindLinkedAudioOriginal(projectId, source, locatorId, bindOptions) {

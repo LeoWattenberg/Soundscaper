@@ -14,6 +14,7 @@ import {
 } from './project-bin-preview-service.ts';
 import {
 	createProjectBinReplacementService,
+	type ProjectBinChunkProviderCachePort,
 	type ProjectBinReplacementDependencies,
 	type ProjectBinReplacementService,
 } from './project-bin-replacement-service.ts';
@@ -43,6 +44,7 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	readonly trackColors: readonly string[];
 	readonly playbackEngine: ProjectBinPlaybackEngine;
 	readonly sourceBuffers: Map<string, AudioBuffer>;
+	readonly sourceChunkProviders: ProjectBinChunkProviderCachePort;
 	readonly sourcePeaks: Map<string, unknown>;
 	readonly missingSourceIds: Set<string>;
 	readonly sourceResolver?: EngineSourceResolver | null;

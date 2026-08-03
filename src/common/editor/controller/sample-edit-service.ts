@@ -45,13 +45,13 @@ export interface SampleEditServiceRuntime {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly projectSampleRate: (...args: any[]) => any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	readonly retireSourceChunkProvider: (...args: any[]) => any;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly publishDocumentSnapshot: (...args: any[]) => any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly setStatus: (...args: any[]) => any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly sourceBuffers: any;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	readonly sourceChunkProviders: any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	readonly sourcePeaks: any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,8 +71,8 @@ export function createSampleEditService(runtime: SampleEditServiceRuntime) {
 		createAddSourceCommand, createPencilSampleEdits, createReplaceClipSourceCommand,
 		createSmoothSampleRange, createStableId, editingBlocked, findClip, findClipTrack,
 		findSource, getProject, peakCacheKey, persistImmutableSampleEdit, preflightStorage,
-		projectSampleRate, publishDocumentSnapshot, setStatus, sourceBuffers,
-		sourceChunkProviders, sourcePeaks, state, store, throwIfAborted,
+		projectSampleRate, publishDocumentSnapshot, retireSourceChunkProvider, setStatus,
+		sourceBuffers, sourcePeaks, state, store, throwIfAborted,
 	} = runtime;
 
 	function sampleEditingAvailable(clipId: RuntimeValue = state.selectedClipId) {
@@ -207,10 +207,9 @@ export function createSampleEditService(runtime: SampleEditServiceRuntime) {
 	}
 
 	async function discardUnpublishedSampleEdit(sourceId: RuntimeValue, persisted: RuntimeValue) {
-		sourceChunkProviders.delete(sourceId);
+		await retireSourceChunkProvider(sourceId);
 		sourceBuffers.delete(sourceId);
 		sourcePeaks.delete(sourceId);
-		await sourceChunkProviders.drain();
 		await Promise.resolve(store.deleteAnalysis?.(peakCacheKey(sourceId))).catch(() => undefined);
 		await persisted?.rollback().catch(() => undefined);
 	}

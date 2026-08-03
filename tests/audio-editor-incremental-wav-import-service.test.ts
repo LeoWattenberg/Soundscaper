@@ -35,9 +35,10 @@ test('incremental rollback retires its provider before deleting source storage',
 
 	await assert.rejects(fixture.importWav(), (error: unknown) => error === cancellation);
 	assert.deepEqual(fixture.calls.filter((call) => (
-		/delete-provider|drain-providers|delete-source/u.test(call)
+		/delete-provider|publish-engine-providers|drain-providers|delete-source/u.test(call)
 	)), [
 		'delete-provider:source-1',
+		'publish-engine-providers',
 		'drain-providers:start',
 		'drain-providers:done',
 		'delete-source:source-1',
@@ -126,8 +127,12 @@ function createFixture(options: FixtureOptions) {
 		prepareImportedMediaCommand: () => ({ command: {}, selection: {}, result: {} }),
 		projectSampleRate: () => 48_000,
 		reportProgress: () => undefined,
+		retireSourceChunkProvider: async (sourceId) => {
+			sourceChunkProviders.delete(sourceId);
+			calls.push('publish-engine-providers');
+			await sourceChunkProviders.drain();
+		},
 		sourceBuffers,
-		sourceChunkProviders,
 		sourcePcmBytes: () => 8,
 		sourcePeaks,
 		store: {

@@ -51,7 +51,6 @@ export interface ProjectBinReplacementDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly copy: Pick<ProjectBinCopy, 'audioClipNotFound' | 'projectBinReplacementIncompatible'>;
 	readonly sourceBuffers: ProjectBinCachePort;
-	readonly sourceChunkProviders: ProjectBinChunkProviderCachePort;
 	readonly sourcePeaks: ProjectBinCachePort;
 	readonly missingSourceIds: ProjectBinCachePort;
 	readonly store: ProjectBinStoragePort;
@@ -71,6 +70,7 @@ export interface ProjectBinReplacementDependencies {
 	projectChanged(): void;
 	publish(): void;
 	revokeVideoVisual(sourceId: string): PromiseLike<unknown> | unknown;
+	retireSourceChunkProvider(sourceId: string): PromiseLike<void> | void;
 }
 
 export interface ProjectBinReplacementService {
@@ -242,12 +242,13 @@ export function createProjectBinReplacementService(
 			if (source.kind === 'video') await dependencies.revokeVideoVisual(source.id);
 		}
 		for (const source of sources) {
+			await dependencies.retireSourceChunkProvider(source.id);
+		}
+		for (const source of sources) {
 			dependencies.sourceBuffers.delete(source.id);
-			dependencies.sourceChunkProviders.delete(source.id);
 			dependencies.sourcePeaks.delete(source.id);
 			dependencies.missingSourceIds.delete(source.id);
 		}
-		await dependencies.sourceChunkProviders.drain();
 		for (const source of sources) {
 			if (source.kind === 'video') {
 				try {

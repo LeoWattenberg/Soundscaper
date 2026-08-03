@@ -254,11 +254,12 @@ test('cancelled sample edit drains its provider before rolling back backing data
 	const pending = fixture.service.applySamplePencil({ points: [] });
 	await fixture.cleanupStarted;
 	assert.equal(fixture.providers.has('sample-edit-source'), false);
-	assert.deepEqual(fixture.events, ['provider-dispose-start']);
+	assert.deepEqual(fixture.events, ['provider-dispose-start', 'publish-engine-providers']);
 	fixture.resolveCleanup();
 	assert.equal(await pending, null);
 	assert.deepEqual(fixture.events, [
 		'provider-dispose-start',
+		'publish-engine-providers',
 		'provider-dispose-end',
 		'analysis-delete',
 		'backing-rollback',
@@ -272,7 +273,7 @@ test('sample edit failure preserves provider cleanup errors and leaves backing d
 	const fixture = sampleEditServiceFixture({ activationFailure: primaryFailure, cleanupFailure });
 	const pending = fixture.service.applySamplePencil({ points: [] });
 	await fixture.cleanupStarted;
-	assert.deepEqual(fixture.events, ['provider-dispose-start']);
+	assert.deepEqual(fixture.events, ['provider-dispose-start', 'publish-engine-providers']);
 	fixture.resolveCleanup();
 	await assert.rejects(pending, (error) => {
 		assert.ok(error instanceof AggregateError);
@@ -280,7 +281,9 @@ test('sample edit failure preserves provider cleanup errors and leaves backing d
 		assert.deepEqual(error.errors, [primaryFailure, cleanupFailure]);
 		return true;
 	});
-	assert.deepEqual(fixture.events, ['provider-dispose-start', 'provider-dispose-end']);
+	assert.deepEqual(fixture.events, [
+		'provider-dispose-start', 'publish-engine-providers', 'provider-dispose-end',
+	]);
 });
 
 function sampleEditServiceFixture({ activationFailure, cleanupFailure = null }) {
@@ -349,9 +352,13 @@ function sampleEditServiceFixture({ activationFailure, cleanupFailure = null }) 
 		preflightStorage: async () => undefined,
 		projectSampleRate: () => 48_000,
 		publishDocumentSnapshot() {},
+		async retireSourceChunkProvider(sourceId) {
+			providers.delete(sourceId);
+			events.push('publish-engine-providers');
+			await providers.drain();
+		},
 		setStatus: (status) => { statuses.push(status); },
 		sourceBuffers: new Map(),
-		sourceChunkProviders: providers,
 		sourcePeaks: new Map(),
 		state,
 		store: { async deleteAnalysis() { events.push('analysis-delete'); } },

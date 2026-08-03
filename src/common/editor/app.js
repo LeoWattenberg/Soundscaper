@@ -945,7 +945,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createSmoothSampleRange, createStableId, editingBlocked, findClip, findClipTrack,
 		findSource, getProject: () => project, peakCacheKey, persistImmutableSampleEdit,
 		preflightStorage, projectSampleRate, publishDocumentSnapshot, setStatus,
-		sourceBuffers, sourceChunkProviders, sourcePeaks, state, store, throwIfAborted,
+		retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, sourceBuffers, sourcePeaks, state, store, throwIfAborted,
 	});
 	const clipTransformService = createClipTransformService({
 		lifetime,
@@ -1018,7 +1018,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state, stopMicrophoneMetering, store, updatePreferences,
 	});
 	const derivedSourceService = createDerivedSourceService({
-		lifetime, copy, store, sourceBuffers, sourceChunkProviders, sourcePeaks,
+		lifetime, copy, store, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, sourceBuffers, sourcePeaks,
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		getProject: () => project,
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
@@ -1396,7 +1396,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
 		isLegacyAupFile, isLegacyBlockFile, isWavFile, migrateAudioEditorProject,
-		peakCacheKey, preflightStorage, getProject: () => project, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), projectSampleRate,
+		peakCacheKey, preflightStorage, getProject: () => project, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), projectSampleRate, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider,
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
 		sourcePcmBytes, sourcePeaks, state, store,
 		streamWavBlobPcm, stripExtension, switchProject, warnEnvelope,
@@ -1444,7 +1444,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			throwIfAborted(signal);
 			return result;
 		},
-		projectChanged, publish: publishDocumentSnapshot, revokeVideoVisual,
+		projectChanged, publish: publishDocumentSnapshot, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, revokeVideoVisual,
 	});
 	const videoEffectService = createVideoEffectService({
 		state, copy, getProject: () => project,

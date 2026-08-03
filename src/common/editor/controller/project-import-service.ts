@@ -43,7 +43,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
 		isLegacyAupFile, isLegacyBlockFile, isWavFile, migrateAudioEditorProject,
 		peakCacheKey, preflightStorage, getProject, projectSampleRate,
-		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
+		publishDocumentSnapshot, retireSourceChunkProvider, setStatus, sourceBuffers,
 		sourcePcmBytes, sourcePeaks, state, store,
 		streamWavBlobPcm, stripExtension, switchProject, warnEnvelope,
 		writeBuffer, taskProgress,
@@ -54,14 +54,14 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		getProject, importResultWithWarnings, preflightStorage,
 		prepareImportedMediaCommand, projectSampleRate,
 		reportProgress: (value) => { activeImportProgress?.update?.(value); },
-		sourceBuffers, sourceChunkProviders, sourcePcmBytes, sourcePeaks, store,
+		retireSourceChunkProvider, sourceBuffers, sourcePcmBytes, sourcePeaks, store,
 		streamWavBlobPcm, stripExtension, warnEnvelope,
 	});
 	const importLinkedPcm = createLinkedPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
 		commit, copy, createStableId, getProject, importResultWithWarnings,
 		peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
-		sourceChunkProviders, sourcePeaks, store, stripExtension, warnEnvelope,
+		retireSourceChunkProvider, sourcePeaks, store, stripExtension, warnEnvelope,
 	});
 	const importLinkedAudio = createLinkedAudioImportAdmission({
 		importLinkedPcm, inspectWavBlobPcm, isWavFile, prepareWavImportMetadata,
