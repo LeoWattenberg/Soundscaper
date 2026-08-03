@@ -10,6 +10,8 @@ import { snapshotProjectFeatureCapabilities } from '../project-feature-capabilit
 interface ProjectWithFeatureRequirements {
 	readonly schemaVersion?: unknown;
 	readonly featureRequirements?: unknown;
+	readonly sources?: unknown;
+	readonly clips?: unknown;
 }
 
 export interface ProjectFeatureCompatibilityService {
@@ -34,7 +36,12 @@ export function createProjectFeatureCompatibilityService(
 		if (candidate.schemaVersion !== 9) return null;
 		return evaluateProjectFeatureRequirements(
 			candidate.featureRequirements as ProjectFeatureRequirementsManifest,
-			{ knownFeatureIds, availableFeatureIds },
+			{
+				knownFeatureIds,
+				availableFeatureIds,
+				sources: Array.isArray(candidate.sources) ? candidate.sources : [],
+				clips: Array.isArray(candidate.clips) ? candidate.clips : [],
+			},
 		);
 	}
 }

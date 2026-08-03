@@ -40,7 +40,12 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 			availability: 'unavailable',
 			declaredDisposition: 'rendered-fallback',
 			disposition: 'rendered-fallback',
-			fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
+			fallback: {
+				role: 'project-video-render-v1',
+				kind: 'video',
+				sourceId: 'fallback-video',
+				sha256: DIGEST,
+			},
 			message: 'Video effects are unavailable.',
 			...overrides,
 		}],

@@ -78,14 +78,15 @@ export function validateAudioEditorProjectV9(
 	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
-	const { metadata } = validateProjectV9Document(candidate);
+	const { metadata, media } = validateProjectV9Document(candidate);
 	validateProjectBextMetadata(metadata);
 	if (metadata.ixml != null) normalizeIxmlMetadata(metadata.ixml as IxmlMetadataInput);
 	if (metadata.cart != null) normalizeCartMetadata(metadata.cart as CartMetadataInput);
 	validateAdmProjectMetadata(metadata);
 	validateAdmProjectChannelCount(candidate);
 	normalizeProjectFeatureRequirements(candidate.featureRequirements, {
-		sources: candidate.sources as readonly Readonly<Record<string, unknown>>[],
+		sources: media.sources,
+		clips: media.clips,
 	});
 	return true;
 }

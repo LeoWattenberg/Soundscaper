@@ -12,6 +12,7 @@ interface ScapeProjectWithSources {
 	readonly schemaVersion?: unknown;
 	readonly featureRequirements?: unknown;
 	readonly sources: readonly unknown[];
+	readonly clips?: readonly unknown[];
 }
 
 interface ScapeManifestAssets {
@@ -85,7 +86,10 @@ export function snapshotScapeProjectFallbackIntegrity(project: unknown): ScapePr
 	const candidate = project as ScapeProjectWithSources;
 	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return NO_FALLBACK_SNAPSHOT;
 	const sources = projectSources(project) as readonly Readonly<{ id?: unknown; kind?: unknown }>[];
-	const manifest = normalizeProjectFeatureRequirements(candidate.featureRequirements, { sources });
+	const clips = Array.isArray(candidate.clips)
+		? candidate.clips as readonly Readonly<Record<string, unknown>>[]
+		: [];
+	const manifest = normalizeProjectFeatureRequirements(candidate.featureRequirements, { sources, clips });
 	const claims = Object.freeze(manifest.requirements.flatMap((requirement) => (
 		requirement.disposition === 'rendered-fallback' && requirement.fallback
 			? [Object.freeze({ ...requirement.fallback })]

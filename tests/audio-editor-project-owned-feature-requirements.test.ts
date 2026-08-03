@@ -19,7 +19,7 @@ import {
 } from '../src/common/editor/project-v9.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
-const EMPTY_MANIFEST = Object.freeze({ schemaVersion: 1 as const, requirements: Object.freeze([]) });
+const EMPTY_MANIFEST = Object.freeze({ schemaVersion: 2 as const, requirements: Object.freeze([]) });
 
 interface MutableRackProject {
 	readonly tracks: Array<{ effects: unknown[] }>;
@@ -183,7 +183,12 @@ test('explicit audio-effect requirements win without being overwritten or duplic
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 		displayName: 'Publisher audio render',
 		disposition: 'rendered-fallback' as const,
-		fallback: { kind: 'audio' as const, sourceId: 'rendered-source', sha256: 'ab'.repeat(32) },
+		fallback: {
+			role: 'project-audio-mix-v1' as const,
+			kind: 'audio' as const,
+			sourceId: 'rendered-source',
+			sha256: 'ab'.repeat(32),
+		},
 	};
 	const source = {
 		id: 'rendered-source', name: 'Render', mimeType: 'audio/wav', storageKey: 'rendered-source',
@@ -193,7 +198,7 @@ test('explicit audio-effect requirements win without being overwritten or duplic
 	const project = createAudioEditorProjectV9({
 		sources: [source],
 		tracks: [audioTrackWithEffect()],
-		featureRequirements: { schemaVersion: 1, requirements: [explicit] },
+		featureRequirements: { schemaVersion: 2, requirements: [explicit] },
 	});
 	assert.deepEqual(project.featureRequirements.requirements, [explicit]);
 
@@ -206,7 +211,7 @@ test('explicit audio-effect requirements win without being overwritten or duplic
 	};
 	const reconciled = reconcileProjectOwnedFeatureRequirements(
 		{ tracks: [audioTrackWithEffect()] },
-		{ schemaVersion: 1, requirements: Object.freeze([owned, explicit]) },
+		{ schemaVersion: 2, requirements: Object.freeze([owned, explicit]) },
 	);
 	assert.deepEqual(reconciled.requirements, [explicit]);
 });

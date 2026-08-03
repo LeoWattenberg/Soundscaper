@@ -44,7 +44,12 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 			availability: 'unavailable',
 			declaredDisposition: 'rendered-fallback',
 			disposition: 'rendered-fallback',
-			fallback: { kind: 'audio', sourceId: 'fallback-source', sha256: DIGEST },
+			fallback: {
+				role: 'project-audio-mix-v1',
+				kind: 'audio',
+				sourceId: 'fallback-source',
+				sha256: DIGEST,
+			},
 			message: 'Audio effects are unavailable.',
 			...overrides,
 		}],

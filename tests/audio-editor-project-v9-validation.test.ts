@@ -92,6 +92,7 @@ function validateWithLegacyV8AndFeatureOracle(project: unknown): true {
 	validateAudioEditorProjectV8({ ...candidate, schemaVersion: 8 });
 	normalizeProjectFeatureRequirements(candidate.featureRequirements, {
 		sources: candidate.sources as readonly Readonly<Record<string, unknown>>[],
+		clips: candidate.clips as readonly Readonly<Record<string, unknown>>[],
 	});
 	return true;
 }

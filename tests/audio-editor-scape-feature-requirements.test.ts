@@ -241,6 +241,7 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	assert.notEqual(copiedSourceId, FALLBACK_SOURCE_ID);
 	assert.equal(copiedFallback?.sourceId, copiedSourceId);
 	assert.equal(copiedFallback?.sha256, FALLBACK_DIGEST);
+	assert.equal(copiedFallback?.role, 'project-audio-mix-v1');
 	assert.equal(Object.isFrozen(copied.project.featureRequirements), true);
 	assert.ok(await targetStore.getSourceMetadata(FALLBACK_SOURCE_ID));
 	assert.ok(await targetStore.getSourceMetadata(copiedSourceId));

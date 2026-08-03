@@ -45,7 +45,7 @@ test('V9 projects require a normalized feature-requirements manifest', () => {
 	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 9);
 	assert.strictEqual(validateAudioEditorProjectV9, validateAudioEditorProjectV9Direct);
 	assert.equal(project.schemaVersion, 9);
-	assert.deepEqual(project.featureRequirements, input);
+	assert.deepEqual(project.featureRequirements, { ...input, schemaVersion: 2 });
 	assert.notStrictEqual(project.featureRequirements, input);
 	assert.equal(validateAudioEditorProjectV9(project), true);
 
@@ -74,7 +74,7 @@ test('V8 to V9 migration is pure and initializes an empty requirements manifest'
 
 	assert.deepEqual(v8, original);
 	assert.equal(migrated.schemaVersion, 9);
-	assert.deepEqual(migrated.featureRequirements, { schemaVersion: 1, requirements: [] });
+	assert.deepEqual(migrated.featureRequirements, { schemaVersion: 2, requirements: [] });
 	assert.deepEqual(migrated.opaqueExtensions, v8.opaqueExtensions);
 	assert.equal(migrated.createdAt, v8.createdAt);
 	assert.equal(migrated.updatedAt, v8.updatedAt);

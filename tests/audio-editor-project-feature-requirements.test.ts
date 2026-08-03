@@ -9,6 +9,8 @@ import {
 	normalizeProjectFeatureRequirements,
 	remapProjectFeatureRequirementSourceIds,
 } from '../src/common/editor/project-feature-requirements.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
 const AUDIO_DIGEST = 'ab'.repeat(32);
 const VIDEO_DIGEST = 'cd'.repeat(32);
@@ -30,6 +32,48 @@ function requirement(overrides: Record<string, unknown> = {}) {
 
 function manifest(requirements: readonly Record<string, unknown>[]) {
 	return { schemaVersion: 1, requirements: [...requirements] };
+}
+
+function currentManifest(requirements: readonly Record<string, unknown>[]) {
+	return { schemaVersion: 2, requirements: [...requirements] };
+}
+
+function clipFallbackFixture() {
+	const targetSource = Object.freeze({
+		id: 'original-video',
+		kind: 'video',
+		frameCount: 900,
+		sampleRate: 48_000,
+		width: 1_920,
+		height: 1_080,
+		frameRate: 30,
+		hasAudio: true,
+	});
+	const fallbackSource = Object.freeze({
+		id: 'rendered-clip',
+		kind: 'video',
+		frameCount: 120,
+		sampleRate: 48_000,
+		width: 1_920,
+		height: 1_080,
+		frameRate: 30,
+		hasAudio: false,
+	});
+	const clip = Object.freeze({
+		id: 'target-clip',
+		kind: 'video',
+		sourceId: targetSource.id,
+		durationFrames: 120,
+		videoEffects: Object.freeze([createVideoEffect('pixelate', { id: 'pixelate-target' })]),
+	});
+	const fallback = Object.freeze({
+		role: 'video-clip-render-v1',
+		kind: 'video',
+		sourceId: fallbackSource.id,
+		sha256: VIDEO_DIGEST,
+		targetClipId: clip.id,
+	});
+	return { targetSource, fallbackSource, clip, fallback };
 }
 
 test('feature requirements normalize available, unavailable, and unknown native features', () => {
@@ -100,6 +144,168 @@ test('normalization returns a deeply frozen clone of requirement and fallback st
 	(input.requirements[0]!.fallback as Record<string, unknown>).sourceId = 'changed-source';
 	assert.equal(normalized.requirements[0]?.displayName, 'Linear phase EQ');
 	assert.equal(normalized.requirements[0]?.fallback?.sourceId, 'rendered-video');
+});
+
+test('legacy V1 fallback descriptors normalize deterministically to the closed V2 roles', () => {
+	const normalized = normalizeProjectFeatureRequirements(manifest([
+		requirement({
+			id: 'audio-fallback',
+			disposition: 'rendered-fallback',
+			fallback: { kind: 'audio', sourceId: 'rendered-audio', sha256: AUDIO_DIGEST },
+		}),
+		requirement({
+			id: 'video-fallback',
+			disposition: 'rendered-fallback',
+			fallback: { kind: 'video', sourceId: 'rendered-video', sha256: VIDEO_DIGEST },
+		}),
+	]), { sources: SOURCES });
+
+	assert.equal(normalized.schemaVersion, 2);
+	assert.deepEqual(normalized.requirements.map(({ fallback }) => fallback), [{
+		role: 'project-audio-mix-v1',
+		kind: 'audio',
+		sourceId: 'rendered-audio',
+		sha256: AUDIO_DIGEST,
+	}, {
+		role: 'project-video-render-v1',
+		kind: 'video',
+		sourceId: 'rendered-video',
+		sha256: VIDEO_DIGEST,
+	}]);
+	for (const extra of [{ role: 'project-audio-mix-v1' }, { targetClipId: 'target-clip' }]) {
+		assert.throws(() => normalizeProjectFeatureRequirements(manifest([requirement({
+			disposition: 'rendered-fallback',
+			fallback: {
+				kind: 'audio', sourceId: 'rendered-audio', sha256: AUDIO_DIGEST, ...extra,
+			},
+		})]), { sources: SOURCES }), /unsupported field/iu);
+	}
+});
+
+test('V2 fallback roles require their exact closed descriptor shapes', () => {
+	const valid = [{
+		role: 'project-audio-mix-v1', kind: 'audio', sourceId: 'rendered-audio', sha256: AUDIO_DIGEST,
+	}, {
+		role: 'project-video-render-v1', kind: 'video', sourceId: 'rendered-video', sha256: VIDEO_DIGEST,
+	}];
+	for (const fallback of valid) {
+		const normalized = normalizeProjectFeatureRequirements(currentManifest([requirement({
+			disposition: 'rendered-fallback', fallback,
+		})]), { sources: SOURCES });
+		assert.deepEqual(normalized.requirements[0]?.fallback, fallback);
+	}
+
+	for (const fallback of [{
+		kind: 'audio', sourceId: 'rendered-audio', sha256: AUDIO_DIGEST,
+	}, {
+		role: 'future-role', kind: 'audio', sourceId: 'rendered-audio', sha256: AUDIO_DIGEST,
+	}, {
+		role: 'project-audio-mix-v1', kind: 'video', sourceId: 'rendered-video', sha256: VIDEO_DIGEST,
+	}, {
+		role: 'project-video-render-v1', kind: 'video', sourceId: 'rendered-video', sha256: VIDEO_DIGEST,
+		targetClipId: 'target-clip',
+	}]) {
+		assert.throws(() => normalizeProjectFeatureRequirements(currentManifest([requirement({
+			disposition: 'rendered-fallback', fallback,
+		})]), { sources: SOURCES }), /role|kind|unsupported field/iu);
+	}
+	assert.throws(() => normalizeProjectFeatureRequirements({
+		schemaVersion: 3,
+		requirements: [],
+	}, { sources: SOURCES }), /unsupported.*schema version/iu);
+});
+
+test('clip-local video fallback validates its exact target relationship and remaps only its source', () => {
+	const fixture = clipFallbackFixture();
+	const normalized = normalizeProjectFeatureRequirements(currentManifest([requirement({
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		disposition: 'rendered-fallback',
+		fallback: fixture.fallback,
+	})]), {
+		sources: [fixture.targetSource, fixture.fallbackSource],
+		clips: [fixture.clip],
+	});
+
+	assert.deepEqual(normalized.requirements[0]?.fallback, fixture.fallback);
+	assert.equal(Object.isFrozen(normalized.requirements[0]?.fallback), true);
+	const copiedFallback = { ...fixture.fallbackSource, id: 'copied-rendered-clip' };
+	const remapped = remapProjectFeatureRequirementSourceIds(
+		normalized,
+		new Map([[fixture.fallbackSource.id, copiedFallback.id], [fixture.clip.id, 'wrong-clip-id']]),
+		{ sources: [fixture.targetSource, copiedFallback], clips: [fixture.clip] },
+	);
+	assert.deepEqual(remapped.requirements[0]?.fallback, {
+		...fixture.fallback,
+		sourceId: copiedFallback.id,
+	});
+});
+
+test('clip-local video fallback rejects mismatched feature, clip, effects, and media geometry', async (context) => {
+	const fixture = clipFallbackFixture();
+	const normalize = (
+		fallback: Readonly<Record<string, unknown>> = fixture.fallback,
+		sources: readonly Readonly<Record<string, unknown>>[] = [fixture.targetSource, fixture.fallbackSource],
+		clips: readonly Readonly<Record<string, unknown>>[] = [fixture.clip],
+		featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+	) => normalizeProjectFeatureRequirements(currentManifest([requirement({
+		featureId,
+		disposition: 'rendered-fallback',
+		fallback,
+	})]), { sources, clips });
+	const cases: Array<Readonly<{
+		name: string;
+		run: () => unknown;
+		expected: RegExp;
+	}>> = [{
+		name: 'wrong feature',
+		run: () => normalize(fixture.fallback, undefined, undefined, 'org.soundscaper.capability.video-export'),
+		expected: /video-effects|feature/iu,
+	}, {
+		name: 'missing clip',
+		run: () => normalize(fixture.fallback, undefined, []),
+		expected: /target.*clip|timeline.*clip/iu,
+	}, {
+		name: 'duplicate clip',
+		run: () => normalize(fixture.fallback, undefined, [fixture.clip, { ...fixture.clip }]),
+		expected: /unique|duplicate|exactly one/iu,
+	}, {
+		name: 'audio clip',
+		run: () => normalize(fixture.fallback, undefined, [{ ...fixture.clip, kind: 'audio' }]),
+		expected: /video clip|clip.*video/iu,
+	}, {
+		name: 'disabled effects',
+		run: () => normalize(fixture.fallback, undefined, [{
+			...fixture.clip,
+			videoEffects: [createVideoEffect('pixelate', { id: 'disabled', enabled: false })],
+		}]),
+		expected: /enabled.*video effect/iu,
+	}, {
+		name: 'same canonical source',
+		run: () => normalize({ ...fixture.fallback, sourceId: fixture.targetSource.id }),
+		expected: /differ|same.*source/iu,
+	}, {
+		name: 'fallback audio',
+		run: () => normalize(fixture.fallback, [
+			fixture.targetSource, { ...fixture.fallbackSource, hasAudio: true },
+		]),
+		expected: /hasAudio|audio/iu,
+	}];
+	for (const field of ['frameCount', 'sampleRate', 'width', 'height', 'frameRate'] as const) {
+		cases.push({
+			name: `mismatched ${field}`,
+			run: () => normalize(fixture.fallback, [
+				fixture.targetSource,
+				{ ...fixture.fallbackSource, [field]: Number(fixture.fallbackSource[field]) + 1 },
+			]),
+			expected: new RegExp(field, 'iu'),
+		});
+	}
+
+	for (const scenario of cases) {
+		await context.test(scenario.name, () => {
+			assert.throws(scenario.run, scenario.expected);
+		});
+	}
 });
 
 test('inconsistent capability registries fail closed', () => {

@@ -17,7 +17,10 @@ import {
 	createVideoTrackV8,
 	type AudioEditorProjectV8Options,
 } from './project-v8.ts';
-import { normalizeProjectFeatureRequirements } from './project-feature-requirements.ts';
+import {
+	PROJECT_FEATURE_REQUIREMENTS_SCHEMA_VERSION,
+	normalizeProjectFeatureRequirements,
+} from './project-feature-requirements.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import {
@@ -63,9 +66,18 @@ export const createMediaTrackV9 = createMediaTrackV8;
 export const createProjectBinV9 = createProjectBinV8;
 
 export function createAudioEditorProjectV9(options: AudioEditorProjectV9Options = {}): AudioEditorProjectV9 {
-	const { featureRequirements = { schemaVersion: 1, requirements: [] }, ...baseOptions } = options;
+	const {
+		featureRequirements = {
+			schemaVersion: PROJECT_FEATURE_REQUIREMENTS_SCHEMA_VERSION,
+			requirements: [],
+		},
+		...baseOptions
+	} = options;
 	const base = createAudioEditorProjectV8(baseOptions);
-	const normalizedFeatureRequirements = normalizeProjectFeatureRequirements(featureRequirements, { sources: base.sources });
+	const normalizedFeatureRequirements = normalizeProjectFeatureRequirements(featureRequirements, {
+		sources: base.sources,
+		clips: base.clips,
+	});
 	return {
 		...base,
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
@@ -77,6 +89,7 @@ export function cloneAudioEditorProjectV9(project: AudioEditorProjectV9): AudioE
 	const copy = clone(project);
 	const normalizedFeatureRequirements = normalizeProjectFeatureRequirements(copy.featureRequirements, {
 		sources: copy.sources as readonly Readonly<Record<string, unknown>>[],
+		clips: copy.clips as readonly Readonly<Record<string, unknown>>[],
 	});
 	return {
 		...copy,
