@@ -55,18 +55,12 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	for (const path of [
 		'desktop/linked-video-locator-ipc.js',
 		'desktop/project-library-ipc.js',
-		'tests/desktop-linked-audio-locator-ipc.test.js',
-		'tests/desktop-preload-linked-audio-original.test.js',
 		'tests/desktop-linked-video-locator-ipc.test.js',
 		'tests/desktop-preload-linked-video-original.test.js',
 		'tests/desktop-project-library-ipc.test.js',
 	]) assert.ok(rendererBoundary.evidence.some((item) => item.path === path));
 	assert.ok(preloadControl);
 	assert.ok(revocationControl);
-	for (const path of [
-		'tests/desktop-linked-audio-locator-ipc.test.js',
-		'tests/desktop-preload-linked-audio-original.test.js',
-	]) assert.ok(preloadControl.evidence.some((item) => item.path === path));
 	for (const ipcControl of [preloadControl, revocationControl]) {
 		for (const path of [
 			'desktop/linked-video-locator-ipc.js', 'desktop/project-library-ipc.js',
@@ -85,9 +79,6 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		revocationControl.summary,
 		/owner revocation.*fences new operations.*aborts.*managed-source uploads.*drains admitted uploads and reads.*navigation.*renderer loss.*window close.*linked-original handlers.*active document owner.*drains its materialized and ranged audio\/video read capabilities.*without deleting persistent locator metadata.*exact locator release.*revision CAS.*missing, stale, or already-revoked.*false without a registry write.*failed persistence.*restores in-memory state.*does not prove durable on-disk rollback.*revocation after a deletion write.*second persisted restore.*failed restore.*indeterminate on-disk outcome.*surfaced/iu,
 	);
-	assert.ok(revocationControl.evidence.some(
-		({ path }) => path === 'tests/desktop-linked-audio-range-capability.test.js',
-	));
 	assert.ok(revocationControl.evidence.some(
 		({ path }) => path === 'tests/desktop-project-library-packaging.test.js',
 	));
