@@ -133,7 +133,11 @@ test('desktop read capability evidence remains qualified for its current surface
 	);
 	assert.match(
 		linkedAudioRange.summary,
-		/FORM\/AIFF.*COMM.*SSND.*signed big-endian integer PCM.*8.*16.*24.*32.*AIFC and compressed variants reject.*session completion release once.*whole external container.*512 MiB.*does not establish packaged-executable or operating-system behavior.*metadata preservation.*content-frozen or cross-process lease.*audible\/device playback.*reference-scale.*same-inode mutation.*unfenced.*Float32 arrays.*parsed metadata.*decoder allocation.*process RSS/iu,
+		/FORM\/AIFF.*COMM.*SSND.*signed big-endian integer PCM.*8.*16.*24.*32.*AIFC and compressed variants reject.*session completion release once.*whole external container.*512 MiB.*does not establish packaged-executable or operating-system behavior.*metadata preservation.*content-frozen.*cross-process lease.*audible\/device playback.*reference-scale.*same-inode mutation.*unfenced.*Float32 arrays.*parsed metadata.*decoder allocation.*process RSS/iu,
+	);
+	assert.match(
+		linkedAudioRange.summary,
+		/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random or sequential chunk reads.*complete alias group.*exact binding.*before and after.*per-read.*cancellation.*local.*provider retirement.*terminal.*exact-once release.*backing cleanup.*aggregate/iu,
 	);
 
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);

@@ -361,6 +361,15 @@ structure; AIFF-C and compressed AIFF reject. An available range operation that
 reports unavailable, malformed, drifted, or corrupt data fails closed; a
 generic platform port that does not implement the optional range operation
 retains the prior whole-`Blob` source-reader fallback.
+For maintained playback, one provider lazily owns one provider-owned stable PCM
+read session. It reuses one full-container digest and one parsed descriptor across serialized random
+or sequential chunk reads, and rechecks the complete alias group and exact
+binding before and after every chunk. Per-read engine or stream cancellation is
+local; drift, corruption, and provider retirement are terminal. Provider
+replacement, failed activation, project switch, project or source deletion and
+clear, rollback, and controller or store disposal retire the provider, await
+exact-once release, and fence backing cleanup; bulk cleanup failures aggregate
+with the primary failure.
 The sender's owned PCM inventory remains empty.
 
 Only explicit `prepareHandoff` performs the normal two canonical Float32 PCM
@@ -382,7 +391,7 @@ point-in-time main-private identity. Moving or replacing the pathname after
 range admission does not retarget the opened handle, but same-inode in-place
 mutation during or after sequential digest verification is not fenced. The
 capability is therefore not an operating-system bookmark, content-frozen or
-durable immutable byte lease, or cross-process snapshot.
+durable immutable byte lease, restart-stable identity, or cross-process snapshot.
 
 A deliberately narrow linked retained-video path is qualified at this same
 boundary. A local binding joins the exact project ID, logical video source ID,

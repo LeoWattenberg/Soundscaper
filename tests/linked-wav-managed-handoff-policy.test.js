@@ -37,6 +37,10 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 		handoff.currentBehavior,
 		/`linked-audio-range-v1`.*exact locator revision.*at-most-4-MiB `206`.*read session.*release.*`prepareHandoff`.*two canonical Float32 PCM source-API passes.*fresh recipient.*reopens.*without a linked-original port.*not content-frozen.*cross-process snapshot/iu,
 	);
+	assert.match(
+		handoff.currentBehavior,
+		/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random\s+or sequential chunk reads.*complete alias group.*exact\s+binding.*before and after.*per-read.*cancellation.*local.*provider replacement.*failed activation.*project switch.*deletion.*clear.*rollback.*controller.*store.*exact-once release.*backing cleanup/iu,
+	);
 	for (const text of [portable.currentBehavior, handoff.currentBehavior]) {
 		assert.match(text, /AIFF metadata preservation.*AIFC|AIFC.*metadata preservation/iu);
 		assert.match(text, /packaged executable or UI.*operating-system/iu);
@@ -53,6 +57,23 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 		'tests/audio-editor-linked-audio-scape-roundtrip.test.ts',
 	]) assert.ok(portable.evidence.includes(path) || handoff.evidence.includes(path), path);
 	assert.ok(handoff.evidence.includes('tests/desktop-project-library-managed-audio-handoff.test.ts'));
+	for (const path of [
+		'src/common/editor/app.js',
+		'src/common/editor/controller/clip-time-pitch-service.ts',
+		'src/common/editor/controller/project-admin-service.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/source-audio.ts',
+		'src/common/editor/controller/source-chunk-provider-registry.ts',
+		'src/common/editor/controller/source-lifecycle-service.ts',
+		'src/common/editor/storage/source-pcm-read-session.ts',
+		'tests/audio-editor-clip-time-pitch-service.test.ts',
+		'tests/audio-editor-linked-source-controller-disposal.test.js',
+		'tests/audio-editor-project-admin-service-coverage.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-source-audio.test.ts',
+		'tests/audio-editor-source-chunk-provider-registry.test.ts',
+		'tests/audio-editor-source-lifecycle-service.test.ts',
+	]) assert.ok(handoff.evidence.includes(path), path);
 });
 
 test('linked PCM desktop security controls preserve the closed AIFF boundary', async () => {
@@ -70,6 +91,10 @@ test('linked PCM desktop security controls preserve the closed AIFF boundary', a
 	assert.match(
 		range.summary,
 		/pathless DTO.*exact locator revision.*128 capabilities.*64 GiB.*512 MiB per file.*16 active (?:range )?requests.*4 MiB per response.*exact closed ranges.*binding and CAS fence.*without another whole-original Blob.*release once/iu,
+	);
+	assert.match(
+		range.summary,
+		/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random\s+or sequential chunk reads.*complete alias group.*exact\s+binding.*before and after.*per-read.*cancellation.*local.*provider retirement.*terminal.*exact-once release.*backing cleanup.*aggregate/iu,
 	);
 	assert.match(
 		handoff.summary,
@@ -92,6 +117,23 @@ test('linked PCM desktop security controls preserve the closed AIFF boundary', a
 		assert.ok(portability.evidence.some((item) => item.path === path), path);
 		assert.ok(handoff.evidence.some((item) => item.path === path), path);
 	}
+	for (const path of [
+		'src/common/editor/app.js',
+		'src/common/editor/controller/clip-time-pitch-service.ts',
+		'src/common/editor/controller/project-admin-service.ts',
+		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/source-audio.ts',
+		'src/common/editor/controller/source-chunk-provider-registry.ts',
+		'src/common/editor/controller/source-lifecycle-service.ts',
+		'src/common/editor/storage/source-pcm-read-session.ts',
+		'tests/audio-editor-clip-time-pitch-service.test.ts',
+		'tests/audio-editor-linked-source-controller-disposal.test.js',
+		'tests/audio-editor-project-admin-service-coverage.test.ts',
+		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-source-audio.test.ts',
+		'tests/audio-editor-source-chunk-provider-registry.test.ts',
+		'tests/audio-editor-source-lifecycle-service.test.ts',
+	]) assert.ok(range.evidence.some((item) => item.path === path), path);
 	const residual = libraryRisk.residualRisks.find(
 		({ id }) => id === 'shared-library-cross-product-media-availability',
 	);
@@ -122,6 +164,10 @@ test('linked PCM compatibility and threat documentation own the detailed limits'
 		assert.match(documentation, /packaged executable or UI.*operating-system/isu);
 		assert.match(documentation, /metadata preservation/iu);
 		assert.match(documentation, /reference-scale/iu);
+		assert.match(
+			documentation,
+			/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random\s+or sequential chunk reads.*complete alias group.*exact\s+binding.*before and after.*per-read.*cancellation.*local.*exact-once release.*backing/isu,
+		);
 	}
 });
 
