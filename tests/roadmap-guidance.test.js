@@ -54,7 +54,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*authoritative point-in-time catalog.*at most 10,000 exact project\/revision summaries.*one atomic transaction.*at most 100,000 closed binding rows.*deletes catalog-absent bindings.*source-unreachable bindings only from bounded catalog-revision-matched\s+exact-schema-9 current and retained graphs.*preserves unverifiable local\s+graphs and any surviving locator alias.*at most 128 exact\s+locator\/revision references.*durable-unavailable storage sends nothing.*invalid catalog or binding scans reject before IPC.*at most one\s+successful serialized pass per store\/process.*absent\s+startup-loaded metadata.*referenced and current-process\s+records.*external media.*never inspected or deleted.*cleanup beyond this\s+bounded startup pass and the one-live-store maintained\s+save\/activation\/delete\/clear lifecycle.*cross-store\/process coordination.*hostile-renderer inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS qualification remain open/isu,
+		/Implemented for bounded cooperative startup\s+locator reconciliation.*persistent IndexedDB opens.*before project\s+loading.*authoritative point-in-time catalog.*at most 10,000 exact project\/revision summaries.*one atomic transaction.*at most 100,000 closed binding rows.*deletes catalog-absent bindings.*source-unreachable bindings only from bounded catalog-revision-matched\s+exact-schema-9 current and retained graphs.*preserves unverifiable local\s+graphs and any surviving locator alias.*at most 128 exact\s+locator\/revision references.*durable-unavailable storage sends nothing.*invalid catalog or binding scans reject before IPC.*at most one\s+successful serialized pass per store\/process.*absent\s+startup-loaded metadata.*referenced and current-process\s+records.*external media.*never inspected or deleted.*continuous cleanup\s+beyond bounded startup and maintained save\/activation\/delete\/clear.*coordination beyond the same-database newly-published-binding root window.*hostile-renderer inventory authority.*abrupt-crash\/power-loss durability.*packaged\/OS qualification remain open/isu,
 	);
 	assert.match(
 		roadmap,
@@ -62,7 +62,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Electron Enhanced — In progress.*linked-locator cleanup beyond this bounded startup pass and the one-live-store\s+maintained save\/activation\/delete\/clear lifecycle.*cross-store\/process coordination/isu,
+		/Electron Enhanced — In progress.*continuous linked-locator cleanup beyond bounded startup and maintained\s+save\/activation\/delete\/clear.*coordination beyond the same-database\s+newly-published-binding root window/isu,
 	);
 	assert.doesNotMatch(
 		roadmap,

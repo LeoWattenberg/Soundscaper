@@ -613,8 +613,9 @@ third-party provenance gating. Caller-supplied live roots and transient import
 roots are retention roots for this pass but do not become durable project roots.
 
 The pass admits at most 64 retained revisions, 100,000 aggregate durable,
-caller, and transient source roots, 100,000 complete binding rows, and 128
-unique exact locator/revision references. A malformed, older-schema,
+caller, provisional, and exact-owner source roots, 100,000 complete binding
+rows, 100,000 complete provisional-root rows, and 128 unique exact
+locator/revision references. A malformed, older-schema,
 future-schema, identity-mismatched, missing-current-revision, or over-bound current or
 retained revision state suppresses cleanup before any binding deletion. The
 public save option instead rejects malformed, duplicate, noncanonical, or more
@@ -623,11 +624,12 @@ begins, every row must be closed and authoritative; malformed or conflicting
 rows and row or exact-reference overflow fail the maintenance pass without a
 partial deletion.
 
-For memory storage, save-triggered unreachable target-project bindings are
-removed as one compensated mutation batch; activation-triggered maintenance is
-a no-op there and in degraded storage. For IndexedDB, current project, retained
-revisions, complete binding validation, and binding removals share one
-readwrite transaction. This atomic binding prune runs only after the
+For memory storage, save-triggered unreachable target-project bindings and
+their roots are removed as one compensated mutation batch;
+activation-triggered maintenance is a no-op there and in degraded storage. For
+IndexedDB, current project, retained revisions, complete binding and root
+validation, and pair removals share one readwrite transaction. This atomic
+binding prune runs only after the
 project/revision save and retained-revision compaction have committed or after
 the terminal activation has reached its post-garbage-collection maintenance
 point. On Desktop, a save-triggered pass runs only after the shared bridge
@@ -638,15 +640,27 @@ delete, or activation cannot interleave with the prune. A rejected or inexact
 remote publication never starts save maintenance. Project publication and this
 later prune are nevertheless separate commits.
 
-Every successful binding publication is also remembered transiently by the
-coordinator. This gives the bind-before-canonical-import window transient
-protection until a later opted-in save or writable activation acknowledges the
-source in either the durable graph or the authoritative caller live roots.
-Suppressed and failed maintenance retain one-successful-maintenance-pass
-transient protection. The
-coordinator-wide transient set has its own 100,000-source ceiling, and overflow
-blocks destructive cleanup for the affected project until project deletion or
-whole-store clear rather than guessing that the missing root is dead.
+Every maintained new or replacement binding and copied alias also publishes a
+closed scalar provisional root containing only its schema version, binding key,
+project, kind, source, and binding token. It contains no locator, path, or body.
+The binding and root use the same compensated memory mutation or IndexedDB
+readwrite transaction; exact unlink and determinate rollback delete the pair.
+The complete root inventory is validated under its 100,000-row ceiling before
+mutation. This closes the same-database bind-before-canonical-import window
+against independent cleanup.
+
+A rooted binding remains protected until an exact durable current or retained
+graph or its exact owner token consumes the root. A caller wildcard live root
+retains the binding for one pass but does not consume the root. A stale owner
+settles its prior in-memory reference without consuming a replacement root or
+protecting an unrooted replacement. Suppressed and failed maintenance consume
+no root. Startup has no owner token: a catalog-live rooted binding remains when
+the local graph says it is unreachable or unverifiable, exact durable graph
+membership consumes the root, and catalog absence deletes the binding/root
+pair. Project deletion validates the complete root inventory before pair
+deletion, and whole-store clear removes all roots. Roots have no time expiry, so
+interruption safely leaves a bounded metadata leak. The version-8 upgrade does
+not backfill existing pre-root binding rows.
 
 An unreachable binding deletion returns only sorted, deduplicated exact locator
 references. Before exact release, the coordinator re-inventories all current
@@ -668,19 +682,19 @@ it canonically readable. When the last root disappears, the next maintained
 save or writable activation removes the binding and releases its exact locator
 once while leaving the external WAV untouched.
 
-This source-reachability claim covers one live `AudioEditorProjectStore` and its
-coordinator in one renderer lifecycle. Separate stores, profiles, renderer or
-main processes, restart and crash windows, power loss, and overlapping browser
-connections are not serialized. Closed-row validation and the stated count
-bounds do not qualify arbitrary hostile-row clone cost or process RSS. Project
-publication, the memory or IndexedDB binding prune, alias re-inventory, and
-main-process exact release are not one cross-boundary transaction; interruption
-between them may safely leak metadata until a later maintained save or writable
-activation.
-Cross-store or cross-process coordination, relink or watch, range support
-outside maintained post-bind Electron linked-PCM source reads, packaged
-executable or operating-system qualification, third-party activation gating,
-and legacy private libraries are outside this claim.
+The binding/root transaction is qualified within the same IndexedDB database,
+including independent browser connections. Different databases or profiles,
+the project catalog, and the main locator registry are not coordinated by that
+transaction. Restart and crash windows, power loss, and hostile-row authority
+do not qualify, and the stated count bounds do not qualify arbitrary hostile-row
+clone cost or process RSS. Project publication, the memory or IndexedDB binding
+prune, alias re-inventory, and main-process exact release are not one
+cross-boundary transaction; interruption between them may safely leak metadata
+until a later maintained save or writable activation. Coordination beyond the
+same-database provisional-root window, relink or watch, range support outside
+maintained post-bind Electron linked-PCM source reads, packaged executable or
+operating-system qualification, third-party activation gating, and legacy
+private libraries are outside this claim.
 
 That same lifecycle coordinator now serializes project duplication with binding
 publication, exact unlink, startup reconciliation, project deletion, and

@@ -23,10 +23,14 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 		'src/common/editor/controller/project-switch-service.ts',
 		'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'src/common/editor/storage/linked-original-lifecycle-coordinator.ts',
+		'src/common/editor/storage/linked-original-pair-writer.ts',
+		'src/common/editor/storage/linked-original-project-binding-prune.ts',
 		'src/common/editor/storage/linked-original-project-open-maintenance.ts',
 		'src/common/editor/storage/linked-original-project-reachability-repository.ts',
 		'src/common/editor/storage/linked-original-project-save.ts',
+		'src/common/editor/storage/linked-original-provisional-root.ts',
 		'src/common/editor/storage/linked-original-store-service.ts',
+		'src/common/editor/storage/linked-original-transient-binding-reference.ts',
 		'src/common/editor/storage/linked-video-original-lifecycle-coordinator.ts',
 		'src/common/editor/storage/linked-video-original-project-reachability-repository.ts',
 		'src/common/editor/storage/linked-video-original-project-save.ts',
@@ -38,6 +42,11 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 		'tests/audio-editor-linked-original-lifecycle.test.ts',
 		'tests/audio-editor-linked-original-project-save.test.ts',
 		'tests/audio-editor-linked-original-project-open-maintenance.test.ts',
+		'tests/audio-editor-linked-original-provisional-root-reachability.test.ts',
+		'tests/audio-editor-linked-original-provisional-root-startup.test.ts',
+		'tests/audio-editor-linked-original-provisional-root-writers.test.ts',
+		'tests/audio-editor-linked-original-provisional-root.test.ts',
+		'tests/audio-editor-linked-original-transient-binding-reference.test.ts',
 		'tests/audio-editor-project-switch-playback-apply.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-linked-video-project-reachability-repository.test.ts',
@@ -48,6 +57,7 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 		'tests/audio-editor-project-save-options.test.ts',
 		'tests/audio-editor-project-services.test.ts',
 		'tests/audio-editor-session.test.js',
+		'tests/browser/audio-editor-storage-migration.spec.js',
 		'tests/production-security-linked-video-save-cleanup.test.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 
@@ -58,10 +68,14 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 	assert.match(control.summary, /exact-schema-9 current project and at most 64 retained revisions.*timeline clips, Project Bin clips, and all feature-fallback declarations.*future, invalid, missing-current-revision, duplicate, or over-bound.*suppress(?:es)? cleanup/isu);
 	assert.match(control.summary, /100,000 aggregate roots.*100,000 closed binding rows.*128 unique exact locator\/revision pairs/isu);
 	assert.match(control.summary, /after project publication and revision pruning or terminal activation.*Desktop.*exact remote acknowledgement.*serialized activation.*per-project latest-mutation lock.*one atomic local binding transaction/isu);
-	assert.match(control.summary, /bind-before-project.*transient protection.*suppressed or failed maintenance.*one-successful-maintenance-pass transient protection.*(?:cleanup|prune) failure.*committed report-only error.*binding batch is preserved.*save or activation remains successful.*previously failed pending release.*rejects again.*not starve unrelated activation cleanup/isu);
+	assert.match(control.summary, /maintained binding, replacement, and alias publication.*closed scalar provisional root.*exact.*binding token.*same compensated memory batch or IndexedDB readwrite transaction.*exact unlink or (?:determinate )?rollback.*pair/isu);
+	assert.match(control.summary, /same-database bind-before-project.*independent cleanup.*durable.*graph.*(?:an )?exact matching owner token.*consume.*caller live root.*does not consume.*stale owner.*replacement root.*suppressed or failed maintenance.*settles no root/isu);
+	assert.match(control.summary, /startup.*no owner token.*catalog-live rooted binding.*unreachable or unverifiable graph.*retained.*exact durable graph.*consumes.*catalog-absent.*pair.*deleted/isu);
+	assert.match(control.summary, /roots do not expire by time.*bounded safe leak.*pre-root binding rows.*not backfilled/isu);
+	assert.match(control.summary, /(?:cleanup|prune) failure.*committed report-only error.*binding batch is preserved.*save or activation remains successful.*previously failed pending release.*rejects again.*not starve unrelated activation cleanup/isu);
 	assert.match(control.summary, /re-inventories aliases.*exact locator revision/isu);
 	assert.match(control.summary, /memory and IndexedDB.*no-owned-PCM linked WAV.*last durable revision.*live audio root.*canonically readable.*exact locator.*once.*last root disappears.*external WAV.*untouched/isu);
-	assert.match(control.summary, /cooperative one-live-store-and-renderer.*separate stores, profiles, renderers, or processes.*abrupt crash or power loss.*hostile IndexedDB authority.*hostile renderer authority.*unqualified/isu);
+	assert.match(control.summary, /same IndexedDB database.*independent browser connections.*binding\/root transaction.*different databases or profiles.*catalog or main locator registry.*cross-boundary.*abrupt crash or power loss.*hostile IndexedDB authority.*hostile renderer authority.*unqualified/isu);
 	assert.match(control.summary, /project publication, local binding transaction, and main locator retirement remain separate/isu);
 	assert.match(control.summary, /relink or watch.*packaged executable or operating-system.*audible or device playback.*third-party activation gating.*legacy private librar/isu);
 });
@@ -74,10 +88,14 @@ test('the threat model records the same maintained save boundary and residuals',
 	assert.match(documentation, /same textual source ID.*kind-distinct.*wrong-kind.*does not retain.*protectedLinkedVideoSourceIds.*compatibility facade/isu);
 	assert.match(documentation, /current exact schema 9 project.*64 retained revisions.*timeline.*Project Bin.*all feature-fallback declarations/isu);
 	assert.match(documentation, /100,000 aggregate roots.*100,000 (?:closed )?binding rows.*128.*locator/isu);
-	assert.match(documentation, /Desktop.*remote acknowledgement.*successful activation.*latest-mutation lock.*atomic local binding.*transient bind-before-project/isu);
-	assert.match(documentation, /suppressed or failed maintenance.*one-successful-maintenance-pass transient protection.*report-only.*save or activation succeeds.*previously failed pending release.*rejects again.*unrelated activation cleanup.*alias.*exact locator/isu);
+	assert.match(documentation, /Desktop.*remote acknowledgement.*successful activation.*latest-mutation lock.*atomic local binding.*provisional root/isu);
+	assert.match(documentation, /closed scalar.*project.*kind.*source.*binding token.*same compensated memory batch or IndexedDB.*exact unlink.*pair/isu);
+	assert.match(documentation, /same-database bind-before-project.*independent.*cleanup.*durable.*exact owner token.*consume.*wildcard.*does not consume.*stale.*replacement.*failed maintenance.*settles no root/isu);
+	assert.match(documentation, /startup.*no owner token.*catalog-live.*rooted.*(?:retained|remains live).*unreachable.*unverifiable.*durable.*consumes.*catalog-absent.*pair/isu);
+	assert.match(documentation, /roots have no time expiry.*bounded safe leak.*version-8 upgrade.*does not backfill.*pre-root binding rows/isu);
+	assert.match(documentation, /report-only.*save or activation succeeds.*previously failed pending release.*rejects again.*unrelated activation cleanup.*alias.*exact locator/isu);
 	assert.match(documentation, /memory and IndexedDB.*no-owned-PCM linked WAV.*last durable revision.*canonical.*readable.*live audio root.*last root disappears.*exact locator.*once.*external WAV.*untouched/isu);
-	assert.match(documentation, /one live store and renderer.*separate stores, profiles, renderers, or processes.*abrupt crash or power loss.*hostile IndexedDB.*hostile renderer.*unqualified/isu);
+	assert.match(documentation, /same IndexedDB database.*independent browser connections.*different databases or profiles.*catalog.*main locator registry.*abrupt crash or power loss.*hostile IndexedDB.*hostile renderer.*unqualified/isu);
 	assert.match(documentation, /project publication, (?:the )?local binding transaction, and main locator retirement.*separate/isu);
 	assert.match(documentation, /Source-level reachability beyond bounded startup reconciliation, maintained saves, and successful writable activations.*general continuous cleanup beyond same-store save\/activation\/delete\/clear/isu);
 	assert.doesNotMatch(documentation, /Source-level and general continuous cleanup beyond same-store project deletion and clear/iu);

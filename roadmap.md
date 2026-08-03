@@ -321,9 +321,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   invalid catalog or binding scans reject before IPC. Main performs at most one
   successful serialized pass per store/process, retiring only absent
   startup-loaded metadata while retaining referenced and current-process
-  records; external media is never inspected or deleted. Cleanup beyond this
-  bounded startup pass and the one-live-store maintained
-  save/activation/delete/clear lifecycle, cross-store/process coordination,
+  records; external media is never inspected or deleted. Continuous cleanup
+  beyond bounded startup and maintained save/activation/delete/clear, plus
+  coordination beyond the same-database newly-published-binding root window,
   hostile-renderer inventory authority, abrupt-crash/power-loss durability, and
   packaged/OS qualification remain open.
 - **Electron Enhanced / Shared — Implemented:** revision- and live-history-aware
@@ -337,9 +337,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   finish broader linked and unmanaged-original lifecycles, exact or write-time
   capacity behavior, stable playback identity beyond the maintained owned canonical PCM,
   linked-PCM, and retained-video lifecycles,
-  linked-locator cleanup beyond this bounded startup pass and the one-live-store
-  maintained save/activation/delete/clear lifecycle,
-  cross-store/process coordination where required,
+  continuous linked-locator cleanup beyond bounded startup and maintained
+  save/activation/delete/clear, coordination beyond the same-database
+  newly-published-binding root window where required,
   and packaged
   UI/OS/browser-codec qualification.
 - **Shared — Implemented for disposable previews:** poster and thumbnail cache

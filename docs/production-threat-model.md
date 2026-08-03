@@ -629,16 +629,37 @@ prevents a superseded activation or lost write lock from pruning bindings.
 After admission, the current exact schema 9 project and at most 64 retained
 revisions provide timeline, Project Bin, and all feature-fallback declarations
 without publisher gating. The pass admits at most 100,000 aggregate roots,
-100,000 closed binding rows, and 128 exact locator references. For a save,
-Desktop waits for the remote acknowledgement; a successful activation performs
-no new remote publication. Both keep the latest-mutation lock through the
-atomic local binding transaction. Bounded transient bind-before-project
-protection remains until the durable or authoritative live graph acknowledges
-the source. Suppressed or failed maintenance retains
-one-successful-maintenance-pass transient protection. A post-commit prune
-failure is report-only, so the save or activation succeeds and a later
-maintained save or writable activation retries. A previously failed pending
-release that rejects again does not starve unrelated activation cleanup.
+100,000 closed binding rows, 100,000 closed provisional-root rows, and 128 exact
+locator references. For a save, Desktop waits for the remote acknowledgement;
+a successful activation performs no new remote publication. Both keep the
+latest-mutation lock through the atomic local binding and provisional root
+transaction.
+
+Every maintained new or replacement binding and copied alias publishes a
+closed scalar provisional root containing only its schema version, binding key,
+project, kind, source, and binding token. The root contains no locator, path, or
+body. Binding and root publication uses the same compensated memory batch or
+IndexedDB readwrite transaction, and exact unlink or determinate rollback
+deletes the pair. Cleanup validates the complete bounded root inventory before
+mutation. This closes the same-database bind-before-project window against
+independent cleanup: an exact durable current or retained graph or the exact
+owner token may consume the root. A caller wildcard live root retains the
+binding for that pass but does not consume the root. A stale owner settles only
+its earlier in-memory reference and cannot consume a replacement root.
+Suppressed or failed maintenance settles no root.
+
+Startup has no owner token. A catalog-live rooted binding remains live when the
+local graph says it is unreachable or the graph is unverifiable; exact durable
+graph membership consumes the root, while catalog absence deletes the
+binding/root pair. Project deletion validates the complete root inventory
+before deleting the project's pairs, and whole-store clear deletes every root.
+Roots have no time expiry, so interruption or failed consumption leaves a
+bounded safe leak instead of risking source loss. The version-8 upgrade creates
+the root store but does not backfill existing pre-root binding rows.
+
+A post-commit prune failure is report-only, so the save or activation succeeds
+and a later maintained save or writable activation retries. A previously failed
+pending release that rejects again does not starve unrelated activation cleanup.
 Release then re-inventories every same-store alias before exact locator
 retirement.
 
@@ -646,14 +667,15 @@ A memory and IndexedDB witness proves a no-owned-PCM linked WAV whose last
 durable revision has aged out stays canonically readable while a live audio root
 exists. When the last root disappears, the next maintained save or writable
 activation releases the exact locator once and leaves the external WAV
-untouched. This remains one live store and renderer control: separate stores,
-profiles, renderers, or processes, abrupt crash or power loss, hostile IndexedDB,
-and hostile renderer authority remain unqualified. Project publication, the
-local binding transaction, and main locator retirement are separate.
-Cross-store/process coordination, relink or watch, packaged executable or
-operating-system behavior, audible or device playback qualification,
-third-party activation gating, and legacy private libraries remain outside the
-claim.
+untouched. The same IndexedDB database, including independent browser
+connections, is qualified only for the binding/root transaction. Different
+databases or profiles, project catalog or main locator registry coordination,
+abrupt crash or power loss, hostile IndexedDB, and hostile renderer authority
+remain unqualified. Project publication, the local binding transaction, and
+main locator retirement are separate. Coordination beyond this same-database
+window, relink or watch, packaged executable or operating-system behavior,
+audible or device playback qualification, third-party activation gating, and
+legacy private libraries remain outside the claim.
 
 `same-store-linked-video-project-duplication` narrows the maintained stored-project copy path. It duplicates only the loaded current project snapshot at revision zero; it does not copy the source project's revision history. Reachability is derived from current timeline clips, Project Bin clips, and exact-schema fallback declarations under the portable-format ceiling of 4,094 reachable source identities. Before any alias write, the alias repository validates a complete inventory of at most 100,000 closed binding rows and 128 unique exact locator/revision pairs, rejects malformed rows and conflicting revisions, rejects any pre-existing destination binding, charges the prospective row count, and requires every copied source binding to match the reachable video source's storage key, canonical MIME, and complete video geometry. Only an existing source-project binding for a reachable video source becomes a destination alias. Each alias preserves the exact locator, locator revision, length, digest, and source shape but receives a fresh cryptographic binding token and bind time. The memory path performs its preflight before a synchronous rollback-capable batch; IndexedDB performs the inventory, preflight, and alias writes in one readwrite binding-store transaction. This operation does not invoke the platform locator port: it does not load, stat, hash, materialize, release, or otherwise touch the external video body or private path.
 
