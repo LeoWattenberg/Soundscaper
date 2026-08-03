@@ -95,26 +95,34 @@ test('registered first-party video fallback playback and handoff stay exact and 
 		/more than one qualifying registered video fallback.*multiple clip or mixed relationships.*unqualified.*audio IDs.*unknown or third-party IDs.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged.*unqualified.*generic fallback authoring.*third-party activation.*unqualified.*freeze.*proxy.*relink.*embedded fallback audio.*other export parity.*packaged runtime and UI.*unqualified.*browser behavior.*codec qualification.*unqualified.*range or reference-scale.*unqualified.*durable byte lease.*cross-process.*whole-handoff atomicity.*final delivery.*separate control/iu,
 	);
 
-	const documentation = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
+	const threatModel = await readFile(threatModelUrl, 'utf8');
+	const playbackStart = threatModel.indexOf('First-party video rendered-fallback preview and playback');
+	const playbackEnd = threatModel.indexOf('\n\n`videoCompositing` supplies', playbackStart);
+	assert.ok(playbackStart >= 0 && playbackEnd > playbackStart);
+	const documentation = threatModel.slice(playbackStart, playbackEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/first-party video rendered-fallback preview and playback.*exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*unavailable.*declared and effective `rendered-fallback`.*report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256/iu,
+		/first-party video rendered-fallback preview and playback.*exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*unavailable.*declared and effective `rendered-fallback`.*report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		documentation,
-		/genuine immutable video Blob.*exact admitted size.*SHA-256.*4 MiB.*before activation.*currentness.*after.*required-source activation.*before.*engine/iu,
+		/genuine immutable video Blob.*exact admitted size.*SHA-256.*4 MiB.*before activation.*relationship currentness.*after.*required-source activation.*before.*engine/iu,
 	);
 	assert.match(
 		documentation,
-		/manifest schema 2.*closed rendered-fallback roles.*`project-audio-mix-v1`.*`project-video-render-v1`.*`video-clip-render-v1`.*schema 1.*whole-project roles.*clip role.*`videoEffects`.*exact target clip ID/iu,
+		/only `project-video-render-v1`.*whole-project contract.*one exact video source.*project and source sample rates.*positive safe integers.*frame count.*width.*height.*frame rate.*transient full-length render.*frame zero.*timeline video tracks and clips.*audio.*labels.*Project Bin.*sources.*canonical document.*history.*unchanged/iu,
 	);
 	assert.match(
 		documentation,
-		/target.*enabled maintained effect.*fallback source.*differ.*canonical source.*`hasAudio: false`.*frame count.*target duration.*sample rate.*width.*height.*frame rate.*projection changes only the target.*track membership.*timeline placement.*duration.*grouping.*A\/V link.*unaffected clips and sources.*canonical state.*unchanged/iu,
+		/`video-clip-render-v1`.*restricted to `videoEffects`.*exact timeline target clip.*enabled maintained effect.*fallback source.*differ.*canonical source.*`hasAudio: false`.*frame count.*target duration.*sample rate.*width.*height.*frame rate.*canonical source/iu,
 	);
 	assert.match(
 		documentation,
-		/integrity selection and currentness.*role.*target clip ID.*source ID.*SHA-256.*target and source geometry.*same-source.*reject/iu,
+		/replaces only the target.*source-local start.*trims.*zero.*speed.*one.*video effects.*empty.*target identity.*track membership.*timeline placement.*duration.*grouping.*A\/V link.*layer and transition context.*unaffected clips and sources.*Project Bin.*canonical document.*history.*unchanged/iu,
+	);
+	assert.match(
+		documentation,
+		/required manifest-only video source.*before.*transient engine.*preview.*projected clip.*exact source identity/iu,
 	);
 	assert.match(
 		documentation,
@@ -122,10 +130,27 @@ test('registered first-party video fallback playback and handoff stay exact and 
 	);
 	assert.match(
 		documentation,
-		/separate clip-local managed handoff.*exact target clip ID.*digest-bound fallback body.*fresh recipient.*reopens.*canonical shadow.*relationship.*before playback/iu,
+		/more than one qualifying registered video fallback rejects.*multiple clip fallbacks.*mixed relationships.*unqualified/iu,
 	);
 	assert.match(
 		documentation,
-		/more than one qualifying item rejects.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*generic fallback authoring.*unqualified.*third-party activation.*unqualified.*linked or unmanaged delivery.*unqualified.*packaged runtime and UI.*unqualified.*browser behavior.*unqualified.*codec qualification.*unqualified.*reference-scale evidence.*unqualified.*whole-handoff atomicity.*unqualified/iu,
+		/linked-only or unmanaged playback.*unqualified.*generic fallback authoring.*third-party activation.*unqualified/iu,
+	);
+	assert.match(
+		documentation,
+		/packaged runtime and UI.*unqualified.*browser behavior.*codec qualification.*unqualified.*reference-scale evidence.*unqualified.*whole-handoff atomicity/iu,
+	);
+
+	const handoffStart = threatModel.indexOf('Three narrower one-way headless fixtures');
+	const handoffEnd = threatModel.indexOf('\n\nOne narrow linked-WAV managed-handoff exception', handoffStart);
+	assert.ok(handoffStart >= 0 && handoffEnd > handoffStart);
+	const handoff = threatModel.slice(handoffStart, handoffEnd).replace(/\s+/gu, ' ');
+	assert.match(
+		handoff,
+		/whole-project video fixture.*editable retained-video original.*full-render fallback.*fresh Soundscaper shadow.*controller manifest verification.*exact fallback Blob URL/iu,
+	);
+	assert.match(
+		handoff,
+		/separate clip-local video fixture.*canonical original.*digest-bound fallback.*fresh recipient.*exact target clip ID.*closes and reopens.*canonical shadow.*admits the relationship.*role.*target clip ID.*source ID.*SHA-256.*target-only playback/iu,
 	);
 });

@@ -1266,7 +1266,8 @@ bytes, and admission does not prevent later low-level or cross-process
 replacement of that storage binding, verify a nonselected fallback body, or
 establish publisher authenticity. Admission itself does not
 substitute fallback media at runtime; the separate exact-schema-9 first-party
-audio whole-mix and video-effects full-render projections described above
+audio whole-mix, video-effects whole-project, and videoEffects-only clip-target
+projections described above
 perform their narrow editor-playback and delivery uses.
 Initial required-source preparation is
 lifetime-abortable and occurs before activation reservation and side effects.
@@ -1368,8 +1369,9 @@ separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route and does not
 cover direct store loads. Runtime use belongs only to the separate first-party
-audio whole-mix and video-effects full-render editor-playback and bounded
-operation-verified delivery paths. Generic, unknown, and third-party fallback
+audio whole-mix, video-effects whole-project, and videoEffects-only clip-target
+editor-playback and bounded operation-verified delivery paths. Generic, unknown,
+and third-party fallback
 selection and authored fallback relationships remain planned. The remaining
 outcomes stay governed by the planned compatibility rows and roadmap exit gate.
 

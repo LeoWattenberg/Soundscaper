@@ -133,6 +133,6 @@ test('compatibility policy qualifies only registered first-party audio whole-mix
 	assert.match(normalizedDocumentation, /Corrupt same-shaped recipient-local PCM after activation.*rejects delivery before rendering or output.*exact repair restores the exact PCM.*final-mix.*canonical project.*shadow.*unchanged/isu);
 	assert.match(normalizedDocumentation, /`audioSpectralEditing`.*composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/isu);
 	assert.match(normalizedDocumentation, /operation-time.*selector.*exact requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*tamper.*refus.*repair.*canonical project.*shadow.*unchanged/isu);
-	assert.match(documentation, /point-in-time.*not a durable.*lease.*first-party.*audio whole-mix and video-effects full-render.*narrow editor-playback and delivery.*generic.*unknown.*third-party.*rendered-fallback substitution/isu);
+	assert.match(documentation, /exact point-in-time provider.*immutable.*Blob.*not durable leases.*first-party.*audio whole-mix.*video-effects whole-project.*clip-target.*narrow editor-playback and delivery.*generic.*unknown.*third-party.*rendered-fallback substitution/isu);
 	assert.match(normalizedDocumentation, /more than one.*different registered audio feature IDs.*video IDs.*future schemas.*earlier Soundscaper schemas.*linked-only.*unmanaged.*generic.*authoring.*freeze.*proxy.*packaged.*UI.*browser.*reference-scale/isu);
 });

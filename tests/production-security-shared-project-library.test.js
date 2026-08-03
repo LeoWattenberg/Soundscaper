@@ -332,7 +332,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/audio-editor-source-write-cancellation.test.ts',
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
 		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
-		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
+		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts', 'tests/audio-editor-desktop-shared-project-video-clip-fallback-handoff.test.ts',
 		'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
 	]) assert.ok(managedHandoffControl.evidence.some((item) => item.path === path), path);
 	assert.match(
@@ -369,7 +369,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedHandoffControl.summary,
-		/another one-way fixture.*Framescaper.*editable retained-video original.*manifest-only first-party video-effects fallback.*empty Soundscaper recipient.*both exact video bodies.*exact shadow.*controller independently verifies the manifest digest.*exact fallback Blob URL.*transfer verifies only each managed descriptor and body digest/isu,
+		/older one-way whole-project fixture.*Framescaper.*editable retained-video original.*manifest-only first-party video-effects fallback.*empty Soundscaper recipient.*both exact video bodies.*exact shadow.*controller independently verifies the manifest digest.*exact fallback Blob URL.*distinct clip-target fixture.*target canonical video.*unaffected video.*manifest-only first-party video-effects fallback.*fresh recipient.*commits and reopens.*exact shadow.*relationship unchanged.*rejects wrong-target and whole-project relationship admission.*admits the exact target relationship.*playback and delivery.*replace only the target.*preserving the unaffected video.*transfer verifies only each managed descriptor and body digest/isu,
 	);
 	assert.deepEqual(managedMediaCapacityControl.evidence, [
 		{ kind: 'implementation', path: 'desktop/project-library-contract.ts' },
@@ -454,7 +454,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'tests/desktop-project-library-editor-handoff.test.ts',
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
 		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
-		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
+		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts', 'tests/audio-editor-desktop-shared-project-video-clip-fallback-handoff.test.ts',
 		'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
 		'tests/production-security-shared-project-library.test.js',
 	]) assert.ok(mediaAdmissionControl.evidence.some((item) => item.path === path), path);
@@ -472,7 +472,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		mediaAdmissionControl.summary,
-		/separate fresh-recipient fixtures.*manifest-only first-party audio fallback PCM.*manifest-only first-party video-effects fallback.*editable retained-video original.*controller-owned manifest-digest verification.*transient playback activation.*managed acquisition itself verifies each transfer descriptor and body digest/isu,
+		/separate fresh-recipient fixtures.*manifest-only first-party audio fallback PCM.*whole-project first-party video-effects fallback.*editable retained-video original.*distinct clip-target fallback.*target canonical video.*unaffected video.*whole-project fixture.*controller-owned manifest-digest verification.*transient playback activation.*clip-target recipient.*commits and reopens.*exact shadow.*relationship unchanged.*rejects wrong-target and whole-project relationship admission.*admits the exact relationship.*playback and delivery.*replace only the target.*preserve the unaffected video.*managed acquisition itself verifies each transfer descriptor and body digest/isu,
 	);
 	for (const path of [
 		'desktop/linked-video-locator-ipc.js',
@@ -570,7 +570,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
-		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*exact-schema first-party audio whole-mix fallback.*manifest.*only reference.*fresh recipient.*manifest-digest verified by the controller.*transfer verifies its own descriptor and body digest.*corrupts recipient-local fallback PCM after activation.*final delivery refusal before render or download.*restoring exact PCM.*expected fallback samples.*WAV output.*canonical project state remains unchanged.*exact-schema first-party video-effects fallback.*manifest-only.*editable retained-video original.*Framescaper.*fresh Soundscaper recipient.*exact shadow.*manifest-digest verified.*exact Blob URL.*managed handoff fixtures.*headless point-in-time whole-Blob workflows.*packaged codec or durable playback qualification/isu,
+		/explicit managed handoff.*revision-and-document-digest-bound.*digest-verified canonical PCM plus retained original video publication.*fresh-recipient if-absent acquisition.*headless Soundscaper-to-Framescaper edit\/save\/return workflow.*same-kind content.*distinct revision-bound rows.*verified optional hard-link path.*unsupported-link failures.*bounded upload.*exact-schema first-party audio whole-mix fallback.*manifest.*only reference.*fresh recipient.*manifest-digest verified by the controller.*transfer verifies its own descriptor and body digest.*corrupts recipient-local fallback PCM after activation.*final delivery refusal before render or download.*restoring exact PCM.*expected fallback samples.*WAV output.*canonical project state remains unchanged.*older exact-schema whole-project first-party video-effects fallback.*manifest-only.*editable retained-video original.*Framescaper.*fresh Soundscaper recipient.*exact shadow.*manifest-digest verified.*exact Blob URL.*distinct clip-target videoEffects witness.*target canonical video.*unaffected video.*fallback.*fresh recipient.*commits and reopens.*exact shadow.*relationship unchanged.*rejects wrong-target and whole-project relationship admission.*admits the exact relationship.*playback and delivery.*replace only the target.*preserve the unaffected video.*transfer verifies each descriptor and body digest.*managed handoff fixtures.*headless point-in-time whole-Blob workflows.*packaged codec or durable playback qualification/isu,
 	);
 	assert.match(
 		managedMedia?.exposure ?? '',
@@ -595,6 +595,6 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const threatModel = await readFile(threatModelUrl, 'utf8');
 	assert.match(
 		threatModel,
-		/rendered-fallback limitation.*narrowed by two.*maintained editor exceptions.*exact-schema first-party audio whole-mix PCM.*manifest is the only reference.*explicit\s+managed handoff.*editable original.*fresh recipient.*managed transfer.*descriptor and body digest.*controller separately.*project fallback declaration.*read-only transient\s+playback activation.*exact samples.*corrupts the\s+recipient-local fallback PCM after activation.*final delivery refuses\s+before render or download.*restoring the exact PCM.*expected\s+fallback samples in WAV output.*canonical project state remains unchanged.*exact-schema registered.*first-party `videoEffects` fallback.*exact, locally available.*controller-digest-admitted full render.*transient preview and playback.*manifest is its only project reference.*crosses explicit managed\s+handoff.*editable retained-video original.*Framescaper.*fresh\s+Soundscaper exact shadow.*two descriptors and body\s+digests.*controller separately.*manifest declaration.*exact fallback Blob URL.*does not qualify\s+packaged fallback handoff.*browser codec playback.*durable playback lease.*authored proxies.*generic or third-party rendered-fallback relationships\s+remain open.*unknown and third-party activation/isu,
+		/Three narrower one-way headless fixtures.*audio fixture.*original and whole-mix PCM.*fresh Framescaper shadow.*controller manifest verification.*exact-sample activation.*whole-project\s+video fixture.*editable retained-video original.*full-render\s+fallback.*fresh Soundscaper shadow.*controller manifest verification.*exact fallback Blob URL.*separate clip-local video fixture.*canonical original.*digest-bound fallback.*fresh recipient.*exact target clip ID.*closes and reopens.*canonical shadow.*admits the relationship.*role.*target clip ID.*source ID.*SHA-256.*target-only playback.*Managed\s+acquisition verifies transfer descriptors and body digests.*does not\s+authenticate any manifest declaration.*no packaged UI.*browser-codec.*durable-lease.*whole-handoff\s+atomicity claim/isu,
 	);
 });
