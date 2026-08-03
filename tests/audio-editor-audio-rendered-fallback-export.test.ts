@@ -15,7 +15,6 @@ import {
 import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
 import {
 	PROJECT_FEATURE_CAPABILITY_IDS,
-	type ProjectFeatureAudioCapabilityId,
 } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectAudioFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';
 import {
@@ -46,12 +45,12 @@ test('audio fallback export selection is inert without a delivery service', asyn
 	}), null);
 });
 
-test('audio fallback export admits and returns only the selected private chunk provider', async () => {
-	const featureId = PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing;
+test('unknown-role audio fallback export admits and returns only the selected private chunk provider', async () => {
+	const featureId = 'org.example.future-mixer';
 	const canonical = canonicalProject(featureId);
 	const projection = projectForAudioRenderedFallbackExport(
 		canonical,
-		createPlaybackProjectService({ audioSpectralEditing: false }),
+		createPlaybackProjectService({}),
 	);
 	const events: string[] = [];
 	const store = Object.freeze({ id: 'project-store' });
@@ -122,6 +121,7 @@ test('audio fallback export selection rejects malformed or ambiguous delivery pr
 		{ ...valid, audioRenderedFallback: null, requiredAudioSourceIds: [FALLBACK_SOURCE_ID] },
 		{ ...valid, audioRenderedFallback: { ...metadata, schemaVersion: 2 } },
 		{ ...valid, audioRenderedFallback: { ...metadata, role: 'project-video-render-v1' } },
+		{ ...valid, audioRenderedFallback: { ...metadata, featureId: '' } },
 		{ ...valid, audioRenderedFallback: {
 			...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 		} },
@@ -267,7 +267,7 @@ test('audio fallback integrity admission fails closed before exposing invalid me
 });
 
 function canonicalProject(
-	featureId: ProjectFeatureAudioCapabilityId = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+	featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 ) {
 	const original = createAudioSourceV9({
 		id: 'canonical-audio', storageKey: 'canonical-audio', frameCount: 8,
@@ -295,7 +295,7 @@ function canonicalProject(
 }
 
 function expectedSelector(
-	featureId: ProjectFeatureAudioCapabilityId = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+	featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 ): ProjectAudioFallbackIntegritySelector {
 	return Object.freeze({
 		requirementId: 'publisher-audio-render',

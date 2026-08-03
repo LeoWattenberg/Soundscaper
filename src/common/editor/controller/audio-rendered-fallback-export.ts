@@ -4,7 +4,6 @@ import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
 import type { EngineChunkSource } from '../engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../project-feature-audio-rendered-fallback.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../project-feature-audio-rendered-fallback.ts';
-import { isProjectFeatureAudioCapabilityId } from '../project-feature-capabilities.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
@@ -56,8 +55,9 @@ const EMPTY_AUDIO_DELIVERY = Object.freeze({
 	audioRenderedFallback: null,
 	requiredAudioSourceIds: Object.freeze([]),
 });
+const FEATURE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/u;
 
-/** Select only the maintained audio whole-mix fallback projection used by final delivery. */
+/** Select only the closed audio whole-mix fallback projection used by final delivery. */
 export function projectForAudioRenderedFallbackExport<Project extends object>(
 	project: Project,
 	service?: AudioRenderedFallbackDeliveryService | null,
@@ -167,7 +167,7 @@ function assertActiveMetadata(
 ): void {
 	if (metadata.schemaVersion !== 1
 		|| metadata.role !== 'project-audio-mix-v1'
-		|| !isProjectFeatureAudioCapabilityId(metadata.featureId)
+		|| typeof metadata.featureId !== 'string' || !FEATURE_ID_PATTERN.test(metadata.featureId)
 		|| typeof metadata.requirementId !== 'string' || !metadata.requirementId
 		|| typeof metadata.sourceId !== 'string' || !metadata.sourceId
 		|| metadata.trackId !== PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track
@@ -222,7 +222,7 @@ function matchesFallback(
 	return Boolean(item
 		&& item.requirementId === metadata.requirementId
 		&& item.featureId === metadata.featureId
-		&& item.availability === 'unavailable'
+		&& (item.availability === 'unavailable' || item.availability === 'unknown')
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
 		&& item.fallback?.kind === 'audio'

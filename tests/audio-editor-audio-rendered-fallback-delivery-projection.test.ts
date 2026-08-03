@@ -60,7 +60,7 @@ test('audio delivery applies only the maintained whole-mix fallback and preserve
 	assert.equal('videoEffectPlaybackBypass' in delivery, false);
 });
 
-test('audio delivery leaves available, bypass-only, and third-party requirements unprojected', () => {
+test('audio delivery leaves available and bypass-only requirements unprojected', () => {
 	const qualifying = combinedFallbackProject();
 	const available = createPlaybackProjectService({ audioEffects: true, videoEffects: false })
 		.projectForAudioRenderedFallbackDelivery(qualifying);
@@ -79,11 +79,6 @@ test('audio delivery leaves available, bypass-only, and third-party requirements
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
 		}),
-		audioRequirementProject({
-			featureId: 'org.example.audio-effects',
-			disposition: 'rendered-fallback',
-			fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
-		}),
 	]) {
 		const delivery = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
 			.projectForAudioRenderedFallbackDelivery(candidate);
@@ -91,6 +86,23 @@ test('audio delivery leaves available, bypass-only, and third-party requirements
 		assert.equal(delivery.audioRenderedFallback, null);
 		assert.deepEqual(delivery.requiredAudioSourceIds, []);
 	}
+});
+
+test('audio delivery projects an unknown feature through the closed whole-mix role', () => {
+	const featureId = 'org.example.future-mixer';
+	const canonical = audioRequirementProject({
+		featureId,
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
+	});
+	const delivery = createPlaybackProjectService({ audioEffects: true, videoEffects: true })
+		.projectForAudioRenderedFallbackDelivery(canonical);
+
+	assert.equal(delivery.featureRequirementsReport?.items[0]?.availability, 'unknown');
+	assert.equal(delivery.audioRenderedFallback?.featureId, featureId);
+	assert.equal(delivery.audioRenderedFallback?.role, 'project-audio-mix-v1');
+	assert.deepEqual(delivery.requiredAudioSourceIds, ['fallback-audio']);
+	assert.equal(delivery.project.clips[0]?.sourceId, 'fallback-audio');
 });
 
 test('audio delivery identifies the actual registered unavailable feature', () => {

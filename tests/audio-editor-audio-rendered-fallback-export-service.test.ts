@@ -25,6 +25,7 @@ import { inspectWavLayout } from '../src/common/editor/wav.js';
 const CANONICAL_SOURCE_ID = 'canonical-audio';
 const FALLBACK_SOURCE_ID = 'fallback-audio';
 const FALLBACK_DIGEST = 'de'.repeat(32);
+const FALLBACK_FEATURE_ID = 'org.example.future-mixer';
 
 type Strategy = 'offline' | 'realtime-stream';
 
@@ -171,7 +172,8 @@ function createFixture(options: FixtureOptions = {}) {
 	const activeFallback = options.activeFallback !== false;
 	const directDestination = options.directDestination === true;
 	const strategy = options.strategy ?? 'offline';
-	const canonical = fallbackProject();
+	const featureId = activeFallback ? FALLBACK_FEATURE_ID : PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
+	const canonical = fallbackProject(featureId);
 	const events: string[] = [];
 	const errors: unknown[] = [];
 	const globalBuffer = Object.freeze({ owner: 'global-buffer' });
@@ -418,7 +420,7 @@ function createFixture(options: FixtureOptions = {}) {
 	};
 }
 
-function fallbackProject(): AudioEditorProjectV9 {
+function fallbackProject(featureId: string): AudioEditorProjectV9 {
 	const canonical = createAudioSourceV9({
 		id: CANONICAL_SOURCE_ID, storageKey: CANONICAL_SOURCE_ID, frameCount: 8,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
@@ -435,7 +437,7 @@ function fallbackProject(): AudioEditorProjectV9 {
 		sources: [canonical, fallback], clips: [clip],
 		tracks: [createAudioTrackV9({ id: 'canonical-track', clipIds: [clip.id] })],
 		featureRequirements: { schemaVersion: 1, requirements: [{
-			id: 'publisher-audio-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			id: 'publisher-audio-render', featureId,
 			displayName: 'Publisher audio render', disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: FALLBACK_SOURCE_ID, sha256: FALLBACK_DIGEST },
 		}] },
@@ -499,7 +501,7 @@ function createStreamEncoder(options: Readonly<{
 function expectedSelector() {
 	return Object.freeze({
 		requirementId: 'publisher-audio-render',
-		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		featureId: FALLBACK_FEATURE_ID,
 		role: 'project-audio-mix-v1',
 		kind: 'audio',
 		sourceId: FALLBACK_SOURCE_ID,
