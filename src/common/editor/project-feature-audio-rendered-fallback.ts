@@ -5,7 +5,7 @@ import {
 	type ProjectFeatureAudioCapabilityId,
 } from './project-feature-capabilities.ts';
 import type {
-	ProjectFeatureFallback,
+	ProjectFeatureAudioMixFallback,
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
 } from './project-feature-requirements.ts';
@@ -17,6 +17,7 @@ export const PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS = Object.freeze({
 
 export interface ProjectFeatureAudioRenderedFallbackMetadata {
 	readonly schemaVersion: 1;
+	readonly role: 'project-audio-mix-v1';
 	readonly featureId: ProjectFeatureAudioCapabilityId;
 	readonly requirementId: string;
 	readonly sourceId: string;
@@ -34,7 +35,7 @@ type RecordValue = Readonly<Record<string, unknown>>;
 interface QualifiedFallback {
 	readonly featureId: ProjectFeatureAudioCapabilityId;
 	readonly requirementId: string;
-	readonly fallback: ProjectFeatureFallback;
+	readonly fallback: ProjectFeatureAudioMixFallback;
 }
 
 const EMPTY_RESULT = Object.freeze({ metadata: null });
@@ -94,6 +95,7 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	}) as unknown as Project;
 	const metadata = Object.freeze({
 		schemaVersion: 1 as const,
+		role: 'project-audio-mix-v1' as const,
 		featureId: qualified.featureId,
 		requirementId: qualified.requirementId,
 		sourceId: qualified.fallback.sourceId,
@@ -129,12 +131,14 @@ function qualifyingFallback(
 	});
 }
 
-function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): boolean {
+function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
+	Readonly<{ fallback: ProjectFeatureAudioMixFallback }> {
 	return isProjectFeatureAudioCapabilityId(item.featureId)
 		&& item.availability === 'unavailable'
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
-		&& item.fallback?.kind === 'audio';
+		&& item.fallback?.kind === 'audio'
+		&& item.fallback.role === 'project-audio-mix-v1';
 }
 
 function assertManifestBinding(project: RecordValue, qualified: QualifiedFallback): void {
@@ -158,6 +162,7 @@ function assertManifestBinding(project: RecordValue, qualified: QualifiedFallbac
 		dataProperty(requirement, 'featureId', 'project feature requirement')
 			!== qualified.featureId
 		|| dataProperty(requirement, 'disposition', 'project feature requirement') !== 'rendered-fallback'
+		|| dataProperty(fallback, 'role', 'project feature requirement fallback') !== qualified.fallback.role
 		|| dataProperty(fallback, 'kind', 'project feature requirement fallback') !== qualified.fallback.kind
 		|| dataProperty(fallback, 'sourceId', 'project feature requirement fallback') !== qualified.fallback.sourceId
 		|| dataProperty(fallback, 'sha256', 'project feature requirement fallback') !== qualified.fallback.sha256

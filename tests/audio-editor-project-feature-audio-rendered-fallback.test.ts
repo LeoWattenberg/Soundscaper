@@ -144,6 +144,7 @@ test('an admitted first-party audio-effects render becomes one neutral whole-mix
 	assert.strictEqual(projected.project.sources, input.sources);
 	assert.deepEqual(projected.metadata, {
 		schemaVersion: 1,
+		role: 'project-audio-mix-v1',
 		featureId: AUDIO_EFFECTS,
 		requirementId: 'publisher-audio-render',
 		sourceId: 'fallback-source',
@@ -250,6 +251,9 @@ test('nonqualifying, unknown, third-party, video, and future requirements never 
 		report({ featureId: 'org.example.third-party' }),
 		report({ featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects }),
 		report({ declaredDisposition: 'bypass', disposition: 'bypassed', fallback: null }),
+		report({ fallback: {
+			role: 'project-video-render-v1', kind: 'audio', sourceId: 'fallback-source', sha256: DIGEST,
+		} }),
 		report({ fallback: { kind: 'video', sourceId: 'fallback-source', sha256: DIGEST } }),
 	]) {
 		const projected = projectFeatureAudioRenderedFallbackPlayback(
@@ -336,7 +340,9 @@ test('reserved IDs and source descriptor drift reject without reading audio-effe
 	}
 	assert.throws(
 		() => projectFeatureAudioRenderedFallbackPlayback(project(), report({
-			fallback: { kind: 'audio', sourceId: 'source-a', sha256: DIGEST },
+			fallback: {
+				role: 'project-audio-mix-v1', kind: 'audio', sourceId: 'source-a', sha256: DIGEST,
+			},
 		})),
 		/fallback descriptor.*project manifest|source.*drift|does not match/iu,
 	);
@@ -351,7 +357,10 @@ test('reserved IDs and source descriptor drift reject without reading audio-effe
 			project(PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing),
 			report({
 				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
-				fallback: { kind: 'audio', sourceId: 'fallback-source', sha256: 'cd'.repeat(32) },
+				fallback: {
+					role: 'project-audio-mix-v1', kind: 'audio',
+					sourceId: 'fallback-source', sha256: 'cd'.repeat(32),
+				},
 			}),
 		),
 		/fallback descriptor.*project manifest|digest.*drift|does not match/iu,
