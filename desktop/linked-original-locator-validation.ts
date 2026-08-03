@@ -31,9 +31,10 @@ export function linkedOriginalMimeType(
 		return value;
 	}
 	const lowerName = name.toLowerCase();
-	if ((lowerName.endsWith('.wav') && value === 'audio/wav')
+	if ((/\.aiff?$/u.test(lowerName) && value === 'audio/aiff')
+		|| (lowerName.endsWith('.wav') && value === 'audio/wav')
 		|| (lowerName.endsWith('.rf64') && value === 'audio/rf64')) return value;
-	throw new TypeError(`${label} requires canonical WAV or RF64 audio metadata.`);
+	throw new TypeError(`${label} requires canonical AIFF, WAV, or RF64 audio metadata.`);
 }
 
 export function boundedLimit(value: number, maximum: number, label: string): number {

@@ -101,6 +101,58 @@ test('kind-aware port rejects open records and cleans a failed linked-audio choi
 	);
 });
 
+test('kind-aware port admits exact classic AIFF locator choices and materialized descriptors', async () => {
+	for (const extension of ['aif', 'aiff'] as const) {
+		const calls: Array<readonly [string, unknown?]> = [];
+		const bridge = bridgeFixture(calls);
+		const name = `selected.${extension}`;
+		bridge.chooseLinkedAudioOriginal = async () => ({
+			...audioLocator(), name, mimeType: 'audio/aiff',
+		});
+		bridge.loadLinkedAudioOriginal = async (value: unknown) => {
+			calls.push(['loadLinkedAudioOriginal', value]);
+			return {
+				locatorRevision: REVISION,
+				descriptor: {
+					...descriptor('audio'),
+					url: `soundscaper-app://bundle/_desktop/read/materialized-v1/${'e'.repeat(64)}/${name}`,
+					name,
+					mimeType: 'audio/aiff',
+				},
+			};
+		};
+		const service = createAudioEditorFileService({
+			bridge,
+			fetch: async () => new Response('FORM', { headers: { 'Content-Length': '4' } }),
+		});
+
+		const choice = await service.chooseLinkedAudioOriginal();
+		assert.ok(choice);
+		assert.equal(choice.name, name);
+		assert.equal(choice.mimeType, 'audio/aiff');
+		assert.equal(choice.file.name, name);
+		assert.equal(choice.file.type, 'audio/aiff');
+		assert.equal(await choice.file.text(), 'FORM');
+	}
+});
+
+test('kind-aware port rejects inexact AIFF MIME/name pairs and cleans their locators', async () => {
+	for (const choice of [
+		{ ...audioLocator(), name: 'selected.aiff', mimeType: 'audio/wav' },
+		{ ...audioLocator(), name: 'selected.wav', mimeType: 'audio/aiff' },
+	]) {
+		const calls: Array<readonly [string, unknown?]> = [];
+		const bridge = bridgeFixture(calls);
+		bridge.chooseLinkedAudioOriginal = async () => choice;
+		const service = createAudioEditorFileService({ bridge, fetch: async () => new Response('FORM') });
+
+		await assert.rejects(service.chooseLinkedAudioOriginal(), /AIFF|MIME|name/iu);
+		assert.deepEqual(calls.filter(([method]) => method === 'releaseLinkedOriginal').at(-1)?.[1], {
+			kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: REVISION,
+		});
+	}
+});
+
 test('kind-aware port releases delegated video range ownership when cancellation wins the handoff', async () => {
 	const controller = new AbortController();
 	const reason = new Error('cancel delegated video range handoff');

@@ -127,7 +127,7 @@ test('legacy schema-1 locator rows reopen as video while new audio and video sha
 	await store.dispose();
 });
 
-test('linked-audio locator admission is closed to canonical WAV and RF64 files within the hard cap', async (context) => {
+test('linked-audio locator admission rejects mismatched metadata and enforces its hard cap', async (context) => {
 	const root = await temporaryRoot(context);
 	const wavPath = join(root, 'selected.wav');
 	await writeFile(wavPath, 'wav');
@@ -154,6 +154,49 @@ test('linked-audio locator admission is closed to canonical WAV and RF64 files w
 		}),
 	});
 	await assert.rejects(oversized.registerPath(wavPath, request), /bytes|limit/iu);
+});
+
+test('linked-audio locator admission accepts classic AIFF extensions with their canonical MIME type', async (context) => {
+	const root = await temporaryRoot(context);
+	const registryPath = join(root, 'linked-originals.json');
+	const reads = readCapabilities();
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: reads.port,
+		registry: new FileDesktopLinkedVideoLocatorRegistry(registryPath),
+		randomBytes: deterministicTokens(),
+	});
+	const locators: Array<Readonly<{ locatorId: string; locatorRevision: string }>> = [];
+
+	for (const name of ['selected.aif', 'selected.aiff']) {
+		const path = join(root, name);
+		await writeFile(path, 'FORM classic AIFF body');
+		const locator = await store.registerPath(path, {
+			kind: 'audio', owner: {}, mimeType: 'audio/aiff', displayName: name,
+		});
+		locators.push(locator);
+		assert.equal(locator.name, name);
+		assert.equal(locator.mimeType, 'audio/aiff');
+		const ranged = await store.leaseRange(locator.locatorId, {
+			owner: {}, expectedRevision: locator.locatorRevision, expectedKind: 'audio',
+		});
+		assert.equal(ranged?.descriptor.mimeType, 'audio/aiff');
+	}
+
+	const aiffPath = join(root, 'mismatch.aiff');
+	await writeFile(aiffPath, 'FORM classic AIFF body');
+	await assert.rejects(store.registerPath(aiffPath, {
+		kind: 'audio', owner: {}, mimeType: 'audio/wav', displayName: 'mismatch.aiff',
+	}), /AIFF|audio|metadata|MIME/iu);
+	await store.dispose();
+
+	const reopened = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		registry: new FileDesktopLinkedVideoLocatorRegistry(registryPath),
+	});
+	context.after(async () => { await reopened.dispose(); });
+	for (const locator of locators) assert.ok(await reopened.load(locator.locatorId, {
+		owner: {}, expectedRevision: locator.locatorRevision, expectedKind: 'audio',
+	}));
 });
 
 async function temporaryRoot(context: test.TestContext): Promise<string> {

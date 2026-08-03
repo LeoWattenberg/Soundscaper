@@ -70,7 +70,84 @@ test('preload accepts only exact linked-audio range requests and sanitizes their
 	assert.equal(fixture.invocations.length, 1);
 });
 
-test('preload rejects linked audio playback-shaped requests and non-WAV responses', async () => {
+test('preload admits exact classic AIFF and RF64 locator, materialized, and range DTOs', async () => {
+	for (const { name, mimeType } of [
+		{ name: 'selected.aif', mimeType: 'audio/aiff' },
+		{ name: 'selected.aiff', mimeType: 'audio/aiff' },
+		{ name: 'selected.rf64', mimeType: 'audio/rf64' },
+	]) {
+		const rawLocator = { ...locator({ name, mimeType }), path: `/private/${name}` };
+		const rawMaterialized = {
+			locatorRevision: REVISION,
+			descriptor: {
+				...readDescriptor('materialized-v1', { name, mimeType }),
+				path: `/private/${name}`,
+			},
+		};
+		const rawRange = {
+			locatorRevision: REVISION,
+			descriptor: {
+				...readDescriptor('linked-audio-range-v1', { name, mimeType }),
+				path: `/private/${name}`,
+			},
+		};
+		const fixture = await loadPreload([rawLocator, rawMaterialized, rawRange]);
+
+		const choice = await fixture.bridge.chooseLinkedAudioOriginal();
+		const materialized = await fixture.bridge.loadLinkedAudioOriginal({
+			locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false,
+		});
+		const range = await fixture.bridge.loadLinkedAudioOriginal({
+			locatorId: LOCATOR_ID, expectedRevision: REVISION, range: true,
+		});
+
+		assert.deepEqual({ ...choice }, locator({ name, mimeType }));
+		assert.equal('path' in choice, false);
+		for (const [loaded, readProfile] of [
+			[materialized, 'materialized-v1'],
+			[range, 'linked-audio-range-v1'],
+		]) {
+			assert.equal(loaded.descriptor.name, name);
+			assert.equal(loaded.descriptor.mimeType, mimeType);
+			assert.equal(loaded.descriptor.readProfile, readProfile);
+			assert.equal('path' in loaded.descriptor, false);
+		}
+	}
+});
+
+test('preload rejects mismatched classic AIFF filename and MIME pairs', async () => {
+	const mismatches = [
+		{ name: 'selected.aif', mimeType: 'audio/wav' },
+		{ name: 'selected.aiff', mimeType: 'audio/rf64' },
+		{ name: 'selected.wav', mimeType: 'audio/aiff' },
+		{ name: 'selected.aifc', mimeType: 'audio/aiff' },
+		{ name: 'selected.aiff', mimeType: 'audio/x-aiff' },
+	];
+	const choiceFixture = await loadPreload(mismatches.map((value) => locator(value)));
+	for (const _value of mismatches) {
+		await assert.rejects(choiceFixture.bridge.chooseLinkedAudioOriginal(), /AIFF|WAV|MIME/iu);
+	}
+	const materializedFixture = await loadPreload(mismatches.flatMap((value) => [{
+		locatorRevision: REVISION,
+		descriptor: readDescriptor('materialized-v1', value),
+	}, true]));
+	for (const _value of mismatches) {
+		await assert.rejects(materializedFixture.bridge.loadLinkedAudioOriginal({
+			locatorId: LOCATOR_ID, expectedRevision: REVISION, range: false,
+		}), /AIFF|WAV|MIME/iu);
+	}
+	const rangeFixture = await loadPreload(mismatches.flatMap((value) => [{
+		locatorRevision: REVISION,
+		descriptor: readDescriptor('linked-audio-range-v1', value),
+	}, true]));
+	for (const _value of mismatches) {
+		await assert.rejects(rangeFixture.bridge.loadLinkedAudioOriginal({
+			locatorId: LOCATOR_ID, expectedRevision: REVISION, range: true,
+		}), /AIFF|WAV|MIME/iu);
+	}
+});
+
+test('preload rejects linked audio playback-shaped requests and unsupported responses', async () => {
 	const fixture = await loadPreload([
 		{ ...locator(), mimeType: 'audio/mpeg' },
 		{ locatorRevision: REVISION, descriptor: { ...readDescriptor(), readProfile: 'linked-video-range-v1' } },
@@ -115,18 +192,18 @@ test('preload exposes one closed kind-aware reconciliation and release inventory
 	assert.equal(fixture.invocations.length, 2);
 });
 
-function locator() {
+function locator({ name = 'selected.wav', mimeType = 'audio/wav' } = {}) {
 	return {
-		locatorId: LOCATOR_ID, locatorRevision: REVISION, name: 'selected.wav',
-		size: 42, mimeType: 'audio/wav', lastModified: 123,
+		locatorId: LOCATOR_ID, locatorRevision: REVISION, name,
+		size: 42, mimeType, lastModified: 123,
 	};
 }
 
-function readDescriptor(readProfile = 'materialized-v1') {
+function readDescriptor(readProfile = 'materialized-v1', { name = 'selected.wav', mimeType = 'audio/wav' } = {}) {
 	return {
 		id: READ_ID,
-		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/selected.wav`,
-		name: 'selected.wav', size: 42, mimeType: 'audio/wav',
+		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/${name}`,
+		name, size: 42, mimeType,
 		readProfile, lastModified: 123,
 	};
 }

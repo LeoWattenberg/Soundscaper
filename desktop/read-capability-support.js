@@ -51,7 +51,8 @@ export function linkedOriginalRangeProfile(kind, mimeType, displayName) {
 		&& /^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) {
 		return READ_PROFILE_LINKED_VIDEO_RANGE_V1;
 	}
-	if (kind === 'audio' && ((/\.wav$/iu.test(displayName) && mimeType === 'audio/wav')
+	if (kind === 'audio' && ((/\.aiff?$/iu.test(displayName) && mimeType === 'audio/aiff')
+		|| (/\.wav$/iu.test(displayName) && mimeType === 'audio/wav')
 		|| (/\.rf64$/iu.test(displayName) && mimeType === 'audio/rf64'))) {
 		return READ_PROFILE_LINKED_AUDIO_RANGE_V1;
 	}

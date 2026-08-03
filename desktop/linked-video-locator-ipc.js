@@ -17,7 +17,7 @@ import { acceptsFile, mimeTypeForPath, validateFileChoice } from './validation.j
 const VIDEO_CHOICE = validateFileChoice({ purpose: 'video', multiple: false });
 const AUDIO_CHOICE = Object.freeze({
 	filters: Object.freeze([Object.freeze({
-		name: 'Uncompressed WAV audio', extensions: Object.freeze(['rf64', 'wav']),
+		name: 'Uncompressed PCM audio', extensions: Object.freeze(['aif', 'aiff', 'rf64', 'wav']),
 	})]),
 });
 const MAX_LINKED_VIDEO_LOCATOR_REFERENCES = 128;
@@ -35,7 +35,7 @@ export function registerDesktopLinkedVideoLocatorIpc({
 	handle(IPC.chooseLinkedAudioOriginal, async (event) => {
 		const owner = reference(ownerFor(event));
 		const result = await dialog.showOpenDialog(windowFor(), {
-			title: 'Link WAV audio original',
+			title: 'Link uncompressed audio original',
 			properties: ['openFile'],
 			filters: AUDIO_CHOICE.filters,
 		});
@@ -176,13 +176,13 @@ function selectedAudioPath(value) {
 	if (value.canceled) return null;
 	if (value.filePaths.length !== 1 || typeof value.filePaths[0] !== 'string'
 		|| !isAbsolute(value.filePaths[0])) {
-		throw new TypeError('The linked-audio chooser must return a single WAV audio path.');
+		throw new TypeError('The linked-audio chooser must return a single supported audio path.');
 	}
 	const path = value.filePaths[0];
 	const mimeType = mimeTypeForPath(path);
-	if (!/\.(?:rf64|wav)$/iu.test(path)
-		|| !['audio/rf64', 'audio/wav'].includes(mimeType)) {
-		throw new TypeError('The selected WAV audio file type is not allowed.');
+	if (!/\.(?:aif|aiff|rf64|wav)$/iu.test(path)
+		|| !['audio/aiff', 'audio/rf64', 'audio/wav'].includes(mimeType)) {
+		throw new TypeError('The selected uncompressed audio file type is not allowed.');
 	}
 	return path;
 }
@@ -473,14 +473,15 @@ function videoMimeType(value) {
 
 function audioName(value) {
 	const name = videoName(value);
-	if (!/\.(?:rf64|wav)$/iu.test(name)) throw new TypeError('Invalid linked-audio WAV name.');
+	if (!/\.(?:aif|aiff|rf64|wav)$/iu.test(name)) throw new TypeError('Invalid linked-audio name.');
 	return name;
 }
 
 function audioMimeType(value, name) {
-	if ((/\.wav$/iu.test(name) && value === 'audio/wav')
+	if ((/\.aiff?$/iu.test(name) && value === 'audio/aiff')
+		|| (/\.wav$/iu.test(name) && value === 'audio/wav')
 		|| (/\.rf64$/iu.test(name) && value === 'audio/rf64')) return value;
-	throw new TypeError('Invalid linked-audio WAV MIME type.');
+	throw new TypeError('Invalid linked-audio MIME type.');
 }
 
 function mediaKind(value) {

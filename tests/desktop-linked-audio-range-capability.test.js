@@ -69,6 +69,32 @@ test('linked audio and video range capabilities share the hard admission pool', 
 	assert.equal(opened, 3, 'per-file and metadata refusal do not open another handle');
 });
 
+test('linked audio range capabilities admit exact classic AIFF name and MIME pairs', async (context) => {
+	let opened = 0;
+	const store = new ReadCapabilityStore({
+		openImpl: async () => {
+			opened += 1;
+			return fakeHandle(4);
+		},
+	});
+	context.after(async () => { await store.dispose().catch(() => undefined); });
+	for (const name of ['selected.aif', 'selected.aiff']) {
+		const descriptor = await store.registerLinkedOriginalRangePath(`/tmp/${name}`, rangeOptions(
+			'audio', 4, { displayName: name, mimeType: 'audio/aiff' },
+		));
+		assert.equal(descriptor.readProfile, READ_PROFILE_LINKED_AUDIO_RANGE_V1);
+		assert.equal(descriptor.mimeType, 'audio/aiff');
+	}
+	for (const options of [
+		rangeOptions('audio', 4, { displayName: 'selected.aiff', mimeType: 'audio/wav' }),
+		rangeOptions('audio', 4, { displayName: 'selected.wav', mimeType: 'audio/aiff' }),
+	]) await assert.rejects(
+		store.registerLinkedOriginalRangePath('/tmp/rejected-audio', options),
+		/AIFF|audio|MIME|name/iu,
+	);
+	assert.equal(opened, 2, 'metadata refusal precedes file open');
+});
+
 test('the shared range pool enforces sixteen active audio/video requests', async (context) => {
 	const store = new ReadCapabilityStore({
 		maximumLinkedVideoPlaybackCount: 17,
@@ -147,12 +173,13 @@ test('linked-audio protocol serves exact stable-handle ranges and releases once 
 	}))).status, 404);
 });
 
-function rangeOptions(kind, size) {
+function rangeOptions(kind, size, overrides = {}) {
 	return {
 		kind,
 		owner: OWNER,
 		mimeType: kind === 'audio' ? 'audio/wav' : 'video/mp4',
 		displayName: kind === 'audio' ? 'selected.wav' : 'selected.mp4',
+		...overrides,
 		expectedIdentity: { dev: 1, ino: 2, size, mtimeMs: 1, ctimeMs: 2 },
 	};
 }

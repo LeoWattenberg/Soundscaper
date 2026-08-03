@@ -40,8 +40,9 @@ export function assertDesktopLinkedAudioReadProfile(
 	}
 	const wav = /\.wav$/iu.test(descriptor.name) && descriptor.mimeType === 'audio/wav';
 	const rf64 = /\.rf64$/iu.test(descriptor.name) && descriptor.mimeType === 'audio/rf64';
-	if (!wav && !rf64) {
-		throw new TypeError('A linked-audio range descriptor requires an exact WAV or RF64 MIME/name pair.');
+	const aiff = /\.aiff?$/iu.test(descriptor.name) && descriptor.mimeType === 'audio/aiff';
+	if (!wav && !rf64 && !aiff) {
+		throw new TypeError('A linked-audio range descriptor requires an exact WAV, RF64, or AIFF MIME/name pair.');
 	}
 	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1
 		|| (descriptor.size as number) > 512 * 1024 ** 2) {

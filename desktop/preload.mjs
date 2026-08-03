@@ -258,8 +258,8 @@ function linkedOriginalMimeType(kind, value, name) {
 	const mimeType = readDescriptorMimeType(value);
 	if (kind === 'video' && /^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(mimeType)) return mimeType;
 	if (kind === 'audio' && ((/\.wav$/iu.test(name) && mimeType === 'audio/wav')
-		|| (/\.rf64$/iu.test(name) && mimeType === 'audio/rf64'))) return mimeType;
-	throw new TypeError(`Invalid linked-${kind} WAV or video MIME type`);
+		|| (/\.rf64$/iu.test(name) && mimeType === 'audio/rf64') || (/\.aiff?$/iu.test(name) && mimeType === 'audio/aiff'))) return mimeType;
+	throw new TypeError(`Invalid linked-${kind} classic AIFF, WAV, or video MIME type`);
 }
 function linkedMediaKind(value) {
 	if (value !== 'audio' && value !== 'video') throw new TypeError('Invalid linked-original media kind');

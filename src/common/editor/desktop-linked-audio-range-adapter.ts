@@ -13,7 +13,7 @@ import {
 export interface DesktopLinkedAudioRangeLease {
 	readonly locatorRevision: string;
 	readonly byteLength: number;
-	readonly mimeType: 'audio/rf64' | 'audio/wav';
+	readonly mimeType: 'audio/aiff' | 'audio/rf64' | 'audio/wav';
 	readRange(request: DesktopLinkedOriginalRangeRequest): Promise<Uint8Array>;
 	release(): Promise<void>;
 }
@@ -25,7 +25,7 @@ interface AudioRangeDescriptor {
 	readonly url: string;
 	readonly name: string;
 	readonly size: number;
-	readonly mimeType: 'audio/rf64' | 'audio/wav';
+	readonly mimeType: 'audio/aiff' | 'audio/rf64' | 'audio/wav';
 	readonly readProfile: typeof DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE;
 	readonly lastModified: number;
 }

@@ -80,10 +80,39 @@ test('desktop linked-audio range leases admit exact RF64 descriptors', async () 
 	assert.deepEqual(releases, [READ_ID]);
 });
 
+test('desktop linked-audio range leases admit exact classic AIFF descriptors', async () => {
+	for (const extension of ['aif', 'aiff'] as const) {
+		const name = `selected.${extension}`;
+		const releases: string[] = [];
+		const service = createAudioEditorFileService({
+			bridge: rangeBridge({
+				descriptor: audioRangeDescriptor({ mimeType: 'audio/aiff', name }),
+				releases,
+			}),
+			fetch: async (_url: string, init: RequestInit) => {
+				const range = new Headers(init.headers).get('Range');
+				assert.equal(range, 'bytes=0-3');
+				return exactRangeResponse(BODY.slice(0, 4), 0, 3, BODY.byteLength, 'audio/aiff');
+			},
+		});
+
+		const lease = await service.linkedOriginalPort?.leaseRange?.('audio', LOCATOR_ID, {
+			expectedRevision: LOCATOR_REVISION,
+		});
+		assert.ok(lease);
+		assert.equal(lease.mimeType, 'audio/aiff');
+		assert.deepEqual(await lease.readRange({ offset: 0, length: 4 }), BODY.slice(0, 4));
+		await lease.release();
+		assert.deepEqual(releases, [READ_ID]);
+	}
+});
+
 test('desktop linked-audio range admission rejects malformed descriptors with exact cleanup', async () => {
 	for (const [name, descriptor] of [
 		['profile', { ...audioRangeDescriptor(), readProfile: 'materialized-v1' }],
 		['MIME', { ...audioRangeDescriptor(), mimeType: 'audio/rf64' }],
+		['AIFF MIME', { ...audioRangeDescriptor({ name: 'selected.aiff' }), mimeType: 'audio/wav' }],
+		['AIFF name', { ...audioRangeDescriptor(), mimeType: 'audio/aiff' }],
 		['name', { ...audioRangeDescriptor(), name: 'selected.mp3' }],
 		['open descriptor', { ...audioRangeDescriptor(), path: '/private/selected.wav' }],
 	] as const) {
@@ -96,7 +125,7 @@ test('desktop linked-audio range admission rejects malformed descriptors with ex
 			Promise.resolve(service.linkedOriginalPort?.leaseRange?.('audio', LOCATOR_ID, {
 				expectedRevision: LOCATOR_REVISION,
 			})),
-			/profile|MIME|WAV|RF64|name|unsupported|field/iu,
+			/profile|MIME|WAV|RF64|AIFF|name|unsupported|field/iu,
 			name,
 		);
 		assert.deepEqual(releases, [READ_ID], name);

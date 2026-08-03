@@ -51,7 +51,7 @@ export interface DesktopLinkedAudioOriginalChoice {
 	readonly locatorRevision: string;
 	readonly name: string;
 	readonly size: number;
-	readonly mimeType: 'audio/rf64' | 'audio/wav';
+	readonly mimeType: 'audio/aiff' | 'audio/rf64' | 'audio/wav';
 	readonly lastModified: number;
 	readonly file: Blob & Readonly<{ readonly name?: string }>;
 }
@@ -470,16 +470,17 @@ function audioName(value: unknown): string {
 	if (typeof value !== 'string' || !value || value !== value.trim()
 		|| value.length > 255 || value === '.' || value === '..'
 		|| value.includes('/') || value.includes('\\') || /[\u0000-\u001f]/u.test(value)
-		|| !/\.(?:rf64|wav)$/iu.test(value)) {
-		throw new TypeError('Linked-audio name must identify a WAV or RF64 file.');
+		|| !/\.(?:aif|aiff|rf64|wav)$/iu.test(value)) {
+		throw new TypeError('Linked-audio name must identify an AIFF, WAV, or RF64 file.');
 	}
 	return value;
 }
 
-function audioMimeType(value: unknown, name: string): 'audio/rf64' | 'audio/wav' {
+function audioMimeType(value: unknown, name: string): 'audio/aiff' | 'audio/rf64' | 'audio/wav' {
+	if (/\.aiff?$/iu.test(name) && value === 'audio/aiff') return value;
 	if (/\.wav$/iu.test(name) && value === 'audio/wav') return value;
 	if (/\.rf64$/iu.test(name) && value === 'audio/rf64') return value;
-	throw new TypeError('Linked-audio WAV MIME type is invalid.');
+	throw new TypeError('Linked-audio AIFF/WAV MIME type is invalid.');
 }
 
 function positiveMaterializedSize(value: unknown, label: string): number {

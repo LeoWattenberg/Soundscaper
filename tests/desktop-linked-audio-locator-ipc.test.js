@@ -12,7 +12,7 @@ const READ_ID = 'c'.repeat(64);
 const WAV_PATH = process.platform === 'win32' ? 'C:\\media\\selected.wav' : '/media/selected.wav';
 const OWNER = Object.freeze({ renderer: 1 });
 
-test('linked-audio IPC chooses only WAV originals and returns pathless metadata', async () => {
+test('linked-audio IPC chooses supported uncompressed originals and returns pathless metadata', async () => {
 	const fixture = harness();
 	fixture.dialogResult = { canceled: false, filePaths: [WAV_PATH] };
 	fixture.locator = locator();
@@ -21,8 +21,8 @@ test('linked-audio IPC chooses only WAV originals and returns pathless metadata'
 	assert.deepEqual(fixture.dialogCalls, [{
 		window: fixture.window,
 		options: {
-			title: 'Link WAV audio original', properties: ['openFile'],
-			filters: [{ name: 'Uncompressed WAV audio', extensions: ['rf64', 'wav'] }],
+			title: 'Link uncompressed audio original', properties: ['openFile'],
+			filters: [{ name: 'Uncompressed PCM audio', extensions: ['aif', 'aiff', 'rf64', 'wav'] }],
 		},
 	}]);
 	assert.deepEqual(fixture.storeCalls, [{
@@ -42,6 +42,24 @@ test('linked-audio IPC chooses only WAV originals and returns pathless metadata'
 			fixture.handlers.get(IPC.chooseLinkedAudioOriginal)(fixture.event),
 			/WAV|audio file type/iu,
 		);
+	}
+});
+
+test('linked-audio IPC admits both classic AIFF extensions with canonical metadata', async () => {
+	for (const name of ['selected.aif', 'selected.aiff']) {
+		const fixture = harness();
+		const path = process.platform === 'win32' ? `C:\\media\\${name}` : `/media/${name}`;
+		fixture.dialogResult = { canceled: false, filePaths: [path] };
+		fixture.locator = locator({ name, mimeType: 'audio/aiff' });
+
+		assert.deepEqual(
+			await fixture.handlers.get(IPC.chooseLinkedAudioOriginal)(fixture.event),
+			fixture.locator,
+		);
+		assert.deepEqual(fixture.storeCalls, [{
+			method: 'registerPath', path,
+			options: { kind: 'audio', owner: OWNER, mimeType: 'audio/aiff', displayName: name },
+		}]);
 	}
 });
 
@@ -105,6 +123,24 @@ test('linked-audio IPC requires an exact revision and leases the audio range pro
 	);
 });
 
+test('linked-audio IPC validates materialized and ranged classic AIFF descriptors', async () => {
+	for (const [range, readProfile] of [
+		[false, 'materialized-v1'],
+		[true, 'linked-audio-range-v1'],
+	]) {
+		const fixture = harness();
+		fixture.loaded = {
+			locatorRevision: REVISION,
+			descriptor: readDescriptor({ name: 'selected.aiff', mimeType: 'audio/aiff', readProfile }),
+		};
+		const result = await fixture.handlers.get(IPC.loadLinkedAudioOriginal)(fixture.event, {
+			locatorId: LOCATOR_ID, expectedRevision: REVISION, range,
+		});
+		assert.equal(result.descriptor.name, 'selected.aiff');
+		assert.equal(result.descriptor.mimeType, 'audio/aiff');
+	}
+});
+
 test('linked-original IPC reconciles and releases one exact kind-aware inventory', async () => {
 	const fixture = harness();
 	const references = [
@@ -161,19 +197,20 @@ function harness() {
 	return fixture;
 }
 
-function locator() {
+function locator(overrides = {}) {
 	return {
 		locatorId: LOCATOR_ID, locatorRevision: REVISION, name: 'selected.wav',
-		size: 42, mimeType: 'audio/wav', lastModified: 123,
+		size: 42, mimeType: 'audio/wav', lastModified: 123, ...overrides,
 	};
 }
 
 function readDescriptor(overrides = {}) {
 	const readProfile = overrides.readProfile || 'materialized-v1';
+	const name = overrides.name || 'selected.wav';
 	return {
 		id: READ_ID,
-		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/selected.wav`,
-		name: 'selected.wav', size: 42, mimeType: 'audio/wav',
+		url: `soundscaper-app://bundle/_desktop/read/${readProfile}/${READ_ID}/${name}`,
+		name, size: 42, mimeType: 'audio/wav',
 		readProfile, lastModified: 123, ...overrides,
 	};
 }
