@@ -13,6 +13,8 @@ import {
 	createAddSourceCommand,
 	createReplaceClipSourceCommand,
 } from '../src/common/editor/commands.js';
+import { createSampleEditService } from '../src/common/editor/controller/sample-edit-service.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,
@@ -245,6 +247,118 @@ test('clip source replacement is one undoable command and retains both immutable
 	history = redoEditorCommand(history, { now: '2026-01-01T00:00:03.000Z' });
 	assert.equal(history.present.clips[0].sourceId, derived.id);
 });
+
+test('cancelled sample edit drains its provider before rolling back backing data', async () => {
+	const cancellation = Object.assign(new Error('sample edit stopped'), { name: 'AbortError' });
+	const fixture = sampleEditServiceFixture({ activationFailure: cancellation });
+	const pending = fixture.service.applySamplePencil({ points: [] });
+	await fixture.cleanupStarted;
+	assert.equal(fixture.providers.has('sample-edit-source'), false);
+	assert.deepEqual(fixture.events, ['provider-dispose-start']);
+	fixture.resolveCleanup();
+	assert.equal(await pending, null);
+	assert.deepEqual(fixture.events, [
+		'provider-dispose-start',
+		'provider-dispose-end',
+		'analysis-delete',
+		'backing-rollback',
+	]);
+	assert.equal(fixture.statuses.at(-1), 'cancelled');
+});
+
+test('sample edit failure preserves provider cleanup errors and leaves backing data intact', async () => {
+	const primaryFailure = new Error('activation failed');
+	const cleanupFailure = new Error('provider release failed');
+	const fixture = sampleEditServiceFixture({ activationFailure: primaryFailure, cleanupFailure });
+	const pending = fixture.service.applySamplePencil({ points: [] });
+	await fixture.cleanupStarted;
+	assert.deepEqual(fixture.events, ['provider-dispose-start']);
+	fixture.resolveCleanup();
+	await assert.rejects(pending, (error) => {
+		assert.ok(error instanceof AggregateError);
+		assert.strictEqual(error.cause, primaryFailure);
+		assert.deepEqual(error.errors, [primaryFailure, cleanupFailure]);
+		return true;
+	});
+	assert.deepEqual(fixture.events, ['provider-dispose-start', 'provider-dispose-end']);
+});
+
+function sampleEditServiceFixture({ activationFailure, cleanupFailure = null }) {
+	const derivedSourceId = 'sample-edit-source';
+	const track = { id: 'track', displayMode: 'waveform', clipIds: [CLIP.id] };
+	const project = { id: 'project', schemaVersion: 2, sources: [SOURCE], clips: [CLIP], tracks: [track] };
+	const providers = new SourceChunkProviderRegistry();
+	const state = {
+		selectedClipId: CLIP.id,
+		timelineView: 'waveform',
+		pixelsPerSecond: 48_000,
+		sampleEditAbort: null,
+		sampleEditProcessing: false,
+	};
+	const events = [];
+	const statuses = [];
+	let markCleanupStarted;
+	const cleanupStarted = new Promise((resolve) => { markCleanupStarted = resolve; });
+	let resolveCleanup;
+	const cleanupGate = new Promise((resolve) => { resolveCleanup = resolve; });
+	const persisted = {
+		source: { ...SOURCE, id: derivedSourceId, storageKey: derivedSourceId },
+		metadata: { id: derivedSourceId },
+		async rollback() { events.push('backing-rollback'); },
+	};
+	const service = createSampleEditService({
+		activeSelection: () => null,
+		async activateStoredSource() {
+			providers.set(derivedSourceId, {
+				async dispose() {
+					events.push('provider-dispose-start');
+					markCleanupStarted();
+					await cleanupGate;
+					events.push('provider-dispose-end');
+					if (cleanupFailure) throw cleanupFailure;
+				},
+			});
+			if (activationFailure.name === 'AbortError') {
+				state.sampleEditAbort.abort(activationFailure);
+				return;
+			}
+			throw activationFailure;
+		},
+		canEditAudioSamplesAtZoom: () => true,
+		commit: () => { throw new Error('A failed sample edit must not commit.'); },
+		copy: {
+			audioClipNotFound: 'Missing clip',
+			sampleEditCancelled: 'cancelled',
+			sampleEditDone: 'done',
+			sampleEditSaving: 'saving',
+			sampleEditZoomRequired: 'Zoom required',
+			timeSelectionRequired: 'Selection required',
+		},
+		createAddSourceCommand: () => ({}),
+		createPencilSampleEdits: () => [{ channel: 0, frame: 0, value: 0 }],
+		createReplaceClipSourceCommand: () => ({}),
+		createSmoothSampleRange: () => null,
+		createStableId: () => derivedSourceId,
+		editingBlocked: () => false,
+		findClip: (_project, clipId) => project.clips.find((clip) => clip.id === clipId),
+		findClipTrack: () => track,
+		findSource: (_project, sourceId) => project.sources.find((source) => source.id === sourceId),
+		getProject: () => project,
+		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
+		persistImmutableSampleEdit: async () => persisted,
+		preflightStorage: async () => undefined,
+		projectSampleRate: () => 48_000,
+		publishDocumentSnapshot() {},
+		setStatus: (status) => { statuses.push(status); },
+		sourceBuffers: new Map(),
+		sourceChunkProviders: providers,
+		sourcePeaks: new Map(),
+		state,
+		store: { async deleteAnalysis() { events.push('analysis-delete'); } },
+		throwIfAborted(signal) { if (signal.aborted) throw signal.reason; },
+	});
+	return { cleanupStarted, events, providers, resolveCleanup, service, statuses };
+}
 
 function createSampleStore(source, chunks) {
 	const sources = new Map([[source.id, { ...source }]]);

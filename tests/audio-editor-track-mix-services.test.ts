@@ -14,6 +14,8 @@ import {
 import {
 	createDerivedSourceService,
 } from '../src/common/editor/controller/derived-source-service.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
+import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
 import {
 	createTrackTransformService,
 } from '../src/common/editor/controller/track-transform-service.ts';
@@ -178,7 +180,7 @@ test('derived source persistence removes a committed source when project ownersh
 		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
 		cacheSourceBuffer: (sourceId, buffer) => { buffers.set(sourceId, buffer); },
 		sourceBuffers: buffers,
-		sourceChunkProviders: new Map(),
+		sourceChunkProviders: new SourceChunkProviderRegistry(),
 		sourcePeaks: peakCache,
 		sourceChunkFrames: 65_536,
 		store: {
@@ -206,6 +208,79 @@ test('derived source persistence removes a committed source when project ownersh
 	assert.deepEqual(deleted, ['derived']);
 	assert.equal(buffers.has('derived'), false);
 	assert.equal(peakCache.has('derived'), false);
+});
+
+test('derived source failure drains its provider before backing deletion and preserves cleanup context', async () => {
+	const project = projectFixture({ sources: [sourceFixture('source')] });
+	const primaryFailure = new Error('waveform generation failed');
+	const cleanupFailure = new Error('provider release failed');
+	let resolveCleanup!: () => void;
+	const cleanupGate = new Promise<void>((resolve) => { resolveCleanup = resolve; });
+	let markCleanupStarted!: () => void;
+	const cleanupStarted = new Promise<void>((resolve) => { markCleanupStarted = resolve; });
+	const events: string[] = [];
+	const deleted: string[] = [];
+	const buffers = new Map<string, AudioBufferLike>();
+	const providers = new SourceChunkProviderRegistry<string, unknown>();
+	const service = createDerivedSourceService({
+		lifetime: { assertActive() {} },
+		copy: { effectInvalidAudio: 'Invalid audio' },
+		getProject: () => project,
+		captureProject: () => ({ generation: 1, projectId: project.id }),
+		assertProject() {},
+		createId: () => 'derived',
+		projectSampleRate: () => 48_000,
+		getAudioContext: async () => ({}),
+		createBufferFromChannels: async (channels, sampleRate) => audioBufferFixture(channels, sampleRate),
+		loadSourceChannels: async () => [new Float32Array([1, 2])],
+		writeBuffer: async () => undefined,
+		generateWaveformPeaks: async () => { throw primaryFailure; },
+		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
+		cacheSourceBuffer: (sourceId, buffer) => {
+			buffers.set(sourceId, buffer);
+			providers.set(sourceId, {
+				async dispose() {
+					events.push('provider-dispose-start');
+					markCleanupStarted();
+					await cleanupGate;
+					events.push('provider-dispose-end');
+					throw cleanupFailure;
+				},
+			});
+		},
+		sourceBuffers: buffers,
+		sourceChunkProviders: providers,
+		sourcePeaks: new Map(),
+		sourceChunkFrames: 65_536,
+		store: {
+			beginSourceWrite: async () => ({
+				write: async () => undefined,
+				commit: async () => undefined,
+				abort: async () => undefined,
+			}),
+			saveAnalysis: async () => undefined,
+			deleteAnalysis: async () => { events.push('analysis-delete'); },
+			deleteSource: async (sourceId) => { events.push('source-delete'); deleted.push(sourceId); },
+		},
+	});
+	const pending = service.persistDerivedSource(
+		sourceFixture('source'),
+		[new Float32Array([1, 2])],
+		'Derived',
+	);
+	await cleanupStarted;
+	assert.equal(providers.has('derived'), false);
+	assert.deepEqual(events, ['provider-dispose-start']);
+	assert.deepEqual(deleted, []);
+	resolveCleanup();
+	await assert.rejects(pending, (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.strictEqual(error.cause, primaryFailure);
+		assert.deepEqual(error.errors, [primaryFailure, cleanupFailure]);
+		return true;
+	});
+	assert.deepEqual(events, ['provider-dispose-start', 'provider-dispose-end']);
+	assert.deepEqual(deleted, []);
 });
 
 test('track transforms reject late preflight completion before persistence or commit', async () => {

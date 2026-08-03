@@ -184,11 +184,15 @@ export function createSampleEditService(runtime: SampleEditServiceRuntime) {
 			return persisted;
 		} catch (error) {
 			if (!published) {
-				sourceBuffers.delete(sourceId);
-				sourceChunkProviders.delete(sourceId);
-				sourcePeaks.delete(sourceId);
-				await Promise.resolve(store.deleteAnalysis?.(peakCacheKey(sourceId))).catch(() => undefined);
-				await persisted?.rollback().catch(() => undefined);
+				try {
+					await discardUnpublishedSampleEdit(sourceId, persisted);
+				} catch (cleanupError) {
+					throw new AggregateError(
+						[error, cleanupError],
+						'Sample editing and cleanup both failed.',
+						{ cause: error },
+					);
+				}
 			}
 			if ((error as Readonly<{ name?: string }> | null)?.name === 'AbortError') {
 				setStatus(copy.sampleEditCancelled);
@@ -200,6 +204,15 @@ export function createSampleEditService(runtime: SampleEditServiceRuntime) {
 			state.sampleEditProcessing = false;
 			publishDocumentSnapshot();
 		}
+	}
+
+	async function discardUnpublishedSampleEdit(sourceId: RuntimeValue, persisted: RuntimeValue) {
+		sourceChunkProviders.delete(sourceId);
+		sourceBuffers.delete(sourceId);
+		sourcePeaks.delete(sourceId);
+		await sourceChunkProviders.drain();
+		await Promise.resolve(store.deleteAnalysis?.(peakCacheKey(sourceId))).catch(() => undefined);
+		await persisted?.rollback().catch(() => undefined);
 	}
 
 	function sampleEditStorageBytes(source: RuntimeValue, edits: RuntimeValue, smooth: RuntimeValue) {

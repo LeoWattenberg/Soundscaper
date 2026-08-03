@@ -22,12 +22,16 @@ interface CachePort<Value> {
 	delete(key: string): boolean;
 }
 
+interface RetiringCachePort<Value> extends Pick<CachePort<Value>, 'delete'> {
+	drain(): PromiseLike<void> | void;
+}
+
 export interface DerivedSourceServiceDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
 	readonly copy: DerivedSourceCopy;
 	readonly store: SourceStoragePort;
 	readonly sourceBuffers: CachePort<AudioBufferLike>;
-	readonly sourceChunkProviders: Pick<CachePort<unknown>, 'delete'>;
+	readonly sourceChunkProviders: RetiringCachePort<unknown>;
 	readonly sourcePeaks: CachePort<unknown>;
 	readonly sourceChunkFrames: number;
 	getProject(): ControllerProject;
@@ -178,7 +182,15 @@ export function createDerivedSourceService(
 			assertOwned(token);
 		} catch (error) {
 			if (!committed) await Promise.resolve(writer?.abort()).catch(() => undefined);
-			await discardSource(source.id);
+			try {
+				await discardSource(source.id);
+			} catch (cleanupError) {
+				throw new AggregateError(
+					[error, cleanupError],
+					'Derived source persistence and cleanup both failed.',
+					{ cause: error },
+				);
+			}
 			throw error;
 		}
 	}
@@ -190,9 +202,10 @@ export function createDerivedSourceService(
 	}
 
 	async function discardSource(sourceId: string): Promise<void> {
-		dependencies.sourceBuffers.delete(sourceId);
 		dependencies.sourceChunkProviders.delete(sourceId);
+		dependencies.sourceBuffers.delete(sourceId);
 		dependencies.sourcePeaks.delete(sourceId);
+		await dependencies.sourceChunkProviders.drain();
 		await Promise.resolve(dependencies.store.deleteAnalysis?.(dependencies.peakCacheKey(sourceId)))
 			.catch(() => undefined);
 		await dependencies.store.deleteSource(sourceId).catch(() => undefined);
