@@ -73,7 +73,6 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 		peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
 		sourceChunkProviders, sourcePeaks, store, stripExtension, warnEnvelope,
 	} = runtime;
-	const chunkFrames = positiveSafeInteger(SOURCE_CHUNK_FRAMES, 'Linked PCM chunk frames');
 
 	return async function importLinkedPcm(
 		fileValue: unknown,
@@ -81,6 +80,7 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 		importOptions: Record<string, unknown>,
 		pcmMetadata: any,
 	) {
+		const chunkFrames = positiveSafeInteger(SOURCE_CHUNK_FRAMES, 'Linked PCM chunk frames');
 		const locator = linkedAudioLocatorReferenceFromImportOptions(importOptions);
 		if (!locator) throw new TypeError('A linked PCM import requires one exact audio locator.');
 		let startingProjectId: string | null = null;
