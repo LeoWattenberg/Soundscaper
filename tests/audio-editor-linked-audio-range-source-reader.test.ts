@@ -38,6 +38,222 @@ test('linked WAV reads verify and decode through bounded exact ranges without an
 	assert.ok(fixture.ranges.every(({ length }) => length <= MAXIMUM_RANGE_BYTES));
 });
 
+test('one linked PCM read session shares its verified range lease across random chunks', async () => {
+	const frameCount = 1_100_000;
+	const samples = new Float32Array(frameCount);
+	samples[0] = -0.25;
+	samples[65_536] = 0.5;
+	const body = waveBlob([samples]);
+	const fixture = await rangeFixture(body, audioSource({ frameCount }));
+	const session = await fixture.reader.openSession('physical-audio');
+
+	assert.deepEqual([...((await session.chunk(1)).channels[0].slice(0, 1))], [0.5]);
+	assert.deepEqual([...((await session.chunk(0)).channels[0].slice(0, 1))], [-0.25]);
+	assert.equal(fixture.rangeLeases, 1);
+	assert.equal(fixture.releases, 0, 'the lease must remain owned between playback reads');
+	assert.equal(
+		fixture.ranges.filter(({ length }) => length === MAXIMUM_RANGE_BYTES).length,
+		1,
+		'the complete-body digest must run once per read session',
+	);
+
+	await session.release();
+	await session.release();
+	assert.equal(fixture.releases, 1);
+	await assert.rejects(session.chunk(0), /released|closed/iu);
+});
+
+test('session acquisition cancellation is not retained after the verified lease opens', async () => {
+	const body = waveBlob([Float32Array.of(-1, 0, 1)]);
+	const fixture = await rangeFixture(body, audioSource());
+	const acquisition = new AbortController();
+	const session = await fixture.reader.openSession('physical-audio', { signal: acquisition.signal });
+
+	acquisition.abort(new Error('completed acquisition owner ended'));
+	assert.deepEqual([...((await session.chunk(0)).channels[0])], [-1, 0, 1]);
+	await session.release();
+	assert.equal(fixture.releases, 1);
+});
+
+test('one cancelled session read preserves its reason without revoking sibling reads', async () => {
+	const body = waveBlob([Float32Array.of(-1, -0.5, 0.5, 1)]);
+	const cancellation = new AbortController();
+	const reason = new Error('cancel only this linked PCM request');
+	let cancelPcm = false;
+	const fixture = await rangeFixture(body, audioSource({ frameCount: 4, chunkFrames: 2 }), {
+		afterRange({ offset }) {
+			if (!cancelPcm || offset !== 44) return;
+			cancelPcm = false;
+			cancellation.abort(reason);
+		},
+	});
+	const session = await fixture.reader.openSession('physical-audio');
+
+	cancelPcm = true;
+	await assert.rejects(
+		session.chunk(0, { signal: cancellation.signal }),
+		(error: unknown) => error === reason,
+	);
+	assert.equal(fixture.releases, 0);
+	assert.deepEqual([...((await session.chunk(1)).channels[0])], [0.5, 1]);
+	await session.release();
+	assert.equal(fixture.releases, 1);
+});
+
+test('concurrent session chunks serialize range requests on one descriptor', async () => {
+	const entered = deferred();
+	const continueRead = deferred();
+	let playback = false;
+	let active = 0;
+	let maximumActive = 0;
+	let playbackReads = 0;
+	const body = waveBlob([Float32Array.of(-1, -0.5, 0.5, 1)]);
+	const fixture = await rangeFixture(body, audioSource({ frameCount: 4, chunkFrames: 2 }), {
+		async afterRange({ offset }) {
+			if (!playback || offset < 44) return;
+			active += 1;
+			maximumActive = Math.max(maximumActive, active);
+			playbackReads += 1;
+			if (playbackReads === 1) {
+				entered.resolve();
+				await continueRead.promise;
+			}
+			active -= 1;
+		},
+	});
+	const session = await fixture.reader.openSession('physical-audio');
+	playback = true;
+
+	const first = session.chunk(0);
+	const second = session.chunk(1);
+	await entered.promise;
+	assert.equal(playbackReads, 1, 'the second descriptor request must remain queued');
+	assert.equal(maximumActive, 1);
+	continueRead.resolve();
+	await Promise.all([first, second]);
+	assert.equal(playbackReads, 2);
+	assert.equal(maximumActive, 1);
+	await session.release();
+});
+
+test('explicit session release aborts and drains an active range read', async () => {
+	const entered = deferred();
+	const continueRead = deferred();
+	let playback = false;
+	let routedSignal: AbortSignal | undefined;
+	const body = waveBlob([Float32Array.of(-1, 0, 1)]);
+	const fixture = await rangeFixture(body, audioSource(), {
+		async afterRange({ offset, signal }) {
+			if (!playback || offset !== 44) return;
+			routedSignal = signal;
+			entered.resolve();
+			await continueRead.promise;
+		},
+	});
+	const session = await fixture.reader.openSession('physical-audio');
+	playback = true;
+	const reading = session.chunk(0);
+	await entered.promise;
+
+	let releaseSettled = false;
+	const release = session.release();
+	void release.then(
+		() => { releaseSettled = true; },
+		() => { releaseSettled = true; },
+	);
+	assert.equal(routedSignal?.aborted, true);
+	await Promise.resolve();
+	assert.equal(releaseSettled, false, 'release must wait for the admitted range request');
+	const rejected = assert.rejects(reading, /released|closed/iu);
+	continueRead.resolve();
+	await rejected;
+	await release;
+	assert.equal(fixture.releases, 1);
+});
+
+test('binding replacement after a session read poisons the exact source identity', async () => {
+	const body = waveBlob([Float32Array.of(-1, 0, 1)]);
+	const fixture = await rangeFixture(body, audioSource({ frameCount: 3, chunkFrames: 2 }));
+	const session = await fixture.reader.openSession('physical-audio');
+
+	assert.deepEqual([...((await session.chunk(0)).channels[0])], [-1, 0]);
+	assert.equal(await fixture.replaceBinding(), true);
+	await assert.rejects(session.chunk(1), /binding.*changed|changed.*binding/iu);
+	assert.equal(fixture.releases, 1);
+	await assert.rejects(session.chunk(0), /released|closed/iu);
+});
+
+test('classic AIFF session chunks reuse one verified exact-revision lease', async () => {
+	const body = aiffBlob([-1, -0.5, 0.5, 32_767 / 32_768]);
+	const fixture = await rangeFixture(body, audioSource({
+		mimeType: 'audio/aiff',
+		frameCount: 4,
+		chunkFrames: 2,
+	}));
+	const session = await fixture.reader.openSession('physical-audio');
+
+	assert.deepEqual([...((await session.chunk(1)).channels[0])], [0.5, 32_767 / 32_768]);
+	assert.deepEqual([...((await session.chunk(0)).channels[0])], [-1, -0.5]);
+	assert.equal(fixture.rangeLeases, 1);
+	assert.equal(fixture.releases, 0);
+	await session.release();
+	assert.equal(fixture.releases, 1);
+});
+
+test('bulk session cleanup aborts and waits for an opening range lease', async () => {
+	const entered = deferred();
+	const continueAdmission = deferred();
+	let blockAdmission = true;
+	const body = waveBlob([Float32Array.of(-1, 0, 1)]);
+	const fixture = await rangeFixture(body, audioSource(), {
+		async afterRange() {
+			if (!blockAdmission) return;
+			blockAdmission = false;
+			entered.resolve();
+			await continueAdmission.promise;
+		},
+	});
+	const opening = fixture.reader.openSession('physical-audio');
+	const rejected = assert.rejects(opening, /sessions.*released|being released/iu);
+	await entered.promise;
+
+	let cleanupSettled = false;
+	const cleanup = fixture.reader.releaseSessions();
+	void cleanup.then(
+		() => { cleanupSettled = true; },
+		() => { cleanupSettled = true; },
+	);
+	await Promise.resolve();
+	assert.equal(cleanupSettled, false);
+	continueAdmission.resolve();
+	await rejected;
+	await cleanup;
+	assert.equal(fixture.releases, 1);
+});
+
+test('terminal session read and release failures remain one aggregate error', async () => {
+	const readError = new Error('linked range failed');
+	const releaseError = new Error('linked range release failed');
+	let playback = false;
+	const body = waveBlob([Float32Array.of(-1, 0, 1)]);
+	const fixture = await rangeFixture(body, audioSource(), {
+		afterRange({ offset }) {
+			if (playback && offset === 44) throw readError;
+		},
+		releaseError,
+	});
+	const session = await fixture.reader.openSession('physical-audio');
+	playback = true;
+
+	await assert.rejects(session.chunk(0), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.deepEqual(error.errors, [readError, releaseError]);
+		assert.equal(error.cause, readError);
+		return true;
+	});
+	assert.equal(fixture.releases, 1);
+});
+
 test('linked WAV range sessions release exactly once when sequential reading ends early', async () => {
 	const body = waveBlob([Float32Array.of(-1, -0.5, 0, 0.5, 1)]);
 	const fixture = await rangeFixture(body, audioSource({ frameCount: 5, chunkFrames: 2 }));
@@ -185,9 +401,10 @@ async function rangeFixture(
 	source: ReturnType<typeof audioSource>,
 	options: Readonly<{
 		afterRange?: (
-			request: Readonly<{ offset: number; length: number }>,
+			request: Readonly<{ offset: number; length: number; signal?: AbortSignal }>,
 		) => PromiseLike<void> | void;
 		rangeBody?: Blob;
+		releaseError?: Error;
 		unavailable?: boolean;
 	}> = {},
 ) {
@@ -195,6 +412,7 @@ async function rangeFixture(
 	const rangeBytes = new Uint8Array(await rangeBody.arrayBuffer());
 	const ranges: Array<{ offset: number; length: number }> = [];
 	let materializedLoads = 0;
+	let rangeLeases = 0;
 	let releases = 0;
 	const port: LinkedOriginalPort = {
 		load(_kind, _locatorId, { expectedRevision }) {
@@ -203,6 +421,7 @@ async function rangeFixture(
 		},
 		leaseRange(_kind, _locatorId, { expectedRevision }) {
 			if (options.unavailable) return null;
+			rangeLeases += 1;
 			return Object.freeze({
 				locatorRevision: expectedRevision,
 				byteLength: rangeBody.size,
@@ -213,7 +432,10 @@ async function rangeFixture(
 					await options.afterRange?.(request);
 					return bytes;
 				},
-				release() { releases += 1; },
+				release() {
+					releases += 1;
+					if (options.releaseError) throw options.releaseError;
+				},
 			});
 		},
 	};
@@ -239,6 +461,7 @@ async function rangeFixture(
 			return await bindings.putIfCurrent(input, bindingToken) !== null;
 		},
 		get materializedLoads() { return materializedLoads; },
+		get rangeLeases() { return rangeLeases; },
 		get releases() { return releases; },
 	};
 }
@@ -335,4 +558,10 @@ function audioSource(overrides: Readonly<Record<string, unknown>> = {}) {
 function chunkShape(value: unknown): Readonly<{ index: unknown; frames: unknown }> {
 	const chunk = value as Readonly<{ index?: unknown; frames?: unknown }>;
 	return { index: chunk.index, frames: chunk.frames };
+}
+
+function deferred(): Readonly<{ promise: Promise<void>; resolve(): void }> {
+	let resolve: () => void = () => undefined;
+	const promise = new Promise<void>((settle) => { resolve = settle; });
+	return Object.freeze({ promise, resolve: () => { resolve(); } });
 }

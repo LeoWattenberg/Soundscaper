@@ -25,9 +25,14 @@ import type { LinkedOriginalRepository } from './linked-original-repository.ts';
 import type { StorageRecord } from './media-records.ts';
 import type {
 	SourcePcmChunk,
+	SourcePcmReadSession,
 	SourceReadFallback,
 	SourceReadOptions,
 } from './source-read-repository.ts';
+import {
+	combineSourceReadAbortSignals,
+	createSourcePcmReadSession,
+} from './source-pcm-read-session.ts';
 
 export const LINKED_AUDIO_ORIGINAL_SOURCE_STORAGE_TYPE = 'linked-audio-original-v1' as const;
 
@@ -39,8 +44,17 @@ export interface LinkedAudioOriginalSourceReaderOptions {
 interface LinkedAudioReadSession {
 	readonly aliases: readonly LinkedAudioOriginalBinding[];
 	readonly binding: LinkedAudioOriginalBinding;
+	readonly rangeSignals: LinkedAudioRangeSignalScope | null;
 	readonly reader: LinkedAudioPcmChunkReader;
 	release(): Promise<void>;
+}
+
+interface LinkedAudioRangeSignalScope {
+	current(): AbortSignal | undefined;
+	run<Value>(
+		signal: AbortSignal | undefined,
+		operation: () => Promise<Value>,
+	): Promise<Value>;
 }
 
 type LinkedAudioPcmDescriptor = WavPcmDescriptor | AiffPcmDescriptor;
@@ -48,10 +62,16 @@ type LinkedAudioPcmChunkReader = WavBlobPcmChunkReader | ReturnType<typeof creat
 
 const LINKED_AUDIO_MIME_TYPES = new Set(['audio/aiff', 'audio/rf64', 'audio/wav']);
 const NO_PRIMARY_FAILURE = Symbol('no linked-audio read failure');
+const SESSION_CLEANUP_REASON = new Error('Linked audio read sessions are being released.');
 
 /** Verified canonical Float32 reads from a bounded, pathless local PCM-container binding. */
 export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 	readonly #options: LinkedAudioOriginalSourceReaderOptions;
+	readonly #openings = new Set<Readonly<{
+		abort: AbortController;
+		promise: Promise<SourcePcmReadSession>;
+	}>>();
+	readonly #sessions = new Set<SourcePcmReadSession>();
 
 	constructor(options: LinkedAudioOriginalSourceReaderOptions) {
 		if (!options?.bindings || typeof options.bindings.listByStorageKey !== 'function') {
@@ -68,6 +88,53 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 	async getMetadata(storageKey: string): Promise<StorageRecord | null> {
 		const aliases = await this.#audioAliases(storageKey);
 		return aliases ? sourceMetadata(aliases[0] as LinkedAudioOriginalBinding) : null;
+	}
+
+	openSession(
+		storageKey: string,
+		{ signal }: SourceReadOptions = {},
+	): Promise<SourcePcmReadSession> {
+		const abort = new AbortController();
+		const signals = combineSourceReadAbortSignals(abort.signal, signal);
+		const opening = Promise.resolve().then(async () => {
+			const state = await this.#startRead(storageKey, signals.signal);
+			try {
+				throwIfAborted(signals.signal);
+			} catch (error) {
+				return failReadSessionStart(error, state.release);
+			}
+			const session = createSourcePcmReadSession({
+				readChunk: (chunkIndex, readSignal) => this.#readChunk(state, chunkIndex, readSignal),
+				release: state.release,
+				onRelease: () => { this.#sessions.delete(session); },
+			});
+			this.#sessions.add(session);
+			return session;
+		}).finally(signals.dispose);
+		const record = Object.freeze({ abort, promise: opening });
+		this.#openings.add(record);
+		void opening.then(
+			() => { this.#openings.delete(record); },
+			() => { this.#openings.delete(record); },
+		);
+		return opening;
+	}
+
+	async releaseSessions(): Promise<void> {
+		const openings = [...this.#openings];
+		for (const opening of openings) opening.abort.abort(SESSION_CLEANUP_REASON);
+		const openingResults = await Promise.allSettled(openings.map((opening) => opening.promise));
+		const results = await Promise.allSettled([...this.#sessions].map(
+			(session) => Promise.resolve(session.release()),
+		));
+		const failures = [...openingResults, ...results]
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.filter((result) => result.reason !== SESSION_CLEANUP_REASON)
+			.map((result) => result.reason as unknown);
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) {
+			throw new AggregateError(failures, 'Linked audio read-session cleanup failed.');
+		}
 	}
 
 	async chunk(
@@ -131,8 +198,12 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 				if (ranged.source.type !== binding.mimeType) {
 					throw new Error('The linked audio original MIME type changed during range resolution.');
 				}
-				const pcmSource = createLinkedOriginalRangeBlobSource(ranged.source, signal);
-				const descriptor = await inspectLinkedAudio(pcmSource, binding.mimeType, signal);
+				const rangeSignals = createRangeSignalScope();
+				const pcmSource = createLinkedOriginalRangeBlobSource(ranged.source, rangeSignals.current);
+				const descriptor = await rangeSignals.run(
+					signal,
+					() => inspectLinkedAudio(pcmSource, binding.mimeType, signal),
+				);
 				assertCanonicalGeometry(binding, descriptor);
 				const reader = createLinkedAudioPcmChunkReader(
 					pcmSource,
@@ -140,7 +211,7 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 					binding.sourceShape.chunkFrames,
 				);
 				await this.#assertAliasesCurrent(aliases, binding, signal);
-				return Object.freeze({ aliases, binding, reader, release: ranged.release });
+				return Object.freeze({ aliases, binding, rangeSignals, reader, release: ranged.release });
 			} catch (error) {
 				return failReadSessionStart(error, ranged.release);
 			}
@@ -166,7 +237,7 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 			binding.sourceShape.chunkFrames,
 		);
 		await this.#assertAliasesCurrent(aliases, binding, signal);
-		return Object.freeze({ aliases, binding, reader, release: noOpRelease });
+		return Object.freeze({ aliases, binding, rangeSignals: null, reader, release: noOpRelease });
 	}
 
 	async #readChunk(
@@ -175,7 +246,11 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 		signal?: AbortSignal,
 	): Promise<SourcePcmChunk> {
 		await this.#assertAliasesCurrent(session.aliases, session.binding, signal);
-		const chunk = await session.reader.readChunk(chunkIndex, signal ? { signal } : {});
+		const read = async (): Promise<SourcePcmChunk> =>
+			await session.reader.readChunk(chunkIndex, signal ? { signal } : {});
+		const chunk = session.rangeSignals
+			? await session.rangeSignals.run(signal, read)
+			: await read();
 		await this.#assertAliasesCurrent(session.aliases, session.binding, signal);
 		return Object.freeze({
 			index: chunk.index,
@@ -295,6 +370,28 @@ async function releaseReadSession(
 
 function noOpRelease(): Promise<void> {
 	return Promise.resolve();
+}
+
+function createRangeSignalScope(): LinkedAudioRangeSignalScope {
+	let active = false;
+	let activeSignal: AbortSignal | undefined;
+	return Object.freeze({
+		current: () => activeSignal,
+		async run<Value>(
+			signal: AbortSignal | undefined,
+			operation: () => Promise<Value>,
+		): Promise<Value> {
+			if (active) throw new Error('Linked audio range reads must be serialized.');
+			active = true;
+			activeSignal = signal;
+			try {
+				return await operation();
+			} finally {
+				active = false;
+				activeSignal = undefined;
+			}
+		},
+	});
 }
 
 function sourceMetadata(binding: LinkedAudioOriginalBinding): StorageRecord {

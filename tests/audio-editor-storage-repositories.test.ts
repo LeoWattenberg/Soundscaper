@@ -12,6 +12,7 @@ test('the project store delegates persistence domains to injected repositories',
 	const savedProject = { delegated: 'project' };
 	const savedMedia = { delegated: 'media' };
 	const sourceWriter = { delegated: 'writer' };
+	const sourceSession = { delegated: 'session' };
 	const pruneResult = { delegated: 'prune' };
 	const repositoryFactory = (() => ({
 		projects: {
@@ -31,15 +32,22 @@ test('the project store delegates persistence domains to injected repositories',
 				calls.push(`analysis.put:${key}:${String(value)}`);
 			},
 		},
-		sources: {
+			sources: {
 			beginWrite: async (sourceId: string) => {
 				calls.push(`sources.beginWrite:${sourceId}`);
 				return sourceWriter;
 			},
-			getMetadata: async (sourceId: string) => {
-				calls.push(`sources.getMetadata:${sourceId}`);
-				return source;
-			},
+				getMetadata: async (sourceId: string) => {
+					calls.push(`sources.getMetadata:${sourceId}`);
+					return source;
+				},
+				openReadSession: async (sourceId: string) => {
+					calls.push(`sources.openReadSession:${sourceId}`);
+					return sourceSession;
+				},
+				releaseReadSessions: async () => {
+					calls.push('sources.releaseReadSessions');
+				},
 		},
 		media: {
 			writeAsset: async (sourceId: string) => {
@@ -67,6 +75,7 @@ test('the project store delegates persistence domains to injected repositories',
 	await store.saveAnalysis('peaks', 4);
 	assert.equal(await store.beginSourceWrite(source.id), sourceWriter);
 	assert.equal(await store.getSourceMetadata(source.id), source);
+	assert.equal(await store.openSourceReadSession(source.id), sourceSession);
 	assert.equal(await store.writeMediaAsset(source.id, new Blob()), savedMedia);
 	assert.equal(await store.pruneUnreferencedSources(), pruneResult);
 	await store.clear();
@@ -76,8 +85,10 @@ test('the project store delegates persistence domains to injected repositories',
 		'analysis.put:peaks:4',
 		'sources.beginWrite:delegated-source',
 		'sources.getMetadata:delegated-source',
+		'sources.openReadSession:delegated-source',
 		'media.writeAsset:delegated-source',
 		'retention.prune',
+		'sources.releaseReadSessions',
 		'retention.clear',
 	]);
 });

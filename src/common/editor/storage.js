@@ -424,6 +424,10 @@ export class AudioEditorProjectStore {
 		return this.sourceRepository.chunk(sourceId, chunkIndex, options);
 	}
 
+	async openSourceReadSession(sourceId, options = {}) {
+		return this.sourceRepository.openReadSession(sourceId, options);
+	}
+
 	async loadSourceAudioBuffer(sourceId, audioContext) {
 		return this.sourceRepository.loadAudioBuffer(sourceId, audioContext);
 	}
@@ -487,9 +491,8 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		if (!this.clearPromise) {
 			const admission = admitLocalStoreClear(this.retentionRepository);
-			const operation = this.linkedOriginalStoreService.clear(
-				admission,
-			);
+			const operation = Promise.resolve(this.sourceRepository.releaseReadSessions?.())
+				.then(() => this.linkedOriginalStoreService.clear(admission));
 			this.clearPromise = operation;
 			void operation.then(
 				() => { if (this.clearPromise === operation) this.clearPromise = null; },

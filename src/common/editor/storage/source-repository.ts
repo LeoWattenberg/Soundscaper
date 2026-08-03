@@ -67,6 +67,14 @@ export class SourceRepository {
 		return this.#options.reader.chunk(sourceId, chunkIndex, options);
 	}
 
+	openReadSession(sourceId: string, options: SourceReadOptions = {}) {
+		return this.#options.reader.openSession(sourceId, options);
+	}
+
+	releaseReadSessions(): Promise<void> {
+		return this.#options.reader.releaseSessions();
+	}
+
 	loadAudioBuffer(sourceId: string, audioContext: BaseAudioContext) {
 		return this.#options.reader.loadAudioBuffer(sourceId, audioContext);
 	}
@@ -112,7 +120,17 @@ export class SourceRepository {
 		this.#options.migrations.forgetFailures(sourceIds);
 	}
 
-	stopBackgroundWork(options: { readonly closeCodec?: boolean; readonly clearFailures?: boolean } = {}): Promise<void> {
-		return this.#options.migrations.stop(options);
+	async stopBackgroundWork(options: { readonly closeCodec?: boolean; readonly clearFailures?: boolean } = {}): Promise<void> {
+		const results = await Promise.allSettled([
+			this.#options.migrations.stop(options),
+			this.#options.reader.releaseSessions(),
+		]);
+		const failures = results
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.map((result) => result.reason as unknown);
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) {
+			throw new AggregateError(failures, 'Source background-work cleanup failed.');
+		}
 	}
 }

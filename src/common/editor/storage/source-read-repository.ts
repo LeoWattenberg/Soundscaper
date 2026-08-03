@@ -13,6 +13,12 @@ export interface SourcePcmChunk {
 	readonly channels: readonly Float32Array[];
 }
 
+/** One explicitly owned canonical PCM read lifetime. */
+export interface SourcePcmReadSession {
+	chunk(chunkIndex: number, options?: SourceReadOptions): Promise<SourcePcmChunk>;
+	release(): Promise<void>;
+}
+
 interface DestinationAudioBuffer {
 	copyToChannel?(source: Float32Array, channel: number, offset?: number): void;
 	getChannelData(channel: number): Float32Array;
@@ -38,6 +44,11 @@ export interface SourceReadOptions {
 /** Read-only canonical PCM supplied outside the owned source-record store. */
 export interface SourceReadFallback {
 	getMetadata(sourceId: string): PromiseLike<StorageRecord | null> | StorageRecord | null;
+	openSession?(
+		sourceId: string,
+		options?: SourceReadOptions,
+	): PromiseLike<SourcePcmReadSession | null> | SourcePcmReadSession | null;
+	releaseSessions?(): PromiseLike<void> | void;
 	chunks(sourceId: string, options?: SourceReadOptions): AsyncIterable<SourcePcmChunk>;
 	chunk(
 		sourceId: string,
@@ -57,6 +68,29 @@ export class SourceReadRepository {
 	async getMetadata(sourceId: string): Promise<StorageRecord | null> {
 		const owned = await this.#options.records.getMetadata(sourceId);
 		return owned ?? await this.#options.fallback?.getMetadata(sourceId) ?? null;
+	}
+
+	async openSession(
+		sourceId: string,
+		options: SourceReadOptions = {},
+	): Promise<SourcePcmReadSession | null> {
+		throwIfAborted(options.signal);
+		if (await this.#options.records.getMetadata(sourceId)) return null;
+		throwIfAborted(options.signal);
+		const fallback = this.#options.fallback;
+		if (!fallback?.openSession) return null;
+		const session = await fallback.openSession(sourceId, options);
+		try {
+			throwIfAborted(options.signal);
+		} catch (error) {
+			if (session) return failOpenedSession(error, session);
+			throw error;
+		}
+		return session;
+	}
+
+	async releaseSessions(): Promise<void> {
+		await this.#options.fallback?.releaseSessions?.();
 	}
 
 	async *chunks(
@@ -245,6 +279,22 @@ function throwIfAborted(signal?: AbortSignal): void {
 	if (!signal?.aborted) return;
 	const error = new Error('Audio source loading was cancelled.');
 	error.name = 'AbortError';
+	throw error;
+}
+
+async function failOpenedSession(
+	error: unknown,
+	session: SourcePcmReadSession,
+): Promise<never> {
+	try {
+		await session.release();
+	} catch (cleanupError) {
+		throw new AggregateError(
+			[error, cleanupError],
+			'Source session opening and cleanup both failed.',
+			{ cause: error },
+		);
+	}
 	throw error;
 }
 
