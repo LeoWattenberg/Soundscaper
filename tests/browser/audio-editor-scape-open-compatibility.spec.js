@@ -86,7 +86,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
 		const capacity = editor.locator('[data-storage-capacity]');
 		await capacity.locator('summary').click();
-		await expect(capacity).toContainText(/Import: .+ requested · .+ required free · Ready/u);
+		await expect(capacity).toContainText(/(?:Import|Project saving): .+ requested · .+ required free · Ready/u);
 
 		const notice = editor.locator('[data-project-feature-compatibility]');
 		await expect(notice).toBeVisible();
@@ -105,8 +105,10 @@ test.describe('Scape open feature decisions', () => {
 		await expect(rendered).toContainText('Unknown · Rendered fallback declared');
 		await expect(rendered).toHaveAttribute('data-declared-disposition', 'rendered-fallback');
 		await expect(rendered).toHaveAttribute('data-effective-disposition', 'rendered-fallback');
+		await expect(rendered.locator('[data-project-feature-audio-rendered-fallback]'))
+			.toHaveText('Rendered fallback active during editor playback');
 		await expect(notice.getByRole('button')).toHaveCount(0);
-		await expect(notice).not.toContainText(/verified|active(?: at runtime)?|playing|loaded|in use|plug-?in|third-party/iu);
+		await expect(notice).not.toContainText(/plug-?in|third-party|feature code/iu);
 		await notice.focus();
 		await expect(notice).toBeFocused();
 		await assertAccessibleBasics(notice);
@@ -446,6 +448,8 @@ async function incompatibleArchive(input, { id, title }) {
 		const audioAsset = manifest.assets.find((asset) => asset.kind === 'audio');
 		const audioSource = project.sources.find((source) => source.id === audioAsset?.sourceId);
 		if (!audioAsset || !audioSource) throw new Error('Compatibility fixture requires one exported audio source.');
+		audioSource.sampleRate = project.sampleRate;
+		project.masterChannels = audioSource.channelCount;
 		project.featureRequirements = {
 			schemaVersion: 1,
 			requirements: [{

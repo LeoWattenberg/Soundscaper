@@ -301,7 +301,6 @@ test('audio rendered fallback activation is localized and bound to its exact req
 			...item('audio-spectral-editing', PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing, 'Audio spectral editing', 'unavailable', 'rendered-fallback'),
 			declaredDisposition: 'bypass',
 		}]), metadata },
-		{ report: report(false, [item('audio-spectral-editing', PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing, 'Audio spectral editing', 'unknown', 'rendered-fallback')]), metadata },
 		{ report: report(false, [item('audio-spectral-editing', PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing, 'Audio spectral editing', 'unavailable', 'bypassed')]), metadata },
 	].map((candidate) => renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
 		report: candidate.report,
@@ -315,6 +314,34 @@ test('audio rendered fallback activation is localized and bound to its exact req
 	assert.doesNotMatch(english, /rendered-source|soundscaper:rendered-audio-fallback/iu);
 	assert.doesNotMatch(mismatched, /data-project-feature-audio-rendered-fallback/iu);
 	for (const markup of malformed) assert.doesNotMatch(markup, /data-project-feature-audio-rendered-fallback/iu);
+});
+
+test('an unknown closed whole-mix role receives the active playback indicator', () => {
+	const featureId = 'org.example.future-mixer';
+	const requirementId = 'future-mixer';
+	const markup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: report(false, [item(
+			requirementId,
+			featureId,
+			'Future mixer',
+			'unknown',
+			'rendered-fallback',
+		)]),
+		copy: ENGLISH_COPY,
+		audioRenderedFallback: {
+			schemaVersion: 1,
+			role: 'project-audio-mix-v1',
+			featureId,
+			requirementId,
+			sourceId: 'rendered-source',
+			trackId: 'soundscaper:rendered-audio-fallback:track',
+			clipId: 'soundscaper:rendered-audio-fallback:clip',
+		},
+	}));
+
+	assert.equal(markup.match(/data-project-feature-audio-rendered-fallback/gu)?.length, 1);
+	assert.match(markup, /Unknown.*Rendered fallback declared.*Rendered fallback active during editor playback/isu);
+	assert.doesNotMatch(markup, /rendered-source|soundscaper:rendered-audio-fallback/iu);
 });
 
 test('video rendered fallback activation is localized and bound to its exact requirement', () => {

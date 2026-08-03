@@ -9,7 +9,6 @@ import type {
 } from '../../project-feature-audio-effect-bypass.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../project-feature-audio-rendered-fallback.ts';
 import {
-	isProjectFeatureAudioCapabilityId,
 	isProjectFeatureVideoCapabilityId,
 	PROJECT_FEATURE_CAPABILITY_IDS,
 } from '../../project-feature-capabilities.ts';
@@ -209,10 +208,10 @@ function audioRenderedFallbackApplies(
 	metadata: ProjectFeatureAudioRenderedFallbackMetadata | null | undefined,
 ): boolean {
 	return metadata?.schemaVersion === 1
-		&& isProjectFeatureAudioCapabilityId(metadata.featureId)
+		&& metadata.role === 'project-audio-mix-v1'
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
-		&& item.availability === 'unavailable'
+		&& (item.availability === 'unavailable' || item.availability === 'unknown')
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.effectiveDisposition === 'rendered-fallback';
 }

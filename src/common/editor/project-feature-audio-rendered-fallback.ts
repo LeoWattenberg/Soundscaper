@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	isProjectFeatureAudioCapabilityId,
-	type ProjectFeatureAudioCapabilityId,
-} from './project-feature-capabilities.ts';
 import type {
 	ProjectFeatureAudioMixFallback,
 	ProjectFeatureRequirementsReport,
@@ -18,7 +14,7 @@ export const PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS = Object.freeze({
 export interface ProjectFeatureAudioRenderedFallbackMetadata {
 	readonly schemaVersion: 1;
 	readonly role: 'project-audio-mix-v1';
-	readonly featureId: ProjectFeatureAudioCapabilityId;
+	readonly featureId: string;
 	readonly requirementId: string;
 	readonly sourceId: string;
 	readonly trackId: typeof PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track;
@@ -33,7 +29,7 @@ export interface ProjectFeatureAudioRenderedFallbackProjection<Project> {
 type RecordValue = Readonly<Record<string, unknown>>;
 
 interface QualifiedFallback {
-	readonly featureId: ProjectFeatureAudioCapabilityId;
+	readonly featureId: string;
 	readonly requirementId: string;
 	readonly fallback: ProjectFeatureAudioMixFallback;
 }
@@ -118,14 +114,11 @@ function qualifyingFallback(
 	const candidates = report.items.filter(isQualifyingItem);
 	if (candidates.length === 0) return null;
 	if (candidates.length !== 1) {
-		throw new RangeError('Multiple registered audio rendered fallbacks are ambiguous for editor playback.');
+		throw new RangeError('Multiple audio whole-mix rendered fallbacks are ambiguous for editor playback.');
 	}
 	const item = candidates[0]!;
-	if (!isProjectFeatureAudioCapabilityId(item.featureId)) {
-		throw new TypeError('The rendered audio fallback feature is not registered.');
-	}
 	return Object.freeze({
-		featureId: item.featureId,
+		featureId: canonicalString(item.featureId, 'Rendered fallback feature ID'),
 		requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
 		fallback: item.fallback!,
 	});
@@ -133,8 +126,7 @@ function qualifyingFallback(
 
 function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
 	Readonly<{ fallback: ProjectFeatureAudioMixFallback }> {
-	return isProjectFeatureAudioCapabilityId(item.featureId)
-		&& item.availability === 'unavailable'
+	return (item.availability === 'unavailable' || item.availability === 'unknown')
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
 		&& item.fallback?.kind === 'audio'

@@ -11,7 +11,6 @@ import {
 import {
 	PROJECT_FEATURE_AUDIO_CAPABILITY_IDS,
 	PROJECT_FEATURE_CAPABILITY_IDS,
-	type ProjectFeatureAudioCapabilityId,
 } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import {
@@ -56,7 +55,7 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 	};
 }
 
-function project(featureId: ProjectFeatureAudioCapabilityId = AUDIO_EFFECTS) {
+function project(featureId: string = AUDIO_EFFECTS) {
 	const source = createAudioSourceV9({
 		id: 'source-a',
 		storageKey: 'source-a',
@@ -132,6 +131,33 @@ test('every registered first-party audio capability can bind one whole-mix fallb
 		assert.equal(projected.metadata?.sourceId, 'fallback-source');
 		assert.equal((projected.project as typeof input).clips[0]?.sourceId, 'fallback-source');
 	}
+});
+
+test('an unknown feature can bind the closed whole-mix role without activating feature code', () => {
+	const featureId = 'org.example.future-mixer';
+	const input = project(featureId);
+	const projected = projectFeatureAudioRenderedFallbackPlayback(input, report({
+		featureId,
+		availability: 'unknown',
+	}));
+
+	assert.equal(projected.metadata?.featureId, featureId);
+	assert.equal(projected.metadata?.role, 'project-audio-mix-v1');
+	assert.equal(projected.metadata?.requirementId, 'publisher-audio-render');
+	assert.equal(projected.metadata?.sourceId, 'fallback-source');
+	assert.equal((projected.project as typeof input).clips[0]?.sourceId, 'fallback-source');
+	assert.deepEqual(input.featureRequirements.requirements[0], {
+		id: 'publisher-audio-render',
+		featureId,
+		displayName: 'Publisher audio render',
+		disposition: 'rendered-fallback',
+		fallback: {
+			role: 'project-audio-mix-v1',
+			kind: 'audio',
+			sourceId: 'fallback-source',
+			sha256: DIGEST,
+		},
+	});
 });
 
 test('an admitted first-party audio-effects render becomes one neutral whole-mix playback clip', () => {
@@ -242,14 +268,11 @@ test('the fallback retains video and label playback timing while removing every 
 	assert.strictEqual(projected.tracks[2], labelTrack);
 });
 
-test('nonqualifying, unknown, third-party, video, and future requirements never activate fallback playback', () => {
+test('available, bypass, wrong-role, and future requirements never activate fallback playback', () => {
 	const input = project();
 	for (const candidate of [
 		null,
 		report({ availability: 'available', disposition: 'native' }),
-		report({ availability: 'unknown' }),
-		report({ featureId: 'org.example.third-party' }),
-		report({ featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects }),
 		report({ declaredDisposition: 'bypass', disposition: 'bypassed', fallback: null }),
 		report({ fallback: {
 			role: 'project-video-render-v1', kind: 'audio', sourceId: 'fallback-source', sha256: DIGEST,

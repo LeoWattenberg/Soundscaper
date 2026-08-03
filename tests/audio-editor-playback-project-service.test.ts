@@ -54,7 +54,7 @@ function preparedSources(
 	});
 }
 
-function fallbackProject() {
+function fallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects) {
 	const source = createAudioSourceV9({
 		id: 'original-source', storageKey: 'original-source', frameCount: 4,
 		channelCount: 2, sampleRate: 48_000,
@@ -75,7 +75,7 @@ function fallbackProject() {
 		sources: [source, fallback], clips: [clip], tracks: [track],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			featureId,
 			displayName: 'Publisher render',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: fallback.id, sha256: DIGEST },
@@ -129,6 +129,42 @@ test('the playback service composes capability evaluation with a required render
 	assert.strictEqual((canonical.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.type, 'compressor');
 	assert.equal(Object.isFrozen(result), true);
 	assert.equal(Object.isFrozen(result.requiredAudioSourceIds), true);
+});
+
+test('an unknown whole-mix role is projected and staged without a registered feature capability', async () => {
+	const featureId = 'org.example.future-mixer';
+	const canonical = fallbackProject(featureId);
+	const service = createPlaybackProjectService({ audioEffects: true, videoEffects: true });
+	const projection = service.projectForPlayback(canonical);
+
+	assert.equal(projection.featureRequirementsReport?.items[0]?.availability, 'unknown');
+	assert.equal(projection.audioRenderedFallback?.featureId, featureId);
+	assert.deepEqual(projection.requiredAudioSourceIds, ['fallback-source']);
+
+	const events: string[] = [];
+	await applyCanonicalProjectToPlaybackEngine(canonical, {
+		projectForPlayback: (project) => service.projectForPlayback(project),
+		getCurrentProject: () => canonical,
+		ensureProjectSourcesAvailable: async () => assert.fail('the required whole mix is staged privately'),
+		prepareRequiredProjectSources: async (project, options) => {
+			events.push('stage');
+			assert.equal(project.clips[0]?.sourceId, 'fallback-source');
+			assert.deepEqual(options.requiredAudioSourceIds, ['fallback-source']);
+			return preparedSources(new Map([['fallback-source', 'verified-pcm']]));
+		},
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		engine: {
+			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			applyProject(project, sourceBuffers) {
+				events.push('engine');
+				assert.equal(project.clips[0]?.sourceId, 'fallback-source');
+				assert.equal(sourceBuffers.get('fallback-source'), 'verified-pcm');
+			},
+		},
+		setReadyStatus() {},
+	});
+	assert.deepEqual(events, ['stage', 'engine']);
 });
 
 test('the playback service composes a required rendered-video preview without mutating its source project', () => {
