@@ -73,11 +73,11 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	);
 	assert.match(
 		rule.currentBehavior,
-		/maintained audioSpectralEditing desktop handoff witness.*roots.*fallback-only source.*manifest.*canonical managed PCM.*editable original.*fresh recipient.*both bodies.*canonical shadow.*transfer acquisition.*managed descriptor and body SHA-256.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before.*transient whole-mix projection.*exact fallback samples.*engine.*corrupt.*after activation.*reject.*before.*render.*output.*repair.*exact PCM.*final-mix.*canonical.*unchanged/iu,
+		/maintained org\.example\.future-mixer unknown-feature desktop handoff witness.*feature-requirement-only intrinsic read-only.*current writable project lock.*without flushing.*roots.*fallback-only source.*manifest.*canonical managed PCM.*editable original.*fresh recipient.*both bodies.*canonical shadow.*transfer acquisition.*managed descriptor and body SHA-256.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before.*transient whole-mix projection.*exact fallback samples.*engine.*corrupt.*after activation.*reject.*before.*render.*output.*repair.*exact PCM.*final-mix.*canonical.*unchanged/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/audioSpectralEditing.*composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
+		/org\.example\.future-mixer.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -97,6 +97,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-audio.ts',
 		'src/common/editor/controller/playback-project-service.ts',
+		'src/common/editor/controller/project-admin-service.ts',
 		'src/common/editor/controller/audio-rendered-fallback-export.ts',
 		'src/common/editor/controller/export-service.ts',
 		'src/common/editor/controller/source-lifecycle-service.ts',
@@ -118,6 +119,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 		'tests/audio-editor-project-switch-source-preparation.test.ts',
 		'tests/audio-editor-project-switch-playback-apply.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-project-admin-service-coverage.test.ts',
 		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
 	]) assert.ok(rule.evidence.includes(reference), reference);
@@ -130,13 +132,13 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	assert.match(documentation, /ordinary-source loading.*excludes.*required fallback.*private source-buffer.*chunk-source snapshots.*staged required representation.*wins.*engine.*engine callback.*succeeds.*lifetime signal.*active.*synchronous project-identity or.*activation-admission assertion.*immediately\s+before shared publication.*no.*intervening await.*shared\s+source maps/isu);
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact signal reason.*late settlement.*buffer.*provider.*engine-source.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
 	assert.match(documentation, /engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation.*failure.*successful commit.*does not roll back.*ordinary-source loading.*outside.*cache-fit policy.*does not.*prefetch or revalidate/isu);
-	assert.match(documentation, /explicit desktop handoff.*manifest reachability.*fallback.*no timeline or Project Bin clip.*Soundscaper.*canonical original and fallback PCM.*fresh Framescaper.*both exact managed bodies.*canonical project shadow.*managed descriptor and body digest.*controller.*manifest fallback digest.*before.*read-only activation.*engine.*synthetic whole-mix.*exact fallback samples.*document snapshot.*canonical project/isu);
+	assert.match(documentation, /explicit desktop handoff.*manifest reachability.*fallback.*no timeline or Project Bin clip.*Soundscaper.*org\.example\.future-mixer.*feature-requirement report.*current writable project lock.*unchanged.*without flushing.*declared read-only.*future-schema.*lock-contended.*reject.*fresh Framescaper.*canonical original and fallback PCM.*exact managed.*bodies.*canonical project shadow.*transfer.*managed descriptor and body digest.*controller.*manifest fallback digest.*before.*read-only activation.*engine.*synthetic whole-mix.*exact fallback samples.*document snapshot.*canonical project/isu);
 	assert.match(documentation, /audio-delivery projection.*only.*audio rendered fallback.*does not compose.*video rendered fallback.*bypass.*simultaneous rendered fallback.*reject/isu);
 	assert.match(documentation, /final-mix.*only.*stems.*BW64.*ADM.*reject.*before.*verification.*planning.*destination.*render/isu);
 	assert.match(documentation, /operation-time.*selector.*requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*full canonical.*chunk scan.*private.*chunk provider.*sole.*render source.*global.*cache.*unchanged/isu);
 	assert.match(documentation, /provider.*read.*rereads.*stored chunk.*geometry.*digest.*currentness.*chang.*integrity.*offline.*does not retry.*realtime/isu);
 	assert.match(normalizedDocumentation, /Corrupt same-shaped recipient-local PCM after activation.*rejects delivery before rendering or output.*exact repair restores the exact PCM.*final-mix.*canonical project.*shadow.*unchanged/isu);
-	assert.match(normalizedDocumentation, /`audioSpectralEditing`.*composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/isu);
+	assert.match(normalizedDocumentation, /`org\.example\.future-mixer`.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/isu);
 	assert.match(normalizedDocumentation, /operation-time.*selector.*exact requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*tamper.*refus.*repair.*canonical project.*shadow.*unchanged/isu);
 	assert.match(documentation, /exact point-in-time provider.*immutable.*Blob.*not durable leases.*role-defined.*audio whole-mix.*first-party video-effects whole-project.*clip-target.*narrow editor-playback\s+and delivery.*other generic rendered-fallback\s+roles/isu);
 	assert.match(normalizedDocumentation, /more than one.*feature identities.*non-audio roles.*future schemas.*earlier Soundscaper schemas.*linked-only.*unmanaged.*authoring.*freeze.*proxy.*publisher authenticity.*third-party code activation.*packaged.*UI.*browser.*reference-scale/isu);

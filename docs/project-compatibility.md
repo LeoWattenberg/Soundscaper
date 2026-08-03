@@ -756,11 +756,15 @@ media. This headless evidence does not qualify executable/UI launch coordination
 or browser video-element codec playback.
 
 A narrower composed Soundscaper-to-fresh-Framescaper fixture roots an exact
-schema 9 first-party audio whole-mix fallback solely through its feature
-requirement. Explicit handoff publishes that fallback and the editable original
-as canonical managed PCM; the empty recipient acquires both absent bodies and
-the exact canonical shadow, remains intrinsically read-only, and activates the
-transient fallback with exact engine samples and no missing source. Managed
+schema 9 role-defined audio whole-mix fallback for the unknown canonical
+`org.example.future-mixer` feature solely through its requirement. The sender is
+intrinsically read-only only because of that feature-requirement report and
+still owns the current writable project lock, so explicit handoff publishes the
+unchanged active snapshot without flushing. Declared read-only, future-schema,
+missing- or stale-lock, and lock-contended projects remain refused. The empty
+recipient acquires the fallback and editable original as canonical managed PCM
+plus the exact canonical shadow, remains intrinsically read-only, and activates
+the transient fallback with exact engine samples and no missing source. Managed
 acquisition verifies its descriptor and body SHA-256. The separate fallback
 digest declared by the project manifest remains controller-owned after shadow
 publication and before activation.
@@ -798,7 +802,8 @@ save is not abort-atomic once begun; and separate repository instances and
 processes are not serialized. Source-bearing saves and explicit local revision
 loads bypass this admission. Explicit managed handoff supplies automatic
 fresh-recipient acquisition for canonical PCM—including the maintained exact
-schema 9 first-party audio whole-mix fallback—and retained original video. The
+schema 9 role-defined unavailable-or-unknown audio whole-mix fallback—and
+retained original video. The
 qualified video slice also covers the maintained exact schema 9 manifest-only
 first-party video-effects fallback when handed off alongside its editable
 retained original from Framescaper to a fresh Soundscaper store as described
@@ -806,9 +811,8 @@ above.
 The maintained pathless desktop linked retained-video slice and narrow
 linked-WAV managed-handoff exception described above are also qualified. Other
 linked audio and every other linked or unmanaged original, authored proxies,
-generic rendered-fallback authoring and transfer semantics
-beyond the separately maintained controller playback slices and exact
-first-party video-delivery slice, relink/watch behavior, general
+rendered-fallback authoring and transfer semantics beyond the closed audio
+whole-mix and maintained first-party video roles, relink/watch behavior, general
 copy/consolidate beyond the bounded same-store project-alias duplication above,
 source-level linked-locator cleanup outside maintained same-store saves and
 successful writable activations, general linked-locator cleanup beyond the
@@ -858,14 +862,15 @@ separate from this slice.
 This catalog rule is current-only. Activation-specific feature-capability
 evaluation remains editor-owned. Explicit managed canonical PCM and retained
 original video are the fresh-recipient source-byte transfers provided by this
-library; this includes a maintained exact-schema first-party audio whole-mix
-fallback when its manifest is the only reference. Ordinary saves remain
+library; this includes a maintained exact-schema role-defined unavailable-or-
+unknown audio whole-mix fallback when its manifest is the only reference.
+Ordinary saves remain
 document-only. The maintained pathless desktop linked retained-video slice and
 narrow linked-WAV managed-handoff exception described above are additionally
 qualified. Other linked audio and every other linked or unmanaged original,
-authored proxies, generic rendered-fallback authoring
-and transfer semantics beyond the separately maintained controller playback
-slices, general copy/consolidate beyond the bounded same-store project-alias
+authored proxies, rendered-fallback authoring and transfer semantics beyond the
+closed audio whole-mix and maintained first-party video roles, general
+copy/consolidate beyond the bounded same-store project-alias
 duplication above, relink/watch behavior, source-level linked-locator cleanup
 outside maintained same-store saves and successful writable activations,
 general linked-locator cleanup beyond the bounded startup and same-store
@@ -971,19 +976,25 @@ track or clip IDs reject rather than guessing.
 
 On explicit desktop handoff, manifest reachability retains this fallback even
 when no timeline or Project Bin clip references it. A real Soundscaper sender
-publishes the canonical original and fallback PCM, and a fresh Framescaper
-recipient acquires both exact managed bodies plus the canonical project shadow.
+using the unknown canonical `org.example.future-mixer` feature is intrinsically
+read-only solely because of the feature-requirement report, but it retains the
+current writable project lock. The controller therefore publishes the unchanged
+active snapshot without flushing; declared read-only, future-schema, missing-
+or stale-lock, and lock-contended projects still reject. A fresh Framescaper
+recipient acquires the canonical original and fallback PCM as exact managed
+bodies plus the canonical project shadow.
 That transfer authenticates each managed descriptor and body digest; the
 controller then separately verifies the manifest fallback digest before
 read-only activation. The engine alone receives the synthetic whole-mix
 projection and exact fallback samples, while the document snapshot remains the
 publisher's canonical project.
 
-`audioSpectralEditing` supplies the composed Soundscaper-to-fresh-Framescaper
-witness. The canonical manifest, frozen metadata, and localized source/component
-UI stay bound to the exact feature ID and requirement ID without exposing
-fallback internals. Its operation-time export selector cross-binds the exact
-requirement ID and feature ID with the audio kind, source ID, and SHA-256.
+`org.example.future-mixer` supplies this unknown-feature composed
+Soundscaper-to-fresh-Framescaper witness. The canonical manifest, frozen
+metadata, and localized source/component UI stay bound to the exact feature ID
+and requirement ID without exposing fallback internals. Its operation-time
+export selector cross-binds the exact requirement ID and feature ID with the
+audio kind, source ID, and SHA-256.
 Corrupt same-shaped recipient-local PCM after activation triggers tamper refusal
 and rejects delivery before rendering or output; exact repair restores the exact
 PCM and produces a final-mix float WAV containing the expected fallback samples
@@ -1436,7 +1447,7 @@ nullable schema fields remain readable for old and opaque future documents.
 Archive export includes only its canonical source assets, not derivative cache
 entries. By contrast, rendered fallbacks and their referenced sources remain
 durable project, retention, and portable-archive state under the fallback rules
-below. The maintained exact-schema first-party audio whole-mix fallback is
+below. The maintained exact-schema role-defined audio whole-mix fallback is
 separately qualified for fresh-recipient managed acquisition and activation.
 The maintained first-party video-effects whole-project render and one closed
 clip-target render relationship are separately qualified for controller

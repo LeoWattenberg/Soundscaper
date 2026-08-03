@@ -29,6 +29,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-audio.ts',
 		'src/common/editor/controller/playback-project-service.ts',
+		'src/common/editor/controller/project-admin-service.ts',
 		'src/common/editor/controller/audio-rendered-fallback-export.ts',
 		'src/common/editor/controller/export-service.ts',
 		'src/common/editor/app.js',
@@ -37,6 +38,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 		'tests/audio-editor-audio-rendered-fallback-export-service.test.ts',
 		'tests/audio-editor-project-fallback-integrity-audio-selection.test.ts',
 		'tests/audio-editor-project-fallback-integrity-audio-provider.test.ts',
+		'tests/audio-editor-project-admin-service-coverage.test.ts',
 		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
 		'tests/production-security-audio-rendered-fallback-export.test.js',
 	]) {
@@ -79,7 +81,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 	);
 	assert.match(
 		control.summary,
-		/audioSpectralEditing.*composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
+		/org\.example\.future-mixer.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
 	);
 	assert.match(
 		control.summary,
@@ -130,7 +132,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 	);
 	assert.match(
 		documentation,
-		/`audioSpectralEditing`.*composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
+		/`org\.example\.future-mixer`.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
 	);
 	assert.match(
 		documentation,

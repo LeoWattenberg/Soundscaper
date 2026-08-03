@@ -246,7 +246,7 @@ products before adding new editorial models or native engines.
 - **Electron Enhanced — Implemented for project documents:** product-neutral
   current-schema project catalog, leases, atomic publication, recovery,
   reclamation, pathless IPC, and source-free packaged handoff.
-- **Shared — Implemented for maintained first-party slices:** feature-requirement
+- **Shared — Implemented for maintained compatibility slices:** feature-requirement
   reporting, read-only incompatible opens, opaque state preservation, audio/video
   effect bypass, role-defined audio whole-mix playback, and first-party
   video-effects rendered-fallback playback.
@@ -277,9 +277,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   `.scape` and managed handoff acquire canonical PCM in a fresh recipient.
 - **Shared / Electron Enhanced — Implemented for the closed audio whole-mix
   fallback role:** unavailable or unknown canonical feature identities reach
-  portable `.scape` playback and maintained final-mix delivery; the registered
-  first-party relationship also crosses explicit managed handoff to a fresh
-  recipient. Canonical state remains read-only and unprojected.
+  portable `.scape` playback, explicit managed handoff to a fresh recipient,
+  and maintained final-mix delivery. Canonical state remains read-only and
+  unprojected.
 - **Shared / Electron Enhanced — Implemented for full-project and one
   clip-local first-party video-effects fallback relationship:** exact-schema
   relationships reach portable `.scape`, managed handoff, playback, and the
@@ -345,13 +345,14 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   records bind a trusted retained-original digest or exact linked binding and a
   versioned recipe while staying outside project history, portable archive
   media, and managed media transfer. They are not editorial proxies.
-- **Shared — In progress:** complete generic rendered-fallback acquisition and
-  extend role-defined activation and delivery beyond the audio whole-mix.
+- **Shared — In progress:** extend role-defined rendered-fallback acquisition,
+  activation, and delivery beyond the audio whole-mix.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories; narrower one-way fixtures prove the
-  maintained first-party audio and video fallbacks each reach a fresh recipient
-  from a manifest-only reference and activate their exact managed body.
+  role-defined audio and maintained first-party video fallbacks each reach a
+  fresh recipient from a manifest-only reference and activate their exact
+  managed body.
   Packaged UI and browser-codec qualification remain open.
 
 This is the main architectural blocker for closing milestone 2. Do not spend the
