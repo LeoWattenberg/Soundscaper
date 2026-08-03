@@ -370,13 +370,33 @@ test('provider cleanup failure prevents project deletion and local storage reset
 	}
 });
 
+test('source garbage collection retires unreferenced providers before pruning storage', async () => {
+	const fixture = createFixture();
+	const started = deferred();
+	const gate = deferred();
+	const providers = new TestSourceChunkProviders(fixture.calls, async () => {
+		started.resolve();
+		await gate.promise;
+	});
+	const runtime = { ...fixture.runtime, sourceChunkProviders: providers } satisfies ProjectAdminServiceRuntime;
+	const pending = createProjectAdminService(runtime).garbageCollectSources();
+
+	await started.promise;
+	assert.equal(providers.size, 0);
+	assert.equal(fixture.calls.includes('prune'), false);
+	gate.resolve();
+	await pending;
+	assert.ok(fixture.calls.indexOf('drain-providers:done') < fixture.calls.indexOf('prune'));
+});
+
 test('source garbage collection protects live state and schedules the next pass', async () => {
 	const fixture = createFixture();
 	fixture.sourceChunkProviders.set('provider-only', {});
 	fixture.pruneResult({ deletedSourceIds: ['deleted'], nextEligibleAt: 2_000 });
 	const service = createProjectAdminService(fixture.runtime);
 	await service.garbageCollectSources();
-	assert.equal(fixture.pruneOptions()?.protectedSourceIds.has('provider-only'), true);
+	assert.equal(fixture.sourceChunkProviders.has('provider-only'), false);
+	assert.equal(fixture.pruneOptions()?.protectedSourceIds.has('provider-only'), false);
 	assert.equal(fixture.scheduled[0]?.delay, 1_050);
 	assert.equal(fixture.state.sourceGcTimer, 9);
 	fixture.scheduled[0]?.callback();

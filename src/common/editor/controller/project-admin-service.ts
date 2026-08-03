@@ -188,8 +188,11 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		clearScheduledTimer(state.sourceGcTimer);
 		state.sourceGcTimer = 0;
 		const protectedSourceIds = liveSessionSourceIds();
+		for (const sourceId of sourceChunkProviders.keys()) {
+			if (!protectedSourceIds.has(sourceId)) sourceChunkProviders.delete(sourceId);
+		}
+		await sourceChunkProviders.drain?.();
 		for (const sourceId of sourceBuffers.keys()) protectedSourceIds.add(sourceId);
-		for (const sourceId of sourceChunkProviders.keys()) protectedSourceIds.add(sourceId);
 		for (const sourceId of sourcePeaks.keys()) protectedSourceIds.add(sourceId);
 		const result = await store.pruneUnreferencedSources({
 			protectedProjects: [
