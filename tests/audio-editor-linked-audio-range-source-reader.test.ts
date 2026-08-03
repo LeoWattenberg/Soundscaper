@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { encodeAiff } from '../src/common/editor/aiff.js';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { LinkedAudioOriginalSourceReader } from '../src/common/editor/storage/linked-audio-original-source-reader.ts';
 import {
@@ -100,6 +101,38 @@ test('a real BW64 body in a canonical WAV file inspects and decodes through rang
 	assert.equal(fixture.releases, 1);
 	assert.ok(fixture.ranges.some(({ offset }) => offset === 88), 'BW64 PCM must be read after ds64 inspection');
 	assert.ok(fixture.ranges.every(({ length }) => length <= MAXIMUM_RANGE_BYTES));
+});
+
+test('a classic AIFF body inspects and decodes through exact ranges', async () => {
+	const body = aiffBlob([-1, -0.5, 0, 0.5, 32_767 / 32_768]);
+	const fixture = await rangeFixture(body, audioSource({
+		mimeType: 'audio/aiff',
+		frameCount: 5,
+		chunkFrames: 2,
+	}));
+
+	const chunk = await fixture.reader.chunk('physical-audio', 2);
+
+	assert.deepEqual([...chunk.channels[0]], [32_767 / 32_768]);
+	assert.equal(fixture.materializedLoads, 1);
+	assert.equal(fixture.releases, 1);
+	assert.ok(fixture.ranges.some(({ offset }) => offset === 62), 'AIFF PCM must be read after FORM inspection');
+	assert.ok(fixture.ranges.every(({ length }) => length <= MAXIMUM_RANGE_BYTES));
+});
+
+test('a ranged AIFF-C body is rejected and its lease releases once', async () => {
+	const body = aiffBlob([0.25], 'float32');
+	const fixture = await rangeFixture(body, audioSource({
+		mimeType: 'audio/aiff',
+		frameCount: 1,
+	}));
+
+	await assert.rejects(
+		fixture.reader.chunk('physical-audio', 0),
+		/AIFF-C|compressed|unsupported/iu,
+	);
+	assert.equal(fixture.materializedLoads, 1);
+	assert.equal(fixture.releases, 1);
 });
 
 test('an available range port fails closed and releases once for unavailable or corrupt snapshots', async (context) => {
@@ -219,6 +252,21 @@ function waveBlob(channels: readonly Float32Array[]): Blob {
 	const bytes = new Uint8Array(encoded.byteLength);
 	bytes.set(encoded);
 	return new Blob([bytes], { type: 'audio/wav' });
+}
+
+function aiffBlob(
+	samples: readonly number[],
+	sampleFormat: 'int16' | 'float32' = 'int16',
+): Blob {
+	const encoded = encodeAiff([Float32Array.from(samples)], {
+		sampleFormat,
+		dither: 'none',
+		sampleRate: 48_000,
+	});
+	assert.ok(encoded instanceof Uint8Array);
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	return new Blob([bytes], { type: 'audio/aiff' });
 }
 
 function rf64Int16WaveBlob(samples: readonly number[]): Blob {

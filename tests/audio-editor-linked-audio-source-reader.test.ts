@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { encodeAiff } from '../src/common/editor/aiff.js';
 import { encodeWav } from '../src/common/editor/wav.js';
 import {
 	LinkedAudioOriginalSourceReader,
@@ -86,6 +87,54 @@ test('linked WAV source reads synthesize canonical metadata and bounded Float32 
 	assert.ok(loads.slice(1).every((load) => (
 		(load as { kind: unknown }).kind === 'audio'
 	)));
+});
+
+test('linked AIFF source reads synthesize canonical metadata and big-endian PCM chunks', async () => {
+	const body = aiffBlob([
+		Float32Array.of(-1, -0.5, 0, 0.5, 0.999),
+		Float32Array.of(0.25, -0.25, 0.75, -0.75, 0),
+	]);
+	const fixture = linkedFixture(stablePort(body));
+	const source = audioSource({
+		mimeType: 'audio/aiff',
+		frameCount: 5,
+		channelCount: 2,
+		chunkFrames: 2,
+	});
+	await fixture.resolver.bind('project-audio', source, LOCATOR_ID, {
+		expectedLocatorRevision: LOCATOR_REVISION,
+	});
+	const reader = new LinkedAudioOriginalSourceReader({
+		bindings: fixture.bindings,
+		resolver: fixture.resolver,
+	});
+
+	const metadata = await reader.getMetadata(source.storageKey);
+	assert.equal(metadata?.mimeType, 'audio/aiff');
+	assert.equal(metadata?.storage, LINKED_AUDIO_ORIGINAL_SOURCE_STORAGE_TYPE);
+	const chunks = [];
+	for await (const chunk of reader.chunks(source.storageKey)) chunks.push(chunk);
+	assert.deepEqual(chunks.map(chunkShape), [
+		{ index: 0, frames: 2 },
+		{ index: 1, frames: 2 },
+		{ index: 2, frames: 1 },
+	]);
+	assert.deepEqual([...chunks[0]!.channels[0]], [-1, -0.5]);
+	assert.deepEqual([...chunks[0]!.channels[1]], [0.25, -0.25]);
+	assert.ok(Math.abs(chunks[2]!.channels[0]![0]! - 0.998_992_919_921_875) < 1e-12);
+});
+
+test('linked AIFF reads reject an AIFF-C body disguised by canonical metadata', async () => {
+	const body = aiffBlob([Float32Array.of(0.25)], 'float32');
+	const fixture = linkedFixture(stablePort(body));
+	const source = audioSource({ mimeType: 'audio/aiff', frameCount: 1 });
+	await fixture.resolver.bind('project-audio', source, LOCATOR_ID);
+	const reader = new LinkedAudioOriginalSourceReader({
+		bindings: fixture.bindings,
+		resolver: fixture.resolver,
+	});
+
+	await assert.rejects(reader.chunk(source.storageKey, 0), /AIFF-C|compressed|unsupported/iu);
 });
 
 test('linked audio reads reject WAV geometry drift after exact body verification', async () => {
@@ -220,6 +269,21 @@ function waveBlob(channels: readonly Float32Array[]): Blob {
 	const bytes = new Uint8Array(encoded.byteLength);
 	bytes.set(encoded);
 	return new Blob([bytes], { type: 'audio/wav' });
+}
+
+function aiffBlob(
+	channels: readonly Float32Array[],
+	sampleFormat: 'int16' | 'float32' = 'int16',
+): Blob {
+	const encoded = encodeAiff([...channels], {
+		sampleFormat,
+		dither: 'none',
+		sampleRate: 48_000,
+	});
+	assert.ok(encoded instanceof Uint8Array);
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	return new Blob([bytes], { type: 'audio/aiff' });
 }
 
 function bw64WaveBlob(samples: readonly number[]): Blob {

@@ -2,6 +2,11 @@
 
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../pcm-chunks.js';
 import { DESKTOP_READ_HARD_LIMIT_BYTES } from '../desktop-read-materialization.ts';
+import {
+	createAiffBlobPcmChunkReader,
+	inspectAiffBlobPcm,
+	type AiffPcmDescriptor,
+} from '../aiff-pcm-chunk-reader.ts';
 import { inspectWavBlobPcm } from '../wav-import.js';
 import { ascii } from '../wav-import-io.ts';
 import {
@@ -34,14 +39,17 @@ export interface LinkedAudioOriginalSourceReaderOptions {
 interface LinkedAudioReadSession {
 	readonly aliases: readonly LinkedAudioOriginalBinding[];
 	readonly binding: LinkedAudioOriginalBinding;
-	readonly reader: WavBlobPcmChunkReader;
+	readonly reader: LinkedAudioPcmChunkReader;
 	release(): Promise<void>;
 }
 
-const WAV_MIME_TYPES = new Set(['audio/rf64', 'audio/wav']);
+type LinkedAudioPcmDescriptor = WavPcmDescriptor | AiffPcmDescriptor;
+type LinkedAudioPcmChunkReader = WavBlobPcmChunkReader | ReturnType<typeof createAiffBlobPcmChunkReader>;
+
+const LINKED_AUDIO_MIME_TYPES = new Set(['audio/aiff', 'audio/rf64', 'audio/wav']);
 const NO_PRIMARY_FAILURE = Symbol('no linked-audio read failure');
 
-/** Verified canonical Float32 reads from a bounded, pathless local WAV binding. */
+/** Verified canonical Float32 reads from a bounded, pathless local PCM-container binding. */
 export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 	readonly #options: LinkedAudioOriginalSourceReaderOptions;
 
@@ -123,13 +131,14 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 				if (ranged.source.type !== binding.mimeType) {
 					throw new Error('The linked audio original MIME type changed during range resolution.');
 				}
-				const wavSource = createLinkedOriginalRangeBlobSource(ranged.source, signal);
-				const descriptor = await inspectLinkedWav(wavSource, signal);
+				const pcmSource = createLinkedOriginalRangeBlobSource(ranged.source, signal);
+				const descriptor = await inspectLinkedAudio(pcmSource, binding.mimeType, signal);
 				assertCanonicalGeometry(binding, descriptor);
-				const reader = createWavBlobPcmChunkReader(wavSource, {
+				const reader = createLinkedAudioPcmChunkReader(
+					pcmSource,
 					descriptor,
-					chunkFrames: binding.sourceShape.chunkFrames,
-				});
+					binding.sourceShape.chunkFrames,
+				);
 				await this.#assertAliasesCurrent(aliases, binding, signal);
 				return Object.freeze({ aliases, binding, reader, release: ranged.release });
 			} catch (error) {
@@ -149,12 +158,13 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 		if (resolved.blob.type !== binding.mimeType) {
 			throw new Error('The linked audio original MIME type changed during resolution.');
 		}
-		const descriptor = await inspectLinkedWav(resolved.blob, signal);
+		const descriptor = await inspectLinkedAudio(resolved.blob, binding.mimeType, signal);
 		assertCanonicalGeometry(binding, descriptor);
-		const reader = createWavBlobPcmChunkReader(resolved.blob, {
+		const reader = createLinkedAudioPcmChunkReader(
+			resolved.blob,
 			descriptor,
-			chunkFrames: binding.sourceShape.chunkFrames,
-		});
+			binding.sourceShape.chunkFrames,
+		);
 		await this.#assertAliasesCurrent(aliases, binding, signal);
 		return Object.freeze({ aliases, binding, reader, release: noOpRelease });
 	}
@@ -213,6 +223,25 @@ async function inspectLinkedWav(source: WavBlobPcmSource, signal?: AbortSignal):
 	}
 	const descriptor = await inspectWavBlobPcm(source, signal ? { signal } : {});
 	return descriptor as WavPcmDescriptor;
+}
+
+async function inspectLinkedAudio(
+	source: WavBlobPcmSource,
+	mimeType: string,
+	signal?: AbortSignal,
+): Promise<LinkedAudioPcmDescriptor> {
+	if (mimeType === 'audio/aiff') return inspectAiffBlobPcm(source, signal ? { signal } : {});
+	return inspectLinkedWav(source, signal);
+}
+
+function createLinkedAudioPcmChunkReader(
+	source: WavBlobPcmSource,
+	descriptor: LinkedAudioPcmDescriptor,
+	chunkFrames: number,
+): LinkedAudioPcmChunkReader {
+	return descriptor.container === 'aiff'
+		? createAiffBlobPcmChunkReader(source, { descriptor, chunkFrames })
+		: createWavBlobPcmChunkReader(source, { descriptor, chunkFrames });
 }
 
 async function readWavSourceBytes(
@@ -305,8 +334,8 @@ function sourceFromBinding(binding: LinkedAudioOriginalBinding): LinkedAudioOrig
 }
 
 function assertMaterializedBinding(binding: LinkedAudioOriginalBinding): void {
-	if (!WAV_MIME_TYPES.has(binding.mimeType)) {
-		throw new TypeError('Linked audio fallback requires a WAV or RF64 MIME type.');
+	if (!LINKED_AUDIO_MIME_TYPES.has(binding.mimeType)) {
+		throw new TypeError('Linked audio fallback requires an AIFF, WAV, or RF64 MIME type.');
 	}
 	if (binding.byteLength > DESKTOP_READ_HARD_LIMIT_BYTES) {
 		throw new RangeError('Linked audio original exceeds its materialized read limit.');
@@ -318,7 +347,7 @@ function assertMaterializedBinding(binding: LinkedAudioOriginalBinding): void {
 
 function assertCanonicalGeometry(
 	binding: LinkedAudioOriginalBinding,
-	descriptor: WavPcmDescriptor,
+	descriptor: LinkedAudioPcmDescriptor,
 ): void {
 	const shape = binding.sourceShape;
 	if (descriptor.sourceByteLength !== binding.byteLength
@@ -326,7 +355,7 @@ function assertCanonicalGeometry(
 		|| descriptor.channelCount !== shape.channelCount
 		|| descriptor.sampleRate !== shape.sampleRate
 		|| descriptor.sampleRate !== shape.originalSampleRate) {
-		throw new Error('The linked WAV PCM geometry does not match its canonical project source.');
+		throw new Error('The linked WAV or AIFF PCM geometry does not match its canonical project source.');
 	}
 }
 
