@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
-const DATABASE_VERSION = 7;
+const DATABASE_VERSION = 8;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const fixture = createWavFixture({
 	name: 'browser-wavpack-persistence.wav',

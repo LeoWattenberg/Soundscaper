@@ -18,6 +18,10 @@ import {
 	LINKED_VIDEO_ORIGINAL_STORE_NAME,
 } from '../src/common/editor/storage/linked-video-original-schema.ts';
 import {
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+} from '../src/common/editor/storage/linked-original-provisional-root.ts';
+import {
 	BINARY_PATH_REFERENCE_INDEX_NAME,
 	MEDIA_ASSET_CHUNK_STORE_NAME,
 	MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
@@ -70,6 +74,7 @@ test('v2 derivative payloads backfill atomically into exact Blob-free entries du
 	assert.equal(cacheEntryStore.indexNames.contains(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME), true);
 	assertMediaAssetStagingSchema(database, indexedDB, databaseName);
 	assertLinkedVideoOriginalSchema(database, indexedDB, databaseName);
+	assertLinkedOriginalProvisionalRootSchema(database, indexedDB, databaseName);
 	assert.deepEqual(indexedDB.records(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), [
 		cacheEntry('cache-a'),
 		cacheEntry('cache-b'),
@@ -96,7 +101,7 @@ test('v2 derivative payloads backfill atomically into exact Blob-free entries du
 	database.close();
 });
 
-test('a failed cache-entry backfill rolls back the v3 through v7 stores before retry', async () => {
+test('a failed cache-entry backfill rolls back the v3 through v8 stores before retry', async () => {
 	const indexedDB = instrumentedIndexedDB();
 	const databaseName = uniqueDatabaseName('derivative-cache-v3-rollback');
 	const legacy = await openLegacyV2Database(indexedDB, databaseName);
@@ -116,6 +121,7 @@ test('a failed cache-entry backfill rolls back the v3 through v7 stores before r
 	assert.equal(restored.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), false);
 	assert.equal(restored.objectStoreNames.contains(MEDIA_ASSET_STAGING_STORE_NAME), false);
 	assert.equal(restored.objectStoreNames.contains(LINKED_VIDEO_ORIGINAL_STORE_NAME), false);
+	assert.equal(restored.objectStoreNames.contains(LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME), false);
 	assert.equal(indexedDB.recordCount(databaseName, VIDEO_DERIVATIVE_STORE_NAME), 1);
 	restored.close();
 
@@ -124,6 +130,7 @@ test('a failed cache-entry backfill rolls back the v3 through v7 stores before r
 	assert.equal(retried.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME), true);
 	assertMediaAssetStagingSchema(retried, indexedDB, databaseName);
 	assertLinkedVideoOriginalSchema(retried, indexedDB, databaseName);
+	assertLinkedOriginalProvisionalRootSchema(retried, indexedDB, databaseName);
 	assert.deepEqual(indexedDB.records(databaseName, DERIVATIVE_CACHE_ENTRY_STORE_NAME), [cacheEntry('cache-a')]);
 	retried.close();
 });
@@ -209,6 +216,25 @@ test('v6 databases gain an empty linked-video original binding store and project
 	assert.equal(database.version, EDITOR_STORAGE_DATABASE_VERSION);
 	assertLinkedVideoOriginalSchema(database, indexedDB, databaseName);
 	assert.deepEqual(indexedDB.records(databaseName, 'settings'), [legacySetting]);
+	database.close();
+});
+
+test('v7 databases gain an empty provisional linked-original root store and project index', async () => {
+	const indexedDB = instrumentedIndexedDB();
+	const databaseName = uniqueDatabaseName('linked-original-provisional-roots-v8');
+	const legacy = await openRawDatabase(indexedDB, databaseName, 7, (database) => {
+		const bindings = database.createObjectStore(LINKED_VIDEO_ORIGINAL_STORE_NAME, { keyPath: 'key' });
+		bindings.createIndex(
+			LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
+			LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
+			{ unique: false },
+		);
+	});
+	legacy.close();
+
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	assert.equal(database.version, EDITOR_STORAGE_DATABASE_VERSION);
+	assertLinkedOriginalProvisionalRootSchema(database, indexedDB, databaseName);
 	database.close();
 });
 
@@ -407,6 +433,23 @@ function assertLinkedVideoOriginalSchema(
 		LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
 	);
 	assert.equal(indexedDB.recordCount(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME), 0);
+}
+
+function assertLinkedOriginalProvisionalRootSchema(
+	database: IDBDatabase,
+	indexedDB: InstrumentedIndexedDB,
+	databaseName: string,
+): void {
+	assert.equal(database.objectStoreNames.contains(LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME), true);
+	const roots = database.transaction(LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME, 'readonly')
+		.objectStore(LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME);
+	assert.equal(roots.keyPath, 'key');
+	assert.equal(roots.indexNames.contains(LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME), true);
+	assert.equal(
+		roots.index(LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME).keyPath,
+		LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+	);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME), 0);
 }
 
 function legacyRecord(key: string): Readonly<Record<string, unknown>> {

@@ -438,7 +438,7 @@ boundary. A local binding joins the exact project ID, logical video source ID,
 physical storage key, MIME type, byte length, SHA-256, and maintained
 frame/sample/video geometry to an opaque locator ID and opaque locator
 revision. Neither locator value appears in the project document. IndexedDB
-database version 7 and the memory backend retain a closed scalar-only binding
+database version 8 and the memory backend retain a closed scalar-only binding
 record, including scalar source-shape fields, a compare-and-swap token, and a
 canonical timestamp; they retain no linked body, `Blob`, filesystem path, URL,
 platform handle, or persisted playback lease.

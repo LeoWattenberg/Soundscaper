@@ -1,0 +1,6 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+export const LINKED_ORIGINAL_PROVISIONAL_ROOT_SCHEMA_VERSION = 1 as const;
+export const LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME = 'linkedOriginalProvisionalRoots';
+export const LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME = 'projectId';
+export const MAX_LINKED_ORIGINAL_PROVISIONAL_ROOTS = 100_000;

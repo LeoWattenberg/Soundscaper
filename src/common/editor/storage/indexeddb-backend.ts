@@ -24,11 +24,15 @@ import {
 	LINKED_ORIGINAL_PROJECT_INDEX_NAME,
 	LINKED_ORIGINAL_STORE_NAME,
 } from './linked-original-schema.ts';
+import {
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+} from './linked-original-provisional-root-schema.ts';
 import { MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION } from './media-content-provenance.ts';
 import { EditorStoreBlockedError } from './status.ts';
 
 const DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION = 3;
-export const EDITOR_STORAGE_DATABASE_VERSION = 7;
+export const EDITOR_STORAGE_DATABASE_VERSION = 8;
 const DATABASE_VERSION = EDITOR_STORAGE_DATABASE_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
 
@@ -156,6 +160,27 @@ export function openDatabase(
 					linkedVideoOriginals.createIndex(
 						LINKED_ORIGINAL_PROJECT_INDEX_NAME,
 						LINKED_ORIGINAL_PROJECT_INDEX_NAME,
+						{ unique: false },
+					);
+				}
+				let linkedOriginalProvisionalRoots: IDBObjectStore;
+				if (!database.objectStoreNames.contains(LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME)) {
+					linkedOriginalProvisionalRoots = database.createObjectStore(
+						LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+						{ keyPath: 'key' },
+					);
+				} else {
+					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
+					linkedOriginalProvisionalRoots = transaction.objectStore(
+						LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+					);
+				}
+				if (!linkedOriginalProvisionalRoots.indexNames.contains(
+					LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+				)) {
+					linkedOriginalProvisionalRoots.createIndex(
+						LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+						LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
 						{ unique: false },
 					);
 				}

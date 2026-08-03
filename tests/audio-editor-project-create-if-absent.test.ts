@@ -315,6 +315,7 @@ function memoryDatabase(
 		mediaAssetStaging: new Map(),
 		videoDerivatives: new Map(),
 		linkedVideoOriginalBindings: new Map(),
+		linkedOriginalProvisionalRoots: new Map(),
 		...overrides,
 	};
 }

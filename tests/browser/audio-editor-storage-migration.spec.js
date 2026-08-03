@@ -9,7 +9,7 @@ const DATABASE_NAME = 'kw-media-audio-editor';
 test.describe('editor storage schema migration', () => {
 	registerAudioEditorHooks();
 
-	test('atomically backfills v2 derivatives, creates v7 stores, and sanitizes v6 provenance', async ({ page }) => {
+	test('atomically backfills v2 derivatives, creates v8 stores, and sanitizes v6 provenance', async ({ page }) => {
 		await page.goto('/logo/logo-schwarz.svg');
 		await page.evaluate(async (databaseName) => {
 			await new Promise((resolve, reject) => {
@@ -69,7 +69,7 @@ test.describe('editor storage schema migration', () => {
 					[
 						'sources', 'videoDerivatives', 'videoDerivativeCacheEntries',
 						'mediaAssets', 'mediaAssetChunks', 'mediaAssetStaging',
-						'linkedVideoOriginalBindings',
+						'linkedVideoOriginalBindings', 'linkedOriginalProvisionalRoots',
 					],
 					'readonly',
 				);
@@ -79,6 +79,7 @@ test.describe('editor storage schema migration', () => {
 				const mediaAssetStore = transaction.objectStore('mediaAssets');
 				const mediaStagingStore = transaction.objectStore('mediaAssetStaging');
 				const linkedVideoOriginalStore = transaction.objectStore('linkedVideoOriginalBindings');
+				const linkedOriginalProvisionalRootStore = transaction.objectStore('linkedOriginalProvisionalRoots');
 				const sourceStore = transaction.objectStore('sources');
 				const derivativeStore = transaction.objectStore('videoDerivatives');
 				const derivativeEntryStore = transaction.objectStore('videoDerivativeCacheEntries');
@@ -86,12 +87,16 @@ test.describe('editor storage schema migration', () => {
 				const mediaAssetRequest = mediaAssetStore.get('legacy-source');
 				const mediaStagingStateRequest = mediaStagingStore.get('state');
 				const linkedVideoOriginalCountRequest = linkedVideoOriginalStore.count();
+				const linkedOriginalProvisionalRootCountRequest = linkedOriginalProvisionalRootStore.count();
 				const mediaStagingKeyPath = mediaStagingStore.keyPath;
 				const mediaStagingIndexes = [...mediaStagingStore.indexNames]
 					.map((name) => ({ name, unique: mediaStagingStore.index(name).unique }))
 					.sort((left, right) => left.name.localeCompare(right.name));
 				const linkedVideoOriginalIndexes = [...linkedVideoOriginalStore.indexNames]
 					.map((name) => ({ name, unique: linkedVideoOriginalStore.index(name).unique }))
+					.sort((left, right) => left.name.localeCompare(right.name));
+				const linkedOriginalProvisionalRootIndexes = [...linkedOriginalProvisionalRootStore.indexNames]
+					.map((name) => ({ name, unique: linkedOriginalProvisionalRootStore.index(name).unique }))
 					.sort((left, right) => left.name.localeCompare(right.name));
 				transaction.oncomplete = () => {
 					const [entry] = entryRequest.result;
@@ -108,6 +113,9 @@ test.describe('editor storage schema migration', () => {
 						linkedVideoOriginalCount: linkedVideoOriginalCountRequest.result,
 						linkedVideoOriginalKeyPath: linkedVideoOriginalStore.keyPath,
 						linkedVideoOriginalIndexes,
+						linkedOriginalProvisionalRootCount: linkedOriginalProvisionalRootCountRequest.result,
+						linkedOriginalProvisionalRootKeyPath: linkedOriginalProvisionalRootStore.keyPath,
+						linkedOriginalProvisionalRootIndexes,
 						pathIndexes: [sourceStore, derivativeStore, derivativeEntryStore]
 							.map((store) => store.indexNames.contains('path')),
 						entry: entry ? {
@@ -131,7 +139,7 @@ test.describe('editor storage schema migration', () => {
 		}), DATABASE_NAME);
 
 		expect(migration).toEqual({
-			version: 7,
+			version: 8,
 			payloadCount: 1,
 			mediaChunkCount: 0,
 			mediaChunkIndexes: ['mediaChunkToken'],
@@ -152,6 +160,11 @@ test.describe('editor storage schema migration', () => {
 			linkedVideoOriginalCount: 0,
 			linkedVideoOriginalKeyPath: 'key',
 			linkedVideoOriginalIndexes: [
+				{ name: 'projectId', unique: false },
+			],
+			linkedOriginalProvisionalRootCount: 0,
+			linkedOriginalProvisionalRootKeyPath: 'key',
+			linkedOriginalProvisionalRootIndexes: [
 				{ name: 'projectId', unique: false },
 			],
 			pathIndexes: [true, true, true],
