@@ -453,7 +453,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
 	assert.deepEqual(mediaAdmission.evidence, [
-		'src/common/editor/controller/project-bootstrap-service.ts',
+		'src/common/editor/controller/project-bootstrap-service.ts', 'src/common/editor/controller/source-audio.ts',
 		'src/common/editor/retention.js',
 		'src/common/editor/scape-abort.ts',
 		'src/common/editor/scape-archive-envelope.ts',
@@ -472,7 +472,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/storage/retention-repository.ts',
-		'src/common/editor/storage/source-read-repository.ts',
+		'src/common/editor/storage/owned-source-pcm-read-session.ts', 'src/common/editor/storage/source-pcm-read-session.ts', 'src/common/editor/storage/source-read-repository.ts',
 		'src/common/editor/storage/source-record-repository.ts',
 		'src/common/editor/storage/source-repository.ts',
 		'src/common/editor/storage/source-write-repository.ts',
@@ -488,7 +488,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts',
 		'tests/audio-editor-desktop-shared-project-repository-handoff.test.ts',
 		'tests/audio-editor-media-asset-ownership.test.ts',
-		'tests/audio-editor-source-record-ownership.test.ts',
+		'tests/audio-editor-owned-source-read-session.test.ts', 'tests/audio-editor-source-record-ownership.test.ts',
 		'tests/audio-editor-source-write-cancellation.test.ts',
 		'tests/audio-editor-project-bootstrap-service.test.ts',
 		'tests/desktop-project-library-editor-handoff.test.ts',
@@ -499,7 +499,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	]);
 	assert.match(
 		mediaAdmission.requiredOutcome,
-		/authoritative latest exact-schema-9 desktop shared-project load.*reachable source references.*preflight.*complete logical-source, canonical-byte, and PCM-chunk budgets.*before.*source-body read.*shared body transfer.*recipient write.*managed canonical PCM and retained original video.*fresh recipient.*digest-verified atomic if-absent publication.*remaining source.*bounded recipient-local admission.*fail before activation.*without deleting a concurrent local replacement/iu,
+		/authoritative latest exact-schema-9 desktop shared-project load.*reachable source references.*preflight.*complete logical-source, canonical-byte, and PCM-chunk budgets.*before.*source-body read.*shared body transfer.*recipient write.*managed canonical PCM and retained original video.*fresh recipient.*digest-verified atomic if-absent publication.*remaining source.*bounded recipient-local admission.*fail before activation.*without deleting a concurrent local replacement.*demand-loaded provider.*owned canonical PCM.*generation observed at session open.*bounded copy-on-write ancestry/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -511,11 +511,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/unmanaged audio.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*video.*trusted recipient-local SHA-256.*full exact-size Blob.*4 MiB windows.*migration and media-digest backfill.*disabled.*pre-shadow source integrity, availability, binding, geometry, budget, body, and digest failures.*preserve.*prior local shadow and history.*prevent activation.*source-free loads.*no media I\/O.*serializes latest load, save, and delete/iu,
+		/unmanaged audio.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*video.*trusted recipient-local SHA-256.*full exact-size Blob.*4 MiB windows.*migration and media-digest backfill.*disabled.*pre-shadow source integrity, availability, binding, geometry, budget, body, and digest failures.*preserve.*prior local shadow and history.*prevent activation.*source-free loads.*no media I\/O.*serializes latest load, save, and delete.*demand-loaded playback.*owned canonical-PCM provider.*admitted source metadata.*lazy session open.*4,094.*cycle-free records.*root.*copy-on-write ancestry.*captured source tokens or paths.*serializes chunk reads.*every ancestry generation.*before and after each chunk.*terminal.*per-request cancellation.*local.*migration.*suppressed.*cleanup.*aggregates/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/role-defined unknown-feature audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*managed mixed-media acquisition.*does not turn unmanaged admission into an atomic snapshot or publisher-authenticated stable playback lease.*injected-port linked retained-video slice.*qualified separately.*linked audio.*every other linked or unmanaged original.*authored proxies or rendered-fallback authoring and transfer semantics beyond.*closed audio whole-mix.*maintained video roles.*product chooser.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
+		/role-defined unknown-feature audio whole-mix fallback.*only by its exact-schema-9 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*generation observed at open.*not a durable proof.*intended copy-on-write base generation.*complete metadata.*payload.*content.*byte lease.*retention.*cross-store or cross-process.*injected-port linked retained-video slice.*qualified separately.*linked audio.*every other linked or unmanaged original.*authored proxies or rendered-fallback authoring and transfer semantics beyond.*closed audio whole-mix.*maintained video roles.*product chooser.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity beyond.*owned canonical PCM.*linked PCM.*retained video.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -579,11 +579,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/recipient-local admission for unmanaged sources.*bounded sequential\s+readability check.*not an atomic snapshot.*publisher authentication.*durable byte\s+lease.*selected metadata.*not transactionally bound.*same-metadata replacement.*undetected.*replacement or\s+deletion afterward.*not fenced.*non-cooperative providers.*cancellation.*shadow\s+save.*not abort-atomic.*separate repository instances and\s+processes.*not serialized/isu,
+		/maintained demand-loaded playback.*owned canonical-PCM provider.*source metadata.*admitted.*lazy session\s+opening.*4,094.*cycle-free records.*root-to-base copy-on-write ancestry.*captured source token or path.*serializes chunk.*before and after each chunk.*checks every observed\s+generation.*drift.*terminal.*per-request cancellation.*local.*generation.*observed at open.*not.*generation intended.*complete metadata equality.*content digest.*storage retention or\s+a byte lease.*same-token\/path.*separate repository instances and processes.*not\s+serialized/isu,
 	);
 	assert.match(
 		documentation,
-		/managed-media\s+runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or\s+whole-handoff capacity reservation.*content-frozen playback identity.*same-inode mutation.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
+		/managed-media\s+runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or\s+whole-handoff capacity reservation.*stable playback identity beyond the\s+maintained owned canonical PCM, linked-PCM, and retained-video lifecycles.*content-frozen.*same-inode mutation.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
 	);
 	assert.match(
 		documentation,

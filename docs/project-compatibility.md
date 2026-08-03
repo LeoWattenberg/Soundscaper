@@ -349,6 +349,27 @@ Declared payload geometry is capped at 65,536 PCM chunks, while one cumulative
 64 GiB budget charges canonical audio archive bytes—including four framing
 bytes per chunk—and recipient-local video metadata sizes together.
 
+For maintained demand-loaded playback, an owned canonical-PCM provider passes
+the source metadata already admitted for that provider into lazy session
+opening. The store captures at most 4,094 cycle-free records from the requested
+root through its linear root-to-base copy-on-write ancestry, retains the
+observed metadata records, reads only their captured source token or path, and
+serializes chunk requests. Before and after each chunk it checks every observed
+generation by the stored identity tuple of source ID, storage kind, source
+token or path, base-source ID, and PCM encoding version. Root or ancestry drift
+is terminal for the session; per-request cancellation remains local,
+on-access migration is suppressed, and store cleanup releases owned and
+fallback sessions while aggregating failures.
+
+This is a fence over the provider's expected root and the ancestry generations
+observed at open. A copy-on-write record persists only its base source ID, not
+the generation intended when the derived record was published, so a base
+already replaced before opening can become the observed ancestry. The identity
+tuple is not complete metadata equality, a content digest, storage retention or
+a byte lease. Deletion or same-token/path byte mutation can still fail or evade
+that metadata fence, and separate repository instances and processes are not
+serialized into one byte snapshot.
+
 One narrow linked-PCM managed-handoff exception is qualified here. Through an
 explicitly injected Electron port, one point-in-time maintained PCM container no
 larger than 512 MiB may remain in a main-private registry: RIFF/RF64 PCM or
@@ -852,8 +873,10 @@ unmanaged delivery, a durable byte lease, broad export or offline-render parity,
 or whole-handoff atomicity.
 
 Recipient-local admission for unmanaged sources remains a bounded sequential
-readability check, not an atomic snapshot, publisher authentication, or a
-durable byte lease. Unmanaged audio is availability and geometry qualified, not
+readability check, not an atomic snapshot or publisher authentication. The
+owned canonical-PCM session above narrows provider-generation drift after
+admission but does not turn admission itself into a durable byte lease.
+Unmanaged audio is availability and geometry qualified, not
 authenticated against a prior content digest. Selected metadata is reread
 around each body, but body reads are not transactionally bound to that metadata;
 same-metadata replacement during the sequential observations can go undetected,
@@ -880,8 +903,9 @@ successful writable activations, general linked-locator cleanup beyond the
 bounded startup and same-store save/activation/delete/clear inventories,
 packaged chooser/import qualification, managed-media
 runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
-whole-handoff capacity reservation, content-frozen playback identity against
-same-inode mutation,
+whole-handoff capacity reservation, stable playback identity beyond the
+maintained owned canonical PCM, linked-PCM, and retained-video lifecycles,
+content-frozen identity against same-inode mutation,
 browser codec playback, packaged executable and UI two-product source-bearing
 handoff, portable hard-link capacity qualification, and a shared cross-product
 revision journal and undo/redo history remain unqualified.

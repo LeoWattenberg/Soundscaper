@@ -335,8 +335,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond the bounded linked-PCM and retained-video slices, and
   finish broader linked and unmanaged-original lifecycles, exact or write-time
-  capacity behavior, stable playback identity beyond the maintained linked-PCM
-  and retained-video lifecycles,
+  capacity behavior, stable playback identity beyond the maintained owned canonical PCM,
+  linked-PCM, and retained-video lifecycles,
   linked-locator cleanup beyond this bounded startup pass and the one-live-store
   maintained save/activation/delete/clear lifecycle,
   cross-store/process coordination where required,
