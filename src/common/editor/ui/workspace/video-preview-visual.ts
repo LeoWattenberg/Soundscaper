@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export interface VideoPreviewVisual {
+	readonly source?: Readonly<{ readonly id?: string }> | null;
 	readonly mediaUrl?: string | null;
 	readonly url?: string | null;
 	readonly available?: boolean;
@@ -18,14 +19,21 @@ interface VideoPreviewVisualActions {
 	}>;
 }
 
-/** Resolve canonical clip visuals before the source-only transient fallback. */
+/** Reuse a clip visual only while it still represents the projected source. */
 export function resolveVideoPreviewVisual(
 	controller: VideoPreviewVisualActions,
 	clipId: string,
 	sourceId: string,
 ): VideoPreviewVisual | null {
-	return controller.actions.video?.getClipVisualData?.(clipId)
-		?? controller.actions.timeline.getClipVisualData?.(clipId)
+	return matchingSourceVisual(controller.actions.video?.getClipVisualData?.(clipId), sourceId)
+		?? matchingSourceVisual(controller.actions.timeline.getClipVisualData?.(clipId), sourceId)
 		?? controller.actions.video?.getSourceVisualData?.(sourceId)
 		?? null;
+}
+
+function matchingSourceVisual(
+	visual: VideoPreviewVisual | null | undefined,
+	sourceId: string,
+): VideoPreviewVisual | null {
+	return visual?.source?.id === sourceId ? visual : null;
 }
