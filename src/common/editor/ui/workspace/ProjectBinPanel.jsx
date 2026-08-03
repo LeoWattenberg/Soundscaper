@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, ContextMenu, ContextMenuItem, DialogHeader } from '@dilsonspickles/components';
 
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-v2.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
+import { handoffLinkedAudioChoice } from './linked-audio-choice-handoff.ts';
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
@@ -13,12 +14,28 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const inputRef = useRef(null);
 	const replacementInputRef = useRef(null);
 	const dragDepthRef = useRef(0);
+	const linkedAudioRelinkRequestRef = useRef(0);
+	const linkedAudioRelinkProjectRef = useRef(null);
 	const [dropActive, setDropActive] = useState(false);
 	const [itemMenu, setItemMenu] = useState(null);
 	const [replacementClipId, setReplacementClipId] = useState(null);
 	const [replacementChoice, setReplacementChoice] = useState(null);
 	const [removeConfirmation, setRemoveConfirmation] = useState(null);
 	const project = snapshot.project;
+	const projectId = project?.id;
+	const projectRevision = project?.revision;
+	useEffect(() => {
+		linkedAudioRelinkRequestRef.current += 1;
+		setItemMenu(null);
+		const relinkScope = Object.freeze({ projectId, projectRevision });
+		linkedAudioRelinkProjectRef.current = relinkScope;
+		return () => {
+			linkedAudioRelinkRequestRef.current += 1;
+			if (linkedAudioRelinkProjectRef.current === relinkScope) {
+				linkedAudioRelinkProjectRef.current = null;
+			}
+		};
+	}, [projectId, projectRevision]);
 	const clips = project?.projectBin?.clips || [];
 	const items = projectBinItems(clips);
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
@@ -31,7 +48,16 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const selectedMediaTrack = project?.tracks.find((track) => (
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)
 	)) || null;
-	const menuItem = items.find((item) => item.id === itemMenu?.itemId) || null;
+	const menuProjectCurrent = Boolean(itemMenu
+		&& itemMenu.projectId === projectId
+		&& itemMenu.projectRevision === projectRevision);
+	const menuItem = menuProjectCurrent
+		? items.find((item) => item.id === itemMenu.itemId) || null
+		: null;
+	const menuAudioClip = menuItem?.clips.find((clip) => clip.kind !== 'video') || null;
+	const menuAudioRelinkEligible = Boolean(menuAudioClip
+		&& itemMenu?.audioClipId === menuAudioClip.id
+		&& itemMenu.linkedAudioRelinkEligible);
 	const menuVideoClip = menuItem?.clips.find((clip) => clip.kind === 'video') || null;
 	const menuVideoMissing = Boolean(menuVideoClip && missingSourceIds.has(menuVideoClip.sourceId));
 
@@ -74,6 +100,17 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			linkedVideoLocatorRevision: choice.locatorRevision,
 		});
 	});
+	const relinkLinkedAudio = (clipId) => run(async () => {
+		if (mutationBlocked) return;
+		const relinkScope = linkedAudioRelinkProjectRef.current;
+		if (!relinkScope) return;
+		await handoffLinkedAudioChoice({
+			choose: () => fileService.chooseLinkedAudioOriginal(),
+			isCurrent: (scope) => linkedAudioRelinkProjectRef.current === scope,
+			release: (reference) => fileService.releaseLinkedAudioOriginal(reference),
+			accept: (file, reference) => controller.actions.projectBin.relinkLinkedAudio(clipId, file, reference, relinkScope),
+		}, relinkScope);
+	});
 	const relinkLinkedVideo = (clipId) => run(async () => {
 		if (mutationBlocked) return;
 		const choice = await fileService.chooseLinkedVideoOriginal();
@@ -92,8 +129,43 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		setDropActive(false);
 		element?.removeAttribute('data-drop-active');
 	};
-	const openReplacementPicker = (clipId) => {
+	const closeItemMenu = () => {
+		linkedAudioRelinkRequestRef.current += 1;
 		setItemMenu(null);
+	};
+	const openItemMenu = (event, item) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		const audioClip = item.clips.find((clip) => clip.kind !== 'video') || null;
+		const requestId = ++linkedAudioRelinkRequestRef.current;
+		const requestedProjectId = projectId;
+		const requestedProjectRevision = projectRevision;
+		setItemMenu({
+			itemId: item.id,
+			audioClipId: audioClip?.id || null,
+			linkedAudioRelinkEligible: false,
+			projectId: requestedProjectId,
+			projectRevision: requestedProjectRevision,
+			requestId,
+			x: rect.left,
+			y: rect.bottom + 4,
+		});
+		if (!fileService.linkedAudioOriginalsAvailable || !audioClip) return;
+		run(async () => {
+			const eligible = await controller.actions.projectBin.canRelinkLinkedAudio(audioClip.id);
+			if (requestId !== linkedAudioRelinkRequestRef.current) return;
+			setItemMenu((current) => {
+				if (!current
+					|| current.requestId !== requestId
+					|| current.itemId !== item.id
+					|| current.audioClipId !== audioClip.id
+					|| current.projectId !== requestedProjectId
+					|| current.projectRevision !== requestedProjectRevision) return current;
+				return { ...current, linkedAudioRelinkEligible: eligible === true };
+			});
+		});
+	};
+	const openReplacementPicker = (clipId) => {
+		closeItemMenu();
 		setReplacementClipId(clipId);
 		replacementInputRef.current?.click();
 	};
@@ -231,14 +303,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 							positionFrame={positionFrame}
 							preview={snapshot.projectBinPreview}
 							run={run}
-							onOpenMenu={(event) => {
-								const rect = event.currentTarget.getBoundingClientRect();
-								setItemMenu({
-									itemId: item.id,
-									x: rect.left,
-									y: rect.bottom + 4,
-								});
-							}}
+							onOpenMenu={(event) => openItemMenu(event, item)}
 							onDragEnd={(element) => resetDropState(element)}
 						/>
 					))}
@@ -254,10 +319,10 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			x={itemMenu?.x || 0}
 			y={itemMenu?.y || 0}
 			autoFocus
-			onClose={() => setItemMenu(null)}
+			onClose={closeItemMenu}
 			className="kw-audio-editor__project-bin-menu"
 		>
-			<ContextMenuItem label={copy.clipColor} hasSubmenu onClose={() => setItemMenu(null)}>
+			<ContextMenuItem label={copy.clipColor} hasSubmenu onClose={closeItemMenu}>
 				{AUDIO_EDITOR_TRACK_COLORS.map((color) => (
 					<ContextMenuItem
 						key={color}
@@ -267,7 +332,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 						onClick={() => {
 							if (menuItem) run(() => controller.actions.projectBin.setColor(menuItem.primaryClip.id, color));
 						}}
-						onClose={() => setItemMenu(null)}
+						onClose={closeItemMenu}
 					/>
 				))}
 			</ContextMenuItem>
@@ -276,7 +341,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 				label={copy.projectBinRemoveFromBin}
 				disabled={mutationBlocked}
 				onClick={() => menuItem && run(() => controller.actions.projectBin.removeFromBin(menuItem.primaryClip.id))}
-				onClose={() => setItemMenu(null)}
+				onClose={closeItemMenu}
 			/>
 			<ContextMenuItem
 				label={copy.projectBinRemoveFromProject}
@@ -288,20 +353,28 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 						count: controller.actions.projectBin.instanceCount(menuItem.primaryClip.id),
 					});
 				}}
-				onClose={() => setItemMenu(null)}
+				onClose={closeItemMenu}
 			/>
 			<ContextMenuItem
 				label={copy.projectBinReplace}
 				disabled={mutationBlocked || !menuItem || menuItem.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
 				onClick={() => menuItem && openReplacementPicker(menuItem.primaryClip.id)}
-				onClose={() => setItemMenu(null)}
+				onClose={closeItemMenu}
 			/>
+			{fileService.linkedAudioOriginalsAvailable && menuAudioRelinkEligible && (
+				<ContextMenuItem
+					label={copy.projectBinRelink}
+					disabled={mutationBlocked}
+					onClick={() => menuAudioClip && relinkLinkedAudio(menuAudioClip.id)}
+					onClose={closeItemMenu}
+				/>
+			)}
 			{fileService.linkedVideoOriginalsAvailable && menuVideoMissing && (
 				<ContextMenuItem
 					label={copy.projectBinRelink}
 					disabled={mutationBlocked}
 					onClick={() => menuVideoClip && relinkLinkedVideo(menuVideoClip.id)}
-					onClose={() => setItemMenu(null)}
+					onClose={closeItemMenu}
 				/>
 			)}
 		</ContextMenu>

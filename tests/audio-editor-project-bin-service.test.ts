@@ -453,7 +453,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		store: {
 			deleteSource: async (sourceId) => { deletedSources.push(sourceId); },
 			deleteMediaAsset: async (sourceId) => { deletedMedia.push(sourceId); },
-			getLinkedVideoOriginalBinding: async () => null, relinkLinkedVideoOriginal: async () => { throw new Error('Unexpected linked-video relink.'); }, releaseLinkedVideoOriginalLocator: async () => true,
+			getLinkedOriginalBinding: async () => null, getSourceMetadata: async () => null, relinkLinkedAudioOriginal: async () => { throw new Error('Unexpected linked-audio relink.'); }, releaseLinkedOriginalLocator: async () => true, getLinkedVideoOriginalBinding: async () => null, relinkLinkedVideoOriginal: async () => { throw new Error('Unexpected linked-video relink.'); }, releaseLinkedVideoOriginalLocator: async () => true,
 		},
 		createPreviewEngine: ({ onState }) => {
 			previewEngine.setOnState(onState);
@@ -475,7 +475,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		getPositionFrames: () => 128,
 		normalizeTimelineStartFrame: (value) => Math.max(0, Math.round(Number(value))),
 		getVisualData: () => options.visualMediaUrl == null ? null : { mediaUrl: options.visualMediaUrl },
-		activateVideoSource: async () => null,
+		activateStoredSource: async () => null, invalidateSourceRuntime: async () => undefined, activateVideoSource: async () => null,
 		captureActiveDocument: () => ({ history, project }),
 		restoreActiveDocument: (snapshot) => {
 			history = snapshot.history;
@@ -530,7 +530,7 @@ function projectFixture(options: Readonly<{
 		...(options.projectBinClips ?? []).map((clip) => clip.sourceId),
 	]);
 	return {
-		schemaVersion: 5,
+		schemaVersion: 5, revision: 0,
 		id: options.id ?? 'project',
 		sampleRate: 48_000,
 		sources: options.sources ?? [...sourceIds].map((sourceId) => ({

@@ -196,3 +196,37 @@ test('controller action facade forwards the exact linked-video relink snapshot',
 	assert.equal(await relink('bin-video', file, locator), 'video-source');
 	assert.deepEqual(calls, [['bin-video', file, locator]]);
 });
+
+test('controller action facade keeps linked-audio eligibility and relink pathless', async () => {
+	const calls: Array<readonly [string, ...unknown[]]> = [];
+	const base = createRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'canRelinkLinkedAudio') return (...args: unknown[]) => {
+				calls.push(['eligible', ...args]);
+				return true;
+			};
+			if (name === 'relinkLinkedAudio') return (...args: unknown[]) => {
+				calls.push(['relink', ...args]);
+				return 'audio-source';
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime);
+	const eligible = actions.projectBin.canRelinkLinkedAudio;
+	const relink = actions.projectBin.relinkLinkedAudio;
+	if (typeof eligible !== 'function' || typeof relink !== 'function') {
+		throw new TypeError('Linked-audio relink actions must be callable.');
+	}
+	const file = new File(['audio'], 'selected.wav', { type: 'audio/wav' });
+	const locator = Object.freeze({ locatorId: 'locator-selected', locatorRevision: 'revision-selected' });
+	const target = Object.freeze({ projectId: 'project-selected', projectRevision: 7 });
+
+	assert.equal(await eligible('bin-audio'), true);
+	assert.equal(await relink('bin-audio', file, locator, target), 'audio-source');
+	assert.deepEqual(calls, [
+		['eligible', 'bin-audio'],
+		['relink', 'bin-audio', file, locator, target],
+	]);
+});

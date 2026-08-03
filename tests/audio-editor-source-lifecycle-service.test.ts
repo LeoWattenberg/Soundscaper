@@ -20,6 +20,7 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 	const sourceChunkProviders = new Map<string, unknown>([['source', { id: 'provider' }]]);
 	const sourcePeaks = new Map<string, unknown>();
 	const cachedBuffers = new Map<string, unknown>();
+	const deletedAnalyses: string[] = [];
 	const activatedVideoSources: Array<Readonly<Record<string, unknown>>> = [];
 	const activatedVideoSignals: Array<AbortSignal | undefined> = [];
 	const sourceBuffers = {
@@ -66,13 +67,16 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 		sourcePcmBytes: () => 0,
 		sourcePeaks,
 		state: { missingSourceIds: new Set<string>() },
-		store: {},
+		store: { deleteAnalysis: async (key: string) => { deletedAnalyses.push(key); } },
 		waveformPcmWindowContains: () => false,
 		waveformPeaksHaveRms: () => true,
 	};
 	return {
 		service: createSourceLifecycleService(runtime),
 		cachedBuffers,
+		deletedAnalyses,
+		sourceChunkProviders,
+		sourcePeaks,
 		activatedVideoSources,
 		activatedVideoSignals,
 		clipWaveformPcmRequests,
@@ -167,6 +171,28 @@ test('clearing waveform windows also forgets in-flight ownership', () => {
 	fixture.service.clearWaveformPcmWindows();
 	assert.equal(fixture.clipWaveformPcmRequests.size, 0);
 	assert.equal(fixture.clipWaveformPcmWindows.size, 0);
+});
+
+test('source runtime invalidation clears only that source and suppresses its late waveform publication', async () => {
+	const fixture = createFixture();
+	fixture.cachedBuffers.set('source', {}); fixture.cachedBuffers.set('other', {});
+	fixture.sourcePeaks.set('source', {}); fixture.sourcePeaks.set('other', {});
+	fixture.clipWaveformPcmWindows.set('cached', { sourceId: 'source' });
+	fixture.clipWaveformPcmWindows.set('other', { sourceId: 'other' });
+	const pending = fixture.service.requestWaveformPcmWindow('clip', { startFrame: 0, endFrame: 20 });
+	fixture.clipWaveformPcmRequests.set('other', { sourceId: 'other' });
+
+	await fixture.service.invalidateSourceRuntime('source');
+
+	assert.deepEqual([...fixture.cachedBuffers.keys()], ['other']);
+	assert.deepEqual([...fixture.sourcePeaks.keys()], ['other']);
+	assert.deepEqual([...fixture.clipWaveformPcmWindows.keys()], ['other']);
+	assert.deepEqual([...fixture.clipWaveformPcmRequests.keys()], ['other']);
+	assert.deepEqual(fixture.deletedAnalyses, ['peak:source']);
+	assert.equal(fixture.sourceChunkProviders.has('source'), true);
+	fixture.resolveRead([new Float32Array(20)]);
+	assert.equal(await pending, null);
+	assert.equal(fixture.publishes(), 0);
 });
 
 interface RequiredSourceFixtureOptions {

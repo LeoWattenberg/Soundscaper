@@ -52,6 +52,7 @@ export interface ProjectBinSelection {
 export interface ProjectBinProject {
 	readonly schemaVersion: number;
 	readonly id: string;
+	readonly revision: number;
 	readonly sampleRate: number;
 	readonly sources: readonly ProjectBinSource[];
 	readonly clips: readonly ProjectBinClip[];

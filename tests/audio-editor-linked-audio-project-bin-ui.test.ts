@@ -29,11 +29,39 @@ test('the Project Bin exposes the localized linked-WAV chooser only when its pla
 
 test('the linked-WAV Project Bin action forwards only the chosen File and opaque locator snapshot', async () => {
 	const source = await readFile(PANEL_URL, 'utf8');
+	const importAction = source.slice(source.indexOf('const chooseLinkedAudio'), source.indexOf('const relinkLinkedAudio'));
 
 	assert.match(source, /const chooseLinkedAudio = \(\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const choice = await fileService\.chooseLinkedAudioOriginal\(\)/u);
 	assert.match(source, /if \(!choice\) return;[\s\S]*controller\.actions\.project\.importFiles\(\[choice\.file\], \{[\s\S]*destination: 'project-bin',[\s\S]*linkedAudioLocatorId: choice\.locatorId,[\s\S]*linkedAudioLocatorRevision: choice\.locatorRevision,[\s\S]*\}\)/u);
-	assert.doesNotMatch(source, /releaseLinkedAudioOriginal/u);
+	assert.doesNotMatch(importAction, /releaseLinkedAudioOriginal/u);
 	assert.doesNotMatch(source, /choice\.(?:name|path|mimeType|size)/u);
+});
+
+test('a binding-backed Project Bin audio member exposes exact-content relink without trusting missing-source state', async () => {
+	const source = await readFile(PANEL_URL, 'utf8');
+
+	assert.equal(ENGLISH_COPY.projectBinRelink, 'Relink');
+	assert.equal(GERMAN_COPY.projectBinRelink, 'Neu verknüpfen');
+	assert.match(source, /const menuAudioClip = menuItem\?\.clips\.find\(\(clip\) => clip\.kind !== 'video'\) \|\| null;/u);
+	assert.match(source, /const audioClip = item\.clips\.find\(\(clip\) => clip\.kind !== 'video'\) \|\| null;/u);
+	assert.match(source, /controller\.actions\.projectBin\.canRelinkLinkedAudio\(audioClip\.id\)/u);
+	assert.match(source, /const closeItemMenu = \(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);/u);
+	assert.match(source, /useEffect\(\(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);[\s\S]*\}, \[projectId, projectRevision\]\);/u);
+	assert.match(source, /linkedAudioRelinkProjectRef\.current === relinkScope/u);
+	assert.match(source, /requestId !== linkedAudioRelinkRequestRef\.current/u);
+	assert.match(source, /current\.itemId !== item\.id[\s\S]*current\.audioClipId !== audioClip\.id[\s\S]*current\.projectId !== requestedProjectId[\s\S]*current\.projectRevision !== requestedProjectRevision/u);
+	assert.match(source, /fileService\.linkedAudioOriginalsAvailable && menuAudioRelinkEligible[\s\S]*label=\{copy\.projectBinRelink\}/u);
+	assert.doesNotMatch(source, /linkedAudioOriginalsAvailable && menuAudioMissing/u);
+});
+
+test('linked-audio relink fences the chooser scope and transfers only File plus the opaque locator', async () => {
+	const source = await readFile(PANEL_URL, 'utf8');
+
+	assert.match(source, /const relinkScope = linkedAudioRelinkProjectRef\.current;\s*if \(!relinkScope\) return;/u);
+	assert.match(source, /handoffLinkedAudioChoice\(\{\s*choose: \(\) => fileService\.chooseLinkedAudioOriginal\(\),\s*isCurrent: \(scope\) => linkedAudioRelinkProjectRef\.current === scope,\s*release: \(reference\) => fileService\.releaseLinkedAudioOriginal\(reference\),/u);
+	assert.match(source, /accept: \(file, reference\) => controller\.actions\.projectBin\.relinkLinkedAudio\(clipId, file, reference, relinkScope\),/u);
+	assert.match(source, /onClick=\{\(\) => menuAudioClip && relinkLinkedAudio\(menuAudioClip\.id\)\}/u);
+	assert.doesNotMatch(source, /relinkLinkedAudio[\s\S]{0,500}choice\.(?:name|path|mimeType|size|lastModified)/u);
 });
 
 test('the default editor store receives the pathless generic linked-original port', async () => {

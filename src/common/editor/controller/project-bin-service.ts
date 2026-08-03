@@ -32,6 +32,11 @@ import {
 import type { EngineChunkSourceInput, EngineSourceBufferInput } from '../engine/public-api.ts';
 import type { EngineSourceResolver } from '../engine/types.ts';
 import {
+	createProjectBinLinkedAudioRelinkService,
+	type ProjectBinLinkedAudioRelinkDependencies,
+	type ProjectBinLinkedAudioRelinkService,
+} from './project-bin-linked-audio-relink-service.ts';
+import {
 	createProjectBinLinkedVideoRelinkService,
 	type ProjectBinLinkedVideoRelinkDependencies,
 	type ProjectBinLinkedVideoRelinkService,
@@ -46,6 +51,9 @@ interface CommitSelection {
 
 export interface ProjectBinServiceDependencies extends ProjectBinReplacementDependencies {
 	readonly store: ProjectBinReplacementDependencies['store'] & Pick<
+		ProjectBinLinkedAudioRelinkDependencies,
+		'getLinkedOriginalBinding' | 'getSourceMetadata' | 'relinkLinkedAudioOriginal' | 'releaseLinkedOriginalLocator'
+	> & Pick<
 		ProjectBinLinkedVideoRelinkDependencies,
 		'getLinkedVideoOriginalBinding' | 'relinkLinkedVideoOriginal' | 'releaseLinkedVideoOriginalLocator'
 	>;
@@ -69,10 +77,13 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	getPositionFrames(): number;
 	normalizeTimelineStartFrame(frame: unknown): number;
 	getVisualData(clipId: string): ProjectBinVisualData | null;
+	readonly activateStoredSource: ProjectBinLinkedAudioRelinkDependencies['activateStoredSource'];
+	readonly invalidateSourceRuntime: ProjectBinLinkedAudioRelinkDependencies['invalidateSourceRuntime'];
 	readonly activateVideoSource: ProjectBinLinkedVideoRelinkDependencies['activateVideoSource'];
 }
 
 export interface ProjectBinService extends ProjectBinReplacementService,
+	Pick<ProjectBinLinkedAudioRelinkService, 'canRelinkLinkedAudio' | 'relinkLinkedAudio'>,
 	Pick<ProjectBinLinkedVideoRelinkService, 'relinkLinkedVideo'> {
 	moveClipsToProjectBin(clipId?: string | readonly (string | null | undefined)[] | null): readonly string[] | null;
 	placeProjectBinClip(binClipId: string, placement?: Readonly<{ trackId?: string | null; timelineStartFrame?: unknown }>): string | null;
@@ -92,7 +103,8 @@ export function createProjectBinService(
 ): Readonly<ProjectBinService> {
 	const replacement = createProjectBinReplacementService(dependencies);
 	const preview = createProjectBinPreviewService(previewDependencies(dependencies));
-	const relink = createProjectBinLinkedVideoRelinkService(relinkDependencies(dependencies, preview));
+	const audioRelink = createProjectBinLinkedAudioRelinkService(audioRelinkDependencies(dependencies, preview));
+	const videoRelink = createProjectBinLinkedVideoRelinkService(videoRelinkDependencies(dependencies, preview));
 
 	return Object.freeze({
 		moveClipsToProjectBin,
@@ -104,7 +116,9 @@ export function createProjectBinService(
 		selectProjectBinInstances,
 		removeProjectBinSource,
 		...replacement,
-		relinkLinkedVideo: relink.relinkLinkedVideo,
+		canRelinkLinkedAudio: audioRelink.canRelinkLinkedAudio,
+		relinkLinkedAudio: audioRelink.relinkLinkedAudio,
+		relinkLinkedVideo: videoRelink.relinkLinkedVideo,
 		playPauseProjectBinClip: preview.playPauseProjectBinClip,
 		stopProjectBinPreview: preview.stopProjectBinPreview,
 		dispose,
@@ -324,7 +338,12 @@ export function createProjectBinService(
 	async function dispose(): Promise<void> {
 		const failures: unknown[] = [];
 		try {
-			await relink.dispose();
+			await audioRelink.dispose();
+		} catch (error) {
+			failures.push(error);
+		}
+		try {
+			await videoRelink.dispose();
 		} catch (error) {
 			failures.push(error);
 		}
@@ -343,7 +362,33 @@ export function createProjectBinService(
 	}
 }
 
-function relinkDependencies(
+function audioRelinkDependencies(
+	dependencies: ProjectBinServiceDependencies,
+	preview: Readonly<{
+		stopProjectBinPreview(options?: Readonly<{ dispose?: boolean }>): Promise<boolean>;
+	}>,
+): ProjectBinLinkedAudioRelinkDependencies {
+	return {
+		lifetime: dependencies.lifetime,
+		missingSourceIds: dependencies.missingSourceIds,
+		editingBlocked: dependencies.editingBlocked,
+		getProject: dependencies.getProject,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		getLinkedOriginalBinding: (...args) => dependencies.store.getLinkedOriginalBinding(...args),
+		stopTimelinePlayback: () => dependencies.playbackEngine.stop(),
+		stopProjectBinPreview: () => preview.stopProjectBinPreview({ dispose: true }),
+		retireSourceChunkProvider: dependencies.retireSourceChunkProvider,
+		relinkLinkedAudioOriginal: (...args) => dependencies.store.relinkLinkedAudioOriginal(...args),
+		releaseLinkedOriginalLocator: (...args) => dependencies.store.releaseLinkedOriginalLocator(...args),
+		invalidateSourceRuntime: dependencies.invalidateSourceRuntime,
+		getSourceMetadata: (...args) => dependencies.store.getSourceMetadata(...args),
+		activateStoredSource: dependencies.activateStoredSource,
+		publish: dependencies.publish,
+	};
+}
+
+function videoRelinkDependencies(
 	dependencies: ProjectBinServiceDependencies,
 	preview: Readonly<{ stopProjectBinPreview(): Promise<boolean> }>,
 ): ProjectBinLinkedVideoRelinkDependencies {

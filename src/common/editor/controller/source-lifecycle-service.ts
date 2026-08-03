@@ -156,6 +156,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		}
 		if (!provider || getProject() !== projectAtStart) return null;
 		const request: any = {
+			sourceId: source.id,
 			startFrame: range.startFrame,
 			endFrame: range.endFrame,
 			promise: null,
@@ -192,6 +193,18 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 	function clearWaveformPcmWindows() {
 		clipWaveformPcmWindows.clear();
 		clipWaveformPcmRequests.clear();
+	}
+
+	async function invalidateSourceRuntime(sourceId: string): Promise<void> {
+		sourceBuffers.delete(sourceId);
+		sourcePeaks.delete(sourceId);
+		for (const [cacheKey, window] of clipWaveformPcmWindows) {
+			if (window?.sourceId === sourceId) clipWaveformPcmWindows.delete(cacheKey);
+		}
+		for (const [cacheKey, request] of clipWaveformPcmRequests) {
+			if (request?.sourceId === sourceId) clipWaveformPcmRequests.delete(cacheKey);
+		}
+		await store.deleteAnalysis?.(peakCacheKey(sourceId));
 	}
 
 	async function loadProjectSources(project: any, options: SourceLifecycleLoadOptions = {}) {
@@ -558,6 +571,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		cacheSourceBuffer,
 		clearWaveformPcmWindows,
 		ensureProjectSourcesAvailable,
+		invalidateSourceRuntime,
 		loadProjectSources,
 		prepareRequiredProjectSources,
 		registerStoredChunkProvider,

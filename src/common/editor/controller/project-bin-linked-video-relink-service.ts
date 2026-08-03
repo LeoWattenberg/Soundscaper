@@ -5,8 +5,9 @@ import type {
 	EditorProjectToken,
 	EditorTaskScope,
 } from './lifecycle.ts';
+import { PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK } from './project-bin-linked-original-relink-task.ts';
 
-export const PROJECT_BIN_LINKED_VIDEO_RELINK_TASK = 'project-bin-linked-video-relink';
+export const PROJECT_BIN_LINKED_VIDEO_RELINK_TASK = PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK;
 
 export interface ProjectBinLinkedVideoRelinkLocator {
 	readonly locatorId: string;
