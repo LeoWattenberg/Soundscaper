@@ -32,6 +32,8 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)
 	)) || null;
 	const menuItem = items.find((item) => item.id === itemMenu?.itemId) || null;
+	const menuVideoClip = menuItem?.clips.find((clip) => clip.kind === 'video') || null;
+	const menuVideoMissing = Boolean(menuVideoClip && missingSourceIds.has(menuVideoClip.sourceId));
 
 	const importFiles = async (files) => {
 		if (mutationBlocked || !files.length) return undefined;
@@ -70,6 +72,15 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			destination: 'project-bin',
 			linkedVideoLocatorId: choice.locatorId,
 			linkedVideoLocatorRevision: choice.locatorRevision,
+		});
+	});
+	const relinkLinkedVideo = (clipId) => run(async () => {
+		if (mutationBlocked) return;
+		const choice = await fileService.chooseLinkedVideoOriginal();
+		if (!choice) return;
+		await controller.actions.projectBin.relinkLinkedVideo(clipId, choice.file, {
+			locatorId: choice.locatorId,
+			locatorRevision: choice.locatorRevision,
 		});
 	});
 	const isFileDrag = (dataTransfer) => {
@@ -285,6 +296,14 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 				onClick={() => menuItem && openReplacementPicker(menuItem.primaryClip.id)}
 				onClose={() => setItemMenu(null)}
 			/>
+			{fileService.linkedVideoOriginalsAvailable && menuVideoMissing && (
+				<ContextMenuItem
+					label={copy.projectBinRelink}
+					disabled={mutationBlocked}
+					onClick={() => menuVideoClip && relinkLinkedVideo(menuVideoClip.id)}
+					onClose={() => setItemMenu(null)}
+				/>
+			)}
 		</ContextMenu>
 		{removeConfirmation && (
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>

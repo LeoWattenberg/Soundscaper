@@ -177,3 +177,22 @@ test('controller action facade exposes source-level video visual ownership', asy
 	assert.equal(await releaseSourceVisual('fallback-video', 'blob:fallback-video'), true);
 	assert.deepEqual(releases, [['fallback-video', 'blob:fallback-video']]);
 });
+
+test('controller action facade forwards the exact linked-video relink snapshot', async () => {
+	const calls: unknown[][] = [];
+	const base = createRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'relinkLinkedVideo') return (...args: unknown[]) => { calls.push(args); return 'video-source'; };
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime);
+	const relink = actions.projectBin.relinkLinkedVideo;
+	if (typeof relink !== 'function') throw new TypeError('Linked-video relink must be callable.');
+	const file = new File(['video'], 'selected.mp4', { type: 'video/mp4' });
+	const locator = Object.freeze({ locatorId: 'locator-selected', locatorRevision: 'revision-selected' });
+
+	assert.equal(await relink('bin-video', file, locator), 'video-source');
+	assert.deepEqual(calls, [['bin-video', file, locator]]);
+});

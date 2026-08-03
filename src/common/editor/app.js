@@ -754,7 +754,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
 		: () => {};
 	const projectLockService = createProjectLockService({
-		state,
+		state, cancelTask: (...args) => lifetime.cancelTask(...args),
 		getProjectId: () => project?.id ?? null,
 		getProjectMetadata: (projectId) => sessionTab(projectId)?.metadata || {},
 		acquireProjectLock: acquireLock,
@@ -1416,7 +1416,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS,
 		playbackEngine: engine, sourceBuffers, sourceChunkProviders, sourcePeaks,
 		missingSourceIds: state.missingSourceIds,
-		sourceResolver: clipTimePitchSourceResolver, store,
+		sourceResolver: clipTimePitchSourceResolver, store, activateVideoSource,
 		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),
 		createId: createStableId,
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
@@ -1718,7 +1718,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
-		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual,
+		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
@@ -2136,13 +2136,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return projectBinService.setProjectBinClipColor(clipId, color);
 	}
 
-	function projectBinInstanceCount(clipId) {
-		return projectBinService.projectBinInstanceCount(clipId);
-	}
-
-	function selectProjectBinInstances(clipId) {
-		return projectBinService.selectProjectBinInstances(clipId);
-	}
+	function projectBinInstanceCount(clipId) { return projectBinService.projectBinInstanceCount(clipId); }
+	function selectProjectBinInstances(clipId) { return projectBinService.selectProjectBinInstances(clipId); }
 
 	function removeProjectBinSource(clipId) {
 		return projectBinService.removeProjectBinSource(clipId);

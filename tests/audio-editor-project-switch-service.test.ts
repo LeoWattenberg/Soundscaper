@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from '../src/common/editor/controller/lifecycle.ts';
 import { PLAYBACK_PROJECT_APPLY_TASK } from '../src/common/editor/controller/playback-project-service.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
 import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecycleProject, ProjectLifecycleTab } from '../src/common/editor/controller/project-lifecycle-types.ts';
 import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type ProjectSwitchState } from '../src/common/editor/controller/project-switch-service.ts';
 import { SCAPE_INSPECTION_TASK, createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
@@ -13,8 +14,7 @@ import { SourceChunkProviderRegistry } from '../src/common/editor/controller/sou
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 
 function deferred<Value>() {
-	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
-	const promise = new Promise<Value>((complete) => { resolve = complete; });
+	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined; const promise = new Promise<Value>((complete) => { resolve = complete; });
 	return { promise, resolve };
 }
 interface TestTrack {
@@ -245,7 +245,7 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 }
 test('project activation resets scoped state and publishes only after sources are loaded', async () => {
 	const fixture = createFixture();
-	const nativeSave = fixture.lifetime.startTask('native-project-save'), playbackApply = fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK);
+	const nativeSave = fixture.lifetime.startTask('native-project-save'), playbackApply = fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK), linkedVideoRelink = fixture.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK);
 	playbackApply.signal.addEventListener('abort', () => { fixture.events.push('abort-playback-apply'); }, { once: true });
 	const next = project('next-project', [
 		{ id: 'labels', type: 'label' }, { id: 'audio', type: 'audio' },
@@ -270,7 +270,7 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.equal(fixture.getTabMetadata(next.id)?.featureRequirementsReport != null, true);
 	assert.equal(fixture.getTabMetadata(next.id)?.featureRequirementsAudioEffectPlaybackBypass, null);
 	assert.equal(nativeSave.signal.aborted, true);
-	assert.ok(playbackApply.signal.aborted && playbackApply.signal.reason instanceof DOMException && playbackApply.signal.reason.name === 'AbortError');
+	assert.ok(playbackApply.signal.aborted && playbackApply.signal.reason instanceof DOMException && playbackApply.signal.reason.name === 'AbortError'); assert.equal(linkedVideoRelink.signal.aborted, true);
 	assert.ok(fixture.events.indexOf('abort-playback-apply') < fixture.events.indexOf('stop-recording'));
 	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
 	const previewFailure = new Error('preview disposal failed');

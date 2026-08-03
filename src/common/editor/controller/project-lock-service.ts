@@ -5,6 +5,7 @@ import type {
 	ProjectLifecycleTabMetadata,
 	ProjectReadOnlyUpdate,
 } from './project-lifecycle-types.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from './project-bin-linked-video-relink-service.ts';
 
 export interface ProjectLockState {
 	disposed: boolean;
@@ -15,6 +16,7 @@ export interface ProjectLockState {
 
 export interface ProjectLockServiceRuntime {
 	readonly state: ProjectLockState;
+	readonly cancelTask: (name: string, reason?: unknown) => void;
 	readonly getProjectId: () => string | null;
 	readonly getProjectMetadata: (projectId: string) => ProjectLifecycleTabMetadata;
 	readonly acquireProjectLock: (
@@ -98,6 +100,10 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		if (!lock.lost) return;
 		void lock.lost.then(async () => {
 			if (!ownsLock(projectId, lock)) return;
+			runtime.cancelTask(
+				PROJECT_BIN_LINKED_VIDEO_RELINK_TASK,
+				new DOMException('Project write access was lost.', 'AbortError'),
+			);
 			await recoverProjectLock(projectId, lock);
 		}).catch((error: unknown) => handleProjectLockRecoveryError(projectId, lock, error));
 	}

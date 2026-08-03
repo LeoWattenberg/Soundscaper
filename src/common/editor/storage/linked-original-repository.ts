@@ -209,6 +209,7 @@ export class LinkedOriginalRepository {
 	putLegacyVideoIfCurrent(
 		value: LegacyLinkedVideoOriginalBindingInput,
 		expectedBindingToken: string | null,
+		assertCanPublish?: () => void,
 	): Promise<LinkedOriginalBinding | null> {
 		const legacy = normalizeLegacyLinkedVideoOriginalBindingInput(value);
 		const { schemaVersion: _schemaVersion, ...fields } = legacy;
@@ -216,7 +217,7 @@ export class LinkedOriginalRepository {
 			schemaVersion: LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 			kind: 'video',
 			...fields,
-		}), expectedBindingToken, true);
+		}), expectedBindingToken, true, assertCanPublish);
 	}
 
 	async deleteIfCurrent(
@@ -270,6 +271,7 @@ export class LinkedOriginalRepository {
 		input: LinkedOriginalBindingInput,
 		expectedBindingToken: string | null,
 		persistLegacyVideo: boolean,
+		assertCanPublish?: () => void,
 	): Promise<LinkedOriginalBinding | null> {
 		const expected = optionalBindingToken(expectedBindingToken);
 		const key = linkedOriginalBindingKey(input.projectId, input.sourceId);
@@ -299,6 +301,7 @@ export class LinkedOriginalRepository {
 				binding,
 				persistedBinding(binding, persistLegacyVideo),
 			);
+			assertCanPublish?.();
 			publishMemoryLinkedOriginalPairs(records, roots, [publication]);
 			return binding;
 		}
@@ -330,6 +333,7 @@ export class LinkedOriginalRepository {
 				binding,
 				persistedBinding(binding, persistLegacyVideo),
 			);
+			assertCanPublish?.();
 			await Promise.all([
 				request(bindings.put(publication.record)),
 				request(roots.put(publication.root)),

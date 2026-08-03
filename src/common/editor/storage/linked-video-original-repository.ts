@@ -66,10 +66,12 @@ export class LinkedVideoOriginalRepository {
 	async putIfCurrent(
 		value: LinkedVideoOriginalBindingInput,
 		expectedBindingToken: string | null,
+		assertCanPublish?: () => void,
 	): Promise<LinkedVideoOriginalBinding | null> {
 		return legacyVideoBinding(await this.#repository.putLegacyVideoIfCurrent(
 			value,
 			expectedBindingToken,
+			assertCanPublish,
 		));
 	}
 

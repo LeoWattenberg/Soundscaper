@@ -31,6 +31,11 @@ import {
 } from './project-bin-types.ts';
 import type { EngineChunkSourceInput, EngineSourceBufferInput } from '../engine/public-api.ts';
 import type { EngineSourceResolver } from '../engine/types.ts';
+import {
+	createProjectBinLinkedVideoRelinkService,
+	type ProjectBinLinkedVideoRelinkDependencies,
+	type ProjectBinLinkedVideoRelinkService,
+} from './project-bin-linked-video-relink-service.ts';
 
 type SelectionCommand = Extract<AudioEditorCommand, { readonly type: 'selection/set' }>;
 
@@ -40,6 +45,10 @@ interface CommitSelection {
 }
 
 export interface ProjectBinServiceDependencies extends ProjectBinReplacementDependencies {
+	readonly store: ProjectBinReplacementDependencies['store'] & Pick<
+		ProjectBinLinkedVideoRelinkDependencies,
+		'getLinkedVideoOriginalBinding' | 'relinkLinkedVideoOriginal' | 'releaseLinkedVideoOriginalLocator'
+	>;
 	readonly copy: ProjectBinCopy;
 	readonly trackColors: readonly string[];
 	readonly playbackEngine: ProjectBinPlaybackEngine;
@@ -60,9 +69,11 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	getPositionFrames(): number;
 	normalizeTimelineStartFrame(frame: unknown): number;
 	getVisualData(clipId: string): ProjectBinVisualData | null;
+	readonly activateVideoSource: ProjectBinLinkedVideoRelinkDependencies['activateVideoSource'];
 }
 
-export interface ProjectBinService extends ProjectBinReplacementService {
+export interface ProjectBinService extends ProjectBinReplacementService,
+	Pick<ProjectBinLinkedVideoRelinkService, 'relinkLinkedVideo'> {
 	moveClipsToProjectBin(clipId?: string | readonly (string | null | undefined)[] | null): readonly string[] | null;
 	placeProjectBinClip(binClipId: string, placement?: Readonly<{ trackId?: string | null; timelineStartFrame?: unknown }>): string | null;
 	renameProjectBinClip(clipId: string, requestedName: unknown): string | null;
@@ -81,6 +92,7 @@ export function createProjectBinService(
 ): Readonly<ProjectBinService> {
 	const replacement = createProjectBinReplacementService(dependencies);
 	const preview = createProjectBinPreviewService(previewDependencies(dependencies));
+	const relink = createProjectBinLinkedVideoRelinkService(relinkDependencies(dependencies, preview));
 
 	return Object.freeze({
 		moveClipsToProjectBin,
@@ -92,6 +104,7 @@ export function createProjectBinService(
 		selectProjectBinInstances,
 		removeProjectBinSource,
 		...replacement,
+		relinkLinkedVideo: relink.relinkLinkedVideo,
 		playPauseProjectBinClip: preview.playPauseProjectBinClip,
 		stopProjectBinPreview: preview.stopProjectBinPreview,
 		dispose,
@@ -309,9 +322,46 @@ export function createProjectBinService(
 	}
 
 	async function dispose(): Promise<void> {
-		await replacement.cancelAllProjectBinReplacements();
-		await preview.stopProjectBinPreview({ dispose: true });
+		const failures: unknown[] = [];
+		try {
+			await relink.dispose();
+		} catch (error) {
+			failures.push(error);
+		}
+		try {
+			await replacement.cancelAllProjectBinReplacements();
+		} catch (error) {
+			failures.push(error);
+		}
+		try {
+			await preview.stopProjectBinPreview({ dispose: true });
+		} catch (error) {
+			failures.push(error);
+		}
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) throw new AggregateError(failures, 'Project Bin disposal failed.');
 	}
+}
+
+function relinkDependencies(
+	dependencies: ProjectBinServiceDependencies,
+	preview: Readonly<{ stopProjectBinPreview(): Promise<boolean> }>,
+): ProjectBinLinkedVideoRelinkDependencies {
+	return {
+		lifetime: dependencies.lifetime,
+		missingSourceIds: dependencies.missingSourceIds,
+		editingBlocked: dependencies.editingBlocked,
+		getProject: dependencies.getProject,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		getLinkedVideoOriginalBinding: (...args) => dependencies.store.getLinkedVideoOriginalBinding(...args),
+		stopProjectBinPreview: () => preview.stopProjectBinPreview(),
+		revokeVideoVisual: dependencies.revokeVideoVisual,
+		relinkLinkedVideoOriginal: (...args) => dependencies.store.relinkLinkedVideoOriginal(...args),
+		releaseLinkedVideoOriginalLocator: (...args) => dependencies.store.releaseLinkedVideoOriginalLocator(...args),
+		activateVideoSource: dependencies.activateVideoSource,
+		publish: dependencies.publish,
+	};
 }
 
 function previewDependencies(

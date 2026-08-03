@@ -7,6 +7,7 @@ import {
 	createProjectLockService,
 	type ProjectLockServiceRuntime,
 } from '../src/common/editor/controller/project-lock-service.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
 import type { ProjectLifecycleLock } from '../src/common/editor/controller/project-lifecycle-types.ts';
 
 function deferred<Value>() {
@@ -47,6 +48,7 @@ function createFixture(initialLock: TestLock | null = null) {
 	const updates: Array<Readonly<Record<string, unknown>>> = [];
 	const statuses: Array<readonly [string, string]> = [];
 	const errors: unknown[] = [];
+	const cancelledTasks: string[] = [];
 	const state = {
 		disposed: false,
 		readOnly: Boolean(initialLock?.readOnly),
@@ -55,6 +57,7 @@ function createFixture(initialLock: TestLock | null = null) {
 	};
 	const runtime: ProjectLockServiceRuntime = {
 		state,
+		cancelTask: (name) => { cancelledTasks.push(name); },
 		getProjectId: () => projectId,
 		getProjectMetadata: () => metadata,
 		acquireProjectLock: (id, options) => acquisition(id, Boolean(options?.force)),
@@ -77,6 +80,7 @@ function createFixture(initialLock: TestLock | null = null) {
 		clearTimer: (id) => { timers.delete(id); },
 	};
 	return {
+		cancelledTasks,
 		errors,
 		publications,
 		service: createProjectLockService(runtime),
@@ -193,12 +197,16 @@ test('lock loss reacquires ownership and preserves intrinsic read-only metadata'
 	const lost = deferred<void>();
 	const previous = createLock('project-a', { lost: lost.promise });
 	const next = createLock('project-a');
+	const acquisition = deferred<ProjectLifecycleLock>();
 	const fixture = createFixture(previous);
 	fixture.setMetadata({ intrinsicReadOnly: true, intrinsicReadOnlyReason: 'Imported read-only' });
-	fixture.setAcquisition(async () => next);
+	fixture.setAcquisition(() => acquisition.promise);
 	fixture.service.watchProjectLockLoss('project-a', previous);
 
 	lost.resolve();
+	await Promise.resolve();
+	assert.deepEqual(fixture.cancelledTasks, [PROJECT_BIN_LINKED_VIDEO_RELINK_TASK]);
+	acquisition.resolve(next);
 	await fixture.publications.promise;
 
 	assert.equal(previous.releases, 1);

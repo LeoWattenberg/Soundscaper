@@ -2,6 +2,7 @@
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
 import { PLAYBACK_PROJECT_APPLY_TASK, createPlaybackProjectService } from './playback-project-service.ts';
+import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from './project-bin-linked-video-relink-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
 import type { ScapeInspectionFence, ScapeInspectionQuiescence } from './scape-inspection-quiescence.ts';
@@ -14,10 +15,7 @@ import type {
 	ProjectLifecycleTabMetadata,
 	ProjectReadOnlyUpdate,
 } from './project-lifecycle-types.ts';
-import type {
-	PreparedProjectSourceInputs,
-	PreparedRequiredProjectSources,
-} from './source-lifecycle-service.ts';
+import type { PreparedProjectSourceInputs, PreparedRequiredProjectSources } from './source-lifecycle-service.ts';
 import type { SourceChunkProviderReplacement } from './source-chunk-provider-registry.ts';
 
 export type ProjectSwitchGuard = <Value>(value: PromiseLike<Value> | Value) => Promise<Value>;
@@ -337,6 +335,7 @@ export function createProjectSwitchService<
 		let switchFailure: unknown | typeof NO_PROJECT_SWITCH_FAILURE = NO_PROJECT_SWITCH_FAILURE;
 		try {
 			runtime.lifetime.cancelTask(PLAYBACK_PROJECT_APPLY_TASK);
+			runtime.lifetime.cancelTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK);
 			runtime.projectGeneration.invalidate();
 			runtime.state.rackEffectGestures.clear();
 			runtime.state.parametricEqGestures.clear();

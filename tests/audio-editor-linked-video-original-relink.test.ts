@@ -140,6 +140,44 @@ test('a concurrent retained-video binding replacement wins the relink CAS', asyn
 	assert.deepEqual(fixture.releases, []);
 });
 
+test('retained-video relink rechecks writable admission at the binding CAS', async (context) => {
+	const body = new Blob(['writable retained video'], { type: 'video/mp4' });
+	const fixture = await relinkFixture(context, body);
+	const candidateLoad = deferred<void>();
+	const allowCandidate = deferred<void>();
+	fixture.loadOverride = async (locatorId) => {
+		if (locatorId !== NEW_LOCATOR_ID) return null;
+		candidateLoad.resolve(undefined);
+		await allowCandidate.promise;
+		return snapshot(body, NEW_LOCATOR_REVISION);
+	};
+	let writable = true;
+	const relink = fixture.store.relinkLinkedVideoOriginal(
+		PROJECT_ID,
+		videoSource(),
+		NEW_LOCATOR_ID,
+		{
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: body,
+			assertCanPublish: () => {
+				if (!writable) throw new Error('Project editing is blocked.');
+			},
+		},
+	);
+	await candidateLoad.promise;
+	writable = false;
+	allowCandidate.resolve(undefined);
+
+	await assert.rejects(relink, /editing is blocked/iu);
+	assert.deepEqual(
+		await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, SOURCE_ID),
+		fixture.original,
+	);
+	assert.equal(currentRoot(fixture.databaseName).bindingToken, fixture.original.bindingToken);
+	assert.deepEqual(fixture.releases, []);
+});
+
 test('cancelling retained-video relink before CAS preserves the old binding', async (context) => {
 	const body = new Blob(['cancelled retained video'], { type: 'video/mp4' });
 	const fixture = await relinkFixture(context, body);

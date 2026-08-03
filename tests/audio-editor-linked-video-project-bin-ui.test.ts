@@ -33,6 +33,17 @@ test('the linked-video Project Bin action forwards only the chosen File and opaq
 	assert.doesNotMatch(source, /choice\.(?:name|path|mimeType|size)/u);
 });
 
+test('an unavailable Project Bin video can relink through only the pathless chooser snapshot', async () => {
+	const source = await readFile(PANEL_URL, 'utf8');
+
+	assert.equal(ENGLISH_COPY.projectBinRelink, 'Relink');
+	assert.equal(GERMAN_COPY.projectBinRelink, 'Neu verknüpfen');
+	assert.match(source, /const relinkLinkedVideo = \(clipId\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const choice = await fileService\.chooseLinkedVideoOriginal\(\)/u);
+	assert.match(source, /controller\.actions\.projectBin\.relinkLinkedVideo\(clipId, choice\.file, \{\s*locatorId: choice\.locatorId,\s*locatorRevision: choice\.locatorRevision,\s*\}\)/u);
+	assert.match(source, /fileService\.linkedVideoOriginalsAvailable && menuVideoMissing[\s\S]*label=\{copy\.projectBinRelink\}/u);
+	assert.doesNotMatch(source, /relinkLinkedVideo[\s\S]{0,500}choice\.(?:name|path|mimeType|size)/u);
+});
+
 function renderProjectBin(
 	copy: typeof ENGLISH_COPY,
 	linkedVideoOriginalsAvailable: boolean,

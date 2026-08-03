@@ -94,6 +94,7 @@ export interface RelinkLinkedVideoOriginalOptions {
 	readonly expectedBindingToken: string;
 	readonly expectedLocatorRevision: string;
 	readonly expectedSnapshot: unknown;
+	readonly assertCanPublish?: () => void;
 	readonly signal?: AbortSignal;
 }
 
@@ -344,6 +345,7 @@ export class LinkedOriginalStoreService {
 				expectedBindingToken: current.bindingToken,
 				expectedLocatorRevision: options.expectedLocatorRevision,
 				expectedSnapshot: selected,
+				...(options.assertCanPublish ? { assertCanPublish: options.assertCanPublish } : {}),
 				...(options.signal ? { signal: options.signal } : {}),
 			});
 		};

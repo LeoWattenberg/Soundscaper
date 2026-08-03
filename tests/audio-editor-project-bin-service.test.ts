@@ -453,6 +453,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		store: {
 			deleteSource: async (sourceId) => { deletedSources.push(sourceId); },
 			deleteMediaAsset: async (sourceId) => { deletedMedia.push(sourceId); },
+			getLinkedVideoOriginalBinding: async () => null, relinkLinkedVideoOriginal: async () => { throw new Error('Unexpected linked-video relink.'); }, releaseLinkedVideoOriginalLocator: async () => true,
 		},
 		createPreviewEngine: ({ onState }) => {
 			previewEngine.setOnState(onState);
@@ -474,6 +475,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		getPositionFrames: () => 128,
 		normalizeTimelineStartFrame: (value) => Math.max(0, Math.round(Number(value))),
 		getVisualData: () => options.visualMediaUrl == null ? null : { mediaUrl: options.visualMediaUrl },
+		activateVideoSource: async () => null,
 		captureActiveDocument: () => ({ history, project }),
 		restoreActiveDocument: (snapshot) => {
 			history = snapshot.history;
