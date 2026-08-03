@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { encodeAiff } from '../src/common/editor/aiff.js';
 import { createLinkedPcmImporter } from '../src/common/editor/controller/linked-wav-import-service.ts';
 import {
 	createProjectImportService,
@@ -193,6 +194,77 @@ test('project import admits and activates a canonical linked BW64 .wav without b
 	assert.equal(calls.includes('begin-source-write'), false);
 });
 
+test('project import admits and activates classic linked AIFF without browser decoding', async () => {
+	const calls: string[] = [];
+	let nextId = 0;
+	let project = projectFixture();
+	const boundSources: Readonly<Record<string, unknown>>[] = [];
+	const file = aiffFile();
+	const runtime: Record<string, unknown> = {
+		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 32 * 1024 ** 2,
+		SOURCE_CHUNK_FRAMES: 65_536,
+		activateStoredSource: async () => { calls.push('activate-source'); },
+		assertProject: () => { calls.push('assert-project'); },
+		captureProject: () => { calls.push('capture-project'); return 'generation-1'; },
+		commit: (command: { readonly commands?: readonly Record<string, unknown>[] }) => {
+			calls.push('commit-command');
+			const source = command.commands?.find((child) => child.type === 'source/add')?.source;
+			project = { ...project, sources: source ? [source] : [] };
+		},
+		copy: {
+			audioTrackNotFound: 'Audio track not found.',
+			timelineFramesFinite: 'Timeline frames must be finite.',
+			track: 'Track',
+		},
+		createAddClipCommand: (trackId: string, clip: unknown) => ({ type: 'clip/add', trackId, clip }),
+		createAddSourceCommand: (source: unknown) => ({ type: 'source/add', source }),
+		createAddTrackCommand: (track: unknown) => ({ type: 'track/add', track }),
+		createStableId: (prefix: string) => `${prefix}-${++nextId}`,
+		editingBlocked: () => false,
+		engine: {
+			getAudioContext: async () => { throw new Error('browser decoder path used'); },
+		},
+		ffmpeg: { decode: async () => { throw new Error('FFmpeg path used'); } },
+		findTrack: () => null,
+		getProject: () => project,
+		inspectWavBlobPcm,
+		isAudioEditorVideoFile: () => false,
+		isLegacyAupFile: () => false,
+		isWavFile: () => false,
+		peakCacheKey: (sourceId: string) => `peaks:${sourceId}`,
+		projectSampleRate: () => 48_000,
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		sourcePcmBytes: () => 32,
+		sourcePeaks: new Map(),
+		store: {
+			async beginSourceWrite() { calls.push('begin-source-write'); throw new Error('owned write used'); },
+			async bindLinkedAudioOriginal(_projectId: string, source: Readonly<Record<string, unknown>>) {
+				calls.push('bind-audio');
+				boundSources.push(source);
+				return { bindingToken: 'binding_token_00000001' };
+			},
+			async getSourceMetadata() { return { sourceId: 'source-1', chunkCount: 1 }; },
+			async releaseLinkedOriginalLocator() { calls.push('release-locator'); return true; },
+			async unlinkLinkedAudioOriginal() { calls.push('unlink-audio'); return true; },
+		},
+		stripExtension: (name: string) => name.replace(/\.[^.]+$/u, ''),
+		warnEnvelope: () => undefined,
+	};
+	const result = await createProjectImportService(runtime as ProjectImportRuntime).importFile(file, {
+		destination: 'project-bin',
+		linkedAudioLocatorId: LOCATOR_ID,
+		linkedAudioLocatorRevision: LOCATOR_REVISION,
+	});
+
+	assert.equal(result.destination, 'project-bin');
+	assert.equal(boundSources[0]?.mimeType, 'audio/aiff');
+	assert.equal(boundSources[0]?.frameCount, 4);
+	assert.equal(calls.includes('activate-source'), true);
+	assert.equal(calls.includes('begin-source-write'), false);
+	assert.equal(calls.includes('release-locator'), false);
+});
+
 interface FixtureOptions {
 	readonly activationError?: Error;
 	readonly bindingError?: Error;
@@ -313,6 +385,26 @@ function bw64File() {
 	return Object.freeze({
 		name: 'field-recording.wav',
 		type: 'audio/wav',
+		size: bytes.byteLength,
+		async arrayBuffer() { return bytes.slice().buffer; },
+		slice(start = 0, end = bytes.byteLength) {
+			const value = bytes.slice(start, end);
+			return { async arrayBuffer() { return value.buffer; } };
+		},
+	});
+}
+
+function aiffFile() {
+	const encoded = encodeAiff([
+		Float32Array.of(-1, -0.5, 0, 0.5),
+		Float32Array.of(0.5, 0, -0.5, -1),
+	], { sampleFormat: 'int16', dither: 'none', sampleRate: 48_000 });
+	assert.ok(encoded instanceof Uint8Array);
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	return Object.freeze({
+		name: 'field-recording.aiff',
+		type: 'audio/aiff',
 		size: bytes.byteLength,
 		async arrayBuffer() { return bytes.slice().buffer; },
 		slice(start = 0, end = bytes.byteLength) {

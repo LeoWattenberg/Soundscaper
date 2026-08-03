@@ -201,9 +201,6 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 	};
 }
 
-/** @deprecated Use the container-neutral linked PCM importer. */
-export const createLinkedWavImporter = createLinkedPcmImporter;
-
 function linkedAudioSource({
 	chunkFrames,
 	descriptor,

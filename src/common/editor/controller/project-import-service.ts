@@ -15,7 +15,8 @@ import {
 	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
 import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
-import { createLinkedWavImporter } from './linked-wav-import-service.ts';
+import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
+import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -55,6 +56,16 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		reportProgress: (value) => { activeImportProgress?.update?.(value); },
 		sourceBuffers, sourceChunkProviders, sourcePcmBytes, sourcePeaks, store,
 		streamWavBlobPcm, stripExtension, warnEnvelope,
+	});
+	const importLinkedPcm = createLinkedPcmImporter({
+		SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
+		commit, copy, createStableId, getProject, importResultWithWarnings,
+		peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
+		sourceChunkProviders, sourcePeaks, store, stripExtension, warnEnvelope,
+	});
+	const importLinkedAudio = createLinkedAudioImportAdmission({
+		importLinkedPcm, inspectWavBlobPcm, isWavFile, prepareWavImportMetadata,
+		releaseLinkedOriginalLocator, validateImportTimelineTrack,
 	});
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {}) {
 		const files = [...(fileList || [])];
@@ -332,7 +343,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		if (videoFile) return importVideoFile(file, normalizedImportOptions);
 		if (linkedOriginalLocator?.kind === 'audio') {
-			return importLinkedAudioWav(file, normalizedImportOptions, linkedOriginalLocator);
+			return importLinkedAudio(file, normalizedImportOptions, linkedOriginalLocator);
 		}
 		validateImportTimelineTrack(normalizedImportOptions);
 		const wavSignature = await inspectWavContainerSignature(file, isWavFile);
@@ -424,45 +435,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		warnEnvelope();
 		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
-	}
-
-	async function importLinkedAudioWav(
-		file: RuntimeValue,
-		importOptions: RuntimeValue,
-		locator: LinkedOriginalImportLocatorReference,
-	) {
-		let delegated = false;
-		try {
-			validateImportTimelineTrack(importOptions);
-			const signature = await inspectWavContainerSignature(file, isWavFile);
-			const descriptor = await inspectWavForImport(
-				file, isWavFile, inspectWavBlobPcm, signature,
-			);
-			if (!signature || !descriptor) {
-				throw new TypeError('Linked audio originals are limited to maintained PCM RIFF, RF64, and BW64 WAV containers.');
-			}
-			const wavMetadata = prepareWavImportMetadata(descriptor, importOptions);
-			const importer = createLinkedWavImporter({
-				SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
-				commit, copy, createStableId, getProject, importResultWithWarnings,
-				peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
-				sourceChunkProviders, sourcePeaks, store, stripExtension, warnEnvelope,
-			});
-			delegated = true;
-			return await importer(file, descriptor, wavMetadata.importOptions, wavMetadata);
-		} catch (error) {
-			if (delegated) throw error;
-			try {
-				await releaseLinkedOriginalLocator(locator);
-			} catch (cleanupError) {
-				throw new AggregateError(
-					[error, cleanupError],
-					'Linked WAV import admission and locator cleanup both failed.',
-					{ cause: error },
-				);
-			}
-			throw error;
-		}
 	}
 
 	function isIncrementalWav(descriptor: RuntimeValue) {
