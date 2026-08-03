@@ -57,6 +57,7 @@ export interface PlaybackProjectService {
 
 export const PLAYBACK_PROJECT_APPLY_TASK = 'playback-project-apply';
 const STALE_PLAYBACK_PROJECT_APPLY = Symbol('stale-playback-project-apply');
+const NO_PLAYBACK_PROJECT_APPLY_FAILURE = Symbol('no-playback-project-apply-failure');
 
 interface PlaybackEngineState {
 	readonly state?: unknown;
@@ -227,6 +228,7 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 			signal: options.signal,
 		})
 		: null;
+	let applyFailure: unknown | typeof NO_PLAYBACK_PROJECT_APPLY_FAILURE = NO_PLAYBACK_PROJECT_APPLY_FAILURE;
 	try {
 		const transientBuffers = preparedSources && projection.requiredVideoSourceIds.length === 0
 			? new Map<unknown, unknown>()
@@ -266,9 +268,21 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 		return true;
 	} catch (error) {
 		if (error === STALE_PLAYBACK_PROJECT_APPLY) return false;
+		applyFailure = error;
 		throw error;
 	} finally {
-		preparedSources?.discard();
+		try {
+			await preparedSources?.discard();
+		} catch (cleanupError) {
+			if (applyFailure !== NO_PLAYBACK_PROJECT_APPLY_FAILURE) {
+				throw new AggregateError(
+					[applyFailure, cleanupError],
+					'Playback project application and source cleanup both failed.',
+					{ cause: applyFailure },
+				);
+			}
+			throw cleanupError;
+		}
 	}
 }
 

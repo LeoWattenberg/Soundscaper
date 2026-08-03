@@ -37,6 +37,7 @@ function preparedSources(
 	sourceBuffers: ReadonlyMap<string, unknown> = new Map(),
 	chunkSources: ReadonlyMap<string, unknown> = new Map(),
 	onCommit: () => void = () => undefined,
+	onDiscard: () => PromiseLike<void> | void = () => undefined,
 ) {
 	return Object.freeze({
 		async commit<Result>(apply: (inputs: Readonly<{
@@ -50,7 +51,7 @@ function preparedSources(
 			onCommit();
 			return result;
 		},
-		discard() {},
+		discard: onDiscard,
 	});
 }
 
@@ -331,6 +332,51 @@ test('playback reapplies only the projected document after required sources are 
 	assert.deepEqual(events, ['sources', 'engine']);
 	assert.equal(applied[0]?.clips?.[0]?.sourceId, 'fallback-source');
 	assert.strictEqual(canonical.clips[0]?.sourceId, 'original-source');
+});
+
+test('playback reapply awaits staged cleanup and preserves primary cleanup context', async () => {
+	const canonical = fallbackProject();
+	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: true });
+	const engineFailure = new Error('engine apply failed');
+	const cleanupFailure = new Error('provider cleanup failed');
+	const gate = deferred<void>();
+	let cleanupStarted = false;
+	const applying = applyCanonicalProjectToPlaybackEngine(canonical, {
+		projectForPlayback: (project) => service.projectForPlayback(project),
+		getCurrentProject: () => canonical,
+		ensureProjectSourcesAvailable: async () => assert.fail('required fallback must use staged preparation'),
+		prepareRequiredProjectSources: async () => preparedSources(
+			new Map(),
+			new Map(),
+			() => undefined,
+			async () => {
+				cleanupStarted = true;
+				await gate.promise;
+				throw cleanupFailure;
+			},
+		),
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		engine: {
+			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			applyProject() { throw engineFailure; },
+		},
+		setReadyStatus() {},
+	});
+	await Promise.resolve();
+	await Promise.resolve();
+	assert.equal(cleanupStarted, true);
+	let settled = false;
+	void applying.finally(() => { settled = true; }).catch(() => undefined);
+	await Promise.resolve();
+	assert.equal(settled, false);
+	gate.resolve();
+	await assert.rejects(applying, (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.deepEqual(error.errors, [engineFailure, cleanupFailure]);
+		assert.strictEqual(error.cause, engineFailure);
+		return true;
+	});
 });
 
 test('a canonical identity change during source preparation suppresses the stale engine apply', async () => {

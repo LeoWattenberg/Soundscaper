@@ -175,6 +175,8 @@ interface RequiredSourceFixtureOptions {
 	readonly buffer?: Readonly<Record<string, unknown>> | null;
 	readonly cacheFits?: boolean;
 	readonly metadata?: Readonly<Record<string, unknown>> | null;
+	readonly metadataFailure?: Readonly<{ storageKey: string; error: Error }>;
+	readonly providerDisposalFailure?: Error;
 	readonly stall?: 'metadata' | 'context' | 'buffer';
 }
 
@@ -229,6 +231,14 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 	};
 	const sourceChunkProviders = new Map<string, unknown>([[source.id, Object.freeze({ stale: true })]]);
 	const publishedProviders: Array<ReadonlyMap<string, unknown>> = [];
+	let providerDisposals = 0;
+	const freshProvider = Object.freeze({
+		marker: 'fresh-provider',
+		async dispose() {
+			providerDisposals += 1;
+			if (options.providerDisposalFailure) throw options.providerDisposalFailure;
+		},
+	});
 	const statuses: string[] = [];
 	const missingSourceIds = new Set<string>();
 	let bufferReads = 0;
@@ -243,7 +253,7 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		clipWaveformPcmRequests: new Map(),
 		clipWaveformPcmWindows: new Map(),
 		copy: {},
-		createStoredChunkProvider: () => Object.freeze({ marker: 'fresh-provider' }),
+		createStoredChunkProvider: () => freshProvider,
 		engine: {
 			getAudioContext: async () => {
 				if (options.stall === 'context') {
@@ -282,7 +292,10 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		sourcePeaks: new Map(),
 		state: { missingSourceIds },
 		store: {
-			getSourceMetadata: async () => {
+			getSourceMetadata: async (storageKey: string) => {
+				if (options.metadataFailure?.storageKey === storageKey) {
+					throw options.metadataFailure.error;
+				}
 				if (options.stall === 'metadata') {
 					stallStarted.resolve();
 					return metadataStall.promise;
@@ -302,6 +315,7 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		cachedBuffers,
 		missingSourceIds,
 		project,
+		providerDisposals: () => providerDisposals,
 		publishedProviders,
 		resolveStall() {
 			if (options.stall === 'metadata') metadataStall.resolve(metadata);
@@ -311,6 +325,7 @@ function createRequiredSourceFixture(options: RequiredSourceFixtureOptions = {})
 		service: createSourceLifecycleService(runtime),
 		source,
 		sourceChunkProviders,
+		freshProvider,
 		stallStarted: stallStarted.promise,
 		statuses,
 	};
@@ -322,9 +337,66 @@ test('fallback-only required long sources replace stale providers before playbac
 		requiredAudioSourceIds: [fixture.source.id],
 	});
 	assert.equal(transients.size, 0);
-	assert.deepEqual(fixture.sourceChunkProviders.get(fixture.source.id), { marker: 'fresh-provider' });
+	assert.strictEqual(fixture.sourceChunkProviders.get(fixture.source.id), fixture.freshProvider);
 	assert.equal(fixture.publishedProviders.length, 1);
 	assert.equal(fixture.bufferReads(), 0);
+});
+
+test('discard and failed apply retire a staged long-source provider exactly once', async () => {
+	const discarded = createRequiredSourceFixture({ long: true });
+	const preparation = await discarded.service.prepareRequiredProjectSources(discarded.project, {
+		requiredAudioSourceIds: [discarded.source.id],
+	});
+	await preparation.discard();
+	await preparation.discard();
+	assert.equal(discarded.providerDisposals(), 1);
+	assert.deepEqual(discarded.sourceChunkProviders.get(discarded.source.id), { stale: true });
+
+	const failed = createRequiredSourceFixture({ long: true });
+	const failedPreparation = await failed.service.prepareRequiredProjectSources(failed.project, {
+		requiredAudioSourceIds: [failed.source.id],
+	});
+	const failure = new Error('engine apply failed');
+	await assert.rejects(
+		failedPreparation.commit(() => { throw failure; }),
+		(error: unknown) => error === failure,
+	);
+	await failedPreparation.discard();
+	assert.equal(failed.providerDisposals(), 1);
+	assert.deepEqual(failed.sourceChunkProviders.get(failed.source.id), { stale: true });
+});
+
+test('a later preparation failure retires earlier providers and preserves cleanup failure context', async () => {
+	const preparationFailure = new Error('later metadata failed');
+	const cleanupFailure = new Error('earlier provider cleanup failed');
+	const fixture = createRequiredSourceFixture({
+		long: true,
+		metadataFailure: { storageKey: 'later-storage', error: preparationFailure },
+		providerDisposalFailure: cleanupFailure,
+	});
+	const laterSource = Object.freeze({
+		...fixture.source,
+		id: 'later-source',
+		storageKey: 'later-storage',
+	});
+	const project = Object.freeze({
+		...fixture.project,
+		sources: Object.freeze([fixture.source, laterSource]),
+	});
+
+	await assert.rejects(
+		fixture.service.prepareRequiredProjectSources(project, {
+			requiredAudioSourceIds: [fixture.source.id, laterSource.id],
+		}),
+		(error: unknown) => {
+			assert.ok(error instanceof AggregateError);
+			assert.deepEqual(error.errors, [preparationFailure, cleanupFailure]);
+			assert.strictEqual(error.cause, preparationFailure);
+			return true;
+		},
+	);
+	assert.equal(fixture.providerDisposals(), 1);
+	assert.deepEqual(fixture.sourceChunkProviders.get(fixture.source.id), { stale: true });
 });
 
 test('required long sources reject before whole-buffer decode when chunk streaming is unavailable', async () => {

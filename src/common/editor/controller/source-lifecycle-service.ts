@@ -2,6 +2,17 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep this migration seam typo-safe while source records are narrowed. */
 
+import {
+	createPreparedProjectSources,
+	type PreparedProjectSourceEntry,
+	type PreparedRequiredProjectSources,
+} from './prepared-project-sources.ts';
+
+export type {
+	PreparedProjectSourceInputs,
+	PreparedRequiredProjectSources,
+} from './prepared-project-sources.ts';
+
 type LegacyPort = (...args: any[]) => any;
 
 export interface SourceLifecycleServiceRuntime {
@@ -46,22 +57,6 @@ export interface SourceLifecycleLoadOptions {
 	readonly requiredAudioSourceIds?: readonly string[];
 	readonly requiredVideoSourceIds?: readonly string[];
 	readonly signal?: AbortSignal;
-}
-
-export interface PreparedProjectSourceInputs {
-	readonly sourceBuffers: ReadonlyMap<string, unknown>;
-	readonly chunkSources: ReadonlyMap<string, unknown>;
-}
-
-export interface PreparedRequiredProjectSources {
-	commit<Result>(
-		apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
-		options?: Readonly<{
-			assertCurrent?: () => void;
-			transientBuffers?: ReadonlyMap<string, unknown>;
-		}>,
-	): Promise<Result>;
-	discard(): void;
 }
 
 function throwIfSourceLoadAborted(signal?: AbortSignal): void {
@@ -298,103 +293,59 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		options: SourceLifecycleLoadOptions,
 	): Promise<PreparedRequiredProjectSources> {
 		const requiredSourceIds = requiredAudioSourceIdSet(project, options);
-		const prepared = new Map<string, Readonly<{ kind: 'buffer' | 'provider'; value: any }>>();
+		const prepared = new Map<string, PreparedProjectSourceEntry>();
+		const ownership = createPreparedProjectSources({
+			prepared,
+			signal: options.signal,
+			sourceBuffers,
+			sourceChunkProviders,
+			cacheSourceBuffer,
+			throwIfAborted: throwIfSourceLoadAborted,
+		});
 		throwIfSourceLoadAborted(options.signal);
 		let context: any = null;
-		for (const source of project.sources.filter((candidate: any) => requiredSourceIds.has(candidate.id))) {
-			const metadata = await awaitSourceLoadOperation(
-				() => store.getSourceMetadata(source.storageKey || source.id),
-				options.signal,
-			);
-			throwIfSourceLoadAborted(options.signal);
-			assertRequiredSourceMetadata(source, metadata);
-			if (sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
-				const provider = createStoredChunkProviderCandidate(source, metadata);
-				if (!provider) {
-					throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
-				}
-				prepared.set(source.id, Object.freeze({ kind: 'provider', value: provider }));
-				continue;
-			}
-			context ??= await awaitSourceLoadOperation(
-				() => engine.getAudioContext?.({ resume: false }),
-				options.signal,
-			);
-			throwIfSourceLoadAborted(options.signal);
-			const buffer = await awaitSourceLoadOperation(
-				() => readStoredAudioBuffer(store, source, context),
-				options.signal,
-			);
-			throwIfSourceLoadAborted(options.signal);
-			assertRequiredSourceBuffer(source, buffer);
-			prepared.set(source.id, Object.freeze({ kind: 'buffer', value: buffer }));
-		}
-		return createPreparedRequiredProjectSources(prepared, options.signal);
-	}
-
-	function createPreparedRequiredProjectSources(
-		prepared: Map<string, Readonly<{ kind: 'buffer' | 'provider'; value: any }>>,
-		signal?: AbortSignal,
-	): PreparedRequiredProjectSources {
-		let state: 'prepared' | 'committing' | 'committed' | 'discarded' = 'prepared';
-		return Object.freeze({ commit, discard });
-
-		async function commit<Result>(
-			apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
-			options: Readonly<{
-				assertCurrent?: () => void;
-				transientBuffers?: ReadonlyMap<string, unknown>;
-			}> = {},
-		): Promise<Result> {
-			if (state !== 'prepared') throw new Error(`The required source preparation is already ${state}.`);
-			if (typeof apply !== 'function') throw new TypeError('Required source preparation commit needs an apply callback.');
-			if (options.assertCurrent != null && typeof options.assertCurrent !== 'function') {
-				throw new TypeError('Required source preparation currentness assertion must be a function.');
-			}
-			state = 'committing';
-			try {
-				throwIfSourceLoadAborted(signal);
-				const preparedBuffers = new Map<string, unknown>(sourceBuffers);
-				for (const [sourceId, buffer] of options.transientBuffers ?? []) {
-					preparedBuffers.set(sourceId, buffer);
-				}
-				const preparedProviders = new Map<string, unknown>(sourceChunkProviders);
-				for (const [sourceId, entry] of prepared) {
-					preparedBuffers.delete(sourceId);
-					preparedProviders.delete(sourceId);
-					if (entry.kind === 'buffer') preparedBuffers.set(sourceId, entry.value);
-					else preparedProviders.set(sourceId, entry.value);
-				}
-				const result = await apply(Object.freeze({
-					sourceBuffers: preparedBuffers,
-					chunkSources: preparedProviders,
-				}));
-				throwIfSourceLoadAborted(signal);
-				options.assertCurrent?.();
-				for (const [sourceId, entry] of prepared) {
-					if (entry.kind === 'provider') {
-						sourceChunkProviders.set(sourceId, entry.value);
-						sourceBuffers.delete(sourceId);
-						continue;
+		try {
+			for (const source of project.sources.filter((candidate: any) => requiredSourceIds.has(candidate.id))) {
+				const metadata = await awaitSourceLoadOperation(
+					() => store.getSourceMetadata(source.storageKey || source.id),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
+				assertRequiredSourceMetadata(source, metadata);
+				if (sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
+					const provider = createStoredChunkProviderCandidate(source, metadata);
+					if (!provider) {
+						throw new Error(`Required rendered fallback source ${source.id} has no playable chunk provider.`);
 					}
-					cacheSourceBuffer(sourceId, entry.value);
-					sourceChunkProviders.delete(sourceId);
+					prepared.set(source.id, Object.freeze({ kind: 'provider', value: provider }));
+					continue;
 				}
-				state = 'committed';
-				prepared.clear();
-				return result;
-			} catch (error) {
-				state = 'discarded';
-				prepared.clear();
-				throw error;
+				context ??= await awaitSourceLoadOperation(
+					() => engine.getAudioContext?.({ resume: false }),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
+				const buffer = await awaitSourceLoadOperation(
+					() => readStoredAudioBuffer(store, source, context),
+					options.signal,
+				);
+				throwIfSourceLoadAborted(options.signal);
+				assertRequiredSourceBuffer(source, buffer);
+				prepared.set(source.id, Object.freeze({ kind: 'buffer', value: buffer }));
 			}
+		} catch (error) {
+			try {
+				await ownership.discard();
+			} catch (cleanupError) {
+				throw new AggregateError(
+					[error, cleanupError],
+					'Required source preparation and cleanup both failed.',
+					{ cause: error },
+				);
+			}
+			throw error;
 		}
-
-		function discard(): void {
-			if (state !== 'prepared') return;
-			state = 'discarded';
-			prepared.clear();
-		}
+		return ownership;
 	}
 
 	function createStoredChunkProviderCandidate(source: any, metadata: any) {
