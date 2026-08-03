@@ -35,11 +35,11 @@ test('desktop read capability evidence remains qualified for its current surface
 	]) assert.ok(rendererOwnedRead.evidence.some((item) => item.path === path));
 	assert.match(
 		rendererOwnedRead.summary,
-		/opaque main-owned.*committed main-frame document.*immutable profile.*all three profiles.*128 pending or live capability slots per owner.*before the first file-open await.*`materialized-v1`.*512 MiB.*per owner.*`scape-range-v1`.*four capabilities.*65 GiB.*globally and per owner.*`linked-video-range-v1`.*128 capabilities.*64 GiB.*globally and per owner.*512 MiB per file.*16 active range requests.*count reserves before open.*bytes charge after stat.*before publication/iu,
+		/opaque main-owned.*committed main-frame document.*immutable profile.*all four profiles.*128 pending or live capability slots per owner.*before the first file-open await.*`materialized-v1`.*512 MiB.*per owner.*`scape-range-v1`.*four capabilities.*65 GiB.*globally and per owner.*linked audio and video.*`linked-audio-range-v1`.*`linked-video-range-v1`.*128 capabilities.*64 GiB.*globally and per owner.*512 MiB per file.*16 active range requests.*count reserves before open.*bytes charge after stat.*before publication/iu,
 	);
 	assert.match(
 		rendererOwnedRead.summary,
-		/cleanup retains its range charge.*fences new range admission.*wrong-owner release.*correct release and expiry for the expiring profiles.*linked playback.*without wall-clock expiry.*navigation.*renderer loss.*window close.*shutdown.*delayed dialog, open, or stat.*without publication.*partial multi-file.*rollback release/iu,
+		/cleanup retains its range charge.*fences new range admission.*wrong-owner release.*correct release and expiry for the expiring profiles.*linked-original ranges.*without wall-clock expiry.*navigation.*renderer loss.*window close.*shutdown.*delayed dialog, open, or stat.*without publication.*partial multi-file.*rollback release/iu,
 	);
 	assert.match(
 		rendererOwnedRead.summary,
@@ -103,6 +103,31 @@ test('desktop read capability evidence remains qualified for its current surface
 		/success and ordinary seek cancellation.*preserve the capability.*inner stream failure retires.*explicit release.*owner revocation.*navigation.*renderer loss.*window close.*shutdown.*exact revision.*video MIME.*canonical pathless URL.*exact closed GET ranges.*full handle sequentially.*at-most-4-MiB ranges.*exact `206`.*Accept-Ranges.*Content-Range.*Content-Length.*Content-Type.*binding and CAS fence.*media URL and one-shot release.*cleanup failures.*aggregated/iu,
 	);
 
+	const linkedAudioRange = desktopRead.currentControls.find(
+		({ id }) => id === 'owner-scoped-linked-audio-range-lifecycle',
+	);
+	assert.ok(linkedAudioRange);
+	for (const path of [
+		'desktop/linked-video-locator-ipc.js',
+		'desktop/read-capability-admission.js',
+		'desktop/read-capability-range-stream.js',
+		'src/common/editor/desktop-linked-audio-range-adapter.ts',
+		'src/common/editor/storage/desktop-linked-original-range-reader.ts',
+		'src/common/editor/storage/linked-audio-original-source-reader.ts',
+		'src/common/editor/storage/linked-original-range-lease.ts',
+		'tests/desktop-linked-audio-range-capability.test.js',
+		'tests/audio-editor-desktop-linked-audio-range-source.test.ts',
+		'tests/audio-editor-linked-audio-range-source-reader.test.ts',
+	]) assert.ok(linkedAudioRange.evidence.some((item) => item.path === path));
+	assert.match(
+		linkedAudioRange.summary,
+		/closed pathless DTO.*mandatory range mode.*non-null exact locator revision.*pathname stat.*newly opened owner-scoped handle.*device, inode, size, modification-time, and change-time.*`linked-audio-range-v1`.*replacement during admission fails closed.*cannot retarget.*128 capabilities.*64 GiB.*globally and per owner.*512 MiB per file.*16 active requests.*4 MiB per response.*no wall-clock expiry/iu,
+	);
+	assert.match(
+		linkedAudioRange.summary,
+		/exact WAV or RF64 MIME\/name pair.*exact closed ranges.*`206`.*Accept-Ranges.*Content-Range.*Content-Length.*Content-Type.*hashes the stable opened handle sequentially.*binding and CAS fence.*without another whole-original Blob.*session completion release once.*initial selection and binding.*whole external WAV.*not a content-frozen, durable, or cross-process lease.*same-inode mutation.*unfenced.*Float32 arrays.*metadata.*decoder allocation.*process RSS.*packaged-executable.*operating-system.*audible\/device-playback.*reference-scale/iu,
+	);
+
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);
 	const boundedMaterialization = desktopRead.currentControls.find(
 		({ id }) => id === 'bounded-abortable-renderer-read-materialization',
@@ -130,7 +155,7 @@ test('desktop read capability evidence remains qualified for its current surface
 	]) assert.ok(boundedMaterialization.evidence.some((item) => item.path === path));
 	assert.match(
 		boundedMaterialization.summary,
-		/only.*main-assigned `materialized-v1`.*authoritative main-process admission.*aggregate active declared selected-file bytes.*512 MiB.*per committed-document owner.*before publication.*preload.*exact materialized profile.*name.*MIME.*safe size.*canonical profile-bearing URL.*renderer.*before fetch.*rejects.*Scape name.*canonical Scape MIME.*`scape-range-v1`.*`linked-video-range-v1`.*instead of materializing.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*releases every capability.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS.*Scape and linked-video playback.*excluded.*separately admitted range profiles/iu,
+		/only.*main-assigned `materialized-v1`.*authoritative main-process admission.*aggregate active declared selected-file bytes.*512 MiB.*per committed-document owner.*before publication.*preload.*exact materialized profile.*name.*MIME.*safe size.*canonical profile-bearing URL.*renderer.*before fetch.*rejects.*Scape name.*canonical Scape MIME.*`scape-range-v1`.*`linked-audio-range-v1`.*`linked-video-range-v1`.*instead of materializing.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*releases every capability.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS.*Scape and linked-original audio\/video ranges.*excluded.*separately admitted range profiles/iu,
 	);
 	assert.equal(desktopRead.releaseDisposition, 'qualified-current-surface');
 	assert.deepEqual(desktopRead.residualRisks, []);

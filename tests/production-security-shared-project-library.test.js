@@ -55,12 +55,18 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	for (const path of [
 		'desktop/linked-video-locator-ipc.js',
 		'desktop/project-library-ipc.js',
+		'tests/desktop-linked-audio-locator-ipc.test.js',
+		'tests/desktop-preload-linked-audio-original.test.js',
 		'tests/desktop-linked-video-locator-ipc.test.js',
 		'tests/desktop-preload-linked-video-original.test.js',
 		'tests/desktop-project-library-ipc.test.js',
 	]) assert.ok(rendererBoundary.evidence.some((item) => item.path === path));
 	assert.ok(preloadControl);
 	assert.ok(revocationControl);
+	for (const path of [
+		'tests/desktop-linked-audio-locator-ipc.test.js',
+		'tests/desktop-preload-linked-audio-original.test.js',
+	]) assert.ok(preloadControl.evidence.some((item) => item.path === path));
 	for (const ipcControl of [preloadControl, revocationControl]) {
 		for (const path of [
 			'desktop/linked-video-locator-ipc.js', 'desktop/project-library-ipc.js',
@@ -69,7 +75,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	}
 	assert.match(
 		preloadControl.summary,
-		/shared-project methods.*bounded, pathless list, read, bundle, commit, delete, and managed-media transfer.*closed canonical-PCM and retained-original-video encodings.*independently sanitized in main.*linked-video lifecycle methods.*closed pathless DTOs.*release request.*closed exact locator ID and revision.*own enumerable data fields.*mandatory Boolean mode.*whole-Blob materialization requires false.*ranged playback requires true.*non-null exact locator revision.*validate the mode, returned revision, profile-bound descriptor.*retire a descriptor.*cooperative startup reconciliation.*at most 128 unique exact locator\/revision pairs.*does not authenticate inventory completeness.*only startup-loaded private locator metadata.*never receives paths or deletes external files.*four active managed-source uploads.*four active reads.*64 GiB.*4 MiB.*descriptors rather than filesystem paths.*linked-video reads remain owner-bound.*authorization and revocation/iu,
+		/shared-project methods.*bounded, pathless list, read, bundle, commit, delete, and managed-media transfer.*closed canonical-PCM and retained-original-video encodings.*independently sanitized in main.*linked-original lifecycle methods.*closed kind-specific pathless DTOs.*release request.*closed exact kind, locator ID, and revision.*own enumerable data fields.*audio and video load requests.*Boolean range and playback modes.*whole-Blob materialization requires false.*ranged access requires true.*non-null exact locator revision.*validate the mode, returned revision, profile-bound descriptor.*kind-specific MIME\/name contract.*retire a descriptor.*cooperative startup reconciliation.*at most 128 unique exact locator\/revision pairs.*does not authenticate inventory completeness.*only startup-loaded private locator metadata.*never receives paths or deletes external files.*four active managed-source uploads.*four active reads.*64 GiB.*4 MiB.*descriptors rather than filesystem paths.*linked-original reads remain owner-bound.*authorization and revocation/iu,
 	);
 	for (const path of [
 		'desktop/linked-video-locator-store.ts', 'desktop/linked-video-locator-runtime.js',
@@ -77,8 +83,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	]) assert.ok(revocationControl.evidence.some((item) => item.path === path));
 	assert.match(
 		revocationControl.summary,
-		/owner revocation.*fences new operations.*aborts.*managed-source uploads.*drains admitted uploads and reads.*navigation.*renderer loss.*window close.*linked-video handlers.*active document owner.*drains its materialized and ranged playback read capabilities.*without deleting persistent locator metadata.*exact locator release.*revision CAS.*missing, stale, or already-revoked.*false without a registry write.*failed persistence.*restores in-memory state.*does not prove durable on-disk rollback.*revocation after a deletion write.*second persisted restore.*failed restore.*indeterminate on-disk outcome.*surfaced/iu,
+		/owner revocation.*fences new operations.*aborts.*managed-source uploads.*drains admitted uploads and reads.*navigation.*renderer loss.*window close.*linked-original handlers.*active document owner.*drains its materialized and ranged audio\/video read capabilities.*without deleting persistent locator metadata.*exact locator release.*revision CAS.*missing, stale, or already-revoked.*false without a registry write.*failed persistence.*restores in-memory state.*does not prove durable on-disk rollback.*revocation after a deletion write.*second persisted restore.*failed restore.*indeterminate on-disk outcome.*surfaced/iu,
 	);
+	assert.ok(revocationControl.evidence.some(
+		({ path }) => path === 'tests/desktop-linked-audio-range-capability.test.js',
+	));
 	assert.ok(revocationControl.evidence.some(
 		({ path }) => path === 'tests/desktop-project-library-packaging.test.js',
 	));
@@ -586,7 +595,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
-		/portable mixed-media handoff.*qualify the maintained least-authority linked-video chooser, import, and ranged playback.*packaged executables.*supported platforms.*durable operating-system locator.*immutable or cross-process byte-identity semantics.*reference-scale or stable playback.*reconcile source-level linked-binding reachability during startup and beyond maintained same-store saves and successful writable activations.*continuous cleanup beyond the bounded startup pass.*replace renderer-asserted completeness.*independently authenticated liveness authority.*compromised-renderer availability integrity.*coordinate catalog, binding, and registry mutation.*cross-store or cross-process atomicity.*portable stable original and authored-proxy relationships.*generic and third-party rendered-fallback relationships.*linked audio and otherwise unmanaged media.*relink.*watch.*general consolidation.*extend the bounded managed-media collector.*continuous runtime.*empty-directory.*database-space.*foreign-file cleanup.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate immutable byte identity through playback.*durable lease or equivalent same-inode mutation fence.*packaged Electron UI two-product source-bearing save and return lifecycle.*first-party video-effects fallback.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
+		/portable mixed-media handoff.*qualify the maintained least-authority linked-video chooser, import, and ranged playback plus linked-WAV ranged reads.*packaged executables.*supported platforms.*durable operating-system locator.*immutable or cross-process byte-identity semantics.*reference-scale or stable playback.*reconcile source-level linked-binding reachability during startup and beyond maintained same-store saves and successful writable activations.*continuous cleanup beyond the bounded startup pass.*replace renderer-asserted completeness.*independently authenticated liveness authority.*compromised-renderer availability integrity.*coordinate catalog, binding, and registry mutation.*cross-store or cross-process atomicity.*portable stable original and authored-proxy relationships.*generic and third-party rendered-fallback relationships.*linked audio and otherwise unmanaged media.*relink.*watch.*general consolidation.*extend the bounded managed-media collector.*continuous runtime.*empty-directory.*database-space.*foreign-file cleanup.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate immutable byte identity through ranged reads and playback.*durable lease or equivalent same-inode mutation fence.*packaged Electron UI two-product source-bearing save and return lifecycle.*first-party video-effects fallback.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
 	);
 	assert.match(
 		managedMedia?.acceptanceCriteria.join(' ') ?? '',

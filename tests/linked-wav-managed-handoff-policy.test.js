@@ -18,20 +18,34 @@ test('linked WAV handoff policy stays point-in-time and container-free', async (
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/explicitly injected Electron.*point-in-time.*RIFF or RF64 WAV.*PCM or IEEE-float.*512 MiB.*main-private.*pathless.*sender.*no owned PCM body.*explicit managed handoff.*canonical Float32 PCM.*fresh recipient.*ordinary owned canonical PCM.*reopen.*without.*locator.*external WAV container.*locator.*must not enter.*shared managed catalog.*recipient/iu,
+		/explicitly injected Electron.*point-in-time.*RIFF or RF64 WAV.*PCM or IEEE-float.*512 MiB.*main-private.*pathless.*initial chooser and bind.*whole WAV snapshot.*binding commits.*owner-scoped exact-revision range capability.*exact length and MIME.*full sequential SHA-256.*at-most-4-MiB.*recheck.*binding.*range-backed RIFF\/RF64.*without another whole-original `Blob`.*generic platform port.*without.*optional range.*whole-`Blob` fallback.*sender.*no owned PCM body.*explicit managed handoff.*two full source-API passes.*fresh recipient.*ordinary owned canonical PCM.*reopen.*without.*locator.*external WAV container.*locator.*must not enter.*shared managed catalog.*recipient/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/main-private registry.*absolute path.*device, inode, size, modification time, and change time.*512 MiB.*binding.*scalar.*pathless.*whole WAV snapshot.*exact SHA-256.*RIFF or RF64.*PCM or IEEE-float.*canonical source geometry.*sender.*owned source inventory remains empty.*prepareHandoff.*two.*canonical Float32.*managed `audio-f32le-chunks-v1`.*fresh recipient.*owned source writer.*reopens.*without.*linked-original port.*WAV container bytes.*locator identity.*never cross.*managed-media bridge or catalog/iu,
+		/main-private registry.*absolute path.*device, inode, size, modification time, and change time.*512 MiB.*binding.*scalar.*pathless.*chooser and initial bind.*whole WAV snapshot.*later maintained Electron source reads.*owner-scoped `linked-audio-range-v1`.*exact locator revision.*exact byte length and MIME.*complete opened handle.*at-most-4-MiB `206`.*recheck.*binding.*range-backed source.*without a second whole-original `Blob`.*read session.*release.*generic platform port.*whole-`Blob` resolution/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/sender.*owned source inventory remains empty.*`prepareHandoff`.*two canonical Float32 PCM source-API passes.*managed `audio-f32le-chunks-v1`.*fresh recipient.*owned source writer.*reopens.*without.*linked-original port.*WAV container bytes.*locator identity.*never cross.*managed-media bridge or catalog/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/pathname move or replacement.*cannot retarget.*opened handle.*same-inode mutation.*during or after sequential digest verification.*not fenced.*not content-frozen.*durable.*cross-process snapshot/iu,
 	);
 	for (const path of [
 		'desktop/linked-video-locator-ipc.js',
+		'src/common/editor/desktop-linked-audio-range-adapter.ts',
 		'src/common/editor/desktop-linked-original-port.ts',
 		'src/common/editor/controller/linked-wav-import-service.ts',
 		'src/common/editor/storage/linked-audio-original-source-reader.ts',
+		'src/common/editor/storage/linked-original-range-byte-source.ts',
+		'src/common/editor/storage/linked-original-range-lease.ts',
 		'src/common/editor/storage/desktop-shared-project-media-sender.ts',
 		'src/common/editor/storage/source-write-repository.ts',
 		'tests/desktop-linked-audio-locator.test.ts',
+		'tests/desktop-linked-audio-range-capability.test.js',
+		'tests/audio-editor-desktop-linked-audio-range-source.test.ts',
+		'tests/audio-editor-linked-audio-range-source-reader.test.ts',
 		'tests/audio-editor-linked-wav-import.test.ts',
 		'tests/audio-editor-linked-audio-source-reader.test.ts',
 		'tests/desktop-project-library-managed-audio-handoff.test.ts',
@@ -40,11 +54,15 @@ test('linked WAV handoff policy stays point-in-time and container-free', async (
 	const documentation = await readFile(compatibilityDocumentUrl, 'utf8');
 	assert.match(
 		documentation,
-		/narrow linked-WAV managed-handoff exception.*explicitly injected Electron.*point-in-time.*RIFF or RF64.*PCM or IEEE-float.*512 MiB.*main-private registry.*sender.*owned PCM inventory remains empty.*explicit `prepareHandoff`.*canonical Float32 PCM.*fresh recipient.*ordinary owned source writer.*reopen.*without.*locator.*external WAV container bytes.*locator identity.*do not cross.*managed-media bridge or enter.*shared catalog/isu,
+		/narrow linked-WAV managed-handoff exception.*explicitly injected Electron.*point-in-time.*RIFF or RF64.*PCM or IEEE-float.*512 MiB.*main-private registry.*chooser and initial bind.*whole WAV snapshot.*binding commits.*owner-scoped `linked-audio-range-v1`.*exact locator revision.*complete opened handle.*at-most-4-MiB `206`.*rechecks.*binding.*range-backed source.*no second whole-original.*generic platform port.*whole-`Blob`.*fallback.*sender.*owned PCM inventory remains empty.*explicit `prepareHandoff`.*two canonical Float32 PCM.*source-API passes.*fresh recipient.*ordinary owned source writer.*reopen.*without.*locator.*external WAV container bytes.*locator identity.*do not cross.*managed-media bridge or enter.*shared catalog/isu,
 	);
 	assert.match(
 		documentation,
-		/does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*audio range playback.*generic linked-audio support/isu,
+		/This exception does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*range support outside maintained post-bind Electron.*linked-WAV source reads.*generic linked-audio support/isu,
+	);
+	assert.match(
+		documentation,
+		/same-inode in-place mutation.*during or after sequential digest verification.*not fenced.*not an operating-system bookmark.*content-frozen or durable byte lease.*cross-process snapshot/isu,
 	);
 });
 
@@ -62,7 +80,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		control.summary,
-		/canonical Float32 PCM chunks.*only explicit managed handoff.*two canonical Float32 PCM passes.*`audio-f32le-chunks-v1`/iu,
+		/subsequent maintained source reads.*exact locator revision.*opened-handle identity.*at-most-4-MiB responses.*binding and CAS fence.*exact WAV ranges.*without another whole-original Blob.*audio and video share.*128 capabilities.*64 GiB.*16 active requests.*512 MiB per file.*4 MiB per response.*only explicit managed handoff.*two canonical Float32 PCM passes.*`audio-f32le-chunks-v1`/iu,
 	);
 	assert.match(
 		control.summary,
@@ -70,7 +88,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		control.summary,
-		/not.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader formats.*audio range playback.*generic linked-audio support/iu,
+		/not.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader formats.*generic linked-audio support.*audible or device playback.*reference-scale qualification.*initial whole-body materialization remains.*not a content-frozen, durable, or cross-process lease.*same-inode external mutation/iu,
 	);
 	for (const path of [
 		'desktop/linked-video-locator-store.ts',
@@ -92,11 +110,11 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		residual?.exposure ?? '',
-		/narrow linked-WAV exception.*point-in-time.*sender without owned PCM.*canonical Float32 PCM.*fresh recipient.*(?:owns|owned) canonical PCM.*without the locator.*external WAV container.*does not cross/iu,
+		/maintained linked-WAV exception.*point-in-time.*initial whole-body binding materialization.*sender without owned PCM.*exact-revision owner-scoped stable-handle range lease.*canonical Float32 PCM.*without another whole-original Blob.*fresh recipient owns canonical PCM.*without the locator.*external WAV container.*does not cross/iu,
 	);
 	assert.match(
 		residual?.exposure ?? '',
-		/broader linked audio.*packaged executable or UI.*operating-system path durability.*relink or watch.*audio range playback.*remain.*open/iu,
+		/maintained linked-WAV exception.*exact-revision owner-scoped stable-handle range lease.*without another whole-original Blob.*linked audio beyond the maintained WAV\/RF64 range.*packaged executable or UI.*operating-system path durability.*content-frozen or cross-process leasing.*same-inode mutation fencing.*audible or device playback.*reference-scale memory/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -110,7 +128,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		threatModel,
-		/sender has\s+no owned PCM.*explicit managed handoff.*two\s+canonical Float32 PCM passes.*fresh recipient.*ordinary\s+owned canonical PCM.*reopens without the original locator/isu,
+		/sender\s+has no owned PCM.*explicit managed handoff.*two\s+canonical\s+Float32 PCM passes.*fresh recipient.*ordinary owned canonical PCM.*reopens without the original locator/isu,
 	);
 	assert.match(
 		threatModel,
@@ -118,7 +136,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		threatModel,
-		/does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*audio ranges.*generic linked-audio/isu,
+		/does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*generic linked-audio.*audible or device playback.*reference-scale.*initial complete-body materialization remains.*same-inode mutation.*not fenced.*four-MiB transport ceiling.*does not bound.*Float32 arrays.*metadata.*process RSS/isu,
 	);
 });
 
@@ -139,7 +157,7 @@ test('linked WAV portable archive stores canonical PCM without locator state', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/directly exercises RIFF IEEE-float.*focused reader and import.*RIFF\/RF64 PCM and IEEE-float.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/iu,
+		/maintained Electron chooser and initial binding.*whole WAV snapshot.*subsequent archive source reads.*owner-scoped exact-revision range capability.*full sequential SHA-256.*at-most-4-MiB.*range-backed RIFF\/RF64.*without another whole-original `Blob`.*generic platform port.*whole-`Blob`.*fallback.*directly exercises RIFF IEEE-float.*focused reader and import.*RIFF\/RF64 PCM and IEEE-float.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*range support outside maintained post-bind Electron linked-WAV source reads/iu,
 	);
 	for (const path of [
 		'src/common/editor/scape-project.js',
@@ -157,7 +175,11 @@ test('linked WAV portable archive stores canonical PCM without locator state', a
 	);
 	assert.match(
 		documentation,
-		/does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/isu,
+		/maintained Electron chooser and initial bind.*whole WAV.*snapshot.*binding commits.*owner-scoped exact-revision range capability.*at-most-4-MiB.*range-backed.*RIFF.RF64.*without constructing another whole-original `Blob`.*generic platform port.*whole-`Blob`.*fallback/isu,
+	);
+	assert.match(
+		documentation,
+		/portable exception does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*range support outside maintained post-bind Electron.*linked-WAV source reads/isu,
 	);
 });
 
@@ -175,7 +197,7 @@ test('portable linked WAV canonicalization has a dedicated archive security cont
 	);
 	assert.match(
 		control.summary,
-		/RIFF IEEE-float.*direct witness.*wider RIFF\/RF64 PCM and IEEE-float.*focused.*not.*future-schema archive preservation.*byte-exact WAV-container.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/iu,
+		/RIFF IEEE-float.*direct witness.*wider RIFF\/RF64 PCM and IEEE-float.*focused.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audible or device playback.*content-frozen or cross-process leases.*same-inode mutation fencing.*reference-scale memory/iu,
 	);
 	for (const path of [
 		'src/common/editor/scape-project.js',
@@ -193,6 +215,6 @@ test('portable linked WAV canonicalization has a dedicated archive security cont
 	);
 	assert.match(
 		threatModel,
-		/does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audio range playback/isu,
+		/does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audible or device playback.*reference-scale memory/isu,
 	);
 });

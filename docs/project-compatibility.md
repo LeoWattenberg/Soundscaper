@@ -38,6 +38,13 @@ PCM or IEEE-float WAV under the 512 MiB linked-original ceiling retains
 no owned PCM. Export reads its verified canonical chunks and writes only a
 canonical `audio-f32le-chunks-v1` asset. The external WAV container bytes and
 pathless locator identity are absent from the archive.
+A maintained Electron chooser and initial bind still materialize one whole WAV
+snapshot. After that binding commits, archive source reads acquire an
+owner-scoped exact-revision range capability, hash the complete source in exact
+at-most-4-MiB reads, recheck the binding, and decode through a range-backed
+RIFF/RF64 source without constructing another whole-original `Blob`. A generic
+platform port without the optional range operation retains the whole-`Blob`
+source-reader fallback.
 A fresh recipient without a linked-original port imports that asset through the
 ordinary owned PCM writer,
 then can close and reopen, recovering exact samples and project state with zero
@@ -47,9 +54,10 @@ boundary.
 
 This portable exception does not qualify future-schema archive preservation,
 byte-exact WAV-container preservation, packaged executable or UI and
-operating-system behavior, relink or watch, other audio formats, or audio range
-playback. Canonical PCM portability is the contract; the selected external
-container is neither transferred nor reconstructed.
+operating-system behavior, relink or watch, other audio formats, or range
+support outside maintained post-bind Electron linked-WAV source reads.
+Canonical PCM portability is the contract; the selected external container is
+neither transferred nor reconstructed.
 
 ## Retained migrations
 
@@ -329,22 +337,38 @@ maintained PCM or IEEE-float samples and no larger than 512 MiB may remain in a
 main-private registry. Only that registry contains the absolute path and its
 device, inode, size, modification time, and change time; the project and
 renderer-side binding retain pathless locator and revision tokens plus scalar
-canonical source geometry. Each source read materializes and hashes the whole
-WAV snapshot, admits only the maintained RIFF/RF64 sample encodings, and
-rechecks the exact binding. The sender's owned PCM inventory remains empty.
+canonical source geometry. The chooser and initial bind still materialize and
+hash one whole WAV snapshot. After that binding commits, maintained Electron
+canonical PCM reads instead acquire an owner-scoped `linked-audio-range-v1`
+capability at the exact locator revision. Before RIFF/RF64 inspection or PCM
+decoding, the renderer requires the exact byte length and MIME type, hashes the
+complete opened handle sequentially through exact at-most-4-MiB `206` reads,
+and rechecks the exact binding. The WAV inspector and chunk decoder then use a
+range-backed source, so the session constructs no second whole-original
+`Blob`, and release of the capability is owned by that read session. An
+available range operation that reports unavailable, malformed, drifted, or
+corrupt data fails closed; a generic platform port that does not implement the
+optional range operation retains the prior whole-`Blob` source-reader fallback.
+The sender's owned PCM inventory remains empty.
+
 Only explicit `prepareHandoff` performs the normal two canonical Float32 PCM
-reads and publishes their chunks through the maintained managed
-`audio-f32le-chunks-v1` path. A fresh recipient acquires those chunks through
-its ordinary owned source writer and can close and reopen the canonical PCM
-without the linked-original port or locator. External WAV container bytes and
-locator identity do not cross the managed-media bridge or enter the shared
-catalog or recipient.
+source-API passes and publishes their chunks through the maintained managed
+`audio-f32le-chunks-v1` path. On Electron, both post-bind passes use the ranged
+source lifecycle above; the handoff does not collapse them into one pass. A
+fresh recipient acquires those chunks through its ordinary owned source writer
+and can close and reopen the canonical PCM without the linked-original port or
+locator. External WAV container bytes and locator identity do not cross the
+managed-media bridge or enter the shared catalog or recipient.
 
 This exception does not qualify packaged executable or UI behavior,
 operating-system file-dialog or path durability, relink or watch behavior,
-broader audio formats, audio range playback, or generic linked-audio support.
-The external path and stat tuple are a point-in-time main-private identity, not
-an operating-system bookmark, content-frozen lease, or cross-process snapshot.
+broader audio formats, range support outside maintained post-bind Electron
+linked-WAV source reads, or generic linked-audio support. The external path and
+stat tuple are a point-in-time main-private identity. Moving or replacing the
+pathname after range admission does not retarget the opened handle, but
+same-inode in-place mutation during or after sequential digest verification is
+not fenced. The capability is therefore not an operating-system bookmark,
+content-frozen or durable byte lease, or cross-process snapshot.
 
 A deliberately narrow linked retained-video path is qualified at this same
 boundary. A local binding joins the exact project ID, logical video source ID,
@@ -574,9 +598,10 @@ publication, the memory or IndexedDB binding prune, alias re-inventory, and
 main-process exact release are not one cross-boundary transaction; interruption
 between them may safely leak metadata until a later maintained save or writable
 activation.
-Cross-store or cross-process coordination, relink or watch, audio range
-playback, packaged executable or operating-system qualification, third-party
-activation gating, and legacy private libraries are outside this claim.
+Cross-store or cross-process coordination, relink or watch, range support
+outside maintained post-bind Electron linked-WAV source reads, packaged
+executable or operating-system qualification, third-party activation gating,
+and legacy private libraries are outside this claim.
 
 That same lifecycle coordinator now serializes project duplication with binding
 publication, exact unlink, startup reconciliation, project deletion, and
