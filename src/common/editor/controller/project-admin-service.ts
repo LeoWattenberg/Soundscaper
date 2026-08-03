@@ -67,8 +67,19 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	async function prepareProjectHandoff() {
 		const project = getProject();
 		if (!project) throw new Error(copy.projectNotFound);
-		if (state.readOnly) throw new Error(copy.projectReadOnly);
-		await flushProject();
+		const metadata = sessionTab(project.id)?.metadata;
+		const featureRequirementReadOnly = Boolean(
+			state.readOnly
+			&& metadata?.declaredReadOnly === false
+			&& metadata.intrinsicReadOnly === true
+			&& metadata.featureRequirementsReadOnly === true
+			&& state.projectLock?.projectId === project.id
+			&& state.projectLock.readOnly === false,
+		);
+		if (state.projectLock?.readOnly || (state.readOnly && !featureRequirementReadOnly)) {
+			throw new Error(copy.projectReadOnly);
+		}
+		if (!featureRequirementReadOnly) await flushProject();
 		if (getProject() !== project) throw new Error(copy.projectNotFound);
 		await store.prepareProjectHandoff?.(project);
 		if (getProject() !== project) throw new Error(copy.projectNotFound);

@@ -32,7 +32,17 @@ function createFixture() {
 		protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
 	}>> = [];
 	const scheduled: Array<{ callback: () => void; delay: number }> = [];
-	const tabs = new Map<string, { projectId: string; dirty: boolean; readOnly: boolean; history: { present: Project } }>();
+	const tabs = new Map<string, {
+		projectId: string;
+		dirty: boolean;
+		readOnly: boolean;
+		history: { present: Project };
+		metadata?: Readonly<{
+			declaredReadOnly?: boolean;
+			featureRequirementsReadOnly?: boolean;
+			intrinsicReadOnly?: boolean;
+		}>;
+	}>();
 	tabs.set('project-a', {
 		projectId: 'project-a', dirty: false, readOnly: false,
 		history: { present: project },
@@ -42,6 +52,7 @@ function createFixture() {
 	const sourcePeaks = new Map<string, unknown>([['peak', {}], ['deleted', {}]]);
 	const state = {
 		readOnly: false,
+		projectLock: { projectId: 'project-a', readOnly: false },
 		recordingRouting: { input: 'mic' },
 		missingSourceIds: new Set(['deleted']),
 		disposed: false,
@@ -80,6 +91,7 @@ function createFixture() {
 			savedProjectOptions.push(options);
 		},
 		async deleteProject(projectId: string) { calls.push(`delete:${projectId}`); },
+		async prepareProjectHandoff(project: Project) { calls.push(`handoff:${project.id}`); },
 		async pruneUnreferencedSources(options: unknown) {
 			calls.push('prune');
 			assert.ok(options);
@@ -308,14 +320,61 @@ test('source garbage collection protects live state and schedules the next pass'
 	assert.equal(noPrune.calls.includes('prune'), false);
 });
 
-test('handoff guards missing and read-only projects, while local reset clears all runtime data', async () => {
+test('handoff guards missing, declared read-only, and lock-contended projects', async () => {
 	const missing = createFixture();
 	missing.setProject(null);
 	await assert.rejects(() => createProjectAdminService(missing.runtime).prepareProjectHandoff(), /not found/iu);
 
-	const readOnly = createFixture();
-	readOnly.state.readOnly = true;
-	await assert.rejects(() => createProjectAdminService(readOnly.runtime).prepareProjectHandoff(), /read-only/iu);
+	const declaredReadOnly = createFixture();
+	declaredReadOnly.state.readOnly = true;
+	await assert.rejects(
+		() => createProjectAdminService(declaredReadOnly.runtime).prepareProjectHandoff(),
+		/read-only/iu,
+	);
+
+	const lockContended = createFixture();
+	lockContended.state.readOnly = true;
+	lockContended.state.projectLock.readOnly = true;
+	lockContended.tabs.get('project-a')!.metadata = {
+		declaredReadOnly: false,
+		featureRequirementsReadOnly: true,
+		intrinsicReadOnly: true,
+	};
+	await assert.rejects(
+		() => createProjectAdminService(lockContended.runtime).prepareProjectHandoff(),
+		/read-only/iu,
+	);
+
+	const declaredAndFeatureReadOnly = createFixture();
+	declaredAndFeatureReadOnly.state.readOnly = true;
+	declaredAndFeatureReadOnly.tabs.get('project-a')!.metadata = {
+		declaredReadOnly: true,
+		featureRequirementsReadOnly: true,
+		intrinsicReadOnly: true,
+	};
+	await assert.rejects(
+		() => createProjectAdminService(declaredAndFeatureReadOnly.runtime).prepareProjectHandoff(),
+		/read-only/iu,
+	);
+});
+
+test('feature-requirement read-only handoff publishes the exact project without flushing', async () => {
+	const fixture = createFixture();
+	fixture.state.readOnly = true;
+	fixture.tabs.get('project-a')!.metadata = {
+		declaredReadOnly: false,
+		featureRequirementsReadOnly: true,
+		intrinsicReadOnly: true,
+	};
+
+	assert.deepEqual(await createProjectAdminService(fixture.runtime).prepareProjectHandoff(), {
+		projectId: 'project-a', revision: 3,
+	});
+	assert.equal(fixture.calls.includes('flush'), false);
+	assert.ok(fixture.calls.indexOf('handoff:project-a') < fixture.calls.indexOf('release'));
+});
+
+test('local reset clears all runtime data', async () => {
 
 	const fixture = createFixture();
 	await createProjectAdminService(fixture.runtime).clearLocalData();

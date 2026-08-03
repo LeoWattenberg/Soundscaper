@@ -14,7 +14,6 @@ import { createEditorController } from '../src/common/editor/facade.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import type { EngineChunkSource, EngineChunkReadValue } from '../src/common/editor/engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
 	createAudioClipV9,
 	createAudioEditorProjectV9,
@@ -44,6 +43,7 @@ const AUDIO_EXPORT_SETTINGS = Object.freeze({
 	bitDepth: 32, dither: 'none', format: 'wav', includeTail: false,
 	mode: 'mix', sampleFormat: 'float32',
 });
+const UNKNOWN_AUDIO_FEATURE_ID = 'org.example.future-mixer';
 const SOUND_OWNER = owner('soundscaper', 601, 'fallback-handoff-sound');
 const FRAME_OWNER = owner('framescaper', 602, 'fallback-handoff-frame');
 
@@ -74,7 +74,7 @@ interface ExportActions {
 	}> | undefined>;
 }
 
-test('fresh Framescaper acquires, plays, and delivers a spectral-editing audio fallback', async (context) => {
+test('fresh Framescaper acquires, plays, and delivers an unknown-feature audio fallback', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-audio-fallback-handoff-'));
 	const resources = trackResources(context, appDataPath);
 	const fixture = fallbackProjectFixture();
@@ -101,7 +101,7 @@ test('fresh Framescaper acquires, plays, and delivers a spectral-editing audio f
 	}));
 	const soundReady = await soundscaper.ready;
 	assert.equal(soundReady.phase, 'ready', JSON.stringify(soundReady.status));
-	assert.equal(soundReady.readOnly, false);
+	assert.equal(soundReady.readOnly, true);
 	assert.deepEqual(await projectActions(soundscaper).prepareHandoff(), {
 		projectId: fixture.project.id,
 		revision: fixture.project.revision,
@@ -185,11 +185,15 @@ test('fresh Framescaper acquires, plays, and delivers a spectral-editing audio f
 			requirementId?: string;
 			sourceId?: string;
 		}> | null;
+		featureRequirementsCompatibility?: Readonly<{
+			items?: readonly Readonly<{ availability?: string }>[];
+		}> | null;
 	}>;
+	assert.equal(snapshot.featureRequirementsCompatibility?.items?.[0]?.availability, 'unknown');
 	assert.equal(snapshot.audioRenderedFallback?.sourceId, fixture.fallback.id);
 	assert.equal(
 		snapshot.audioRenderedFallback?.featureId,
-		PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
+		UNKNOWN_AUDIO_FEATURE_ID,
 	);
 	assert.equal(snapshot.audioRenderedFallback?.requirementId, 'publisher-audio-render');
 	await frameStore.deleteSource(fixture.fallback.storageKey);
@@ -251,8 +255,8 @@ function fallbackProjectFixture() {
 		})],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-audio-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
-			displayName: 'Publisher audio render',
+			featureId: UNKNOWN_AUDIO_FEATURE_ID,
+			displayName: 'Future mixer',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'audio', sourceId: fallback.id, sha256: fallbackSha256 },
 		}] },
