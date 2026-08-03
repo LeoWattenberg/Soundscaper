@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	PROJECT_FEATURE_CAPABILITY_IDS,
-	isProjectFeatureVideoCapabilityId,
-} from '../project-feature-capabilities.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../project-feature-capabilities.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
@@ -52,8 +49,9 @@ const EMPTY_VIDEO_DELIVERY = Object.freeze({
 	videoRenderedFallback: null,
 	requiredVideoSourceIds: Object.freeze([]),
 });
+const FEATURE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/u;
 
-/** Select only the maintained video fallback projection used by final delivery. */
+/** Select only the closed video fallback projection used by final delivery. */
 export function projectForVideoRenderedFallbackExport<Project extends object>(
 	project: Project,
 	service?: VideoRenderedFallbackDeliveryService | null,
@@ -145,7 +143,7 @@ function assertActiveMetadata(
 	requiredSourceIds: readonly string[],
 ): void {
 	if (metadata.schemaVersion !== 1
-		|| !isProjectFeatureVideoCapabilityId(metadata.featureId)
+		|| typeof metadata.featureId !== 'string' || !FEATURE_ID_PATTERN.test(metadata.featureId)
 		|| requiredSourceIds.length !== 1
 		|| requiredSourceIds[0] !== metadata.sourceId) {
 		throw new TypeError('Video rendered-fallback delivery metadata does not match its required source.');
@@ -203,7 +201,11 @@ function matchesFallback(
 	return Boolean(item
 		&& item.requirementId === metadata.requirementId
 		&& item.featureId === metadata.featureId
-		&& item.availability === 'unavailable'
+		&& (
+			(metadata.role === 'project-video-render-v1'
+				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
+			|| (metadata.role === 'video-clip-render-v1' && item.availability === 'unavailable')
+		)
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
 		&& item.fallback?.kind === 'video'

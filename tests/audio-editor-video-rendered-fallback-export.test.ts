@@ -63,7 +63,7 @@ interface ExportFixtureOptions {
 const ORIGINAL_VIDEO_SOURCE_ID = 'original-video';
 const FALLBACK_VIDEO_SOURCE_ID = 'fallback-video';
 const AUDIO_SOURCE_ID = 'canonical-audio';
-const FALLBACK_FEATURE_ID = PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing;
+const FALLBACK_FEATURE_ID = 'org.example.future-video-pipeline';
 
 function canonicalProject(): ExportProject {
 	return Object.freeze({
@@ -123,12 +123,12 @@ function fallbackReport() {
 		schemaVersion: 1 as const,
 		format: 'soundscaper-project' as const,
 		compatible: false,
-		counts: Object.freeze({ available: 0, unavailable: 1, unknown: 0 }),
+		counts: Object.freeze({ available: 0, unavailable: 0, unknown: 1 }),
 		items: Object.freeze([Object.freeze({
 			requirementId: 'publisher-video-render',
 			featureId: FALLBACK_FEATURE_ID,
-			displayName: 'Video compositing render',
-			availability: 'unavailable' as const,
+			displayName: 'Future video pipeline render',
+			availability: 'unknown' as const,
 			declaredDisposition: 'rendered-fallback' as const,
 			disposition: 'rendered-fallback' as const,
 			fallback: Object.freeze({
@@ -137,7 +137,7 @@ function fallbackReport() {
 				sourceId: FALLBACK_VIDEO_SOURCE_ID,
 				sha256: 'ab'.repeat(32),
 			}),
-			message: 'Video compositing is unavailable and will use the rendered fallback.',
+			message: 'The future video pipeline is unknown and will use the rendered fallback.',
 		})]),
 	});
 }

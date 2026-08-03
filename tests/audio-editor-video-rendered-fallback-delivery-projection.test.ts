@@ -55,7 +55,7 @@ test('video delivery applies only the maintained rendered fallback and preserves
 	);
 });
 
-test('video delivery leaves available, bypass-only, audio, and third-party requirements unprojected', () => {
+test('video delivery leaves available and bypass-only requirements unprojected', () => {
 	const qualifying = combinedFallbackProject();
 	const available = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
 		.projectForVideoRenderedFallbackDelivery(qualifying);
@@ -69,22 +69,33 @@ test('video delivery leaves available, bypass-only, audio, and third-party requi
 			disposition: 'bypass',
 			fallback: null,
 		}),
-		videoRequirementProject({
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-			disposition: 'rendered-fallback',
-			fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
-		}),
-		videoRequirementProject({
-			featureId: 'org.example.video-effects',
-			disposition: 'rendered-fallback',
-			fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
-		}),
 	]) {
 		const delivery = createPlaybackProjectService({ audioEffects: true, videoEffects: false })
 			.projectForVideoRenderedFallbackDelivery(candidate);
 		assert.strictEqual(delivery.project, candidate);
 		assert.equal(delivery.videoRenderedFallback, null);
 		assert.deepEqual(delivery.requiredVideoSourceIds, []);
+	}
+});
+
+test('video delivery projects the closed whole-project role across feature identities', () => {
+	for (const [featureId, availability] of [
+		[PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis, 'unavailable'],
+		['org.example.future-video-pipeline', 'unknown'],
+	] as const) {
+		const canonical = videoRequirementProject({
+			featureId,
+			disposition: 'rendered-fallback',
+			fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
+		});
+		const delivery = createPlaybackProjectService({ audioAnalysis: false })
+			.projectForVideoRenderedFallbackDelivery(canonical);
+
+		assert.equal(delivery.featureRequirementsReport?.items[0]?.availability, availability);
+		assert.equal(delivery.videoRenderedFallback?.role, 'project-video-render-v1');
+		assert.equal(delivery.videoRenderedFallback?.featureId, featureId);
+		assert.deepEqual(delivery.requiredVideoSourceIds, ['fallback-video']);
+		assert.equal(delivery.project.clips[0]?.sourceId, 'fallback-video');
 	}
 });
 

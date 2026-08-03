@@ -165,6 +165,7 @@ test('an admitted first-party video-effects render becomes one neutral full-leng
 test('an unknown feature can bind the closed whole-project video role', () => {
 	const featureId = 'org.example.future-video-pipeline';
 	const input = project(featureId);
+	const before = structuredClone(input);
 	const projected = projectFeatureVideoRenderedFallbackPlayback(input, report({
 		featureId,
 		availability: 'unknown',
@@ -175,6 +176,19 @@ test('an unknown feature can bind the closed whole-project video role', () => {
 	assert.equal(projected.metadata?.requirementId, 'publisher-video-render');
 	assert.equal(projected.metadata?.sourceId, 'fallback-video');
 	assert.equal((projected.project as typeof input).clips[1]?.sourceId, 'fallback-video');
+	assert.deepEqual(input, before, 'the canonical project must remain unchanged');
+});
+
+test('a known non-video feature can bind the closed whole-project video role', () => {
+	const featureId = PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis;
+	const input = project(featureId);
+	const before = structuredClone(input);
+	const projected = projectFeatureVideoRenderedFallbackPlayback(input, report({ featureId }));
+
+	assert.equal(projected.metadata?.role, 'project-video-render-v1');
+	assert.equal(projected.metadata?.featureId, featureId);
+	assert.equal((projected.project as typeof input).clips[1]?.sourceId, 'fallback-video');
+	assert.deepEqual(input, before, 'the canonical project must remain unchanged');
 });
 
 test('the video fallback projector ignores unrelated reports and never traverses future projects', () => {
