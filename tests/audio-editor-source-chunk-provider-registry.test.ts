@@ -73,7 +73,7 @@ test('clear retires each distinct disposable provider and accepts ordinary value
 	await registry.drain();
 });
 
-test('drain reports one cleanup failure exactly once', async () => {
+test('drain keeps one cleanup failure sticky without duplicating it', async () => {
 	const failure = new Error('cleanup failed');
 	const registry = new SourceChunkProviderRegistry<string, unknown>([[
 		'source',
@@ -82,10 +82,10 @@ test('drain reports one cleanup failure exactly once', async () => {
 
 	registry.clear();
 	await assert.rejects(registry.drain(), (error: unknown) => error === failure);
-	await registry.drain();
+	await assert.rejects(registry.drain(), (error: unknown) => error === failure);
 });
 
-test('drain aggregates cleanup failures in retirement order and consumes them', async () => {
+test('drain keeps aggregate cleanup failures sticky in retirement order without duplication', async () => {
 	const firstFailure = new Error('first cleanup failed');
 	const secondFailure = new Error('second cleanup failed');
 	const firstCleanup = deferred<void>();
@@ -104,7 +104,11 @@ test('drain aggregates cleanup failures in retirement order and consumes them', 
 		assert.deepEqual(error.errors, [firstFailure, secondFailure]);
 		return true;
 	});
-	await registry.drain();
+	await assert.rejects(registry.drain(), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.deepEqual(error.errors, [firstFailure, secondFailure]);
+		return true;
+	});
 });
 
 test('drain includes cleanup work added while an earlier retirement is pending', async () => {
@@ -220,7 +224,7 @@ test('replacement rollback restores detached providers before reporting cleanup 
 
 	await assert.rejects(replacement.rollback(), (error: unknown) => error === failure);
 	assert.strictEqual(registry.get('source'), prior);
-	await registry.drain();
+	await assert.rejects(registry.drain(), (error: unknown) => error === failure);
 });
 
 test('replacement rollback does not retire a detached provider staged under another key', async () => {

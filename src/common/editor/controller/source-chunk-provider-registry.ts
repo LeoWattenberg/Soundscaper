@@ -67,8 +67,7 @@ export class SourceChunkProviderRegistry<Key, Value> extends Map<Key, Value> {
 		while (this.#pendingCleanups.size > 0) {
 			await Promise.all(this.#pendingCleanups);
 		}
-		const failures = this.#cleanupFailures
-			.splice(0)
+		const failures = [...this.#cleanupFailures]
 			.sort((left, right) => left.order - right.order)
 			.map(({ error }) => error);
 		if (failures.length === 1) throw failures[0];
