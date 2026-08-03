@@ -302,9 +302,20 @@ export class LinkedOriginalResolver {
 	}
 
 	async reconcileLocators(canonicalProjectIds: readonly string[]): Promise<number | null> {
-		if (typeof this.#port.reconcile !== 'function') return null;
+		if (!this.canReconcileLocators()) return null;
 		const references = await this.#bindings.reconcileDurableLocatorReferences(canonicalProjectIds);
 		if (references === null) return null;
+		return this.reconcileLocatorReferences(references);
+	}
+
+	canReconcileLocators(): boolean {
+		return typeof this.#port.reconcile === 'function';
+	}
+
+	async reconcileLocatorReferences(
+		references: readonly LinkedOriginalLocatorReference[],
+	): Promise<number | null> {
+		if (typeof this.#port.reconcile !== 'function') return null;
 		const removed = await this.#port.reconcile(references);
 		if (!Number.isSafeInteger(removed) || Number(removed) < 0) {
 			throw new RangeError('Linked original locator reconciliation returned an invalid removal count.');

@@ -7,6 +7,10 @@ import {
 } from './linked-original-lifecycle-coordinator.ts';
 import type { LinkedOriginalProjectAliasRepository } from './linked-original-project-alias-repository.ts';
 import type { LinkedOriginalProjectReachabilityRepository } from './linked-original-project-reachability-repository.ts';
+import type {
+	LinkedOriginalCatalogProjectRevision,
+	LinkedOriginalStartupReconciliationRepository,
+} from './linked-original-startup-reconciliation-repository.ts';
 import {
 	maintainOpenedProjectWithLinkedOriginalReachability,
 	maintainOpenedProjectWithLinkedVideoOriginalReachability,
@@ -57,6 +61,7 @@ export interface LinkedOriginalStoreRepositories {
 	readonly linkedOriginalBindings: LinkedOriginalRepository;
 	readonly linkedOriginalProjectAliases: LinkedOriginalProjectAliasRepository;
 	readonly linkedOriginalProjectReachability: LinkedOriginalProjectReachabilityRepository;
+	readonly linkedOriginalStartupReconciliation?: LinkedOriginalStartupReconciliationRepository;
 	readonly linkedOriginals: LinkedOriginalResolver | null;
 	readonly linkedVideoOriginalBindings: LinkedVideoOriginalRepository;
 	readonly linkedVideoOriginalProjectAliases: LinkedVideoOriginalProjectAliasRepository;
@@ -77,7 +82,8 @@ export interface ProjectDuplicationDependencies {
 
 export interface LinkedOriginalReconciliationInventory {
 	isDurable(): PromiseLike<boolean> | boolean;
-	projectIds(): PromiseLike<readonly string[]> | readonly string[];
+	projectRevisions(): PromiseLike<readonly LinkedOriginalCatalogProjectRevision[]>
+		| readonly LinkedOriginalCatalogProjectRevision[];
 }
 
 type ActiveLifecycle = LinkedOriginalLifecycleCoordinator | LinkedVideoOriginalLifecycleCoordinator;
@@ -187,21 +193,28 @@ export class LinkedOriginalStoreService {
 		return this.#lifecycle.run(async () => {
 			const generic = this.#repositories.linkedOriginals;
 			const legacyVideo = this.#repositories.linkedVideoOriginals;
-			if ((!generic && !legacyVideo) || !await inventory.isDurable()) return false;
-			const projectIds = await inventory.projectIds();
-			if (generic && await generic.reconcileLocators(projectIds) !== null) return true;
-			return legacyVideo
-				? await legacyVideo.reconcileLocators(projectIds) !== null
-				: false;
+			const startup = this.#repositories.linkedOriginalStartupReconciliation;
+			if ((!generic && !legacyVideo) || !startup || !await inventory.isDurable()) return false;
+			const catalog = await inventory.projectRevisions();
+			if (generic?.canReconcileLocators()) {
+				const references = await startup.reconcileDurableLocatorReferences(catalog);
+				return references !== null && await generic.reconcileLocatorReferences(references) !== null;
+			}
+			if (!legacyVideo?.canReconcileLocators()) return false;
+			const references = await startup.reconcileDurableVideoLocatorReferences(catalog);
+			return references !== null && await legacyVideo.reconcileLocatorReferences(references) !== null;
 		});
 	}
 
 	reconcileVideoLocators(inventory: LinkedOriginalReconciliationInventory): Promise<boolean> {
 		return this.#lifecycle.run(async () => {
-			if (!this.#repositories.linkedVideoOriginals || !await inventory.isDurable()) return false;
-			return (await this.#repositories.linkedVideoOriginals.reconcileLocators(
-				await inventory.projectIds(),
-			)) !== null;
+			const resolver = this.#repositories.linkedVideoOriginals;
+			const startup = this.#repositories.linkedOriginalStartupReconciliation;
+			if (!startup || !resolver?.canReconcileLocators() || !await inventory.isDurable()) return false;
+			const references = await startup.reconcileDurableVideoLocatorReferences(
+				await inventory.projectRevisions(),
+			);
+			return references !== null && await resolver.reconcileLocatorReferences(references) !== null;
 		});
 	}
 

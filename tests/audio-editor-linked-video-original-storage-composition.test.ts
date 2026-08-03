@@ -179,6 +179,23 @@ test('linked-video resolver injection is optional and facade operations fail bef
 	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), false);
 });
 
+test('durable startup without a linked-original port does not request a project catalog', async (context) => {
+	const store = createProjectStore({
+		indexedDB: createInstrumentedIndexedDB(),
+		memoryFallback: false,
+		preferOpfs: false,
+		databaseName: `linked-video-no-port-reconciliation-${Date.now()}-${Math.random()}`,
+	});
+	context.after(async () => { await store.close(); });
+	await store.ready();
+	let projectLists = 0;
+	store.projectRepository.list = async () => { projectLists += 1; return []; };
+
+	assert.equal(await store.reconcileLinkedOriginalLocators(), false);
+	assert.equal(await store.reconcileLinkedVideoOriginalLocators(), false);
+	assert.equal(projectLists, 0);
+});
+
 for (const mode of ['legacy-only', 'generic-reconcile-unavailable'] as const) {
 	test(`generic startup hook falls back to legacy video reconciliation (${mode})`, async (context) => {
 		const indexedDB = createInstrumentedIndexedDB();

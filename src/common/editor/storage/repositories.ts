@@ -6,6 +6,7 @@ import { LinkedAudioOriginalSourceReader } from './linked-audio-original-source-
 import { LinkedOriginalProjectAliasRepository } from './linked-original-project-alias-repository.ts';
 import { LinkedOriginalProjectReachabilityRepository } from './linked-original-project-reachability-repository.ts';
 import { LinkedOriginalRepository } from './linked-original-repository.ts';
+import { LinkedOriginalStartupReconciliationRepository } from './linked-original-startup-reconciliation-repository.ts';
 import {
 	LinkedOriginalResolver,
 	type LinkedOriginalPort,
@@ -39,6 +40,7 @@ export interface StorageRepositories {
 	readonly linkedOriginalBindings: LinkedOriginalRepository;
 	readonly linkedOriginalProjectAliases: LinkedOriginalProjectAliasRepository;
 	readonly linkedOriginalProjectReachability: LinkedOriginalProjectReachabilityRepository;
+	readonly linkedOriginalStartupReconciliation: LinkedOriginalStartupReconciliationRepository;
 	readonly linkedOriginals: LinkedOriginalResolver | null;
 	readonly linkedVideoOriginalBindings: LinkedVideoOriginalRepository;
 	readonly linkedVideoOriginalProjectAliases: LinkedVideoOriginalProjectAliasRepository;
@@ -105,6 +107,7 @@ export function createStorageRepositories(
 	const linkedOriginalBindings = new LinkedOriginalRepository(port);
 	const linkedOriginalProjectAliases = new LinkedOriginalProjectAliasRepository(port);
 	const linkedOriginalProjectReachability = new LinkedOriginalProjectReachabilityRepository(port);
+	const linkedOriginalStartupReconciliation = new LinkedOriginalStartupReconciliationRepository(port);
 	const linkedOriginals = options.linkedOriginalPort
 		? new LinkedOriginalResolver(linkedOriginalBindings, options.linkedOriginalPort)
 		: null;
@@ -154,6 +157,7 @@ export function createStorageRepositories(
 		linkedOriginalBindings,
 		linkedOriginalProjectAliases,
 		linkedOriginalProjectReachability,
+		linkedOriginalStartupReconciliation,
 		linkedOriginals,
 		linkedVideoOriginalBindings,
 		linkedVideoOriginalProjectAliases,

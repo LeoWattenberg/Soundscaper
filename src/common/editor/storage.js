@@ -339,7 +339,7 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.reconcileVideoLocators({
 			isDurable: async () => await this.#database() !== null,
-			projectIds: async () => (await this.projectRepository.list()).map(({ id }) => id),
+			projectRevisions: async () => (await this.projectRepository.list()).map(({ id, revision }) => ({ id, revision: revision === undefined ? null : revision })),
 		});
 	}
 
@@ -347,7 +347,7 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.reconcileOriginalLocators({
 			isDurable: async () => await this.#database() !== null,
-			projectIds: async () => (await this.projectRepository.list()).map(({ id }) => id),
+			projectRevisions: async () => (await this.projectRepository.list()).map(({ id, revision }) => ({ id, revision: revision === undefined ? null : revision })),
 		});
 	}
 

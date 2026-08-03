@@ -7,6 +7,7 @@ import {
 	createAudioClipV9,
 	createAudioEditorProjectV9,
 	createAudioSourceV9,
+	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
@@ -194,51 +195,71 @@ test('generic lifecycle retires audio and legacy-video locators through one kind
 test('project store reconciles one complete durable kindful locator inventory', async (context) => {
 	const body = wavBlob(Float32Array.of(-1, 1));
 	const inventories: unknown[] = [];
+	let externalReads = 0;
 	const store = createProjectStore({
 		indexedDB: createInstrumentedIndexedDB(),
 		memoryFallback: false,
 		preferOpfs: false,
 		databaseName: `linked-audio-reconciliation-${Date.now()}-${Math.random()}`,
 		linkedOriginalPort: {
-			load: (_kind: 'audio' | 'video', _locatorId: string, { expectedRevision }: { expectedRevision: string | null }) => ({
-				blob: body,
-				locatorRevision: expectedRevision ?? LOCATOR_REVISION,
-			}),
+			load: (_kind: 'audio' | 'video', _locatorId: string, { expectedRevision }: { expectedRevision: string | null }) => {
+				externalReads += 1;
+				return { blob: body, locatorRevision: expectedRevision ?? LOCATOR_REVISION };
+			},
+			release() { throw new Error('startup reconciliation must not release external media directly'); },
 			reconcile(references: unknown) { inventories.push(references); return 0; },
 		},
 	});
 	context.after(async () => { await store.close(); });
 	await store.ready();
 	const source = audioSource({ frameCount: 2 });
+	const staleSource = audioSource({
+		frameCount: 2,
+		id: 'source-audio-stale',
+		storageKey: 'physical-audio-stale',
+	});
 	const project = audioProject('linked-audio-reconciliation-project', source);
 	await store.bindLinkedAudioOriginal(project.id, source, LOCATOR_ID, {
 		expectedLocatorRevision: LOCATOR_REVISION,
 		expectedSnapshot: body,
 	});
+	await store.bindLinkedAudioOriginal(project.id, staleSource, 'locator_audio_stale_000001', {
+		expectedLocatorRevision: LOCATOR_REVISION,
+		expectedSnapshot: body,
+	});
 	await store.saveProject(project, { protectedLinkedVideoSourceIds: [] });
+	assert.equal(externalReads, 2);
 
 	assert.equal(await store.reconcileLinkedOriginalLocators(), true);
+	assert.equal(externalReads, 2, 'startup reconciliation must not read external media');
 	assert.deepEqual(inventories, [[{
 		kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
 	}]]);
+	assert.equal(await store.getLinkedOriginalBinding(project.id, staleSource.id), null);
 });
 
-function audioSource({ frameCount = 4 } = {}) {
+function audioSource({
+	frameCount = 4,
+	id = 'source-audio',
+	storageKey = 'physical-audio',
+} = {}) {
 	return createAudioSourceV9({
-		id: 'source-audio', storageKey: 'physical-audio', mimeType: 'audio/wav',
+		id, storageKey, mimeType: 'audio/wav',
 		frameCount, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 2,
 	});
 }
 
 function audioProject(id: string, source: ReturnType<typeof audioSource>) {
+	const clip = createAudioClipV9({
+		id: `${id}-clip`, sourceId: source.id,
+		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
+	});
 	return createAudioEditorProjectV9({
 		id,
 		sources: [source],
-		clips: [createAudioClipV9({
-			id: `${id}-clip`, sourceId: source.id,
-			durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
-		})],
+		clips: [clip],
+		tracks: [createAudioTrackV9({ id: `${id}-track`, clipIds: [clip.id] })],
 	});
 }
 
