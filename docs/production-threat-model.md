@@ -212,7 +212,7 @@ Every project schema is structurally scanned before `JSON.parse` constructs its 
 
 For current-format exact schema 9 archives, every rendered-fallback claim is bound to its canonical asset descriptor before compatibility evaluation, collision lookup, or storage. Export snapshots the admitted project root and complete source records, serializes those same sources and the bounded normalized fallback manifest used for validation, rejects project-root/source-record accessors and callable `toJSON` hooks without invocation, hashes completed canonical asset output, and rejects a mismatch before manifest write or destination commit; import hashes each extracted asset body and verifies its size and SHA-256 before source or project publication. Inspection performs descriptor binding but does not hash asset bodies. Separately, maintained exact-schema-9 controller activation verifies the referenced local audio and video fallback bytes for the authoritative raw or stored activation project before activation side effects. Direct `store.loadProject()` calls, durable integrity after admission, runtime fallback use by activation admission itself, and future-schema `featureRequirements` remain outside that control. Runtime selection belongs only to the separate first-party audio and video playback controls plus their narrow operation-time-verified final-delivery controls above. These are internal digest-integrity checks, not publisher authenticity.
 
-One narrow linked-WAV portable-archive control covers the current-format exact schema 9 path when the sender has no owned PCM. After the initial binding materializes and authenticates the selected body under the 512 MiB tier, export reads the maintained linked RIFF or RF64 PCM or IEEE-float WAV through the exact-revision ranged source reader and writes only canonical `audio-f32le-chunks-v1`; no second whole-original Blob is constructed. The external WAV container bytes and pathless locator identity are absent from the project, manifest, and complete archive. A fresh portless recipient imports ordinary owned PCM with zero linked bindings and reopens with exact samples and project state durably. The direct witness uses RIFF IEEE-float, while focused reader and import coverage owns the wider maintained RIFF/RF64 PCM and IEEE-float input boundary. This control does not qualify future-schema archive preservation, byte-exact WAV-container preservation, packaged executable or UI and operating-system behavior, relink or watch, other audio formats, audible or device playback behavior, or reference-scale memory use.
+One narrow linked-WAV portable-archive control covers the current-format exact schema 9 path when the sender has no owned PCM. After the initial binding materializes and authenticates the selected body under the 512 MiB tier, export reads a maintained linked RIFF/RF64 PCM or IEEE-float WAV, or first-party BW64 integer-PCM `.wav`, through the exact-revision ranged source reader and writes only canonical `audio-f32le-chunks-v1`; no second whole-original Blob is constructed. The external WAV container bytes and pathless locator identity are absent from the project, manifest, and complete archive. A fresh portless recipient imports ordinary owned PCM with zero linked bindings and reopens with exact samples and project state durably. The direct witness uses first-party BW64 integer PCM, while focused reader and import coverage owns the maintained RIFF/RF64 PCM and IEEE-float plus first-party BW64 integer-PCM input boundary. This control does not qualify future-schema archive preservation, byte-exact WAV-container preservation, packaged executable or UI and operating-system behavior, relink or watch, other audio formats, arbitrary third-party BW64, new BW64 ADM preservation or editing semantics, audible or device playback behavior, or reference-scale memory use.
 
 `scape-archive-expansion` is **enforced for the current canonical STORE `.scape` import surface**. Before reading manifest bytes, the shared envelope validates entry count, encryption state, and safe compressed/uncompressed metadata, and rejects more than 64 GiB of cumulative declared uncompressed data. Central-directory indexing also requires ZIP STORE with equal compressed and uncompressed sizes before local-header preflight or body reads, so a tested high-ratio DEFLATE archive cannot spend decompression work or reach storage. Canonical export pins and verifies the same STORE policy. The non-raiseable 4,096-entry ceiling bounds the quadratic pairwise layout pass, and export applies it before creating a destination. Manifest JSON is capped at 32 MiB and project JSON at 256 MiB by both metadata preflight and byte-counted text sinks. Descriptor sizes must match entry metadata before project JSON or asset extraction. One shared counter also charges bytes actually emitted into the manifest, project, and every extracted asset against the 64 GiB limit before an over-budget chunk is retained. PCM chunk headers and canonical project chunk geometry are validated before byte-length arithmetic or allocation, limiting parser-owned pending PCM storage to 16 MiB plus its four-byte header; one archive-wide 65,536-chunk ceiling deliberately bounds parser iterations and source-writer calls for the portable format. Export preflights that aggregate audio work before asset reads and rejects backing-store chunks that do not match the same geometry or final frame total. For the tested native `.scape` open/save path, one task `AbortSignal` reaches incremental ZIP enumeration and extraction, source reads and writes, archive output, and file publication. Cancellation closes the archive reader, returns source iterators, aborts unpublished output and transactional source/media writers, deletes provisional media, and restores the previous project together with its retained revision history.
 
@@ -495,8 +495,8 @@ manifest declaration. These fixtures add no packaged UI, browser-codec,
 embedded-video-audio, durable-lease, range, or whole-handoff atomicity claim.
 
 One narrow linked-WAV managed-handoff exception is Electron-injected and
-point-in-time. It admits a main-private RIFF or RF64 WAV no larger than 512 MiB
-when its sample payload uses a maintained PCM or IEEE-float encoding. The raw
+point-in-time. It admits a main-private maintained RIFF/RF64 PCM or IEEE-float
+WAV, or first-party BW64 integer-PCM `.wav`, no larger than 512 MiB. The raw
 path and device, inode, size, modification-time, and change-time tuple stay in
 the private locator registry; project state retains only canonical source
 geometry and a pathless local binding. The initial selection and binding
@@ -510,14 +510,15 @@ Float32 PCM passes and transfers only the resulting
 `audio-f32le-chunks-v1` body. A fresh recipient with no locator port acquires an
 ordinary owned canonical PCM source and reopens without the original locator.
 The external container bytes and locator identity do not cross the managed-media
-bridge or enter its catalog. The composed witness directly exercises RIFF
-IEEE-float; focused reader and import evidence owns the wider maintained
-RIFF/RF64 PCM and IEEE-float dialect boundary.
+bridge or enter its catalog. The composed witness directly exercises first-party
+BW64 integer PCM; focused reader and import evidence owns the maintained
+RIFF/RF64 PCM and IEEE-float plus first-party BW64 integer-PCM boundary.
 
 This exception does not qualify packaged executable or UI behavior,
 operating-system file-dialog or path durability, relink or watch behavior,
-broader audio formats, generic linked-audio support, audible or device playback,
-or reference-scale behavior. The initial complete-body materialization remains.
+broader audio formats, arbitrary third-party BW64, new BW64 ADM preservation or
+editing semantics, generic linked-audio support, audible or device playback, or
+reference-scale behavior. The initial complete-body materialization remains.
 The stat tuple, opened handle, and full-body digest remain sequential
 point-in-time observations rather than a content-frozen or durable path,
 immutable same-inode lease, or cross-process guarantee. Same-inode mutation

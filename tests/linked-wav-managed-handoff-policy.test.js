@@ -18,7 +18,7 @@ test('linked WAV handoff policy stays point-in-time and container-free', async (
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/explicitly injected Electron.*point-in-time.*RIFF or RF64 WAV.*PCM or IEEE-float.*512 MiB.*main-private.*pathless.*initial chooser and bind.*whole WAV snapshot.*binding commits.*owner-scoped exact-revision range capability.*exact length and MIME.*full sequential SHA-256.*at-most-4-MiB.*recheck.*binding.*range-backed RIFF\/RF64.*without another whole-original `Blob`.*generic platform port.*without.*optional range.*whole-`Blob` fallback.*sender.*no owned PCM body.*explicit managed handoff.*two full source-API passes.*fresh recipient.*ordinary owned canonical PCM.*reopen.*without.*locator.*external WAV container.*locator.*must not enter.*shared managed catalog.*recipient/iu,
+		/explicitly injected Electron.*point-in-time.*RIFF\/RF64 PCM or IEEE-float WAV.*first-party BW64 integer-PCM.*512 MiB.*main-private.*pathless.*initial chooser and bind.*whole WAV snapshot.*binding commits.*owner-scoped exact-revision range capability.*exact length and MIME.*full sequential SHA-256.*at-most-4-MiB.*recheck.*binding.*range-backed RIFF\/RF64\/BW64.*without another whole-original `Blob`.*generic platform port.*without.*optional range.*whole-`Blob` fallback.*sender.*no owned PCM body.*explicit managed handoff.*two full source-API passes.*fresh recipient.*ordinary owned canonical PCM.*reopen.*without.*locator.*external WAV container.*locator.*must not enter.*shared managed catalog.*recipient/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -54,11 +54,11 @@ test('linked WAV handoff policy stays point-in-time and container-free', async (
 	const documentation = await readFile(compatibilityDocumentUrl, 'utf8');
 	assert.match(
 		documentation,
-		/narrow linked-WAV managed-handoff exception.*explicitly injected Electron.*point-in-time.*RIFF or RF64.*PCM or IEEE-float.*512 MiB.*main-private registry.*chooser and initial bind.*whole WAV snapshot.*binding commits.*owner-scoped `linked-audio-range-v1`.*exact locator revision.*complete opened handle.*at-most-4-MiB `206`.*rechecks.*binding.*range-backed source.*no second whole-original.*generic platform port.*whole-`Blob`.*fallback.*sender.*owned PCM inventory remains empty.*explicit `prepareHandoff`.*two canonical Float32 PCM.*source-API passes.*fresh recipient.*ordinary owned source writer.*reopen.*without.*locator.*external WAV container bytes.*locator identity.*do not cross.*managed-media bridge or enter.*shared catalog/isu,
+		/narrow linked-WAV managed-handoff exception.*explicitly injected Electron.*point-in-time.*RIFF\/RF64 PCM or.*IEEE-float WAV.*first-party BW64 integer-PCM.*512 MiB.*main-private registry.*chooser and initial bind.*whole WAV snapshot.*binding commits.*owner-scoped `linked-audio-range-v1`.*exact locator revision.*RIFF\/RF64\/BW64 inspection.*complete opened handle.*at-most-4-MiB `206`.*rechecks.*binding.*range-backed source.*no second whole-original.*generic platform port.*whole-`Blob`.*fallback.*sender.*owned PCM inventory remains empty.*explicit `prepareHandoff`.*two canonical Float32 PCM.*source-API passes.*fresh recipient.*ordinary owned source writer.*reopen.*without.*locator.*external WAV container bytes.*locator identity.*do not cross.*managed-media bridge or enter.*shared catalog/isu,
 	);
 	assert.match(
 		documentation,
-		/This exception does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*range support outside maintained post-bind Electron.*linked-WAV source reads.*generic linked-audio support/isu,
+		/This exception does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*arbitrary.*third-party BW64.*new BW64 ADM preservation or.*editing semantics.*range support outside maintained post-bind Electron.*linked-WAV source reads.*generic linked-audio support/isu,
 	);
 	assert.match(
 		documentation,
@@ -76,7 +76,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	assert.ok(control);
 	assert.match(
 		control.summary,
-		/explicitly injected Electron.*main-private.*pathless point-in-time binding.*RIFF or RF64 WAV.*PCM or IEEE-float.*512 MiB.*sender.*no owned PCM body.*whole external WAV.*exact digest.*canonical geometry/iu,
+		/explicitly injected Electron.*main-private.*pathless point-in-time binding.*RIFF\/RF64 PCM or IEEE-float WAV.*first-party BW64 integer-PCM.*512 MiB.*sender.*no owned PCM body.*whole external WAV.*exact digest.*canonical geometry/iu,
 	);
 	assert.match(
 		control.summary,
@@ -88,7 +88,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		control.summary,
-		/not.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader formats.*generic linked-audio support.*audible or device playback.*reference-scale qualification.*initial whole-body materialization remains.*not a content-frozen, durable, or cross-process lease.*same-inode external mutation/iu,
+		/not.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader formats.*arbitrary third-party BW64.*new BW64 ADM preservation or editing semantics.*generic linked-audio support.*audible or device playback.*reference-scale qualification.*initial whole-body materialization remains.*not a content-frozen, durable, or cross-process lease.*same-inode external mutation/iu,
 	);
 	for (const path of [
 		'desktop/linked-video-locator-store.ts',
@@ -114,7 +114,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		residual?.exposure ?? '',
-		/maintained linked-WAV exception.*exact-revision owner-scoped stable-handle range lease.*without another whole-original Blob.*linked audio beyond the maintained WAV\/RF64 range.*packaged executable or UI.*operating-system path durability.*content-frozen or cross-process leasing.*same-inode mutation fencing.*audible or device playback.*reference-scale memory/iu,
+		/maintained linked-WAV exception.*exact-revision owner-scoped stable-handle range lease.*without another whole-original Blob.*linked audio beyond the maintained RIFF\/RF64 and first-party BW64.*range.*packaged executable or UI.*operating-system path durability.*arbitrary third-party BW64.*new BW64 ADM preservation and editing semantics.*content-frozen or cross-process leasing.*same-inode mutation fencing.*audible or device playback.*reference-scale memory/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -124,7 +124,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		threatModel,
-		/main-private RIFF or RF64 WAV no larger than 512 MiB\s+when.*PCM or IEEE-float/isu,
+		/main-private maintained RIFF\/RF64 PCM or IEEE-float\s+WAV.*first-party BW64 integer-PCM.*no larger than 512 MiB/isu,
 	);
 	assert.match(
 		threatModel,
@@ -136,7 +136,7 @@ test('linked WAV managed handoff is a narrow point-in-time security control', as
 	);
 	assert.match(
 		threatModel,
-		/does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*generic linked-audio.*audible or device playback.*reference-scale.*initial complete-body materialization remains.*same-inode mutation.*not fenced.*four-MiB transport ceiling.*does not bound.*Float32 arrays.*metadata.*process RSS/isu,
+		/does not qualify.*packaged executable or UI.*operating-system file-dialog or path durability.*relink or watch.*broader audio formats.*arbitrary third-party BW64.*new BW64 ADM preservation or.*editing semantics.*generic linked-audio.*audible or device playback.*reference-scale.*initial complete-body materialization remains.*same-inode mutation.*not fenced.*four-MiB transport ceiling.*does not bound.*Float32 arrays.*metadata.*process RSS/isu,
 	);
 });
 
@@ -149,7 +149,7 @@ test('linked WAV portable archive stores canonical PCM without locator state', a
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/current-format exact-schema-9 `.scape` export.*linked RIFF or RF64 WAV.*PCM or IEEE-float.*sender.*no owned PCM.*only canonical `audio-f32le-chunks-v1`.*no locator.*WAV container.*fresh portless recipient.*ordinary owned canonical PCM.*durable reopen/iu,
+		/current-format exact-schema-9 `.scape` export.*linked RIFF\/RF64 PCM or IEEE-float WAV.*first-party BW64 integer-PCM.*sender.*no owned PCM.*only canonical `audio-f32le-chunks-v1`.*no locator.*WAV container.*fresh portless recipient.*ordinary owned canonical PCM.*durable reopen/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -157,7 +157,7 @@ test('linked WAV portable archive stores canonical PCM without locator state', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/maintained Electron chooser and initial binding.*whole WAV snapshot.*subsequent archive source reads.*owner-scoped exact-revision range capability.*full sequential SHA-256.*at-most-4-MiB.*range-backed RIFF\/RF64.*without another whole-original `Blob`.*generic platform port.*whole-`Blob`.*fallback.*directly exercises RIFF IEEE-float.*focused reader and import.*RIFF\/RF64 PCM and IEEE-float.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*range support outside maintained post-bind Electron linked-WAV source reads/iu,
+		/maintained Electron chooser and initial binding.*whole WAV snapshot.*subsequent archive source reads.*owner-scoped exact-revision range capability.*full sequential SHA-256.*at-most-4-MiB.*range-backed RIFF\/RF64\/BW64.*without another whole-original `Blob`.*generic platform port.*whole-`Blob`.*fallback.*directly exercises first-party BW64 integer PCM.*focused reader and import.*RIFF\/RF64 PCM and IEEE-float.*first-party BW64 integer-PCM.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*arbitrary third-party BW64.*new BW64 ADM preservation or editing semantics.*range support outside maintained post-bind Electron linked-WAV source reads/iu,
 	);
 	for (const path of [
 		'src/common/editor/scape-project.js',
@@ -175,11 +175,11 @@ test('linked WAV portable archive stores canonical PCM without locator state', a
 	);
 	assert.match(
 		documentation,
-		/maintained Electron chooser and initial bind.*whole WAV.*snapshot.*binding commits.*owner-scoped exact-revision range capability.*at-most-4-MiB.*range-backed.*RIFF.RF64.*without constructing another whole-original `Blob`.*generic platform port.*whole-`Blob`.*fallback/isu,
+		/maintained Electron chooser and initial bind.*whole WAV.*snapshot.*binding commits.*owner-scoped exact-revision range capability.*at-most-4-MiB.*range-backed.*RIFF.RF64.BW64.*without constructing another whole-original `Blob`.*generic platform port.*whole-`Blob`.*fallback/isu,
 	);
 	assert.match(
 		documentation,
-		/portable exception does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*range support outside maintained post-bind Electron.*linked-WAV source reads/isu,
+		/portable exception does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*arbitrary.*third-party BW64.*new BW64 ADM preservation or.*editing semantics.*range support outside maintained post-bind Electron.*linked-WAV source reads/isu,
 	);
 });
 
@@ -193,11 +193,11 @@ test('portable linked WAV canonicalization has a dedicated archive security cont
 	assert.ok(control);
 	assert.match(
 		control.summary,
-		/current-format exact-schema-9 `.scape`.*linked RIFF or RF64 WAV.*PCM or IEEE-float.*no owned sender PCM.*verified canonical Float32 chunks.*one `audio-f32le-chunks-v1` asset.*external container bytes.*locator identity.*excluded.*fresh portless import.*ordinary owned PCM.*durable reopen/iu,
+		/current-format exact-schema-9 `.scape`.*linked RIFF\/RF64 PCM or IEEE-float WAV.*first-party BW64 integer-PCM.*no owned sender PCM.*verified canonical Float32 chunks.*one `audio-f32le-chunks-v1` asset.*external container bytes.*locator identity.*excluded.*fresh portless import.*ordinary owned PCM.*durable reopen/iu,
 	);
 	assert.match(
 		control.summary,
-		/RIFF IEEE-float.*direct witness.*wider RIFF\/RF64 PCM and IEEE-float.*focused.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audible or device playback.*content-frozen or cross-process leases.*same-inode mutation fencing.*reference-scale memory/iu,
+		/First-party BW64 integer PCM.*direct witness.*maintained RIFF\/RF64 PCM and IEEE-float.*first-party BW64 integer-PCM boundary.*focused.*does not qualify.*future-schema archive preservation.*byte-exact WAV-container.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*arbitrary third-party BW64.*new BW64 ADM preservation or editing semantics.*audible or device playback.*content-frozen or cross-process leases.*same-inode mutation fencing.*reference-scale memory/iu,
 	);
 	for (const path of [
 		'src/common/editor/scape-project.js',
@@ -215,6 +215,6 @@ test('portable linked WAV canonicalization has a dedicated archive security cont
 	);
 	assert.match(
 		threatModel,
-		/does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*audible or device playback.*reference-scale memory/isu,
+		/does not qualify.*future-schema archive preservation.*byte-exact WAV-container preservation.*packaged executable or UI.*operating-system.*relink or watch.*other audio formats.*arbitrary third-party BW64.*new BW64 ADM preservation or editing semantics.*audible or device playback.*reference-scale memory/isu,
 	);
 });

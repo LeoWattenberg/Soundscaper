@@ -33,28 +33,30 @@ only through a path proven not to normalize it. “Save a copy” may not silent
 turn an unknown schema into the current schema.
 
 One narrow linked-WAV portable-archive exception applies only to the
-current-format exact schema 9 path. A sender backed by a maintained RIFF or RF64
-PCM or IEEE-float WAV under the 512 MiB linked-original ceiling retains
-no owned PCM. Export reads its verified canonical chunks and writes only a
-canonical `audio-f32le-chunks-v1` asset. The external WAV container bytes and
+current-format exact schema 9 path. A sender backed by a maintained RIFF/RF64
+PCM or IEEE-float WAV, or a first-party BW64 integer-PCM `.wav`, under the
+512 MiB linked-original ceiling retains no owned PCM. Export reads its verified
+canonical chunks and writes only a canonical `audio-f32le-chunks-v1` asset. The
+external WAV container bytes and
 pathless locator identity are absent from the archive.
 A maintained Electron chooser and initial bind still materialize one whole WAV
 snapshot. After that binding commits, archive source reads acquire an
 owner-scoped exact-revision range capability, hash the complete source in exact
 at-most-4-MiB reads, recheck the binding, and decode through a range-backed
-RIFF/RF64 source without constructing another whole-original `Blob`. A generic
-platform port without the optional range operation retains the whole-`Blob`
-source-reader fallback.
+RIFF/RF64/BW64 source without constructing another whole-original `Blob`. A
+generic platform port without the optional range operation retains the
+whole-`Blob` source-reader fallback.
 A fresh recipient without a linked-original port imports that asset through the
 ordinary owned PCM writer,
 then can close and reopen, recovering exact samples and project state with zero
-linked bindings. The direct fixture uses RIFF IEEE-float; focused reader and
-import coverage owns the wider maintained RIFF/RF64 PCM and IEEE-float input
-boundary.
+linked bindings. The direct fixture uses first-party BW64 integer PCM; focused
+reader and import coverage owns the maintained RIFF/RF64 PCM and IEEE-float plus
+first-party BW64 integer-PCM input boundary.
 
 This portable exception does not qualify future-schema archive preservation,
 byte-exact WAV-container preservation, packaged executable or UI and
-operating-system behavior, relink or watch, other audio formats, or range
+operating-system behavior, relink or watch, other audio formats, arbitrary
+third-party BW64, new BW64 ADM preservation or editing semantics, or range
 support outside maintained post-bind Electron linked-WAV source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
@@ -332,16 +334,16 @@ Declared payload geometry is capped at 65,536 PCM chunks, while one cumulative
 bytes per chunk—and recipient-local video metadata sizes together.
 
 One narrow linked-WAV managed-handoff exception is qualified here. Through an
-explicitly injected Electron port, a point-in-time RIFF or RF64 WAV containing
-maintained PCM or IEEE-float samples and no larger than 512 MiB may remain in a
-main-private registry. Only that registry contains the absolute path and its
-device, inode, size, modification time, and change time; the project and
+explicitly injected Electron port, a point-in-time maintained RIFF/RF64 PCM or
+IEEE-float WAV, or first-party BW64 integer-PCM `.wav`, no larger than 512 MiB
+may remain in a main-private registry. Only that registry contains the absolute
+path and its device, inode, size, modification time, and change time; the project and
 renderer-side binding retain pathless locator and revision tokens plus scalar
 canonical source geometry. The chooser and initial bind still materialize and
 hash one whole WAV snapshot. After that binding commits, maintained Electron
 canonical PCM reads instead acquire an owner-scoped `linked-audio-range-v1`
-capability at the exact locator revision. Before RIFF/RF64 inspection or PCM
-decoding, the renderer requires the exact byte length and MIME type, hashes the
+capability at the exact locator revision. Before RIFF/RF64/BW64 inspection or
+PCM decoding, the renderer requires the exact byte length and MIME type, hashes the
 complete opened handle sequentially through exact at-most-4-MiB `206` reads,
 and rechecks the exact binding. The WAV inspector and chunk decoder then use a
 range-backed source, so the session constructs no second whole-original
@@ -362,7 +364,8 @@ managed-media bridge or enter the shared catalog or recipient.
 
 This exception does not qualify packaged executable or UI behavior,
 operating-system file-dialog or path durability, relink or watch behavior,
-broader audio formats, range support outside maintained post-bind Electron
+broader audio formats, arbitrary third-party BW64, new BW64 ADM preservation or
+editing semantics, range support outside maintained post-bind Electron
 linked-WAV source reads, or generic linked-audio support. The external path and
 stat tuple are a point-in-time main-private identity. Moving or replacing the
 pathname after range admission does not retarget the opened handle, but
