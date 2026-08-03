@@ -211,12 +211,13 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'tests/audio-editor-scape-feature-requirements.test.ts',
 		'tests/audio-editor-scape-export-fallback-integrity.test.ts',
 		'tests/audio-editor-scape-project.test.js', 'tests/audio-editor-scape-streaming-video.test.ts',
+		'tests/audio-editor-scape-video-clip-fallback-roundtrip.test.ts',
 	]) assert.ok(
 		fallbackIntegrity.evidence.some((item) => item.path === path),
 		`rendered fallback integrity needs evidence from ${path}`);
 	assert.match(
 		fallbackIntegrity.summary,
-		/exact schema 9.*claim.*canonical asset descriptor.*before.*collision.*storage.*export.*project root.*source records.*same sources.*accessors.*toJSON hooks.*without invocation.*completed.*digest.*before.*manifest.*commit.*import.*body.*SHA-256.*publication.*inspection.*does not hash.*asset bodies/iu,
+		/exact schema 9.*claim.*relationship role.*target clip ID.*source ID.*kind.*SHA-256.*canonical asset descriptor.*before.*collision.*storage.*export.*project root.*source records.*same sources.*accessors.*toJSON hooks.*without invocation.*completed.*digest.*before.*manifest.*commit.*import.*body.*SHA-256.*publication.*copy collision.*remaps.*source ID.*preserving.*target clip ID.*inspection.*does not hash.*asset bodies/iu,
 	);
 	const archiveExpansion = risks.get('scape-archive-expansion');
 	assert.equal(archiveExpansion.status, 'enforced');

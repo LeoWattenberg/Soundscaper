@@ -131,31 +131,53 @@ declaration. This point-in-time whole-Blob evidence is per binding and does not
 claim whole-handoff atomicity, a durable playback lease, packaged UI, browser
 codec playback, or reference-scale range transport.
 
+Exact schema 9 now normalizes feature-requirements manifest schema 2 with the
+closed rendered-fallback roles `project-audio-mix-v1`,
+`project-video-render-v1`, and `video-clip-render-v1`. Nested manifest schema 1
+deterministically normalizes only to the whole-project roles. The clip role is
+restricted to `videoEffects`, binds one exact target clip ID, and does not open
+a generic project-supplied role or third-party dispatch surface.
+
+That target must be one timeline video clip with an enabled maintained effect.
+Its complete fallback source must differ from the canonical source, declare
+`hasAudio: false`, have frame count equal to the target duration, and match the
+canonical source's sample rate, width, height, and frame rate. Projection changes
+only the target: source start and trims become zero, speed becomes one, and the
+maintained effect list becomes empty. Track membership, timeline placement,
+duration, grouping, A/V link, unaffected clips and sources, and canonical state
+remain unchanged. Integrity selection and currentness bind role, target clip ID,
+source ID, and SHA-256 together with the qualifying target and source geometry;
+same-source relationship conflicts reject before media reads.
+
 Final video rendered-fallback delivery is another narrow exact schema 9
 control. Exactly one item whose feature ID belongs to the explicit host-owned
 registered video capability allowlist (`videoImport`, `videoPlayback`,
 `videoTimelineEditing`, `videoExport`, `videoEffects`, and `videoCompositing`)
 must be unavailable with declared and effective `rendered-fallback`. Its report
 video descriptor must exactly match the canonical manifest by requirement ID,
-feature ID, video kind, source ID, and SHA-256, and it must be the only rendered
-fallback in the report.
+feature ID, relationship role, optional target clip ID, video kind, source ID,
+and SHA-256, and it must be the only rendered fallback in the report.
 The capability-evaluated service applies only the video delivery projection: the
-full fallback replaces timeline video from frame zero while canonical audio is
-retained, and audio fallback plus audio/video bypass projections are not
-composed. Canonical project, history, and save state stay unchanged.
+whole-project fallback replaces timeline video from frame zero. The
+`video-clip-render-v1` alternative replaces only its exact target while
+preserving track membership, timeline placement, duration, grouping, A/V link,
+layer and transition context, unaffected video, and separately staged canonical
+audio. Audio fallback plus audio/video bypass projections are not composed.
+Canonical project, history, and save state stay unchanged.
 
 An active delivery does not reuse activation-time byte admission. Under the
 owned export-task signal, the operation-time selector-mode verifier reselects
-the exact requirement ID, feature ID, video kind, source ID, and SHA-256 and
-verifies only that active canonical target.
+the exact requirement ID, feature ID, relationship role, target clip ID, video
+kind, source ID, and SHA-256 and verifies only that active canonical target.
 Unrelated inactive audio fallback storage is not read. Selector mismatch or
 ambiguity rejects before storage. The verifier loads the selected local body
 once, constructs a canonical native `Blob`, and size-checks and hashes that
 same object with SHA-256 through non-raiseable 4 MiB windows. Its admission
 returns that same verified object.
-Export reuses it as the sole video input with no second fallback-store read,
-eliminating the selected fallback's storage-reread TOCTOU between admission and
-FFmpeg.
+Export reuses it with no second fallback-store read, eliminating the selected
+fallback's storage-reread TOCTOU between admission and FFmpeg. It is the sole
+video input for the whole-project role or the selected target input for the
+clip-local role while ordinary unaffected video remains in the composition.
 
 That verified `Blob` may then enter either the separately governed exact direct
 MP4/WebM route or the legacy final-`Blob` route. Source digest verification and
@@ -192,13 +214,21 @@ delivery refusal, repairs the exact acquired body, and then proves that body
 alone reaches a successful video output while the canonical project and shadow
 remain unchanged. The retained immutable `Blob` supplies point-in-time bytes
 for this export, not a durable storage-record lease or cross-process replacement
-guarantee. More than one qualifying item, including across different registered
-video feature IDs, rejects. Audio IDs never qualify; unknown or third-party IDs,
-future schemas, and earlier Soundscaper schemas remain outside this control.
-Simultaneous rendered fallback, authored fallback, freeze, proxy, linked-only,
-unmanaged, embedded fallback audio, and other export parity remain unqualified,
-as do packaged runtime or UI, browser and codec behavior, range transport,
-reference-scale evidence, and whole-handoff atomicity.
+guarantee. A separate clip-local managed handoff carries the exact target clip
+ID and digest-bound fallback body to a fresh recipient, reopens the canonical
+shadow, and admits the relationship before playback. Ordinary video export,
+portable `.scape` copy collision handling, and managed handoff share that exact
+role and target identity; copy import remaps only the fallback source ID.
+
+More than one qualifying item rejects. Multiple clip fallbacks and mixed
+fallback relationships are unqualified. Audio IDs never qualify; unknown IDs
+and future schemas remain outside this control. Generic fallback authoring is
+unqualified, and third-party activation is unqualified. Linked or unmanaged
+delivery is unqualified, as are freeze, proxy, relink, embedded fallback audio,
+and other export parity. Packaged runtime and UI workflows are unqualified,
+browser behavior is unqualified, codec qualification is unqualified, range
+transport is unqualified, and reference-scale evidence is unqualified.
+Whole-handoff atomicity remains unqualified.
 
 Descriptor validation alone does not hash or authenticate the referenced media bytes; the separate exact-schema-9 controller admission described above verifies referenced local bytes at its narrower boundary.
 

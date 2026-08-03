@@ -23,8 +23,10 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	for (const path of [
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-feature-video-rendered-fallback.ts',
+		'src/common/editor/project-feature-video-clip-render-v1.ts',
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-video.ts',
+		'src/common/editor/project-fallback-integrity-snapshot.ts',
 		'src/common/editor/controller/playback-project-service.ts',
 		'src/common/editor/controller/video-rendered-fallback-export.ts',
 		'src/common/editor/controller/export-service.ts',
@@ -35,8 +37,10 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 		'tests/audio-editor-project-feature-video-rendered-fallback.test.ts',
 		'tests/audio-editor-video-rendered-fallback-delivery-projection.test.ts',
 		'tests/audio-editor-video-rendered-fallback-export.test.ts',
+		'tests/audio-editor-video-clip-fallback-export-regression.test.ts',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
 		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
+		'tests/audio-editor-project-fallback-integrity-relationships.test.ts',
 		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
 		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
 		'tests/production-security-video-rendered-fallback-export.test.js',
@@ -47,44 +51,36 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 
 	assert.match(
 		control.summary,
-		/exact schema 9.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*unavailable.*declared and effective rendered-fallback.*only.*final video delivery.*canonical manifest/iu,
+		/exact schema 9.*unavailable.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*narrow final video delivery.*canonical manifest.*requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		control.summary,
-		/report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256/iu,
+		/operation-time selector.*role.*target clip ID.*source ID.*SHA-256.*requirement and feature IDs.*snapshot currentness.*drift/iu,
 	);
 	assert.match(
 		control.summary,
-		/operation-time selector.mode.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*unrelated inactive audio.*storage.*not read/iu,
+		/canonical native Blob.*size-checks and hashes.*same object.*without a second fallback-store read.*sole video input.*project-video-render-v1.*selected target input.*video-clip-render-v1.*ordinary unaffected video.*composition/iu,
 	);
 	assert.match(
 		control.summary,
-		/canonical native Blob.*size.check.*hash.*same.*object.*sole video input.*no second fallback.store read.*TOCTOU/iu,
+		/clip-local ordinary video export.*target placement.*track membership.*layer.*transition.*separately staged canonical audio.*embedded fallback audio.*ignored/iu,
 	);
 	assert.match(
 		control.summary,
-		/current.*before verification.*after.*admission.*before planning.*task signal.*audio render.*FFmpeg.*post-encode.*prior-output cleanup.*current.*before.*download publication/iu,
+		/direct MP4\/WebM route.*legacy final-Blob route.*does not add codec qualification.*currentness.*before verification.*after admission.*after FFmpeg.*publication.*recoverable stale publication.*cleaned up/iu,
 	);
 	assert.match(
 		control.summary,
-		/export signal.*passed.*download publication.*after.*returns.*current.*recoverable.*cleanup/iu,
-	);
-	assert.match(
-		control.summary,
-		/canonical audio.*separate staged mix.*embedded fallback audio.*ignored/iu,
+		/selector mismatch.*stale activation digest.*missing or wrong body.*digest mismatch.*before planning and output/iu,
 	);
 	assert.match(control.summary, /canonical project.*history.*save.*unchanged/iu);
 	assert.match(
 		control.summary,
-		/stale activation-time.*missing.*wrong.*digest.*before.*FFmpeg.*download/iu,
+		/clip-local fresh-recipient witness.*target identity.*fallback bytes.*relationship admission.*point-in-time bytes.*no durable storage-record lease.*cross-process/iu,
 	);
 	assert.match(
 		control.summary,
-		/videoCompositing.*composed Framescaper-to-fresh-Soundscaper.*manifest.*metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*operation-time selector.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*transfer.*descriptor.*body digest.*not.*manifest declaration.*tamper.*refus.*repair.*canonical.*shadow.*unchanged/iu,
-	);
-	assert.match(
-		control.summary,
-		/retained immutable Blob.*point-in-time bytes.*no durable storage-record lease.*cross-process replacement.*more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future.*earlier.*simultaneous.*authored.*freeze.*proxy.*linked-only.*unmanaged.*embedded fallback audio.*other export parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*whole-handoff atomicity/iu,
+		/multiple clip or mixed fallback relationships.*generic authoring.*third-party activation.*simultaneous fallback delivery.*freeze.*proxy.*linked or unmanaged delivery.*broad export parity.*packaged runtime.*browser behavior.*codec qualification.*range transport.*reference-scale.*whole-handoff atomicity.*unqualified/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -94,35 +90,30 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	const documentation = threatModel.slice(sectionStart, sectionEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/final video rendered-fallback delivery.*exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*unavailable.*declared and effective `rendered-fallback`.*only.*video delivery projection/iu,
+		/final video rendered-fallback delivery.*exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*unavailable.*declared and effective `rendered-fallback`.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		documentation,
-		/report video descriptor.*canonical manifest.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256/iu,
+		/whole-project fallback.*frame zero.*video-clip-render-v1.*only its exact target.*track membership.*timeline placement.*duration.*A\/V link.*transition.*canonical audio.*canonical project.*history.*save state.*unchanged/iu,
 	);
 	assert.match(
 		documentation,
-		/operation-time selector.mode.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*unrelated inactive audio.*storage.*not read/iu,
+		/selector-mode verifier.*requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256.*unrelated inactive audio.*not read/iu,
 	);
 	assert.match(
 		documentation,
-		/canonical native `Blob`.*size.check.*hash.*same.*object.*sole video input.*no second fallback-store read.*TOCTOU/iu,
+		/canonical native `Blob`.*size-checks and hashes.*same object.*no second fallback-store read.*sole video input.*whole-project role.*selected target input.*clip-local role.*ordinary unaffected video.*composition/iu,
 	);
 	assert.match(
 		documentation,
-		/prior-output cleanup.*current.*before.*download publication.*export-task signal.*passed.*publication.*after.*returns.*current.*recoverable.*cleanup/iu,
+		/export-task signal.*canonical-audio render.*FFmpeg.*prior-output cleanup.*download publication.*recoverable cleanup/iu,
 	);
 	assert.match(
 		documentation,
-		/canonical audio.*separately staged.*embedded audio.*fallback container.*ignored/iu,
-	);
-	assert.match(documentation, /canonical project.*history.*save.*unchanged/iu);
-	assert.match(
-		documentation,
-		/`videoCompositing`.*composed Framescaper-to-fresh-Soundscaper.*manifest.*metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*operation-time selector.*exact requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*transfer.*descriptor.*body digest.*not.*manifest declaration.*tamper.*refus.*repair.*canonical.*shadow.*unchanged/iu,
+		/clip-local managed handoff.*target clip ID.*digest-bound fallback body.*fresh recipient.*canonical shadow.*ordinary video export.*portable `\.scape` copy collision.*managed handoff.*remaps only the fallback source ID/iu,
 	);
 	assert.match(
 		documentation,
-		/retained immutable `Blob`.*point-in-time bytes.*not a durable storage-record lease.*cross-process replacement.*more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future.*earlier.*simultaneous.*authored.*freeze.*proxy.*linked-only.*unmanaged.*embedded fallback audio.*other export parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*whole-handoff atomicity/iu,
+		/multiple clip fallbacks.*mixed fallback relationships.*generic fallback authoring.*third-party activation.*linked or unmanaged delivery.*packaged runtime.*browser behavior.*codec qualification.*reference-scale evidence.*whole-handoff atomicity.*unqualified/iu,
 	);
 });

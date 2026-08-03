@@ -265,7 +265,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.ok(fallbackPlayback);
 	for (const path of [
 		'src/common/editor/migration.js',
-		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/project-feature-requirements.ts', 'src/common/editor/project-feature-video-clip-render-v1.ts',
 		'src/common/editor/project-v9.ts',
 		'src/common/editor/retention.js',
 		'src/common/editor/scape-project-assets.ts',
@@ -295,6 +295,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-feature-requirements.test.ts',
+		'tests/audio-editor-project-feature-video-clip-render-v1.test.ts',
 		'tests/audio-editor-project-v9.test.ts',
 		'tests/audio-editor-feature-requirement-retention.test.ts',
 		'tests/audio-editor-scape-feature-requirements.test.ts',
@@ -350,7 +351,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /separate maintained-controller admission.*exact-schema-9 raw and stored-project fallback bytes.*direct store loads.*runtime fallback substitution.*third-party/iu);
 	assert.match(control.summary, /generic runtime fallback substitution.*generic unavailable-feature placeholders.*general per-feature activation controls.*outside/iu);
 	for (const path of [
-		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/project-fallback-integrity.ts', 'src/common/editor/project-fallback-integrity-snapshot.ts',
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage.js',
@@ -362,7 +363,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/session-activation.js',
 		'src/common/editor/session.js',
 		'src/common/editor/app.js',
-		'tests/audio-editor-project-fallback-integrity.test.ts',
+		'tests/audio-editor-project-fallback-integrity.test.ts', 'tests/audio-editor-project-fallback-integrity-relationships.test.ts',
 		'tests/audio-editor-source-read-cancellation.test.ts',
 		'tests/audio-editor-media-asset-load.test.ts',
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
@@ -374,10 +375,11 @@ test('project feature requirements are bounded and fail closed at activation and
 	);
 	assert.match(fallbackAdmission.summary, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(fallbackAdmission.summary, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
-	assert.match(fallbackAdmission.summary, /deduplicates.*conflicting digests.*before storage reads/iu);
+	assert.match(fallbackAdmission.summary, /deduplicates.*conflicting digests.*relationship roles.*target clip IDs.*before storage reads/iu);
+	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
 	assert.match(
 		fallbackAdmission.summary,
-		/no asset read.*future schemas.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*activation admission remains point-in-time.*operation-scoped per-read validation.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
+		/future schemas.*no asset read.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*activation admission remains point-in-time.*operation-scoped per-read validation.*selected video delivery.*immutable Blob.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 	for (const path of [
 		'src/common/editor/project-feature-audio-rendered-fallback.ts',

@@ -7,78 +7,93 @@ import test from 'node:test';
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
 
-test('compatibility policy qualifies only registered first-party video fallback playback, delivery, and handoff', async () => {
+test('compatibility policy qualifies closed full-project and clip-local first-party video fallbacks', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const rule = policy.rules.find(({ id }) => id === 'current-first-party-video-rendered-fallback-playback');
 	assert.ok(rule);
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/exact-current-schema.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*rendered fallback.*editor playback.*maintained video export.*selector-bound operation-time admission.*export signal.*exact canonical native Blob.*size-checks and hashes.*direct immutable-byte reuse.*canonical.*read-only.*unmodified/iu,
+		/exact-current-schema.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*rendered fallback.*editor playback.*project-video-render-v1.*full-source render.*videoEffects-only video-clip-render-v1.*one exact target clip.*complete admitted render/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
-		/explicit managed desktop handoff.*Framescaper.*fresh Soundscaper.*manifest-only fallback.*editable original.*exact canonical shadow.*controller.*digest.*before activation/iu,
+		/maintained video export.*role- and target-bound operation-time admission.*export signal.*exact canonical native Blob.*size-checks and hashes.*direct immutable-byte reuse.*canonical project.*intrinsically read-only.*unmodified/iu,
+	);
+	assert.match(
+		rule.requiredOutcome,
+		/portable \.scape.*explicit managed desktop handoff.*fresh recipient.*preserve the clip relationship.*manifest-only fallback body.*controller.*manifest fallback digest.*before activation.*again for later delivery/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative.*exact schema 9.*exactly one.*host-owned registered video capability allowlist.*unavailable.*declared and effective rendered-fallback.*video descriptor.*canonical manifest.*source ID.*SHA-256/iu,
+		/authoritative actual project history.*exact schema 9.*exactly one.*host-owned registered video capability allowlist.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/project-fallback-integrity.*separately verifies.*local body.*before activation side effects.*video export.*exact selector.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*operation-time.*export task signal/iu,
+		/project-fallback-integrity.*local body.*before activation side effects.*video export.*exact selector.*requirement ID.*feature ID.*role.*target clip ID.*video kind.*source ID.*SHA-256.*operation-time verification.*export task signal/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/selector-mode verification.*only.*active video body.*not.*unrelated inactive audio.*nonselected fallback body.*size-checks and hashes.*canonical native Blob.*retains.*exact immutable Blob.*before.*plan.*storage preflight.*audio.*FFmpeg.*output/iu,
+		/selector-mode verification.*only that active video body.*unrelated inactive audio.*nonselected fallback body.*size-checks and hashes.*canonical native Blob.*retains.*exact immutable Blob.*before video planning.*storage preflight.*canonical-audio rendering.*FFmpeg.*output publication.*exact selector.*without a second fallback storage read/iu,
+	);
+
+	assert.match(
+		rule.currentBehavior,
+		/project-video-render-v1.*exact video kind.*project sample rate.*positive safe-integer frame count.*width.*height.*positive finite frame rate.*reserved synthetic track or clip ID collisions/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/exact video kind.*project sample rate.*positive.*frame count.*width.*height.*frame rate.*reserved synthetic track.*clip.*collision/iu,
+		/project-video-render-v1.*transient projection.*replaces all timeline video clips and tracks.*one neutral clip and track.*full source.*frame zero.*preserving audio and label.*Project Bin.*sources.*every other canonical field/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/transient projection.*replaces.*timeline video clips and tracks.*one neutral.*full source.*frame zero.*preserv(?:es|ing).*audio.*label.*Project Bin.*sources.*canonical project.*history/iu,
+		/video-clip-render-v1.*restricted to videoEffects.*one exact target clip ID.*enabled maintained video effect.*fallback source.*different from the canonical source.*hasAudio false.*frame count equal to the target duration.*match.*sample rate.*width.*height.*frame rate/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/manifest-only.*required video source.*activated before.*engine.*preview.*transient preview project.*source-level.*exact visual/iu,
+		/video-clip-render-v1.*replaces only the target timeline clip.*source.*frame zero.*trims.*zero.*speed.*one.*video effects.*empty.*track membership.*timeline placement.*duration.*group.*A\/V link.*layer.*transition context.*unaffected clip and source.*canonical project and history.*unchanged/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/deeply frozen.*per-tab.*document-snapshot metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*without.*source ID.*digest/iu,
+		/ordinary video composition and export.*projected target.*normally loaded unaffected video.*manifest-only fallback.*required video source.*activated before.*engine or preview.*WebGL preview.*exact projected source identity/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/video delivery.*only.*video rendered fallback.*does not compose.*audio rendered fallback.*bypass.*simultaneous rendered fallback.*reject/iu,
+		/video delivery projection.*only the video rendered fallback.*does not compose.*audio rendered fallback.*bypass projections.*simultaneous rendered fallbacks reject.*full-project plan.*only video input.*clip-local plan.*selected target input.*unaffected clip-local video inputs.*ordinary loading/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/exact admitted Blob.*only video input.*canonical.*audio.*separate.*staged.*mix.*embedded.*fallback.*audio.*neither.*extract.*nor.*map/iu,
+		/canonical audio clips and effects.*separate staged audio mix.*embedded fallback-video audio.*neither extracted nor mapped.*canonical project.*history.*persistence.*save state.*read-only and unmodified/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/canonical project.*history.*persistence.*save.*read-only.*unmodified.*project.*currentness.*before.*verification.*after.*verification.*exact selector.*after FFmpeg.*owned signal.*publication.*rechecks.*cleanup/iu,
+		/export asserts project, task, and generation currentness.*before verification.*after verification.*exact selector.*after FFmpeg.*owned signal.*output publication.*rechecks currentness.*cleanup.*refusal or cancellation.*no plan.*storage preflight.*canonical-audio render.*FFmpeg.*output publication/iu,
+	);
+
+	assert.match(
+		rule.currentBehavior,
+		/videoCompositing.*headless Framescaper-to-fresh-Soundscaper.*managed whole-Blob handoff.*editable retained original.*manifest-only whole-project fallback/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/videoCompositing.*composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*explicit managed whole-Blob.*editable retained original.*manifest-only.*fallback.*feature requirement.*two exact whole-Blob video bodies.*transfer.*descriptor.*body digest.*not.*manifest declaration.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/iu,
+		/separate video-clip-render-v1 managed handoff fixture.*canonical target.*unaffected video.*manifest-only fallback.*fresh recipient.*exact target clip ID.*fallback body digest.*canonical shadow.*reopens.*relationship-bound integrity admission.*playback.*managed transfer.*descriptor and body digest.*not the manifest declaration/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/corrupt.*after activation.*operation-time.*reject.*before.*FFmpeg.*output.*restor.*exact body.*directly reuses.*verified Blob.*only video input.*canonical.*unchanged/iu,
+		/portable \.scape.*round-trips the relationship.*copy collision.*remaps the fallback source ID.*preserving the target clip ID.*corrupting.*after activation.*operation-time verification.*rejects delivery before FFmpeg and output.*restoring.*reuses.*verified Blob.*canonical document.*unchanged/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future schemas.*earlier Soundscaper.*linked-only.*unmanaged.*simultaneous rendered.*generic.*author.*freeze.*proxy.*embedded fallback-video audio.*other export.*parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
+		/more than one qualifying registered video fallback.*different registered video feature IDs.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*audio IDs.*unknown or third-party IDs.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged delivery.*simultaneous rendered fallback delivery.*generic fallback authoring.*third-party activation.*freeze.*unfreeze.*proxy.*relink.*embedded fallback-video audio.*nonselected fallback-body claim.*offline-render parity.*packaged runtime or UI.*browser.*codec.*range transport.*reference-scale.*no durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
 	);
 
 	for (const reference of rule.evidence) {
 		await assert.doesNotReject(access(new URL(`../${reference}`, import.meta.url)), reference);
 	}
 	for (const reference of [
-		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-feature-video-rendered-fallback.ts',
+		'src/common/editor/project-feature-video-clip-render-v1.ts',
+		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-video.ts',
 		'src/common/editor/controller/playback-project-service.ts',
@@ -91,70 +106,61 @@ test('compatibility policy qualifies only registered first-party video fallback 
 		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
 		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
 		'tests/audio-editor-project-feature-video-rendered-fallback.test.ts',
+		'tests/audio-editor-project-feature-video-clip-render-v1.test.ts',
 		'tests/audio-editor-playback-project-service.test.ts',
 		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
 		'tests/audio-editor-video-rendered-fallback-delivery-projection.test.ts',
 		'tests/audio-editor-video-rendered-fallback-export.test.ts',
+		'tests/audio-editor-video-clip-fallback-export-regression.test.ts',
 		'tests/audio-editor-project-switch-source-preparation.test.ts',
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
 		'tests/audio-editor-video-preview-visual.test.ts',
 		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
 		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
+		'tests/audio-editor-desktop-shared-project-video-clip-fallback-handoff.test.ts',
+		'tests/audio-editor-scape-video-clip-fallback-roundtrip.test.ts',
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
 	const documentation = await readFile(documentationUrl, 'utf8');
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
 	assert.match(
 		normalizedDocumentation,
-		/exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*exactly one.*unavailable.*declared and effective.*canonical manifest.*video kind.*source ID.*SHA-256/isu,
+		/current nested manifest schema 2.*closed rendered-fallback roles.*`project-audio-mix-v1`.*`project-video-render-v1`.*`video-clip-render-v1`.*clip role.*canonical target clip ID.*nested manifest schema 1.*deterministically normalizes.*whole-project roles.*cannot declare the clip relationship/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/separate controller\s+fallback-integrity\s+admission.*verifies.*actual local body.*before activation\s+side effects.*video delivery.*selector.*requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*operation-time.*selected local body.*export-task signal/isu,
-	);
-	assert.match(
-		documentation,
-		/size-checks and hashes.*canonical native `Blob`.*retains.*exact\s+immutable `Blob`.*does not read or admit nonselected fallback\s+bodies.*before.*video plan.*storage preflight.*audio.*FFmpeg.*output/isu,
-	);
-	assert.match(
-		documentation,
-		/exact video kind.*project sample\s+rate.*positive safe.*frame count.*width.*height.*positive finite.*frame rate.*reserved\s+synthetic.*track and clip.*collision/isu,
-	);
-	assert.match(
-		documentation,
-		/transient projection.*replaces.*timeline video clips\s+and tracks.*one neutral.*full source.*frame zero.*audio and label.*Project Bin.*sources.*canonical project.*history.*unmodified/isu,
-	);
-	assert.match(
-		documentation,
-		/manifest-only.*required video source.*activated\s+before.*engine.*preview.*transient project.*source-level.*exact visual/isu,
+		/exact schema 9 first-party video rendered fallback.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*exactly one.*unavailable.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/deeply frozen.*per-tab.*document-snapshot metadata.*localized source\/component UI.*exact feature ID.*requirement ID.*without.*source ID.*digest/isu,
-	);
-	assert.match(
-		documentation,
-		/video-delivery projection.*only.*video rendered.*fallback.*does not compose.*audio rendered.*fallback.*bypass.*simultaneous rendered fallback.*reject/isu,
-	);
-	assert.match(
-		documentation,
-		/exact size- and digest-verified native `Blob`.*only video input.*no second fallback storage read.*canonical.*audio.*separate.*staged.*mix.*embedded.*fallback.*audio.*not extracted or mapped/isu,
-	);
-	assert.match(
-		documentation,
-		/canonical project.*history.*persistence.*save.*read-only.*unmodified.*project.*currentness.*before.*verification.*after.*verification.*after.*FFmpeg.*owned signal.*publication.*rechecks.*cleanup/isu,
+		/operation-time integrity selector.*role.*target clip ID.*source ID.*SHA-256.*requirement and feature IDs.*selected local body.*export-task signal.*size-checks and hashes.*canonical native `Blob`.*exact immutable `Blob`.*does not read nonselected fallback bodies.*before the video plan.*storage preflight.*canonical-audio render.*FFmpeg.*publication/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/`videoCompositing`.*composed headless Framescaper-to-fresh-Soundscaper.*exact schema 9.*editable retained original.*manifest-only fallback.*feature requirement.*explicit managed whole-`Blob` transfer.*two exact video bodies.*transfer.*descriptor.*body digest.*not.*manifest declaration.*exact canonical shadow.*intrinsically read-only.*separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation/isu,
-	);
-	assert.match(
-		documentation,
-		/corrupt.*after activation.*operation-time.*reject.*before.*FFmpeg.*output.*restor.*exact body.*exact immutable `Blob`.*reuses directly.*only video input.*storage lookup.*canonical.*unchanged/isu,
+		/`project-video-render-v1`.*whole-project behavior.*exact video kind.*project sample rate.*positive safe-integer frame count.*width.*height.*positive finite frame rate.*replaces all timeline video clips and tracks.*one neutral clip and track.*full source.*frame zero.*preserves audio and label.*Project Bin.*sources.*canonical field/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/more than one.*different registered video feature IDs.*audio IDs.*unknown or third-party.*future schemas.*earlier Soundscaper.*linked-only.*unmanaged.*simultaneous rendered.*generic.*author.*freeze.*proxy.*embedded fallback-video audio.*other export.*parity.*packaged runtime or UI.*browser.*codec.*range.*reference-scale.*durable.*lease.*cross-process replacement.*whole-handoff atomicity/isu,
+		/`video-clip-render-v1`.*closed `videoEffects`-only relationship.*one exact target clip ID.*enabled maintained effect.*fallback source.*different.*canonical source.*`hasAudio: false`.*frame count equal.*target clip duration.*sample rate.*width.*height.*frame rate.*replaces only that target timeline clip.*source starts at frame zero.*trim values.*zero.*speed.*one.*video effects.*empty/isu,
 	);
-	assert.match(normalizedDocumentation, /not a durable storage-record lease.*cross-process replacement.*nonselected fallback-body guarantee/isu);
+	assert.match(
+		normalizedDocumentation,
+		/track membership.*timeline placement.*duration.*group.*A\/V link.*layer.*transition context.*unaffected clip and source.*canonical project and history.*unchanged.*manifest-only fallback.*required source.*before engine or preview.*projected clip.*exact source identity/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
+		/video-delivery projection.*only the selected video rendered fallback.*does not compose.*audio rendered fallback.*bypass projection.*simultaneous rendered fallbacks reject.*whole-project plan.*only video input.*clip-local plan.*selected target input.*unaffected video.*canonical audio.*separately staged mix.*embedded fallback-video audio.*not extracted or mapped/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
+		/relationship snapshot.*role.*target clip ID.*canonical source and duration.*maintained target effects.*required source geometry.*role, target, context, or same-source relationship conflict.*before media use.*not a durable storage-record lease.*cross-process replacement guarantee/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
+		/second headless `video-clip-render-v1` witness.*canonical target.*unaffected video.*manifest-only fallback body.*fresh recipient.*target clip ID.*digest-bound fallback body.*exact canonical shadow.*reopens.*relationship-bound admission.*portable `\.scape`.*copy collision remaps only the fallback source ID.*preserves the canonical target clip ID/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
+		/more than one qualifying fallback.*ambiguous.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*unknown IDs.*future schemas.*generic fallback authoring.*third-party activation.*linked or unmanaged delivery.*freeze.*proxy.*relink.*embedded fallback audio.*broader render parity.*packaged runtime.*browser behavior.*codec qualification.*reference-scale.*earlier Soundscaper project schemas.*not a compatibility target.*deterministic nested manifest-schema-1 whole-project normalization.*whole-handoff atomicity.*durable storage or cross-process byte lease/isu,
+	);
 });

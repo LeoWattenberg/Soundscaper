@@ -86,19 +86,19 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 
 	const featureRequirements = rules.get('project-feature-requirements-core');
 	for (const reference of [
-		'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/project-feature-requirements.ts', 'src/common/editor/project-feature-video-clip-render-v1.ts',
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/common/editor/video-effects.js',
 		'src/common/editor/project-v9.ts',
 		'src/common/editor/project.js',
 		'src/common/editor/migration.js',
-		'tests/audio-editor-project-feature-requirements.test.ts',
+		'tests/audio-editor-project-feature-requirements.test.ts', 'tests/audio-editor-project-feature-video-clip-render-v1.test.ts',
 		'tests/audio-editor-project-feature-capabilities.test.ts',
 		'tests/audio-editor-project-owned-feature-requirements.test.ts',
 		'tests/audio-editor-project-v9.test.ts',
 	]) assert.ok(featureRequirements.evidence.includes(reference), reference);
-	assert.match(featureRequirements.currentBehavior, /bounded.*rendered-fallback.*digest syntax/iu);
+	assert.match(featureRequirements.currentBehavior, /manifest schema 2.*bounded.*rendered-fallback.*closed fallback roles.*project-audio-mix-v1.*project-video-render-v1.*video-clip-render-v1.*legacy nested manifest schema 1.*deterministically normalizes.*whole-project roles only.*clip role.*videoEffects.*exact target clip ID/iu);
 	assert.match(
 		featureRequirements.requiredOutcome,
 		/retained-schema.*do not invent publisher.*create, load, clone, and commit.*editor-owned first-party/iu,
@@ -111,7 +111,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		featureRequirements.currentBehavior,
 		/reserved soundscaper\.video-effects.*timeline.*Project Bin.*video clip.*disabled effects.*inactive audio racks.*missing or foreign.*non-video clips.*explicit publisher.*wins without duplication.*conflicting.*reserved requirement ID rejects/iu,
 	);
-	assert.match(featureRequirements.currentBehavior, /V1-V8 migration.*empty publisher manifest.*same owned reconciliation/iu);
+	assert.match(featureRequirements.currentBehavior, /V1-V8 outer-project migration.*empty publisher manifest.*same owned reconciliation/iu);
 	assert.match(featureRequirements.currentBehavior, /without mutating/iu);
 
 	const currentScapeFeatureRequirements = rules.get('current-scape-feature-requirements');
@@ -122,11 +122,11 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'src/common/editor/scape-project.js',
 		'src/common/editor/scape-project-assets.ts',
 		'tests/audio-editor-feature-requirement-retention.test.ts',
-		'tests/audio-editor-scape-feature-requirements.test.ts',
+		'tests/audio-editor-scape-feature-requirements.test.ts', 'tests/audio-editor-scape-video-clip-fallback-roundtrip.test.ts',
 	]);
 	assert.match(
 		currentScapeFeatureRequirements.currentBehavior,
-		/rendered-fallback.*compaction.*every project source asset.*copy import.*collision map/iu,
+		/rendered-fallback.*compaction.*every project source asset.*preserves each closed relationship.*video-clip-render-v1.*exact target clip ID.*copy collision.*remaps the fallback source ID.*preserving.*target clip ID/iu,
 	);
 	assert.match(
 		currentScapeFeatureRequirements.currentBehavior,
@@ -144,7 +144,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'tests/audio-editor-scape-feature-requirements.test.ts',
 		'tests/audio-editor-scape-export-fallback-integrity.test.ts',
 		'tests/audio-editor-scape-project.test.js',
-		'tests/audio-editor-scape-streaming-video.test.ts',
+		'tests/audio-editor-scape-streaming-video.test.ts', 'tests/audio-editor-scape-video-clip-fallback-roundtrip.test.ts',
 	]);
 	assert.match(
 		fallbackIntegrity.requiredOutcome,
@@ -156,11 +156,11 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		fallbackIntegrity.currentBehavior,
-		/inspection.*descriptor binding.*does not read or hash.*asset bodies.*future schemas.*not traversed/iu,
+		/import and inspection.*fallback role.*optional target clip ID.*source ID.*kind.*SHA-256.*canonical manifest asset.*before collision.*storage.*inspection.*does not read or hash.*asset bodies/iu,
 	);
 	assert.match(
 		fallbackIntegrity.currentBehavior,
-		/copy.*source ID.*digest.*raw-project.*stored-project.*runtime fallback use.*outside/iu,
+		/copy import.*fallback source ID.*preserving.*verified digest.*canonical target clip ID.*raw-project.*stored-project.*runtime fallback use.*outside/iu,
 	);
 
 	const currentControllerFeatureReport = rules.get('current-controller-feature-report');
@@ -326,7 +326,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const controllerFallbackIntegrity = rules.get('current-controller-rendered-fallback-integrity');
 	assert.deepEqual(controllerFallbackIntegrity.evidence, [
 		'src/common/editor/project-fallback-integrity.ts',
-		'src/common/editor/project-fallback-integrity-video.ts',
+		'src/common/editor/project-fallback-integrity-video.ts', 'src/common/editor/project-fallback-integrity-snapshot.ts',
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage.js',
@@ -341,12 +341,12 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'src/common/editor/session.js',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
-		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
+		'tests/audio-editor-project-fallback-integrity-selection.test.ts', 'tests/audio-editor-project-fallback-integrity-relationships.test.ts',
 		'tests/audio-editor-source-read-cancellation.test.ts',
 		'tests/audio-editor-media-asset-load.test.ts',
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
 		'tests/audio-editor-video-rendered-fallback-export.test.ts',
-		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
+		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts', 'tests/audio-editor-desktop-shared-project-video-clip-fallback-handoff.test.ts',
 		'tests/audio-editor-session-project-activation.test.js',
 	]);
 	assert.match(
@@ -364,8 +364,8 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(controllerFallbackIntegrity.currentBehavior, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(controllerFallbackIntegrity.currentBehavior, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
-	assert.match(controllerFallbackIntegrity.currentBehavior, /deduplicates.*conflicting digests.*before storage reads/iu);
-	assert.match(controllerFallbackIntegrity.currentBehavior, /selector.*active requirement ID.*feature ID.*video kind.*source ID.*SHA-256.*only that active video body.*unrelated inactive audio.*nonselected fallback body.*size-checks and hashes.*canonical native Blob.*retains.*exact immutable Blob.*exact selector.*directly reuses.*sole video input.*without a second fallback storage read.*publication.*cleanup/iu);
+	assert.match(controllerFallbackIntegrity.currentBehavior, /deduplicates identical source claims.*conflicting digests.*conflicting relationship roles.*target clip IDs.*before storage reads/iu);
+	assert.match(controllerFallbackIntegrity.currentBehavior, /selector.*active requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256.*admission snapshot.*canonical source.*duration.*maintained video effects.*role, target, or context drift.*only that active video body.*nonselected fallback body.*whole-project plan.*sole video input.*clip-local plan.*selected target input.*without a second fallback storage read/iu);
 	assert.match(
 		controllerFallbackIntegrity.currentBehavior,
 		/empty manifests.*future schemas.*no asset reads.*not traversed.*point-in-time immutable-Blob identity reuse.*not a durable lease.*storage record.*cross-process replacement.*nonselected fallback body.*direct store\.loadProject.*publisher authenticity.*generic.*third-party/iu,
@@ -455,20 +455,20 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		unavailable.currentBehavior,
-		/first-party audio whole-mix and video-effects full-render fallback slices.*editor playback.*video slice.*neutral full-source clip.*frame zero.*separate controller body verification.*required-source activation.*generic per-object placeholders.*beyond.*first-party slices.*generic or third-party rendered-fallback runtime use.*authored fallback relationships.*future-schema archive preservation.*not implemented/iu,
+		/first-party audio whole-mix and video-effects whole-project or one clip-local fallback slices.*editor playback.*whole-project role.*neutral full-source clip.*frame zero.*closed clip role.*only its exact target.*controller body and relationship verification.*required-source activation.*generic per-object placeholders.*generic or third-party rendered-fallback runtime use.*simultaneous fallback delivery.*fallback-authoring workflows beyond the closed relationship.*future-schema archive preservation.*not implemented/iu,
 	);
-	assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-rendered-fallback.ts'));
-	assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-rendered-fallback.test.ts'));
+	assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-rendered-fallback.ts')); assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-clip-render-v1.ts'));
+	assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-rendered-fallback.test.ts')); assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-clip-render-v1.test.ts'));
 
 	const audioFreezeFallback = rules.get('audio-freeze-fallback');
 	assert.match(
 		audioFreezeFallback.currentBehavior,
-		/narrow exact-schema-9 audio and video playback fallbacks.*bounded operation-verified video fallback delivery exist.*no canonical authored freeze, unfreeze, commit, relink, or rendered-fallback document state.*no generic cross-platform fallback-authoring contract.*implemented/iu,
+		/offline rendering.*narrow exact-schema-9 audio and video playback fallback relationships.*bounded operation-verified video fallback delivery exist.*audio freeze, unfreeze, commit, relink, freshness.*generic cross-platform fallback-authoring semantics.*not implemented/iu,
 	);
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
-		/first-party video-effects fallback.*transiently replace.*editor playback.*maintained video-export input.*operation-time verification.*without changing canonical state.*no original-to-render or original-to-proxy relationship.*no broad original-delivery parity.*proxy.*freeze.*unfreeze.*offline-render.*relink.*not implemented/iu,
+		/first-party video-effects fallbacks.*transiently replace.*whole-project video.*one explicitly related clip.*editor playback.*maintained video-export input.*operation-time verification.*without changing canonical state.*clip target-to-render relationship.*not an original-to-proxy, relink, watch, freshness, or broad original-delivery model.*proxy.*freeze.*unfreeze.*generic offline-render.*relink models.*not implemented/iu,
 	);
 });
 
@@ -507,8 +507,8 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 		documentation,
 		/future-schema tag-shaped data.*structurally counted.*raw\s+preflight.*neither decoded nor interpreted/isu,
 	);
-	assert.match(documentation, /Project feature requirements/u);
-	assert.match(documentation, /does not hash or authenticate the referenced media bytes/iu);
+	assert.match(documentation, /Project feature requirements.*current nested manifest schema 2.*closed rendered-fallback roles.*`video-clip-render-v1`.*nested manifest\s+schema 1.*deterministically normalizes.*whole-project roles.*cannot\s+declare the clip relationship/isu);
+	assert.match(documentation, /do not hash or authenticate the referenced media bytes/iu);
 	assert.match(
 		documentation,
 		/Schemas 1 through 8.*empty publisher manifest.*exact-schema-9 create,\s+load, clone, and commit.*`soundscaper\.audio-effects`.*non-label.*non-video.*mixer group.*mixer send.*master rack/isu,
@@ -587,11 +587,11 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/exact-schema-9 mono\/stereo first-party audio whole-mix.*first-party\s+video-effects full-render slices.*narrow forms of step 3.*editor\s+playback.*video-only slice.*maintained video-export.*operation-time integrity admission/isu,
+		/exact-schema-9 mono\/stereo first-party audio whole-mix.*first-party\s+video\s+whole-project.*one first-party video-effects clip-target slice.*narrow forms of step 3.*editor playback.*maintained delivery.*operation-time integrity admission/isu,
 	);
 	assert.match(
 		documentation,
-		/neither slice creates.*freezes.*unfreezes.*relinks.*unknown or third-party.*Audio fallback delivery.*generic fallback\s+selection.*simultaneous fallback delivery.*authored video fallback or proxy\s+relationships remain planned.*broad video-export and offline-render parity.*outside/isu,
+		/clip relationship is durable\s+publisher state.*does not create it.*do not freeze,\s+unfreeze, relink, watch, or refresh a fallback.*do not generalize to\s+unknown or third-party effects.*generic fallback authoring and selection.*simultaneous fallback delivery.*authored proxy workflows remain planned.*broad video-export and offline-render parity.*outside/isu,
 	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });

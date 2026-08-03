@@ -281,18 +281,11 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   the editable original, is acquired into a fresh recipient, and activates
   there after the separate controller-owned manifest digest check. The
   recipient document remains read-only and canonical state stays unprojected.
-- **Shared / Electron Enhanced — Implemented for registered first-party video
-  fallbacks:** one admitted exact-schema video fallback bound to one unavailable
-  registered video feature activates its required local source
-  and replaces preview video with a neutral full render from frame zero. An
-  explicit managed handoff roots the manifest-only fallback with the editable
-  retained original, and a fresh recipient acquires both exact bodies and the
-  canonical shadow before the separate controller digest check and activation.
-  A fresh export-time digest check lets that fallback alone drive maintained
-  video export while canonical audio is staged separately and embedded fallback
-  audio is ignored. Canonical project, history, Project Bin, and effect state
-  stay unchanged. Authored proxies, generic fallback handling, broader export
-  parity, and browser or packaged qualification remain open.
+- **Shared / Electron Enhanced — Implemented for full-project and one
+  clip-local first-party video-effects fallback relationship:** exact-schema
+  relationships reach portable `.scape`, managed handoff, playback, and the
+  maintained delivery projection without canonical mutation. Generic
+  relationships and packaged/browser qualification remain open.
 - **Electron Enhanced — Implemented for point-in-time managed-media publication
   admission:** absent bindings reserve prospective catalog rows, serialized
   metadata, and aggregate pending body bytes, then reject failed, malformed, or

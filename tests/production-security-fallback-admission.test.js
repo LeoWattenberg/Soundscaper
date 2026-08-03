@@ -19,6 +19,7 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	for (const path of [
 		'src/common/editor/project-fallback-integrity.ts',
 		'src/common/editor/project-fallback-integrity-audio.ts',
+		'src/common/editor/project-fallback-integrity-snapshot.ts',
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage.js',
@@ -33,6 +34,7 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 		'src/common/editor/session.js',
 		'src/common/editor/app.js',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
+		'tests/audio-editor-project-fallback-integrity-relationships.test.ts',
 		'tests/audio-editor-project-fallback-integrity-audio-selection.test.ts',
 		'tests/audio-editor-project-fallback-integrity-audio-provider.test.ts',
 		'tests/audio-editor-audio-rendered-fallback-export.test.ts',
@@ -48,10 +50,11 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	);
 	assert.match(fallbackAdmission.summary, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(fallbackAdmission.summary, /read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
-	assert.match(fallbackAdmission.summary, /conflicting digests.*before storage reads/iu);
+	assert.match(fallbackAdmission.summary, /conflicting digests.*relationship roles.*target clip IDs.*before storage reads/iu);
+	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
 	assert.match(
 		fallbackAdmission.summary,
-		/selected first-party audio delivery.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*each requested stored chunk.*activation admission remains point-in-time.*operation-scoped per-read validation.*neither.*durable storage-record lease.*cross-process immutability/iu,
+		/selected first-party audio delivery.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*each requested stored chunk.*activation admission remains point-in-time.*operation-scoped per-read validation.*selected video delivery.*immutable Blob.*none establishes.*durable storage-record lease.*cross-process immutability/iu,
 	);
 	assert.match(
 		fallbackAdmission.summary,
