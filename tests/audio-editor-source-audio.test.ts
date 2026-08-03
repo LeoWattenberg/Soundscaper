@@ -146,6 +146,192 @@ test('stored buffers and chunk providers use storage identities and validated ge
 	assert.deepEqual(calls, [['source', 1, {}]]);
 });
 
+test('stored chunk providers share one lazy read session without borrowing stream cancellation', async () => {
+	const source = { id: 'source', storageKey: 'stored', frameCount: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 2 };
+	let resolveOpening!: (session: {
+		chunk(index: number, options?: { signal?: AbortSignal }): Promise<string>;
+		release(): Promise<void>;
+	}) => void;
+	const opening = new Promise<Parameters<typeof resolveOpening>[0]>((resolve) => { resolveOpening = resolve; });
+	const openCalls: Array<{ sourceId: string; signal?: AbortSignal }> = [];
+	const chunkCalls: Array<{ index: number; options?: { signal?: AbortSignal } }> = [];
+	let releases = 0;
+	const provider = createStoredChunkProvider({
+		readSourceChunk: () => { throw new Error('The fallback reader must not be used.'); },
+		openSourceReadSession(sourceId: string, options: { signal?: AbortSignal } = {}) {
+			openCalls.push({ sourceId, signal: options.signal });
+			return opening;
+		},
+	}, source, metadata);
+	const firstController = new AbortController();
+	const secondController = new AbortController();
+	const first = provider.readStorageChunk(1, { signal: firstController.signal, streamId: 'first' });
+	const second = provider.readStorageChunk(0, { signal: secondController.signal });
+	assert.equal(openCalls.length, 1);
+	assert.equal(openCalls[0]?.sourceId, 'stored');
+	assert.notStrictEqual(openCalls[0]?.signal, firstController.signal);
+	assert.notStrictEqual(openCalls[0]?.signal, secondController.signal);
+	resolveOpening({
+		async chunk(index, options) {
+			chunkCalls.push({ index, options });
+			if (options?.signal?.aborted) throw options.signal.reason;
+			return `chunk-${index}`;
+		},
+		async release() { releases += 1; },
+	});
+	assert.deepEqual(await Promise.all([first, second]), ['chunk-1', 'chunk-0']);
+	const cancellation = new Error('stream stopped');
+	const canceledController = new AbortController();
+	canceledController.abort(cancellation);
+	await assert.rejects(
+		async () => provider.readStorageChunk(0, { signal: canceledController.signal }),
+		(error: unknown) => error === cancellation,
+	);
+	assert.equal(openCalls[0]?.signal?.aborted, false);
+	assert.equal(await provider.readStorageChunk(1, { signal: null }), 'chunk-1');
+	assert.deepEqual(chunkCalls, [
+		{ index: 1, options: { signal: firstController.signal } },
+		{ index: 0, options: { signal: secondController.signal } },
+		{ index: 1, options: {} },
+	]);
+	const disposal = provider.dispose();
+	assert.strictEqual(provider.dispose(), disposal);
+	assert.equal(openCalls[0]?.signal?.aborted, true);
+	await disposal;
+	assert.equal(releases, 1);
+	assert.throws(() => provider.readStorageChunk(0), /disposed/u);
+});
+
+test('stored chunk provider waiters cancel promptly without aborting shared opening', async () => {
+	const source = { id: 'source', frameCount: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 2 };
+	let resolveOpening!: (session: {
+		chunk(index: number, options?: { signal?: AbortSignal }): Promise<string>;
+		release(): Promise<void>;
+	}) => void;
+	const opening = new Promise<Parameters<typeof resolveOpening>[0]>((resolve) => { resolveOpening = resolve; });
+	let openingSignal: AbortSignal | undefined;
+	let opens = 0;
+	const chunkIndexes: number[] = [];
+	const provider = createStoredChunkProvider({
+		readSourceChunk: () => 'fallback',
+		openSourceReadSession(_sourceId: string, options: { signal?: AbortSignal } = {}) {
+			opens += 1;
+			openingSignal = options.signal;
+			return opening;
+		},
+	}, source, metadata);
+	const canceledController = new AbortController();
+	const survivingController = new AbortController();
+	const canceledRead = Promise.resolve(provider.readStorageChunk(0, { signal: canceledController.signal }));
+	const survivingRead = provider.readStorageChunk(1, { signal: survivingController.signal });
+	const cancellation = new Error('first stream stopped');
+	canceledController.abort(cancellation);
+	const pending = Symbol('opening remains pending');
+	const canceledOutcome = canceledRead.then((value) => value, (error: unknown) => error);
+	assert.strictEqual(await Promise.race([
+		canceledOutcome,
+		new Promise<symbol>((resolve) => { setImmediate(() => { resolve(pending); }); }),
+	]), cancellation);
+	assert.equal(opens, 1);
+	assert.equal(openingSignal?.aborted, false);
+	resolveOpening({
+		async chunk(index) { chunkIndexes.push(index); return `chunk-${index}`; },
+		async release() {},
+	});
+	assert.equal(await survivingRead, 'chunk-1');
+	assert.equal(await provider.readStorageChunk(0), 'chunk-0');
+	assert.deepEqual(chunkIndexes, [1, 0]);
+	await provider.dispose();
+});
+
+test('stored chunk providers preserve fallback reads when sessions are unavailable', async () => {
+	const source = { id: 'source', frameCount: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 1 };
+	const fallbackCalls: unknown[][] = [];
+	let opens = 0;
+	const provider = createStoredChunkProvider({
+		readSourceChunk: (...args: unknown[]) => { fallbackCalls.push(args); return 'fallback'; },
+		async openSourceReadSession() { opens += 1; return null; },
+	}, source, metadata);
+	const context = { signal: new AbortController().signal, streamId: 'stream' };
+	assert.equal(await provider.readStorageChunk(0, context), 'fallback');
+	assert.equal(await provider.readStorageChunk(0), 'fallback');
+	assert.equal(opens, 1);
+	assert.deepEqual(fallbackCalls, [['source', 0, context], ['source', 0, {}]]);
+	await provider.dispose();
+});
+
+test('stored chunk provider disposal fences and cleans up a late opening session', async () => {
+	const source = { id: 'source', frameCount: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 1 };
+	let openingSignal: AbortSignal | undefined;
+	let resolveOpening!: (session: { chunk(): Promise<string>; release(): Promise<void> }) => void;
+	const opening = new Promise<Parameters<typeof resolveOpening>[0]>((resolve) => { resolveOpening = resolve; });
+	let releases = 0;
+	const provider = createStoredChunkProvider({
+		readSourceChunk: () => 'fallback',
+		openSourceReadSession(_sourceId: string, options: { signal?: AbortSignal } = {}) {
+			openingSignal = options.signal;
+			return opening;
+		},
+	}, source, metadata);
+	const read = provider.readStorageChunk(0);
+	const disposal = provider.dispose();
+	assert.equal(openingSignal?.aborted, true);
+	assert.throws(() => provider.readStorageChunk(0), /disposed/u);
+	resolveOpening({
+		async chunk() { return 'late'; },
+		async release() { releases += 1; },
+	});
+	await assert.rejects(Promise.resolve(read), /disposed/u);
+	await disposal;
+	assert.equal(releases, 1);
+});
+
+test('stored chunk provider disposal preserves cleanup-bearing opening failures', async () => {
+	const source = { id: 'source', frameCount: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 1 };
+	const releaseFailure = new Error('capability release failed');
+	let openingFailure: AggregateError | undefined;
+	const provider = createStoredChunkProvider({
+		readSourceChunk: () => 'fallback',
+		openSourceReadSession(_sourceId: string, { signal }: { signal?: AbortSignal } = {}) {
+			return new Promise<never>((_resolve, reject) => {
+				signal?.addEventListener('abort', () => {
+					openingFailure = new AggregateError(
+						[signal.reason, releaseFailure],
+						'Acquisition cancellation and capability release both failed.',
+						{ cause: signal.reason },
+					);
+					reject(openingFailure);
+				}, { once: true });
+			});
+		},
+	}, source, metadata);
+	const read = Promise.resolve(provider.readStorageChunk(0));
+	const disposal = provider.dispose();
+	await assert.rejects(read, (error: unknown) => error === openingFailure);
+	await assert.rejects(disposal, (error: unknown) => error === openingFailure);
+	assert.strictEqual(provider.dispose(), disposal);
+});
+
+test('stored chunk provider opening failures poison reads but not disposal', async () => {
+	const source = { id: 'source', frameCount: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 4, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 1 };
+	const failure = new Error('opening failed');
+	let opens = 0;
+	const provider = createStoredChunkProvider({
+		readSourceChunk: () => 'fallback',
+		openSourceReadSession() { opens += 1; throw failure; },
+	}, source, metadata);
+	await assert.rejects(async () => provider.readStorageChunk(0), (error: unknown) => error === failure);
+	await assert.rejects(async () => provider.readStorageChunk(1), (error: unknown) => error === failure);
+	assert.equal(opens, 1);
+	await provider.dispose();
+});
+
 test('memory byte helpers reject invalid and overflowing geometry', () => {
 	assert.equal(sourceAudioBufferBytes({ length: 2, numberOfChannels: 2 }), 16);
 	assert.equal(sourceAudioBufferBytes({ length: -1, numberOfChannels: 2 }), Number.POSITIVE_INFINITY);

@@ -1,7 +1,7 @@
 import { createPlanarPcmChunkCoalescer } from '../pcm-chunks.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
 import { createStreamingWindowedSincResampler } from '../resample.js';
-import { throwIfAborted } from './app-helpers.ts';
+import { abortError, throwIfAborted } from './app-helpers.ts';
 
 export const SOURCE_CHUNK_FRAMES = 65_536;
 export const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
@@ -53,6 +53,15 @@ interface StoredSourceMetadata extends Record<string, unknown> {
 
 interface StoredSourceReader {
 	readSourceChunk(sourceId: string, chunkIndex: number, context?: Record<string, unknown>): Promise<unknown> | unknown;
+	openSourceReadSession?(
+		sourceId: string,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	): PromiseLike<StoredSourceReadSession | null> | StoredSourceReadSession | null;
+}
+
+interface StoredSourceReadSession {
+	chunk(chunkIndex: number, options?: Readonly<{ signal?: AbortSignal }>): Promise<unknown> | unknown;
+	release(): Promise<void> | void;
 }
 
 interface ClipEnvelopePoint extends Record<string, unknown> {
@@ -170,15 +179,98 @@ export function createStoredChunkProvider(
 ) {
 	if (typeof store.readSourceChunk !== 'function') throw new TypeError('The project store cannot demand-load source chunks.');
 	const sourceId = source.storageKey || source.id;
+	const lifetime = new AbortController();
+	const disposedError = new Error('The stored source chunk provider was disposed.');
+	let disposed = false;
+	let opening: Promise<StoredSourceReadSession | null> | null = null;
+	let disposal: Promise<void> | null = null;
+	const openSession = (): Promise<StoredSourceReadSession | null> => {
+		if (opening) return opening;
+		try {
+			opening = Promise.resolve(store.openSourceReadSession?.(sourceId, { signal: lifetime.signal }) ?? null);
+		} catch (error) {
+			opening = Promise.reject(error);
+		}
+		return opening;
+	};
+	const readSessionChunk = async (
+		chunkIndex: number,
+		context: Record<string, unknown>,
+	): Promise<unknown> => {
+		const signal = validAbortSignal(context.signal);
+		const session = await waitForStoredSourceSession(openSession(), signal);
+		if (disposed) throw disposedError;
+		if (!session) return store.readSourceChunk(sourceId, chunkIndex, context);
+		return session.chunk(chunkIndex, signal ? { signal } : {});
+	};
+	const dispose = (): Promise<void> => {
+		if (disposal) return disposal;
+		disposed = true;
+		lifetime.abort(disposedError);
+		disposal = releaseStoredSourceSession(opening);
+		return disposal;
+	};
 	return Object.freeze({
 		channelCount: source.channelCount,
 		frameCount: source.frameCount,
 		chunkFrames: Number(Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames),
 		sampleRate: source.sampleRate,
 		readStorageChunk(chunkIndex: number, context: Record<string, unknown> = {}): Promise<unknown> | unknown {
+			if (disposed) throw disposedError;
+			if (store.openSourceReadSession) return readSessionChunk(chunkIndex, context);
 			return store.readSourceChunk(sourceId, chunkIndex, context);
 		},
+		dispose,
 	});
+}
+
+async function releaseStoredSourceSession(
+	opening: Promise<StoredSourceReadSession | null> | null,
+): Promise<void> {
+	if (!opening) return;
+	let session: StoredSourceReadSession | null;
+	try {
+		session = await opening;
+	} catch (error) {
+		if (error instanceof AggregateError) throw error;
+		return;
+	}
+	await session?.release();
+}
+
+function waitForStoredSourceSession(
+	opening: Promise<StoredSourceReadSession | null>,
+	signal?: AbortSignal,
+): Promise<StoredSourceReadSession | null> {
+	if (!signal) return opening;
+	if (signal.aborted) return Promise.reject(signal.reason ?? abortError());
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const settle = (operation: () => void) => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', onAbort);
+			operation();
+		};
+		const onAbort = () => {
+			settle(() => { reject(signal.reason ?? abortError()); });
+		};
+		signal.addEventListener('abort', onAbort, { once: true });
+		void opening.then(
+			(session) => { settle(() => { resolve(session); }); },
+			(error: unknown) => { settle(() => { reject(error); }); },
+		);
+	});
+}
+
+function validAbortSignal(value: unknown): AbortSignal | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const signal = value as Partial<AbortSignal>;
+	return typeof signal.aborted === 'boolean'
+		&& typeof signal.addEventListener === 'function'
+		&& typeof signal.removeEventListener === 'function'
+		? value as AbortSignal
+		: undefined;
 }
 
 export async function canonicalizeBuffer(
