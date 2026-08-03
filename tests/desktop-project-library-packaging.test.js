@@ -56,6 +56,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/ixml.js',
 		'src/common/editor/persisted-audio-effect-validation.js',
 		'src/common/editor/project-bext-metadata.js',
+		'src/common/editor/project-feature-capabilities.js',
 		'src/common/editor/project-feature-requirements.js',
 		'src/common/editor/project-schema-version.js',
 		'src/common/editor/project-v9-document-validation.js',
