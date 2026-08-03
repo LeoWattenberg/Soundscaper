@@ -166,7 +166,7 @@ test('replacement commit preserves a detached provider that is staged again', as
 	assert.equal(disposeCalls, 1);
 });
 
-test('replacement rollback drains staged providers before restoring detached providers', async () => {
+test('replacement rollback restores detached providers before draining staged providers', async () => {
 	const cleanup = deferred<void>();
 	let priorDisposeCalls = 0;
 	let stagedDisposeCalls = 0;
@@ -184,12 +184,31 @@ test('replacement rollback drains staged providers before restoring detached pro
 	const rollingBack = replacement.rollback();
 	assert.equal(stagedDisposeCalls, 1);
 	assert.equal(priorDisposeCalls, 0);
-	assert.equal(registry.size, 0);
+	assert.strictEqual(registry.get('source'), prior);
 	cleanup.resolve();
 	await rollingBack;
 
 	assert.strictEqual(registry.get('source'), prior);
 	assert.equal(priorDisposeCalls, 0);
+});
+
+test('replacement finalization unlocks the published registry before cleanup settles', async () => {
+	const cleanup = deferred<void>();
+	const registry = new SourceChunkProviderRegistry<string, unknown>([[
+		'prior',
+		{ dispose: () => cleanup.promise },
+	]]);
+	const replacement = registry.beginReplacement();
+	const current = Object.freeze({ current: true });
+	registry.set('current', current);
+
+	const committing = replacement.commit();
+	const extra = Object.freeze({ extra: true });
+	assert.doesNotThrow(() => registry.set('extra', extra));
+	assert.strictEqual(registry.get('current'), current);
+	assert.strictEqual(registry.get('extra'), extra);
+	cleanup.resolve();
+	await committing;
 });
 
 test('replacement rollback restores detached providers before reporting cleanup failure', async () => {

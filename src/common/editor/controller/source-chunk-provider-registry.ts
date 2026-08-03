@@ -24,8 +24,6 @@ interface RuntimeDisposable {
 	dispose(): unknown;
 }
 
-const NO_FAILURE = Symbol('no source chunk provider cleanup failure');
-
 export class SourceChunkProviderRegistry<Key, Value> extends Map<Key, Value> {
 	readonly #cleanedProviders = new WeakSet<object>();
 	readonly #cleanupFailures: CleanupFailure[] = [];
@@ -137,19 +135,12 @@ export class SourceChunkProviderRegistry<Key, Value> extends Map<Key, Value> {
 		replacement.settling = true;
 		if (rollback) this.#retireStagedProviders(replacement.detached);
 		else this.#retireDetachedProviders(replacement.detached);
-		let failure: unknown | typeof NO_FAILURE = NO_FAILURE;
-		try {
-			await this.drain();
-		} catch (error) {
-			failure = error;
-		} finally {
-			if (rollback) {
-				for (const [key, value] of replacement.detached) super.set(key, value);
-			}
-			replacement.detached.clear();
-			this.#activeReplacement = null;
+		if (rollback) {
+			for (const [key, value] of replacement.detached) super.set(key, value);
 		}
-		if (failure !== NO_FAILURE) throw failure;
+		replacement.detached.clear();
+		this.#activeReplacement = null;
+		await this.drain();
 	}
 
 	#retireDetachedProviders(detached: ReadonlyMap<Key, Value>): void {
