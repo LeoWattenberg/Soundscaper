@@ -50,7 +50,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-controller-feature-report': 'implemented',
 		'current-post-open-feature-report': 'implemented',
 		'current-first-party-audio-effect-playback-bypass': 'implemented',
-		'current-first-party-audio-rendered-fallback-playback': 'implemented',
+		'current-audio-whole-mix-rendered-fallback': 'implemented',
 		'current-first-party-video-effect-playback-bypass': 'implemented',
 		'current-first-party-video-rendered-fallback-playback': 'implemented',
 		'current-controller-rendered-fallback-integrity': 'implemented',
@@ -223,7 +223,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(postOpenFeatureReport.currentBehavior, /future schemas.*null report.*does not inspect.*featureRequirements/iu);
 	assert.match(
 		postOpenFeatureReport.currentBehavior,
-		/outside.*separate first-party audio- and video-effect bypass and rendered-fallback rules.*not a generic affected-object placeholder.*per-feature bypass control/iu,
+		/outside.*separate first-party audio- and video-effect bypass.*role-defined audio whole-mix.*first-party video rendered-fallback rules.*not a generic affected-object placeholder.*per-feature bypass control/iu,
 	);
 
 	const audioEffectPlaybackBypass = rules.get('current-first-party-audio-effect-playback-bypass');
@@ -455,7 +455,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		unavailable.currentBehavior,
-		/first-party audio whole-mix and video-effects whole-project or one clip-local fallback slices.*editor playback.*whole-project role.*neutral full-source clip.*frame zero.*closed clip role.*only its exact target.*controller body and relationship verification.*required-source activation.*generic per-object placeholders.*generic or third-party rendered-fallback runtime use.*simultaneous fallback delivery.*fallback-authoring workflows beyond the closed relationship.*future-schema archive preservation.*not implemented/iu,
+		/role-defined audio whole-mix and first-party video-effects whole-project or one clip-local fallback slices.*editor playback.*whole-project role.*neutral full-source clip.*frame zero.*closed clip role.*only its exact target.*controller body and relationship verification.*required-source activation.*generic per-object placeholders.*rendered-fallback runtime use beyond the closed audio whole-mix and maintained first-party video relationships.*simultaneous fallback delivery.*fallback-authoring workflows beyond the closed relationship.*future-schema archive preservation.*not implemented/iu,
 	);
 	assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-rendered-fallback.ts')); assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-clip-render-v1.ts'));
 	assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-rendered-fallback.test.ts')); assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-clip-render-v1.test.ts'));
@@ -560,7 +560,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /effective\s+disposition.*structured metadata/iu);
 	assert.match(
 		documentation,
-		/does not render.*evaluator.*message.*fallback.*activation control.*rendered-fallback substitution.*third-party/isu,
+		/does not render.*evaluator.*message.*fallback.*activation control.*feature-code loading/isu,
 	);
 	assert.match(
 		documentation,
@@ -587,11 +587,11 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/exact-schema-9 mono\/stereo first-party audio whole-mix.*first-party\s+video\s+whole-project.*one first-party video-effects clip-target slice.*narrow forms of step 3.*editor playback.*maintained delivery.*operation-time integrity admission/isu,
+		/exact-schema-9 mono\/stereo role-defined audio whole-mix.*first-party\s+video\s+whole-project.*one first-party video-effects clip-target slice.*narrow forms of step 3.*editor playback.*maintained delivery.*operation-time integrity admission/isu,
 	);
 	assert.match(
 		documentation,
-		/clip relationship is durable\s+publisher state.*does not create it.*do not freeze,\s+unfreeze, relink, watch, or refresh a fallback.*do not generalize to\s+unknown or third-party effects.*generic fallback authoring and selection.*simultaneous fallback delivery.*authored proxy workflows remain planned.*broad video-export and offline-render parity.*outside/isu,
+		/clip relationship is durable\s+publisher state.*does not create it.*do not freeze,\s+unfreeze, relink, watch, or refresh a fallback.*bypass slices do not\s+generalize to unknown or third-party effects.*fallback authoring and selection\s+beyond the closed audio and maintained video roles.*simultaneous fallback\s+delivery.*authored proxy workflows remain planned.*broad video-export and offline-render parity.*outside/isu,
 	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });

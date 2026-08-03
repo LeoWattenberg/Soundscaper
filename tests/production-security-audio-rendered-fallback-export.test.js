@@ -7,13 +7,13 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('first-party audio rendered-fallback export stays private and narrowly qualified', async () => {
+test('role-defined audio rendered-fallback export stays private and narrowly qualified', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const projectDocuments = matrix.risks.find(
 		({ id }) => id === 'external-project-document-validation',
 	);
 	const control = projectDocuments?.currentControls.find(
-		({ id }) => id === 'first-party-audio-rendered-fallback-export',
+		({ id }) => id === 'audio-whole-mix-rendered-fallback-export',
 	);
 	assert.ok(control);
 	assert.equal(
@@ -46,8 +46,9 @@ test('first-party audio rendered-fallback export stays private and narrowly qual
 
 	assert.match(
 		control.summary,
-		/exact schema 9.*host-owned registered audio capability allowlist.*audioImport.*audioPlayback.*audioTimelineEditing.*audioMixing.*audioRecording.*audioGenerators.*audioEffects.*audioSpectralEditing.*audioAnalysis.*audioMacros.*audioSampleEditing.*unavailable.*declared and effective rendered-fallback.*only.*final audio mix delivery.*canonical manifest/iu,
+		/exact schema 9.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1 role.*canonical manifest.*only.*final audio mix delivery/iu,
 	);
+	assert.match(control.summary, /role supplies.*media semantics.*feature ID.*opaque identity.*does not discover, load, or execute.*feature code/iu);
 	assert.match(
 		control.summary,
 		/selector.mode.*requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*only.*selected.*PCM.*unrelated.*fallback.*not read/iu,
@@ -86,7 +87,7 @@ test('first-party audio rendered-fallback export stays private and narrowly qual
 	);
 	assert.match(
 		control.summary,
-		/not a durable storage-record or byte lease.*cross-process immutability.*unknown or third-party.*video IDs.*more than one.*different registered audio feature IDs.*authored.*freeze.*proxy.*linked-only.*unmanaged.*stems.*BW64.*ADM.*surround.*packaged runtime or UI.*browser.*reference-scale.*future.*earlier/iu,
+		/not a durable storage-record or byte lease.*cross-process immutability.*non-audio roles.*more than one.*feature identities.*publisher authenticity.*third-party feature-code activation.*authored.*freeze.*proxy.*linked-only.*unmanaged.*stems.*BW64.*ADM.*surround.*packaged runtime or UI.*browser.*reference-scale.*future.*earlier/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -96,8 +97,9 @@ test('first-party audio rendered-fallback export stays private and narrowly qual
 	const documentation = threatModel.slice(sectionStart, sectionEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/final audio rendered-fallback delivery.*exact schema 9.*host-owned registered audio capability allowlist.*`audioImport`.*`audioPlayback`.*`audioTimelineEditing`.*`audioMixing`.*`audioRecording`.*`audioGenerators`.*`audioEffects`.*`audioSpectralEditing`.*`audioAnalysis`.*`audioMacros`.*`audioSampleEditing`.*unavailable.*declared and effective `rendered-fallback`.*only.*final mix/iu,
+		/final audio rendered-fallback delivery.*exact schema 9.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed `project-audio-mix-v1` role.*only.*final mix/iu,
 	);
+	assert.match(documentation, /role supplies.*media semantics.*feature ID.*opaque identity.*does not discover, load, or execute.*feature code/iu);
 	assert.match(
 		documentation,
 		/selector.*requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*only.*selected.*PCM.*unrelated.*fallback.*not read/iu,
@@ -136,6 +138,6 @@ test('first-party audio rendered-fallback export stays private and narrowly qual
 	);
 	assert.match(
 		documentation,
-		/not a durable storage-record or byte lease.*cross-process immutability.*unknown or third-party.*video IDs.*more than one.*different registered audio feature IDs.*authored.*freeze.*proxy.*linked-only.*unmanaged.*stems.*BW64.*ADM.*surround.*packaged runtime or UI.*browser.*reference-scale.*future.*earlier/iu,
+		/not a durable storage-record or byte lease.*cross-process immutability.*non-audio roles.*more than one.*feature identities.*publisher authenticity.*third-party feature-code activation.*authored.*freeze.*proxy.*linked-only.*unmanaged.*stems.*BW64.*ADM.*surround.*packaged runtime or UI.*browser.*reference-scale.*future.*earlier/iu,
 	);
 });

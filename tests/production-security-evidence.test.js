@@ -187,7 +187,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/bounded same-store\/process project-delete and clear cleanup.*local commit.*before metadata release.*live aliases.*pending retry.*bounded cooperative startup pass.*point-in-time authoritative project-ID catalog.*10,000.*readwrite binding-store transaction.*100,000.*128.*absent-project bindings.*live alias.*rolls back before IPC.*source-level reachability.*surviving project.*remains open.*catalog snapshot.*binding transaction.*main registry write.*not one cross-boundary atomic operation.*hostile renderer.*inventory completeness.*separate store, profile, or process.*not serialized.*general continuous cleanup.*remains open.*packaged executable.*operating-system file-dialog and identity behavior.*broader linked audio.*authored-proxy relationships.*generic or third-party rendered-fallback.*browser `<video>` codec behavior.*packaged Electron UI source-bearing workflows.*hard-link.*power-loss.*Linux x64 source-free packaged lifecycle.*remaining platform.*compatibility beyond.*prior shared `v1` scope.*deferred and unsupported.*Audacity.*separate boundary/isu,
+		/bounded same-store\/process project-delete and clear cleanup.*local commit.*before metadata release.*live aliases.*pending retry.*bounded cooperative startup pass.*point-in-time authoritative project-ID catalog.*10,000.*readwrite binding-store transaction.*100,000.*128.*absent-project bindings.*live alias.*rolls back before IPC.*source-level reachability.*surviving project.*remains open.*catalog snapshot.*binding transaction.*main registry write.*not one cross-boundary atomic operation.*hostile renderer.*inventory completeness.*separate store, profile, or process.*not serialized.*general continuous cleanup.*remains open.*packaged executable.*operating-system file-dialog and identity behavior.*broader linked audio.*authored-proxy relationships.*rendered-fallback authoring and managed handoff beyond the closed audio and maintained first-party video roles.*browser `<video>` codec behavior.*packaged Electron UI source-bearing workflows.*hard-link.*power-loss.*Linux x64 source-free packaged lifecycle.*remaining platform.*compatibility beyond.*prior shared `v1` scope.*deferred and unsupported.*Audacity.*separate boundary/isu,
 	);
 	assert.match(
 		documentation,
@@ -253,7 +253,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		({ id }) => id === 'controller-rendered-fallback-admission',
 	);
 	const fallbackPlayback = projectDocuments?.currentControls.find(
-		({ id }) => id === 'first-party-audio-rendered-fallback-playback',
+		({ id }) => id === 'audio-whole-mix-rendered-fallback-playback',
 	);
 
 	assert.ok(boundary);
@@ -379,7 +379,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
 	assert.match(
 		fallbackAdmission.summary,
-		/future schemas.*no asset read.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*activation admission remains point-in-time.*operation-scoped per-read validation.*selected video delivery.*immutable Blob.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
+		/future schemas.*no asset read.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*activation admission remains point-in-time.*operation-scoped per-read validation.*selected video delivery.*immutable Blob.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*other relationship roles.*simultaneous.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 	for (const path of [
 		'src/common/editor/project-feature-audio-rendered-fallback.ts',
@@ -401,7 +401,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	]) assert.ok(fallbackPlayback.evidence.some((item) => item.path === path), path);
 	assert.match(
 		fallbackPlayback.summary,
-		/exact schema 9.*host-owned registered audio capability allowlist.*audioImport.*audioPlayback.*audioTimelineEditing.*audioMixing.*audioRecording.*audioGenerators.*audioEffects.*audioSpectralEditing.*audioAnalysis.*audioMacros.*audioSampleEditing.*unavailable.*declared and effective rendered-fallback.*canonical manifest.*mono or stereo.*whole-mix.*frame zero.*removes canonical audio.*neutral.*mixer and master.*retains video and label/iu,
+		/exact schema 9.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1 role.*canonical manifest.*mono or stereo.*whole-mix.*frame zero.*removes canonical audio.*neutral.*mixer and master.*retains video and label/iu,
 	);
 	assert.match(
 		fallbackPlayback.summary,
@@ -442,7 +442,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /schema 9.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
 	assert.match(documentation, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(documentation, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
-	assert.match(documentation, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu);
+	assert.match(documentation, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*feature-code-loading claim/iu);
 	assert.match(documentation, /exact schema 9.*registered `audioEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*engine projection.*before activation side effects.*canonical project.*history.*persistence.*unchanged/iu);
 	assert.match(documentation, /active.*enabled.*not already bypassed.*maintained first-party.*track.*group.*send.*master.*4,096.*does not read.*params.*context.*state.*deep-frozen.*localized.*noninteractive affected-object inventory/iu);
 	assert.match(documentation, /unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
@@ -461,14 +461,14 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /read-only video-metadata preflight.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*fallback body read.*delay cancellation settlement/iu);
 	assert.match(documentation, /direct `store\.loadProject\(\)` calls.*durable integrity after admission.*runtime fallback use by activation admission itself.*future-schema.*outside.*runtime selection.*playback controls.*operation-time-verified final-delivery controls/iu);
 	assert.match(documentation, /point-in-time admission.*complete third-party activation gating/iu);
-	assert.match(documentation, /first-party audio rendered-fallback playback.*exact schema 9.*host-owned registered audio capability allowlist.*`audioImport`.*`audioPlayback`.*`audioTimelineEditing`.*`audioMixing`.*`audioRecording`.*`audioGenerators`.*`audioEffects`.*`audioSpectralEditing`.*`audioAnalysis`.*`audioMacros`.*`audioSampleEditing`.*whole-mix.*frame zero.*canonical project.*unchanged/isu);
+	assert.match(documentation, /role-defined audio rendered-fallback playback.*exact schema 9.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed `project-audio-mix-v1` role.*opaque identity.*does not discover, load, or execute.*feature code.*whole-mix.*frame zero.*canonical project.*unchanged/isu);
 	assert.match(documentation, /stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/isu);
 	assert.match(documentation, /initial activation.*privately stages only the required fallback source.*before.*session activation reservation.*activation side effects.*decoded buffer or stream-provider candidate.*outside shared `sourceBuffers`.*shared `sourceChunkProviders`.*engine chunk-source publication.*pre-reservation phase.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*exact reason.*late settlement.*buffers.*chunk providers.*engine chunk sources.*missing-source state.*status/isu);
 	assert.match(documentation, /readiness or reservation failure.*discards.*active project.*tab.*lock.*prior shared source identities.*rechecks fallback admission.*session-owned history identity.*before reserving.*currentness checks.*engine entry.*shared publication.*ordinary loading.*excludes.*staged fallback source/isu);
 	assert.match(documentation, /commit builds private buffer and provider snapshots.*current shared state.*ordinary transient buffers.*staged required source.*precedence.*conflicting transient.*engine.*private snapshots first.*after.*callback returns.*checks the signal.*owning admission or canonical-project identity assertion.*synchronously.*publication boundary.*no await intervenes.*required buffer or provider.*mutates shared state/isu);
 	assert.match(documentation, /engine failure.*cancellation.*reservation or currentness failure.*publication-boundary identity failure.*throwing cache publication.*preserve.*prior shared identities.*cache refusal.*removes.*stale required representation.*commit ownership.*single-use.*discard.*idempotent/isu);
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact reason.*late settlement.*buffer.*provider.*engine.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
-	assert.match(documentation, /not a durable byte lease.*`engine\.applyProject` or activation engine callback.*not abortable or transactional.*may have taken effect.*post-call publication-boundary assertion.*blocks shared publication.*later activation step.*successful engine and shared source publication.*not rolled back.*ordinary-source loading.*outside.*required-source publication transaction.*short-buffer retention.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*more than one.*different registered audio feature IDs.*video IDs.*generic fallback.*freeze or proxy.*unknown or third-party activation.*linked-only or unmanaged.*future schemas.*earlier Soundscaper schemas.*packaged runtime or UI.*browser.*reference-scale/isu);
+	assert.match(documentation, /not a durable byte lease.*`engine\.applyProject` or activation engine callback.*not abortable or transactional.*may have taken effect.*post-call publication-boundary assertion.*blocks shared publication.*later activation step.*successful engine and shared source publication.*not rolled back.*ordinary-source loading.*outside.*required-source publication transaction.*short-buffer retention.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*more than one.*feature identities.*non-audio roles.*fallback authoring.*freeze or proxy.*linked-only or unmanaged.*publisher authenticity.*third-party feature-code activation.*future schemas.*earlier Soundscaper schemas.*packaged runtime or UI.*browser.*reference-scale/isu);
 });
 
 test('legacy AUP evidence pins structural and block-materialization budgets', async () => {

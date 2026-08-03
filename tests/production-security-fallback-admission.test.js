@@ -54,10 +54,10 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
 	assert.match(
 		fallbackAdmission.summary,
-		/selected first-party audio delivery.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*each requested stored chunk.*activation admission remains point-in-time.*operation-scoped per-read validation.*selected video delivery.*immutable Blob.*none establishes.*durable storage-record lease.*cross-process immutability/iu,
+		/selected role-defined audio whole-mix delivery.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*each requested stored chunk.*activation admission remains point-in-time.*operation-scoped per-read validation.*selected video delivery.*immutable Blob.*none establishes.*durable storage-record lease.*cross-process immutability/iu,
 	);
 	assert.match(
 		fallbackAdmission.summary,
-		/direct store\.loadProject.*publisher authenticity.*generic.*third-party.*simultaneous.*linked-only.*unmanaged.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
+		/direct store\.loadProject.*publisher authenticity.*other relationship roles.*simultaneous.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 });

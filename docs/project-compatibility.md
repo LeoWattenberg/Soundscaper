@@ -956,19 +956,18 @@ document snapshot identify each affected scope, owner ID, effect ID, and effect
 type without reading or retaining effect params, context, state, or other
 payloads.
 
-The maintained exact schema 9 first-party audio rendered fallback uses the
-explicit host-owned registered audio capability allowlist: `audioImport`,
-`audioPlayback`, `audioTimelineEditing`, `audioMixing`, `audioRecording`,
-`audioGenerators`, `audioEffects`, `audioSpectralEditing`, `audioAnalysis`,
-`audioMacros`, and `audioSampleEditing`. It is a separate, narrower playback
-projection. It activates only when exactly one report item uses an ID from that
-allowlist, is unavailable with declared and effective `rendered-fallback`
+The maintained exact schema 9 audio whole-mix fallback is defined by the closed
+`project-audio-mix-v1` role rather than a producer allowlist. It activates only
+when exactly one report item has a canonical namespaced feature ID, is
+unavailable or unknown with declared and effective `rendered-fallback`
 dispositions, and has an audio descriptor that exactly matches the canonical
-manifest. The referenced source must be mono or stereo, cover a safe positive
-frame range, and match the project sample rate and master channel count. ADM and
-surround projects, ambiguous candidates, descriptor drift, missing sources,
-unsafe geometry, and collisions with the reserved synthetic track or clip IDs
-reject rather than guessing.
+manifest. The closed role supplies only fixed media semantics; the feature ID
+remains opaque identity, and Soundscaper does not discover, load, or execute its
+feature code. The referenced source must be mono or stereo, cover a safe
+positive frame range, and match the project sample rate and master channel
+count. ADM and surround projects, ambiguous candidates, descriptor drift,
+missing sources, unsafe geometry, and collisions with the reserved synthetic
+track or clip IDs reject rather than guessing.
 
 On explicit desktop handoff, manifest reachability retains this fallback even
 when no timeline or Project Bin clip references it. A real Soundscaper sender
@@ -1059,16 +1058,17 @@ active-during-editor-playback source/component UI indicator. The UI matches the
 exact feature and requirement without reading or exposing the audio kind,
 source ID, or digest; operation-time export separately binds the exact audio
 kind and SHA-256 from the canonical manifest. More than one qualifying
-registered audio fallback, including across different registered audio feature
-IDs, rejects as ambiguous. Video IDs never qualify for this audio projection,
-and simultaneous audio/video rendered fallbacks reject at delivery. Unknown or
-third-party IDs, future schemas, and earlier Soundscaper schemas remain outside
-this slice. Linked-only and unmanaged delivery are unqualified. Generic fallback
-authoring, freeze, and proxy relationships remain unqualified, as do stems,
-BW64 or ADM delivery and ADM or surround playback. Packaged runtime or UI
-workflows, operating-system behavior, browser audio behavior, reference-scale
-evidence, and a durable byte lease remain unqualified. The separate maintained
-video slice below does not broaden that boundary.
+whole-mix fallback across any feature identities rejects as ambiguous, and
+non-audio roles never qualify for this projection. Simultaneous audio/video
+rendered fallbacks reject at delivery. Future schemas and earlier Soundscaper
+schemas remain outside this slice. Linked-only and unmanaged delivery,
+fallback authoring, freeze and proxy relationships, publisher authenticity,
+and third-party code activation remain unqualified, as do stems, BW64 or ADM
+delivery and ADM or surround playback. Packaged runtime or UI workflows,
+operating-system behavior, browser audio behavior beyond the maintained
+portable-open witness, reference-scale evidence, and a durable byte lease
+remain unqualified. The separate maintained video slice below does not broaden
+that boundary.
 
 The maintained exact schema 9 first-party video rendered fallback uses the
 explicit host-owned registered video capability allowlist: `videoImport`,
@@ -1187,10 +1187,9 @@ declared disposition while that active tab is selected; the effective
 disposition remains structured metadata rather than being mislabeled as the
 declaration. The region is keyboard-focusable when its bounded list scrolls.
 It does not render the evaluator's message, read fallback internals, expose an
-activation control, or claim generic rendered-fallback substitution or
-third-party loading. For the exact first-party audio and video
-rendered-fallback slices it shows only each metadata-bound active-playback
-indicator described above. For
+activation control, or claim feature-code loading. For the role-defined audio
+whole-mix and exact first-party video rendered-fallback slices it shows only
+each metadata-bound active-playback indicator described above. For
 qualifying audio- or video-effects items with bypass metadata, the same notice
 matches the corresponding frozen projection metadata to one requirement and nests
 persistent localized, control-free affected-effect placeholders. Audio rows use
@@ -1201,8 +1200,8 @@ report produces no notice, tab switching follows the per-tab report, and the
 workspace never traverses future-schema `featureRequirements` state.
 
 Raw and stored-project controller activation has a separate integrity admission
-step for exact schema 9. The maintained first-party audio whole-mix and
-video-effects delivery slices independently invoke the same body verifier at
+step for exact schema 9. The maintained role-defined audio whole-mix and
+first-party video-effects delivery slices independently invoke the same body verifier at
 export-operation time. Activation
 verifies the authoritative project that would be activated, including existing
 same-ID tab history, before project-generation invalidation, recording or engine
@@ -1265,10 +1264,10 @@ storage binding. Calling `store.loadProject()` directly does not verify fallback
 bytes, and admission does not prevent later low-level or cross-process
 replacement of that storage binding, verify a nonselected fallback body, or
 establish publisher authenticity. Admission itself does not
-substitute fallback media at runtime; the separate exact-schema-9 first-party
-audio whole-mix, video-effects whole-project, and videoEffects-only clip-target
-projections described above
-perform their narrow editor-playback and delivery uses.
+substitute fallback media at runtime; the separate exact-schema-9 role-defined
+audio whole-mix, first-party video-effects whole-project, and videoEffects-only
+clip-target projections described above perform their narrow editor-playback
+and delivery uses.
 Initial required-source preparation is
 lifetime-abortable and occurs before activation reservation and side effects.
 A signal-ignoring metadata, context, or decoded-body operation may continue
@@ -1281,9 +1280,10 @@ state or earlier activation effects. Ordinary-source loading remains outside
 this required-source staging transaction, and short-buffer retention after
 engine application remains subject to cache-fit policy. Readiness does not
 prefetch or revalidate streamed chunks. The maintained projections do not
-provide generic per-feature bypass controls, generic, unknown, or third-party
-rendered-fallback substitution, authored freeze or proxy relationships,
-simultaneous fallback delivery, linked-only or unmanaged fallback delivery,
+provide generic per-feature bypass controls, other generic rendered-fallback
+roles, authored freeze or proxy relationships, publisher authentication or
+third-party feature-code activation, simultaneous fallback delivery,
+linked-only or unmanaged fallback delivery,
 whole-video fallback audio handling, ADM or surround fallback playback, broad
 export or offline-render parity, future-schema preservation, earlier
 Soundscaper-schema compatibility, reference-scale or browser/packaged codec
@@ -1368,11 +1368,10 @@ third-party feature activation. After archive acceptance and import, the
 separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route and does not
-cover direct store loads. Runtime use belongs only to the separate first-party
-audio whole-mix, video-effects whole-project, and videoEffects-only clip-target
-editor-playback and bounded operation-verified delivery paths. Generic, unknown,
-and third-party fallback
-selection and authored fallback relationships remain planned. The remaining
+cover direct store loads. Runtime use belongs only to the separate role-defined
+audio whole-mix, first-party video-effects whole-project, and videoEffects-only
+clip-target editor-playback and bounded operation-verified delivery paths. Other
+rendered-fallback roles and authored fallback relationships remain planned. The remaining
 outcomes stay governed by the planned compatibility rows and roadmap exit gate.
 
 ## Opaque state
@@ -1462,14 +1461,15 @@ Unavailable capabilities follow this order once their owning milestones land:
 
 The maintained first-party audio- and video-effect bypass slices now implement
 the first two steps for active known effects during editor playback only. The
-exact-schema-9 mono/stereo first-party audio whole-mix, first-party video
+exact-schema-9 mono/stereo role-defined audio whole-mix, first-party video
 whole-project, and one first-party video-effects clip-target slice implement
 narrow forms of step 3 during editor playback and maintained delivery after
 fresh operation-time integrity admission. The clip relationship is durable
 publisher state, but Soundscaper does not create it. These slices do not freeze,
-unfreeze, relink, watch, or refresh a fallback, and they do not generalize to
-unknown or third-party effects. Generic fallback authoring and selection,
-simultaneous fallback delivery, and authored proxy workflows remain planned;
+unfreeze, relink, watch, or refresh a fallback, and the bypass slices do not
+generalize to unknown or third-party effects. Fallback authoring and selection
+beyond the closed audio and maintained video roles, simultaneous fallback
+delivery, and authored proxy workflows remain planned;
 broad video-export and offline-render parity remain outside the bounded
 video-delivery projection.
 

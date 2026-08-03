@@ -248,8 +248,8 @@ products before adding new editorial models or native engines.
   reclamation, pathless IPC, and source-free packaged handoff.
 - **Shared — Implemented for maintained first-party slices:** feature-requirement
   reporting, read-only incompatible opens, opaque state preservation, audio/video
-  effect bypass, and first-party audio and video-effects rendered-fallback
-  playback.
+  effect bypass, role-defined audio whole-mix playback, and first-party
+  video-effects rendered-fallback playback.
 - **Web Enhanced / Electron Enhanced — Implemented for direct PCM slices:**
   bounded direct WAV, AIFF, BWF, and admitted BW64 publication. Other render
   families remain below.
@@ -275,12 +275,11 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   bounded RIFF/RF64/BW64 PCM or IEEE-float sources stay unowned and pathless;
   exact-revision range reads avoid another whole-original `Blob`, while portable
   `.scape` and managed handoff acquire canonical PCM in a fresh recipient.
-- **Electron Enhanced / Shared — Implemented for registered first-party audio
-  fallbacks:** an exact-schema audio whole-mix source referenced by one
-  unavailable registered audio feature crosses explicit managed handoff with
-  the editable original, is acquired into a fresh recipient, and activates
-  there after the separate controller-owned manifest digest check. The
-  recipient document remains read-only and canonical state stays unprojected.
+- **Shared / Electron Enhanced — Implemented for the closed audio whole-mix
+  fallback role:** unavailable or unknown canonical feature identities reach
+  portable `.scape` playback and maintained final-mix delivery; the registered
+  first-party relationship also crosses explicit managed handoff to a fresh
+  recipient. Canonical state remains read-only and unprojected.
 - **Shared / Electron Enhanced — Implemented for full-project and one
   clip-local first-party video-effects fallback relationship:** exact-schema
   relationships reach portable `.scape`, managed handoff, playback, and the
@@ -334,11 +333,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   preserves reachable linked-original bindings without copying external media.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond the bounded linked-WAV and retained-video slices, and finish broader
-  linked and unmanaged-original lifecycles, generic rendered-fallback
-  acquisition, activation, and delivery beyond maintained first-party playback,
-  managed handoff, and audio/video export, exact or write-time
-  capacity behavior, stable playback identity beyond that maintained visual
-  lifecycle, linked-locator cleanup beyond the one-live-store maintained save,
+  linked and unmanaged-original lifecycles, exact or write-time capacity
+  behavior, stable playback identity beyond that maintained visual lifecycle,
+  linked-locator cleanup beyond the one-live-store maintained save,
   successful writable activation, project-delete, and whole-clear lifecycle,
   source-level binding reachability outside maintained saves and activations,
   cross-store/process coordination where required,
@@ -348,9 +345,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   records bind a trusted retained-original digest or exact linked binding and a
   versioned recipe while staying outside project history, portable archive
   media, and managed media transfer. They are not editorial proxies.
-- **Shared — In progress:** complete generic rendered-fallback acquisition,
-  activation, and delivery beyond
-  maintained first-party playback, managed handoff, and audio/video export.
+- **Shared — In progress:** complete generic rendered-fallback acquisition and
+  extend role-defined activation and delivery beyond the audio whole-mix.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories; narrower one-way fixtures prove the
@@ -382,8 +378,8 @@ release-blocking defect in its owning policy.
 
 - **Shared — In progress:** provide generic affected-object visibility and
   bypass behavior beyond the maintained first-party audio/video slices.
-- Extend required rendered-fallback runtime use beyond maintained first-party
-  audio whole-mix and video-effects playback and delivery.
+- Extend required rendered-fallback runtime use beyond the role-defined audio
+  whole-mix and maintained first-party video-effects paths.
 - Preserve and re-export arbitrary future-schema `.scape` archives without
   interpreting unknown state.
 - Verify that a project opened on a less-capable platform subsequently
