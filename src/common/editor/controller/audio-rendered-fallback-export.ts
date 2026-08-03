@@ -67,7 +67,7 @@ export function projectForAudioRenderedFallbackExport<Project extends object>(
 		throw new TypeError('Audio rendered-fallback delivery projection is unavailable.');
 	}
 	const projection = service.projectForAudioRenderedFallbackDelivery(project);
-	assertDeliveryProjection(projection);
+	assertAudioRenderedFallbackDeliveryProjection(projection);
 	return projection;
 }
 
@@ -76,7 +76,7 @@ export function assertAudioRenderedFallbackExportSettings(
 	projection: AudioRenderedFallbackDeliveryProjection<object>,
 	settings: unknown,
 ): void {
-	assertDeliveryProjection(projection);
+	assertAudioRenderedFallbackDeliveryProjection(projection);
 	if (!projection.audioRenderedFallback) return;
 	const record = recordValue(settings, 'Normalized audio export settings');
 	const mode = ownData(record, 'mode', 'Normalized audio export settings');
@@ -99,7 +99,7 @@ export async function admitAudioRenderedFallbackExport(
 	runtime: AudioRenderedFallbackIntegrityRuntime,
 	options: AudioRenderedFallbackExportAdmissionOptions,
 ): Promise<EngineChunkSource | null> {
-	assertDeliveryProjection(projection);
+	assertAudioRenderedFallbackDeliveryProjection(projection);
 	if (!projection.audioRenderedFallback) return null;
 	if (typeof options?.assertCurrent !== 'function') {
 		throw new TypeError('Audio rendered-fallback export requires a currentness assertion.');
@@ -107,12 +107,8 @@ export async function admitAudioRenderedFallbackExport(
 	if (typeof runtime?.verifyProjectFallbackIntegrity !== 'function') {
 		throw new TypeError('Audio rendered-fallback export integrity verification is unavailable.');
 	}
-	const selector = audioFallbackIntegritySelector(projection);
-	const projectedSource = audioSourceDescriptor(projection.project, selector.sourceId);
-	const canonicalSource = audioSourceDescriptor(canonicalProject, selector.sourceId);
-	if (!sameSourceDescriptor(projectedSource, canonicalSource)) {
-		throw new TypeError('Audio rendered-fallback delivery source geometry changed before integrity admission.');
-	}
+	const selector = audioRenderedFallbackIntegritySelector(projection);
+	assertAudioRenderedFallbackSourceGeometry(canonicalProject, projection.project, selector.sourceId);
 	throwIfAborted(options.signal);
 	options.assertCurrent();
 	const admission = await runtime.verifyProjectFallbackIntegrity(
@@ -127,28 +123,41 @@ export async function admitAudioRenderedFallbackExport(
 	}
 	admission.assertCurrent(canonicalProject);
 	const provider = admission.getVerifiedAudioChunkProvider(selector);
-	assertChunkProvider(provider, canonicalSource);
+	assertAudioRenderedFallbackChunkProvider(canonicalProject, selector.sourceId, provider);
 	throwIfAborted(options.signal);
 	options.assertCurrent();
 	return provider;
 }
 
-function assertDeliveryProjection(
+/** Validate the audio part of a delivery projection while permitting one separately validated video fallback. */
+export function assertAudioRenderedFallbackProjection(
 	projection: AudioRenderedFallbackDeliveryProjection<object>,
 ): void {
-	if (!projection || typeof projection !== 'object' || Array.isArray(projection)
-		|| !projection.project || typeof projection.project !== 'object'
-		|| Array.isArray(projection.project)) {
+	const projectionRecord = recordValue(projection, 'Audio rendered-fallback delivery projection');
+	const project = ownData(projectionRecord, 'project', 'Audio rendered-fallback delivery projection');
+	if (!project || typeof project !== 'object' || Array.isArray(project)) {
 		throw new TypeError('Audio rendered-fallback delivery returned an invalid project.');
 	}
-	if (!Object.hasOwn(projection, 'featureRequirementsReport')
-		|| !Object.hasOwn(projection, 'audioRenderedFallback')
-		|| !Array.isArray(projection.requiredAudioSourceIds)) {
+	const report = ownData(
+		projectionRecord,
+		'featureRequirementsReport',
+		'Audio rendered-fallback delivery projection',
+	);
+	const metadata = ownData(
+		projectionRecord,
+		'audioRenderedFallback',
+		'Audio rendered-fallback delivery projection',
+	);
+	const requiredSourceIds = ownData(
+		projectionRecord,
+		'requiredAudioSourceIds',
+		'Audio rendered-fallback delivery projection',
+	);
+	if (!Array.isArray(requiredSourceIds)) {
 		throw new TypeError('Audio rendered-fallback delivery returned an invalid projection.');
 	}
-	const metadata = projection.audioRenderedFallback;
 	if (metadata === null) {
-		if (projection.requiredAudioSourceIds.length !== 0) {
+		if (requiredSourceIds.length !== 0) {
 			throw new TypeError('Inactive audio rendered-fallback delivery retained a source root.');
 		}
 		return;
@@ -156,9 +165,23 @@ function assertDeliveryProjection(
 	if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
 		throw new TypeError('Audio rendered-fallback delivery returned invalid metadata.');
 	}
-	assertActiveMetadata(metadata, projection.requiredAudioSourceIds);
-	audioSourceDescriptor(projection.project, metadata.sourceId);
-	assertFallbackReport(projection.featureRequirementsReport, metadata);
+	const typedMetadata = metadata as ProjectFeatureAudioRenderedFallbackMetadata;
+	assertActiveMetadata(typedMetadata, requiredSourceIds);
+	audioSourceDescriptor(project, typedMetadata.sourceId);
+	assertAudioFallbackReport(report as ProjectFeatureRequirementsReport | null, typedMetadata);
+}
+
+/** Validate the standalone audio-delivery shape, which remains closed to simultaneous fallbacks. */
+export function assertAudioRenderedFallbackDeliveryProjection(
+	projection: AudioRenderedFallbackDeliveryProjection<object>,
+): void {
+	assertAudioRenderedFallbackProjection(projection);
+	if (!projection.audioRenderedFallback) return;
+	const renderedFallbacks = projection.featureRequirementsReport?.items
+		.filter((item) => item?.disposition === 'rendered-fallback') ?? [];
+	if (renderedFallbacks.length !== 1) {
+		throw new RangeError('Audio export does not support simultaneous rendered fallbacks.');
+	}
 }
 
 function assertActiveMetadata(
@@ -178,16 +201,18 @@ function assertActiveMetadata(
 	}
 }
 
-function assertFallbackReport(
+function assertAudioFallbackReport(
 	report: ProjectFeatureRequirementsReport | null,
 	metadata: ProjectFeatureAudioRenderedFallbackMetadata,
 ): ProjectFeatureRequirementsReportItem {
 	if (report?.format !== 'soundscaper-project' || report.compatible !== false || !Array.isArray(report.items)) {
 		throw new TypeError('Audio rendered-fallback delivery requires an incompatible project report.');
 	}
-	const renderedFallbacks = report.items.filter((item) => item?.disposition === 'rendered-fallback');
+	const renderedFallbacks = report.items.filter((item) => (
+		item?.disposition === 'rendered-fallback' && item.fallback?.kind === 'audio'
+	));
 	if (renderedFallbacks.length !== 1) {
-		throw new RangeError('Audio export does not support simultaneous rendered fallbacks.');
+		throw new RangeError('Audio rendered-fallback delivery requires exactly one audio fallback.');
 	}
 	const item = renderedFallbacks[0];
 	if (!matchesFallback(item, metadata)) {
@@ -196,11 +221,11 @@ function assertFallbackReport(
 	return item;
 }
 
-function audioFallbackIntegritySelector(
+export function audioRenderedFallbackIntegritySelector(
 	projection: AudioRenderedFallbackDeliveryProjection<object>,
 ): ProjectAudioFallbackIntegritySelector {
 	const metadata = projection.audioRenderedFallback!;
-	const item = assertFallbackReport(projection.featureRequirementsReport, metadata);
+	const item = assertAudioFallbackReport(projection.featureRequirementsReport, metadata);
 	const digest = item.fallback!.sha256;
 	if (typeof digest !== 'string' || !/^[0-9a-f]{64}$/u.test(digest)) {
 		throw new TypeError('Audio rendered-fallback delivery report has an invalid SHA-256 digest.');
@@ -228,6 +253,26 @@ function matchesFallback(
 		&& item.fallback?.kind === 'audio'
 		&& item.fallback.role === metadata.role
 		&& item.fallback.sourceId === metadata.sourceId);
+}
+
+export function assertAudioRenderedFallbackChunkProvider(
+	project: unknown,
+	sourceId: string,
+	value: unknown,
+): asserts value is EngineChunkSource {
+	assertChunkProvider(value, audioSourceDescriptor(project, sourceId));
+}
+
+export function assertAudioRenderedFallbackSourceGeometry(
+	canonicalProject: unknown,
+	projectedProject: unknown,
+	sourceId: string,
+): void {
+	const projectedSource = audioSourceDescriptor(projectedProject, sourceId);
+	const canonicalSource = audioSourceDescriptor(canonicalProject, sourceId);
+	if (!sameSourceDescriptor(projectedSource, canonicalSource)) {
+		throw new TypeError('Audio rendered-fallback delivery source geometry changed before integrity admission.');
+	}
 }
 
 function assertChunkProvider(
@@ -305,7 +350,7 @@ function recordValue(value: unknown, name: string): RecordValue {
 function ownData(record: RecordValue, key: PropertyKey, name: string): unknown {
 	const descriptor = Object.getOwnPropertyDescriptor(record, key);
 	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`${name}.${String(key)} must be a data property.`);
+		throw new TypeError(`${name}.${String(key)} must be an own data property.`);
 	}
 	return descriptor.value;
 }

@@ -26,6 +26,8 @@ type RenderSnapshot = (
 	range: RuntimeValue,
 	sourceMap?: RuntimeValue,
 	signal?: RuntimeValue,
+	chunkSources?: RuntimeValue,
+	prepareTimePitchCaches?: boolean,
 ) => Promise<RuntimeValue>;
 
 const NO_TASK_PROGRESS = Object.freeze({
@@ -58,7 +60,13 @@ export function createEditorVideoExportAction(
 			&& (track.clipIds || []).some((clipId: RuntimeValue) => findClip(exportProject, clipId)?.kind === 'video')
 		));
 		if (!hasTimelineVideo) throw new Error('Add a visible video clip to the timeline before exporting video.');
-		if (hasMissingTimelineSources(exportProject)) throw new Error(copy.localSourcesMissing);
+		const fallbackSourceIds = new Set([
+			...delivery.requiredAudioSourceIds,
+			...delivery.requiredVideoSourceIds,
+		]);
+		if (hasMissingTimelineSources(exportProject, { excludedSourceIds: fallbackSourceIds })) {
+			throw new Error(copy.localSourcesMissing);
+		}
 		const generation = ++state.exportGeneration;
 		const projectToken = projectGeneration.capture(canonicalProject.id);
 		const exportTask = lifetime.startTask('export');
@@ -78,7 +86,7 @@ export function createEditorVideoExportAction(
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectVideoDestination | null = null;
 		try {
-			const admittedVideoFallback = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
+			const admittedFallbacks = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
 			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
 			const format = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
@@ -112,32 +120,49 @@ export function createEditorVideoExportAction(
 			const videoBlobs = new Map();
 			for (const input of plan.inputs.filter((candidate: RuntimeValue) => candidate.kind === 'video-source')) {
 				throwIfAborted(abort.signal);
-				const blob = admittedVideoFallback && input.sourceId === delivery.videoRenderedFallback?.sourceId
-					? admittedVideoFallback
+				const blob = admittedFallbacks.videoBlob && input.sourceId === delivery.videoRenderedFallback?.sourceId
+					? admittedFallbacks.videoBlob
 					: await store.loadMediaAsset(input.storageKey || input.sourceId, { signal: abort.signal });
 				if (!blob) throw new Error(copy.localSourcesMissing);
 				videoBlobs.set(input.sourceId, blob);
 			}
 			let audioMixBlob = null;
 			if (includeAudio) {
-				const rendered = await renderSnapshot(exportProject, {
+				const range = {
 					startFrame: plan.range.startFrame,
 					endFrame: plan.range.endFrame,
 					includeTail: false,
 					outputFrames: plan.range.durationFrames,
 					preRollFrames: Math.min(plan.range.startFrame, projectSampleRate() * 10),
-				}, sourceBuffers, abort.signal);
-				throwIfAborted(abort.signal);
-				const wav = encodeWav(audioBufferChannels(rendered), {
+				};
+				const rendered = admittedFallbacks.audioChunkProvider && delivery.audioRenderedFallback
+					? await renderSnapshot(
+						exportProject,
+						range,
+						new Map(),
+						abort.signal,
+						new Map([[
+							delivery.audioRenderedFallback.sourceId,
+							admittedFallbacks.audioChunkProvider,
+						]]),
+						false,
+					)
+					: await renderSnapshot(exportProject, range, sourceBuffers, abort.signal);
+				assertVideoExportCurrent();
+				const renderedChannels = audioBufferChannels(rendered);
+				assertVideoExportCurrent();
+				const wav = encodeWav(renderedChannels, {
 					sampleRate: rendered.sampleRate,
 					bitDepth: 32,
 					float: true,
 					dither: 'none',
 				});
+				assertVideoExportCurrent();
 				audioMixBlob = new Blob([wav], { type: 'audio/wav' });
 			}
 			setStatus(copy.encoding);
 			progressTask.setPhase(copy.encoding, { start: 0.4, end: 1, value: 0 });
+			assertVideoExportCurrent();
 			let encoded;
 			if (pendingDirectDestination) {
 				try {

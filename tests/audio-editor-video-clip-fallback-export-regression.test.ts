@@ -5,8 +5,13 @@ import test from 'node:test';
 
 import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
 import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
+import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
+import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import type { ProjectVideoFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';
+import type {
+	ProjectAudioFallbackIntegritySelector,
+	ProjectVideoFallbackIntegritySelector,
+} from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	createAudioClipV9,
 	createAudioEditorProjectV9,
@@ -30,7 +35,9 @@ const CANONICAL_TARGET_SOURCE_ID = 'canonical-target-video';
 const FALLBACK_SOURCE_ID = 'rendered-target-video';
 const UNAFFECTED_SOURCE_ID = 'unaffected-video';
 const AUDIO_SOURCE_ID = 'linked-audio';
+const FALLBACK_AUDIO_SOURCE_ID = 'rendered-audio-mix';
 const FALLBACK_DIGEST = 'de'.repeat(32);
+const FALLBACK_AUDIO_DIGEST = 'ac'.repeat(32);
 
 interface VideoPlanInput {
 	readonly kind: string;
@@ -96,10 +103,10 @@ interface RenderRange {
 	readonly preRollFrames: number;
 }
 
-test('ordinary video export substitutes only the admitted clip render in the actual composition plan', async () => {
+test('mixed video export composes admitted audio and clip-local video fallbacks in the actual plan', async () => {
 	const canonical = clipFallbackProject();
 	const before = structuredClone(canonical);
-	const playbackProjects = createPlaybackProjectService({ videoEffects: false });
+	const playbackProjects = createPlaybackProjectService({ audioEffects: false, videoEffects: false });
 	const fallbackBlob = new Blob([Uint8Array.of(7, 8, 9)], { type: 'video/mp4' });
 	const unaffectedBlob = new Blob([Uint8Array.of(1, 2, 3)], { type: 'video/mp4' });
 	const encodedBytes = Uint8Array.of(4, 5, 6, 7);
@@ -111,6 +118,8 @@ test('ordinary video export substitutes only the admitted clip render in the act
 	let renderedProject: AudioEditorProjectV9 | null = null;
 	let renderedRange: RenderRange | null = null;
 	let renderedSourceMap: ReadonlyMap<string, unknown> | null = null;
+	let renderedChunkSources: ReadonlyMap<string, EngineChunkSource> | null = null;
+	let preparedTimePitchCaches: boolean | null = null;
 	let encodedVideoBlobs: ReadonlyMap<string, Blob> | null = null;
 	let encodedAudioMix: Blob | null = null;
 	let encodedPlan: VideoPlan | null = null;
@@ -142,6 +151,22 @@ test('ordinary video export substitutes only the admitted clip render in the act
 		sourceId: FALLBACK_SOURCE_ID,
 		sha256: FALLBACK_DIGEST,
 		targetClipId: TARGET_CLIP_ID,
+	});
+	const expectedAudioSelector: ProjectAudioFallbackIntegritySelector = Object.freeze({
+		requirementId: 'publisher-audio-render',
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		role: 'project-audio-mix-v1',
+		kind: 'audio',
+		sourceId: FALLBACK_AUDIO_SOURCE_ID,
+		sha256: FALLBACK_AUDIO_DIGEST,
+	});
+	const fallbackAudioSource = recordById(canonical.sources, FALLBACK_AUDIO_SOURCE_ID);
+	const fallbackAudioProvider: EngineChunkSource = Object.freeze({
+		channelCount: Number(fallbackAudioSource.channelCount),
+		frameCount: Number(fallbackAudioSource.frameCount),
+		chunkFrames: Number(fallbackAudioSource.chunkFrames),
+		sampleRate: Number(fallbackAudioSource.sampleRate),
+		readStorageChunk: () => Object.freeze([Float32Array.of(0.25), Float32Array.of(-0.25)]),
 	});
 
 	const runtime = {
@@ -188,7 +213,13 @@ test('ordinary video export substitutes only the admitted clip render in the act
 		findSource: (project: AudioEditorProjectV9, id: string) => project.sources.find((source) => source.id === id),
 		getProject: () => canonical,
 		handleError(error: unknown) { errors.push(error); },
-		hasMissingTimelineSources: () => false,
+		hasMissingTimelineSources(
+			_project: unknown,
+			options: Readonly<{ excludedSourceIds: ReadonlySet<string> }>,
+		) {
+			assert.deepEqual([...options.excludedSourceIds].sort(), [FALLBACK_AUDIO_SOURCE_ID, FALLBACK_SOURCE_ID].sort());
+			return false;
+		},
 		lifetime: {
 			startTask() {
 				activeController = new AbortController();
@@ -213,13 +244,21 @@ test('ordinary video export substitutes only the admitted clip render in the act
 		verifyProjectFallbackIntegrity(
 			candidate: unknown,
 			candidateStore: unknown,
-			options: Readonly<{ videoFallback?: ProjectVideoFallbackIntegritySelector }>,
+			options: Readonly<{
+				audioFallback?: ProjectAudioFallbackIntegritySelector;
+				videoFallback?: ProjectVideoFallbackIntegritySelector;
+			}>,
 		) {
 			assert.strictEqual(candidate, canonical);
 			assert.strictEqual(candidateStore, store);
+			assert.deepEqual(options.audioFallback, expectedAudioSelector);
 			assert.deepEqual(options.videoFallback, expectedSelector);
 			return Object.freeze({
 				assertCurrent(current: unknown) { assert.strictEqual(current, canonical); },
+				getVerifiedAudioChunkProvider(selector: ProjectAudioFallbackIntegritySelector) {
+					assert.deepEqual(selector, expectedAudioSelector);
+					return fallbackAudioProvider;
+				},
 				getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector) {
 					assert.deepEqual(selector, expectedSelector);
 					return fallbackBlob;
@@ -231,10 +270,15 @@ test('ordinary video export substitutes only the admitted clip render in the act
 		project: AudioEditorProjectV9,
 		range: RenderRange,
 		buffers: ReadonlyMap<string, unknown>,
+		_signal?: AbortSignal,
+		chunkSources?: ReadonlyMap<string, EngineChunkSource>,
+		prepareTimePitchCaches?: boolean,
 	): Promise<Readonly<{ sampleRate: number; channels: readonly Float32Array[] }>> => {
 		renderedProject = project;
 		renderedRange = range;
 		renderedSourceMap = buffers;
+		renderedChunkSources = chunkSources ?? null;
+		preparedTimePitchCaches = prepareTimePitchCaches ?? null;
 		return Object.freeze({
 			sampleRate: SAMPLE_RATE,
 			channels: Object.freeze([Float32Array.of(0.25), Float32Array.of(-0.25)]),
@@ -258,8 +302,15 @@ test('ordinary video export substitutes only the admitted clip render in the act
 	const videoBlobs = capturedValue<ReadonlyMap<string, Blob>>(encodedVideoBlobs, 'encoded video blobs');
 	const audioMix = capturedValue<Blob>(encodedAudioMix, 'encoded audio mix');
 	const publication = capturedValue<Blob>(publishedBlob, 'published video');
+	const privateSourceMap = capturedValue<ReadonlyMap<string, unknown>>(renderedSourceMap, 'render source map');
+	const privateChunkSources = capturedValue<ReadonlyMap<string, EngineChunkSource>>(
+		renderedChunkSources,
+		'render chunk sources',
+	);
 	assert.strictEqual(audioRenderProject, exportedProject);
-	assert.strictEqual(renderedSourceMap, sourceBuffers);
+	assert.equal(privateSourceMap.size, 0);
+	assert.strictEqual(privateChunkSources.get(FALLBACK_AUDIO_SOURCE_ID), fallbackAudioProvider);
+	assert.equal(preparedTimePitchCaches, false);
 
 	const target = recordById(exportedProject.clips, TARGET_CLIP_ID);
 	const canonicalTarget = recordById(canonical.clips, TARGET_CLIP_ID);
@@ -302,7 +353,11 @@ test('ordinary video export substitutes only the admitted clip render in the act
 		recordById(canonical.tracks, 'picture-track'),
 	);
 	assert.equal(recordById(exportedProject.sources, FALLBACK_SOURCE_ID).hasAudio, false);
-	assert.equal(recordById(exportedProject.clips, 'linked-audio-clip').sourceId, AUDIO_SOURCE_ID);
+	assert.equal(exportedProject.clips.some(({ id }) => id === 'linked-audio-clip'), false);
+	assert.equal(
+		recordById(exportedProject.clips, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip).sourceId,
+		FALLBACK_AUDIO_SOURCE_ID,
+	);
 
 	assert.equal(plan.version, 4);
 	assert.deepEqual(plan.range, {
@@ -431,6 +486,13 @@ function clipFallbackProject(): AudioEditorProjectV9 {
 		channelCount: 2,
 		sampleRate: SAMPLE_RATE,
 	});
+	const fallbackAudioSource = createAudioSourceV9({
+		id: FALLBACK_AUDIO_SOURCE_ID,
+		storageKey: 'rendered-audio-mix-storage',
+		frameCount: PROJECT_END,
+		channelCount: 2,
+		sampleRate: SAMPLE_RATE,
+	});
 	const targetClip = createVideoClipV9({
 		id: TARGET_CLIP_ID,
 		sourceId: targetSource.id,
@@ -466,7 +528,7 @@ function clipFallbackProject(): AudioEditorProjectV9 {
 		title: 'Clip fallback export',
 		now: '2026-08-03T12:00:00.000Z',
 		sampleRate: SAMPLE_RATE,
-		sources: [targetSource, fallbackSource, unaffectedSource, audioSource],
+		sources: [targetSource, fallbackSource, unaffectedSource, audioSource, fallbackAudioSource],
 		clips: [targetClip, unaffectedClip, audioClip],
 		tracks: [
 			createVideoTrackV9({
@@ -480,19 +542,33 @@ function clipFallbackProject(): AudioEditorProjectV9 {
 				laneGroupId: 'camera-lane',
 			}, SAMPLE_RATE),
 		],
-		featureRequirements: { schemaVersion: 2, requirements: [{
-			id: 'publisher-target-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-			displayName: 'Publisher target render',
-			disposition: 'rendered-fallback',
-			fallback: {
-				role: 'video-clip-render-v1',
-				kind: 'video',
-				sourceId: FALLBACK_SOURCE_ID,
-				sha256: FALLBACK_DIGEST,
-				targetClipId: TARGET_CLIP_ID,
+		featureRequirements: { schemaVersion: 2, requirements: [
+			{
+				id: 'publisher-audio-render',
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+				displayName: 'Publisher audio render',
+				disposition: 'rendered-fallback',
+				fallback: {
+					role: 'project-audio-mix-v1',
+					kind: 'audio',
+					sourceId: FALLBACK_AUDIO_SOURCE_ID,
+					sha256: FALLBACK_AUDIO_DIGEST,
+				},
 			},
-		}] },
+			{
+				id: 'publisher-target-render',
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+				displayName: 'Publisher target render',
+				disposition: 'rendered-fallback',
+				fallback: {
+					role: 'video-clip-render-v1',
+					kind: 'video',
+					sourceId: FALLBACK_SOURCE_ID,
+					sha256: FALLBACK_DIGEST,
+					targetClipId: TARGET_CLIP_ID,
+				},
+			},
+		] },
 	});
 }
 

@@ -142,7 +142,7 @@ export interface ProjectVisualService {
 	allProjectClips(project?: ProjectVisualProject | null): readonly ProjectVisualClip[];
 	hasMissingTimelineSources(
 		project?: ProjectVisualProject | null,
-		options?: Readonly<{ audioOnly?: boolean }>,
+		options?: Readonly<{ audioOnly?: boolean; excludedSourceIds?: ReadonlySet<string> }>,
 	): boolean;
 	getVisibleClips(options?: Readonly<{
 		startFrame?: number;
@@ -391,7 +391,7 @@ export function createProjectVisualService(
 
 	function hasMissingTimelineSources(
 		project: ProjectVisualProject | null = dependencies.getProject(),
-		options: Readonly<{ audioOnly?: boolean }> = {},
+		options: Readonly<{ audioOnly?: boolean; excludedSourceIds?: ReadonlySet<string> }> = {},
 	): boolean {
 		if (!dependencies.missingSourceIds.size) return false;
 		const sourceById = options.audioOnly
@@ -399,6 +399,7 @@ export function createProjectVisualService(
 			: null;
 		return (project?.clips || []).some((clip) => (
 			(!options.audioOnly || (clip.kind !== 'video' && sourceById?.get(clip.sourceId)?.kind !== 'video'))
+			&& !options.excludedSourceIds?.has(clip.sourceId)
 			&& dependencies.missingSourceIds.has(clip.sourceId)
 		));
 	}

@@ -272,6 +272,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 				return Object.freeze({
 					project: fallback ? projected : canonical,
 					featureRequirementsReport: fallback ? fallbackReport() : null,
+					audioRenderedFallback: null,
 					videoRenderedFallback: fallback ? Object.freeze({
 						schemaVersion: 1,
 						role: 'project-video-render-v1' as const,
@@ -281,6 +282,7 @@ function createFixture(options: ExportFixtureOptions = {}) {
 						trackId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
 						clipId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip,
 					}) : null,
+					requiredAudioSourceIds: Object.freeze([]),
 					requiredVideoSourceIds: Object.freeze(fallback ? [FALLBACK_VIDEO_SOURCE_ID] : []),
 				});
 			},
@@ -426,7 +428,7 @@ test('ordinary video export does not invoke rendered-fallback integrity admissio
 	assert.deepEqual(fixture.loadedStorageKeys, ['original-video-storage']);
 });
 
-test('video delivery rejects a simultaneous rendered fallback it cannot honor', () => {
+test('video delivery rejects an unrepresented rendered fallback', () => {
 	const fixture = createFixture();
 	const delivery = fixture.runtime.playbackProjects.projectForVideoRenderedFallbackDelivery(fixture.canonical);
 	const report = delivery.featureRequirementsReport;
@@ -451,8 +453,69 @@ test('video delivery rejects a simultaneous rendered fallback it cannot honor', 
 		() => projectForVideoRenderedFallbackExport(fixture.canonical, {
 			projectForVideoRenderedFallbackDelivery: () => competing,
 		}),
-		/simultaneous rendered fallbacks/iu,
+		/represented audio.*represented video rendered fallback/iu,
 	);
+});
+
+test('video delivery requires exact own-data video metadata', () => {
+	const fixture = createFixture();
+	const delivery = fixture.runtime.playbackProjects.projectForVideoRenderedFallbackDelivery(fixture.canonical);
+	const { videoRenderedFallback: _omitted, ...withoutMetadata } = delivery;
+	let accessorReads = 0;
+	const accessorMetadata = Object.defineProperty({ ...delivery }, 'videoRenderedFallback', {
+		configurable: true,
+		get() {
+			accessorReads += 1;
+			return delivery.videoRenderedFallback;
+		},
+	});
+	for (const candidate of [withoutMetadata, { ...delivery, videoRenderedFallback: undefined }, accessorMetadata]) {
+		assert.throws(
+			() => projectForVideoRenderedFallbackExport(fixture.canonical, {
+				projectForVideoRenderedFallbackDelivery: () => candidate as unknown as typeof delivery,
+			}),
+			/own data property|invalid metadata/iu,
+		);
+	}
+	assert.equal(accessorReads, 0);
+});
+
+test('video delivery requires exact own-data audio fallback fields', () => {
+	const fixture = createFixture();
+	const delivery = fixture.runtime.playbackProjects.projectForVideoRenderedFallbackDelivery(fixture.canonical);
+	const { audioRenderedFallback: _omittedMetadata, ...withoutMetadata } = delivery;
+	const { requiredAudioSourceIds: _omittedRoots, ...withoutRoots } = delivery;
+	let accessorReads = 0;
+	const accessorMetadata = Object.defineProperty({ ...delivery }, 'audioRenderedFallback', {
+		configurable: true,
+		get() {
+			accessorReads += 1;
+			return delivery.audioRenderedFallback;
+		},
+	});
+	const accessorRoots = Object.defineProperty({ ...delivery }, 'requiredAudioSourceIds', {
+		configurable: true,
+		get() {
+			accessorReads += 1;
+			return delivery.requiredAudioSourceIds;
+		},
+	});
+	for (const candidate of [
+		withoutMetadata,
+		{ ...delivery, audioRenderedFallback: undefined },
+		accessorMetadata,
+		withoutRoots,
+		{ ...delivery, requiredAudioSourceIds: undefined },
+		accessorRoots,
+	]) {
+		assert.throws(
+			() => projectForVideoRenderedFallbackExport(fixture.canonical, {
+				projectForVideoRenderedFallbackDelivery: () => candidate as unknown as typeof delivery,
+			}),
+			/own data property|invalid metadata|invalid projection/iu,
+		);
+	}
+	assert.equal(accessorReads, 0);
 });
 
 test('video delivery rejects feature metadata drift before integrity admission', () => {
@@ -471,7 +534,7 @@ test('video delivery rejects feature metadata drift before integrity admission',
 					}),
 				}),
 			}),
-			/metadata|report|source|invalid|simultaneous/iu,
+			/metadata|report|source|invalid|matching/iu,
 		);
 	}
 	assert.throws(

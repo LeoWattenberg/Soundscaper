@@ -4,8 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
-import type { ControllerTrack } from '../src/common/editor/controller/track-domain-types.ts';
-import { createEffect } from '../src/common/editor/effects.js';
+import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
@@ -20,7 +19,7 @@ import {
 
 const DIGEST = 'de'.repeat(32);
 
-test('video delivery applies only the maintained rendered fallback and preserves canonical audio', () => {
+test('video delivery composes the maintained audio and video rendered fallbacks', () => {
 	const canonical = combinedFallbackProject();
 	const before = structuredClone(canonical);
 	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: false });
@@ -28,40 +27,49 @@ test('video delivery applies only the maintained rendered fallback and preserves
 	const delivery = service.projectForVideoRenderedFallbackDelivery(canonical);
 
 	assert.equal(delivery.featureRequirementsReport?.compatible, false);
+	assert.equal(delivery.audioRenderedFallback?.sourceId, 'fallback-audio');
 	assert.equal(delivery.videoRenderedFallback?.sourceId, 'fallback-video');
+	assert.deepEqual(delivery.requiredAudioSourceIds, ['fallback-audio']);
 	assert.deepEqual(delivery.requiredVideoSourceIds, ['fallback-video']);
 	assert.equal(Object.isFrozen(delivery), true);
+	assert.equal(Object.isFrozen(delivery.requiredAudioSourceIds), true);
 	assert.equal(Object.isFrozen(delivery.requiredVideoSourceIds), true);
 	assert.deepEqual(canonical, before, 'the canonical project must remain unchanged');
 
 	assert.deepEqual(delivery.project.tracks.map(({ id }) => id), [
-		'canonical-audio-track',
+		PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track,
 		PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
 	]);
 	assert.deepEqual(delivery.project.clips.map(({ id }) => id), [
-		'canonical-audio-clip',
+		PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip,
 		PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip,
 	]);
-	assert.strictEqual(delivery.project.tracks[0], canonical.tracks[0]);
-	assert.strictEqual(delivery.project.clips[0], canonical.clips[0]);
-	assert.equal(delivery.project.clips[0]?.sourceId, 'canonical-audio');
-	const deliveredAudioEffect = (delivery.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0];
-	assert.equal(deliveredAudioEffect?.type, 'compressor');
-	assert.equal(deliveredAudioEffect?.bypassed, undefined);
-	assert.equal(
-		delivery.project.clips.some(({ sourceId }) => sourceId === 'fallback-audio'),
-		false,
-		'the audio rendered fallback must not be composed into video delivery',
-	);
+	assert.deepEqual(delivery.project.clips.map(({ sourceId }) => sourceId), [
+		'fallback-audio',
+		'fallback-video',
+	]);
 });
 
-test('video delivery leaves available and bypass-only requirements unprojected', () => {
+test('video delivery supports audio-only and no-fallback projections', () => {
 	const qualifying = combinedFallbackProject();
-	const available = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
+	const audioOnly = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
 		.projectForVideoRenderedFallbackDelivery(qualifying);
-	assert.strictEqual(available.project, qualifying);
-	assert.equal(available.videoRenderedFallback, null);
-	assert.deepEqual(available.requiredVideoSourceIds, []);
+	assert.equal(audioOnly.audioRenderedFallback?.sourceId, 'fallback-audio');
+	assert.equal(audioOnly.videoRenderedFallback, null);
+	assert.deepEqual(audioOnly.requiredAudioSourceIds, ['fallback-audio']);
+	assert.deepEqual(audioOnly.requiredVideoSourceIds, []);
+	assert.deepEqual(audioOnly.project.clips.map(({ sourceId }) => sourceId), [
+		'fallback-audio',
+		'canonical-video',
+	]);
+
+	const none = createPlaybackProjectService({ audioEffects: true, videoEffects: true })
+		.projectForVideoRenderedFallbackDelivery(qualifying);
+	assert.strictEqual(none.project, qualifying);
+	assert.equal(none.audioRenderedFallback, null);
+	assert.equal(none.videoRenderedFallback, null);
+	assert.deepEqual(none.requiredAudioSourceIds, []);
+	assert.deepEqual(none.requiredVideoSourceIds, []);
 
 	for (const candidate of [
 		videoRequirementProject({
@@ -73,7 +81,9 @@ test('video delivery leaves available and bypass-only requirements unprojected',
 		const delivery = createPlaybackProjectService({ audioEffects: true, videoEffects: false })
 			.projectForVideoRenderedFallbackDelivery(candidate);
 		assert.strictEqual(delivery.project, candidate);
+		assert.equal(delivery.audioRenderedFallback, null);
 		assert.equal(delivery.videoRenderedFallback, null);
+		assert.deepEqual(delivery.requiredAudioSourceIds, []);
 		assert.deepEqual(delivery.requiredVideoSourceIds, []);
 	}
 });
@@ -92,10 +102,32 @@ test('video delivery projects the closed whole-project role across feature ident
 			.projectForVideoRenderedFallbackDelivery(canonical);
 
 		assert.equal(delivery.featureRequirementsReport?.items[0]?.availability, availability);
+		assert.equal(delivery.audioRenderedFallback, null);
 		assert.equal(delivery.videoRenderedFallback?.role, 'project-video-render-v1');
 		assert.equal(delivery.videoRenderedFallback?.featureId, featureId);
+		assert.deepEqual(delivery.requiredAudioSourceIds, []);
 		assert.deepEqual(delivery.requiredVideoSourceIds, ['fallback-video']);
 		assert.equal(delivery.project.clips[0]?.sourceId, 'fallback-video');
+	}
+});
+
+test('video delivery rejects duplicate rendered fallbacks of either media kind', () => {
+	const canonical = combinedFallbackProject();
+	const requirements = canonical.featureRequirements.requirements;
+	for (const index of [0, 1] as const) {
+		const original = requirements[index]!;
+		const ambiguous = {
+			...canonical,
+			featureRequirements: {
+				...canonical.featureRequirements,
+				requirements: [...requirements, { ...original, id: `duplicate-${original.id}` }],
+			},
+		};
+		assert.throws(
+			() => createPlaybackProjectService({ audioEffects: false, videoEffects: false })
+				.projectForVideoRenderedFallbackDelivery(ambiguous),
+			/Multiple (?:audio whole-mix|video) rendered fallbacks are ambiguous/u,
+		);
 	}
 });
 
@@ -127,7 +159,9 @@ test('video delivery does not traverse future project feature or media state', (
 
 	assert.strictEqual(delivery.project, future);
 	assert.equal(delivery.featureRequirementsReport, null);
+	assert.equal(delivery.audioRenderedFallback, null);
 	assert.equal(delivery.videoRenderedFallback, null);
+	assert.deepEqual(delivery.requiredAudioSourceIds, []);
 	assert.deepEqual(delivery.requiredVideoSourceIds, []);
 });
 
@@ -160,10 +194,7 @@ function combinedFallbackProject() {
 		sources: [canonicalAudio, fallbackAudio, canonicalVideo, fallbackVideo],
 		clips: [audioClip, videoClip],
 		tracks: [
-			createAudioTrackV9({
-				id: 'canonical-audio-track', clipIds: [audioClip.id],
-				effects: [createEffect('compressor', { id: 'audio-effect' })],
-			}),
+			createAudioTrackV9({ id: 'canonical-audio-track', clipIds: [audioClip.id] }),
 			createVideoTrackV9({ id: 'canonical-video-track', clipIds: [videoClip.id] }),
 		],
 		featureRequirements: { schemaVersion: 1, requirements: [

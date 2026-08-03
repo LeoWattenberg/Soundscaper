@@ -418,6 +418,7 @@ function renderedFallbackProjection(projected: ReturnType<typeof project>) {
 			format: 'soundscaper-project', compatible: false,
 			counts: { available: 0, unavailable: 1, unknown: 0 }, items: [item],
 		},
+		audioRenderedFallback: null,
 		videoRenderedFallback: {
 			schemaVersion: 1,
 			role: 'project-video-render-v1',
@@ -426,6 +427,7 @@ function renderedFallbackProjection(projected: ReturnType<typeof project>) {
 			trackId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
 			clipId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip,
 		},
+		requiredAudioSourceIds: [],
 		requiredVideoSourceIds: ['fallback-video'],
 	};
 }

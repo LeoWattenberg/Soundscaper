@@ -16,7 +16,7 @@ test('visual service assembles timeline and compound project-bin media from one 
 	const service = createProjectVisualService({
 		getProject: () => project,
 		...projectFence(),
-		missingSourceIds: new Set(['missing']),
+		missingSourceIds: new Set(['missing', 'video']),
 		sourceBuffers: new Map([['audio', { buffer: true }]]),
 		sourcePeaks: new Map([['audio', { levels: [] }]]),
 		waveformPcmWindows: new Map([['audio-clip', { startFrame: 4 }]]),
@@ -37,6 +37,12 @@ test('visual service assembles timeline and compound project-bin media from one 
 	assert.equal(service.allProjectClips().length, 5);
 	assert.equal(service.hasMissingTimelineSources(), true);
 	assert.equal(service.hasMissingTimelineSources(undefined, { audioOnly: true }), true);
+	assert.equal(service.hasMissingTimelineSources(undefined, {
+		excludedSourceIds: new Set(['missing']),
+	}), true, 'another missing timeline source must remain visible');
+	assert.equal(service.hasMissingTimelineSources(undefined, {
+		excludedSourceIds: new Set(['missing', 'video']),
+	}), false, 'only the exact excluded source IDs may be ignored');
 	assert.deepEqual(service.getVisibleClips({ startFrame: 0, endFrame: 100, overscanFrames: 0 })
 		.map((visual) => visual?.clip.id), ['audio-clip']);
 });

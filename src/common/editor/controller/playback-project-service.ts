@@ -41,7 +41,9 @@ export interface AudioRenderedFallbackDeliveryProjection<Project extends object>
 export interface VideoRenderedFallbackDeliveryProjection<Project extends object> {
 	readonly project: Project;
 	readonly featureRequirementsReport: ProjectFeatureRequirementsReport | null;
+	readonly audioRenderedFallback: ProjectFeatureAudioRenderedFallbackMetadata | null;
 	readonly videoRenderedFallback: ProjectFeatureVideoRenderedFallbackMetadata | null;
+	readonly requiredAudioSourceIds: readonly string[];
 	readonly requiredVideoSourceIds: readonly string[];
 }
 
@@ -174,19 +176,27 @@ export function createPlaybackProjectService(
 		});
 	}
 
-	/** Apply only the maintained video rendered fallback for final delivery. */
+	/** Compose the maintained audio and video rendered fallbacks for video delivery. */
 	function projectForVideoRenderedFallbackDelivery<Project extends object>(
 		project: Project,
 	): VideoRenderedFallbackDeliveryProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
-		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
+		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(
 			project,
+			featureRequirementsReport,
+		);
+		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
+			renderedAudio.project,
 			featureRequirementsReport,
 		);
 		return Object.freeze({
 			project: renderedVideo.project,
 			featureRequirementsReport,
+			audioRenderedFallback: renderedAudio.metadata,
 			videoRenderedFallback: renderedVideo.metadata,
+			requiredAudioSourceIds: Object.freeze(
+				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
+			),
 			requiredVideoSourceIds: Object.freeze(
 				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
 			),

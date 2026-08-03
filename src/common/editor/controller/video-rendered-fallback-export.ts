@@ -9,7 +9,17 @@ import {
 	PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS,
 	type ProjectFeatureVideoRenderedFallbackMetadata,
 } from '../project-feature-video-rendered-fallback.ts';
-import type { ProjectVideoFallbackIntegritySelector } from '../project-fallback-integrity.ts';
+import type { EngineChunkSource } from '../engine/types.ts';
+import type {
+	ProjectAudioFallbackIntegritySelector,
+	ProjectVideoFallbackIntegritySelector,
+} from '../project-fallback-integrity.ts';
+import {
+	assertAudioRenderedFallbackChunkProvider,
+	assertAudioRenderedFallbackProjection,
+	assertAudioRenderedFallbackSourceGeometry,
+	audioRenderedFallbackIntegritySelector,
+} from './audio-rendered-fallback-export.ts';
 import type { VideoRenderedFallbackDeliveryProjection } from './playback-project-service.ts';
 
 interface VideoRenderedFallbackDeliveryService {
@@ -20,6 +30,7 @@ interface VideoRenderedFallbackDeliveryService {
 
 interface FallbackIntegrityAdmission {
 	assertCurrent(project: unknown): void;
+	getVerifiedAudioChunkProvider(selector: ProjectAudioFallbackIntegritySelector): EngineChunkSource;
 	getVerifiedVideoBlob(selector: ProjectVideoFallbackIntegritySelector): Blob;
 }
 
@@ -30,7 +41,9 @@ interface VideoRenderedFallbackIntegrityRuntime {
 		store: unknown,
 		options: Readonly<{
 			signal?: AbortSignal;
+			audioFallback?: ProjectAudioFallbackIntegritySelector;
 			videoFallback?: ProjectVideoFallbackIntegritySelector;
+			assertCurrent?: () => void;
 		}>,
 	) => PromiseLike<FallbackIntegrityAdmission> | FallbackIntegrityAdmission;
 }
@@ -44,14 +57,25 @@ interface VideoExportPublication {
 	readonly cleanup?: () => PromiseLike<void> | void;
 }
 
+export interface VideoRenderedFallbackExportAdmission {
+	readonly audioChunkProvider: EngineChunkSource | null;
+	readonly videoBlob: Blob | null;
+}
+
 const EMPTY_VIDEO_DELIVERY = Object.freeze({
 	featureRequirementsReport: null,
+	audioRenderedFallback: null,
 	videoRenderedFallback: null,
+	requiredAudioSourceIds: Object.freeze([]),
 	requiredVideoSourceIds: Object.freeze([]),
+});
+const EMPTY_FALLBACK_ADMISSION = Object.freeze({
+	audioChunkProvider: null,
+	videoBlob: null,
 });
 const FEATURE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/u;
 
-/** Select only the closed video fallback projection used by final delivery. */
+/** Select the closed audio/video fallback projection used by final video delivery. */
 export function projectForVideoRenderedFallbackExport<Project extends object>(
 	project: Project,
 	service?: VideoRenderedFallbackDeliveryService | null,
@@ -65,35 +89,65 @@ export function projectForVideoRenderedFallbackExport<Project extends object>(
 	return projection;
 }
 
-/** Reverify an active fallback at operation time before planning or media reads. */
+/** Jointly reverify active delivery fallbacks before planning or media reads. */
 export async function admitVideoRenderedFallbackExport(
 	canonicalProject: unknown,
 	projection: VideoRenderedFallbackDeliveryProjection<object>,
 	runtime: VideoRenderedFallbackIntegrityRuntime,
 	options: VideoRenderedFallbackExportAdmissionOptions,
-): Promise<Blob | null> {
-	if (!projection.videoRenderedFallback) return null;
+): Promise<VideoRenderedFallbackExportAdmission> {
+	assertDeliveryProjection(projection);
+	if (!projection.audioRenderedFallback && !projection.videoRenderedFallback) {
+		return EMPTY_FALLBACK_ADMISSION;
+	}
+	if (typeof options?.assertCurrent !== 'function') {
+		throw new TypeError('Video rendered-fallback export requires a currentness assertion.');
+	}
 	if (typeof runtime.verifyProjectFallbackIntegrity !== 'function') {
 		throw new TypeError('Video rendered-fallback export integrity verification is unavailable.');
 	}
-	const selector = videoFallbackIntegritySelector(projection);
+	const audioSelector = projection.audioRenderedFallback
+		? audioRenderedFallbackIntegritySelector(projection)
+		: null;
+	const videoSelector = projection.videoRenderedFallback
+		? videoFallbackIntegritySelector(projection)
+		: null;
+	if (audioSelector) {
+		assertAudioRenderedFallbackSourceGeometry(
+			canonicalProject,
+			projection.project,
+			audioSelector.sourceId,
+		);
+	}
 	options.assertCurrent();
 	const admission = await runtime.verifyProjectFallbackIntegrity(
 		canonicalProject,
 		runtime.store,
-		{ signal: options.signal, videoFallback: selector },
+		{
+			signal: options.signal,
+			...(audioSelector ? { audioFallback: audioSelector } : {}),
+			...(videoSelector ? { videoFallback: videoSelector } : {}),
+			assertCurrent: options.assertCurrent,
+		},
 	);
 	if (!admission || typeof admission.assertCurrent !== 'function'
-		|| typeof admission.getVerifiedVideoBlob !== 'function') {
+		|| (audioSelector && typeof admission.getVerifiedAudioChunkProvider !== 'function')
+		|| (videoSelector && typeof admission.getVerifiedVideoBlob !== 'function')) {
 		throw new TypeError('Video rendered-fallback export integrity admission is invalid.');
 	}
 	admission.assertCurrent(canonicalProject);
-	const blob = admission.getVerifiedVideoBlob(selector);
-	if (!(blob instanceof Blob)) {
+	const audioChunkProvider = audioSelector
+		? admission.getVerifiedAudioChunkProvider(audioSelector)
+		: null;
+	if (audioSelector) {
+		assertAudioRenderedFallbackChunkProvider(canonicalProject, audioSelector.sourceId, audioChunkProvider);
+	}
+	const videoBlob = videoSelector ? admission.getVerifiedVideoBlob(videoSelector) : null;
+	if (videoSelector && !(videoBlob instanceof Blob)) {
 		throw new TypeError('Video rendered-fallback export integrity returned invalid media.');
 	}
 	options.assertCurrent();
-	return blob;
+	return Object.freeze({ audioChunkProvider, videoBlob });
 }
 
 export function sanitizeVideoExportFileName(value: unknown): string {
@@ -120,22 +174,39 @@ export async function assertVideoExportPublicationCurrent(
 function assertDeliveryProjection(
 	projection: VideoRenderedFallbackDeliveryProjection<object>,
 ): void {
-	if (!projection || typeof projection !== 'object' || !projection.project
-		|| typeof projection.project !== 'object' || Array.isArray(projection.project)) {
-		throw new TypeError('Video rendered-fallback delivery returned an invalid project.');
-	}
-	if (!Array.isArray(projection.requiredVideoSourceIds)) {
+	assertAudioRenderedFallbackProjection(projection);
+	const requiredVideoSourceIds = projectionDataProperty(
+		projection,
+		'requiredVideoSourceIds',
+	);
+	if (!Array.isArray(requiredVideoSourceIds)) {
 		throw new TypeError('Video rendered-fallback delivery returned invalid source roots.');
 	}
-	const metadata = projection.videoRenderedFallback;
-	if (!metadata) {
-		if (projection.requiredVideoSourceIds.length !== 0) {
+	const metadata = projectionDataProperty(projection, 'videoRenderedFallback');
+	if (metadata === null) {
+		if (requiredVideoSourceIds.length !== 0) {
 			throw new TypeError('Inactive video rendered-fallback delivery retained a source root.');
 		}
-		return;
+	} else {
+		if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+			throw new TypeError('Video rendered-fallback delivery returned invalid metadata.');
+		}
+		const typedMetadata = metadata as ProjectFeatureVideoRenderedFallbackMetadata;
+		assertActiveMetadata(typedMetadata, requiredVideoSourceIds);
+		assertVideoFallbackReport(projection.featureRequirementsReport, typedMetadata);
 	}
-	assertActiveMetadata(metadata, projection.requiredVideoSourceIds);
-	assertFallbackReport(projection.featureRequirementsReport, metadata);
+	assertExactRenderedFallbackSet(projection);
+}
+
+function projectionDataProperty(
+	projection: VideoRenderedFallbackDeliveryProjection<object>,
+	key: 'requiredVideoSourceIds' | 'videoRenderedFallback',
+): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(projection, key);
+	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(`Video rendered-fallback delivery ${key} must be an own data property.`);
+	}
+	return descriptor.value;
 }
 
 function assertActiveMetadata(
@@ -144,6 +215,8 @@ function assertActiveMetadata(
 ): void {
 	if (metadata.schemaVersion !== 1
 		|| typeof metadata.featureId !== 'string' || !FEATURE_ID_PATTERN.test(metadata.featureId)
+		|| typeof metadata.requirementId !== 'string' || !metadata.requirementId
+		|| typeof metadata.sourceId !== 'string' || !metadata.sourceId
 		|| requiredSourceIds.length !== 1
 		|| requiredSourceIds[0] !== metadata.sourceId) {
 		throw new TypeError('Video rendered-fallback delivery metadata does not match its required source.');
@@ -163,25 +236,45 @@ function assertActiveMetadata(
 	}
 }
 
-function assertFallbackReport(
+function assertVideoFallbackReport(
 	report: ProjectFeatureRequirementsReport | null,
 	metadata: ProjectFeatureVideoRenderedFallbackMetadata,
 ): ProjectFeatureRequirementsReportItem {
 	if (report?.format !== 'soundscaper-project' || report.compatible !== false || !Array.isArray(report.items)) {
 		throw new TypeError('Video rendered-fallback delivery requires an incompatible project report.');
 	}
-	const renderedFallbacks = report.items.filter((item) => item.disposition === 'rendered-fallback');
+	const renderedFallbacks = report.items.filter((item) => (
+		item.disposition === 'rendered-fallback' && item.fallback?.kind === 'video'
+	));
 	if (renderedFallbacks.length !== 1 || !matchesFallback(renderedFallbacks[0], metadata)) {
-		throw new RangeError('Video export does not support simultaneous rendered fallbacks.');
+		throw new RangeError('Video export requires exactly one matching video rendered fallback.');
 	}
 	return renderedFallbacks[0]!;
+}
+
+function assertExactRenderedFallbackSet(
+	projection: VideoRenderedFallbackDeliveryProjection<object>,
+): void {
+	const renderedFallbacks = projection.featureRequirementsReport?.items
+		.filter((item) => item.disposition === 'rendered-fallback') ?? [];
+	const expectedCount = Number(Boolean(projection.audioRenderedFallback))
+		+ Number(Boolean(projection.videoRenderedFallback));
+	const audioCount = renderedFallbacks.filter((item) => item.fallback?.kind === 'audio').length;
+	const videoCount = renderedFallbacks.filter((item) => item.fallback?.kind === 'video').length;
+	if (renderedFallbacks.length !== expectedCount
+		|| audioCount !== Number(Boolean(projection.audioRenderedFallback))
+		|| videoCount !== Number(Boolean(projection.videoRenderedFallback))) {
+		throw new RangeError(
+			'Video export supports at most one represented audio and one represented video rendered fallback.',
+		);
+	}
 }
 
 function videoFallbackIntegritySelector(
 	projection: VideoRenderedFallbackDeliveryProjection<object>,
 ): ProjectVideoFallbackIntegritySelector {
 	const metadata = projection.videoRenderedFallback!;
-	const item = assertFallbackReport(projection.featureRequirementsReport, metadata);
+	const item = assertVideoFallbackReport(projection.featureRequirementsReport, metadata);
 	const base = {
 		requirementId: metadata.requirementId,
 		featureId: metadata.featureId,

@@ -124,9 +124,6 @@ export async function verifyProjectFallbackIntegrity(
 	const videoSelector = options.videoFallback === undefined
 		? null
 		: snapshotProjectVideoFallbackSelector(options.videoFallback);
-	if (audioSelector && videoSelector) {
-		throw new TypeError('Fallback integrity verification accepts only one exact rendered fallback selector.');
-	}
 	if (options.assertCurrent !== undefined && typeof options.assertCurrent !== 'function') {
 		throw new TypeError('Fallback integrity currentness must be a function.');
 	}
@@ -146,13 +143,15 @@ export async function verifyProjectFallbackIntegrity(
 			captured.sources,
 			audioSelector,
 		));
-	} else if (videoSelector) {
+	}
+	if (videoSelector) {
 		targetValues.push(selectProjectVideoFallbackTarget(
 			captured.requirements,
 			captured.sources,
 			videoSelector,
 		));
-	} else {
+	}
+	if (!audioSelector && !videoSelector) {
 		const sourcesById = new Map(captured.sources.map((source) => [source.id, source]));
 		const targets = new Map<string, VerificationTarget>();
 		for (const claim of captured.claims) {
@@ -182,7 +181,7 @@ export async function verifyProjectFallbackIntegrity(
 			if (audioSelector) {
 				const assertFullCurrent = (): void => {
 					options.assertCurrent?.();
-					assertAdmissionCurrent(admissionState, project, audioSelector);
+					assertAdmissionCurrent(admissionState, project, audioSelector, videoSelector);
 				};
 				verifiedAudioProvider = await verifySelectedProjectAudioFallback(
 					plan,
@@ -191,7 +190,7 @@ export async function verifyProjectFallbackIntegrity(
 					{
 						signal,
 						assertCurrent: assertFullCurrent,
-						assertProviderCurrent: options.assertCurrent ?? assertFullCurrent,
+						assertProviderCurrent: assertFullCurrent,
 					},
 				);
 			} else {
