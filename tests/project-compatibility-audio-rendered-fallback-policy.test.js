@@ -140,6 +140,6 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	assert.match(normalizedDocumentation, /Corrupt same-shaped recipient-local PCM after activation.*rejects delivery before rendering or output.*exact repair restores the exact PCM.*final-mix.*canonical project.*shadow.*unchanged/isu);
 	assert.match(normalizedDocumentation, /`org\.example\.future-mixer`.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/isu);
 	assert.match(normalizedDocumentation, /operation-time.*selector.*exact requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*tamper.*refus.*repair.*canonical project.*shadow.*unchanged/isu);
-	assert.match(documentation, /exact point-in-time provider.*immutable.*Blob.*not durable leases.*role-defined.*audio whole-mix.*first-party video-effects whole-project.*clip-target.*narrow editor-playback\s+and delivery.*other generic rendered-fallback\s+roles/isu);
+	assert.match(documentation, /exact point-in-time provider.*immutable.*Blob.*not durable leases.*role-defined.*audio whole-mix.*role-defined whole-project video.*videoEffects-only\s+clip-target.*narrow editor-playback\s+and\s+delivery/isu);
 	assert.match(normalizedDocumentation, /more than one.*feature identities.*non-audio roles.*future schemas.*earlier Soundscaper schemas.*linked-only.*unmanaged.*authoring.*freeze.*proxy.*publisher authenticity.*third-party code activation.*packaged.*UI.*browser.*reference-scale/isu);
 });

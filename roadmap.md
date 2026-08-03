@@ -248,8 +248,8 @@ products before adding new editorial models or native engines.
   reclamation, pathless IPC, and source-free packaged handoff.
 - **Shared — Implemented for maintained compatibility slices:** feature-requirement
   reporting, read-only incompatible opens, opaque state preservation, audio/video
-  effect bypass, role-defined audio whole-mix playback, and first-party
-  video-effects rendered-fallback playback.
+  effect bypass, role-defined audio whole-mix and full-project video fallback
+  playback, and the first-party clip-local `videoEffects` fallback.
 - **Web Enhanced / Electron Enhanced — Implemented for direct PCM slices:**
   bounded direct WAV, AIFF, BWF, and admitted BW64 publication. Other render
   families remain below.
@@ -280,11 +280,12 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   portable `.scape` playback, explicit managed handoff to a fresh recipient,
   and maintained final-mix delivery. Canonical state remains read-only and
   unprojected.
-- **Shared / Electron Enhanced — Implemented for full-project and one
-  clip-local first-party video-effects fallback relationship:** exact-schema
-  relationships reach portable `.scape`, managed handoff, playback, and the
-  maintained delivery projection without canonical mutation. Generic
-  relationships and packaged/browser qualification remain open.
+- **Shared / Electron Enhanced — Implemented for the closed full-project video
+  role and one clip-local first-party `videoEffects` relationship:** unavailable
+  or unknown canonical feature identities qualify only for the full-project
+  role. Both exact-schema relationships reach portable `.scape`, managed
+  handoff, playback, and maintained delivery without canonical mutation. Other
+  roles and packaged/browser qualification remain open.
 - **Electron Enhanced — Implemented for point-in-time managed-media publication
   admission:** absent bindings reserve prospective catalog rows, serialized
   metadata, and aggregate pending body bytes, then reject failed, malformed, or
@@ -346,13 +347,14 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   versioned recipe while staying outside project history, portable archive
   media, and managed media transfer. They are not editorial proxies.
 - **Shared — In progress:** extend role-defined rendered-fallback acquisition,
-  activation, and delivery beyond the audio whole-mix.
+  activation, and delivery beyond the audio whole-mix and full-project video
+  roles plus the clip-local `videoEffects` relationship.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories; narrower one-way fixtures prove the
-  role-defined audio and maintained first-party video fallbacks each reach a
-  fresh recipient from a manifest-only reference and activate their exact
-  managed body.
+  role-defined audio and full-project video fallbacks plus the maintained
+  first-party clip-local video fallback each reach a fresh recipient from a
+  manifest-only reference and activate their exact managed body.
   Packaged UI and browser-codec qualification remain open.
 
 This is the main architectural blocker for closing milestone 2. Do not spend the
@@ -380,7 +382,8 @@ release-blocking defect in its owning policy.
 - **Shared — In progress:** provide generic affected-object visibility and
   bypass behavior beyond the maintained first-party audio/video slices.
 - Extend required rendered-fallback runtime use beyond the role-defined audio
-  whole-mix and maintained first-party video-effects paths.
+  whole-mix and full-project video roles plus the maintained first-party
+  clip-local video-effects relationship.
 - Preserve and re-export arbitrary future-schema `.scape` archives without
   interpreting unknown state.
 - Verify that a project opened on a less-capable platform subsequently

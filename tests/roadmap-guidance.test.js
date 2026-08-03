@@ -34,7 +34,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/- \*\*Shared \/ Electron Enhanced — Implemented for full-project and one\s+clip-local first-party video-effects fallback relationship:\*\* exact-schema\s+relationships reach portable `\.scape`, managed handoff, playback, and the\s+maintained delivery projection without canonical mutation\. Generic\s+relationships and packaged\/browser qualification remain open\./u,
+		/- \*\*Shared \/ Electron Enhanced — Implemented for the closed full-project video\s+role and one clip-local first-party `videoEffects` relationship:\*\* unavailable\s+or unknown canonical feature identities qualify only for the full-project\s+role\. Both exact-schema relationships reach portable `\.scape`, managed\s+handoff, playback, and maintained delivery without canonical mutation\. Other\s+roles and packaged\/browser qualification remain open\./u,
 	);
 	assert.match(
 		roadmap,

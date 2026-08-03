@@ -67,7 +67,7 @@ test('compatibility policy owns the closed rendered-fallback relationship schema
 
 test('compatibility policy narrowly qualifies target-only video-effects clip projection and delivery', async () => {
 	const policy = await compatibilityPolicy();
-	const playback = compatibilityRule(policy, 'current-first-party-video-rendered-fallback-playback');
+	const playback = compatibilityRule(policy, 'current-video-rendered-fallback-playback');
 	const integrity = compatibilityRule(policy, 'current-controller-rendered-fallback-integrity');
 	assert.equal(playback.status, 'implemented');
 	assertSemanticClaims(playback.currentBehavior, [
@@ -94,7 +94,7 @@ test('compatibility policy binds portable Scape and managed handoff witnesses', 
 	const policy = await compatibilityPolicy();
 	const scape = compatibilityRule(policy, 'current-scape-feature-requirements');
 	const scapeIntegrity = compatibilityRule(policy, 'current-scape-rendered-fallback-integrity');
-	const handoff = compatibilityRule(policy, 'current-first-party-video-rendered-fallback-playback');
+	const handoff = compatibilityRule(policy, 'current-video-rendered-fallback-playback');
 	assertSemanticClaims(scape.currentBehavior, [
 		['clip relationship preservation', /video-clip-render-v1.*target clip ID/iu],
 		['collision remap scope', /copy.*collision.*remap.*fallback source ID.*preserv.*target clip ID/iu],
@@ -113,8 +113,8 @@ test('compatibility policy binds portable Scape and managed handoff witnesses', 
 test('security controls bind the clip relationship through playback, integrity, and export', async () => {
 	const matrix = await securityMatrix();
 	const projectDocuments = securityRisk(matrix, 'external-project-document-validation');
-	const playback = securityControl(projectDocuments, 'first-party-video-rendered-fallback-playback');
-	const delivery = securityControl(projectDocuments, 'first-party-video-rendered-fallback-export');
+	const playback = securityControl(projectDocuments, 'video-rendered-fallback-playback');
+	const delivery = securityControl(projectDocuments, 'video-rendered-fallback-export');
 	assertSemanticClaims(playback.summary, [
 		['closed clip role', /video-clip-render-v1.*videoEffects/iu],
 		['target and geometry', /target clip ID.*frame count.*duration.*sample rate.*width.*height.*frame rate/iu],

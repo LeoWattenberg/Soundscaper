@@ -7,17 +7,17 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('first-party video rendered-fallback export stays exact and narrowly qualified', async () => {
+test('role-defined whole-project and first-party clip-local video fallback export stays narrow', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const projectDocuments = matrix.risks.find(
 		({ id }) => id === 'external-project-document-validation',
 	);
 	const control = projectDocuments?.currentControls.find(
-		({ id }) => id === 'first-party-video-rendered-fallback-export',
+		({ id }) => id === 'video-rendered-fallback-export',
 	);
 	assert.ok(control);
 	assert.equal(projectDocuments?.currentControls.some(
-		({ id }) => id === 'first-party-video-effects-rendered-fallback-export',
+		({ id }) => id === 'first-party-video-rendered-fallback-export',
 	), false);
 
 	for (const path of [
@@ -51,7 +51,7 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 
 	assert.match(
 		control.summary,
-		/exact schema 9.*unavailable.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*narrow final video delivery.*canonical manifest.*requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/exact schema 9.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*video-clip-render-v1.*exact registered videoEffects.*unavailable.*narrow final video delivery.*canonical manifest.*requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		control.summary,
@@ -80,7 +80,7 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	);
 	assert.match(
 		control.summary,
-		/multiple clip or mixed fallback relationships.*generic authoring.*third-party activation.*simultaneous fallback delivery.*freeze.*proxy.*linked or unmanaged delivery.*broad export parity.*packaged runtime.*browser behavior.*codec qualification.*range transport.*reference-scale.*whole-handoff atomicity.*unqualified/iu,
+		/multiple clip or mixed fallback relationships.*other relationship roles.*generic authoring.*third-party feature-code activation.*simultaneous fallback delivery.*freeze.*proxy.*linked or unmanaged delivery.*broad export parity.*packaged runtime.*browser behavior.*codec qualification.*range transport.*reference-scale.*whole-handoff atomicity.*unqualified/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -90,7 +90,7 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	const documentation = threatModel.slice(sectionStart, sectionEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/final video rendered-fallback delivery.*exact schema 9.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*unavailable.*declared and effective `rendered-fallback`.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/final video rendered-fallback delivery.*exact schema 9.*`project-video-render-v1`.*canonical namespaced feature ID.*unavailable or unknown.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*`video-clip-render-v1`.*exact registered `videoEffects`.*unavailable.*declared and effective `rendered-fallback`.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		documentation,
@@ -114,6 +114,6 @@ test('first-party video rendered-fallback export stays exact and narrowly qualif
 	);
 	assert.match(
 		documentation,
-		/multiple clip fallbacks.*mixed fallback relationships.*generic fallback authoring.*third-party activation.*linked or unmanaged delivery.*packaged runtime.*browser behavior.*codec qualification.*reference-scale evidence.*whole-handoff atomicity.*unqualified/iu,
+		/multiple clip fallbacks.*mixed fallback relationships.*other relationship roles.*generic fallback authoring.*third-party feature-code activation.*linked or unmanaged delivery.*packaged runtime.*browser behavior.*codec qualification.*reference-scale evidence.*whole-handoff atomicity.*unqualified/iu,
 	);
 });

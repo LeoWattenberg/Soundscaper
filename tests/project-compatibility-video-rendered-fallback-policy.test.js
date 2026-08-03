@@ -7,14 +7,14 @@ import test from 'node:test';
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
 
-test('compatibility policy qualifies closed full-project and clip-local first-party video fallbacks', async () => {
+test('compatibility policy qualifies a generic whole-project video role and first-party clip role', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
-	const rule = policy.rules.find(({ id }) => id === 'current-first-party-video-rendered-fallback-playback');
+	const rule = policy.rules.find(({ id }) => id === 'current-video-rendered-fallback-playback');
 	assert.ok(rule);
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/exact-current-schema.*host-owned registered video capability allowlist.*videoImport.*videoPlayback.*videoTimelineEditing.*videoExport.*videoEffects.*videoCompositing.*rendered fallback.*editor playback.*project-video-render-v1.*full-source render.*videoEffects-only video-clip-render-v1.*one exact target clip.*complete admitted render/iu,
+		/exact-current-schema.*project-video-render-v1.*unavailable or unknown.*canonical namespaced feature (?:ID|identity).*full-source render.*unavailable-only video-clip-render-v1.*exact videoEffects.*one exact target clip.*complete admitted render/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
@@ -26,7 +26,7 @@ test('compatibility policy qualifies closed full-project and clip-local first-pa
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative actual project history.*exact schema 9.*exactly one.*host-owned registered video capability allowlist.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/authoritative actual project history.*exact schema 9.*exactly one qualifying item.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*video-clip-render-v1.*exact videoEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -72,7 +72,7 @@ test('compatibility policy qualifies closed full-project and clip-local first-pa
 
 	assert.match(
 		rule.currentBehavior,
-		/videoCompositing.*headless Framescaper-to-fresh-Soundscaper.*managed whole-Blob handoff.*editable retained original.*manifest-only whole-project fallback/iu,
+		/org\.example\.future-video-pipeline.*unknown-feature.*headless Framescaper-to-fresh-Soundscaper.*managed whole-Blob handoff.*editable retained original.*manifest-only whole-project fallback/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -84,7 +84,7 @@ test('compatibility policy qualifies closed full-project and clip-local first-pa
 	);
 	assert.match(
 		rule.currentBehavior,
-		/more than one qualifying registered video fallback.*different registered video feature IDs.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*audio IDs.*unknown or third-party IDs.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged delivery.*simultaneous rendered fallback delivery.*generic fallback authoring.*third-party activation.*freeze.*unfreeze.*proxy.*relink.*embedded fallback-video audio.*nonselected fallback-body claim.*offline-render parity.*packaged runtime or UI.*browser.*codec.*range transport.*reference-scale.*no durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
+		/more than one qualifying video fallback.*canonical feature identities.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature identities qualify only for project-video-render-v1.*third-party feature-code activation.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged delivery.*simultaneous rendered fallback delivery.*generic fallback authoring.*freeze.*unfreeze.*proxy.*relink.*embedded fallback-video audio.*nonselected fallback-body claim.*offline-render parity.*packaged runtime or UI.*browser.*codec.*range transport.*reference-scale.*no durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
 	);
 
 	for (const reference of rule.evidence) {
@@ -129,7 +129,7 @@ test('compatibility policy qualifies closed full-project and clip-local first-pa
 	);
 	assert.match(
 		normalizedDocumentation,
-		/exact schema 9 first-party video rendered fallback.*host-owned registered video capability allowlist.*`videoImport`.*`videoPlayback`.*`videoTimelineEditing`.*`videoExport`.*`videoEffects`.*`videoCompositing`.*exactly one.*unavailable.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
+		/exact schema 9 video rendered-fallback projection.*two closed relationships.*`project-video-render-v1`.*canonical namespaced feature ID.*reported unavailable or unknown.*`video-clip-render-v1`.*restricted to exact `videoEffects`.*reported unavailable.*exactly one.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
@@ -157,10 +157,14 @@ test('compatibility policy qualifies closed full-project and clip-local first-pa
 	);
 	assert.match(
 		normalizedDocumentation,
+		/`org\.example\.future-video-pipeline`.*unknown-feature.*headless.*whole-project fallback.*retained original.*explicit managed handoff/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
 		/second headless `video-clip-render-v1` witness.*canonical target.*unaffected video.*manifest-only fallback body.*fresh recipient.*target clip ID.*digest-bound fallback body.*exact canonical shadow.*reopens.*relationship-bound admission.*portable `\.scape`.*copy collision remaps only the fallback source ID.*preserves the canonical target clip ID/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/more than one qualifying fallback.*ambiguous.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*unknown IDs.*future schemas.*generic fallback authoring.*third-party activation.*linked or unmanaged delivery.*freeze.*proxy.*relink.*embedded fallback audio.*broader render parity.*packaged runtime.*browser behavior.*codec qualification.*reference-scale.*earlier Soundscaper project schemas.*not a compatibility target.*deterministic nested manifest-schema-1 whole-project normalization.*whole-handoff atomicity.*durable storage or cross-process byte lease/isu,
+		/more than one qualifying fallback.*ambiguous.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature IDs.*whole-project role.*do not activate third-party feature code.*future schemas.*generic fallback authoring.*linked or unmanaged delivery.*freeze.*proxy.*relink.*embedded fallback audio.*broader render parity.*packaged runtime.*browser behavior.*codec qualification.*reference-scale.*earlier Soundscaper project schemas.*not a compatibility target.*deterministic nested manifest-schema-1 whole-project normalization.*whole-handoff atomicity.*durable storage or cross-process byte lease/isu,
 	);
 });

@@ -52,7 +52,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-first-party-audio-effect-playback-bypass': 'implemented',
 		'current-audio-whole-mix-rendered-fallback': 'implemented',
 		'current-first-party-video-effect-playback-bypass': 'implemented',
-		'current-first-party-video-rendered-fallback-playback': 'implemented',
+		'current-video-rendered-fallback-playback': 'implemented',
 		'current-controller-rendered-fallback-integrity': 'implemented',
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
@@ -223,7 +223,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(postOpenFeatureReport.currentBehavior, /future schemas.*null report.*does not inspect.*featureRequirements/iu);
 	assert.match(
 		postOpenFeatureReport.currentBehavior,
-		/outside.*separate first-party audio- and video-effect bypass.*role-defined audio whole-mix.*first-party video rendered-fallback rules.*not a generic affected-object placeholder.*per-feature bypass control/iu,
+		/outside.*separate first-party audio- and video-effect bypass.*role-defined audio whole-mix.*closed video rendered-fallback rules.*not a generic affected-object placeholder.*per-feature bypass control/iu,
 	);
 
 	const audioEffectPlaybackBypass = rules.get('current-first-party-audio-effect-playback-bypass');
@@ -353,7 +353,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		controllerFallbackIntegrity.requiredOutcome,
 		/exact-current-schema.*raw or stored project.*maintained controller.*canonical local stored bytes.*before activation side effects/iu,
 	);
-	assert.match(controllerFallbackIntegrity.requiredOutcome, /first-party videoEffects fallback delivery.*exact active claim.*export signal.*canonical native video Blob.*directly reuse.*immutable bytes.*before.*plan.*media.*FFmpeg.*output/iu);
+	assert.match(controllerFallbackIntegrity.requiredOutcome, /project-video-render-v1 and videoEffects-only video-clip-render-v1 delivery.*exact active claim.*export signal.*canonical native video Blob.*directly reuse.*immutable bytes.*before.*plan.*media.*FFmpeg.*output/iu);
 	assert.match(
 		controllerFallbackIntegrity.currentBehavior,
 		/authoritative exact-schema-9.*same-ID tab history.*session-owned history token.*exclusive session activation reservation.*before project-generation invalidation.*engine shutdown.*lock changes.*source loading.*persistence.*history replacement.*close.reopen.*competing active-project publication.*session publication.*released in finally/iu,
@@ -368,7 +368,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(controllerFallbackIntegrity.currentBehavior, /selector.*active requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256.*admission snapshot.*canonical source.*duration.*maintained video effects.*role, target, or context drift.*only that active video body.*nonselected fallback body.*whole-project plan.*sole video input.*clip-local plan.*selected target input.*without a second fallback storage read/iu);
 	assert.match(
 		controllerFallbackIntegrity.currentBehavior,
-		/empty manifests.*future schemas.*no asset reads.*not traversed.*point-in-time immutable-Blob identity reuse.*not a durable lease.*storage record.*cross-process replacement.*nonselected fallback body.*direct store\.loadProject.*publisher authenticity.*generic.*third-party/iu,
+		/empty manifests.*future schemas.*no asset reads.*not traversed.*point-in-time immutable-Blob identity reuse.*not a durable lease.*storage record.*cross-process replacement.*nonselected fallback body.*direct store\.loadProject.*publisher authenticity.*other-role.*third-party feature-code/iu,
 	);
 
 	const currentScapePreOpenFeatureReport = rules.get('current-scape-pre-open-feature-report');
@@ -455,7 +455,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		unavailable.currentBehavior,
-		/role-defined audio whole-mix and first-party video-effects whole-project or one clip-local fallback slices.*editor playback.*whole-project role.*neutral full-source clip.*frame zero.*closed clip role.*only its exact target.*controller body and relationship verification.*required-source activation.*generic per-object placeholders.*rendered-fallback runtime use beyond the closed audio whole-mix and maintained first-party video relationships.*simultaneous fallback delivery.*fallback-authoring workflows beyond the closed relationship.*future-schema archive preservation.*not implemented/iu,
+		/role-defined audio whole-mix and whole-project video or first-party videoEffects-only clip-local fallback slices.*editor playback.*whole-project role.*neutral full-source clip.*frame zero.*closed clip role.*only its exact target.*controller body and relationship verification.*required-source activation.*generic per-object placeholders.*rendered-fallback runtime use beyond the closed audio whole-mix and maintained video relationships.*simultaneous fallback delivery.*fallback-authoring workflows beyond the closed relationship.*future-schema archive preservation.*not implemented/iu,
 	);
 	assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-rendered-fallback.ts')); assert.ok(unavailable.evidence.includes('src/common/editor/project-feature-video-clip-render-v1.ts'));
 	assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-rendered-fallback.test.ts')); assert.ok(unavailable.evidence.includes('tests/audio-editor-project-feature-video-clip-render-v1.test.ts'));
@@ -468,7 +468,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
-		/first-party video-effects fallbacks.*transiently replace.*whole-project video.*one explicitly related clip.*editor playback.*maintained video-export input.*operation-time verification.*without changing canonical state.*clip target-to-render relationship.*not an original-to-proxy, relink, watch, freshness, or broad original-delivery model.*proxy.*freeze.*unfreeze.*generic offline-render.*relink models.*not implemented/iu,
+		/role-defined whole-project video and first-party videoEffects-only clip fallbacks.*transiently replace.*whole-project video.*one explicitly related clip.*editor playback.*maintained video-export input.*operation-time verification.*without changing canonical state.*clip target-to-render relationship.*not an original-to-proxy, relink, watch, freshness, or broad original-delivery model.*proxy.*freeze.*unfreeze.*generic offline-render.*relink models.*not implemented/iu,
 	);
 });
 
@@ -587,7 +587,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/exact-schema-9 mono\/stereo role-defined audio whole-mix.*first-party\s+video\s+whole-project.*one first-party video-effects clip-target slice.*narrow forms of step 3.*editor playback.*maintained delivery.*operation-time integrity admission/isu,
+		/exact-schema-9 mono\/stereo role-defined audio whole-mix.*role-defined video\s+whole-project.*one first-party video-effects clip-target slice.*narrow forms of step 3.*editor playback.*maintained delivery.*operation-time integrity admission/isu,
 	);
 	assert.match(
 		documentation,

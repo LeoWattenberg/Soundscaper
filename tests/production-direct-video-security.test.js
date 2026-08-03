@@ -74,7 +74,7 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	const fallback = findControl(
 		matrix,
 		'external-project-document-validation',
-		'first-party-video-rendered-fallback-export',
+		'video-rendered-fallback-export',
 	);
 
 	for (const path of PUBLICATION_EVIDENCE) {
