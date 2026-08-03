@@ -319,6 +319,7 @@ test('audio rendered fallback activation is localized and bound to its exact req
 test('video rendered fallback activation is localized and bound to its exact requirement', () => {
 	const metadata = {
 		schemaVersion: 1,
+		role: 'project-video-render-v1',
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
 		requirementId: 'video-compositing',
 		sourceId: 'rendered-video',

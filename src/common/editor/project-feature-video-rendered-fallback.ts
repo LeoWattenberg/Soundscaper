@@ -5,24 +5,34 @@ import {
 	type ProjectFeatureVideoCapabilityId,
 } from './project-feature-capabilities.ts';
 import type {
-	ProjectFeatureFallback,
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
+	ProjectFeatureVideoClipRenderFallback,
+	ProjectFeatureVideoRenderFallback,
 } from './project-feature-requirements.ts';
+import {
+	projectFeatureVideoClipRenderV1Playback,
+	type ProjectFeatureVideoClipRenderV1Metadata,
+} from './project-feature-video-clip-render-v1.ts';
 
 export const PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS = Object.freeze({
 	track: 'framescaper:rendered-video-fallback:track',
 	clip: 'framescaper:rendered-video-fallback:clip',
 });
 
-export interface ProjectFeatureVideoRenderedFallbackMetadata {
+export interface ProjectFeatureVideoProjectRenderV1Metadata {
 	readonly schemaVersion: 1;
+	readonly role: 'project-video-render-v1';
 	readonly featureId: ProjectFeatureVideoCapabilityId;
 	readonly requirementId: string;
 	readonly sourceId: string;
 	readonly trackId: typeof PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track;
 	readonly clipId: typeof PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip;
 }
+
+export type ProjectFeatureVideoRenderedFallbackMetadata =
+	| ProjectFeatureVideoProjectRenderV1Metadata
+	| ProjectFeatureVideoClipRenderV1Metadata;
 
 export interface ProjectFeatureVideoRenderedFallbackProjection<Project> {
 	readonly project: Project;
@@ -31,11 +41,19 @@ export interface ProjectFeatureVideoRenderedFallbackProjection<Project> {
 
 type RecordValue = Readonly<Record<string, unknown>>;
 
-interface QualifiedFallback {
+interface QualifiedProjectFallback {
 	readonly featureId: ProjectFeatureVideoCapabilityId;
 	readonly requirementId: string;
-	readonly fallback: ProjectFeatureFallback;
+	readonly fallback: ProjectFeatureVideoRenderFallback;
 }
+
+interface QualifiedClipFallback {
+	readonly featureId: ProjectFeatureVideoCapabilityId;
+	readonly requirementId: string;
+	readonly fallback: ProjectFeatureVideoClipRenderFallback;
+}
+
+type QualifiedFallback = QualifiedProjectFallback | QualifiedClipFallback;
 
 const EMPTY_RESULT = Object.freeze({ metadata: null });
 
@@ -52,6 +70,9 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	if (optionalDataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
+	if (isQualifiedClipFallback(qualified)) {
+		return projectFeatureVideoClipRenderV1Playback(project, qualified);
+	}
 	assertManifestBinding(projectRecord, qualified);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
@@ -81,6 +102,7 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	const projected = replaceDataProperties(projectRecord, { clips, tracks }) as unknown as Project;
 	const metadata = Object.freeze({
 		schemaVersion: 1 as const,
+		role: 'project-video-render-v1' as const,
 		featureId: qualified.featureId,
 		requirementId: qualified.requirementId,
 		sourceId: qualified.fallback.sourceId,
@@ -112,19 +134,25 @@ function qualifyingFallback(
 	return Object.freeze({
 		featureId: item.featureId,
 		requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
-		fallback: item.fallback!,
-	});
+		fallback: item.fallback,
+	}) as QualifiedFallback;
 }
 
-function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): boolean {
+function isQualifiedClipFallback(value: QualifiedFallback): value is QualifiedClipFallback {
+	return value.fallback.role === 'video-clip-render-v1';
+}
+
+function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
+	Readonly<{ fallback: ProjectFeatureVideoRenderFallback | ProjectFeatureVideoClipRenderFallback }> {
 	return isProjectFeatureVideoCapabilityId(item.featureId)
 		&& item.availability === 'unavailable'
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
-		&& item.fallback?.kind === 'video';
+		&& item.fallback?.kind === 'video'
+		&& (item.fallback.role === 'project-video-render-v1' || item.fallback.role === 'video-clip-render-v1');
 }
 
-function assertManifestBinding(project: RecordValue, qualified: QualifiedFallback): void {
+function assertManifestBinding(project: RecordValue, qualified: QualifiedProjectFallback): void {
 	const manifest = recordValue(dataProperty(project, 'featureRequirements', 'project'), 'project.featureRequirements');
 	const requirements = arrayValue(
 		dataProperty(manifest, 'requirements', 'project.featureRequirements'),
@@ -145,6 +173,7 @@ function assertManifestBinding(project: RecordValue, qualified: QualifiedFallbac
 		dataProperty(requirement, 'featureId', 'project feature requirement')
 			!== qualified.featureId
 		|| dataProperty(requirement, 'disposition', 'project feature requirement') !== 'rendered-fallback'
+		|| dataProperty(fallback, 'role', 'project feature requirement fallback') !== qualified.fallback.role
 		|| dataProperty(fallback, 'kind', 'project feature requirement fallback') !== qualified.fallback.kind
 		|| dataProperty(fallback, 'sourceId', 'project feature requirement fallback') !== qualified.fallback.sourceId
 		|| dataProperty(fallback, 'sha256', 'project feature requirement fallback') !== qualified.fallback.sha256

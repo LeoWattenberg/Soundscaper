@@ -119,6 +119,7 @@ test('an admitted first-party video-effects render becomes one neutral full-leng
 	assert.strictEqual(projected.project.projectBin, input.projectBin);
 	assert.deepEqual(projected.metadata, {
 		schemaVersion: 1,
+		role: 'project-video-render-v1',
 		featureId: VIDEO_EFFECTS,
 		requirementId: 'publisher-video-render',
 		sourceId: 'fallback-video',
@@ -214,7 +215,10 @@ test('video fallback playback requires one exact manifest binding and valid geom
 			project(PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing),
 			report({
 				featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
-				fallback: { kind: 'video', sourceId: 'fallback-video', sha256: 'de'.repeat(32) },
+				fallback: {
+					role: 'project-video-render-v1', kind: 'video',
+					sourceId: 'fallback-video', sha256: 'de'.repeat(32),
+				},
 			}),
 		),
 		/does not match the project manifest/iu,
