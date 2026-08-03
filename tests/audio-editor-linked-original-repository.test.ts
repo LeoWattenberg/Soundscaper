@@ -143,12 +143,21 @@ test('storage-key lookup validates the complete bounded inventory, including non
 		maximumInventoryRecords: 1,
 	});
 	assert.ok(await fixture.repository.putIfCurrent(videoInput(), null));
-	assert.ok(await fixture.repository.putIfCurrent(audioInput(), null));
+	const audio = audioInput();
+	const audioKey = linkedOriginalBindingKey(audio.projectId, audio.sourceId);
+	fixture.memory.linkedVideoOriginalBindings.set(audioKey, {
+		key: audioKey,
+		projectId: audio.projectId,
+		binding: {
+			...audio,
+			bindingToken: 'binding_seeded_inventory_01',
+			boundAt: NOW,
+		},
+	});
 	await assert.rejects(fixture.repository.listByStorageKey('storage-video'), /record.*limit|limit.*record/iu);
 
-	const key = linkedOriginalBindingKey('project-audio', 'source-audio');
-	fixture.memory.linkedVideoOriginalBindings.set(key, {
-		key,
+	fixture.memory.linkedVideoOriginalBindings.set(audioKey, {
+		key: audioKey,
 		projectId: 'project-audio',
 		binding: { path: '/private/audio.wav' },
 	});

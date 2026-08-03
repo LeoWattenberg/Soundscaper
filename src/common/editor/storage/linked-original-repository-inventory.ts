@@ -5,6 +5,7 @@ import {
 	type LegacyLinkedVideoOriginalBinding,
 	type LinkedOriginalBinding,
 } from './linked-original-binding.ts';
+import { readStoredLinkedOriginalProvisionalRootInventory } from './linked-original-provisional-root.ts';
 import { linkedOriginalBindingKey } from './linked-original-schema.ts';
 import { request } from './indexeddb-backend.ts';
 
@@ -103,12 +104,18 @@ export function storedLinkedOriginalLocatorReferences(
 }
 
 /** Validate and prune one complete durable mixed-kind binding inventory atomically. */
-export function reconcileStoredLinkedOriginalLocatorReferences(
+export async function reconcileStoredLinkedOriginalLocatorReferences(
 	store: IDBObjectStore,
+	rootStore: IDBObjectStore,
 	canonicalProjectIds: ReadonlySet<string>,
 	maximumRecords: number,
 	maximumReferences: number,
 ): Promise<readonly LinkedOriginalLocatorReference[]> {
+	const rootInventory = await readStoredLinkedOriginalProvisionalRootInventory(
+		store,
+		rootStore,
+		maximumRecords,
+	);
 	return new Promise((resolve, reject) => {
 		const references = new Map<string, LinkedOriginalLocatorReference>();
 		const reachableReferences = new Set<string>();
@@ -126,7 +133,14 @@ export function reconcileStoredLinkedOriginalLocatorReferences(
 				const liveReferences = new Map([...references]
 					.filter(([key]) => reachableReferences.has(key)));
 				let deletions: Promise<unknown>[];
-				try { deletions = unreachableKeys.map((key) => request(store.delete(key))); }
+				try {
+					deletions = pairAndOrphanDeletions(
+						store,
+						rootStore,
+						unreachableKeys,
+						rootInventory.orphanRootKeys,
+					);
+				}
 				catch (error) { reject(error); return; }
 				void Promise.all(deletions).then(
 					() => resolve(frozenLocatorReferences(liveReferences)),
@@ -151,12 +165,18 @@ export function reconcileStoredLinkedOriginalLocatorReferences(
 	});
 }
 
-export function reconcileStoredLinkedVideoLocatorReferences(
+export async function reconcileStoredLinkedVideoLocatorReferences(
 	store: IDBObjectStore,
+	rootStore: IDBObjectStore,
 	canonicalProjectIds: ReadonlySet<string>,
 	maximumRecords: number,
 	maximumReferences: number,
 ): Promise<readonly LinkedOriginalLocatorReference[]> {
+	const rootInventory = await readStoredLinkedOriginalProvisionalRootInventory(
+		store,
+		rootStore,
+		maximumRecords,
+	);
 	return new Promise((resolve, reject) => {
 		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
 		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
@@ -178,7 +198,14 @@ export function reconcileStoredLinkedVideoLocatorReferences(
 						locatorRevision: reference.locatorRevision,
 					})));
 				let deletions: Promise<unknown>[];
-				try { deletions = unreachableKeys.map((key) => request(store.delete(key))); }
+				try {
+					deletions = pairAndOrphanDeletions(
+						store,
+						rootStore,
+						unreachableKeys,
+						rootInventory.orphanRootKeys,
+					);
+				}
 				catch (error) { reject(error); return; }
 				void Promise.all(deletions).then(() => resolve(liveReferences), reject);
 				return;
@@ -207,6 +234,19 @@ export function reconcileStoredLinkedVideoLocatorReferences(
 			} catch (error) { reject(error); }
 		};
 	});
+}
+
+function pairAndOrphanDeletions(
+	bindings: IDBObjectStore,
+	roots: IDBObjectStore,
+	pairKeys: readonly string[],
+	orphanRootKeys: readonly string[],
+): Promise<unknown>[] {
+	return [
+		...pairKeys.map((key) => request(bindings.delete(key))),
+		...[...new Set([...pairKeys, ...orphanRootKeys])]
+			.map((key) => request(roots.delete(key))),
+	];
 }
 
 export function memoryLinkedOriginalBindingsByStorageKey(

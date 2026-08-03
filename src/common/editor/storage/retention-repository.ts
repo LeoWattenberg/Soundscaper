@@ -13,6 +13,7 @@ import {
 	MEDIA_ASSET_CHUNK_STORE_NAME,
 } from './media-asset-chunk-schema.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import { LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME } from './linked-original-provisional-root-schema.ts';
 import { LINKED_VIDEO_ORIGINAL_STORE_NAME } from './linked-video-original-schema.ts';
 import type {
 	LocalStoreClearAdmission,
@@ -177,6 +178,7 @@ export class RetentionRepository {
 					VIDEO_DERIVATIVE_STORE_NAME,
 					DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 					LINKED_VIDEO_ORIGINAL_STORE_NAME,
+					LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 				], 'readwrite', async (stores) => {
 					const storedSourcesRequest = request(stores.sources.getAll()) as Promise<StorageRecord[]>;
 					const storedMediaAssetsRequest = request(stores.mediaAssets.getAll()) as Promise<StorageRecord[]>;

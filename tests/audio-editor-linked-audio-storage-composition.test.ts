@@ -192,6 +192,34 @@ test('generic lifecycle retires audio and legacy-video locators through one kind
 	assert.deepEqual(legacyReleases, [], 'a competing video lifecycle must not release locators');
 });
 
+test('the video unlink facade cannot delete an audio binding from the mixed store', async (context) => {
+	const body = wavBlob(Float32Array.of(-1, 1));
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `mixed-linked-original-unlink-kind-${Date.now()}-${Math.random()}`,
+		linkedOriginalPort: {
+			load: (_kind: 'audio' | 'video', _locatorId: string, { expectedRevision }: { expectedRevision: string | null }) => ({
+				blob: body,
+				locatorRevision: expectedRevision ?? LOCATOR_REVISION,
+			}),
+		},
+	});
+	context.after(async () => { await store.close(); });
+	const source = audioSource({ frameCount: 2 });
+	const projectId = 'mixed-linked-original-unlink-kind-project';
+	const binding = await store.bindLinkedAudioOriginal(projectId, source, LOCATOR_ID, {
+		expectedLocatorRevision: LOCATOR_REVISION,
+		expectedSnapshot: body,
+	});
+
+	await assert.rejects(
+		store.unlinkLinkedVideoOriginal(projectId, source.id, binding.bindingToken),
+		/linked video original binding is required/iu,
+	);
+	assert.deepEqual(await store.getLinkedOriginalBinding(projectId, source.id), binding);
+});
+
 test('project store reconciles one complete durable kindful locator inventory', async (context) => {
 	const body = wavBlob(Float32Array.of(-1, 1));
 	const inventories: unknown[] = [];

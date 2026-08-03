@@ -40,9 +40,12 @@ export async function saveProjectWithLinkedOriginalReachability(
 	return dependencies.lifecycle.saveProject(
 		project.id,
 		(maintain) => save(maintain),
-		async (transientReferences) => {
-			const roots = frozenReferenceUnion(protectedReferences, transientReferences);
-			const result = await dependencies.reachability!.pruneProjectBindings(project.id, roots);
+		async (transientBindings) => {
+			const result = await dependencies.reachability!.pruneProjectBindings(
+				project.id,
+				protectedReferences,
+				transientBindings,
+			);
 			if (!result) return null;
 			return Object.freeze({
 				durableSourceReferences: frozenReferenceUnion(
@@ -50,6 +53,7 @@ export async function saveProjectWithLinkedOriginalReachability(
 					protectedReferences,
 				),
 				removedLocatorReferences: result.removedLocatorReferences,
+				settledTransientBindings: result.settledTransientBindings,
 			});
 		},
 	);

@@ -199,6 +199,7 @@ test('memory locator snapshots enforce the complete inventory bounds and revisio
 	await assert.rejects(repository.listLocatorReferences(), /conflicting.*revision/iu);
 	const secondKey = linkedVideoOriginalBindingKey('project-alias', 'source-alias');
 	memory.linkedVideoOriginalBindings.delete(secondKey);
+	memory.linkedOriginalProvisionalRoots.delete(secondKey);
 	assert.ok(await repository.putIfCurrent(bindingInput({
 		projectId: 'project-second',
 		sourceId: 'source-second',
@@ -210,13 +211,26 @@ test('memory locator snapshots enforce the complete inventory bounds and revisio
 	const recordLimited = memoryRepository('snapshot-record-bound', {
 		maximumInventoryRecords: 1,
 		maximumInventoryReferences: 2,
-	}).repository;
-	assert.ok(await recordLimited.putIfCurrent(bindingInput(), null));
-	assert.ok(await recordLimited.putIfCurrent(bindingInput({
+	});
+	assert.ok(await recordLimited.repository.putIfCurrent(bindingInput(), null));
+	const secondInput = bindingInput({
 		projectId: 'project-second-record',
 		sourceId: 'source-second-record',
-	}), null));
-	await assert.rejects(recordLimited.listLocatorReferences(), /record.*limit|limit.*record/iu);
+	});
+	const secondRecordKey = linkedVideoOriginalBindingKey(secondInput.projectId, secondInput.sourceId);
+	recordLimited.memory.linkedVideoOriginalBindings.set(secondRecordKey, {
+		key: secondRecordKey,
+		projectId: secondInput.projectId,
+		binding: {
+			...secondInput,
+			bindingToken: 'binding_seeded_inventory_01',
+			boundAt: NOW,
+		},
+	});
+	await assert.rejects(
+		recordLimited.repository.listLocatorReferences(),
+		/record.*limit|limit.*record/iu,
+	);
 });
 
 test('durable reconciliation removes unreachable bindings while preserving live aliases', async (context) => {
@@ -362,10 +376,19 @@ test('durable reconciliation rolls back when the complete binding scan exceeds i
 	assert.equal((await repository.reconcileDurableLocatorReferences(
 		exactLimitInputs.map(({ projectId }) => projectId),
 	))?.length, 1);
-	assert.ok(await repository.putIfCurrent(bindingInput({
+	const seeded = indexedDB.records(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME)[0];
+	const thirdKey = linkedVideoOriginalBindingKey('project-alias-c', 'source-alias-c');
+	indexedDB.seedRecord(databaseName, LINKED_VIDEO_ORIGINAL_STORE_NAME, {
+		...seeded,
+		key: thirdKey,
 		projectId: 'project-alias-c',
-		sourceId: 'source-alias-c',
-	}), null));
+		binding: {
+			...seeded.binding,
+			projectId: 'project-alias-c',
+			sourceId: 'source-alias-c',
+			bindingToken: 'binding_seeded_inventory_02',
+		},
+	}, thirdKey);
 
 	await assert.rejects(
 		repository.reconcileDurableLocatorReferences([

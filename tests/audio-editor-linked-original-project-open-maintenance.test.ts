@@ -14,7 +14,10 @@ import {
 	type DesktopSharedProjectBridge,
 } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import { LinkedOriginalLifecycleCoordinator } from '../src/common/editor/storage/linked-original-lifecycle-coordinator.ts';
-import { maintainOpenedProjectWithLinkedOriginalReachability } from '../src/common/editor/storage/linked-original-project-open-maintenance.ts';
+import {
+	maintainOpenedProjectWithLinkedOriginalReachability,
+	maintainOpenedProjectWithLinkedVideoOriginalReachability,
+} from '../src/common/editor/storage/linked-original-project-open-maintenance.ts';
 import type { LinkedOriginalProjectReachabilityRepository } from '../src/common/editor/storage/linked-original-project-reachability-repository.ts';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import type { ProjectRepositoryPort } from '../src/common/editor/storage/project-repository.ts';
@@ -177,6 +180,7 @@ test('queued open maintenance collects current roots and suppresses lost ownersh
 	let roots: unknown = [];
 	let pruneCalls = 0;
 	const observed: unknown[] = [];
+	const observedTransientBindings: unknown[] = [];
 	const projects = {
 		maintainCurrentProject: async (_projectId: string, maintenance: () => PromiseLike<void> | void) => {
 			entered.resolve();
@@ -185,11 +189,29 @@ test('queued open maintenance collects current roots and suppresses lost ownersh
 		},
 	};
 	const lifecycle = new LinkedOriginalLifecycleCoordinator(null, null);
+	await lifecycle.bind(
+		PROJECT_ID,
+		{ kind: 'audio', sourceId: 'newly-bound-source' },
+		async () => ({
+			projectId: PROJECT_ID,
+			sourceId: 'newly-bound-source',
+			bindingToken: 'binding_token_00000001',
+		}),
+	);
 	const reachability = {
-		pruneProjectBindings: async (_projectId: string, protectedRoots: unknown) => {
+		pruneProjectBindings: async (
+			_projectId: string,
+			protectedRoots: unknown,
+			transientBindings: unknown,
+		) => {
 			pruneCalls += 1;
 			observed.push(protectedRoots);
-			return { durableSourceReferences: [], removedLocatorReferences: [] };
+			observedTransientBindings.push(transientBindings);
+			return {
+				durableSourceReferences: [],
+				removedLocatorReferences: [],
+				settledTransientBindings: transientBindings,
+			};
 		},
 	} as unknown as LinkedOriginalProjectReachabilityRepository;
 	const dependencies = { projects, lifecycle, reachability, isDurable: () => true };
@@ -202,6 +224,11 @@ test('queued open maintenance collects current roots and suppresses lost ownersh
 	gate.resolve();
 	assert.equal(await currentRoots, true);
 	assert.deepEqual(observed, [[{ kind: 'audio', sourceId: 'newly-live-source' }]]);
+	assert.deepEqual(observedTransientBindings, [[{
+		kind: 'audio',
+		sourceId: 'newly-bound-source',
+		bindingToken: 'binding_token_00000001',
+	}]]);
 
 	entered = deferred<void>();
 	gate = deferred<void>();
@@ -214,6 +241,54 @@ test('queued open maintenance collects current roots and suppresses lost ownersh
 	gate.resolve();
 	assert.equal(await lostOwnership, false);
 	assert.equal(pruneCalls, 1);
+});
+
+test('video-only open maintenance keeps tokenful transients separate from caller roots', async () => {
+	const transient = Object.freeze([{
+		kind: 'video' as const,
+		sourceId: 'transient-video',
+		bindingToken: 'binding_token_00000001',
+	}]);
+	const protectedIds: unknown[] = [];
+	const transientBindings: unknown[] = [];
+	const maintained = await maintainOpenedProjectWithLinkedVideoOriginalReachability({
+		isDurable: () => true,
+		projects: {
+			async maintainCurrentProject(_projectId: string, maintenance: () => Promise<void>) {
+				await maintenance();
+			},
+		},
+		lifecycle: {
+			async maintainOpenedProject(
+				_projectId: string,
+				prune: (bindings: typeof transient) => Promise<unknown>,
+			) {
+				return await prune(transient) !== null;
+			},
+		} as never,
+		reachability: {
+			async pruneProjectBindings(
+				_projectId: string,
+				ids: readonly string[],
+				bindings: readonly unknown[],
+			) {
+				protectedIds.push(ids);
+				transientBindings.push(bindings);
+				return {
+					durableVideoSourceIds: Object.freeze([]),
+					removedLocatorReferences: Object.freeze([]),
+					settledTransientBindings: bindings,
+				};
+			},
+		} as never,
+	}, PROJECT_ID, () => [
+		{ kind: 'audio', sourceId: 'caller-audio' },
+		{ kind: 'video', sourceId: 'caller-video' },
+	]);
+
+	assert.equal(maintained, true);
+	assert.deepEqual(protectedIds, [['caller-video']]);
+	assert.deepEqual(transientBindings, [transient]);
 });
 
 interface StoreFixtureOptions {

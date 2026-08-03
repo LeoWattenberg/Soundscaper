@@ -259,7 +259,7 @@ export class LinkedOriginalStoreService {
 		const { resolver, lifecycle } = this.#audioOwnership();
 		return lifecycle.unlink(
 			projectId,
-			{ kind: 'audio', sourceId },
+			{ kind: 'audio', sourceId, bindingToken: expectedBindingToken },
 			async () => {
 				const binding = await this.#repositories.linkedOriginalBindings.get(projectId, sourceId);
 				if (binding?.kind === 'video') {
@@ -334,15 +334,25 @@ export class LinkedOriginalStoreService {
 		sourceId: string,
 		expectedBindingToken: string,
 	): Promise<boolean> {
-		const remove = () => this.#repositories.linkedVideoOriginalBindings.deleteIfCurrent(
-			projectId,
-			sourceId,
-			expectedBindingToken,
-		);
+		const remove = async () => {
+			const binding = await this.#repositories.linkedOriginalBindings.get(projectId, sourceId);
+			if (binding?.kind === 'audio') {
+				throw new TypeError('A linked video original binding is required.');
+			}
+			return this.#repositories.linkedVideoOriginalBindings.deleteIfCurrent(
+				projectId,
+				sourceId,
+				expectedBindingToken,
+			);
+		};
 		return this.linkedOriginalLifecycle
-			? this.linkedOriginalLifecycle.unlink(projectId, { kind: 'video', sourceId }, remove)
+			? this.linkedOriginalLifecycle.unlink(
+				projectId,
+				{ kind: 'video', sourceId, bindingToken: expectedBindingToken },
+				remove,
+			)
 			: (this.#lifecycle as LinkedVideoOriginalLifecycleCoordinator).unlink(
-				projectId, sourceId, remove,
+				projectId, sourceId, expectedBindingToken, remove,
 			);
 	}
 

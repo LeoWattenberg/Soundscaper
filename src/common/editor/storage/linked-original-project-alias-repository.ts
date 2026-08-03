@@ -1,11 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	legacyLinkedVideoOriginalBindingFromLinkedOriginal,
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 	normalizeLinkedOriginalBinding,
 	type LinkedOriginalBinding,
 	type LinkedOriginalKind,
 } from './linked-original-binding.ts';
+import {
+	assertLinkedOriginalProvisionalRootCapacity,
+	deleteMemoryLinkedOriginalPairs,
+	publishMemoryLinkedOriginalPairs,
+} from './linked-original-pair-writer.ts';
+import {
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+	linkedOriginalProvisionalRootPairPublication,
+	readMemoryLinkedOriginalProvisionalRootInventory,
+	readStoredLinkedOriginalProvisionalRootInventory,
+} from './linked-original-provisional-root.ts';
 import { validateLinkedOriginalInventoryBinding } from './linked-original-repository-inventory.ts';
 import {
 	MAX_LINKED_ORIGINAL_INVENTORY_RECORDS,
@@ -26,12 +38,6 @@ export interface LinkedOriginalProjectAliasRepositoryOptions {
 	readonly maximumInventoryReferences?: number;
 	/** Narrow compatibility facades only; generic ownership manages both kinds. */
 	readonly managedKinds?: readonly LinkedOriginalKind[];
-}
-
-interface StoredLinkedOriginalBinding {
-	readonly key: string;
-	readonly projectId: string;
-	readonly binding: LinkedOriginalBinding;
 }
 
 interface ProjectOriginalSource {
@@ -87,6 +93,7 @@ export class LinkedOriginalProjectAliasRepository {
 	readonly #maximumInventoryRecords: number;
 	readonly #maximumInventoryReferences: number;
 	readonly #managedKinds: ReadonlySet<LinkedOriginalKind>;
+	readonly #persistLegacyVideo: boolean;
 
 	constructor(
 		port: StorageRepositoryPort,
@@ -115,6 +122,7 @@ export class LinkedOriginalProjectAliasRepository {
 			'exact-reference',
 		);
 		this.#managedKinds = managedKinds(options.managedKinds);
+		this.#persistLegacyVideo = this.#managedKinds.size === 1 && this.#managedKinds.has('video');
 	}
 
 	async copyReachableAliases(
@@ -135,6 +143,12 @@ export class LinkedOriginalProjectAliasRepository {
 		);
 		const database = await this.#port.database();
 		if (!database) {
+			const roots = this.#port.memory.linkedOriginalProvisionalRoots;
+			const rootInventory = readMemoryLinkedOriginalProvisionalRootInventory(
+				this.#port.memory.linkedVideoOriginalBindings,
+				roots,
+				this.#maximumInventoryRecords,
+			);
 			const inventory = memoryInventory(
 				this.#port.memory.linkedVideoOriginalBindings,
 					this.#maximumInventoryRecords,
@@ -142,11 +156,30 @@ export class LinkedOriginalProjectAliasRepository {
 					this.#managedKinds,
 			);
 			const aliases = this.#planAliases(inventory, sourceProjectId, destinationProjectId, sources);
-			publishMemoryAliases(this.#port.memory.linkedVideoOriginalBindings, aliases);
+			const publications = this.#publications(aliases);
+			assertLinkedOriginalProvisionalRootCapacity(
+				rootInventory,
+				publications.map(({ key }) => key),
+				this.#maximumInventoryRecords,
+			);
+			publishMemoryLinkedOriginalPairs(
+				this.#port.memory.linkedVideoOriginalBindings,
+				roots,
+				publications,
+			);
 			return aliases;
 		}
-		return transact(database, LINKED_ORIGINAL_STORE_NAME, 'readwrite', async (stores) => {
+		return transact(database, [
+			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		], 'readwrite', async (stores) => {
 			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
+			const roots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
+			const rootInventory = await readStoredLinkedOriginalProvisionalRootInventory(
+				bindings,
+				roots,
+				this.#maximumInventoryRecords,
+			);
 			const inventory = await indexedDbInventory(
 				bindings,
 				this.#maximumInventoryRecords,
@@ -154,7 +187,16 @@ export class LinkedOriginalProjectAliasRepository {
 				this.#managedKinds,
 			);
 			const aliases = this.#planAliases(inventory, sourceProjectId, destinationProjectId, sources);
-			await Promise.all(aliases.map((binding) => request(bindings.put(storedRecord(binding)))));
+			const publications = this.#publications(aliases);
+			assertLinkedOriginalProvisionalRootCapacity(
+				rootInventory,
+				publications.map(({ key }) => key),
+				this.#maximumInventoryRecords,
+			);
+			await Promise.all(publications.flatMap((publication) => [
+				request(bindings.put(publication.record)),
+				request(roots.put(publication.root)),
+			]));
 			return aliases;
 		});
 	}
@@ -165,6 +207,12 @@ export class LinkedOriginalProjectAliasRepository {
 		const database = await this.#port.database();
 		if (!database) {
 			const records = this.#port.memory.linkedVideoOriginalBindings;
+			const roots = this.#port.memory.linkedOriginalProvisionalRoots;
+			readMemoryLinkedOriginalProvisionalRootInventory(
+				records,
+				roots,
+				this.#maximumInventoryRecords,
+			);
 			const inventory = memoryInventory(
 				records,
 					this.#maximumInventoryRecords,
@@ -172,11 +220,20 @@ export class LinkedOriginalProjectAliasRepository {
 					this.#managedKinds,
 			);
 			const keys = rollbackKeys(inventory, aliases);
-			for (const key of keys) records.delete(key);
+			deleteMemoryLinkedOriginalPairs(records, roots, keys);
 			return;
 		}
-		await transact(database, LINKED_ORIGINAL_STORE_NAME, 'readwrite', async (stores) => {
+		await transact(database, [
+			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		], 'readwrite', async (stores) => {
 			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
+			const roots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
+			await readStoredLinkedOriginalProvisionalRootInventory(
+				bindings,
+				roots,
+				this.#maximumInventoryRecords,
+			);
 			const inventory = await indexedDbInventory(
 				bindings,
 				this.#maximumInventoryRecords,
@@ -184,8 +241,20 @@ export class LinkedOriginalProjectAliasRepository {
 				this.#managedKinds,
 			);
 			const keys = rollbackKeys(inventory, aliases);
-			await Promise.all(keys.map((key) => request(bindings.delete(key))));
+			await Promise.all(keys.flatMap((key) => [
+				request(bindings.delete(key)),
+				request(roots.delete(key)),
+			]));
 		});
+	}
+
+	#publications(aliases: readonly LinkedOriginalBinding[]) {
+		return aliases.map((binding) => linkedOriginalProvisionalRootPairPublication(
+			binding,
+			this.#persistLegacyVideo
+				? legacyLinkedVideoOriginalBindingFromLinkedOriginal(binding)
+				: binding,
+		));
 	}
 
 	#planAliases(
@@ -450,28 +519,6 @@ function rollbackKeys(
 
 function sameBinding(left: LinkedOriginalBinding, right: LinkedOriginalBinding): boolean {
 	return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function publishMemoryAliases(
-	records: Map<string, unknown>,
-	aliases: readonly LinkedOriginalBinding[],
-): void {
-	const published: string[] = [];
-	try {
-		for (const binding of aliases) {
-			const record = storedRecord(binding);
-			records.set(record.key, record);
-			published.push(record.key);
-		}
-	} catch (error) {
-		for (const key of published) records.delete(key);
-		throw error;
-	}
-}
-
-function storedRecord(binding: LinkedOriginalBinding): StoredLinkedOriginalBinding {
-	const key = linkedOriginalBindingKey(binding.projectId, binding.sourceId);
-	return Object.freeze({ key, projectId: binding.projectId, binding });
 }
 
 function projectId(value: unknown): string {

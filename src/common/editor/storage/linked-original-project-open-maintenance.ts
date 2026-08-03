@@ -48,13 +48,17 @@ export async function maintainOpenedProjectWithLinkedOriginalReachability(
 	if (!await durableMaintenanceAvailable(dependencies)
 		|| !dependencies.reachability
 		|| typeof dependencies.projects.maintainCurrentProject !== 'function') return false;
-	return dependencies.lifecycle.maintainOpenedProject(projectId, async (transientReferences) => {
+	return dependencies.lifecycle.maintainOpenedProject(projectId, async (transientBindings) => {
 		let result: LinkedOriginalProjectBindingPruneResult | null = null;
 		await dependencies.projects.maintainCurrentProject!(projectId, async () => {
 			const protectedSourceReferences = collectProtectedSourceReferences();
 			if (protectedSourceReferences === null) return;
-			const roots = kindfulReferenceUnion(projectId, protectedSourceReferences, transientReferences);
-			result = await dependencies.reachability!.pruneProjectBindings(projectId, roots);
+			const roots = kindfulReferences(projectId, protectedSourceReferences);
+			result = await dependencies.reachability!.pruneProjectBindings(
+				projectId,
+				roots,
+				transientBindings,
+			);
 		});
 		return result;
 	});
@@ -72,13 +76,17 @@ export async function maintainOpenedProjectWithLinkedVideoOriginalReachability(
 	if (!await durableMaintenanceAvailable(dependencies)
 		|| !dependencies.reachability
 		|| typeof dependencies.projects.maintainCurrentProject !== 'function') return false;
-	return dependencies.lifecycle.maintainOpenedProject(projectId, async (transientSourceIds) => {
+	return dependencies.lifecycle.maintainOpenedProject(projectId, async (transientBindings) => {
 		let result: LinkedVideoOriginalProjectBindingPruneResult | null = null;
 		await dependencies.projects.maintainCurrentProject!(projectId, async () => {
 			const protectedSourceReferences = collectProtectedSourceReferences();
 			if (protectedSourceReferences === null) return;
-			const roots = videoSourceIdUnion(projectId, protectedSourceReferences, transientSourceIds);
-			result = await dependencies.reachability!.pruneProjectBindings(projectId, roots);
+			const roots = videoSourceIds(projectId, protectedSourceReferences);
+			result = await dependencies.reachability!.pruneProjectBindings(
+				projectId,
+				roots,
+				transientBindings,
+			);
 		});
 		return result;
 	});
@@ -89,25 +97,23 @@ async function durableMaintenanceAvailable(dependencies: OpenMaintenanceAdmissio
 	catch { return false; }
 }
 
-function kindfulReferenceUnion(
+function kindfulReferences(
 	projectId: string,
 	protectedReferences: unknown,
-	transientReferences: readonly LinkedOriginalProjectSourceReference[],
 ): readonly LinkedOriginalProjectSourceReference[] {
 	const protectedValues = projectSourceReferences(projectId, protectedReferences);
 	const references = new Map<string, LinkedOriginalProjectSourceReference>();
-	for (const reference of [...protectedValues, ...transientReferences]) {
+	for (const reference of protectedValues) {
 		references.set(referenceKey(reference), reference);
 	}
 	return Object.freeze([...references.values()].sort(compareReferences));
 }
 
-function videoSourceIdUnion(
+function videoSourceIds(
 	projectId: string,
 	protectedReferences: unknown,
-	transientSourceIds: readonly string[],
 ): readonly string[] {
-	const sourceIds = new Set(transientSourceIds);
+	const sourceIds = new Set<string>();
 	for (const reference of projectSourceReferences(projectId, protectedReferences)) {
 		if (reference.kind === 'video') sourceIds.add(reference.sourceId);
 	}

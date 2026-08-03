@@ -37,9 +37,12 @@ export async function saveProjectWithLinkedVideoOriginalReachability(
 	return dependencies.lifecycle.saveProject(
 		project.id,
 		(maintain) => save(maintain),
-		async (transientSourceIds) => {
-			const roots = frozenUnion(protectedSourceIds, transientSourceIds);
-			const result = await dependencies.reachability!.pruneProjectBindings(project.id, roots);
+		async (transientBindings) => {
+			const result = await dependencies.reachability!.pruneProjectBindings(
+				project.id,
+				protectedSourceIds,
+				transientBindings,
+			);
 			if (!result) return null;
 			return Object.freeze({
 				durableVideoSourceIds: frozenUnion(
@@ -47,6 +50,7 @@ export async function saveProjectWithLinkedVideoOriginalReachability(
 					protectedSourceIds,
 				),
 				removedLocatorReferences: result.removedLocatorReferences,
+				settledTransientBindings: result.settledTransientBindings,
 			});
 		},
 	);

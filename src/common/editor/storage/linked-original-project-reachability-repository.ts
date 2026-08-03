@@ -3,8 +3,20 @@
 import { validateAudioEditorProjectV9, type AudioEditorProjectV9 } from '../project-v9-validation.ts';
 import { collectProjectSourceIds } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
-import type { LinkedOriginalBinding, LinkedOriginalKind } from './linked-original-binding.ts';
-import { validateLinkedOriginalInventoryBinding } from './linked-original-repository-inventory.ts';
+import type { LinkedOriginalKind } from './linked-original-binding.ts';
+import {
+	applyMemoryLinkedOriginalProjectBindingPrune,
+	planMemoryLinkedOriginalProjectBindingPrune,
+	planStoredLinkedOriginalProjectBindingPrune,
+	type LinkedOriginalProjectBindingPrunePlan,
+} from './linked-original-project-binding-prune.ts';
+import {
+	readMemoryLinkedOriginalProvisionalRootInventory,
+	readStoredLinkedOriginalProvisionalRootInventory,
+} from './linked-original-provisional-root.ts';
+import {
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+} from './linked-original-provisional-root-schema.ts';
 import {
 	MAX_LINKED_ORIGINAL_INVENTORY_RECORDS,
 	MAX_LINKED_ORIGINAL_INVENTORY_REFERENCES,
@@ -14,6 +26,10 @@ import {
 	LINKED_ORIGINAL_STORE_NAME,
 	linkedOriginalBindingKey,
 } from './linked-original-schema.ts';
+import {
+	normalizeLinkedOriginalTransientBindingReference,
+	type LinkedOriginalTransientBindingReference,
+} from './linked-original-transient-binding-reference.ts';
 import type { EditorMemoryDatabase } from './memory-backend.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
@@ -28,6 +44,7 @@ export interface LinkedOriginalProjectSourceReference {
 export interface LinkedOriginalProjectBindingPruneResult {
 	readonly durableSourceReferences: readonly LinkedOriginalProjectSourceReference[];
 	readonly removedLocatorReferences: readonly LinkedOriginalLocatorReference[];
+	readonly settledTransientBindings: readonly LinkedOriginalTransientBindingReference[];
 }
 
 export interface LinkedOriginalProjectReachabilityRepositoryOptions {
@@ -56,11 +73,6 @@ interface StoredProjectRevision {
 	readonly projectId: string;
 	readonly revision: number;
 	readonly project: AudioEditorProjectV9;
-}
-
-interface BindingPrunePlan {
-	readonly deletionKeys: readonly string[];
-	readonly removedReferences: ReadonlyMap<string, LinkedOriginalLocatorReference>;
 }
 
 const REVISION_RECORD_FIELDS = new Set(['key', 'projectId', 'revision', 'project', 'creationFence']);
@@ -108,6 +120,7 @@ export class LinkedOriginalProjectReachabilityRepository {
 	async pruneProjectBindings(
 		projectId: string,
 		protectedSourceReferences: readonly LinkedOriginalProjectSourceReference[],
+		ownedTransientBindingsValue: readonly LinkedOriginalTransientBindingReference[] = [],
 	): Promise<LinkedOriginalProjectBindingPruneResult | null> {
 		linkedOriginalBindingKey(projectId, 'project-reachability-validation');
 		const protectedRoots = canonicalProtectedRoots(
@@ -116,6 +129,12 @@ export class LinkedOriginalProjectReachabilityRepository {
 			this.#maximumRoots,
 		);
 		if (!protectedRoots) return null;
+		const ownedTransientBindings = canonicalOwnedTransientBindings(
+			ownedTransientBindingsValue,
+			this.#managedKinds,
+			this.#maximumRoots,
+		);
+		if (!ownedTransientBindings) return null;
 		const database = await this.#port.database();
 		if (!database) {
 			const state = memoryRootState(
@@ -127,22 +146,34 @@ export class LinkedOriginalProjectReachabilityRepository {
 				this.#managedKinds,
 			);
 			if (!state) return null;
-			const plan = bindingPrunePlan(
-				this.#port.memory.linkedVideoOriginalBindings,
+			const bindings = this.#port.memory.linkedVideoOriginalBindings;
+			const roots = this.#port.memory.linkedOriginalProvisionalRoots;
+			const rootInventory = readMemoryLinkedOriginalProvisionalRootInventory(
+				bindings,
+				roots,
+				this.#maximumInventoryRecords,
+			);
+			const plan = planMemoryLinkedOriginalProjectBindingPrune(
+				bindings,
+				rootInventory,
 				projectId,
+				new Set(state.accumulator.durable.keys()),
 				state.accumulator.retained,
+				ownedTransientBindings,
 				this.#managedKinds,
 				this.#maximumInventoryRecords,
 				this.#maximumInventoryReferences,
+				this.#maximumRoots,
 			);
-			applyMemoryBindingDeletions(this.#port.memory.linkedVideoOriginalBindings, plan.deletionKeys);
-			return frozenResult(state.accumulator.durable, plan.removedReferences);
+			applyMemoryLinkedOriginalProjectBindingPrune(bindings, roots, plan);
+			return frozenResult(state.accumulator.durable, plan);
 		}
 
 		return transact(database, [
 			'projects',
 			'revisions',
 			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 		], 'readwrite', async (stores) => {
 			const current = await request(stores.projects.get(projectId));
 			const state = currentProjectRootState(
@@ -160,18 +191,30 @@ export class LinkedOriginalProjectReachabilityRepository {
 				this.#maximumRetainedRevisions,
 			);
 			if (!revisionsValid) return null;
-			const plan = await indexedDbBindingPrunePlan(
-				stores[LINKED_ORIGINAL_STORE_NAME],
+			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
+			const roots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
+			const rootInventory = await readStoredLinkedOriginalProvisionalRootInventory(
+				bindings,
+				roots,
+				this.#maximumInventoryRecords,
+			);
+			const plan = await planStoredLinkedOriginalProjectBindingPrune(
+				bindings,
+				rootInventory,
 				projectId,
+				new Set(state.accumulator.durable.keys()),
 				state.accumulator.retained,
+				ownedTransientBindings,
 				this.#managedKinds,
 				this.#maximumInventoryRecords,
 				this.#maximumInventoryReferences,
+				this.#maximumRoots,
 			);
-			await Promise.all(plan.deletionKeys.map((key) => (
-				request(stores[LINKED_ORIGINAL_STORE_NAME].delete(key))
-			)));
-			return frozenResult(state.accumulator.durable, plan.removedReferences);
+			await Promise.all([
+				...plan.bindingDeletionKeys.map((key) => request(bindings.delete(key))),
+				...plan.rootDeletionKeys.map((key) => request(roots.delete(key))),
+			]);
+			return frozenResult(state.accumulator.durable, plan);
 		});
 	}
 }
@@ -352,126 +395,44 @@ function canonicalProtectedRoots(
 	return roots;
 }
 
-function bindingPrunePlan(
-	records: ReadonlyMap<string, unknown>,
-	projectId: string,
-	retainedSourceReferences: ReadonlySet<string>,
+function canonicalOwnedTransientBindings(
+	value: unknown,
 	managedKindsValue: ReadonlySet<LinkedOriginalKind>,
-	maximumRecords: number,
-	maximumReferences: number,
-): BindingPrunePlan {
-	const deletionKeys: string[] = [];
-	const inventoryReferences = new Map<string, string>();
-	const removedReferences = new Map<string, LinkedOriginalLocatorReference>();
-	let count = 0;
-	for (const [primaryKey, value] of records) {
-		count += 1;
-		if (count > maximumRecords) {
-			throw new RangeError('Linked original project binding inventory exceeds its record limit.');
-		}
-		const binding = validateLinkedOriginalInventoryBinding(value, primaryKey);
-		if (!managedKindsValue.has(binding.kind)) continue;
-		addInventoryReference(inventoryReferences, binding, maximumReferences);
-		if (binding.projectId !== projectId
-			|| retainedSourceReferences.has(sourceReferenceKey(binding))) continue;
-		deletionKeys.push(primaryKey);
-		const reference = locatorReference(binding);
-		removedReferences.set(locatorReferenceKey(reference), reference);
-	}
-	return { deletionKeys, removedReferences };
-}
-
-function indexedDbBindingPrunePlan(
-	store: IDBObjectStore,
-	projectId: string,
-	retainedSourceReferences: ReadonlySet<string>,
-	managedKindsValue: ReadonlySet<LinkedOriginalKind>,
-	maximumRecords: number,
-	maximumReferences: number,
-): Promise<BindingPrunePlan> {
-	return new Promise((resolve, reject) => {
-		const deletionKeys: string[] = [];
-		const inventoryReferences = new Map<string, string>();
-		const removedReferences = new Map<string, LinkedOriginalLocatorReference>();
-		let count = 0;
-		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
-		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
-		cursorRequest.onerror = () => reject(
-			cursorRequest.error || new Error('Could not enumerate linked original project bindings.'),
-		);
-		cursorRequest.onsuccess = () => {
-			const cursor = cursorRequest.result;
-			if (!cursor) { resolve({ deletionKeys, removedReferences }); return; }
-			try {
-				count += 1;
-				if (count > maximumRecords) {
-					throw new RangeError('Linked original project binding inventory exceeds its record limit.');
-				}
-				const binding = validateLinkedOriginalInventoryBinding(cursor.value, cursor.primaryKey);
-				if (!managedKindsValue.has(binding.kind)) { cursor.continue(); return; }
-				addInventoryReference(inventoryReferences, binding, maximumReferences);
-				if (binding.projectId === projectId
-					&& !retainedSourceReferences.has(sourceReferenceKey(binding))) {
-					deletionKeys.push(linkedOriginalBindingKey(binding.projectId, binding.sourceId));
-					const reference = locatorReference(binding);
-					removedReferences.set(locatorReferenceKey(reference), reference);
-				}
-				cursor.continue();
-			} catch (error) { reject(error); }
-		};
-	});
-}
-
-function addInventoryReference(
-	references: Map<string, string>,
-	binding: LinkedOriginalBinding,
-	maximumReferences: number,
-): void {
-	const key = locatorReferenceKey(binding);
-	const current = references.get(key);
-	if (current !== undefined && current !== binding.locatorRevision) {
-		throw new Error('Linked original project binding inventory contains conflicting locator revisions.');
-	}
-	references.set(key, binding.locatorRevision);
-	if (references.size > maximumReferences) {
-		throw new RangeError('Linked original project binding inventory exceeds its reference limit.');
-	}
-}
-
-function applyMemoryBindingDeletions(records: Map<string, unknown>, keys: readonly string[]): void {
-	const removed: Array<readonly [string, unknown]> = [];
+	maximumRoots: number,
+): readonly LinkedOriginalTransientBindingReference[] | null {
+	if (!Array.isArray(value) || value.length > maximumRoots) return null;
+	const references = new Map<string, LinkedOriginalTransientBindingReference>();
 	try {
-		for (const key of keys) {
-			if (!records.has(key)) throw new Error('A planned linked original binding disappeared before deletion.');
-			const value = records.get(key);
-			removed.push([key, value]);
-			if (!records.delete(key)) throw new Error('Could not delete a planned linked original binding.');
+		for (const candidate of value) {
+			const reference = normalizeLinkedOriginalTransientBindingReference(candidate);
+			if (!managedKindsValue.has(reference.kind)) return null;
+			const key = sourceReferenceKey(reference);
+			if (references.has(key)) return null;
+			references.set(key, reference);
 		}
-	} catch (primary) {
-		const rollbackErrors: unknown[] = [];
-		for (const [key, value] of removed.reverse()) {
-			try { records.set(key, value); } catch (error) { rollbackErrors.push(error); }
-		}
-		if (rollbackErrors.length) {
-			throw new AggregateError([primary, ...rollbackErrors], 'Linked original binding deletion and rollback failed.');
-		}
-		throw primary;
-	}
+	} catch { return null; }
+	return Object.freeze([...references.values()].sort((left, right) => (
+		left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId)
+	)));
 }
 
 function frozenResult(
 	durable: ReadonlyMap<string, LinkedOriginalProjectSourceReference>,
-	removed: ReadonlyMap<string, LinkedOriginalLocatorReference>,
+	plan: LinkedOriginalProjectBindingPrunePlan,
 ): LinkedOriginalProjectBindingPruneResult {
 	const durableSourceReferences = Object.freeze([...durable.values()]
 		.sort((left, right) => (
 			left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId)
 		)));
-	const removedLocatorReferences = Object.freeze([...removed.values()]
+	const removedLocatorReferences = Object.freeze([...plan.removedReferences.values()]
 		.sort((left, right) => (
 			left.kind.localeCompare(right.kind) || left.locatorId.localeCompare(right.locatorId)
 		)));
-	return Object.freeze({ durableSourceReferences, removedLocatorReferences });
+	return Object.freeze({
+		durableSourceReferences,
+		removedLocatorReferences,
+		settledTransientBindings: plan.settledTransientBindings,
+	});
 }
 
 function projectSourceReference(value: unknown): LinkedOriginalProjectSourceReference {
@@ -483,20 +444,8 @@ function projectSourceReference(value: unknown): LinkedOriginalProjectSourceRefe
 	return Object.freeze({ kind: record.kind, sourceId: record.sourceId as string });
 }
 
-function locatorReference(binding: LinkedOriginalBinding): LinkedOriginalLocatorReference {
-	return Object.freeze({
-		kind: binding.kind,
-		locatorId: binding.locatorId,
-		locatorRevision: binding.locatorRevision,
-	});
-}
-
-function sourceReferenceKey(value: Pick<LinkedOriginalBinding, 'kind' | 'sourceId'>): string {
+function sourceReferenceKey(value: LinkedOriginalProjectSourceReference): string {
 	return JSON.stringify([value.kind, value.sourceId]);
-}
-
-function locatorReferenceKey(value: Pick<LinkedOriginalBinding, 'kind' | 'locatorId'>): string {
-	return JSON.stringify([value.kind, value.locatorId]);
 }
 
 function closedReference(

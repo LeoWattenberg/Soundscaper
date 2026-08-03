@@ -18,9 +18,19 @@ import {
 	storedLinkedOriginalBinding,
 	storedLinkedOriginalBindingsByStorageKey,
 	storedLinkedOriginalLocatorReferences,
-	storedLinkedOriginalRecord,
 	type LinkedOriginalLocatorReference,
 } from './linked-original-repository-inventory.ts';
+import {
+	assertLinkedOriginalProvisionalRootCapacity,
+	deleteMemoryLinkedOriginalPairs,
+	publishMemoryLinkedOriginalPairs,
+} from './linked-original-pair-writer.ts';
+import {
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+	linkedOriginalProvisionalRootPairPublication,
+	readMemoryLinkedOriginalProvisionalRootInventory,
+	readStoredLinkedOriginalProvisionalRootInventory,
+} from './linked-original-provisional-root.ts';
 import {
 	LINKED_ORIGINAL_STORE_NAME,
 	linkedOriginalBindingKey,
@@ -149,9 +159,13 @@ export class LinkedOriginalRepository {
 		const database = await this.#port.database();
 		if (!database) return null;
 		const canonicalProjectIds = canonicalProjectIdSet(canonicalProjectIdsValue);
-		return transact(database, LINKED_ORIGINAL_STORE_NAME, 'readwrite', (stores) => (
+		return transact(database, [
+			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		], 'readwrite', (stores) => (
 			reconcileStoredLinkedOriginalLocatorReferences(
 				stores[LINKED_ORIGINAL_STORE_NAME],
+				stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME],
 				canonicalProjectIds,
 				this.#maximumInventoryRecords,
 				this.#maximumInventoryReferences,
@@ -166,9 +180,13 @@ export class LinkedOriginalRepository {
 		const database = await this.#port.database();
 		if (!database) return null;
 		const canonicalProjectIds = canonicalProjectIdSet(canonicalProjectIdsValue);
-		return transact(database, LINKED_ORIGINAL_STORE_NAME, 'readwrite', (stores) => (
+		return transact(database, [
+			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		], 'readwrite', (stores) => (
 			reconcileStoredLinkedVideoLocatorReferences(
 				stores[LINKED_ORIGINAL_STORE_NAME],
+				stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME],
 				canonicalProjectIds,
 				this.#maximumInventoryRecords,
 				this.#maximumInventoryReferences,
@@ -210,6 +228,11 @@ export class LinkedOriginalRepository {
 		const expected = requiredBindingToken(expectedBindingToken);
 		const database = await this.#port.database();
 		if (!database) {
+			readMemoryLinkedOriginalProvisionalRootInventory(
+				this.#records(),
+				this.#roots(),
+				this.#maximumInventoryRecords,
+			);
 			const current = storedLinkedOriginalBinding(
 				this.#records().get(key),
 				key,
@@ -217,11 +240,20 @@ export class LinkedOriginalRepository {
 				sourceId,
 			);
 			if (current?.bindingToken !== expected) return false;
-			this.#records().delete(key);
+			deleteMemoryLinkedOriginalPairs(this.#records(), this.#roots(), [key]);
 			return true;
 		}
-		return transact(database, LINKED_ORIGINAL_STORE_NAME, 'readwrite', async (stores) => {
+		return transact(database, [
+			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		], 'readwrite', async (stores) => {
 			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
+			const roots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
+			await readStoredLinkedOriginalProvisionalRootInventory(
+				bindings,
+				roots,
+				this.#maximumInventoryRecords,
+			);
 			const current = storedLinkedOriginalBinding(
 				await request(bindings.get(key)),
 				key,
@@ -229,7 +261,7 @@ export class LinkedOriginalRepository {
 				sourceId,
 			);
 			if (current?.bindingToken !== expected) return false;
-			await request(bindings.delete(key));
+			await Promise.all([request(bindings.delete(key)), request(roots.delete(key))]);
 			return true;
 		});
 	}
@@ -244,6 +276,12 @@ export class LinkedOriginalRepository {
 		const database = await this.#port.database();
 		if (!database) {
 			const records = this.#records();
+			const roots = this.#roots();
+			const rootInventory = readMemoryLinkedOriginalProvisionalRootInventory(
+				records,
+				roots,
+				this.#maximumInventoryRecords,
+			);
 			const current = storedLinkedOriginalBinding(
 				records.get(key),
 				key,
@@ -252,15 +290,29 @@ export class LinkedOriginalRepository {
 			);
 			if (!matchesExpectedBinding(current, expected)) return null;
 			const binding = this.#nextBinding(input, current);
-			records.set(key, storedLinkedOriginalRecord(
-				key,
-				binding.projectId,
+			assertLinkedOriginalProvisionalRootCapacity(
+				rootInventory,
+				[key],
+				this.#maximumInventoryRecords,
+			);
+			const publication = linkedOriginalProvisionalRootPairPublication(
+				binding,
 				persistedBinding(binding, persistLegacyVideo),
-			));
+			);
+			publishMemoryLinkedOriginalPairs(records, roots, [publication]);
 			return binding;
 		}
-		return transact(database, LINKED_ORIGINAL_STORE_NAME, 'readwrite', async (stores) => {
+		return transact(database, [
+			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		], 'readwrite', async (stores) => {
 			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
+			const roots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
+			const rootInventory = await readStoredLinkedOriginalProvisionalRootInventory(
+				bindings,
+				roots,
+				this.#maximumInventoryRecords,
+			);
 			const current = storedLinkedOriginalBinding(
 				await request(bindings.get(key)),
 				key,
@@ -269,11 +321,19 @@ export class LinkedOriginalRepository {
 			);
 			if (!matchesExpectedBinding(current, expected)) return null;
 			const binding = this.#nextBinding(input, current);
-			await request(bindings.put(storedLinkedOriginalRecord(
-				key,
-				binding.projectId,
+			assertLinkedOriginalProvisionalRootCapacity(
+				rootInventory,
+				[key],
+				this.#maximumInventoryRecords,
+			);
+			const publication = linkedOriginalProvisionalRootPairPublication(
+				binding,
 				persistedBinding(binding, persistLegacyVideo),
-			)));
+			);
+			await Promise.all([
+				request(bindings.put(publication.record)),
+				request(roots.put(publication.root)),
+			]);
 			return binding;
 		});
 	}
@@ -299,6 +359,10 @@ export class LinkedOriginalRepository {
 
 	#records(): Map<string, unknown> {
 		return this.#port.memory.linkedVideoOriginalBindings;
+	}
+
+	#roots(): Map<string, unknown> {
+		return this.#port.memory.linkedOriginalProvisionalRoots;
 	}
 }
 

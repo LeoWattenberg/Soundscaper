@@ -19,6 +19,8 @@ import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.t
 const LOCATOR_ID = 'shared_locator_0000000001';
 const AUDIO_REVISION = 'audio_revision_00000001';
 const VIDEO_REVISION = 'video_revision_00000001';
+const FIRST_BINDING_TOKEN = 'binding_token_00000001';
+const SECOND_BINDING_TOKEN = 'binding_token_00000002';
 
 test('project cleanup identities aliases by kind before exact release', async () => {
 	const fixture = createFixture();
@@ -42,63 +44,117 @@ test('project cleanup identities aliases by kind before exact release', async ()
 	]);
 });
 
-test('save maintenance keeps kindful transient roots until their exact durable snapshot', async () => {
+test('save maintenance clears an exact transient binding only when the prune settles it', async () => {
 	const fixture = createFixture();
 	await fixture.lifecycle.bind(
 		'project-a',
 		{ kind: 'audio', sourceId: 'source-a' },
-		async () => true,
+		async () => bindResult('project-a', 'source-a', FIRST_BINDING_TOKEN),
 	);
-	const roots: unknown[] = [];
+	const transientBindings: unknown[] = [];
 
 	await fixture.lifecycle.saveProject('project-a', async (maintain) => {
 		await maintain();
 		return true;
 	}, async (transient) => {
-		roots.push(transient);
+		transientBindings.push(transient);
 		return {
 			durableSourceReferences: Object.freeze([{ kind: 'audio', sourceId: 'source-a' }]),
 			removedLocatorReferences: Object.freeze([]),
+			settledTransientBindings: transient,
 		};
 	});
 	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
-		roots.push(transient);
+		transientBindings.push(transient);
 		return {
 			durableSourceReferences: Object.freeze([]),
 			removedLocatorReferences: Object.freeze([]),
+			settledTransientBindings: Object.freeze([]),
 		};
 	});
 
-	assert.deepEqual(roots, [[{ kind: 'audio', sourceId: 'source-a' }], []]);
+	assert.deepEqual(transientBindings, [[{
+		kind: 'audio', sourceId: 'source-a', bindingToken: FIRST_BINDING_TOKEN,
+	}], []]);
 });
 
-test('successful maintenance consumes transient grace without a wrong-kind promotion', async () => {
+test('rebind replaces the remembered token and stale settlement cannot clear it', async () => {
 	const fixture = createFixture();
 	await fixture.lifecycle.bind(
 		'project-a',
 		{ kind: 'audio', sourceId: 'same-source' },
-		async () => true,
+		async () => bindResult('project-a', 'same-source', FIRST_BINDING_TOKEN),
 	);
-	const roots: unknown[] = [];
+	await fixture.lifecycle.bind(
+		'project-a',
+		{ kind: 'audio', sourceId: 'same-source' },
+		async () => bindResult('project-a', 'same-source', SECOND_BINDING_TOKEN),
+	);
+	const observed: unknown[] = [];
+	const stale = Object.freeze([{
+		kind: 'audio' as const, sourceId: 'same-source', bindingToken: FIRST_BINDING_TOKEN,
+	}]);
 
 	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
-		roots.push(transient);
-		return {
-			durableSourceReferences: Object.freeze([{
-				kind: 'video' as const, sourceId: 'same-source',
-			}]),
-			removedLocatorReferences: Object.freeze([]),
-		};
-	});
-	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
-		roots.push(transient);
+		observed.push(transient);
 		return {
 			durableSourceReferences: Object.freeze([]),
 			removedLocatorReferences: Object.freeze([]),
+			settledTransientBindings: stale,
+		};
+	});
+	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
+		observed.push(transient);
+		return {
+			durableSourceReferences: Object.freeze([]),
+			removedLocatorReferences: Object.freeze([]),
+			settledTransientBindings: transient,
+		};
+	});
+	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
+		observed.push(transient);
+		return {
+			durableSourceReferences: Object.freeze([]),
+			removedLocatorReferences: Object.freeze([]),
+			settledTransientBindings: Object.freeze([]),
 		};
 	});
 
-	assert.deepEqual(roots, [[{ kind: 'audio', sourceId: 'same-source' }], []]);
+	assert.deepEqual(observed, [
+		[{ kind: 'audio', sourceId: 'same-source', bindingToken: SECOND_BINDING_TOKEN }],
+		[{ kind: 'audio', sourceId: 'same-source', bindingToken: SECOND_BINDING_TOKEN }],
+		[],
+	]);
+});
+
+test('a stale successful unlink cannot forget a newer transient binding', async () => {
+	const fixture = createFixture();
+	await fixture.lifecycle.bind(
+		'project-a',
+		{ kind: 'video', sourceId: 'source-a' },
+		async () => bindResult('project-a', 'source-a', FIRST_BINDING_TOKEN),
+	);
+	await fixture.lifecycle.bind(
+		'project-a',
+		{ kind: 'video', sourceId: 'source-a' },
+		async () => bindResult('project-a', 'source-a', SECOND_BINDING_TOKEN),
+	);
+	assert.equal(await fixture.lifecycle.unlink(
+		'project-a',
+		{ kind: 'video', sourceId: 'source-a', bindingToken: FIRST_BINDING_TOKEN },
+		async () => true,
+	), true);
+
+	await fixture.lifecycle.saveProject('project-a', async () => true, async (transient) => {
+		assert.deepEqual(transient, [{
+			kind: 'video', sourceId: 'source-a', bindingToken: SECOND_BINDING_TOKEN,
+		}]);
+		return {
+			durableSourceReferences: Object.freeze([]),
+			removedLocatorReferences: Object.freeze([]),
+			settledTransientBindings: transient,
+		};
+	});
 });
 
 test('failed exact releases retry per kind after rechecking live aliases', async () => {
@@ -146,6 +202,7 @@ test('a repeatedly rejected pending release does not starve unrelated open maint
 		removedLocatorReferences: Object.freeze([{
 			kind: 'audio' as const, locatorId, locatorRevision: AUDIO_REVISION,
 		}]),
+		settledTransientBindings: Object.freeze([]),
 	});
 
 	assert.equal(await fixture.lifecycle.maintainOpenedProject('project-a', async () => result(stuckLocatorId)), true);
@@ -206,6 +263,7 @@ test('an invalid post-commit cleanup reference is reported without undoing publi
 	}, async () => ({
 		durableSourceReferences: Object.freeze([]),
 		removedLocatorReferences: Object.freeze([invalid]),
+		settledTransientBindings: Object.freeze([]),
 	})), 'committed');
 	assert.equal(reported.length, 1);
 	assert.equal((reported[0] as { committed?: unknown }).committed, true);
@@ -295,4 +353,8 @@ function bindingInput(
 			frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 		},
 	};
+}
+
+function bindResult(projectId: string, sourceId: string, bindingToken: string) {
+	return Object.freeze({ projectId, sourceId, bindingToken });
 }

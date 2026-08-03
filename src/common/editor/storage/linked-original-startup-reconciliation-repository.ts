@@ -15,6 +15,13 @@ import {
 	MAX_LINKED_ORIGINAL_PROJECT_REACHABILITY_ROOTS,
 	MAX_LINKED_ORIGINAL_PROJECT_REVISIONS,
 } from './linked-original-project-reachability-repository.ts';
+import {
+	readStoredLinkedOriginalProvisionalRootInventory,
+	type LinkedOriginalProvisionalRootInventory,
+} from './linked-original-provisional-root.ts';
+import {
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+} from './linked-original-provisional-root-schema.ts';
 import { LINKED_ORIGINAL_STORE_NAME, linkedOriginalBindingKey } from './linked-original-schema.ts';
 import type { LinkedVideoOriginalLocatorReference } from './linked-video-original-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
@@ -40,6 +47,7 @@ interface BindingRow {
 
 interface ReconciliationPlan {
 	readonly deletionKeys: readonly string[];
+	readonly rootDeletionKeys: readonly string[];
 	readonly references: readonly LinkedOriginalLocatorReference[];
 }
 
@@ -123,9 +131,21 @@ export class LinkedOriginalStartupReconciliationRepository {
 		const catalog = catalogRevisions(catalogValue, this.#maximumCatalogProjects);
 		const database = await this.#port.database();
 		if (!database) return null;
-		return transact(database, ['projects', 'revisions', LINKED_ORIGINAL_STORE_NAME], 'readwrite', async (stores) => {
+		return transact(database, [
+			'projects',
+			'revisions',
+			LINKED_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		], 'readwrite', async (stores) => {
+			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
+			const provisionalRoots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
 			const rows = await readBindingRows(
-				stores[LINKED_ORIGINAL_STORE_NAME],
+				bindings,
+				this.#maximumInventoryRecords,
+			);
+			const provisionalRootInventory = await readStoredLinkedOriginalProvisionalRootInventory(
+				bindings,
+				provisionalRoots,
 				this.#maximumInventoryRecords,
 			);
 			const liveOwners = new Set(rows
@@ -161,10 +181,12 @@ export class LinkedOriginalStartupReconciliationRepository {
 				aggregateVerifiable ? roots : new Map(),
 				managedKinds,
 				this.#maximumInventoryReferences,
+				provisionalRootInventory,
 			);
-			await Promise.all(plan.deletionKeys.map((key) => request(
-				stores[LINKED_ORIGINAL_STORE_NAME].delete(key),
-			)));
+			await Promise.all([
+				...plan.deletionKeys.map((key) => request(bindings.delete(key))),
+				...plan.rootDeletionKeys.map((key) => request(provisionalRoots.delete(key))),
+			]);
 			return plan.references;
 		});
 	}
@@ -349,6 +371,7 @@ function reconciliationPlan(
 	roots: ReadonlyMap<string, ReadonlySet<string> | null>,
 	managedKinds: ReadonlySet<LinkedOriginalKind>,
 	maximumReferences: number,
+	provisionalRootInventory: LinkedOriginalProvisionalRootInventory,
 ): ReconciliationPlan {
 	const aliases = new Map<string, string>();
 	const inventoryReferences = new Map<string, LinkedOriginalLocatorReference>();
@@ -360,21 +383,28 @@ function reconciliationPlan(
 	}
 	const survivorReferences = new Map<string, LinkedOriginalLocatorReference>();
 	const deletionKeys: string[] = [];
+	const provisionalRootKeys = new Set(provisionalRootInventory.pairs.map(({ root }) => root.key));
+	const rootDeletionKeys = new Set(provisionalRootInventory.orphanRootKeys);
 	for (const { key, binding } of rows) {
 		if (!managedKinds.has(binding.kind)) continue;
 		const projectRoots = roots.get(binding.projectId);
+		const durable = projectRoots?.has(sourceReferenceKey(binding.kind, binding.sourceId)) === true;
+		const provisionallyRooted = provisionalRootKeys.has(key);
 		const deleteBinding = !catalog.has(binding.projectId)
 			|| (projectRoots !== undefined && projectRoots !== null
-				&& !projectRoots.has(sourceReferenceKey(binding.kind, binding.sourceId)));
+				&& !durable && !provisionallyRooted);
 		if (deleteBinding) {
 			deletionKeys.push(key);
+			if (provisionallyRooted) rootDeletionKeys.add(key);
 			continue;
 		}
+		if (durable && provisionallyRooted) rootDeletionKeys.add(key);
 		const referenceKey = locatorReferenceKey(binding.kind, binding.locatorId);
 		survivorReferences.set(referenceKey, inventoryReferences.get(referenceKey) as LinkedOriginalLocatorReference);
 	}
 	return Object.freeze({
 		deletionKeys: Object.freeze(deletionKeys),
+		rootDeletionKeys: Object.freeze([...rootDeletionKeys].sort()),
 		references: Object.freeze([...survivorReferences.values()].sort((left, right) => (
 			left.kind.localeCompare(right.kind) || left.locatorId.localeCompare(right.locatorId)
 		))),

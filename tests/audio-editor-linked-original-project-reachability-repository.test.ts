@@ -18,9 +18,10 @@ import {
 	type LinkedOriginalBindingInput,
 } from '../src/common/editor/storage/linked-original-binding.ts';
 import { LinkedOriginalProjectReachabilityRepository } from '../src/common/editor/storage/linked-original-project-reachability-repository.ts';
+import { LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME } from '../src/common/editor/storage/linked-original-provisional-root.ts';
 import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
 import { linkedOriginalBindingKey } from '../src/common/editor/storage/linked-original-schema.ts';
-import { openDatabase } from '../src/common/editor/storage/indexeddb-backend.ts';
+import { openDatabase, request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { getMemoryDatabase, type EditorMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { ProjectRepository } from '../src/common/editor/storage/project-repository.ts';
 import type { StorageRepositoryPort } from '../src/common/editor/storage/repository-port.ts';
@@ -168,6 +169,15 @@ async function seedBinding(
 ): Promise<void> {
 	const binding = await fixture.bindings.putIfCurrent(bindingInput(projectId, source, locatorId), null);
 	assert.ok(binding);
+	const key = linkedOriginalBindingKey(binding.projectId, binding.sourceId);
+	const database = await fixture.port.database();
+	if (!database) fixture.memory.linkedOriginalProvisionalRoots.delete(key);
+	else await transact(
+		database,
+		LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		'readwrite',
+		(stores) => request(stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME].delete(key)),
+	);
 }
 
 function bindingInput(

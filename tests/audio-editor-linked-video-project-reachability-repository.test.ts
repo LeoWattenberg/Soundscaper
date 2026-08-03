@@ -11,6 +11,7 @@ import {
 	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { LINKED_ORIGINAL_BINDING_SCHEMA_VERSION } from '../src/common/editor/storage/linked-original-binding.ts';
+import { LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME } from '../src/common/editor/storage/linked-original-provisional-root.ts';
 import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
 import type { LinkedVideoOriginalBindingInput } from '../src/common/editor/storage/linked-video-original-binding.ts';
 import {
@@ -22,7 +23,7 @@ import {
 	LINKED_VIDEO_ORIGINAL_STORE_NAME,
 	linkedVideoOriginalBindingKey,
 } from '../src/common/editor/storage/linked-video-original-schema.ts';
-import { openDatabase } from '../src/common/editor/storage/indexeddb-backend.ts';
+import { openDatabase, request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { getMemoryDatabase, type EditorMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { ProjectRepository } from '../src/common/editor/storage/project-repository.ts';
 import { createStorageRepositories } from '../src/common/editor/storage/repositories.ts';
@@ -384,6 +385,15 @@ async function seedBinding(
 		null,
 	);
 	assert.ok(binding);
+	const key = linkedVideoOriginalBindingKey(binding.projectId, binding.sourceId);
+	const database = await fixture.port.database();
+	if (!database) fixture.memory.linkedOriginalProvisionalRoots.delete(key);
+	else await transact(
+		database,
+		LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		'readwrite',
+		(stores) => request(stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME].delete(key)),
+	);
 }
 
 function bindingInput(

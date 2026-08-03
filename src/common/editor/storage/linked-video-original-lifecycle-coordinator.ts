@@ -15,6 +15,10 @@ import type {
 	LinkedVideoOriginalRepository,
 } from './linked-video-original-repository.ts';
 import type { LinkedVideoOriginalResolver } from './linked-video-original-resolver.ts';
+import type {
+	LinkedOriginalBindingPublicationResult,
+	LinkedOriginalTransientBindingReference,
+} from './linked-original-transient-binding-reference.ts';
 
 export {
 	admitLocalStoreClear,
@@ -28,6 +32,7 @@ export type LinkedVideoOriginalCleanupOperation = LinkedOriginalCleanupOperation
 export interface LinkedVideoOriginalProjectBindingPruneResult {
 	readonly durableVideoSourceIds: readonly string[];
 	readonly removedLocatorReferences: readonly LinkedVideoOriginalLocatorReference[];
+	readonly settledTransientBindings: readonly LinkedOriginalTransientBindingReference[];
 }
 
 export type LinkedVideoOriginalCleanupError =
@@ -93,7 +98,7 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 		return this.#coordinator.run(operation);
 	}
 
-	bind<Value>(
+	bind<Value extends LinkedOriginalBindingPublicationResult>(
 		projectId: string,
 		sourceId: string,
 		operation: () => PromiseLike<Value> | Value,
@@ -104,21 +109,26 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 	unlink(
 		projectId: string,
 		sourceId: string,
+		bindingToken: string,
 		operation: () => PromiseLike<boolean> | boolean,
 	): Promise<boolean> {
-		return this.#coordinator.unlink(projectId, { kind: 'video', sourceId }, operation);
+		return this.#coordinator.unlink(
+			projectId,
+			{ kind: 'video', sourceId, bindingToken },
+			operation,
+		);
 	}
 
 	saveProject<Value>(
 		projectId: string,
 		operation: (maintain: () => Promise<void>) => PromiseLike<Value> | Value,
 		prune: (
-			transientSourceIds: readonly string[],
+			transientBindings: readonly LinkedOriginalTransientBindingReference[],
 		) => PromiseLike<LinkedVideoOriginalProjectBindingPruneResult | null>
 			| LinkedVideoOriginalProjectBindingPruneResult | null,
 	): Promise<Value> {
-		return this.#coordinator.saveProject(projectId, operation, async (transientSources) => {
-			const result = await prune(transientSources.map(({ sourceId }) => sourceId));
+		return this.#coordinator.saveProject(projectId, operation, async (transientBindings) => {
+			const result = await prune(transientBindings);
 			if (!result) return null;
 			return Object.freeze({
 				durableSourceReferences: Object.freeze(result.durableVideoSourceIds.map((sourceId) => (
@@ -127,6 +137,7 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 				removedLocatorReferences: Object.freeze(result.removedLocatorReferences.map((reference) => (
 					Object.freeze({ kind: 'video' as const, ...reference })
 				))),
+				settledTransientBindings: result.settledTransientBindings,
 			});
 		});
 	}
@@ -134,12 +145,12 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 	maintainOpenedProject(
 		projectId: string,
 		prune: (
-			transientSourceIds: readonly string[],
+			transientBindings: readonly LinkedOriginalTransientBindingReference[],
 		) => PromiseLike<LinkedVideoOriginalProjectBindingPruneResult | null>
 			| LinkedVideoOriginalProjectBindingPruneResult | null,
 	): Promise<boolean> {
-		return this.#coordinator.maintainOpenedProject(projectId, async (transientSources) => {
-			const result = await prune(transientSources.map(({ sourceId }) => sourceId));
+		return this.#coordinator.maintainOpenedProject(projectId, async (transientBindings) => {
+			const result = await prune(transientBindings);
 			if (!result) return null;
 			return Object.freeze({
 				durableSourceReferences: Object.freeze(result.durableVideoSourceIds.map((sourceId) => (
@@ -148,6 +159,7 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 				removedLocatorReferences: Object.freeze(result.removedLocatorReferences.map((reference) => (
 					Object.freeze({ kind: 'video' as const, ...reference })
 				))),
+				settledTransientBindings: result.settledTransientBindings,
 			});
 		});
 	}

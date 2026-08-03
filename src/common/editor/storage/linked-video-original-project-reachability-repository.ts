@@ -7,6 +7,9 @@ import {
 	type LinkedOriginalProjectReachabilityRepositoryOptions,
 } from './linked-original-project-reachability-repository.ts';
 import type { LinkedVideoOriginalLocatorReference } from './linked-video-original-repository.ts';
+import type {
+	LinkedOriginalTransientBindingReference,
+} from './linked-original-transient-binding-reference.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
 export const MAX_LINKED_VIDEO_ORIGINAL_PROJECT_REVISIONS = MAX_LINKED_ORIGINAL_PROJECT_REVISIONS;
@@ -15,6 +18,7 @@ export const MAX_LINKED_VIDEO_ORIGINAL_PROJECT_REACHABILITY_ROOTS = MAX_LINKED_O
 export interface LinkedVideoOriginalProjectBindingPruneResult {
 	readonly durableVideoSourceIds: readonly string[];
 	readonly removedLocatorReferences: readonly LinkedVideoOriginalLocatorReference[];
+	readonly settledTransientBindings: readonly LinkedOriginalTransientBindingReference[];
 }
 
 export type LinkedVideoOriginalProjectReachabilityRepositoryOptions = Omit<
@@ -39,13 +43,18 @@ export class LinkedVideoOriginalProjectReachabilityRepository {
 	async pruneProjectBindings(
 		projectId: string,
 		protectedSourceIds: readonly string[],
+		ownedTransientBindings: readonly LinkedOriginalTransientBindingReference[] = [],
 	): Promise<LinkedVideoOriginalProjectBindingPruneResult | null> {
 		if (!Array.isArray(protectedSourceIds)) return null;
 		const protectedReferences = protectedSourceIds.map((sourceId) => ({
 			kind: 'video' as const,
 			sourceId,
 		}));
-		const result = await this.#repository.pruneProjectBindings(projectId, protectedReferences);
+		const result = await this.#repository.pruneProjectBindings(
+			projectId,
+			protectedReferences,
+			ownedTransientBindings,
+		);
 		if (!result) return null;
 		return Object.freeze({
 			durableVideoSourceIds: Object.freeze(result.durableSourceReferences.map(({ sourceId }) => sourceId)),
@@ -55,6 +64,7 @@ export class LinkedVideoOriginalProjectReachabilityRepository {
 					locatorRevision: reference.locatorRevision,
 				})
 			))),
+			settledTransientBindings: result.settledTransientBindings,
 		});
 	}
 }

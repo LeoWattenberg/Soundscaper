@@ -14,6 +14,12 @@ import {
 	LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME,
 	LINKED_VIDEO_ORIGINAL_STORE_NAME,
 } from './linked-video-original-schema.ts';
+import {
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+	readMemoryLinkedOriginalProvisionalRootInventory,
+	readStoredLinkedOriginalProvisionalRootInventory,
+} from './linked-original-provisional-root.ts';
 import { publishSource } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
@@ -260,27 +266,48 @@ export class ProjectRepository implements ProjectRepositoryPort {
 	async delete(projectId: string): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) {
-			this.#port.memory.projects.delete(projectId);
+			readMemoryLinkedOriginalProvisionalRootInventory(
+				this.#port.memory.linkedVideoOriginalBindings,
+				this.#port.memory.linkedOriginalProvisionalRoots,
+			);
+			const mutations = [deleteMemoryMutation(this.#port.memory.projects, projectId)];
 			for (const [key, value] of this.#port.memory.revisions) {
-				if (asRevision(value)?.projectId === projectId) this.#port.memory.revisions.delete(key);
-			}
-			for (const [key, value] of this.#port.memory.linkedVideoOriginalBindings) {
-				if (storedProjectId(value) === projectId) {
-					this.#port.memory.linkedVideoOriginalBindings.delete(key);
+				if (asRevision(value)?.projectId === projectId) {
+					mutations.push(deleteMemoryMutation(this.#port.memory.revisions, key));
 				}
 			}
+			for (const records of [
+				this.#port.memory.linkedVideoOriginalBindings,
+				this.#port.memory.linkedOriginalProvisionalRoots,
+			]) {
+				for (const [key, value] of records) {
+					if (storedProjectId(value) === projectId) mutations.push(deleteMemoryMutation(records, key));
+				}
+			}
+			applyMemoryMutations(mutations);
 			return;
 		}
 		await transact(database, [
 			'projects',
 			'revisions',
 			LINKED_VIDEO_ORIGINAL_STORE_NAME,
+			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 		], 'readwrite', async (stores) => {
 			const { projects, revisions } = stores;
+			await readStoredLinkedOriginalProvisionalRootInventory(
+				stores[LINKED_VIDEO_ORIGINAL_STORE_NAME],
+				stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME],
+			);
 			projects.delete(projectId);
 			await deleteByIndex(revisions.index('projectId'), projectId);
 			await deleteByIndex(
 				stores[LINKED_VIDEO_ORIGINAL_STORE_NAME].index(LINKED_VIDEO_ORIGINAL_PROJECT_INDEX_NAME),
+				projectId,
+			);
+			await deleteByIndex(
+				stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME].index(
+					LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+				),
 				projectId,
 			);
 		});

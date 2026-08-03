@@ -12,11 +12,14 @@ import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.t
 
 const LOCATOR_ID = 'locator_0000000000000001';
 const LOCATOR_REVISION = 'snapshot_0000000000000001';
+const BINDING_TOKEN = 'binding_token_00000001';
 
 test('save maintenance protects a new binding until one durable snapshot reaches it', async () => {
 	const fixture = lifecycleFixture();
-	await fixture.lifecycle.bind('project-a', 'source-a', async () => true);
-	const protectedRoots: string[][] = [];
+	await fixture.lifecycle.bind(
+		'project-a', 'source-a', async () => bindResult('project-a', 'source-a'),
+	);
+	const transientBindings: unknown[] = [];
 
 	await fixture.lifecycle.saveProject(
 		'project-a',
@@ -24,50 +27,59 @@ test('save maintenance protects a new binding until one durable snapshot reaches
 			await maintain();
 			return 'saved';
 		},
-		async (transientSourceIds) => {
-			protectedRoots.push([...transientSourceIds]);
+		async (transient) => {
+			transientBindings.push(transient);
 			return {
 				durableVideoSourceIds: Object.freeze(['source-a']),
 				removedLocatorReferences: Object.freeze([]),
+				settledTransientBindings: transient,
 			};
 		},
 	);
 	await fixture.lifecycle.saveProject(
 		'project-a',
 		async () => 'saved-again',
-		async (transientSourceIds) => {
-			protectedRoots.push([...transientSourceIds]);
+		async (transient) => {
+			transientBindings.push(transient);
 			return {
 				durableVideoSourceIds: Object.freeze([]),
 				removedLocatorReferences: Object.freeze([]),
+				settledTransientBindings: Object.freeze([]),
 			};
 		},
 	);
 
-	assert.deepEqual(protectedRoots, [['source-a'], []]);
+	assert.deepEqual(transientBindings, [[{
+		kind: 'video', sourceId: 'source-a', bindingToken: BINDING_TOKEN,
+	}], []]);
 });
 
 test('suppressed and failed save cleanup retain transient binding protection', async () => {
 	const reported: unknown[] = [];
 	const fixture = lifecycleFixture({ onCleanupError: (error) => { reported.push(error); } });
-	await fixture.lifecycle.bind('project-a', 'source-a', async () => true);
-	const roots: string[][] = [];
+	await fixture.lifecycle.bind(
+		'project-a', 'source-a', async () => bindResult('project-a', 'source-a'),
+	);
+	const roots: unknown[] = [];
 
 	assert.equal(await fixture.lifecycle.saveProject(
 		'project-a',
 		async (maintain) => { await maintain(); return 'suppressed'; },
-		async (transientSourceIds) => { roots.push([...transientSourceIds]); return null; },
+		async (transient) => { roots.push(transient); return null; },
 	), 'suppressed');
 	assert.equal(await fixture.lifecycle.saveProject(
 		'project-a',
 		async (maintain) => { await maintain(); return 'cleanup-failed'; },
-		async (transientSourceIds) => {
-			roots.push([...transientSourceIds]);
+		async (transient) => {
+			roots.push(transient);
 			throw new Error('planned binding cleanup failure');
 		},
 	), 'cleanup-failed');
 
-	assert.deepEqual(roots, [['source-a'], ['source-a']]);
+	assert.deepEqual(roots, [
+		[{ kind: 'video', sourceId: 'source-a', bindingToken: BINDING_TOKEN }],
+		[{ kind: 'video', sourceId: 'source-a', bindingToken: BINDING_TOKEN }],
+	]);
 	assert.deepEqual(pickProjectCleanupError(reported[0]), {
 		name: 'LinkedVideoOriginalProjectBindingCleanupError',
 		committed: true,
@@ -97,6 +109,7 @@ test('post-commit maintenance is idempotent and falls back when a repository ign
 		return {
 			durableVideoSourceIds: Object.freeze([]),
 			removedLocatorReferences: Object.freeze([]),
+			settledTransientBindings: Object.freeze([]),
 		};
 	};
 
@@ -118,6 +131,7 @@ test('save cleanup exact-releases a removed locator only after rechecking aliase
 	}, async () => ({
 		durableVideoSourceIds: Object.freeze([]),
 		removedLocatorReferences: removed,
+		settledTransientBindings: Object.freeze([]),
 	}));
 	assert.deepEqual(fixture.releases, [removed[0]]);
 
@@ -128,6 +142,7 @@ test('save cleanup exact-releases a removed locator only after rechecking aliase
 	}, async () => ({
 		durableVideoSourceIds: Object.freeze([]),
 		removedLocatorReferences: removed,
+		settledTransientBindings: Object.freeze([]),
 	}));
 	assert.deepEqual(fixture.releases, [removed[0]], 'a surviving alias must suppress a second release');
 });
@@ -164,6 +179,10 @@ function bindingInput(projectId: string, sourceId: string) {
 			frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 		},
 	};
+}
+
+function bindResult(projectId: string, sourceId: string) {
+	return Object.freeze({ projectId, sourceId, bindingToken: BINDING_TOKEN });
 }
 
 function pickProjectCleanupError(value: unknown) {

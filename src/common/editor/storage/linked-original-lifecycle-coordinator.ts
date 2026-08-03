@@ -8,6 +8,12 @@ import type {
 	LinkedOriginalProjectSourceReference,
 } from './linked-original-project-reachability-repository.ts';
 import { linkedOriginalBindingKey } from './linked-original-schema.ts';
+import {
+	linkedOriginalTransientBindingReferenceFromBindResult,
+	normalizeLinkedOriginalTransientBindingReference,
+	type LinkedOriginalBindingPublicationResult,
+	type LinkedOriginalTransientBindingReference,
+} from './linked-original-transient-binding-reference.ts';
 
 const MAXIMUM_PENDING_REFERENCES = 128;
 const MAXIMUM_TRANSIENT_SOURCE_IDS = 100_000;
@@ -91,7 +97,7 @@ export class LinkedOriginalLifecycleCoordinator {
 		locatorId: string;
 		locatorRevision: string;
 	}>>();
-	readonly #transientSources = new Map<string, Map<string, LinkedOriginalProjectSourceReference>>();
+	readonly #transientSources = new Map<string, Map<string, LinkedOriginalTransientBindingReference>>();
 	readonly #blockedTransientProjects = new Set<string>();
 	#transientSourceCount = 0;
 	#tail: Promise<void> = Promise.resolve();
@@ -116,7 +122,7 @@ export class LinkedOriginalLifecycleCoordinator {
 		});
 	}
 
-	bind<Value>(
+	bind<Value extends LinkedOriginalBindingPublicationResult>(
 		projectId: string,
 		sourceReference: LinkedOriginalProjectSourceReference,
 		operation: () => PromiseLike<Value> | Value,
@@ -125,7 +131,9 @@ export class LinkedOriginalLifecycleCoordinator {
 		return this.#enqueue(async () => {
 			try {
 				const result = await operation();
-				this.#rememberTransientSource(projectId, source);
+				this.#rememberTransientSource(projectId, (
+					linkedOriginalTransientBindingReferenceFromBindResult(projectId, source, result)
+				));
 				return result;
 			} finally { await this.#drainPending('retry'); }
 		});
@@ -133,10 +141,11 @@ export class LinkedOriginalLifecycleCoordinator {
 
 	unlink(
 		projectId: string,
-		sourceReference: LinkedOriginalProjectSourceReference,
+		sourceReference: LinkedOriginalTransientBindingReference,
 		operation: () => PromiseLike<boolean> | boolean,
 	): Promise<boolean> {
-		const source = normalizeProjectSourceReference(projectId, sourceReference);
+		const source = normalizeLinkedOriginalTransientBindingReference(sourceReference);
+		linkedOriginalBindingKey(projectId, source.sourceId);
 		return this.#enqueue(async () => {
 			try {
 				const removed = await operation();
@@ -150,7 +159,7 @@ export class LinkedOriginalLifecycleCoordinator {
 		projectId: string,
 		operation: (maintain: () => Promise<void>) => PromiseLike<Value> | Value,
 		prune: (
-			transientSourceReferences: readonly LinkedOriginalProjectSourceReference[],
+			transientBindings: readonly LinkedOriginalTransientBindingReference[],
 		) => PromiseLike<LinkedOriginalProjectBindingPruneResult | null>
 			| LinkedOriginalProjectBindingPruneResult | null,
 	): Promise<Value> {
@@ -178,7 +187,7 @@ export class LinkedOriginalLifecycleCoordinator {
 	maintainOpenedProject(
 		projectId: string,
 		prune: (
-			transientSourceReferences: readonly LinkedOriginalProjectSourceReference[],
+			transientBindings: readonly LinkedOriginalTransientBindingReference[],
 		) => PromiseLike<LinkedOriginalProjectBindingPruneResult | null>
 			| LinkedOriginalProjectBindingPruneResult | null,
 	): Promise<boolean> {
@@ -293,7 +302,7 @@ export class LinkedOriginalLifecycleCoordinator {
 		projectId: string,
 		operation: LinkedOriginalProjectBindingCleanupOperation,
 		prune: (
-			transientSourceReferences: readonly LinkedOriginalProjectSourceReference[],
+			transientBindings: readonly LinkedOriginalTransientBindingReference[],
 		) => PromiseLike<LinkedOriginalProjectBindingPruneResult | null>
 			| LinkedOriginalProjectBindingPruneResult | null,
 		releaseExclusions?: ReadonlySet<string>,
@@ -301,12 +310,12 @@ export class LinkedOriginalLifecycleCoordinator {
 		if (this.#blockedTransientProjects.has(projectId)) {
 			return false;
 		}
-		const transientSourceReferences = Object.freeze([
+		const transientBindings = Object.freeze([
 			...(this.#transientSources.get(projectId)?.values() ?? []),
-		].sort(compareProjectSourceReferences));
+		].sort(compareTransientBindings));
 		let result: LinkedOriginalProjectBindingPruneResult | null;
 		try {
-			result = normalizeProjectBindingPruneResult(await prune(transientSourceReferences));
+			result = normalizeProjectBindingPruneResult(await prune(transientBindings));
 		} catch (cause) {
 			this.#reportProjectBindingCleanup(operation, projectId, cause);
 			return false;
@@ -314,7 +323,7 @@ export class LinkedOriginalLifecycleCoordinator {
 		if (!result) {
 			return false;
 		}
-		for (const source of transientSourceReferences) {
+		for (const source of result.settledTransientBindings) {
 			this.#forgetTransientSource(projectId, source);
 		}
 		if (result.removedLocatorReferences.length) {
@@ -323,22 +332,22 @@ export class LinkedOriginalLifecycleCoordinator {
 		return true;
 	}
 
-	#rememberTransientSource(projectId: string, source: LinkedOriginalProjectSourceReference): void {
+	#rememberTransientSource(projectId: string, source: LinkedOriginalTransientBindingReference): void {
 		const sources = this.#transientSources.get(projectId) ?? new Map();
 		const key = sourceReferenceKey(source);
-		if (sources.has(key)) return;
-		if (this.#transientSourceCount >= MAXIMUM_TRANSIENT_SOURCE_IDS) {
+		if (!sources.has(key) && this.#transientSourceCount >= MAXIMUM_TRANSIENT_SOURCE_IDS) {
 			this.#blockedTransientProjects.add(projectId);
 			return;
 		}
+		if (!sources.has(key)) this.#transientSourceCount += 1;
 		sources.set(key, source);
-		this.#transientSourceCount += 1;
 		this.#transientSources.set(projectId, sources);
 	}
 
-	#forgetTransientSource(projectId: string, source: LinkedOriginalProjectSourceReference): void {
+	#forgetTransientSource(projectId: string, source: LinkedOriginalTransientBindingReference): void {
 		const sources = this.#transientSources.get(projectId);
-		if (!sources?.delete(sourceReferenceKey(source))) return;
+		const key = sourceReferenceKey(source);
+		if (sources?.get(key)?.bindingToken !== source.bindingToken || !sources.delete(key)) return;
 		this.#transientSourceCount -= 1;
 		if (!sources.size) this.#transientSources.delete(projectId);
 	}
@@ -492,9 +501,9 @@ function sameLocatorIdentity(
 	return left.kind === right.kind && left.locatorId === right.locatorId;
 }
 
-function compareProjectSourceReferences(
-	left: LinkedOriginalProjectSourceReference,
-	right: LinkedOriginalProjectSourceReference,
+function compareTransientBindings(
+	left: LinkedOriginalTransientBindingReference,
+	right: LinkedOriginalTransientBindingReference,
 ): number {
 	return left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId);
 }
@@ -505,7 +514,8 @@ function normalizeProjectBindingPruneResult(
 	if (value === null) return null;
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| !Array.isArray(value.durableSourceReferences)
-		|| !Array.isArray(value.removedLocatorReferences)) {
+		|| !Array.isArray(value.removedLocatorReferences)
+		|| !Array.isArray(value.settledTransientBindings)) {
 		throw new TypeError('Linked-original project binding cleanup returned an invalid result.');
 	}
 	const durableSourceReferences = value.durableSourceReferences.map((source) => (
@@ -515,9 +525,17 @@ function normalizeProjectBindingPruneResult(
 		!== durableSourceReferences.length) {
 		throw new Error('Linked-original project binding cleanup returned duplicate durable sources.');
 	}
+	const settledTransientBindings = value.settledTransientBindings.map((reference) => (
+		normalizeLinkedOriginalTransientBindingReference(reference)
+	));
+	if (new Set(settledTransientBindings.map(sourceReferenceKey)).size
+		!== settledTransientBindings.length) {
+		throw new Error('Linked-original project binding cleanup returned duplicate transient bindings.');
+	}
 	return Object.freeze({
 		durableSourceReferences: Object.freeze(durableSourceReferences),
 		removedLocatorReferences: Object.freeze([...value.removedLocatorReferences]),
+		settledTransientBindings: Object.freeze(settledTransientBindings),
 	});
 }
 

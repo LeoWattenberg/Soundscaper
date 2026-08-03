@@ -18,8 +18,12 @@ import {
 	type LinkedOriginalBindingInput,
 } from '../src/common/editor/storage/linked-original-binding.ts';
 import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
+import { LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME } from '../src/common/editor/storage/linked-original-provisional-root.ts';
 import { LinkedOriginalStartupReconciliationRepository } from '../src/common/editor/storage/linked-original-startup-reconciliation-repository.ts';
-import { LINKED_ORIGINAL_STORE_NAME } from '../src/common/editor/storage/linked-original-schema.ts';
+import {
+	LINKED_ORIGINAL_STORE_NAME,
+	linkedOriginalBindingKey,
+} from '../src/common/editor/storage/linked-original-schema.ts';
 import { openDatabase, request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { ProjectRepository } from '../src/common/editor/storage/project-repository.ts';
@@ -313,7 +317,18 @@ async function seedBinding(
 	source: TestSource,
 	locatorId: string,
 ): Promise<void> {
-	assert.ok(await fixture.bindings.putIfCurrent(bindingInput(projectId, source, locatorId), null));
+	const binding = await fixture.bindings.putIfCurrent(bindingInput(projectId, source, locatorId), null);
+	assert.ok(binding);
+	await transact(
+		fixture.database,
+		LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+		'readwrite',
+		(stores) => request(
+			stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME].delete(
+				linkedOriginalBindingKey(binding.projectId, binding.sourceId),
+			),
+		),
+	);
 }
 
 function bindingInput(projectId: string, source: TestSource, locatorId: string): LinkedOriginalBindingInput {
