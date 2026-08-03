@@ -40,6 +40,11 @@ interface LinkedPcmImportStore {
 	): Promise<boolean>;
 }
 
+interface SourceChunkProviderMap {
+	delete(sourceId: string): boolean;
+	drain?(): PromiseLike<void> | void;
+}
+
 export interface LinkedPcmImportRuntime {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly activateStoredSource: LegacyPort;
@@ -58,7 +63,7 @@ export interface LinkedPcmImportRuntime {
 	readonly prepareImportedMediaCommand: LegacyPort;
 	readonly projectSampleRate: () => number;
 	readonly sourceBuffers: Readonly<{ delete(sourceId: string): unknown }>;
-	readonly sourceChunkProviders: Readonly<{ delete(sourceId: string): unknown }>;
+	readonly sourceChunkProviders: SourceChunkProviderMap;
 	readonly sourcePeaks: Readonly<{ delete(sourceId: string): unknown }>;
 	readonly store: LinkedPcmImportStore;
 	readonly stripExtension: (name: string) => string;
@@ -153,8 +158,21 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 				&& current.sources?.some((candidate) => candidate.id === sourceId);
 			if (canonicalSourceLanded) throw error;
 			const cleanupErrors: unknown[] = [];
+			let providerRetired = true;
+			if (activationStarted && sourceId !== null) {
+				try { sourceChunkProviders.delete(sourceId); }
+				catch (cleanupError) {
+					providerRetired = false;
+					cleanupErrors.push(cleanupError);
+				}
+				try { await sourceChunkProviders.drain?.(); }
+				catch (cleanupError) {
+					providerRetired = false;
+					cleanupErrors.push(cleanupError);
+				}
+			}
 			let releaseLocator = !binding;
-			if (binding && startingProjectId !== null && sourceId !== null) {
+			if (providerRetired && binding && startingProjectId !== null && sourceId !== null) {
 				try {
 					const unlinked = await store.unlinkLinkedAudioOriginal(
 						startingProjectId,
@@ -170,17 +188,15 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 					cleanupErrors.push(cleanupError);
 				}
 			}
-			if (activationStarted && sourceId !== null) {
-				sourceBuffers.delete(sourceId);
-				sourceChunkProviders.delete(sourceId);
-				sourcePeaks.delete(sourceId);
-				try {
-					await store.deleteAnalysis?.(peakCacheKey(sourceId));
-				} catch (cleanupError) {
-					cleanupErrors.push(cleanupError);
-				}
+			if (providerRetired && activationStarted && sourceId !== null) {
+				try { sourceBuffers.delete(sourceId); }
+				catch (cleanupError) { cleanupErrors.push(cleanupError); }
+				try { sourcePeaks.delete(sourceId); }
+				catch (cleanupError) { cleanupErrors.push(cleanupError); }
+				try { await store.deleteAnalysis?.(peakCacheKey(sourceId)); }
+				catch (cleanupError) { cleanupErrors.push(cleanupError); }
 			}
-			if (releaseLocator) {
+			if (providerRetired && releaseLocator) {
 				try {
 					if (!await store.releaseLinkedOriginalLocator({ kind: 'audio', ...locator })) {
 						throw new Error('The unused linked PCM locator was not released.');

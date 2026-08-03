@@ -4,6 +4,11 @@
 
 type LegacyPort = (...args: any[]) => any;
 
+interface SourceChunkProviderMap {
+	delete(sourceId: string): boolean;
+	drain?(): PromiseLike<void> | void;
+}
+
 export interface IncrementalWavImportRuntime {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly activateStoredSource: LegacyPort;
@@ -17,7 +22,7 @@ export interface IncrementalWavImportRuntime {
 	readonly projectSampleRate: () => number;
 	readonly reportProgress: (value: number) => void;
 	readonly sourceBuffers: Readonly<{ delete(sourceId: string): unknown }>;
-	readonly sourceChunkProviders: Readonly<{ delete(sourceId: string): unknown }>;
+	readonly sourceChunkProviders: SourceChunkProviderMap;
 	readonly sourcePcmBytes: (source: unknown) => number;
 	readonly sourcePeaks: Readonly<{ delete(sourceId: string): unknown }>;
 	readonly store: Readonly<{
@@ -117,10 +122,33 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 			await activateStoredSource(source, metadata);
 			commit(prepared.command, prepared.selection);
 		} catch (error) {
-			sourceBuffers.delete(sourceId);
-			sourceChunkProviders.delete(sourceId);
-			sourcePeaks.delete(sourceId);
-			await store.deleteSource(sourceId).catch(() => undefined);
+			const cleanupErrors: unknown[] = [];
+			let providerRetired = true;
+			try { sourceChunkProviders.delete(sourceId); }
+			catch (cleanupError) {
+				providerRetired = false;
+				cleanupErrors.push(cleanupError);
+			}
+			try { await sourceChunkProviders.drain?.(); }
+			catch (cleanupError) {
+				providerRetired = false;
+				cleanupErrors.push(cleanupError);
+			}
+			if (providerRetired) {
+				try { sourceBuffers.delete(sourceId); }
+				catch (cleanupError) { cleanupErrors.push(cleanupError); }
+				try { sourcePeaks.delete(sourceId); }
+				catch (cleanupError) { cleanupErrors.push(cleanupError); }
+				try { await store.deleteSource(sourceId); }
+				catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			}
+			if (cleanupErrors.length) {
+				throw new AggregateError(
+					[error, ...cleanupErrors],
+					'Incremental WAV import and rollback both failed.',
+					{ cause: error },
+				);
+			}
 			throw error;
 		}
 		warnEnvelope();

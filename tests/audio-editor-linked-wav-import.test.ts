@@ -15,6 +15,30 @@ import { encodeWav } from '../src/common/editor/wav.js';
 const LOCATOR_ID = 'locator_0000000000000001';
 const LOCATOR_REVISION = 'revision_0000000000000001';
 
+type FixtureCall = readonly [string, unknown?, unknown?];
+
+class TestSourceChunkProviders extends Map<string, unknown> {
+	readonly #calls: FixtureCall[];
+	readonly #drainOperation: () => Promise<void>;
+
+	constructor(calls: FixtureCall[], drainOperation: () => Promise<void>) {
+		super();
+		this.#calls = calls;
+		this.#drainOperation = drainOperation;
+	}
+
+	override delete(sourceId: string): boolean {
+		this.#calls.push(['delete-provider', sourceId]);
+		return super.delete(sourceId);
+	}
+
+	async drain(): Promise<void> {
+		this.#calls.push(['drain-providers:start']);
+		await this.#drainOperation();
+		this.#calls.push(['drain-providers:done']);
+	}
+}
+
 test('linked WAV import binds and activates canonical PCM without publishing an owned body', async () => {
 	const fixture = importFixture();
 	const result = await fixture.importLinkedWav(
@@ -74,14 +98,19 @@ test('linked AIFF import binds the canonical container identity without an owned
 });
 
 test('linked WAV import unlinks and releases its exact locator when activation fails', async () => {
-	const fixture = importFixture({ activationError: new Error('waveform failed') });
+	const cancellation = new DOMException('waveform cancelled', 'AbortError');
+	const fixture = importFixture({ activationError: cancellation });
 	await assert.rejects(
 		fixture.importLinkedWav(fixture.file, fixture.descriptor, fixture.options, fixture.wavMetadata),
-		/waveform failed/u,
+		(error: unknown) => error === cancellation,
 	);
 	assert.deepEqual(fixture.calls.filter(([name]) => (
-		['unlink-audio', 'release-locator', 'delete-analysis'].includes(name)
+		['delete-provider', 'drain-providers:start', 'drain-providers:done',
+			'unlink-audio', 'release-locator', 'delete-analysis'].includes(name)
 	)), [
+		['delete-provider', 'source-1'],
+		['drain-providers:start'],
+		['drain-providers:done'],
 		['unlink-audio', {
 			projectId: 'project-1', sourceId: 'source-1', bindingToken: 'binding_token_00000001',
 		}],
@@ -95,8 +124,61 @@ test('linked WAV import unlinks and releases its exact locator when activation f
 	assert.equal(fixture.sourcePeaks.has('source-1'), false);
 });
 
+test('linked WAV rollback retains its binding and locator when provider cleanup fails', async () => {
+	const primary = new Error('activation failed');
+	const cleanup = new Error('provider cleanup failed');
+	const fixture = importFixture({
+		activationError: primary,
+		providerDrainOperation: async () => { throw cleanup; },
+	});
+
+	await assert.rejects(
+		fixture.importLinkedWav(fixture.file, fixture.descriptor, fixture.options, fixture.wavMetadata),
+		(error: unknown) => {
+			assert.ok(error instanceof AggregateError);
+			assert.deepEqual(error.errors, [primary, cleanup]);
+			assert.strictEqual(error.cause, primary);
+			return true;
+		},
+	);
+	assert.equal(fixture.sourceChunkProviders.has('source-1'), false);
+	assert.equal(fixture.calls.some(([name]) => name === 'unlink-audio'), false);
+	assert.equal(fixture.calls.some(([name]) => name === 'delete-analysis'), false);
+	assert.equal(fixture.calls.some(([name]) => name === 'release-locator'), false);
+});
+
+test('linked WAV rollback waits for provider cleanup before unlinking its original', async () => {
+	const primary = new Error('activation failed');
+	const started = deferred();
+	const gate = deferred();
+	const fixture = importFixture({
+		activationError: primary,
+		providerDrainOperation: async () => {
+			started.resolve();
+			await gate.promise;
+		},
+	});
+
+	const pending = fixture.importLinkedWav(
+		fixture.file,
+		fixture.descriptor,
+		fixture.options,
+		fixture.wavMetadata,
+	);
+	await started.promise;
+	assert.equal(fixture.calls.some(([name]) => name === 'unlink-audio'), false);
+	assert.equal(fixture.calls.some(([name]) => name === 'release-locator'), false);
+	gate.resolve();
+	await assert.rejects(pending, (error: unknown) => error === primary);
+	assert.equal(fixture.calls.some(([name]) => name === 'unlink-audio'), true);
+	assert.equal(fixture.calls.some(([name]) => name === 'release-locator'), true);
+});
+
 test('linked WAV import releases an unpublished locator when exact binding fails', async () => {
-	const fixture = importFixture({ bindingError: new Error('binding rejected') });
+	const fixture = importFixture({
+		bindingError: new Error('binding rejected'),
+		providerDrainOperation: async () => { throw new Error('unrelated provider failure'); },
+	});
 	await assert.rejects(
 		fixture.importLinkedWav(fixture.file, fixture.descriptor, fixture.options, fixture.wavMetadata),
 		/binding rejected/u,
@@ -268,12 +350,16 @@ test('project import admits and activates classic linked AIFF without browser de
 interface FixtureOptions {
 	readonly activationError?: Error;
 	readonly bindingError?: Error;
+	readonly providerDrainOperation?: () => Promise<void>;
 }
 
 function importFixture(options: FixtureOptions = {}) {
-	const calls: Array<readonly [string, unknown?, unknown?]> = [];
+	const calls: FixtureCall[] = [];
 	const sourceBuffers = new Map<string, unknown>();
-	const sourceChunkProviders = new Map<string, unknown>();
+	const sourceChunkProviders = new TestSourceChunkProviders(
+		calls,
+		options.providerDrainOperation ?? (async () => undefined),
+	);
 	const sourcePeaks = new Map<string, unknown>();
 	let project = Object.freeze({ id: 'project-1', tracks: Object.freeze([]), sources: Object.freeze([]) });
 	let nextId = 0;
@@ -425,4 +511,10 @@ function projectFixture() {
 		tracks: [] as unknown[],
 		projectBin: { clips: [] as unknown[] },
 	};
+}
+
+function deferred() {
+	let resolvePromise: () => void = () => undefined;
+	const promise = new Promise<void>((resolve) => { resolvePromise = resolve; });
+	return { promise, resolve: resolvePromise };
 }
