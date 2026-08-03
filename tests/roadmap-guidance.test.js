@@ -46,7 +46,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/Electron Enhanced — In progress.*broaden the concrete platform locator.*beyond the bounded linked-PCM and retained-video slices.*finish broader linked and unmanaged-original lifecycles beyond the maintained\s+exact-content retained-video relink.*stable playback identity beyond the maintained owned canonical PCM,\s+linked-PCM, and retained-video lifecycles/isu,
+		/Electron Enhanced — In progress.*broaden the concrete platform locator.*beyond the bounded linked-PCM and retained-video slices.*finish broader linked and unmanaged-original lifecycles beyond the maintained\s+exact-content retained-video and linked-PCM Project Bin relink flows.*stable playback identity beyond the maintained owned canonical PCM,\s+linked-PCM, and retained-video lifecycles/isu,
 	);
 	assert.match(
 		roadmap,

@@ -41,6 +41,15 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 		handoff.currentBehavior,
 		/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random\s+or sequential chunk reads.*complete alias group.*exact\s+binding.*before and after.*per-read.*cancellation.*local.*provider replacement.*failed activation.*project switch.*deletion.*clear.*rollback.*controller.*store.*exact-once release.*backing cleanup/iu,
 	);
+	assert.match(
+		handoff.requiredOutcome,
+		/binding-backed.*Project Bin relink.*exactly one audio source.*must not depend on missing-source state.*same byte length and SHA-256.*consumers and provider.*drain before.*binding-and-provisional-root compare-and-swap.*preserve project, source, clip, and history identity.*bounded.*alias-aware startup reconciliation/isu,
+	);
+	assert.match(
+		handoff.currentBehavior,
+		/eligibility.*current audio binding.*even when.*not missing.*timeline transport.*Project Bin preview.*provider.*(?:retire|drain).*before.*old binding and platform snapshot.*current.*select(?:ed|ion).*byte length and SHA-256.*candidate.*exact locator revision.*synchronous.*assertCanPublish.*same compensated memory batch or IndexedDB.*binding-and-provisional-root CAS.*invalidate.*source buffer.*peaks.*waveform.*analysis.*displaced old locator.*startup reconciliation/isu,
+	);
+	assertLinkedAudioTargetAndRecovery(`${handoff.requiredOutcome} ${handoff.currentBehavior}`);
 	for (const text of [portable.currentBehavior, handoff.currentBehavior]) {
 		assert.match(text, /AIFF metadata preservation.*third-party AIFC interoperability/iu);
 		assert.match(text, /packaged executable or UI.*operating-system/iu);
@@ -59,15 +68,33 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 	assert.ok(handoff.evidence.includes('tests/desktop-project-library-managed-audio-handoff.test.ts'));
 	for (const path of [
 		'src/common/editor/app.js',
+		'src/common/editor/controller/action-facade.ts',
 		'src/common/editor/controller/clip-time-pitch-service.ts',
+		'src/common/editor/controller/project-bin-linked-audio-relink-service.ts',
+		'src/common/editor/controller/project-bin-linked-original-relink-task.ts',
+		'src/common/editor/controller/project-bin-service.ts',
+		'src/common/editor/controller/project-bin-types.ts',
+		'src/common/editor/controller/project-lock-service.ts',
 		'src/common/editor/controller/project-admin-service.ts',
 		'src/common/editor/controller/project-switch-service.ts',
 		'src/common/editor/controller/source-audio.ts',
 		'src/common/editor/controller/source-chunk-provider-registry.ts',
 		'src/common/editor/controller/source-lifecycle-service.ts',
+		'src/common/editor/storage/linked-original-pair-writer.ts',
+		'src/common/editor/storage/linked-original-provisional-root.ts',
+		'src/common/editor/storage/project-store-defaults.ts',
 		'src/common/editor/storage/source-pcm-read-session.ts',
+		'src/common/editor/ui/workspace/ProjectBinPanel.jsx',
+		'src/common/editor/ui/workspace/linked-audio-choice-handoff.ts',
+		'tests/audio-editor-controller-action-facade.test.ts',
 		'tests/audio-editor-clip-time-pitch-service.test.ts',
+		'tests/audio-editor-linked-audio-original-relink.test.ts',
+		'tests/audio-editor-linked-audio-choice-handoff.test.ts',
+		'tests/audio-editor-linked-audio-project-bin-ui.test.ts',
 		'tests/audio-editor-linked-source-controller-disposal.test.js',
+		'tests/audio-editor-project-bin-linked-audio-relink-service.test.ts',
+		'tests/audio-editor-project-bin-service.test.ts',
+		'tests/audio-editor-project-lock-service.test.ts',
 		'tests/audio-editor-project-admin-service-coverage.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-source-audio.test.ts',
@@ -100,6 +127,11 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 		handoff.summary,
 		/main-private.*pathless point-in-time binding.*no owned PCM body.*whole external container.*exact digest.*canonical geometry.*two canonical Float32 PCM passes.*fresh recipient.*without the original locator.*source-container bytes.*locator identity.*never cross/iu,
 	);
+	assert.match(
+		handoff.summary,
+		/binding-backed.*Project Bin relink.*exactly one audio source.*does not use missing-source state.*timeline transport.*Project Bin preview.*(?:provider.*drain|drain.*provider).*before.*byte length and SHA-256.*candidate.*exact locator revision.*assertCanPublish.*same compensated memory batch or IndexedDB.*binding-and-provisional-root CAS.*project, source, clip, and history.*unchanged.*startup.*reconciliation/isu,
+	);
+	assertLinkedAudioTargetAndRecovery(handoff.summary);
 	assert.match(
 		portability.summary,
 		/current-format exact-schema-9 `.scape`.*no owned sender PCM.*canonical Float32 chunks.*`audio-f32le-chunks-v1`.*external container bytes.*locator identity.*excluded.*fresh portless import.*owned PCM.*durable reopen/iu,
@@ -134,6 +166,29 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 		'tests/audio-editor-source-chunk-provider-registry.test.ts',
 		'tests/audio-editor-source-lifecycle-service.test.ts',
 	]) assert.ok(range.evidence.some((item) => item.path === path), path);
+	for (const path of [
+		'src/common/editor/app.js',
+		'src/common/editor/controller/action-facade.ts',
+		'src/common/editor/controller/project-bin-linked-audio-relink-service.ts',
+		'src/common/editor/controller/project-bin-linked-original-relink-task.ts',
+		'src/common/editor/controller/project-bin-service.ts',
+		'src/common/editor/controller/project-bin-types.ts',
+		'src/common/editor/controller/project-lock-service.ts',
+		'src/common/editor/controller/source-lifecycle-service.ts',
+		'src/common/editor/storage/linked-original-pair-writer.ts',
+		'src/common/editor/storage/linked-original-provisional-root.ts',
+		'src/common/editor/storage/project-store-defaults.ts',
+		'src/common/editor/ui/workspace/ProjectBinPanel.jsx',
+		'src/common/editor/ui/workspace/linked-audio-choice-handoff.ts',
+		'tests/audio-editor-controller-action-facade.test.ts',
+		'tests/audio-editor-linked-audio-original-relink.test.ts',
+		'tests/audio-editor-linked-audio-choice-handoff.test.ts',
+		'tests/audio-editor-linked-audio-project-bin-ui.test.ts',
+		'tests/audio-editor-project-bin-linked-audio-relink-service.test.ts',
+		'tests/audio-editor-project-bin-service.test.ts',
+		'tests/audio-editor-project-lock-service.test.ts',
+		'tests/audio-editor-source-lifecycle-service.test.ts',
+	]) assert.ok(handoff.evidence.some((item) => item.path === path), path);
 	const residual = libraryRisk.residualRisks.find(
 		({ id }) => id === 'shared-library-cross-product-media-availability',
 	);
@@ -168,8 +223,30 @@ test('linked PCM compatibility and threat documentation own the detailed limits'
 			documentation,
 			/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random\s+or sequential chunk reads.*complete alias group.*exact\s+binding.*before and after.*per-read.*cancellation.*local.*exact-once release.*backing/isu,
 		);
+		assert.match(
+			documentation,
+			/binding-backed.*Project Bin.*(?:linked-PCM\s+)?relink.*exactly\s+one audio source.*(?:does not|must not|not).*missing-source\s+state.*pathless.*selected\s+`?File`?.*opaque locator ID\s+and\s+(?:exact\s+)?revision/isu,
+		);
+		assert.match(documentation, /timeline\s+transport.*Project\s+Bin\s+preview.*(?:provider.*drain|drain.*provider).*before.*storage/isu);
+		assert.match(documentation, /(?:same\s+byte\s+length\s+and\s+SHA-256|exact\s+byte-length\s+and\s+SHA-256\s+equality).*candidate.*exact\s+revision/isu);
+		assert.match(documentation, /synchronous.*assertCanPublish/isu);
+		assert.match(documentation, /same\s+compensated\s+memory\s+batch\s+or\s+IndexedDB.*binding-and-provisional-root/isu);
+		assert.match(documentation, /(?:guard|assertCanPublish).*rechecks.*task.*project\s+generation.*writable/isu);
+		assert.match(documentation, /project,\s+source,\s+clip,\s+and\s+history.*unchanged.*reactivat.*before.*availability/isu);
+		assertLinkedAudioTargetAndRecovery(documentation);
 	}
 });
+
+function assertLinkedAudioTargetAndRecovery(text) {
+	assert.match(text, /pathless.*selected\s+`File`.*opaque\s+locator\s+ID.*revision.*exact\s+`?\{projectId, projectRevision\}`?\s+target/isu);
+	assert.match(text, /target.*before.*shared.*relink\s+task.*(?:without|does not).*cancell?ing\s+current\s+work.*(?:recheck|rechecks|validate).*target.*storage\s+publication/isu);
+	assert.match(text, /current\s+audio-operation\s+ownership.*active\s+project.*controller\s+lifetime.*rather\s+than\s+shared-task\s+currentness/isu);
+	assert.match(text, /shared\s+video.*project-lock\s+cancellation.*before\s+publication.*restore.*old\s+runtime/isu);
+	assert.match(text, /after\s+publication.*activation.*(?:did\s+not\s+complete|is\s+incomplete|incomplete).*(?:source\s+missing|missing\s+state)/isu);
+	assert.match(text, /completed\s+owned\s+activation.*availability/isu);
+	assert.match(text, /recovery.*rechecks.*operation\s+ownership.*after\s+metadata.*before\s+activation/isu);
+	assert.match(text, /cross-store.*(?:cross-process|process) coordination.*(?:unqualified|not qualified)/isu);
+}
 
 function assertMaintainedAiffProfile(text) {
 	assert.match(text, /AIFF/iu);

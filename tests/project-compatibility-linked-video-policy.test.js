@@ -124,7 +124,7 @@ test('linked retained-video policy pins exact local lifecycle behavior', async (
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
-		/relink beyond the maintained exact-content retained-video Project Bin flow or automatic watch behavior.*remain unqualified/iu,
+		/relink beyond the maintained exact-content retained-video and linked-PCM Project Bin flows or automatic watch behavior.*remain unqualified/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
