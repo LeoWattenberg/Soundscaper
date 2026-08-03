@@ -73,7 +73,7 @@ export interface RecordingFinalizationCommonRuntime {
 		selection: Readonly<{ readonly selectTrackId?: string; readonly selectClipId?: string }>,
 	) => void;
 	readonly setStatusDone: () => void;
-	readonly deactivateSource: (sourceId: string) => void;
+	readonly deactivateSource: (sourceId: string) => PromiseLike<void> | void;
 	readonly deleteStoredSource: (sourceId: string) => Promise<unknown>;
 }
 

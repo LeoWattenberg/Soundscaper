@@ -53,6 +53,12 @@ function createWriter(framesWritten = 100) {
 	return { writer, aborts: () => aborts, commits: () => commits };
 }
 
+function deferred() {
+	let resolve: () => void = () => undefined;
+	const promise = new Promise<void>((complete) => { resolve = complete; });
+	return Object.freeze({ promise, resolve });
+}
+
 function createSnapshot(overrides: Partial<RecordingFinalizationSnapshot> = {}): RecordingFinalizationSnapshot {
 	const writer = createWriter().writer;
 	return {
@@ -222,6 +228,51 @@ test('legacy finalization suppresses a late project commit and rolls back the st
 	assert.equal(writer.aborts(), 1);
 });
 
+test('legacy rollback drains its provider before deleting committed source storage', async () => {
+	const fixture = createRuntime();
+	const writer = createWriter();
+	const drainStarted = deferred();
+	const drainGate = deferred();
+	fixture.setActivateHook(() => fixture.setCurrent(false));
+	const runtime: RecordingFinalizationCommonRuntime = {
+		...fixture.common,
+		async deactivateSource(sourceId) {
+			fixture.deactivated.push(sourceId);
+			drainStarted.resolve();
+			await drainGate.promise;
+		},
+	};
+	const pending = createLegacyRecordingFinalization(runtime).finalize(createSnapshot({ writer: writer.writer }));
+
+	await drainStarted.promise;
+	assert.deepEqual(fixture.deleted, []);
+	drainGate.resolve();
+	await assert.rejects(pending, (error: unknown) => (error as DOMException).name === 'AbortError');
+	assert.deepEqual(fixture.deleted, ['source-1']);
+});
+
+test('legacy rollback preserves activation and provider cleanup failures', async () => {
+	const fixture = createRuntime();
+	const writer = createWriter();
+	const cleanupFailure = new Error('provider cleanup failed');
+	fixture.setActivateHook(() => fixture.setCurrent(false));
+	const runtime: RecordingFinalizationCommonRuntime = {
+		...fixture.common,
+		deactivateSource: async () => { throw cleanupFailure; },
+	};
+
+	await assert.rejects(
+		createLegacyRecordingFinalization(runtime).finalize(createSnapshot({ writer: writer.writer })),
+		(error: unknown) => {
+			assert.ok(error instanceof AggregateError);
+			assert.equal((error.errors[0] as DOMException).name, 'AbortError');
+			assert.strictEqual(error.errors[1], cleanupFailure);
+			return true;
+		},
+	);
+	assert.deepEqual(fixture.deleted, []);
+});
+
 test('legacy finalization handles discard, empty, fatal, and selected punch transactions', async () => {
 	const discardedFixture = createRuntime();
 	const discarded = createWriter();
@@ -358,4 +409,31 @@ test('routed finalization rolls every committed source back after project replac
 	assert.deepEqual(fixture.analysisDeleted, ['source-1']);
 	assert.deepEqual(fixture.deleted, ['source-1']);
 	assert.equal(writer.aborts(), 1);
+});
+
+test('routed rollback drains its provider before deleting analysis and source storage', async () => {
+	const fixture = createRuntime();
+	const writer = createWriter();
+	const drainStarted = deferred();
+	const drainGate = deferred();
+	fixture.setActivateHook(() => fixture.setCurrent(false));
+	const runtime: RoutedRecordingFinalizationRuntime = {
+		...fixture.routed,
+		async deactivateSource(sourceId) {
+			fixture.deactivated.push(sourceId);
+			drainStarted.resolve();
+			await drainGate.promise;
+		},
+	};
+	const entry = createRoutedEntry(writer.writer);
+	const input = createSnapshot({ entries: [entry] });
+	const pending = createRoutedRecordingFinalization(runtime).finalize({ ...input, entries: [entry] });
+
+	await drainStarted.promise;
+	assert.deepEqual(fixture.analysisDeleted, []);
+	assert.deepEqual(fixture.deleted, []);
+	drainGate.resolve();
+	await assert.rejects(pending, (error: unknown) => (error as DOMException).name === 'AbortError');
+	assert.deepEqual(fixture.analysisDeleted, ['source-1']);
+	assert.deepEqual(fixture.deleted, ['source-1']);
 });

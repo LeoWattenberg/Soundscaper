@@ -259,6 +259,45 @@ test('replacement cancellation removes staged audio/video assets and rejects sta
 	assert.deepEqual(videoHarness.deletedMedia, ['video']);
 });
 
+test('replacement cancellation drains its staged chunk provider before deleting source storage', { timeout: 1_000 }, async () => {
+	const target = clipFixture({ id: 'bin', sourceId: 'old', binItemId: 'item' });
+	const base = projectFixture({
+		projectBinClips: [target],
+		sources: [{ id: 'old', kind: 'audio', sampleRate: 48_000, frameCount: 1_000, channelCount: 1 }],
+	});
+	const imported = projectFixture({
+		id: base.id,
+		projectBinClips: [clipFixture({ id: 'new-bin', sourceId: 'new', binItemId: 'new-item' })],
+		sources: [{ id: 'new', kind: 'audio', sampleRate: 48_000, frameCount: 1_000, channelCount: 1 }],
+	});
+	const drainStarted = deferred();
+	const drainGate = deferred();
+	const providers = Object.assign(new Map<string, unknown>([['new', {}]]), {
+		async drain() {
+			drainStarted.resolve();
+			await drainGate.promise;
+		},
+	});
+	const harnessRef: { current?: ReturnType<typeof createHarness> } = {};
+	const harness = createHarness(base, {
+		sourceChunkProviders: providers,
+		importProjectBinFile: async () => {
+			harnessRef.current?.replaceImportedDocument(imported);
+			return { clipId: 'new-bin' };
+		},
+	});
+	harnessRef.current = harness;
+	const prepared = await harness.service.prepareProjectBinReplacement('bin', { name: 'new.wav' });
+	const cancellation = harness.service.cancelProjectBinReplacement(prepared?.token ?? '');
+
+	await drainStarted.promise;
+	assert.equal(providers.has('new'), false);
+	assert.deepEqual(harness.deletedSources, []);
+	drainGate.resolve();
+	assert.equal(await cancellation, true);
+	assert.deepEqual(harness.deletedSources, ['new']);
+});
+
 test('video and resumed audio previews follow explicit pause, resume, stop, and engine-state policies', async () => {
 	const video = clipFixture({ id: 'video-bin', sourceId: 'video', kind: 'video', binItemId: 'video-item' });
 	const videoHarness = createHarness(projectFixture({
@@ -344,6 +383,7 @@ test('audio-buffer fitting preserves an exact buffer and truncates or zero-pads 
 interface HarnessOptions {
 	readonly importProjectBinFile?: ProjectBinServiceDependencies['importProjectBinFile'];
 	readonly revokeVideoVisual?: ProjectBinServiceDependencies['revokeVideoVisual'];
+	readonly sourceChunkProviders?: ProjectBinServiceDependencies['sourceChunkProviders'];
 	readonly previewEngine?: ReturnType<typeof createPreviewEngine>;
 	readonly editingBlocked?: () => boolean;
 	readonly playbackState?: string;
@@ -387,7 +427,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 			stop: () => { playbackStopCount += 1; },
 		},
 		sourceBuffers: new Map<string, AudioBuffer>(),
-		sourceChunkProviders: new Map<string, unknown>(),
+		sourceChunkProviders: options.sourceChunkProviders ?? Object.assign(new Map<string, unknown>(), { drain: async () => undefined }),
 		sourcePeaks: new Map<string, unknown>(),
 		missingSourceIds,
 		store: {

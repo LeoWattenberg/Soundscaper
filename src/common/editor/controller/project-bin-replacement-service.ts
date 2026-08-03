@@ -43,11 +43,15 @@ export interface ProjectBinCachePort {
 	delete(sourceId: string): boolean;
 }
 
+export interface ProjectBinChunkProviderCachePort extends Map<string, unknown> {
+	drain(): PromiseLike<void> | void;
+}
+
 export interface ProjectBinReplacementDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly copy: Pick<ProjectBinCopy, 'audioClipNotFound' | 'projectBinReplacementIncompatible'>;
 	readonly sourceBuffers: ProjectBinCachePort;
-	readonly sourceChunkProviders: ProjectBinCachePort;
+	readonly sourceChunkProviders: ProjectBinChunkProviderCachePort;
 	readonly sourcePeaks: ProjectBinCachePort;
 	readonly missingSourceIds: ProjectBinCachePort;
 	readonly store: ProjectBinStoragePort;
@@ -235,12 +239,17 @@ export function createProjectBinReplacementService(
 
 	async function discardImportedReplacement(sources: readonly ProjectBinSource[]): Promise<void> {
 		for (const source of sources) {
+			if (source.kind === 'video') await dependencies.revokeVideoVisual(source.id);
+		}
+		for (const source of sources) {
 			dependencies.sourceBuffers.delete(source.id);
 			dependencies.sourceChunkProviders.delete(source.id);
 			dependencies.sourcePeaks.delete(source.id);
 			dependencies.missingSourceIds.delete(source.id);
+		}
+		await dependencies.sourceChunkProviders.drain();
+		for (const source of sources) {
 			if (source.kind === 'video') {
-				await dependencies.revokeVideoVisual(source.id);
 				try {
 					await dependencies.store.deleteMediaAsset?.(source.id);
 				} catch {

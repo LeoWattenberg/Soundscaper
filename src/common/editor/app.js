@@ -25,10 +25,7 @@ import {
 	ClipTimePitchRenderCacheCoordinator,
 	loadStoredSourceChannels,
 } from './clip-time-pitch-cache.js';
-import {
-	createAudioEditorEffectPresets,
-	listAudioEditorEffectPresets,
-} from './effect-presets.js';
+import { createAudioEditorEffectPresets, listAudioEditorEffectPresets } from './effect-presets.js';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	audioEffectLabel,
@@ -1553,9 +1550,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 			commit({ type: 'batch', commands }, selection);
 		},
 		setStatusDone: () => setStatus(copy.done, 'success'),
-		deactivateSource: (sourceId) => {
+		deactivateSource: async (sourceId) => {
 			sourceBuffers.delete(sourceId);
 			sourceChunkProviders.delete(sourceId);
+			engine.setChunkSources(sourceChunkProviders);
+			await sourceChunkProviders.drain();
 			sourcePeaks.delete(sourceId);
 		},
 		deleteStoredSource: (sourceId) => store.deleteSource(sourceId),

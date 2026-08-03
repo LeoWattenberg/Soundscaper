@@ -14,6 +14,10 @@ import type {
 	RecordingSourceWriter,
 	RoutedRecordingEntry,
 } from './recording-transaction-types.ts';
+import {
+	cleanupCommittedRecordingSource,
+	throwRecordingFinalizationFailure,
+} from './recording-finalization-cleanup.ts';
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(value) && typeof value === 'object';
@@ -195,12 +199,16 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 			for (const entry of transaction.entries) {
 				await entry.writer.abort().catch(() => undefined);
 			}
+			const cleanupFailures: unknown[] = [];
 			for (const entry of committedEntries) {
-				runtime.deactivateSource(entry.sourceId);
-				await runtime.deleteSourceAnalysis(entry.sourceId).catch(() => undefined);
-				await runtime.deleteStoredSource(entry.sourceId).catch(() => undefined);
+				cleanupFailures.push(...await cleanupCommittedRecordingSource({
+					sourceId: entry.sourceId,
+					deactivateSource: runtime.deactivateSource,
+					deleteAnalysis: runtime.deleteSourceAnalysis,
+					deleteStoredSource: runtime.deleteStoredSource,
+				}));
 			}
-			throw error;
+			throwRecordingFinalizationFailure(error, cleanupFailures);
 		}
 	}
 

@@ -43,7 +43,6 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	readonly trackColors: readonly string[];
 	readonly playbackEngine: ProjectBinPlaybackEngine;
 	readonly sourceBuffers: Map<string, AudioBuffer>;
-	readonly sourceChunkProviders: Map<string, unknown>;
 	readonly sourcePeaks: Map<string, unknown>;
 	readonly missingSourceIds: Set<string>;
 	readonly sourceResolver?: EngineSourceResolver | null;

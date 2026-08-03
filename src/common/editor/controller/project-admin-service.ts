@@ -207,6 +207,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			sourcePeaks.delete(sourceId);
 			state.missingSourceIds.delete(sourceId);
 		}
+		await sourceChunkProviders.drain?.();
 		if (result.nextEligibleAt != null && !state.disposed) {
 			const delay = Math.max(1_000, Math.min(2_147_000_000, result.nextEligibleAt - currentTimeMs() + 50));
 			state.sourceGcTimer = scheduleTimer(() => {
