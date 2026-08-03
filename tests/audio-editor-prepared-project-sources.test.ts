@@ -87,6 +87,32 @@ test('cleanup failure after publication leaves the candidate registry-owned', as
 	assert.equal(candidateDisposals, 1);
 });
 
+test('post-apply currentness failure retires the consumer before its candidate', async () => {
+	const currentnessFailure = new Error('application became stale');
+	const events: string[] = [];
+	const ownership = createPreparedProjectSources({
+		prepared: new Map([[
+			'source',
+			Object.freeze({
+				kind: 'provider' as const,
+				value: Object.freeze({ dispose: () => { events.push('provider:dispose'); } }),
+			}),
+		]]),
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		cacheSourceBuffer: () => undefined,
+		throwIfAborted: () => undefined,
+	});
+
+	await assert.rejects(ownership.commit(() => {
+		events.push('consumer:apply');
+	}, {
+		assertCurrent() { throw currentnessFailure; },
+		retireApplied() { events.push('consumer:retire'); },
+	}), (error: unknown) => error === currentnessFailure);
+	assert.deepEqual(events, ['consumer:apply', 'consumer:retire', 'provider:dispose']);
+});
+
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;
 	resolve(value: Value): void;

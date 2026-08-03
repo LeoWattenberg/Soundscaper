@@ -122,6 +122,7 @@ test('project switching cancels signal-ignoring playback source readiness before
 		getState: () => playbackApplied
 			? { state: 'stopped', playbackMode: 'normal' }
 			: { state: 'playing', playbackMode: 'staffpad' },
+		stop() {},
 		applyProject(candidate: TestProject) {
 			playbackApplied = true;
 			appliedPlaybackProjects.push(candidate.id);

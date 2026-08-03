@@ -45,11 +45,17 @@ function preparedSources(
 			readonly chunkSources: ReadonlyMap<string, unknown>;
 		}>) => PromiseLike<Result> | Result, options: Readonly<{
 			assertCurrent?: () => void;
+			retireApplied?: () => PromiseLike<void> | void;
 		}> = {}): Promise<Result> {
-			const result = await apply(Object.freeze({ sourceBuffers, chunkSources }));
-			options.assertCurrent?.();
-			onCommit();
-			return result;
+			try {
+				const result = await apply(Object.freeze({ sourceBuffers, chunkSources }));
+				options.assertCurrent?.();
+				onCommit();
+				return result;
+			} catch (error) {
+				await options.retireApplied?.();
+				throw error;
+			}
 		},
 		discard: onDiscard,
 	});
@@ -157,6 +163,7 @@ test('an unknown whole-mix role is projected and staged without a registered fea
 		sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			applyProject(project, sourceBuffers) {
 				events.push('engine');
 				assert.equal(project.clips[0]?.sourceId, 'fallback-source');
@@ -212,6 +219,7 @@ test('playback reapply stages an unknown whole-project video fallback before pre
 		sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			applyProject(project) {
 				events.push('engine');
 				assert.equal(project.clips[0]?.sourceId, 'fallback-video');
@@ -255,6 +263,7 @@ test('combined fallback reapply keeps staged audio out of direct video readiness
 		sourceBuffers: new Map(), sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			applyProject(project) { events.push('engine'); assert.strictEqual(project, projected); },
 		},
 		setReadyStatus() {},
@@ -317,6 +326,7 @@ test('playback reapplies only the projected document after required sources are 
 		sourceChunkProviders,
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			async applyProject(project, buffers, options) {
 				events.push('engine');
 				applied.push(project);
@@ -340,7 +350,8 @@ test('playback reapply awaits staged cleanup and preserves primary cleanup conte
 	const engineFailure = new Error('engine apply failed');
 	const cleanupFailure = new Error('provider cleanup failed');
 	const gate = deferred<void>();
-	let cleanupStarted = false;
+	const cleanupStarted = deferred<void>();
+	let engineStopped = false;
 	const applying = applyCanonicalProjectToPlaybackEngine(canonical, {
 		projectForPlayback: (project) => service.projectForPlayback(project),
 		getCurrentProject: () => canonical,
@@ -350,7 +361,8 @@ test('playback reapply awaits staged cleanup and preserves primary cleanup conte
 			new Map(),
 			() => undefined,
 			async () => {
-				cleanupStarted = true;
+				assert.equal(engineStopped, true);
+				cleanupStarted.resolve();
 				await gate.promise;
 				throw cleanupFailure;
 			},
@@ -359,13 +371,12 @@ test('playback reapply awaits staged cleanup and preserves primary cleanup conte
 		sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() { engineStopped = true; },
 			applyProject() { throw engineFailure; },
 		},
 		setReadyStatus() {},
 	});
-	await Promise.resolve();
-	await Promise.resolve();
-	assert.equal(cleanupStarted, true);
+	await cleanupStarted.promise;
 	let settled = false;
 	void applying.finally(() => { settled = true; }).catch(() => undefined);
 	await Promise.resolve();
@@ -397,6 +408,7 @@ test('a canonical identity change during source preparation suppresses the stale
 		sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			applyProject() { engineCalls += 1; },
 		},
 		setReadyStatus() {},
@@ -423,6 +435,7 @@ test('a canonical identity change during engine apply suppresses staged source p
 		sourceBuffers: new Map(), sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			async applyProject() { started.resolve(); await release.promise; },
 		},
 		setReadyStatus() {},
@@ -449,6 +462,7 @@ test('a microtask identity change after engine return suppresses staged source p
 		sourceBuffers: new Map(), sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			async applyProject() {
 				queueMicrotask(() => { current = null; });
 			},
@@ -499,6 +513,7 @@ test('a newer playback reapply aborts stalled source readiness and alone reaches
 		sourceChunkProviders: new Map(),
 		engine: {
 			getState: () => ({ state: 'stopped', playbackMode: 'normal' }),
+			stop() {},
 			applyProject(project: typeof first) { appliedProjectIds.push(project.id); },
 		},
 		setReadyStatus() {},

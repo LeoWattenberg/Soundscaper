@@ -66,6 +66,7 @@ interface PlaybackEngineState {
 
 interface PlaybackProjectEngine<Project extends object> {
 	getState(): PlaybackEngineState;
+	stop(): PromiseLike<unknown> | unknown;
 	applyProject(
 		project: Project,
 		sourceBuffers: ReadonlyMap<unknown, unknown>,
@@ -249,6 +250,7 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 				assertCurrent() {
 					if (runtime.getCurrentProject() !== canonicalProject) throw STALE_PLAYBACK_PROJECT_APPLY;
 				},
+				retireApplied: async () => { await runtime.engine.stop(); },
 			});
 		} else {
 			const playbackBuffers = transientBuffers.size

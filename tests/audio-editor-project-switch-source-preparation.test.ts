@@ -124,7 +124,10 @@ test('currentness failure after engine return blocks prepared provider publicati
 	assert.deepEqual(fixture.chunkSourcePublications, []);
 	assert.equal(fixture.preparedProviderDisposals(), 1);
 	assert.equal(fixture.priorProviderDisposals(), 0);
-	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 2);
+	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 3);
+	const disposal = fixture.events.indexOf('provider:prepared:dispose');
+	const retirement = fixture.events.lastIndexOf('engine:stop', disposal);
+	assert.ok(fixture.events.indexOf('engine:load') < retirement && retirement < disposal);
 	assert.ok(fixture.events.lastIndexOf('engine:stop') < fixture.events.indexOf('provider:replacement:rollback'));
 });
 

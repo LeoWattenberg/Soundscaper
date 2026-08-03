@@ -10,6 +10,7 @@ export interface PreparedRequiredProjectSources {
 		apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
 		options?: Readonly<{
 			assertCurrent?: () => void;
+			retireApplied?: () => PromiseLike<void> | void;
 			transientBuffers?: ReadonlyMap<string, unknown>;
 		}>,
 	): Promise<Result>;
@@ -52,6 +53,7 @@ export function createPreparedProjectSources(
 		apply: (inputs: PreparedProjectSourceInputs) => PromiseLike<Result> | Result,
 		commitOptions: Readonly<{
 			assertCurrent?: () => void;
+			retireApplied?: () => PromiseLike<void> | void;
 			transientBuffers?: ReadonlyMap<string, unknown>;
 		}> = {},
 	): Promise<Result> {
@@ -62,8 +64,12 @@ export function createPreparedProjectSources(
 		if (commitOptions.assertCurrent != null && typeof commitOptions.assertCurrent !== 'function') {
 			throw new TypeError('Required source preparation currentness assertion must be a function.');
 		}
+		if (commitOptions.retireApplied != null && typeof commitOptions.retireApplied !== 'function') {
+			throw new TypeError('Required source preparation retirement must be a function.');
+		}
 		state = 'committing';
 		let result: Result;
+		let applyStarted = false;
 		try {
 			options.throwIfAborted(options.signal);
 			const preparedBuffers = new Map<string, unknown>(options.sourceBuffers);
@@ -77,6 +83,7 @@ export function createPreparedProjectSources(
 				if (entry.kind === 'buffer') preparedBuffers.set(sourceId, entry.value);
 				else preparedProviders.set(sourceId, entry.value);
 			}
+			applyStarted = true;
 			result = await apply(Object.freeze({
 				sourceBuffers: preparedBuffers,
 				chunkSources: preparedProviders,
@@ -96,6 +103,18 @@ export function createPreparedProjectSources(
 			state = 'committed';
 			options.prepared.clear();
 		} catch (error) {
+			let failure = error;
+			if (applyStarted && commitOptions.retireApplied) {
+				try {
+					await commitOptions.retireApplied();
+				} catch (retirementError) {
+					failure = new AggregateError(
+						[failure, retirementError],
+						'Required source application and consumer retirement both failed.',
+						{ cause: error },
+					);
+				}
+			}
 			state = 'discarded';
 			cleanupPromise = disposePreparedProviders(options.prepared).finally(() => {
 				options.prepared.clear();
@@ -104,12 +123,12 @@ export function createPreparedProjectSources(
 				await cleanupPromise;
 			} catch (cleanupError) {
 				throw new AggregateError(
-					[error, cleanupError],
+					[failure, cleanupError],
 					'Required source preparation and cleanup both failed.',
 					{ cause: error },
 				);
 			}
-			throw error;
+			throw failure;
 		}
 		await options.sourceChunkProviders.drain?.();
 		return result;

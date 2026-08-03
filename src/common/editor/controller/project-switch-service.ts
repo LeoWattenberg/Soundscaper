@@ -471,6 +471,7 @@ export function createProjectSwitchService<
 					),
 					{
 						assertCurrent: () => fallbackAdmission.assertCurrent(activeProject),
+						retireApplied: () => runtime.stopEngine(),
 						transientBuffers: loadedSourceBuffers,
 					},
 				));
