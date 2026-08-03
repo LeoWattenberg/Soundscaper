@@ -133,7 +133,7 @@ test('desktop read capability evidence remains qualified for its current surface
 	);
 	assert.match(
 		linkedAudioRange.summary,
-		/FORM\/AIFF.*COMM.*SSND.*signed big-endian integer PCM.*8.*16.*24.*32.*AIFC and compressed variants reject.*session completion release once.*whole external container.*512 MiB.*does not establish packaged-executable or operating-system behavior.*metadata preservation.*content-frozen.*cross-process lease.*audible\/device playback.*reference-scale.*same-inode mutation.*unfenced.*Float32 arrays.*parsed metadata.*decoder allocation.*process RSS/iu,
+		/FORM\/AIFF.*COMM.*SSND.*signed big-endian integer PCM.*8.*16.*24.*32.*FORM\/AIFC.*FVER v1.*0xA2805140.*44-byte\s+COMM.*32-bit `?fl32`?.*Pascal compression name `?32-bit\s+floating point`?.*first-party label.*maintained fixture.*not authenticated provenance.*producer-neutral.*any producer.*exact tuple.*broader.*compressed.*other AIFC profiles reject.*broader third-party interoperability.*producer provenance.*unqualified.*session completion release once.*whole external container.*512 MiB.*does not establish packaged-executable or operating-system behavior.*metadata preservation.*content-frozen.*cross-process lease.*audible\/device playback.*`?\.aifc`?.*reference-scale.*same-inode mutation.*unfenced.*Float32 arrays.*parsed metadata.*decoder allocation.*process RSS/iu,
 	);
 	assert.match(
 		linkedAudioRange.summary,

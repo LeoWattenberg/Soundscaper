@@ -36,31 +36,41 @@ One narrow linked-PCM portable-archive exception applies only to the
 current-format exact schema 9 path. Under the 512 MiB linked-original ceiling,
 a sender may be backed by a maintained RIFF/RF64 PCM or IEEE-float WAV, a
 first-party BW64 integer-PCM `.wav`, or classic FORM/AIFF signed big-endian
-integer PCM at 8, 16, 24, or 32 bits admitted only as exact `.aif` or `.aiff`
-plus `audio/aiff`. It retains no owned PCM. Export reads its verified canonical
+integer PCM at 8, 16, 24, or 32 bits, or canonical first-party FORM/AIFC v1
+`fl32` 32-bit floating point admitted only as exact `.aif` or `.aiff` plus
+`audio/aiff`. It retains no owned PCM. Export reads its verified canonical
 chunks and writes only a canonical `audio-f32le-chunks-v1` asset. External
 container bytes and pathless locator identity are absent from the archive.
 A maintained Electron chooser and initial bind still materialize one whole
 source snapshot. After that binding commits, archive source reads acquire an
 owner-scoped exact-revision range capability, hash the complete source in exact
 at-most-4-MiB reads, recheck the binding, and decode through a range-backed
-RIFF/RF64/BW64 or classic AIFF source without constructing another
-whole-original `Blob`. AIFF admission and every later read require bounded
-FORM/AIFF, COMM, and SSND structure; AIFF-C and compressed AIFF reject. A generic
+RIFF/RF64/BW64, classic AIFF, or canonical first-party AIFF-C source without
+constructing another whole-original `Blob`. Classic AIFF admission and every
+later read require bounded FORM/AIFF, COMM, and SSND structure. The AIFF-C
+profile requires one four-byte FVER v1 (`0xA2805140`) before an exact 44-byte
+COMM carrying 32-bit `fl32` and the exact Pascal compression name `32-bit
+floating point`, plus structurally consistent SSND geometry. The first-party
+label describes the maintained fixture, not authenticated provenance:
+admission is producer-neutral and accepts any producer emitting that exact
+tuple. Broader, compressed, and other AIFF-C profiles reject; broader
+third-party interoperability and producer provenance are unqualified. A generic
 platform port without the optional range operation retains the whole-`Blob`
 source-reader fallback.
 A fresh recipient without a linked-original port imports that asset through the
 ordinary owned PCM writer,
 then can close and reopen, recovering exact samples and project state with zero
-linked bindings. The direct fixtures use first-party BW64 integer PCM and
-classic AIFF; focused reader and import coverage owns the maintained RIFF/RF64
-PCM and IEEE-float, first-party BW64 integer-PCM, and classic AIFF integer-PCM
+linked bindings. The direct fixtures use first-party BW64 integer PCM, classic
+AIFF, and canonical first-party AIFF-C float32; focused reader and import
+coverage owns the maintained RIFF/RF64 PCM and IEEE-float, first-party BW64
+integer-PCM, classic AIFF integer-PCM, and canonical first-party AIFF-C float32
 input boundary.
 
 This portable exception does not qualify future-schema archive preservation,
 byte-exact external-container preservation or reconstruction, AIFF metadata
-preservation, AIFC or compressed AIFF, packaged executable or UI and
-operating-system behavior, reference-scale evidence, relink or watch, other
+preservation, broader or compressed AIFC, third-party AIFC interoperability and
+provenance, the `.aifc` extension, packaged executable or UI and operating-system
+behavior, reference-scale evidence, relink or watch, other
 audio formats, arbitrary third-party BW64, new BW64 ADM preservation or editing
 semantics, a durable immutable byte lease, or range support outside maintained
 post-bind Electron linked-PCM source reads.
@@ -343,7 +353,8 @@ One narrow linked-PCM managed-handoff exception is qualified here. Through an
 explicitly injected Electron port, one point-in-time maintained PCM container no
 larger than 512 MiB may remain in a main-private registry: RIFF/RF64 PCM or
 IEEE-float WAV, first-party BW64 integer-PCM `.wav`, or classic FORM/AIFF signed
-big-endian integer PCM at 8, 16, 24, or 32 bits admitted only as exact `.aif` or
+big-endian integer PCM at 8, 16, 24, or 32 bits, or canonical first-party
+FORM/AIFC v1 `fl32` 32-bit floating point admitted only as exact `.aif` or
 `.aiff` plus `audio/aiff`. Only that registry contains the absolute path and its
 device, inode, size, modification time, and change time; the project and
 renderer-side binding retain pathless locator and revision tokens plus scalar
@@ -355,9 +366,16 @@ decoding, the renderer requires the exact byte length and MIME type, hashes the
 complete opened handle sequentially through exact at-most-4-MiB `206` reads,
 and rechecks the exact binding. The container inspector and chunk decoder then
 use a range-backed source, so the session constructs no second whole-original
-`Blob`, and release of the capability is owned by that read session. AIFF
-admission and every later read require bounded FORM/AIFF, COMM, and SSND
-structure; AIFF-C and compressed AIFF reject. An available range operation that
+`Blob`, and release of the capability is owned by that read session. Classic
+AIFF admission and every later read require bounded FORM/AIFF, COMM, and SSND
+structure. The AIFF-C profile requires one four-byte FVER v1 (`0xA2805140`)
+before an exact 44-byte COMM carrying 32-bit `fl32` and the exact Pascal
+compression name `32-bit floating point`, plus structurally consistent SSND
+geometry. The first-party label describes the maintained fixture, not
+authenticated provenance: admission is producer-neutral and accepts any
+producer emitting that exact tuple. Broader, compressed, and other AIFF-C
+profiles reject; broader third-party interoperability and producer provenance
+are unqualified. An available range operation that
 reports unavailable, malformed, drifted, or corrupt data fails closed; a
 generic platform port that does not implement the optional range operation
 retains the prior whole-`Blob` source-reader fallback.
@@ -384,7 +402,8 @@ managed-media bridge or enter the shared catalog or recipient.
 This exception does not qualify packaged executable or UI behavior,
 operating-system file-dialog or path durability, relink or watch behavior,
 broader audio formats, arbitrary third-party BW64, new BW64 ADM preservation or
-editing semantics, AIFF metadata preservation, AIFC or compressed AIFF,
+editing semantics, AIFF metadata preservation, broader or compressed AIFC,
+third-party AIFC interoperability and provenance, the `.aifc` extension,
 reference-scale evidence, or range support outside maintained post-bind
 Electron linked-PCM source reads. The external path and stat tuple are a
 point-in-time main-private identity. Moving or replacing the pathname after

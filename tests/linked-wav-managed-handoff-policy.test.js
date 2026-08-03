@@ -18,7 +18,7 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 	assert.equal(policy.rules.some(({ id }) => id === 'current-linked-wav-portable-archive'), false);
 	assert.equal(policy.rules.some(({ id }) => id === 'current-desktop-linked-wav-managed-handoff'), false);
 
-	for (const rule of [portable, handoff]) assertClassicAiffProfile(
+	for (const rule of [portable, handoff]) assertMaintainedAiffProfile(
 		`${rule.requiredOutcome} ${rule.currentBehavior}`,
 	);
 	assert.match(
@@ -27,7 +27,7 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 	);
 	assert.match(
 		portable.currentBehavior,
-		/whole source snapshot.*exact-revision range capability.*sequential SHA-256.*at-most-4-MiB.*recheck.*binding.*without another whole-original `Blob`.*external BW64 or AIFF container.*absent.*zero linked bindings.*close and reopen.*exact samples/iu,
+		/whole source snapshot.*exact-revision range capability.*sequential SHA-256.*at-most-4-MiB.*recheck.*binding.*without another whole-original `Blob`.*external BW64, AIFF, or AIFF-C container.*absent.*zero linked bindings.*close and reopen.*exact samples/iu,
 	);
 	assert.match(
 		handoff.requiredOutcome,
@@ -42,7 +42,7 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 		/provider-owned stable PCM\s+read session.*one full-container digest,? and one parsed descriptor.*serialized random\s+or sequential chunk reads.*complete alias group.*exact\s+binding.*before and after.*per-read.*cancellation.*local.*provider replacement.*failed activation.*project switch.*deletion.*clear.*rollback.*controller.*store.*exact-once release.*backing cleanup/iu,
 	);
 	for (const text of [portable.currentBehavior, handoff.currentBehavior]) {
-		assert.match(text, /AIFF metadata preservation.*AIFC|AIFC.*metadata preservation/iu);
+		assert.match(text, /AIFF metadata preservation.*third-party AIFC interoperability/iu);
 		assert.match(text, /packaged executable or UI.*operating-system/iu);
 		assert.match(text, /reference-scale/iu);
 		assert.match(text, /durable immutable byte lease/iu);
@@ -76,7 +76,7 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 	]) assert.ok(handoff.evidence.includes(path), path);
 });
 
-test('linked PCM desktop security controls preserve the closed AIFF boundary', async () => {
+test('linked PCM desktop security controls preserve the maintained AIFF profiles', async () => {
 	const matrix = await readJson(securityUrl);
 	const archiveRisk = requiredRisk(matrix.risks, 'scape-archive-structure-integrity');
 	const readRisk = requiredRisk(matrix.risks, 'desktop-read-path-capabilities');
@@ -87,7 +87,7 @@ test('linked PCM desktop security controls preserve the closed AIFF boundary', a
 
 	assert.equal(archiveRisk.status, 'enforced');
 	assert.equal(libraryRisk.status, 'partial');
-	for (const control of [portability, range, handoff]) assertClassicAiffProfile(control.summary);
+	for (const control of [portability, range, handoff]) assertMaintainedAiffProfile(control.summary);
 	assert.match(
 		range.summary,
 		/pathless DTO.*exact locator revision.*128 capabilities.*64 GiB.*512 MiB per file.*16 active (?:range )?requests.*4 MiB per response.*exact closed ranges.*binding and CAS fence.*without another whole-original Blob.*release once/iu,
@@ -141,7 +141,7 @@ test('linked PCM desktop security controls preserve the closed AIFF boundary', a
 		residual?.exposure ?? '',
 		/maintained linked-PCM exception.*point-in-time.*whole-body binding materialization.*exact-revision owner-scoped stable-handle range lease.*canonical Float32 PCM.*fresh recipient.*without the locator.*external WAV or AIFF container.*does not cross/iu,
 	);
-	assert.match(residual?.exposure ?? '', /Linked audio beyond.*classic integer-PCM AIFF/iu);
+	assert.match(residual?.exposure ?? '', /Linked audio beyond.*classic integer-PCM AIFF.*canonical first-party AIFF-C float32/iu);
 	assert.match(
 		residual?.requiredControl ?? '',
 		/linked-PCM ranged reads.*packaged executables.*durable operating-system locator.*immutable or cross-process byte-identity/iu,
@@ -156,7 +156,7 @@ test('linked PCM compatibility and threat documentation own the detailed limits'
 	for (const documentation of [compatibility, threatModel]) {
 		assert.match(documentation, /narrow linked-PCM portable-archive (?:exception|control)/iu);
 		assert.match(documentation, /narrow linked-PCM managed-handoff exception/iu);
-		assertClassicAiffProfile(documentation);
+		assertMaintainedAiffProfile(documentation);
 		assert.match(documentation, /canonical `audio-f32le-chunks-v1`/iu);
 		assert.match(documentation, /fresh (?:portless )?recipient.*owned (?:canonical )?PCM/isu);
 		assert.match(documentation, /external (?:source-)?container bytes.*locator identity.*(?:absent|do not cross)/isu);
@@ -171,14 +171,16 @@ test('linked PCM compatibility and threat documentation own the detailed limits'
 	}
 });
 
-function assertClassicAiffProfile(text) {
+function assertMaintainedAiffProfile(text) {
 	assert.match(text, /AIFF/iu);
 	assert.match(text, /\.aif.*\.aiff|\.aiff.*\.aif/isu);
 	assert.match(text, /audio\/aiff/iu);
 	assert.match(text, /FORM\/AIFF/iu);
 	assert.match(text, /COMM.*SSND|SSND.*COMM/isu);
 	assert.match(text, /signed big-endian.*8.*16.*24.*32/isu);
-	assert.match(text, /(?:AIFC|AIFF-C).*reject|reject.*(?:AIFC|AIFF-C)/isu);
+	assert.match(text, /FORM\/AIFC.*FVER v1.*0xA2805140.*44-byte\s+COMM.*32-bit `?fl32`?.*Pascal compression name `?32-bit\s+floating point`?.*SSND/isu);
+	assert.match(text, /first-party\s+label.*maintained fixture.*not authenticated provenance.*producer-neutral.*any producer.*exact\s+tuple.*broader.*compressed.*other (?:AIFC|AIFF-C) profiles.*reject.*broader\s+third-party interoperability.*producer provenance.*unqualified/isu);
+	assert.match(text, /third-party AIFC interoperability.*provenance.*`?\.aifc`? extension/isu);
 }
 
 function requiredRule(rules, id) {

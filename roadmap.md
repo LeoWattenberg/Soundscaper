@@ -271,10 +271,10 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   digest-verified owner-scoped range playback for the maintained visual
   lifecycle without another whole-original `Blob`, a fresh descriptor-free
   shared load without an owned-media copy, and explicit managed handoff.
-- **Electron Enhanced / Shared — Implemented for point-in-time linked WAV and
-  classic AIFF:** bounded admitted PCM sources stay unowned and pathless;
-  exact-revision range reads avoid another whole-original `Blob`, while portable
-  `.scape` and managed handoff acquire canonical PCM in a fresh recipient.
+- **Electron Enhanced / Shared — Implemented for bounded linked PCM:** admitted
+  WAV, classic AIFF, and canonical first-party AIFF-C float32 stay unowned and
+  pathless; exact-revision range reads avoid another whole-original `Blob`,
+  while portable `.scape` and managed handoff acquire canonical PCM.
 - **Shared / Electron Enhanced — Implemented for the closed audio whole-mix
   fallback role:** unavailable or unknown canonical feature identities reach
   portable `.scape` playback, explicit managed handoff to a fresh recipient,
@@ -333,7 +333,7 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Shared / Electron Enhanced — Implemented:** same-store project duplication
   preserves reachable linked-original bindings without copying external media.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
-  beyond the bounded linked-WAV, classic-AIFF, and retained-video slices, and
+  beyond the bounded linked-PCM and retained-video slices, and
   finish broader linked and unmanaged-original lifecycles, exact or write-time
   capacity behavior, stable playback identity beyond the maintained linked-PCM
   and retained-video lifecycles,

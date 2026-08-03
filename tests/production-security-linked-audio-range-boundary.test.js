@@ -70,7 +70,7 @@ test('linked-audio range IPC stays pathless and renderer-owner scoped', async ()
 	for (const control of [linkedRange, portability, handoff]) {
 		assert.match(
 			control.summary,
-			/exact `?\.aif`? or `?\.aiff`?.*`?audio\/aiff`?.*FORM\/AIFF.*COMM.*SSND.*signed big-endian.*8.*16.*24.*32.*AIFC.*reject/iu,
+			/exact `?\.aif`? or `?\.aiff`?.*`?audio\/aiff`?.*FORM\/AIFF.*COMM.*SSND.*signed big-endian.*8.*16.*24.*32.*FORM\/AIFC.*FVER v1.*0xA2805140.*44-byte\s+COMM.*32-bit `?fl32`?.*Pascal compression name `?32-bit\s+floating point`?.*first-party label.*maintained fixture.*not authenticated provenance.*producer-neutral.*any producer.*exact tuple.*broader.*compressed.*other AIFC profiles.*reject.*broader third-party interoperability.*producer provenance.*unqualified.*`?\.aifc`?/iu,
 		);
 		for (const exclusion of [
 			/\bnot\b/iu,
