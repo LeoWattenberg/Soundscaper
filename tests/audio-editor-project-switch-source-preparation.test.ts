@@ -16,6 +16,7 @@ import {
 	type ProjectSwitchState,
 } from '../src/common/editor/controller/project-switch-service.ts';
 import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
 import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
@@ -64,6 +65,8 @@ test('a collision after long-fallback preparation leaves prior playback source s
 	assert.strictEqual(fixture.sourceBuffers.get(FALLBACK_SOURCE_ID), fixture.priorBuffer);
 	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.priorProvider);
 	assert.deepEqual(fixture.chunkSourcePublications, []);
+	assert.equal(fixture.preparedProviderDisposals(), 1);
+	assert.equal(fixture.priorProviderDisposals(), 0);
 });
 
 test('successful activation applies staged inputs before publishing them after reservation and currentness', async () => {
@@ -88,6 +91,9 @@ test('successful activation applies staged inputs before publishing them after r
 	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.preparedProvider);
 	assert.equal(fixture.sourceBuffers.has(FALLBACK_SOURCE_ID), false);
 	assert.equal(fixture.loadedProject()?.tracks[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track);
+	assert.equal(fixture.priorProviderDisposals(), 1);
+	assert.equal(fixture.preparedProviderDisposals(), 0);
+	assert.ok(engineLoad < fixture.events.indexOf('provider:prior:dispose'));
 });
 
 test('currentness failure before engine entry discards prepared provider identity', async () => {
@@ -100,6 +106,10 @@ test('currentness failure before engine entry discards prepared provider identit
 	assert.strictEqual(fixture.sourceBuffers.get(FALLBACK_SOURCE_ID), fixture.priorBuffer);
 	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.priorProvider);
 	assert.deepEqual(fixture.chunkSourcePublications, []);
+	assert.equal(fixture.preparedProviderDisposals(), 1);
+	assert.equal(fixture.priorProviderDisposals(), 0);
+	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 2);
+	assert.ok(fixture.events.lastIndexOf('engine:stop') < fixture.events.indexOf('provider:replacement:rollback'));
 });
 
 test('currentness failure after engine return blocks prepared provider publication', async () => {
@@ -112,6 +122,39 @@ test('currentness failure after engine return blocks prepared provider publicati
 	assert.strictEqual(fixture.sourceBuffers.get(FALLBACK_SOURCE_ID), fixture.priorBuffer);
 	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.priorProvider);
 	assert.deepEqual(fixture.chunkSourcePublications, []);
+	assert.equal(fixture.preparedProviderDisposals(), 1);
+	assert.equal(fixture.priorProviderDisposals(), 0);
+	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 2);
+	assert.ok(fixture.events.lastIndexOf('engine:stop') < fixture.events.indexOf('provider:replacement:rollback'));
+});
+
+test('failed activation releases its reservation and aggregates prepared-provider cleanup', async () => {
+	const cleanupFailure = new Error('prepared provider cleanup failed');
+	const fixture = createFixture({
+		failCurrentnessAt: 4,
+		preparedProviderDisposalFailure: cleanupFailure,
+	});
+
+	const failure = await captureFailure(fixture.service.switchProject(fixture.incoming, { skipFlush: true }));
+
+	assert.ok(failure instanceof AggregateError);
+	assert.deepEqual(failure.errors, [fixture.currentnessFailure, cleanupFailure]);
+	assert.strictEqual(failure.cause, fixture.currentnessFailure);
+	assert.equal(fixture.activationReleases(), 1);
+	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.priorProvider);
+});
+
+test('provider cleanup failure after engine commit keeps the new registry authoritative', async () => {
+	const cleanupFailure = new Error('prior provider cleanup failed');
+	const fixture = createFixture({ priorProviderDisposalFailure: cleanupFailure });
+
+	const failure = await captureFailure(fixture.service.switchProject(fixture.incoming, { skipFlush: true }));
+
+	assert.strictEqual(failure, cleanupFailure);
+	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.preparedProvider);
+	assert.equal(fixture.priorProviderDisposals(), 1);
+	assert.equal(fixture.preparedProviderDisposals(), 0);
+	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 1);
 });
 
 test('project activation loads a manifest-only video fallback before applying its preview projection', async () => {
@@ -138,6 +181,8 @@ function createFixture(options: Readonly<{
 	collideDuringPreparation?: boolean;
 	failCurrentnessAt?: number;
 	incoming?: TestProject;
+	priorProviderDisposalFailure?: Error;
+	preparedProviderDisposalFailure?: Error;
 	productCapabilities?: Readonly<Record<string, unknown>>;
 }> = {}) {
 	const incoming = options.incoming ?? renderedFallbackProject('incoming-project');
@@ -147,10 +192,26 @@ function createFixture(options: Readonly<{
 	const reservationFailure = new DOMException('The project history changed before activation.', 'AbortError');
 	const currentnessFailure = new DOMException('Fallback admission became stale.', 'AbortError');
 	const priorBuffer = Object.freeze({ id: 'prior-buffer' });
-	const priorProvider = Object.freeze({ id: 'prior-provider' });
-	const preparedProvider = Object.freeze({ id: 'prepared-provider' });
+	let priorProviderDisposals = 0;
+	let preparedProviderDisposals = 0;
+	const priorProvider = Object.freeze({
+		id: 'prior-provider',
+		async dispose() {
+			priorProviderDisposals += 1;
+			events.push('provider:prior:dispose');
+			if (options.priorProviderDisposalFailure) throw options.priorProviderDisposalFailure;
+		},
+	});
+	const preparedProvider = Object.freeze({
+		id: 'prepared-provider',
+		async dispose() {
+			preparedProviderDisposals += 1;
+			events.push('provider:prepared:dispose');
+			if (options.preparedProviderDisposalFailure) throw options.preparedProviderDisposalFailure;
+		},
+	});
 	const sourceBuffers = new TestSourceBufferCache([[FALLBACK_SOURCE_ID, priorBuffer]]);
-	const sourceChunkProviders = new Map<string, unknown>([[FALLBACK_SOURCE_ID, priorProvider]]);
+	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>([[FALLBACK_SOURCE_ID, priorProvider]]);
 	const chunkSourcePublications: ReadonlyMap<string, unknown>[] = [];
 	const tabs = new Map<string, ProjectLifecycleTab<TestProject, TestHistory>>();
 	tabs.set(active.id, { projectId: active.id, history: { present: active }, metadata: {} });
@@ -159,6 +220,7 @@ function createFixture(options: Readonly<{
 	let loadedChunkSources: ReadonlyMap<string, unknown> | null = null;
 	let activeLock = lock(active.id);
 	let activationToken: object | null = null;
+	let activationReleases = 0;
 	let currentnessChecks = 0;
 	const activatedVideoSourceIds: string[] = [];
 
@@ -266,7 +328,11 @@ function createFixture(options: Readonly<{
 			events.push('activation:begin');
 			if (activationOptions.requireAbsent !== true || tabs.has(projectId)) throw reservationFailure;
 			activationToken = Object.freeze({});
-			return { token: activationToken, release: () => { activationToken = null; return true; } };
+			return { token: activationToken, release: () => {
+				activationReleases += 1;
+				activationToken = null;
+				return true;
+			} };
 		},
 		switchProject() { throw new Error('Existing-tab activation is not expected.'); },
 		openProject(project: TestProject, openOptions: Readonly<{
@@ -308,7 +374,21 @@ function createFixture(options: Readonly<{
 		cancelRecordingStart: () => undefined, cancelPlaybackCachePreparation: () => undefined,
 		cancelPlayAtSpeedPreparation: () => undefined, stopRecording: async () => undefined,
 		persistActiveSessionUiState: () => undefined, saveNow: async () => undefined,
-		cancelScheduledSave: () => undefined, stopEngine: () => undefined,
+		cancelScheduledSave: () => undefined, stopEngine: () => { events.push('engine:stop'); },
+		beginSourceChunkProviderReplacement: () => {
+			events.push('provider:replacement:begin');
+			const replacement = sourceChunkProviders.beginReplacement();
+			return Object.freeze({
+				async commit() {
+					events.push('provider:replacement:commit');
+					await replacement.commit();
+				},
+				async rollback() {
+					events.push('provider:replacement:rollback');
+					await replacement.rollback();
+				},
+			});
+		},
 		cancelEffectPreview: () => undefined,
 		releaseProjectLock: async () => { state.projectLock = null; },
 		acquireProjectLock: async (projectId: string) => { activeLock = lock(projectId); return activeLock; },
@@ -323,18 +403,25 @@ function createFixture(options: Readonly<{
 		loadEngineProject: (project: TestProject, _transient: unknown, preparedSources) => {
 			events.push('engine:load');
 			assert.strictEqual(sourceBuffers.get(FALLBACK_SOURCE_ID), priorBuffer);
-			assert.strictEqual(sourceChunkProviders.get(FALLBACK_SOURCE_ID), priorProvider);
+			assert.equal(sourceChunkProviders.has(FALLBACK_SOURCE_ID), false);
 			loadedChunkSources = preparedSources?.chunkSources ?? null;
 			loadedProject = project;
 		},
 		recordOpenedProject: async () => undefined, maintainOpenedProject: async () => undefined, saveProject: async () => undefined,
 		listProjects: async () => [], synchronizeMicrophoneMeterTarget: () => undefined,
 		publishProjectState: () => undefined, garbageCollectSources: async () => undefined,
-		setStatus: () => undefined, isDisposedError: () => false, clearSourceCaches: () => undefined,
+		setStatus: () => undefined, isDisposedError: () => false,
+		clearSourceCaches: async () => {
+			sourceChunkProviders.clear();
+			await sourceChunkProviders.drain();
+		},
 	} satisfies ProjectSwitchServiceRuntime<TestProject, TestHistory>;
 	return Object.freeze({
 		incoming, events, reservationFailure, currentnessFailure, priorBuffer, priorProvider, preparedProvider,
 		sourceBuffers, sourceChunkProviders, chunkSourcePublications, activatedVideoSourceIds,
+		priorProviderDisposals: () => priorProviderDisposals,
+		preparedProviderDisposals: () => preparedProviderDisposals,
+		activationReleases: () => activationReleases,
 		loadedProject: () => loadedProject, loadedChunkSources: () => loadedChunkSources,
 		tabMetadata: () => tabs.get(incoming.id)?.metadata,
 		service: createProjectSwitchService(runtime),

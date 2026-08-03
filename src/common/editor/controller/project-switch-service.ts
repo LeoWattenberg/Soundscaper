@@ -21,8 +21,11 @@ import type {
 	PreparedProjectSourceInputs,
 	PreparedRequiredProjectSources,
 } from './source-lifecycle-service.ts';
+import type { SourceChunkProviderReplacement } from './source-chunk-provider-registry.ts';
 
 export type ProjectSwitchGuard = <Value>(value: PromiseLike<Value> | Value) => Promise<Value>;
+
+const NO_PROJECT_SWITCH_FAILURE = Symbol('no-project-switch-failure');
 
 export interface ProjectFallbackIntegrityAdmission<Project> {
 	assertCurrent(project: Project): void;
@@ -152,6 +155,7 @@ export interface ProjectSwitchServiceRuntime<
 	readonly saveNow: () => PromiseLike<unknown> | unknown;
 	readonly cancelScheduledSave: () => void;
 	readonly stopEngine: () => void;
+	readonly beginSourceChunkProviderReplacement: () => SourceChunkProviderReplacement;
 	readonly cancelEffectPreview: (options: Readonly<{ publish: false }>) => unknown;
 	readonly releaseProjectLock: (lock?: ProjectLifecycleLock | null) => Promise<void>;
 	readonly acquireProjectLock: (
@@ -198,7 +202,7 @@ export interface ProjectSwitchServiceRuntime<
 	readonly garbageCollectSources: () => PromiseLike<unknown> | unknown;
 	readonly setStatus: (message: string, state: 'error' | 'success') => void;
 	readonly isDisposedError: (error: unknown) => boolean;
-	readonly clearSourceCaches: () => void;
+	readonly clearSourceCaches: () => PromiseLike<void> | void;
 }
 
 /**
@@ -316,11 +320,22 @@ export function createProjectSwitchService<
 				? { expectedHistoryToken: existingCapture.token }
 				: { requireAbsent: true });
 		} catch (error) {
-			preparedFallbackSources?.discard();
+			try {
+				await preparedFallbackSources?.discard();
+			} catch (cleanupError) {
+				throw projectSwitchCleanupError(
+					error,
+					cleanupError,
+					'Project activation reservation and prepared-source cleanup both failed.',
+				);
+			}
 			throw error;
 		}
 		const featureRequirementsReport = playbackProjection.featureRequirementsReport;
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
+		let providerReplacement: SourceChunkProviderReplacement | null = null;
+		let providerReplacementFinalized = false;
+		let switchFailure: unknown | typeof NO_PROJECT_SWITCH_FAILURE = NO_PROJECT_SWITCH_FAILURE;
 		try {
 			runtime.lifetime.cancelTask(PLAYBACK_PROJECT_APPLY_TASK);
 			runtime.projectGeneration.invalidate();
@@ -346,6 +361,7 @@ export function createProjectSwitchService<
 			}
 			runtime.cancelScheduledSave();
 			runtime.stopEngine();
+			providerReplacement = runtime.beginSourceChunkProviderReplacement();
 			runtime.cancelEffectPreview({ publish: false });
 			if (!runtime.state.projectLock
 				|| runtime.state.projectLock.projectId !== projectId
@@ -459,6 +475,10 @@ export function createProjectSwitchService<
 					},
 				));
 			} else await guard(runtime.loadEngineProject(playbackProjection.project, loadedSourceBuffers));
+			providerReplacementFinalized = true;
+			await providerReplacement.commit();
+			runtime.lifetime.assertActive(token);
+			fallbackAdmission.assertCurrent(activeProject);
 			await runtime.recordOpenedProject(projectId, guard);
 			if (options.save && !runtime.state.readOnly) {
 				await guard(runtime.saveProject(activeProject));
@@ -486,24 +506,70 @@ export function createProjectSwitchService<
 			}
 			runtime.scheduleProjectLockRecovery(projectId, activeLock);
 		} catch (error) {
+			let failure = error;
+			if (providerReplacement && !providerReplacementFinalized) {
+				try {
+					runtime.stopEngine();
+				} catch (cleanupError) {
+					failure = projectSwitchCleanupError(
+						failure,
+						cleanupError,
+						'Project switching and staged-engine shutdown both failed.',
+					);
+				}
+				try {
+					await providerReplacement.rollback();
+				} catch (cleanupError) {
+					failure = projectSwitchCleanupError(
+						failure,
+						cleanupError,
+						'Project switching and source-provider rollback both failed.',
+					);
+				}
+			}
 			if (runtime.isDisposedError(error)) {
 				await runtime.releaseProjectLock().catch(() => undefined);
-				runtime.clearSourceCaches();
+				try {
+					await runtime.clearSourceCaches();
+				} catch (cleanupError) {
+					failure = projectSwitchCleanupError(
+						failure,
+						cleanupError,
+						'Project switching and source-cache cleanup both failed.',
+					);
+				}
 				runtime.clearWaveformPcmWindows();
 				try {
 					await runtime.revokeVideoVisuals();
 				} catch (cleanupError) {
-					throw new AggregateError(
-						[error, cleanupError],
+					failure = projectSwitchCleanupError(
+						failure,
+						cleanupError,
 						'Project switching and video visual cleanup both failed.',
-						{ cause: cleanupError },
 					);
 				}
 			}
-			throw error;
+			switchFailure = failure;
+			throw failure;
 		} finally {
-			preparedFallbackSources?.discard();
-			activation.release();
+			let cleanupFailure: unknown | typeof NO_PROJECT_SWITCH_FAILURE = NO_PROJECT_SWITCH_FAILURE;
+			try {
+				await preparedFallbackSources?.discard();
+			} catch (error) {
+				cleanupFailure = error;
+			} finally {
+				activation.release();
+			}
+			if (cleanupFailure !== NO_PROJECT_SWITCH_FAILURE) {
+				if (switchFailure !== NO_PROJECT_SWITCH_FAILURE) {
+					throw projectSwitchCleanupError(
+						switchFailure,
+						cleanupFailure,
+						'Project switching and prepared-source cleanup both failed.',
+					);
+				}
+				throw cleanupFailure;
+			}
 		}
 	}
 
@@ -521,4 +587,12 @@ export function createProjectSwitchService<
 		lock.release();
 		await Promise.resolve(lock.finished).catch(() => undefined);
 	}
+}
+
+function projectSwitchCleanupError(
+	primary: unknown,
+	cleanup: unknown,
+	message: string,
+): AggregateError {
+	return new AggregateError([primary, cleanup], message, { cause: primary });
 }

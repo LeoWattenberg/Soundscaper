@@ -5,27 +5,14 @@ import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import type { PreparedProjectSourceInputs, PreparedRequiredProjectSources, SourceLifecycleLoadOptions } from '../src/common/editor/controller/source-lifecycle-service.ts';
-import type {
-	ProjectLifecycleHistory,
-	ProjectLifecycleLock,
-	ProjectLifecycleProject,
-	ProjectLifecycleTab,
-} from '../src/common/editor/controller/project-lifecycle-types.ts';
-import {
-	createProjectSwitchService,
-	type ProjectSwitchServiceRuntime,
-	type ProjectSwitchState,
-} from '../src/common/editor/controller/project-switch-service.ts';
+import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecycleProject, ProjectLifecycleTab } from '../src/common/editor/controller/project-lifecycle-types.ts';
+import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type ProjectSwitchState } from '../src/common/editor/controller/project-switch-service.ts';
 import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import {
-	createAudioClipV9,
-	createAudioEditorProjectV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+import { createAudioClipV9, createAudioEditorProjectV9, createAudioSourceV9, createAudioTrackV9 } from '../src/common/editor/project-v9.ts';
 
 interface TestProject extends ProjectLifecycleProject {
 	readonly marker: string;
@@ -483,6 +470,7 @@ function createFixture(options: FixtureOptions) {
 		clipboardForProject() { return null; },
 		markProjectSaved() {},
 	};
+	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>();
 	const runtime = {
 		state,
 		lifetime,
@@ -522,6 +510,7 @@ function createFixture(options: FixtureOptions) {
 		saveNow: async () => undefined,
 		cancelScheduledSave: () => undefined,
 		stopEngine: () => { effects.push('engine:stop'); },
+		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 		cancelEffectPreview: () => undefined,
 		releaseProjectLock: async () => {
 			effects.push(`lock:release:${activeLock.projectId}`);
@@ -569,7 +558,10 @@ function createFixture(options: FixtureOptions) {
 		garbageCollectSources: async () => undefined,
 		setStatus: () => undefined,
 		isDisposedError: () => false,
-		clearSourceCaches: () => undefined,
+		clearSourceCaches: async () => {
+			sourceChunkProviders.clear();
+			await sourceChunkProviders.drain();
+		},
 	} as unknown as FallbackIntegrityRuntime;
 	return Object.freeze({
 		effects,

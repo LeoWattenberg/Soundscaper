@@ -114,6 +114,50 @@ test('disposal refuses a terminal project save when IndexedDB capacity is known 
 	assert.equal(controller.getSnapshot().phase, 'disposed');
 });
 
+test('disposal waits for an in-flight project replacement before closing storage', async () => {
+	const store = createStore();
+	const engine = createEngine();
+	let engineDisposals = 0;
+	engine.dispose = async () => { engineDisposals += 1; };
+	const acquisitionStarted = deferred();
+	const acquisitionGate = deferred();
+	let acquisitions = 0;
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		store,
+		engine,
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createCache(),
+		async acquireProjectLock(projectId) {
+			acquisitions += 1;
+			if (acquisitions > 1) {
+				acquisitionStarted.resolve();
+				await acquisitionGate.promise;
+			}
+			return {
+				projectId,
+				readOnly: false,
+				method: 'test',
+				release() {},
+				finished: Promise.resolve(),
+			};
+		},
+	});
+	await controller.ready;
+	const switching = controller.actions.project.create({ title: 'Replacement' });
+	await acquisitionStarted.promise;
+	const disposal = controller.dispose();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(store.closeCalls, 0);
+
+	acquisitionGate.resolve();
+	await assert.rejects(switching, (error) => error?.code === 'DISPOSED');
+	await disposal;
+	assert.equal(store.closeCalls, 1);
+	assert.equal(engineDisposals, 1);
+});
+
 test('analysis finishing after a project switch cannot publish or persist stale results', async () => {
 	const renderGate = deferred();
 	const renderStarted = deferred();

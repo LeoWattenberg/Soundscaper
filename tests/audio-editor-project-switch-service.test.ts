@@ -10,6 +10,7 @@ import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type Proj
 import { SCAPE_INSPECTION_TASK, createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
 import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/scape-open-request-service.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 
 function deferred<Value>() {
@@ -18,9 +19,7 @@ function deferred<Value>() {
 	return { promise, resolve };
 }
 interface TestTrack {
-	readonly id: string;
-	readonly type: string;
-	readonly name?: string;
+	readonly id: string; readonly type: string; readonly name?: string;
 	readonly effectsActive?: boolean; readonly effects?: readonly Readonly<Record<string, unknown>>[];
 }
 interface TestProject extends ProjectLifecycleProject {
@@ -31,9 +30,7 @@ interface TestProject extends ProjectLifecycleProject {
 	readonly schemaVersion?: number;
 	readonly featureRequirements?: unknown;
 }
-interface TestHistory extends ProjectLifecycleHistory<TestProject> {
-	readonly present: TestProject;
-}
+interface TestHistory extends ProjectLifecycleHistory<TestProject> { readonly present: TestProject; }
 
 type TestTab = ProjectLifecycleTab<TestProject, TestHistory>;
 
@@ -77,6 +74,7 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 	const assignedTracks: string[] = [];
 	const revokedUrls: string[] = [];
 	const readOnlyUpdates: Array<Readonly<Record<string, unknown>>> = [];
+	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>();
 	const tabs = new Map<string, TestTab>([[oldProject.id, {
 		projectId: oldProject.id,
 		history: { present: oldProject },
@@ -178,6 +176,7 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 		saveNow: async () => { events.push('save-now'); },
 		cancelScheduledSave: () => { events.push('cancel-save'); },
 		stopEngine: () => { events.push('stop-engine'); },
+		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 		cancelEffectPreview: () => { events.push('cancel-preview'); },
 		releaseProjectLock: async (value: ProjectLifecycleLock | null = state.projectLock) => {
 			events.push('release-lock');
@@ -229,7 +228,7 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 		garbageCollectSources: async () => { events.push('gc'); },
 		setStatus: (message: string, status: 'error' | 'success') => { statuses.push([message, status]); },
 		isDisposedError: (error: unknown) => isEditorDisposedError(error),
-		clearSourceCaches: () => { events.push('clear-source-caches'); },
+		clearSourceCaches: async () => { events.push('clear-source-caches'); sourceChunkProviders.clear(); await sourceChunkProviders.drain(); },
 	} satisfies ProjectSwitchServiceRuntime<TestProject, TestHistory>;
 	return {
 		assignedTracks,

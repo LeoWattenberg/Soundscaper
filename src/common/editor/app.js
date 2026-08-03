@@ -130,9 +130,7 @@ import {
 	createAudioEditorEngine,
 	effectRackLatencyFrames,
 } from './engine.js';
-import {
-	loadParametricEqWasmModule,
-} from './parametric-eq/index.js';
+import { loadParametricEqWasmModule } from './parametric-eq/index.js';
 import {
 	RECORDING_CHANNEL_COUNT_MAXIMUM,
 	RECORDING_INPUT_GAIN_DEFAULT,
@@ -197,6 +195,7 @@ import { createProjectSessionService } from './controller/project-session-servic
 import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts';
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
+import { SourceChunkProviderRegistry } from './controller/source-chunk-provider-registry.ts';
 import {
 	createPlaybackProjectApplyService,
 	createPlaybackProjectService,
@@ -358,7 +357,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		options.mixRenderMemoryLimitBytes,
 		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 	);
-	const sourceChunkProviders = new Map();
+	const sourceChunkProviders = new SourceChunkProviderRegistry();
 	const sourcePeaks = new Map();
 	const clipWaveformPcmWindows = new Map();
 	const clipWaveformPcmRequests = new Map();
@@ -794,6 +793,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		saveNow,
 		cancelScheduledSave: projectSaveService.cancelScheduled,
 		stopEngine: () => engine.stop(),
+		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 		cancelEffectPreview: cancelAudacityEffectPreview,
 		releaseProjectLock: (...args) => projectLockService.releaseProjectLock(...args),
 		acquireProjectLock: acquireLock,
@@ -822,10 +822,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		garbageCollectSources,
 		setStatus,
 		isDisposedError: isEditorDisposedError,
-		clearSourceCaches: () => {
-			sourceBuffers.clear();
-			sourceChunkProviders.clear();
-			sourcePeaks.clear();
+		clearSourceCaches: async () => {
+			sourceBuffers.clear(); sourceChunkProviders.clear(); sourcePeaks.clear();
+			await sourceChunkProviders.drain();
 		},
 	});
 	const projectBootstrapService = createProjectBootstrapService({
@@ -1820,6 +1819,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			state.spectralWorker = null;
 			microphoneMeterService.dispose();
 			await cleanup(() => scapeInspectionDrain);
+			await cleanup(() => state.projectQueue);
 			await cleanup(() => projectSaveService.terminalFlush());
 			await cleanup(() => stopRecording());
 			await cleanup(() => Promise.resolve(recordingCapturePool.dispose?.()));
@@ -1832,8 +1832,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			clipTimePitchCache.dispose?.();
 			sessionController.dispose?.();
 			await cleanup(() => Promise.resolve(engine.dispose()));
-			sourceBuffers.clear();
-			sourceChunkProviders.clear();
+			sourceBuffers.clear(); sourceChunkProviders.clear();
+			await cleanup(() => sourceChunkProviders.drain());
 			sourcePeaks.clear();
 			clipWaveformPcmWindows.clear();
 			clipWaveformPcmRequests.clear();

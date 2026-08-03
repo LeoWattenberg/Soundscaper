@@ -28,6 +28,7 @@ import {
 	createSourceLifecycleService,
 	type SourceLifecycleServiceRuntime,
 } from '../src/common/editor/controller/source-lifecycle-service.ts';
+import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
 
 interface TestSource {
 	readonly id: string;
@@ -102,7 +103,7 @@ test('project switching cancels signal-ignoring playback source readiness before
 	const loadedSwitchProjects: string[] = [];
 	const publishedProviderCounts: number[] = [];
 	const sourceBuffers = new TestSourceBufferCache();
-	const sourceChunkProviders = new Map<string, unknown>();
+	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>();
 	const missingSourceIds = new Set<string>();
 	const readinessStarted = deferred<void>();
 	const metadataGate = deferred<Readonly<Record<string, unknown>>>();
@@ -259,6 +260,7 @@ test('project switching cancels signal-ignoring playback source readiness before
 		saveNow: async () => undefined,
 		cancelScheduledSave: () => undefined,
 		stopEngine: () => { events.push('teardown:stop-engine'); },
+		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 		cancelEffectPreview: () => undefined,
 		releaseProjectLock: async (owned = state.projectLock) => {
 			if (owned && state.projectLock === owned) state.projectLock = null;
