@@ -302,7 +302,10 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.bindVideo(projectId, source, locatorId, options);
 	}
-
+	async relinkLinkedVideoOriginal(projectId, source, locatorId, options) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.relinkVideo(projectId, source, locatorId, options);
+	}
 	/** Resolve one exact project/video binding without consulting retained-media storage. */
 	async resolveLinkedVideoOriginal(projectId, source, options = {}) {
 		this.#assertOpen();
@@ -312,7 +315,6 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.leaseVideoPlayback(projectId, source, options);
 	}
-
 	async getLinkedVideoOriginalMetadata(projectId, source) {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.metadataVideo(projectId, source);
@@ -322,7 +324,6 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.getVideoBinding(projectId, sourceId);
 	}
-
 	async unlinkLinkedVideoOriginal(projectId, sourceId, expectedBindingToken) {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.unlinkVideo(projectId, sourceId, expectedBindingToken);

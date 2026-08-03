@@ -27,6 +27,10 @@ import type {
 } from './linked-original-resolver.ts';
 import type { MediaRepository } from './media-repository.ts';
 import {
+	canonicalMediaContentBlob,
+	digestMediaContent,
+} from './media-content-digest.ts';
+import {
 	duplicateProjectWithLinkedOriginals,
 	duplicateProjectWithLinkedVideoOriginals,
 	type ProjectDuplicationRequest,
@@ -84,6 +88,13 @@ export interface LinkedOriginalReconciliationInventory {
 	isDurable(): PromiseLike<boolean> | boolean;
 	projectRevisions(): PromiseLike<readonly LinkedOriginalCatalogProjectRevision[]>
 		| readonly LinkedOriginalCatalogProjectRevision[];
+}
+
+export interface RelinkLinkedVideoOriginalOptions {
+	readonly expectedBindingToken: string;
+	readonly expectedLocatorRevision: string;
+	readonly expectedSnapshot: unknown;
+	readonly signal?: AbortSignal;
 }
 
 type ActiveLifecycle = LinkedOriginalLifecycleCoordinator | LinkedVideoOriginalLifecycleCoordinator;
@@ -305,6 +316,50 @@ export class LinkedOriginalStoreService {
 		);
 	}
 
+	relinkVideo(
+		projectId: string,
+		source: LinkedVideoOriginalSource,
+		locatorId: string,
+		options: RelinkLinkedVideoOriginalOptions,
+	): Promise<LinkedVideoOriginalBinding> {
+		const resolver = this.#requiredVideoResolver();
+		const operation = async (): Promise<LinkedVideoOriginalBinding> => {
+			throwIfRelinkAborted(options?.signal);
+			const current = await this.#repositories.linkedVideoOriginalBindings.get(projectId, source.id);
+			throwIfRelinkAborted(options?.signal);
+			if (!current || current.bindingToken !== options?.expectedBindingToken) {
+				throw new Error('The linked video original binding changed before relink.');
+			}
+			await resolver.assertBindingCurrent(projectId, source, current, { signal: options.signal });
+			const selected = canonicalMediaContentBlob(options.expectedSnapshot);
+			if (selected.size !== current.byteLength) {
+				throw new Error('The selected linked video original does not match the current byte length.');
+			}
+			const selectedDigest = await digestMediaContent(selected, { signal: options.signal });
+			if (selectedDigest !== current.sha256) {
+				throw new Error('The selected linked video original does not match the current SHA-256.');
+			}
+			throwIfRelinkAborted(options.signal);
+			return resolver.bind(projectId, source, locatorId, {
+				expectedBindingToken: current.bindingToken,
+				expectedLocatorRevision: options.expectedLocatorRevision,
+				expectedSnapshot: selected,
+				...(options.signal ? { signal: options.signal } : {}),
+			});
+		};
+		return this.linkedOriginalLifecycle
+			? this.linkedOriginalLifecycle.bind(
+				projectId,
+				{ kind: 'video', sourceId: source.id },
+				operation,
+			)
+			: (this.#lifecycle as LinkedVideoOriginalLifecycleCoordinator).bind(
+				projectId,
+				source.id,
+				operation,
+			);
+	}
+
 	resolveVideo(
 		projectId: string,
 		source: LinkedVideoOriginalSource,
@@ -441,4 +496,15 @@ export class LinkedOriginalStoreService {
 		}
 		return this.#repositories.linkedVideoOriginals;
 	}
+}
+
+function throwIfRelinkAborted(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	if (signal.reason !== undefined) throw signal.reason;
+	if (typeof DOMException === 'function') {
+		throw new DOMException('Linked video original relink was cancelled.', 'AbortError');
+	}
+	const error = new Error('Linked video original relink was cancelled.');
+	error.name = 'AbortError';
+	throw error;
 }
