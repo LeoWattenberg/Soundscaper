@@ -27,7 +27,7 @@ const LOCATOR_ID = 'locator_scape_audio_000001';
 const LOCATOR_REVISION = 'snapshot_scape_audio_000001';
 const SOURCE_ID = 'linked-scape-audio-source';
 const STORAGE_KEY = 'linked-scape-audio-storage';
-const SAMPLES = [-1, -0.5, 0.25, 0.75, 1] as const;
+const SAMPLES = [-1, -0.5, 0.25, 0.75, 32_767 / 32_768] as const;
 
 type ProjectStore = ReturnType<typeof createProjectStore>;
 
@@ -37,11 +37,11 @@ interface ArchiveEntry {
 	getData(writer: Uint8ArrayWriter): Promise<Uint8Array>;
 }
 
-test('portable Scape export turns a linked WAV into durable recipient-owned canonical PCM', async (context) => {
+test('portable Scape export turns a linked BW64 .wav into durable recipient-owned canonical PCM', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB();
 	const senderDatabaseName = `linked-scape-sender-${String(Date.now())}-${String(Math.random())}`;
 	const recipientDatabaseName = `linked-scape-recipient-${String(Date.now())}-${String(Math.random())}`;
-	const externalWavBytes = floatRiffWav(SAMPLES);
+	const externalWavBytes = int16Bw64Wav(SAMPLES);
 	const externalWav = new Blob([exactArrayBuffer(externalWavBytes)], { type: 'audio/wav' });
 	const canonicalBytes = canonicalPcmChunk(SAMPLES);
 	const port: LinkedOriginalPort = {
@@ -178,15 +178,16 @@ function trackStore(stores: Set<ProjectStore>, store: ProjectStore): ProjectStor
 	return store;
 }
 
-function floatRiffWav(samples: readonly number[]): Uint8Array {
+function int16Bw64Wav(samples: readonly number[]): Uint8Array {
 	const encoded = encodeWav([Float32Array.from(samples)], {
-		float: true,
-		dither: false,
+		container: 'bw64',
+		bitDepth: 16,
+		dither: 'none',
 		sampleRate: 48_000,
 	});
 	const bytes = new Uint8Array(encoded.byteLength);
 	bytes.set(encoded);
-	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'RIFF');
+	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'BW64');
 	return bytes;
 }
 

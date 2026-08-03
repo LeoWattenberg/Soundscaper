@@ -52,15 +52,16 @@ interface ProjectActions {
 	readonly prepareHandoff: () => Promise<Readonly<{ projectId: string; revision: number }>>;
 }
 
-test('explicit handoff turns a linked WAV into recipient-owned canonical PCM', async (context) => {
+test('explicit handoff turns a linked BW64 .wav into recipient-owned canonical PCM', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-managed-audio-handoff-'));
 	const resources = trackResources(context, appDataPath);
 	const indexedDB = createInstrumentedIndexedDB();
 	const soundDatabaseName = `linked-wav-handoff-sound-${Date.now()}-${Math.random()}`;
 	const frameDatabaseName = `linked-wav-handoff-frames-${Date.now()}-${Math.random()}`;
 	const encodedWav = encodeWav([Float32Array.from(PCM_SAMPLES)], {
-		float: true,
-		dither: false,
+		container: 'bw64',
+		bitDepth: 16,
+		dither: 'none',
 		sampleRate: 48_000,
 	});
 	const externalWavBytes = new Uint8Array(encodedWav.byteLength);

@@ -208,8 +208,8 @@ export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
 async function inspectLinkedWav(source: WavBlobPcmSource, signal?: AbortSignal): Promise<WavPcmDescriptor> {
 	if (source.size < 4) throw new Error('The linked WAV file is too small to contain a RIFF header.');
 	const signature = ascii(await readWavSourceBytes(source, 0, 4, signal), 0, 4);
-	if (signature !== 'RIFF' && signature !== 'RF64') {
-		throw new Error('Linked audio fallback supports RIFF and RF64 WAV containers only.');
+	if (signature !== 'RIFF' && signature !== 'RF64' && signature !== 'BW64') {
+		throw new Error('Linked audio fallback supports RIFF, RF64, and BW64 WAV containers only.');
 	}
 	const descriptor = await inspectWavBlobPcm(source, signal ? { signal } : {});
 	return descriptor as WavPcmDescriptor;

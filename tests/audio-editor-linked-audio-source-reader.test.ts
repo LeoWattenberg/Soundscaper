@@ -104,7 +104,7 @@ test('linked audio reads reject WAV geometry drift after exact body verification
 	);
 });
 
-test('linked audio reads enforce exact MIME and the maintained RIFF/RF64 dialects', async (context) => {
+test('linked audio reads enforce exact MIME and admit canonical BW64 in a WAV file', async (context) => {
 	await context.test('materialized MIME', async () => {
 		const encoded = await waveBlob([Float32Array.of(-1, 0, 1)]).arrayBuffer();
 		const body = new Blob([encoded], { type: 'audio/x-wav' });
@@ -118,10 +118,8 @@ test('linked audio reads enforce exact MIME and the maintained RIFF/RF64 dialect
 		await assert.rejects(reader.chunk(source.storageKey, 0), /MIME type.*changed/iu);
 	});
 
-	await context.test('BW64 dialect', async () => {
-		const bytes = new Uint8Array(await waveBlob([Float32Array.of(-1, 0, 1)]).arrayBuffer());
-		bytes.set(new TextEncoder().encode('BW64'), 0);
-		const body = new Blob([bytes], { type: 'audio/wav' });
+	await context.test('whole-Blob BW64 dialect', async () => {
+		const body = bw64WaveBlob([-1, 0, 0.5]);
 		const fixture = linkedFixture(stablePort(body));
 		const source = audioSource();
 		await fixture.resolver.bind('project-audio', source, LOCATOR_ID);
@@ -129,7 +127,8 @@ test('linked audio reads enforce exact MIME and the maintained RIFF/RF64 dialect
 			bindings: fixture.bindings,
 			resolver: fixture.resolver,
 		});
-		await assert.rejects(reader.chunk(source.storageKey, 0), /RIFF and RF64/iu);
+		const chunk = await reader.chunk(source.storageKey, 0);
+		assert.deepEqual([...chunk.channels[0]], [-1, 0]);
 	});
 });
 
@@ -216,6 +215,18 @@ function waveBlob(channels: readonly Float32Array[]): Blob {
 	const encoded = encodeWav(channels, {
 		float: true,
 		dither: false,
+		sampleRate: 48_000,
+	});
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	return new Blob([bytes], { type: 'audio/wav' });
+}
+
+function bw64WaveBlob(samples: readonly number[]): Blob {
+	const encoded = encodeWav([Float32Array.from(samples)], {
+		container: 'bw64',
+		bitDepth: 16,
+		dither: 'none',
 		sampleRate: 48_000,
 	});
 	const bytes = new Uint8Array(encoded.byteLength);

@@ -89,6 +89,19 @@ test('a real RF64 integer-PCM body inspects and decodes end-to-end through range
 	assert.ok(fixture.ranges.every(({ length }) => length <= MAXIMUM_RANGE_BYTES));
 });
 
+test('a real BW64 body in a canonical WAV file inspects and decodes through ranges', async () => {
+	const body = bw64Int16WaveBlob([-1, -0.5, 0, 0.5, 32_767 / 32_768]);
+	const fixture = await rangeFixture(body, audioSource({ frameCount: 5, chunkFrames: 2 }));
+
+	const chunk = await fixture.reader.chunk('physical-audio', 2);
+
+	assert.deepEqual([...chunk.channels[0]], [32_767 / 32_768]);
+	assert.equal(fixture.materializedLoads, 1);
+	assert.equal(fixture.releases, 1);
+	assert.ok(fixture.ranges.some(({ offset }) => offset === 88), 'BW64 PCM must be read after ds64 inspection');
+	assert.ok(fixture.ranges.every(({ length }) => length <= MAXIMUM_RANGE_BYTES));
+});
+
 test('an available range port fails closed and releases once for unavailable or corrupt snapshots', async (context) => {
 	await context.test('unavailable exact revision', async () => {
 		const body = waveBlob([Float32Array.of(-1, 0, 1)]);
@@ -235,6 +248,18 @@ function rf64Int16WaveBlob(samples: readonly number[]): Blob {
 	view.setUint32(76, 0xffff_ffff, true);
 	bytes.set(data, 80);
 	return new Blob([bytes], { type: 'audio/rf64' });
+}
+
+function bw64Int16WaveBlob(samples: readonly number[]): Blob {
+	const encoded = encodeWav([Float32Array.from(samples)], {
+		container: 'bw64',
+		bitDepth: 16,
+		dither: 'none',
+		sampleRate: 48_000,
+	});
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	return new Blob([bytes], { type: 'audio/wav' });
 }
 
 function writeAscii(bytes: Uint8Array, offset: number, value: string): void {

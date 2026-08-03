@@ -8,6 +8,8 @@ import {
 	createProjectImportService,
 	type ProjectImportRuntime,
 } from '../src/common/editor/controller/project-import-service.ts';
+import { inspectWavBlobPcm } from '../src/common/editor/wav-import.js';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 const LOCATOR_ID = 'locator_0000000000000001';
 const LOCATOR_REVISION = 'revision_0000000000000001';
@@ -106,20 +108,11 @@ test('linked WAV import releases its locator when local admission fails before b
 	}
 });
 
-test('project import routes an admitted linked WAV around owned PCM publication and browser decoders', async () => {
+test('project import admits and activates a canonical linked BW64 .wav without browser decoding', async () => {
 	const calls: string[] = [];
 	let nextId = 0;
 	let project = projectFixture();
-	const file = riffFile();
-	const descriptor = {
-		frameCount: 4,
-		channelCount: 2,
-		sampleRate: 48_000,
-		pcmBytes: 32,
-		metadataWarnings: [],
-		bext: null,
-		markers: [],
-	};
+	const file = bw64File();
 	const runtime: Record<string, unknown> = {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 32 * 1024 ** 2,
 		SOURCE_CHUNK_FRAMES: 65_536,
@@ -147,7 +140,7 @@ test('project import routes an admitted linked WAV around owned PCM publication 
 		ffmpeg: { decode: async () => { throw new Error('FFmpeg path used'); } },
 		findTrack: () => null,
 		getProject: () => project,
-		inspectWavBlobPcm: async () => descriptor,
+		inspectWavBlobPcm,
 		isAudioEditorVideoFile: () => false,
 		isLegacyAupFile: () => false,
 		isWavFile: () => true,
@@ -288,11 +281,15 @@ function importFixture(options: FixtureOptions = {}) {
 	};
 }
 
-function riffFile() {
-	const bytes = new Uint8Array(60);
-	bytes.set(new TextEncoder().encode('RIFF'), 0);
-	new DataView(bytes.buffer).setUint32(4, 52, true);
-	bytes.set(new TextEncoder().encode('WAVE'), 8);
+function bw64File() {
+	const encoded = encodeWav([
+		Float32Array.of(-1, -0.5, 0, 0.5),
+		Float32Array.of(0.5, 0, -0.5, -1),
+	], {
+		container: 'bw64', bitDepth: 16, dither: 'none', sampleRate: 48_000,
+	});
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
 	return Object.freeze({
 		name: 'field-recording.wav',
 		type: 'audio/wav',

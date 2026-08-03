@@ -439,7 +439,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				file, isWavFile, inspectWavBlobPcm, signature,
 			);
 			if (!signature || !descriptor) {
-				throw new TypeError('Linked audio originals are limited to maintained PCM WAV and RF64 files.');
+				throw new TypeError('Linked audio originals are limited to maintained PCM RIFF, RF64, and BW64 WAV containers.');
 			}
 			const wavMetadata = prepareWavImportMetadata(descriptor, importOptions);
 			const importer = createLinkedWavImporter({
