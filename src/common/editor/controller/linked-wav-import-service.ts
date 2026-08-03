@@ -6,20 +6,20 @@ import { linkedAudioLocatorReferenceFromImportOptions } from './project-import-o
 
 type LegacyPort = (...args: any[]) => any;
 
-interface LinkedWavFile {
+interface LinkedPcmFile {
 	readonly name?: unknown;
 	readonly type?: unknown;
 	readonly size?: unknown;
 }
 
-interface LinkedWavDescriptor {
+interface LinkedPcmDescriptor {
 	readonly frameCount: unknown;
 	readonly channelCount: unknown;
 	readonly sampleRate: unknown;
 	readonly markers?: unknown;
 }
 
-interface LinkedWavImportStore {
+interface LinkedPcmImportStore {
 	bindLinkedAudioOriginal(
 		projectId: string,
 		source: Readonly<Record<string, unknown>>,
@@ -40,7 +40,7 @@ interface LinkedWavImportStore {
 	): Promise<boolean>;
 }
 
-export interface LinkedWavImportRuntime {
+export interface LinkedPcmImportRuntime {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly activateStoredSource: LegacyPort;
 	readonly assertProject: LegacyPort;
@@ -60,41 +60,41 @@ export interface LinkedWavImportRuntime {
 	readonly sourceBuffers: Readonly<{ delete(sourceId: string): unknown }>;
 	readonly sourceChunkProviders: Readonly<{ delete(sourceId: string): unknown }>;
 	readonly sourcePeaks: Readonly<{ delete(sourceId: string): unknown }>;
-	readonly store: LinkedWavImportStore;
+	readonly store: LinkedPcmImportStore;
 	readonly stripExtension: (name: string) => string;
 	readonly warnEnvelope: LegacyPort;
 }
 
-/** Import one verified WAV as canonical Float32 PCM backed only by its local linked original. */
-export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
+/** Import one verified PCM container backed only by its local linked original. */
+export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 	const {
 		SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
 		commit, copy, createStableId, getProject, importResultWithWarnings,
 		peakCacheKey, prepareImportedMediaCommand, projectSampleRate, sourceBuffers,
 		sourceChunkProviders, sourcePeaks, store, stripExtension, warnEnvelope,
 	} = runtime;
-	const chunkFrames = positiveSafeInteger(SOURCE_CHUNK_FRAMES, 'Linked WAV chunk frames');
+	const chunkFrames = positiveSafeInteger(SOURCE_CHUNK_FRAMES, 'Linked PCM chunk frames');
 
-	return async function importLinkedWav(
+	return async function importLinkedPcm(
 		fileValue: unknown,
 		descriptorValue: unknown,
 		importOptions: Record<string, unknown>,
-		wavMetadata: any,
+		pcmMetadata: any,
 	) {
 		const locator = linkedAudioLocatorReferenceFromImportOptions(importOptions);
-		if (!locator) throw new TypeError('A linked WAV import requires one exact audio locator.');
+		if (!locator) throw new TypeError('A linked PCM import requires one exact audio locator.');
 		let startingProjectId: string | null = null;
 		let sourceId: string | null = null;
 		let binding: any = null;
 		let activationStarted = false;
 		try {
-			const file = linkedWavFile(fileValue);
-			const descriptor = linkedWavDescriptor(descriptorValue);
+			const file = linkedPcmFile(fileValue);
+			const descriptor = linkedPcmDescriptor(descriptorValue);
 			const startingProject = getProject();
-			startingProjectId = requiredIdentity(startingProject?.id, 'Linked WAV project ID');
+			startingProjectId = requiredIdentity(startingProject?.id, 'Linked PCM project ID');
 			const startingProjectToken = captureProject();
-			sourceId = requiredIdentity(createStableId('source'), 'Linked WAV source ID');
-			const clipId = requiredIdentity(createStableId('clip'), 'Linked WAV clip ID');
+			sourceId = requiredIdentity(createStableId('source'), 'Linked PCM source ID');
+			const clipId = requiredIdentity(createStableId('clip'), 'Linked PCM clip ID');
 			const trackName = stripExtension(file.name)
 				|| `${copy.track} ${startingProject.tracks.length + 1}`;
 			const source = linkedAudioSource({
@@ -102,7 +102,7 @@ export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
 				descriptor,
 				file,
 				sourceId,
-				wavMetadata,
+				pcmMetadata,
 			});
 			const prepared = prepareImportedMediaCommand(source, {
 				schemaVersion: 2,
@@ -115,18 +115,18 @@ export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
 				durationFrames: Math.max(1, Math.round(
 					descriptor.frameCount * projectSampleRate() / descriptor.sampleRate,
 				)),
-			}, trackName, wavMetadata.importOptions, wavMetadata.projectBext,
-			wavMetadataDescriptorMarkers(descriptorValue), descriptor.sampleRate,
-			wavMetadata.projectIxml, wavMetadata.projectCart,
-			wavMetadata.projectAdmCandidate, descriptorValue);
+			}, trackName, pcmMetadata.importOptions, pcmMetadata.projectBext,
+			pcmMetadataDescriptorMarkers(descriptorValue), descriptor.sampleRate,
+			pcmMetadata.projectIxml, pcmMetadata.projectCart,
+			pcmMetadata.projectAdmCandidate, descriptorValue);
 			const assertImportProjectCurrent = (): void => {
 				try {
 					assertProject(startingProjectToken);
 				} catch (error) {
-					throw new Error('The project changed during linked WAV import.', { cause: error });
+					throw new Error('The project changed during linked PCM import.', { cause: error });
 				}
 				if (getProject()?.id !== startingProjectId) {
-					throw new Error('The project changed during linked WAV import.');
+					throw new Error('The project changed during linked PCM import.');
 				}
 			};
 			assertImportProjectCurrent();
@@ -140,13 +140,13 @@ export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
 				},
 			);
 			const metadata = await store.getSourceMetadata(source.storageKey as string);
-			if (!metadata) throw new Error('The linked WAV canonical source is unavailable after binding.');
+			if (!metadata) throw new Error('The linked PCM canonical source is unavailable after binding.');
 			activationStarted = true;
 			await activateStoredSource(source, metadata);
 			assertImportProjectCurrent();
 			commit(prepared.command, prepared.selection);
 			try { warnEnvelope(); } catch { /* The canonical linked import is already committed. */ }
-			return importResultWithWarnings(prepared.result, wavMetadata.warnings);
+			return importResultWithWarnings(prepared.result, pcmMetadata.warnings);
 		} catch (error) {
 			const current = getProject();
 			const canonicalSourceLanded = sourceId !== null && current?.id === startingProjectId
@@ -159,11 +159,11 @@ export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
 					const unlinked = await store.unlinkLinkedAudioOriginal(
 						startingProjectId,
 						sourceId,
-						requiredIdentity(binding.bindingToken, 'Linked WAV binding token'),
+						requiredIdentity(binding.bindingToken, 'Linked PCM binding token'),
 					);
 					releaseLocator = unlinked;
 					if (!unlinked) {
-						cleanupErrors.push(new Error('The failed linked WAV import binding was not unlinked.'));
+						cleanupErrors.push(new Error('The failed linked PCM import binding was not unlinked.'));
 					}
 				} catch (cleanupError) {
 					releaseLocator = false;
@@ -183,7 +183,7 @@ export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
 			if (releaseLocator) {
 				try {
 					if (!await store.releaseLinkedOriginalLocator({ kind: 'audio', ...locator })) {
-						throw new Error('The unused linked WAV locator was not released.');
+						throw new Error('The unused linked PCM locator was not released.');
 					}
 				} catch (cleanupError) {
 					cleanupErrors.push(cleanupError);
@@ -192,7 +192,7 @@ export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
 			if (cleanupErrors.length) {
 				throw new AggregateError(
 					[error, ...cleanupErrors],
-					'Linked WAV import and rollback both failed.',
+					'Linked PCM import and rollback both failed.',
 					{ cause: error },
 				);
 			}
@@ -201,24 +201,27 @@ export function createLinkedWavImporter(runtime: LinkedWavImportRuntime) {
 	};
 }
 
+/** @deprecated Use the container-neutral linked PCM importer. */
+export const createLinkedWavImporter = createLinkedPcmImporter;
+
 function linkedAudioSource({
 	chunkFrames,
 	descriptor,
 	file,
 	sourceId,
-	wavMetadata,
+	pcmMetadata,
 }: Readonly<{
 	chunkFrames: number;
 	descriptor: Readonly<{ frameCount: number; channelCount: number; sampleRate: number }>;
 	file: Readonly<{ name: string; mimeType: string }>;
 	sourceId: string;
-	wavMetadata: any;
+	pcmMetadata: any;
 }>): Readonly<Record<string, unknown>> {
 	const extensions = {
-		...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
-		...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
-		...(wavMetadata.sourceCart ? { cart: wavMetadata.sourceCart } : {}),
-		...(wavMetadata.sourceAdm ? { adm: wavMetadata.sourceAdm } : {}),
+		...(pcmMetadata.sourceBext ? { bext: pcmMetadata.sourceBext } : {}),
+		...(pcmMetadata.sourceIxml ? { ixml: pcmMetadata.sourceIxml } : {}),
+		...(pcmMetadata.sourceCart ? { cart: pcmMetadata.sourceCart } : {}),
+		...(pcmMetadata.sourceAdm ? { adm: pcmMetadata.sourceAdm } : {}),
 	};
 	return Object.freeze({
 		schemaVersion: 2,
@@ -237,42 +240,45 @@ function linkedAudioSource({
 	});
 }
 
-function linkedWavFile(value: unknown): Readonly<{ name: string; mimeType: string }> {
-	if (!value || typeof value !== 'object') throw new TypeError('A linked WAV file is required.');
-	const candidate = value as LinkedWavFile;
-	const name = requiredIdentity(candidate.name, 'Linked WAV file name');
-	if (!/\.(?:rf64|wav)$/iu.test(name)) {
-		throw new TypeError('Linked audio originals are limited to WAV and RF64 files.');
-	}
+function linkedPcmFile(value: unknown): Readonly<{ name: string; mimeType: string }> {
+	if (!value || typeof value !== 'object') throw new TypeError('A linked PCM file is required.');
+	const candidate = value as LinkedPcmFile;
+	const name = requiredIdentity(candidate.name, 'Linked PCM file name');
+	const lowerName = name.toLowerCase();
+	const fallbackMimeType = lowerName.endsWith('.aif') || lowerName.endsWith('.aiff')
+		? 'audio/aiff'
+		: lowerName.endsWith('.rf64') ? 'audio/rf64' : 'audio/wav';
 	const mimeType = candidate.type === '' || candidate.type === undefined
-		? 'audio/wav'
+		? fallbackMimeType
 		: candidate.type;
-	if (mimeType !== 'audio/wav' && mimeType !== 'audio/rf64') {
-		throw new TypeError('Linked audio originals require audio/wav or audio/rf64 MIME identity.');
+	if (!((/\.(?:aif|aiff)$/iu.test(name) && mimeType === 'audio/aiff')
+		|| (/\.rf64$/iu.test(name) && mimeType === 'audio/rf64')
+		|| (/\.wav$/iu.test(name) && mimeType === 'audio/wav'))) {
+		throw new TypeError('Linked audio originals require canonical AIFF, WAV, or RF64 file identity.');
 	}
 	if (!Number.isSafeInteger(candidate.size) || Number(candidate.size) < 1) {
-		throw new RangeError('A linked WAV file must have a positive safe byte length.');
+		throw new RangeError('A linked PCM file must have a positive safe byte length.');
 	}
 	return Object.freeze({ name, mimeType });
 }
 
-function linkedWavDescriptor(value: unknown): Readonly<{
+function linkedPcmDescriptor(value: unknown): Readonly<{
 	frameCount: number;
 	channelCount: number;
 	sampleRate: number;
 }> {
-	if (!value || typeof value !== 'object') throw new TypeError('A strict linked WAV descriptor is required.');
-	const candidate = value as LinkedWavDescriptor;
+	if (!value || typeof value !== 'object') throw new TypeError('A strict linked PCM descriptor is required.');
+	const candidate = value as LinkedPcmDescriptor;
 	return Object.freeze({
-		frameCount: positiveSafeInteger(candidate.frameCount, 'Linked WAV frame count'),
-		channelCount: positiveSafeInteger(candidate.channelCount, 'Linked WAV channel count'),
-		sampleRate: positiveSafeInteger(candidate.sampleRate, 'Linked WAV sample rate'),
+		frameCount: positiveSafeInteger(candidate.frameCount, 'Linked PCM frame count'),
+		channelCount: positiveSafeInteger(candidate.channelCount, 'Linked PCM channel count'),
+		sampleRate: positiveSafeInteger(candidate.sampleRate, 'Linked PCM sample rate'),
 	});
 }
 
-function wavMetadataDescriptorMarkers(value: unknown): readonly unknown[] {
+function pcmMetadataDescriptorMarkers(value: unknown): readonly unknown[] {
 	if (!value || typeof value !== 'object') return [];
-	const markers = (value as LinkedWavDescriptor).markers;
+	const markers = (value as LinkedPcmDescriptor).markers;
 	return Array.isArray(markers) ? markers : [];
 }
 

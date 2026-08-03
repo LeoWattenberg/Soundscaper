@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLinkedWavImporter } from '../src/common/editor/controller/linked-wav-import-service.ts';
+import { createLinkedPcmImporter } from '../src/common/editor/controller/linked-wav-import-service.ts';
 import {
 	createProjectImportService,
 	type ProjectImportRuntime,
@@ -49,6 +49,25 @@ test('linked WAV import binds and activates canonical PCM without publishing an 
 		expectedLocatorRevision: LOCATOR_REVISION,
 		expectedSnapshot: fixture.file,
 	});
+	assert.equal(fixture.calls.some(([name]) => name === 'begin-source-write'), false);
+	assert.equal(fixture.calls.some(([name]) => name === 'release-locator'), false);
+});
+
+test('linked AIFF import binds the canonical container identity without an owned body', async () => {
+	const fixture = importFixture();
+	const file = Object.freeze({ name: 'field-recording.aiff', type: 'audio/aiff', size: 62 });
+	const result = await fixture.importLinkedPcm(
+		file,
+		fixture.descriptor,
+		fixture.options,
+		fixture.wavMetadata,
+	);
+
+	assert.deepEqual(result, { destination: 'project-bin', sourceId: 'source-1' });
+	const source = fixture.calls.find(([name]) => name === 'bind-audio')?.[1] as Record<string, unknown>;
+	assert.equal(source.name, 'field-recording.aiff');
+	assert.equal(source.mimeType, 'audio/aiff');
+	assert.equal(source.sampleFormat, 'float32');
 	assert.equal(fixture.calls.some(([name]) => name === 'begin-source-write'), false);
 	assert.equal(fixture.calls.some(([name]) => name === 'release-locator'), false);
 });
@@ -212,7 +231,7 @@ function importFixture(options: FixtureOptions = {}) {
 		sourceCart: null,
 		sourceAdm: null,
 	});
-	const importLinkedWav = createLinkedWavImporter({
+	const importLinkedPcm = createLinkedPcmImporter({
 		SOURCE_CHUNK_FRAMES: 65_536,
 		activateStoredSource: async (_source, _metadata) => {
 			calls.push(['activate-source']);
@@ -272,7 +291,8 @@ function importFixture(options: FixtureOptions = {}) {
 		calls,
 		descriptor,
 		file,
-		importLinkedWav,
+		importLinkedPcm,
+		importLinkedWav: importLinkedPcm,
 		options: importOptions,
 		sourceBuffers,
 		sourceChunkProviders,
