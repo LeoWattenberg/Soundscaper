@@ -312,20 +312,20 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 - **Electron Enhanced / Shared — Implemented for bounded cooperative startup
   locator reconciliation:** after persistent IndexedDB opens and before project
   loading, the maintained renderer reads an authoritative point-in-time catalog
-  of at most 10,000 project IDs. One atomic transaction validates at most
-  100,000 closed binding rows, deletes only bindings whose project is absent,
-  preserves a locator with any catalog-live alias, and submits at most 128 exact
+  of at most 10,000 exact project/revision summaries. One atomic transaction
+  validates at most 100,000 closed binding rows, deletes catalog-absent bindings
+  and source-unreachable bindings only from bounded catalog-revision-matched
+  exact-schema-9 current and retained graphs, preserves unverifiable local
+  graphs and any surviving locator alias, and submits at most 128 exact
   locator/revision references. Durable-unavailable storage sends nothing and
-  invalid scans reject before IPC. Main performs at most one successful
-  serialized pass per store/process, retiring only absent startup-loaded
-  metadata while retaining referenced and current-process records; external
-  media is never inspected or deleted. Source-level binding reachability during
-  startup reconciliation, cleanup beyond the one-live-store maintained save,
-  successful writable activation, project-delete, and whole-clear lifecycle,
-  cross-store/process coordination,
-  hostile-renderer
-  inventory authority, abrupt-crash/power-loss durability, and packaged/OS
-  qualification remain open.
+  invalid catalog or binding scans reject before IPC. Main performs at most one
+  successful serialized pass per store/process, retiring only absent
+  startup-loaded metadata while retaining referenced and current-process
+  records; external media is never inspected or deleted. Cleanup beyond this
+  bounded startup pass and the one-live-store maintained
+  save/activation/delete/clear lifecycle, cross-store/process coordination,
+  hostile-renderer inventory authority, abrupt-crash/power-loss durability, and
+  packaged/OS qualification remain open.
 - **Electron Enhanced / Shared — Implemented:** revision- and live-history-aware
   same-store saves and successful writable activations retire source-unreachable
   linked-original bindings; exact locator retirement after saves, activations,
@@ -337,9 +337,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   finish broader linked and unmanaged-original lifecycles, exact or write-time
   capacity behavior, stable playback identity beyond the maintained linked-PCM
   and retained-video lifecycles,
-  linked-locator cleanup beyond the one-live-store maintained save,
-  successful writable activation, project-delete, and whole-clear lifecycle,
-  source-level binding reachability outside maintained saves and activations,
+  linked-locator cleanup beyond this bounded startup pass and the one-live-store
+  maintained save/activation/delete/clear lifecycle,
   cross-store/process coordination where required,
   and packaged
   UI/OS/browser-codec qualification.

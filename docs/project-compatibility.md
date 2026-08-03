@@ -464,25 +464,40 @@ restores the in-memory entry, while revocation observed after the deletion write
 attempts a second persisted restore. A successful release removes only the
 main-private registry metadata; no release path deletes the user-selected
 external file. After durable IndexedDB opens and before project loading, the
-maintained store obtains one point-in-time authoritative project-ID snapshot
-from its active project repository. In Electron that authority is the
+maintained store obtains one point-in-time authoritative project-summary
+snapshot from its active project repository. In Electron that authority is the
 shared catalog rather than a stale product-local shadow. For a
-reconciliation-capable port, the repository validates every catalog project ID
-and enforces the 10,000-ID
-maximum before opening a binding transaction. Memory fallback returns
+reconciliation-capable port, the repository projects every summary to closed
+own-data `{ id, revision }`, validates the exact project identity and
+non-negative safe-integer revision, rejects duplicates, and enforces the 10,000
+summary maximum before opening a binding transaction. Memory fallback returns
 before requesting the catalog, mutating a binding, or invoking main-process
 reconciliation. A durable load-only injected port may request the catalog
 snapshot but performs no binding mutation or reconciliation IPC.
 
-One readwrite transaction then walks at most 100,000 closed binding rows,
-validates every authoritative binding key and identity, and admits at most 128
-unique exact locator/revision pairs across the full inventory. A conflicting
-revision or exceeded bound rejects reconciliation and rolls back the transaction
-even when every offending row belongs to a project absent from the catalog.
-Only after the complete scan does the same transaction delete
-bindings whose project ID is absent. It retains every binding for a present
-project, and any present-project alias keeps its shared locator live. A failed
-binding deletion rolls every removal back before IPC.
+One readwrite transaction over local current projects, retained revisions, and
+linked-original bindings then walks at most 100,000 closed binding rows,
+validates every authoritative binding key, identity, and storage alias. The
+generic mixed-kind pass admits at most 128 unique exact locator/revision pairs
+across the full inventory. The legacy video-only fallback still validates all
+rows and storage aliases, but applies reference cardinality and deletion only to
+video while preserving audio rows. A malformed row, conflicting revision or
+storage alias, exceeded applicable bound, or deletion failure rejects
+reconciliation and rolls the transaction back before IPC, including when every
+offending managed row belongs to a project absent from the catalog.
+
+Every binding whose project is absent from the catalog is unreachable. For a
+catalog-live project, source-level pruning runs only when the product-local
+current document is exact schema 9 at the catalog revision and at most 64 exact
+retained revisions include that current revision. The pass conservatively
+unions kindful timeline, Project Bin, and every feature-fallback source across
+the current and retained graphs without publisher gating. Missing, older,
+newer, malformed, incomplete, or over-bound local graph state retains all
+bindings for that catalog-live project. More than 100,000 aggregate roots across
+otherwise verifiable projects suppresses all source-level pruning while leaving
+catalog-absent deletion eligible. Only after the complete scan does the same
+transaction apply its binding deletions. Any surviving same-store alias keeps
+the shared locator live.
 
 The maintained bootstrap submits the surviving exact references over the
 closed preload/IPC boundary. Main's serialized pass removes only startup-loaded
@@ -493,7 +508,8 @@ owner revocation after publication attempts a second persisted restore and
 surfaces either failure. The pass rewrites locator metadata only and never
 stats or deletes the external files. On the next successful full bootstrap it
 retires startup-loaded chooser metadata with no durable binding and metadata
-whose binding rows were durably removed or retired as project-absent.
+whose binding rows were durably removed as project-absent or source-unreachable
+under the exact catalog-revision fence.
 
 Within one live `AudioEditorProjectStore` instance in one renderer process, a
 separate coordinator serializes binding publication, exact unlink, unused
@@ -686,18 +702,22 @@ The project-catalog snapshot, local binding transaction, and main reconciliation
 are separate, not atomic. A catalog mutation after its snapshot may be observed
 only later. If binding deletion commits before IPC or main rejects, the binding
 deletion remains committed; a later startup retry can prune the now-unreferenced
-locator. Project presence alone remains the startup reconciliation root: the
-catalog pass retains every binding for a still-present project, while the
-separate maintained save and successful writable activation paths above own
-source-level reachability inside that project. Current-process records
-abandoned outside the maintained binding, save, successful writable activation,
-delete, and clear lifecycle may still wait for a later main-process restart.
-Main validates the DTO and exact revisions but cannot authenticate inventory
-completeness, so a compromised renderer can omit live references and delete
-startup locator metadata. This is cooperative availability maintenance, not a
-compromised-renderer integrity control. Cleanup beyond one live store's
-maintained save/successful-writable-activation/delete/clear lifecycle,
-cross-store, cross-profile, or cross-process mutation serialization,
+locator. Catalog absence remains an authoritative deletion root regardless of a
+product-local shadow. Catalog presence admits source-level pruning only through
+the bounded product-local exact-schema-9 current and retained graphs whose
+current revision equals the catalog summary. Missing, stale, structurally
+invalid, incomplete, or over-bound graph state retains the project's bindings.
+The summary revision is not a document-content digest, so this is a cooperative
+revision fence rather than authentication of same-revision local graph content.
+Current-process records abandoned outside the maintained startup, binding,
+save, successful writable activation, delete, and clear lifecycle may still
+wait for a later main-process restart. Main validates the DTO and exact
+revisions but cannot authenticate inventory or local-graph completeness, so a
+compromised renderer can omit live references and delete startup locator
+metadata. This is cooperative availability maintenance, not a
+compromised-renderer integrity control. Cleanup beyond one live store's bounded
+startup and maintained save/successful-writable-activation/delete/clear
+lifecycle, cross-store, cross-profile, or cross-process mutation serialization,
 abrupt-crash or power-loss durability, and a total cloned-byte or process-RSS
 bound for one hostile IndexedDB row are not implemented. Packaged executable/UI
 and operating-system behavior remain unqualified as described above.
