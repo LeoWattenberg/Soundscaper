@@ -4,6 +4,10 @@
 
 type LegacyPort = (...args: any[]) => any;
 
+interface SourceChunkProviderMap extends Map<string, any> {
+	drain?(): PromiseLike<void> | void;
+}
+
 export interface ProjectAdminServiceRuntime {
 	readonly cancelPlaybackCachePreparation: LegacyPort;
 	readonly clearScheduledTimer: LegacyPort;
@@ -36,7 +40,7 @@ export interface ProjectAdminServiceRuntime {
 	readonly sessionTab: LegacyPort;
 	readonly setProject: LegacyPort;
 	readonly sourceBuffers: any;
-	readonly sourceChunkProviders: Map<string, any>;
+	readonly sourceChunkProviders: SourceChunkProviderMap;
 	readonly sourcePeaks: Map<string, any>;
 	readonly state: any;
 	readonly stopRecording: LegacyPort;
@@ -164,6 +168,9 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		const id = project.id;
 		await releaseProjectLock();
 		await revokeVideoVisuals();
+		engine.stop();
+		sourceChunkProviders.clear();
+		await sourceChunkProviders.drain?.();
 		await store.deleteProject(id);
 		await persistSetting(recordingRoutingSettingKey(id), null, { policy: 'required' });
 		sessionController.closeProject(id, { force: true });
@@ -182,6 +189,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		state.sourceGcTimer = 0;
 		const protectedSourceIds = liveSessionSourceIds();
 		for (const sourceId of sourceBuffers.keys()) protectedSourceIds.add(sourceId);
+		for (const sourceId of sourceChunkProviders.keys()) protectedSourceIds.add(sourceId);
 		for (const sourceId of sourcePeaks.keys()) protectedSourceIds.add(sourceId);
 		const result = await store.pruneUnreferencedSources({
 			protectedProjects: [
@@ -215,9 +223,10 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		cancelPlaybackCachePreparation();
 		await releaseProjectLock();
 		engine.stop();
+		sourceChunkProviders.clear();
+		await sourceChunkProviders.drain?.();
 		clipTimePitchCache.clear?.();
 		sourceBuffers.clear();
-		sourceChunkProviders.clear();
 		sourcePeaks.clear();
 		clearWaveformPcmWindows();
 		await revokeVideoVisuals();

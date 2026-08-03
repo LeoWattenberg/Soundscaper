@@ -21,10 +21,33 @@ function deferred() {
 	return { promise, resolve };
 }
 
+class TestSourceChunkProviders extends Map<string, unknown> {
+	readonly #calls: string[];
+	readonly #drainOperation: () => Promise<void>;
+
+	constructor(calls: string[], drainOperation: () => Promise<void>) {
+		super([['provider-source', {}]]);
+		this.#calls = calls;
+		this.#drainOperation = drainOperation;
+	}
+
+	override clear(): void {
+		this.#calls.push('clear-providers');
+		super.clear();
+	}
+
+	async drain(): Promise<void> {
+		this.#calls.push('drain-providers:start');
+		await this.#drainOperation();
+		this.#calls.push('drain-providers:done');
+	}
+}
+
 function createFixture() {
 	let project: Project | null = { id: 'project-a', title: 'Project A', revision: 3 };
 	let closeResult: { closed: boolean; activeProjectId?: string } = { closed: true };
 	let pruneResult: { deletedSourceIds?: string[]; nextEligibleAt?: number | null } = {};
+	let pruneOptions: { readonly protectedSourceIds: Set<string> } | null = null;
 	const calls: string[] = [];
 	let stopRecording = async () => { calls.push('stop-recording'); };
 	const savedProjects: Project[] = [];
@@ -95,6 +118,7 @@ function createFixture() {
 		async pruneUnreferencedSources(options: unknown) {
 			calls.push('prune');
 			assert.ok(options);
+			pruneOptions = options as { readonly protectedSourceIds: Set<string> };
 			return pruneResult;
 		},
 		async clear() { calls.push('clear-store'); },
@@ -163,6 +187,7 @@ function createFixture() {
 		setProject: (value: Project | null) => { project = value; },
 		setStopRecording: (value: () => Promise<void>) => { stopRecording = value; },
 		closeResult: (value: typeof closeResult) => { closeResult = value; },
+		pruneOptions: () => pruneOptions,
 		pruneResult: (value: typeof pruneResult) => { pruneResult = value; },
 		runtime,
 		savedProjectOptions,
@@ -302,11 +327,56 @@ test('project deletion and local reset drain video visuals before storage mutati
 	}
 });
 
+test('project deletion and local reset fence and drain providers before storage mutation', async () => {
+	for (const operation of ['delete', 'clear'] as const) {
+		const fixture = createFixture();
+		const started = deferred();
+		const gate = deferred();
+		const providers = new TestSourceChunkProviders(fixture.calls, async () => {
+			started.resolve();
+			await gate.promise;
+		});
+		const runtime = { ...fixture.runtime, sourceChunkProviders: providers } satisfies ProjectAdminServiceRuntime;
+		const service = createProjectAdminService(runtime);
+		const pending = operation === 'delete' ? service.deleteProject() : service.clearLocalData();
+
+		await started.promise;
+		const storageCall = operation === 'delete' ? 'delete:project-a' : 'clear-store';
+		assert.ok(fixture.calls.indexOf('stop-engine') < fixture.calls.indexOf('clear-providers'));
+		assert.ok(fixture.calls.indexOf('clear-providers') < fixture.calls.indexOf('drain-providers:start'));
+		assert.equal(providers.size, 0);
+		assert.equal(fixture.calls.includes(storageCall), false);
+
+		gate.resolve();
+		await pending;
+		assert.ok(fixture.calls.indexOf('drain-providers:done') < fixture.calls.indexOf(storageCall));
+	}
+});
+
+test('provider cleanup failure prevents project deletion and local storage reset', async () => {
+	for (const operation of ['delete', 'clear'] as const) {
+		const fixture = createFixture();
+		const failure = new Error(`${operation} provider cleanup failed`);
+		const providers = new TestSourceChunkProviders(fixture.calls, async () => { throw failure; });
+		const runtime = { ...fixture.runtime, sourceChunkProviders: providers } satisfies ProjectAdminServiceRuntime;
+		const service = createProjectAdminService(runtime);
+
+		await assert.rejects(
+			operation === 'delete' ? service.deleteProject() : service.clearLocalData(),
+			(error: unknown) => error === failure,
+		);
+		assert.equal(providers.size, 0);
+		assert.equal(fixture.calls.includes(operation === 'delete' ? 'delete:project-a' : 'clear-store'), false);
+	}
+});
+
 test('source garbage collection protects live state and schedules the next pass', async () => {
 	const fixture = createFixture();
+	fixture.sourceChunkProviders.set('provider-only', {});
 	fixture.pruneResult({ deletedSourceIds: ['deleted'], nextEligibleAt: 2_000 });
 	const service = createProjectAdminService(fixture.runtime);
 	await service.garbageCollectSources();
+	assert.equal(fixture.pruneOptions()?.protectedSourceIds.has('provider-only'), true);
 	assert.equal(fixture.scheduled[0]?.delay, 1_050);
 	assert.equal(fixture.state.sourceGcTimer, 9);
 	fixture.scheduled[0]?.callback();
