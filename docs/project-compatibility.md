@@ -32,32 +32,38 @@ must remain disabled. A future document may be inspected or exported unchanged
 only through a path proven not to normalize it. “Save a copy” may not silently
 turn an unknown schema into the current schema.
 
-One narrow linked-WAV portable-archive exception applies only to the
-current-format exact schema 9 path. A sender backed by a maintained RIFF/RF64
-PCM or IEEE-float WAV, or a first-party BW64 integer-PCM `.wav`, under the
-512 MiB linked-original ceiling retains no owned PCM. Export reads its verified
-canonical chunks and writes only a canonical `audio-f32le-chunks-v1` asset. The
-external WAV container bytes and
-pathless locator identity are absent from the archive.
-A maintained Electron chooser and initial bind still materialize one whole WAV
-snapshot. After that binding commits, archive source reads acquire an
+One narrow linked-PCM portable-archive exception applies only to the
+current-format exact schema 9 path. Under the 512 MiB linked-original ceiling,
+a sender may be backed by a maintained RIFF/RF64 PCM or IEEE-float WAV, a
+first-party BW64 integer-PCM `.wav`, or classic FORM/AIFF signed big-endian
+integer PCM at 8, 16, 24, or 32 bits admitted only as exact `.aif` or `.aiff`
+plus `audio/aiff`. It retains no owned PCM. Export reads its verified canonical
+chunks and writes only a canonical `audio-f32le-chunks-v1` asset. External
+container bytes and pathless locator identity are absent from the archive.
+A maintained Electron chooser and initial bind still materialize one whole
+source snapshot. After that binding commits, archive source reads acquire an
 owner-scoped exact-revision range capability, hash the complete source in exact
 at-most-4-MiB reads, recheck the binding, and decode through a range-backed
-RIFF/RF64/BW64 source without constructing another whole-original `Blob`. A
-generic platform port without the optional range operation retains the
-whole-`Blob` source-reader fallback.
+RIFF/RF64/BW64 or classic AIFF source without constructing another
+whole-original `Blob`. AIFF admission and every later read require bounded
+FORM/AIFF, COMM, and SSND structure; AIFF-C and compressed AIFF reject. A generic
+platform port without the optional range operation retains the whole-`Blob`
+source-reader fallback.
 A fresh recipient without a linked-original port imports that asset through the
 ordinary owned PCM writer,
 then can close and reopen, recovering exact samples and project state with zero
-linked bindings. The direct fixture uses first-party BW64 integer PCM; focused
-reader and import coverage owns the maintained RIFF/RF64 PCM and IEEE-float plus
-first-party BW64 integer-PCM input boundary.
+linked bindings. The direct fixtures use first-party BW64 integer PCM and
+classic AIFF; focused reader and import coverage owns the maintained RIFF/RF64
+PCM and IEEE-float, first-party BW64 integer-PCM, and classic AIFF integer-PCM
+input boundary.
 
 This portable exception does not qualify future-schema archive preservation,
-byte-exact WAV-container preservation, packaged executable or UI and
-operating-system behavior, relink or watch, other audio formats, arbitrary
-third-party BW64, new BW64 ADM preservation or editing semantics, or range
-support outside maintained post-bind Electron linked-WAV source reads.
+byte-exact external-container preservation or reconstruction, AIFF metadata
+preservation, AIFC or compressed AIFF, packaged executable or UI and
+operating-system behavior, reference-scale evidence, relink or watch, other
+audio formats, arbitrary third-party BW64, new BW64 ADM preservation or editing
+semantics, a durable immutable byte lease, or range support outside maintained
+post-bind Electron linked-PCM source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
 
@@ -333,24 +339,28 @@ Declared payload geometry is capped at 65,536 PCM chunks, while one cumulative
 64 GiB budget charges canonical audio archive bytes—including four framing
 bytes per chunk—and recipient-local video metadata sizes together.
 
-One narrow linked-WAV managed-handoff exception is qualified here. Through an
-explicitly injected Electron port, a point-in-time maintained RIFF/RF64 PCM or
-IEEE-float WAV, or first-party BW64 integer-PCM `.wav`, no larger than 512 MiB
-may remain in a main-private registry. Only that registry contains the absolute
-path and its device, inode, size, modification time, and change time; the project and
+One narrow linked-PCM managed-handoff exception is qualified here. Through an
+explicitly injected Electron port, one point-in-time maintained PCM container no
+larger than 512 MiB may remain in a main-private registry: RIFF/RF64 PCM or
+IEEE-float WAV, first-party BW64 integer-PCM `.wav`, or classic FORM/AIFF signed
+big-endian integer PCM at 8, 16, 24, or 32 bits admitted only as exact `.aif` or
+`.aiff` plus `audio/aiff`. Only that registry contains the absolute path and its
+device, inode, size, modification time, and change time; the project and
 renderer-side binding retain pathless locator and revision tokens plus scalar
 canonical source geometry. The chooser and initial bind still materialize and
-hash one whole WAV snapshot. After that binding commits, maintained Electron
+hash one whole source snapshot. After that binding commits, maintained Electron
 canonical PCM reads instead acquire an owner-scoped `linked-audio-range-v1`
-capability at the exact locator revision. Before RIFF/RF64/BW64 inspection or
-PCM decoding, the renderer requires the exact byte length and MIME type, hashes the
+capability at the exact locator revision. Before container inspection or PCM
+decoding, the renderer requires the exact byte length and MIME type, hashes the
 complete opened handle sequentially through exact at-most-4-MiB `206` reads,
-and rechecks the exact binding. The WAV inspector and chunk decoder then use a
-range-backed source, so the session constructs no second whole-original
-`Blob`, and release of the capability is owned by that read session. An
-available range operation that reports unavailable, malformed, drifted, or
-corrupt data fails closed; a generic platform port that does not implement the
-optional range operation retains the prior whole-`Blob` source-reader fallback.
+and rechecks the exact binding. The container inspector and chunk decoder then
+use a range-backed source, so the session constructs no second whole-original
+`Blob`, and release of the capability is owned by that read session. AIFF
+admission and every later read require bounded FORM/AIFF, COMM, and SSND
+structure; AIFF-C and compressed AIFF reject. An available range operation that
+reports unavailable, malformed, drifted, or corrupt data fails closed; a
+generic platform port that does not implement the optional range operation
+retains the prior whole-`Blob` source-reader fallback.
 The sender's owned PCM inventory remains empty.
 
 Only explicit `prepareHandoff` performs the normal two canonical Float32 PCM
@@ -359,19 +369,20 @@ source-API passes and publishes their chunks through the maintained managed
 source lifecycle above; the handoff does not collapse them into one pass. A
 fresh recipient acquires those chunks through its ordinary owned source writer
 and can close and reopen the canonical PCM without the linked-original port or
-locator. External WAV container bytes and locator identity do not cross the
+locator. External container bytes and locator identity do not cross the
 managed-media bridge or enter the shared catalog or recipient.
 
 This exception does not qualify packaged executable or UI behavior,
 operating-system file-dialog or path durability, relink or watch behavior,
 broader audio formats, arbitrary third-party BW64, new BW64 ADM preservation or
-editing semantics, range support outside maintained post-bind Electron
-linked-WAV source reads, or generic linked-audio support. The external path and
-stat tuple are a point-in-time main-private identity. Moving or replacing the
-pathname after range admission does not retarget the opened handle, but
-same-inode in-place mutation during or after sequential digest verification is
-not fenced. The capability is therefore not an operating-system bookmark,
-content-frozen or durable byte lease, or cross-process snapshot.
+editing semantics, AIFF metadata preservation, AIFC or compressed AIFF,
+reference-scale evidence, or range support outside maintained post-bind
+Electron linked-PCM source reads. The external path and stat tuple are a
+point-in-time main-private identity. Moving or replacing the pathname after
+range admission does not retarget the opened handle, but same-inode in-place
+mutation during or after sequential digest verification is not fenced. The
+capability is therefore not an operating-system bookmark, content-frozen or
+durable immutable byte lease, or cross-process snapshot.
 
 A deliberately narrow linked retained-video path is qualified at this same
 boundary. A local binding joins the exact project ID, logical video source ID,
@@ -602,7 +613,7 @@ main-process exact release are not one cross-boundary transaction; interruption
 between them may safely leak metadata until a later maintained save or writable
 activation.
 Cross-store or cross-process coordination, relink or watch, range support
-outside maintained post-bind Electron linked-WAV source reads, packaged
+outside maintained post-bind Electron linked-PCM source reads, packaged
 executable or operating-system qualification, third-party activation gating,
 and legacy private libraries are outside this claim.
 
@@ -703,7 +714,7 @@ copies media nor changes this whole-`Blob` handoff. This handoff path adds no
 product chooser, relink or watch flow, durable operating-system handle,
 background copy/consolidation beyond the bounded same-store scalar-alias
 duplication above, or an alternate publishing protocol.
-Generic linked audio beyond the narrow linked-WAV managed-handoff exception,
+Generic linked audio beyond the narrow linked-PCM managed-handoff exception,
 every other linked or unmanaged original, authored proxies, other video
 rendered-fallback roles and authoring, packaged executable/UI behavior, and
 browser codec playback remain unqualified. The maintained role-defined
@@ -811,7 +822,7 @@ unknown-feature whole-project video fallback when handed off alongside its
 editable retained original from Framescaper to a fresh Soundscaper store as
 described above.
 The maintained pathless desktop linked retained-video slice and narrow
-linked-WAV managed-handoff exception described above are also qualified. Other
+linked-PCM managed-handoff exception described above are also qualified. Other
 linked audio and every other linked or unmanaged original, authored proxies,
 rendered-fallback authoring and transfer semantics beyond the closed audio
 whole-mix and maintained video roles, relink/watch behavior, general
@@ -868,7 +879,7 @@ library; this includes a maintained exact-schema role-defined unavailable-or-
 unknown audio whole-mix fallback when its manifest is the only reference.
 Ordinary saves remain
 document-only. The maintained pathless desktop linked retained-video slice and
-narrow linked-WAV managed-handoff exception described above are additionally
+narrow linked-PCM managed-handoff exception described above are additionally
 qualified. Other linked audio and every other linked or unmanaged original,
 authored proxies, rendered-fallback authoring and transfer semantics beyond the
 closed audio whole-mix and maintained video roles, general

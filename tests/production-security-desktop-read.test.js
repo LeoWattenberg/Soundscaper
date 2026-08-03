@@ -108,13 +108,17 @@ test('desktop read capability evidence remains qualified for its current surface
 	);
 	assert.ok(linkedAudioRange);
 	for (const path of [
+		'desktop/linked-original-locator-validation.ts',
 		'desktop/linked-video-locator-ipc.js',
 		'desktop/read-capability-admission.js',
 		'desktop/read-capability-range-stream.js',
+		'desktop/read-capability-support.js',
+		'src/common/editor/aiff-pcm-chunk-reader.ts',
 		'src/common/editor/desktop-linked-audio-range-adapter.ts',
 		'src/common/editor/storage/desktop-linked-original-range-reader.ts',
 		'src/common/editor/storage/linked-audio-original-source-reader.ts',
 		'src/common/editor/storage/linked-original-range-lease.ts',
+		'tests/audio-editor-aiff-pcm-chunk-reader.test.ts',
 		'tests/desktop-linked-audio-range-capability.test.js',
 		'tests/audio-editor-desktop-linked-audio-range-source.test.ts',
 		'tests/audio-editor-linked-audio-range-source-reader.test.ts',
@@ -125,7 +129,11 @@ test('desktop read capability evidence remains qualified for its current surface
 	);
 	assert.match(
 		linkedAudioRange.summary,
-		/exact WAV or RF64 MIME\/name pair.*exact closed ranges.*`206`.*Accept-Ranges.*Content-Range.*Content-Length.*Content-Type.*hashes the stable opened handle sequentially.*binding and CAS fence.*without another whole-original Blob.*session completion release once.*initial selection and binding.*whole external WAV.*not a content-frozen, durable, or cross-process lease.*same-inode mutation.*unfenced.*Float32 arrays.*metadata.*decoder allocation.*process RSS.*packaged-executable.*operating-system.*audible\/device-playback.*reference-scale/iu,
+		/maintained WAV\/RF64 MIME\/name contract.*exact `?\.aif`? or `?\.aiff`? name.*`?audio\/aiff`?.*exact closed ranges.*`206`.*Accept-Ranges.*Content-Range.*Content-Length.*Content-Type.*hashes the stable opened handle sequentially.*binding and CAS fence.*maintained-container inspection.*without another whole-original Blob/iu,
+	);
+	assert.match(
+		linkedAudioRange.summary,
+		/FORM\/AIFF.*COMM.*SSND.*signed big-endian integer PCM.*8.*16.*24.*32.*AIFC and compressed variants reject.*session completion release once.*whole external container.*512 MiB.*does not establish packaged-executable or operating-system behavior.*metadata preservation.*content-frozen or cross-process lease.*audible\/device playback.*reference-scale.*same-inode mutation.*unfenced.*Float32 arrays.*parsed metadata.*decoder allocation.*process RSS/iu,
 	);
 
 	assert.equal(desktopRead.residualRisks.some(({ id }) => id === 'read-capability-owner-lifecycle'), false);

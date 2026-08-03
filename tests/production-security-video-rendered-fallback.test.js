@@ -150,8 +150,15 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 	);
 
 	const handoffStart = threatModel.indexOf('Three narrower one-way headless fixtures');
-	const handoffEnd = threatModel.indexOf('\n\nOne narrow linked-WAV managed-handoff exception', handoffStart);
-	assert.ok(handoffStart >= 0 && handoffEnd > handoffStart);
+	const handoffEnd = threatModel.indexOf(
+		'\n\nOne narrow linked-PCM managed-handoff exception',
+		handoffStart,
+	);
+	assert.notEqual(handoffStart, -1, 'video rendered-fallback handoff section is missing');
+	assert.ok(
+		handoffEnd > handoffStart,
+		'linked-PCM managed-handoff section must follow the video rendered-fallback handoff section',
+	);
 	const handoff = threatModel.slice(handoffStart, handoffEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		handoff,

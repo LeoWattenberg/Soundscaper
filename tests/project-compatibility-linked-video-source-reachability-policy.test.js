@@ -70,7 +70,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		rule.currentBehavior,
-		/cross-store or cross-process coordination.*relink or watch.*range support outside maintained post-bind Electron linked-WAV source reads.*packaged executable or operating-system.*third-party activation gating.*legacy private librar/iu,
+		/cross-store or cross-process coordination.*relink or watch.*range support outside maintained post-bind Electron linked-PCM source reads.*packaged executable or operating-system.*third-party activation gating.*legacy private librar/iu,
 	);
 
 	for (const evidence of [
