@@ -83,7 +83,7 @@ function fallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audi
 	});
 }
 
-function videoFallbackProject() {
+function videoFallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.videoEffects) {
 	const original = createVideoSourceV9({
 		id: 'original-video', storageKey: 'original-video', frameCount: 4,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
@@ -102,7 +102,7 @@ function videoFallbackProject() {
 		sources: [original, fallback], clips: [clip], tracks: [track],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-video-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			featureId,
 			displayName: 'Publisher video render',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'video', sourceId: fallback.id, sha256: DIGEST },
@@ -187,9 +187,13 @@ test('the playback service composes a required rendered-video preview without mu
 	assert.equal(Object.isFrozen(result.requiredVideoSourceIds), true);
 });
 
-test('playback reapply requires the rendered-video body before applying its transient preview project', async () => {
-	const canonical = videoFallbackProject();
-	const service = createPlaybackProjectService({ audioEffects: true, videoEffects: false });
+test('playback reapply stages an unknown whole-project video fallback before preview', async () => {
+	const featureId = 'org.example.future-video-pipeline';
+	const canonical = videoFallbackProject(featureId);
+	const service = createPlaybackProjectService({ audioEffects: true, videoEffects: true });
+	const projection = service.projectForPlayback(canonical);
+	assert.equal(projection.featureRequirementsReport?.items[0]?.availability, 'unknown');
+	assert.equal(projection.videoRenderedFallback?.featureId, featureId);
 	const events: string[] = [];
 	const result = await applyCanonicalProjectToPlaybackEngine(canonical, {
 		projectForPlayback: (project) => service.projectForPlayback(project),

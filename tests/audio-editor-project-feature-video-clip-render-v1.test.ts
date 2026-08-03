@@ -189,13 +189,29 @@ test('clip-local projection rejects ambiguous video fallbacks and exact binding 
 			/does not match the project manifest/iu,
 		);
 	}
-	assert.throws(
-		() => projectFeatureVideoRenderedFallbackPlayback(project, {
-			...report,
-			items: [{ ...item, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing }],
-		}),
-		/video-effects feature/iu,
-	);
+	const otherFeature = projectFeatureVideoRenderedFallbackPlayback(project, {
+		...report,
+		items: [{ ...item, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing }],
+	});
+	assert.strictEqual(otherFeature.project, project);
+	assert.equal(otherFeature.metadata, null);
+});
+
+test('an unknown feature cannot activate the first-party clip-local video role', () => {
+	const { project, report } = fixture();
+	const item = report.items[0]!;
+	const result = projectFeatureVideoRenderedFallbackPlayback(project, {
+		...report,
+		counts: { available: 0, unavailable: 0, unknown: 1 },
+		items: [{
+			...item,
+			featureId: 'org.example.future-video-effect',
+			availability: 'unknown',
+		}],
+	});
+
+	assert.strictEqual(result.project, project);
+	assert.equal(result.metadata, null);
 });
 
 test('clip-local projection rechecks fallback source and target geometry', () => {

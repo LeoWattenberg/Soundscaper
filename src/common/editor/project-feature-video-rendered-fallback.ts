@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	isProjectFeatureVideoCapabilityId,
-	type ProjectFeatureVideoCapabilityId,
+	PROJECT_FEATURE_CAPABILITY_IDS,
 } from './project-feature-capabilities.ts';
 import type {
 	ProjectFeatureRequirementsReport,
@@ -23,7 +22,7 @@ export const PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS = Object.freeze({
 export interface ProjectFeatureVideoProjectRenderV1Metadata {
 	readonly schemaVersion: 1;
 	readonly role: 'project-video-render-v1';
-	readonly featureId: ProjectFeatureVideoCapabilityId;
+	readonly featureId: string;
 	readonly requirementId: string;
 	readonly sourceId: string;
 	readonly trackId: typeof PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track;
@@ -42,13 +41,13 @@ export interface ProjectFeatureVideoRenderedFallbackProjection<Project> {
 type RecordValue = Readonly<Record<string, unknown>>;
 
 interface QualifiedProjectFallback {
-	readonly featureId: ProjectFeatureVideoCapabilityId;
+	readonly featureId: string;
 	readonly requirementId: string;
 	readonly fallback: ProjectFeatureVideoRenderFallback;
 }
 
 interface QualifiedClipFallback {
-	readonly featureId: ProjectFeatureVideoCapabilityId;
+	readonly featureId: typeof PROJECT_FEATURE_CAPABILITY_IDS.videoEffects;
 	readonly requirementId: string;
 	readonly fallback: ProjectFeatureVideoClipRenderFallback;
 }
@@ -125,17 +124,21 @@ function qualifyingFallback(
 	const candidates = report.items.filter(isQualifyingItem);
 	if (candidates.length === 0) return null;
 	if (candidates.length !== 1) {
-		throw new RangeError('Multiple registered video rendered fallbacks are ambiguous for preview playback.');
+		throw new RangeError('Multiple video rendered fallbacks are ambiguous for preview playback.');
 	}
 	const item = candidates[0]!;
-	if (!isProjectFeatureVideoCapabilityId(item.featureId)) {
-		throw new TypeError('The rendered video fallback feature is not registered.');
+	if (item.fallback.role === 'video-clip-render-v1') {
+		return Object.freeze({
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
+			fallback: item.fallback,
+		});
 	}
 	return Object.freeze({
-		featureId: item.featureId,
+		featureId: canonicalString(item.featureId, 'Rendered fallback feature ID'),
 		requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
 		fallback: item.fallback,
-	}) as QualifiedFallback;
+	});
 }
 
 function isQualifiedClipFallback(value: QualifiedFallback): value is QualifiedClipFallback {
@@ -144,12 +147,16 @@ function isQualifiedClipFallback(value: QualifiedFallback): value is QualifiedCl
 
 function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
 	Readonly<{ fallback: ProjectFeatureVideoRenderFallback | ProjectFeatureVideoClipRenderFallback }> {
-	return isProjectFeatureVideoCapabilityId(item.featureId)
-		&& item.availability === 'unavailable'
-		&& item.declaredDisposition === 'rendered-fallback'
+	return item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
 		&& item.fallback?.kind === 'video'
-		&& (item.fallback.role === 'project-video-render-v1' || item.fallback.role === 'video-clip-render-v1');
+		&& (
+			(item.fallback.role === 'project-video-render-v1'
+				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
+			|| (item.fallback.role === 'video-clip-render-v1'
+				&& item.availability === 'unavailable'
+				&& item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.videoEffects)
+		);
 }
 
 function assertManifestBinding(project: RecordValue, qualified: QualifiedProjectFallback): void {

@@ -385,6 +385,34 @@ test('video rendered fallback activation is localized and bound to its exact req
 	for (const markup of malformed) assert.doesNotMatch(markup, /data-project-feature-video-rendered-fallback/iu);
 });
 
+test('an unknown closed whole-project video role receives the active playback indicator', () => {
+	const featureId = 'org.example.future-video-pipeline';
+	const requirementId = 'future-video-pipeline';
+	const markup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityNotice, {
+		report: report(false, [item(
+			requirementId,
+			featureId,
+			'Future video pipeline',
+			'unknown',
+			'rendered-fallback',
+		)]),
+		copy: ENGLISH_COPY,
+		videoRenderedFallback: {
+			schemaVersion: 1,
+			role: 'project-video-render-v1',
+			featureId,
+			requirementId,
+			sourceId: 'rendered-video',
+			trackId: 'framescaper:rendered-video-fallback:track',
+			clipId: 'framescaper:rendered-video-fallback:clip',
+		},
+	}));
+
+	assert.equal(markup.match(/data-project-feature-video-rendered-fallback/gu)?.length, 1);
+	assert.match(markup, /Unknown.*Rendered fallback declared.*Rendered fallback active during editor playback/isu);
+	assert.doesNotMatch(markup, /rendered-video|framescaper:rendered-video-fallback/iu);
+});
+
 test('video-effect playback bypass renders localized timeline and Project Bin placeholders', () => {
 	let payloadReads = 0;
 	const guardedClip = (id: string, title: string) => {

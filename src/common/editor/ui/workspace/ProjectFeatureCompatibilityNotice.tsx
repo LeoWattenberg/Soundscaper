@@ -8,10 +8,7 @@ import type {
 	ProjectFeatureAudioEffectPlaceholder,
 } from '../../project-feature-audio-effect-bypass.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../project-feature-audio-rendered-fallback.ts';
-import {
-	isProjectFeatureVideoCapabilityId,
-	PROJECT_FEATURE_CAPABILITY_IDS,
-} from '../../project-feature-capabilities.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
 import type {
 	ProjectFeatureVideoEffectBypassMetadata,
@@ -227,10 +224,15 @@ function videoRenderedFallbackApplies(
 	metadata: ProjectFeatureVideoRenderedFallbackMetadata | null | undefined,
 ): boolean {
 	return metadata?.schemaVersion === 1
-		&& isProjectFeatureVideoCapabilityId(metadata.featureId)
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
-		&& item.availability === 'unavailable'
+		&& (
+			(metadata.role === 'project-video-render-v1'
+				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
+			|| (metadata.role === 'video-clip-render-v1'
+				&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
+				&& item.availability === 'unavailable')
+		)
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.effectiveDisposition === 'rendered-fallback';
 }
