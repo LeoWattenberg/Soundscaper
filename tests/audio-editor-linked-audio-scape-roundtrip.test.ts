@@ -20,6 +20,7 @@ import {
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
+import { encodeAiff } from '../src/common/editor/aiff.js';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
@@ -37,19 +38,43 @@ interface ArchiveEntry {
 	getData(writer: Uint8ArrayWriter): Promise<Uint8Array>;
 }
 
-test('portable Scape export turns a linked BW64 .wav into durable recipient-owned canonical PCM', async (context) => {
+interface LinkedPcmContainer {
+	readonly label: string;
+	readonly extension: '.aiff' | '.wav';
+	readonly mimeType: 'audio/aiff' | 'audio/wav';
+	readonly encode: (samples: readonly number[]) => Uint8Array;
+}
+
+const LINKED_PCM_CONTAINERS: readonly LinkedPcmContainer[] = Object.freeze([
+	Object.freeze({
+		label: 'BW64 .wav',
+		extension: '.wav',
+		mimeType: 'audio/wav',
+		encode: int16Bw64Wav,
+	}),
+	Object.freeze({
+		label: 'classic AIFF',
+		extension: '.aiff',
+		mimeType: 'audio/aiff',
+		encode: int16Aiff,
+	}),
+]);
+
+for (const container of LINKED_PCM_CONTAINERS) test(
+	`portable Scape export turns linked ${container.label} into durable recipient-owned canonical PCM`,
+	async (context) => {
 	const indexedDB = createInstrumentedIndexedDB();
 	const senderDatabaseName = `linked-scape-sender-${String(Date.now())}-${String(Math.random())}`;
 	const recipientDatabaseName = `linked-scape-recipient-${String(Date.now())}-${String(Math.random())}`;
-	const externalWavBytes = int16Bw64Wav(SAMPLES);
-	const externalWav = new Blob([exactArrayBuffer(externalWavBytes)], { type: 'audio/wav' });
+	const externalPcmBytes = container.encode(SAMPLES);
+	const externalPcm = new Blob([exactArrayBuffer(externalPcmBytes)], { type: container.mimeType });
 	const canonicalBytes = canonicalPcmChunk(SAMPLES);
 	const port: LinkedOriginalPort = {
 		load(kind, locatorId, { expectedRevision }) {
 			assert.equal(kind, 'audio');
 			assert.equal(locatorId, LOCATOR_ID);
 			if (expectedRevision !== null && expectedRevision !== LOCATOR_REVISION) return null;
-			return { blob: externalWav, locatorRevision: LOCATOR_REVISION };
+			return { blob: externalPcm, locatorRevision: LOCATOR_REVISION };
 		},
 	};
 	const stores = new Set<ProjectStore>();
@@ -67,8 +92,8 @@ test('portable Scape export turns a linked BW64 .wav into durable recipient-owne
 	const source = createAudioSourceV9({
 		id: SOURCE_ID,
 		storageKey: STORAGE_KEY,
-		name: 'Linked portable audio.wav',
-		mimeType: 'audio/wav',
+		name: `Linked portable audio${container.extension}`,
+		mimeType: container.mimeType,
 		frameCount: SAMPLES.length,
 		channelCount: 1,
 		sampleRate: 48_000,
@@ -99,7 +124,7 @@ test('portable Scape export turns a linked BW64 .wav into durable recipient-owne
 
 	await sender.bindLinkedAudioOriginal(project.id, source, LOCATOR_ID, {
 		expectedLocatorRevision: LOCATOR_REVISION,
-		expectedSnapshot: externalWav,
+		expectedSnapshot: externalPcm,
 	});
 	await sender.saveProject(project, { protectedLinkedVideoSourceIds: [] });
 	assert.deepEqual(await sender.listSources(), []);
@@ -114,7 +139,7 @@ test('portable Scape export turns a linked BW64 .wav into durable recipient-owne
 	assert.equal(descriptor.kind, 'audio');
 	assert.equal(descriptor.encoding, 'audio-f32le-chunks-v1');
 	assert.equal(descriptor.size, canonicalBytes.byteLength);
-	assert.notEqual(descriptor.size, externalWavBytes.byteLength);
+	assert.notEqual(descriptor.size, externalPcmBytes.byteLength);
 	if (typeof descriptor.entry !== 'string') throw new TypeError('Expected a Scape audio entry name.');
 
 	const archive = await readPortableArchive(exported.blob, descriptor.entry);
@@ -130,7 +155,7 @@ test('portable Scape export turns a linked BW64 .wav into durable recipient-owne
 		assert.equal(archive.manifestText.includes(secret), false);
 		assert.equal(containsBytes(archive.archiveBytes, new TextEncoder().encode(secret)), false);
 	}
-	assert.equal(containsBytes(archive.archiveBytes, externalWavBytes), false);
+	assert.equal(containsBytes(archive.archiveBytes, externalPcmBytes), false);
 	await sender.close();
 
 	const recipient = trackStore(stores, createProjectStore({
@@ -171,7 +196,8 @@ test('portable Scape export turns a linked BW64 .wav into durable recipient-owne
 	assert.equal(await reopened.getLinkedOriginalBinding(reopenedProject.id, reopenedSource.id), null);
 	assert.equal((await reopened.getSourceMetadata(reopenedSource.storageKey))?.storage, 'indexeddb-chunks');
 	assert.deepEqual(await readMonoSamples(reopened, reopenedSource.storageKey), SAMPLES);
-});
+	},
+);
 
 function trackStore(stores: Set<ProjectStore>, store: ProjectStore): ProjectStore {
 	stores.add(store);
@@ -188,6 +214,20 @@ function int16Bw64Wav(samples: readonly number[]): Uint8Array {
 	const bytes = new Uint8Array(encoded.byteLength);
 	bytes.set(encoded);
 	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'BW64');
+	return bytes;
+}
+
+function int16Aiff(samples: readonly number[]): Uint8Array {
+	const encoded = encodeAiff([Float32Array.from(samples)], {
+		sampleFormat: 'int16',
+		dither: 'none',
+		sampleRate: 48_000,
+	});
+	assert.ok(encoded instanceof Uint8Array);
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'FORM');
+	assert.equal(new TextDecoder().decode(bytes.subarray(8, 12)), 'AIFF');
 	return bytes;
 }
 

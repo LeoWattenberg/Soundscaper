@@ -29,6 +29,7 @@ import type {
 } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import type { EditorController } from '../src/common/editor/types.ts';
+import { encodeAiff } from '../src/common/editor/aiff.js';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
@@ -52,21 +53,38 @@ interface ProjectActions {
 	readonly prepareHandoff: () => Promise<Readonly<{ projectId: string; revision: number }>>;
 }
 
-test('explicit handoff turns a linked BW64 .wav into recipient-owned canonical PCM', async (context) => {
+interface LinkedPcmContainer {
+	readonly label: string;
+	readonly extension: '.aiff' | '.wav';
+	readonly mimeType: 'audio/aiff' | 'audio/wav';
+	readonly encode: (samples: readonly number[]) => Uint8Array;
+}
+
+const LINKED_PCM_CONTAINERS: readonly LinkedPcmContainer[] = Object.freeze([
+	Object.freeze({
+		label: 'BW64 .wav',
+		extension: '.wav',
+		mimeType: 'audio/wav',
+		encode: int16Bw64Wav,
+	}),
+	Object.freeze({
+		label: 'classic AIFF',
+		extension: '.aiff',
+		mimeType: 'audio/aiff',
+		encode: int16Aiff,
+	}),
+]);
+
+for (const container of LINKED_PCM_CONTAINERS) test(
+	`explicit handoff turns linked ${container.label} into recipient-owned canonical PCM`,
+	async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-managed-audio-handoff-'));
 	const resources = trackResources(context, appDataPath);
 	const indexedDB = createInstrumentedIndexedDB();
 	const soundDatabaseName = `linked-wav-handoff-sound-${Date.now()}-${Math.random()}`;
 	const frameDatabaseName = `linked-wav-handoff-frames-${Date.now()}-${Math.random()}`;
-	const encodedWav = encodeWav([Float32Array.from(PCM_SAMPLES)], {
-		container: 'bw64',
-		bitDepth: 16,
-		dither: 'none',
-		sampleRate: 48_000,
-	});
-	const externalWavBytes = new Uint8Array(encodedWav.byteLength);
-	externalWavBytes.set(encodedWav);
-	const externalWav = new Blob([externalWavBytes], { type: 'audio/wav' });
+	const externalPcmBytes = container.encode(PCM_SAMPLES);
+	const externalPcm = new Blob([exactArrayBuffer(externalPcmBytes)], { type: container.mimeType });
 	let linkedLoads = 0;
 	const linkedOriginalPort: LinkedOriginalPort = {
 		load(kind, locatorId, { expectedRevision }) {
@@ -74,7 +92,7 @@ test('explicit handoff turns a linked BW64 .wav into recipient-owned canonical P
 			assert.equal(kind, 'audio');
 			assert.equal(locatorId, LOCATOR_ID);
 			if (expectedRevision !== null && expectedRevision !== LOCATOR_REVISION) return null;
-			return { blob: externalWav, locatorRevision: LOCATOR_REVISION };
+			return { blob: externalPcm, locatorRevision: LOCATOR_REVISION };
 		},
 	};
 	const soundHost = await resources.startHost(SOUND_OWNER);
@@ -85,8 +103,8 @@ test('explicit handoff turns a linked BW64 .wav into recipient-owned canonical P
 	const source = createAudioSourceV9({
 		id: 'managed-handoff-audio-source',
 		storageKey: 'managed-handoff-audio-source',
-		name: 'Managed handoff.wav',
-		mimeType: 'audio/wav',
+		name: `Managed handoff${container.extension}`,
+		mimeType: container.mimeType,
 		frameCount: PCM_SAMPLES.length,
 		channelCount: 1,
 		sampleRate: 48_000,
@@ -127,7 +145,7 @@ test('explicit handoff turns a linked BW64 .wav into recipient-owned canonical P
 	await soundStore.ready();
 	await soundStore.bindLinkedAudioOriginal(project.id, source, LOCATOR_ID, {
 		expectedLocatorRevision: LOCATOR_REVISION,
-		expectedSnapshot: externalWav,
+		expectedSnapshot: externalPcm,
 	});
 	await soundStore.saveProject(project);
 	await soundStore.saveSetting('soundscaper:last-project-id', project.id);
@@ -165,14 +183,18 @@ test('explicit handoff turns a linked BW64 .wav into recipient-owned canonical P
 	assert.equal(managedSource.kind, 'audio');
 	assert.equal(managedSource.byteLength, MANAGED_PCM_BYTES);
 	assert.equal(managedSource.sha256, MANAGED_PCM_SHA256);
+	for (const secret of [LOCATOR_ID, LOCATOR_REVISION]) {
+		assert.equal(JSON.stringify({ managedCatalog, bundle }).includes(secret), false);
+	}
 	const managedBytes = await soundService.readSharedSourceChunk(managedSource.bindingId, {
 		offset: 0,
 		length: managedSource.byteLength,
 	});
 	assert.deepEqual(managedBytes, canonicalPcmBytes(PCM_SAMPLES));
-	assert.notEqual(managedSource.sha256, digest(externalWavBytes));
-	assert.notEqual(managedSource.byteLength, externalWavBytes.byteLength);
-	assert.ok(linkedLoads >= 3, 'binding and the two handoff read passes must resolve the linked WAV');
+	assert.notDeepEqual(managedBytes, externalPcmBytes);
+	assert.notEqual(managedSource.sha256, digest(externalPcmBytes));
+	assert.notEqual(managedSource.byteLength, externalPcmBytes.byteLength);
+	assert.ok(linkedLoads >= 3, 'binding and the two handoff read passes must resolve the linked PCM');
 	assert.deepEqual(persistentPcmInventory(indexedDB, soundDatabaseName), {
 		sourceChunks: 0,
 		sources: 0,
@@ -237,7 +259,41 @@ test('explicit handoff turns a linked BW64 .wav into recipient-owned canonical P
 	assert.equal(await plainStore.getLinkedOriginalBinding(project.id, source.id), null);
 	assert.equal((await plainStore.getSourceMetadata(source.storageKey))?.storage, 'indexeddb-chunks');
 	assert.deepEqual(await readMonoPcm(plainStore, source.storageKey), PCM_SAMPLES);
-});
+	},
+);
+
+function int16Bw64Wav(samples: readonly number[]): Uint8Array {
+	const encoded = encodeWav([Float32Array.from(samples)], {
+		container: 'bw64',
+		bitDepth: 16,
+		dither: 'none',
+		sampleRate: 48_000,
+	});
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'BW64');
+	return bytes;
+}
+
+function int16Aiff(samples: readonly number[]): Uint8Array {
+	const encoded = encodeAiff([Float32Array.from(samples)], {
+		sampleFormat: 'int16',
+		dither: 'none',
+		sampleRate: 48_000,
+	});
+	assert.ok(encoded instanceof Uint8Array);
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'FORM');
+	assert.equal(new TextDecoder().decode(bytes.subarray(8, 12)), 'AIFF');
+	return bytes;
+}
+
+function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+	const copy = new Uint8Array(bytes.byteLength);
+	copy.set(bytes);
+	return copy.buffer;
+}
 
 function serviceBridge(service: DesktopSharedProjectLibraryService): DesktopSharedProjectBridge {
 	const bridge: DesktopSharedProjectBridge = {
