@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PCM_CONTAINER_STORAGE_TYPE } from '../wavpack/index.js';
-import type { StorageRecord } from './media-records.ts';
+import { sameStoredSourceIdentity, type StorageRecord } from './media-records.ts';
+import { OwnedSourcePcmReadSessionRepository } from './owned-source-pcm-read-session.ts';
 import type { PcmMigrationRepository } from './pcm-migration-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
+import { combineSourceReadAbortSignals } from './source-pcm-read-session.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
+
+const SESSION_CLEANUP_REASON = new Error('Source PCM read sessions are being released.');
 
 export interface SourcePcmChunk {
 	readonly index: unknown;
@@ -39,6 +43,7 @@ export interface SourceReadRepositoryOptions {
 export interface SourceReadOptions {
 	readonly signal?: AbortSignal;
 	readonly migrateLegacyPcmOnAccess?: boolean;
+	readonly expectedSource?: StorageRecord;
 }
 
 /** Read-only canonical PCM supplied outside the owned source-record store. */
@@ -60,9 +65,15 @@ export interface SourceReadFallback {
 /** Ordered and random-access PCM reads across all source storage formats. */
 export class SourceReadRepository {
 	readonly #options: SourceReadRepositoryOptions;
+	readonly #ownedSessions: OwnedSourcePcmReadSessionRepository;
+	readonly #openings = new Set<Readonly<{
+		abort: AbortController;
+		promise: Promise<SourcePcmReadSession | null>;
+	}>>();
 
 	constructor(options: SourceReadRepositoryOptions) {
 		this.#options = options;
+		this.#ownedSessions = new OwnedSourcePcmReadSessionRepository(options);
 	}
 
 	async getMetadata(sourceId: string): Promise<StorageRecord | null> {
@@ -70,27 +81,81 @@ export class SourceReadRepository {
 		return owned ?? await this.#options.fallback?.getMetadata(sourceId) ?? null;
 	}
 
-	async openSession(
+	openSession(
 		sourceId: string,
 		options: SourceReadOptions = {},
 	): Promise<SourcePcmReadSession | null> {
-		throwIfAborted(options.signal);
-		if (await this.#options.records.getMetadata(sourceId)) return null;
-		throwIfAborted(options.signal);
+		const abort = new AbortController();
+		const signals = combineSourceReadAbortSignals(abort.signal, options.signal);
+		const opening = Promise.resolve().then(() => this.#openSession(sourceId, {
+			...options,
+			signal: signals.signal,
+		})).finally(signals.dispose);
+		const record = Object.freeze({ abort, promise: opening });
+		this.#openings.add(record);
+		void opening.then(
+			() => { this.#openings.delete(record); },
+			() => { this.#openings.delete(record); },
+		);
+		return opening;
+	}
+
+	async #openSession(
+		sourceId: string,
+		options: SourceReadOptions,
+	): Promise<SourcePcmReadSession | null> {
+		const owned = await this.#ownedSessions.openSession(sourceId, options);
+		try {
+			throwIfSessionAdmissionAborted(options.signal);
+		} catch (error) {
+			if (owned) return failOpenedSession(error, owned);
+			throw error;
+		}
+		if (owned) return owned;
 		const fallback = this.#options.fallback;
-		if (!fallback?.openSession) return null;
+		if (!fallback?.openSession) {
+			if (options.expectedSource) throw sourceGenerationChangedError();
+			return null;
+		}
+		if (options.expectedSource) {
+			await this.#assertExpectedSourceCurrent(sourceId, options.expectedSource, options.signal);
+		}
 		const session = await fallback.openSession(sourceId, options);
 		try {
-			throwIfAborted(options.signal);
+			throwIfSessionAdmissionAborted(options.signal);
+			if (options.expectedSource) {
+				await this.#assertExpectedSourceCurrent(sourceId, options.expectedSource, options.signal);
+			}
 		} catch (error) {
 			if (session) return failOpenedSession(error, session);
 			throw error;
 		}
+		if (options.expectedSource && !session) throw sourceGenerationChangedError();
 		return session;
 	}
 
 	async releaseSessions(): Promise<void> {
-		await this.#options.fallback?.releaseSessions?.();
+		const openings = [...this.#openings];
+		for (const opening of openings) opening.abort.abort(SESSION_CLEANUP_REASON);
+		const results = await Promise.allSettled([
+			...openings.map(({ promise }) => promise),
+			this.#ownedSessions.releaseSessions(),
+			Promise.resolve().then(() => this.#options.fallback?.releaseSessions?.()),
+		]);
+		const seenFailures = new Set<unknown>();
+		const failures = results
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.filter(({ reason }) => reason !== SESSION_CLEANUP_REASON)
+			.map(({ reason }) => reason as unknown)
+			.filter((failure) => {
+				if (seenFailures.has(failure)) return false;
+				seenFailures.add(failure);
+				return true;
+			});
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) {
+			throw new AggregateError(failures, 'Source PCM read-session cleanup failed.');
+		}
 	}
 
 	async *chunks(
@@ -131,6 +196,17 @@ export class SourceReadRepository {
 		}
 		if (offset !== frameCount) throw new Error('The stored audio source frame count does not match its metadata.');
 		return buffer;
+	}
+
+	async #assertExpectedSourceCurrent(
+		sourceId: string,
+		expected: StorageRecord,
+		signal?: AbortSignal,
+	): Promise<void> {
+		throwIfSessionAdmissionAborted(signal);
+		const current = await this.getMetadata(sourceId);
+		throwIfSessionAdmissionAborted(signal);
+		if (!sameStoredSourceIdentity(current, expected)) throw sourceGenerationChangedError();
 	}
 
 	async #chunk(
@@ -289,6 +365,7 @@ async function failOpenedSession(
 	try {
 		await session.release();
 	} catch (cleanupError) {
+		if (error === SESSION_CLEANUP_REASON) throw cleanupError;
 		throw new AggregateError(
 			[error, cleanupError],
 			'Source session opening and cleanup both failed.',
@@ -296,6 +373,16 @@ async function failOpenedSession(
 		);
 	}
 	throw error;
+}
+
+function throwIfSessionAdmissionAborted(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	if (signal.reason !== undefined) throw signal.reason;
+	throwIfAborted(signal);
+}
+
+function sourceGenerationChangedError(): Error {
+	return new Error('The source PCM generation changed during reading.');
 }
 
 function nonNegativeInteger(value: unknown, fallback: number): number {

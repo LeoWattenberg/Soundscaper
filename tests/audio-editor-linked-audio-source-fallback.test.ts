@@ -78,7 +78,10 @@ test('an owned PCM source always wins over a linked original with the same stora
 	const chunk = await fixture.sources.chunk('physical-audio', 0);
 	assert.deepEqual([...chunk.channels[0]], [0.125, 0.75]);
 	assert.equal(loads, 1, 'owned reads must not materialize the linked body');
-	assert.equal(await fixture.sources.openReadSession('physical-audio'), null);
+	const session = await fixture.sources.openReadSession('physical-audio');
+	assert.ok(session);
+	assert.deepEqual([...((await session.chunk(0)).channels[0])], [0.125, 0.75]);
+	await session.release();
 	assert.equal(loads, 1, 'owned session admission must not reach the linked fallback');
 });
 
@@ -89,7 +92,8 @@ test('canonical source session APIs retain and bulk-release one linked PCM ident
 	let loads = 0;
 	const fixture = sourceFixture(body, () => { loads += 1; });
 	await fixture.resolver.bind('project-audio', audioSource(), LOCATOR_ID);
-	const session = await fixture.sources.openReadSession('physical-audio');
+	const expected = await fixture.sources.getMetadata('physical-audio');
+	const session = await fixture.sources.openReadSession('physical-audio', { expectedSource: expected ?? undefined });
 	assert.ok(session);
 
 	assert.deepEqual([...((await session.chunk(1)).channels[0])], [0.25, 1]);

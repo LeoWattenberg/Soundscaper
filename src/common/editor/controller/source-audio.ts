@@ -55,7 +55,7 @@ interface StoredSourceReader {
 	readSourceChunk(sourceId: string, chunkIndex: number, context?: Record<string, unknown>): Promise<unknown> | unknown;
 	openSourceReadSession?(
 		sourceId: string,
-		options?: Readonly<{ signal?: AbortSignal }>,
+		options?: Readonly<{ signal?: AbortSignal; expectedSource?: StoredSourceMetadata }>,
 	): PromiseLike<StoredSourceReadSession | null> | StoredSourceReadSession | null;
 }
 
@@ -187,7 +187,10 @@ export function createStoredChunkProvider(
 	const openSession = (): Promise<StoredSourceReadSession | null> => {
 		if (opening) return opening;
 		try {
-			opening = Promise.resolve(store.openSourceReadSession?.(sourceId, { signal: lifetime.signal }) ?? null);
+			opening = Promise.resolve(store.openSourceReadSession?.(sourceId, {
+				signal: lifetime.signal,
+				expectedSource: metadata,
+			}) ?? null);
 		} catch (error) {
 			opening = Promise.reject(error);
 		}
