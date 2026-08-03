@@ -11,6 +11,7 @@ import { DesktopSharedProjectRepository } from './storage/desktop-shared-project
 import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-coordinator.ts';
 import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
 import { admitProjectPublication } from './storage/project-publication-options.ts';
+import { createProjectStoreId, reportDesktopSharedProjectLocalCleanupError } from './storage/project-store-defaults.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -195,7 +196,7 @@ export class AudioEditorProjectStore {
 			},
 		}, {
 			sourceProjectId: projectId,
-			copyProjectId: id || createId('project'),
+			copyProjectId: id || createProjectStoreId('project'),
 			title,
 			timestamp: new Date().toISOString(),
 		});
@@ -271,6 +272,10 @@ export class AudioEditorProjectStore {
 	async bindLinkedAudioOriginal(projectId, source, locatorId, options = {}) {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.bindAudio(projectId, source, locatorId, options);
+	}
+	async relinkLinkedAudioOriginal(projectId, source, locatorId, options) {
+		this.#assertOpen();
+		return this.linkedOriginalStoreService.relinkAudio(projectId, source, locatorId, options);
 	}
 
 	async resolveLinkedAudioOriginal(projectId, source, options = {}) {
@@ -588,13 +593,4 @@ export class AudioEditorProjectStore {
 		}
 		return this.databasePromise;
 	}
-}
-
-function createId(prefix) {
-	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
-	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
-
-function reportDesktopSharedProjectLocalCleanupError() {
-	globalThis.console?.error?.('A deleted shared project could not be removed from this product local cache.');
 }

@@ -90,13 +90,16 @@ export interface LinkedOriginalReconciliationInventory {
 		| readonly LinkedOriginalCatalogProjectRevision[];
 }
 
-export interface RelinkLinkedVideoOriginalOptions {
+export interface RelinkLinkedOriginalOptions {
 	readonly expectedBindingToken: string;
 	readonly expectedLocatorRevision: string;
 	readonly expectedSnapshot: unknown;
 	readonly assertCanPublish?: () => void;
 	readonly signal?: AbortSignal;
 }
+
+export type RelinkLinkedAudioOriginalOptions = RelinkLinkedOriginalOptions;
+export type RelinkLinkedVideoOriginalOptions = RelinkLinkedOriginalOptions;
 
 type ActiveLifecycle = LinkedOriginalLifecycleCoordinator | LinkedVideoOriginalLifecycleCoordinator;
 
@@ -245,6 +248,38 @@ export class LinkedOriginalStoreService {
 		);
 	}
 
+	relinkAudio(
+		projectId: string,
+		source: LinkedAudioOriginalSource,
+		locatorId: string,
+		options: RelinkLinkedAudioOriginalOptions,
+	): Promise<LinkedOriginalBinding> {
+		this.#assertAudioSource(source);
+		const { resolver, lifecycle } = this.#audioOwnership();
+		return lifecycle.bind(
+			projectId,
+			{ kind: 'audio', sourceId: source.id },
+			async () => {
+				throwIfRelinkAborted(options?.signal, 'audio');
+				const current = await this.#repositories.linkedOriginalBindings.get(projectId, source.id);
+				throwIfRelinkAborted(options?.signal, 'audio');
+				if (current?.kind !== 'audio'
+					|| current.bindingToken !== options?.expectedBindingToken) {
+					throw new Error('The linked audio original binding changed before relink.');
+				}
+				await resolver.assertBindingCurrent(projectId, source, current, { signal: options.signal });
+				const selected = await exactRelinkSnapshot(current, options, 'audio');
+				return resolver.bind(projectId, source, locatorId, {
+					expectedBindingToken: current.bindingToken,
+					expectedLocatorRevision: options.expectedLocatorRevision,
+					expectedSnapshot: selected,
+					...(options.assertCanPublish ? { assertCanPublish: options.assertCanPublish } : {}),
+					...(options.signal ? { signal: options.signal } : {}),
+				});
+			},
+		);
+	}
+
 	resolveAudio(
 		projectId: string,
 		source: LinkedAudioOriginalSource,
@@ -332,15 +367,7 @@ export class LinkedOriginalStoreService {
 				throw new Error('The linked video original binding changed before relink.');
 			}
 			await resolver.assertBindingCurrent(projectId, source, current, { signal: options.signal });
-			const selected = canonicalMediaContentBlob(options.expectedSnapshot);
-			if (selected.size !== current.byteLength) {
-				throw new Error('The selected linked video original does not match the current byte length.');
-			}
-			const selectedDigest = await digestMediaContent(selected, { signal: options.signal });
-			if (selectedDigest !== current.sha256) {
-				throw new Error('The selected linked video original does not match the current SHA-256.');
-			}
-			throwIfRelinkAborted(options.signal);
+			const selected = await exactRelinkSnapshot(current, options, 'video');
 			return resolver.bind(projectId, source, locatorId, {
 				expectedBindingToken: current.bindingToken,
 				expectedLocatorRevision: options.expectedLocatorRevision,
@@ -500,13 +527,33 @@ export class LinkedOriginalStoreService {
 	}
 }
 
-function throwIfRelinkAborted(signal?: AbortSignal): void {
+function throwIfRelinkAborted(
+	signal?: AbortSignal,
+	kind: 'audio' | 'video' = 'video',
+): void {
 	if (!signal?.aborted) return;
 	if (signal.reason !== undefined) throw signal.reason;
 	if (typeof DOMException === 'function') {
-		throw new DOMException('Linked video original relink was cancelled.', 'AbortError');
+		throw new DOMException(`Linked ${kind} original relink was cancelled.`, 'AbortError');
 	}
-	const error = new Error('Linked video original relink was cancelled.');
+	const error = new Error(`Linked ${kind} original relink was cancelled.`);
 	error.name = 'AbortError';
 	throw error;
+}
+
+async function exactRelinkSnapshot(
+	current: Readonly<{ byteLength: number; sha256: string }>,
+	options: RelinkLinkedOriginalOptions,
+	kind: 'audio' | 'video',
+): Promise<Blob> {
+	const selected = canonicalMediaContentBlob(options.expectedSnapshot);
+	if (selected.size !== current.byteLength) {
+		throw new Error(`The selected linked ${kind} original does not match the current byte length.`);
+	}
+	const selectedDigest = await digestMediaContent(selected, { signal: options.signal });
+	if (selectedDigest !== current.sha256) {
+		throw new Error(`The selected linked ${kind} original does not match the current SHA-256.`);
+	}
+	throwIfRelinkAborted(options.signal, kind);
+	return selected;
 }

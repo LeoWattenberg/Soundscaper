@@ -197,11 +197,13 @@ export class LinkedOriginalRepository {
 	putIfCurrent(
 		value: LinkedOriginalBindingInput,
 		expectedBindingToken: string | null,
+		assertCanPublish?: () => void,
 	): Promise<LinkedOriginalBinding | null> {
 		return this.#putNormalized(
 			normalizeLinkedOriginalBindingInput(value),
 			expectedBindingToken,
 			false,
+			assertCanPublish,
 		);
 	}
 

@@ -108,6 +108,7 @@ export interface BindLinkedOriginalOptions {
 	readonly expectedBindingToken?: string | null;
 	readonly expectedLocatorRevision?: string | null;
 	readonly expectedSnapshot?: unknown;
+	readonly assertCanPublish?: () => void;
 	readonly signal?: AbortSignal;
 }
 
@@ -186,6 +187,7 @@ export class LinkedOriginalResolver {
 		const published = await this.#bindings.putIfCurrent(
 			input,
 			options.expectedBindingToken ?? null,
+			options.assertCanPublish,
 		);
 		if (!published) throw new Error('The linked original binding changed before publication.');
 		return published;
