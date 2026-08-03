@@ -83,7 +83,7 @@ test('cleanup failure after publication leaves the candidate registry-owned', as
 	assert.equal(candidateDisposals, 0);
 
 	providers.clear();
-	await providers.drain();
+	await assert.rejects(providers.drain(), (error: unknown) => error === cleanupFailure);
 	assert.equal(candidateDisposals, 1);
 });
 
