@@ -54,6 +54,7 @@ export interface ClipTimePitchPlaybackState {
 export interface ClipTimePitchRenderEngine {
 	setSourceResolver?(resolver: unknown): void;
 	setChunkSources?(sources: ReadonlyMap<string, unknown>): void;
+	dispose(): PromiseLike<void> | void;
 }
 
 export interface ClipTimePitchPair {
@@ -88,6 +89,7 @@ export interface ClipTimePitchCacheService<
 	projectTimePitchPairs(project: ClipTransformProject | null | undefined): readonly ClipTimePitchPair[];
 	projectHasTimePitchClips(project: ClipTransformProject | null | undefined): boolean;
 	createCacheAwareRenderEngine(): RenderEngine;
+	disposeRenderEngines(): Promise<void>;
 	materializeTimePitchCacheEntry(
 		entry: ClipTimePitchCacheEntry,
 		signal?: AbortSignal | null,
@@ -112,10 +114,12 @@ export function createClipTimePitchCacheService<
 >(
 	dependencies: ClipTimePitchCacheServiceDependencies<RenderEngine>,
 ): Readonly<ClipTimePitchCacheService<RenderEngine>> {
+	const renderEngines = new Set<RenderEngine>();
 	return Object.freeze({
 		projectTimePitchPairs,
 		projectHasTimePitchClips,
 		createCacheAwareRenderEngine,
+		disposeRenderEngines,
 		materializeTimePitchCacheEntry,
 		prepareCommittedTimePitchCaches,
 		preparePlaybackTimePitchCaches,
@@ -147,9 +151,41 @@ export function createClipTimePitchCacheService<
 		const renderEngine = dependencies.createRenderEngine({
 			sourceResolver: dependencies.sourceResolver,
 		});
+		const disposeEngine = renderEngine.dispose.bind(renderEngine);
+		let disposal: Promise<void> | null = null;
+		renderEngine.dispose = () => {
+			if (!disposal) {
+				try {
+					disposal = Promise.resolve(disposeEngine());
+				} catch (error) {
+					disposal = Promise.reject(error);
+				}
+				void disposal.then(
+					() => { renderEngines.delete(renderEngine); },
+					() => {},
+				);
+			}
+			return disposal;
+		};
+		renderEngines.add(renderEngine);
 		renderEngine.setSourceResolver?.(dependencies.sourceResolver);
 		renderEngine.setChunkSources?.(dependencies.sourceChunkProviders);
 		return renderEngine;
+	}
+
+	async function disposeRenderEngines(): Promise<void> {
+		const results = await Promise.allSettled(
+			Array.from(renderEngines, async (renderEngine) => {
+				await renderEngine.dispose();
+			}),
+		);
+		const failures = results.flatMap((result) => (
+			result.status === 'rejected' ? [result.reason as unknown] : []
+		));
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) {
+			throw new AggregateError(failures, 'Render-engine cleanup failed');
+		}
 	}
 
 	async function materializeTimePitchCacheEntry(

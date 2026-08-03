@@ -82,14 +82,45 @@ test('cache-aware render engines receive both the StaffPad resolver and chunk in
 	const harness = createHarness(projectFixture());
 	const engine = harness.service.createCacheAwareRenderEngine();
 
-	assert.equal(engine, harness.renderEngine);
-	assert.equal(harness.renderEngine.sourceResolver, harness.sourceResolver);
-	assert.equal(harness.renderEngine.chunkSources, harness.sourceChunkProviders);
+	assert.equal(engine, harness.renderEngines[0]);
+	assert.equal(harness.renderEngines[0]?.sourceResolver, harness.sourceResolver);
+	assert.equal(harness.renderEngines[0]?.chunkSources, harness.sourceChunkProviders);
+});
+
+test('cache-aware render-engine cleanup drains every consumer and retains failure order', async () => {
+	const gate = deferred<void>();
+	const failures = [new Error('first render cleanup failed'), new Error('second render cleanup failed')];
+	const events: string[] = [];
+	const harness = createHarness(projectFixture(), {
+		async disposeRenderEngine(index) {
+			events.push(`dispose:${index}:start`);
+			await gate.promise;
+			events.push(`dispose:${index}:done`);
+			throw failures[index];
+		},
+	});
+	const first = harness.service.createCacheAwareRenderEngine();
+	const second = harness.service.createCacheAwareRenderEngine();
+	const cleanup = harness.service.disposeRenderEngines();
+	await Promise.resolve();
+	assert.deepEqual(events, ['dispose:0:start', 'dispose:1:start']);
+	gate.resolve();
+	await assert.rejects(cleanup, (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.deepEqual(error.errors, failures);
+		return true;
+	});
+	await assert.rejects(Promise.resolve(first.dispose()), (error: unknown) => error === failures[0]);
+	await assert.rejects(Promise.resolve(second.dispose()), (error: unknown) => error === failures[1]);
+	assert.deepEqual(events, [
+		'dispose:0:start', 'dispose:1:start', 'dispose:0:done', 'dispose:1:done',
+	]);
 });
 
 function createHarness(
 	initialProject: ClipTransformProject,
 	options: Readonly<{
+		disposeRenderEngine?: (index: number) => PromiseLike<void> | void;
 		prepareCommitted?: () => Promise<ClipTimePitchCacheEntry>;
 		resolvePlayback?: () => Promise<ClipTimePitchCacheEntry>;
 	}> = {},
@@ -110,12 +141,13 @@ function createHarness(
 	};
 	const sourceResolver = Object.freeze({ resolve: () => null });
 	const sourceChunkProviders = new Map<string, unknown>();
-	const renderEngine = {
-		sourceResolver: null as unknown,
-		chunkSources: null as unknown,
-		setSourceResolver(value: unknown) { this.sourceResolver = value; },
-		setChunkSources(value: unknown) { this.chunkSources = value; },
-	};
+	const renderEngines: Array<{
+		sourceResolver: unknown;
+		chunkSources: unknown;
+		setSourceResolver(value: unknown): void;
+		setChunkSources(value: unknown): void;
+		dispose(): PromiseLike<void> | void;
+	}> = [];
 	const appliedProjects: string[] = [];
 	const service = createClipTimePitchCacheService({
 		lifetime,
@@ -127,7 +159,18 @@ function createHarness(
 		captureProject: (projectId) => generation.capture(projectId),
 		assertProject: (token) => generation.assertCurrent(token),
 		createBufferFromChannels: async (channels, sampleRate) => audioBufferFixture(channels, sampleRate),
-		createRenderEngine: () => renderEngine,
+		createRenderEngine: () => {
+			const index = renderEngines.length;
+			const renderEngine = {
+				sourceResolver: null as unknown,
+				chunkSources: null as unknown,
+				setSourceResolver(value: unknown) { this.sourceResolver = value; },
+				setChunkSources(value: unknown) { this.chunkSources = value; },
+				dispose: () => options.disposeRenderEngine?.(index),
+			};
+			renderEngines.push(renderEngine);
+			return renderEngine;
+		},
 		applyProjectToPlaybackEngine: async (snapshot) => {
 			appliedProjects.push(snapshot.id);
 		},
@@ -137,7 +180,7 @@ function createHarness(
 	return {
 		appliedProjects,
 		cache,
-		renderEngine,
+		renderEngines,
 		service,
 		sourceChunkProviders,
 		sourceResolver,
