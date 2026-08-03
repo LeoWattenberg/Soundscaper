@@ -334,7 +334,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   preserves reachable linked-original bindings without copying external media.
 - **Electron Enhanced — In progress:** broaden the concrete platform locator
   beyond the bounded linked-PCM and retained-video slices, and
-  finish broader linked and unmanaged-original lifecycles, exact or write-time
+  finish broader linked and unmanaged-original lifecycles beyond the maintained
+  exact-content retained-video relink, exact or write-time
   capacity behavior, stable playback identity beyond the maintained owned canonical PCM,
   linked-PCM, and retained-video lifecycles,
   continuous linked-locator cleanup beyond bounded startup and maintained

@@ -77,7 +77,7 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 	assert.match(control.summary, /memory and IndexedDB.*no-owned-PCM linked WAV.*last durable revision.*live audio root.*canonically readable.*exact locator.*once.*last root disappears.*external WAV.*untouched/isu);
 	assert.match(control.summary, /same IndexedDB database.*independent browser connections.*binding\/root transaction.*different databases or profiles.*catalog or main locator registry.*cross-boundary.*abrupt crash or power loss.*hostile IndexedDB authority.*hostile renderer authority.*unqualified/isu);
 	assert.match(control.summary, /project publication, local binding transaction, and main locator retirement remain separate/isu);
-	assert.match(control.summary, /relink or watch.*packaged executable or operating-system.*audible or device playback.*third-party activation gating.*legacy private librar/isu);
+	assert.match(control.summary, /relink beyond the exact-content retained-video Project Bin flow or any automatic watch.*packaged executable or operating-system.*audible or device playback.*third-party activation gating.*legacy private librar/isu);
 });
 
 test('the threat model records the same maintained save boundary and residuals', async () => {

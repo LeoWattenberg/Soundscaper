@@ -479,11 +479,12 @@ A pathname move or replacement after admission does not retarget the open
 handle, so the live lease continues to read the admitted inode. Same-inode
 in-place mutation during or after verification is not fenced, however, and the
 lease is not content-frozen. The persisted locator therefore remains a
-point-in-time identity rather than an operating-system bookmark, watch/relink
-handle, or cross-restart playback identity. This is bounded range transport for
-the maintained live visual only, not reference-scale qualification. The
-whole-`Blob` import, shared-load, and handoff routes remain unchanged; packaged
-executable/UI, operating-system, and browser codec behavior remain unqualified.
+point-in-time identity rather than an operating-system bookmark, automatic
+watch or moved-path-repair handle, or cross-restart playback identity. This is
+bounded range transport for the maintained live visual only, not
+reference-scale qualification. The whole-`Blob` import, shared-load, and
+handoff routes remain unchanged; packaged executable/UI, operating-system, and
+browser codec behavior remain unqualified.
 
 The capability-gated Project Bin action passes that one pathless choice into the
 maintained video importer. The importer may derive canonical audio and
@@ -503,7 +504,33 @@ owner return `false` without a registry write. A failed persistence write
 restores the in-memory entry, while revocation observed after the deletion write
 attempts a second persisted restore. A successful release removes only the
 main-private registry metadata; no release path deletes the user-selected
-external file. After durable IndexedDB opens and before project loading, the
+external file.
+
+The localized Project Bin Relink action is available for a missing
+retained-video item when the linked-video capability exists. The controller
+then requires a current binding, a compound A/V item that resolves to exactly
+one video source, and editing that remains writable. It snapshots the old
+binding token, stops Project Bin preview, revokes the current visual, and
+revalidates project, task, missing-source, and editing state. The UI passes only
+the selected `File` and pathless locator ID and revision. Storage first requires
+that file to match the existing byte length and SHA-256, then requires the
+exact-revision platform snapshot to match the selection before a same-source
+compare-and-swap publishes the replacement binding and provisional root.
+The synchronous controller guard runs inside that same memory or IndexedDB
+binding-and-provisional-root CAS immediately before publication and rechecks
+task, project, writable, and missing-source state. The project document,
+source, and history remain unchanged. Verified visual activation then clears
+the missing state and publishes the view.
+
+A wrong-content, stale, superseded, cancelled, or disposed attempt before
+publication keeps the old binding current and releases only a distinct unused
+candidate. If activation fails after publication, the new binding and missing
+state remain for retry. The displaced prior locator is deliberately not
+released immediately; it remains eligible for later bounded startup
+reconciliation. That pass preserves submitted same-store aliases; cross-store,
+cross-profile, and cross-process coordination remains unqualified.
+
+After durable IndexedDB opens and before project loading, the
 maintained store obtains one point-in-time authoritative project-summary
 snapshot from its active project repository. In Electron that authority is the
 shared catalog rather than a stale product-local shadow. For a
@@ -910,7 +937,8 @@ The maintained pathless desktop linked retained-video slice and narrow
 linked-PCM managed-handoff exception described above are also qualified. Other
 linked audio and every other linked or unmanaged original, authored proxies,
 rendered-fallback authoring and transfer semantics beyond the closed audio
-whole-mix and maintained video roles, relink/watch behavior, general
+whole-mix and maintained video roles, relink beyond this exact-content
+retained-video Project Bin flow and automatic watch behavior, general
 copy/consolidate beyond the bounded same-store project-alias duplication above,
 source-level linked-locator cleanup outside maintained same-store saves and
 successful writable activations, general linked-locator cleanup beyond the
@@ -970,7 +998,8 @@ qualified. Other linked audio and every other linked or unmanaged original,
 authored proxies, rendered-fallback authoring and transfer semantics beyond the
 closed audio whole-mix and maintained video roles, general
 copy/consolidate beyond the bounded same-store project-alias
-duplication above, relink/watch behavior, source-level linked-locator cleanup
+duplication above, relink beyond this exact-content retained-video Project Bin
+flow and automatic watch behavior, source-level linked-locator cleanup
 outside maintained same-store saves and successful writable activations,
 general linked-locator cleanup beyond the bounded startup and same-store
 save/activation/delete/clear inventories, packaged chooser/import qualification,
