@@ -2,7 +2,6 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from '../src/common/editor/controller/lifecycle.ts';
 import { PLAYBACK_PROJECT_APPLY_TASK } from '../src/common/editor/controller/playback-project-service.ts';
 import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecycleProject, ProjectLifecycleTab } from '../src/common/editor/controller/project-lifecycle-types.ts';
@@ -23,25 +22,15 @@ interface TestTrack {
 	readonly effectsActive?: boolean; readonly effects?: readonly Readonly<Record<string, unknown>>[];
 }
 interface TestProject extends ProjectLifecycleProject {
-	readonly title: string;
-	readonly sampleRate: number;
-	readonly tracks: readonly TestTrack[];
-	readonly clips: readonly Readonly<{ id: string }>[];
-	readonly schemaVersion?: number;
-	readonly featureRequirements?: unknown;
+	readonly title: string; readonly sampleRate: number;
+	readonly tracks: readonly TestTrack[]; readonly clips: readonly Readonly<{ id: string }>[];
+	readonly schemaVersion?: number; readonly featureRequirements?: unknown;
 }
 interface TestHistory extends ProjectLifecycleHistory<TestProject> { readonly present: TestProject; }
-
 type TestTab = ProjectLifecycleTab<TestProject, TestHistory>;
+interface TestLock extends ProjectLifecycleLock { releases: number; }
 
-interface TestLock extends ProjectLifecycleLock {
-	releases: number;
-}
-
-function project(
-	id: string,
-	tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }],
-): TestProject {
+function project(id: string, tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }]): TestProject {
 	return {
 		id, title: id, sampleRate: 48_000, tracks, clips: [], schemaVersion: 9,
 		featureRequirements: { schemaVersion: 1, requirements: [] },
@@ -69,6 +58,8 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 	let loadedEngineProject: TestProject | null = null;
 	let acquire: (projectId: string) => Promise<ProjectLifecycleLock> = async (projectId) => lock(projectId);
 	let loadSources: (value: TestProject) => Promise<unknown> = async () => undefined;
+	let stopPreview = async (options: Readonly<{ dispose: true }>) => { assert.equal(options.dispose, true); await Promise.resolve(); events.push('stop-preview'); };
+	let disposeRenderEngines = async () => { await Promise.resolve(); events.push('dispose-render-engines'); };
 	const events: string[] = [];
 	const statuses: Array<readonly [string, string]> = [];
 	const assignedTracks: string[] = [];
@@ -176,7 +167,8 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 		saveNow: async () => { events.push('save-now'); },
 		cancelScheduledSave: () => { events.push('cancel-save'); },
 		stopEngine: () => { events.push('stop-engine'); },
-		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
+		stopProjectBinPreview: (options: Readonly<{ dispose: true }>) => stopPreview(options), disposeRenderEngines: () => disposeRenderEngines(),
+		beginSourceChunkProviderReplacement: () => { events.push('begin-provider-replacement'); return sourceChunkProviders.beginReplacement(); },
 		cancelEffectPreview: () => { events.push('cancel-preview'); },
 		releaseProjectLock: async (value: ProjectLifecycleLock | null = state.projectLock) => {
 			events.push('release-lock');
@@ -247,6 +239,7 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 		getTabMetadata: (projectId: string) => tabs.get(projectId)?.metadata,
 		setAcquire(value: typeof acquire) { acquire = value; },
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
+		setStopPreview(value: typeof stopPreview) { stopPreview = value; }, setDisposeRenderEngines(value: typeof disposeRenderEngines) { disposeRenderEngines = value; },
 		setMigrationReadOnly(value: boolean) { migrationReadOnly = value; },
 	};
 }
@@ -269,6 +262,7 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.deepEqual(fixture.revokedUrls, ['blob:old-output']);
 	assert.equal(fixture.initialLock.releases, 1);
 	assert.ok(fixture.events.indexOf('load-sources:next-project') < fixture.events.indexOf('engine-load:next-project'));
+	assert.ok(fixture.events.indexOf('stop-engine') < fixture.events.indexOf('stop-preview') && fixture.events.indexOf('stop-preview') < fixture.events.indexOf('dispose-render-engines') && fixture.events.indexOf('dispose-render-engines') < fixture.events.indexOf('begin-provider-replacement'));
 	assert.ok(fixture.events.indexOf('engine-load:next-project') < fixture.events.indexOf('publish'));
 	assert.ok(fixture.events.includes('save-now'));
 	assert.ok(fixture.events.includes('save-project:next-project') && !fixture.events.includes('maintain-opened:next-project'));
@@ -279,6 +273,13 @@ test('project activation resets scoped state and publishes only after sources ar
 	assert.ok(playbackApply.signal.aborted && playbackApply.signal.reason instanceof DOMException && playbackApply.signal.reason.name === 'AbortError');
 	assert.ok(fixture.events.indexOf('abort-playback-apply') < fixture.events.indexOf('stop-recording'));
 	fixture.projectGeneration.assertCurrent(fixture.projectGeneration.capture('next-project'));
+	const previewFailure = new Error('preview disposal failed');
+	fixture.setStopPreview(async () => { fixture.events.push('stop-preview:failed'); throw previewFailure; });
+	await assert.rejects(fixture.service.switchProject(project('preview-failure')), (error) => error === previewFailure);
+	assert.equal(fixture.events.filter((event) => event === 'begin-provider-replacement').length, 1);
+	fixture.setStopPreview(async () => { fixture.events.push('stop-preview'); }); const renderFailure = new Error('render-engine disposal failed');
+	fixture.setDisposeRenderEngines(async () => { fixture.events.push('dispose-render-engines:failed'); throw renderFailure; });
+	await assert.rejects(fixture.service.switchProject(project('render-failure')), (error) => error === renderFailure); assert.equal(fixture.events.filter((event) => event === 'begin-provider-replacement').length, 1);
 });
 
 test('project activation aborts in-flight Scape ownership before a queued switch can start', async () => {

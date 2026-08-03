@@ -4,10 +4,7 @@ import type { EditorLifetimeToken } from './lifecycle.ts';
 import { PLAYBACK_PROJECT_APPLY_TASK, createPlaybackProjectService } from './playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
-import type {
-	ScapeInspectionFence,
-	ScapeInspectionQuiescence,
-} from './scape-inspection-quiescence.ts';
+import type { ScapeInspectionFence, ScapeInspectionQuiescence } from './scape-inspection-quiescence.ts';
 import type {
 	ProjectLifecycleCopy,
 	ProjectLifecycleHistory,
@@ -155,6 +152,8 @@ export interface ProjectSwitchServiceRuntime<
 	readonly saveNow: () => PromiseLike<unknown> | unknown;
 	readonly cancelScheduledSave: () => void;
 	readonly stopEngine: () => void;
+	readonly stopProjectBinPreview: (options: Readonly<{ dispose: true }>) => PromiseLike<unknown> | unknown;
+	readonly disposeRenderEngines: () => PromiseLike<void> | void;
 	readonly beginSourceChunkProviderReplacement: () => SourceChunkProviderReplacement;
 	readonly cancelEffectPreview: (options: Readonly<{ publish: false }>) => unknown;
 	readonly releaseProjectLock: (lock?: ProjectLifecycleLock | null) => Promise<void>;
@@ -361,6 +360,8 @@ export function createProjectSwitchService<
 			}
 			runtime.cancelScheduledSave();
 			runtime.stopEngine();
+			await guard(runtime.stopProjectBinPreview({ dispose: true }));
+			await guard(runtime.disposeRenderEngines());
 			providerReplacement = runtime.beginSourceChunkProviderReplacement();
 			runtime.cancelEffectPreview({ publish: false });
 			if (!runtime.state.projectLock

@@ -261,6 +261,8 @@ test('project switching cancels signal-ignoring playback source readiness before
 		saveNow: async () => undefined,
 		cancelScheduledSave: () => undefined,
 		stopEngine: () => { events.push('teardown:stop-engine'); },
+		stopProjectBinPreview: async () => undefined,
+		disposeRenderEngines: async () => undefined,
 		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 		cancelEffectPreview: () => undefined,
 		releaseProjectLock: async (owned = state.projectLock) => {

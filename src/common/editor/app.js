@@ -717,7 +717,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingRoutingSettingKey, releaseProjectLock, revokeVideoVisuals, saveNow,
 		scheduleTimer: globalThis.setTimeout.bind(globalThis), sessionController, sessionTab,
 		setProject: (nextProject) => { project = nextProject; },
-		sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopRecording, store,
+		disposeRenderEngines: clipTimePitchCacheService.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store,
 		switchProject,
 	});
 	const analysisService = createAudioAnalysisService({
@@ -789,7 +789,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		persistActiveSessionUiState,
 		saveNow,
 		cancelScheduledSave: projectSaveService.cancelScheduled,
-		stopEngine: () => engine.stop(),
+		stopEngine: () => engine.stop(), stopProjectBinPreview, disposeRenderEngines: clipTimePitchCacheService.disposeRenderEngines,
 		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 		cancelEffectPreview: cancelAudacityEffectPreview,
 		releaseProjectLock: (...args) => projectLockService.releaseProjectLock(...args),
@@ -1783,11 +1783,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	};
 
 	async function disposeController() {
-		let disposalError = null;
-		const cleanup = async (operation) => {
-			try { await operation(); } catch (error) {
-				disposalError ||= error;
-			}
+		let disposalError = null, sourceRetirementError = null;
+		const cleanup = async (operation, fencesSourceRetirement = false) => {
+			try { await operation(); } catch (error) { disposalError ||= error; if (fencesSourceRetirement) sourceRetirementError ||= error; }
 		};
 		try {
 			projectGeneration.invalidate();
@@ -1825,19 +1823,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await cleanup(() => releaseProjectLock());
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await cleanup(() => Promise.resolve(state.outputCleanup?.()));
-			await cleanup(() => projectBinService.dispose());
+			await cleanup(() => projectBinService.dispose(), true);
+			await cleanup(() => clipTimePitchCacheService.disposeRenderEngines(), true);
 			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
 			await cleanup(() => nativeProjectService.dispose());
 			clipTimePitchCache.dispose?.();
 			sessionController.dispose?.();
-			await cleanup(() => Promise.resolve(engine.dispose()));
-			sourceBuffers.clear(); sourceChunkProviders.clear();
-			await cleanup(() => sourceChunkProviders.drain());
-			sourcePeaks.clear();
+			await cleanup(() => Promise.resolve(engine.dispose()), true);
+			if (!sourceRetirementError) {
+				sourceBuffers.clear(); sourceChunkProviders.clear();
+				await cleanup(() => sourceChunkProviders.drain(), true); sourcePeaks.clear();
+			}
 			clipWaveformPcmWindows.clear();
 			clipWaveformPcmRequests.clear();
 			await cleanup(() => visualDisposal);
-			await cleanup(() => Promise.resolve(store.close?.()));
+			if (!sourceRetirementError) await cleanup(() => Promise.resolve(store.close?.()));
 		} finally {
 			lifetime.finishDisposal();
 			state.phase = lifetime.phase;

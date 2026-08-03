@@ -16,6 +16,7 @@ export interface ProjectAdminServiceRuntime {
 	readonly commit: LegacyPort;
 	readonly copy: any;
 	readonly currentTimeMs: LegacyPort;
+	readonly disposeRenderEngines: () => PromiseLike<void> | void;
 	readonly editorHistoryProjects: LegacyPort;
 	readonly engine: any;
 	readonly evictUnreferencedSourceCaches: LegacyPort;
@@ -43,6 +44,7 @@ export interface ProjectAdminServiceRuntime {
 	readonly sourceChunkProviders: SourceChunkProviderMap;
 	readonly sourcePeaks: Map<string, any>;
 	readonly state: any;
+	readonly stopProjectBinPreview: (options: Readonly<{ dispose: true }>) => PromiseLike<unknown> | unknown;
 	readonly stopRecording: LegacyPort;
 	readonly store: any;
 	readonly switchProject: LegacyPort;
@@ -51,14 +53,14 @@ export interface ProjectAdminServiceRuntime {
 export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	const {
 		cancelPlaybackCachePreparation, clearScheduledTimer, clearWaveformPcmWindows,
-		clipTimePitchCache, commit, copy, currentTimeMs, editorHistoryProjects, engine,
+		clipTimePitchCache, commit, copy, currentTimeMs, disposeRenderEngines, editorHistoryProjects, engine,
 		evictUnreferencedSourceCaches, flushProject, getProject, handleError,
 		liveSessionClipIds, liveSessionLinkedOriginalSourceReferences,
 		liveSessionSourceIds, newProject, openProject, persistSetting,
 		projectSaveService, projectSessionService, publishDocumentSnapshot,
 		recordingRoutingSettingKey, releaseProjectLock, revokeVideoVisuals, saveNow,
 		scheduleTimer, sessionController, sessionTab, setProject, sourceBuffers,
-		sourceChunkProviders, sourcePeaks, state, stopRecording, store, switchProject,
+		sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store, switchProject,
 	} = runtime;
 
 	async function listProjects() {
@@ -169,6 +171,8 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		await releaseProjectLock();
 		await revokeVideoVisuals();
 		engine.stop();
+		await stopProjectBinPreview({ dispose: true });
+		await disposeRenderEngines();
 		sourceChunkProviders.clear();
 		await sourceChunkProviders.drain?.();
 		await store.deleteProject(id);
@@ -227,6 +231,8 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		cancelPlaybackCachePreparation();
 		await releaseProjectLock();
 		engine.stop();
+		await stopProjectBinPreview({ dispose: true });
+		await disposeRenderEngines();
 		sourceChunkProviders.clear();
 		await sourceChunkProviders.drain?.();
 		clipTimePitchCache.clear?.();

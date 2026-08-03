@@ -72,6 +72,94 @@ test('controller disposal releases an opened long-source session after the engin
 	assert.deepEqual(events, ['session:open', 'engine:dispose', 'session:release', 'store:close']);
 });
 
+test('controller disposal awaits tracked render engines before releasing source providers', async () => {
+	const events = [];
+	const store = new SessionStore(events);
+	const engine = new SessionEngine(events);
+	const renderDisposalStarted = deferred(), renderDisposalGate = deferred();
+	const controller = createAudioEditorController(null, {
+		headless: true, locale: 'en', store, engine, ffmpeg: { dispose() {} },
+		engineFactory: () => new SessionRenderEngine(events, renderDisposalStarted, renderDisposalGate),
+		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
+	});
+	await controller.ready;
+	await controller.actions.project.importFiles([longWavFile('render-owned.wav')]);
+	const sourceId = controller.getSnapshot().project.sources[0].id;
+	await engine.chunkSources.get(sourceId).readStorageChunk(0);
+	const exporting = controller.actions.export.start({ format: 'wav', bitDepth: 16 }).catch(() => undefined);
+	await renderDisposalStarted.promise;
+	const disposal = controller.dispose();
+	await nextTurn();
+	assert.equal(events.includes('session:release'), false);
+	assert.equal(events.includes('store:close'), false);
+	renderDisposalGate.resolve();
+	await Promise.all([exporting, disposal]);
+	assert.ok(events.indexOf('render:dispose:done') < events.indexOf('session:release'));
+	assert.ok(events.indexOf('session:release') < events.indexOf('store:close'));
+});
+
+test('render-engine cleanup failure fences source-provider retirement and storage close', async () => {
+	const events = [];
+	const store = new SessionStore(events);
+	const engine = new SessionEngine(events);
+	const renderDisposalStarted = deferred();
+	const failure = new Error('render cleanup failed');
+	const controller = createAudioEditorController(null, {
+		headless: true, locale: 'en', store, engine, ffmpeg: { dispose() {} },
+		engineFactory: () => new SessionRenderEngine(events, renderDisposalStarted, null, failure),
+		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
+	});
+	await controller.ready;
+	await controller.actions.project.importFiles([longWavFile('failed-render-owned.wav')]);
+	const sourceId = controller.getSnapshot().project.sources[0].id;
+	await engine.chunkSources.get(sourceId).readStorageChunk(0);
+	const exporting = controller.actions.export.start({ format: 'wav', bitDepth: 16 }).catch(() => undefined);
+	await renderDisposalStarted.promise;
+	await exporting;
+	await assert.rejects(controller.dispose(), (error) => error === failure
+		|| (error instanceof AggregateError && error.errors.every((candidate) => candidate === failure)));
+	assert.equal(events.includes('session:release'), false);
+	assert.equal(events.includes('store:close'), false);
+});
+
+test('Project Bin preview cleanup failure fences source-provider retirement and storage close', async () => {
+	const events = [];
+	const store = new SessionStore(events);
+	const engine = new SessionEngine(events);
+	const failure = new Error('preview cleanup failed');
+	const controller = createAudioEditorController(null, {
+		headless: true, locale: 'en', store, engine, ffmpeg: { dispose() {} },
+		engineFactory: (options) => options.onState
+			? new FailingPreviewEngine(failure)
+			: new SessionRenderEngine(events, deferred(), null),
+		sourceBufferCacheMaxBytes: 64 * 1024 * 1024,
+	});
+	await controller.ready;
+	await controller.actions.project.importFiles([longWavFile('preview-owned.wav')]);
+	const snapshot = controller.getSnapshot(), sourceId = snapshot.project.sources[0].id;
+	await engine.chunkSources.get(sourceId).readStorageChunk(0);
+	const clipId = snapshot.project.clips[0].id;
+	controller.actions.projectBin.moveFromTimeline(clipId);
+	await controller.actions.projectBin.playPause(clipId);
+	await assert.rejects(controller.dispose(), (error) => error === failure);
+	assert.equal(events.includes('session:release'), false);
+	assert.equal(events.includes('store:close'), false);
+});
+
+function longWavFile(name) {
+	return { name, type: 'audio/wav', size: 1, async arrayBuffer() { return new ArrayBuffer(1); } };
+}
+
+function deferred() {
+	let resolve = () => undefined;
+	const promise = new Promise((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
+function nextTurn() {
+	return new Promise((resolve) => { setImmediate(resolve); });
+}
+
 class SessionStore {
 	constructor(events) {
 		this.events = events;
@@ -172,6 +260,41 @@ class SessionEngine {
 	getPositionFrames() { return 0; }
 	stop() {}
 	async dispose() { this.events.push('engine:dispose'); }
+}
+
+class SessionRenderEngine {
+	constructor(events, disposalStarted, disposalGate, disposalFailure = null) {
+		this.events = events;
+		this.disposalStarted = disposalStarted;
+		this.disposalGate = disposalGate;
+		this.disposalFailure = disposalFailure;
+	}
+
+	setSourceResolver() { return this; }
+	setChunkSources() { return this; }
+	loadProject() {}
+	async renderMix() { return pcmAudioBuffer(48_000); }
+	async dispose() {
+		this.events.push('render:dispose:start');
+		this.disposalStarted.resolve();
+		if (this.disposalGate) await this.disposalGate.promise;
+		if (this.disposalFailure) throw this.disposalFailure;
+		this.events.push('render:dispose:done');
+	}
+}
+
+class FailingPreviewEngine {
+	constructor(failure) { this.failure = failure; }
+	setSourceResolver() { return this; }
+	loadProject() {}
+	async play() {}
+	stop() {}
+	async dispose() { throw this.failure; }
+}
+
+function pcmAudioBuffer(frameCount) {
+	const channel = new Float32Array(frameCount);
+	return { numberOfChannels: 1, length: frameCount, sampleRate: 48_000, getChannelData: () => channel };
 }
 
 function logicalAudioBuffer(frameCount) {

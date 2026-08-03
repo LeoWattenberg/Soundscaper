@@ -378,6 +378,8 @@ function createFixture(options: Readonly<{
 		cancelPlayAtSpeedPreparation: () => undefined, stopRecording: async () => undefined,
 		persistActiveSessionUiState: () => undefined, saveNow: async () => undefined,
 		cancelScheduledSave: () => undefined, stopEngine: () => { events.push('engine:stop'); },
+		stopProjectBinPreview: async () => undefined,
+		disposeRenderEngines: async () => undefined,
 		beginSourceChunkProviderReplacement: () => {
 			events.push('provider:replacement:begin');
 			const replacement = sourceChunkProviders.beginReplacement();

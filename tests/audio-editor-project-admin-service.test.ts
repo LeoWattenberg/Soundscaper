@@ -51,6 +51,7 @@ function createFixture() {
 			projectCopySuffix: 'copy',
 		},
 		currentTimeMs: () => 1_000,
+		disposeRenderEngines: async () => undefined,
 		editorHistoryProjects: () => [],
 		engine: { stop: noop },
 		evictUnreferencedSourceCaches: noop,
@@ -86,6 +87,7 @@ function createFixture() {
 		sourceChunkProviders,
 		sourcePeaks,
 		state,
+		stopProjectBinPreview: async () => undefined,
 		stopRecording: async () => undefined,
 		store: {
 			async duplicateProject() {

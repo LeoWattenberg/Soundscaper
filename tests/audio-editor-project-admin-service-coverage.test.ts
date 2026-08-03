@@ -139,6 +139,7 @@ function createFixture() {
 			projectCopySuffix: 'copy',
 		},
 		currentTimeMs: () => 1_000,
+		disposeRenderEngines: async () => { calls.push('dispose-render-engines'); },
 		editorHistoryProjects: (history: { present: Project }) => [history.present],
 		engine: { stop: () => { calls.push('stop-engine'); } },
 		evictUnreferencedSourceCaches: () => { calls.push('evict'); },
@@ -177,6 +178,7 @@ function createFixture() {
 		sourceChunkProviders,
 		sourcePeaks,
 		state,
+		stopProjectBinPreview: async (options) => { assert.equal(options.dispose, true); calls.push('stop-bin-preview'); },
 		stopRecording: () => stopRecording(),
 		store,
 		switchProject: async (value: Project) => { calls.push(`switch:${value.id}`); },
@@ -343,6 +345,8 @@ test('project deletion and local reset fence and drain providers before storage 
 		await started.promise;
 		const storageCall = operation === 'delete' ? 'delete:project-a' : 'clear-store';
 		assert.ok(fixture.calls.indexOf('stop-engine') < fixture.calls.indexOf('clear-providers'));
+		assert.ok(fixture.calls.indexOf('stop-bin-preview') < fixture.calls.indexOf('clear-providers'));
+		assert.ok(fixture.calls.indexOf('dispose-render-engines') < fixture.calls.indexOf('clear-providers'));
 		assert.ok(fixture.calls.indexOf('clear-providers') < fixture.calls.indexOf('drain-providers:start'));
 		assert.equal(providers.size, 0);
 		assert.equal(fixture.calls.includes(storageCall), false);
@@ -350,6 +354,83 @@ test('project deletion and local reset fence and drain providers before storage 
 		gate.resolve();
 		await pending;
 		assert.ok(fixture.calls.indexOf('drain-providers:done') < fixture.calls.indexOf(storageCall));
+	}
+});
+
+test('project deletion and local reset await Project Bin preview retirement before retiring providers', async () => {
+	for (const operation of ['delete', 'clear'] as const) {
+		const fixture = createFixture();
+		const gate = deferred();
+		const runtime = {
+			...fixture.runtime,
+			async stopProjectBinPreview() {
+				fixture.calls.push('stop-bin-preview:start');
+				await gate.promise;
+				fixture.calls.push('stop-bin-preview:done');
+			},
+		} satisfies ProjectAdminServiceRuntime;
+		const pending = operation === 'delete'
+			? createProjectAdminService(runtime).deleteProject()
+			: createProjectAdminService(runtime).clearLocalData();
+		await new Promise<void>((resolve) => { setImmediate(resolve); });
+		assert.equal(fixture.calls.includes('stop-bin-preview:start'), true);
+		assert.equal(fixture.sourceChunkProviders.size, 1);
+		assert.equal(fixture.calls.includes(operation === 'delete' ? 'delete:project-a' : 'clear-store'), false);
+		gate.resolve();
+		await pending;
+		assert.equal(fixture.sourceChunkProviders.size, 0);
+	}
+});
+
+test('Project Bin preview cleanup failure preserves providers and storage during project destruction', async () => {
+	for (const operation of ['delete', 'clear'] as const) {
+		const fixture = createFixture();
+		const failure = new Error(`${operation} preview cleanup failed`);
+		const runtime = {
+			...fixture.runtime,
+			stopProjectBinPreview: async () => { throw failure; },
+		} satisfies ProjectAdminServiceRuntime;
+		await assert.rejects(
+			operation === 'delete'
+				? createProjectAdminService(runtime).deleteProject()
+				: createProjectAdminService(runtime).clearLocalData(),
+			(error: unknown) => error === failure,
+		);
+		assert.equal(fixture.sourceChunkProviders.size, 1);
+		assert.equal(fixture.calls.includes(operation === 'delete' ? 'delete:project-a' : 'clear-store'), false);
+	}
+});
+
+test('project destruction awaits render-engine cleanup and fences providers and storage on failure', async () => {
+	for (const operation of ['delete', 'clear'] as const) {
+		const fixture = createFixture();
+		const gate = deferred();
+		const runtime = {
+			...fixture.runtime,
+			async disposeRenderEngines() { fixture.calls.push('dispose-render-engines:start'); await gate.promise; },
+		} satisfies ProjectAdminServiceRuntime;
+		const service = createProjectAdminService(runtime);
+		const pending = operation === 'delete' ? service.deleteProject() : service.clearLocalData();
+		await new Promise<void>((resolve) => { setImmediate(resolve); });
+		assert.equal(fixture.calls.includes('dispose-render-engines:start'), true);
+		assert.equal(fixture.sourceChunkProviders.size, 1);
+		assert.equal(fixture.calls.includes(operation === 'delete' ? 'delete:project-a' : 'clear-store'), false);
+		gate.resolve();
+		await pending;
+
+		const failed = createFixture();
+		const failure = new Error(`${operation} render cleanup failed`);
+		const failedRuntime = {
+			...failed.runtime, disposeRenderEngines: async () => { throw failure; },
+		} satisfies ProjectAdminServiceRuntime;
+		await assert.rejects(
+			operation === 'delete'
+				? createProjectAdminService(failedRuntime).deleteProject()
+				: createProjectAdminService(failedRuntime).clearLocalData(),
+			(error: unknown) => error === failure,
+		);
+		assert.equal(failed.sourceChunkProviders.size, 1);
+		assert.equal(failed.calls.includes(operation === 'delete' ? 'delete:project-a' : 'clear-store'), false);
 	}
 });
 

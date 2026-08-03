@@ -510,6 +510,8 @@ function createFixture(options: FixtureOptions) {
 		saveNow: async () => undefined,
 		cancelScheduledSave: () => undefined,
 		stopEngine: () => { effects.push('engine:stop'); },
+		stopProjectBinPreview: async () => undefined,
+		disposeRenderEngines: async () => undefined,
 		beginSourceChunkProviderReplacement: () => sourceChunkProviders.beginReplacement(),
 		cancelEffectPreview: () => undefined,
 		releaseProjectLock: async () => {
