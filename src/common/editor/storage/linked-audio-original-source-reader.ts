@@ -314,9 +314,9 @@ function createLinkedAudioPcmChunkReader(
 	descriptor: LinkedAudioPcmDescriptor,
 	chunkFrames: number,
 ): LinkedAudioPcmChunkReader {
-	return descriptor.container === 'aiff'
-		? createAiffBlobPcmChunkReader(source, { descriptor, chunkFrames })
-		: createWavBlobPcmChunkReader(source, { descriptor, chunkFrames });
+	return descriptor.container === 'wav'
+		? createWavBlobPcmChunkReader(source, { descriptor, chunkFrames })
+		: createAiffBlobPcmChunkReader(source, { descriptor, chunkFrames });
 }
 
 async function readWavSourceBytes(

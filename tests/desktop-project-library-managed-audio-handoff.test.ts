@@ -73,6 +73,12 @@ const LINKED_PCM_CONTAINERS: readonly LinkedPcmContainer[] = Object.freeze([
 		mimeType: 'audio/aiff',
 		encode: int16Aiff,
 	}),
+	Object.freeze({
+		label: 'first-party AIFF-C float32',
+		extension: '.aiff',
+		mimeType: 'audio/aiff',
+		encode: float32Aifc,
+	}),
 ]);
 
 for (const container of LINKED_PCM_CONTAINERS) test(
@@ -286,6 +292,18 @@ function int16Aiff(samples: readonly number[]): Uint8Array {
 	bytes.set(encoded);
 	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'FORM');
 	assert.equal(new TextDecoder().decode(bytes.subarray(8, 12)), 'AIFF');
+	return bytes;
+}
+
+function float32Aifc(samples: readonly number[]): Uint8Array {
+	const encoded = encodeAiff([Float32Array.from(samples)], {
+		sampleFormat: 'float32',
+		sampleRate: 48_000,
+	});
+	assert.ok(encoded instanceof Uint8Array);
+	const bytes = new Uint8Array(encoded.byteLength);
+	bytes.set(encoded);
+	assert.equal(new TextDecoder().decode(bytes.subarray(8, 12)), 'AIFC');
 	return bytes;
 }
 

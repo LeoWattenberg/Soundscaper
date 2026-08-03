@@ -101,7 +101,38 @@ test('AIFF PCM reads preserve 24-bit and 32-bit integer sample geometry', async 
 	}
 });
 
-test('AIFF admission rejects AIFC, unsupported geometry, truncation, and excess chunks', async () => {
+test('AIFF-C admission and chunk reads decode first-party big-endian float32 PCM', async () => {
+	const encoded = encodedAiff([
+		Float32Array.of(-1.25, -0.5, 0, 0.5),
+		Float32Array.of(0.25, -0.25, 1.5, -1.5),
+	], { sampleRate: 48_000, sampleFormat: 'float32' });
+	const { source, reads } = trackedSource(encoded);
+
+	const descriptor = await inspectAiffBlobPcm(source);
+	assert.deepEqual(descriptor, {
+		container: 'aifc',
+		encoding: 'ieee-float',
+		sampleFormat: 'float32',
+		sampleRate: 48_000,
+		channelCount: 2,
+		frameCount: 4,
+		bitDepth: 32,
+		bytesPerSample: 4,
+		blockAlign: 8,
+		byteRate: 384_000,
+		dataOffset: 92,
+		dataByteLength: 32,
+		formByteLength: encoded.byteLength,
+		sourceByteLength: encoded.byteLength,
+	});
+	const reader = createAiffBlobPcmChunkReader(source, { descriptor, chunkFrames: 2 });
+	assert.deepEqual([...((await reader.readChunk(0)).channels[0]!)], [-1.25, -0.5]);
+	assert.deepEqual([...((await reader.readChunk(1)).channels[1]!)], [1.5, -1.5]);
+	assert.deepEqual(reads.at(-2), [92, 108]);
+	assert.deepEqual(reads.at(-1), [108, 124]);
+});
+
+test('AIFF admission rejects unsupported AIFC, geometry, truncation, and excess chunks', async () => {
 	const integer = encodedAiff([Float32Array.of(-1, 0, 0.5)], {
 		sampleRate: 48_000,
 		sampleFormat: 'int16',
@@ -111,9 +142,23 @@ test('AIFF admission rejects AIFC, unsupported geometry, truncation, and excess 
 		sampleRate: 48_000,
 		sampleFormat: 'float32',
 	});
+	const wrongVersion = floating.slice();
+	new DataView(wrongVersion.buffer).setUint32(20, 0, false);
 	await assert.rejects(
-		inspectAiffBlobPcm(new Blob([floating.buffer])),
-		/AIFF-C|compressed|unsupported/iu,
+		inspectAiffBlobPcm(new Blob([wrongVersion.buffer])),
+		/AIFF-C.*version|FVER/iu,
+	);
+	const compressed = floating.slice();
+	compressed.set(new TextEncoder().encode('sowt'), 50);
+	await assert.rejects(
+		inspectAiffBlobPcm(new Blob([compressed.buffer])),
+		/AIFF-C.*compression|fl32/iu,
+	);
+	const renamed = floating.slice();
+	renamed[55] = 'X'.charCodeAt(0);
+	await assert.rejects(
+		inspectAiffBlobPcm(new Blob([renamed.buffer])),
+		/AIFF-C.*compression name|compression name.*unsupported/iu,
 	);
 
 	const unsupportedDepth = integer.slice();

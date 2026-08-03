@@ -277,12 +277,12 @@ test('project import admits and activates a canonical linked BW64 .wav without b
 	assert.equal(calls.includes('begin-source-write'), false);
 });
 
-test('project import admits and activates classic linked AIFF without browser decoding', async () => {
+test('project import admits and activates first-party linked AIFF-C without browser decoding', async () => {
 	const calls: string[] = [];
 	let nextId = 0;
 	let project = projectFixture();
 	const boundSources: Readonly<Record<string, unknown>>[] = [];
-	const file = aiffFile();
+	const file = aiffFile('float32');
 	const runtime: Record<string, unknown> = {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 32 * 1024 ** 2,
 		SOURCE_CHUNK_FRAMES: 65_536,
@@ -485,11 +485,11 @@ function bw64File() {
 	});
 }
 
-function aiffFile() {
+function aiffFile(sampleFormat: 'int16' | 'float32' = 'int16') {
 	const encoded = encodeAiff([
 		Float32Array.of(-1, -0.5, 0, 0.5),
 		Float32Array.of(0.5, 0, -0.5, -1),
-	], { sampleFormat: 'int16', dither: 'none', sampleRate: 48_000 });
+	], { sampleFormat, dither: 'none', sampleRate: 48_000 });
 	assert.ok(encoded instanceof Uint8Array);
 	const bytes = new Uint8Array(encoded.byteLength);
 	bytes.set(encoded);

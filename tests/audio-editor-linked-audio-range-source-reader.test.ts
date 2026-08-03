@@ -336,19 +336,20 @@ test('a classic AIFF body inspects and decodes through exact ranges', async () =
 	assert.ok(fixture.ranges.every(({ length }) => length <= MAXIMUM_RANGE_BYTES));
 });
 
-test('a ranged AIFF-C body is rejected and its lease releases once', async () => {
-	const body = aiffBlob([0.25], 'float32');
+test('a first-party AIFF-C body inspects and decodes through exact ranges', async () => {
+	const body = aiffBlob([-1.25, 0.25, 1.5], 'float32');
 	const fixture = await rangeFixture(body, audioSource({
 		mimeType: 'audio/aiff',
-		frameCount: 1,
+		frameCount: 3,
+		chunkFrames: 2,
 	}));
 
-	await assert.rejects(
-		fixture.reader.chunk('physical-audio', 0),
-		/AIFF-C|compressed|unsupported/iu,
-	);
+	const chunk = await fixture.reader.chunk('physical-audio', 1);
+	assert.deepEqual([...chunk.channels[0]], [1.5]);
 	assert.equal(fixture.materializedLoads, 1);
 	assert.equal(fixture.releases, 1);
+	assert.ok(fixture.ranges.some(({ offset }) => offset === 100), 'AIFF-C PCM must be read after FORM inspection');
+	assert.ok(fixture.ranges.every(({ length }) => length <= MAXIMUM_RANGE_BYTES));
 });
 
 test('an available range port fails closed and releases once for unavailable or corrupt snapshots', async (context) => {

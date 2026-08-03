@@ -124,17 +124,18 @@ test('linked AIFF source reads synthesize canonical metadata and big-endian PCM 
 	assert.ok(Math.abs(chunks[2]!.channels[0]![0]! - 0.998_992_919_921_875) < 1e-12);
 });
 
-test('linked AIFF reads reject an AIFF-C body disguised by canonical metadata', async () => {
-	const body = aiffBlob([Float32Array.of(0.25)], 'float32');
+test('linked AIFF-C reads decode first-party float32 without an owned PCM body', async () => {
+	const body = aiffBlob([Float32Array.of(-1.25, 0.25, 1.5)], 'float32');
 	const fixture = linkedFixture(stablePort(body));
-	const source = audioSource({ mimeType: 'audio/aiff', frameCount: 1 });
+	const source = audioSource({ mimeType: 'audio/aiff', frameCount: 3 });
 	await fixture.resolver.bind('project-audio', source, LOCATOR_ID);
 	const reader = new LinkedAudioOriginalSourceReader({
 		bindings: fixture.bindings,
 		resolver: fixture.resolver,
 	});
 
-	await assert.rejects(reader.chunk(source.storageKey, 0), /AIFF-C|compressed|unsupported/iu);
+	assert.deepEqual([...((await reader.chunk(source.storageKey, 0)).channels[0]!)], [-1.25, 0.25]);
+	assert.deepEqual([...((await reader.chunk(source.storageKey, 1)).channels[0]!)], [1.5]);
 });
 
 test('linked audio reads reject WAV geometry drift after exact body verification', async () => {
