@@ -11,7 +11,6 @@ import type { DesktopLibraryOwner } from '../desktop/project-library-contract.ts
 import { DesktopSharedProjectLibraryService } from '../desktop/project-library-editor-service.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
-import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioEditorProjectV9,
@@ -29,6 +28,7 @@ import { createVideoEffect } from '../src/common/editor/video-effects.js';
 const ORIGINAL_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 111, 114, 105, 103);
 const FALLBACK_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 102, 97, 108, 108);
 const CORRUPT_FALLBACK_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 102, 97, 108, 120);
+const FALLBACK_FEATURE_ID = 'org.example.future-video-pipeline';
 const FRAME_OWNER = owner('framescaper', 701, 'video-fallback-handoff-frame');
 const SOUND_OWNER = owner('soundscaper', 702, 'video-fallback-handoff-sound');
 
@@ -65,7 +65,7 @@ interface VideoExportCall {
 	readonly plan: Readonly<Record<string, unknown>>;
 }
 
-test('fresh Soundscaper acquires, plays, and delivers a video-compositing fallback', async (context) => {
+test('fresh Soundscaper acquires, plays, and delivers an unknown whole-project video fallback', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-video-fallback-handoff-'));
 	const resources = trackResources(context, appDataPath);
 	const fixture = fallbackProjectFixture();
@@ -92,7 +92,7 @@ test('fresh Soundscaper acquires, plays, and delivers a video-compositing fallba
 	}));
 	const frameReady = await framescaper.ready;
 	assert.equal(frameReady.phase, 'ready', JSON.stringify(frameReady.status));
-	assert.equal(frameReady.readOnly, false);
+	assert.equal(frameReady.readOnly, true);
 	assert.deepEqual(await projectActions(framescaper).prepareHandoff(), {
 		projectId: fixture.project.id,
 		revision: fixture.project.revision,
@@ -179,7 +179,7 @@ test('fresh Soundscaper acquires, plays, and delivers a video-compositing fallba
 	assert.equal(snapshot.videoRenderedFallback?.sourceId, fixture.fallback.id);
 	assert.equal(
 		snapshot.videoRenderedFallback?.featureId,
-		PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+		FALLBACK_FEATURE_ID,
 	);
 	assert.equal(snapshot.videoRenderedFallback?.requirementId, 'publisher-video-render');
 	const visual = videoActions(soundscaper).getSourceVisualData(fixture.fallback.id);
@@ -250,7 +250,7 @@ function fallbackProjectFixture() {
 		})],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-video-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+			featureId: FALLBACK_FEATURE_ID,
 			displayName: 'Publisher video render',
 			disposition: 'rendered-fallback',
 			fallback: { kind: 'video', sourceId: fallback.id, sha256: fallbackSha256 },
