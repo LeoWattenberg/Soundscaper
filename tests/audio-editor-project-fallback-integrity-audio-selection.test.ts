@@ -17,6 +17,7 @@ const AUDIO_DIGEST = audioDigest(AUDIO_CHUNKS);
 const AUDIO_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 	requirementId: 'publisher-audio-render',
 	featureId: 'org.soundscaper.audio-effects',
+	role: 'project-audio-mix-v1',
 	kind: 'audio',
 	sourceId: 'rendered-audio',
 	sha256: AUDIO_DIGEST,

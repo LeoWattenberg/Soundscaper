@@ -14,9 +14,11 @@ const VIDEO_SHA256 = digest(VIDEO_BYTES);
 const VIDEO_SELECTOR: ProjectVideoFallbackIntegritySelector = Object.freeze({
 	requirementId: 'video-fallback',
 	featureId: 'org.soundscaper.video-effects',
+	role: 'project-video-render-v1',
 	kind: 'video',
 	sourceId: 'rendered-video',
 	sha256: VIDEO_SHA256,
+	targetClipId: null,
 });
 
 test('selected video verification skips a missing unrelated body and retains one canonical Blob', async () => {

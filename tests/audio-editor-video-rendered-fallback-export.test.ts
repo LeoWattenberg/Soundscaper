@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/controller/export-service.ts';
 import { projectForVideoRenderedFallbackExport } from '../src/common/editor/controller/video-rendered-fallback-export.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import type { ProjectVideoFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';
 
 interface ExportProject extends Readonly<Record<string, unknown>> {
@@ -99,11 +100,19 @@ function projectedProject(canonical: ExportProject): ExportProject {
 	return Object.freeze({
 		...canonical,
 		tracks: Object.freeze([
-			Object.freeze({ id: 'fallback-video-track', type: 'video', clipIds: Object.freeze(['fallback-video-clip']) }),
+			Object.freeze({
+				id: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
+				type: 'video',
+				clipIds: Object.freeze([PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip]),
+			}),
 			canonical.tracks[1]!,
 		]),
 		clips: Object.freeze([
-			Object.freeze({ id: 'fallback-video-clip', kind: 'video', sourceId: FALLBACK_VIDEO_SOURCE_ID }),
+			Object.freeze({
+				id: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip,
+				kind: 'video',
+				sourceId: FALLBACK_VIDEO_SOURCE_ID,
+			}),
 			canonical.clips[1]!,
 		]),
 	});
@@ -123,6 +132,7 @@ function fallbackReport() {
 			declaredDisposition: 'rendered-fallback' as const,
 			disposition: 'rendered-fallback' as const,
 			fallback: Object.freeze({
+				role: 'project-video-render-v1' as const,
 				kind: 'video' as const,
 				sourceId: FALLBACK_VIDEO_SOURCE_ID,
 				sha256: 'ab'.repeat(32),
@@ -161,9 +171,11 @@ function createFixture(options: ExportFixtureOptions = {}) {
 		assert.deepEqual(verifyOptions.videoFallback, {
 			requirementId: 'publisher-video-render',
 			featureId: FALLBACK_FEATURE_ID,
+			role: 'project-video-render-v1',
 			kind: 'video',
 			sourceId: FALLBACK_VIDEO_SOURCE_ID,
 			sha256: 'ab'.repeat(32),
+			targetClipId: null,
 		});
 		return Object.freeze({
 			assertCurrent(candidate: unknown) {
@@ -262,11 +274,12 @@ function createFixture(options: ExportFixtureOptions = {}) {
 					featureRequirementsReport: fallback ? fallbackReport() : null,
 					videoRenderedFallback: fallback ? Object.freeze({
 						schemaVersion: 1,
+						role: 'project-video-render-v1' as const,
 						featureId: FALLBACK_FEATURE_ID,
 						requirementId: 'publisher-video-render',
 						sourceId: FALLBACK_VIDEO_SOURCE_ID,
-						trackId: 'fallback-video-track',
-						clipId: 'fallback-video-clip',
+						trackId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
+						clipId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip,
 					}) : null,
 					requiredVideoSourceIds: Object.freeze(fallback ? [FALLBACK_VIDEO_SOURCE_ID] : []),
 				});
@@ -426,7 +439,10 @@ test('video delivery rejects a simultaneous rendered fallback it cannot honor', 
 				...report.items[0],
 				requirementId: 'publisher-audio-render',
 				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-				fallback: Object.freeze({ kind: 'audio', sourceId: AUDIO_SOURCE_ID, sha256: 'cd'.repeat(32) }),
+				fallback: Object.freeze({
+					role: 'project-audio-mix-v1' as const, kind: 'audio' as const,
+					sourceId: AUDIO_SOURCE_ID, sha256: 'cd'.repeat(32),
+				}),
 			})]),
 		}),
 	});
@@ -458,4 +474,17 @@ test('video delivery rejects feature metadata drift before integrity admission',
 			/metadata|report|source|invalid|simultaneous/iu,
 		);
 	}
+	assert.throws(
+		() => projectForVideoRenderedFallbackExport(fixture.canonical, {
+			projectForVideoRenderedFallbackDelivery: () => Object.freeze({
+				...delivery,
+				videoRenderedFallback: Object.freeze({
+					...delivery.videoRenderedFallback!,
+					role: 'video-clip-render-v1',
+					targetClipId: 'original-video-clip',
+				}),
+			}),
+		}),
+		/metadata|report|relationship|invalid/iu,
+	);
 });

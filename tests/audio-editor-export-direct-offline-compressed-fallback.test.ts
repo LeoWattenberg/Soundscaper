@@ -201,10 +201,13 @@ function fallbackProject(): AudioEditorProjectV9 {
 		id: 'offline-compressed-fallback', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, fallback], clips: [clip],
 		tracks: [createAudioTrackV9({ id: 'canonical-track', clipIds: [clip.id] })],
-		featureRequirements: { schemaVersion: 1, requirements: [{
+		featureRequirements: { schemaVersion: 2, requirements: [{
 			id: 'publisher-audio-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 			displayName: 'Publisher audio render', disposition: 'rendered-fallback',
-			fallback: { kind: 'audio', sourceId: FALLBACK_SOURCE_ID, sha256: FALLBACK_DIGEST },
+			fallback: {
+				role: 'project-audio-mix-v1', kind: 'audio',
+				sourceId: FALLBACK_SOURCE_ID, sha256: FALLBACK_DIGEST,
+			},
 		}] },
 	});
 }
@@ -219,7 +222,7 @@ function chunkProvider(owner: string): EngineChunkSource {
 function expectedSelector() {
 	return {
 		requirementId: 'publisher-audio-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-		kind: 'audio', sourceId: FALLBACK_SOURCE_ID, sha256: FALLBACK_DIGEST,
+		role: 'project-audio-mix-v1', kind: 'audio', sourceId: FALLBACK_SOURCE_ID, sha256: FALLBACK_DIGEST,
 	};
 }
 

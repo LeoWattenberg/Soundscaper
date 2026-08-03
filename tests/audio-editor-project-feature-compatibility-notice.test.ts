@@ -260,6 +260,7 @@ test('audio rendered fallback activation is localized and bound to its exact req
 	let internalReads = 0;
 	const metadata = {
 		schemaVersion: 1,
+		role: 'project-audio-mix-v1',
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioSpectralEditing,
 		requirementId: 'audio-spectral-editing',
 		get sourceId() { internalReads += 1; return 'rendered-source'; },

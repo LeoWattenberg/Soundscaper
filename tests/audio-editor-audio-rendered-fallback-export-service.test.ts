@@ -500,6 +500,7 @@ function expectedSelector() {
 	return Object.freeze({
 		requirementId: 'publisher-audio-render',
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		role: 'project-audio-mix-v1',
 		kind: 'audio',
 		sourceId: FALLBACK_SOURCE_ID,
 		sha256: FALLBACK_DIGEST,

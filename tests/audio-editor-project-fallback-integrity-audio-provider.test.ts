@@ -18,6 +18,7 @@ const SOURCE_CHUNKS = [
 const SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 	requirementId: 'publisher-audio-render',
 	featureId: 'org.soundscaper.audio-effects',
+	role: 'project-audio-mix-v1',
 	kind: 'audio',
 	sourceId: 'rendered-audio',
 	sha256: audioDigest(SOURCE_CHUNKS),

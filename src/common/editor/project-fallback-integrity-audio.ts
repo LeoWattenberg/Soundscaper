@@ -25,6 +25,7 @@ export const PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE = 'PROJECT_AUDIO_FALLBA
 export interface ProjectAudioFallbackIntegritySelector {
 	readonly requirementId: string;
 	readonly featureId: string;
+	readonly role: 'project-audio-mix-v1';
 	readonly kind: 'audio';
 	readonly sourceId: string;
 	readonly sha256: string;
@@ -118,12 +119,14 @@ export function snapshotProjectAudioFallbackSelector(
 	const captured = Object.freeze({
 		requirementId: ownSelectorData(selector, 'requirementId'),
 		featureId: ownSelectorData(selector, 'featureId'),
+		role: ownSelectorData(selector, 'role'),
 		kind: ownSelectorData(selector, 'kind'),
 		sourceId: ownSelectorData(selector, 'sourceId'),
 		sha256: ownSelectorData(selector, 'sha256'),
 	});
 	if (typeof captured.requirementId !== 'string' || !captured.requirementId
 		|| typeof captured.featureId !== 'string' || !captured.featureId
+		|| captured.role !== 'project-audio-mix-v1'
 		|| captured.kind !== 'audio'
 		|| typeof captured.sourceId !== 'string' || !captured.sourceId
 		|| typeof captured.sha256 !== 'string' || !/^[0-9a-f]{64}$/u.test(captured.sha256)) {
@@ -143,9 +146,12 @@ export function selectProjectAudioFallbackTarget<Source extends ProjectAudioFall
 	const sourceMatches = sources.filter(({ id }) => id === selector.sourceId);
 	const source = sourceMatches.length === 1 ? sourceMatches[0] : undefined;
 	const conflictingClaim = requirements.some((candidate) => candidate.fallback?.sourceId === selector.sourceId
-		&& (candidate.fallback.kind !== selector.kind || candidate.fallback.sha256 !== selector.sha256));
+		&& (candidate.fallback.role !== selector.role
+			|| candidate.fallback.kind !== selector.kind
+			|| candidate.fallback.sha256 !== selector.sha256));
 	if (!requirement || requirement.featureId !== selector.featureId
 		|| requirement.disposition !== 'rendered-fallback' || fallback?.kind !== selector.kind
+		|| fallback.role !== selector.role
 		|| fallback.sourceId !== selector.sourceId || fallback.sha256 !== selector.sha256
 		|| !source || source.kind !== selector.kind || conflictingClaim) {
 		throw new Error('The selected audio rendered fallback does not match one active project requirement and source claim.');
@@ -171,7 +177,8 @@ export function sameProjectAudioFallbackSelector(
 	right: ProjectAudioFallbackIntegritySelector,
 ): boolean {
 	return left.requirementId === right.requirementId && left.featureId === right.featureId
-		&& left.kind === right.kind && left.sourceId === right.sourceId && left.sha256 === right.sha256;
+		&& left.role === right.role && left.kind === right.kind
+		&& left.sourceId === right.sourceId && left.sha256 === right.sha256;
 }
 
 /** Preserve the controller-activation verifier used when no exact selector is present. */

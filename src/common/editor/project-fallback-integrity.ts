@@ -10,14 +10,7 @@ import {
 	throwIfScapeAborted,
 } from './scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
-import {
-	snapshotScapeProjectFallbackIntegrity,
-	type ScapeProjectFallbackClaim,
-} from './scape-project-assets.ts';
-import {
-	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
-	type ProjectFeatureRequirement,
-} from './project-feature-requirements.ts';
+import type { ScapeProjectFallbackClaim } from './scape-project-assets.ts';
 import {
 	PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE,
 	isProjectAudioFallbackIntegrityError,
@@ -29,7 +22,6 @@ import {
 	verifySelectedProjectAudioFallback,
 	type ProjectAudioFallbackChunkProvider,
 	type ProjectAudioFallbackIntegritySelector,
-	type ProjectAudioFallbackSource,
 } from './project-fallback-integrity-audio.ts';
 export {
 	PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE,
@@ -47,13 +39,19 @@ import {
 	type ProjectVideoFallbackIntegritySelector,
 } from './project-fallback-integrity-video.ts';
 export type { ProjectVideoFallbackIntegritySelector } from './project-fallback-integrity-video.ts';
+import {
+	captureProjectFallbackIntegrity,
+	sameCapturedProjectFallbackIntegrity,
+	type CapturedProjectFallbackIntegrity,
+	type ProjectFallbackIntegritySource,
+} from './project-fallback-integrity-snapshot.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
 } from './storage/media-content-digest.ts';
 
-type ProjectFallbackSource = ProjectAudioFallbackSource;
+type ProjectFallbackSource = ProjectFallbackIntegritySource;
 
 interface StoredSourceChunk {
 	readonly index?: unknown;
@@ -103,13 +101,6 @@ interface VerificationPlan extends VerificationTarget {
 	readonly expectedBytes: number;
 }
 
-interface CapturedProjectFallbackIntegrity {
-	readonly schemaVersion: unknown;
-	readonly claims: readonly ScapeProjectFallbackClaim[];
-	readonly requirements: readonly ProjectFeatureRequirement[];
-	readonly sources: readonly ProjectFallbackSource[];
-}
-
 export interface ProjectFallbackIntegrityAdmission {
 	assertCurrent(project: unknown): void;
 	getVerifiedAudioChunkProvider(selector: ProjectAudioFallbackIntegritySelector): ProjectAudioFallbackChunkProvider;
@@ -139,7 +130,7 @@ export async function verifyProjectFallbackIntegrity(
 	if (options.assertCurrent !== undefined && typeof options.assertCurrent !== 'function') {
 		throw new TypeError('Fallback integrity currentness must be a function.');
 	}
-	const captured = captureProjectFallbackIntegrity(project, Boolean(audioSelector));
+	const captured = captureProjectFallbackIntegrity(project);
 	if (audioSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new Error('A selected audio rendered fallback requires exact project schema 9.');
 	}
@@ -167,8 +158,10 @@ export async function verifyProjectFallbackIntegrity(
 		for (const claim of captured.claims) {
 			const existing = targets.get(claim.sourceId);
 			if (existing) {
-				if (existing.claim.kind !== claim.kind || existing.claim.sha256 !== claim.sha256) {
-					throw new Error(`Rendered fallback source ${claim.sourceId} has conflicting SHA-256 claims.`);
+				if (!sameFallbackClaim(existing.claim, claim)) {
+					throw new Error(
+						`Rendered fallback source ${claim.sourceId} has conflicting SHA-256 or relationship claims.`,
+					);
 				}
 				continue;
 			}
@@ -290,6 +283,16 @@ function assertDigest(claim: ScapeProjectFallbackClaim, digest: string): void {
 	}
 }
 
+function sameFallbackClaim(
+	left: ScapeProjectFallbackClaim,
+	right: ScapeProjectFallbackClaim,
+): boolean {
+	return left.role === right.role && left.kind === right.kind
+		&& left.sourceId === right.sourceId && left.sha256 === right.sha256
+		&& (left.role === 'video-clip-render-v1' ? left.targetClipId : null)
+			=== (right.role === 'video-clip-render-v1' ? right.targetClipId : null);
+}
+
 function sourceStorageKey(source: ProjectFallbackSource): string {
 	if (source.storageKey === undefined) return source.id;
 	if (typeof source.storageKey !== 'string' || !source.storageKey.trim()) {
@@ -305,131 +308,6 @@ function mediaAssetSize(metadata: unknown, sourceId: string): number {
 		throw new RangeError(`Rendered fallback source ${sourceId} has an invalid stored size.`);
 	}
 	return Number(size);
-}
-
-function captureProjectFallbackIntegrity(
-	project: unknown,
-	includeAudioProviderMetadata = false,
-): CapturedProjectFallbackIntegrity {
-	const candidate = objectRecord(project, 'The project fallback integrity candidate');
-	const schemaVersion = ownDataValue(candidate, 'schemaVersion', 'project');
-	if (schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		return Object.freeze({
-			schemaVersion,
-			claims: Object.freeze([]),
-			requirements: Object.freeze([]),
-			sources: Object.freeze([]),
-		});
-	}
-	const sources = snapshotArray(
-		ownDataValue(candidate, 'sources', 'project'),
-		'project.sources',
-		(value, index) => snapshotSource(value, index, includeAudioProviderMetadata),
-	);
-	const featureRequirements = snapshotFeatureRequirements(
-		ownDataValue(candidate, 'featureRequirements', 'project'),
-	);
-	const snapshot = snapshotScapeProjectFallbackIntegrity(Object.freeze({
-		schemaVersion,
-		sources,
-		featureRequirements,
-	}));
-	return Object.freeze({
-		schemaVersion,
-		claims: snapshot.claims,
-		requirements: snapshot.featureRequirements?.requirements ?? Object.freeze([]),
-		sources,
-	});
-}
-
-function snapshotSource(
-	value: unknown,
-	index: number,
-	includeAudioProviderMetadata: boolean,
-): ProjectFallbackSource {
-	const source = objectRecord(value, `project.sources[${String(index)}]`);
-	const id = ownDataValue(source, 'id', `project.sources[${String(index)}]`);
-	if (typeof id !== 'string' || !id) {
-		throw new TypeError('A rendered fallback source must have an ID.');
-	}
-	return Object.freeze({
-		id,
-		kind: optionalOwnDataValue(source, 'kind', `project source ${id}`) as 'audio' | 'video' | undefined,
-		storageKey: optionalOwnDataValue(source, 'storageKey', `project source ${id}`) as string | undefined,
-		frameCount: optionalOwnDataValue(source, 'frameCount', `project source ${id}`) as number,
-		channelCount: optionalOwnDataValue(source, 'channelCount', `project source ${id}`) as number,
-		chunkFrames: optionalOwnDataValue(source, 'chunkFrames', `project source ${id}`) as number,
-		sampleRate: includeAudioProviderMetadata
-			? optionalOwnDataValue(source, 'sampleRate', `project source ${id}`) as number
-			: undefined,
-	});
-}
-
-function snapshotFeatureRequirements(value: unknown): Readonly<Record<string, unknown>> {
-	const manifest = objectRecord(value, 'project.featureRequirements');
-	const output = snapshotEnumerableDataRecord(manifest, 'project.featureRequirements');
-	const requirements = snapshotArray(
-		ownDataValue(manifest, 'requirements', 'project.featureRequirements'),
-		'project.featureRequirements.requirements',
-		(requirement, index) => snapshotRequirement(requirement, index),
-		PROJECT_FEATURE_REQUIREMENTS_LIMITS.maximumRequirements,
-	);
-	defineData(output, 'requirements', requirements);
-	return Object.freeze(output);
-}
-
-function snapshotRequirement(value: unknown, index: number): Readonly<Record<string, unknown>> {
-	const label = `project.featureRequirements.requirements[${String(index)}]`;
-	const requirement = objectRecord(value, label);
-	const output = snapshotEnumerableDataRecord(requirement, label);
-	const fallback = optionalOwnDataValue(requirement, 'fallback', label);
-	if (fallback !== undefined) {
-		defineData(output, 'fallback', fallback === null
-			? null
-			: Object.freeze(snapshotEnumerableDataRecord(objectRecord(fallback, `${label}.fallback`), `${label}.fallback`)));
-	}
-	return Object.freeze(output);
-}
-
-function snapshotEnumerableDataRecord(
-	value: Record<PropertyKey, unknown>,
-	label: string,
-): Record<PropertyKey, unknown> {
-	const output = Object.create(null) as Record<PropertyKey, unknown>;
-	for (const key of Object.keys(value)) {
-		const descriptor = Object.getOwnPropertyDescriptor(value, key);
-		if (!descriptor || !('value' in descriptor)) {
-			throw new TypeError(`${label}.${key} must be an own data property.`);
-		}
-		defineData(output, key, descriptor.value);
-	}
-	return output;
-}
-
-function snapshotArray<Value>(
-	value: unknown,
-	label: string,
-	snapshot: (item: unknown, index: number) => Value,
-	maximumLength = Number.MAX_SAFE_INTEGER,
-): readonly Value[] {
-	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) {
-		throw new TypeError(`${label} must be an ordinary array.`);
-	}
-	const lengthValue = ownDataValue(value as unknown as Record<PropertyKey, unknown>, 'length', label);
-	if (!Number.isSafeInteger(lengthValue) || Number(lengthValue) < 0) {
-		throw new RangeError(`${label} has an invalid length.`);
-	}
-	const length = Number(lengthValue);
-	if (length > maximumLength) throw new RangeError(`${label} exceeds its maximum length.`);
-	const output: Value[] = [];
-	for (let index = 0; index < length; index += 1) {
-		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-		if (!descriptor || !('value' in descriptor)) {
-			throw new TypeError(`${label}[${String(index)}] must be an own data property.`);
-		}
-		output.push(snapshot(descriptor.value, index));
-	}
-	return Object.freeze(output);
 }
 
 function objectRecord(value: unknown, label: string): Record<PropertyKey, unknown> {
@@ -451,28 +329,6 @@ function ownDataValue(
 	return descriptor.value;
 }
 
-function optionalOwnDataValue(
-	record: Record<PropertyKey, unknown>,
-	key: PropertyKey,
-	label: string,
-): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record, key);
-	if (!descriptor) return undefined;
-	if (!('value' in descriptor)) {
-		throw new TypeError(`${label}.${String(key)} must be an own data property.`);
-	}
-	return descriptor.value;
-}
-
-function defineData(record: Record<PropertyKey, unknown>, key: PropertyKey, value: unknown): void {
-	Object.defineProperty(record, key, {
-		value,
-		enumerable: true,
-		configurable: true,
-		writable: true,
-	});
-}
-
 function snapshotAdmissionState(
 	captured: CapturedProjectFallbackIntegrity,
 ): CapturedProjectFallbackIntegrity {
@@ -481,6 +337,7 @@ function snapshotAdmissionState(
 		claims: captured.claims,
 		requirements: captured.requirements,
 		sources: captured.sources,
+		clips: captured.clips,
 	});
 }
 
@@ -524,8 +381,13 @@ function assertAdmissionCurrent(
 	audioSelector: ProjectAudioFallbackIntegritySelector | null = null,
 	videoSelector: ProjectVideoFallbackIntegritySelector | null = null,
 ): void {
-	const current = snapshotAdmissionState(captureProjectFallbackIntegrity(project, Boolean(audioSelector)));
-	if (!sameAdmissionState(verified, current)
+	let current: CapturedProjectFallbackIntegrity;
+	try {
+		current = snapshotAdmissionState(captureProjectFallbackIntegrity(project));
+	} catch {
+		throw admissionChangedError();
+	}
+	if (!sameCapturedProjectFallbackIntegrity(verified, current)
 		|| (audioSelector && !projectAudioFallbackSelectorMatches(
 			current.requirements,
 			current.sources,
@@ -533,35 +395,16 @@ function assertAdmissionCurrent(
 		))
 		|| (videoSelector && !projectVideoFallbackSelectorMatches(
 			current.requirements,
+			current.sources,
 			videoSelector,
 		))) {
-		throw new DOMException(
-			'The rendered fallback integrity admission changed before activation.',
-			'AbortError',
-		);
+		throw admissionChangedError();
 	}
 }
 
-function sameAdmissionState(
-	left: CapturedProjectFallbackIntegrity,
-	right: CapturedProjectFallbackIntegrity,
-): boolean {
-	if (left.schemaVersion !== right.schemaVersion
-		|| left.claims.length !== right.claims.length
-		|| left.sources.length !== right.sources.length) return false;
-	for (let index = 0; index < left.claims.length; index += 1) {
-		const first = left.claims[index];
-		const second = right.claims[index];
-		if (!first || !second || first.kind !== second.kind
-			|| first.sourceId !== second.sourceId || first.sha256 !== second.sha256) return false;
-	}
-	for (let index = 0; index < left.sources.length; index += 1) {
-		const first = left.sources[index];
-		const second = right.sources[index];
-		if (!first || !second || first.id !== second.id || first.kind !== second.kind
-			|| first.storageKey !== second.storageKey || first.frameCount !== second.frameCount
-			|| first.channelCount !== second.channelCount || first.chunkFrames !== second.chunkFrames
-			|| first.sampleRate !== second.sampleRate) return false;
-	}
-	return true;
+function admissionChangedError(): DOMException {
+	return new DOMException(
+		'The rendered fallback integrity admission changed before activation.',
+		'AbortError',
+	);
 }

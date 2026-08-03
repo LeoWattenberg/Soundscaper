@@ -1,11 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isProjectFeatureVideoCapabilityId } from '../project-feature-capabilities.ts';
+import {
+	PROJECT_FEATURE_CAPABILITY_IDS,
+	isProjectFeatureVideoCapabilityId,
+} from '../project-feature-capabilities.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
 } from '../project-feature-requirements.ts';
-import type { ProjectFeatureVideoRenderedFallbackMetadata } from '../project-feature-video-rendered-fallback.ts';
+import {
+	PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS,
+	type ProjectFeatureVideoRenderedFallbackMetadata,
+} from '../project-feature-video-rendered-fallback.ts';
 import type { ProjectVideoFallbackIntegritySelector } from '../project-fallback-integrity.ts';
 import type { VideoRenderedFallbackDeliveryProjection } from './playback-project-service.ts';
 
@@ -144,6 +150,19 @@ function assertActiveMetadata(
 		|| requiredSourceIds[0] !== metadata.sourceId) {
 		throw new TypeError('Video rendered-fallback delivery metadata does not match its required source.');
 	}
+	if (metadata.role === 'project-video-render-v1') {
+		if (metadata.trackId !== PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track
+			|| metadata.clipId !== PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip) {
+			throw new TypeError('Video rendered-fallback delivery metadata has invalid full-render identity.');
+		}
+		return;
+	}
+	if (metadata.role !== 'video-clip-render-v1'
+		|| metadata.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
+		|| typeof metadata.targetClipId !== 'string' || !metadata.targetClipId
+		|| metadata.targetClipId !== metadata.targetClipId.trim()) {
+		throw new TypeError('Video rendered-fallback delivery metadata has an invalid clip relationship.');
+	}
 }
 
 function assertFallbackReport(
@@ -165,13 +184,16 @@ function videoFallbackIntegritySelector(
 ): ProjectVideoFallbackIntegritySelector {
 	const metadata = projection.videoRenderedFallback!;
 	const item = assertFallbackReport(projection.featureRequirementsReport, metadata);
-	return Object.freeze({
+	const base = {
 		requirementId: metadata.requirementId,
 		featureId: metadata.featureId,
 		kind: 'video',
 		sourceId: metadata.sourceId,
 		sha256: item.fallback!.sha256,
-	});
+	} as const;
+	return metadata.role === 'video-clip-render-v1'
+		? Object.freeze({ ...base, role: metadata.role, targetClipId: metadata.targetClipId })
+		: Object.freeze({ ...base, role: metadata.role, targetClipId: null });
 }
 
 function matchesFallback(
@@ -185,5 +207,8 @@ function matchesFallback(
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
 		&& item.fallback?.kind === 'video'
-		&& item.fallback.sourceId === metadata.sourceId);
+		&& item.fallback.role === metadata.role
+		&& item.fallback.sourceId === metadata.sourceId
+		&& (item.fallback.role === 'video-clip-render-v1' ? item.fallback.targetClipId : null)
+			=== (metadata.role === 'video-clip-render-v1' ? metadata.targetClipId : null));
 }

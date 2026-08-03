@@ -166,6 +166,7 @@ function assertActiveMetadata(
 	requiredSourceIds: readonly string[],
 ): void {
 	if (metadata.schemaVersion !== 1
+		|| metadata.role !== 'project-audio-mix-v1'
 		|| !isProjectFeatureAudioCapabilityId(metadata.featureId)
 		|| typeof metadata.requirementId !== 'string' || !metadata.requirementId
 		|| typeof metadata.sourceId !== 'string' || !metadata.sourceId
@@ -207,6 +208,7 @@ function audioFallbackIntegritySelector(
 	return Object.freeze({
 		requirementId: metadata.requirementId,
 		featureId: metadata.featureId,
+		role: metadata.role,
 		kind: 'audio',
 		sourceId: metadata.sourceId,
 		sha256: digest,
@@ -224,6 +226,7 @@ function matchesFallback(
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
 		&& item.fallback?.kind === 'audio'
+		&& item.fallback.role === metadata.role
 		&& item.fallback.sourceId === metadata.sourceId);
 }
 

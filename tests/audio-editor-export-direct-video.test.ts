@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 
 type Format = 'mp4' | 'webm';
 
@@ -379,14 +380,16 @@ function videoPlan(format: Format, sourceId = 'original-video') {
 
 function project(fallback: boolean) {
 	const videoId = fallback ? 'fallback-video' : 'original-video';
+	const videoTrackId = fallback ? PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track : 'video-track';
+	const videoClipId = fallback ? PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip : 'video-clip';
 	return {
 		id: 'direct-video-project', title: 'Direct video', sampleRate: 48_000, masterChannels: 2,
 		tracks: [
-			{ id: 'video-track', type: 'video', clipIds: ['video-clip'] },
+			{ id: videoTrackId, type: 'video', clipIds: [videoClipId] },
 			{ id: 'audio-track', type: 'audio', clipIds: ['audio-clip'] },
 		],
 		clips: [
-			{ id: 'video-clip', kind: 'video', sourceId: videoId },
+			{ id: videoClipId, kind: 'video', sourceId: videoId },
 			{ id: 'audio-clip', kind: 'audio', sourceId: 'audio-source' },
 		],
 		sources: [
@@ -404,7 +407,10 @@ function renderedFallbackProjection(projected: ReturnType<typeof project>) {
 		availability: 'unavailable',
 		declaredDisposition: 'rendered-fallback',
 		disposition: 'rendered-fallback',
-		fallback: { kind: 'video', sourceId: 'fallback-video', sha256: 'ab'.repeat(32) },
+		fallback: {
+			role: 'project-video-render-v1', kind: 'video',
+			sourceId: 'fallback-video', sha256: 'ab'.repeat(32),
+		},
 	};
 	return {
 		project: projected,
@@ -414,8 +420,11 @@ function renderedFallbackProjection(projected: ReturnType<typeof project>) {
 		},
 		videoRenderedFallback: {
 			schemaVersion: 1,
+			role: 'project-video-render-v1',
 			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-			requirementId: 'video-render', sourceId: 'fallback-video', trackId: 'video-track', clipId: 'video-clip',
+			requirementId: 'video-render', sourceId: 'fallback-video',
+			trackId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
+			clipId: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip,
 		},
 		requiredVideoSourceIds: ['fallback-video'],
 	};

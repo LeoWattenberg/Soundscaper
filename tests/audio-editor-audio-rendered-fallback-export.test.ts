@@ -121,6 +121,7 @@ test('audio fallback export selection rejects malformed or ambiguous delivery pr
 		{ ...valid, audioRenderedFallback: undefined },
 		{ ...valid, audioRenderedFallback: null, requiredAudioSourceIds: [FALLBACK_SOURCE_ID] },
 		{ ...valid, audioRenderedFallback: { ...metadata, schemaVersion: 2 } },
+		{ ...valid, audioRenderedFallback: { ...metadata, role: 'project-video-render-v1' } },
 		{ ...valid, audioRenderedFallback: {
 			...metadata, featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 		} },
@@ -146,7 +147,10 @@ test('audio fallback export selection rejects malformed or ambiguous delivery pr
 				...audioItem,
 				requirementId: 'publisher-video-render',
 				featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-				fallback: { kind: 'video', sourceId: 'fallback-video', sha256: 'ad'.repeat(32) },
+				fallback: {
+					role: 'project-video-render-v1', kind: 'video',
+					sourceId: 'fallback-video', sha256: 'ad'.repeat(32),
+				},
 			}],
 		},
 	};
@@ -296,6 +300,7 @@ function expectedSelector(
 	return Object.freeze({
 		requirementId: 'publisher-audio-render',
 		featureId,
+		role: 'project-audio-mix-v1',
 		kind: 'audio',
 		sourceId: FALLBACK_SOURCE_ID,
 		sha256: DIGEST,
