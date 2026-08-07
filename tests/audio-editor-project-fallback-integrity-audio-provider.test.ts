@@ -22,6 +22,7 @@ const SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 	kind: 'audio',
 	sourceId: 'rendered-audio',
 	sha256: audioDigest(SOURCE_CHUNKS),
+	targetTrackId: null,
 });
 
 test('verified provider re-reads only one requested chunk, disables maintenance, and returns tight copies', async () => {

@@ -23,6 +23,7 @@ const AUDIO_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 	kind: 'audio',
 	sourceId: 'rendered-audio',
 	sha256: audioDigest(),
+	targetTrackId: null,
 });
 const VIDEO_BYTES = Uint8Array.of(0x6d, 0x69, 0x78, 0x65, 0x64);
 const VIDEO_SELECTOR: ProjectVideoFallbackIntegritySelector = Object.freeze({

@@ -376,6 +376,7 @@ function audioSelector(): ProjectAudioFallbackIntegritySelector {
 		kind: 'audio',
 		sourceId: AUDIO_SOURCE_ID,
 		sha256: AUDIO_DIGEST,
+		targetTrackId: null,
 	});
 }
 

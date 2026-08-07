@@ -304,6 +304,7 @@ function expectedSelector(
 		kind: 'audio',
 		sourceId: FALLBACK_SOURCE_ID,
 		sha256: DIGEST,
+		targetTrackId: null,
 	});
 }
 

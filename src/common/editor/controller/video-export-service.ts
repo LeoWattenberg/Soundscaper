@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { audioRenderedFallbackRenderSources } from './audio-rendered-fallback-export.ts';
 import {
 	admitVideoRenderedFallbackExport,
 	assertVideoExportPublicationCurrent,
@@ -45,7 +46,7 @@ export function createEditorVideoExportAction(
 		encodeWav, ffmpeg, fileService, findClip, findSource, getProject, handleError,
 		hasMissingTimelineSources, lifetime, playbackProjects, preflightStorage,
 		projectGeneration, projectSampleRate, publishDocumentSnapshot, setStatus,
-		sourceBuffers, state, store, throwIfAborted, toggleExport, taskProgress,
+		sourceBuffers, sourceChunkProviders, state, store, throwIfAborted, toggleExport, taskProgress,
 		verifyProjectFallbackIntegrity,
 	} = runtime;
 
@@ -135,17 +136,21 @@ export function createEditorVideoExportAction(
 					outputFrames: plan.range.durationFrames,
 					preRollFrames: Math.min(plan.range.startFrame, projectSampleRate() * 10),
 				};
-				const rendered = admittedFallbacks.audioChunkProvider && delivery.audioRenderedFallback
+				const fallbackRenderSources = admittedFallbacks.audioChunkProvider && delivery.audioRenderedFallback
+					? audioRenderedFallbackRenderSources(
+						delivery.audioRenderedFallback,
+						admittedFallbacks.audioChunkProvider,
+						{ sourceBuffers, sourceChunkProviders: sourceChunkProviders ?? new Map() },
+					)
+					: null;
+				const rendered = fallbackRenderSources
 					? await renderSnapshot(
 						exportProject,
 						range,
-						new Map(),
+						fallbackRenderSources.sourceMap,
 						abort.signal,
-						new Map([[
-							delivery.audioRenderedFallback.sourceId,
-							admittedFallbacks.audioChunkProvider,
-						]]),
-						false,
+						fallbackRenderSources.chunkSources,
+						fallbackRenderSources.prepareTimePitchCaches,
 					)
 					: await renderSnapshot(exportProject, range, sourceBuffers, abort.signal);
 				assertVideoExportCurrent();

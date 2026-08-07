@@ -21,6 +21,7 @@ const AUDIO_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 	kind: 'audio',
 	sourceId: 'rendered-audio',
 	sha256: AUDIO_DIGEST,
+	targetTrackId: null,
 });
 
 test('selected audio verifies only its exact canonical body and exposes a private provider', async () => {

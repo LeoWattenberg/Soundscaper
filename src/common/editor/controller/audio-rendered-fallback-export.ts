@@ -4,6 +4,8 @@ import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
 import type { EngineChunkSource } from '../engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../project-feature-audio-rendered-fallback.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../project-feature-audio-rendered-fallback.ts';
+import { PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS } from '../project-feature-audio-track-render-v1.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../project-feature-capabilities.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
@@ -189,15 +191,26 @@ function assertActiveMetadata(
 	requiredSourceIds: readonly string[],
 ): void {
 	if (metadata.schemaVersion !== 1
-		|| metadata.role !== 'project-audio-mix-v1'
 		|| typeof metadata.featureId !== 'string' || !FEATURE_ID_PATTERN.test(metadata.featureId)
 		|| typeof metadata.requirementId !== 'string' || !metadata.requirementId
 		|| typeof metadata.sourceId !== 'string' || !metadata.sourceId
-		|| metadata.trackId !== PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track
-		|| metadata.clipId !== PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip
 		|| requiredSourceIds.length !== 1
 		|| requiredSourceIds[0] !== metadata.sourceId) {
 		throw new TypeError('Audio rendered-fallback delivery metadata does not match its required source.');
+	}
+	if (metadata.role === 'project-audio-mix-v1') {
+		if (metadata.trackId !== PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track
+			|| metadata.clipId !== PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip) {
+			throw new TypeError('Audio rendered-fallback delivery metadata has invalid whole-mix identity.');
+		}
+		return;
+	}
+	if (metadata.role !== 'audio-track-render-v1'
+		|| metadata.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		|| typeof metadata.targetTrackId !== 'string' || !metadata.targetTrackId
+		|| metadata.targetTrackId !== metadata.targetTrackId.trim()
+		|| metadata.clipId !== PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS.clip) {
+		throw new TypeError('Audio rendered-fallback delivery metadata has an invalid track relationship.');
 	}
 }
 
@@ -225,22 +238,54 @@ export function audioRenderedFallbackIntegritySelector(
 	projection: AudioRenderedFallbackDeliveryProjection<object>,
 ): ProjectAudioFallbackIntegritySelector {
 	const metadata = projection.audioRenderedFallback!;
-	if (metadata.role !== 'project-audio-mix-v1') {
-		throw new TypeError('Audio rendered-fallback delivery supports only the whole-mix role.');
-	}
 	const item = assertAudioFallbackReport(projection.featureRequirementsReport, metadata);
 	const digest = item.fallback!.sha256;
 	if (typeof digest !== 'string' || !/^[0-9a-f]{64}$/u.test(digest)) {
 		throw new TypeError('Audio rendered-fallback delivery report has an invalid SHA-256 digest.');
 	}
-	return Object.freeze({
+	const base = {
 		requirementId: metadata.requirementId,
 		featureId: metadata.featureId,
-		role: metadata.role,
 		kind: 'audio',
 		sourceId: metadata.sourceId,
 		sha256: digest,
-	});
+	} as const;
+	return metadata.role === 'audio-track-render-v1'
+		? Object.freeze({ ...base, role: metadata.role, targetTrackId: metadata.targetTrackId })
+		: Object.freeze({ ...base, role: metadata.role, targetTrackId: null });
+}
+
+/**
+ * Compose the render inputs one admitted audio fallback requires. The
+ * whole-mix role is the projection's only audio, so its render sees an empty
+ * private buffer map and the sole verified provider. The track role keeps
+ * every other lane native, so ordinary buffers and providers stay available
+ * while the fallback source is readable only through its verified provider.
+ */
+export function audioRenderedFallbackRenderSources(
+	metadata: ProjectFeatureAudioRenderedFallbackMetadata,
+	provider: EngineChunkSource,
+	runtime: Readonly<{
+		sourceBuffers: ReadonlyMap<string, unknown>;
+		sourceChunkProviders: ReadonlyMap<string, unknown>;
+	}>,
+): Readonly<{
+	sourceMap: ReadonlyMap<string, unknown>;
+	chunkSources: ReadonlyMap<string, unknown>;
+	prepareTimePitchCaches: boolean;
+}> {
+	if (metadata.role === 'project-audio-mix-v1') {
+		return Object.freeze({
+			sourceMap: new Map<string, unknown>(),
+			chunkSources: new Map<string, unknown>([[metadata.sourceId, provider]]),
+			prepareTimePitchCaches: false,
+		});
+	}
+	const sourceMap = new Map<string, unknown>(runtime.sourceBuffers);
+	sourceMap.delete(metadata.sourceId);
+	const chunkSources = new Map<string, unknown>(runtime.sourceChunkProviders);
+	chunkSources.set(metadata.sourceId, provider);
+	return Object.freeze({ sourceMap, chunkSources, prepareTimePitchCaches: true });
 }
 
 function matchesFallback(
@@ -250,12 +295,20 @@ function matchesFallback(
 	return Boolean(item
 		&& item.requirementId === metadata.requirementId
 		&& item.featureId === metadata.featureId
-		&& (item.availability === 'unavailable' || item.availability === 'unknown')
+		&& (
+			(metadata.role === 'project-audio-mix-v1'
+				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
+			|| (metadata.role === 'audio-track-render-v1'
+				&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+				&& item.availability === 'unavailable')
+		)
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.disposition === 'rendered-fallback'
 		&& item.fallback?.kind === 'audio'
 		&& item.fallback.role === metadata.role
-		&& item.fallback.sourceId === metadata.sourceId);
+		&& item.fallback.sourceId === metadata.sourceId
+		&& (item.fallback.role === 'audio-track-render-v1' ? item.fallback.targetTrackId : null)
+			=== (metadata.role === 'audio-track-render-v1' ? metadata.targetTrackId : null));
 }
 
 export function assertAudioRenderedFallbackChunkProvider(

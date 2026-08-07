@@ -14,22 +14,27 @@ import {
 	type ScapeAudioSource,
 } from './scape-archive-media.ts';
 import type { ScapeProjectFallbackClaim } from './scape-project-assets.ts';
-import type {
-	ProjectFeatureFallback,
-	ProjectFeatureRequirement,
+import {
+	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
+	type ProjectFeatureFallback,
+	type ProjectFeatureRequirement,
 } from './project-feature-requirements.ts';
 import { packPlanarFloat32 } from './wavpack/pcm.js';
 
 export const PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE = 'PROJECT_AUDIO_FALLBACK_INTEGRITY' as const;
 
-export interface ProjectAudioFallbackIntegritySelector {
+interface ProjectAudioFallbackIntegritySelectorBase {
 	readonly requirementId: string;
 	readonly featureId: string;
-	readonly role: 'project-audio-mix-v1';
 	readonly kind: 'audio';
 	readonly sourceId: string;
 	readonly sha256: string;
 }
+
+export type ProjectAudioFallbackIntegritySelector = ProjectAudioFallbackIntegritySelectorBase & (
+	| Readonly<{ role: 'project-audio-mix-v1'; targetTrackId: null }>
+	| Readonly<{ role: 'audio-track-render-v1'; targetTrackId: string }>
+);
 
 export interface ProjectAudioFallbackSource extends ScapeAudioSource {
 	readonly kind?: 'audio' | 'video';
@@ -123,16 +128,25 @@ export function snapshotProjectAudioFallbackSelector(
 		kind: ownSelectorData(selector, 'kind'),
 		sourceId: ownSelectorData(selector, 'sourceId'),
 		sha256: ownSelectorData(selector, 'sha256'),
+		targetTrackId: ownSelectorData(selector, 'targetTrackId'),
 	});
 	if (typeof captured.requirementId !== 'string' || !captured.requirementId
 		|| typeof captured.featureId !== 'string' || !captured.featureId
-		|| captured.role !== 'project-audio-mix-v1'
 		|| captured.kind !== 'audio'
 		|| typeof captured.sourceId !== 'string' || !captured.sourceId
-		|| typeof captured.sha256 !== 'string' || !/^[0-9a-f]{64}$/u.test(captured.sha256)) {
+		|| typeof captured.sha256 !== 'string' || !/^[0-9a-f]{64}$/u.test(captured.sha256)
+		|| !validAudioRelationship(captured.role, captured.targetTrackId)) {
 		throw new TypeError('The selected audio rendered fallback is invalid.');
 	}
 	return captured as ProjectAudioFallbackIntegritySelector;
+}
+
+function validAudioRelationship(role: unknown, targetTrackId: unknown): boolean {
+	if (role === 'project-audio-mix-v1') return targetTrackId === null;
+	return role === 'audio-track-render-v1' && typeof targetTrackId === 'string'
+		&& targetTrackId.length <= PROJECT_FEATURE_REQUIREMENTS_LIMITS.maximumSourceIdLength
+		&& targetTrackId.length > 0 && targetTrackId === targetTrackId.trim()
+		&& !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(targetTrackId);
 }
 
 export function selectProjectAudioFallbackTarget<Source extends ProjectAudioFallbackSource>(
@@ -146,17 +160,25 @@ export function selectProjectAudioFallbackTarget<Source extends ProjectAudioFall
 	const sourceMatches = sources.filter(({ id }) => id === selector.sourceId);
 	const source = sourceMatches.length === 1 ? sourceMatches[0] : undefined;
 	const conflictingClaim = requirements.some((candidate) => candidate.fallback?.sourceId === selector.sourceId
-		&& (candidate.fallback.role !== selector.role
+		&& (!sameAudioRelationship(candidate.fallback, selector)
 			|| candidate.fallback.kind !== selector.kind
 			|| candidate.fallback.sha256 !== selector.sha256));
 	if (!requirement || requirement.featureId !== selector.featureId
 		|| requirement.disposition !== 'rendered-fallback' || fallback?.kind !== selector.kind
-		|| fallback.role !== selector.role
+		|| !sameAudioRelationship(fallback, selector)
 		|| fallback.sourceId !== selector.sourceId || fallback.sha256 !== selector.sha256
 		|| !source || source.kind !== selector.kind || conflictingClaim) {
 		throw new Error('The selected audio rendered fallback does not match one active project requirement and source claim.');
 	}
 	return Object.freeze({ claim: fallback, source });
+}
+
+function sameAudioRelationship(
+	claim: ProjectFeatureFallback,
+	selector: ProjectAudioFallbackIntegritySelector,
+): boolean {
+	return claim.role === selector.role
+		&& (claim.role === 'audio-track-render-v1' ? claim.targetTrackId : null) === selector.targetTrackId;
 }
 
 export function projectAudioFallbackSelectorMatches(
@@ -178,7 +200,8 @@ export function sameProjectAudioFallbackSelector(
 ): boolean {
 	return left.requirementId === right.requirementId && left.featureId === right.featureId
 		&& left.role === right.role && left.kind === right.kind
-		&& left.sourceId === right.sourceId && left.sha256 === right.sha256;
+		&& left.sourceId === right.sourceId && left.sha256 === right.sha256
+		&& left.targetTrackId === right.targetTrackId;
 }
 
 /** Preserve the controller-activation verifier used when no exact selector is present. */

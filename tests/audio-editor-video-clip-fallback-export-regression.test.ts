@@ -159,6 +159,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		kind: 'audio',
 		sourceId: FALLBACK_AUDIO_SOURCE_ID,
 		sha256: FALLBACK_AUDIO_DIGEST,
+		targetTrackId: null,
 	});
 	const fallbackAudioSource = recordById(canonical.sources, FALLBACK_AUDIO_SOURCE_ID);
 	const fallbackAudioProvider: EngineChunkSource = Object.freeze({

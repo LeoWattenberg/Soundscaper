@@ -1094,7 +1094,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings, playbackProjects: playbackProjectService,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches,
 		getProject: () => project, productName: product.name, projectGeneration, projectSampleRate, publishDocumentSnapshot,
-		resampleBuffer, setStatus, sourceBuffers, state,
+		resampleBuffer, setStatus, sourceBuffers, sourceChunkProviders, state,
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	});

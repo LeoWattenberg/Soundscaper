@@ -3,6 +3,7 @@
 import {
 	admitAudioRenderedFallbackExport,
 	assertAudioRenderedFallbackExportSettings,
+	audioRenderedFallbackRenderSources,
 	projectForAudioRenderedFallbackExport,
 } from './audio-rendered-fallback-export.ts';
 import { renderAndEncodeAudioExport, type ExportRenderSources } from './audio-export-render-orchestration.ts';
@@ -38,7 +39,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings, playbackProjects,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches, productName,
 		getProject, projectGeneration, publishDocumentSnapshot,
-		resampleBuffer, setStatus, sourceBuffers, state,
+		resampleBuffer, setStatus, sourceBuffers, sourceChunkProviders, state,
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	} = runtime;
@@ -68,7 +69,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			return;
 		}
 		if (!delivery.project.clips.length) return;
-		if (!delivery.audioRenderedFallback && hasMissingTimelineSources()) {
+		// The whole-mix role renders from its verified provider alone; the track
+		// role still mixes native lanes, so their sources must be present.
+		if (delivery.audioRenderedFallback?.role !== 'project-audio-mix-v1' && hasMissingTimelineSources()) {
 			throw new Error(copy.localSourcesMissing);
 		}
 		const generation = ++state.exportGeneration;
@@ -95,10 +98,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				store, verifyProjectFallbackIntegrity,
 			}, { signal: abort.signal, assertCurrent: assertExportCurrent });
 			exportRenderSources = fallbackProvider && delivery.audioRenderedFallback
-				? Object.freeze({
-					sourceMap: new Map(),
-					chunkSources: new Map([[delivery.audioRenderedFallback.sourceId, fallbackProvider]]),
-					prepareTimePitchCaches: false,
+				? audioRenderedFallbackRenderSources(delivery.audioRenderedFallback, fallbackProvider, {
+					sourceBuffers,
+					sourceChunkProviders: sourceChunkProviders ?? new Map(),
 				})
 				: Object.freeze({
 					sourceMap: new Map(sourceBuffers),
