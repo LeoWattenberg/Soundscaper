@@ -249,7 +249,9 @@ products before adding new editorial models or native engines.
 - **Shared — Implemented for maintained compatibility slices:** feature-requirement
   reporting, read-only incompatible opens, opaque state preservation, audio/video
   effect bypass, role-defined audio whole-mix and full-project video fallback
-  playback, and the first-party clip-local `videoEffects` fallback.
+  playback, the first-party clip-local `videoEffects` fallback, and generic
+  read-only affected-object visibility for any unavailable or unknown
+  requirement.
 - **Web Enhanced / Electron Enhanced — Implemented for direct PCM slices:**
   bounded direct WAV, AIFF, BWF, and admitted BW64 publication. Other render
   families remain below.
@@ -380,8 +382,13 @@ release-blocking defect in its owning policy.
 
 #### 2.3 Compatibility completion
 
-- **Shared — In progress:** provide generic affected-object visibility and
-  bypass behavior beyond the maintained first-party audio/video slices.
+- **Shared — Implemented for affected-object visibility:** one read-only pass
+  names the objects each unavailable or unknown requirement affects wherever a
+  declared fallback role or a first-party effect capability can identify them,
+  for any feature identity, and states plainly when they cannot be identified.
+  It adds no bypass and no control.
+- **Shared — In progress:** provide generic per-feature bypass behavior beyond
+  the maintained first-party audio/video slices.
 - Extend required rendered-fallback runtime use beyond the role-defined audio
   whole-mix and full-project video roles plus the maintained first-party
   clip-local video-effects relationship.

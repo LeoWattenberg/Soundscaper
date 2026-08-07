@@ -1406,6 +1406,144 @@ Bin clip owner. Neither inventory reads effect payloads. A compatible or `null`
 report produces no notice, tab switching follows the per-tab report, and the
 workspace never traverses future-schema `featureRequirements` state.
 
+A separate read-only affected-object pass names the canonical objects behind
+each unavailable or unknown requirement, including publisher feature identities
+the maintained first-party inventories cannot name, and says plainly when it can
+name none. It runs only for exact schema 9 with a `soundscaper-project` report
+whose `compatible` value is exactly `false`, and it returns one entry per report
+item reported unavailable or unknown, or no index at all when no item qualifies.
+A compatible report, an available-only report, an absent, item-less, or
+differently formatted report, and every other schema return no index without
+traversing the project. The pass reads canonical state and changes none of it:
+it walks the live canonical current project but projects, mutates, bypasses, and
+reprojects nothing and reaches no engine project or audio graph, and beyond the
+containers it walks it reads only identity and inertness—track type, clip kind,
+effect type, stable IDs, and the `effectsActive`, `enabled`, and `bypassed`
+flags—never effect params, context, state, or other opaque payloads. From the
+report it reads only the format and compatibility, each item's requirement ID,
+feature ID, and availability, and the declared fallback role and target clip ID;
+evaluator messages, fallback source IDs, and digests stay unread. Every named
+property it takes from project data goes through an own-data-property check, so
+an accessor or inherited property in a named position is treated as absent
+rather than invoked or thrown on. That guarantee covers named reads only: array
+membership is reached by ordinary element access, so a getter installed on an
+index of `tracks`, `clips`, or an effect stack is still invoked.
+
+Attribution has three channels, and it follows the declared descriptor rather
+than the outcome of playback qualification or integrity admission. An item whose
+manifest declares a rendered fallback is attributed from that declared role
+alone: `project-audio-mix-v1` names every non-label, non-video track rack, every
+mixer group and send, the master rack under its fixed `master` identity, and
+every non-video timeline clip; `project-video-render-v1` names every video track
+as well as every timeline video clip, because the projection collapses both and
+naming only the clips would leave a video-track-only project reporting nothing
+while every video track was discarded; and `video-clip-render-v1`—like any other
+role reaching this pass—names at most the one timeline clip whose ID equals the
+declared target clip ID. Because the role is taken as declared, a
+`video-clip-render-v1` descriptor on an item reported unknown is still indexed,
+and its target clip is still labelled as replaced during editor playback, even
+though that clip role qualifies for editor playback only when the item is
+unavailable and carries the maintained video-effects capability ID. That label
+reports a declared relationship, not an admitted or qualified substitution.
+
+An item that declares no fallback and carries the maintained audio-effects
+capability ID is instead attributed effect by effect across every non-label,
+non-video track rack, every mixer group and send, and the master rack; the
+maintained video-effects capability ID is attributed likewise across every
+timeline and Project Bin video clip. Both channels collect only effect types
+outside the maintained registry, so every entry they produce is flagged
+unregistered: a registered type already has its own first-party placeholder
+section above, and collecting it would spend the shared ceiling on rows the
+notice discards. Both also apply the same inertness gates as the sibling bypass
+projections—the audio channel skips a rack whose `effectsActive` is `false` and
+an effect whose `enabled` is `false` or whose `bypassed` is `true`, and the
+video channel skips an effect whose `enabled` is `false`, which is its whole
+gate because a persisted video effect carries no bypass flag. The two channels
+are not equally reachable. Persisted audio-effect validation admits any
+non-empty type string, so an unregistered rack processor is an ordinary schema-9
+occurrence; video effect stacks are normalized against the maintained video
+registry when the project opens, so a foreign video effect type cannot exist in
+a project that opens at all, and the video-effect channel is reachable in
+principle but not by any project that opens.
+
+A requirement is marked attributable only once a channel has actually named an
+object, and a requirement no channel could name one for is explicitly
+unattributable, carrying an empty object list rather than a guess. That is the
+normal outcome for an arbitrary publisher feature ID with no fallback
+descriptor, and equally the outcome for a maintained effect capability whose
+project holds no active unregistered effect in scope and for a declared fallback
+that matches nothing—a target clip ID no timeline clip carries, or a video role
+on a project with no video track and no video clip. An object the shared ceiling
+dropped still counts as named; a candidate whose identity could not be read does
+not. The notice renders an unattributable requirement as one explicit line
+stating that its affected objects cannot be identified, instead of an empty list
+or nothing at all.
+
+Stable IDs are bounded to 256 characters and object types to 128 while schema-9
+validation bounds neither, so a valid document can carry an identity longer than
+either bound. Exceeding a bound does not reject: this pass runs on the
+document-snapshot path, where a throw would blank the editor, so a missing,
+empty, or over-long stable ID or object type skips the object instead of
+truncating the value or failing snapshot construction. Disclosure of those skips
+is uneven. An effect whose type is a readable non-empty string but whose stable
+ID is missing, empty, or over-long, or whose type exceeds 128 characters, is
+counted in its requirement's omitted count; a track, mixer bus, or clip whose
+own ID is unreadable is dropped silently by the traversal, taking every effect
+it would have anchored with it, so a list can be short by an unnamed object
+without saying so. A clip whose kind is not a readable bounded string is still
+listed, defensively, under the generic object type `clip`.
+
+One shared, lower-only 4,096-object ceiling is spent across the whole index in
+report order, so a large early requirement can starve a later one, whose objects
+then survive only as an omitted count. Exhaustion truncates rather than rejects:
+the pass records the object in that requirement's omitted count, marks the index
+truncated, and continues. The sibling first-party audio- and video-effect bypass
+passes reject above that same 4,096 count instead, and the divergence is
+intentional—truncating a bypass would leave a maintained effect audible, while
+truncating a read-only advisory list leaves nothing audible, so a large project
+must degrade this list rather than fail its open to produce one. The ceiling
+bounds the retained list, not the traversal: enumeration continues after
+exhaustion, every remaining rack, clip, and effect stack is still walked, and
+the whole index is recomputed on every document snapshot for as long as an
+incompatible schema-9 document is active, so an oversized project pays that walk
+each time. Raising the ceiling, or supplying a negative or non-integer seam,
+rejects with a `RangeError`, and that rejection is the pass's only one;
+everything else about it is total.
+
+The controller derives the index in the document snapshot from the live
+canonical current project together with the retained activation-time report, so
+the named objects follow later edits while each entry's availability stays fixed
+by activation. It is computed from the canonical project rather than from any
+playback or bypass projection, is frozen at every level, is not persisted, and
+is not stored in per-tab session metadata. The workspace hands it to the same
+post-open notice, which nests one persistent localized, control-free
+affected-object section under the matching requirement, rendered only for a
+requirement with a listed object or a nonzero omitted count. Each row shows the
+object ID, the object type, and one of two localized labels—replaced during
+editor playback on the rendered-fallback channel, otherwise a type this editor
+does not recognize—and is keyed by channel, location, scope, owner, and object
+ID, because schema 9 enforces ID uniqueness only within a collection and a track
+and a clip may legitimately share one. The section shows only newly visible
+state, namely the canonical objects a declared rendered fallback names and
+effects whose type is outside the maintained registry; because the effect
+channels never collect a registered type at all, the notice's registered-effect
+filter is a redundant safeguard rather than a live deduplication. A nonzero
+omitted count adds one line stating that further affected objects are not
+listed, without distinguishing a ceiling-dropped object from an unreadable one.
+No row exposes a control.
+
+Beyond that disclosure the pass adds no behavior. It introduces no bypass:
+bypass remains exactly the two maintained first-party audio- and video-effect
+slices, and generic per-feature bypass controls remain unimplemented. It makes
+no previously invisible object controllable, selectable, or actionable, and the
+post-open notice stays control-free and informational. It does not change
+activation, read-only enforcement, the engine project, persistence, offline
+render, export, or delivery, and it verifies or authenticates no bytes. It
+grants no new capability to third-party or unknown features: naming the objects
+a requirement affects is not discovery, loading, or execution of publisher
+feature code, and is not a claim about what the unavailable feature would have
+done to a named object.
+
 Raw and stored-project controller activation has a separate integrity admission
 step for exact schema 9. The maintained role-defined audio whole-mix and closed
 video delivery slices invoke the same body verifier at export-operation time,
@@ -1578,7 +1716,10 @@ This archive evidence is deliberately limited to schema 9 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
 generic affected-object unavailable-feature placeholders or per-feature bypass
 controls beyond the maintained first-party audio- and video-effect slices, or
-third-party feature activation. After archive acceptance and import, the
+third-party feature activation. The separate read-only affected-object index
+described above is not archive evidence either: it names objects from the
+activated project and its report, and it adds no bypass control, no runtime
+substitution, and no activation route. After archive acceptance and import, the
 separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route and does not
