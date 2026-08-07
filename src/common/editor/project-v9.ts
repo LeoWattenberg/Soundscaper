@@ -77,6 +77,7 @@ export function createAudioEditorProjectV9(options: AudioEditorProjectV9Options 
 	const normalizedFeatureRequirements = normalizeProjectFeatureRequirements(featureRequirements, {
 		sources: base.sources,
 		clips: base.clips,
+		tracks: base.tracks,
 	});
 	return {
 		...base,
@@ -90,6 +91,7 @@ export function cloneAudioEditorProjectV9(project: AudioEditorProjectV9): AudioE
 	const normalizedFeatureRequirements = normalizeProjectFeatureRequirements(copy.featureRequirements, {
 		sources: copy.sources as readonly Readonly<Record<string, unknown>>[],
 		clips: copy.clips as readonly Readonly<Record<string, unknown>>[],
+		tracks: copy.tracks as readonly Readonly<Record<string, unknown>>[],
 	});
 	return {
 		...copy,

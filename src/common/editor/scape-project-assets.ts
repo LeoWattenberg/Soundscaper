@@ -13,6 +13,7 @@ interface ScapeProjectWithSources {
 	readonly featureRequirements?: unknown;
 	readonly sources: readonly unknown[];
 	readonly clips?: readonly unknown[];
+	readonly tracks?: readonly unknown[];
 }
 
 interface ScapeManifestAssets {
@@ -89,7 +90,10 @@ export function snapshotScapeProjectFallbackIntegrity(project: unknown): ScapePr
 	const clips = Array.isArray(candidate.clips)
 		? candidate.clips as readonly Readonly<Record<string, unknown>>[]
 		: [];
-	const manifest = normalizeProjectFeatureRequirements(candidate.featureRequirements, { sources, clips });
+	const tracks = Array.isArray(candidate.tracks)
+		? candidate.tracks as readonly Readonly<Record<string, unknown>>[]
+		: [];
+	const manifest = normalizeProjectFeatureRequirements(candidate.featureRequirements, { sources, clips, tracks });
 	const claims = Object.freeze(manifest.requirements.flatMap((requirement) => (
 		requirement.disposition === 'rendered-fallback' && requirement.fallback
 			? [Object.freeze({ ...requirement.fallback })]

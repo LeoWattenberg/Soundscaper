@@ -241,7 +241,11 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 		: null;
 	let applyFailure: unknown | typeof NO_PLAYBACK_PROJECT_APPLY_FAILURE = NO_PLAYBACK_PROJECT_APPLY_FAILURE;
 	try {
-		const transientBuffers = preparedSources && projection.requiredVideoSourceIds.length === 0
+		// A whole-mix fallback is the projection's only audio surface, so ordinary
+		// source loading can be skipped. A track-scoped fallback keeps every other
+		// lane native and still needs those sources ensured.
+		const soleAudioSurface = projection.audioRenderedFallback?.role !== 'audio-track-render-v1';
+		const transientBuffers = preparedSources && soleAudioSurface && projection.requiredVideoSourceIds.length === 0
 			? new Map<unknown, unknown>()
 			: await runtime.ensureProjectSourcesAvailable(projection.project, {
 				excludedAudioSourceIds: preparedSources ? projection.requiredAudioSourceIds : [],

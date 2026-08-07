@@ -200,6 +200,27 @@ function collectRenderedFallbackObjects(
 		});
 		return;
 	}
+	if (fallback.role === 'audio-track-render-v1') {
+		// The projection replaces one track's clip lane and effect rack, so the
+		// replaced surface is that track plus each clip its lane anchors.
+		const laneClipIds = new Set<string>();
+		eachAudioRack(project, skipped, (scope, location, ownerId, owner) => {
+			if (scope !== 'track' || ownerId !== fallback.targetTrackId) return;
+			collect(rackObject('rendered-fallback-replaced', scope, location, ownerId));
+			const clipIds = dataProperty(owner, 'clipIds');
+			if (!Array.isArray(clipIds)) return;
+			clipIds.forEach((clipId) => {
+				const laneClipId = stableId(clipId);
+				if (laneClipId) laneClipIds.add(laneClipId);
+				else collect(null);
+			});
+		});
+		eachClip(project, 'clips', 'timeline', skipped, (_clip, clipId, kind) => {
+			if (!laneClipIds.has(clipId)) return;
+			collect(clipObject('rendered-fallback-replaced', 'timeline', clipId, kind));
+		});
+		return;
+	}
 	eachClip(project, 'clips', 'timeline', skipped, (_clip, clipId, kind) => {
 		if (clipId !== fallback.targetClipId) return;
 		collect(clipObject('rendered-fallback-replaced', 'timeline', clipId, kind));

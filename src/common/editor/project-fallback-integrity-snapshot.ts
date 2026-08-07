@@ -24,6 +24,7 @@ export interface CapturedProjectFallbackIntegrity {
 	readonly requirements: readonly ProjectFeatureRequirement[];
 	readonly sources: readonly ProjectFallbackIntegritySource[];
 	readonly clips: readonly Readonly<Record<PropertyKey, unknown>>[];
+	readonly tracks: readonly Readonly<Record<PropertyKey, unknown>>[];
 }
 
 export function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallbackIntegrity {
@@ -36,6 +37,7 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 			requirements: Object.freeze([]),
 			sources: Object.freeze([]),
 			clips: Object.freeze([]),
+			tracks: Object.freeze([]),
 		});
 	}
 	const sources = snapshotArray(
@@ -47,6 +49,10 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 	const clips = clipsValue === undefined
 		? Object.freeze([])
 		: snapshotArray(clipsValue, 'project.clips', snapshotClip);
+	const tracksValue = optionalOwnDataValue(candidate, 'tracks', 'project');
+	const tracks = tracksValue === undefined
+		? Object.freeze([])
+		: snapshotArray(tracksValue, 'project.tracks', snapshotTrack);
 	const featureRequirements = snapshotFeatureRequirements(
 		ownDataValue(candidate, 'featureRequirements', 'project'),
 	);
@@ -54,6 +60,7 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 		schemaVersion,
 		sources,
 		clips,
+		tracks,
 		featureRequirements,
 	}));
 	return Object.freeze({
@@ -62,6 +69,7 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 		requirements: snapshot.featureRequirements?.requirements ?? Object.freeze([]),
 		sources,
 		clips,
+		tracks,
 	});
 }
 
@@ -72,7 +80,8 @@ export function sameCapturedProjectFallbackIntegrity(
 	if (left.schemaVersion !== right.schemaVersion
 		|| left.claims.length !== right.claims.length
 		|| left.sources.length !== right.sources.length
-		|| left.clips.length !== right.clips.length) return false;
+		|| left.clips.length !== right.clips.length
+		|| left.tracks.length !== right.tracks.length) return false;
 	for (let index = 0; index < left.claims.length; index += 1) {
 		const first = left.claims[index];
 		const second = right.claims[index];
@@ -85,6 +94,9 @@ export function sameCapturedProjectFallbackIntegrity(
 	}
 	for (let index = 0; index < left.clips.length; index += 1) {
 		if (!sameSnapshotValue(left.clips[index], right.clips[index])) return false;
+	}
+	for (let index = 0; index < left.tracks.length; index += 1) {
+		if (!sameSnapshotValue(left.tracks[index], right.tracks[index])) return false;
 	}
 	return true;
 }
@@ -118,10 +130,47 @@ function snapshotClip(value: unknown, index: number): Readonly<Record<PropertyKe
 		id: optionalOwnDataValue(clip, 'id', label),
 		kind: optionalOwnDataValue(clip, 'kind', label),
 		sourceId: optionalOwnDataValue(clip, 'sourceId', label),
+		timelineStartFrame: optionalOwnDataValue(clip, 'timelineStartFrame', label),
 		durationFrames: optionalOwnDataValue(clip, 'durationFrames', label),
 		videoEffects: videoEffects === undefined
 			? undefined
 			: snapshotVideoEffects(videoEffects, `${label}.videoEffects`),
+	});
+}
+
+/**
+ * A track-scoped fallback binds to rack activity and lane membership, so those
+ * fields join the admission identity. Effect parameters stay outside it: the
+ * admitted project is read-only, and the binding does not claim mix fidelity.
+ */
+function snapshotTrack(value: unknown, index: number): Readonly<Record<PropertyKey, unknown>> {
+	const label = `project.tracks[${String(index)}]`;
+	const track = objectRecord(value, label);
+	const effects = optionalOwnDataValue(track, 'effects', label);
+	const clipIds = optionalOwnDataValue(track, 'clipIds', label);
+	return Object.freeze({
+		id: optionalOwnDataValue(track, 'id', label),
+		type: optionalOwnDataValue(track, 'type', label),
+		effectsActive: optionalOwnDataValue(track, 'effectsActive', label),
+		effects: effects === undefined ? undefined : snapshotArray(
+			effects,
+			`${label}.effects`,
+			(item, effectIndex) => {
+				const effectLabel = `${label}.effects[${String(effectIndex)}]`;
+				const effect = objectRecord(item, effectLabel);
+				return Object.freeze({
+					id: optionalOwnDataValue(effect, 'id', effectLabel),
+					type: optionalOwnDataValue(effect, 'type', effectLabel),
+					enabled: optionalOwnDataValue(effect, 'enabled', effectLabel),
+					bypassed: optionalOwnDataValue(effect, 'bypassed', effectLabel),
+				});
+			},
+		),
+		clipIds: clipIds === undefined ? undefined : snapshotArray(
+			clipIds,
+			`${label}.clipIds`,
+			(item) => item,
+		),
 	});
 }
 
@@ -251,7 +300,9 @@ function defineData(record: Record<PropertyKey, unknown>, key: PropertyKey, valu
 }
 
 function fallbackTarget(claim: ScapeProjectFallbackClaim): string | null {
-	return claim.role === 'video-clip-render-v1' ? claim.targetClipId : null;
+	if (claim.role === 'video-clip-render-v1') return claim.targetClipId;
+	if (claim.role === 'audio-track-render-v1') return claim.targetTrackId;
+	return null;
 }
 
 function sameSource(

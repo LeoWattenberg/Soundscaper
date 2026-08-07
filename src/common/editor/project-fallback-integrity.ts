@@ -288,8 +288,13 @@ function sameFallbackClaim(
 ): boolean {
 	return left.role === right.role && left.kind === right.kind
 		&& left.sourceId === right.sourceId && left.sha256 === right.sha256
-		&& (left.role === 'video-clip-render-v1' ? left.targetClipId : null)
-			=== (right.role === 'video-clip-render-v1' ? right.targetClipId : null);
+		&& fallbackClaimTarget(left) === fallbackClaimTarget(right);
+}
+
+function fallbackClaimTarget(claim: ScapeProjectFallbackClaim): string | null {
+	if (claim.role === 'video-clip-render-v1') return claim.targetClipId;
+	if (claim.role === 'audio-track-render-v1') return claim.targetTrackId;
+	return null;
 }
 
 function sourceStorageKey(source: ProjectFallbackSource): string {
@@ -337,6 +342,7 @@ function snapshotAdmissionState(
 		requirements: captured.requirements,
 		sources: captured.sources,
 		clips: captured.clips,
+		tracks: captured.tracks,
 	});
 }
 

@@ -218,7 +218,7 @@ export async function importScapeProject(input, store, options = {}) {
 				project.featureRequirements = remapProjectFeatureRequirementSourceIds(
 					project.featureRequirements,
 					sourceIdMap,
-					{ sources: project.sources, clips: project.clips },
+					{ sources: project.sources, clips: project.clips, tracks: project.tracks },
 				);
 			}
 

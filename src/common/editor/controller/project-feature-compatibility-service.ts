@@ -12,6 +12,7 @@ interface ProjectWithFeatureRequirements {
 	readonly featureRequirements?: unknown;
 	readonly sources?: unknown;
 	readonly clips?: unknown;
+	readonly tracks?: unknown;
 }
 
 export interface ProjectFeatureCompatibilityService {
@@ -41,6 +42,7 @@ export function createProjectFeatureCompatibilityService(
 				availableFeatureIds,
 				sources: Array.isArray(candidate.sources) ? candidate.sources : [],
 				clips: Array.isArray(candidate.clips) ? candidate.clips : [],
+				tracks: Array.isArray(candidate.tracks) ? candidate.tracks : [],
 			},
 		);
 	}

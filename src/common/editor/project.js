@@ -268,7 +268,7 @@ export function commitProject(project, mutate, options = {}) {
 	mutate(draft);
 	draft.revision = project.revision + 1;
 	draft.updatedAt = isoTimestamp(options.now);
-	if (draft.schemaVersion === 9) draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(draft, normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources, clips: draft.clips }));
+	if (draft.schemaVersion === 9) draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(draft, normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources, clips: draft.clips, tracks: draft.tracks }));
 	validateAudioEditorProject(draft);
 	return draft;
 }
@@ -283,7 +283,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 6) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata);
 	if (project.schemaVersion === 7) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion === 8) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
-	if (project.schemaVersion === 9) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project) && Boolean(normalizeProjectFeatureRequirements(project.featureRequirements, { sources: project.sources, clips: project.clips }));
+	if (project.schemaVersion === 9) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project) && Boolean(normalizeProjectFeatureRequirements(project.featureRequirements, { sources: project.sources, clips: project.clips, tracks: project.tracks }));
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}

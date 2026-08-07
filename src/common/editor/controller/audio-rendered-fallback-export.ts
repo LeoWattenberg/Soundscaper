@@ -225,6 +225,9 @@ export function audioRenderedFallbackIntegritySelector(
 	projection: AudioRenderedFallbackDeliveryProjection<object>,
 ): ProjectAudioFallbackIntegritySelector {
 	const metadata = projection.audioRenderedFallback!;
+	if (metadata.role !== 'project-audio-mix-v1') {
+		throw new TypeError('Audio rendered-fallback delivery supports only the whole-mix role.');
+	}
 	const item = assertAudioFallbackReport(projection.featureRequirementsReport, metadata);
 	const digest = item.fallback!.sha256;
 	if (typeof digest !== 'string' || !/^[0-9a-f]{64}$/u.test(digest)) {

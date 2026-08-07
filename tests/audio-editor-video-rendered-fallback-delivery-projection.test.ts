@@ -126,7 +126,7 @@ test('video delivery rejects duplicate rendered fallbacks of either media kind',
 		assert.throws(
 			() => createPlaybackProjectService({ audioEffects: false, videoEffects: false })
 				.projectForVideoRenderedFallbackDelivery(ambiguous),
-			/Multiple (?:audio whole-mix|video) rendered fallbacks are ambiguous/u,
+			/Multiple (?:audio|video) rendered fallbacks are ambiguous/u,
 		);
 	}
 });

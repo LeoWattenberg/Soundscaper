@@ -87,6 +87,7 @@ export function validateAudioEditorProjectV9(
 	normalizeProjectFeatureRequirements(candidate.featureRequirements, {
 		sources: media.sources,
 		clips: media.clips,
+		tracks: media.tracks,
 	});
 	return true;
 }

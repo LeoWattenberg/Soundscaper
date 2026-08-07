@@ -217,10 +217,15 @@ function audioRenderedFallbackApplies(
 	metadata: ProjectFeatureAudioRenderedFallbackMetadata | null | undefined,
 ): boolean {
 	return metadata?.schemaVersion === 1
-		&& metadata.role === 'project-audio-mix-v1'
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
-		&& (item.availability === 'unavailable' || item.availability === 'unknown')
+		&& (
+			(metadata.role === 'project-audio-mix-v1'
+				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
+			|| (metadata.role === 'audio-track-render-v1'
+				&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+				&& item.availability === 'unavailable')
+		)
 		&& item.declaredDisposition === 'rendered-fallback'
 		&& item.effectiveDisposition === 'rendered-fallback';
 }

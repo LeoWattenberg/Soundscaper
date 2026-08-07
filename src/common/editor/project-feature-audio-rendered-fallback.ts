@@ -1,7 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
+import {
+	projectFeatureAudioTrackRenderV1Playback,
+	type ProjectFeatureAudioTrackRenderV1Metadata,
+} from './project-feature-audio-track-render-v1.ts';
 import type {
 	ProjectFeatureAudioMixFallback,
+	ProjectFeatureAudioTrackRenderFallback,
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
 } from './project-feature-requirements.ts';
@@ -11,7 +17,7 @@ export const PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS = Object.freeze({
 	clip: 'soundscaper:rendered-audio-fallback:clip',
 });
 
-export interface ProjectFeatureAudioRenderedFallbackMetadata {
+export interface ProjectFeatureAudioMixRenderV1Metadata {
 	readonly schemaVersion: 1;
 	readonly role: 'project-audio-mix-v1';
 	readonly featureId: string;
@@ -21,6 +27,10 @@ export interface ProjectFeatureAudioRenderedFallbackMetadata {
 	readonly clipId: typeof PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip;
 }
 
+export type ProjectFeatureAudioRenderedFallbackMetadata =
+	| ProjectFeatureAudioMixRenderV1Metadata
+	| ProjectFeatureAudioTrackRenderV1Metadata;
+
 export interface ProjectFeatureAudioRenderedFallbackProjection<Project> {
 	readonly project: Project;
 	readonly metadata: ProjectFeatureAudioRenderedFallbackMetadata | null;
@@ -28,11 +38,19 @@ export interface ProjectFeatureAudioRenderedFallbackProjection<Project> {
 
 type RecordValue = Readonly<Record<string, unknown>>;
 
-interface QualifiedFallback {
+interface QualifiedMixFallback {
 	readonly featureId: string;
 	readonly requirementId: string;
 	readonly fallback: ProjectFeatureAudioMixFallback;
 }
+
+interface QualifiedTrackFallback {
+	readonly featureId: typeof PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
+	readonly requirementId: string;
+	readonly fallback: ProjectFeatureAudioTrackRenderFallback;
+}
+
+type QualifiedFallback = QualifiedMixFallback | QualifiedTrackFallback;
 
 const EMPTY_RESULT = Object.freeze({ metadata: null });
 
@@ -50,6 +68,9 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	if (optionalDataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
+	if (isQualifiedTrackFallback(qualified)) {
+		return projectFeatureAudioTrackRenderV1Playback(project, qualified);
+	}
 	assertManifestBinding(projectRecord, qualified);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
@@ -114,26 +135,42 @@ function qualifyingFallback(
 	const candidates = report.items.filter(isQualifyingItem);
 	if (candidates.length === 0) return null;
 	if (candidates.length !== 1) {
-		throw new RangeError('Multiple audio whole-mix rendered fallbacks are ambiguous for editor playback.');
+		throw new RangeError('Multiple audio rendered fallbacks are ambiguous for editor playback.');
 	}
 	const item = candidates[0]!;
+	if (item.fallback.role === 'audio-track-render-v1') {
+		return Object.freeze({
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
+			fallback: item.fallback,
+		});
+	}
 	return Object.freeze({
 		featureId: canonicalString(item.featureId, 'Rendered fallback feature ID'),
 		requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
-		fallback: item.fallback!,
+		fallback: item.fallback,
 	});
 }
 
 function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
-	Readonly<{ fallback: ProjectFeatureAudioMixFallback }> {
-	return (item.availability === 'unavailable' || item.availability === 'unknown')
-		&& item.declaredDisposition === 'rendered-fallback'
-		&& item.disposition === 'rendered-fallback'
-		&& item.fallback?.kind === 'audio'
-		&& item.fallback.role === 'project-audio-mix-v1';
+	Readonly<{ fallback: ProjectFeatureAudioMixFallback | ProjectFeatureAudioTrackRenderFallback }> {
+	if (item.declaredDisposition !== 'rendered-fallback'
+		|| item.disposition !== 'rendered-fallback'
+		|| item.fallback?.kind !== 'audio') return false;
+	if (item.fallback.role === 'project-audio-mix-v1') {
+		return item.availability === 'unavailable' || item.availability === 'unknown';
+	}
+	// The track relationship is first-party, so its feature is always known.
+	return item.fallback.role === 'audio-track-render-v1'
+		&& item.availability === 'unavailable'
+		&& item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 }
 
-function assertManifestBinding(project: RecordValue, qualified: QualifiedFallback): void {
+function isQualifiedTrackFallback(qualified: QualifiedFallback): qualified is QualifiedTrackFallback {
+	return qualified.fallback.role === 'audio-track-render-v1';
+}
+
+function assertManifestBinding(project: RecordValue, qualified: QualifiedMixFallback): void {
 	const manifest = recordValue(dataProperty(project, 'featureRequirements', 'project'), 'project.featureRequirements');
 	const requirements = arrayValue(
 		dataProperty(manifest, 'requirements', 'project.featureRequirements'),
