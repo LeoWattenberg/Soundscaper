@@ -351,7 +351,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(control.summary, /separate maintained-controller admission.*exact-schema-9 raw and stored-project fallback bytes.*direct store loads.*runtime fallback substitution.*third-party/iu);
 	assert.match(control.summary, /generic runtime fallback substitution.*generic unavailable-feature placeholders.*general per-feature activation controls.*outside/iu);
 	for (const path of [
-		'src/common/editor/project-fallback-integrity.ts', 'src/common/editor/project-fallback-integrity-snapshot.ts',
+			'src/common/editor/project-fallback-integrity.ts', 'src/common/editor/project-fallback-integrity-audio.ts', 'src/common/editor/project-fallback-integrity-video.ts', 'src/common/editor/project-fallback-integrity-snapshot.ts',
 		'src/common/editor/scape-archive-media.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage.js',
@@ -359,14 +359,14 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/storage/source-repository.ts',
 		'src/common/editor/storage/media-asset-digest-backfill.ts',
 		'src/common/editor/storage/media-repository.ts',
-		'src/common/editor/controller/project-switch-service.ts',
+			'src/common/editor/controller/project-switch-service.ts', 'src/common/editor/controller/audio-rendered-fallback-export.ts', 'src/common/editor/controller/video-rendered-fallback-export.ts',
 		'src/common/editor/session-activation.js',
 		'src/common/editor/session.js',
 		'src/common/editor/app.js',
-		'tests/audio-editor-project-fallback-integrity.test.ts', 'tests/audio-editor-project-fallback-integrity-relationships.test.ts',
+			'tests/audio-editor-project-fallback-integrity.test.ts', 'tests/audio-editor-project-fallback-integrity-relationships.test.ts', 'tests/audio-editor-project-fallback-integrity-mixed-selection.test.ts',
 		'tests/audio-editor-source-read-cancellation.test.ts',
 		'tests/audio-editor-media-asset-load.test.ts',
-		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
+			'tests/audio-editor-project-switch-fallback-integrity.test.ts', 'tests/audio-editor-mixed-rendered-fallback-video-export.test.ts',
 		'tests/audio-editor-session-project-activation.test.js',
 	]) assert.ok(fallbackAdmission.evidence.some((item) => item.path === path), path);
 	assert.match(
@@ -379,7 +379,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
 	assert.match(
 		fallbackAdmission.summary,
-		/future schemas.*no asset read.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*activation admission remains point-in-time.*operation-scoped per-read validation.*selected video delivery.*immutable Blob.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*other relationship roles.*simultaneous.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
+			/future schemas.*no asset read.*joint final-video admission.*one audio.*one video selector.*cumulative.*before.*body reads.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*selected video delivery.*immutable Blob.*both selector identities.*activation admission remains point-in-time.*operation-scoped per-read validation.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*other relationship roles.*simultaneous.*beyond.*one-audio.one-video.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 	for (const path of [
 		'src/common/editor/project-feature-audio-rendered-fallback.ts',

@@ -22,6 +22,10 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.requiredOutcome,
+		/final-video delivery.*one.*audio whole-mix fallback.*one.*video fallback.*joint.*operation-time admission.*private chunk provider.*exact.*Blob/iu,
+	);
+	assert.match(
+		rule.requiredOutcome,
 		/portable \.scape.*explicit managed desktop handoff.*fresh recipient.*preserve the clip relationship.*manifest-only fallback body.*controller.*manifest fallback digest.*before activation.*again for later delivery/iu,
 	);
 	assert.match(
@@ -30,11 +34,11 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/project-fallback-integrity.*local body.*before activation side effects.*video export.*exact selector.*requirement ID.*feature ID.*role.*target clip ID.*video kind.*source ID.*SHA-256.*operation-time verification.*export task signal/iu,
+		/project-fallback-integrity.*local body.*before activation side effects.*final-video delivery.*exact video selector.*requirement ID.*feature ID.*role.*target clip ID.*video kind.*source ID.*SHA-256.*export task signal.*joint selector-mode verification/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/selector-mode verification.*only that active video body.*unrelated inactive audio.*nonselected fallback body.*size-checks and hashes.*canonical native Blob.*retains.*exact immutable Blob.*before video planning.*storage preflight.*canonical-audio rendering.*FFmpeg.*output publication.*exact selector.*without a second fallback storage read/iu,
+		/joint selector-mode verification.*audio.*video selectors.*cumulative.*64 GiB.*before.*body reads.*full canonical audio.*chunk scan.*private chunk provider.*canonical native Blob.*exact immutable Blob.*before video planning.*storage preflight.*render.*FFmpeg.*output publication/iu,
 	);
 
 	assert.match(
@@ -59,15 +63,15 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/video delivery projection.*only the video rendered fallback.*does not compose.*audio rendered fallback.*bypass projections.*simultaneous rendered fallbacks reject.*full-project plan.*only video input.*clip-local plan.*selected target input.*unaffected clip-local video inputs.*ordinary loading/iu,
+		/video delivery projection.*audio whole-mix.*then.*video rendered fallback.*at most one.*audio.*one.*video.*bypass projections.*not applied.*unrepresented.*duplicate same-kind.*reject.*full-project plan.*only video input.*clip-local plan.*selected target input.*unaffected clip-local video inputs.*ordinary loading/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/canonical audio clips and effects.*separate staged audio mix.*embedded fallback-video audio.*neither extracted nor mapped.*canonical project.*history.*persistence.*save state.*read-only and unmodified/iu,
+		/active audio whole-mix.*empty private.*buffer map.*sole.*chunk.*source.*otherwise.*canonical audio.*separate staged audio mix.*embedded fallback-video audio.*neither extracted nor mapped.*canonical project.*history.*persistence.*save state.*read-only and unmodified/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
-		/export asserts project, task, and generation currentness.*before verification.*after verification.*exact selector.*after FFmpeg.*owned signal.*output publication.*rechecks currentness.*cleanup.*refusal or cancellation.*no plan.*storage preflight.*canonical-audio render.*FFmpeg.*output publication/iu,
+		/export asserts project, task, and generation currentness.*before verification.*after verification.*exact selector.*after FFmpeg.*owned signal.*output publication.*rechecks currentness.*cleanup.*refusal or cancellation.*no plan.*storage preflight.*audio render.*FFmpeg.*output publication/iu,
 	);
 
 	assert.match(
@@ -84,7 +88,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/more than one qualifying video fallback.*canonical feature identities.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature identities qualify only for project-video-render-v1.*third-party feature-code activation.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged delivery.*simultaneous rendered fallback delivery.*generic fallback authoring.*freeze.*unfreeze.*proxy.*relink.*embedded fallback-video audio.*nonselected fallback-body claim.*offline-render parity.*packaged runtime or UI.*browser.*codec.*range transport.*reference-scale.*no durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
+		/exact one-audio.one-video final-video composition.*qualified.*more than one qualifying video fallback.*multiple clip fallbacks.*other mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature identities qualify only for project-video-render-v1.*third-party feature-code activation.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged delivery.*standalone audio.*simultaneous.*reject.*generic fallback authoring.*freeze.*unfreeze.*proxy.*relink.*embedded fallback-video audio.*nonselected fallback-body claim.*offline-render parity.*packaged runtime or UI.*browser.*codec.*range transport.*reference-scale.*no durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
 	);
 
 	for (const reference of rule.evidence) {
@@ -95,12 +99,16 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 		'src/common/editor/project-feature-video-clip-render-v1.ts',
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/project-fallback-integrity-audio.ts',
 		'src/common/editor/project-fallback-integrity-video.ts',
 		'src/common/editor/controller/playback-project-service.ts',
+		'src/common/editor/controller/audio-rendered-fallback-export.ts',
 		'src/common/editor/controller/video-rendered-fallback-export.ts',
+		'src/common/editor/controller/video-export-service.ts',
 		'src/common/editor/controller/export-service.ts',
 		'src/common/editor/controller/source-lifecycle-service.ts',
 		'src/common/editor/controller/project-switch-service.ts',
+		'src/common/editor/controller/project-visual-service.ts',
 		'src/common/editor/controller/document-snapshot.ts',
 		'src/common/editor/ui/workspace/video-preview-visual.ts',
 		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
@@ -109,8 +117,11 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 		'tests/audio-editor-project-feature-video-clip-render-v1.test.ts',
 		'tests/audio-editor-playback-project-service.test.ts',
 		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
+		'tests/audio-editor-project-fallback-integrity-mixed-selection.test.ts',
 		'tests/audio-editor-video-rendered-fallback-delivery-projection.test.ts',
 		'tests/audio-editor-video-rendered-fallback-export.test.ts',
+		'tests/audio-editor-mixed-rendered-fallback-video-export.test.ts',
+		'tests/audio-editor-project-visual-service.test.ts',
 		'tests/audio-editor-video-clip-fallback-export-regression.test.ts',
 		'tests/audio-editor-project-switch-source-preparation.test.ts',
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
@@ -133,7 +144,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		normalizedDocumentation,
-		/operation-time integrity selector.*role.*target clip ID.*source ID.*SHA-256.*requirement and feature IDs.*selected local body.*export-task signal.*size-checks and hashes.*canonical native `Blob`.*exact immutable `Blob`.*does not read nonselected fallback bodies.*before the video plan.*storage preflight.*canonical-audio render.*FFmpeg.*publication/isu,
+		/joint operation-time integrity.*audio.*video selectors.*requirement.*feature.*role.*target clip ID.*source ID.*SHA-256.*cumulative.*before.*body reads.*private chunk provider.*canonical native `Blob`.*exact immutable `Blob`.*nonselected fallback bodies.*not read.*before the video plan.*storage preflight.*render.*FFmpeg.*publication/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
@@ -149,7 +160,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		normalizedDocumentation,
-		/video-delivery projection.*only the selected video rendered fallback.*does not compose.*audio rendered fallback.*bypass projection.*simultaneous rendered fallbacks reject.*whole-project plan.*only video input.*clip-local plan.*selected target input.*unaffected video.*canonical audio.*separately staged mix.*embedded fallback-video audio.*not extracted or mapped/isu,
+		/video-delivery projection.*audio whole-mix.*then.*selected video rendered fallback.*one.*audio.*one.*video.*bypass projection.*not.*whole-project plan.*only video input.*clip-local plan.*selected target input.*unaffected video.*active audio whole-mix.*private.*chunk.*otherwise.*canonical audio.*separately staged mix.*embedded fallback-video audio.*not extracted or mapped/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
@@ -165,6 +176,6 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		normalizedDocumentation,
-		/more than one qualifying fallback.*ambiguous.*multiple clip fallbacks.*mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature IDs.*whole-project role.*do not activate third-party feature code.*future schemas.*generic fallback authoring.*linked or unmanaged delivery.*freeze.*proxy.*relink.*embedded fallback audio.*broader render parity.*packaged runtime.*browser behavior.*codec qualification.*reference-scale.*earlier Soundscaper project schemas.*not a compatibility target.*deterministic nested manifest-schema-1 whole-project normalization.*whole-handoff atomicity.*durable storage or cross-process byte lease/isu,
+		/exact one-audio.one-video final-video composition.*qualified.*more than one qualifying fallback.*ambiguous.*multiple clip fallbacks.*other mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature IDs.*whole-project role.*do not activate third-party feature code.*future schemas.*generic fallback authoring.*linked or unmanaged delivery.*freeze.*proxy.*relink.*embedded fallback audio.*broader render parity.*packaged runtime.*browser behavior.*codec qualification.*reference-scale.*earlier Soundscaper project schemas.*not a compatibility target.*deterministic nested manifest-schema-1 whole-project normalization.*whole-handoff atomicity.*durable storage or cross-process byte lease/isu,
 	);
 });

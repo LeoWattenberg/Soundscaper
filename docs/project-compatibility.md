@@ -1197,12 +1197,16 @@ the switch does so before teardown. Late settlement is fenced from
 buffer, provider, engine-source, missing-source, and status publication. In the
 tested stalled-preparation race, only the newest source-ready projection enters
 the engine.
-A separate audio-delivery projection invokes only the audio rendered fallback.
-It does not compose the video rendered fallback or either bypass projection,
-and a simultaneous rendered fallback rejects instead of delivering a partial
-projection. Delivery accepts normalized final-mix audio only. Stems, BW64, and
-any ADM setting reject before fallback verification, export planning,
-destination selection, storage preflight, or rendering.
+The standalone audio-delivery projection invokes only the
+audio rendered fallback. It does not compose the video rendered fallback or
+either bypass projection, and a simultaneous rendered fallback rejects
+instead of delivering a partial projection. Maintained final-video delivery
+is the separate composed path: it may compose one audio whole-mix fallback
+with one maintained video fallback through a single joint integrity
+admission, described with the video slice below. Standalone audio delivery
+accepts normalized final-mix audio only. Stems, BW64, and any ADM setting
+reject before fallback verification, export planning, destination selection,
+storage preflight, or rendering.
 
 Under the owned export signal and task, project-generation, and operation
 currentness fences, fresh operation-time verification binds an exact selector
@@ -1211,7 +1215,11 @@ the canonical project. Selector mode performs a full canonical chunk scan of
 only that selected source's `audio-f32le-chunks-v1` sequence, checks its source
 geometry and aggregate digest, and builds an admission-time per-chunk digest
 table. It returns a private chunk provider with the exact admitted source
-geometry before planning or any other export work.
+geometry before planning or any other export work. In maintained final-video
+delivery that same audio selector is passed alongside the video selector to one
+joint verification: their cumulative non-raiseable 64 GiB preflight applies
+before both fallback body reads, this audio chunk scan runs first, and
+nonselected fallback bodies are not read.
 
 The delivery clone receives an empty private audio-buffer map and that provider
 as its sole chunk render source. Global source buffers, providers, and cache
@@ -1234,15 +1242,21 @@ source ID, or digest; operation-time export separately binds the exact audio
 kind and SHA-256 from the canonical manifest. More than one qualifying
 whole-mix fallback across any feature identities rejects as ambiguous, and
 non-audio roles never qualify for this projection. Simultaneous audio/video
-rendered fallbacks reject at delivery. Future schemas and earlier Soundscaper
-schemas remain outside this slice. Linked-only and unmanaged delivery,
-fallback authoring, freeze and proxy relationships, publisher authenticity,
-and third-party code activation remain unqualified, as do stems, BW64 or ADM
-delivery and ADM or surround playback. Packaged runtime or UI workflows,
-operating-system behavior, browser audio behavior beyond the maintained
-portable-open witness, reference-scale evidence, and a durable byte lease
-remain unqualified. The separate maintained video slice below does not broaden
-that boundary.
+rendered fallbacks reject for standalone final-audio delivery; maintained
+final-video delivery instead applies the same audio whole-mix projection
+whenever it qualifies, so the delivered video audio renders through its
+digest-bound private chunk provider even when no video rendered fallback is
+active, and may compose that one audio whole-mix with one
+maintained video fallback through a single joint integrity admission, while
+anything beyond that exact one-audio/one-video composition rejects. Future
+schemas and earlier Soundscaper schemas remain outside this slice. Linked-only
+and unmanaged delivery, fallback authoring, freeze and proxy relationships,
+publisher authenticity, and third-party code activation remain unqualified, as
+do stems, BW64 or ADM delivery and ADM or surround playback. Packaged runtime
+or UI workflows, operating-system behavior, browser audio behavior beyond the
+maintained portable-open witness, reference-scale evidence, and a durable byte
+lease remain unqualified. The separate maintained video slice below does not
+broaden that boundary.
 
 The maintained exact schema 9 video rendered-fallback projection has two closed
 relationships. `project-video-render-v1` accepts any canonical namespaced feature
@@ -1252,13 +1266,18 @@ must have declared and effective `rendered-fallback` dispositions. Its video
 descriptor must exactly match the canonical manifest by requirement ID, feature
 ID, disposition, relationship role, optional target clip ID, video kind, source
 ID, and SHA-256. The separate controller fallback-integrity admission verifies
-the local body before activation side effects. For maintained video delivery, an
-operation-time integrity selector binds the same role, target clip ID, source ID,
-and SHA-256 with the requirement and feature IDs. It loads only that selected
-local body under the export-task signal, size-checks and hashes its canonical
-native `Blob`, and retains that exact immutable `Blob`. It does not read
-nonselected fallback bodies, and verification completes before the video plan,
-storage preflight, canonical-audio render, FFmpeg call, or publication.
+the local body before activation side effects. Maintained final-video delivery
+then runs one joint operation-time integrity verification over the active audio
+and video selectors it derives. The video selector binds the requirement ID,
+feature ID, relationship role, target clip ID, video kind, source ID, and
+SHA-256; an active audio whole-mix contributes the separate audio selector
+described above. Their cumulative non-raiseable 64 GiB preflight applies before
+both fallback body reads. A composed audio chunk scan runs first and returns its
+digest-bound private chunk provider; the selected video body is then loaded
+under the export-task signal, size-checked and hashed as its canonical native
+`Blob`, and retained as that exact immutable `Blob`. Nonselected fallback bodies
+are not read, and verification completes before the video plan, storage
+preflight, audio render, FFmpeg call, or publication.
 
 `project-video-render-v1` retains the whole-project behavior. Its source must
 have the exact video kind, match the project sample rate, carry positive
@@ -1283,15 +1302,22 @@ and history remain unchanged. The manifest-only fallback becomes an explicit
 required source before engine or preview entry, and preview lookup follows the
 projected clip's exact source identity rather than assuming canonical clip state.
 
-The maintained video-delivery projection invokes only the selected video
-rendered fallback. It does not compose the audio rendered fallback or either
-bypass projection, and simultaneous rendered fallbacks reject. The verified
-`Blob` is the whole-project plan's only video input or the clip-local plan's
-selected target input. Ordinary video export and composition consume the
-projected target alongside normally loaded unaffected video, preserving its
-track and transition context. Canonical audio remains a separately staged mix;
-embedded fallback-video audio is not extracted or mapped. The canonical project,
-history, persistence, and save state remain read-only and unmodified.
+The maintained video-delivery projection applies the audio whole-mix projection
+first and then the selected video rendered fallback. It represents at most one
+audio and one video rendered fallback and applies no bypass projections;
+unrepresented, duplicate same-kind, unsupported-role, or additional rendered
+fallbacks reject instead of delivering a partial projection. Standalone
+final-audio delivery does not compose and still rejects simultaneous rendered
+fallbacks. The verified `Blob` is the whole-project plan's only video input or
+the clip-local plan's selected target input. Ordinary video export and
+composition consume the projected target alongside normally loaded unaffected
+video, preserving its track and transition context. An active audio whole-mix
+renders through an empty private audio-buffer map and its sole admitted chunk
+source without committed time/pitch cache preparation; otherwise canonical
+audio clips and effects stay in the delivery snapshot and render into the
+separately staged mix. Embedded fallback-video audio is not extracted or
+mapped. The canonical project, history, persistence, and save state remain
+read-only and unmodified.
 
 Export checks project, task, generation, and operation currentness before and
 after verification, binds admission to the canonical relationship, and checks
@@ -1316,17 +1342,22 @@ inventing route-local identities.
 
 Deeply frozen per-tab and document-snapshot metadata and the localized
 source/component UI bind only the exact feature ID and requirement ID without
-exposing source ID or digest. More than one qualifying fallback rejects as
-ambiguous. Multiple clip fallbacks and mixed fallback relationships are
-unqualified. Audio-kind and audio whole-mix descriptors never qualify for this
-video projection, and noncanonical feature IDs fail manifest admission. Unknown
-canonical feature IDs qualify only for the whole-project role and do not activate
-third-party feature code. Future schemas remain outside this slice. Generic
-fallback authoring and other relationship roles are unqualified. Linked or
-unmanaged delivery is unqualified, as are freeze, proxy, relink, embedded
-fallback audio, and broader render parity. Packaged runtime workflows are
-unqualified, browser behavior is unqualified, codec qualification is
-unqualified, and reference-scale evidence is unqualified. Earlier Soundscaper
+exposing source ID or digest. The exact one-audio/one-video final-video
+composition is qualified. More than one qualifying fallback rejects as
+ambiguous. Multiple clip fallbacks, duplicate same-kind fallbacks, and other
+mixed fallback relationships are unqualified. Audio-kind and audio whole-mix
+descriptors never qualify for this video projection; the delivery layer admits
+an audio whole-mix only through its separate exact role, and noncanonical
+feature IDs fail manifest admission. Unknown canonical feature IDs qualify only
+for the whole-project role and do not activate third-party feature code. Future
+schemas remain outside this slice. Generic fallback authoring and other
+relationship roles are unqualified. Linked or unmanaged delivery is
+unqualified, as is simultaneous rendered fallback delivery beyond that exact
+composition; standalone final-audio delivery still rejects simultaneous
+fallbacks. Freeze, proxy, relink, embedded fallback audio, and broader render
+parity are unqualified. Packaged runtime workflows are unqualified, browser
+behavior is unqualified, codec qualification is unqualified, and
+reference-scale evidence is unqualified. Earlier Soundscaper
 project schemas are not a compatibility target for this slice beyond retained
 outer migrations and deterministic nested manifest-schema-1 whole-project
 normalization. Whole-handoff atomicity and a durable storage or cross-process
@@ -1377,8 +1408,10 @@ workspace never traverses future-schema `featureRequirements` state.
 
 Raw and stored-project controller activation has a separate integrity admission
 step for exact schema 9. The maintained role-defined audio whole-mix and closed
-video delivery slices independently invoke the same body verifier at
-export-operation time. Activation
+video delivery slices invoke the same body verifier at export-operation time,
+independently of activation admission; standalone audio delivery invokes it with
+only its audio selector, while composed final-video delivery makes one joint
+invocation carrying both selectors. Activation
 verifies the authoritative project that would be activated, including existing
 same-ID tab history, before project-generation invalidation, recording or engine
 shutdown, lock changes, session publication, ordinary engine-source loading, or
@@ -1422,17 +1455,22 @@ cancellation reaches no output work.
 
 Video delivery passes the owned export-task signal to a fresh verification of
 the canonical project with the exact requirement ID, feature ID, video kind,
-source ID, and SHA-256 selected by the maintained delivery projection. Selector
-mode loads only that body, returns the canonical native `Blob` whose exact size
-and digest it verified, and does not read or admit nonselected fallback bodies.
+source ID, and SHA-256 selected by the maintained delivery projection, together
+with the exact audio selector when that projection also represents an audio
+whole-mix. One joint selector-mode verification applies the cumulative 64 GiB
+ceiling before both fallback body reads, scans any composed audio source first,
+returns the canonical native `Blob` whose exact size and digest it verified, and
+does not read or admit nonselected fallback bodies.
 Export checks task, project-generation, and operation currentness before that
 verification, asserts the returned admission against the same canonical project
-and selector, and repeats those fences after verification. It reuses that same
-immutable `Blob` directly as the only video input without a second fallback
-storage read, then checks currentness again after FFmpeg and across output
+and selectors, and repeats those fences after verification. It reuses that same
+immutable `Blob` directly as the whole-project plan's only video input or the
+clip-local plan's selected target input, without a second fallback storage
+read; any unaffected clip-local video input still loads through ordinary storage
+reads. It then checks currentness again after FFmpeg and across output
 publication. Verification completes before video planning, storage preflight,
-canonical-audio rendering, FFmpeg, or output publication. A mismatch or
-cancellation reaches none of that later delivery work.
+audio rendering, FFmpeg, or output publication. A mismatch or cancellation
+reaches none of that later delivery work.
 
 These are exact point-in-time provider and immutable-`Blob` admissions at the
 maintained controller boundary, not durable leases over the underlying managed
@@ -1458,12 +1496,12 @@ engine application remains subject to cache-fit policy. Readiness does not
 prefetch or revalidate streamed chunks. The maintained projections do not
 provide generic per-feature bypass controls, other rendered-fallback
 roles, authored freeze or proxy relationships, publisher authentication or
-third-party feature-code activation, simultaneous fallback delivery,
-linked-only or unmanaged fallback delivery,
-whole-video fallback audio handling, ADM or surround fallback playback, broad
-export or offline-render parity, future-schema preservation, earlier
-Soundscaper-schema compatibility, reference-scale or browser/packaged codec
-qualification, or a complete third-party activation gate.
+third-party feature-code activation, simultaneous fallback delivery beyond the
+exact one-audio/one-video final-video composition, linked-only or unmanaged
+fallback delivery, whole-video fallback audio handling, ADM or surround
+fallback playback, broad export or offline-render parity, future-schema
+preservation, earlier Soundscaper-schema compatibility, reference-scale or
+browser/packaged codec qualification, or a complete third-party activation gate.
 
 The same selected product service now powers a programmatic current-format `.scape`
 inspection report. The composition root snapshots the selected product
@@ -1645,7 +1683,8 @@ publisher state, but Soundscaper does not create it. These slices do not freeze,
 unfreeze, relink, watch, or refresh a fallback, and the bypass slices do not
 generalize to unknown or third-party effects. Fallback authoring and selection
 beyond the closed audio and maintained video roles, simultaneous fallback
-delivery, and authored proxy workflows remain planned;
+delivery beyond the exact one-audio/one-video final-video composition, and
+authored proxy workflows remain planned;
 broad video-export and offline-render parity remain outside the bounded
 video-delivery projection.
 

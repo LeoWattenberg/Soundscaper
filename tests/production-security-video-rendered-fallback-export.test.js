@@ -25,10 +25,14 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 		'src/common/editor/project-feature-video-rendered-fallback.ts',
 		'src/common/editor/project-feature-video-clip-render-v1.ts',
 		'src/common/editor/project-fallback-integrity.ts',
+		'src/common/editor/project-fallback-integrity-audio.ts',
 		'src/common/editor/project-fallback-integrity-video.ts',
 		'src/common/editor/project-fallback-integrity-snapshot.ts',
 		'src/common/editor/controller/playback-project-service.ts',
+		'src/common/editor/controller/audio-rendered-fallback-export.ts',
 		'src/common/editor/controller/video-rendered-fallback-export.ts',
+		'src/common/editor/controller/video-export-service.ts',
+		'src/common/editor/controller/project-visual-service.ts',
 		'src/common/editor/controller/export-service.ts',
 		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
 		'src/common/editor/video-export.js',
@@ -40,7 +44,10 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 		'tests/audio-editor-video-clip-fallback-export-regression.test.ts',
 		'tests/audio-editor-project-fallback-integrity.test.ts',
 		'tests/audio-editor-project-fallback-integrity-selection.test.ts',
+		'tests/audio-editor-project-fallback-integrity-mixed-selection.test.ts',
 		'tests/audio-editor-project-fallback-integrity-relationships.test.ts',
+		'tests/audio-editor-mixed-rendered-fallback-video-export.test.ts',
+		'tests/audio-editor-project-visual-service.test.ts',
 		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
 		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
 		'tests/production-security-video-rendered-fallback-export.test.js',
@@ -59,11 +66,15 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 	);
 	assert.match(
 		control.summary,
+		/exactly one.*audio whole-mix.*one.*video fallback.*single.*integrity admission.*cumulative.*before.*body reads.*private chunk provider.*exact.*Blob/iu,
+	);
+	assert.match(
+		control.summary,
 		/canonical native Blob.*size-checks and hashes.*same object.*without a second fallback-store read.*sole video input.*project-video-render-v1.*selected target input.*video-clip-render-v1.*ordinary unaffected video.*composition/iu,
 	);
 	assert.match(
 		control.summary,
-		/clip-local ordinary video export.*target placement.*track membership.*layer.*transition.*separately staged canonical audio.*embedded fallback audio.*ignored/iu,
+		/clip-local ordinary video export.*target placement.*track membership.*layer.*transition.*active audio fallback.*private.*chunk.*otherwise.*canonical audio.*embedded fallback audio.*ignored/iu,
 	);
 	assert.match(
 		control.summary,
@@ -80,7 +91,7 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 	);
 	assert.match(
 		control.summary,
-		/multiple clip or mixed fallback relationships.*other relationship roles.*generic authoring.*third-party feature-code activation.*simultaneous fallback delivery.*freeze.*proxy.*linked or unmanaged delivery.*broad export parity.*packaged runtime.*browser behavior.*codec qualification.*range transport.*reference-scale.*whole-handoff atomicity.*unqualified/iu,
+		/exact one-audio.one-video composition.*qualified.*multiple clip.*duplicate same-kind.*other mixed fallback relationships.*other relationship roles.*generic authoring.*third-party feature-code activation.*standalone audio.*simultaneous.*reject.*freeze.*proxy.*linked or unmanaged delivery.*broad export parity.*packaged runtime.*browser behavior.*codec qualification.*range transport.*reference-scale.*whole-handoff atomicity.*unqualified/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -94,11 +105,11 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 	);
 	assert.match(
 		documentation,
-		/whole-project fallback.*frame zero.*video-clip-render-v1.*only its exact target.*track membership.*timeline placement.*duration.*A\/V link.*transition.*canonical audio.*canonical project.*history.*save state.*unchanged/iu,
+		/whole-project fallback.*frame zero.*video-clip-render-v1.*only its exact target.*track membership.*timeline placement.*duration.*A\/V link.*transition.*active audio whole-mix.*private.*chunk.*otherwise.*canonical audio.*canonical project.*history.*save state.*unchanged/iu,
 	);
 	assert.match(
 		documentation,
-		/selector-mode verifier.*requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256.*unrelated inactive audio.*not read/iu,
+		/joint selector-mode verifier.*audio.*video selectors.*requirement ID.*feature ID.*relationship role.*target clip ID.*kind.*source ID.*SHA-256.*cumulative.*before.*body reads.*nonselected fallback.*not read/iu,
 	);
 	assert.match(
 		documentation,
@@ -106,7 +117,7 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 	);
 	assert.match(
 		documentation,
-		/export-task signal.*canonical-audio render.*FFmpeg.*prior-output cleanup.*download publication.*recoverable cleanup/iu,
+		/export-task signal.*audio render.*FFmpeg.*prior-output cleanup.*download publication.*recoverable cleanup/iu,
 	);
 	assert.match(
 		documentation,
@@ -114,6 +125,6 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 	);
 	assert.match(
 		documentation,
-		/multiple clip fallbacks.*mixed fallback relationships.*other relationship roles.*generic fallback authoring.*third-party feature-code activation.*linked or unmanaged delivery.*packaged runtime.*browser behavior.*codec qualification.*reference-scale evidence.*whole-handoff atomicity.*unqualified/iu,
+		/exact one-audio.one-video final-video composition.*qualified.*multiple clip fallbacks.*duplicate same-kind.*other mixed fallback relationships.*other relationship roles.*generic fallback authoring.*third-party feature-code activation.*linked or unmanaged delivery.*packaged runtime.*browser behavior.*codec qualification.*reference-scale evidence.*whole-handoff atomicity.*unqualified/iu,
 	);
 });

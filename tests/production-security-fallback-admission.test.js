@@ -27,8 +27,10 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 		'src/common/editor/storage/source-repository.ts',
 		'src/common/editor/storage/media-asset-digest-backfill.ts',
 		'src/common/editor/storage/media-repository.ts',
-		'src/common/editor/controller/project-switch-service.ts',
-		'src/common/editor/controller/audio-rendered-fallback-export.ts',
+			'src/common/editor/controller/project-switch-service.ts',
+			'src/common/editor/controller/audio-rendered-fallback-export.ts',
+			'src/common/editor/controller/video-rendered-fallback-export.ts',
+			'src/common/editor/controller/video-export-service.ts',
 		'src/common/editor/controller/export-service.ts',
 		'src/common/editor/session-activation.js',
 		'src/common/editor/session.js',
@@ -36,7 +38,9 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 		'tests/audio-editor-project-fallback-integrity.test.ts',
 		'tests/audio-editor-project-fallback-integrity-relationships.test.ts',
 		'tests/audio-editor-project-fallback-integrity-audio-selection.test.ts',
-		'tests/audio-editor-project-fallback-integrity-audio-provider.test.ts',
+			'tests/audio-editor-project-fallback-integrity-audio-provider.test.ts',
+			'tests/audio-editor-project-fallback-integrity-mixed-selection.test.ts',
+			'tests/audio-editor-mixed-rendered-fallback-video-export.test.ts',
 		'tests/audio-editor-audio-rendered-fallback-export.test.ts',
 		'tests/audio-editor-audio-rendered-fallback-export-service.test.ts',
 		'tests/audio-editor-source-read-cancellation.test.ts',
@@ -58,6 +62,10 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	);
 	assert.match(
 		fallbackAdmission.summary,
-		/direct store\.loadProject.*publisher authenticity.*other relationship roles.*simultaneous.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
+		/joint final-video admission.*one audio.*one video selector.*cumulative.*64 GiB.*before.*body reads.*audio.*before.*video.*private provider.*exact immutable Blob.*both selector identities.*currentness/iu,
+	);
+	assert.match(
+		fallbackAdmission.summary,
+		/direct store\.loadProject.*publisher authenticity.*other relationship roles.*simultaneous.*beyond.*one-audio.one-video.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 });

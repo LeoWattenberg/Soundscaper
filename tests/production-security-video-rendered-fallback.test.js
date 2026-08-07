@@ -96,7 +96,7 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 	);
 	assert.match(
 		control.summary,
-		/more than one qualifying video fallback.*multiple clip or mixed relationships.*unqualified.*other relationship roles.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged.*unqualified.*generic fallback authoring.*third-party feature-code activation.*unqualified.*freeze.*proxy.*relink.*embedded fallback audio.*other export parity.*packaged runtime and UI.*unqualified.*browser behavior.*codec qualification.*unqualified.*range or reference-scale.*unqualified.*durable byte lease.*cross-process.*whole-handoff atomicity.*final delivery.*separate control/iu,
+		/more than one qualifying video fallback.*multiple clip fallbacks.*preview and playback.*other mixed relationships.*unqualified.*other relationship roles.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged.*unqualified.*generic fallback authoring.*third-party feature-code activation.*unqualified.*freeze.*proxy.*relink.*embedded fallback audio.*other export parity.*packaged runtime and UI.*unqualified.*browser behavior.*codec qualification.*unqualified.*range or reference-scale.*unqualified.*durable byte lease.*cross-process.*whole-handoff atomicity.*exact one-audio.one-video final delivery.*separate control/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -138,7 +138,7 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 	);
 	assert.match(
 		documentation,
-		/more than one qualifying video fallback rejects.*multiple clip fallbacks.*mixed relationships.*unqualified/iu,
+		/more than one qualifying video fallback rejects.*multiple clip fallbacks.*preview and playback.*other mixed relationships.*unqualified.*exact one-audio.one-video final delivery.*separate control/iu,
 	);
 	assert.match(
 		documentation,

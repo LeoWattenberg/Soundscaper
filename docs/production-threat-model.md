@@ -54,13 +54,19 @@ Final audio rendered-fallback delivery is another narrow exact schema 9
 control. Exactly one item with a canonical namespaced feature ID must be
 unavailable or unknown with declared and effective `rendered-fallback`, carry
 the closed `project-audio-mix-v1` role, exactly match the canonical manifest,
-and be the only rendered fallback in the report. The role supplies fixed media
+and, for standalone final-audio delivery, be the only rendered fallback in the
+report; composed final-video delivery instead requires only that it be the sole
+audio rendered fallback. The role supplies fixed media
 semantics while the feature ID remains opaque identity; delivery does not
 discover, load, or execute supplied feature code. The capability-evaluated
-service applies only the audio projection to final mix delivery. It supports
-normalized mix mode only; stems, BW64, and ADM reject before integrity
-verification or other export work. The canonical project, history,
-persistence, and save state remain unchanged.
+service applies only the audio projection to standalone final mix delivery. It
+supports normalized mix mode only; stems, BW64, and ADM reject before integrity
+verification or other export work. Simultaneous rendered fallbacks reject in
+this standalone path before verification or other export work; the separate
+final-video control below instead admits this whole-mix on its own whenever it
+qualifies there, and admits the exact one-audio/one-video
+composition of this whole-mix with one maintained video rendered fallback. The
+canonical project, history, persistence, and save state remain unchanged.
 
 Delivery does not reuse activation-time byte admission. Under the owned
 export-task signal, an operation-time selector binds the exact requirement ID,
@@ -116,7 +122,7 @@ whole-handoff atomicity, and operating-system behavior remain unqualified.
 
 When exact schema 9 reports registered `videoEffects` as unavailable with declared `bypass` and effective `bypassed`, activation derives a bounded, non-persisted preview-playback projection before activation side effects. Enabled maintained first-party effects on timeline and Project Bin video clips become minimal disabled copies for engine loading; the canonical project, history, source loading, persistence, save paths, offline render, and video export remain unchanged. The lower-only 4,096-effect ceiling, 256-character stable-ID ceiling, and 128-character effect-type ceiling reject instead of truncating, and inventory construction does not read effect `params`, `context`, `state`, or opaque payloads. Each placeholder entry in the deep-frozen per-tab and snapshot metadata records only Timeline or Project Bin location, clip ID, effect ID, and effect type and drives localized, control-free placeholders with canonical clip ownership. A cached selector removes only exact timeline clip ID, effect ID, and effect type matches before compositor rendering and active-effect counting; Project Bin inventory is not applied to the compositor. Future schemas return before clip or Project Bin traversal. Already-disabled, foreign, unknown, and third-party effects, rendered fallback, offline render or export behavior, activation controls, earlier Soundscaper schema compatibility, and complete third-party activation gating remain outside this video slice.
 
-Video rendered-fallback preview and playback is a separate exact schema 9 control. The `project-video-render-v1` whole-project branch accepts exactly one item with a canonical namespaced feature ID that is unavailable or unknown with declared and effective `rendered-fallback`. The closed role supplies fixed full-render media semantics while the feature ID remains opaque, and the control does not discover, load, or execute supplied feature code. The `video-clip-render-v1` branch accepts only an exact registered `videoEffects` item that is unavailable with declared and effective `rendered-fallback`. Either branch's report video descriptor must match the canonical manifest requirement by requirement ID, feature ID, relationship role, optional target clip ID, video kind, source ID, and SHA-256. Existing controller admission fully reads the genuine immutable video Blob, verifies its exact admitted size and SHA-256 through non-raiseable 4 MiB digest windows before activation, and the project-switch path rechecks relationship currentness after required-source activation and before transient engine entry. Only `project-video-render-v1` uses the whole-project contract: the fallback is the one exact video source named by the manifest, project and source sample rates are equal positive safe integers, frame count, width, and height are positive safe integers, and frame rate is positive and finite. Missing, duplicated, wrong-kind, ambiguous, or drifted sources, unsafe geometry, and reserved synthetic track or clip IDs reject. Its transient full-length render begins at frame zero, replaces only timeline video tracks and clips, and preserves audio, labels, Project Bin, and sources while canonical document and history state stay unchanged. The `video-clip-render-v1` role is restricted to `videoEffects` and binds one exact timeline target clip with an enabled maintained effect. Its fallback source must differ from the target's canonical source and declare `hasAudio: false`; its frame count equals the target duration, and its sample rate, width, height, and frame rate match that canonical source. Its transient projection replaces only the target: source-local start and trims become zero, speed becomes one, and video effects become empty, while target identity, track membership, timeline placement, duration, grouping, A/V link, layer and transition context, unaffected clips and sources, Project Bin, canonical document, and history remain unchanged. Initial activation and later playback reapply explicitly activate the required manifest-only video source before the transient engine project and preview, whose lookup follows the projected clip's exact source identity. Deeply frozen session and snapshot metadata and the localized source/component UI bind only the exact feature ID and requirement ID without exposing source identity or digest. More than one qualifying video fallback rejects; multiple clip fallbacks and mixed relationships are unqualified. Other relationship roles, future schemas, and earlier Soundscaper schemas remain outside this playback control. Linked-only or unmanaged playback and simultaneous delivery are unqualified. Generic fallback authoring and third-party feature-code activation are unqualified, as are freeze, proxy, relink, embedded fallback audio, and other export parity. Packaged runtime and UI workflows are unqualified, browser behavior and codec qualification are unqualified, and range or reference-scale evidence is unqualified. This control provides no durable byte lease, cross-process replacement guarantee, or whole-handoff atomicity. Maintained final-video fallback delivery is governed only by the separate control below.
+Video rendered-fallback preview and playback is a separate exact schema 9 control. The `project-video-render-v1` whole-project branch accepts exactly one item with a canonical namespaced feature ID that is unavailable or unknown with declared and effective `rendered-fallback`. The closed role supplies fixed full-render media semantics while the feature ID remains opaque, and the control does not discover, load, or execute supplied feature code. The `video-clip-render-v1` branch accepts only an exact registered `videoEffects` item that is unavailable with declared and effective `rendered-fallback`. Either branch's report video descriptor must match the canonical manifest requirement by requirement ID, feature ID, relationship role, optional target clip ID, video kind, source ID, and SHA-256. Existing controller admission fully reads the genuine immutable video Blob, verifies its exact admitted size and SHA-256 through non-raiseable 4 MiB digest windows before activation, and the project-switch path rechecks relationship currentness after required-source activation and before transient engine entry. Only `project-video-render-v1` uses the whole-project contract: the fallback is the one exact video source named by the manifest, project and source sample rates are equal positive safe integers, frame count, width, and height are positive safe integers, and frame rate is positive and finite. Missing, duplicated, wrong-kind, ambiguous, or drifted sources, unsafe geometry, and reserved synthetic track or clip IDs reject. Its transient full-length render begins at frame zero, replaces only timeline video tracks and clips, and preserves audio, labels, Project Bin, and sources while canonical document and history state stay unchanged. The `video-clip-render-v1` role is restricted to `videoEffects` and binds one exact timeline target clip with an enabled maintained effect. Its fallback source must differ from the target's canonical source and declare `hasAudio: false`; its frame count equals the target duration, and its sample rate, width, height, and frame rate match that canonical source. Its transient projection replaces only the target: source-local start and trims become zero, speed becomes one, and video effects become empty, while target identity, track membership, timeline placement, duration, grouping, A/V link, layer and transition context, unaffected clips and sources, Project Bin, canonical document, and history remain unchanged. Initial activation and later playback reapply explicitly activate the required manifest-only video source before the transient engine project and preview, whose lookup follows the projected clip's exact source identity. Deeply frozen session and snapshot metadata and the localized source/component UI bind only the exact feature ID and requirement ID without exposing source identity or digest. More than one qualifying video fallback rejects; multiple clip fallbacks and simultaneous audio and video rendered fallbacks are unqualified for preview and playback, and other mixed relationships are unqualified everywhere. Other relationship roles, future schemas, and earlier Soundscaper schemas remain outside this playback control. Linked-only or unmanaged playback is unqualified, as is simultaneous rendered fallback delivery beyond one audio whole-mix paired with one video fallback. Generic fallback authoring and third-party feature-code activation are unqualified, as are freeze, proxy, relink, embedded fallback audio, and other export parity. Packaged runtime and UI workflows are unqualified, browser behavior and codec qualification are unqualified, and range or reference-scale evidence is unqualified. This control provides no durable byte lease, cross-process replacement guarantee, or whole-handoff atomicity. The exact one-audio/one-video final delivery composition and every other maintained final-video fallback delivery are governed only by the separate control below.
 
 `org.example.future-video-pipeline` supplies the maintained unknown-feature
 whole-project relationship across explicit managed handoff in one composed
@@ -162,25 +168,41 @@ does not discover, load, or execute supplied feature code. The
 item that is unavailable with declared and effective `rendered-fallback`.
 Either branch's report video descriptor must exactly match the canonical
 manifest by requirement ID, feature ID, relationship role, optional target clip
-ID, video kind, source ID, and SHA-256, and it must be the only rendered fallback
-in the report.
-The capability-evaluated service applies only the video delivery projection: the
-whole-project fallback replaces timeline video from frame zero. The
-`video-clip-render-v1` alternative replaces only its exact target while
-preserving track membership, timeline placement, duration, grouping, A/V link,
-layer and transition context, unaffected video, and separately staged canonical
-audio. Audio fallback plus audio/video bypass projections are not composed.
-Canonical project, history, and save state stay unchanged.
+ID, video kind, source ID, and SHA-256, and it must be the only video rendered
+fallback in the report.
+The capability-evaluated service applies the audio whole-mix projection first
+and then the video delivery projection: the whole-project fallback replaces
+timeline video from frame zero. The `video-clip-render-v1` alternative replaces
+only its exact target while preserving track membership, timeline placement,
+duration, grouping, A/V link, layer and transition context, and unaffected
+video. The composed projection represents at most one audio and one video
+rendered fallback and composes no audio or video effect bypass projection;
+unrepresented, duplicate same-kind, unsupported-role, or additional rendered
+fallbacks reject instead of exporting a partial projection. An active audio
+whole-mix renders through an empty private buffer map with its verified provider
+as the sole private chunk source and without committed time-pitch cache
+preparation; otherwise canonical audio clips and effects remain in the delivery
+snapshot and render into the separately staged mix. Only the exact required
+audio and video fallback source IDs are excluded from the
+missing-timeline-source refusal; every other missing timeline clip source still
+refuses delivery. Canonical project, history, and save state stay unchanged.
 
 An active delivery does not reuse activation-time byte admission. Under the
-owned export-task signal, the operation-time selector-mode verifier reselects
-the exact requirement ID, feature ID, relationship role, target clip ID, video
-kind, source ID, and SHA-256 and verifies only that active canonical target.
-Unrelated inactive audio fallback storage is not read. Selector mismatch or
-ambiguity rejects before storage. The verifier loads the selected local body
-once, constructs a canonical native `Blob`, and size-checks and hashes that
-same object with SHA-256 through non-raiseable 4 MiB windows. Its admission
-returns that same verified object.
+owned export-task signal, one joint selector-mode verifier receives the active
+audio and video selectors. The video selector reselects the exact requirement
+ID, feature ID, relationship role, target clip ID, video kind, source ID, and
+SHA-256; the audio selector reselects its own requirement ID, feature ID, closed
+whole-mix role, audio kind, source ID, and SHA-256. Only those active canonical
+targets are verified, and selector mismatch or ambiguity rejects before storage.
+Their cumulative non-raiseable 64 GiB fallback-byte ceiling is charged in target
+order and completes before body reads, so an over-budget pair reads neither
+body; that preflight derives the audio share from declared geometry and the
+video share from one read-only stored-metadata lookup, its only storage access.
+Any selected audio chunk scan runs first and returns its digest-bound private
+chunk provider. The verifier then loads the selected video body once, constructs
+a canonical native `Blob`, and size-checks and hashes that same object with
+SHA-256 through non-raiseable 4 MiB windows. Nonselected fallback bodies are not
+read. Its admission returns that same verified object.
 Export reuses it with no second fallback-store read, eliminating the selected
 fallback's storage-reread TOCTOU between admission and FFmpeg. It is the sole
 video input for the whole-project role or the selected target input for the
@@ -192,9 +214,15 @@ the delivery projection remain owned by this rendered-fallback control; direct
 target transport and commit are owned by their separate control.
 
 Task, project-generation, and operation currentness are asserted before
-verification and again after admission immediately before planning. The
-export-task signal fences verifier work, separately staged canonical-audio
-render, and FFmpeg. On the legacy prepared-`Blob` branch, post-encode
+verification and again after admission immediately before planning. With both
+selectors present, the composed fence rechecks operation currentness together
+with both selector identities at three points inside the audio chunk scan and
+again on every provider read, so drift in either requirement that lands during
+the scan aborts the joint admission before the video body loads, and later drift
+aborts the next provider read. A video-only admission interleaves no such fence
+with its body read and relies on the full admission recheck that follows
+verification. The export-task signal fences verifier work, the separately staged
+audio render, and FFmpeg. On the legacy prepared-`Blob` branch, post-encode
 currentness precedes output-`Blob` construction. After prior-output cleanup is
 awaited, cancellation and currentness are asserted again before download
 publication, and the same export-task signal is passed through that publication
@@ -202,8 +230,8 @@ request. After publication returns,
 cancellation and currentness are checked again. When that check refuses a late
 result, its returned recoverable cleanup handle is awaited before refusal; this
 does not make publication transactional or undo an external destination that
-provides no such handle. FFmpeg maps canonical audio only from the separately
-staged mix, so embedded audio in the fallback container is ignored. A stale
+provides no such handle. FFmpeg maps audio only from the separately staged mix,
+so embedded audio in the fallback container is ignored. A stale
 activation-time digest, missing managed body, wrong body, or digest mismatch
 refuses before planning, FFmpeg, and either downstream publication route,
 including download.
@@ -228,15 +256,18 @@ export, portable `.scape` copy collision handling, and managed handoff share
 that exact role and target identity; copy import remaps only the fallback source
 ID.
 
-More than one qualifying item rejects. Multiple clip fallbacks and mixed
-fallback relationships are unqualified. Other relationship roles and future
-schemas remain outside this control. Generic fallback authoring and third-party
-feature-code activation are unqualified. Linked or unmanaged delivery is
-unqualified, as are freeze, proxy, relink, embedded fallback audio, and other
-export parity. Packaged runtime and UI workflows are unqualified, browser
-behavior is unqualified, codec qualification is unqualified, range transport is
-unqualified, and reference-scale evidence is unqualified. Whole-handoff
-atomicity remains unqualified.
+Only the exact one-audio/one-video final-video composition is qualified;
+standalone final-audio delivery still refuses any simultaneous rendered
+fallback, and more than one qualifying video item rejects. Multiple clip
+fallbacks, duplicate same-kind fallbacks, and other mixed fallback relationships
+are unqualified. Other relationship roles and future schemas remain outside this
+control. Generic fallback authoring and third-party feature-code activation are
+unqualified. Linked or unmanaged delivery is unqualified, as are freeze, proxy,
+relink, embedded fallback audio, and other export parity. Packaged runtime and
+UI workflows are unqualified, browser behavior is unqualified, codec
+qualification is unqualified, range transport is unqualified, and
+reference-scale evidence is unqualified. Whole-handoff atomicity remains
+unqualified.
 
 Descriptor validation alone does not hash or authenticate the referenced media bytes; the separate exact-schema-9 controller admission described above verifies referenced local bytes at its narrower boundary.
 
@@ -455,7 +486,7 @@ digest and verified `Blob` while this control owns only downstream direct
 publication.
 
 For the browser branch, target preparation follows planning but occurs before
-storage preflight, ordinary source loading, optional canonical-audio rendering,
+storage preflight, ordinary source loading, optional audio rendering,
 and FFmpeg. Its writer remains unopened until FFmpeg has finalized the output
 and returned one safe nonnegative stat. For the desktop branch, preparation is
 deferred inside sink open after that stat because a selected main-owned save
