@@ -1711,6 +1711,27 @@ The retirement change must preserve archived fixtures and the upgrader after
 the in-product migration is removed. Telemetry is neither required nor used to
 justify removal.
 
+## Deferred compatibility backlog
+
+These are recorded residual items, not milestone requirements. No current exit
+gate depends on them, and none of them may be treated as an implicit
+prerequisite without a deliberate scope change.
+
+- **Versioned capability catalogue for forward opens.** Forward compatibility is
+  currently decided from one monotonic `schemaVersion`: a newer raw project is
+  structured-cloned and returned read-only with reason `newer-schema`, and a
+  newer archive `formatVersion` is rejected outright. Neither decision consults
+  what the project actually requires, even though `featureRequirements` already
+  declares required capabilities and the report already resolves each one to
+  `available`, `unavailable`, or `unknown`. A versioned catalogue of released
+  capability sets would let an older or less capable build decide from those
+  declarations whether it can open a project at all, degrade it to read-only, or
+  refuse — instead of inferring capability from a version number that rises for
+  unrelated reasons. This would also give schema retirement and the
+  first-unsupported-release notice a machine-readable basis. Deferred: it
+  expands the compatibility boundary and needs its own non-goals, refusal
+  semantics, and evidence before any of it becomes a requirement.
+
 ## Change control
 
 The compatibility matrix test checks the source schema constants, archive
