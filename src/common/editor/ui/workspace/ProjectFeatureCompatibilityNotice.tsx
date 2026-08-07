@@ -4,6 +4,10 @@ import { useId } from 'react';
 
 import { audioEffectLabel } from '../../effects.js';
 import type {
+	ProjectFeatureAffectedObject,
+	ProjectFeatureAffectedObjectIndex,
+} from '../../project-feature-affected-objects.ts';
+import type {
 	ProjectFeatureAudioEffectBypassMetadata,
 	ProjectFeatureAudioEffectPlaceholder,
 } from '../../project-feature-audio-effect-bypass.ts';
@@ -28,6 +32,11 @@ interface ProjectFeatureCompatibilityNoticeCopy {
 	readonly scapeCompatibilityAffectedFeatures: string;
 	readonly scapeCompatibilityAffectedAudioEffects: string;
 	readonly scapeCompatibilityAffectedVideoEffects: string;
+	readonly scapeCompatibilityAffectedObjects: string;
+	readonly scapeCompatibilityAffectedObjectsUnattributable: string;
+	readonly scapeCompatibilityAffectedObjectsOmitted: string;
+	readonly scapeCompatibilityUnregisteredType: string;
+	readonly scapeCompatibilityReplacedForPlayback: string;
 	readonly scapeCompatibilityEditorPlaybackBypassed: string;
 	readonly scapeCompatibilityEditorPlaybackFallback: string;
 	readonly scapeCompatibilityUnavailable: string;
@@ -71,6 +80,7 @@ interface ProjectFeatureCompatibilityNoticeProps {
 	readonly audioRenderedFallback?: ProjectFeatureAudioRenderedFallbackMetadata | null;
 	readonly videoEffectPlaybackBypass?: ProjectFeatureVideoEffectBypassMetadata | null;
 	readonly videoRenderedFallback?: ProjectFeatureVideoRenderedFallbackMetadata | null;
+	readonly affectedObjects?: ProjectFeatureAffectedObjectIndex | null;
 	readonly copy: ProjectFeatureCompatibilityNoticeCopy;
 }
 
@@ -81,6 +91,7 @@ export default function ProjectFeatureCompatibilityNotice({
 	audioRenderedFallback,
 	videoEffectPlaybackBypass,
 	videoRenderedFallback,
+	affectedObjects,
 	copy,
 }: ProjectFeatureCompatibilityNoticeProps) {
 	const headingId = useId();
@@ -187,6 +198,7 @@ export default function ProjectFeatureCompatibilityNotice({
 								</li>)}
 							</ul>
 						</div>}
+						{genericAffectedSection(item.requirementId, affectedObjects, copy)}
 					</li>;
 				})}
 			</ul>
@@ -307,4 +319,62 @@ function videoEffectOwnerLabel(
 	const clipName = (clip?.title || clip?.name)?.trim();
 	const locationLabel = placeholder.location === 'timeline' ? copy.timeline : copy.panelProjectBin;
 	return clipName ? `${locationLabel} · ${clipName}` : locationLabel;
+}
+
+/**
+ * Objects the dedicated first-party sections already list are omitted here, so
+ * this section carries only newly visible state: canonical objects a rendered
+ * fallback replaces, and effects whose type is outside the maintained registry.
+ */
+function newlyVisibleObjects(
+	objects: readonly ProjectFeatureAffectedObject[],
+): readonly ProjectFeatureAffectedObject[] {
+	return objects.filter((object) => (
+		object.channel === 'rendered-fallback-replaced' || !object.registered
+	));
+}
+
+function genericAffectedSection(
+	requirementId: string,
+	index: ProjectFeatureAffectedObjectIndex | null | undefined,
+	copy: ProjectFeatureCompatibilityNoticeCopy,
+) {
+	const requirement = index?.requirements.find(
+		(candidate) => candidate.requirementId === requirementId,
+	);
+	if (!requirement) return null;
+	if (!requirement.attributable) {
+		return <small data-project-feature-affected-objects-unattributable>
+			{copy.scapeCompatibilityAffectedObjectsUnattributable}
+		</small>;
+	}
+	const objects = newlyVisibleObjects(requirement.objects);
+	if (objects.length === 0 && requirement.omittedObjectCount === 0) return null;
+	return <div
+		className="kw-audio-editor-compatibility-affected-objects"
+		data-project-feature-affected-objects
+	>
+		<h4>{copy.scapeCompatibilityAffectedObjects}</h4>
+		<ul aria-label={copy.scapeCompatibilityAffectedObjects}>
+			{objects.map((object) => <li
+				key={`${object.channel}:${object.location}:${object.scope}:${object.ownerId ?? ''}:${object.objectId}`}
+				data-affected-object={object.objectId}
+				data-channel={object.channel}
+				data-location={object.location}
+				data-scope={object.scope}
+				data-owner-id={object.ownerId ?? ''}
+				data-object-type={object.objectType}
+				data-registered={object.registered ? 'true' : 'false'}
+			>
+				<strong>{object.objectId}</strong>
+				<small>{object.objectType}</small>
+				<small>{object.channel === 'rendered-fallback-replaced'
+					? copy.scapeCompatibilityReplacedForPlayback
+					: copy.scapeCompatibilityUnregisteredType}</small>
+			</li>)}
+		</ul>
+		{requirement.omittedObjectCount > 0 && <small data-project-feature-affected-objects-omitted>
+			{copy.scapeCompatibilityAffectedObjectsOmitted}
+		</small>}
+	</div>;
 }

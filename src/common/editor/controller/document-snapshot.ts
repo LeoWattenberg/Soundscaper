@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { projectFeatureAffectedObjects } from '../project-feature-affected-objects.ts';
+import type { ProjectFeatureRequirementsReport } from '../project-feature-requirements.ts';
 import type { EditorStoreStatus } from '../storage/status.ts';
 import type { StorageCapacitySnapshot } from './storage-capacity-service.ts';
 
@@ -262,6 +264,16 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			})
 			: null,
 		featureRequirementsCompatibility: currentTabMetadata.featureRequirementsReport ?? null,
+		// Derived from the live project rather than activation-time metadata, so the
+		// affected-object list stays correct after edits. Availability is fixed by the
+		// runtime; only the set of affected objects changes as the project is edited.
+		featureRequirementsAffectedObjects: currentProject
+			? projectFeatureAffectedObjects(
+				currentProject,
+				(currentTabMetadata.featureRequirementsReport ?? null) as
+					ProjectFeatureRequirementsReport | null,
+			)
+			: null,
 		audioEffectPlaybackBypass: currentTabMetadata.featureRequirementsAudioEffectPlaybackBypass ?? null,
 		audioRenderedFallback: currentTabMetadata.featureRequirementsAudioRenderedFallback ?? null,
 		videoEffectPlaybackBypass: currentTabMetadata.featureRequirementsVideoEffectPlaybackBypass ?? null,
