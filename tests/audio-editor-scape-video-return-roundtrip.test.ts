@@ -15,6 +15,7 @@ import {
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { VIDEO_DERIVATIVE_RECIPES } from '../src/common/editor/storage/video-derivative-relationship.ts';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const NOW = '2026-08-08T16:00:00.000Z';
@@ -34,6 +35,21 @@ interface ScapeImportResult {
 	readonly project: AudioEditorProjectV9;
 	readonly readOnly: boolean;
 	readonly collision: 'copy' | 'replace' | null;
+}
+
+interface VideoDerivativeStore {
+	saveVideoDerivative(sourceId: string, input: Readonly<{
+		timestamp: number;
+		type: string;
+		recipe: Readonly<{ id: string; version: number }>;
+		blob: Blob;
+	}>): Promise<Record<string, unknown>>;
+	loadVideoDerivative(sourceId: string, selector: Readonly<{
+		timestamp: number;
+		type: string;
+		recipe: Readonly<{ id: string; version: number }>;
+	}>): Promise<Blob | null>;
+	listVideoDerivatives(sourceId: string): Promise<readonly unknown[]>;
 }
 
 test('a portable Scape roundtrip returns the clip-render fallback to a natively editable Framescaper', async (context) => {
@@ -72,6 +88,24 @@ test('a portable Scape roundtrip returns the clip-render fallback to a natively 
 	assert.deepEqual(reopened.featureRequirements, project.featureRequirements);
 	assert.deepEqual(reopened.clips[0]?.videoEffects, [...CLIP_VIDEO_EFFECTS]);
 
+	const recipientDerivatives = recipient as unknown as VideoDerivativeStore;
+	assert.deepEqual(await recipientDerivatives.listVideoDerivatives(CANONICAL_SOURCE_ID), [],
+		'no disposable preview may arrive with the transfer');
+	const regenerated = await recipientDerivatives.saveVideoDerivative(CANONICAL_SOURCE_ID, {
+		timestamp: 0,
+		type: 'poster',
+		recipe: VIDEO_DERIVATIVE_RECIPES.poster,
+		blob: new Blob(['recipient regenerated poster'], { type: 'image/webp' }),
+	});
+	assert.equal(regenerated.originalSha256, digestScapeBytes(CANONICAL_BODY),
+		'a regenerated preview must bind the exact admitted original that survived the transfer');
+	assert.equal(
+		await (await recipientDerivatives.loadVideoDerivative(CANONICAL_SOURCE_ID, {
+			timestamp: 0, type: 'poster', recipe: VIDEO_DERIVATIVE_RECIPES.poster,
+		}))?.text(),
+		'recipient regenerated poster',
+	);
+
 	const returning = await exportScapeProject(reopened, recipient);
 	assert.deepEqual(assetDigests(returning), outboundDigests,
 		'the read-only recipient must return the exact portable bodies it received');
@@ -99,6 +133,11 @@ test('a portable Scape roundtrip returns the clip-render fallback to a natively 
 	const reopenedHome = homeValue as unknown as AudioEditorProjectV9;
 	assert.deepEqual(reopenedHome.featureRequirements, project.featureRequirements);
 	assert.deepEqual(reopenedHome.clips[0]?.videoEffects, [...CLIP_VIDEO_EFFECTS]);
+	assert.deepEqual(
+		await (home as unknown as VideoDerivativeStore).listVideoDerivatives(CANONICAL_SOURCE_ID),
+		[],
+		'the regenerated recipient preview must stay out of the returning transfer',
+	);
 });
 
 test('a whole-project video render fallback survives the same Scape return roundtrip', async (context) => {
