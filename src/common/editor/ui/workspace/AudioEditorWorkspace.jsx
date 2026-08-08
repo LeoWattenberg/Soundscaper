@@ -8,6 +8,7 @@ import { useAudioEditorSnapshot, useAudioEditorThemeVariables } from '../DesignS
 import {
 	selectAudioEditorBusyBlock,
 	selectAudioEditorEditBlock,
+	selectAudioEditorProjectHandoffBlock,
 } from '../edit-blocking.ts';
 
 import { trackSourceRate } from '../application-menu-model.js';
@@ -119,8 +120,10 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	});
 	const busyBlock = selectAudioEditorBusyBlock(snapshot);
 	const editBlock = selectAudioEditorEditBlock(snapshot);
+	const handoffBlock = selectAudioEditorProjectHandoffBlock(snapshot);
 	const blocked = busyBlock.blocked;
 	const editBlocked = editBlock.blocked;
+	const handoffBlocked = handoffBlock.blocked;
 	const displayAudioSupported = fileService.isDesktop
 		? desktopEnvironment?.capabilities?.displayAudio === true
 		: undefined;
@@ -402,6 +405,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		copy,
 		durationFrames,
 		editBlocked,
+		handoffBlocked,
 		executeEdit,
 		fileService,
 		importInputRef,

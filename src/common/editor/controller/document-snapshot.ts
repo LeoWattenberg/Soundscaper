@@ -45,6 +45,7 @@ interface CurrentTabMetadata {
 	readonly aup4CompatibilityReport?: unknown;
 	readonly aup4CompatibilityReportDismissed?: boolean;
 	readonly featureRequirementsReport?: unknown;
+	readonly featureRequirementsReadOnly?: boolean;
 	readonly featureRequirementsAudioEffectPlaybackBypass?: unknown;
 	readonly featureRequirementsAudioRenderedFallback?: unknown;
 	readonly featureRequirementsVideoEffectPlaybackBypass?: unknown;
@@ -264,6 +265,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			})
 			: null,
 		featureRequirementsCompatibility: currentTabMetadata.featureRequirementsReport ?? null,
+		featureRequirementsReadOnly: Boolean(currentTabMetadata.featureRequirementsReadOnly),
 		// Derived from the live project rather than activation-time metadata, so the
 		// affected-object list stays correct after edits. Availability is fixed by the
 		// runtime; only the set of affected objects changes as the project is edited.

@@ -5,6 +5,7 @@ import {
 	AUDIO_EDITOR_EDIT_BLOCK_REASONS,
 	selectAudioEditorBusyBlock,
 	selectAudioEditorEditBlock,
+	selectAudioEditorProjectHandoffBlock,
 } from '../src/common/editor/ui/edit-blocking.ts';
 
 const cases = [
@@ -66,4 +67,22 @@ test('edit-blocking selectors share a frozen unblocked result for inactive snaps
 	assert.equal(editBlock, busyBlock);
 	assert.ok(Object.isFrozen(editBlock));
 	assert.ok(Object.isFrozen(editBlock.reasons));
+});
+
+test('project handoff admits only feature-requirement read-only state and still blocks busy work', () => {
+	assert.equal(selectAudioEditorProjectHandoffBlock({ readOnly: true }).reason, 'read-only');
+	assert.deepEqual(selectAudioEditorProjectHandoffBlock({
+		readOnly: true,
+		featureRequirementsReadOnly: true,
+	}), { blocked: false, reason: null, reasons: [] });
+	assert.deepEqual(selectAudioEditorProjectHandoffBlock({
+		readOnly: true,
+		featureRequirementsReadOnly: true,
+		exporting: true,
+	}), { blocked: true, reason: 'exporting', reasons: ['exporting'] });
+	assert.equal(selectAudioEditorProjectHandoffBlock({
+		readOnly: true,
+		featureRequirementsReadOnly: true,
+		lockReadOnly: true,
+	}).reason, 'read-only');
 });

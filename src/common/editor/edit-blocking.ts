@@ -20,6 +20,8 @@ export type AudioEditorEditBlockReason = typeof AUDIO_EDITOR_EDIT_BLOCK_REASONS[
 
 export interface AudioEditorEditBlockingSnapshot {
 	readonly readOnly?: unknown;
+	readonly featureRequirementsReadOnly?: unknown;
+	readonly lockReadOnly?: unknown;
 	readonly importing?: unknown;
 	readonly recordingStarting?: unknown;
 	readonly recordingScheduling?: unknown;
@@ -86,6 +88,12 @@ export function selectAudioEditorBusyBlock(
 	snapshot: AudioEditorEditBlockingSnapshot = {},
 ): AudioEditorEditBlock {
 	return selectBlock(snapshot, false);
+}
+
+export function selectAudioEditorProjectHandoffBlock(
+	snapshot: AudioEditorEditBlockingSnapshot = {},
+): AudioEditorEditBlock {
+	return selectBlock(snapshot, !snapshot.featureRequirementsReadOnly || Boolean(snapshot.lockReadOnly));
 }
 
 export function selectAudioEditorControllerEditBlock(
