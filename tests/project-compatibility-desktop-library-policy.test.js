@@ -406,7 +406,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		packagedHandoff.currentBehavior,
-		/web `.scape` workflow matrix is qualified separately.*fixed small first-party fixtures.*Linux x64.*muted audio.*qualifies packaged activation.*fallback playback.*unchanged project handoff.*editable origin return.*four frozen rendered-fallback roles.*does not qualify packaged rendered-media delivery.*fallback authoring.*other relationships.*audible or device-output fidelity.*general browser or codec coverage.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
+		/web `.scape` workflow matrix is qualified separately.*fixed small first-party fixtures.*Linux x64.*muted audio.*qualifies packaged activation.*fallback playback.*unchanged project handoff.*editable origin return only for the four frozen rendered-fallback roles.*does not qualify packaged rendered-media delivery.*fallback authoring.*other relationships.*audible or device-output fidelity.*general browser or codec coverage.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
