@@ -46,7 +46,7 @@ test('a binding-backed Project Bin audio member exposes exact-content relink wit
 	assert.match(source, /const audioClip = item\.clips\.find\(\(clip\) => clip\.kind !== 'video'\) \|\| null;/u);
 	assert.match(source, /controller\.actions\.projectBin\.canRelinkLinkedAudio\(audioClip\.id\)/u);
 	assert.match(source, /const closeItemMenu = \(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);/u);
-	assert.match(source, /useEffect\(\(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);[\s\S]*\}, \[projectId, projectRevision\]\);/u);
+	assert.match(source, /useEffect\(\(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);[\s\S]*\}, \[fileService, projectId, projectRevision, run\]\);/u);
 	assert.match(source, /linkedAudioRelinkProjectRef\.current === relinkScope/u);
 	assert.match(source, /requestId !== linkedAudioRelinkRequestRef\.current/u);
 	assert.match(source, /current\.itemId === item\.id[\s\S]*current\.projectId === requestedProjectId[\s\S]*current\.projectRevision === requestedProjectRevision/u);
