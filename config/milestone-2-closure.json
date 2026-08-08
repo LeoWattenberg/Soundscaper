@@ -212,7 +212,7 @@
 		{
 			"id": "m2-media-relationship-roundtrip",
 			"gateId": "m2-gate-mixed-media-handoff",
-			"status": "partial",
+			"status": "implemented",
 			"relationshipIds": [
 				"owned-canonical-pcm",
 				"owned-retained-video",
