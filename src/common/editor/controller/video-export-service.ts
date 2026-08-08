@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { prepareBrowserExportBlob } from '../browser-export-output.ts';
 import { audioRenderedFallbackRenderSources } from './audio-rendered-fallback-export.ts';
 import {
 	admitVideoRenderedFallbackExport,
@@ -86,6 +87,7 @@ export function createEditorVideoExportAction(
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectVideoDestination | null = null;
+		const browserMaximumOutputBytes = requestedSettings.maximumOutputBytes;
 		try {
 			const admittedFallbacks = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
@@ -176,7 +178,10 @@ export function createEditorVideoExportAction(
 						audioMixBlob,
 						plan,
 						pendingDirectDestination,
-						{ signal: abort.signal, assertCurrent: assertVideoExportCurrent },
+						{
+							signal: abort.signal, assertCurrent: assertVideoExportCurrent,
+							maximumOutputBytes: browserMaximumOutputBytes,
+						},
 					);
 				} catch (error) {
 					const cancellation = directVideoCancellation(error);
@@ -188,7 +193,7 @@ export function createEditorVideoExportAction(
 				}
 			} else {
 				encoded = await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
-					signal: abort.signal,
+					signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
 				});
 			}
 			assertVideoExportCurrent();
@@ -226,7 +231,9 @@ export function createEditorVideoExportAction(
 				publishDocumentSnapshot();
 				return result;
 			}
-			const blob = new Blob([encoded.bytes], { type: encoded.mimeType });
+			const blob = prepareBrowserExportBlob(
+				encoded, 'Video export', browserMaximumOutputBytes,
+			);
 			if (state.outputUrl) globalThis.URL?.revokeObjectURL?.(state.outputUrl);
 			await state.outputCleanup?.();
 			assertVideoExportCurrent();

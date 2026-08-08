@@ -23,6 +23,12 @@ export interface BoundedFfmpegOutputOptions {
 	readonly signal?: AbortSignal | null;
 }
 
+export interface BrowserExportEncodedOutput {
+	readonly blob?: unknown;
+	readonly bytes?: unknown;
+	readonly mimeType?: unknown;
+}
+
 /** Guard the renderer-owned whole-file fallback below one frozen, lower-only ceiling. */
 export function assertBrowserExportOutputSize(
 	byteLength: unknown,
@@ -39,6 +45,46 @@ export function assertBrowserExportOutputSize(
 		);
 	}
 	return byteLength;
+}
+
+/** Preserve an owned Blob or construct one only after its byte source passes admission. */
+export function prepareBrowserExportBlob(
+	output: BrowserExportEncodedOutput,
+	label = 'Browser export',
+	maximumBytes?: unknown,
+): Blob {
+	if (!output || typeof output !== 'object') {
+		throw new TypeError(`${label} encoded output must be an object.`);
+	}
+	if (output.blob !== undefined && output.blob !== null) {
+		return admitBrowserExportBlob(output.blob, label, maximumBytes);
+	}
+	if (!(output.bytes instanceof Uint8Array)) {
+		throw new TypeError(`${label} encoded output must own a Blob or Uint8Array bytes.`);
+	}
+	const byteLength = assertBrowserExportOutputSize(
+		output.bytes.byteLength,
+		label,
+		maximumBytes,
+	);
+	const mimeType = typeof output.mimeType === 'string' && output.mimeType.length > 0
+		? output.mimeType
+		: 'application/octet-stream';
+	const blob = new Blob([output.bytes.slice()], { type: mimeType });
+	if (blob.size !== byteLength) {
+		throw new Error(`${label} Blob construction did not preserve the admitted byte length.`);
+	}
+	return blob;
+}
+
+export function admitBrowserExportBlob(
+	blob: unknown,
+	label = 'Browser export',
+	maximumBytes?: unknown,
+): Blob {
+	if (!(blob instanceof Blob)) throw new TypeError(`${label} output must be a Blob.`);
+	assertBrowserExportOutputSize(blob.size, label, maximumBytes);
+	return blob;
 }
 
 /** Stat and admit an FFmpeg output before asking its worker to materialize the whole file. */

@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	BROWSER_EXPORT_BLOB_MAXIMUM_BYTES,
 	assertBrowserExportOutputSize,
+	prepareBrowserExportBlob,
 	readBoundedFfmpegOutputFile,
 } from '../src/common/editor/browser-export-output.ts';
 
@@ -63,6 +64,53 @@ test('bounded FFmpeg whole-file reads reject type and stat/read length drift', a
 				async readFile(): Promise<unknown> { return output; },
 			}, 'output.mp4'),
 			/FFmpeg output/u,
+		);
+	}
+});
+
+test('browser export Blob preparation admits bytes before construction and preserves admitted Blobs', () => {
+	const existing = new Blob([Uint8Array.of(1, 2)], { type: 'audio/wav' });
+	assert.equal(prepareBrowserExportBlob({ blob: existing }, 'Audio export', 2), existing);
+	assert.equal(
+		prepareBrowserExportBlob(
+			{ bytes: Uint8Array.of(1, 2), mimeType: 'video/mp4' },
+			'Video export',
+			2,
+		).type,
+		'video/mp4',
+	);
+
+	const originalBlobDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Blob');
+	assert.ok(originalBlobDescriptor);
+	const OriginalBlob = globalThis.Blob;
+	let constructionCount = 0;
+	class ObservedBlob extends OriginalBlob {
+		constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+			constructionCount += 1;
+			super(parts, options);
+		}
+	}
+	Object.defineProperty(globalThis, 'Blob', { ...originalBlobDescriptor, value: ObservedBlob });
+	try {
+		assert.throws(
+			() => prepareBrowserExportBlob(
+				{ bytes: Uint8Array.of(1, 2, 3), mimeType: 'audio/mpeg' },
+				'Audio export',
+				2,
+			),
+			/Audio export.*maximum is 2 bytes/u,
+		);
+		assert.equal(constructionCount, 0);
+	} finally {
+		Object.defineProperty(globalThis, 'Blob', originalBlobDescriptor);
+	}
+});
+
+test('browser export Blob preparation rejects malformed encoder ownership', () => {
+	for (const output of [{}, { blob: {} }, { bytes: 'not bytes' }]) {
+		assert.throws(
+			() => prepareBrowserExportBlob(output, 'Audio export'),
+			/encoded output|Blob/u,
 		);
 	}
 });

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../browser-export-output.ts';
 import {
 	admitAudioRenderedFallbackExport,
 	assertAudioRenderedFallbackExportSettings,
@@ -93,6 +94,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		let pendingDirectDestination: DirectPcmDestination | DirectCompressedDestination | null = null;
 		let directStemArchive = false;
 		let directCompressed = false;
+		const browserMaximumOutputBytes = requestedSettings && typeof requestedSettings === 'object'
+			? requestedSettings.maximumOutputBytes
+			: undefined;
 		try {
 			const fallbackProvider = await admitAudioRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
@@ -162,7 +166,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				);
 			}
 			setStatus(copy.rendering);
-			let blob;
+			let blob: Blob | null = null;
 			let fileName;
 			let outputCleanup = null;
 			let directOutput = null;
@@ -176,9 +180,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				);
 				if (encoded.directDestination) directOutput = encoded;
 				else {
-					blob = encoded.blob || new Blob([encoded.bytes], { type: encoded.mimeType });
 					outputCleanup = encoded.cleanup || null;
 					pendingCleanup = outputCleanup;
+					blob = prepareBrowserExportBlob(encoded, 'Audio export', browserMaximumOutputBytes);
 				}
 				fileName = plan.outputs[0].fileName;
 			} else if (directStemArchive) {
@@ -216,9 +220,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 						updateExportProgress((index + 1) / plan.outputs.length);
 					}
 					const result = await archive.finish();
-					blob = result.blob;
 					outputCleanup = result.cleanup;
 					pendingCleanup = outputCleanup;
+					blob = admitBrowserExportBlob(
+						result.blob, 'Audio stem archive', browserMaximumOutputBytes,
+					);
 					fileName = plan.archive.fileName;
 				} catch (error) {
 					await archive.abort();
@@ -254,6 +260,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				publishDocumentSnapshot();
 				return result;
 			}
+			blob = admitBrowserExportBlob(blob, 'Audio export', browserMaximumOutputBytes);
 			await clearPreviousExportOutput();
 			const published = await fileService.createDownload({
 				purpose: 'audio',
