@@ -280,15 +280,7 @@ update an item's status only after its listed acceptance conditions pass.
 
 ### Open closure items, in priority order
 
-#### 2.1 Cross-product media ownership and handoff — highest priority
-
-- `m2-handoff-packaged-roundtrip`
-
-The exact handoff workflows, media relationships, lifecycle operations, and
-capacity checks are the named sets in the inventory. No additional media format,
-relationship, relink operation, or fallback role is required for milestone 2.
-
-#### 2.2 Bounded pipelines
+#### 2.1 Bounded pipelines
 
 - `m2-pipeline-route-qualification`
 - `m2-pipeline-resource-qualification`
@@ -297,7 +289,7 @@ relationship, relink operation, or fallback role is required for milestone 2.
 Qualify exactly the listed publication routes and quality-budget workload IDs.
 The worker boundary covers exactly the six listed OPFS operation classes.
 
-#### 2.3 Compatibility completion
+#### 2.2 Compatibility completion
 
 - `m2-compatibility-fallback-roles`
 - `m2-compatibility-future-archive`
@@ -309,7 +301,7 @@ implemented. The required fallback role set is exactly
 `video-clip-render-v1`. Unknown features without one of those roles stay
 read-only and reported; milestone 2 does not require an invented bypass.
 
-#### 2.4 Durability and qualification closeout
+#### 2.3 Durability and qualification closeout
 
 - `m2-publication-fault-matrix`
 - `m2-browser-durability-matrix`
@@ -332,7 +324,7 @@ desktop workflows, and platform sets named in the inventory.
 
 | Gate ID | State | Closure item IDs |
 | --- | --- | --- |
-| `m2-gate-mixed-media-handoff` | **Partial** | `m2-handoff-packaged-roundtrip`, `m2-media-relationship-roundtrip`, `m2-linked-media-lifecycle`, `m2-managed-capacity-admission` |
+| `m2-gate-mixed-media-handoff` | **Implemented** | `m2-handoff-packaged-roundtrip`, `m2-media-relationship-roundtrip`, `m2-linked-media-lifecycle`, `m2-managed-capacity-admission` |
 | `m2-gate-bounded-pipelines` | **Partial** | `m2-pipeline-route-qualification`, `m2-pipeline-resource-qualification`, `m2-opfs-worker-boundary` |
 | `m2-gate-feature-compatibility` | **Partial** | `m2-compatibility-affected-objects`, `m2-compatibility-bypass`, `m2-compatibility-fallback-roles`, `m2-compatibility-future-archive`, `m2-compatibility-less-capable-roundtrip` |
 | `m2-gate-crash-safe-publication` | **Partial** | `m2-publication-fault-matrix`, `m2-browser-durability-matrix` |

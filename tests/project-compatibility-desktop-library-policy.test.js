@@ -249,7 +249,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*fixed\s+small first-party fixture.*Linux x64.*two web `.scape` workflow IDs remain\s+open.*muted audio.*audible or device-output fidelity.*browser or codec behavior.*rendered fallbacks.*linked or unmanaged media.*installers.*file associations.*concurrency.*crash or power loss.*Windows.*macOS.*ARM64/isu,
+		/electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*two web `.scape` workflow IDs are\s+qualified separately below.*General\s+browser or codec behavior.*rendered fallbacks.*linked or unmanaged media.*ARM64/isu,
 	);
 	assert.match(
 		documentation,
@@ -398,7 +398,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		packagedHandoff.currentBehavior,
-		/two web `.scape` workflow IDs remain open.*fixed small first-party fixture.*Linux x64.*muted audio.*does not qualify audible or device-output fidelity.*general browser or codec coverage.*rendered-fallback roles.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
+		/two web `.scape` workflow IDs are qualified separately.*fixed small first-party fixture.*Linux x64.*muted audio.*does not qualify audible or device-output fidelity.*general browser or codec coverage.*rendered-fallback roles.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');

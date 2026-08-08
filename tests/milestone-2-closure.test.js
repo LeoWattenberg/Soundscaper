@@ -69,10 +69,12 @@ test('milestone 2 has one frozen finite closure inventory', async () => {
 		({ id }) => id === 'm2-handoff-packaged-roundtrip',
 	);
 	assert.deepEqual(packagedHandoff.completedWorkflowIds, [
+		'web-soundscaper-to-framescaper-to-soundscaper-scape',
+		'web-framescaper-to-soundscaper-to-framescaper-scape',
 		'electron-soundscaper-to-framescaper-to-soundscaper-library',
 		'electron-framescaper-to-soundscaper-to-framescaper-library',
 	]);
-	assert.equal(packagedHandoff.status, 'partial');
+	assert.equal(packagedHandoff.status, 'implemented');
 
 	for (const gate of inventory.gates) {
 		assert.ok(Array.isArray(gate.itemIds) && gate.itemIds.length > 0, gate.id);

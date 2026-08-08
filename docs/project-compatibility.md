@@ -1081,11 +1081,28 @@ increasing catalog revisions and fencing tokens.
 This qualifies only
 `electron-soundscaper-to-framescaper-to-soundscaper-library` and
 `electron-framescaper-to-soundscaper-to-framescaper-library` for that fixed
-small first-party fixture on Linux x64. The two web `.scape` workflow IDs remain
-open. Muted audio does not qualify audible or device-output fidelity. General
-browser or codec behavior, rendered fallbacks, linked or unmanaged media,
-installers and file associations, concurrency, crash or power loss, Windows,
-macOS, and ARM64 remain unqualified.
+small first-party fixture on Linux x64. The two web `.scape` workflow IDs are
+qualified separately below. Muted audio does not qualify audible or
+device-output fidelity. General browser or codec behavior, rendered fallbacks,
+linked or unmanaged media, installers and file associations, concurrency, crash
+or power loss, Windows, macOS, and ARM64 remain unqualified.
+
+A maintained Chromium browser spec closes the two frozen web `.scape` workflow
+IDs through three isolated browser contexts in each product order. The origin
+imports one canonical-PCM audio source and one generated WebM, persists them,
+and exports through the browser-download fallback. The witness checks the exact
+project ID and verifies every manifest asset body against its declared byte
+length and SHA-256. A fresh recipient activates the audio and video clips,
+starts and stops transport, edits a track name through its native input, exposes
+the edit through Undo, invokes explicit save, and exports the return archive. A
+fresh origin-product context reopens the same project ID, exact asset descriptor
+set, and edited track name and starts and stops playback.
+
+This evidence is limited to the fixed small first-party fixture in Chromium. It
+does not qualify direct File System Access streaming, Firefox, WebKit or Safari,
+long-form or reference-scale behavior, broad codec coverage, rendered
+fallbacks, linked or unmanaged media, quota or eviction recovery, crash
+behavior, or preservation of a shared cross-product undo journal.
 
 This catalog rule is current-only. Activation-specific feature-capability
 evaluation remains editor-owned. Explicit managed canonical PCM and retained

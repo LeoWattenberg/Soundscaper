@@ -40,7 +40,7 @@
 		},
 		{
 			"id": "m2-gate-mixed-media-handoff",
-			"status": "partial",
+			"status": "implemented",
 			"itemIds": [
 				"m2-handoff-packaged-roundtrip",
 				"m2-media-relationship-roundtrip",
@@ -192,7 +192,7 @@
 		{
 			"id": "m2-handoff-packaged-roundtrip",
 			"gateId": "m2-gate-mixed-media-handoff",
-			"status": "partial",
+			"status": "implemented",
 			"workflowIds": [
 				"web-soundscaper-to-framescaper-to-soundscaper-scape",
 				"web-framescaper-to-soundscaper-to-framescaper-scape",
@@ -200,6 +200,8 @@
 				"electron-framescaper-to-soundscaper-to-framescaper-library"
 			],
 			"completedWorkflowIds": [
+				"web-soundscaper-to-framescaper-to-soundscaper-scape",
+				"web-framescaper-to-soundscaper-to-framescaper-scape",
 				"electron-soundscaper-to-framescaper-to-soundscaper-library",
 				"electron-framescaper-to-soundscaper-to-framescaper-library"
 			],
