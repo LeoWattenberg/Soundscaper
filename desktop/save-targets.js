@@ -10,6 +10,7 @@ import {
 	MAX_SAVE_SESSIONS,
 	MAX_SAVE_TARGETS,
 } from './constants.js';
+import { SPACE_EXHAUSTED_MESSAGE, commitFailureMessage, isSpaceExhaustedError } from './save-space.js';
 import { validateDeclaredSize } from './validation.js';
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
@@ -251,6 +252,7 @@ export class AtomicSaveManager {
 				: 'Save exceeds its admitted maximum');
 		}
 		let markIdle;
+		let spaceExhausted = false;
 		session.idle = new Promise((resolve) => { markIdle = resolve; });
 		session.busy = true;
 		try {
@@ -262,9 +264,15 @@ export class AtomicSaveManager {
 			}
 			session.written += buffer.byteLength;
 			return Object.freeze({ nextOffset: session.written });
+		} catch (error) {
+			spaceExhausted = isSpaceExhaustedError(error);
+			if (!spaceExhausted) throw error;
+			this.#sessions.delete(session.id);
+			throw new Error(SPACE_EXHAUSTED_MESSAGE, { cause: error });
 		} finally {
 			session.busy = false;
 			markIdle();
+			if (spaceExhausted) await this.#cleanupSession(session);
 		}
 	}
 
@@ -285,6 +293,7 @@ export class AtomicSaveManager {
 		const buffer = toBuffer(bytes);
 		if (buffer.byteLength !== FINAL_PREFIX_BYTES) throw new RangeError('Final prefix must be exactly 32 bytes');
 		let markIdle;
+		let spaceExhausted = false;
 		session.idle = new Promise((resolve) => { markIdle = resolve; });
 		session.busy = true;
 		session.finalPrefixState = 'attempting';
@@ -303,10 +312,14 @@ export class AtomicSaveManager {
 			return Object.freeze({ byteLength: session.written });
 		} catch (error) {
 			session.finalPrefixState = 'failed';
-			throw error;
+			spaceExhausted = isSpaceExhaustedError(error);
+			if (!spaceExhausted) throw error;
+			this.#sessions.delete(session.id);
+			throw new Error(SPACE_EXHAUSTED_MESSAGE, { cause: error });
 		} finally {
 			session.busy = false;
 			markIdle();
+			if (spaceExhausted) await this.#cleanupSession(session);
 		}
 	}
 
@@ -333,7 +346,7 @@ export class AtomicSaveManager {
 			return Object.freeze({ byteLength: session.written });
 		} catch (error) {
 			await this.#cleanupSession(session, { closeHandle: !handleClosed });
-			throw new Error('Could not commit the saved file', { cause: error });
+			throw new Error(commitFailureMessage(error), { cause: error });
 		}
 	}
 
