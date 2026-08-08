@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-03",
+	"groundedAt": "2026-08-08",
 	"modelDocument": "docs/production-threat-model.md",
 	"statusDefinitions": {
 		"enforced": "Every named control for the narrowly described current surface has implementation and automated verification evidence.",
@@ -36,6 +36,106 @@
 		],
 		"job-cancellation": [
 			"long-job-cancellation"
+		]
+	},
+	"publicationRouteQualification": {
+		"status": "implemented",
+		"browserBlobMaximumBytes": 536870912,
+		"routes": [
+			{
+				"id": "scape-browser-blob",
+				"publicationMode": "browser-blob",
+				"finalRendererBlob": true,
+				"maximumBytes": 536870912,
+				"controlId": "bounded-direct-archive-publication"
+			},
+			{
+				"id": "scape-file-system-access",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "bounded-direct-archive-publication"
+			},
+			{
+				"id": "scape-electron",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "bounded-direct-archive-publication"
+			},
+			{
+				"id": "audio-mix-browser-blob",
+				"publicationMode": "browser-blob",
+				"finalRendererBlob": true,
+				"maximumBytes": 536870912,
+				"controlId": "bounded-browser-export-blob-publication"
+			},
+			{
+				"id": "audio-mix-direct-native-pcm",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "exact-direct-pcm-mix-save"
+			},
+			{
+				"id": "audio-mix-direct-compressed-realtime",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "exact-direct-compressed-mix-save"
+			},
+			{
+				"id": "audio-mix-direct-compressed-offline",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "exact-direct-compressed-mix-save"
+			},
+			{
+				"id": "audio-stems-browser-blob",
+				"publicationMode": "browser-blob",
+				"finalRendererBlob": true,
+				"maximumBytes": 536870912,
+				"controlId": "bounded-browser-export-blob-publication"
+			},
+			{
+				"id": "audio-stems-direct-native-pcm-zip",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "direct-stem-archive-save"
+			},
+			{
+				"id": "audio-stems-direct-native-pcm-7z",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "direct-stem-archive-save"
+			},
+			{
+				"id": "audio-stems-direct-compressed-zip-realtime",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "direct-stem-archive-save"
+			},
+			{
+				"id": "audio-stems-direct-compressed-zip-offline",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "direct-stem-archive-save"
+			},
+			{
+				"id": "video-browser-blob",
+				"publicationMode": "browser-blob",
+				"finalRendererBlob": true,
+				"maximumBytes": 536870912,
+				"controlId": "bounded-browser-export-blob-publication"
+			},
+			{
+				"id": "video-direct-mp4",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "exact-direct-mp4-webm-video-save"
+			},
+			{
+				"id": "video-direct-webm",
+				"publicationMode": "direct-stream",
+				"finalRendererBlob": false,
+				"controlId": "exact-direct-mp4-webm-video-save"
+			}
 		]
 	},
 	"boundaries": [
@@ -2400,6 +2500,21 @@
 			"releaseDisposition": "conditional",
 			"ownerMilestone": "1",
 			"currentControls": [
+				{
+					"id": "bounded-browser-export-blob-publication",
+					"summary": "The maintained browser-download audio mix, audio stem-archive, MP4, and WebM routes share one non-raiseable 512 MiB final-output ceiling. Legacy FFmpeg audio and video output is statted and admitted before a whole-file worker read; the returned Uint8Array must exactly match that stat. Encoder bytes are admitted before final Blob construction, owned or temporary-file-backed Blobs are rechecked before download publication, and lower-only focused seams exercise exact refusal without a large allocation. Cancellation and currentness are checked around FFmpeg stat and read. This is a final-output and publication bound, not an end-to-end encoder, worker MEMFS, renderer heap, RSS, GC-headroom, CPU, elapsed-time, browser, codec, quota, or durability qualification. Direct destinations retain their independently admitted streamed limits and never enter this Blob boundary.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/browser-export-output.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
+						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-video-output.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-export-output.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-browser-output.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" },
+						{ "kind": "test", "path": "tests/production-pipeline-route-qualification.test.ts" }
+					]
+				},
 				{
 					"id": "controller-generation-and-abort-guards",
 					"summary": "Controller tasks receive AbortSignals and generation checks prevent stale results from replacing current UI state. Matching native-import ownership clears and republishes the global importing flag even after an external project generation change, while an older owner cannot clear newer work.",

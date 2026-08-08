@@ -74,7 +74,7 @@
 		{
 			"id": "m2-pipeline-route-qualification",
 			"gateId": "m2-gate-bounded-pipelines",
-			"status": "partial",
+			"status": "implemented",
 			"routeIds": [
 				"scape-browser-blob",
 				"scape-file-system-access",

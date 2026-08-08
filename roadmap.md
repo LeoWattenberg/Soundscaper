@@ -259,8 +259,7 @@ products before adding new editorial models or native engines.
   `audioEffects` fallbacks, and read-only affected-object visibility for any
   unavailable or unknown requirement.
 - **Web Enhanced / Electron Enhanced — Implemented for direct PCM slices:**
-  bounded direct WAV, AIFF, BWF, and admitted BW64 publication. Unqualified
-  render routes are enumerated by `m2-pipeline-route-qualification`.
+  bounded direct WAV, AIFF, BWF, and admitted BW64 publication.
 
 Security claims and exact limitations for these surfaces are owned by
 `docs/production-threat-model.md`. Compatibility and fallback claims are owned
@@ -282,10 +281,9 @@ update an item's status only after its listed acceptance conditions pass.
 
 #### 2.1 Bounded pipelines
 
-- `m2-pipeline-route-qualification`
 - `m2-pipeline-resource-qualification`
 
-Qualify exactly the listed publication routes and quality-budget workload IDs.
+Qualify exactly the listed quality-budget workload IDs.
 
 #### 2.2 Compatibility completion
 

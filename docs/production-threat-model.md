@@ -3,7 +3,7 @@
 This document records the production security baseline for Soundscaper's local-first Web and Electron editor. The machine-readable control register is
 [`config/production-security-matrix.json`](../config/production-security-matrix.json). Its checked-in implementation and test references are the evidence for each current claim.
 
-The model is grounded on 2026-08-03. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-08-08. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## Meaning of the statuses
 
@@ -539,6 +539,40 @@ conformance, native or WASM codec memory, renderer or browser heap, GC, RSS,
 CPU, elapsed time, browser, operating-system, native-picker, packaged,
 reference-scale, quota, durability, crash, and power-loss behavior all remain
 unqualified.
+
+The frozen milestone-2 publication-route register is implemented for exactly
+15 route IDs. `scape-browser-blob`, `audio-mix-browser-blob`,
+`audio-stems-browser-blob`, and `video-browser-blob` are the four retained
+browser-Blob fallbacks. They share one non-raiseable 512 MiB final-output
+ceiling. Scape admits its estimated canonical archive before archive output and
+rechecks the completed Blob. Legacy FFmpeg audio and video paths stat and admit
+the worker output before a whole-file `readFile`, require the returned bytes to
+match that stat exactly, admit encoder bytes before final Blob construction,
+and recheck owned or temporary-file-backed Blobs before download publication.
+Lower-only seams cannot raise the production ceiling. Native audio output is
+also subject to the earlier central render-output and realtime-staging
+admissions described above; the 512 MiB check is its final publication fence,
+not a replacement working-set model.
+
+The other eleven IDs are direct streaming routes:
+`scape-file-system-access`, `scape-electron`,
+`audio-mix-direct-native-pcm`,
+`audio-mix-direct-compressed-realtime`,
+`audio-mix-direct-compressed-offline`,
+`audio-stems-direct-native-pcm-zip`,
+`audio-stems-direct-native-pcm-7z`,
+`audio-stems-direct-compressed-zip-realtime`,
+`audio-stems-direct-compressed-zip-offline`, `video-direct-mp4`, and
+`video-direct-webm`. Each maps to the owning archive, PCM, compressed-audio,
+stem-archive, or video hard-limit and count-agreement control in
+`config/production-security-matrix.json`. None performs final renderer-sized
+Blob construction or download publication. This route-level qualification
+means each named path completes within its owning admission or refuses before
+unsafe final-output materialization or publication. It does not add browser
+heap, worker MEMFS, encoder, codec, RSS, GC-headroom, CPU, elapsed-time,
+reference-scale, quota, crash, power-loss, durability, native-picker, packaged,
+or cross-platform claims; those remain with the resource, fault, durability,
+and platform qualification items.
 
 ### Electron renderer, IPC, and filesystem capabilities
 
