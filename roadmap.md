@@ -32,6 +32,8 @@ owning source of truth:
   [compatibility matrix](config/project-compatibility.json);
 - milestone-2 scope, closure items, and exact qualification sets:
   [milestone-2 closure inventory](config/milestone-2-closure.json);
+- milestone-3 sequencing, time-model decisions, and work packets:
+  [milestone-3 plan](docs/milestone-3-plan.md);
 - performance fixtures and numeric qualification:
   [quality budgets](docs/quality-budgets.md) and
   [machine-readable budgets](config/quality-budgets.json);
@@ -329,16 +331,41 @@ priority, dependency, or status changes.
 
 ## 3. Parallel editorial foundations
 
-**Depends on:** milestone 2.
+**Depends on:** milestone 2 and a green canonical quality gate.
 
 **Goal:** establish professional time, arrangement, and editorial models before
 adding broader production surfaces.
 
-### Soundscaper track
+Sequencing, the shared time-model decision, its invariants, and the bounded
+work packets are owned by [the milestone-3 plan](docs/milestone-3-plan.md).
+Milestone 3 runs as one serialized foundation phase followed by two parallel
+product tracks; the parallel tracks do not begin until the foundation's
+acceptance checks pass.
 
-- **Shared / Web Core — Planned:** ordered tempo and signature maps with
-  sample-accurate positions across snapping, metronome, rulers, stretch,
-  selection, import, export, and migration.
+### 3.0 Shared time and schema foundation (serialized, first)
+
+- **Shared — Planned:** a single exact rational time module owning every
+  frames/seconds/beats/frame-rate conversion, with one documented rounding
+  rule, reduced-rational overflow guards, and absolute-origin evaluation,
+  replacing today's duplicated conversion and beat-math sites.
+- **Shared — Planned:** one schema revision introducing every milestone-3
+  document type together: rational-rate sequences with drop-frame and start
+  timecode, frame-anchored video clip placement, source-domain in/out points
+  with preserved probed and VFR timing, a musically anchored tempo and
+  signature map, per-object time anchors, and unified warp/retime breakpoint
+  maps. Derived time fields validate against their authoritative anchor and
+  are rejected on mismatch, never silently repaired.
+- **Shared — Planned:** compatibility registration lands with the schema, so
+  no milestone-3 feature can evaluate as unknown and silently force projects
+  read-only.
+- **Shared — Planned:** the parallel-work headroom refactors named in the
+  plan.
+
+### Soundscaper track (3A, parallel after 3.0)
+
+- **Shared / Web Core — Planned:** musically anchored ordered tempo and
+  signature maps resolved sample-accurately across snapping, metronome,
+  rulers, stretch, selection, import, export, and migration.
 - **Shared / Web Core — Planned:** first-class markers and named regions distinct
   from captions, including navigation, batch identity, and ripple behavior.
 - **Shared / Web Core — Planned:** nested track folders with deterministic,
@@ -346,13 +373,13 @@ adding broader production surfaces.
 - **Shared / Web Core — Planned:** take lanes, cycle-recorded takes, audition,
   promotion, comp regions, flattening, and interrupted-take recovery.
 - **Shared / Web Enhanced — Planned:** transient analysis, warp markers,
-  beat-aware stretch, audio quantization, and groove strength with an exact
-  offline fallback.
+  beat-aware stretch, audio quantization, and groove strength over the shared
+  breakpoint model with an exact offline fallback.
 - **Web Core — Planned:** complete punch/count-in and approved Audacity gaps,
   including sound-activated recording, clip-boundary navigation, alignment,
   sorting, spectral selection/brush, and repeat-generator/analyzer workflows.
 
-### Framescaper track
+### Framescaper track (3B, parallel after 3.0)
 
 - **Shared / Web Core — Planned:** rational sequence rates independent of audio
   sample rate, including integer/NTSC rates, drop/non-drop SMPTE, source
@@ -364,9 +391,9 @@ adding broader production surfaces.
 - **Web Core — Planned:** J/K/L shuttle, edit-point navigation,
   roll/ripple/slip/slide/rate-stretch tools, track lock, visibility, linked-audio
   controls, and keyboard-complete trim feedback.
-- **Shared / Web Core — Planned:** explicit retiming and speed ramps,
-  reverse/freeze frames, nested sequences, subsequence time mapping, and
-  deterministic flattening.
+- **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
+  shared breakpoint model, reverse/freeze frames, nested sequences,
+  subsequence time mapping, and deterministic flattening.
 - **Web Core — Planned:** proxy attachment, adaptive preview, offline/relink, and
   synchronized multicamera groups.
 
@@ -377,6 +404,15 @@ adding broader production surfaces.
 - Audio remains sample-accurate through tempo changes and repeated save/reopen.
 - Video remains frame-accurate across integer, NTSC, VFR, nested, proxy, and
   source-timecode fixtures without cumulative A/V drift.
+- Video edits land on sequence frame boundaries through every edit primitive;
+  no operation leaves a video cut off the frame grid.
+- Signature changes stay on barlines through tempo edits; musically anchored
+  material re-flows and absolutely anchored material does not move.
+- Every rate conversion routes through the shared time module's single
+  rounding rule and remains exact under composed nested-sequence and retime
+  mappings.
+- Every milestone-3 feature is registered in the capability and compatibility
+  registers before it ships.
 - Long-form sessions meet milestone-1 transport, seeking, scrolling, memory,
   and recovery budgets.
 - Pointer, keyboard, screen-reader, and high-contrast workflows reach the same
