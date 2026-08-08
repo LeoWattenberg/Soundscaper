@@ -37,8 +37,15 @@ import {
 test('desktop document and locale validation accepts only committed editor routes', () => {
 	assert.equal(assertEditorDocumentUrl('soundscaper-app://bundle/').pathname, '/');
 	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/'), true);
+	assert.equal(
+		assertEditorDocumentUrl('soundscaper-app://bundle/?project=packaged_project-1').searchParams.get('project'),
+		'packaged_project-1',
+	);
 	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/runtime/ffmpeg-core.js'), false);
 	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/?untrusted=1'), false);
+	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/?project=one&project=two'), false);
+	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/?project=unsafe%2Fid'), false);
+	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/?project=one#unsafe'), false);
 	assert.equal(isAppUrl('https://bundle/embed/en/'), false);
 	assert.equal(resolveLocale(['fr-CA']), 'fr');
 	assert.equal(resolveLocale(['unknown-locale']), 'en');

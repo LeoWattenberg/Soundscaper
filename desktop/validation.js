@@ -116,8 +116,14 @@ export function isAppUrl(candidate) {
 
 export function assertEditorDocumentUrl(candidate) {
 	const url = assertAppUrl(candidate);
-	if (url.search || url.hash) throw new Error('Untrusted renderer document');
-	if (url.pathname !== '/') throw new Error('Untrusted renderer document');
+	if (url.hash || url.pathname !== '/') throw new Error('Untrusted renderer document');
+	if (url.search) {
+		const projectIds = url.searchParams.getAll('project');
+		if (url.searchParams.size !== 1 || projectIds.length !== 1
+			|| !/^[a-z0-9_-]{1,256}$/iu.test(projectIds[0])) {
+			throw new Error('Untrusted renderer document');
+		}
+	}
 	return url;
 }
 
