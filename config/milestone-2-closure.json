@@ -251,7 +251,7 @@
 		{
 			"id": "m2-managed-capacity-admission",
 			"gateId": "m2-gate-mixed-media-handoff",
-			"status": "partial",
+			"status": "implemented",
 			"capacityIds": [
 				"project-document-bytes",
 				"managed-catalog-row-count",
