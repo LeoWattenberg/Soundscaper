@@ -1,9 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
-import { prepareNativeScapeSave, publishNativeScape } from './native-scape-save.ts';
+import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
+import {
+	type NativeRetainedScapeArchive,
+	prepareNativeScapeSave,
+	publishNativeScape,
+	saveNativeScapeArchiveCopy,
+} from './native-scape-save.ts';
 import type {
-	Aup4CompatibilityIssue,
 	Aup4DecodedSource,
 	Aup4Environment,
 	Aup4PortableOptions,
@@ -38,6 +43,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	let disposed = false;
 	let importOwner: EditorTaskScope | null = null;
 	let saveOwner: EditorTaskScope | null = null;
+	let futureScapeArchive: NativeRetainedScapeArchive | null = null;
 
 	return Object.freeze({
 		dismissAup4CompatibilitySummary,
@@ -101,6 +107,8 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			});
 			signal.throwIfAborted();
 			assertOwnership(operation.task, operation.projectToken);
+			futureScapeArchive = imported.readOnly && file instanceof Blob
+				? { projectId: imported.project.id, archive: file, manifest: imported.manifest } : null;
 			await runtime.switchProject(imported.project, {
 				readOnly: imported.readOnly,
 				readOnlyReason: imported.readOnly ? runtime.copy.futureProjectReadOnly : null,
@@ -122,6 +130,15 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	}) | Readonly<{ cancelled: true }>> {
 		const projectAtStart = requireProject();
 		if (runtime.state.readOnly && !options.saveCopy) throw new Error(runtime.copy.projectReadOnly);
+		if (runtime.state.readOnly && futureScapeArchive?.projectId === projectAtStart.id) {
+			const operation = beginProjectTask('native-project-save', projectAtStart.id);
+			try {
+				return await saveNativeScapeArchiveCopy(runtime, {
+					assertReady: () => assertOwnership(operation.task, operation.projectToken),
+					fallbackFileName: projectAtStart.title, options, retained: futureScapeArchive, signal: operation.task.signal,
+				});
+			} finally { operation.task.finish(); }
+		}
 		if (runtime.hasMissingTimelineSources(projectAtStart)) throw new Error(runtime.copy.missingSourcesPreventSave);
 		const operation = beginProjectTask('native-project-save', projectAtStart.id);
 		try {
@@ -215,7 +232,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				.filter((issue) => issue.level === 'warning')
 				.map((issue) => issue.message || '');
 			const allWarnings = [...validationWarnings, ...(decoded.warnings || [])].filter(Boolean);
-			publishAup4OpenStatus(opened.readOnly, readOnlyIssue, allWarnings);
+			publishAup4OpenStatus(runtime, opened.readOnly, readOnlyIssue, allWarnings);
 			return Object.freeze({
 				project: importedProject,
 				validation: decoded.validation,
@@ -433,29 +450,6 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		if (task && projectToken) assertOwnership(task, projectToken);
 		runtime.taskProgress?.setActivePhase(prefix, { start: 0, end: 1, value: progress.value });
 		runtime.setStatus(nativeProjectProgressMessage(progress, prefix));
-	}
-
-	function nativeProjectProgressMessage(progress: NativeProgress, prefix: string): string {
-		const percentage = Math.round(Math.max(0, Math.min(1, Number(progress?.value) || 0)) * 100);
-		return `${prefix} ${percentage}%`;
-	}
-
-	function publishAup4OpenStatus(
-		readOnly: boolean,
-		readOnlyIssue: Aup4CompatibilityIssue | undefined,
-		warnings: readonly string[],
-	): void {
-		if (readOnly) {
-			runtime.setStatus(
-				readOnlyIssue?.code === 'EDITABLE_LIMIT_EXCEEDED'
-					? runtime.copy.oversizedAup4ReadOnly
-					: readOnlyIssue?.message || runtime.copy.newerAup4ReadOnly,
-				'error',
-			);
-			return;
-		}
-		const warning = warnings.length ? ` ${warnings.join(' ')}` : '';
-		runtime.setStatus(`${runtime.copy.aup4Opened}${warning}`, warnings.length ? 'info' : 'success');
 	}
 
 	function portableOptions(

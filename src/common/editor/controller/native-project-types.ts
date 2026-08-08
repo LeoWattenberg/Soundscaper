@@ -336,6 +336,11 @@ export interface NativeProjectServiceRuntime {
 			signal: AbortSignal;
 		}>,
 	) => Promise<ScapeExportResult>;
+	readonly copyFutureScapeArchive: (
+		input: Blob,
+		write: (bytes: Uint8Array) => void | PromiseLike<void>,
+		options: Readonly<{ signal: AbortSignal }>,
+	) => Promise<Readonly<{ byteLength: number; schemaVersion: number }>>;
 	readonly normalizeCompatibilityReport: (
 		report: unknown,
 		direction: 'open' | 'save',

@@ -89,6 +89,7 @@ import {
 	createSmoothSampleRange,
 	persistImmutableSampleEdit,
 } from './sample-edit.js';
+import { copyFutureScapeArchive } from './scape-archive-copy.ts';
 import { SCAPE_MIME_TYPE, exportScapeProject, importScapeProject } from './scape-project.js';
 import {
 	applyAudioSelectionEffectAsync,
@@ -872,6 +873,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		migrateProject: migrateAudioEditorProject,
 		importScapeProject,
 		exportScapeProject,
+		copyFutureScapeArchive,
 		normalizeCompatibilityReport: normalizeAup4CompatibilityReport,
 		reportHasMissingPcm: aup4ReportHasMissingPcm,
 		sessionTab,

@@ -74,6 +74,113 @@ export async function publishNativeScape(
 	return { exported, saved };
 }
 
+export interface NativeRetainedScapeArchive {
+	readonly projectId: string;
+	readonly archive: Blob;
+	readonly manifest: Readonly<Record<string, unknown>>;
+}
+
+/** Orchestrate the unchanged-copy save of a retained future-schema archive. */
+export async function saveNativeScapeArchiveCopy(
+	runtime: Pick<NativeProjectServiceRuntime,
+	'copy' | 'copyFutureScapeArchive' | 'ensureScapeFileName' | 'fileService' | 'scapeMimeType' | 'setStatus'>,
+	request: Readonly<{
+		assertReady(): void;
+		fallbackFileName: unknown;
+		options: SaveScapeOptions;
+		retained: NativeRetainedScapeArchive;
+		signal: AbortSignal;
+	}>,
+): Promise<(NativeSavedFile & { readonly manifest: Readonly<Record<string, unknown>> })
+| Readonly<{ cancelled: true }>> {
+	const fileName = runtime.ensureScapeFileName(request.options.fileName || request.fallbackFileName);
+	const prepared = await prepareNativeScapeSave(runtime.fileService, {
+		fileName, mimeType: runtime.scapeMimeType, options: request.options, signal: request.signal,
+	});
+	if (prepared.mode === 'cancelled') return { cancelled: true };
+	request.assertReady();
+	const { saved } = await publishNativeScapeArchiveCopy(runtime, {
+		archive: request.retained.archive,
+		assertReadyToCommit: request.assertReady,
+		fileName, prepared, signal: request.signal,
+	});
+	runtime.setStatus(runtime.copy.projectSaved, 'success');
+	return { ...saved, manifest: request.retained.manifest };
+}
+
+/** Save a retained future-schema archive as an exact byte copy, never re-serializing. */
+export async function publishNativeScapeArchiveCopy(
+	runtime: Pick<NativeProjectServiceRuntime, 'copyFutureScapeArchive' | 'fileService' | 'scapeMimeType'>,
+	request: Readonly<{
+		archive: Blob;
+		assertReadyToCommit(): void;
+		fileName: string;
+		prepared: Exclude<NativePreparedSave, { readonly mode: 'cancelled' }>;
+		signal: AbortSignal;
+	}>,
+): Promise<Readonly<{
+	copied: Readonly<{ byteLength: number; schemaVersion: number }>;
+	saved: NativeSavedFile;
+}>> {
+	const prepared = request.prepared;
+	if (prepared.mode === 'stream') {
+		try {
+			const writable = await prepared.createWritable(request.archive.size);
+			const writer = writable.getWriter();
+			let copied;
+			try {
+				copied = await runtime.copyFutureScapeArchive(
+					request.archive,
+					(bytes) => writer.write(bytes),
+					{ signal: request.signal },
+				);
+				await writer.close();
+			} catch (error) {
+				await writer.abort(error).catch(() => undefined);
+				throw error;
+			}
+			if (copied.byteLength !== request.archive.size
+				|| prepared.bytesWritten() !== copied.byteLength) {
+				throw new Error('The staged archive copy does not match the original byte count.');
+			}
+			request.assertReadyToCommit();
+			const saved = await prepared.commit();
+			return { copied, saved };
+		} catch (error) {
+			try {
+				await prepared.abort(error);
+			} catch (cleanupError) {
+				throw new AggregateError(
+					[error, cleanupError],
+					'The archive copy and destination cleanup both failed.',
+				);
+			}
+			throw error;
+		}
+	}
+	let validatedBytes = 0;
+	const copied = await runtime.copyFutureScapeArchive(
+		request.archive,
+		(bytes) => { validatedBytes += bytes.byteLength; },
+		{ signal: request.signal },
+	);
+	if (copied.byteLength !== request.archive.size || validatedBytes !== copied.byteLength) {
+		throw new Error('The validated archive does not match the original byte count.');
+	}
+	request.assertReadyToCommit();
+	const saved = await runtime.fileService.saveFile({
+		purpose: 'project',
+		blob: request.archive,
+		suggestedName: request.fileName,
+		mimeType: runtime.scapeMimeType,
+		target: prepared.target,
+		useFileSystemAccess: false,
+		signal: request.signal,
+	});
+	if (saved.cancelled) throw new DOMException('The file save was cancelled.', 'AbortError');
+	return { copied, saved };
+}
+
 async function publishDirectScape(
 	runtime: Pick<NativeProjectServiceRuntime, 'exportScapeProject' | 'store'>,
 	request: Readonly<{
