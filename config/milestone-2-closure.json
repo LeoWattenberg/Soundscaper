@@ -229,7 +229,7 @@
 		{
 			"id": "m2-linked-media-lifecycle",
 			"gateId": "m2-gate-mixed-media-handoff",
-			"status": "partial",
+			"status": "implemented",
 			"lifecycleIds": [
 				"linked-pcm-exact-relink",
 				"linked-pcm-confirmed-changed-content-relink",

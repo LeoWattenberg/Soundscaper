@@ -284,7 +284,6 @@ update an item's status only after its listed acceptance conditions pass.
 
 - `m2-handoff-packaged-roundtrip`
 - `m2-media-relationship-roundtrip`
-- `m2-linked-media-lifecycle`
 
 The exact handoff workflows, media relationships, lifecycle operations, and
 capacity checks are the named sets in the inventory. No additional media format,
