@@ -4,6 +4,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import {
+	PACKAGED_HANDOFF_CLAIMS,
+	PACKAGED_HANDOFF_EVIDENCE,
+} from './helpers/packaged-handoff-claims.js';
+
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
 
@@ -243,14 +248,8 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		documentation,
 		/closes only the generic packaged\s+source-free preload\/IPC\/multi-process\/executable lifecycle gap.*does not\s+qualify packaged controller autosave or tab activation.*source-bearing bytes,\s+playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/isu,
 	);
-	assert.match(
-		documentation,
-		/second maintained Linux x64 CI job.*two frozen Electron\s+shared-library workflow IDs.*six sequential processes.*isolated shared\s+appData.*separate product profiles.*origin\s+profile.*exact schema 9.*canonical-PCM audio track\s+and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh\s+recipient activates.*normal project route.*exact Project\s+Bin `Blob`.*starts and stops transport.*native input.*revision-2 save.*visible.*Edit in.*other product.*origin return.*exact edited\s+revision.*both bindings.*two exact-schema-9 read-only role witnesses.*project-audio-mix-v1.*audio-track-render-v1.*project-video-render-v1.*video-clip-render-v1.*role-specific compatibility indicator.*visible cross-product handoff.*Feature-requirement\s+read-only.*busy.*lock-read-only.*origin return.*compatibility indicator absent.*enabled track-name editor.*audio-whole-mix-electron-roundtrip.*audio-track-render-electron-roundtrip.*video-full-project-electron-roundtrip.*video-clip-render-electron-roundtrip.*unchanged canonical\s+document.*canonical-source body.*fallback-body SHA-256.*increasing catalog revisions and fencing tokens/isu,
-	);
-	assert.match(
-		documentation,
-		/electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*four exact role-return workflow\s+IDs.*web `.scape` workflow matrix.*qualified separately.*Packaged activation.*fallback playback.*unchanged project handoff.*editable origin return.*only.*four frozen rendered-fallback roles.*Packaged\s+rendered-media delivery.*fallback authoring.*other relationships.*general\s+browser or codec behavior.*linked or unmanaged media.*ARM64/isu,
-	);
+	assert.match(documentation, PACKAGED_HANDOFF_CLAIMS.compatibilityDocWorkflow);
+	assert.match(documentation, PACKAGED_HANDOFF_CLAIMS.compatibilityDocQualification);
 	assert.match(
 		documentation,
 		/existing V1–V8 raw-project migrations remain maintained.*compatibility\s+beyond those retained raw-document migration paths.*prior shared\s+`?v1`?\s+scope.*product-private Soundscaper libraries.*not a\s+current priority.*milestone prerequisite.*Audacity.*separate compatibility\s+boundary/isu,
@@ -370,40 +369,12 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.ok(packagedHandoff);
 	assert.equal(packagedHandoff.status, 'implemented');
-	assert.deepEqual(packagedHandoff.evidence, [
-		'desktop/project-library-source-bearing-smoke.js',
-		'desktop/project-library-fallback-role-witnesses.js',
-		'desktop/project-library-source-bearing-renderer-smoke.js',
-		'desktop/project-library-source-bearing-smoke-session.js',
-		'src/common/editor/edit-blocking.ts',
-		'src/common/editor/controller/document-snapshot.ts',
-		'src/common/editor/ui/application-menus.js',
-		'src/common/editor/ui/workspace/AudioEditorWorkspace.jsx',
-		'src/common/editor/ui/workspace/workspace-application-menu-runtime.js',
-		'desktop/project-library-smoke-evidence.js',
-		'desktop/desktop-smoke.js',
-		'desktop/main.mjs',
-		'scripts/lib/desktop-project-library-source-bearing-handoff.mjs',
-		'scripts/desktop-project-library-source-bearing-handoff-smoke.mjs',
-		'tests/desktop-project-library-source-bearing-smoke.test.js',
-		'tests/desktop-project-library-source-bearing-session.test.js',
-		'tests/desktop-project-library-source-bearing-probe.test.js',
-		'tests/desktop-project-library-source-bearing-handoff-runner.test.js',
-		'tests/desktop-project-library-fallback-return-roundtrip.test.js',
-		'tests/audio-editor-ui-edit-blocking.test.ts',
-		'tests/desktop-project-library-smoke-evidence.test.js',
-		'tests/desktop-project-library-packaging.test.js',
-		'package.json',
-		'.github/workflows/desktop-preview.yml',
-	]);
+	assert.deepEqual(packagedHandoff.evidence, PACKAGED_HANDOFF_EVIDENCE.map(({ path }) => path));
 	assert.match(
 		packagedHandoff.requiredOutcome,
 		/two frozen Electron shared-library workflow IDs.*separately packaged Soundscaper and Framescaper UI processes.*exact current-schema mixed-media identity.*activation.*playback.*recipient edit and save.*return to the originating product profile.*all four exact rendered-fallback role workflows.*unchanged project back.*less-capable recipient.*reopen editable.*origin.*canonical-document.*media-body identity/iu,
 	);
-	assert.match(
-		packagedHandoff.currentBehavior,
-		/Linux x64.*two frozen Electron workflows.*six sequential packaged executable processes.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*canonical PCM.*retained-original VP8 WebM.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*two additional exact-schema-9 role witnesses.*project-audio-mix-v1.*audio-track-render-v1.*project-video-render-v1.*video-clip-render-v1.*role-specific compatibility indicator.*visible cross-product handoff.*Feature-requirement read-only.*busy.*read-only project lock.*blocked.*origin return.*compatibility indicator absent.*track-name editor.*without mutation.*audio-whole-mix-electron-roundtrip.*audio-track-render-electron-roundtrip.*video-full-project-electron-roundtrip.*video-clip-render-electron-roundtrip.*canonical-document.*canonical-source-body.*fallback-body SHA-256.*increasing catalog revisions and fencing tokens/iu,
-	);
+	assert.match(packagedHandoff.currentBehavior, PACKAGED_HANDOFF_CLAIMS.compatibilityRuleBehavior);
 	assert.match(
 		packagedHandoff.currentBehavior,
 		/web `.scape` workflow matrix is qualified separately.*fixed small first-party fixtures.*Linux x64.*muted audio.*qualifies packaged activation.*fallback playback.*unchanged project handoff.*editable origin return only for the four frozen rendered-fallback roles.*does not qualify packaged rendered-media delivery.*fallback authoring.*other relationships.*audible or device-output fidelity.*general browser or codec coverage.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
