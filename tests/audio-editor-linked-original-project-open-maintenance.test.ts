@@ -140,7 +140,10 @@ test('desktop open maintenance serializes with the latest project mutation queue
 	const bridge: DesktopSharedProjectBridge = {
 		listSharedProjects: async () => [],
 		readSharedProject: async () => null,
-		commitSharedProject: async (document) => { events.push('remote:save'); return document; },
+		commitSharedProject: async ({ document }) => {
+			events.push('remote:save');
+			return { status: 'committed', document };
+		},
 		deleteSharedProject: async () => true,
 	};
 	const shadow = {

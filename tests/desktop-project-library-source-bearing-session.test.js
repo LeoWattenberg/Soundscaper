@@ -240,8 +240,13 @@ function fallbackFor(witness, stage) {
 function evidence(product, fencingToken, catalogRevision, project, sources) {
 	return {
 		host: {
-			owner: { product }, fencingToken, tookOverStaleLease: false,
-			recovery: { outcome: 'clean' },
+			closed: false,
+			owner: { product },
+			activeWriter: null,
+			lastWriter: {
+				fencingToken, tookOverStaleLease: false,
+				recovery: { outcome: 'clean' },
+			},
 		},
 		catalogRevision, project, sources,
 	};

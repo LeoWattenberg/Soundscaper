@@ -37,6 +37,14 @@ import {
 import {
 	createDesktopProjectLibrarySourceBearingSmokeSession,
 } from './project-library-source-bearing-smoke-session.js';
+import { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke.js';
+export { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke.js';
+import {
+	createDesktopProjectLibraryLeaseSmokeSession,
+	decodeDesktopProjectLibraryLeaseSmokePlan,
+	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
+	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
+} from './project-library-lease-smoke.js';
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
@@ -95,6 +103,13 @@ export function parseDesktopSmokeConfiguration(argv) {
 			plan: decodeDesktopProjectLibrarySourceBearingPlan(plans[0]),
 		});
 	}
+	if (modes[0] === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) {
+		if (plans.length !== 1) throw new TypeError('Lease-matrix smoke mode requires exactly one smoke plan');
+		return deepFreeze({
+			mode: DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
+			plan: decodeDesktopProjectLibraryLeaseSmokePlan(plans[0]),
+		});
+	}
 	if (modes[0] === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
 		if (plans.length !== 1) throw new TypeError('Direct-WAV smoke mode requires exactly one smoke plan');
 		return deepFreeze({ mode: DESKTOP_DIRECT_WAV_SMOKE_MODE, plan: decodeDirectWavSmokePlan(plans[0]) });
@@ -125,7 +140,8 @@ export function createDesktopSmokeProbe(options) {
 	const appOrigin = requiredText(options?.appOrigin, 'application origin');
 	const productId = requiredProduct(options?.productId);
 	const projectLibraryEvidence = options?.projectLibraryEvidence;
-	if ([PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE].includes(configuration.mode)
+	if ([PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+		DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE].includes(configuration.mode)
 		&& typeof projectLibraryEvidence !== 'function') {
 		throw new TypeError('Project-library smoke requires a main-process evidence callback');
 	}
@@ -134,6 +150,14 @@ export function createDesktopSmokeProbe(options) {
 			plan: configuration.plan,
 			productId,
 			projectLibraryEvidence,
+		})
+		: null;
+	const leaseSession = configuration.mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE
+		? createDesktopProjectLibraryLeaseSmokeSession({
+			plan: configuration.plan,
+			productId,
+			projectLibraryEvidence,
+			projectLibrarySnapshot: requiredFunction(options?.projectLibrarySnapshot, 'project-library snapshot'),
 		})
 		: null;
 	const directWavTargetHarness = configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
@@ -168,6 +192,7 @@ export function createDesktopSmokeProbe(options) {
 			throw new TypeError('Desktop smoke requires a BrowserWindow');
 		}
 		attachedWindow = window;
+		leaseSession?.attach(window);
 		timeout = schedule(() => {
 			void fail(`${prefixFor(configuration.mode)} timed out`);
 		}, timeoutFor(configuration.mode));
@@ -221,14 +246,22 @@ export function createDesktopSmokeProbe(options) {
 	const rendererReady = async () => {
 		const sourceBearing = configuration.mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE;
 		if (![PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+			DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 			DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE,
 			DESKTOP_SCAPE_REOPEN_SMOKE_MODE].includes(configuration.mode)
-			|| finished || (started && !sourceBearing)) return;
+			|| finished || (started && !sourceBearing && !leaseSession)) return;
 		started = true;
 		try {
 			if (!attachedWindow) throw new Error('Desktop smoke renderer became ready before window attachment');
 			const plan = configuration.plan;
 			if (!plan || plan.productId !== productId) throw new Error('Packaged smoke plan targets a different product');
+			if (leaseSession) {
+				const payload = await leaseSession.rendererReady(attachedWindow.webContents);
+				if (payload === null) return;
+				log(`${DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX}${JSON.stringify(payload)}`);
+				await finish(0);
+				return;
+			}
 			if (sourceBearing) {
 				const payload = await sourceBearingSession.run(attachedWindow.webContents);
 				if (payload === null) return;
@@ -308,63 +341,13 @@ export function createDesktopSmokeProbe(options) {
 		? directWavTargetHarness.resolveSavePath(choice)
 		: null;
 
-	return Object.freeze({ attach, observeProjectDescriptor, rendererReady, resolveSavePath });
-}
-
-export async function runProjectLibraryRendererSmoke(scope, plan) {
-	const api = scope?.scapeDesktop?.v1;
-	if (!api || typeof api.readSharedProject !== 'function'
-		|| typeof api.commitSharedProject !== 'function'
-		|| typeof api.listSharedProjects !== 'function') {
-		throw new Error('Packaged project-library bridge is incomplete');
-	}
-
-	const digest = async (text) => {
-		const bytes = new scope.TextEncoder().encode(text);
-		const value = await scope.crypto.subtle.digest('SHA-256', bytes);
-		return [...new Uint8Array(value)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-	};
-	const validate = async (document, expected, label) => {
-		if (typeof document !== 'string') throw new Error(`${label} is not a canonical project document`);
-		let project;
-		try { project = JSON.parse(document); } catch { throw new Error(`${label} is not a canonical project document`); }
-		if (JSON.stringify(project) !== document) throw new Error(`${label} is not a canonical project document`);
-		if (!project || typeof project !== 'object' || Array.isArray(project)
-			|| project.schemaVersion !== 9 || project.id !== expected.id
-			|| project.title !== expected.title || project.revision !== expected.revision) {
-			throw new Error(`${label} does not match its project descriptor`);
-		}
-		if (!Array.isArray(project.sources) || project.sources.length !== 0
-			|| !Array.isArray(project.clips) || project.clips.length !== 0
-			|| (project.tracks !== undefined && (!Array.isArray(project.tracks) || project.tracks.length !== 0))
-			|| !project.projectBin || !Array.isArray(project.projectBin.clips)
-			|| project.projectBin.clips.length !== 0) {
-			throw new Error(`${label} must remain source-free`);
-		}
-		if (await digest(document) !== expected.sha256) throw new Error(`${label} SHA-256 changed before handoff`);
-		return project;
-	};
-
-	const current = await api.readSharedProject(plan.target.id);
-	if (plan.previous === null) {
-		if (current !== null) throw new Error('Publish target already exists before handoff');
-	} else {
-		await validate(current, plan.previous, 'Previous shared project');
-	}
-	await validate(plan.target.document, plan.target, 'Target shared project');
-	const committed = await api.commitSharedProject(plan.target.document);
-	await validate(committed, plan.target, 'Committed shared project');
-	const reread = await api.readSharedProject(plan.target.id);
-	await validate(reread, plan.target, 'Reread shared project');
-	const summaries = await api.listSharedProjects();
-	if (!Array.isArray(summaries)) throw new Error('Shared project summaries are unavailable');
-	const matches = summaries.filter((candidate) => candidate?.id === plan.target.id);
-	if (matches.length !== 1) throw new Error('Shared project summary is missing or duplicated');
-	const summary = matches[0];
-	if (summary.title !== plan.target.title || summary.revision !== plan.target.revision) {
-		throw new Error('Shared project summary does not match the committed target');
-	}
-	return { summary: { id: summary.id, title: summary.title, revision: summary.revision } };
+	return Object.freeze({
+		attach,
+		observeProjectDescriptor,
+		projectLibraryHostOptions: () => leaseSession?.hostOptions ?? Object.freeze({}),
+		rendererReady,
+		resolveSavePath,
+	});
 }
 
 function decodePlan(encoded) {
@@ -457,9 +440,10 @@ function projectLibraryPayload(plan, summary, evidence) {
 	const host = evidence?.host;
 	const target = evidence?.target;
 	if (host?.owner?.product !== plan.productId) throw new Error('Project-library smoke host owner does not match the package');
-	if (!Number.isSafeInteger(host?.fencingToken) || host.fencingToken < 1) throw new Error('Project-library smoke fencing token is invalid');
-	if (host.tookOverStaleLease !== false) throw new Error('Project-library smoke unexpectedly took over a stale lease');
-	if (host.recovery?.outcome !== 'clean') throw new Error('Project-library smoke recovery was not clean');
+	const writer = host?.lastWriter;
+	if (!Number.isSafeInteger(writer?.fencingToken) || writer.fencingToken < 1) throw new Error('Project-library smoke fencing token is invalid');
+	if (writer.tookOverStaleLease !== false) throw new Error('Project-library smoke unexpectedly took over a stale lease');
+	if (writer.recovery?.outcome !== 'clean') throw new Error('Project-library smoke recovery was not clean');
 	if (!Number.isSafeInteger(evidence?.catalogRevision) || evidence.catalogRevision < 1) {
 		throw new Error('Project-library smoke catalog revision is invalid');
 	}
@@ -477,7 +461,7 @@ function projectLibraryPayload(plan, summary, evidence) {
 		summary,
 		host: {
 			owner: { product: host.owner.product },
-			fencingToken: host.fencingToken,
+			fencingToken: writer.fencingToken,
 			tookOverStaleLease: false,
 			recovery: { outcome: 'clean' },
 		},
@@ -566,6 +550,7 @@ function assertMatchingScapeDescriptor(candidate, observed, plan) {
 function timeoutFor(mode) {
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS;
 	if (mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) return 90_000;
+	if (mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) return 90_000;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	return 15_000;
 }
@@ -575,6 +560,7 @@ function prefixFor(mode) {
 	if (mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) {
 		return DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX.trimEnd();
 	}
+	if (mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) return DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX.trimEnd();
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return DESKTOP_SCAPE_OPEN_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX;

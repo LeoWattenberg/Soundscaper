@@ -219,7 +219,7 @@ function documentOnlyBridge(project: AudioEditorProjectV9): DesktopSharedProject
 			assert.equal(projectId, project.id);
 			return serializeScapeProjectDocument(project);
 		},
-		commitSharedProject: async (document) => document,
+		commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 		deleteSharedProject: async () => true,
 	};
 }
@@ -269,7 +269,7 @@ function linkedVideoPublicationBridge(
 	const bridge: DesktopSharedProjectBridge = {
 		listSharedProjects: async () => [],
 		readSharedProject: async () => null,
-		commitSharedProject: async (document) => document,
+		commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 		deleteSharedProject: async () => true,
 		async beginSharedSourceWrite(declaration) {
 			assert.deepEqual(declaration, {

@@ -108,14 +108,14 @@ test('mixed media returns to the original Soundscaper profile without copying lo
 		revision: fixture.project.revision,
 	});
 	assertManagedRevision(initialSoundHost, fixture, 1);
-	const initialSoundToken = initialSoundHost.snapshot().fencingToken;
+	const initialSoundToken = initialSoundHost.snapshot().lastWriter!.fencingToken;
 	await resources.disposeController(initialSoundscaper);
 	await resources.closeStore(initialSoundStore);
 	await resources.disposeService(initialSoundService);
 	await resources.closeHost(initialSoundHost);
 
 	const frameHost = await resources.startHost(FRAME_OWNER);
-	assert.ok(frameHost.snapshot().fencingToken > initialSoundToken);
+	assert.ok(frameHost.snapshot().lastWriter!.fencingToken > initialSoundToken);
 	const frameService = resources.trackService(new DesktopSharedProjectLibraryService(frameHost, {
 		now: () => 40_000,
 		createEntryId: () => { throw new Error('Framescaper must preserve the shared entry'); },
@@ -177,7 +177,7 @@ test('mixed media returns to the original Soundscaper profile without copying lo
 	assert.deepEqual(returnedBundle.sources.map(({ kind, sha256, sourceId, storageKey }) => ({
 		kind, sha256, sourceId, storageKey,
 	})), fixture.managedSources);
-	const frameToken = frameHost.snapshot().fencingToken;
+	const frameToken = frameHost.snapshot().lastWriter!.fencingToken;
 	await resources.disposeController(framescaper);
 	await resources.closeStore(frameStore);
 	await resources.disposeService(frameService);
@@ -191,9 +191,9 @@ test('mixed media returns to the original Soundscaper profile without copying lo
 		sources: 1,
 	});
 	const returnSoundHost = await resources.startHost(RETURN_SOUND_OWNER);
-	assert.ok(returnSoundHost.snapshot().fencingToken > frameToken);
-	assert.equal(returnSoundHost.snapshot().managedMediaReclamation.catalogRowsRetired, 2);
-	assert.equal(returnSoundHost.snapshot().managedMediaReclamation.reclaimedFiles, 2);
+	assert.ok(returnSoundHost.snapshot().lastWriter!.fencingToken > frameToken);
+	assert.equal(returnSoundHost.snapshot().lastWriter!.managedMediaReclamation.catalogRowsRetired, 2);
+	assert.equal(returnSoundHost.snapshot().lastWriter!.managedMediaReclamation.reclaimedFiles, 2);
 	const returnSoundService = resources.trackService(new DesktopSharedProjectLibraryService(returnSoundHost, {
 		now: () => 50_000,
 		createEntryId: () => { throw new Error('return must preserve the shared entry'); },
@@ -281,7 +281,7 @@ function serviceBridge(service: DesktopSharedProjectLibraryService): BridgeProbe
 		listSharedProjects: async () => service.listSharedProjects(),
 		readSharedProject: (projectId: string) => service.readSharedProject(projectId),
 		readSharedProjectBundle: (projectId: string) => service.readSharedProjectBundle(projectId),
-		commitSharedProject: (document: string) => service.commitSharedProject(document),
+		commitSharedProject: (request) => service.commitSharedProject(request),
 		deleteSharedProject: (projectId: string) => service.deleteSharedProject(projectId),
 		beginSharedSourceWrite: (declaration) => {
 			uploadCalls.push('begin');

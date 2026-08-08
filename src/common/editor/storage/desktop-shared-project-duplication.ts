@@ -2,15 +2,18 @@
 
 import { ProjectDuplicationIndeterminateError } from './project-duplication.ts';
 import type { ProjectDocument, ProjectRepositoryPort } from './project-repository.ts';
+import {
+	committedDocument,
+	type DesktopSharedProjectCommitBridge,
+} from './desktop-shared-project-commit.ts';
 
 interface ExactProjectShadow extends ProjectRepositoryPort {
 	createIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
 	deleteIfCurrent?(project: ProjectDocument): Promise<boolean>;
 }
 
-interface DesktopProjectDuplicationBridge {
+interface DesktopProjectDuplicationBridge extends DesktopSharedProjectCommitBridge {
 	readSharedProject(projectId: string): Promise<string | null>;
-	commitSharedProject(canonicalDocument: string): Promise<string>;
 }
 
 interface DesktopSharedProjectDuplicationOptions {
@@ -63,7 +66,10 @@ export class DesktopSharedProjectDuplication {
 		}
 		let primary: unknown;
 		try {
-			const acknowledgement = await this.#bridge.commitSharedProject(document);
+			const acknowledgement = committedDocument(await this.#bridge.commitSharedProject({
+				document,
+				expectedRevision: null,
+			}));
 			this.#parseDocument(acknowledgement, 'duplication acknowledgement');
 			if (acknowledgement !== document) {
 				throw new Error('Desktop shared project duplication acknowledgement does not match the local snapshot.');

@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { dirname, extname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
 import {
 	app,
 	BrowserWindow,
@@ -14,7 +13,6 @@ import {
 	session,
 	shell,
 } from 'electron/main';
-
 import {
 	APP_ID,
 	APP_NAME,
@@ -27,10 +25,7 @@ import {
 	SUPPORTED_LOCALES,
 	UPDATE_TAG_PREFIX,
 } from './constants.js';
-import {
-	DesktopApplicationShutdown,
-	resolveDesktopProjectLibraryAppData,
-} from './project-library-runtime/desktop/application-lifecycle.js';
+import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
@@ -42,12 +37,14 @@ import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { registerDesktopProjectLibraryIpc } from './project-library-ipc.js';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
+import { attachDesktopMainWindowRecovery } from './project-library-runtime/desktop/main-window-recovery.js';
 import { DesktopSharedProjectLibraryService } from './project-library-runtime/desktop/project-library-editor-service.js';
 import { desktopSharedManagedSourceBindingKey } from './project-library-runtime/desktop/project-library-editor-media-service.js';
 import { DesktopProjectLibraryHost } from './project-library-runtime/desktop/project-library-host.js';
 import { createDesktopLibraryMediaBinding } from './project-library-runtime/desktop/project-library-media-binding.js';
 import { createDesktopProjectLibrarySmokeEvidence } from './project-library-smoke-evidence.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
+import { DesktopRendererOwnershipCleanup } from './renderer-ownership-cleanup.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
 import { DesktopSettingsStore } from './settings.js';
 import { ReleaseChecker } from './update-check.js';
@@ -78,6 +75,15 @@ let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
+
+const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
+	linkedVideoLocators: () => linkedVideoLocators,
+	ownership: rendererSaveOwnership,
+	projectLibraryIpc: () => projectLibraryIpc,
+	readCapabilities,
+	reportError: (error) => console.error('Desktop renderer ownership cleanup failed:', cleanError(error)),
+	saves,
+});
 
 const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery({
 	isReady: () => rendererReady && mainWindow && !mainWindow.isDestroyed(),
@@ -111,6 +117,7 @@ const desktopSmokeProbe = createDesktopSmokeProbe({
 	productId: PRODUCT_ID,
 	exit: exitApplication,
 	projectLibraryEvidence: projectLibrarySmokeEvidence,
+	projectLibrarySnapshot: () => projectLibraryHost?.snapshot(),
 });
 
 app.setName(APP_NAME);
@@ -159,6 +166,7 @@ async function startApplication() {
 			applicationDataPath: app.getPath('appData'),
 			argv: process.argv,
 		}),
+		...desktopSmokeProbe.projectLibraryHostOptions(),
 		owner: { product: PRODUCT_ID, processId: process.pid, instanceId: randomUUID() },
 		onLeaseLost: (error) => {
 			console.error('Shared desktop project library lease was lost:', cleanError(error));
@@ -229,7 +237,15 @@ async function createWindow() {
 	lockNavigation(mainWindow);
 	desktopSmokeProbe.attach(mainWindow);
 	const webContents = mainWindow.webContents;
-	webContents.on('render-process-gone', () => revokeRendererSaveOwner(webContents));
+	attachDesktopMainWindowRecovery({
+		cleanup: async () => { rendererReady = false; await rendererOwnershipCleanup.drain(webContents); },
+		editorUrl: `${APP_ORIGIN}/`,
+		exit: exitApplication,
+		isIntentional: () => applicationIsQuitting || allowNextClose || !mainWindow || mainWindow.isDestroyed(),
+		reportError: (error) => console.error('Desktop renderer recovery failed:', cleanError(error)),
+		webContents,
+		windowFor: () => mainWindow,
+	});
 	webContents.on('did-start-navigation', (details) => {
 		if (details.isMainFrame && !details.isSameDocument) revokeRendererSaveOwner(webContents);
 	});
@@ -261,25 +277,12 @@ async function createWindow() {
 function activateRendererSaveOwner(webContents, processId, frameId) {
 	if (!mainWindow || mainWindow.webContents !== webContents) return;
 	const { revokedOwner } = rendererSaveOwnership.activate({ webContents, processId, frameId });
-	if (revokedOwner) startRendererSaveRevocation(revokedOwner);
+	if (revokedOwner) rendererOwnershipCleanup.start(revokedOwner);
 }
 
 function revokeRendererSaveOwner(webContents) {
-	const owner = rendererSaveOwnership.revoke(webContents);
-	if (!owner) return;
 	rendererReady = false;
-	startRendererSaveRevocation(owner);
-}
-
-function startRendererSaveRevocation(owner) {
-	linkedVideoLocators?.revokeOwner(owner);
-	void projectLibraryIpc?.revokeOwner(owner).catch((error) => console.error('Desktop renderer project-library cleanup failed:', cleanError(error)));
-	void readCapabilities.revokeOwner(owner).catch((error) => {
-		console.error('Desktop renderer read cleanup failed:', cleanError(error));
-	});
-	void saves.revokeOwner(owner).catch((error) => {
-		console.error('Desktop renderer save cleanup failed:', cleanError(error));
-	});
+	rendererOwnershipCleanup.revoke(webContents);
 }
 
 function rendererSaveOwnerFor(event) {

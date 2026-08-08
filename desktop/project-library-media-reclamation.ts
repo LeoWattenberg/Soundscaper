@@ -73,6 +73,7 @@ export interface DesktopLibraryManagedMediaReclaimerOptions {
 	) => void | Promise<void>;
 	readonly maximumEntries?: number;
 	readonly now?: () => number;
+	readonly preserveCurrentLeaseReservations?: boolean;
 }
 
 export interface DesktopLibraryManagedMediaReclaimOptions {
@@ -96,7 +97,7 @@ interface ReclamationBatchResult extends Omit<DesktopLibraryManagedMediaReclamat
 	readonly mediaCycleRestarted: boolean;
 }
 
-/** Startup-only main-process maintenance. Invoke after metadata-journal recovery and before host exposure. */
+/** Main-process maintenance invoked only after metadata-journal recovery. */
 export class DesktopLibraryManagedMediaReclaimer {
 	readonly #catalog: DesktopLibraryManagedMediaCatalogPort;
 	readonly #checkpoint: (
@@ -105,11 +106,13 @@ export class DesktopLibraryManagedMediaReclaimer {
 	readonly #maximumEntries: number;
 	readonly #now: () => number;
 	readonly #paths: DesktopProjectLibraryPaths;
+	readonly #preserveCurrentLeaseReservations: boolean;
 
 	constructor(paths: DesktopProjectLibraryPaths, options: DesktopLibraryManagedMediaReclaimerOptions) {
 		this.#paths = validateDesktopProjectLibraryPaths(paths);
 		this.#maximumEntries = maximumEntries(options.maximumEntries);
 		this.#now = options.now ?? Date.now;
+		this.#preserveCurrentLeaseReservations = options.preserveCurrentLeaseReservations ?? true;
 		this.#checkpoint = options.checkpoint ?? (() => {});
 		if (!options.catalog || typeof options.catalog.readMetadata !== 'function'
 			|| typeof options.catalog.publishMetadata !== 'function') {
@@ -263,7 +266,7 @@ export class DesktopLibraryManagedMediaReclaimer {
 		let reclaimedStageFiles = 0;
 		for (const candidate of batch.rows) {
 			throwIfAborted(signal);
-			if (belongsToLease(candidate, lease)) {
+			if (this.#preserveCurrentLeaseReservations && belongsToLease(candidate, lease)) {
 				liveStageFiles += 1;
 				continue;
 			}
@@ -319,7 +322,7 @@ export class DesktopLibraryManagedMediaReclaimer {
 			if (protectedDescriptor && !sameDescriptor(candidate, protectedDescriptor)) throw descriptorConflict();
 			const protectedFile = protectedDescriptor !== undefined;
 			if (protectedFile) protectedFiles += 1;
-			if (belongsToLease(candidate, lease)
+			if (this.#preserveCurrentLeaseReservations && belongsToLease(candidate, lease)
 				|| hasDesktopLibraryManagedMediaStageInventoryRows(database, candidate.inventoryId)) continue;
 			const directoryKind = directParentDirectoryKind(
 				this.#paths.managedMediaRoot,

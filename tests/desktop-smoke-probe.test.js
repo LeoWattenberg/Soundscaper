@@ -145,10 +145,10 @@ test('renderer handoff verifies previous digest, commits target, rereads, and fi
 			calls.push(`read:${projectId}`);
 			return current;
 		},
-		commitSharedProject: async (document) => {
-			calls.push(`commit:${document}`);
-			current = document;
-			return document;
+		commitSharedProject: async (request) => {
+			calls.push(`commit:${request.document}:${String(request.expectedRevision)}`);
+			current = request.document;
+			return { status: 'committed', document: request.document };
 		},
 		listSharedProjects: async () => {
 			calls.push('list');
@@ -163,7 +163,7 @@ test('renderer handoff verifies previous digest, commits target, rereads, and fi
 
 	assert.deepEqual(calls, [
 		`read:${PROJECT_ID}`,
-		`commit:${targetDocument}`,
+		`commit:${targetDocument}:1`,
 		`read:${PROJECT_ID}`,
 		'list',
 	]);
@@ -494,10 +494,16 @@ function probeFixture({
 			evidenceCalls.push(projectId);
 			return {
 				host: {
+					closed: false,
 					owner: { product: productId, processId: 42, instanceId: 'private-instance' },
-					fencingToken: 2,
-					tookOverStaleLease: false,
-					recovery: { outcome: 'clean' },
+					activeWriter: null,
+					lastWriter: {
+						fencingToken: 2,
+						tookOverStaleLease: false,
+						recovery: { outcome: 'clean' },
+						reclamation: { complete: true },
+						managedMediaReclamation: { complete: true },
+					},
 				},
 				catalogRevision: 7,
 				target: {

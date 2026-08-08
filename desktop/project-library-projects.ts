@@ -55,6 +55,17 @@ export interface DesktopLibraryCommitProjectOptions {
 
 export interface DesktopLibraryCommitProjectByIdOptions extends Omit<DesktopLibraryCommitProjectOptions, 'entryId'> {
 	readonly createEntryId: () => string;
+	readonly expectedRevision?: number | null;
+}
+
+export class DesktopLibraryProjectConflictError extends Error {
+	readonly currentRevision: number;
+
+	constructor(currentRevision: number) {
+		super('Desktop shared project changed since its authoritative base revision');
+		this.name = 'DesktopLibraryProjectConflictError';
+		this.currentRevision = currentRevision;
+	}
 }
 
 export interface DesktopLibraryDeleteProjectByIdOptions {
@@ -154,6 +165,9 @@ export class DesktopLibraryProjectStore {
 		const prepared = this.#prepareDocument(options.project);
 		const current = this.#library.readMetadata();
 		const existing = projectByIdentity(current, prepared.project.id);
+		if (options.expectedRevision !== undefined) {
+			assertExpectedBase(existing, prepared, options.expectedRevision);
+		}
 		const entryId = existing?.id ?? options.createEntryId();
 		return this.#commitPrepared({ ...options, entryId }, prepared, current);
 	}
@@ -328,6 +342,28 @@ export class DesktopLibraryProjectStore {
 		if (availableBytes < BigInt(byteLength)) {
 			throw new RangeError('Available disk space is below the staged project document size');
 		}
+	}
+}
+
+function assertExpectedBase(
+	existing: DesktopLibraryProject | undefined,
+	prepared: PreparedProjectDocument,
+	expectedRevision: number | null,
+): void {
+	if (expectedRevision !== null
+		&& (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)) {
+		throw new RangeError('Desktop shared project expected revision must be null or a non-negative safe integer');
+	}
+	if (existing
+		&& prepared.project.revision === existing.projectRevision
+		&& prepared.sha256 === existing.sha256) return;
+	if (!existing) {
+		if (expectedRevision === null) return;
+		throw new DesktopLibraryProjectConflictError(0);
+	}
+	if (expectedRevision !== existing.projectRevision
+		|| prepared.project.revision <= existing.projectRevision) {
+		throw new DesktopLibraryProjectConflictError(existing.projectRevision);
 	}
 }
 

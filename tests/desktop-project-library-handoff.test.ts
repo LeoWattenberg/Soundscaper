@@ -24,79 +24,33 @@ const FRAMESCAPER_OWNER = Object.freeze({
 	processId: 202,
 	instanceId: 'handoff-framescaper-b',
 });
-const SOUNDSCAPER_RETURN_OWNER = Object.freeze({
-	product: 'soundscaper' as const,
-	processId: 303,
-	instanceId: 'handoff-soundscaper-c',
-});
 const ENTRY_ID = 'handoff-entry-1';
 
-test('desktop hosts hand a current project across products through orderly lease transfer', async (context) => {
+test('desktop hosts open concurrently as observers and serialize cross-product writers', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-handoff-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
 	const soundscaper = await startHost(appDataPath, SOUNDSCAPER_OWNER);
 	context.after(() => soundscaper.close());
-	assert.equal(soundscaper.snapshot().fencingToken, 1);
+	assert.equal(soundscaper.snapshot().closed, false);
+	assert.equal(soundscaper.snapshot().activeWriter, null);
+	assert.equal(soundscaper.snapshot().lastWriter?.fencingToken, 1);
 	const first = await soundscaper.commitProject(commitOptions(1, 'soundscaper', 10_001));
-	await assert.rejects(
-		() => startHost(appDataPath, FRAMESCAPER_OWNER),
-		/leased by soundscaper/u,
-	);
-
-	await soundscaper.close();
-	await assert.rejects(() => soundscaper.readProject(ENTRY_ID), /host is closed/u);
-	await assert.rejects(
-		() => soundscaper.commitProject(commitOptions(2, 'soundscaper', 10_002)),
-		/host is closed/u,
-	);
-
 	const framescaper = await startHost(appDataPath, FRAMESCAPER_OWNER);
 	context.after(() => framescaper.close());
-	assert.deepEqual(framescaper.snapshot(), {
-		closed: false,
-		owner: FRAMESCAPER_OWNER,
-		fencingToken: 2,
-		tookOverStaleLease: false,
-		recovery: {
-			outcome: 'clean',
-			previousRevision: null,
-			publishedRevision: null,
-			restoredPrevious: false,
-		},
-		reclamation: {
-			canonicalFiles: 1,
-			complete: true,
-			liveStageFiles: 0,
-			protectedFiles: 1,
-			reclaimedFiles: 0,
-			reclaimedStageFiles: 0,
-			scannedEntries: 1,
-			stageFiles: 0,
-		},
-		managedMediaReclamation: {
-			canonicalFiles: 0,
-			catalogRowsRetired: 0,
-			complete: true,
-			liveStageFiles: 0,
-			protectedFiles: 0,
-			reclaimedFiles: 0,
-			reclaimedStageFiles: 0,
-			scannedEntries: 0,
-			stageFiles: 0,
-		},
-	});
+	assert.equal(framescaper.snapshot().closed, false);
+	assert.equal(framescaper.snapshot().activeWriter, null);
 	assert.deepEqual(await framescaper.readProject(ENTRY_ID), first);
 	const second = await framescaper.commitProject(commitOptions(2, 'framescaper', 10_002));
+	assert.ok((framescaper.snapshot().lastWriter?.fencingToken ?? 0)
+		> (soundscaper.snapshot().lastWriter?.fencingToken ?? 0));
 	assert.equal(framescaper.readCatalog().revision, 2);
 	assert.equal(second.catalog.preferredProduct, 'framescaper');
-	await framescaper.close();
 
-	const returned = await startHost(appDataPath, SOUNDSCAPER_RETURN_OWNER);
-	context.after(() => returned.close());
-	assert.equal(returned.snapshot().fencingToken, 3);
-	assert.equal(returned.snapshot().tookOverStaleLease, false);
-	assert.deepEqual(await returned.readProject(ENTRY_ID), second);
-	await returned.close();
+	assert.deepEqual(await soundscaper.readProject(ENTRY_ID), second);
+	const third = await soundscaper.commitProject(commitOptions(3, 'soundscaper', 10_003));
+	assert.ok((soundscaper.snapshot().lastWriter?.fencingToken ?? 0)
+		> (framescaper.snapshot().lastWriter?.fencingToken ?? 0));
+	assert.deepEqual(await framescaper.readProject(ENTRY_ID), third);
 });
 
 test('desktop host close fences late work and drains an admitted project commit', async (context) => {
@@ -159,7 +113,7 @@ test('desktop host serializes concurrent project commits under one lease', async
 
 function startHost(
 	appDataPath: string,
-	owner: typeof SOUNDSCAPER_OWNER | typeof FRAMESCAPER_OWNER | typeof SOUNDSCAPER_RETURN_OWNER,
+	owner: typeof SOUNDSCAPER_OWNER | typeof FRAMESCAPER_OWNER,
 ) {
 	return DesktopProjectLibraryHost.start({
 		appDataPath,

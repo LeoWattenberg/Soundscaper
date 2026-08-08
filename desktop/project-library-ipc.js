@@ -10,6 +10,7 @@ import {
 	MAX_SHARED_SOURCE_READS,
 	MAX_SHARED_SOURCES,
 } from './constants.js';
+import { RendererProjectLibraryOperations } from './project-library-renderer-operations.js';
 
 const SUMMARY_KEYS = Object.freeze(['id', 'title', 'revision', 'updatedAt']);
 const BUNDLE_KEYS = Object.freeze(['document', 'sources']);
@@ -65,35 +66,35 @@ export function registerDesktopProjectLibraryIpc({
 	};
 	const invoke = (event, operation) => {
 		const owner = ownerFor(event);
-		return ownership.admit(owner, () => operation(owner));
+		return ownership.admit(owner, (signal) => operation(owner, signal));
 	};
 
 	handle(IPC.listSharedProjects, async (event) => invoke(event, async () => (
 		sharedProjectSummaries(await service.listSharedProjects(), projectLimit)
 	)));
-	handle(IPC.readSharedProject, async (event, projectId) => invoke(event, async () => (
+	handle(IPC.readSharedProject, async (event, projectId) => invoke(event, async (_owner, signal) => (
 		nullableProjectDocument(
-			await service.readSharedProject(sharedProjectId(projectId)),
+			await service.readSharedProject(sharedProjectId(projectId), signal),
 			documentLimit,
 		)
 	)));
-	handle(IPC.readSharedProjectBundle, async (event, projectId) => invoke(event, async () => (
+	handle(IPC.readSharedProjectBundle, async (event, projectId) => invoke(event, async (_owner, signal) => (
 		nullableProjectBundle(
-			await service.readSharedProjectBundle(sharedProjectId(projectId)),
+			await service.readSharedProjectBundle(sharedProjectId(projectId), signal),
 			documentLimit,
 		)
 	)));
-	handle(IPC.commitSharedProject, async (event, document) => invoke(event, async () => (
-		projectDocument(
-			await service.commitSharedProject(projectDocument(document, documentLimit)),
+	handle(IPC.commitSharedProject, async (event, value) => invoke(event, async (_owner, signal) => (
+		projectCommitResult(
+			await service.commitSharedProject(projectCommitRequest(value, documentLimit), signal),
 			documentLimit,
 		)
 	)));
-	handle(IPC.deleteSharedProject, async (event, projectId) => invoke(event, async () => (
-		strictBoolean(await service.deleteSharedProject(sharedProjectId(projectId)))
+	handle(IPC.deleteSharedProject, async (event, projectId) => invoke(event, async (_owner, signal) => (
+		strictBoolean(await service.deleteSharedProject(sharedProjectId(projectId), signal))
 	)));
-	handle(IPC.beginSharedSourceWrite, async (event, value) => invoke(event, async (owner) => {
-		const admission = sourceWriteAdmission(await service.beginSharedSourceWrite(sourceWriteDeclaration(value)));
+	handle(IPC.beginSharedSourceWrite, async (event, value) => invoke(event, async (owner, signal) => {
+		const admission = sourceWriteAdmission(await service.beginSharedSourceWrite(sourceWriteDeclaration(value), signal));
 		if (admission.status === 'ready') {
 			try {
 				ownership.assertActive(owner);
@@ -116,7 +117,7 @@ export function registerDesktopProjectLibraryIpc({
 		try {
 			return managedSourceDescriptor(await service.finishSharedSourceWrite(completion));
 		} finally {
-			sourceWrites.release(completion.writeId, owner);
+			sourceWrites.releaseIfOwned(completion.writeId, owner);
 		}
 	}));
 	handle(IPC.abortSharedSourceWrite, async (event, writeId) => invoke(event, async (owner) => {
@@ -125,72 +126,35 @@ export function registerDesktopProjectLibraryIpc({
 		try {
 			return strictBoolean(await service.abortSharedSourceWrite(id));
 		} finally {
-			sourceWrites.release(id, owner);
+			sourceWrites.releaseIfOwned(id, owner);
 		}
 	}));
-	handle(IPC.readSharedSourceChunk, async (event, value) => invoke(event, async () => readSource(async () => {
+	handle(IPC.readSharedSourceChunk, async (event, value) => invoke(event, async (_owner, signal) => readSource(async () => {
 		const request = sourceChunkRead(value);
 		return sourceChunkResult(await service.readSharedSourceChunk(
 			request.bindingId,
-			{ offset: request.offset, length: request.length },
+			{ offset: request.offset, length: request.length, signal },
 		), request.length);
 	})));
 
 	return Object.freeze({
 		async dispose() {
-			await sourceWrites.dispose();
+			const drained = ownership.dispose();
+			const uploads = sourceWrites.dispose();
+			throwSettledFailures(await Promise.allSettled([drained, uploads]));
 		},
 		async revokeOwner(owner) {
 			const drained = ownership.revokeOwner(owner);
-			await sourceWrites.revokeOwner(owner);
-			await drained;
+			const uploads = sourceWrites.revokeOwner(owner);
+			throwSettledFailures(await Promise.allSettled([drained, uploads]));
 		},
 	});
 }
 
-class RendererProjectLibraryOperations {
-	#owners = new WeakMap();
-
-	admit(owner, operation) {
-		const state = this.#state(reference(owner));
-		if (state.revoked) return Promise.reject(new Error('Renderer project-library owner was revoked'));
-		let admitted;
-		try {
-			admitted = Promise.resolve(operation()).then((value) => {
-				if (state.revoked) throw new Error('Renderer project-library owner was revoked');
-				return value;
-			});
-		} catch (error) {
-			return Promise.reject(error);
-		}
-		state.operations.add(admitted);
-		void admitted.then(
-			() => { state.operations.delete(admitted); },
-			() => { state.operations.delete(admitted); },
-		);
-		return admitted;
-	}
-
-	assertActive(owner) {
-		const state = this.#state(reference(owner));
-		if (state.revoked) throw new Error('Renderer project-library owner was revoked');
-	}
-
-	revokeOwner(owner) {
-		const state = this.#owners.get(reference(owner));
-		if (!state) return Promise.resolve();
-		state.revoked = true;
-		return Promise.allSettled([...state.operations]).then(() => undefined);
-	}
-
-	#state(owner) {
-		let state = this.#owners.get(owner);
-		if (!state) {
-			state = { operations: new Set(), revoked: false };
-			this.#owners.set(owner, state);
-		}
-		return state;
-	}
+function throwSettledFailures(results) {
+	const failures = results.filter(({ status }) => status === 'rejected').map(({ reason }) => reason);
+	if (failures.length === 1) throw failures[0];
+	if (failures.length > 1) throw new AggregateError(failures, 'Desktop project-library cleanup failed');
 }
 
 class RendererSharedSourceWrites {
@@ -212,9 +176,8 @@ class RendererSharedSourceWrites {
 		}
 	}
 
-	release(writeId, owner) {
-		this.assertOwner(writeId, owner);
-		this.#sessions.delete(writeId);
+	releaseIfOwned(writeId, owner) {
+		if (this.#sessions.get(writeId) === reference(owner)) this.#sessions.delete(writeId);
 	}
 
 	async revokeOwner(owner) {
@@ -304,6 +267,32 @@ function projectDocument(value, maximumBytes) {
 
 function nullableProjectDocument(value, maximumBytes) {
 	return value === null ? null : projectDocument(value, maximumBytes);
+}
+
+function projectCommitRequest(value, maximumBytes) {
+	const record = exactRecord(value, ['document', 'expectedRevision'], 'Desktop shared-project commit request');
+	return Object.freeze({
+		document: projectDocument(record.document, maximumBytes),
+		expectedRevision: record.expectedRevision === null
+			? null
+			: nonNegativeSafeInteger(record.expectedRevision, 'expected revision'),
+	});
+}
+
+function projectCommitResult(value, maximumBytes) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Desktop shared-project commit result must be an object');
+	}
+	if (value.status === 'committed') {
+		exactRecord(value, ['status', 'document'], 'Desktop shared-project committed result');
+		return Object.freeze({ status: 'committed', document: projectDocument(value.document, maximumBytes) });
+	}
+	exactRecord(value, ['status', 'currentRevision'], 'Desktop shared-project conflict result');
+	if (value.status !== 'conflict') throw new TypeError('Desktop shared-project commit result has an invalid status');
+	return Object.freeze({
+		status: 'conflict',
+		currentRevision: nonNegativeSafeInteger(value.currentRevision, 'conflict current revision'),
+	});
 }
 
 function nullableProjectBundle(value, maximumDocumentBytes) {

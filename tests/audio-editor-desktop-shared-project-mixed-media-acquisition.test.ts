@@ -68,7 +68,7 @@ test('desktop project-store load wires mixed acquisition into its exact local sh
 	const bridge: DesktopSharedProjectBridge = {
 		listSharedProjects: async () => [],
 		readSharedProject: async () => null,
-		commitSharedProject: async (document) => document,
+		commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 		deleteSharedProject: async () => true,
 		readSharedProjectBundle: async () => ({
 			document: serializeScapeProjectDocument(fixture.project),

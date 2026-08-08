@@ -207,11 +207,11 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 	}, 'managed handoff must not consolidate PCM into the sender store');
 	await resources.disposeController(soundscaper);
 	await resources.closeStore(soundStore);
-	const soundToken = soundHost.snapshot().fencingToken;
+	const soundToken = soundHost.snapshot().lastWriter!.fencingToken;
 	await resources.closeHost(soundHost);
 
 	const frameHost = await resources.startHost(FRAME_OWNER);
-	assert.ok(frameHost.snapshot().fencingToken > soundToken);
+	assert.ok(frameHost.snapshot().lastWriter!.fencingToken > soundToken);
 	const frameService = new DesktopSharedProjectLibraryService(frameHost, {
 		now: () => 40_000,
 		createEntryId: () => { throw new Error('handoff must preserve its shared entry'); },
@@ -318,7 +318,7 @@ function serviceBridge(service: DesktopSharedProjectLibraryService): DesktopShar
 		listSharedProjects: async () => service.listSharedProjects(),
 		readSharedProject: (projectId: string) => service.readSharedProject(projectId),
 		readSharedProjectBundle: (projectId: string) => service.readSharedProjectBundle(projectId),
-		commitSharedProject: (document: string) => service.commitSharedProject(document),
+		commitSharedProject: (request) => service.commitSharedProject(request),
 		deleteSharedProject: (projectId: string) => service.deleteSharedProject(projectId),
 		beginSharedSourceWrite: (declaration) => service.beginSharedSourceWrite(declaration),
 		writeSharedSourceChunk: (value) => service.writeSharedSourceChunk(value),

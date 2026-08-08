@@ -114,7 +114,7 @@ const api = Object.freeze({
 	listSharedProjects: () => ipcRenderer.invoke(CHANNELS.listSharedProjects).then(sharedProjectSummaries),
 	readSharedProject: (projectId) => ipcRenderer.invoke(CHANNELS.readSharedProject, sharedProjectId(projectId)).then(nullableProjectDocument),
 	readSharedProjectBundle: (projectId) => ipcRenderer.invoke(CHANNELS.readSharedProjectBundle, sharedProjectId(projectId)).then(nullableProjectBundle),
-	commitSharedProject: (document) => ipcRenderer.invoke(CHANNELS.commitSharedProject, projectDocument(document)).then(projectDocument),
+	commitSharedProject: (request) => ipcRenderer.invoke(CHANNELS.commitSharedProject, sharedProjectCommitRequest(request)).then(sharedProjectCommitResult),
 	deleteSharedProject: (projectId) => ipcRenderer.invoke(CHANNELS.deleteSharedProject, sharedProjectId(projectId)).then(strictBoolean),
 	beginSharedSourceWrite: (declaration) => ipcRenderer.invoke(CHANNELS.beginSharedSourceWrite, sharedSourceWriteDeclaration(declaration)).then(sharedSourceWriteAdmission),
 	writeSharedSourceChunk: (value) => ipcRenderer.invoke(CHANNELS.writeSharedSourceChunk, sharedSourceChunkWrite(value)).then(sharedSourceChunkAcknowledgement),
@@ -399,11 +399,15 @@ function projectDocument(value, maximumBytes = MAX_SHARED_PROJECT_DOCUMENT_BYTES
 	}
 	return value;
 }
-function nullableProjectDocument(value) {
-	return value === null ? null : projectDocument(value);
-}
-function nullableProjectBundle(value) {
-	if (value === null) return null;
+function nullableProjectDocument(value) { return value === null ? null : projectDocument(value); }
+function sharedProjectCommitRequest(value) { const keys = value && typeof value === 'object' && !Array.isArray(value) ? Reflect.ownKeys(value) : []; if (keys.length !== 2 || !keys.includes('document') || !keys.includes('expectedRevision')) throw new TypeError('Desktop shared-project commit request has unsupported fields'); const request = value;
+	if (request.expectedRevision !== null && (!Number.isSafeInteger(request.expectedRevision) || request.expectedRevision < 0)) throw new RangeError('Desktop shared-project expected revision is invalid');
+	return Object.freeze({ document: projectDocument(request.document), expectedRevision: request.expectedRevision }); }
+function sharedProjectCommitResult(value) { const fields = value?.status === 'committed' ? ['status', 'document'] : ['status', 'currentRevision']; const keys = value && typeof value === 'object' && !Array.isArray(value) ? Reflect.ownKeys(value) : []; if (keys.length !== 2 || keys.some((key) => !fields.includes(key))) throw new TypeError('Desktop shared-project commit result is invalid'); const result = value;
+	if (result.status === 'committed') return Object.freeze({ status: 'committed', document: projectDocument(result.document) });
+	if (result.status !== 'conflict' || !Number.isSafeInteger(result.currentRevision) || result.currentRevision < 0) throw new TypeError('Desktop shared-project commit result is invalid');
+	return Object.freeze({ status: 'conflict', currentRevision: result.currentRevision }); }
+function nullableProjectBundle(value) { if (value === null) return null;
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| !Array.isArray(value.sources) || value.sources.length > MAX_SHARED_SOURCES) {
 		throw new TypeError('Desktop shared-project bundle is invalid');

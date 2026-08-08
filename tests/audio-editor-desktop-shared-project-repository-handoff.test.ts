@@ -166,7 +166,7 @@ function managedBridge(
 	return {
 		listSharedProjects: async () => [],
 		readSharedProject: async () => null,
-		commitSharedProject: async (document) => document,
+		commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 		deleteSharedProject: async () => true,
 		readSharedProjectBundle: async () => ({
 			document: serializeScapeProjectDocument(project),

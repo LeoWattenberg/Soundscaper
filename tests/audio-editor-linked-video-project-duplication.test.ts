@@ -477,13 +477,15 @@ function desktopBridgeFailingCopyCommit(
 				}
 				return documents.get(projectId) ?? null;
 			},
-			commitSharedProject: async (document) => {
+			commitSharedProject: async ({ document }) => {
 				const project = parse(document);
 				if (project.id === COPY_PROJECT_ID) {
 					copyCommitAttempted = true;
 					if (options.mismatchedAcknowledgement) {
 						documents.set(project.id, document);
-						return serializeScapeProjectDocument({ ...project, title: 'Mismatched acknowledgement' });
+						return { status: 'committed', document: serializeScapeProjectDocument({
+							...project, title: 'Mismatched acknowledgement',
+						}) };
 					}
 					if (options.supersedeBeforeFailure) {
 						documents.set(project.id, serializeScapeProjectDocument({
@@ -497,7 +499,7 @@ function desktopBridgeFailingCopyCommit(
 					throw failure;
 				}
 				documents.set(project.id, document);
-				return document;
+				return { status: 'committed', document };
 			},
 			deleteSharedProject: async (projectId) => documents.delete(projectId),
 		},
@@ -564,7 +566,6 @@ function linkedProject(id: string, title: string, revision = 3): AudioEditorProj
 		projectBin: { clips: [clip] },
 	});
 }
-
 function linkedSource(): LinkedVideoOriginalSource {
 	return createVideoSourceV9({
 		id: SOURCE_ID,

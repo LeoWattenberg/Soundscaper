@@ -340,14 +340,15 @@ test('linked-video IPC accepts only a complete bounded exact startup inventory',
 });
 
 test('desktop main wires linked-video grants into renderer revocation and shutdown', async () => {
-	const [source, runtimeSource] = await Promise.all([
+	const [source, runtimeSource, cleanupSource] = await Promise.all([
 		readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8'),
 		readFile(new URL('../desktop/linked-video-locator-runtime.js', import.meta.url), 'utf8'),
+		readFile(new URL('../desktop/renderer-ownership-cleanup.js', import.meta.url), 'utf8'),
 	]);
 	assert.match(source, /createDesktopLinkedVideoLocatorRuntime\(\{ readCapabilities, registryPath: resolve\(app\.getPath\('userData'\)/u);
 	assert.match(source, /await linkedVideoLocators\.ready\(\)/u);
 	assert.match(source, /linkedVideoLocators\.registerIpc\(/u);
-	assert.match(source, /linkedVideoLocators\?\.revokeOwner\(owner\)/u);
+	assert.match(cleanupSource, /this\.#linkedVideoLocators\(\)\?\.revokeOwner\(owner\)/u);
 	assert.match(source, /linkedVideoLocators\?\.dispose\(\)/u);
 	assert.match(runtimeSource, /releaseRead: \(id, owner\) => readCapabilities\.release\(id, \{ owner \}\)/u);
 });

@@ -32,9 +32,9 @@ test('a slow latest load cannot overwrite a concurrent shared save', async () =>
 				await releaseRead.promise;
 				return serializeScapeProjectDocument(loaded);
 			},
-			async commitSharedProject(document) {
+			async commitSharedProject({ document }) {
 				commits += 1;
-				return document;
+				return { status: 'committed' as const, document };
 			},
 			deleteSharedProject: async () => true,
 		},
@@ -72,7 +72,7 @@ test('a slow latest load cannot resurrect a concurrently deleted shared project'
 				await releaseRead.promise;
 				return serializeScapeProjectDocument(loaded);
 			},
-			commitSharedProject: async (document) => document,
+			commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 			async deleteSharedProject() {
 				remoteDeletes += 1;
 				return true;
@@ -107,7 +107,10 @@ test('shared save maintenance runs after acknowledgement and before the next lat
 		bridge: {
 			listSharedProjects: async () => [],
 			readSharedProject: async () => { events.push('read'); return document; },
-			commitSharedProject: async (value) => { events.push('commit'); return value; },
+			commitSharedProject: async ({ document }) => {
+				events.push('commit');
+				return { status: 'committed', document };
+			},
 			deleteSharedProject: async () => true,
 		},
 	});

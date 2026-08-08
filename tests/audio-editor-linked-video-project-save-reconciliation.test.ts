@@ -120,9 +120,9 @@ test('Desktop remote rejection leaves shadow-adjacent bindings and locators unto
 	const bridge: DesktopSharedProjectBridge = {
 		listSharedProjects: async () => [],
 		readSharedProject: async () => null,
-		commitSharedProject: async (document) => {
+		commitSharedProject: async ({ document }) => {
 			if (rejectCommit) throw failure;
-			return document;
+			return { status: 'committed', document };
 		},
 		deleteSharedProject: async () => true,
 	};

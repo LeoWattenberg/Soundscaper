@@ -80,11 +80,11 @@ test('desktop shared saves publish the local compacted snapshot before canonical
 		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
-			commitSharedProject: async (document) => {
+			commitSharedProject: async ({ document }) => {
 				assert.equal(record(memory.sources.get(reachableSource.id)).pendingProjectUntil, undefined);
 				assert.equal(record(memory.mediaAssets.get(reachableSource.id)).pendingProjectUntil, undefined);
 				committedDocument = document;
-				return document;
+				return { status: 'committed', document };
 			},
 		}),
 	});
@@ -111,10 +111,10 @@ test('desktop shared save retains its local revision and retries an identical re
 		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
-			commitSharedProject: async (document) => {
+			commitSharedProject: async ({ document }) => {
 				attempts.push(document);
 				if (attempts.length === 1) throw new Error('remote unavailable');
-				return document;
+				return { status: 'committed', document };
 			},
 		}),
 	});
@@ -136,9 +136,9 @@ test('desktop shared save fully validates before touching either repository boun
 		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
-			commitSharedProject: async (document) => {
+			commitSharedProject: async ({ document }) => {
 				calls.push(`commit:${document}`);
-				return document;
+				return { status: 'committed', document };
 			},
 		}),
 	});
@@ -163,9 +163,9 @@ test('desktop shared save fully validates before touching either repository boun
 		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
-			commitSharedProject: async (document) => {
+			commitSharedProject: async ({ document }) => {
 				compactionCalls.push(`commit:${document}`);
-				return document;
+				return { status: 'committed', document };
 			},
 		}),
 	});
@@ -414,9 +414,9 @@ test('desktop shared transport is bounded and requires an exact commit acknowled
 		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
-			commitSharedProject: async (document) => {
+			commitSharedProject: async ({ document }) => {
 				commits += 1;
-				return document;
+				return { status: 'committed', document };
 			},
 		}),
 		maximumDocumentBytes: canonical.length - 1,
@@ -430,7 +430,10 @@ test('desktop shared transport is bounded and requires an exact commit acknowled
 		sourceAvailability: throwingSourceAvailability(),
 		onLocalCleanupError: () => {},
 		bridge: bridge({
-			commitSharedProject: async () => serializeScapeProjectDocument({ ...project, title: 'Changed' }),
+			commitSharedProject: async () => ({
+				status: 'committed',
+				document: serializeScapeProjectDocument({ ...project, title: 'Changed' }),
+			}),
 		}),
 	});
 	await assert.rejects(mismatchedAck.save(project), /acknowledgement/iu);
@@ -504,7 +507,7 @@ function bridge(overrides: Partial<DesktopSharedProjectBridge> = {}): DesktopSha
 	return {
 		listSharedProjects: async () => [],
 		readSharedProject: async () => null,
-		commitSharedProject: async (document) => document,
+		commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 		deleteSharedProject: async () => true,
 		...overrides,
 	};

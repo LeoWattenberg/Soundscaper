@@ -34,6 +34,12 @@ import {
 } from './desktop-shared-project-media-transfer.ts';
 import type { LinkedVideoOriginalResolver } from './linked-video-original-resolver.ts';
 import { DesktopSharedProjectDuplication } from './desktop-shared-project-duplication.ts';
+import { raceDesktopSharedAbort } from './desktop-shared-project-abort.ts';
+import {
+	committedDocument,
+	type DesktopSharedProjectCommitBridge,
+	DesktopSharedProjectRevisionWitness,
+} from './desktop-shared-project-commit.ts';
 
 type CurrentProjectDocument = AudioEditorProjectV9 & ProjectDocument & Readonly<{
 	id: string;
@@ -57,10 +63,9 @@ export interface DesktopSharedProjectSummary {
 }
 
 /** Pathless renderer capability; Electron implementation details remain in main/preload. */
-export interface DesktopSharedProjectBridge {
+export interface DesktopSharedProjectBridge extends DesktopSharedProjectCommitBridge {
 	listSharedProjects(): Promise<readonly DesktopSharedProjectSummary[]>;
 	readSharedProject(projectId: string): Promise<string | null>;
-	commitSharedProject(canonicalDocument: string): Promise<string>;
 	deleteSharedProject(projectId: string): Promise<boolean>;
 	readSharedProjectBundle?(projectId: string): Promise<Readonly<{
 		document: string;
@@ -94,6 +99,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 	readonly #maximumDocumentBytes: number;
 	readonly #latestMutations = new Map<string, Promise<void>>();
 	readonly #onLocalCleanupError: (error: DesktopSharedProjectLocalCleanupError) => void;
+	readonly #revisions = new DesktopSharedProjectRevisionWitness();
 	readonly #shadow: ProjectRepositoryPort;
 	readonly #sourceAvailability: DesktopSharedProjectSourceAvailability;
 	readonly #sourceTransfer: DesktopSharedSourceTransferStore | null;
@@ -133,13 +139,17 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 				throw new Error('Desktop shared project shadow changed the project identity or revision.');
 			}
 			const document = serializeBoundedProject(snapshot, this.#maximumDocumentBytes);
-			const acknowledgement = await this.#bridge.commitSharedProject(document);
+			const acknowledgement = committedDocument(await this.#bridge.commitSharedProject({
+				document,
+				expectedRevision: this.#revisions.expectedRevision(admitted.id),
+			}));
 			parseCanonicalProject(acknowledgement, this.#maximumDocumentBytes, 'commit acknowledgement');
-				if (acknowledgement !== document) {
-					throw new Error('Desktop shared project acknowledgement does not match the local snapshot.');
-				}
-				await postCommit?.();
-				return snapshot;
+			if (acknowledgement !== document) {
+				throw new Error('Desktop shared project acknowledgement does not match the local snapshot.');
+			}
+			this.#revisions.observe(snapshot);
+			await postCommit?.();
+			return snapshot;
 		});
 	}
 	maintainCurrentProject(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void> {
@@ -156,7 +166,11 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 		return this.#serializeLatestMutation(
 			admitted.id,
 			undefined,
-			() => this.#duplication.createIfAbsent(admitted),
+			async () => {
+				const created = await this.#duplication.createIfAbsent(admitted);
+				if (created) this.#revisions.observe(created);
+				return created;
+			},
 		);
 	}
 
@@ -165,7 +179,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 		assertProjectId(projectId);
 		return this.#serializeLatestMutation(projectId, options.signal, async () => {
 			throwIfAborted(options.signal);
-			const bundle = await raceAbort(
+			const bundle = await raceDesktopSharedAbort(
 				() => this.#readBundle(projectId),
 				options.signal,
 			);
@@ -223,6 +237,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			// Once the exact snapshot is durable, cancellation must not remove managed media it references.
 			acquisition?.commit();
 			throwIfAborted(options.signal);
+			this.#revisions.observe(snapshot);
 			return snapshot;
 		});
 	}
@@ -230,7 +245,11 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 	/** Read the authoritative document without resolving or admitting its media. */
 	loadProjectForDuplication(projectId: string): Promise<ProjectDocument | null> {
 		assertProjectId(projectId);
-		return this.#serializeLatestMutation(projectId, undefined, () => this.#duplication.loadProject(projectId));
+		return this.#serializeLatestMutation(projectId, undefined, async () => {
+			const project = await this.#duplication.loadProject(projectId);
+			if (project) this.#revisions.observe(project);
+			return project;
+		});
 	}
 
 	async prepareHandoff(project: ProjectDocument, signal?: AbortSignal) {
@@ -314,7 +333,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 		const queued = predecessor.catch(() => undefined).then(() => completion);
 		this.#latestMutations.set(projectId, queued);
 		try {
-			await raceAbort(() => predecessor.catch(() => undefined), signal);
+			await raceDesktopSharedAbort(() => predecessor.catch(() => undefined), signal);
 			throwIfAborted(signal);
 			return await operation();
 		} finally {
@@ -345,6 +364,7 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 		assertProjectId(projectId);
 		await this.#serializeLatestMutation(projectId, undefined, async () => {
 			await this.#bridge.deleteSharedProject(projectId);
+			this.#revisions.forget(projectId);
 			try {
 				await this.#shadow.delete(projectId);
 			} catch (cause) {
@@ -569,30 +589,6 @@ function managedTransferBridge(value: DesktopSharedProjectBridge): DesktopShared
 		}
 	}
 	return value as DesktopSharedSourceTransferBridge;
-}
-
-function raceAbort<Value>(read: () => Promise<Value>, signal?: AbortSignal): Promise<Value> {
-	if (!signal) return Promise.resolve().then(read);
-	if (signal.aborted) return Promise.reject(signal.reason);
-	return new Promise<Value>((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(signal.reason));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		void Promise.resolve().then(read).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
-	});
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

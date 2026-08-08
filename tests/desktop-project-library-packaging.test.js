@@ -26,6 +26,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/linked-original-locator-validation.js',
 		'desktop/linked-video-locator-registry.js',
 		'desktop/linked-video-locator-store.js',
+		'desktop/main-window-recovery.js',
 		'desktop/project-library-abort.js',
 		'desktop/project-library-api.js',
 		'desktop/project-library-contract.js',
@@ -49,6 +50,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-reclamation.js',
 		'desktop/project-library-sequential-upload.js',
 		'desktop/project-library-stage-inventory.js',
+		'desktop/project-library-writer-coordinator.js',
 		'desktop/project-library.js',
 		'src/common/editor/adm-project-metadata.js',
 		'src/common/editor/broadcast-wave.js',
@@ -115,9 +117,13 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		now: '2026-07-30T12:00:00.000Z',
 	});
 	const validDocument = serializeScapeProjectDocument(project);
-	assert.equal(await service.commitSharedProject(validDocument), validDocument);
+	assert.deepEqual(await service.commitSharedProject({ document: validDocument, expectedRevision: null }), {
+		status: 'committed', document: validDocument,
+	});
 	const invalidDocument = serializeScapeProjectDocument({ ...project, tempo: { ...project.tempo, bpm: 0 } });
-	await assert.rejects(() => service.commitSharedProject(invalidDocument), /tempo\.bpm/u);
+	await assert.rejects(() => service.commitSharedProject({
+		document: invalidDocument, expectedRevision: null,
+	}), /tempo\.bpm/u);
 	assert.equal(commitCalls, 1);
 	const boundedService = new editorService.DesktopSharedProjectLibraryService({
 		...unusedManagedMediaHost,
@@ -142,7 +148,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		opaqueExtensions: { items: Array.from({ length: 16 }, (_, index) => index) },
 	});
 	await assert.rejects(
-		() => boundedService.commitSharedProject(overBudgetDocument),
+		() => boundedService.commitSharedProject({ document: overBudgetDocument, expectedRevision: null }),
 		/JSON.*structural traversal node limit/iu,
 	);
 	assert.equal(commitCalls, 1, 'compiled structural admission must run before the host commit');
@@ -249,12 +255,13 @@ test('desktop main initializes, exposes, and disposes the shared library through
 
 test('desktop main owns file capabilities by committed renderer document', async () => {
 	const mainSource = await readFile(join(ROOT, 'desktop', 'main.mjs'), 'utf8');
+	const cleanupSource = await readFile(join(ROOT, 'desktop', 'renderer-ownership-cleanup.js'), 'utf8');
 	assert.match(
 		mainSource,
 		/webContents\.on\('did-start-navigation'.*details\.isMainFrame && !details\.isSameDocument.*revokeRendererSaveOwner\(webContents\)/su,
 	);
 	assert.match(mainSource, /webContents\.on\('did-frame-navigate'.*frameProcessId.*frameRoutingId.*activateRendererSaveOwner/su);
-	assert.match(mainSource, /webContents\.on\('render-process-gone'.*revokeRendererSaveOwner/su);
+	assert.match(mainSource, /attachDesktopMainWindowRecovery\(\{.*rendererOwnershipCleanup\.drain\(webContents\)/su);
 	assert.match(mainSource, /mainWindow\.on\('closed'.*revokeRendererSaveOwner\(webContents\)/su);
 
 	const chooseStart = mainSource.indexOf('async function chooseSaveTarget');
@@ -288,18 +295,13 @@ test('desktop main owns file capabilities by committed renderer document', async
 	const revokeSource = mainSource.slice(revokeStart, revokeEnd);
 	assert.ok(revokeStart >= 0);
 	assert.ok(
-		revokeSource.indexOf('rendererSaveOwnership.revoke') < revokeSource.indexOf('rendererReady = false')
-			&& revokeSource.indexOf('rendererReady = false') < revokeSource.indexOf('startRendererSaveRevocation'),
+		revokeSource.indexOf('rendererReady = false') < revokeSource.indexOf('rendererOwnershipCleanup.revoke'),
 		'revocation closes document admission synchronously before asynchronous cleanup',
 	);
-	const cleanupStart = mainSource.indexOf('function startRendererSaveRevocation');
-	const cleanupEnd = mainSource.indexOf('\nfunction ', cleanupStart + 1);
-	const cleanupSource = mainSource.slice(cleanupStart, cleanupEnd);
-	assert.match(cleanupSource, /saves\.revokeOwner\(owner\)\.catch/u);
-	assert.match(cleanupSource, /readCapabilities\.revokeOwner\(owner\)\.catch/u);
-	assert.match(cleanupSource, /projectLibraryIpc\?\.revokeOwner\(owner\)\.catch/u);
-	assert.match(cleanupSource, /Desktop renderer save cleanup failed/u);
-	assert.match(cleanupSource, /Desktop renderer read cleanup failed/u);
+	assert.match(cleanupSource, /const owner = this\.#ownership\.revoke\(webContents\)/u);
+	assert.match(cleanupSource, /this\.#projectLibraryIpc\(\)\?\.revokeOwner\(owner\)/u);
+	assert.match(cleanupSource, /this\.#readCapabilities\.revokeOwner\(owner\)/u);
+	assert.match(cleanupSource, /this\.#saves\.revokeOwner\(owner\)/u);
 
 	const chooseReadStart = mainSource.indexOf('async function chooseFiles');
 	const chooseReadEnd = mainSource.indexOf('\nfunction ', chooseReadStart);

@@ -51,7 +51,10 @@ test('main registers the closed shared-project service contract through the trus
 	const service = {
 		async listSharedProjects() { calls.push(['list']); return [SUMMARY]; },
 		async readSharedProject(projectId) { calls.push(['read', projectId]); return DOCUMENT; },
-		async commitSharedProject(document) { calls.push(['commit', document]); return document; },
+		async commitSharedProject(request) {
+			calls.push(['commit', request]);
+			return { status: 'committed', document: request.document };
+		},
 		async deleteSharedProject(projectId) { calls.push(['delete', projectId]); return true; },
 	};
 	const { handlers } = harness(service);
@@ -59,12 +62,14 @@ test('main registers the closed shared-project service contract through the trus
 
 	assert.deepEqual(await handlers.get(IPC.listSharedProjects)(event), [SUMMARY]);
 	assert.equal(await handlers.get(IPC.readSharedProject)(event, PROJECT_ID), DOCUMENT);
-	assert.equal(await handlers.get(IPC.commitSharedProject)(event, DOCUMENT), DOCUMENT);
+	assert.deepEqual(await handlers.get(IPC.commitSharedProject)(event, {
+		document: DOCUMENT, expectedRevision: null,
+	}), { status: 'committed', document: DOCUMENT });
 	assert.equal(await handlers.get(IPC.deleteSharedProject)(event, PROJECT_ID), true);
 	assert.deepEqual(structuredClone(calls), [
 		['list'],
 		['read', PROJECT_ID],
-		['commit', DOCUMENT],
+		['commit', { document: DOCUMENT, expectedRevision: null }],
 		['delete', PROJECT_ID],
 	]);
 	assert.deepEqual([...handlers.keys()].sort(), [
@@ -294,14 +299,19 @@ test('main validates project ids, document UTF-8 bytes, service results, and low
 	const service = {
 		listSharedProjects: async () => { calls += 1; return [SUMMARY]; },
 		readSharedProject: async () => { calls += 1; return null; },
-		commitSharedProject: async (document) => { calls += 1; return document; },
+		commitSharedProject: async (request) => {
+			calls += 1;
+			return { status: 'committed', document: request.document };
+		},
 		deleteSharedProject: async () => { calls += 1; return false; },
 	};
 	const { handlers } = harness(service, { maximumDocumentBytes: 8, maximumProjects: 1 });
 	const event = { owner: {} };
 
 	await assert.rejects(handlers.get(IPC.readSharedProject)(event, 'x'.repeat(MAX_SHARED_PROJECT_ID_BYTES + 1)), /project id.*byte limit/iu);
-	await assert.rejects(handlers.get(IPC.commitSharedProject)(event, 'é'.repeat(5)), /document.*byte limit/iu);
+	await assert.rejects(handlers.get(IPC.commitSharedProject)(event, {
+		document: 'é'.repeat(5), expectedRevision: null,
+	}), /document.*byte limit/iu);
 	await assert.rejects(handlers.get(IPC.beginSharedSourceWrite)(event, {
 		byteLength: 20,
 		encoding: 'audio-f32le-chunks-v1',
@@ -449,7 +459,7 @@ test('sandbox preload exposes bounded pathless shared-project methods and saniti
 		[IPC.listSharedProjects, [{ ...SUMMARY, entryId: 'hidden', sha256: 'a'.repeat(64) }]],
 		[IPC.readSharedProject, DOCUMENT],
 		[IPC.readSharedProjectBundle, { document: DOCUMENT, sources: [SOURCE_DESCRIPTOR] }],
-		[IPC.commitSharedProject, DOCUMENT],
+		[IPC.commitSharedProject, { status: 'committed', document: DOCUMENT }],
 		[IPC.deleteSharedProject, true],
 		[IPC.beginSharedSourceWrite, { status: 'ready', chunkSize: 4, writeId: SOURCE_WRITE_ID }],
 		[IPC.writeSharedSourceChunk, { nextOffset: 4 }],
@@ -470,7 +480,9 @@ test('sandbox preload exposes bounded pathless shared-project methods and saniti
 	const bundle = await api.readSharedProjectBundle(PROJECT_ID);
 	assert.equal(bundle.document, DOCUMENT);
 	assert.deepEqual(bundle.sources.map((source) => ({ ...source })), [SOURCE_DESCRIPTOR]);
-	assert.equal(await api.commitSharedProject(DOCUMENT), DOCUMENT);
+	assert.deepEqual({ ...await api.commitSharedProject({ document: DOCUMENT, expectedRevision: null }) }, {
+		status: 'committed', document: DOCUMENT,
+	});
 	assert.equal(await api.deleteSharedProject(PROJECT_ID), true);
 	const declaration = {
 		byteLength: 20,
@@ -497,7 +509,7 @@ test('sandbox preload exposes bounded pathless shared-project methods and saniti
 		{ channel: IPC.listSharedProjects, value: undefined },
 		{ channel: IPC.readSharedProject, value: PROJECT_ID },
 		{ channel: IPC.readSharedProjectBundle, value: PROJECT_ID },
-		{ channel: IPC.commitSharedProject, value: DOCUMENT },
+		{ channel: IPC.commitSharedProject, value: { document: DOCUMENT, expectedRevision: null } },
 		{ channel: IPC.deleteSharedProject, value: PROJECT_ID },
 		{ channel: IPC.beginSharedSourceWrite, value: declaration },
 		{ channel: IPC.writeSharedSourceChunk, value: {
@@ -528,10 +540,11 @@ test('sandbox preload rejects malformed service values without leaking them to t
 
 	await assert.rejects(api.listSharedProjects(), /updatedAt/iu);
 	await assert.rejects(api.readSharedProject(PROJECT_ID), /document.*string/iu);
-	await assert.rejects(api.commitSharedProject(DOCUMENT), /document.*string/iu);
+	await assert.rejects(api.commitSharedProject({ document: DOCUMENT, expectedRevision: null }), /commit result/iu);
 	await assert.rejects(api.deleteSharedProject(PROJECT_ID), /boolean/iu);
 	assert.throws(() => api.readSharedProject(''), /project id/iu);
-	assert.throws(() => api.commitSharedProject({ document: DOCUMENT }), /document.*string/iu);
+	assert.throws(() => api.commitSharedProject({ document: DOCUMENT }), /unsupported fields/iu);
+	assert.throws(() => api.commitSharedProject({ document: DOCUMENT, expectedRevision: '1' }), /expected revision/iu);
 });
 
 function harness(service, limits = {}) {

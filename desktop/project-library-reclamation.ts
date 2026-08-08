@@ -60,6 +60,7 @@ export interface DesktopLibraryProjectReclaimerOptions {
 	) => void | Promise<void>;
 	readonly maximumEntries?: number;
 	readonly now?: () => number;
+	readonly preserveCurrentLeaseReservations?: boolean;
 }
 
 export interface DesktopLibraryProjectReclaimOptions {
@@ -82,17 +83,19 @@ interface ReclamationBatchResult extends DesktopLibraryProjectReclamationResult 
 	readonly projectCycleRestarted: boolean;
 }
 
-/** Main-process startup maintenance. No path or lease value crosses IPC. */
+/** Main-process maintenance. No path or lease value crosses IPC. */
 export class DesktopLibraryProjectReclaimer {
 	#checkpoint: (phase: DesktopLibraryProjectReclamationCheckpoint) => void | Promise<void>;
 	#maximumEntries: number;
 	#now: () => number;
 	#paths: DesktopProjectLibraryPaths;
+	#preserveCurrentLeaseReservations: boolean;
 
 	constructor(paths: DesktopProjectLibraryPaths, options: DesktopLibraryProjectReclaimerOptions = {}) {
 		this.#paths = validateDesktopProjectLibraryPaths(paths);
 		this.#maximumEntries = maximumEntries(options.maximumEntries);
 		this.#now = options.now ?? Date.now;
+		this.#preserveCurrentLeaseReservations = options.preserveCurrentLeaseReservations ?? true;
 		this.#checkpoint = options.checkpoint ?? (() => {});
 	}
 
@@ -181,7 +184,8 @@ export class DesktopLibraryProjectReclaimer {
 			throwIfAborted(signal);
 			const paths = inventoryPaths(this.#paths.projectsRoot, candidate);
 			const protectedFile = protectedFiles.has(candidate.portableKey);
-			const currentReservation = candidate.leaseId === lease.leaseId
+			const currentReservation = this.#preserveCurrentLeaseReservations
+				&& candidate.leaseId === lease.leaseId
 				&& candidate.fencingToken === lease.fencingToken;
 			if (protectedFile) protectedCount += 1;
 			if (currentReservation
@@ -253,7 +257,8 @@ export class DesktopLibraryProjectReclaimer {
 		for (const candidate of batch.rows) {
 			throwIfAborted(signal);
 			const path = stageInventoryPath(this.#paths.projectsRoot, candidate);
-			const live = candidate.leaseId === lease.leaseId
+			const live = this.#preserveCurrentLeaseReservations
+				&& candidate.leaseId === lease.leaseId
 				&& candidate.fencingToken === lease.fencingToken;
 			if (live) {
 				liveStageFiles += 1;

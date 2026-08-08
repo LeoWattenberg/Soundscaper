@@ -9,7 +9,10 @@ import {
 	type DesktopLibraryProject,
 } from './project-library-contract.ts';
 import type { DesktopProjectLibraryHost } from './project-library-host.ts';
-import type { DesktopLibraryLoadedProject } from './project-library-projects.ts';
+import {
+	DesktopLibraryProjectConflictError,
+	type DesktopLibraryLoadedProject,
+} from './project-library-projects.ts';
 import {
 	DesktopSharedProjectMediaService,
 	type DesktopSharedProjectBundle,
@@ -35,6 +38,15 @@ export interface DesktopSharedProjectDescriptor {
 	readonly revision: number;
 	readonly updatedAt: string;
 }
+
+export interface DesktopSharedProjectCommitRequest {
+	readonly document: string;
+	readonly expectedRevision: number | null;
+}
+
+export type DesktopSharedProjectCommitResult =
+	| Readonly<{ status: 'committed'; document: string }>
+	| Readonly<{ status: 'conflict'; currentRevision: number }>;
 
 export interface DesktopSharedProjectLibraryServiceOptions {
 	readonly createEntryId?: () => string;
@@ -131,24 +143,49 @@ export class DesktopSharedProjectLibraryService {
 		return this.#media.dispose();
 	}
 
-	async commitSharedProject(canonicalDocument: string, signal?: AbortSignal): Promise<string> {
-		const project = parseCurrentProject(canonicalDocument, this.#documentLimits);
+	async commitSharedProject(
+		request: DesktopSharedProjectCommitRequest,
+		signal?: AbortSignal,
+	): Promise<DesktopSharedProjectCommitResult> {
+		const commit = commitRequest(request);
+		const project = parseCurrentProject(commit.document, this.#documentLimits);
 		const updatedAtMs = validTimestamp(this.#now());
 		const preferredProduct = this.#host.snapshot().owner.product;
-		const loaded = await this.#host.commitProjectById({
-			createEntryId: () => validEntryId(this.#createEntryId()),
-			name: project.title,
-			preferredProduct,
-			project,
-			signal,
-			updatedAtMs,
-		});
-		return canonicalLoadedProject(loaded, this.#documentLimits);
+		try {
+			const loaded = await this.#host.commitProjectById({
+				createEntryId: () => validEntryId(this.#createEntryId()),
+				expectedRevision: commit.expectedRevision,
+				name: project.title,
+				preferredProduct,
+				project,
+				signal,
+				updatedAtMs,
+			});
+			return Object.freeze({
+				status: 'committed',
+				document: canonicalLoadedProject(loaded, this.#documentLimits),
+			});
+		} catch (error) {
+			if (!(error instanceof DesktopLibraryProjectConflictError)) throw error;
+			return Object.freeze({ status: 'conflict', currentRevision: error.currentRevision });
+		}
 	}
 
 	deleteSharedProject(projectId: string, signal?: AbortSignal): Promise<boolean> {
 		return this.#host.deleteProjectById({ projectId, signal });
 	}
+}
+
+function commitRequest(value: DesktopSharedProjectCommitRequest): DesktopSharedProjectCommitRequest {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Desktop shared project commit request is required');
+	}
+	const expectedRevision = value.expectedRevision;
+	if (expectedRevision !== null
+		&& (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)) {
+		throw new RangeError('Desktop shared project expected revision must be null or a non-negative safe integer');
+	}
+	return value;
 }
 
 function parseCurrentProject(

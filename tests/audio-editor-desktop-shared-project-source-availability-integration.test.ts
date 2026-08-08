@@ -101,7 +101,7 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 			remoteReads += 1;
 			return document;
 		},
-		commitSharedProject: async (value) => value,
+		commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 		deleteSharedProject: async () => true,
 	};
 	const shared = createProjectStore({
@@ -190,7 +190,7 @@ test('digestless recipient video rejects before body read without changing the p
 		bridge: {
 			listSharedProjects: async () => [],
 			readSharedProject: async () => serializeScapeProjectDocument(latest),
-			commitSharedProject: async (document) => document,
+			commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 			deleteSharedProject: async () => true,
 		},
 	});
@@ -268,7 +268,7 @@ test('repository cancellation abandons stalled PCM cleanup without changing the 
 		bridge: {
 			listSharedProjects: async () => [],
 			readSharedProject: async () => serializeScapeProjectDocument(latest),
-			commitSharedProject: async (document) => document,
+			commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 			deleteSharedProject: async () => true,
 		},
 	});

@@ -293,7 +293,7 @@ function serviceBridge(service: DesktopSharedProjectLibraryService): BridgeProbe
 		listSharedProjects: async () => service.listSharedProjects(),
 		readSharedProject: (projectId: string) => service.readSharedProject(projectId),
 		readSharedProjectBundle: (projectId: string) => service.readSharedProjectBundle(projectId),
-		commitSharedProject: (document: string) => service.commitSharedProject(document),
+		commitSharedProject: (request) => service.commitSharedProject(request),
 		deleteSharedProject: (projectId: string) => service.deleteSharedProject(projectId),
 		beginSharedSourceWrite: (value) => service.beginSharedSourceWrite(value),
 		writeSharedSourceChunk: (value) => service.writeSharedSourceChunk(value),

@@ -120,15 +120,20 @@ test('source-bearing exact-V9 handoff refuses activation without recipient-local
 	await writer.commit({ sampleRate: 48_000, channelCount: 1, chunkFrames: 4 });
 	assert.ok(await soundLocalStore.getSourceMetadata(sourceId));
 
-	const sharedDocument = await soundService.commitSharedProject(serializeScapeProjectDocument(project));
+	const sharedResult = await soundService.commitSharedProject({
+		document: serializeScapeProjectDocument(project),
+		expectedRevision: null,
+	});
+	assert.equal(sharedResult.status, 'committed');
+	const sharedDocument = sharedResult.status === 'committed' ? sharedResult.document : '';
 	assert.deepEqual(exactV9(sharedDocument), project);
 	const sharedCatalog = soundHost.readCatalog();
-	const soundToken = soundHost.snapshot().fencingToken;
+	const soundToken = soundHost.snapshot().lastWriter!.fencingToken;
 	await soundLocalStore.close();
 	await resources.closeHost(soundHost);
 
 	const frameHost = await resources.startHost(FRAME_OWNER);
-	assert.ok(frameHost.snapshot().fencingToken > soundToken);
+	assert.ok(frameHost.snapshot().lastWriter!.fencingToken > soundToken);
 	const frameService = new DesktopSharedProjectLibraryService(frameHost, {
 		now: () => 40_000,
 		createEntryId: () => { throw new Error('failed handoff must not create a shared entry'); },
@@ -227,13 +232,13 @@ test('source-free exact-V9 composed editor autosave hands off from Soundscaper t
 
 	await soundProjectActions.save();
 	assert.deepEqual(soundHost.readCatalog(), catalogAfterAutosave, 'identical explicit save must be a catalog no-op');
-	const soundToken = soundHost.snapshot().fencingToken;
+	const soundToken = soundHost.snapshot().lastWriter!.fencingToken;
 	await resources.disposeController(soundscaper);
 	await resources.closeHost(soundHost);
 
 	const frameHost = await resources.startHost(FRAME_OWNER);
-	assert.ok(frameHost.snapshot().fencingToken > soundToken);
-	assert.equal(frameHost.snapshot().tookOverStaleLease, false);
+	assert.ok(frameHost.snapshot().lastWriter!.fencingToken > soundToken);
+	assert.equal(frameHost.snapshot().lastWriter!.tookOverStaleLease, false);
 	const frameClock = { value: 20_000 };
 	const frameService = new DesktopSharedProjectLibraryService(frameHost, {
 		now: () => frameClock.value,
@@ -310,9 +315,9 @@ function serviceBridge(
 	return Object.freeze({
 		listSharedProjects: async () => service.listSharedProjects(),
 		readSharedProject: (projectId: string) => service.readSharedProject(projectId),
-		commitSharedProject: async (document: string) => {
-			commits.push(document);
-			return service.commitSharedProject(document);
+		commitSharedProject: async (request: Parameters<DesktopSharedProjectBridge['commitSharedProject']>[0]) => {
+			commits.push(request.document);
+			return service.commitSharedProject(request);
 		},
 		deleteSharedProject: (projectId: string) => service.deleteSharedProject(projectId),
 	});

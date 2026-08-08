@@ -376,8 +376,10 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 			if (bundle !== null) throw new Error('Packaged source-bearing publish target already exists');
 			const audioBytes = createAudioBytes();
 			const videoBytes = await createVideoBytes();
-			const committed = await api.commitSharedProject(plan.seed.document);
-			if (committed !== plan.seed.document) throw new Error('Packaged source-bearing seed commit changed');
+			const committed = await api.commitSharedProject({ document: plan.seed.document, expectedRevision: null });
+			if (committed?.status !== 'committed' || committed.document !== plan.seed.document) {
+				throw new Error('Packaged source-bearing seed commit changed');
+			}
 			await publishSource(plan.seed.projectId, plan.seed.audio, 'audio-f32le-chunks-v1', audioBytes);
 			await publishSource(plan.seed.projectId, plan.seed.video, 'video-original-v1', videoBytes);
 			for (const witness of plan.seed.roleWitnesses) {
@@ -386,8 +388,8 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 					: videoBytes;
 				const sha256 = await hexDigest(witnessBytes);
 				const document = materializeWitnessDocument(witness, sha256);
-				const witnessCommit = await api.commitSharedProject(document);
-				if (witnessCommit !== document) {
+				const witnessCommit = await api.commitSharedProject({ document, expectedRevision: null });
+				if (witnessCommit?.status !== 'committed' || witnessCommit.document !== document) {
 					throw new Error(`Packaged ${witness.role} seed commit changed`);
 				}
 				const encoding = witness.kind === 'audio'

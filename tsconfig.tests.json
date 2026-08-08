@@ -5,6 +5,6 @@
 		"tsBuildInfoFile": "./node_modules/.cache/typescript/tests.tsbuildinfo",
 		"types": ["node", "vite/client"]
 	},
-	"include": ["desktop/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "src/vite-env.d.ts", "tests/**/*.test.ts", "tests/fixtures/desktop-project-library-holder.ts"],
+	"include": ["desktop/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "src/vite-env.d.ts", "tests/**/*.test.ts", "tests/fixtures/desktop-project-library-crash.ts", "tests/fixtures/desktop-project-library-holder.ts"],
 	"exclude": ["dist", "node_modules", "test-results"]
 }

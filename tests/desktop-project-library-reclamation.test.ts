@@ -190,8 +190,8 @@ test('host startup reclaims obsolete revisions and catalog-only deletes', async 
 		renewIntervalMs: 1_000,
 	});
 	context.after(() => host.close());
-	assert.equal(host.snapshot().reclamation.complete, true);
-	assert.equal(host.snapshot().reclamation.reclaimedFiles, 2);
+	assert.equal(host.snapshot().lastWriter!.reclamation.complete, true);
+	assert.equal(host.snapshot().lastWriter!.reclamation.reclaimedFiles, 2);
 	assert.deepEqual(await host.readProjectById('current identity'), current);
 	assert.equal(await exists(join(fixture.paths.projectsRoot, current.catalog.metadataFile)), true);
 	assert.equal(await exists(join(fixture.paths.projectsRoot, first.catalog.metadataFile)), false);

@@ -7,7 +7,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
-import { setTimeout as delay } from 'node:timers/promises';
 
 import { createDesktopProjectLibraryPaths } from '../desktop/project-library-contract.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
@@ -15,7 +14,6 @@ import {
 	DesktopLibraryProjectStore,
 	type DesktopLibraryLoadedProject,
 } from '../desktop/project-library-projects.ts';
-import { DesktopLibraryLeaseBusyError } from '../desktop/project-library-api.ts';
 import {
 	createDesktopLibraryAudioMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
@@ -51,15 +49,17 @@ test('desktop host opens the product-neutral appData library and releases it on 
 	assert.deepEqual(host.snapshot(), {
 		closed: false,
 		owner: SOUNDSCAPER_OWNER,
-		fencingToken: 1,
-		tookOverStaleLease: false,
-		recovery: {
+		activeWriter: null,
+		lastWriter: {
+			fencingToken: 1,
+			tookOverStaleLease: false,
+			recovery: {
 			outcome: 'clean',
 			previousRevision: null,
 			publishedRevision: null,
 			restoredPrevious: false,
-		},
-		reclamation: {
+			},
+			reclamation: {
 			canonicalFiles: 0,
 			complete: true,
 			liveStageFiles: 0,
@@ -68,8 +68,8 @@ test('desktop host opens the product-neutral appData library and releases it on 
 			reclaimedStageFiles: 0,
 			scannedEntries: 0,
 			stageFiles: 0,
-		},
-		managedMediaReclamation: {
+			},
+			managedMediaReclamation: {
 			canonicalFiles: 0,
 			catalogRowsRetired: 0,
 			complete: true,
@@ -79,19 +79,18 @@ test('desktop host opens the product-neutral appData library and releases it on 
 			reclaimedStageFiles: 0,
 			scannedEntries: 0,
 			stageFiles: 0,
+			},
 		},
 	});
 
 	const observer = await SharedDesktopProjectLibrary.open(createDesktopProjectLibraryPaths(appDataPath));
 	context.after(() => observer.close());
-	await assert.rejects(
-		() => observer.acquireLease({ owner: FRAMESCAPER_OWNER, ttlMs: 1_000 }),
-		(error: unknown) => error instanceof DesktopLibraryLeaseBusyError
-			&& error.holder.owner.product === 'soundscaper',
-	);
+	assert.equal(observer.currentLease(), null);
+	const concurrentWriter = await observer.acquireLease({ owner: FRAMESCAPER_OWNER, ttlMs: 1_000 });
+	await observer.releaseLease(concurrentWriter);
 	await host.close();
 	const replacement = await observer.acquireLease({ owner: FRAMESCAPER_OWNER, ttlMs: 1_000 });
-	assert.equal(replacement.owner.product, 'framescaper');
+	assert.ok(replacement.fencingToken > concurrentWriter.fencingToken);
 	await observer.releaseLease(replacement);
 	assert.equal(host.snapshot().closed, true);
 });
@@ -126,7 +125,7 @@ test('desktop host completes interrupted metadata recovery before returning', as
 		renewIntervalMs: 1_000,
 	});
 	context.after(() => host.close());
-	assert.deepEqual(host.snapshot().recovery, {
+	assert.deepEqual(host.snapshot().lastWriter!.recovery, {
 		outcome: 'interrupted',
 		previousRevision: 1,
 		publishedRevision: null,
@@ -166,37 +165,20 @@ test('desktop host cleans up a lease when startup recovery fails', async (contex
 	assert.equal(observer, null, 'corrupt recovery input remains fail-closed');
 });
 
-test('desktop host suppresses a queued renewal failure after intentional close', async (context) => {
+test('desktop observer close is idempotent without retaining a writer lease', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-host-close-race-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
-	const prototype = SharedDesktopProjectLibrary.prototype as unknown as {
-		renewLease: SharedDesktopProjectLibrary['renewLease'];
-	};
-	const originalRenewLease = prototype.renewLease;
-	let rejectRenewal: ((error: Error) => void) | undefined;
-	let renewalStarted: (() => void) | undefined;
-	const started = new Promise<void>((resolvePromise) => { renewalStarted = resolvePromise; });
-	prototype.renewLease = () => new Promise((_resolvePromise, reject) => {
-		rejectRenewal = reject;
-		renewalStarted?.();
-	});
-	context.after(() => { prototype.renewLease = originalRenewLease; });
-	const leaseLosses: unknown[] = [];
 	const host = await DesktopProjectLibraryHost.start({
 		appDataPath,
 		owner: SOUNDSCAPER_OWNER,
 		leaseTtlMs: 1_000,
 		renewIntervalMs: 100,
-		onLeaseLost: (error) => { leaseLosses.push(error); },
 	});
 	context.after(() => host.close());
 
-	await started;
-	const closing = host.close();
-	rejectRenewal?.(new Error('queued renewal failure'));
-	await closing;
-	await delay(0);
-	assert.deepEqual(leaseLosses, []);
+	assert.equal(host.snapshot().activeWriter, null);
+	await Promise.all([host.close(), host.close()]);
+	assert.equal(host.snapshot().closed, true);
 });
 
 test('managed-media publication rejects a recreated same-revision project digest before body I/O', async (context) => {
@@ -410,7 +392,7 @@ test('host startup reclaims stale planned media before admitting an exact retry'
 		renewIntervalMs: 1_000,
 	});
 	context.after(() => host.close());
-	assert.deepEqual(host.snapshot().managedMediaReclamation, {
+	assert.deepEqual(host.snapshot().lastWriter!.managedMediaReclamation, {
 		canonicalFiles: 2,
 		catalogRowsRetired: 0,
 		complete: true,

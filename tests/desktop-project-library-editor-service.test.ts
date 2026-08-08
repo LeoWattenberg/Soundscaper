@@ -38,6 +38,38 @@ const OTHER_OWNER = Object.freeze({
 });
 const NOW = '2026-07-29T12:00:00.000Z';
 
+test('editor service enforces expected-base CAS while preserving identical retries', async (context) => {
+	const fixture = await createFixture(context);
+	const host = await startHost(fixture.appDataRoot, OWNER);
+	context.after(() => host.close());
+	const service = new DesktopSharedProjectLibraryService(host, {
+		now: () => 10_000,
+		createEntryId: () => 'opaque-entry-cas01',
+	});
+
+	const initial = currentDocument(1);
+	assert.deepEqual(await service.commitSharedProject({ document: initial, expectedRevision: null }), {
+		status: 'committed',
+		document: initial,
+	});
+	assert.deepEqual(await service.commitSharedProject({ document: initial, expectedRevision: null }), {
+		status: 'committed',
+		document: initial,
+	});
+	const jumped = currentDocument(5);
+	assert.deepEqual(await service.commitSharedProject({ document: jumped, expectedRevision: 1 }), {
+		status: 'committed',
+		document: jumped,
+	});
+	const beforeConflict = host.readCatalog();
+	assert.deepEqual(await service.commitSharedProject({ document: currentDocument(6), expectedRevision: 1 }), {
+		status: 'conflict',
+		currentRevision: 5,
+	});
+	assert.deepEqual(host.readCatalog(), beforeConflict);
+	assert.equal(await service.readSharedProject('editor-project-1'), jumped);
+});
+
 test('editor service exposes canonical CRUD by project identity and retains deleted immutable files', async (context) => {
 	const fixture = await createFixture(context);
 	const host = await startHost(fixture.appDataRoot, OWNER);
@@ -54,7 +86,7 @@ test('editor service exposes canonical CRUD by project identity and retains dele
 	const canonical = currentDocument(1);
 
 	assert.deepEqual(service.listSharedProjects(), []);
-	assert.equal(await service.commitSharedProject(`\n${canonical}\n`), canonical);
+	assert.equal(await commitDocument(service, `\n${canonical}\n`), canonical);
 	const catalogAfterCommit = host.readCatalog();
 	assert.equal(generatedIds, 1);
 	assert.equal(catalogAfterCommit.revision, 1);
@@ -71,7 +103,7 @@ test('editor service exposes canonical CRUD by project identity and retains dele
 	assert.equal(await service.readSharedProject('editor-project-1'), canonical);
 
 	clock.value = 20_000;
-	assert.equal(await service.commitSharedProject(canonical), canonical);
+	assert.equal(await commitDocument(service, canonical, 1), canonical);
 	assert.deepEqual(host.readCatalog(), catalogAfterCommit);
 	assert.equal(generatedIds, 1);
 
@@ -95,7 +127,7 @@ test('editor service rejects generated entry ids that cannot form portable proje
 			now: () => 10_000,
 			createEntryId: () => entryId,
 		});
-		await assert.rejects(() => service.commitSharedProject(currentDocument(1)), /entry id generator/iu);
+		await assert.rejects(() => commitDocument(service, currentDocument(1)), /entry id generator/iu);
 	}
 	assert.deepEqual(host.readCatalog().projects, []);
 });
@@ -166,7 +198,7 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 		{ ...withGraph, tracks: [{ ...track, clipIds: ['missing-clip'] }] },
 	]) {
 		await assert.rejects(
-			() => service.commitSharedProject(serializeScapeProjectDocument(candidate)),
+			() => commitDocument(service, serializeScapeProjectDocument(candidate)),
 			/schema|non-empty|byte limit|title|revision|array|duplicate|missing/u,
 		);
 	}
@@ -199,7 +231,7 @@ test('editor service rejects a domain-invalid host commit result before returnin
 	});
 
 	await assert.rejects(
-		() => service.commitSharedProject(currentDocument(1)),
+		() => commitDocument(service, currentDocument(1)),
 		/sources.*array/iu,
 	);
 	assert.equal(commitCalls, 1);
@@ -268,14 +300,14 @@ test('editor service applies lower-only structural budgets before host mutation 
 	});
 
 	await assert.rejects(
-		() => service.commitSharedProject(serializeScapeProjectDocument(wideProject)),
+		() => commitDocument(service, serializeScapeProjectDocument(wideProject)),
 		/JSON.*structural traversal node limit/iu,
 	);
 	assert.equal(commitCalls, 0, 'over-budget renderer input must not reach the host');
 	assert.equal(host.readCatalog().revision, 0);
 	assert.deepEqual(await readdir(fixture.paths.projectsRoot), []);
 	await assert.rejects(
-		() => service.commitSharedProject(baseDocument),
+		() => commitDocument(service, baseDocument),
 		/validation.*structural traversal node limit/iu,
 	);
 	assert.equal(commitCalls, 1, 'a bounded input may commit before an over-budget host result is rejected');
@@ -341,7 +373,7 @@ test('editor service rejects loaded accessors without activating them', async (c
 		createEntryId: () => 'opaque-entry-0010',
 	});
 
-	await assert.rejects(() => service.commitSharedProject(currentDocument(1)), /enumerable.*data propert/iu);
+	await assert.rejects(() => commitDocument(service, currentDocument(1)), /enumerable.*data propert/iu);
 	assert.equal(host.readCatalog().revision, 1, 'loaded-result refusal happens after the admitted host commit');
 	assert.equal(activations, 0);
 	await assert.rejects(() => service.readSharedProject('editor-project-1'), /enumerable.*data propert/iu);
@@ -372,7 +404,7 @@ test('canonical source references remain metadata-only and do not claim managed 
 		sources: [source],
 	}));
 
-	assert.equal(await service.commitSharedProject(document), document);
+	assert.equal(await commitDocument(service, document), document);
 	assert.equal(await service.readSharedProject('source-metadata-project'), document);
 	assert.deepEqual(host.readCatalog().media, []);
 	assert.deepEqual(await readdir(fixture.paths.managedMediaRoot), []);
@@ -387,7 +419,7 @@ test('identical cross-product retries preserve catalog metadata and divergent re
 		createEntryId: () => 'opaque-entry-0006',
 	});
 	const canonical = currentDocument(1);
-	await firstService.commitSharedProject(canonical);
+	await commitDocument(firstService, canonical);
 	const originalCatalog = soundscaper.readCatalog();
 	await soundscaper.close();
 
@@ -397,12 +429,14 @@ test('identical cross-product retries preserve catalog metadata and divergent re
 		now: () => 20_000,
 		createEntryId: () => { throw new Error('an existing identity must retain its entry id'); },
 	});
-	assert.equal(await retryService.commitSharedProject(canonical), canonical);
+	assert.equal(await commitDocument(retryService, canonical), canonical);
 	assert.deepEqual(framescaper.readCatalog(), originalCatalog);
 
 	const project = parseScapeProjectDocument(canonical) as Record<string, unknown>;
 	const divergent = serializeScapeProjectDocument({ ...project, title: 'Divergent title' });
-	await assert.rejects(() => retryService.commitSharedProject(divergent), /divergent project revision/u);
+	assert.deepEqual(await retryService.commitSharedProject({ document: divergent, expectedRevision: 1 }), {
+		status: 'conflict', currentRevision: 1,
+	});
 	assert.deepEqual(framescaper.readCatalog(), originalCatalog);
 });
 
@@ -415,7 +449,7 @@ test('host serializes editor commits and catalog-only deletes under the same mut
 		createEntryId: () => 'opaque-entry-0004',
 	});
 
-	const commit = service.commitSharedProject(currentDocument(1));
+	const commit = commitDocument(service, currentDocument(1));
 	const deletion = service.deleteSharedProject('editor-project-1');
 	assert.equal(await commit, currentDocument(1));
 	assert.equal(await deletion, true);
@@ -486,4 +520,14 @@ function currentDocument(revision: number): string {
 		revision,
 		now: NOW,
 	}));
+}
+
+async function commitDocument(
+	service: DesktopSharedProjectLibraryService,
+	document: string,
+	expectedRevision: number | null = null,
+): Promise<string> {
+	const result = await service.commitSharedProject({ document, expectedRevision });
+	if (result.status === 'conflict') throw new Error(`unexpected conflict at revision ${result.currentRevision}`);
+	return result.document;
 }

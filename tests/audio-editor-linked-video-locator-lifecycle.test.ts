@@ -215,7 +215,7 @@ test('Desktop delete releases only after remote success and successful shadow cl
 		desktopProjectBridge: {
 			listSharedProjects: async () => [],
 			readSharedProject: async () => null,
-			commitSharedProject: async (document) => document,
+			commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 			deleteSharedProject: async () => {
 				calls.push('remote');
 				if (remoteFailure) throw remoteFailure;
@@ -251,7 +251,7 @@ test('Desktop clear releases local locators without deleting shared projects', a
 				id: 'shared-project', title: 'Shared', revision: 2, updatedAt: '2026-08-02T00:00:00.000Z',
 			}],
 			readSharedProject: async () => null,
-			commitSharedProject: async (document) => document,
+			commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
 			deleteSharedProject: async () => { remoteDeletes += 1; return true; },
 		},
 	});

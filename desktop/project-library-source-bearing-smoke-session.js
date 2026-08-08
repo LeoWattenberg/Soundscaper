@@ -107,6 +107,7 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 	async function finish(renderer) {
 		const evidence = await projectLibraryEvidence(plan.seed.projectId);
 		const host = evidence?.host;
+		const writer = host?.lastWriter;
 		const payload = validateDesktopProjectLibrarySourceBearingResult({
 			schemaVersion: 1,
 			mode: plan.mode,
@@ -118,9 +119,9 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 			ui: renderer.ui,
 			host: {
 				owner: { product: host?.owner?.product },
-				fencingToken: host?.fencingToken,
-				tookOverStaleLease: host?.tookOverStaleLease,
-				recovery: { outcome: host?.recovery?.outcome },
+				fencingToken: writer?.fencingToken,
+				tookOverStaleLease: writer?.tookOverStaleLease,
+				recovery: { outcome: writer?.recovery?.outcome },
 			},
 			catalogRevision: evidence?.catalogRevision,
 		}, plan);

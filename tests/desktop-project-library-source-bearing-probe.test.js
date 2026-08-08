@@ -50,8 +50,13 @@ test('desktop smoke probe preserves a source-bearing session across renderer rel
 			assert.equal(projectId, plan.seed.projectId);
 			return {
 				host: {
-					owner: { product: 'soundscaper' }, fencingToken: 3,
-					tookOverStaleLease: false, recovery: { outcome: 'clean' },
+					closed: false,
+					owner: { product: 'soundscaper' },
+					activeWriter: null,
+					lastWriter: {
+						fencingToken: 3,
+						tookOverStaleLease: false, recovery: { outcome: 'clean' },
+					},
 				},
 				catalogRevision: 7, project, sources,
 			};
