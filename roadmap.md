@@ -290,7 +290,6 @@ read-only and reported; milestone 2 does not require an invented bypass.
 
 #### 2.3 Durability and qualification closeout
 
-- `m2-publication-fault-matrix`
 - `m2-browser-durability-matrix`
 - `m2-electron-lease-matrix`
 

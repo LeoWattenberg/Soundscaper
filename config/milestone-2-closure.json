@@ -136,7 +136,7 @@
 		{
 			"id": "m2-publication-fault-matrix",
 			"gateId": "m2-gate-crash-safe-publication",
-			"status": "partial",
+			"status": "implemented",
 			"publicationPathIds": [
 				"web-project-indexeddb",
 				"web-project-opfs",
