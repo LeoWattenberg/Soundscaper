@@ -90,6 +90,7 @@ interface QualityBudgetConfig {
 			budgetDigest: string;
 			environmentFingerprint: string;
 			evaluator: string;
+			fileVerifier: string;
 			metricSet: string;
 			rawEvidence: string;
 			retryCount: number;
@@ -131,6 +132,7 @@ test('quality budget contract names numeric gates for every later milestone with
 	assert.deepEqual(config.qualification.resultContract, {
 		schemaVersion: 1,
 		evaluator: 'scripts/quality-budget-result.mjs',
+		fileVerifier: 'scripts/verify-quality-budget-result.mjs',
 		attemptCount: 1,
 		retryCount: 0,
 		budgetDigest: 'sha256-exact-config-bytes',
@@ -138,7 +140,10 @@ test('quality budget contract names numeric gates for every later milestone with
 		metricSet: 'exact-workload-thresholds',
 		rawEvidence: 'positive-byte-length-and-sha256',
 	});
-	await assertEvidenceExists([config.qualification.resultContract.evaluator]);
+	await assertEvidenceExists([
+		config.qualification.resultContract.evaluator,
+		config.qualification.resultContract.fileVerifier,
+	]);
 	assert.deepEqual(config.measurementPolicy, {
 		percentileMethod: 'nearest-rank',
 		missingMetric: 'fail',

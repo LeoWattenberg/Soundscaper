@@ -429,6 +429,12 @@ remains an ignored CI artifact, while any reviewed summary retains its exact
 byte length and SHA-256. This is why the current ledger still cannot produce a
 qualified result.
 
+Run `node scripts/verify-quality-budget-result.mjs <accepted-summary.json>` from
+the exact reviewed checkout. The verifier hashes the checked-in budget and the
+named sibling raw artifact, requires the summary's source revision to equal
+`HEAD`, rejects ambiguous workload or environment descriptors, and exits
+nonzero on any failed threshold or identity check.
+
 ## CI progression
 
 The safe progression is:
