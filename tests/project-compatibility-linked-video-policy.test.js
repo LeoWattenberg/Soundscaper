@@ -92,7 +92,7 @@ test('linked retained-video policy pins exact local lifecycle behavior', async (
 	);
 	assert.match(
 		linkedVideoOriginal.requiredOutcome,
-		/currently unavailable bound Project Bin video.*newly selected pathless locator.*selected file and exact-revision platform snapshot.*existing byte length and SHA-256.*compare-and-swap.*current binding token.*preserve.*project, source, and history.*clear.*missing.*only after.*verified visual lease.*prepublication.*mismatch, stale state, supersession, cancellation, or disposal.*old binding.*release only.*distinct unused candidate.*after binding publication.*retain.*new binding.*missing state.*later bounded alias-aware startup reconciliation/iu,
+		/bound Project Bin video.*without using missing-source state as eligibility.*newly selected pathless locator.*selected file and exact-revision platform snapshot.*existing byte length and SHA-256.*compare-and-swap.*current binding token.*preserve.*project, source, and history.*clear.*missing.*only after.*verified visual lease.*prepublication.*mismatch, stale state, supersession, cancellation, or disposal.*old binding.*release only.*distinct unused candidate.*after binding publication.*retain.*new binding.*missing state.*later bounded alias-aware startup reconciliation/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
@@ -116,11 +116,11 @@ test('linked retained-video policy pins exact local lifecycle behavior', async (
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
-		/localized Project Bin Relink action.*missing retained-video.*linked-video capability.*controller.*current binding.*exactly one video source.*writable.*old binding token.*stops.*Project Bin preview.*revokes.*visual.*selected File.*pathless locator ID and revision.*existing byte length and SHA-256.*exact-revision platform snapshot.*same-source compare-and-swap.*provisional root.*does not mutate.*project document, source, or history.*verified visual activation.*removes.*missing state.*wrong-content, stale, superseded, cancelled, or disposed.*preserve.*old binding.*release.*distinct candidate.*activation failure after publication.*retains.*new binding.*missing state.*prior locator.*later bounded startup reconciliation/iu,
+		/localized Project Bin Relink action.*bound retained-video.*linked-video capability.*binding eligibility check.*controller.*current binding.*exactly one video source.*writable.*old binding token.*whether the source is missing.*stops timeline playback and Project Bin preview.*revokes.*visual.*selected File.*pathless locator ID and revision.*existing byte length and SHA-256.*exact-revision platform snapshot.*same-source compare-and-swap.*provisional root.*does not mutate.*project document, source, or history.*verified visual activation.*removes.*missing state.*wrong-content, stale, superseded, cancelled, or disposed.*preserve.*old binding.*release.*distinct candidate.*restoring an initially available item's visual.*recording missing state when restoration fails.*activation failure after publication.*retains.*new binding.*records missing state.*also for an initially available item.*prior locator.*later bounded startup reconciliation/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
-		/synchronous controller publication guard.*same memory or IndexedDB binding-and-provisional-root CAS.*immediately before publication.*rechecks task, project, writable, and missing-source state/iu,
+		/synchronous controller publication guard.*same memory or IndexedDB binding-and-provisional-root CAS.*immediately before publication.*rechecks task, project, and writable state plus, for an initially missing item, missing-source state/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,

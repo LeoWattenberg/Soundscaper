@@ -541,26 +541,34 @@ attempts a second persisted restore. A successful release removes only the
 main-private registry metadata; no release path deletes the user-selected
 external file.
 
-The localized Project Bin Relink action is available for a missing
-retained-video item when the linked-video capability exists. The controller
+The localized Project Bin Relink action is available for a bound
+retained-video item when the linked-video capability exists; the menu asks the
+controller's binding eligibility check rather than missing-source state, so an
+available item may relink to the same exact content. The controller
 then requires a current binding, a compound A/V item that resolves to exactly
 one video source, and editing that remains writable. It snapshots the old
-binding token, stops Project Bin preview, revokes the current visual, and
-revalidates project, task, missing-source, and editing state. The UI passes only
+binding token and whether the source is missing, stops timeline playback and
+Project Bin preview, revokes the current visual, and
+revalidates project, task, and editing state; a source that was missing must
+stay missing until publication. The UI passes only
 the selected `File` and pathless locator ID and revision. Storage first requires
 that file to match the existing byte length and SHA-256, then requires the
 exact-revision platform snapshot to match the selection before a same-source
 compare-and-swap publishes the replacement binding and provisional root.
 The synchronous controller guard runs inside that same memory or IndexedDB
 binding-and-provisional-root CAS immediately before publication and rechecks
-task, project, writable, and missing-source state. The project document,
+task, project, and writable state plus, for an initially missing item,
+missing-source state. The project document,
 source, and history remain unchanged. Verified visual activation then clears
 the missing state and publishes the view.
 
 A wrong-content, stale, superseded, cancelled, or disposed attempt before
 publication keeps the old binding current and releases only a distinct unused
-candidate. If activation fails after publication, the new binding and missing
-state remain for retry. The displaced prior locator is deliberately not
+candidate; when an initially available item's visual was already revoked, the
+same failure restores that visual under current operation ownership or records
+missing state when restoration fails. If activation fails after publication,
+the new binding remains and missing state is recorded for retry, also for an
+initially available item. The displaced prior locator is deliberately not
 released immediately; it remains eligible for later bounded startup
 reconciliation. That pass preserves submitted same-store aliases; cross-store,
 cross-profile, and cross-process coordination remains unqualified.

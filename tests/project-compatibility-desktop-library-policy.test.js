@@ -454,11 +454,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation.replace(/\s+/gu, ' '),
-		/localized Project Bin Relink action.*missing retained-video.*linked-video capability.*controller.*current binding.*exactly one video source.*writable.*old binding token.*stops.*Project Bin preview.*revokes.*visual.*selected `File`.*pathless locator ID and revision.*existing byte length and SHA-256.*exact-revision platform snapshot.*same-source compare-and-swap.*provisional root.*project document, source, and history.*unchanged.*verified visual activation.*clears.*missing state.*wrong-content, stale, superseded, cancelled, or disposed.*old binding.*distinct unused candidate.*activation fails after publication.*new binding and missing state.*prior locator.*later bounded startup reconciliation/iu,
+		/localized Project Bin Relink action.*bound retained-video.*linked-video capability.*binding eligibility check.*controller.*current binding.*exactly one video source.*writable.*old binding token.*whether the source is missing.*stops timeline playback and.*Project Bin preview.*revokes.*visual.*selected `File`.*pathless locator ID and revision.*existing byte length and SHA-256.*exact-revision platform snapshot.*same-source compare-and-swap.*provisional root.*project document, source, and history.*unchanged.*verified visual activation.*clears.*missing state.*wrong-content, stale, superseded, cancelled, or disposed.*old binding.*distinct unused candidate.*activation fails after publication.*new binding remains and missing state is recorded.*also for an initially available item.*prior locator.*later bounded startup reconciliation/iu,
 	);
 	assert.match(
 		documentation.replace(/\s+/gu, ' '),
-		/synchronous controller guard.*same memory or IndexedDB binding-and-provisional-root CAS.*immediately before publication.*rechecks task, project, writable, and missing-source state/iu,
+		/synchronous controller guard.*same memory or IndexedDB binding-and-provisional-root CAS.*immediately before publication.*rechecks task, project, and writable state plus, for an initially missing item, missing-source state/iu,
 	);
 	assert.match(
 		documentation.replace(/\s+/gu, ' '),
