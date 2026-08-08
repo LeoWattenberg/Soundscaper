@@ -362,6 +362,8 @@ const COPY_ENTRIES = Object.freeze([
 	["projectBinLinkAudio","Link WAV","WAV verknüpfen"],
 	["projectBinRelinkChangedTitle","Replace linked video","Verknüpftes Video ersetzen"],
 	["projectBinRelinkChangedConfirm","The selected file has different content than the linked original. Replace the link with the selected file? Previews will be regenerated.","Die ausgewählte Datei hat einen anderen Inhalt als das verknüpfte Original. Verknüpfung durch die ausgewählte Datei ersetzen? Vorschauen werden neu erstellt."],
+	["projectBinRelinkAudioChangedTitle","Replace linked audio","Verknüpfte Audiodatei ersetzen"],
+	["projectBinRelinkAudioChangedConfirm","The selected file has different audio content than the linked original. Replace the link with the selected file? Waveforms will be regenerated.","Die ausgewählte Datei hat einen anderen Audioinhalt als das verknüpfte Original. Verknüpfung durch die ausgewählte Datei ersetzen? Wellenformen werden neu erstellt."],
 	["projectBinRelinkChangedReplace","Replace","Ersetzen"],
 	["projectBinRelinkChangedCancel","Cancel","Abbrechen"],
 ]);

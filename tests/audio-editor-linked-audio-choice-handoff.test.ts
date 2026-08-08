@@ -3,7 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { handoffLinkedAudioChoice } from '../src/common/editor/ui/workspace/linked-audio-choice-handoff.ts';
+import {
+	dispatchLinkedAudioChoice,
+	handoffLinkedAudioChoice,
+	prepareLinkedAudioChoice,
+} from '../src/common/editor/ui/workspace/linked-audio-choice-handoff.ts';
 
 const LOCATOR = Object.freeze({ locatorId: 'locator_selected_01', locatorRevision: 'revision_selected_01' });
 type ProjectScope = Readonly<{ projectId: string; revision: number }>;
@@ -53,5 +57,64 @@ test('an asynchronous controller rejection remains owned by the controller', asy
 		accept: () => Promise.reject(operationFailure),
 	}, scope), (error) => error === operationFailure);
 
+	assert.equal(releaseCount, 0);
+});
+
+test('changed-content classification retains the pathless choice for explicit confirmation', async () => {
+	const scope = Object.freeze({ projectId: 'project-original', revision: 4 });
+	const file = new Blob(['changed pcm']);
+	let releaseCount = 0;
+
+	const prepared = await prepareLinkedAudioChoice({
+		choose: async () => ({ ...LOCATOR, file }),
+		isCurrent: (candidate) => candidate === scope,
+		release: async () => { releaseCount += 1; return true; },
+		classify: async () => 'changed-content',
+	}, scope);
+
+	assert.deepEqual(prepared, {
+		classification: 'changed-content',
+		file,
+		reference: LOCATOR,
+	});
+	assert.equal(Object.isFrozen(prepared), true);
+	assert.equal(releaseCount, 0);
+});
+
+test('classification failure or a stale post-classification scope releases the choice', async () => {
+	const scope = Object.freeze({ projectId: 'project-original', revision: 4 });
+	const releases: unknown[] = [];
+	const failure = new Error('classification failed');
+
+	await assert.rejects(prepareLinkedAudioChoice({
+		choose: async () => ({ ...LOCATOR, file: new Blob(['changed pcm']) }),
+		isCurrent: () => true,
+		release: async (reference) => { releases.push(reference); return true; },
+		classify: async () => { throw failure; },
+	}, scope), (error) => error === failure);
+
+	let current = true;
+	assert.equal(await prepareLinkedAudioChoice({
+		choose: async () => ({ ...LOCATOR, file: new Blob(['changed pcm']) }),
+		isCurrent: () => current,
+		release: async (reference) => { releases.push(reference); return true; },
+		classify: async () => { current = false; return 'changed-content'; },
+	}, scope), null);
+	assert.deepEqual(releases, [LOCATOR, LOCATOR]);
+});
+
+test('dispatch transfers asynchronous cleanup ownership only after a prepared choice', async () => {
+	const operationFailure = new Error('storage rejected changed candidate');
+	let releaseCount = 0;
+	const prepared = Object.freeze({
+		classification: 'changed-content' as const,
+		file: new Blob(['changed pcm']),
+		reference: LOCATOR,
+	});
+
+	await assert.rejects(dispatchLinkedAudioChoice({
+		release: async () => { releaseCount += 1; return true; },
+		accept: () => Promise.reject(operationFailure),
+	}, prepared), (error) => error === operationFailure);
 	assert.equal(releaseCount, 0);
 });

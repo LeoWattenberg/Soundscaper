@@ -55,14 +55,20 @@ test('a binding-backed Project Bin audio member exposes exact-content relink wit
 	assert.doesNotMatch(source, /linkedAudioOriginalsAvailable && menuAudioMissing/u);
 });
 
-test('linked-audio relink fences the chooser scope and transfers only File plus the opaque locator', async () => {
+test('linked-audio relink classifies a scoped choice and transfers changed content only after confirmation', async () => {
 	const source = await readFile(PANEL_URL, 'utf8');
 
 	assert.match(source, /const relinkScope = linkedAudioRelinkProjectRef\.current;\s*if \(!relinkScope\) return;/u);
-	assert.match(source, /handoffLinkedAudioChoice\(\{\s*choose: \(\) => fileService\.chooseLinkedAudioOriginal\(\),\s*isCurrent: \(scope\) => linkedAudioRelinkProjectRef\.current === scope,\s*release: \(reference\) => fileService\.releaseLinkedAudioOriginal\(reference\),/u);
-	assert.match(source, /accept: \(file, reference\) => controller\.actions\.projectBin\.relinkLinkedAudio\(clipId, file, reference, relinkScope\),/u);
+	assert.match(source, /prepareLinkedAudioChoice\(\{\s*choose: \(\) => fileService\.chooseLinkedAudioOriginal\(\),\s*isCurrent: \(scope\) => linkedAudioRelinkProjectRef\.current === scope,\s*release: \(reference\) => fileService\.releaseLinkedAudioOriginal\(reference\),/u);
+	assert.match(source, /classify: \(file\) => controller\.actions\.projectBin\.classifyLinkedAudioRelink\(clipId, file, relinkScope\)/u);
+	assert.match(source, /prepared\.classification === 'changed-content'[\s\S]{0,250}kind: 'audio'/u);
+	assert.match(source, /dispatchLinkedAudioChoice\([\s\S]{0,450}relinkLinkedAudio\(\s*clipId,\s*file,\s*reference,\s*relinkScope/u);
+	assert.match(source, /accepted\.kind === 'audio'[\s\S]{0,550}\{ allowChangedContent: true \}/u);
+	assert.match(source, /releaseRelinkChangedChoice[\s\S]{0,350}releaseLinkedAudioOriginal\(choice\.locator\)/u);
 	assert.match(source, /onClick=\{\(\) => menuAudioClip && relinkLinkedAudio\(menuAudioClip\.id\)\}/u);
 	assert.doesNotMatch(source, /relinkLinkedAudio[\s\S]{0,500}choice\.(?:name|path|mimeType|size|lastModified)/u);
+	assert.equal(ENGLISH_COPY.projectBinRelinkAudioChangedTitle, 'Replace linked audio');
+	assert.equal(GERMAN_COPY.projectBinRelinkAudioChangedTitle, 'Verknüpfte Audiodatei ersetzen');
 });
 
 test('the default editor store receives the pathless generic linked-original port', async () => {

@@ -41,14 +41,14 @@ test('a bound Project Bin video can relink through only the pathless chooser sna
 	assert.match(source, /const relinkLinkedVideo = \(clipId\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const choice = await fileService\.chooseLinkedVideoOriginal\(\)/u);
 	assert.match(source, /const locator = \{\s*locatorId: choice\.locatorId,\s*locatorRevision: choice\.locatorRevision,\s*\};/u);
 	assert.match(source, /classifyLinkedVideoRelink\(clipId, choice\.file\)/u, 'the panel classifies content before dispatching');
-	assert.match(source, /classification === 'changed-content'[\s\S]{0,200}setRelinkChangedChoice\(\{ clipId, file: choice\.file, locator \}\)/u);
+	assert.match(source, /classification === 'changed-content'[\s\S]{0,250}storeRelinkChangedChoice\(\{[\s\S]{0,100}kind: 'video', clipId, file: choice\.file, locator/u);
 	assert.match(source, /controller\.actions\.projectBin\.relinkLinkedVideo\(clipId, choice\.file, locator\)/u);
 	assert.match(
 		source,
-		/applyRelinkChangedChoice[\s\S]{0,400}\{ allowChangedContent: true \}/u,
+		/applyRelinkChangedChoice[\s\S]{0,900}relinkLinkedVideo\([\s\S]{0,200}\{ allowChangedContent: true \}/u,
 		'changed content dispatches only through the explicit confirmation',
 	);
-	assert.match(source, /cancelRelinkChangedChoice[\s\S]{0,300}releaseLinkedVideoOriginal\(declined\.locator\)/u);
+	assert.match(source, /releaseRelinkChangedChoice[\s\S]{0,350}releaseLinkedVideoOriginal\(choice\.locator\)/u);
 	assert.match(source, /fileService\.linkedVideoOriginalsAvailable && menuVideoRelinkEligible[\s\S]*label=\{copy\.projectBinRelink\}/u);
 	assert.match(source, /canRelinkLinkedVideo\(videoClip\.id\)/u, 'menu eligibility asks the controller for the binding, not missing-source state');
 	assert.doesNotMatch(source, /menuVideoMissing/u, 'missing-source state is no longer relink eligibility');

@@ -5,7 +5,10 @@ import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-v2.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
-import { handoffLinkedAudioChoice } from './linked-audio-choice-handoff.ts';
+import {
+	dispatchLinkedAudioChoice,
+	prepareLinkedAudioChoice,
+} from './linked-audio-choice-handoff.ts';
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
@@ -16,6 +19,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const dragDepthRef = useRef(0);
 	const linkedAudioRelinkRequestRef = useRef(0);
 	const linkedAudioRelinkProjectRef = useRef(null);
+	const relinkChangedChoiceRef = useRef(null);
 	const [dropActive, setDropActive] = useState(false);
 	const [itemMenu, setItemMenu] = useState(null);
 	const [replacementClipId, setReplacementClipId] = useState(null);
@@ -25,6 +29,21 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const project = snapshot.project;
 	const projectId = project?.id;
 	const projectRevision = project?.revision;
+	function storeRelinkChangedChoice(choice) {
+		relinkChangedChoiceRef.current = choice;
+		setRelinkChangedChoice(choice);
+	}
+	function takeRelinkChangedChoice() {
+		const choice = relinkChangedChoiceRef.current;
+		relinkChangedChoiceRef.current = null;
+		setRelinkChangedChoice(null);
+		return choice;
+	}
+	function releaseRelinkChangedChoice(choice) {
+		return choice.kind === 'audio'
+			? fileService.releaseLinkedAudioOriginal(choice.locator)
+			: fileService.releaseLinkedVideoOriginal(choice.locator);
+	}
 	useEffect(() => {
 		linkedAudioRelinkRequestRef.current += 1;
 		setItemMenu(null);
@@ -32,11 +51,19 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		linkedAudioRelinkProjectRef.current = relinkScope;
 		return () => {
 			linkedAudioRelinkRequestRef.current += 1;
+			const pending = relinkChangedChoiceRef.current;
+			if (pending?.scope === relinkScope) {
+				relinkChangedChoiceRef.current = null;
+				setRelinkChangedChoice(null);
+				run(() => pending.kind === 'audio'
+					? fileService.releaseLinkedAudioOriginal(pending.locator)
+					: fileService.releaseLinkedVideoOriginal(pending.locator));
+			}
 			if (linkedAudioRelinkProjectRef.current === relinkScope) {
 				linkedAudioRelinkProjectRef.current = null;
 			}
 		};
-	}, [projectId, projectRevision]);
+	}, [fileService, projectId, projectRevision, run]);
 	const clips = project?.projectBin?.clips || [];
 	const items = projectBinItems(clips);
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
@@ -107,12 +134,26 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		if (mutationBlocked) return;
 		const relinkScope = linkedAudioRelinkProjectRef.current;
 		if (!relinkScope) return;
-		await handoffLinkedAudioChoice({
+		const prepared = await prepareLinkedAudioChoice({
 			choose: () => fileService.chooseLinkedAudioOriginal(),
 			isCurrent: (scope) => linkedAudioRelinkProjectRef.current === scope,
 			release: (reference) => fileService.releaseLinkedAudioOriginal(reference),
-			accept: (file, reference) => controller.actions.projectBin.relinkLinkedAudio(clipId, file, reference, relinkScope),
+			classify: (file) => controller.actions.projectBin.classifyLinkedAudioRelink(clipId, file, relinkScope),
 		}, relinkScope);
+		if (!prepared) return;
+		if (prepared.classification === 'changed-content') {
+			storeRelinkChangedChoice({
+				kind: 'audio', clipId, file: prepared.file,
+				locator: prepared.reference, scope: relinkScope,
+			});
+			return;
+		}
+		await dispatchLinkedAudioChoice({
+			release: (reference) => fileService.releaseLinkedAudioOriginal(reference),
+			accept: (file, reference) => controller.actions.projectBin.relinkLinkedAudio(
+				clipId, file, reference, relinkScope,
+			),
+		}, prepared);
 	});
 	const relinkLinkedVideo = (clipId) => run(async () => {
 		if (mutationBlocked) return;
@@ -124,20 +165,38 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		};
 		const classification = await controller.actions.projectBin.classifyLinkedVideoRelink(clipId, choice.file);
 		if (classification === 'changed-content') {
-			setRelinkChangedChoice({ clipId, file: choice.file, locator });
+			storeRelinkChangedChoice({
+				kind: 'video', clipId, file: choice.file, locator,
+				scope: linkedAudioRelinkProjectRef.current,
+			});
 			return;
 		}
 		await controller.actions.projectBin.relinkLinkedVideo(clipId, choice.file, locator);
 	});
 	const cancelRelinkChangedChoice = () => {
-		const declined = relinkChangedChoice;
-		setRelinkChangedChoice(null);
-		if (declined) run(() => fileService.releaseLinkedVideoOriginal(declined.locator));
+		const declined = takeRelinkChangedChoice();
+		if (declined) run(() => releaseRelinkChangedChoice(declined));
 	};
 	const applyRelinkChangedChoice = () => {
-		const accepted = relinkChangedChoice;
-		setRelinkChangedChoice(null);
+		const accepted = takeRelinkChangedChoice();
 		if (!accepted) return;
+		if (accepted.kind === 'audio') {
+			run(() => dispatchLinkedAudioChoice({
+				release: (reference) => fileService.releaseLinkedAudioOriginal(reference),
+				accept: (file, reference) => controller.actions.projectBin.relinkLinkedAudio(
+					accepted.clipId,
+					file,
+					reference,
+					accepted.scope,
+					{ allowChangedContent: true },
+				),
+			}, {
+				classification: 'changed-content',
+				file: accepted.file,
+				reference: accepted.locator,
+			}));
+			return;
+		}
 		run(() => controller.actions.projectBin.relinkLinkedVideo(
 			accepted.clipId,
 			accepted.file,
@@ -442,9 +501,18 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		{relinkChangedChoice && (
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-relink-changed-dialog>
 				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-relink-changed-title">
-					<DialogHeader title={copy.projectBinRelinkChangedTitle} onClose={cancelRelinkChangedChoice} />
+					<DialogHeader
+						title={relinkChangedChoice.kind === 'audio'
+							? copy.projectBinRelinkAudioChangedTitle
+							: copy.projectBinRelinkChangedTitle}
+						onClose={cancelRelinkChangedChoice}
+					/>
 					<div className="kw-audio-editor-dialog__body">
-						<p id="project-bin-relink-changed-title">{copy.projectBinRelinkChangedConfirm}</p>
+						<p id="project-bin-relink-changed-title">
+							{relinkChangedChoice.kind === 'audio'
+								? copy.projectBinRelinkAudioChangedConfirm
+								: copy.projectBinRelinkChangedConfirm}
+						</p>
 						<div className="kw-audio-editor-dialog__actions">
 							<Button variant="secondary" onClick={cancelRelinkChangedChoice}>{copy.projectBinRelinkChangedCancel}</Button>
 							<Button variant="primary" onClick={applyRelinkChangedChoice}>{copy.projectBinRelinkChangedReplace}</Button>
