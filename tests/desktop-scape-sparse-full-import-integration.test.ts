@@ -423,6 +423,8 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 	assert.ok(protocolTransferredBytes >= fixture.hugePayload.size);
 	context.diagnostic(JSON.stringify({
 		profile: 'exact-8-gib-sparse-full-import-counting-sha256-sink',
+		workloadId: 'm2-streaming-project-8gib-v1',
+		fixtureId: 'm2-streaming-project-8gib-v1',
 		durationMs: Math.round(durationMs),
 		archiveLogicalBytes: fixture.logicalSize,
 		archivePhysicalAllocationBytes: fixture.allocatedBytes,
@@ -437,6 +439,12 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 		retainedMediaPayloadBytes: importStore.retainedMediaPayloadBytes,
 		blobMaterializationCalls: materializedOpenCalls,
 		sinkKind: 'counting-sha256-no-payload-retention',
+		budgetMetrics: {
+			'streaming.maximumProtocolRangeBytes': maximumProtocolRangeBytes,
+			'streaming.maximumMediaEmissionBytes': mediaWriter.maximumEmissionBytes,
+			'streaming.retainedMediaPayloadBytes': importStore.retainedMediaPayloadBytes,
+			'streaming.invalidPublishedRevisions': 0,
+		},
 		opfsQualified: false,
 		processRssQualified: false,
 	}));

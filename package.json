@@ -30,6 +30,7 @@
 		"test:reference:wav-385mib": "node --import tsx --test tests/audio-editor-export-direct-wav-reference.test.ts",
 		"quality:collect:m2-direct-wav": "node scripts/collect-m2-direct-wav-quality.mjs",
 		"test:reference:scape-8gib": "node --import tsx --test tests/desktop-scape-sparse-full-import-integration.test.ts",
+		"quality:collect:m2-scape-8gib": "node scripts/collect-m2-scape-8gib-quality.mjs",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",
 		"test:browser:built": "playwright test",

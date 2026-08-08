@@ -145,6 +145,13 @@ asset. That asset is pinned to SHA-256
 ZIP CRC-32 `2909126900`; these values are authentic fixture identity, not
 placeholders.
 
+`npm run quality:collect:m2-scape-8gib` runs the sparse full-import reference
+once, admits one exact identity-bound diagnostic, and writes its provisional
+raw/accepted pair under `test-results/quality/m2-resources`. It records maximum
+protocol range and media-emission bytes, retained sink payload, and invalid
+publication count; it does not turn the fixture's OPFS, RSS, packaged UI,
+durability, or publisher-authentication exclusions into qualified claims.
+
 A second provisional milestone 2 fixture drives direct WAV export with an exact
 3,153,920-frame, 48 kHz, 32-channel silent-float plan. Its 403,701,760-byte PCM
 payload is exactly 385 MiB, one MiB above the desktop 384 MiB output-memory threshold;
