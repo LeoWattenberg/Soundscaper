@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, resolve, sep } from 'node:path';
 
+import { createFfmpegRuntimeEvidenceRepinner } from './ffmpeg-runtime-manifest-repin.mjs';
+
 export const FFMPEG_RUNTIME_MANIFEST_PATH = 'config/ffmpeg-runtime-manifest.json';
 
 const VERIFIED_RELEASES = new WeakSet();
@@ -47,6 +49,11 @@ const REVIEW_SCOPES = Object.freeze([
 	'desktop-release-policy',
 	'runtime-publication-policy',
 ]);
+
+export const repinFfmpegRuntimeEvidence = createFfmpegRuntimeEvidenceRepinner({
+	assert, canonicalJson, evidencePaths: EVIDENCE_PATHS, manifestPath: FFMPEG_RUNTIME_MANIFEST_PATH,
+	parseJson, readRegularFile, sha256, validateManifestShape,
+});
 
 export async function verifyFfmpegRuntimeManifest({
 	repositoryRoot,
@@ -112,41 +119,6 @@ export async function verifyFfmpegRuntimeManifest({
 	});
 	VERIFIED_RELEASES.add(release);
 	return release;
-}
-
-export async function repinFfmpegRuntimeEvidence({
-	repositoryRoot,
-	manifestPath = FFMPEG_RUNTIME_MANIFEST_PATH,
-} = {}) {
-	assert(typeof repositoryRoot === 'string' && repositoryRoot, 'repositoryRoot is required');
-	const root = await realpath(resolve(repositoryRoot));
-	const originalText = String(await readRegularFile(root, manifestPath, 'FFmpeg runtime manifest'));
-	const manifest = parseJson(originalText, 'FFmpeg runtime manifest');
-	validateManifestShape(manifest);
-
-	const refreshed = [];
-	for (const [id, expectedPath] of Object.entries(EVIDENCE_PATHS)) {
-		const descriptor = manifest.evidence[id];
-		assert(descriptor.path === expectedPath, `evidence.${id}.path must be ${expectedPath}`);
-		refreshed.push(await repinDescriptor(root, descriptor, `runtime evidence ${id}`));
-	}
-	refreshed.push(await repinDescriptor(root, manifest.publication.cors, 'runtime CORS policy'));
-
-	const payload = Object.fromEntries(Object.entries(manifest).filter(([key]) => key !== 'review'));
-	manifest.review.payloadSha256 = sha256(Buffer.from(canonicalJson(payload)));
-	const manifestText = `${JSON.stringify(manifest, null, '\t')}\n`;
-	return Object.freeze({
-		manifestText,
-		changed: manifestText !== originalText,
-		refreshed: Object.freeze(refreshed),
-	});
-}
-
-async function repinDescriptor(root, descriptor, label) {
-	const bytes = await readRegularFile(root, descriptor.path, label);
-	descriptor.byteLength = bytes.byteLength;
-	descriptor.sha256 = sha256(bytes);
-	return Object.freeze({ path: descriptor.path, byteLength: descriptor.byteLength, sha256: descriptor.sha256 });
 }
 
 export async function stageVerifiedFfmpegRuntime({ release, outputRoot }) {
