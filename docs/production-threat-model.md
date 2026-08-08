@@ -1244,6 +1244,33 @@ abandoned mid-stage leaves a dot-prefixed orphan `.soundscaper-part` file in
 the destination directory until the user removes it; the committed destination
 is never replaced and the orphan is never advertised as a result.
 
+The separate milestone-2 browser durability matrix is qualified in Chromium
+and Firefox for `indexeddb-quota-refusal`, `opfs-quota-refusal`,
+`indexeddb-multitab-writer`, `opfs-multitab-writer`,
+`offline-shell-upgrade`, `offline-runtime-rollback`, and
+`storage-eviction-recovery`. The IndexedDB workflow injects a synchronous
+`QuotaExceededError` into current-project publication after a prior revision is
+committed, observes the new revision remain dirty, and reloads the prior
+commit. The OPFS workflow injects the same typed refusal into the production
+synchronous worker's write operation; a supported worker refuses without
+publishing the import, while a browser without that worker path must complete
+through the IndexedDB correctness fallback. Both multi-tab workflows use the
+maintained lock UI to prove that the older tab becomes read-only, its attempted
+mutation does not change the project, and it regains the writer after the newer
+tab closes; the OPFS case first persists and reloads its PCM, original video,
+and derivatives. Shell upgrade starts with a prior cache, admits one complete
+current cache before retiring it, and keeps both products available offline.
+Runtime rollback fails the second release during body acquisition and preserves
+the exact first complete verified release. Storage-eviction recovery exports a
+`.scape`, deletes the product-local IndexedDB database, proves the empty editor
+still starts, and reimports the same project identity. WebKit remains
+unqualified because the pinned runtime cannot launch on this host. The quota
+failures are deterministic boundary injection rather than physical disk
+exhaustion; the eviction workflow proves archive recovery rather than browser
+retention. Actual eviction scheduling, quota accuracy, storage reservation,
+abrupt browser loss, power loss, reference-scale capacity, heap, and RSS remain
+unqualified.
+
 ### Dependency and release integrity
 
 `runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist, Parametric EQ, and WavPack modules retain their source/binary audits. Controlled FFmpeg publication, desktop staging, pre-pack verification, and the current Soundscaper public desktop-release assembler now validate one checked-in policy manifest that ties exact runtime bytes and base publication metadata to the current source descriptor, aggregate notice, licensing and security matrices, policies, threat model, and LF checkout rules. The publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under fixed tested code, while the assembler requires exact Soundscaper product/target manifests and version-matched packages before network access. Invalid preflight never enters desktop assembly or invokes Wrangler, and staging/publication consume private verified byte snapshots. Electron Builder rejects staged runtime, summary, manifest, and notice drift present at its beforePack check, then reopens the copied extra-resource directory and revalidates the exact runtime inventory, manifest, assets, and notice in afterPack before fuse or signing work. The post-copy tamper regression proves that a mismatch cannot reach fuse application. The checked-in authorizations mirror the licensing matrix and currently block public runtime upload and desktop-release assembly.
@@ -1297,8 +1324,8 @@ cache verifier prevents a module or WASM load from completing after a terminal
 digest mismatch, but an arbitrary streaming consumer can observe prefix chunks
 before that error. CacheStorage quota and eviction can remove availability, and
 there is no product-wide cache reservation. Shell installation materializes one
-admitted asset body before caching it. Safari and Firefox service-worker
-workflows, storage-pressure recovery, actual-browser multi-tab updates,
+admitted asset body before caching it. WebKit and Safari service-worker
+workflows, actual storage-pressure retention, runtime-cache multi-tab updates,
 downgrade drills, and actual-device offline behavior remain unqualified. Web
 notice delivery, complete corresponding source for every enabled FFmpeg
 library, and distribution-specific codec patent review remain blocked in the

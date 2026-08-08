@@ -396,14 +396,36 @@ the repository retains its asynchronous OPFS path; when OPFS is unavailable or
 fails, the existing PCM, media, and derivative repositories retain their tested
 IndexedDB correctness fallback.
 
-The focused Chromium witness disables main-realm `createWritable` and `getFile`,
-then proves persisted PCM, original video, and derivatives can be imported,
-reloaded, and used for playback through the worker route. It is a small
-correctness witness, not Firefox or WebKit evidence and not reference-scale,
-heap, RSS, quota, durability, crash, or power-loss qualification. Media and
-derivative body consumption after the worker-owned snapshot still uses the
-browser's `File`/`Blob` backend; it is not a claim that those complete bodies
-are synchronously copied through worker messages.
+The focused Chromium and Firefox witness disables main-realm `createWritable`
+and `getFile`, then proves persisted PCM, original video, and derivatives can
+be imported, reloaded, and used for playback through the worker route. It also
+opens the same media-bearing project in a second tab, proves one read-only
+loser cannot mutate the project, and returns the writer lock to the first tab.
+It is a small correctness witness, not WebKit evidence and not reference-scale,
+heap, RSS, crash, or power-loss qualification. Media and derivative body
+consumption after the worker-owned snapshot still uses the browser's
+`File`/`Blob` backend; it is not a claim that those complete bodies are
+synchronously copied through worker messages.
+
+The milestone-2 browser durability matrix is qualified in Chromium and Firefox
+for the exact workflow IDs `indexeddb-quota-refusal`, `opfs-quota-refusal`,
+`indexeddb-multitab-writer`, `opfs-multitab-writer`,
+`offline-shell-upgrade`, `offline-runtime-rollback`, and
+`storage-eviction-recovery`. IndexedDB quota injection leaves the failed
+revision dirty and reloads the preceding commit. The OPFS worker witness
+injects `QuotaExceededError` at its synchronous write boundary and either
+refuses without changing the current project or exercises the repository's
+IndexedDB fallback. The two tab workflows prove only one writer can mutate the
+same project and that ownership transfers back after the newer tab closes.
+Shell upgrade begins with a prior cache, activates one complete current cache,
+retires the prior cache, and reloads both products offline. A partial FFmpeg
+runtime update retains the previous complete verified release. The eviction
+workflow exports a current `.scape`, removes the origin's IndexedDB database,
+reopens the usable empty editor, and restores the same project identity from
+the archive. WebKit remains unqualified because the pinned runtime cannot
+launch on this host. These small functional workflows do not qualify real
+quota exhaustion thresholds, storage reservation, browser eviction policy,
+abrupt process death, power loss, reference-scale capacity, heap, or RSS.
 
 The milestone 2 bounded-memory workload therefore remains planned.
 

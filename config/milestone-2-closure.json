@@ -183,6 +183,8 @@
 				"offline-runtime-rollback",
 				"storage-eviction-recovery"
 			],
+			"qualifiedBrowserProjects": ["chromium", "firefox"],
+			"unqualifiedBrowserProjects": ["webkit"],
 			"acceptance": [
 				"Each workflow ID passes in Chromium, Firefox and WebKit or records a truthful unsupported outcome with the Web Core fallback passing.",
 				"A failed workflow leaves the last committed project and installed application shell usable."
@@ -381,6 +383,9 @@
 				"video-full-project-electron-roundtrip",
 				"video-clip-render-electron-roundtrip"
 			],
+			"qualifiedBrowserProjects": ["chromium", "firefox"],
+			"unqualifiedBrowserProjects": ["webkit"],
+			"packagedProductPairQualified": true,
 			"acceptance": [
 				"Each workflow ID opens on the less-capable product, uses its admitted fallback, saves or exports without canonical mutation and returns to the originating product with editable and opaque state preserved.",
 				"The web workflows pass Chromium, Firefox and WebKit; the Electron workflows pass the packaged product pair."

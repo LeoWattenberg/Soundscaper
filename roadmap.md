@@ -282,6 +282,9 @@ update an item's status only after its listed acceptance conditions pass.
 
 - `m2-compatibility-less-capable-roundtrip`
 
+Its exact web workflow set is qualified in Chromium and Firefox, and its
+packaged product-pair workflow is qualified. WebKit remains unqualified.
+
 `m2-compatibility-affected-objects` and `m2-compatibility-bypass` are already
 implemented. The implemented fallback role set is exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`, and
@@ -292,6 +295,9 @@ read-only and reported; milestone 2 does not require an invented bypass.
 
 - `m2-browser-durability-matrix`
 - `m2-electron-lease-matrix`
+
+All seven browser durability workflows are qualified in Chromium and Firefox;
+WebKit remains unqualified.
 
 Run the exact publication-path/fault combinations, browser workflows, packaged
 desktop workflows, and platform sets named in the inventory.
