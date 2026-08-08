@@ -372,14 +372,13 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		/role-defined whole-project fixture.*feature-requirement-only intrinsically read-only Framescaper sender.*current writable lock.*editable retained-video original.*manifest-only org\.example\.future-video-pipeline fallback.*empty Soundscaper recipient.*without flushing.*unchanged active snapshot.*both exact video bodies.*exact shadow.*controller independently verifies the manifest digest.*exact fallback Blob URL.*distinct clip-target fixture.*target canonical video.*unaffected video.*manifest-only first-party video-effects fallback.*fresh recipient.*commits and reopens.*exact shadow.*relationship unchanged.*rejects wrong-target and whole-project relationship admission.*admits the exact target relationship.*playback and delivery.*replace only the target.*preserving the unaffected video.*transfer verifies only each managed descriptor and body digest/isu,
 	);
 	assert.deepEqual(managedMediaCapacityControl.evidence, [
-		{ kind: 'implementation', path: 'desktop/project-library-contract.ts' },
-		{ kind: 'implementation', path: 'desktop/project-library-media-capacity.ts' },
-		{ kind: 'implementation', path: 'desktop/project-library-media.ts' },
-		{ kind: 'implementation', path: 'scripts/lib/desktop-project-library-runtime.mjs' },
-		{ kind: 'test', path: 'tests/desktop-project-library-media-capacity.test.ts' },
-		{ kind: 'test', path: 'tests/desktop-project-library-packaging.test.js' },
-		{ kind: 'test', path: 'tests/production-security-shared-project-library.test.js' },
-	]);
+		['implementation', 'desktop/project-library-contract.ts'], ['implementation', 'desktop/project-library-media-capacity.ts'],
+		['implementation', 'desktop/project-library-media.ts'], ['implementation', 'desktop/project-library-projects.ts'],
+		['implementation', 'scripts/lib/desktop-project-library-runtime.mjs'],
+		['test', 'tests/desktop-project-library-document-capacity.test.ts'],
+		['test', 'tests/desktop-project-library-media-capacity.test.ts'], ['test', 'tests/desktop-project-library-packaging.test.js'],
+		['test', 'tests/production-security-shared-project-library.test.js'],
+	].map(([kind, path]) => ({ kind, path })));
 	assert.match(
 		managedMediaCapacityControl.summary,
 		/one DesktopLibraryManagedMediaStore instance.*exact-absent audio or video binding.*prospective catalog.*same-instance pending descriptors.*50,000-row.*4 MiB serialized-metadata ceilings.*lower-only test seams.*synchronously reserves one row.*declared body bytes.*aggregate 64 GiB pending-byte ceiling.*before awaiting.*BigInt statfs.*managed-media root/isu,
@@ -390,7 +389,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		managedMediaCapacityControl.summary,
-		/store-instance, point-in-time admission.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*continuous runtime cleanup beyond the bounded startup tracked inventory.*empty-directory cleanup.*SQLite\/WAL space reclamation remain unqualified.*hard-link reuse.*full declared body.*reject a feasible link/isu,
+		/store-instance, point-in-time admission.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document staging separately admits the exact serialized document size.*point-in-time fail-closed BigInt statfs for the projects root.*before document directory or stage work.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*continuous runtime cleanup beyond the bounded startup tracked inventory.*empty-directory cleanup.*SQLite\/WAL space reclamation remain unqualified.*hard-link reuse.*full declared body.*reject a feasible link/isu,
 	);
 	for (const [kind, path] of [
 		['implementation', 'desktop/desktop-smoke.js'],

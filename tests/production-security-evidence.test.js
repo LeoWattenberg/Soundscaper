@@ -141,7 +141,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/capacity admission.*store-instance and point-in-time.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*startup-bounded tracked-inventory reclamation.*separate.*continuous runtime cleanup.*100,000.*later startup.*unregistered or legacy.*empty director.*SQLite\/WAL.*unqualified/isu,
+		/capacity admission.*store-instance and point-in-time.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document staging separately admits the exact serialized document size.*point-in-time fail-closed BigInt `statfs` for the projects root.*before document directory or stage work.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*startup-bounded tracked-inventory reclamation.*separate.*continuous runtime cleanup.*100,000.*later startup.*unregistered or legacy.*empty director.*SQLite\/WAL.*unqualified/isu,
 	);
 	assert.match(
 		documentation,
