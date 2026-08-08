@@ -91,6 +91,21 @@ No benchmark retry may turn a failure into a pass. A failed run may be repeated
 for diagnosis, but both runs remain evidence and the original result remains
 failed.
 
+## Portable structural environment
+
+`portable-node-structural-26.5.0` is active only for the five frozen milestone 2
+resource workload IDs. It requires Linux x64, Node 26.5.0, npm 12.0.1, and the
+`first-party-owned-structural-counters` measurement class. The result verifier
+refuses any other workload even if it supplies passing numbers.
+
+This environment qualifies deterministic counters such as maximum owned input
+or output slices, sequentially retained bodies, final renderer Blob retention,
+and partial publication. It is not eligible for elapsed-time, browser or
+renderer heap, process RSS, native/WASM heap, codec amplification, garbage
+collection, filesystem durability, packaged UI, or operating-system behavior.
+Those remain explicit residuals of the provisional fixtures; no structural
+result may promote them.
+
 ## Fixed hardware environments
 
 `reference-linux-gpu-01` is intentionally unprovisioned. Before its status can

@@ -50,6 +50,13 @@ export async function verifyQualityBudgetResultFiles(options) {
 	}
 
 	if (!workload || !environment) return failedEvaluation(failures);
+	if (environment.qualificationEligible
+		&& (!Array.isArray(environment.eligibleWorkloadIds)
+			|| !environment.eligibleWorkloadIds.includes(workload.id))) {
+		failures.push(
+			`Environment ${environment.id} is not eligible for workload ${workload.id}.`,
+		);
+	}
 	const evaluation = evaluateQualityBudgetResult({
 		workload,
 		expectedEnvironment: environment,

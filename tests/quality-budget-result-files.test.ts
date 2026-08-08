@@ -19,6 +19,7 @@ function qualityConfig() {
 			status: 'active',
 			qualificationEligible: true,
 			rendererRequirement: 'any',
+			eligibleWorkloadIds: ['m2-direct-output-memory'],
 			fingerprint: {
 				architecture: 'x64',
 				nodeVersion: '26.5.0',
@@ -155,4 +156,24 @@ test('ambiguous workload and environment descriptors fail before evaluation', as
 		assert.equal(evaluation.passed, false, collection);
 		assert.match(evaluation.failures.join('\n'), /exactly one.*descriptor/iu, collection);
 	}
+});
+
+test('an eligible environment cannot evaluate an out-of-scope workload', async () => {
+	const files = await fixture();
+	const config = JSON.parse(await readFile(files.configPath, 'utf8')) as ReturnType<typeof qualityConfig>;
+	config.environments[0].eligibleWorkloadIds = ['another-workload'];
+	const configBytes = `${JSON.stringify(config, null, '\t')}\n`;
+	files.result.budgetSha256 = sha256(configBytes);
+	await Promise.all([
+		writeFile(files.configPath, configBytes),
+		writeFile(files.resultPath, `${JSON.stringify(files.result, null, '\t')}\n`),
+	]);
+
+	const evaluation = await verifyQualityBudgetResultFiles({
+		configPath: files.configPath,
+		resultPath: files.resultPath,
+		expectedSourceRevision: SOURCE_REVISION,
+	});
+	assert.equal(evaluation.passed, false);
+	assert.match(evaluation.failures.join('\n'), /environment.*not eligible.*workload/iu);
 });
