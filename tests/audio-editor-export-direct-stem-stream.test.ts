@@ -124,6 +124,37 @@ test('destination write failures abort once, clean the staged stem, and retain c
 	}
 });
 
+test('stem commit refuses a lost renderer owner before publication and aborts once', async () => {
+	const plan = eligiblePlan();
+	const events: string[] = [];
+	const prepared = preparedStream({ events });
+	const preparation = await prepareDirectStemArchiveDestination(
+		{ prepareSave: () => prepared }, plan, null, new AbortController().signal,
+	);
+	assert.ok(preparation.destination);
+	const result = await streamDirectStemArchive({
+		destination: preparation.destination,
+		plan,
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+		renderStem: async (_output, index) => ({ bytes: stemBytes(index), cleanup: async () => undefined }),
+	});
+
+	const loss = new Error('stale renderer owner');
+	await assert.rejects(
+		() => commitPreparedDirectStemArchiveDestination(
+			preparation.destination, plan, result.byteLength, () => { throw loss; },
+		),
+		(error: unknown) => error === loss,
+	);
+	assert.equal(prepared.commits(), 0, 'a lost owner cannot cross the commit boundary');
+
+	await preparation.destination.abort(loss);
+	await preparation.destination.abort(loss);
+	assert.equal(prepared.aborts(), 1, 'rollback after the refusal aborts exactly once');
+	assert.equal(prepared.commits(), 0);
+});
+
 test('plan and encoded-input drift refuse publication', async () => {
 	const inputDrift = eligiblePlan();
 	const inputTarget = preparedStream();

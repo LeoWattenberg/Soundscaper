@@ -145,6 +145,24 @@ test('direct video write and close failures roll back once and aggregate cleanup
 	assert.equal(synchronous.events.filter((event) => event === 'abort').length, 1);
 });
 
+test('direct video commit failure rolls back the destination without stale publication', async () => {
+	const primary = new Error('commit failed');
+	const fixture = createFixture({ commitFailure: primary });
+	assert.equal(await fixture.exportVideo(), null);
+	assert.strictEqual(fixture.errors[0], primary);
+	assertOrder(fixture.events, ['seal', 'commit', 'abort']);
+	assert.equal(fixture.events.filter((event) => event === 'abort').length, 1);
+	assert.equal(fixture.events.includes('download'), false);
+
+	const cleanup = new Error('abort failed');
+	const aggregate = createFixture({ commitFailure: primary, abortFailure: cleanup });
+	assert.equal(await aggregate.exportVideo(), null);
+	assert.ok(aggregate.errors[0] instanceof AggregateError);
+	assert.deepEqual((aggregate.errors[0] as AggregateError).errors, [primary, cleanup]);
+	assert.equal(aggregate.events.filter((event) => event === 'abort').length, 1);
+	assert.equal(aggregate.events.includes('download'), false);
+});
+
 test('rendered-fallback integrity admission precedes direct target preparation and supplies verified media', async () => {
 	const fixture = createFixture({ renderedFallback: true });
 	const result = await fixture.exportVideo();
@@ -162,6 +180,7 @@ interface FixtureOptions {
 	readonly abortSynchronously?: boolean;
 	readonly afterOpen?: (plan: ReturnType<typeof videoPlan>) => void;
 	readonly closeFailure?: Error;
+	readonly commitFailure?: Error;
 	readonly desktop?: boolean;
 	readonly emittedByteLength?: number;
 	readonly format?: Format;
@@ -340,6 +359,7 @@ function preparedStream(events: string[], options: FixtureOptions) {
 		async commit() {
 			events.push('commit');
 			options.onCommit?.();
+			if (options.commitFailure) throw options.commitFailure;
 			return { fileName: `Direct-video.${options.format ?? 'mp4'}`, method: options.desktop ? 'desktop' : 'file-system-access', size: written };
 		},
 		abort() {
