@@ -1061,14 +1061,22 @@ root-level `featureRequirements` value is a bounded, normalized manifest. The
 current nested manifest schema 2 has canonical namespaced feature identifiers,
 unique requirement IDs, closed bypass or rendered-fallback dispositions, and
 bounded display strings. Its closed rendered-fallback roles are
-`project-audio-mix-v1`, `project-video-render-v1`, and
+`project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`, and
 `video-clip-render-v1`. Every descriptor references an existing project source
 of the declared audio or video kind and carries a canonical lowercase SHA-256
-string; the clip role also carries one canonical target clip ID. Nested manifest
+string; the clip role also carries one canonical target clip ID and the track
+role one canonical target track ID. The track role is restricted to
+`audioEffects` and validates its target at normalization: exactly one audio
+track with an active effect rack, at least one enabled effect, and a non-empty
+clip lane whose clips are audio, carry exact timeline placement, and do not
+reference the fallback source, whose `frameCount` must equal the lane extent.
+Manifest normalization therefore receives the project tracks at every
+validation, creation, clone, commit, remap, and inspection call site, and a
+caller that supplies no tracks fails closed for the track role. Nested manifest
 schema 1 remains a narrow compatibility input and deterministically normalizes
 audio and video descriptors to the corresponding whole-project roles. It cannot
-declare the clip relationship. These checks validate descriptor syntax and
-source identity; they do not hash or authenticate the referenced media bytes.
+declare the clip or track relationship. These checks validate descriptor
+syntax and source identity; they do not hash or authenticate the referenced media bytes.
 
 Schemas 1 through 8 begin migration with the canonical empty publisher manifest
 rather than inventing publisher requirements. Maintained exact-schema-9 create,
@@ -1136,6 +1144,33 @@ positive frame range, and match the project sample rate and master channel
 count. ADM and surround projects, ambiguous candidates, descriptor drift,
 missing sources, unsafe geometry, and collisions with the reserved synthetic
 track or clip IDs reject rather than guessing.
+
+The closed `audio-track-render-v1` role is the track-local sibling of that
+whole-mix contract and of the clip-local video relationship. The audio playback
+umbrella qualifies at most one audio rendered fallback of either closed audio
+role; more reject as ambiguous. The track branch accepts only an exact
+registered `audioEffects` item reported unavailable with declared and effective
+`rendered-fallback` dispositions whose descriptor exactly matches the canonical
+manifest by requirement ID, feature ID, role, target track ID, audio kind,
+source ID, and SHA-256; because the capability is always registered, unknown
+availability never qualifies this role. The projection rechecks the manifest
+contract and the source geometry — the fallback source must be audio, mono or
+stereo, and match the project sample rate, its frame count must equal the lane
+extent, ADM routing rejects, and a collision with the reserved rendered lane
+clip ID rejects — and then replaces only the target lane with one neutral
+rendered clip from frame zero to the lane extent while neutralizing only that
+track's effect rack. The track keeps its identity, gain, pan, mute, solo, and
+envelope, so native mixing and routing still apply over the rendered lane, and
+every other track, clip, mixer group, mixer send, master rack, source, and
+Project Bin entry stays canonical. The required fallback source is staged
+privately exactly like the whole-mix role, while ordinary lanes still load
+their ordinary sources; the playback reapply path skips ordinary source loading
+only when the whole-mix role is the projection's sole audio surface. Admission
+capture binds the target track's type, rack activity, effect identity and
+inertness flags, lane membership, and exact lane placement, so target drift
+fails currentness, and a lane or rack change that breaks the declared geometry
+fails admission capture itself, which the currentness fence reports as an
+admission change.
 
 On explicit desktop handoff, manifest reachability retains this fallback even
 when no timeline or Project Bin clip references it. A real Soundscaper sender
@@ -1210,8 +1245,10 @@ storage preflight, or rendering.
 
 Under the owned export signal and task, project-generation, and operation
 currentness fences, fresh operation-time verification binds an exact selector
-to the active requirement ID, feature ID, audio kind, source ID, and SHA-256 in
-the canonical project. Selector mode performs a full canonical chunk scan of
+to the active requirement ID, feature ID, audio kind, source ID, and SHA-256,
+together with the closed audio role and, for the track role, the exact target
+track ID, in the canonical project; selection, currentness, and
+conflicting-claim comparison all include that relationship. Selector mode performs a full canonical chunk scan of
 only that selected source's `audio-f32le-chunks-v1` sequence, checks its source
 geometry and aggregate digest, and builds an admission-time per-chunk digest
 table. It returns a private chunk provider with the exact admitted source
@@ -1221,15 +1258,26 @@ joint verification: their cumulative non-raiseable 64 GiB preflight applies
 before both fallback body reads, this audio chunk scan runs first, and
 nonselected fallback bodies are not read.
 
-The delivery clone receives an empty private audio-buffer map and that provider
-as its sole chunk render source. Global source buffers, providers, and cache
-state remain unchanged, and fallback delivery does not prepare committed
-time/pitch caches. Every provider read rereads one exact stored chunk, copies
+For the whole-mix role, the delivery clone receives an empty private
+audio-buffer map and that provider as its sole chunk render source. Global
+source buffers, providers, and cache state remain unchanged, and whole-mix
+fallback delivery does not prepare committed time/pitch caches. Every provider
+read rereads one exact stored chunk, copies
 its `Float32Array` channels, and checks canonical geometry and the admission-time
 chunk digest under currentness and cancellation fences. A changed storage body,
 geometry, or digest becomes the stable audio-fallback integrity error; an
 offline integrity failure does not retry through realtime rendering. Ordinary
 audio export keeps its existing source and renderer contracts.
+
+The track render composes instead of standing alone. Its delivery clone
+receives ordinary source buffers and chunk providers with the fallback source
+removed from both, so the fallback bytes are readable only through the
+operation-time digest-bound private provider, which replaces any ordinary
+provider or cached buffer for that source; committed time/pitch caches are
+prepared for the native lanes, and missing ordinary sources still refuse
+export. Stems, BW64, and any ADM setting reject for both audio roles before
+export side effects, and the same role-keyed composition reaches the audio side
+of maintained final-video delivery through one shared recipe.
 
 The canonical project, history, persistence, and save paths never receive the
 playback or delivery projection and remain unchanged by final-mix output.
@@ -1239,14 +1287,16 @@ feature ID, requirement ID, and source ID and drives one localized
 active-during-editor-playback source/component UI indicator. The UI matches the
 exact feature and requirement without reading or exposing the audio kind,
 source ID, or digest; operation-time export separately binds the exact audio
-kind and SHA-256 from the canonical manifest. More than one qualifying
-whole-mix fallback across any feature identities rejects as ambiguous, and
+kind and SHA-256 from the canonical manifest. More than one qualifying audio
+rendered fallback of either closed audio role across any
+feature identities rejects as ambiguous, and
 non-audio roles never qualify for this projection. Simultaneous audio/video
 rendered fallbacks reject for standalone final-audio delivery; maintained
-final-video delivery instead applies the same audio whole-mix projection
+final-video delivery instead applies the active audio rendered-fallback
+projection of either closed audio role
 whenever it qualifies, so the delivered video audio renders through its
 digest-bound private chunk provider even when no video rendered fallback is
-active, and may compose that one audio whole-mix with one
+active, and may compose that one audio whole-mix or track render with one
 maintained video fallback through a single joint integrity admission, while
 anything beyond that exact one-audio/one-video composition rejects. Future
 schemas and earlier Soundscaper schemas remain outside this slice. Linked-only
@@ -1270,7 +1320,8 @@ the local body before activation side effects. Maintained final-video delivery
 then runs one joint operation-time integrity verification over the active audio
 and video selectors it derives. The video selector binds the requirement ID,
 feature ID, relationship role, target clip ID, video kind, source ID, and
-SHA-256; an active audio whole-mix contributes the separate audio selector
+SHA-256; an active audio fallback of either closed audio role contributes the
+separate role- and target-bound audio selector
 described above. Their cumulative non-raiseable 64 GiB preflight applies before
 both fallback body reads. A composed audio chunk scan runs first and returns its
 digest-bound private chunk provider; the selected video body is then loaded
@@ -1302,7 +1353,8 @@ and history remain unchanged. The manifest-only fallback becomes an explicit
 required source before engine or preview entry, and preview lookup follows the
 projected clip's exact source identity rather than assuming canonical clip state.
 
-The maintained video-delivery projection applies the audio whole-mix projection
+The maintained video-delivery projection applies the active audio
+rendered-fallback projection — the audio whole-mix or the track render —
 first and then the selected video rendered fallback. It represents at most one
 audio and one video rendered fallback and applies no bypass projections;
 unrepresented, duplicate same-kind, unsupported-role, or additional rendered
@@ -1313,7 +1365,11 @@ the clip-local plan's selected target input. Ordinary video export and
 composition consume the projected target alongside normally loaded unaffected
 video, preserving its track and transition context. An active audio whole-mix
 renders through an empty private audio-buffer map and its sole admitted chunk
-source without committed time/pitch cache preparation; otherwise canonical
+source without committed time/pitch cache preparation; an active audio track
+render instead keeps ordinary lane buffers and providers beside its private
+fallback provider, which replaces any ordinary representation of the fallback
+source, with committed time/pitch caches prepared for the native lanes;
+otherwise canonical
 audio clips and effects stay in the delivery snapshot and render into the
 separately staged mix. Embedded fallback-video audio is not extracted or
 mapped. The canonical project, history, persistence, and save state remain
@@ -1345,9 +1401,9 @@ source/component UI bind only the exact feature ID and requirement ID without
 exposing source ID or digest. The exact one-audio/one-video final-video
 composition is qualified. More than one qualifying fallback rejects as
 ambiguous. Multiple clip fallbacks, duplicate same-kind fallbacks, and other
-mixed fallback relationships are unqualified. Audio-kind and audio whole-mix
-descriptors never qualify for this video projection; the delivery layer admits
-an audio whole-mix only through its separate exact role, and noncanonical
+mixed fallback relationships are unqualified. Audio-kind descriptors of either
+closed audio role never qualify for this video projection; the delivery layer
+admits an audio fallback only through its separate exact role, and noncanonical
 feature IDs fail manifest admission. Unknown canonical feature IDs qualify only
 for the whole-project role and do not activate third-party feature code. Future
 schemas remain outside this slice. Generic fallback authoring and other
@@ -1395,7 +1451,7 @@ disposition remains structured metadata rather than being mislabeled as the
 declaration. The region is keyboard-focusable when its bounded list scrolls.
 It does not render the evaluator's message, read fallback internals, expose an
 activation control, or claim feature-code loading. For the role-defined audio
-whole-mix and closed video rendered-fallback slices it shows only
+and closed video rendered-fallback slices it shows only
 each metadata-bound active-playback indicator described above. For
 qualifying audio- or video-effects items with bypass metadata, the same notice
 matches the corresponding frozen projection metadata to one requirement and nests
@@ -1421,7 +1477,8 @@ containers it walks it reads only identity and inertness—track type, clip kind
 effect type, stable IDs, and the `effectsActive`, `enabled`, and `bypassed`
 flags—never effect params, context, state, or other opaque payloads. From the
 report it reads only the format and compatibility, each item's requirement ID,
-feature ID, and availability, and the declared fallback role and target clip ID;
+feature ID, and availability, and the declared fallback role and target clip or
+track ID;
 evaluator messages, fallback source IDs, and digests stay unread. Every named
 property it takes from project data goes through an own-data-property check, so
 an accessor or inherited property in a named position is treated as absent
@@ -1437,7 +1494,10 @@ mixer group and send, the master rack under its fixed `master` identity, and
 every non-video timeline clip; `project-video-render-v1` names every video track
 as well as every timeline video clip, because the projection collapses both and
 naming only the clips would leave a video-track-only project reporting nothing
-while every video track was discarded; and `video-clip-render-v1`—like any other
+while every video track was discarded; `audio-track-render-v1` names the
+declared target track together with each timeline clip its lane anchors,
+because the projection replaces that lane and rack wholesale; and
+`video-clip-render-v1`—like any other
 role reaching this pass—names at most the one timeline clip whose ID equals the
 declared target clip ID. Because the role is taken as declared, a
 `video-clip-render-v1` descriptor on an item reported unknown is still indexed,
@@ -1545,7 +1605,7 @@ feature code, and is not a claim about what the unavailable feature would have
 done to a named object.
 
 Raw and stored-project controller activation has a separate integrity admission
-step for exact schema 9. The maintained role-defined audio whole-mix and closed
+step for exact schema 9. The maintained role-defined audio and closed
 video delivery slices invoke the same body verifier at export-operation time,
 independently of activation admission; standalone audio delivery invokes it with
 only its audio selector, while composed final-video delivery makes one joint
@@ -1583,7 +1643,8 @@ schemas perform no asset reads, and future `featureRequirements` state is not
 traversed.
 
 Audio delivery selects the exact active requirement ID, feature ID, audio kind,
-source ID, and SHA-256 under the owned export signal. Selector mode scans only
+source ID, SHA-256, closed audio role, and, for the track role, target track ID
+under the owned export signal. Selector mode scans only
 that source's complete canonical chunk sequence and returns a private provider
 bound to the exact source geometry and admission-time per-chunk digests. Each
 render read checks a fresh owned copy of the stored chunk against those bounds;
@@ -1595,7 +1656,8 @@ Video delivery passes the owned export-task signal to a fresh verification of
 the canonical project with the exact requirement ID, feature ID, video kind,
 source ID, and SHA-256 selected by the maintained delivery projection, together
 with the exact audio selector when that projection also represents an audio
-whole-mix. One joint selector-mode verification applies the cumulative 64 GiB
+fallback of either closed audio role. One joint selector-mode verification
+applies the cumulative 64 GiB
 ceiling before both fallback body reads, scans any composed audio source first,
 returns the canonical native `Blob` whose exact size and digest it verified, and
 does not read or admit nonselected fallback bodies.
@@ -1617,7 +1679,8 @@ bytes, and admission does not prevent later low-level or cross-process
 replacement of that storage binding, verify a nonselected fallback body, or
 establish publisher authenticity. Admission itself does not
 substitute fallback media at runtime; the separate exact-schema-9 role-defined
-audio whole-mix, role-defined whole-project video, and videoEffects-only
+audio whole-mix, audioEffects-only track-target,
+role-defined whole-project video, and videoEffects-only
 clip-target projections described above perform their narrow editor-playback and
 delivery uses.
 Initial required-source preparation is
@@ -1632,8 +1695,9 @@ state or earlier activation effects. Ordinary-source loading remains outside
 this required-source staging transaction, and short-buffer retention after
 engine application remains subject to cache-fit policy. Readiness does not
 prefetch or revalidate streamed chunks. The maintained projections do not
-provide generic per-feature bypass controls, other rendered-fallback
-roles, authored freeze or proxy relationships, publisher authentication or
+provide generic per-feature bypass controls, rendered-fallback roles beyond the
+closed audio and maintained video relationships, authored freeze or proxy
+relationships, publisher authentication or
 third-party feature-code activation, simultaneous fallback delivery beyond the
 exact one-audio/one-video final-video composition, linked-only or unmanaged
 fallback delivery, whole-video fallback audio handling, ADM or surround
@@ -1685,9 +1749,14 @@ contract. A rendered-fallback descriptor makes its source an independent
 retention root even when no timeline or Project Bin clip references it. Project
 and history compaction therefore retain that source metadata, current-format
 export includes its source asset with the full manifest, and reopen preserves
-the normalized manifest and its evaluation semantics. When a copy import
+the normalized manifest and its evaluation semantics. The portable archive
+retains the relationship and exact target track ID of a track-render descriptor
+just as it retains a clip-render descriptor's target clip ID, and import
+revalidates each against the extracted project including its tracks. When a
+copy import
 rewrites colliding source identity, it rewrites the known fallback descriptor
-reference through the same mapping while preserving the digest.
+reference through the same mapping while preserving the digest and the
+canonical target clip or track ID.
 
 The maintained export plan snapshots the admitted project root and complete
 source records before its first asynchronous asset operation, then serializes
@@ -1724,9 +1793,11 @@ separate maintained controller admission described above verifies the local
 bytes referenced by the authoritative exact-schema-9 activation project. That
 does not make metadata-only inspection a body-verification route and does not
 cover direct store loads. Runtime use belongs only to the separate role-defined
-audio whole-mix, role-defined whole-project video, and videoEffects-only
-clip-target editor-playback and bounded operation-verified delivery paths. Other
-rendered-fallback roles and authored fallback relationships remain planned. The remaining
+audio whole-mix, audioEffects-only track-target, role-defined whole-project
+video, and videoEffects-only
+clip-target editor-playback and bounded operation-verified delivery paths.
+Rendered-fallback roles beyond those closed relationships and authored fallback
+relationships remain planned. The remaining
 outcomes stay governed by the planned compatibility rows and roadmap exit gate.
 
 ## Opaque state
@@ -1817,10 +1888,11 @@ Unavailable capabilities follow this order once their owning milestones land:
 The maintained first-party audio- and video-effect bypass slices now implement
 the first two steps for active known effects during editor playback only. The
 exact-schema-9 mono/stereo role-defined audio whole-mix, role-defined video
-whole-project, and one first-party video-effects clip-target slice implement
+whole-project, one first-party audio-effects track-target, and
+one first-party video-effects clip-target slice implement
 narrow forms of step 3 during editor playback and maintained delivery after
-fresh operation-time integrity admission. The clip relationship is durable
-publisher state, but Soundscaper does not create it. These slices do not freeze,
+fresh operation-time integrity admission. The clip and track relationships are
+durable publisher state, but Soundscaper does not create them. These slices do not freeze,
 unfreeze, relink, watch, or refresh a fallback, and the bypass slices do not
 generalize to unknown or third-party effects. Fallback authoring and selection
 beyond the closed audio and maintained video roles, simultaneous fallback

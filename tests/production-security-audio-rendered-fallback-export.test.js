@@ -13,7 +13,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 		({ id }) => id === 'external-project-document-validation',
 	);
 	const control = projectDocuments?.currentControls.find(
-		({ id }) => id === 'audio-whole-mix-rendered-fallback-export',
+		({ id }) => id === 'audio-rendered-fallback-export',
 	);
 	assert.ok(control);
 	assert.equal(

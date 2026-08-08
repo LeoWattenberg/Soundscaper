@@ -63,7 +63,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/video delivery projection.*audio whole-mix.*then.*video rendered fallback.*at most one.*audio.*one.*video.*bypass projections.*not applied.*unrepresented.*duplicate same-kind.*reject.*full-project plan.*only video input.*clip-local plan.*selected target input.*unaffected clip-local video inputs.*ordinary loading/iu,
+		/video delivery projection.*audio rendered-fallback projection of either closed audio role.*then.*video rendered fallback.*at most one.*audio.*one.*video.*bypass projections.*not applied.*unrepresented.*duplicate same-kind.*reject.*full-project plan.*only video input.*clip-local plan.*selected target input.*unaffected clip-local video inputs.*ordinary loading/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -136,7 +136,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
 	assert.match(
 		normalizedDocumentation,
-		/current nested manifest schema 2.*closed rendered-fallback roles.*`project-audio-mix-v1`.*`project-video-render-v1`.*`video-clip-render-v1`.*clip role.*canonical target clip ID.*nested manifest schema 1.*deterministically normalizes.*whole-project roles.*cannot declare the clip relationship/isu,
+		/current nested manifest schema 2.*closed rendered-fallback roles.*`project-audio-mix-v1`.*`project-video-render-v1`.*`video-clip-render-v1`.*clip role.*canonical target clip ID.*nested manifest schema 1.*deterministically normalizes.*whole-project roles.*cannot declare the clip or track relationship/isu,
 	);
 	assert.match(
 		normalizedDocumentation,

@@ -54,7 +54,7 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	);
 	assert.match(fallbackAdmission.summary, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(fallbackAdmission.summary, /read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
-	assert.match(fallbackAdmission.summary, /conflicting digests.*relationship roles.*target clip IDs.*before storage reads/iu);
+	assert.match(fallbackAdmission.summary, /conflicting digests.*relationship roles.*target clip or track IDs.*before storage reads/iu);
 	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
 	assert.match(
 		fallbackAdmission.summary,
@@ -66,6 +66,6 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	);
 	assert.match(
 		fallbackAdmission.summary,
-		/direct store\.loadProject.*publisher authenticity.*other relationship roles.*simultaneous.*beyond.*one-audio.one-video.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
+		/direct store\.loadProject.*publisher authenticity.*relationship roles beyond the closed audio and maintained video roles.*simultaneous.*beyond.*one-audio.one-video.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
 	);
 });

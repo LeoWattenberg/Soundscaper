@@ -249,7 +249,8 @@ products before adding new editorial models or native engines.
 - **Shared — Implemented for maintained compatibility slices:** feature-requirement
   reporting, read-only incompatible opens, opaque state preservation, audio/video
   effect bypass, role-defined audio whole-mix and full-project video fallback
-  playback, the first-party clip-local `videoEffects` fallback, and generic
+  playback, the first-party clip-local `videoEffects` and track-local
+  `audioEffects` fallbacks, and generic
   read-only affected-object visibility for any unavailable or unknown
   requirement.
 - **Web Enhanced / Electron Enhanced — Implemented for direct PCM slices:**
@@ -288,6 +289,13 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   role. Both exact-schema relationships reach portable `.scape`, managed
   handoff, playback, and maintained delivery without canonical mutation. Other
   roles and packaged/browser qualification remain open.
+- **Shared — Implemented for one track-local first-party `audioEffects`
+  relationship:** the closed `audio-track-render-v1` role replaces exactly one
+  audio track's clip lane and active effect rack with a digest-verified
+  publisher render for playback and maintained delivery while every other lane,
+  mixer routing, and master processing stays native, and reaches portable
+  `.scape` including collision-copy remap. Managed handoff and
+  packaged/browser qualification for this role remain open.
 - **Electron Enhanced — Implemented for point-in-time managed-media publication
   admission:** absent bindings reserve prospective catalog rows, serialized
   metadata, and aggregate pending body bytes, then reject failed, malformed, or
@@ -351,7 +359,8 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   media, and managed media transfer. They are not editorial proxies.
 - **Shared — In progress:** extend role-defined rendered-fallback acquisition,
   activation, and delivery beyond the audio whole-mix and full-project video
-  roles plus the clip-local `videoEffects` relationship.
+  roles plus the clip-local `videoEffects` and track-local `audioEffects`
+  relationships.
 - **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
   Framescaper round trip proves fresh activation, playback, edits, save, return,
   exact media, and retained histories; narrower one-way fixtures prove the
@@ -391,7 +400,7 @@ release-blocking defect in its owning policy.
   the maintained first-party audio/video slices.
 - Extend required rendered-fallback runtime use beyond the role-defined audio
   whole-mix and full-project video roles plus the maintained first-party
-  clip-local video-effects relationship.
+  clip-local video-effects and track-local audio-effects relationships.
 - Preserve and re-export arbitrary future-schema `.scape` archives without
   interpreting unknown state.
 - Verify that a project opened on a less-capable platform subsequently

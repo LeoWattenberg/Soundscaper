@@ -83,7 +83,7 @@ test('compatibility policy narrowly qualifies target-only video-effects clip pro
 	]);
 	assertSemanticClaims(integrity.currentBehavior, [
 		['relationship selector', /selector.*role.*target clip ID/iu],
-		['relationship currentness', /snapshot.*role.*target clip ID.*current/iu],
+		['relationship currentness', /snapshot.*role.*target.*ID.*current/iu],
 	]);
 	await assertCompatibilityEvidence(playback, PROJECTOR_EVIDENCE);
 	await assertCompatibilityEvidence(playback, EXPORT_EVIDENCE);
@@ -97,10 +97,10 @@ test('compatibility policy binds portable Scape and managed handoff witnesses', 
 	const handoff = compatibilityRule(policy, 'current-video-rendered-fallback-playback');
 	assertSemanticClaims(scape.currentBehavior, [
 		['clip relationship preservation', /video-clip-render-v1.*target clip ID/iu],
-		['collision remap scope', /copy.*collision.*remap.*fallback source ID.*preserv.*target clip ID/iu],
+		['collision remap scope', /copy.*collision.*remap.*fallback source ID.*preserv.*target clip or track ID/iu],
 	]);
 	assertSemanticClaims(scapeIntegrity.currentBehavior, [
-		['archive relationship binding', /role.*target clip ID.*source ID.*SHA-256/iu],
+		['archive relationship binding', /role.*target clip or track ID.*source ID.*SHA-256/iu],
 	]);
 	assertSemanticClaims(handoff.currentBehavior, [
 		['managed fresh-recipient handoff', /video-clip-render-v1.*managed.*fresh recipient/iu],

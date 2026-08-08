@@ -66,7 +66,7 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 	);
 	assert.match(
 		control.summary,
-		/exactly one.*audio whole-mix.*one.*video fallback.*single.*integrity admission.*cumulative.*before.*body reads.*private chunk provider.*exact.*Blob/iu,
+		/exactly one.*audio fallback of either closed audio role.*one.*video fallback.*single.*integrity admission.*cumulative.*before.*body reads.*private chunk provider.*exact.*Blob/iu,
 	);
 	assert.match(
 		control.summary,
