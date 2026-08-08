@@ -375,10 +375,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		/two frozen Electron shared-library workflow IDs.*separately packaged Soundscaper and Framescaper UI processes.*exact current-schema mixed-media identity.*activation.*playback.*recipient edit and save.*return to the originating product profile.*all four exact rendered-fallback role workflows.*unchanged project back.*less-capable recipient.*reopen editable.*origin.*canonical-document.*media-body identity/iu,
 	);
 	assert.match(packagedHandoff.currentBehavior, PACKAGED_HANDOFF_CLAIMS.compatibilityRuleBehavior);
-	assert.match(
-		packagedHandoff.currentBehavior,
-		/web `.scape` workflow matrix is qualified separately.*fixed small first-party fixtures.*Linux x64.*muted audio.*qualifies packaged activation.*fallback playback.*unchanged project handoff.*editable origin return only for the four frozen rendered-fallback roles.*does not qualify packaged rendered-media delivery.*fallback authoring.*other relationships.*audible or device-output fidelity.*general browser or codec coverage.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
-	);
+	assert.match(packagedHandoff.currentBehavior, PACKAGED_HANDOFF_CLAIMS.compatibilityRuleQualification);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
 	assert.deepEqual(mediaAdmission.evidence, [

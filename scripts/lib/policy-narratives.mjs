@@ -56,6 +56,18 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		document: 'docs/production-threat-model.md',
 		intro: null,
 	}),
+	Object.freeze({
+		marker: 'desktop-packaged-source-bearing-handoff',
+		register: 'config/project-compatibility.json',
+		ruleId: 'current-desktop-packaged-source-bearing-handoff',
+		field: 'currentBehavior',
+		document: 'docs/project-compatibility.md',
+		intro: Object.freeze([
+			'A maintained Linux x64 CI job runs',
+			'A second maintained Linux x64 CI job runs',
+		]),
+		wrap: 80,
+	}),
 ]);
 
 export function renderPolicyNarrative(text, binding) {
@@ -70,7 +82,20 @@ export function renderPolicyNarrative(text, binding) {
 	for (const token of QUALIFICATION_ID_TOKENS) {
 		rendered = rendered.replace(new RegExp(`(?<!\`)\\b${token}\\b(?!\`)`, 'gu'), `\`${token}\``);
 	}
+	if (binding.wrap) rendered = wrapText(rendered, binding.wrap);
 	return rendered;
+}
+
+function wrapText(text, width) {
+	const lines = [];
+	let line = '';
+	for (const word of text.split(' ')) {
+		if (line === '') line = word;
+		else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+		else { lines.push(line); line = word; }
+	}
+	if (line !== '') lines.push(line);
+	return lines.join('\n');
 }
 
 export async function loadPolicyNarratives(repositoryRoot) {
@@ -78,11 +103,17 @@ export async function loadPolicyNarratives(repositoryRoot) {
 	const narratives = [];
 	for (const binding of POLICY_NARRATIVE_BINDINGS) {
 		const register = JSON.parse(await readFile(resolve(repositoryRoot, binding.register), 'utf8'));
-		const risk = register.risks.find(({ id }) => id === binding.riskId);
-		assert(risk, `${binding.marker}: risk ${binding.riskId} is missing from ${binding.register}`);
-		const control = risk.currentControls.find(({ id }) => id === binding.controlId);
-		assert(control, `${binding.marker}: control ${binding.controlId} is missing from ${binding.register}`);
-		const source = control[binding.field];
+		let carrier;
+		if (binding.ruleId) {
+			carrier = register.rules.find(({ id }) => id === binding.ruleId);
+			assert(carrier, `${binding.marker}: rule ${binding.ruleId} is missing from ${binding.register}`);
+		} else {
+			const risk = register.risks.find(({ id }) => id === binding.riskId);
+			assert(risk, `${binding.marker}: risk ${binding.riskId} is missing from ${binding.register}`);
+			carrier = risk.currentControls.find(({ id }) => id === binding.controlId);
+			assert(carrier, `${binding.marker}: control ${binding.controlId} is missing from ${binding.register}`);
+		}
+		const source = carrier[binding.field];
 		assert(typeof source === 'string' && source, `${binding.marker}: ${binding.field} is empty`);
 		narratives.push({ binding, rendered: renderPolicyNarrative(source, binding) });
 	}

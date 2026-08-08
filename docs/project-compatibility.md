@@ -1063,52 +1063,53 @@ installers or file associations; or Windows, macOS, or ARM64. Third-party
 activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
-A second maintained Linux x64 CI job closes the two frozen Electron
-shared-library workflow IDs with source-bearing packaged UI evidence. It runs
-six sequential processes: Soundscaper → Framescaper → Soundscaper and
-Framescaper → Soundscaper → Framescaper. Each workflow has isolated shared
-appData and separate product profiles, and its return stage reuses the origin
-profile. The fixed exact schema 9 project contains one canonical-PCM audio track
-and clip and one retained-original VP8 WebM video track and clip that is also in
-the Project Bin. The origin publishes both exact managed bodies. A fresh
-recipient activates through the normal project route, hashes the exact Project
-Bin `Blob`, starts and stops transport, edits the audio track name through
-native input, waits for the revision-2 save, and invokes the visible “Edit in
-the other product” action. The origin return reactivates the exact edited
-revision and both bindings. Before that editable project, each fresh recipient
-also activates two exact-schema-9 read-only role witnesses from the same shared
-library. Soundscaper → Framescaper covers `project-audio-mix-v1` and
-`audio-track-render-v1`; Framescaper → Soundscaper covers
-`project-video-render-v1` and `video-clip-render-v1`. Each recipient witness
-reaches its exact role-specific compatibility indicator, starts and stops editor
-transport, and invokes the visible cross-product handoff. Feature-requirement
-read-only is the only read-only state that enables that menu action; busy or
-lock-read-only state remains blocked. The origin return opens both witnesses
-before the mixed-media project, proves the compatibility indicator absent,
-opens an enabled track-name editor and cancels it without mutation, and starts
-and stops transport. The paired aggregate owns
-`audio-whole-mix-electron-roundtrip`,
+<!-- policy-narrative:desktop-packaged-source-bearing-handoff -->
+A second maintained Linux x64 CI job runs the two frozen Electron workflows as
+six sequential packaged executable processes: Soundscaper → Framescaper →
+Soundscaper and Framescaper → Soundscaper → Framescaper. Each workflow owns
+isolated shared appData and separate product profiles, then returns to its
+origin profile. Its fixed exact schema 9 project contains one canonical PCM
+audio track and clip plus one retained-original VP8 WebM video track and clip
+that is also represented in the Project Bin. The origin publishes both exact
+managed bodies. A fresh recipient follows the normal project route into editor
+activation, hashes the exact Project Bin Blob, starts and stops transport, edits
+the audio track name through native input, waits for the shared revision 2 save,
+and invokes the visible Edit in the other product action. The origin return
+reactivates the exact edited revision and both media bindings. Before the
+editable recipient project, each fresh recipient also activates two additional
+exact-schema-9 role witnesses from the same shared library. The
+Soundscaper-to-Framescaper workflow witnesses `project-audio-mix-v1` and
+`audio-track-render-v1`; the reverse workflow witnesses
+`project-video-render-v1` and `video-clip-render-v1`. Each witness carries one
+canonical source and one manifest-only digest-bound fallback source. On the
+less-capable recipient it is intrinsically read-only, reaches the role-specific
+compatibility indicator, starts and stops editor transport, and invokes the
+visible cross-product handoff. Feature-requirement read-only is the only
+read-only state admitted by that menu action; a busy editor or read-only project
+lock remains blocked. The origin return opens both role witnesses before the
+editable mixed-media project, proves the compatibility indicator absent, opens
+an enabled track-name editor and cancels it without mutation, and starts and
+stops transport. The paired aggregate owns `audio-whole-mix-electron-roundtrip`,
 `audio-track-render-electron-roundtrip`,
 `video-full-project-electron-roundtrip`, and
-`video-clip-render-electron-roundtrip`. It requires exact
-feature/project/requirement/role/source identity and unchanged canonical
-document, canonical-source body, and fallback-body SHA-256 between recipient
-and origin. Main-owned evidence additionally binds every handoff navigation,
-the mixed-media document digest and media binding IDs and digests, and strictly
-increasing catalog revisions and fencing tokens.
-
-This qualifies only
-`electron-soundscaper-to-framescaper-to-soundscaper-library` and
-`electron-framescaper-to-soundscaper-to-framescaper-library` for that fixed
-small first-party fixture on Linux x64, plus the four exact role-return workflow
-IDs above. The web `.scape` workflow matrix is qualified separately. Muted
-audio does not qualify audible or device-output fidelity. Packaged activation,
-fallback playback, unchanged project handoff, and editable origin return are
-qualified only for the four frozen rendered-fallback roles. Packaged
-rendered-media delivery, fallback authoring and other relationships, general
-browser or codec behavior, linked or unmanaged media, installers and file
-associations, concurrency, crash or power loss, Windows, macOS, and ARM64
-remain unqualified.
+`video-clip-render-electron-roundtrip` and requires exact feature, project,
+requirement, relationship role and fallback source identity plus unchanged
+canonical-document, canonical-source-body, and fallback-body SHA-256 across
+recipient and origin. Main-owned evidence also binds every handoff navigation,
+the mixed-media document digest and binding IDs and digests, and strictly
+increasing catalog revisions and fencing tokens across all six processes. This
+qualifies only the `electron-soundscaper-to-framescaper-to-soundscaper-library`
+and `electron-framescaper-to-soundscaper-to-framescaper-library` workflow IDs
+plus those four exact role-return workflow IDs; the web `.scape` workflow matrix
+is qualified separately. The evidence uses fixed small first-party fixtures on
+Linux x64 with muted audio. It qualifies packaged activation, fallback playback,
+unchanged project handoff, and editable origin return only for the four frozen
+rendered-fallback roles; it does not qualify packaged rendered-media delivery,
+fallback authoring or other relationships, audible or device-output fidelity,
+general browser or codec coverage, linked or unmanaged media, installers or file
+associations, concurrent opens, crash or power-loss behavior, or Windows, macOS,
+or ARM64.
+<!-- /policy-narrative:desktop-packaged-source-bearing-handoff -->
 
 A maintained Chromium browser spec closes the two frozen web `.scape` workflow
 IDs through three isolated browser contexts in each product order. The origin
