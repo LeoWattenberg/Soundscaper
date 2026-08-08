@@ -13,6 +13,7 @@ export type OpfsSyncOperationId = typeof OPFS_SYNC_OPERATION_IDS[number];
 
 const OPERATION_IDS = new Set<string>(OPFS_SYNC_OPERATION_IDS);
 const MAXIMUM_OPFS_PATH_BYTES = 255;
+export const MAXIMUM_OPFS_SYNC_CHUNK_BYTES = 16 * 1024 * 1024;
 
 export function assertOpfsSyncOperationId(value: unknown): asserts value is OpfsSyncOperationId {
 	if (typeof value !== 'string' || !OPERATION_IDS.has(value)) {
@@ -42,6 +43,7 @@ export function normalizeOpfsReadRange(
 	const length = Number(lengthValue);
 	if (!Number.isSafeInteger(offset) || offset < 0
 		|| !Number.isSafeInteger(length) || length < 0
+		|| length > MAXIMUM_OPFS_SYNC_CHUNK_BYTES
 		|| !Number.isSafeInteger(offset + length)) {
 		throw new RangeError('A non-negative safe OPFS read range is required.');
 	}
