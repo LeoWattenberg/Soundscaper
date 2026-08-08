@@ -9,6 +9,7 @@ coverage/
 .desktop-build/
 release/desktop/
 release/desktop-handoff/
+release/desktop-nightly-tests/
 .env
 .env.*
 !.env.example

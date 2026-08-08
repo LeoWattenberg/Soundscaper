@@ -403,7 +403,10 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('matches the desktop, tablet, and mobile editor shells in light and dark themes', async ({ page }, testInfo) => {
-		test.skip(testInfo.project.name !== 'chromium', 'The canonical visual baselines use desktop Chromium.');
+		test.skip(
+			process.platform !== 'linux' || testInfo.project.name !== 'chromium',
+			'The canonical visual baselines are maintained by the Ubuntu CI Chromium run.',
+		);
 		test.setTimeout(60_000);
 		await page.addInitScript(() => {
 			const gibibyte = 1024 ** 3;

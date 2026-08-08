@@ -81,8 +81,8 @@ they are not complete Audacity catalogs. Audacity and its translators retain
 copyright in the upstream translations, and those derived packs remain under
 GPLv3. Soundscaper is not affiliated with or endorsed by Audacity or Muse Group.
 
-The credential-free conversion job uses `saxes` 6.0.0 (ISC) and its `xmlchars`
-2.2.0 dependency (MIT) to parse Qt TS XML. Both are development-time tools and
+The credential-free conversion job uses `saxes` 6.0.0 (ISC) and its
+`xmlchars` 2.2.0 dependency (MIT) to parse Qt TS XML. Both are development-time tools and
 are not included in the browser bundle. Their package sources and license texts
 are available from <https://github.com/lddubeau/saxes/tree/v6.0.0> and
 <https://github.com/lddubeau/xmlchars/tree/v2.2.0>.
@@ -163,6 +163,32 @@ Electron and its embedded Chromium/Node.js runtime are shipped only in desktop
 artifacts. Build-only packaging and icon tools are not shipped. Soundscaper does
 not modify these packages; their installed license files and upstream source are
 available from the pinned links above.
+
+## Nightly-with-tests diagnostic tooling
+
+The opt-in `nightly-with-tests` CI artifact is a diagnostic test runner, not a
+normal desktop package or public release. It additionally distributes the
+following pinned tools solely so the extracted application can run its bundled
+browser workflows without an npm installation:
+
+- `@playwright/test` 1.61.1, `playwright` 1.61.1, and `playwright-core` 1.61.1 — Apache-2.0; Copyright Microsoft Corporation; source: <https://github.com/microsoft/playwright/tree/v1.61.1>
+- `@axe-core/playwright` 4.12.1 and `axe-core` 4.12.1 — MPL-2.0; Copyright Deque Systems, Inc.; source: <https://github.com/dequelabs/axe-core/tree/v4.12.1>
+- WinLDD `PrintDeps.exe` (Playwright revision 1007) — MIT; Copyright (c) 2020 Julien Waechter; source and embedded license header: <https://github.com/microsoft/playwright/blob/v1.61.1/browser_patches/winldd/PrintDeps.cpp>; binary-only archive recipe: <https://github.com/microsoft/playwright/blob/v1.61.1/browser_patches/winldd/archive.sh>; bundled terms: [`LICENSES/Playwright-winldd-MIT.txt`](LICENSES/Playwright-winldd-MIT.txt)
+
+Playwright's pinned browser inventory for that artifact identifies
+Chrome for Testing 149.0.7827.55 (Playwright revision 1228),
+Firefox 151.0 (Playwright revision 1532), and
+WebKit 26.5 (Playwright revision 2311). Platform-specific revision
+overrides remain recorded in the distributed `playwright-core/browsers.json`.
+The downloaded archives retain the license and notice material they provide,
+including Chromium's component notices and Playwright's LGPL-2.1 FFmpeg copy;
+the corresponding Playwright browser patches and build scripts are at
+<https://github.com/microsoft/playwright/tree/v1.61.1/browser_patches>.
+
+The artifact also retains each staged npm package's installed `LICENSE`,
+`NOTICE`, and third-party-notice files. This deliberately broader diagnostic
+distribution does not change the dependency surface of the normal Soundscaper
+or Framescaper desktop executables.
 
 ## Packaged browser dependencies
 

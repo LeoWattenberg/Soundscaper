@@ -10,6 +10,7 @@ const notices = readFileSync(resolve(root, 'THIRD_PARTY_LICENSES.md'), 'utf8');
 const declared = { ...packageJson.dependencies, ...packageJson.devDependencies };
 
 const trackedVersions = [
+	'@axe-core/playwright',
 	'@dilsonspickles/components',
 	'@echogarden/pffft-wasm',
 	'@electron/fuses',
@@ -19,16 +20,21 @@ const trackedVersions = [
 	'@fontsource/inter',
 	'@fontsource/ubuntu',
 	'@noble/hashes',
+	'@playwright/test',
 	'@resvg/resvg-js',
 	'@sqlite.org/sqlite-wasm',
 	'@zip.js/zip.js',
+	'axe-core',
 	'electron',
 	'fflate',
+	'playwright',
+	'playwright-core',
 	'react',
 	'react-dom',
 	'saxes',
 	'scheduler',
 	'sql.js',
+	'xmlchars',
 ];
 
 const findings = [];

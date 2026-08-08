@@ -9,6 +9,15 @@ on:
     tags:
       - 'v*-beta.*'
   workflow_dispatch:
+    inputs:
+      artifact_variant:
+        description: Desktop artifact flavor to build
+        required: true
+        default: nightly
+        type: choice
+        options:
+          - nightly
+          - nightly-with-tests
 
 permissions:
   contents: read
@@ -78,6 +87,7 @@ jobs:
 
   package:
     name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
     needs: quality
     timeout-minutes: 60
     strategy:
@@ -216,8 +226,101 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  package-with-tests:
+    name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    if: github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly-with-tests'
+    needs: quality
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - runner: windows-2025
+            platform: win
+            arch: x64
+            node_arch: x64
+          - runner: windows-11-arm
+            platform: win
+            arch: arm64
+            node_arch: x64
+          - runner: macos-15-intel
+            platform: mac
+            arch: x64
+            node_arch: x64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            node_arch: arm64
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            node_arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            node_arch: arm64
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
+
+      - name: Build the browser application
+        run: npm run build
+
+      - name: Install Linux browser dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install-deps chromium firefox webkit
+
+      - name: Install the hermetic browser-engine matrix
+        run: npx playwright install --only-shell chromium firefox webkit
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: '0'
+
+      - name: Stage the nightly-with-tests application
+        run: node scripts/desktop-nightly-tests-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+
+      - name: Package nightly-with-tests ${{ matrix.target.platform }} ${{ matrix.target.arch }}
+        run: >-
+          npx electron-builder --config electron-builder.nightly-tests.config.cjs
+          --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload nightly-with-tests package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nightly-with-tests-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: |
+            release/desktop-nightly-tests/*.AppImage
+            release/desktop-nightly-tests/*.exe
+            release/desktop-nightly-tests/*.zip
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+
   project-library-handoff:
     name: Packaged project-library handoff / linux / x64
+    if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
     needs: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 45

@@ -163,6 +163,51 @@ desktop distribution still requires the release provenance recorded in
 ID signing/notarization; the compiled-native AUP4 gate is intentionally still
 pending for this preview.
 
+### Nightly test runner artifacts
+
+For a self-contained browser test run, start the workflow manually and choose
+`nightly-with-tests`. Its six platform jobs upload artifacts named
+`nightly-with-tests-win-<architecture>`,
+`nightly-with-tests-mac-<architecture>`, or
+`nightly-with-tests-linux-<architecture>` for Windows x64/ARM64, macOS
+Intel/Apple silicon, and Linux x64/ARM64. This flavor contains the built
+site, the Playwright suite and runtime, and the platform's pinned Chromium,
+Firefox, and WebKit engines. It does not need npm or a checkout on the test
+machine.
+
+Unpack the Actions artifact to a writable directory. Run the portable `.exe` on
+Windows; unpack and run the `.app` from the inner macOS ZIP; or mark the Linux
+AppImage executable (`chmod +x`) and run it. A completion dialog reports the
+outcome and exact output path. Every invocation creates, in the same directory
+as the executable (or beside the macOS `.app`), a unique
+`soundscaper-nightly-tests-playwright-<UTC timestamp>-<suffix>/` directory with:
+
+- `run.json` — launcher status, exit code, source revision, platform, and paths;
+- `console.log` — the Playwright console stream.
+
+Those two launcher files are attempted even for infrastructure failures. Once
+Playwright starts, the directory also contains `results.json` and `junit.xml`
+for machine-readable results, `playwright-report/index.html` for the browsable
+HTML report, and `test-results/` for traces, screenshots, and failure
+attachments.
+
+Exit code 0 means the suite passed, 1 means Playwright completed with test
+failures, and 2 means the launcher, server, browser, or configuration failed.
+The browser binaries are platform-specific and large, and Linux still requires
+the system libraries supplied by a Playwright-supported distribution. The
+nightly-with-tests executable intentionally enables Electron's Node mode for
+Playwright workers and ships test JavaScript outside ASAR, so it is a diagnostic
+artifact and not a public release or a substitute for the hardened desktop
+package.
+
+To build the current platform's equivalent artifact locally after installing
+the hermetic engines, use:
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --only-shell chromium firefox webkit
+npm run desktop:nightly-tests:dist
+```
+
 ## Cloudflare production setup
 
 Cloudflare Pages can build and deploy Soundscaper directly from GitHub. The
