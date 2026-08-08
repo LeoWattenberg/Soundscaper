@@ -124,7 +124,11 @@ test('linked retained-video policy pins exact local lifecycle behavior', async (
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,
-		/relink beyond the maintained exact-content retained-video and linked-PCM Project Bin flows or automatic watch behavior.*remain unqualified/iu,
+		/relink beyond the maintained exact- or changed-content silent retained-video and exact-content linked-PCM Project Bin flows or automatic watch behavior.*remain unqualified/iu,
+	);
+	assert.match(
+		linkedVideoOriginal.currentBehavior,
+		/changed-content admission relinks a silent video source to different bytes behind explicit caller authorization and the maintained localized confirmation.*refuses any source or compound bin item that retains canonical extracted audio or pairs an audio member.*keeps the binding's MIME type.*probes the selected file with the same decode pipeline import uses.*frame size and duration must match the canonical claims and no audio may decode.*publishes the measured byte length and SHA-256 with the source shape copied unchanged.*purges stale disposable derivatives best-effort after publication.*releases the chooser's locator when the confirmation is declined.*frameRate and videoCodec remain unverified import placeholders/iu,
 	);
 	assert.match(
 		linkedVideoOriginal.currentBehavior,

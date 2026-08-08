@@ -551,10 +551,22 @@ binding token and whether the source is missing, stops timeline playback and
 Project Bin preview, revokes the current visual, and
 revalidates project, task, and editing state; a source that was missing must
 stay missing until publication. The UI passes only
-the selected `File` and pathless locator ID and revision. Storage first requires
+the selected `File` and pathless locator ID and revision. For the default
+exact-content admission, storage first requires
 that file to match the existing byte length and SHA-256, then requires the
 exact-revision platform snapshot to match the selection before a same-source
 compare-and-swap publishes the replacement binding and provisional root.
+A separate changed-content admission relinks a silent video source to
+different bytes behind explicit caller authorization and the maintained
+localized confirmation. It refuses any source or compound bin item that
+retains canonical extracted audio or pairs an audio member, keeps the
+binding's MIME type, and probes the selected file with the same decode
+pipeline import uses, so frame size and duration must match the canonical
+claims and no audio may decode. The compare-and-swap then publishes the
+measured byte length and SHA-256 with the source shape copied unchanged,
+stale disposable derivatives are purged best-effort after publication, and a
+declined confirmation releases the chooser's locator; frameRate and
+videoCodec remain unverified import placeholders carried through unchanged.
 The synchronous controller guard runs inside that same memory or IndexedDB
 binding-and-provisional-root CAS immediately before publication and rechecks
 task, project, and writable state plus, for an initially missing item,
