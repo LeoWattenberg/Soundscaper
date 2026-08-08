@@ -29,6 +29,14 @@ import {
 	validateScapeReopenRendererResult,
 	validateScapeReopenSmokeResult,
 } from './scape-reopen-smoke.js';
+import {
+	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX,
+	decodeDesktopProjectLibrarySourceBearingPlan,
+} from './project-library-source-bearing-smoke.js';
+import {
+	createDesktopProjectLibrarySourceBearingSmokeSession,
+} from './project-library-source-bearing-smoke-session.js';
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
@@ -80,6 +88,13 @@ export function parseDesktopSmokeConfiguration(argv) {
 		if (plans.length !== 1) throw new TypeError('Project-library smoke mode requires exactly one smoke plan');
 		return deepFreeze({ mode: PROJECT_LIBRARY_MODE, plan: decodePlan(plans[0]) });
 	}
+	if (modes[0] === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) {
+		if (plans.length !== 1) throw new TypeError('Source-bearing project-library smoke mode requires exactly one smoke plan');
+		return deepFreeze({
+			mode: DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+			plan: decodeDesktopProjectLibrarySourceBearingPlan(plans[0]),
+		});
+	}
 	if (modes[0] === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
 		if (plans.length !== 1) throw new TypeError('Direct-WAV smoke mode requires exactly one smoke plan');
 		return deepFreeze({ mode: DESKTOP_DIRECT_WAV_SMOKE_MODE, plan: decodeDirectWavSmokePlan(plans[0]) });
@@ -110,9 +125,17 @@ export function createDesktopSmokeProbe(options) {
 	const appOrigin = requiredText(options?.appOrigin, 'application origin');
 	const productId = requiredProduct(options?.productId);
 	const projectLibraryEvidence = options?.projectLibraryEvidence;
-	if (configuration.mode === PROJECT_LIBRARY_MODE && typeof projectLibraryEvidence !== 'function') {
+	if ([PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE].includes(configuration.mode)
+		&& typeof projectLibraryEvidence !== 'function') {
 		throw new TypeError('Project-library smoke requires a main-process evidence callback');
 	}
+	const sourceBearingSession = configuration.mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE
+		? createDesktopProjectLibrarySourceBearingSmokeSession({
+			plan: configuration.plan,
+			productId,
+			projectLibraryEvidence,
+		})
+		: null;
 	const directWavTargetHarness = configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
 		? options?.directWavTargetHarness ?? createDirectWavSmokeTargetHarness({ argv: options?.argv })
 		: null;
@@ -196,14 +219,23 @@ export function createDesktopSmokeProbe(options) {
 	};
 
 	const rendererReady = async () => {
-		if (![PROJECT_LIBRARY_MODE, DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE,
+		const sourceBearing = configuration.mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE;
+		if (![PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+			DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE,
 			DESKTOP_SCAPE_REOPEN_SMOKE_MODE].includes(configuration.mode)
-			|| started || finished) return;
+			|| finished || (started && !sourceBearing)) return;
 		started = true;
 		try {
 			if (!attachedWindow) throw new Error('Desktop smoke renderer became ready before window attachment');
 			const plan = configuration.plan;
 			if (!plan || plan.productId !== productId) throw new Error('Packaged smoke plan targets a different product');
+			if (sourceBearing) {
+				const payload = await sourceBearingSession.run(attachedWindow.webContents);
+				if (payload === null) return;
+				log(`${DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX}${JSON.stringify(payload)}`);
+				await finish(0);
+				return;
+			}
 			if (configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
 				const renderer = validateDirectWavRendererResult(
 					await attachedWindow.webContents.executeJavaScript(
@@ -533,12 +565,16 @@ function assertMatchingScapeDescriptor(candidate, observed, plan) {
 
 function timeoutFor(mode) {
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS;
+	if (mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) return 90_000;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	return 15_000;
 }
 
 function prefixFor(mode) {
 	if (mode === PROJECT_LIBRARY_MODE) return DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX;
+	if (mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) {
+		return DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX.trimEnd();
+	}
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return DESKTOP_SCAPE_OPEN_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX;

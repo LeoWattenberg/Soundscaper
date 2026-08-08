@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 
 import {
 	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX,
 	createDesktopProjectLibrarySourceBearingPlan,
 	createDesktopProjectLibrarySourceBearingWorkflows,
 	encodeDesktopProjectLibrarySourceBearingPlan,
@@ -17,7 +18,7 @@ import {
 	resolveSmokeArchitecture,
 } from './desktop-smoke.mjs';
 
-export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING ';
+export { DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX };
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_AGGREGATE_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_HANDOFF ';
 
 const MAXIMUM_CHILD_OUTPUT_BYTES = 1024 * 1024;

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE = 'project-library-source-bearing-handoff-v1';
+export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING ';
 export const MAX_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_PLAN_BYTES = 64 * 1024;
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_WORKFLOW_IDS = Object.freeze([
 	'electron-soundscaper-to-framescaper-to-soundscaper-library',
