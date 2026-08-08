@@ -1187,6 +1187,19 @@ read-only activation. The engine alone receives the synthetic whole-mix
 projection and exact fallback samples, while the document snapshot remains the
 publisher's canonical project.
 
+The track-local relationship reaches the same explicit desktop handoff. Its
+sender stays compatible and editable because the registered rack is available,
+and an ordinary save stays document-only; the explicit handoff publishes the
+target-lane and native-lane originals plus the digest-bound track render as
+exact managed bodies. A fresh recipient that reports the registered
+`audioEffects` capability unavailable acquires all three bodies
+digest-verified, preserves the byte-exact canonical shadow, and admits the
+relationship by role, target track ID, source ID, and SHA-256 before the
+target-lane-only projection plays. Delivery on that recipient refuses
+corrupted recipient-local render PCM before render or download and, after
+exact repair, mixes the native lane with the verified private provider into
+exact WAV output while the canonical project stays unchanged.
+
 `org.example.future-mixer` supplies this unknown-feature composed
 Soundscaper-to-fresh-Framescaper witness. The canonical manifest, frozen
 metadata, and localized source/component UI stay bound to the exact feature ID

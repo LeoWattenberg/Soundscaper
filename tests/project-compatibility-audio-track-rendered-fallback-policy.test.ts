@@ -40,6 +40,9 @@ const DELIVERY_EVIDENCE = [
 const PORTABILITY_EVIDENCE = [
 	'tests/audio-editor-scape-audio-track-fallback-roundtrip.test.ts',
 ] as const;
+const HANDOFF_EVIDENCE = [
+	'tests/desktop-project-library-audio-track-render-fallback-handoff.test.ts',
+] as const;
 
 test('compatibility policy narrowly qualifies the track-local audio-effects render relationship', async () => {
 	const policy = await compatibilityPolicy();
@@ -51,6 +54,7 @@ test('compatibility policy narrowly qualifies the track-local audio-effects rend
 		['native remainder', /every other lane.*mixer routing.*master processing stays native/iu],
 		['private delivery', /selector-bound operation-time verification.*private digest-bound chunk provider.*ordinary lanes.*ordinary sources/iu],
 		['portable roundtrip', /portable \.scape.*preserve the exact track relationship.*collision copy.*only the fallback source identity/iu],
+		['managed handoff outcome', /explicit managed handoff carries the relationship.*ordinary lane sources.*fresh recipient.*manifest-only reference/iu],
 	]);
 	assertSemanticClaims(rule.currentBehavior, [
 		['single audio fallback', /at most one audio rendered fallback of either closed audio role.*ambiguous/iu],
@@ -67,12 +71,14 @@ test('compatibility policy narrowly qualifies the track-local audio-effects rend
 		['time-pitch and refusal', /committed time-pitch caches are prepared for the native lanes.*missing ordinary sources still refuse export.*stems, BW64, and any ADM setting reject/iu],
 		['final-video composition', /same composition reaches the audio side of maintained final-video delivery/iu],
 		['portable preservation', /retains the relationship and exact target track ID.*copy collision remaps only the fallback source identity/iu],
+		['managed handoff witness', /editable compatible sender whose ordinary save stays document-only.*fresh recipient that reports the registered capability unavailable.*byte-exact canonical shadow.*refuses delivery on corrupted recipient-local render PCM.*mixes the native lane with the verified private provider/iu],
 		['affected-object naming', /names the replaced track and each timeline clip its lane anchors/iu],
-		['narrow non-goals', /group, send, and master-scoped roles.*multiple simultaneous audio fallbacks.*managed-handoff and packaged or browser qualification beyond the portable roundtrip.*third-party feature-code activation remain unqualified/iu],
+		['narrow non-goals', /group, send, and master-scoped roles.*multiple simultaneous audio fallbacks.*packaged or browser qualification beyond the portable roundtrip and maintained managed handoff.*third-party feature-code activation remain unqualified/iu],
 	]);
 	await assertCompatibilityEvidence(rule, PROJECTOR_EVIDENCE);
 	await assertCompatibilityEvidence(rule, DELIVERY_EVIDENCE);
 	await assertCompatibilityEvidence(rule, PORTABILITY_EVIDENCE);
+	await assertCompatibilityEvidence(rule, HANDOFF_EVIDENCE);
 });
 
 test('the schema rule owns the closed track relationship', async () => {
@@ -101,7 +107,7 @@ test('security controls bind the track relationship through playback, integrity,
 		['target and lane geometry', /target track ID.*non-empty audio clip lane.*exact timeline placement.*extent.*equal exactly/iu],
 		['target-only transient state', /replaces only that lane.*neutralizes only that rack.*every other lane, mixer, and master rack stays native/iu],
 		['admission binding', /rack activity, effect identity and inertness flags, lane membership, and exact lane placement/iu],
-		['handoff residual', /managed handoff, packaged, and browser qualification remain open beyond the portable \.scape roundtrip/iu],
+		['managed handoff', /reaches explicit managed handoff to a fresh recipient.*editable compatible sender.*packaged and browser qualification remain open beyond the portable \.scape roundtrip and that managed handoff witness/iu],
 	]);
 	assertSemanticClaims(delivery.summary, [
 		['role-target selector', /binds the closed role and exact target track ID/iu],
@@ -112,8 +118,8 @@ test('security controls bind the track relationship through playback, integrity,
 		['claim targets', /conflicting relationship roles and target clip or track IDs/iu],
 		['audio selector union', /closed role union.*null whole-mix target or one exact target track ID/iu],
 	]);
-	await assertSecurityEvidence(playback, PROJECTOR_EVIDENCE.slice(0, 1));
-	await assertSecurityEvidence(delivery, [...DELIVERY_EVIDENCE.slice(0, 1), ...PORTABILITY_EVIDENCE]);
+	await assertSecurityEvidence(playback, [...PROJECTOR_EVIDENCE.slice(0, 1), ...HANDOFF_EVIDENCE]);
+	await assertSecurityEvidence(delivery, [...DELIVERY_EVIDENCE.slice(0, 1), ...PORTABILITY_EVIDENCE, ...HANDOFF_EVIDENCE]);
 });
 
 test('compatibility and security documents state the track slice and its narrow non-goals', async () => {
@@ -134,9 +140,10 @@ test('compatibility and security documents state the track slice and its narrow 
 	assertSemanticClaims(compatibility, [
 		['compatibility: merged delivery', /ordinary source buffers and chunk providers with the fallback source removed from both/iu],
 		['compatibility: portable roundtrip', /retains the relationship and exact target track ID|preserving that canonical target clip or track ID/iu],
+		['compatibility: managed handoff', /fresh recipient that reports the registered `?audioEffects`? capability unavailable.*admits the relationship by role, target track ID, source ID, and SHA-256/iu],
 	]);
 	assertSemanticClaims(threatModel, [
-		['threat model: track handoff residual', /track relationship's managed handoff, packaged, and browser qualification remain open|for the track role only editor playback, maintained delivery, and portable `?\.scape`? round-trip are qualified/iu],
+		['threat model: track handoff qualified', /for the track role editor playback, maintained delivery, portable `?\.scape`? round-trip, and managed handoff are qualified, not packaged or browser workflows/iu],
 	]);
 });
 

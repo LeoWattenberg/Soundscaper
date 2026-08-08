@@ -149,7 +149,7 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 		/packaged runtime and UI.*unqualified.*browser behavior.*codec qualification.*unqualified.*reference-scale evidence.*unqualified.*whole-handoff atomicity/iu,
 	);
 
-	const handoffStart = threatModel.indexOf('Three narrower one-way headless fixtures');
+	const handoffStart = threatModel.indexOf('Four narrower one-way headless fixtures');
 	const handoffEnd = threatModel.indexOf(
 		'\n\nOne narrow linked-PCM managed-handoff exception',
 		handoffStart,
