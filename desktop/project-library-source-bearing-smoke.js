@@ -94,6 +94,41 @@ export function decodeDesktopProjectLibrarySourceBearingPlan(value) {
 	return admitted;
 }
 
+export function validateDesktopProjectLibrarySourceBearingResult(value, planValue) {
+	const plan = createDesktopProjectLibrarySourceBearingPlan(planValue);
+	if (canonicalJson(plan) !== canonicalJson(planValue)) {
+		throw new TypeError('Source-bearing packaged result plan is not fixed');
+	}
+	assertExactKeys(value, [
+		'schemaVersion', 'mode', 'workflowId', 'stage', 'productId', 'project', 'sources',
+		'ui', 'host', 'catalogRevision',
+	], 'source-bearing packaged handoff result');
+	if (value.schemaVersion !== 1 || value.mode !== DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE
+		|| value.workflowId !== plan.workflowId || value.stage !== plan.stage
+		|| value.productId !== plan.productId) {
+		throw new TypeError('Source-bearing packaged handoff result identity is invalid');
+	}
+	const project = validateResultProject(value.project, plan);
+	const sources = validateResultSources(value.sources, plan);
+	const ui = validateResultUi(value.ui, plan, sources);
+	const host = validateResultHost(value.host, plan);
+	if (!Number.isSafeInteger(value.catalogRevision) || value.catalogRevision < 1) {
+		throw new TypeError('Source-bearing packaged handoff result catalog revision is invalid');
+	}
+	return deepFreeze({
+		schemaVersion: 1,
+		mode: DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+		workflowId: plan.workflowId,
+		stage: plan.stage,
+		productId: plan.productId,
+		project,
+		sources,
+		ui,
+		host,
+		catalogRevision: value.catalogRevision,
+	});
+}
+
 function createWorkflow(definition) {
 	const seed = createSeed(definition);
 	return deepFreeze({
@@ -245,6 +280,89 @@ function validatePrevious(value, workflow) {
 	const expected = [workflow.seed.audio, workflow.seed.video];
 	const sources = value.sources.map((source, index) => validateManagedSource(source, expected[index], index));
 	return deepFreeze({ project: { ...value.project }, sources });
+}
+
+function validateResultProject(value, plan) {
+	assertExactKeys(value, ['id', 'title', 'revision', 'sha256'], 'source-bearing result project');
+	const previous = plan.previous?.project ?? null;
+	const expectedRevision = plan.stage === 'publish' ? 1
+		: plan.stage === 'advance' ? previous.revision + 1 : previous.revision;
+	if (value.id !== plan.seed.projectId || value.title !== plan.seed.title
+		|| value.revision !== expectedRevision
+		|| typeof value.sha256 !== 'string' || !SHA256.test(value.sha256)
+		|| (plan.stage === 'advance' && value.sha256 === previous.sha256)
+		|| (plan.stage === 'return' && canonicalJson(value) !== canonicalJson(previous))) {
+		throw new TypeError('Source-bearing packaged handoff result project or revision is invalid');
+	}
+	return Object.freeze({ ...value });
+}
+
+function validateResultSources(value, plan) {
+	const sources = validatePrevious({
+		project: {
+			id: plan.seed.projectId,
+			title: plan.seed.title,
+			revision: 1,
+			sha256: '0'.repeat(64),
+		},
+		sources: value,
+	}, workflowFor(plan.workflowId)).sources;
+	if (plan.previous) {
+		for (const [index, source] of sources.entries()) {
+			const previous = plan.previous.sources[index];
+			if (source.kind !== previous.kind || source.encoding !== previous.encoding
+				|| source.sourceId !== previous.sourceId || source.storageKey !== previous.storageKey
+				|| source.byteLength !== previous.byteLength || source.sha256 !== previous.sha256) {
+				throw new TypeError('Source-bearing packaged handoff result media changed across products');
+			}
+			if (plan.stage === 'advance' && source.bindingId === previous.bindingId) {
+				throw new TypeError('Source-bearing packaged advance result did not rebind managed media');
+			}
+		}
+		if (plan.stage === 'return' && canonicalJson(sources) !== canonicalJson(plan.previous.sources)) {
+			throw new TypeError('Source-bearing packaged return result changed its managed bindings');
+		}
+	}
+	return sources;
+}
+
+function validateResultUi(value, plan, sources) {
+	assertExactKeys(value, [
+		'activeProjectId', 'audioTrackName', 'clipCount', 'handoffInvoked', 'playbackStarted',
+		'playbackStopped', 'productId', 'projectBinSourceId', 'trackCount', 'videoSha256',
+	], 'source-bearing packaged handoff UI result');
+	const expectedTrackName = plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName;
+	if (value.activeProjectId !== plan.seed.projectId || value.productId !== plan.productId
+		|| value.trackCount !== 2 || value.clipCount !== 2
+		|| value.projectBinSourceId !== plan.seed.video.sourceId
+		|| value.videoSha256 !== sources[1].sha256
+		|| value.audioTrackName !== expectedTrackName
+		|| value.playbackStarted !== true || value.playbackStopped !== true
+		|| value.handoffInvoked !== (plan.stage !== 'return')) {
+		throw new TypeError('Source-bearing packaged handoff UI playback, video, track, or handoff result is invalid');
+	}
+	return Object.freeze({ ...value });
+}
+
+function validateResultHost(value, plan) {
+	assertExactKeys(
+		value,
+		['owner', 'fencingToken', 'tookOverStaleLease', 'recovery'],
+		'source-bearing packaged handoff host result',
+	);
+	assertExactKeys(value.owner, ['product'], 'source-bearing packaged handoff host owner');
+	assertExactKeys(value.recovery, ['outcome'], 'source-bearing packaged handoff recovery result');
+	if (value.owner.product !== plan.productId
+		|| !Number.isSafeInteger(value.fencingToken) || value.fencingToken < 1
+		|| value.tookOverStaleLease !== false || value.recovery.outcome !== 'clean') {
+		throw new TypeError('Source-bearing packaged handoff host result is invalid');
+	}
+	return Object.freeze({
+		owner: Object.freeze({ product: value.owner.product }),
+		fencingToken: value.fencingToken,
+		tookOverStaleLease: false,
+		recovery: Object.freeze({ outcome: 'clean' }),
+	});
 }
 
 function validateManagedSource(value, expected, index) {

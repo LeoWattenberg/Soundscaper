@@ -11,6 +11,7 @@ import {
 	createDesktopProjectLibrarySourceBearingWorkflows,
 	decodeDesktopProjectLibrarySourceBearingPlan,
 	encodeDesktopProjectLibrarySourceBearingPlan,
+	validateDesktopProjectLibrarySourceBearingResult,
 } from '../desktop/project-library-source-bearing-smoke.js';
 import { validateAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import {
@@ -126,6 +127,58 @@ test('source-bearing packaged plans are bounded, canonical, and stage-bound', ()
 	assert.throws(() => decodeDesktopProjectLibrarySourceBearingPlan('not+base64'), /base64url/iu);
 });
 
+test('source-bearing packaged results bind UI playback, one recipient edit, and managed media', () => {
+	const [workflow] = createDesktopProjectLibrarySourceBearingWorkflows();
+	const publishPlan = createDesktopProjectLibrarySourceBearingPlan({
+		workflowId: workflow.id, stage: 'publish', previous: null,
+	});
+	const published = resultFor(publishPlan, {
+		project: { id: workflow.seed.projectId, title: workflow.seed.title, revision: 1, sha256: SHA256 },
+		sources: [
+			managedSource(workflow.seed.audio, 'audio', 'm'),
+			managedSource(workflow.seed.video, 'video', 'v'),
+		],
+	});
+	assert.deepEqual(validateDesktopProjectLibrarySourceBearingResult(published, publishPlan), published);
+
+	const advancePlan = createDesktopProjectLibrarySourceBearingPlan({
+		workflowId: workflow.id,
+		stage: 'advance',
+		previous: { project: published.project, sources: published.sources },
+	});
+	const advanced = resultFor(advancePlan, {
+		project: { ...published.project, revision: 2, sha256: 'ef'.repeat(32) },
+		sources: published.sources.map((source, index) => ({
+			...source, bindingId: `${index === 0 ? 'm' : 'v'}${'12'.repeat(32)}`,
+		})),
+	});
+	assert.deepEqual(validateDesktopProjectLibrarySourceBearingResult(advanced, advancePlan), advanced);
+
+	const returnPlan = createDesktopProjectLibrarySourceBearingPlan({
+		workflowId: workflow.id,
+		stage: 'return',
+		previous: { project: advanced.project, sources: advanced.sources },
+	});
+	const returned = resultFor(returnPlan, { project: advanced.project, sources: advanced.sources });
+	assert.deepEqual(validateDesktopProjectLibrarySourceBearingResult(returned, returnPlan), returned);
+
+	for (const candidate of [
+		{ ...published, ui: { ...published.ui, playbackStarted: false } },
+		{ ...published, ui: { ...published.ui, videoSha256: '00'.repeat(32) } },
+		{ ...published, project: { ...published.project, revision: 2 } },
+		{ ...advanced, ui: { ...advanced.ui, audioTrackName: 'not the fixed edit' } },
+		{ ...returned, project: published.project },
+	]) {
+		const plan = candidate.stage === 'advance'
+			? advancePlan
+			: candidate.stage === 'return' ? returnPlan : publishPlan;
+		assert.throws(
+			() => validateDesktopProjectLibrarySourceBearingResult(candidate, plan),
+			/result|playback|video|revision|track|project/iu,
+		);
+	}
+});
+
 function managedSource(source, kind, prefix) {
 	return {
 		bindingId: `${prefix}${'cd'.repeat(32)}`,
@@ -135,5 +188,37 @@ function managedSource(source, kind, prefix) {
 		sha256: SHA256,
 		sourceId: source.sourceId,
 		storageKey: source.storageKey,
+	};
+}
+
+function resultFor(plan, { project, sources }) {
+	const stage = plan.stage;
+	return {
+		schemaVersion: 1,
+		mode: DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+		workflowId: plan.workflowId,
+		stage,
+		productId: plan.productId,
+		project,
+		sources,
+		ui: {
+			activeProjectId: plan.seed.projectId,
+			audioTrackName: stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
+			clipCount: 2,
+			handoffInvoked: stage !== 'return',
+			playbackStarted: true,
+			playbackStopped: true,
+			productId: plan.productId,
+			projectBinSourceId: plan.seed.video.sourceId,
+			trackCount: 2,
+			videoSha256: sources[1].sha256,
+		},
+		host: {
+			owner: { product: plan.productId },
+			fencingToken: stage === 'publish' ? 1 : stage === 'advance' ? 2 : 3,
+			tookOverStaleLease: false,
+			recovery: { outcome: 'clean' },
+		},
+		catalogRevision: stage === 'publish' ? 1 : stage === 'advance' ? 2 : 3,
 	};
 }
