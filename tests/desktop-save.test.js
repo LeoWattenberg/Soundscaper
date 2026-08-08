@@ -115,6 +115,73 @@ test('aborting and failed completion preserve an existing destination', async (c
 	assert.equal((await readdir(root)).some((name) => name.endsWith('.soundscaper-part')), false);
 });
 
+test('an abandoned staged write never advertises its orphan and a fresh session republishes', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-restart-staged-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const destination = join(root, 'mix.wav');
+	await writeFile(destination, 'previous commit');
+	const abandonedHandles = [];
+	const abandonedTargets = new SaveTargetStore();
+	const abandoned = new AtomicSaveManager({
+		targets: abandonedTargets,
+		openImpl: async (...args) => {
+			const handle = await open(...args);
+			abandonedHandles.push(handle);
+			return handle;
+		},
+	});
+	context.after(() => Promise.all(abandonedHandles.map((handle) => handle.close().catch(() => undefined))));
+	const target = abandonedTargets.registerPath(destination, { owner: TEST_OWNER, purpose: 'audio-pcm-mix' });
+	const session = await abandoned.begin({ owner: TEST_OWNER, targetId: target.id, size: 8 });
+	await abandoned.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: new TextEncoder().encode('staged') });
+	// The producing process dies here: no abort, no finish, no dispose.
+
+	assert.equal(await readFile(destination, 'utf8'), 'previous commit');
+	const orphans = (await readdir(root)).filter((name) => name.endsWith('.soundscaper-part'));
+	assert.equal(orphans.length, 1);
+	assert.ok(orphans[0].startsWith('.mix.wav.'), 'staging stays dot-prefixed, never the advertised name');
+
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({ targets });
+	context.after(() => manager.dispose());
+	const retryTarget = targets.registerPath(destination, { owner: TEST_OWNER, purpose: 'audio-pcm-mix' });
+	const retry = await manager.begin({ owner: TEST_OWNER, targetId: retryTarget.id, size: 10 });
+	await manager.writeChunk({ owner: TEST_OWNER, writeId: retry.writeId, offset: 0, bytes: new TextEncoder().encode('new commit') });
+	assert.deepEqual(await manager.finish(retry.writeId, { owner: TEST_OWNER }), { byteLength: 10 });
+
+	assert.equal(await readFile(destination, 'utf8'), 'new commit');
+	const survivors = await readdir(root);
+	assert.deepEqual(survivors.filter((name) => !name.startsWith('.')), ['mix.wav'], 'only the committed destination is advertised');
+	assert.deepEqual(survivors.filter((name) => name.endsWith('.soundscaper-part')), orphans, 'the orphan stays for the recorded residual');
+});
+
+test('a committed video save survives into a fresh session with no staging residue', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-restart-commit-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const destination = join(root, 'timeline.mp4');
+	const producerTargets = new SaveTargetStore();
+	const producer = new AtomicSaveManager({ targets: producerTargets });
+	const target = producerTargets.registerPath(destination, { owner: TEST_OWNER, purpose: 'video' });
+	const session = await producer.begin({ owner: TEST_OWNER, targetId: target.id, size: 9 });
+	assert.equal(session.chunkSize, MAX_SAVE_CHUNK_BYTES);
+	await producer.writeChunk({ owner: TEST_OWNER, writeId: session.writeId, offset: 0, bytes: new TextEncoder().encode('mp4 bytes') });
+	assert.deepEqual(await producer.finish(session.writeId, { owner: TEST_OWNER }), { byteLength: 9 });
+	// The producing process exits here without an orderly dispose.
+
+	assert.equal(await readFile(destination, 'utf8'), 'mp4 bytes');
+	assert.deepEqual(await readdir(root), ['timeline.mp4'], 'commit leaves no staging residue to reconcile');
+
+	const targets = new SaveTargetStore();
+	const manager = new AtomicSaveManager({ targets });
+	context.after(() => manager.dispose());
+	const retryTarget = targets.registerPath(destination, { owner: TEST_OWNER, purpose: 'video' });
+	const retry = await manager.begin({ owner: TEST_OWNER, targetId: retryTarget.id, size: 12 });
+	await manager.writeChunk({ owner: TEST_OWNER, writeId: retry.writeId, offset: 0, bytes: new TextEncoder().encode('replacement!') });
+	assert.deepEqual(await manager.finish(retry.writeId, { owner: TEST_OWNER }), { byteLength: 12 });
+	assert.equal(await readFile(destination, 'utf8'), 'replacement!');
+	assert.deepEqual(await readdir(root), ['timeline.mp4']);
+});
+
 test('save chunks enforce the one MiB boundary', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-limit-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
