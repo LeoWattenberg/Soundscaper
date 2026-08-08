@@ -3,11 +3,8 @@ import test from 'node:test';
 
 import {
 	BlobReader,
-	BlobWriter,
-	TextReader,
 	TextWriter,
 	ZipReader,
-	ZipWriter,
 } from '@zip.js/zip.js';
 
 import {
@@ -21,13 +18,16 @@ import {
 } from '../src/common/editor/aup4-effects.js';
 import { migrateAudioEditorProject } from '../src/common/editor/migration.js';
 import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
-import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import {
 	SCAPE_FORMAT,
 	exportScapeProject,
 	importScapeProject,
 	inspectScapeProject,
 } from '../src/common/editor/scape-project.js';
+import {
+	rewriteScapeManifest,
+	rewriteScapeProjectDocument,
+} from './helpers/scape-archive-rewrite.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
 test('scape archives round-trip mixed projects, original media, PCM, effects, and project-bin content', async () => {
@@ -96,13 +96,13 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	}
 });
 
-test('scape imports leave future read-only preview locators opaque', async () => {
+test('a future-schema scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
 	const sourceStore = memoryStore('scape-future-preview-source');
 	const targetStore = memoryStore('scape-future-preview-target');
 	const project = mixedProject();
 	await persistAssets(sourceStore);
 	const exported = await exportScapeProject(project, sourceStore);
-	const future = await rewriteProjectDocument(exported.blob, (document) => {
+	const future = await rewriteScapeProjectDocument(exported.blob, (document) => {
 		document.schemaVersion = 10;
 		const videoSource = document.sources.find((source) => source.kind === 'video');
 		videoSource.posterStorageKey = 'future-poster-locator';
@@ -112,12 +112,15 @@ test('scape imports leave future read-only preview locators opaque', async () =>
 	const imported = await importScapeProject(future, targetStore);
 	const importedVideoSource = imported.project.sources.find((source) => source.kind === 'video');
 	assert.equal(imported.readOnly, true);
+	assert.equal(imported.reason, 'newer-schema');
+	assert.equal(imported.collision, null);
+	assert.equal(imported.project.id, project.id, 'a future project keeps its exact identity');
 	assert.equal(importedVideoSource.posterStorageKey, 'future-poster-locator');
 	assert.equal(importedVideoSource.thumbnailStorageKey, 'future-thumbnail-locator');
-	const reopened = await targetStore.loadProject(imported.project.id);
-	const reopenedVideoSource = reopened.sources.find((source) => source.kind === 'video');
-	assert.equal(reopenedVideoSource.posterStorageKey, 'future-poster-locator');
-	assert.equal(reopenedVideoSource.thumbnailStorageKey, 'future-thumbnail-locator');
+	assert.equal(await targetStore.loadProject(imported.project.id), null,
+		'a future-schema archive must not publish into the destination store');
+	assert.equal(await targetStore.getSourceMetadata(project.sources[0].id), null,
+		'a future-schema archive must not extract source bodies');
 });
 
 test('scape imports reject checksum failures without publishing staged projects or sources', async () => {
@@ -127,7 +130,7 @@ test('scape imports reject checksum failures without publishing staged projects 
 	await persistAssets(sourceStore);
 	await sourceStore.saveProject(project);
 	const exported = await exportScapeProject(project, sourceStore);
-	const corrupted = await rewriteManifest(exported.blob, (manifest) => {
+	const corrupted = await rewriteScapeManifest(exported.blob, (manifest) => {
 		manifest.assets[1].sha256 = '0'.repeat(64);
 	});
 
@@ -304,7 +307,7 @@ test('scape archives preserve missing AUP4 binary state and reject malformed tag
 	assert.equal(audacityXmlAttribute(rewrittenEffect, 'id'), 'Effect_VST3_Acme_Future_Path');
 	assert.deepEqual(rewrittenEffect.content[2].value, Uint8Array.of(0, 1, 2, 253, 254, 255));
 
-	const malformed = await rewriteProjectDocument(exported.blob, (document) => {
+	const malformed = await rewriteScapeProjectDocument(exported.blob, (document) => {
 		document.master.effects[0].opaqueAudacityNode.node.content[2]
 			.value.$soundscaperOpaqueBinary.base64 = 'AAEC/f4=';
 	});
@@ -387,24 +390,6 @@ function mixedProject() {
 	});
 }
 
-async function rewriteManifest(blob, mutate) {
-	const reader = new ZipReader(new BlobReader(blob), { useWebWorkers: false });
-	const entries = await reader.getEntries();
-	const output = new BlobWriter('application/vnd.soundscaper.scape+zip');
-	const writer = new ZipWriter(output, { zip64: true, useWebWorkers: false, level: 0 });
-	for (const entry of entries) {
-		if (entry.filename === 'manifest.json') {
-			const manifest = JSON.parse(await entry.getData(new TextWriter()));
-			mutate(manifest);
-			await writer.add(entry.filename, new TextReader(JSON.stringify(manifest)), { zip64: true, level: 0 });
-		} else {
-			await writer.add(entry.filename, (await entry.getData(new BlobWriter())).stream(), { zip64: true, level: 0 });
-		}
-	}
-	await reader.close();
-	return writer.close(undefined, { zip64: true });
-}
-
 async function readArchiveJson(blob, filename) {
 	const reader = new ZipReader(new BlobReader(blob), { useWebWorkers: false });
 	try {
@@ -417,40 +402,3 @@ async function readArchiveJson(blob, filename) {
 	}
 }
 
-async function rewriteProjectDocument(blob, mutate) {
-	const reader = new ZipReader(new BlobReader(blob), { useWebWorkers: false });
-	const entries = await reader.getEntries();
-	const contents = [];
-	for (const entry of entries) {
-		contents.push({
-			filename: entry.filename,
-			value: entry.filename === 'project.json' || entry.filename === 'manifest.json'
-				? await entry.getData(new TextWriter())
-				: await entry.getData(new BlobWriter()),
-		});
-	}
-	await reader.close();
-	const projectContent = contents.find(({ filename }) => filename === 'project.json');
-	const manifestContent = contents.find(({ filename }) => filename === 'manifest.json');
-	if (!projectContent || !manifestContent) throw new Error('The archive is missing project metadata.');
-	const document = JSON.parse(projectContent.value);
-	mutate(document);
-	projectContent.value = JSON.stringify(document);
-	const projectBytes = new TextEncoder().encode(projectContent.value);
-	const manifest = JSON.parse(manifestContent.value);
-	manifest.project.size = projectBytes.byteLength;
-	manifest.project.sha256 = digestScapeBytes(projectBytes);
-	manifest.project.schemaVersion = document.schemaVersion;
-	manifestContent.value = JSON.stringify(manifest);
-
-	const output = new BlobWriter('application/vnd.soundscaper.scape+zip');
-	const writer = new ZipWriter(output, { zip64: true, useWebWorkers: false, level: 0 });
-	for (const content of contents) {
-		await writer.add(
-			content.filename,
-			typeof content.value === 'string' ? new TextReader(content.value) : content.value.stream(),
-			{ zip64: true, level: 0 },
-		);
-	}
-	return writer.close(undefined, { zip64: true });
-}

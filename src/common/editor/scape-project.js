@@ -175,6 +175,9 @@ export async function importScapeProject(input, store, options = {}) {
 			throwIfScapeAborted(signal);
 			const loaded = migrateAudioEditorProject(parseScapeProjectDocument(projectText));
 			let project = structuredClone(loaded.project);
+			if (loaded.readOnly) {
+				return { project, manifest, readOnly: true, reason: loaded.reason, collision: null };
+			}
 			const assetBySourceId = indexScapeProjectAssets(project, manifest);
 			assertScapeImportStore(store);
 			const existingProject = await awaitScapeOperation(store.loadProject(project.id), signal);
@@ -327,7 +330,7 @@ export async function importScapeProject(input, store, options = {}) {
 			blob: options.archiveReaderFactory,
 			byteSource: options.archiveByteSourceReaderFactory,
 		});
-		transaction.complete();
+		if (transaction) transaction.complete();
 		return result;
 	} catch (error) {
 		if (transaction) return transaction.rollback(error);
