@@ -312,6 +312,43 @@ test('expected fallback identities are checked before and after generic session 
 	assert.equal(opens, 2, 'a stale expected fallback must reject before opening');
 });
 
+test('fallback session chunks recheck the admitted identity before and after every read', async () => {
+	let current = sourceRecord('external', 'fallback-token', { storage: 'external-pcm' });
+	let mutateDuringRead = false;
+	let reads = 0;
+	let releases = 0;
+	const fixture = sourceFixture([], [], {
+		fallback: {
+			getMetadata: async () => clone(current),
+			openSession: async () => ({
+				chunk: async (chunkIndex: number) => {
+					reads += 1;
+					if (mutateDuringRead) current = { ...current, sourceToken: 'replacement-token' };
+					return { index: chunkIndex, frames: 1, channels: [Float32Array.of(0.25)] };
+				},
+				release: async () => { releases += 1; },
+			}),
+			async *chunks() { /* The session route owns playback. */ },
+			chunk: async () => ({ index: 0, frames: 1, channels: [Float32Array.of(0.25)] }),
+		},
+	});
+	const expected = clone(current);
+	const session = await fixture.reader.openSession('external', { expectedSource: expected });
+	assert.ok(session);
+	assert.deepEqual([...((await session.chunk(0)).channels[0])], [0.25]);
+
+	mutateDuringRead = true;
+	await assert.rejects(session.chunk(1), /generation changed/iu, 'a mid-read replacement fails the post-read fence');
+	assert.equal(reads, 2, 'the post-read fence rejects after the underlying read observed the mutation');
+
+	mutateDuringRead = false;
+	await assert.rejects(session.chunk(2), /generation changed/iu, 'a stale identity fails the pre-read fence');
+	assert.equal(reads, 2, 'the pre-read fence rejects before the underlying read runs');
+
+	await session.release();
+	assert.equal(releases, 1);
+});
+
 test('bulk cleanup aborts and awaits fallback metadata admission without a late session', async () => {
 	const expected = sourceRecord('external', 'fallback-token', { storage: 'external-pcm' });
 	const metadataAdmission = deferred<StorageRecord | null>();

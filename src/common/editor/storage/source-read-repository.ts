@@ -130,8 +130,36 @@ export class SourceReadRepository {
 			if (session) return failOpenedSession(error, session);
 			throw error;
 		}
-		if (options.expectedSource && !session) throw sourceGenerationChangedError();
+		if (options.expectedSource) {
+			if (!session) throw sourceGenerationChangedError();
+			return this.#fencedFallbackSession(sourceId, options.expectedSource, session);
+		}
 		return session;
+	}
+
+	/**
+	 * Fallback sources carry no copy-on-write generation records, so this fence
+	 * rechecks only the admitted metadata identity around every chunk read.
+	 */
+	#fencedFallbackSession(
+		sourceId: string,
+		expected: StorageRecord,
+		session: SourcePcmReadSession,
+	): SourcePcmReadSession {
+		const assertCurrent = (signal?: AbortSignal) => (
+			this.#assertExpectedSourceCurrent(sourceId, expected, signal)
+		);
+		return Object.freeze({
+			async chunk(chunkIndex: number, chunkOptions: SourceReadOptions = {}): Promise<SourcePcmChunk> {
+				await assertCurrent(chunkOptions.signal);
+				const chunk = await session.chunk(chunkIndex, chunkOptions);
+				await assertCurrent(chunkOptions.signal);
+				return chunk;
+			},
+			release(): Promise<void> {
+				return session.release();
+			},
+		});
 	}
 
 	async releaseSessions(): Promise<void> {
