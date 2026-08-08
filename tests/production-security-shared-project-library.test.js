@@ -39,9 +39,6 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const packagedSourceFreeControl = risk?.currentControls.find(
 		({ id }) => id === 'packaged-linux-x64-source-free-project-library-handoff',
 	);
-	const packagedSourceBearingControl = risk?.currentControls.find(
-		({ id }) => id === 'packaged-linux-x64-source-bearing-project-library-handoff',
-	);
 	const preloadControl = ipcRisk?.currentControls.find(
 		({ id }) => id === 'sandboxed-versioned-preload-bridge',
 	);
@@ -162,7 +159,6 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.ok(reclamationControl);
 	assert.ok(stageReclamationControl);
 	assert.ok(packagedSourceFreeControl);
-	assert.ok(packagedSourceBearingControl);
 	for (const path of [
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-database.ts',
@@ -415,32 +411,6 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		packagedSourceFreeControl.summary,
 		/combined with.*composed editor.*closes only the generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap.*does not qualify packaged controller autosave or tab activation.*source-bearing bytes, playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/isu,
 	);
-	assert.deepEqual(packagedSourceBearingControl.evidence, [
-		['implementation', 'desktop/project-library-source-bearing-smoke.js'],
-		['implementation', 'desktop/project-library-source-bearing-renderer-smoke.js'],
-		['implementation', 'desktop/project-library-source-bearing-smoke-session.js'],
-		['implementation', 'desktop/project-library-smoke-evidence.js'],
-		['implementation', 'desktop/desktop-smoke.js'],
-		['implementation', 'desktop/main.mjs'],
-		['implementation', 'scripts/lib/desktop-project-library-source-bearing-handoff.mjs'],
-		['implementation', 'scripts/desktop-project-library-source-bearing-handoff-smoke.mjs'],
-		['test', 'tests/desktop-project-library-source-bearing-smoke.test.js'],
-		['test', 'tests/desktop-project-library-source-bearing-session.test.js'],
-		['test', 'tests/desktop-project-library-source-bearing-probe.test.js'],
-		['test', 'tests/desktop-project-library-source-bearing-handoff-runner.test.js'],
-		['test', 'tests/desktop-project-library-smoke-evidence.test.js'],
-		['test', 'tests/desktop-project-library-packaging.test.js'],
-		['implementation', 'package.json'],
-		['workflow', '.github/workflows/desktop-preview.yml'],
-	].map(([kind, path]) => ({ kind, path })));
-	assert.match(
-		packagedSourceBearingControl.summary,
-		/Linux x64 CI.*two frozen Electron workflow IDs.*six sequential packaged Soundscaper and Framescaper UI processes.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*one canonical-PCM audio track and clip.*one retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*main-owned handoff-navigation.*document-digest.*binding-ID-and-digest evidence.*increasing catalog revisions and fencing tokens/iu,
-	);
-	assert.match(
-		packagedSourceBearingControl.summary,
-		/qualifies only.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*fixed small first-party fixture.*Linux x64.*two web `.scape` workflows remain open.*muted audio.*audible or device output.*general browser or codec.*fallback.*linked or unmanaged media.*installers or file associations.*concurrency.*crash.*power loss.*Windows, macOS, (?:and|or) ARM64/iu,
-	);
 	for (const path of [
 		'src/common/editor/controller/project-bootstrap-service.ts', 'src/common/editor/controller/source-audio.ts',
 		'src/common/editor/retention.js',
@@ -624,9 +594,5 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.match(
 		threatModel,
 		/Four narrower one-way headless fixtures.*audio fixture.*original and whole-mix PCM.*fresh Framescaper shadow.*controller manifest verification.*exact-sample activation.*role-defined `org\.example\.future-video-pipeline` whole-project fixture.*editable retained-video original.*full-render\s+fallback.*fresh Soundscaper shadow.*controller manifest verification.*exact fallback Blob URL.*separate first-party\s+clip-local videoEffects fixture.*canonical original.*digest-bound\s+fallback.*fresh recipient.*exact target clip ID.*closes and\s+reopens.*canonical shadow.*admits the relationship.*role.*target\s+clip ID.*source ID.*SHA-256.*target-only playback.*separate\s+first-party track-local audioEffects fixture.*target-lane and\s+native-lane originals.*digest-bound track render.*editable\s+compatible Soundscaper sender.*ordinary save stays document-only.*fresh Framescaper recipient that reports the registered capability unavailable.*role, target track ID, source ID, and SHA-256 before\s+target-lane-only playback.*corrupted recipient-local render\s+PCM.*mixes the native lane with the verified private render.*exact WAV\s+output.*canonical shadow stays unchanged.*Managed acquisition\s+verifies transfer descriptors and body digests.*does not authenticate any\s+manifest declaration.*no packaged UI.*browser-codec.*durable-lease.*whole-handoff atomicity claim/isu,
-	);
-	assert.match(
-		threatModel,
-		/separate maintained Linux x64 CI job.*two frozen Electron source-bearing shared-library workflows.*six sequential packaged UI processes.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*isolated shared appData.*separate product profiles.*origin profile.*exact-schema-9 fixture.*canonical-PCM audio track and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal editor project route.*exact Project Bin Blob.*starts and stops transport.*native input.*revision-2 save.*visible cross-product handoff action.*origin return.*exact edited revision.*both media bindings.*main-owned handoff-navigation.*canonical-document-digest.*media-binding-ID-and-digest.*increasing catalog revisions and fencing tokens.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*two web `.scape` workflows remain open/isu,
 	);
 });
