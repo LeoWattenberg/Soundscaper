@@ -157,6 +157,33 @@ test('an audio whole-mix fallback names every canonical object its projection re
 	);
 });
 
+test('a track-local audio fallback names only the replaced track and its lane clips', () => {
+	const fallback: ProjectFeatureFallback = {
+		role: 'audio-track-render-v1',
+		kind: 'audio',
+		sourceId: 'fallback-audio',
+		sha256: 'd'.repeat(64),
+		targetTrackId: 'track-a',
+	};
+	const source = project();
+	(source.tracks as Record<string, unknown>[])[0].clipIds = ['clip-audio'];
+	const index = projectFeatureAffectedObjects(source, report({
+		featureId: AUDIO_EFFECTS,
+		declaredDisposition: 'rendered-fallback',
+		disposition: 'rendered-fallback',
+		fallback,
+	}));
+	assert.ok(index);
+	const [requirement] = index.requirements;
+	assert.equal(requirement.attributable, true);
+	assert.ok(requirement.objects.every((item) => item.channel === 'rendered-fallback-replaced'));
+	assert.deepEqual(
+		requirement.objects.map((item) => item.objectId),
+		['track-a', 'clip-audio'],
+		'the track projection must not name mixer racks, the master, or video objects',
+	);
+});
+
 test('a whole-project video fallback names the video tracks and clips it collapses', () => {
 	const fallback: ProjectFeatureFallback = {
 		role: 'project-video-render-v1',

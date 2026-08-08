@@ -21,6 +21,7 @@ import {
 	createAudioTrackV9,
 	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
+import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
@@ -167,6 +168,17 @@ test('fresh Framescaper acquires, plays, and delivers an unknown-feature audio f
 	assert.equal(
 		serializeScapeProjectDocument(shadow),
 		serializeScapeProjectDocument(fixture.project),
+	);
+	const shadowDocument = shadow as unknown as Readonly<{
+		featureRequirements: Parameters<typeof normalizeProjectFeatureRequirements>[0];
+		sources: readonly never[]; clips: readonly never[]; tracks: readonly never[];
+	}>;
+	assert.equal(
+		normalizeProjectFeatureRequirements(shadowDocument.featureRequirements, {
+			sources: shadowDocument.sources, clips: shadowDocument.clips, tracks: shadowDocument.tracks,
+		}).requirements[0]?.fallback?.role,
+		'project-audio-mix-v1',
+		'the delivered legacy manifest must normalize to the exact closed role',
 	);
 
 	const playbackProject = engine.project();
