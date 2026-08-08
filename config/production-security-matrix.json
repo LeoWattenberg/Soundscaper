@@ -138,6 +138,470 @@
 			}
 		]
 	},
+	"publicationFaultQualification": {
+		"status": "implemented",
+		"summary": "Every publication-path and fault combination is either witnessed by automated evidence or carries an explicit recorded outcome; unsupported fault injection is a recorded platform qualification outcome, never a silent skip.",
+		"outcomes": {
+			"witnessed": "Automated evidence asserts the previous commit is preserved or a recoverable journal is exposed, and no partial destination is advertised.",
+			"inapplicable": "The fault class has no surface on this path; the recorded reason states why.",
+			"platform-delegated": "Fault injection is unsupported because the invariant is owned and enforced by the platform; the recorded reason names the owner.",
+			"unqualified": "The combination is a recorded qualification failure awaiting evidence; releases treat it as failing, never as skipped."
+		},
+		"paths": [
+			{
+				"id": "web-project-indexeddb",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-project-save-publication-admission.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "inapplicable", "reason": "A project document commits as one atomic IndexedDB transaction; no staged body exists to abort mid-write." },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-storage-lifecycle.test.js" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-project-interop.spec.js" }
+					] },
+					"helper-loss": { "outcome": "inapplicable", "reason": "No worker or helper process participates in the project-document commit path." },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-project-store-publication-admission.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-project-create-if-absent.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-cross-context-media-lifecycle.test.ts" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-linked-audio-scape-roundtrip.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-project-interop.spec.js" }
+					] }
+				}
+			},
+			{
+				"id": "web-project-opfs",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-opfs-worker-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-scape-cancellation.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-opfs-worker-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-storage.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-cross-context-media-lifecycle.test.ts" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-opfs-worker-client.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-opfs-worker-repository.test.ts" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-storage-indexeddb.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-storage.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-publication.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-cross-context-media-lifecycle.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/browser/audio-editor-opfs-worker.spec.js" }
+					] }
+				}
+			},
+			{
+				"id": "scape-file-system-access",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-native-project-service.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" }
+					] },
+					"helper-loss": { "outcome": "inapplicable", "reason": "The .scape archive is assembled inside the renderer without web workers; no helper process participates." },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: the user agent owns File System Access swap-file semantics and discards an uncommitted swap on renderer or browser termination, so a partial destination is never observable." },
+					"restart-after-commit": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: destination durability after a successful close() is owned by the user agent; the page observes only the committed handle." }
+				}
+			},
+			{
+				"id": "scape-electron",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-native-scape-save.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-save-ownership.test.js" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save-ownership.test.js" }
+					] },
+					"helper-loss": { "outcome": "inapplicable", "reason": "The .scape archive streams from the renderer over IPC; the desktop main process spawns no helper processes." },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save-space-exhaustion.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save-capacity.test.js" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] }
+				}
+			},
+			{
+				"id": "direct-audio-file-system-access",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-aiff.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/browser/audio-editor-direct-wav-save.spec.js" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-direct-bw64-passthrough.spec.js" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/browser/audio-editor-direct-wav-save.spec.js" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-offline-compressed-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" }
+					] },
+					"restart-after-staged-write": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: the user agent owns File System Access swap-file semantics and discards an uncommitted swap on renderer or browser termination, so a partial destination is never observable." },
+					"restart-after-commit": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: destination durability after a successful close() is owned by the user agent; the page observes only the committed handle." }
+				}
+			},
+			{
+				"id": "direct-audio-electron",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-direct-wav-smoke.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save-ownership.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save-space-exhaustion.test.js" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-wav.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-direct-wav-smoke.test.js" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] }
+				}
+			},
+			{
+				"id": "stem-archive-file-system-access",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-archive.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-stream.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-stream.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-final-prefix-save.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: the user agent owns File System Access swap-file semantics and discards an uncommitted swap on renderer or browser termination, so a partial destination is never observable." },
+					"restart-after-commit": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: destination durability after a successful close() is owned by the user agent; the page observes only the committed handle." }
+				}
+			},
+			{
+				"id": "stem-archive-electron",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-archive.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-save-ownership.test.js" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save-space-exhaustion.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-stream.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] }
+				}
+			},
+			{
+				"id": "direct-video-file-system-access",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: the user agent owns File System Access swap-file semantics and discards an uncommitted swap on renderer or browser termination, so a partial destination is never observable." },
+					"restart-after-commit": { "outcome": "platform-delegated", "reason": "Fault injection is unsupported: destination durability after a successful close() is owned by the user agent; the page observes only the committed handle." }
+				}
+			},
+			{
+				"id": "direct-video-electron",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-save-ownership.test.js" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save-space-exhaustion.test.js" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+					] }
+				}
+			},
+			{
+				"id": "electron-shared-project",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-document-capacity.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-projects.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-space-exhaustion.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-ipc.test.js" },
+						{ "kind": "test", "path": "tests/desktop-project-library-handoff.test.ts" }
+					] },
+					"helper-loss": { "outcome": "inapplicable", "reason": "The shared project library runs inside the desktop main process on node:sqlite; no helper process participates." },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-document-capacity.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-space-exhaustion.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-file-inventory.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-projects.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-stage-reclamation.test.ts" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-reclamation.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-scape-reopen-smoke.test.js" }
+					] }
+				}
+			},
+			{
+				"id": "electron-managed-media",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-media-capacity.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-media.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-space-exhaustion.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-ipc.test.js" }
+					] },
+					"helper-loss": { "outcome": "inapplicable", "reason": "Managed media bodies stream over IPC into the desktop main process; no helper process participates." },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-media-capacity.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-space-exhaustion.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-media-inventory.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-media.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-media-reclamation.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-host.test.ts" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/desktop-project-library-media-reclamation.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-source-bearing-smoke.test.js" }
+					] }
+				}
+			},
+			{
+				"id": "linked-binding-indexeddb",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-linked-audio-original-relink.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "inapplicable", "reason": "The binding and its provisional root are two records in one atomic transaction; no staged body exists to abort mid-write." },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-linked-original-provisional-root-startup.test.ts" }
+					] },
+					"helper-loss": { "outcome": "inapplicable", "reason": "Binding records commit on their owning thread; the OPFS worker operation set never touches these stores." },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-linked-original-repository.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-linked-original-provisional-root-writers.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/audio-editor-linked-original-provisional-root-startup.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-linked-original-startup-reconciliation.test.ts" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" },
+						{ "kind": "test", "path": "tests/audio-editor-linked-audio-scape-roundtrip.test.ts" }
+					] }
+				}
+			},
+			{
+				"id": "offline-shell-cache",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-shell-fault-injection.test.js" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-service-worker.test.js" }
+					] },
+					"renderer-loss": { "outcome": "inapplicable", "reason": "Shell population runs inside the service worker; renderer loss cannot interrupt it and page registration never blocks on it.", "evidence": [
+						{ "kind": "test", "path": "tests/offline-application-shell-registration.test.ts" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-shell-fault-injection.test.js" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-shell-fault-injection.test.js" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-service-worker.test.js" },
+						{ "kind": "test", "path": "tests/offline-shell-fault-injection.test.js" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-shell-fault-injection.test.js" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/browser/offline-application-shell.spec.js" },
+						{ "kind": "test", "path": "tests/offline-service-worker.test.js" }
+					] }
+				}
+			},
+			{
+				"id": "offline-runtime-cache",
+				"faults": {
+					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" }
+					] },
+					"cancel-during-body": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" }
+					] },
+					"renderer-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
+					] },
+					"helper-loss": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-service-worker.test.js" }
+					] },
+					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" },
+						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
+					] },
+					"commit-failure": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
+					] },
+					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
+					] },
+					"restart-after-commit": { "outcome": "witnessed", "evidence": [
+						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-download.spec.js" },
+						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-service-worker.spec.js" }
+					] }
+				}
+			}
+		]
+	},
 	"boundaries": [
 		{
 			"id": "external-input-to-parser",

@@ -1215,6 +1215,35 @@ continues.
 
 The required cancellation contract is end-to-end: one signal flows from the user action or lifecycle event through parser, worker, archive reader, repository writer, filesystem transport, and future helper. Completion is acknowledged only after readers and workers are closed, temporary/staged data is rolled back, capabilities are released, and the job can no longer publish. Import/export workflows also need an accessible user cancel action.
 
+### Crash-safe publication fault register
+
+`publicationFaultQualification` in `config/production-security-matrix.json`
+records one explicit outcome for every publication-path and fault-class
+combination in the milestone-2 closure inventory: fifteen publication paths
+crossed with eight fault classes, one hundred twenty cells in total. A
+`witnessed` cell carries automated evidence that the previous commit is
+preserved or a recoverable journal is exposed and that no partial destination
+is advertised. An `inapplicable` cell records why the fault class has no
+surface on that path. A `platform-delegated` cell records that fault injection
+is unsupported because the invariant is owned by the platform: File System
+Access swap-file discard and post-`close()` destination durability belong to
+the user agent and are never observable from the page. An `unqualified` cell
+is a recorded platform qualification failure, never a silent skip; the
+register currently contains none. The register is machine-checked against the
+closure inventory: every combination must appear exactly once, witnessed cells
+must cite evidence files that exist, and every non-witnessed cell must state
+its reason.
+
+The register does not convert simulation limits into qualified claims. Helper
+failures are injected at the encode boundary; hard worker termination is not
+injected. Restart witnesses reopen state through orderly close-and-reopen or
+fresh-instance construction; abrupt process death, power loss,
+parent-directory fsync, and the non-Linux packaged platform matrix remain
+unqualified and stay disclosed by their owning sections. A desktop export
+abandoned mid-stage leaves a dot-prefixed orphan `.soundscaper-part` file in
+the destination directory until the user removes it; the committed destination
+is never replaced and the orphan is never advertised as a result.
+
 ### Dependency and release integrity
 
 `runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist, Parametric EQ, and WavPack modules retain their source/binary audits. Controlled FFmpeg publication, desktop staging, pre-pack verification, and the current Soundscaper public desktop-release assembler now validate one checked-in policy manifest that ties exact runtime bytes and base publication metadata to the current source descriptor, aggregate notice, licensing and security matrices, policies, threat model, and LF checkout rules. The publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under fixed tested code, while the assembler requires exact Soundscaper product/target manifests and version-matched packages before network access. Invalid preflight never enters desktop assembly or invokes Wrangler, and staging/publication consume private verified byte snapshots. Electron Builder rejects staged runtime, summary, manifest, and notice drift present at its beforePack check, then reopens the copied extra-resource directory and revalidates the exact runtime inventory, manifest, assets, and notice in afterPack before fuse or signing work. The post-copy tamper regression proves that a mismatch cannot reach fuse application. The checked-in authorizations mirror the licensing matrix and currently block public runtime upload and desktop-release assembly.
