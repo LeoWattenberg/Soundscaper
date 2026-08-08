@@ -36,7 +36,6 @@ test('desktop smoke probe preserves a source-bearing session across renderer rel
 	const executions = [
 		{ phase: 'prepared', sources },
 		{ phase: 'activated', project, sources, ui: uiFor(plan, sources) },
-		{ phase: 'finalized', project, sources },
 	];
 	const scripts = [];
 	const logs = [];
@@ -54,7 +53,7 @@ test('desktop smoke probe preserves a source-bearing session across renderer rel
 					owner: { product: 'soundscaper' }, fencingToken: 3,
 					tookOverStaleLease: false, recovery: { outcome: 'clean' },
 				},
-				catalogRevision: 7,
+				catalogRevision: 7, project, sources,
 			};
 		},
 		exit: async (code) => { exits.push(code); },
@@ -63,12 +62,24 @@ test('desktop smoke probe preserves a source-bearing session across renderer rel
 		setTimeout: (_callback, delay) => { delays.push(delay); return 1; },
 		clearTimeout: () => {},
 	});
+	let navigationListener = null;
 	const window = {
 		webContents: {
-			once: () => {},
+			once(event, listener) {
+				if (event === 'will-navigate') navigationListener = listener;
+			},
+			removeListener: () => {},
+			getURL: () => 'soundscaper-app://bundle/',
+			loadURL: async () => {},
 			async executeJavaScript(script, userGesture) {
 				scripts.push({ script, userGesture });
-				return executions.shift();
+				const execution = executions.shift();
+				if (execution?.phase === 'activated') {
+					queueMicrotask(() => navigationListener?.(
+						{}, `soundscaper-app://bundle/framescaper/en/?project=${plan.seed.projectId}`,
+					));
+				}
+				return execution;
 			},
 		},
 	};
@@ -79,7 +90,7 @@ test('desktop smoke probe preserves a source-bearing session across renderer rel
 	await probe.rendererReady();
 
 	assert.deepEqual(delays, [90_000]);
-	assert.equal(scripts.length, 3);
+	assert.equal(scripts.length, 2);
 	assert.ok(scripts.every(({ userGesture }) => userGesture === true));
 	assert.deepEqual(exits, [0]);
 	assert.equal(logs.length, 1);

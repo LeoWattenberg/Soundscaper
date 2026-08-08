@@ -172,7 +172,7 @@ export class DesktopSharedProjectMediaService {
 			}
 			const source = requiredReachableSource(project, request.sourceId, request.encoding);
 			const expectedBytes = declaredSourceBytes(source, request.byteLength);
-			const bindingKey = managedSourceBindingKey(source);
+			const bindingKey = desktopSharedManagedSourceBindingKey(source);
 			const binding = createDesktopLibraryMediaBinding(
 				request.encoding,
 				project.id,
@@ -399,7 +399,7 @@ function managedSources(
 		const binding = createDesktopLibraryMediaBinding(
 			encoding,
 			project.id,
-			managedSourceBindingKey(source),
+			desktopSharedManagedSourceBindingKey(source),
 			project.revision,
 			loaded.catalog.sha256,
 		);
@@ -493,7 +493,7 @@ function declaredSourceBytes(source: ManagedSource, declaredBytes: number): numb
 	return canonicalBytes;
 }
 
-function managedSourceBindingKey(source: ManagedSource): string {
+export function desktopSharedManagedSourceBindingKey(source: ManagedSource): string {
 	return source.kind === 'audio'
 		? JSON.stringify([
 			source.storageKey, source.frameCount, source.channelCount, source.sampleRate,

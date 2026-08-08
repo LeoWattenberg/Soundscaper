@@ -43,7 +43,10 @@ import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { registerDesktopProjectLibraryIpc } from './project-library-ipc.js';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
 import { DesktopSharedProjectLibraryService } from './project-library-runtime/desktop/project-library-editor-service.js';
+import { desktopSharedManagedSourceBindingKey } from './project-library-runtime/desktop/project-library-editor-media-service.js';
 import { DesktopProjectLibraryHost } from './project-library-runtime/desktop/project-library-host.js';
+import { createDesktopLibraryMediaBinding } from './project-library-runtime/desktop/project-library-media-binding.js';
+import { createDesktopProjectLibrarySmokeEvidence } from './project-library-smoke-evidence.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
 import { DesktopSettingsStore } from './settings.js';
@@ -571,11 +574,10 @@ function cleanError(error) {
 
 function projectLibrarySmokeEvidence(projectId) {
 	if (!projectLibraryHost) throw new Error('Desktop project library is unavailable');
-	const host = projectLibraryHost.snapshot();
-	const catalog = projectLibraryHost.readCatalog();
-	const matches = catalog.projects.filter((project) => project.projectId === projectId);
-	if (matches.length !== 1) throw new Error('Desktop smoke target catalog row is missing or duplicated');
-	return { host, catalogRevision: catalog.revision, target: matches[0] };
+	return createDesktopProjectLibrarySmokeEvidence(projectLibraryHost, projectId, {
+		createMediaBinding: createDesktopLibraryMediaBinding,
+		sourceBindingKey: desktopSharedManagedSourceBindingKey,
+	});
 }
 
 async function closeProjectLibraryHost() {

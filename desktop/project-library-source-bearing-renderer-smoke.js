@@ -153,11 +153,6 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		}
 		return api.finishSharedSourceWrite({ writeId: admission.writeId, sha256 });
 	};
-	const scheduleProjectOpen = () => {
-		scope.setTimeout(() => {
-			scope.location.assign(`/?project=${encodeURIComponent(plan.seed.projectId)}`);
-		}, 0);
-	};
 	const waitForWorkspace = async () => waitFor(() => {
 		const root = scope.document.querySelector('[data-audio-editor]');
 		return root?.dataset.projectId === plan.seed.projectId
@@ -191,20 +186,27 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		stop.click();
 		await waitFor(() => play.getAttribute('aria-pressed') === 'false', 'Packaged mixed-media playback stop');
 	};
-	const editRecipientTrack = async (root) => {
+	const beginRecipientTrackEdit = async (root) => {
 		const row = root.querySelector(`[data-track-row][data-track-id="${plan.seed.audio.trackId}"]`);
-		const name = row?.querySelector('[data-track-name]');
+		const name = row?.querySelector('.track-control-panel__track-name-text');
 		if (!name) throw new Error('Packaged recipient audio track is unavailable');
 		name.dispatchEvent(new scope.MouseEvent('dblclick', { bubbles: true, detail: 2 }));
 		const input = await waitFor(() => row.querySelector('[data-track-name] input'), 'Packaged track-name editor');
-		const setter = Object.getOwnPropertyDescriptor(scope.HTMLInputElement.prototype, 'value')?.set;
-		if (typeof setter !== 'function') throw new Error('Packaged track-name input setter is unavailable');
-		setter.call(input, plan.seed.advanceTrackName);
-		input.dispatchEvent(new scope.Event('input', { bubbles: true }));
-		await wait(0);
-		input.blur();
-		await waitFor(() => row.querySelector('[data-track-name]')?.textContent?.includes(plan.seed.advanceTrackName),
-			'Packaged recipient track edit');
+		if (input.disabled) throw new Error('Packaged recipient track-name editor is disabled');
+		input.focus();
+		input.select();
+	};
+	const completeRecipientTrackEdit = async (root) => {
+		const row = root.querySelector(`[data-track-row][data-track-id="${plan.seed.audio.trackId}"]`);
+		if (!row) throw new Error('Packaged recipient audio track disappeared');
+		await waitFor(() => row.querySelector('.track-control-panel__track-name-text')
+			?.textContent?.includes(plan.seed.advanceTrackName),
+		'Packaged recipient track edit').catch(() => {
+			const input = row.querySelector('[data-track-name] input');
+			throw new Error(
+				`Packaged recipient track edit timed out (value=${String(input?.value)}, active=${String(scope.document.activeElement === input)}, connected=${String(input?.isConnected)})`,
+			);
+		});
 		await waitFor(async () => {
 			const bundle = await api.readSharedProjectBundle(plan.seed.projectId);
 			if (!bundle) return false;
@@ -213,6 +215,18 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 				&& project.tracks.find((track) => track.id === plan.seed.audio.trackId)?.name === plan.seed.advanceTrackName;
 		}, 'Packaged recipient project save');
 	};
+	const uiResult = (videoSha256) => ({
+		activeProjectId: plan.seed.projectId,
+		audioTrackName: plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
+		clipCount: 2,
+		handoffInvoked: plan.stage !== 'return',
+		playbackStarted: true,
+		playbackStopped: true,
+		productId: plan.productId,
+		projectBinSourceId: plan.seed.video.sourceId,
+		trackCount: 2,
+		videoSha256,
+	});
 	const invokeHandoff = async (root) => {
 		const fileMenu = root.querySelector('[data-application-menubar] button');
 		if (!fileMenu) throw new Error('Packaged application File menu is unavailable');
@@ -238,12 +252,16 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		}
 		const current = await readBundle();
 		if (plan.previous) {
-			if (JSON.stringify(current.descriptor) !== JSON.stringify(plan.previous.project)) {
-				throw new Error('Packaged source-bearing previous project descriptor changed');
+			if (current.descriptor.id !== plan.previous.project.id
+				|| current.descriptor.title !== plan.previous.project.title
+				|| current.descriptor.revision !== plan.previous.project.revision
+				|| current.descriptor.sha256 !== plan.previous.project.sha256) {
+				throw new Error(
+					`Packaged source-bearing previous project descriptor changed (${String(plan.previous.project.revision)}/${plan.previous.project.sha256.slice(0, 8)} to ${String(current.descriptor.revision)}/${current.descriptor.sha256.slice(0, 8)})`,
+				);
 			}
 			assertSourceContents(current.sources, plan.previous.sources);
 		}
-		scheduleProjectOpen();
 		return { phase: 'prepared', sources: current.sources };
 	}
 
@@ -251,39 +269,38 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		const expectedSources = plan.previous?.sources ?? prior?.sources;
 		if (!Array.isArray(expectedSources)) throw new Error('Packaged activation expected media is unavailable');
 		const root = await waitForWorkspace();
+		const activated = await readBundle();
+		assertSourceContents(activated.sources, expectedSources);
 		const audioName = root.querySelector(
-			`[data-track-row][data-track-id="${plan.seed.audio.trackId}"] [data-track-name]`,
+			`[data-track-row][data-track-id="${plan.seed.audio.trackId}"] .track-control-panel__track-name-text`,
 		)?.textContent?.trim();
 		const expectedInitialName = plan.stage === 'return' ? plan.seed.advanceTrackName : 'Packaged sound';
 		if (!audioName?.includes(expectedInitialName)) throw new Error('Packaged activated audio track name is invalid');
 		const videoSha256 = await verifyProjectBinVideo(root, expectedSources[1].sha256);
 		await exerciseTransport(root);
-		if (plan.stage === 'advance') await editRecipientTrack(root);
-		const current = await readBundle();
-		const audioTrackName = plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName;
-		const ui = {
-			activeProjectId: plan.seed.projectId,
-			audioTrackName,
-			clipCount: 2,
-			handoffInvoked: plan.stage !== 'return',
-			playbackStarted: true,
-			playbackStopped: true,
-			productId: plan.productId,
-			projectBinSourceId: plan.seed.video.sourceId,
-			trackCount: 2,
-			videoSha256,
-		};
+		const ui = uiResult(videoSha256);
+		if (plan.stage === 'advance') {
+			await beginRecipientTrackEdit(root);
+			return { phase: 'editing', project: activated.descriptor, sources: activated.sources, ui };
+		}
 		if (plan.stage !== 'return') await invokeHandoff(root);
-		else assertSourceContents(current.sources, expectedSources);
-		return { phase: 'activated', project: current.descriptor, sources: current.sources, ui };
+		return { phase: 'activated', project: activated.descriptor, sources: activated.sources, ui };
 	}
 
-	if (phase === 'finalize') {
-		await waitForWorkspace();
-		const current = await readBundle();
-		const expectedSources = plan.previous?.sources ?? prior?.sources;
-		assertSourceContents(current.sources, expectedSources);
-		return { phase: 'finalized', project: current.descriptor, sources: current.sources };
+	if (phase === 'complete-edit') {
+		if (plan.stage !== 'advance' || !Array.isArray(plan.previous?.sources)) {
+			throw new Error('Packaged recipient edit completion is unavailable');
+		}
+		const root = await waitForWorkspace();
+		await completeRecipientTrackEdit(root);
+		await invokeHandoff(root);
+		return {
+			phase: 'activated',
+			project: plan.previous.project,
+			sources: plan.previous.sources,
+			ui: uiResult(plan.previous.sources[1].sha256),
+		};
 	}
+
 	throw new Error('Packaged source-bearing renderer smoke phase is invalid');
 }

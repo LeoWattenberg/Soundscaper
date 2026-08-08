@@ -163,6 +163,10 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'main.mjs'));
 	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
 	await access(join(applicationDesktopRoot, 'direct-wav-smoke.js'));
+	await access(join(applicationDesktopRoot, 'project-library-smoke-evidence.js'));
+	await access(join(applicationDesktopRoot, 'project-library-source-bearing-renderer-smoke.js'));
+	await access(join(applicationDesktopRoot, 'project-library-source-bearing-smoke-session.js'));
+	await access(join(applicationDesktopRoot, 'project-library-source-bearing-smoke.js'));
 	await access(join(applicationDesktopRoot, 'linked-video-locator-ipc.js'));
 	await access(join(applicationDesktopRoot, 'linked-video-locator-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
@@ -219,7 +223,7 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	assert.match(mainSource, /projectLibraryEvidence: projectLibrarySmokeEvidence/u);
 	assert.match(mainSource, /desktopSmokeProbe\.attach\(mainWindow\)/u);
 	assert.match(mainSource, /on\(IPC\.rendererReady.*desktopSmokeProbe\.rendererReady\(\)/su);
-	assert.match(mainSource, /projectLibrarySmokeEvidence.*projectLibraryHost\.snapshot\(\).*projectLibraryHost\.readCatalog\(\)/su);
+	assert.match(mainSource, /projectLibrarySmokeEvidence.*createDesktopProjectLibrarySmokeEvidence\(projectLibraryHost/su);
 	assert.doesNotMatch(mainSource, /webContents\.executeJavaScript/u);
 	assert.match(mainSource, /registerDesktopProjectLibraryIpc\(\{ handle, ownerFor: rendererSaveOwnerFor/u);
 	assert.match(mainSource, /owner: \{ product: PRODUCT_ID/u);
