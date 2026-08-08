@@ -414,3 +414,108 @@ jobs:
         env:
           SOUNDSCAPER_SMOKE_ARCH: x64
           SOUNDSCAPER_SMOKE_XVFB: 'true'
+
+  project-library-lease-matrix:
+    name: Packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
+    needs: quality
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - runner: windows-2025
+            platform: win
+            arch: x64
+            node_arch: x64
+          - runner: windows-11-arm
+            platform: win
+            arch: arm64
+            node_arch: x64
+          - runner: macos-15-intel
+            platform: mac
+            arch: x64
+            node_arch: x64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            node_arch: arm64
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            node_arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            node_arch: arm64
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
+
+      - name: Build both unpacked products
+        shell: bash
+        run: |
+          for product in soundscaper framescaper; do
+            SCAPE_PRODUCT="$product" \
+            SOUNDSCAPER_DESKTOP_TARGET_PLATFORM="${{ matrix.target.platform }}" \
+            SOUNDSCAPER_DESKTOP_TARGET_ARCH="${{ matrix.target.arch }}" \
+              node scripts/desktop-prepare.mjs
+            SCAPE_PRODUCT="$product" CSC_IDENTITY_AUTO_DISCOVERY=false \
+              npx electron-builder --config electron-builder.config.cjs \
+              --config.directories.output="release/desktop-lease-matrix/$product" \
+              --${{ matrix.target.platform }} --${{ matrix.target.arch }} --dir
+          done
+
+      - name: Install virtual display
+        if: matrix.target.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb
+
+      - name: Configure both Chromium sandboxes
+        if: matrix.target.platform == 'linux'
+        shell: bash
+        run: |
+          mapfile -t sandboxes < <(find release/desktop-lease-matrix -type f -name chrome-sandbox -print)
+          if [[ "${#sandboxes[@]}" -ne 2 ]]; then
+            echo "Expected two packaged Chromium sandboxes" >&2
+            exit 1
+          fi
+          for sandbox_path in "${sandboxes[@]}"; do
+            sudo chown root:root -- "$sandbox_path"
+            sudo chmod 4755 -- "$sandbox_path"
+          done
+
+      - name: Run all eight packaged lease workflows in both product orderings
+        shell: bash
+        run: npm run desktop:smoke:project-library-lease-matrix
+        env:
+          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SMOKE_XVFB: ${{ matrix.target.platform == 'linux' && 'true' || 'false' }}
+          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+
+      - name: Upload bounded lease-matrix result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          if-no-files-found: error
+          retention-days: 14
