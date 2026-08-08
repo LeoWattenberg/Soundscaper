@@ -129,6 +129,59 @@ test('linked-PCM relink rejects changed candidate bytes and leaves candidate cle
 	}]);
 });
 
+for (const backend of ['memory', 'indexeddb'] as const) {
+	test(`changed-content linked-PCM relink publishes the measured replacement in ${backend}`, async (context) => {
+		const originalBody = new Blob(['original linked PCM bytes'], { type: 'audio/wav' });
+		const changedBody = new Blob(['different replacement linked PCM bytes'], { type: 'audio/wav' });
+		const fixture = await relinkFixture(context, backend, originalBody);
+		fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(changedBody, NEW_LOCATOR_REVISION));
+		let admissions = 0;
+
+		const rebound = await fixture.store.relinkLinkedAudioOriginal(
+			PROJECT_ID,
+			audioSource(),
+			NEW_LOCATOR_ID,
+			{
+				admission: 'changed-content',
+				expectedBindingToken: fixture.original.bindingToken,
+				expectedLocatorRevision: NEW_LOCATOR_REVISION,
+				expectedSnapshot: changedBody,
+				assertCanPublish: () => { admissions += 1; },
+			},
+		);
+
+		assert.equal(admissions, 1);
+		assert.equal(rebound.kind, 'audio');
+		assert.equal(rebound.locatorId, NEW_LOCATOR_ID);
+		assert.equal(rebound.locatorRevision, NEW_LOCATOR_REVISION);
+		assert.equal(rebound.byteLength, changedBody.size);
+		assert.notEqual(rebound.sha256, fixture.original.sha256);
+		assert.deepEqual(rebound.sourceShape, fixture.original.sourceShape);
+		assert.deepEqual(await fixture.store.getLinkedOriginalBinding(PROJECT_ID, SOURCE_ID), rebound);
+		assert.equal(fixture.currentRoot().bindingToken, rebound.bindingToken);
+	});
+}
+
+test('changed-content linked-PCM relink preserves the bound MIME profile', async (context) => {
+	const originalBody = new Blob(['original linked PCM'], { type: 'audio/wav' });
+	const retypedBody = new Blob(['replacement linked PCM'], { type: 'audio/aiff' });
+	const fixture = await relinkFixture(context, 'memory', originalBody);
+	fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(retypedBody, NEW_LOCATOR_REVISION));
+
+	await assert.rejects(
+		fixture.store.relinkLinkedAudioOriginal(PROJECT_ID, audioSource(), NEW_LOCATOR_ID, {
+			admission: 'changed-content',
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: retypedBody,
+		}),
+		/MIME type/iu,
+	);
+
+	assert.deepEqual(await fixture.store.getLinkedOriginalBinding(PROJECT_ID, SOURCE_ID), fixture.original);
+	assert.equal(fixture.currentRoot().bindingToken, fixture.original.bindingToken);
+});
+
 test('linked-PCM relink rejects a stale binding token before candidate platform access', async (context) => {
 	const body = new Blob(['stale-token linked PCM'], { type: 'audio/wav' });
 	const fixture = await relinkFixture(context, 'memory', body);

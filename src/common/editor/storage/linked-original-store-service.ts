@@ -98,7 +98,10 @@ export interface RelinkLinkedOriginalOptions {
 	readonly signal?: AbortSignal;
 }
 
-export type RelinkLinkedAudioOriginalOptions = RelinkLinkedOriginalOptions;
+export interface RelinkLinkedAudioOriginalOptions extends RelinkLinkedOriginalOptions {
+	/** Exact-content relink is the default; changed content requires explicit admission. */
+	readonly admission?: 'exact-content' | 'changed-content';
+}
 
 export interface RelinkLinkedVideoOriginalOptions extends RelinkLinkedOriginalOptions {
 	/** Exact-content relink is the default; changed content requires explicit admission. */
@@ -272,7 +275,9 @@ export class LinkedOriginalStoreService {
 					throw new Error('The linked audio original binding changed before relink.');
 				}
 				await resolver.assertBindingCurrent(projectId, source, current, { signal: options.signal });
-				const selected = await exactRelinkSnapshot(current, options, 'audio');
+				const selected = options.admission === 'changed-content'
+					? changedContentAudioRelinkSnapshot(current, options)
+					: await exactRelinkSnapshot(current, options, 'audio');
 				return resolver.bind(projectId, source, locatorId, {
 					expectedBindingToken: current.bindingToken,
 					expectedLocatorRevision: options.expectedLocatorRevision,
@@ -562,6 +567,18 @@ async function changedContentRelinkSnapshot(
 		throw new Error('The selected linked video original does not match the current MIME type.');
 	}
 	throwIfRelinkAborted(options.signal, 'video');
+	return selected;
+}
+
+function changedContentAudioRelinkSnapshot(
+	current: Readonly<{ mimeType: string }>,
+	options: RelinkLinkedOriginalOptions,
+): Blob {
+	const selected = canonicalMediaContentBlob(options.expectedSnapshot);
+	if ((selected.type || current.mimeType) !== current.mimeType) {
+		throw new Error('The selected linked audio original does not match the current MIME type.');
+	}
+	throwIfRelinkAborted(options.signal, 'audio');
 	return selected;
 }
 
