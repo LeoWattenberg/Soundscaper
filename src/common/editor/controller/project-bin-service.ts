@@ -31,6 +31,7 @@ import {
 } from './project-bin-types.ts';
 import type { EngineChunkSourceInput, EngineSourceBufferInput } from '../engine/public-api.ts';
 import type { EngineSourceResolver } from '../engine/types.ts';
+import { admitChangedContentAudioCandidate } from './audio-relink-probe.ts';
 import {
 	createProjectBinLinkedAudioRelinkService,
 	type ProjectBinLinkedAudioRelinkDependencies,
@@ -81,7 +82,7 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	readonly invalidateSourceRuntime: ProjectBinLinkedAudioRelinkDependencies['invalidateSourceRuntime'];
 	readonly activateVideoSource: ProjectBinLinkedVideoRelinkDependencies['activateVideoSource'];
 	readonly digestMediaContent: ProjectBinLinkedVideoRelinkDependencies['digestContent'];
-	readonly admitChangedContentAudioCandidate:
+	readonly admitChangedContentAudioCandidate?:
 	ProjectBinLinkedAudioRelinkDependencies['admitChangedContentCandidate'];
 	readonly admitChangedContentVideoCandidate:
 	ProjectBinLinkedVideoRelinkDependencies['admitChangedContentCandidate'];
@@ -392,7 +393,8 @@ function audioRelinkDependencies(
 		assertProject: dependencies.assertProject,
 		getLinkedOriginalBinding: (...args) => dependencies.store.getLinkedOriginalBinding(...args),
 		digestContent: dependencies.digestMediaContent,
-		admitChangedContentCandidate: dependencies.admitChangedContentAudioCandidate,
+		admitChangedContentCandidate: dependencies.admitChangedContentAudioCandidate
+			?? admitChangedContentAudioCandidate,
 		stopTimelinePlayback: () => dependencies.playbackEngine.stop(),
 		stopProjectBinPreview: () => preview.stopProjectBinPreview({ dispose: true }),
 		retireSourceChunkProvider: dependencies.retireSourceChunkProvider,

@@ -299,7 +299,6 @@ import { createProjectImportService } from './controller/project-import-service.
 import { createProjectAdminService } from './controller/project-admin-service.ts';
 import { fitAudioBufferToFrames } from './controller/audio-buffer-frame-fit.ts';
 import { createProjectBinService } from './controller/project-bin-service.ts';
-import { admitChangedContentAudioCandidate } from './controller/audio-relink-probe.ts';
 import { admitChangedContentVideoCandidate } from './controller/video-relink-probe.ts';
 import { digestMediaContent } from './storage/media-content-digest.ts';
 import { createProjectVisualService } from './controller/project-visual-service.ts';
@@ -1449,7 +1448,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 		activateStoredSource, invalidateSourceRuntime: sourceLifecycleService.invalidateSourceRuntime, projectChanged, publish: publishDocumentSnapshot, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, revokeVideoVisual,
 		digestMediaContent, deleteVideoDerivative: (sourceId) => store.deleteVideoDerivative(sourceId),
-		admitChangedContentAudioCandidate: (file, source, probeOptions) => admitChangedContentAudioCandidate(file, source, probeOptions),
 		admitChangedContentVideoCandidate: (file, source, probeOptions) => admitChangedContentVideoCandidate(file, source, { createAudioEditorVideoFrameExtractor, engine, ffmpeg }, probeOptions),
 	});
 	const videoEffectService = createVideoEffectService({
