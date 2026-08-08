@@ -337,7 +337,7 @@
 		{
 			"id": "m2-compatibility-fallback-roles",
 			"gateId": "m2-gate-feature-compatibility",
-			"status": "partial",
+			"status": "implemented",
 			"roleIds": [
 				"project-audio-mix-v1",
 				"audio-track-render-v1",

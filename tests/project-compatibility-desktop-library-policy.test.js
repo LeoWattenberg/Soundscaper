@@ -245,11 +245,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/second maintained Linux x64 CI job.*two frozen Electron\s+shared-library workflow IDs.*six sequential processes.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*isolated shared\s+appData.*separate product profiles.*return stage reuses the origin\s+profile.*exact schema 9.*canonical-PCM audio track\s+and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh\s+recipient activates.*normal project route.*exact Project\s+Bin `Blob`.*starts and stops transport.*native input.*revision-2 save.*visible.*Edit in.*other product.*origin return.*exact edited\s+revision.*both bindings.*main-owned evidence.*handoff navigation.*document digest.*binding IDs and digests.*increasing catalog revisions and fencing tokens/isu,
+		/second maintained Linux x64 CI job.*two frozen Electron\s+shared-library workflow IDs.*six sequential processes.*isolated shared\s+appData.*separate product profiles.*origin\s+profile.*exact schema 9.*canonical-PCM audio track\s+and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh\s+recipient activates.*normal project route.*exact Project\s+Bin `Blob`.*starts and stops transport.*native input.*revision-2 save.*visible.*Edit in.*other product.*origin return.*exact edited\s+revision.*both bindings.*two exact-schema-9 read-only role witnesses.*project-audio-mix-v1.*audio-track-render-v1.*project-video-render-v1.*video-clip-render-v1.*role-specific compatibility indicator.*editor transport.*feature\/project\/requirement\/role\/source\/SHA-256 witness\s+aggregate.*increasing catalog revisions and fencing tokens/isu,
 	);
 	assert.match(
 		documentation,
-		/electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*two web `.scape` workflow IDs are\s+qualified separately below.*General\s+browser or codec behavior.*rendered fallbacks.*linked or unmanaged media.*ARM64/isu,
+		/electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*two web `.scape` workflow IDs are\s+qualified separately below.*packaged activation and transport playback.*only.*four frozen rendered-fallback roles.*packaged final delivery.*fallback authoring.*other relationships.*General\s+browser or codec behavior.*linked or unmanaged media.*ARM64/isu,
 	);
 	assert.match(
 		documentation,
@@ -372,6 +372,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.equal(packagedHandoff.status, 'implemented');
 	assert.deepEqual(packagedHandoff.evidence, [
 		'desktop/project-library-source-bearing-smoke.js',
+		'desktop/project-library-fallback-role-witnesses.js',
 		'desktop/project-library-source-bearing-renderer-smoke.js',
 		'desktop/project-library-source-bearing-smoke-session.js',
 		'desktop/project-library-smoke-evidence.js',
@@ -394,11 +395,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		packagedHandoff.currentBehavior,
-		/Linux x64.*two frozen Electron workflows.*six sequential packaged executable processes.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*canonical PCM.*retained-original VP8 WebM.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*main-owned.*handoff navigation.*document digest.*binding IDs and digests.*increasing catalog revisions and fencing tokens/iu,
+		/Linux x64.*two frozen Electron workflows.*six sequential packaged executable processes.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*canonical PCM.*retained-original VP8 WebM.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*two additional exact-schema-9 role witnesses.*project-audio-mix-v1.*audio-track-render-v1.*project-video-render-v1.*video-clip-render-v1.*role-specific compatibility indicator.*editor transport.*feature.*project.*requirement.*relationship role.*fallback source.*SHA-256.*exact four-role aggregate.*increasing catalog revisions and fencing tokens/iu,
 	);
 	assert.match(
 		packagedHandoff.currentBehavior,
-		/two web `.scape` workflow IDs are qualified separately.*fixed small first-party fixture.*Linux x64.*muted audio.*does not qualify audible or device-output fidelity.*general browser or codec coverage.*rendered-fallback roles.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
+		/two web `.scape` workflow IDs are qualified separately.*fixed small first-party fixtures.*Linux x64.*muted audio.*qualifies packaged activation and playback only.*four frozen rendered-fallback roles.*does not qualify packaged final delivery.*fallback authoring.*other relationships.*audible or device-output fidelity.*general browser or codec coverage.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');

@@ -87,6 +87,10 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	);
 	assert.match(
 		rule.currentBehavior,
+		/exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*this role.*packaged runtime or UI final-delivery workflows.*unqualified/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
 		/engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation failure.*successful commit.*not roll back.*ordinary-source loading.*outside.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*more than one.*feature identities.*non-audio roles.*future schemas.*earlier Soundscaper.*linked-only.*unmanaged.*authoring.*freeze.*proxy.*publisher authenticity.*third-party code activation.*packaged.*UI.*browser.*reference-scale.*durable byte lease/iu,
 	);
 
@@ -145,6 +149,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	assert.match(normalizedDocumentation, /Corrupt same-shaped recipient-local PCM after activation.*rejects delivery before rendering or output.*exact repair restores the exact PCM.*final-mix.*canonical project.*shadow.*unchanged/isu);
 	assert.match(normalizedDocumentation, /`org\.example\.future-mixer`.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/isu);
 	assert.match(normalizedDocumentation, /operation-time.*selector.*exact requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*tamper.*refus.*repair.*canonical project.*shadow.*unchanged/isu);
+	assert.match(normalizedDocumentation, /exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*both frozen audio roles.*packaged runtime or UI final-delivery workflows.*unqualified/isu);
 	assert.match(documentation, /exact point-in-time provider.*immutable.*Blob.*not durable leases.*role-defined.*audio whole-mix.*role-defined whole-project video.*videoEffects-only\s+clip-target.*narrow editor-playback\s+and\s+delivery/isu);
 	assert.match(normalizedDocumentation, /more than one.*feature identities.*non-audio roles.*future schemas.*earlier Soundscaper schemas.*linked-only.*unmanaged.*authoring.*freeze.*proxy.*publisher authenticity.*third-party code activation.*packaged.*UI.*browser.*reference-scale/isu);
 });

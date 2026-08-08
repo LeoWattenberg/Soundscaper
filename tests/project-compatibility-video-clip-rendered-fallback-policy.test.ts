@@ -80,6 +80,8 @@ test('compatibility policy narrowly qualifies target-only video-effects clip pro
 		['preserved placement and membership', /track membership.*timeline placement.*duration.*group.*A\/V link/iu],
 		['neutral source-local transforms', /source.*frame zero.*trim.*zero.*speed.*one.*video effects.*empty/iu],
 		['ordinary video export', /ordinary.*video (?:composition|export).*projected.*target/iu],
+		['packaged activation', /Linux x64 packaged workflow.*activation and transport playback.*both frozen video roles/iu],
+		['packaged delivery residual', /packaged.*final-delivery.*unqualified/iu],
 	]);
 	assertSemanticClaims(integrity.currentBehavior, [
 		['relationship selector', /selector.*role.*target clip ID/iu],
@@ -121,6 +123,8 @@ test('security controls bind the clip relationship through playback, integrity, 
 		['silent distinct source', /different.*canonical source.*hasAudio.*false/iu],
 		['target-only transient state', /only.*target.*track membership.*timeline placement.*canonical.*unchanged/iu],
 		['managed handoff witness', /managed.*fresh recipient.*target clip ID.*fallback body.*digest/iu],
+		['packaged activation', /Linux x64 packaged workflow.*activation and transport playback.*both frozen video roles/iu],
+		['packaged delivery residual', /packaged.*final-delivery.*unqualified/iu],
 	]);
 	assertSemanticClaims(delivery.summary, [
 		['role-target selector', /selector.*role.*target clip ID.*source ID.*SHA-256/iu],

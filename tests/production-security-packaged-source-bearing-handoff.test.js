@@ -17,6 +17,7 @@ test('packaged source-bearing handoff evidence stays fixed to its two Electron w
 	assert.ok(control);
 	assert.deepEqual(control.evidence, [
 		['implementation', 'desktop/project-library-source-bearing-smoke.js'],
+		['implementation', 'desktop/project-library-fallback-role-witnesses.js'],
 		['implementation', 'desktop/project-library-source-bearing-renderer-smoke.js'],
 		['implementation', 'desktop/project-library-source-bearing-smoke-session.js'],
 		['implementation', 'desktop/project-library-smoke-evidence.js'],
@@ -35,16 +36,16 @@ test('packaged source-bearing handoff evidence stays fixed to its two Electron w
 	].map(([kind, path]) => ({ kind, path })));
 	assert.match(
 		control.summary,
-		/Linux x64 CI.*two frozen Electron workflow IDs.*six sequential packaged Soundscaper and Framescaper UI processes.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*one canonical-PCM audio track and clip.*one retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*main-owned handoff-navigation.*document-digest.*binding-ID-and-digest evidence.*increasing catalog revisions and fencing tokens/iu,
+		/Linux x64 CI.*two frozen Electron workflow IDs.*six sequential packaged Soundscaper and Framescaper UI processes.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*one canonical-PCM audio track and clip.*one retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*two exact-schema-9 read-only role witnesses.*project-audio-mix-v1.*audio-track-render-v1.*project-video-render-v1.*video-clip-render-v1.*role-specific compatibility indicator.*editor transport.*feature.*project.*requirement.*relationship role.*fallback source.*SHA-256.*exact four-role aggregate.*increasing catalog revisions and fencing tokens/iu,
 	);
 	assert.match(
 		control.summary,
-		/qualifies only.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*fixed small first-party fixture.*Linux x64.*two web `.scape` workflows are qualified separately.*muted audio.*audible or device output.*general browser or codec.*fallback.*linked or unmanaged media.*installers or file associations.*concurrency.*crash.*power loss.*Windows, macOS, (?:and|or) ARM64/iu,
+		/qualifies only.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*fixed small first-party fixture.*Linux x64.*two web `.scape` workflows are qualified separately.*muted audio.*audible or device output.*packaged activation and transport playback.*only.*four frozen rendered-fallback roles.*packaged final delivery.*fallback authoring.*other relationships.*general browser or codec.*linked or unmanaged media.*installers or file associations.*concurrency.*crash.*power loss.*Windows, macOS, (?:and|or) ARM64/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
 	assert.match(
 		threatModel,
-		/separate maintained Linux x64 CI job.*two frozen Electron source-bearing shared-library workflows.*six sequential packaged UI processes.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*isolated shared appData.*separate product profiles.*origin profile.*exact-schema-9 fixture.*canonical-PCM audio track and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal editor project route.*exact Project Bin Blob.*starts and stops transport.*native input.*revision-2 save.*visible cross-product handoff action.*origin return.*exact edited revision.*both media bindings.*main-owned handoff-navigation.*canonical-document-digest.*media-binding-ID-and-digest.*increasing catalog revisions and fencing tokens.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*two web `.scape` workflows are qualified separately/isu,
+		/separate maintained Linux x64 CI job.*two frozen Electron source-bearing shared-library workflows.*six sequential packaged UI processes.*isolated shared appData.*separate product profiles.*origin profile.*exact-schema-9 fixture.*canonical-PCM audio track and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal editor project route.*exact Project Bin Blob.*starts and stops transport.*native input.*revision-2 save.*visible cross-product handoff action.*origin return.*exact edited revision.*both media bindings.*two exact-schema-9 read-only role witnesses.*project-audio-mix-v1.*audio-track-render-v1.*project-video-render-v1.*video-clip-render-v1.*role-specific compatibility indicator.*editor transport.*exact four-role aggregate.*increasing catalog revisions and fencing tokens.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*packaged activation and transport playback.*only.*four frozen rendered-fallback roles.*packaged final delivery/isu,
 	);
 });

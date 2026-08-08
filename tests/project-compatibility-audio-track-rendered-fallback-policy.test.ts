@@ -73,7 +73,8 @@ test('compatibility policy narrowly qualifies the track-local audio-effects rend
 		['portable preservation', /retains the relationship and exact target track ID.*copy collision remaps only the fallback source identity/iu],
 		['managed handoff witness', /editable compatible sender whose ordinary save stays document-only.*fresh recipient that reports the registered capability unavailable.*byte-exact canonical shadow.*refuses delivery on corrupted recipient-local render PCM.*mixes the native lane with the verified private provider/iu],
 		['affected-object naming', /names the replaced track and each timeline clip its lane anchors/iu],
-		['narrow non-goals', /group, send, and master-scoped roles.*multiple simultaneous audio fallbacks.*packaged or browser qualification beyond the portable roundtrip and maintained managed handoff.*third-party feature-code activation remain unqualified/iu],
+		['packaged activation', /exact Linux x64 packaged workflow.*source\/component UI activation and transport playback/iu],
+		['narrow non-goals', /group, send, and master-scoped roles.*multiple simultaneous audio fallbacks.*packaged final delivery or browser qualification beyond the portable roundtrip and maintained managed handoff.*third-party feature-code activation remain unqualified/iu],
 	]);
 	await assertCompatibilityEvidence(rule, PROJECTOR_EVIDENCE);
 	await assertCompatibilityEvidence(rule, DELIVERY_EVIDENCE);
@@ -107,7 +108,8 @@ test('security controls bind the track relationship through playback, integrity,
 		['target and lane geometry', /target track ID.*non-empty audio clip lane.*exact timeline placement.*extent.*equal exactly/iu],
 		['target-only transient state', /replaces only that lane.*neutralizes only that rack.*every other lane, mixer, and master rack stays native/iu],
 		['admission binding', /rack activity, effect identity and inertness flags, lane membership, and exact lane placement/iu],
-		['managed handoff', /reaches explicit managed handoff to a fresh recipient.*editable compatible sender.*packaged and browser qualification remain open beyond the portable \.scape roundtrip and that managed handoff witness/iu],
+		['managed handoff', /reaches explicit managed handoff to a fresh recipient.*editable compatible sender/iu],
+		['packaged activation', /exact Linux x64 packaged.*UI activation and transport playback.*qualified.*packaged final delivery and browser qualification remain open/iu],
 	]);
 	assertSemanticClaims(delivery.summary, [
 		['role-target selector', /binds the closed role and exact target track ID/iu],
@@ -143,7 +145,7 @@ test('compatibility and security documents state the track slice and its narrow 
 		['compatibility: managed handoff', /fresh recipient that reports the registered `?audioEffects`? capability unavailable.*admits the relationship by role, target track ID, source ID, and SHA-256/iu],
 	]);
 	assertSemanticClaims(threatModel, [
-		['threat model: track handoff qualified', /for the track role editor playback, maintained delivery, portable `?\.scape`? round-trip, and managed handoff are qualified, not packaged or browser workflows/iu],
+		['threat model: track handoff qualified', /for the track role editor playback, maintained delivery, portable `?\.scape`? round-trip, managed handoff, and exact Linux x64 packaged UI activation and transport playback are qualified, but packaged final delivery and browser workflows are not/iu],
 	]);
 });
 

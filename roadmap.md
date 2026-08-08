@@ -280,11 +280,10 @@ update an item's status only after its listed acceptance conditions pass.
 
 #### 2.2 Compatibility completion
 
-- `m2-compatibility-fallback-roles`
 - `m2-compatibility-less-capable-roundtrip`
 
 `m2-compatibility-affected-objects` and `m2-compatibility-bypass` are already
-implemented. The required fallback role set is exactly
+implemented. The implemented fallback role set is exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`, and
 `video-clip-render-v1`. Unknown features without one of those roles stay
 read-only and reported; milestone 2 does not require an invented bypass.

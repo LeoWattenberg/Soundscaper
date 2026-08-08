@@ -1075,16 +1075,24 @@ recipient activates through the normal project route, hashes the exact Project
 Bin `Blob`, starts and stops transport, edits the audio track name through
 native input, waits for the revision-2 save, and invokes the visible “Edit in
 the other product” action. The origin return reactivates the exact edited
-revision and both bindings. Main-owned evidence binds the handoff navigation,
-canonical document digest, media binding IDs and digests, and strictly
-increasing catalog revisions and fencing tokens.
+revision and both bindings. Before that editable project, each fresh recipient
+also activates two exact-schema-9 read-only role witnesses from the same shared
+library. Soundscaper → Framescaper covers `project-audio-mix-v1` and
+`audio-track-render-v1`; Framescaper → Soundscaper covers
+`project-video-render-v1` and `video-clip-render-v1`. Each reaches its exact
+role-specific compatibility indicator and editor transport. Main-owned evidence
+binds the handoff navigation, canonical document digest, media binding IDs and
+digests, the exact feature/project/requirement/role/source/SHA-256 witness
+aggregate, and strictly increasing catalog revisions and fencing tokens.
 
 This qualifies only
 `electron-soundscaper-to-framescaper-to-soundscaper-library` and
 `electron-framescaper-to-soundscaper-to-framescaper-library` for that fixed
 small first-party fixture on Linux x64. The two web `.scape` workflow IDs are
 qualified separately below. Muted audio does not qualify audible or
-device-output fidelity. General browser or codec behavior, rendered fallbacks,
+device-output fidelity. Packaged activation and transport playback are qualified
+only for the four frozen rendered-fallback roles. Packaged final delivery,
+fallback authoring and other relationships, general browser or codec behavior,
 linked or unmanaged media, installers and file associations, concurrency, crash
 or power loss, Windows, macOS, and ARM64 remain unqualified.
 
@@ -1401,9 +1409,11 @@ schemas and earlier Soundscaper schemas remain outside this slice. Linked-only
 and unmanaged delivery, fallback authoring, freeze and proxy relationships,
 publisher authenticity, and third-party code activation remain unqualified, as
 do stems, BW64 or ADM delivery and ADM or surround playback. Packaged runtime
-or UI workflows, operating-system behavior, browser audio behavior beyond the
-maintained portable-open witness, reference-scale evidence, and a durable byte
-lease remain unqualified. The separate maintained video slice below does not
+or UI final-delivery workflows, operating-system behavior, browser audio
+behavior beyond the maintained portable-open witness, reference-scale evidence,
+and a durable byte lease remain unqualified. The exact Linux x64 packaged
+workflow qualifies source/component UI activation and transport playback for
+both frozen audio roles. The separate maintained video slice below does not
 broaden that boundary.
 
 The maintained exact schema 9 video rendered-fallback projection has two closed
@@ -1514,9 +1524,11 @@ relationship roles are unqualified. Linked or unmanaged delivery is
 unqualified, as is simultaneous rendered fallback delivery beyond that exact
 composition; standalone final-audio delivery still rejects simultaneous
 fallbacks. Freeze, proxy, relink, embedded fallback audio, and broader render
-parity are unqualified. Packaged runtime workflows are unqualified, browser
-behavior is unqualified, codec qualification is unqualified, and
-reference-scale evidence is unqualified. Earlier Soundscaper
+parity are unqualified. The exact Linux x64 packaged workflow qualifies
+source/component UI activation and transport playback for both frozen video
+roles. Packaged runtime or UI final-delivery workflows are unqualified, browser
+behavior is unqualified, codec qualification is unqualified, and reference-scale
+evidence is unqualified. Earlier Soundscaper
 project schemas are not a compatibility target for this slice beyond retained
 outer migrations and deterministic nested manifest-schema-1 whole-project
 normalization. Whole-handoff atomicity and a durable storage or cross-process

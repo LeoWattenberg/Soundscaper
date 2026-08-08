@@ -96,7 +96,7 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 	);
 	assert.match(
 		control.summary,
-		/more than one qualifying video fallback.*multiple clip fallbacks.*preview and playback.*other mixed relationships.*unqualified.*other relationship roles.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged.*unqualified.*generic fallback authoring.*third-party feature-code activation.*unqualified.*freeze.*proxy.*relink.*embedded fallback audio.*other export parity.*packaged runtime and UI.*unqualified.*browser behavior.*codec qualification.*unqualified.*range or reference-scale.*unqualified.*durable byte lease.*cross-process.*whole-handoff atomicity.*exact one-audio.one-video final delivery.*separate control/iu,
+		/more than one qualifying video fallback.*multiple clip fallbacks.*preview and playback.*other mixed relationships.*unqualified.*other relationship roles.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged.*unqualified.*generic fallback authoring.*third-party feature-code activation.*unqualified.*freeze.*proxy.*relink.*embedded fallback audio.*other export parity.*exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*both frozen video roles.*packaged runtime or UI final-delivery workflows.*unqualified.*browser behavior.*codec qualification.*unqualified.*range or reference-scale.*unqualified.*durable byte lease.*cross-process.*whole-handoff atomicity.*exact one-audio.one-video final delivery.*separate control/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
@@ -146,7 +146,7 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 	);
 	assert.match(
 		documentation,
-		/packaged runtime and UI.*unqualified.*browser behavior.*codec qualification.*unqualified.*reference-scale evidence.*unqualified.*whole-handoff atomicity/iu,
+		/exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*both frozen video roles.*packaged runtime or UI final-delivery workflows.*unqualified.*browser behavior.*codec qualification.*unqualified.*reference-scale evidence.*unqualified.*whole-handoff atomicity/iu,
 	);
 
 	const handoffStart = threatModel.indexOf('Four narrower one-way headless fixtures');
