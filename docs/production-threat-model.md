@@ -581,7 +581,12 @@ ancestry, uses only captured source tokens or paths, serializes chunk reads, and
 checks every observed generation before and after each chunk. Drift is
 terminal, per-request cancellation is local, on-access migration is suppressed,
 and store cleanup releases owned and fallback sessions while aggregating
-failures. This fences the root expected by the provider and ancestry observed
+failures. A non-owned fallback session opened with an admitted source identity
+now rechecks that metadata identity before and after every chunk read as well;
+fallback sources carry no copy-on-write generation records, so that fence is
+identity-only and weaker than the owned generation fence, and unfenced legacy
+iterator reads remain outside it.
+This fences the root expected by the provider and ancestry observed
 at open; it does not prove the base generation intended when a derived source
 was published, compare all metadata, authenticate body bytes, retain storage,
 or create an immutable, durable, cross-store, or cross-process byte lease.
