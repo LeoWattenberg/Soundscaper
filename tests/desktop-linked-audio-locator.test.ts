@@ -90,6 +90,45 @@ test('linked WAV audio shares the persisted locator inventory and serves materia
 	await reopened.dispose();
 });
 
+test('a successful exact linked-WAV release forgets only registry metadata and never the external file', async (context) => {
+	const root = await temporaryRoot(context);
+	const wavPath = join(root, 'selected.wav');
+	const registryPath = join(root, 'linked-originals.json');
+	const body = 'RIFF linked WAV body kept on disk';
+	await writeFile(wavPath, body);
+	const store = new DesktopLinkedVideoLocatorStore({
+		readCapabilities: readCapabilities().port,
+		registry: new FileDesktopLinkedVideoLocatorRegistry(registryPath),
+		randomBytes: deterministicTokens(),
+	});
+	context.after(async () => { await store.dispose(); });
+	const owner = {};
+	const locator = await store.registerPath(wavPath, {
+		kind: 'audio', owner, mimeType: 'audio/wav', displayName: 'selected.wav',
+	});
+
+	assert.equal(await store.release(locator.locatorId, {
+		owner, expectedRevision: 'f'.repeat(64), expectedKind: 'audio',
+	}), false, 'a wrong-revision release must refuse without forgetting the locator');
+	assert.ok(await store.load(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'audio',
+	}));
+
+	assert.equal(await store.release(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'audio',
+	}), true);
+	assert.equal(await store.load(locator.locatorId, {
+		owner, expectedRevision: locator.locatorRevision, expectedKind: 'audio',
+	}), null);
+	const persisted = JSON.parse(await readFile(registryPath, 'utf8')) as { entries: unknown[] };
+	assert.deepEqual(persisted.entries, []);
+	assert.equal(
+		await readFile(wavPath, 'utf8'),
+		body,
+		'an exact linked-WAV release must never delete or mutate the external file',
+	);
+});
+
 test('legacy schema-1 locator rows reopen as video while new audio and video share one quota', async (context) => {
 	const root = await temporaryRoot(context);
 	const videoPath = join(root, 'legacy.mp4');

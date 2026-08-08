@@ -44,7 +44,11 @@ test('durable open maintenance protects live roots, prunes stale bindings, and p
 	assert.equal(await fixture.store.getLinkedOriginalBinding(PROJECT_ID, source.id), null);
 	assert.ok(await fixture.store.getLinkedOriginalBinding(ALIAS_PROJECT_ID, source.id));
 	assert.deepEqual(fixture.releases, [], 'the same-store alias must retain the exact locator');
-	assert.equal(fixture.body.size, fixture.originalBodyBytes);
+	assert.deepEqual(
+		new Uint8Array(await fixture.body.arrayBuffer()),
+		fixture.originalBody,
+		'activation pruning must not mutate the external WAV body',
+	);
 
 	await fixture.store.deleteProject(ALIAS_PROJECT_ID);
 	assert.deepEqual(fixture.releases, [{
@@ -328,7 +332,7 @@ async function createStoreFixture(
 	});
 	context.after(async () => { await store.close(); });
 	await store.ready();
-	return { body, originalBodyBytes: body.size, releases, store };
+	return { body, originalBody: new Uint8Array(await body.arrayBuffer()), releases, store };
 }
 
 async function ageSourceOutOfDurableHistory(
