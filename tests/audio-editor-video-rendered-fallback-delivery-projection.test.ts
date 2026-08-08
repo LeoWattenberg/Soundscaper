@@ -111,6 +111,47 @@ test('video delivery projects the closed whole-project role across feature ident
 	}
 });
 
+test('video delivery replaces only the clip-render target and keeps the unaffected video', () => {
+	const geometry = { frameCount: 8, sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30 } as const;
+	const canonical = createVideoSourceV9({ id: 'clip-target-video', storageKey: 'clip-target-video', ...geometry });
+	const unaffected = createVideoSourceV9({ id: 'unaffected-video', storageKey: 'unaffected-video', ...geometry });
+	const fallback = createVideoSourceV9({ id: 'clip-fallback-video', storageKey: 'clip-fallback-video', ...geometry });
+	const target = createVideoClipV9({
+		id: 'clip-render-target', sourceId: canonical.id, durationFrames: 8,
+		videoEffects: [{ id: 'clip-fx', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
+	});
+	const other = createVideoClipV9({ id: 'unaffected-clip', sourceId: unaffected.id, durationFrames: 8 });
+	const project = createAudioEditorProjectV9({
+		id: 'clip-render-delivery', now: '2026-08-02T12:00:00.000Z',
+		sources: [canonical, unaffected, fallback],
+		clips: [target, other],
+		tracks: [createVideoTrackV9({ id: 'clip-video-track', clipIds: [target.id, other.id] })],
+		featureRequirements: { schemaVersion: 2, requirements: [{
+			id: 'publisher-clip-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			displayName: 'Publisher clip render', disposition: 'rendered-fallback',
+			fallback: {
+				role: 'video-clip-render-v1', kind: 'video',
+				sourceId: fallback.id, sha256: DIGEST, targetClipId: target.id,
+			},
+		}] },
+	});
+	const before = structuredClone(project);
+
+	const delivery = createPlaybackProjectService({ videoEffects: false })
+		.projectForVideoRenderedFallbackDelivery(project);
+
+	assert.equal(delivery.videoRenderedFallback?.role, 'video-clip-render-v1');
+	assert.equal(delivery.videoRenderedFallback?.targetClipId, 'clip-render-target');
+	assert.ok(delivery.requiredVideoSourceIds.includes('clip-fallback-video'));
+	const deliveredTarget = delivery.project.clips.find(({ id }) => id === 'clip-render-target');
+	const deliveredOther = delivery.project.clips.find(({ id }) => id === 'unaffected-clip');
+	assert.equal(deliveredTarget?.sourceId, 'clip-fallback-video',
+		'the target clip must play the rendered fallback body');
+	assert.equal(deliveredOther?.sourceId, 'unaffected-video',
+		'the unaffected clip must keep its canonical body');
+	assert.deepEqual(project, before, 'the canonical project must remain unchanged');
+});
+
 test('video delivery rejects duplicate rendered fallbacks of either media kind', () => {
 	const canonical = combinedFallbackProject();
 	const requirements = canonical.featureRequirements.requirements;

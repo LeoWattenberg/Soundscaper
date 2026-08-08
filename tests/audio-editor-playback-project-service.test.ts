@@ -175,6 +175,57 @@ test('an unknown whole-mix role is projected and staged without a registered fea
 	assert.deepEqual(events, ['stage', 'engine']);
 });
 
+test('a track-render fallback replaces one lane while other tracks stay native surfaces', () => {
+	const source = createAudioSourceV9({
+		id: 'fx-lane-source', storageKey: 'fx-lane-source', frameCount: 4, channelCount: 2, sampleRate: 48_000,
+	});
+	const drySource = createAudioSourceV9({
+		id: 'dry-lane-source', storageKey: 'dry-lane-source', frameCount: 4, channelCount: 2, sampleRate: 48_000,
+	});
+	const fallback = createAudioSourceV9({
+		id: 'track-render-source', storageKey: 'track-render-source', frameCount: 4, channelCount: 2, sampleRate: 48_000,
+	});
+	const fxClip = createAudioClipV9({ id: 'fx-clip', sourceId: source.id, durationFrames: 4 });
+	const dryClip = createAudioClipV9({ id: 'dry-clip', sourceId: drySource.id, durationFrames: 4 });
+	const canonical = createAudioEditorProjectV9({
+		id: 'track-render-project', now: '2026-08-08T12:00:00.000Z',
+		sources: [source, drySource, fallback], clips: [fxClip, dryClip],
+		tracks: [
+			createAudioTrackV9({
+				id: 'fx-track', clipIds: [fxClip.id],
+				effects: [createEffect('compressor', { id: 'effect-a' })],
+			}),
+			createAudioTrackV9({ id: 'dry-track', clipIds: [dryClip.id] }),
+		],
+		featureRequirements: { schemaVersion: 2, requirements: [{
+			id: 'publisher-track-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			displayName: 'Publisher track render', disposition: 'rendered-fallback',
+			fallback: {
+				role: 'audio-track-render-v1', kind: 'audio',
+				sourceId: fallback.id, sha256: DIGEST, targetTrackId: 'fx-track',
+			},
+		}] },
+	});
+	const before = structuredClone(canonical);
+
+	const projection = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
+		.projectForPlayback(canonical);
+
+	assert.equal(projection.audioRenderedFallback?.role, 'audio-track-render-v1');
+	assert.equal(projection.audioRenderedFallback?.targetTrackId, 'fx-track');
+	assert.ok(projection.requiredAudioSourceIds.includes('track-render-source'));
+	const projected = projection.project;
+	const fxTrack = projected.tracks.find(({ id }) => id === 'fx-track');
+	const dryTrack = projected.tracks.find(({ id }) => id === 'dry-track');
+	assert.notDeepEqual(fxTrack?.clipIds, ['fx-clip'],
+		'the target lane must be replaced by the reserved render clip');
+	assert.deepEqual(dryTrack?.clipIds, ['dry-clip'], 'other lanes must stay canonical native surfaces');
+	assert.ok(projected.clips.some(({ sourceId }) => sourceId === 'track-render-source'),
+		'the reserved render clip must play the fallback body');
+	assert.ok(projected.clips.some(({ id }) => id === 'dry-clip'));
+	assert.deepEqual(canonical, before, 'the canonical project must remain unchanged');
+});
+
 test('the playback service composes a required rendered-video preview without mutating its source project', () => {
 	const canonical = videoFallbackProject();
 	const service = createPlaybackProjectService({ audioEffects: true, videoEffects: false });
