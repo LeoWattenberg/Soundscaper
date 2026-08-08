@@ -131,9 +131,10 @@ test('stem commit refuses a lost renderer owner before publication and aborts on
 	const preparation = await prepareDirectStemArchiveDestination(
 		{ prepareSave: () => prepared }, plan, null, new AbortController().signal,
 	);
-	assert.ok(preparation.destination);
+	const destination = preparation.destination;
+	assert.ok(destination);
 	const result = await streamDirectStemArchive({
-		destination: preparation.destination,
+		destination,
 		plan,
 		signal: new AbortController().signal,
 		assertCurrent: () => undefined,
@@ -143,14 +144,14 @@ test('stem commit refuses a lost renderer owner before publication and aborts on
 	const loss = new Error('stale renderer owner');
 	await assert.rejects(
 		() => commitPreparedDirectStemArchiveDestination(
-			preparation.destination, plan, result.byteLength, () => { throw loss; },
+			destination, plan, result.byteLength, () => { throw loss; },
 		),
 		(error: unknown) => error === loss,
 	);
 	assert.equal(prepared.commits(), 0, 'a lost owner cannot cross the commit boundary');
 
-	await preparation.destination.abort(loss);
-	await preparation.destination.abort(loss);
+	await destination.abort(loss);
+	await destination.abort(loss);
 	assert.equal(prepared.aborts(), 1, 'rollback after the refusal aborts exactly once');
 	assert.equal(prepared.commits(), 0);
 });
