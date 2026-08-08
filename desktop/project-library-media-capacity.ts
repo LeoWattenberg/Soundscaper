@@ -177,7 +177,7 @@ function lowerOnlyLimit(value: unknown, hardMaximum: number, label: string): num
 	return Number(limit);
 }
 
-function availableStorageBytes(details: unknown): bigint {
+export function availableStorageBytes(details: unknown): bigint {
 	if (!details || typeof details !== 'object') {
 		throw new TypeError('Expected filesystem capacity details');
 	}

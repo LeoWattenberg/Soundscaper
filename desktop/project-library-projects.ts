@@ -7,12 +7,17 @@ import {
 	mkdir,
 	open,
 	readFile,
+	statfs,
 	type FileHandle,
 } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { parseScapeProjectDocument, serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { throwIfAborted } from './project-library-abort.ts';
+import {
+	availableStorageBytes,
+	type DesktopLibraryMediaStatfs,
+} from './project-library-media-capacity.ts';
 import {
 	createDesktopLibraryProjectMetadataFile,
 	DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
@@ -33,6 +38,7 @@ const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
 export interface DesktopLibraryProjectStoreOptions {
 	readonly maximumDocumentBytes?: number;
 	readonly randomId?: () => string;
+	readonly statfsImpl?: DesktopLibraryMediaStatfs;
 }
 
 export interface DesktopLibraryCommitProjectOptions {
@@ -87,6 +93,7 @@ export class DesktopLibraryProjectStore {
 	#library: SharedDesktopProjectLibrary;
 	#maximumDocumentBytes: number;
 	#randomId: () => string;
+	#statfs: DesktopLibraryMediaStatfs;
 
 	constructor(library: SharedDesktopProjectLibrary, options: DesktopLibraryProjectStoreOptions = {}) {
 		if (!(library instanceof SharedDesktopProjectLibrary)) {
@@ -95,6 +102,7 @@ export class DesktopLibraryProjectStore {
 		this.#library = library;
 		this.#maximumDocumentBytes = maximumDocumentBytes(options.maximumDocumentBytes);
 		this.#randomId = options.randomId ?? (() => randomBytes(16).toString('hex'));
+		this.#statfs = options.statfsImpl ?? statfs;
 	}
 
 	readCatalog(): DesktopLibraryMetadata {
@@ -227,6 +235,7 @@ export class DesktopLibraryProjectStore {
 		} catch (error) {
 			if (!isMissingFile(error)) throw error;
 		}
+		await this.#assertAvailableStorage(bytes.byteLength, signal);
 		const directory = join(this.#library.paths.projectsRoot, catalog.id);
 		await mkdir(directory, { recursive: true, mode: 0o700 });
 		const directoryMetadata = await lstat(directory);
@@ -294,6 +303,26 @@ export class DesktopLibraryProjectStore {
 	#assertDocumentBytes(value: number): void {
 		if (!Number.isSafeInteger(value) || value < 1 || value > this.#maximumDocumentBytes) {
 			throw new RangeError('Desktop library project document exceeds its byte limit');
+		}
+	}
+
+	/** Point-in-time fail-closed admission before project-document stage creation. */
+	async #assertAvailableStorage(byteLength: number, signal?: AbortSignal): Promise<void> {
+		let details: unknown;
+		try {
+			details = await this.#statfs(this.#library.paths.projectsRoot, { bigint: true });
+		} catch (error) {
+			throw new Error('Could not inspect filesystem capacity for the project document', { cause: error });
+		}
+		throwIfAborted(signal);
+		let availableBytes: bigint;
+		try {
+			availableBytes = availableStorageBytes(details);
+		} catch (error) {
+			throw new Error('Project-document filesystem capacity information is invalid', { cause: error });
+		}
+		if (availableBytes < BigInt(byteLength)) {
+			throw new RangeError('Available disk space is below the staged project document size');
 		}
 	}
 }
