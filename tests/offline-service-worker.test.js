@@ -9,6 +9,13 @@ import {
 	handleOfflineShellFetch,
 	installOfflineShell,
 } from '../scripts/lib/offline-service-worker.mjs';
+import {
+	asset,
+	MemoryCacheStorage,
+	response,
+	shellCacheName,
+	shellConfiguration,
+} from './helpers/offline-shell-fixtures.js';
 
 test('a partial shell install deletes only its candidate and leaves the prior release intact', async () => {
 	const cacheStorage = new MemoryCacheStorage();
@@ -360,41 +367,6 @@ test('unknown offline navigations fall back to the matching product shell', asyn
 	assert.equal(await soundscaper.text(), 'soundscaper shell');
 });
 
-function shellConfiguration(seed, extraAssets = []) {
-	const assets = [
-		asset('/', 'root shell'),
-		asset('/assets/application.js', 'application code'),
-		...extraAssets,
-	].sort(({ url: left }, { url: right }) => left < right ? -1 : left > right ? 1 : 0);
-	const identity = {
-		schemaVersion: 1,
-		workerSha256: seed.repeat(64),
-		assets,
-	};
-	return Object.freeze({
-		...identity,
-		releaseId: createHash('sha256').update(JSON.stringify(identity)).digest('hex'),
-		assets: Object.freeze(assets),
-	});
-}
-
-function asset(url, contents) {
-	const bytes = Buffer.from(contents);
-	return Object.freeze({
-		url,
-		byteLength: bytes.byteLength,
-		sha256: createHash('sha256').update(bytes).digest('hex'),
-	});
-}
-
-function response(contents) {
-	const bytes = Buffer.from(contents);
-	return new Response(bytes, {
-		status: 200,
-		headers: { 'content-length': String(bytes.byteLength), 'content-type': 'text/plain' },
-	});
-}
-
 function runtimeRelease(seed, javascriptContents) {
 	const releaseId = seed.repeat(64);
 	const baseUrl = `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/releases/${releaseId}/`;
@@ -471,46 +443,3 @@ function runtimeCacheName(releaseId) {
 	return `soundscaper-ffmpeg-runtime-v1-${releaseId}`;
 }
 
-function shellCacheName(releaseId) {
-	return `soundscaper-application-shell-v1-${releaseId}`;
-}
-
-class MemoryCacheStorage {
-	readonlyCaches = new Map();
-	events = [];
-
-	async open(name) {
-		let cache = this.readonlyCaches.get(name);
-		if (!cache) {
-			cache = new MemoryCache();
-			this.readonlyCaches.set(name, cache);
-		}
-		return cache;
-	}
-
-	async delete(name) {
-		this.events.push(`delete:${name}`);
-		return this.readonlyCaches.delete(name);
-	}
-
-	async keys() {
-		return [...this.readonlyCaches.keys()];
-	}
-}
-
-class MemoryCache {
-	entries = new Map();
-
-	async match(input) {
-		return this.entries.get(key(input))?.clone();
-	}
-
-	async put(input, value) {
-		this.entries.set(key(input), value.clone());
-	}
-}
-
-function key(input) {
-	if (input instanceof Request) return input.url;
-	return String(input);
-}
