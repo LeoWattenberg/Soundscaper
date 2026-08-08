@@ -23,7 +23,7 @@ export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_AGGREGATE_PREFIX = 'SOUNDSCA
 
 const MAXIMUM_CHILD_OUTPUT_BYTES = 1024 * 1024;
 const MAXIMUM_AGGREGATE_BYTES = 64 * 1024;
-const CHILD_TIMEOUT_MS = 45_000;
+const CHILD_TIMEOUT_MS = 120_000;
 
 export function createDesktopProjectLibrarySourceBearingInvocation({
 	arch,
@@ -234,7 +234,7 @@ function runBoundedChild(command, args, { cwd, environment }) {
 			reject(error);
 		});
 		timeout = setTimeout(() => {
-			failure = new Error('Source-bearing packaged child timed out after 45 seconds');
+			failure = new Error('Source-bearing packaged child timed out after 120 seconds');
 			child.kill();
 		}, CHILD_TIMEOUT_MS);
 		child.once('exit', (code, signal) => {

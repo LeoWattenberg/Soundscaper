@@ -304,3 +304,9 @@ jobs:
         env:
           SOUNDSCAPER_SMOKE_ARCH: x64
           SOUNDSCAPER_SMOKE_XVFB: 'true'
+
+      - name: Run packaged source-bearing cross-product roundtrips
+        run: npm run desktop:smoke:project-library-source-bearing-handoff
+        env:
+          SOUNDSCAPER_SMOKE_ARCH: x64
+          SOUNDSCAPER_SMOKE_XVFB: 'true'

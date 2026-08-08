@@ -17,6 +17,10 @@ test('desktop package metadata exposes the bounded project-library handoff smoke
 		metadata.scripts['desktop:smoke:project-library-handoff'],
 		'node scripts/desktop-project-library-handoff-smoke.mjs',
 	);
+	assert.equal(
+		metadata.scripts['desktop:smoke:project-library-source-bearing-handoff'],
+		'node scripts/desktop-project-library-source-bearing-handoff-smoke.mjs',
+	);
 	assert.match(ignore, /^release\/desktop-handoff\/$/mu);
 });
 
@@ -36,5 +40,11 @@ test('desktop CI builds and runs both unpacked products in one Linux x64 handoff
 	assert.match(job, /release\/desktop-handoff\/soundscaper\/linux-unpacked\/chrome-sandbox/u);
 	assert.match(job, /release\/desktop-handoff\/framescaper\/linux-unpacked\/chrome-sandbox/u);
 	assert.match(job, /npm run desktop:smoke:project-library-handoff/u);
+	assert.match(job, /name: Run packaged source-bearing cross-product roundtrips\s+run: npm run desktop:smoke:project-library-source-bearing-handoff/u);
 	assert.match(job, /SOUNDSCAPER_SMOKE_XVFB: 'true'/u);
+	assert.ok(
+		job.indexOf('npm run desktop:smoke:project-library-source-bearing-handoff')
+			> job.indexOf('npm run desktop:smoke:project-library-handoff'),
+		'source-bearing roundtrips must run after the source-free lifecycle',
+	);
 });
