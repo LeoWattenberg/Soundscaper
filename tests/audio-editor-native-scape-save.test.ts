@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	prepareNativeScapeSave,
 	publishNativeScape,
+	publishNativeScapeArchiveCopy,
 } from '../src/common/editor/controller/native-scape-save.ts';
 import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
 import type {
@@ -182,6 +183,228 @@ test('cancelled Scape target selection skips flush, archive work, and save-state
 	assert.deepEqual(await fixture.service.saveScape(), { cancelled: true });
 	assert.deepEqual(fixture.events, ['prepare']);
 	assert.equal(fixture.state.saveState, 'saved');
+});
+
+test('direct Scape publication aborts once when a staged write is refused', async () => {
+	const events: string[] = [];
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable() {
+			return new WritableStream<Uint8Array>({
+				write() { throw new Error('staging space exhausted'); },
+			});
+		},
+		bytesWritten() { return 0; },
+		async commit() { events.push('commit'); return {}; },
+		async abort(reason) { events.push(`abort:${String((reason as Error).message)}`); },
+	};
+	const runtime = {
+		store: {},
+		async exportScapeProject(_project: unknown, _store: unknown, options: {
+			createWritable?: (maximumBytes: number) => Promise<WritableStream<Uint8Array>>;
+		}) {
+			const writer = (await options.createWritable?.(4))?.getWriter();
+			await writer?.write(Uint8Array.of(1));
+			throw new Error('unreachable export completion');
+		},
+	};
+	await assert.rejects(publishNativeScape(runtime as never, {
+		assertReadyToCommit() { events.push('ownership'); },
+		fileName: 'project.scape', prepared, project, signal: new AbortController().signal,
+	}), /staging space exhausted/u);
+	assert.deepEqual(events, ['abort:staging space exhausted']);
+});
+
+test('direct Scape commit failure cleans the destination and preserves its cause', async () => {
+	const events: string[] = [];
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable() { return new WritableStream<Uint8Array>(); },
+		bytesWritten() { return 0; },
+		async commit() { events.push('commit'); throw new Error('destination commit refused'); },
+		async abort(reason) { events.push(`abort:${String((reason as Error).message)}`); },
+	};
+	const runtime = {
+		store: {},
+		async exportScapeProject() { return { blob: null, byteLength: 0, manifest: {} }; },
+	};
+	await assert.rejects(publishNativeScape(runtime as never, {
+		assertReadyToCommit() { events.push('ownership'); },
+		fileName: 'project.scape', prepared, project, signal: new AbortController().signal,
+	}), /destination commit refused/u);
+	assert.deepEqual(events, ['ownership', 'commit', 'abort:destination commit refused']);
+});
+
+test('direct Scape commit and cleanup failures surface together as one aggregate', async () => {
+	const commitFailure = new Error('destination commit refused');
+	const cleanupFailure = new Error('destination cleanup refused');
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable() { return new WritableStream<Uint8Array>(); },
+		bytesWritten() { return 0; },
+		async commit() { throw commitFailure; },
+		async abort() { throw cleanupFailure; },
+	};
+	const runtime = {
+		store: {},
+		async exportScapeProject() { return { blob: null, byteLength: 0, manifest: {} }; },
+	};
+	await assert.rejects(publishNativeScape(runtime as never, {
+		assertReadyToCommit() {},
+		fileName: 'project.scape', prepared, project, signal: new AbortController().signal,
+	}), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(error.message, /Scape save and destination cleanup both failed/u);
+		assert.deepEqual(error.errors, [commitFailure, cleanupFailure]);
+		return true;
+	});
+});
+
+test('stream archive copy writes exact retained bytes and commits after ownership', async () => {
+	const events: string[] = [];
+	const archive = new Blob([Uint8Array.of(1, 2, 3, 4, 5)]);
+	let staged = 0;
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable(maximumBytes) {
+			events.push(`open:${String(maximumBytes)}`);
+			return new WritableStream<Uint8Array>({
+				write(chunk) { staged += chunk.byteLength; },
+				close() { events.push('sealed'); },
+			});
+		},
+		bytesWritten() { return staged; },
+		async commit() { events.push('commit'); return { method: 'direct', size: staged }; },
+		async abort() { events.push('abort'); },
+	};
+	const runtime = {
+		scapeMimeType: 'application/vnd.soundscaper.scape+zip',
+		fileService: { saveFile: async () => { throw new Error('must not save a Blob'); } },
+		async copyFutureScapeArchive(input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
+			const bytes = new Uint8Array(await input.arrayBuffer());
+			await write(bytes.subarray(0, 2));
+			await write(bytes.subarray(2));
+			events.push('copied');
+			return { byteLength: bytes.byteLength, schemaVersion: 10 };
+		},
+	};
+	const result = await publishNativeScapeArchiveCopy(runtime as never, {
+		archive,
+		assertReadyToCommit() { events.push('ownership'); },
+		fileName: 'future.scape', prepared, signal: new AbortController().signal,
+	});
+	assert.deepEqual(events, ['open:5', 'copied', 'sealed', 'ownership', 'commit']);
+	assert.deepEqual(result.copied, { byteLength: 5, schemaVersion: 10 });
+	assert.deepEqual(result.saved, { method: 'direct', size: 5 });
+});
+
+test('stream archive copy aborts once when a staged write is refused', async () => {
+	const events: string[] = [];
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable() {
+			return new WritableStream<Uint8Array>({
+				write() { throw new Error('staging space exhausted'); },
+			});
+		},
+		bytesWritten() { return 0; },
+		async commit() { events.push('commit'); return {}; },
+		async abort(reason) { events.push(`abort:${String((reason as Error).message)}`); },
+	};
+	const runtime = {
+		async copyFutureScapeArchive(_input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
+			await write(Uint8Array.of(9));
+			throw new Error('unreachable copy completion');
+		},
+	};
+	await assert.rejects(publishNativeScapeArchiveCopy(runtime as never, {
+		archive: new Blob([Uint8Array.of(9)]),
+		assertReadyToCommit() { events.push('ownership'); },
+		fileName: 'future.scape', prepared, signal: new AbortController().signal,
+	}), /staging space exhausted/u);
+	assert.deepEqual(events, ['abort:staging space exhausted']);
+});
+
+test('stream archive copy refuses byte-count disagreement before ownership', async () => {
+	const events: string[] = [];
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable() {
+			return new WritableStream<Uint8Array>({ close() { events.push('sealed'); } });
+		},
+		bytesWritten() { return 2; },
+		async commit() { events.push('commit'); return {}; },
+		async abort(reason) { events.push(`abort:${String((reason as Error).message)}`); },
+	};
+	const runtime = {
+		async copyFutureScapeArchive(_input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
+			await write(Uint8Array.of(1, 2));
+			return { byteLength: 2, schemaVersion: 10 };
+		},
+	};
+	await assert.rejects(publishNativeScapeArchiveCopy(runtime as never, {
+		archive: new Blob([Uint8Array.of(1, 2, 3)]),
+		assertReadyToCommit() { events.push('ownership'); },
+		fileName: 'future.scape', prepared, signal: new AbortController().signal,
+	}), /does not match the original byte count/u);
+	assert.deepEqual(events, ['sealed', 'abort:The staged archive copy does not match the original byte count.']);
+});
+
+test('stream archive copy commit failure cleans the destination and preserves its cause', async () => {
+	const events: string[] = [];
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable() {
+			return new WritableStream<Uint8Array>({ close() { events.push('sealed'); } });
+		},
+		bytesWritten() { return 1; },
+		async commit() { events.push('commit'); throw new Error('destination commit refused'); },
+		async abort(reason) { events.push(`abort:${String((reason as Error).message)}`); },
+	};
+	const runtime = {
+		async copyFutureScapeArchive(_input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
+			await write(Uint8Array.of(7));
+			return { byteLength: 1, schemaVersion: 10 };
+		},
+	};
+	await assert.rejects(publishNativeScapeArchiveCopy(runtime as never, {
+		archive: new Blob([Uint8Array.of(7)]),
+		assertReadyToCommit() { events.push('ownership'); },
+		fileName: 'future.scape', prepared, signal: new AbortController().signal,
+	}), /destination commit refused/u);
+	assert.deepEqual(events, ['sealed', 'ownership', 'commit', 'abort:destination commit refused']);
+});
+
+test('stream archive copy aggregates destination cleanup failure with its cause', async () => {
+	const cleanupFailure = new Error('destination cleanup refused');
+	const prepared: Extract<NativePreparedSave, { mode: 'stream' }> = {
+		mode: 'stream',
+		async createWritable() {
+			return new WritableStream<Uint8Array>({
+				write() { throw new Error('staging space exhausted'); },
+			});
+		},
+		bytesWritten() { return 0; },
+		async commit() { throw new Error('unreachable commit'); },
+		async abort() { throw cleanupFailure; },
+	};
+	const runtime = {
+		async copyFutureScapeArchive(_input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
+			await write(Uint8Array.of(9));
+			throw new Error('unreachable copy completion');
+		},
+	};
+	await assert.rejects(publishNativeScapeArchiveCopy(runtime as never, {
+		archive: new Blob([Uint8Array.of(9)]),
+		assertReadyToCommit() {},
+		fileName: 'future.scape', prepared, signal: new AbortController().signal,
+	}), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(error.message, /archive copy and destination cleanup both failed/u);
+		assert.match((error.errors[0] as Error).message, /staging space exhausted/u);
+		assert.equal(error.errors[1], cleanupFailure);
+		return true;
+	});
 });
 
 function directServiceFixture(options: Readonly<{

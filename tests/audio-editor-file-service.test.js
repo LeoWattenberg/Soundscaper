@@ -262,6 +262,22 @@ test('browser file service streams to File System Access and retains Blob downlo
 	assert.deepEqual(fallback.target, { browserDownload: true, name: 'fallback.scape' });
 });
 
+test('a dismissed File System Access picker prepares a cancellation, not an error', async () => {
+	const failure = new Error('picker service unavailable');
+	const dismissal = new DOMException('The user aborted a request.', 'AbortError');
+	const [dismissed, failing] = [dismissal, failure].map((error) => createAudioEditorFileService({
+		bridge: null,
+		scope: { showSaveFilePicker: async () => { throw error; } },
+	}));
+	const request = { purpose: 'project', suggestedName: 'session.scape', useFileSystemAccess: true };
+	const prepared = await dismissed.prepareSave(request);
+	assert.deepEqual(
+		{ mode: prepared.mode, cancelled: prepared.cancelled, fileName: prepared.fileName },
+		{ mode: 'cancelled', cancelled: true, fileName: 'session.scape' },
+	);
+	await assert.rejects(failing.prepareSave(request), (error) => error === failure);
+});
+
 test('exact File System Access saves abort instead of committing a short output', async () => {
 	const cleanup = new Error('FSA abort failed');
 	const calls = [];
