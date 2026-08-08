@@ -101,7 +101,24 @@ test('legacy FFmpeg video bytes preserve whole-read results and best-effort clea
 	assert.equal(result.extension, '.mp4');
 	assert.equal(result.mimeType, 'video/mp4');
 	assert.equal(runtime.instance.readFileCalls, 1);
+	assert.equal(runtime.instance.statFileCalls, 1);
 	assert.equal(runtime.terminateCalls, 0);
+});
+
+test('legacy FFmpeg video bytes refuse oversized output before whole-file reads', async () => {
+	const runtime = new VideoJobRuntime(Uint8Array.of(9, 8, 7));
+	await assert.rejects(
+		encodeFfmpegVideoBytes({
+			videoBlobsBySourceId: new Map(),
+			audioMix: null,
+			plan: silentMp4Plan(),
+			settings: { maximumOutputBytes: 2 },
+			...runtime.options(),
+		}),
+		/Video export.*maximum is 2 bytes/u,
+	);
+	assert.equal(runtime.instance.statFileCalls, 1);
+	assert.equal(runtime.instance.readFileCalls, 0);
 });
 
 test('FFmpeg video sink output aborts once for encoding and streaming failures', async () => {

@@ -9,6 +9,7 @@ import {
 	type FfmpegOutputSink,
 	type FfmpegOutputStreamOptions,
 } from './ffmpeg-output-stream.ts';
+import { readBoundedFfmpegOutputFile } from './browser-export-output.ts';
 import { getVideoExportFormat } from './video-export.js';
 import { buildVideoFfmpegArgs } from './video-ffmpeg.js';
 
@@ -138,9 +139,12 @@ export async function encodeFfmpegVideoBytes(
 			);
 			const code = await instance.exec(args, -1, signalOptions(signal));
 			if (code !== 0) throw options.createEncodingError(staged.descriptor.id, code);
-			const data = await instance.readFile(job.output, undefined, signalOptions(signal));
+			const data = await readBoundedFfmpegOutputFile(instance, job.output, {
+				label: 'Video export', maximumBytes: options.settings.maximumOutputBytes, signal,
+				assertCurrent: options.settings.assertCurrent,
+			});
 			return {
-				bytes: data instanceof Uint8Array ? data : new TextEncoder().encode(String(data)),
+				bytes: data,
 				extension: `.${staged.descriptor.extension}`,
 				mimeType: staged.descriptor.mimeType,
 			};

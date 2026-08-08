@@ -476,9 +476,9 @@ class MockVideoFfmpegRuntime {
 		return MockVideoFfmpegRuntime.nextExitCode;
 	}
 
-	async readFile() {
-		return Uint8Array.of(9, 8, 7);
-	}
+	// Whole-byte browser routes admit the final file before materializing it.
+	async readFile() { return Uint8Array.of(9, 8, 7); }
+	async statFile() { return { size: 3 }; }
 
 	async deleteFile(path) {
 		this.deleteFileCalls.push(path);

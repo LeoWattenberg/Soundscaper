@@ -18,6 +18,7 @@ import {
 	encodeFfmpegVideoBytes,
 	encodeFfmpegVideoToSink,
 } from './ffmpeg-video-output.ts';
+import { readBoundedFfmpegOutputFile } from './browser-export-output.ts';
 import { getVideoExportFormat } from './video-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 
@@ -246,9 +247,11 @@ export function createEditorFfmpeg(options = {}) {
 					applyDither: settings.applyDither === true,
 				}), -1, { signal });
 				if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
-				const data = await instance.readFile(output, undefined, { signal });
+				const data = await readBoundedFfmpegOutputFile(instance, output, {
+					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal,
+				});
 				return {
-					bytes: data instanceof Uint8Array ? data : new TextEncoder().encode(String(data)),
+					bytes: data,
 					extension: `.${normalized.extension}`,
 					mimeType: normalized.mimeType,
 				};
@@ -291,9 +294,11 @@ export function createEditorFfmpeg(options = {}) {
 					applyDither: settings.applyDither === true,
 				}), -1, { signal });
 				if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
-				const data = await instance.readFile(output, undefined, { signal });
+				const data = await readBoundedFfmpegOutputFile(instance, output, {
+					label: 'Audio export', maximumBytes: settings.maximumOutputBytes, signal,
+				});
 				return {
-					bytes: data instanceof Uint8Array ? data : new TextEncoder().encode(String(data)),
+					bytes: data,
 					extension: `.${normalized.extension}`,
 					mimeType: normalized.mimeType,
 				};
