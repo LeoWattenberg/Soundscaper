@@ -1079,22 +1079,36 @@ revision and both bindings. Before that editable project, each fresh recipient
 also activates two exact-schema-9 read-only role witnesses from the same shared
 library. Soundscaper → Framescaper covers `project-audio-mix-v1` and
 `audio-track-render-v1`; Framescaper → Soundscaper covers
-`project-video-render-v1` and `video-clip-render-v1`. Each reaches its exact
-role-specific compatibility indicator and editor transport. Main-owned evidence
-binds the handoff navigation, canonical document digest, media binding IDs and
-digests, the exact feature/project/requirement/role/source/SHA-256 witness
-aggregate, and strictly increasing catalog revisions and fencing tokens.
+`project-video-render-v1` and `video-clip-render-v1`. Each recipient witness
+reaches its exact role-specific compatibility indicator, starts and stops editor
+transport, and invokes the visible cross-product handoff. Feature-requirement
+read-only is the only read-only state that enables that menu action; busy or
+lock-read-only state remains blocked. The origin return opens both witnesses
+before the mixed-media project, proves the compatibility indicator absent,
+opens an enabled track-name editor and cancels it without mutation, and starts
+and stops transport. The paired aggregate owns
+`audio-whole-mix-electron-roundtrip`,
+`audio-track-render-electron-roundtrip`,
+`video-full-project-electron-roundtrip`, and
+`video-clip-render-electron-roundtrip`. It requires exact
+feature/project/requirement/role/source identity and unchanged canonical
+document, canonical-source body, and fallback-body SHA-256 between recipient
+and origin. Main-owned evidence additionally binds every handoff navigation,
+the mixed-media document digest and media binding IDs and digests, and strictly
+increasing catalog revisions and fencing tokens.
 
 This qualifies only
 `electron-soundscaper-to-framescaper-to-soundscaper-library` and
 `electron-framescaper-to-soundscaper-to-framescaper-library` for that fixed
-small first-party fixture on Linux x64. The two web `.scape` workflow IDs are
-qualified separately below. Muted audio does not qualify audible or
-device-output fidelity. Packaged activation and transport playback are qualified
-only for the four frozen rendered-fallback roles. Packaged final delivery,
-fallback authoring and other relationships, general browser or codec behavior,
-linked or unmanaged media, installers and file associations, concurrency, crash
-or power loss, Windows, macOS, and ARM64 remain unqualified.
+small first-party fixture on Linux x64, plus the four exact role-return workflow
+IDs above. The web `.scape` workflow matrix is qualified separately. Muted
+audio does not qualify audible or device-output fidelity. Packaged activation,
+fallback playback, unchanged project handoff, and editable origin return are
+qualified only for the four frozen rendered-fallback roles. Packaged
+rendered-media delivery, fallback authoring and other relationships, general
+browser or codec behavior, linked or unmanaged media, installers and file
+associations, concurrency, crash or power loss, Windows, macOS, and ARM64
+remain unqualified.
 
 A maintained Chromium browser spec closes the two frozen web `.scape` workflow
 IDs through three isolated browser contexts in each product order. The origin
