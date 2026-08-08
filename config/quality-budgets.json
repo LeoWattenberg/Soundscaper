@@ -865,7 +865,7 @@
 				{ "metricId": "directWav.oversizePreflightBytesRead", "comparison": "eq", "value": 0, "unit": "bytes" },
 				{ "metricId": "directWav.partialPublishedOutputs", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["tests/audio-editor-export-direct-wav-reference.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
+			"evidence": ["scripts/collect-m2-direct-wav-quality.mjs", "tests/quality-budget-direct-wav-collector.test.ts", "tests/audio-editor-export-direct-wav-reference.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
 		},
 		{
 			"id": "m2-direct-stem-archives-v3",

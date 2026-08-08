@@ -169,6 +169,12 @@ measurement. Run it with `npm run test:reference:wav-385mib`; direct invocation
 may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and
 coverage discovery fast-skips it with that command.
 
+`npm run quality:collect:m2-direct-wav` runs that production-path reference
+exactly once, accepts exactly one identity-bound structured diagnostic, and
+writes the raw/accepted evidence pair under `test-results/quality/m2-resources`.
+The pair is provisional generated evidence until retained and reviewed; the
+collector itself does not update `qualifiedWorkloadIds`.
+
 A third provisional milestone 2 fixture records direct stem-archive publication
 for exact native-PCM ZIP32 and 7z Copy plus canonical realtime and centrally
 admitted offline compressed ZIP32 audio as small focused Node correctness

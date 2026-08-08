@@ -195,6 +195,7 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 
 	context.diagnostic(JSON.stringify({
 		profile: 'direct-wav-385mib-counting-sha256-node-v2',
+		workloadId: 'm2-direct-wav-385mib-v1',
 		fixtureId: 'm2-direct-wav-385mib-v1',
 		generatorRevision: 2,
 		durationMs: Math.round(performance.now() - startedAt),
@@ -209,14 +210,12 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 		maximumDestinationWriteBytes: saved.maximumWriteBytes,
 		retainedOutputPayloadBytes: 0,
 		budgetMetrics: {
-			'streaming.maxBufferedBinaryBytes': PATH_OWNED_BINARY_UPPER_BOUND,
-			'streaming.oversizePreflightBytesRead': 0,
-			'streaming.partialPublishedOutputs': 0,
+			'directWav.maximumPathOwnedBinaryBytes': PATH_OWNED_BINARY_UPPER_BOUND,
+			'directWav.maximumDestinationWriteBytes': saved.maximumWriteBytes,
+			'directWav.retainedOutputPayloadBytes': 0,
+			'directWav.oversizePreflightBytesRead': 0,
+			'directWav.partialPublishedOutputs': 0,
 		},
-		unmeasuredBudgetMetricIds: [
-			'streaming.rendererHeapDeltaBytes',
-			'streaming.invalidPublishedRevisions',
-		],
 		rendererHeapQualified: false,
 		processRssQualified: false,
 		filesystemDurabilityQualified: false,
