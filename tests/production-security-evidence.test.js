@@ -570,13 +570,12 @@ test('desktop save admission evidence pins product-wide capacity before staging'
 	assert.ok(admission);
 	assert.match(
 		admission.summary,
-		/16 outstanding product-wide targets.*4 pending or live sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously.*before the first await.*lower-only.*bigint `statfs`.*available.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged/iu,
+		/16 outstanding product-wide targets.*4 pending or live sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously.*before the first await.*lower-only.*bigint `statfs`.*available.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*ENOSPC or EDQUOT.*qualified typed refusal.*staged temporary file is discarded.*admitted count and bytes release.*committed target file survives.*commit-time space failure cleans staging.*other write failures keep the session open/iu,
 	);
 	for (const path of [
-		'desktop/constants.js',
-		'desktop/preload.mjs',
-		'desktop/save-targets.js',
-		'tests/desktop-save-capacity.test.js',
+		'desktop/constants.js', 'desktop/preload.mjs',
+		'desktop/save-targets.js', 'desktop/save-space.js',
+		'tests/desktop-save-capacity.test.js', 'tests/desktop-save-space-exhaustion.test.js',
 		'tests/desktop-protocol.test.js',
 	]) assert.ok(admission.evidence.some((item) => item.path === path));
 

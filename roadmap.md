@@ -347,8 +347,9 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
   beyond the bounded linked-PCM and retained-video slices, and
   finish broader linked and unmanaged-original lifecycles beyond the maintained
   exact- or changed-content silent retained-video and exact-content linked-PCM
-  Project Bin relink flows, exact or write-time
-  capacity behavior, stable playback identity beyond the maintained owned canonical PCM,
+  Project Bin relink flows, exact capacity accounting and write-time behavior
+  beyond the typed desktop save-target space refusal,
+  stable playback identity beyond the maintained owned canonical PCM,
   linked-PCM, and retained-video lifecycles,
   continuous linked-locator cleanup beyond bounded startup and maintained
   save/activation/delete/clear, coordination beyond the same-database

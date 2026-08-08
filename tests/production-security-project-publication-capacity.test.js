@@ -44,7 +44,7 @@ test('project publication evidence keeps canonical admission distinct from backe
 	);
 	assert.match(
 		accounting.requiredControl,
-		/actual backend publication geometry.*resident working set.*reserve capacity across concurrent writes.*safe write-time failure.*complete desktop appData admission.*project-document staging.*catalog allocation.*extend managed-media admission.*whole-handoff.*cross-store.*cross-process.*exact-allocation.*write-time guarantees/isu,
+		/actual backend publication geometry.*resident working set.*reserve capacity across concurrent writes.*qualified typed write-time space refusal beyond the desktop save-target surface.*complete desktop appData admission.*project-document staging.*catalog allocation.*extend managed-media admission.*whole-handoff.*cross-store.*cross-process.*exact-allocation.*write-time guarantees/isu,
 	);
 	assert.match(
 		accounting.acceptanceCriteria.join(' '),
