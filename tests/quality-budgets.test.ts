@@ -85,6 +85,16 @@ interface QualityBudgetConfig {
 	}>;
 	readonly qualification: Readonly<{
 		qualifiedWorkloadIds: readonly string[];
+		resultContract: Readonly<{
+			attemptCount: number;
+			budgetDigest: string;
+			environmentFingerprint: string;
+			evaluator: string;
+			metricSet: string;
+			rawEvidence: string;
+			retryCount: number;
+			schemaVersion: number;
+		}>;
 		status: string;
 	}>;
 	readonly schemaVersion: number;
@@ -118,6 +128,17 @@ test('quality budget contract names numeric gates for every later milestone with
 	assert.match(config.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
 	assert.equal(config.qualification.status, 'in-progress');
 	assert.deepEqual(config.qualification.qualifiedWorkloadIds, []);
+	assert.deepEqual(config.qualification.resultContract, {
+		schemaVersion: 1,
+		evaluator: 'scripts/quality-budget-result.mjs',
+		attemptCount: 1,
+		retryCount: 0,
+		budgetDigest: 'sha256-exact-config-bytes',
+		environmentFingerprint: 'exact-descriptor-match',
+		metricSet: 'exact-workload-thresholds',
+		rawEvidence: 'positive-byte-length-and-sha256',
+	});
+	await assertEvidenceExists([config.qualification.resultContract.evaluator]);
 	assert.deepEqual(config.measurementPolicy, {
 		percentileMethod: 'nearest-rank',
 		missingMetric: 'fail',

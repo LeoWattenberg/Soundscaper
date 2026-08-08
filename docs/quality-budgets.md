@@ -388,22 +388,46 @@ already-aggregated finite metrics and returns immutable verdicts and failure
 messages. It uses only `eq`, `gte`, and `lte` comparisons; it does not evaluate
 configuration strings as code.
 
-A collector result should use the following shape before a persistent result
-schema is promoted:
+Accepted retained summaries use result schema 1 and pass through
+`evaluateQualityBudgetResult`. The boundary snapshots only exact own-data
+records, then binds the summary to the exact workload, ordered fixtures,
+environment descriptor, source revision, quality-budget bytes, and retained raw
+artifact:
 
 ```json
 {
+	"schemaVersion": 1,
+	"workloadId": "m2-streaming-bounded-memory",
+	"fixtureIds": ["m2-streaming-project-8gib-v1", "m2-direct-wav-385mib-v1"],
 	"environmentId": "reference-linux-gpu-01",
+	"environmentFingerprint": { "osImage": "reviewed-exact-value" },
 	"rendererClass": "hardware",
+	"budgetSha256": "64-lowercase-hex-digits",
+	"sourceRevision": "40-or-64-lowercase-hex-digits",
+	"attemptCount": 1,
+	"retryCount": 0,
+	"rawEvidence": {
+		"artifactName": "m2-streaming-bounded-memory.json",
+		"byteLength": 4096,
+		"sha256": "64-lowercase-hex-digits"
+	},
 	"metrics": {
-		"preview.frameIntervalP95Ms": 16.7,
-		"preview.retainedJsHeapDeltaBytes": 524288
+		"streaming.rendererHeapDeltaBytes": 524288,
+		"streaming.maxBufferedBinaryBytes": 41943040,
+		"streaming.oversizePreflightBytesRead": 0,
+		"streaming.invalidPublishedRevisions": 0,
+		"streaming.partialPublishedOutputs": 0
 	}
 }
 ```
 
-Passing numbers cannot override an unprovisioned or ineligible environment. This
-is why the current ledger cannot produce a qualified preview result.
+The attempt count must be one and both the result and policy retry counts must
+be zero. The metric keys must equal the workload threshold keys; missing,
+additional, accessor-backed, or non-finite values fail. Passing numbers cannot
+override an unprovisioned or ineligible environment. Raw generated evidence
+remains an ignored CI artifact, while any reviewed summary retains its exact
+byte length and SHA-256. This is why the current ledger still cannot produce a
+qualified result.
 
 ## CI progression
 

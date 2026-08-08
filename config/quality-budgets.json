@@ -4,7 +4,17 @@
 	"qualification": {
 		"status": "in-progress",
 		"qualifiedWorkloadIds": [],
-		"reason": "The deterministic contract exists, but no fixed hardware renderer or native/capture lab has been provisioned and no workload has produced qualification evidence."
+		"reason": "The deterministic contract exists, but no fixed hardware renderer or native/capture lab has been provisioned and no workload has produced qualification evidence.",
+		"resultContract": {
+			"schemaVersion": 1,
+			"evaluator": "scripts/quality-budget-result.mjs",
+			"attemptCount": 1,
+			"retryCount": 0,
+			"budgetDigest": "sha256-exact-config-bytes",
+			"environmentFingerprint": "exact-descriptor-match",
+			"metricSet": "exact-workload-thresholds",
+			"rawEvidence": "positive-byte-length-and-sha256"
+		}
 	},
 	"measurementPolicy": {
 		"percentileMethod": "nearest-rank",
