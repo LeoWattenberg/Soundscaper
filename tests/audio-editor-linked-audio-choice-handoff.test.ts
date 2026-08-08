@@ -69,7 +69,7 @@ test('changed-content classification retains the pathless choice for explicit co
 		choose: async () => ({ ...LOCATOR, file }),
 		isCurrent: (candidate) => candidate === scope,
 		release: async () => { releaseCount += 1; return true; },
-		classify: async () => 'changed-content',
+		classify: async () => 'changed-content' as const,
 	}, scope);
 
 	assert.deepEqual(prepared, {
@@ -98,7 +98,7 @@ test('classification failure or a stale post-classification scope releases the c
 		choose: async () => ({ ...LOCATOR, file: new Blob(['changed pcm']) }),
 		isCurrent: () => current,
 		release: async (reference) => { releases.push(reference); return true; },
-		classify: async () => { current = false; return 'changed-content'; },
+		classify: async () => { current = false; return 'changed-content' as const; },
 	}, scope), null);
 	assert.deepEqual(releases, [LOCATOR, LOCATOR]);
 });

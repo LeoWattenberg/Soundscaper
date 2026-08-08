@@ -82,6 +82,13 @@ function wavFile(channels: readonly Float32Array[], sampleRate: number): File {
 	return file(encodeWav(channels, { sampleRate, float: true, dither: 'none' }), 'replacement.wav', 'audio/wav');
 }
 
-function file(bytes: Uint8Array, name: string, type: string): File {
-	return new File([bytes], name, { type });
+function file(
+	bytes: ReturnType<typeof encodeWav> | ReturnType<typeof encodeAiff>,
+	name: string,
+	type: string,
+): File {
+	if (!(bytes instanceof Uint8Array)) throw new TypeError('Expected collected encoded audio bytes');
+	const copy = new Uint8Array(bytes.byteLength);
+	copy.set(bytes);
+	return new File([copy.buffer], name, { type });
 }
