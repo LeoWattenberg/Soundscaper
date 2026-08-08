@@ -1,0 +1,385 @@
+{
+	"schemaVersion": 1,
+	"scopeRevision": 1,
+	"milestone": "2",
+	"frozenAt": "2026-08-08",
+	"completionRule": "Milestone 2 closes when every item in this revision is implemented. Work not named here cannot block closure.",
+	"expansionPolicy": {
+		"newCapabilitiesDisposition": "milestone-3-or-later",
+		"scopeChangeRequires": "scope-revision-and-explicit-user-approval",
+		"clarificationsMayNotAddRoutesRolesPlatformsOrFaultClasses": true
+	},
+	"platformSet": {
+		"browserProjects": ["chromium", "firefox", "webkit"],
+		"desktopTargets": [
+			"windows-x64",
+			"windows-arm64",
+			"macos-x64",
+			"macos-arm64",
+			"linux-x64",
+			"linux-arm64"
+		]
+	},
+	"gates": [
+		{
+			"id": "m2-gate-bounded-pipelines",
+			"status": "partial",
+			"itemIds": [
+				"m2-pipeline-route-qualification",
+				"m2-pipeline-resource-qualification",
+				"m2-opfs-worker-boundary"
+			]
+		},
+		{
+			"id": "m2-gate-crash-safe-publication",
+			"status": "partial",
+			"itemIds": [
+				"m2-publication-fault-matrix",
+				"m2-browser-durability-matrix"
+			]
+		},
+		{
+			"id": "m2-gate-mixed-media-handoff",
+			"status": "partial",
+			"itemIds": [
+				"m2-handoff-packaged-roundtrip",
+				"m2-media-relationship-roundtrip",
+				"m2-linked-media-lifecycle",
+				"m2-managed-capacity-admission"
+			]
+		},
+		{
+			"id": "m2-gate-electron-concurrency",
+			"status": "partial",
+			"itemIds": ["m2-electron-lease-matrix"]
+		},
+		{
+			"id": "m2-gate-cache-cleanup",
+			"status": "implemented",
+			"itemIds": ["m2-cache-root-safety"]
+		},
+		{
+			"id": "m2-gate-feature-compatibility",
+			"status": "partial",
+			"itemIds": [
+				"m2-compatibility-affected-objects",
+				"m2-compatibility-bypass",
+				"m2-compatibility-fallback-roles",
+				"m2-compatibility-future-archive",
+				"m2-compatibility-less-capable-roundtrip"
+			]
+		}
+	],
+	"items": [
+		{
+			"id": "m2-pipeline-route-qualification",
+			"gateId": "m2-gate-bounded-pipelines",
+			"status": "partial",
+			"routeIds": [
+				"scape-browser-blob",
+				"scape-file-system-access",
+				"scape-electron",
+				"audio-mix-browser-blob",
+				"audio-mix-direct-native-pcm",
+				"audio-mix-direct-compressed-realtime",
+				"audio-mix-direct-compressed-offline",
+				"audio-stems-browser-blob",
+				"audio-stems-direct-native-pcm-zip",
+				"audio-stems-direct-native-pcm-7z",
+				"audio-stems-direct-compressed-zip-realtime",
+				"audio-stems-direct-compressed-zip-offline",
+				"video-browser-blob",
+				"video-direct-mp4",
+				"video-direct-webm"
+			],
+			"acceptance": [
+				"Each route ID either completes below its owning hard limits or refuses before unsafe allocation or publication.",
+				"Direct routes publish without a final renderer-sized Blob; browser-blob routes retain their documented bounded fallback."
+			],
+			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+		},
+		{
+			"id": "m2-pipeline-resource-qualification",
+			"gateId": "m2-gate-bounded-pipelines",
+			"status": "partial",
+			"workloadIds": [
+				"m2-streaming-project-8gib-v1",
+				"m2-direct-wav-385mib-v1",
+				"m2-direct-stem-archives-v3",
+				"m2-direct-compressed-output-v2",
+				"m2-direct-mp4-webm-video-output-v1"
+			],
+			"acceptance": [
+				"Every listed workload passes the thresholds and environment checks in config/quality-budgets.json.",
+				"Browser, renderer, main-process, worker, encoder and retained-output memory are measured where the workload declares them."
+			],
+			"ownerRefs": ["config/quality-budgets.json", "docs/quality-budgets.md"]
+		},
+		{
+			"id": "m2-opfs-worker-boundary",
+			"gateId": "m2-gate-bounded-pipelines",
+			"status": "planned",
+			"operationIds": [
+				"canonical-pcm-chunk-read",
+				"canonical-pcm-chunk-write",
+				"media-asset-chunk-read",
+				"media-asset-chunk-write",
+				"derivative-payload-read",
+				"derivative-payload-write"
+			],
+			"acceptance": [
+				"The six listed OPFS operation classes use a dedicated worker and synchronous access handles only after capability detection.",
+				"IndexedDB remains the tested correctness fallback for the same operation classes."
+			],
+			"ownerRefs": ["docs/quality-budgets.md", "config/production-capabilities.json"]
+		},
+		{
+			"id": "m2-publication-fault-matrix",
+			"gateId": "m2-gate-crash-safe-publication",
+			"status": "partial",
+			"publicationPathIds": [
+				"web-project-indexeddb",
+				"web-project-opfs",
+				"scape-file-system-access",
+				"scape-electron",
+				"direct-audio-file-system-access",
+				"direct-audio-electron",
+				"stem-archive-file-system-access",
+				"stem-archive-electron",
+				"direct-video-file-system-access",
+				"direct-video-electron",
+				"electron-shared-project",
+				"electron-managed-media",
+				"linked-binding-indexeddb",
+				"offline-shell-cache",
+				"offline-runtime-cache"
+			],
+			"faultIds": [
+				"cancel-before-stage",
+				"cancel-during-body",
+				"renderer-loss",
+				"helper-loss",
+				"quota-or-disk-full",
+				"commit-failure",
+				"restart-after-staged-write",
+				"restart-after-commit"
+			],
+			"acceptance": [
+				"Every publication-path and fault combination either preserves the previous commit or exposes a recoverable journal; no partial destination is advertised.",
+				"Unsupported fault injection is recorded as an explicit platform qualification failure, not silently skipped."
+			],
+			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+		},
+		{
+			"id": "m2-browser-durability-matrix",
+			"gateId": "m2-gate-crash-safe-publication",
+			"status": "partial",
+			"workflowIds": [
+				"indexeddb-quota-refusal",
+				"opfs-quota-refusal",
+				"indexeddb-multitab-writer",
+				"opfs-multitab-writer",
+				"offline-shell-upgrade",
+				"offline-runtime-rollback",
+				"storage-eviction-recovery"
+			],
+			"acceptance": [
+				"Each workflow ID passes in Chromium, Firefox and WebKit or records a truthful unsupported outcome with the Web Core fallback passing.",
+				"A failed workflow leaves the last committed project and installed application shell usable."
+			],
+			"ownerRefs": ["docs/quality-budgets.md", "docs/production-threat-model.md"]
+		},
+		{
+			"id": "m2-handoff-packaged-roundtrip",
+			"gateId": "m2-gate-mixed-media-handoff",
+			"status": "partial",
+			"workflowIds": [
+				"web-soundscaper-to-framescaper-to-soundscaper-scape",
+				"web-framescaper-to-soundscaper-to-framescaper-scape",
+				"electron-soundscaper-to-framescaper-to-soundscaper-library",
+				"electron-framescaper-to-soundscaper-to-framescaper-library"
+			],
+			"acceptance": [
+				"Each workflow preserves project identity, editable history-visible state and exact required media while supporting activation, playback, one edit and save on the recipient.",
+				"The Electron workflows run through packaged UI products; headless-only evidence is insufficient."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+		},
+		{
+			"id": "m2-media-relationship-roundtrip",
+			"gateId": "m2-gate-mixed-media-handoff",
+			"status": "partial",
+			"relationshipIds": [
+				"owned-canonical-pcm",
+				"owned-retained-video",
+				"linked-pcm",
+				"linked-retained-video",
+				"project-audio-mix-v1",
+				"audio-track-render-v1",
+				"project-video-render-v1",
+				"video-clip-render-v1",
+				"disposable-preview-nonportable"
+			],
+			"acceptance": [
+				"Each relationship ID preserves its documented ownership, retention and portability semantics in both directions of the applicable handoff workflows.",
+				"Disposable previews remain excluded from project history and transfer and are reproducible from an admitted original."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+		},
+		{
+			"id": "m2-linked-media-lifecycle",
+			"gateId": "m2-gate-mixed-media-handoff",
+			"status": "partial",
+			"lifecycleIds": [
+				"linked-pcm-exact-relink",
+				"linked-pcm-confirmed-changed-content-relink",
+				"linked-video-exact-relink",
+				"linked-video-confirmed-changed-content-silent-relink",
+				"same-store-save-prune",
+				"writable-activation-prune",
+				"project-delete-release",
+				"whole-store-clear-release",
+				"startup-reconciliation",
+				"same-database-provisional-root-window"
+			],
+			"acceptance": [
+				"Every lifecycle ID preserves live aliases, never deletes external media and releases only an exact unreachable locator revision.",
+				"Cross-store and cross-process behavior is required only by m2-electron-lease-matrix."
+			],
+			"ownerRefs": ["docs/production-threat-model.md", "docs/project-compatibility.md"]
+		},
+		{
+			"id": "m2-managed-capacity-admission",
+			"gateId": "m2-gate-mixed-media-handoff",
+			"status": "partial",
+			"capacityIds": [
+				"project-document-bytes",
+				"managed-catalog-row-count",
+				"managed-catalog-metadata-bytes",
+				"managed-body-declared-bytes",
+				"destination-statfs-available-bytes",
+				"desktop-save-target-available-bytes"
+			],
+			"acceptance": [
+				"Every capacity ID is checked before its first irreversible stage or body operation and produces a typed refusal.",
+				"Known point-in-time checks remain labelled as admission rather than operating-system reservation."
+			],
+			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+		},
+		{
+			"id": "m2-electron-lease-matrix",
+			"gateId": "m2-gate-electron-concurrency",
+			"status": "partial",
+			"workflowIds": [
+				"same-project-simultaneous-open",
+				"cross-product-simultaneous-open",
+				"writer-lease-transfer",
+				"stale-lease-takeover",
+				"conflicting-canonical-commit",
+				"renderer-loss-during-operation",
+				"orderly-process-restart",
+				"crash-restart-recovery"
+			],
+			"acceptance": [
+				"Every workflow ID passes for Soundscaper and Framescaper packages on each of the six desktopTargets.",
+				"Fencing tokens increase monotonically and no losing writer publishes a project or managed-media descriptor."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "docs/production-threat-model.md"]
+		},
+		{
+			"id": "m2-cache-root-safety",
+			"gateId": "m2-gate-cache-cleanup",
+			"status": "implemented",
+			"protectedRootIds": [
+				"canonical-project-revision",
+				"canonical-pcm",
+				"retained-original-video",
+				"linked-original-binding",
+				"rendered-fallback"
+			],
+			"collectibleIds": ["poster", "thumbnail", "waveform-peaks", "proxy-cache", "temporary-stage"],
+			"acceptance": [
+				"Cleanup never removes a protected root and compare-and-delete preserves replacements.",
+				"Only the five collectible classes may be removed automatically under their owning limits."
+			],
+			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
+		},
+		{
+			"id": "m2-compatibility-affected-objects",
+			"gateId": "m2-gate-feature-compatibility",
+			"status": "implemented",
+			"acceptance": [
+				"The bounded read-only affected-object index reports objects for the four frozen fallback roles and registered audioEffects/videoEffects channels and explicitly reports unattributable requirements.",
+				"The report never grants execution authority or mutates canonical state."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+		},
+		{
+			"id": "m2-compatibility-bypass",
+			"gateId": "m2-gate-feature-compatibility",
+			"status": "implemented",
+			"featureIds": [
+				"org.soundscaper.capability.audio-effects",
+				"org.soundscaper.capability.video-effects"
+			],
+			"acceptance": [
+				"Unavailable registered effects for the two feature IDs receive the maintained transient bypass projection and visible affected-object report.",
+				"Unknown features without a frozen fallback role remain read-only and reported; they are not executable and do not require an invented bypass."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+		},
+		{
+			"id": "m2-compatibility-fallback-roles",
+			"gateId": "m2-gate-feature-compatibility",
+			"status": "partial",
+			"roleIds": [
+				"project-audio-mix-v1",
+				"audio-track-render-v1",
+				"project-video-render-v1",
+				"video-clip-render-v1"
+			],
+			"acceptance": [
+				"Each role ID preserves canonical state and reaches current-format .scape, playback, maintained delivery, explicit managed handoff and affected-object reporting.",
+				"The packaged handoff workflows qualify the four roles; no additional role is required for Milestone 2."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+		},
+		{
+			"id": "m2-compatibility-future-archive",
+			"gateId": "m2-gate-feature-compatibility",
+			"status": "planned",
+			"archiveContract": {
+				"formatVersion": 1,
+				"projectSchema": "greater-than-9",
+				"allowedOperation": "save-unchanged-archive-copy",
+				"editing": false,
+				"repacking": false
+			},
+			"acceptance": [
+				"A format-1 archive carrying a project schema greater than 9 can be opened read-only and saved as an unchanged archive copy without interpreting its project or asset graph.",
+				"Unknown archive format versions remain rejected before persistence and do not block Milestone 2."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+		},
+		{
+			"id": "m2-compatibility-less-capable-roundtrip",
+			"gateId": "m2-gate-feature-compatibility",
+			"status": "partial",
+			"workflowIds": [
+				"audio-whole-mix-web-roundtrip",
+				"audio-track-render-web-roundtrip",
+				"video-full-project-web-roundtrip",
+				"video-clip-render-web-roundtrip",
+				"audio-whole-mix-electron-roundtrip",
+				"audio-track-render-electron-roundtrip",
+				"video-full-project-electron-roundtrip",
+				"video-clip-render-electron-roundtrip"
+			],
+			"acceptance": [
+				"Each workflow ID opens on the less-capable product, uses its admitted fallback, saves or exports without canonical mutation and returns to the originating product with editable and opaque state preserved.",
+				"The web workflows pass Chromium, Firefox and WebKit; the Electron workflows pass the packaged product pair."
+			],
+			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
+		}
+	]
+}

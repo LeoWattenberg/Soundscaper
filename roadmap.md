@@ -30,6 +30,8 @@ owning source of truth:
 - project preservation, fallback, and migration behavior:
   [project compatibility policy](docs/project-compatibility.md) and
   [compatibility matrix](config/project-compatibility.json);
+- milestone-2 scope, closure items, and exact qualification sets:
+  [milestone-2 closure inventory](config/milestone-2-closure.json);
 - performance fixtures and numeric qualification:
   [quality budgets](docs/quality-budgets.md) and
   [machine-readable budgets](config/quality-budgets.json);
@@ -60,6 +62,9 @@ owning source of truth:
   owning policy's residual-risk backlog.
 - Do not turn a residual risk into an implicit milestone requirement. Change an
   exit gate deliberately if product scope genuinely changes.
+- For milestone 2, do not add a route, role, platform, fault class, or closure
+  item without explicit user approval and a closure-inventory revision. New
+  capabilities belong to milestone 3 or later.
 - Update this roadmap only when scope, priority, status, dependency, or an exit
   gate changes. Updating detailed evidence alone belongs in the owning policy.
 - A status becomes **Implemented** only with maintained-product behavior and the
@@ -238,8 +243,9 @@ products before adding new editorial models or native engines.
   bounded archive validation; transactional import; and desktop range-based
   `.scape` opening without a final renderer-sized archive `Blob`.
 - **Web Core — Implemented (provisional):** installable verified application
-  shells and an explicit verified FFmpeg runtime cache with rollback. Remaining
-  browser/device qualification belongs to the closeout work below.
+  shells and an explicit verified FFmpeg runtime cache with rollback.
+  Browser/device qualification is tracked by `m2-browser-durability-matrix` and
+  `m2-pipeline-resource-qualification`.
 - **Shared — Implemented for current surfaces:** bounded retained-media writes,
   content digests, derivative-cache policy, cleanup fencing, storage-capacity UI,
   and safe project-publication admission.
@@ -250,174 +256,70 @@ products before adding new editorial models or native engines.
   reporting, read-only incompatible opens, opaque state preservation, audio/video
   effect bypass, role-defined audio whole-mix and full-project video fallback
   playback, the first-party clip-local `videoEffects` and track-local
-  `audioEffects` fallbacks, and generic
-  read-only affected-object visibility for any unavailable or unknown
-  requirement.
+  `audioEffects` fallbacks, and read-only affected-object visibility for any
+  unavailable or unknown requirement.
 - **Web Enhanced / Electron Enhanced — Implemented for direct PCM slices:**
-  bounded direct WAV, AIFF, BWF, and admitted BW64 publication. Other render
-  families remain below.
+  bounded direct WAV, AIFF, BWF, and admitted BW64 publication. Unqualified
+  render routes are enumerated by `m2-pipeline-route-qualification`.
 
 Security claims and exact limitations for these surfaces are owned by
 `docs/production-threat-model.md`. Compatibility and fallback claims are owned
 by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 
-### Remaining work, in priority order
+### Frozen closure scope
+
+Revision 1 of [the milestone-2 closure inventory](config/milestone-2-closure.json)
+is the sole completion inventory for this milestone. Its gate IDs, item IDs,
+routes, roles, platforms, workflows, and fault classes are finite. Unnamed work
+cannot block closure. Changing that scope requires explicit user approval and a
+`scopeRevision` increase; newly proposed capabilities belong to milestone 3 or
+later.
+
+Implementation details and evidence belong in each item's `ownerRefs`. Agents
+update an item's status only after its listed acceptance conditions pass.
+
+### Open closure items, in priority order
 
 #### 2.1 Cross-product media ownership and handoff — highest priority
 
-- **Electron Enhanced — Implemented for explicit managed canonical PCM and
-  retained original video:** ordinary saves remain document-only; explicit
-  handoff supports fresh-recipient acquisition and exact same-content rebinding
-  on return.
-- **Shared / Electron Enhanced — Implemented for point-in-time linked retained
-  video:** an exact product-local binding supports exact-revision,
-  digest-verified owner-scoped range playback for the maintained visual
-  lifecycle without another whole-original `Blob`, a fresh descriptor-free
-  shared load without an owned-media copy, and explicit managed handoff.
-- **Electron Enhanced / Shared — Implemented for bounded linked PCM:** admitted
-  WAV, classic AIFF, and canonical first-party AIFF-C float32 stay unowned and
-  pathless; exact-revision range reads avoid another whole-original `Blob`,
-  while portable `.scape` and managed handoff acquire canonical PCM.
-- **Shared / Electron Enhanced — Implemented for the closed audio whole-mix
-  fallback role:** unavailable or unknown canonical feature identities reach
-  portable `.scape` playback, explicit managed handoff to a fresh recipient,
-  and maintained final-mix delivery. Canonical state remains read-only and
-  unprojected.
-- **Shared / Electron Enhanced — Implemented for the closed full-project video
-  role and one clip-local first-party `videoEffects` relationship:** unavailable
-  or unknown canonical feature identities qualify only for the full-project
-  role. Both exact-schema relationships reach portable `.scape`, managed
-  handoff, playback, and maintained delivery without canonical mutation. Other
-  roles and packaged/browser qualification remain open.
-- **Shared / Electron Enhanced — Implemented for one track-local first-party
-  `audioEffects` relationship:** the closed `audio-track-render-v1` role
-  replaces exactly one audio track's clip lane and active effect rack with a
-  digest-verified publisher render for playback and maintained delivery while
-  every other lane, mixer routing, and master processing stays native, and
-  reaches portable `.scape` including collision-copy remap plus explicit
-  managed handoff from an editable compatible sender to a fresh recipient.
-  Packaged/browser qualification for this role remains open.
-- **Electron Enhanced — Implemented for point-in-time managed-media publication
-  admission:** absent bindings reserve prospective catalog rows, serialized
-  metadata, and aggregate pending body bytes, then reject failed, malformed, or
-  known-insufficient destination capacity before body or hard-link work.
-  Exact-present retries remain available at capacity after body reverification.
-- **Electron Enhanced — Implemented for managed-media ownership and bounded
-  startup reclamation:** schema-3 canonical and stage inventories bind exact
-  descriptor provenance, state, lease, and fencing tokens before body or
-  optional hard-link work; catalog publication requires materialized inventory
-  and marks it published atomically. Startup retires stale tracked catalog rows
-  and reclaims only registered regular stages and bodies through lease-fenced,
-  persisted bounded passes. Unmanaged, unregistered, legacy, symlinked,
-  non-regular, and foreign content stays untouched. The compiled desktop
-  runtime includes this path; packaged source-bearing UI qualification remains
-  open.
-- **Electron Enhanced / Shared — Implemented for the bounded first-party linked
-  retained-video import slice:** the capability-gated Project Bin chooser keeps
-  filesystem paths in main-private product-local locator state and passes only
-  opaque snapshot identity plus materialized video into shared import. Import
-  verifies the selected content, publishes its exact local binding before the
-  canonical source commit, skips an owned original-video copy, and retains
-  canonical extracted audio plus binding-scoped disposable previews.
-  Pre-commit failures roll back import-owned state.
-- **Electron Enhanced / Shared — Implemented for bounded cooperative startup
-  locator reconciliation:** after persistent IndexedDB opens and before project
-  loading, the maintained renderer reads an authoritative point-in-time catalog
-  of at most 10,000 exact project/revision summaries. One atomic transaction
-  validates at most 100,000 closed binding rows, deletes catalog-absent bindings
-  and source-unreachable bindings only from bounded catalog-revision-matched
-  exact-schema-9 current and retained graphs, preserves unverifiable local
-  graphs and any surviving locator alias, and submits at most 128 exact
-  locator/revision references. Durable-unavailable storage sends nothing and
-  invalid catalog or binding scans reject before IPC. Main performs at most one
-  successful serialized pass per store/process, retiring only absent
-  startup-loaded metadata while retaining referenced and current-process
-  records; external media is never inspected or deleted. Continuous cleanup
-  beyond bounded startup and maintained save/activation/delete/clear, plus
-  coordination beyond the same-database newly-published-binding root window,
-  hostile-renderer inventory authority, abrupt-crash/power-loss durability, and
-  packaged/OS qualification remain open.
-- **Electron Enhanced / Shared — Implemented:** revision- and live-history-aware
-  same-store saves and successful writable activations retire source-unreachable
-  linked-original bindings; exact locator retirement after saves, activations,
-  project deletion, and clear preserves live aliases and external files.
-- **Shared / Electron Enhanced — Implemented:** same-store project duplication
-  preserves reachable linked-original bindings without copying external media.
-- **Electron Enhanced — In progress:** broaden the concrete platform locator
-  beyond the bounded linked-PCM and retained-video slices, and
-  finish broader linked and unmanaged-original lifecycles beyond the maintained
-  exact- or changed-content silent retained-video and exact-content linked-PCM
-  Project Bin relink flows, exact capacity accounting and write-time behavior
-  beyond the typed desktop save-target space refusal,
-  stable playback identity beyond the maintained owned canonical PCM,
-  linked-PCM, and retained-video lifecycles,
-  continuous linked-locator cleanup beyond bounded startup and maintained
-  save/activation/delete/clear, coordination beyond the same-database
-  newly-published-binding root window where required,
-  and packaged
-  UI/OS/browser-codec qualification.
-- **Shared — Implemented for disposable previews:** poster and thumbnail cache
-  records bind a trusted retained-original digest or exact linked binding and a
-  versioned recipe while staying outside project history, portable archive
-  media, and managed media transfer. They are not editorial proxies.
-- **Shared — In progress:** extend role-defined rendered-fallback acquisition,
-  activation, and delivery beyond the audio whole-mix and full-project video
-  roles plus the clip-local `videoEffects` and track-local `audioEffects`
-  relationships.
-- **Headless Electron path — Implemented:** a positive mixed-media Soundscaper ↔
-  Framescaper round trip proves fresh activation, playback, edits, save, return,
-  exact media, and retained histories; narrower one-way fixtures prove the
-  role-defined audio and full-project video fallbacks plus the maintained
-  first-party clip-local video and track-local audio fallbacks each reach a
-  fresh recipient from a manifest-only reference and activate their exact
-  managed body.
-  Packaged UI and browser-codec qualification remain open.
+- `m2-handoff-packaged-roundtrip`
+- `m2-media-relationship-roundtrip`
+- `m2-linked-media-lifecycle`
+- `m2-managed-capacity-admission`
 
-This is the main architectural blocker for closing milestone 2. Do not spend the
-next work cycle deepening already-qualified source-free handoff unless it fixes a
-release-blocking defect in its owning policy.
+The exact handoff workflows, media relationships, lifecycle operations, and
+capacity checks are the named sets in the inventory. No additional media format,
+relationship, relink operation, or fallback role is required for milestone 2.
 
-#### 2.2 Remaining bounded pipelines
+#### 2.2 Bounded pipelines
 
-- **Web Enhanced / Electron Enhanced — In progress:** direct native-PCM ZIP and
-  7z stems, canonical compressed ZIP stems (realtime and centrally admitted
-  offline), canonical realtime compressed mixes, centrally admitted offline
-  native-PCM and compressed mixes, and MP4/WebM output avoid final output
-  `Blob`s; scale qualification and other final-delivery paths remain.
-- **Web Enhanced — Planned:** move hot OPFS access to dedicated workers and use
-  synchronous access handles only after capability detection; retain IndexedDB
-  as the correctness fallback.
-- Close the named end-to-end memory and concurrency gaps in the quality budget:
-  proxy generation, autosave/revision publication, render/codec workers,
-  browser/renderer/main-process RSS, concurrent writers, and quota behavior.
-- Qualify current direct paths on the required browser, OS, architecture, and
-  failure matrix. Admission ceilings alone are not reference-scale evidence.
+- `m2-pipeline-route-qualification`
+- `m2-pipeline-resource-qualification`
+- `m2-opfs-worker-boundary`
+
+Qualify exactly the listed publication routes and quality-budget workload IDs.
+The worker boundary covers exactly the six listed OPFS operation classes.
 
 #### 2.3 Compatibility completion
 
-- **Shared — Implemented for affected-object visibility:** one read-only pass
-  names the objects each unavailable or unknown requirement affects wherever a
-  declared fallback role or a first-party effect capability can identify them,
-  for any feature identity, and states plainly when they cannot be identified.
-  It adds no bypass and no control.
-- **Shared — In progress:** provide generic per-feature bypass behavior beyond
-  the maintained first-party audio/video slices.
-- Extend required rendered-fallback runtime use beyond the role-defined audio
-  whole-mix and full-project video roles plus the maintained first-party
-  clip-local video-effects and track-local audio-effects relationships.
-- Preserve and re-export arbitrary future-schema `.scape` archives without
-  interpreting unknown state.
-- Verify that a project opened on a less-capable platform subsequently
-  round-trips without losing editable or opaque native state.
+- `m2-compatibility-fallback-roles`
+- `m2-compatibility-future-archive`
+- `m2-compatibility-less-capable-roundtrip`
+
+`m2-compatibility-affected-objects` and `m2-compatibility-bypass` are already
+implemented. The required fallback role set is exactly
+`project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`, and
+`video-clip-render-v1`. Unknown features without one of those roles stay
+read-only and reported; milestone 2 does not require an invented bypass.
 
 #### 2.4 Durability and qualification closeout
 
-- Complete crash, renderer-loss, helper-loss, quota-failure, and power-loss
-  fixtures for every maintained publication path.
-- Qualify simultaneous opens and lease transfer through packaged Soundscaper and
-  Framescaper processes on the supported platform matrix.
-- Finish real durable OPFS/IndexedDB, storage-pressure, multi-tab, and offline
-  upgrade/rollback workflows required by the quality and compatibility policies.
+- `m2-publication-fault-matrix`
+- `m2-browser-durability-matrix`
+- `m2-electron-lease-matrix`
+
+Run the exact publication-path/fault combinations, browser workflows, packaged
+desktop workflows, and platform sets named in the inventory.
 
 ### Explicitly deferred or outside milestone 2
 
@@ -431,18 +333,18 @@ release-blocking defect in its owning policy.
 
 ### Exit gate
 
-| Gate | State | Required closure |
+| Gate ID | State | Closure item IDs |
 | --- | --- | --- |
-| Bounded import, autosave, proxy, render, and save pipelines | **Partial** | Named Web Core fallbacks complete below their limits or refuse before unsafe work; enhanced/native direct-file fixtures meet their memory budgets. |
-| Crash-safe publication | **Partial** | Killing a renderer/helper during every write path leaves the previous commit or a recoverable journal, never a half-published project. |
-| Mixed-media cross-product handoff | **Partial** | Both web and packaged Electron UI products use the same project and media without losing history or accidental copies; remaining media relationships are stable. |
-| Shared Electron concurrency | **Partial** | Packaged simultaneous opens, lease transfer, recovery, conflict, and supported-platform fixtures pass. |
-| Cache cleanup safety | **Implemented** | Cleanup removes only reproducible derivatives, never originals, canonical PCM, or the last recoverable revision. |
-| Unavailable-feature compatibility | **Partial** | Actionable report, usable fallback/bypass behavior, and faithful subsequent `.scape` round trip work for the required generic surface. |
+| `m2-gate-mixed-media-handoff` | **Partial** | `m2-handoff-packaged-roundtrip`, `m2-media-relationship-roundtrip`, `m2-linked-media-lifecycle`, `m2-managed-capacity-admission` |
+| `m2-gate-bounded-pipelines` | **Partial** | `m2-pipeline-route-qualification`, `m2-pipeline-resource-qualification`, `m2-opfs-worker-boundary` |
+| `m2-gate-feature-compatibility` | **Partial** | `m2-compatibility-affected-objects`, `m2-compatibility-bypass`, `m2-compatibility-fallback-roles`, `m2-compatibility-future-archive`, `m2-compatibility-less-capable-roundtrip` |
+| `m2-gate-crash-safe-publication` | **Partial** | `m2-publication-fault-matrix`, `m2-browser-durability-matrix` |
+| `m2-gate-electron-concurrency` | **Partial** | `m2-electron-lease-matrix` |
+| `m2-gate-cache-cleanup` | **Implemented** | `m2-cache-root-safety` |
 
-Milestone 2 closes only when every row is **Implemented**. New evidence should
-update the owning policy first; update this table only when a row's state or
-required closure changes.
+Milestone 2 closes only when every inventory item and gate is **Implemented**.
+Evidence updates its owning policy first; this roadmap changes only when scope,
+priority, dependency, or status changes.
 
 ## 3. Parallel editorial foundations
 
