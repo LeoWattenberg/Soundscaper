@@ -28,13 +28,43 @@ export const ELECTRON_LIBRARY_WORKFLOWS = Object.freeze([
 	'electron-framescaper-to-soundscaper-to-framescaper-library',
 ]);
 
+export const ELECTRON_LEASE_WORKFLOWS = Object.freeze([
+	'same-project-simultaneous-open',
+	'cross-product-simultaneous-open',
+	'writer-lease-transfer',
+	'stale-lease-takeover',
+	'conflicting-canonical-commit',
+	'renderer-loss-during-operation',
+	'orderly-process-restart',
+	'crash-restart-recovery',
+]);
+
 const QUALIFICATION_ID_TOKENS = Object.freeze([
 	...FALLBACK_WITNESS_ROLES,
 	...FALLBACK_ROUNDTRIP_WORKFLOWS,
 	...ELECTRON_LIBRARY_WORKFLOWS,
+	...ELECTRON_LEASE_WORKFLOWS,
 ]);
 
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
+	Object.freeze({
+		marker: 'desktop-electron-lease-protections',
+		register: 'config/project-compatibility.json',
+		ruleId: 'current-desktop-electron-lease-protections',
+		field: 'currentBehavior',
+		document: 'docs/project-compatibility.md',
+		intro: null,
+		wrap: 80,
+	}),
+	Object.freeze({
+		marker: 'packaged-cross-platform-electron-lease-matrix',
+		register: 'config/production-security-matrix.json',
+		riskId: 'shared-desktop-project-library-integrity',
+		controlId: 'packaged-cross-platform-electron-lease-matrix',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+	}),
 	Object.freeze({
 		marker: 'packaged-source-bearing-handoff',
 		register: 'config/production-security-matrix.json',

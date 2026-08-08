@@ -1063,6 +1063,33 @@ installers or file associations; or Windows, macOS, or ARM64. Third-party
 activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
+<!-- policy-narrative:desktop-electron-lease-protections -->
+The main host now starts as an observer even while another process owns the
+lease and obtains a bounded writer session only around mutations. Writer
+sessions recover pending journals and tracked stages before work, renew while
+admitted work drains, abort and fence immediately on renewal loss, release only
+their exact lease, and retain pathless last-writer fencing and recovery
+evidence. Project commits carry an expected authoritative revision: null is
+create-only, an update must match the current revision even when its new
+document revision jumps, and an identical published document is an idempotent
+retry; stale, lower, equal-divergent, and losing commits return conflict before
+project or managed-media advertisement. Renderer ownership uses one
+AbortController across ordinary reads, commits, deletes, bundle/source reads,
+and the complete upload finish/publication lifetime; revocation and global
+disposal fence admission, abort synchronously, and drain. Unexpected renderer
+loss drains the old owner before loading the trusted editor URL with a fresh
+owner, while cleanup or reload failure exits nonzero. Focused tests cover
+concurrent observer starts, same- and cross-product serialization, transfer,
+stale takeover, monotonic fencing, renewal loss, expected-base conflicts,
+renderer loss during publication, disposal fencing, reload recovery, and real
+child termination at prepared and committed journal checkpoints. A closed
+packaged smoke runner and six-target CI matrix now encode the exact eight
+workflow IDs in both product orderings and require the winning document digest
+plus no losing managed-media descriptor. The control remains partial because no
+accepted result from all six packaged CI targets is checked in;
+m2-electron-lease-matrix and its gate therefore remain partial.
+<!-- /policy-narrative:desktop-electron-lease-protections -->
+
 <!-- policy-narrative:desktop-packaged-source-bearing-handoff -->
 A second maintained Linux x64 CI job runs the two frozen Electron workflows as
 six sequential packaged executable processes: Soundscaper → Framescaper →
