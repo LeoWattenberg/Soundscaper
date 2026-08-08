@@ -215,7 +215,123 @@ test('cancelling retained-video relink before CAS preserves the old binding', as
 	assert.deepEqual(fixture.releases, []);
 });
 
-async function relinkFixture(context: TestContext, originalBody: Blob) {
+test('changed-content relink admits a silent video with different bytes and publishes the measured digest', async (context) => {
+	const originalBody = new Blob(['old silent retained bytes'], { type: 'video/mp4' });
+	const changedBody = new Blob(['brand new silent retained replacement'], { type: 'video/mp4' });
+	assert.notEqual(changedBody.size, originalBody.size);
+	const fixture = await relinkFixture(context, originalBody);
+	fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(changedBody, NEW_LOCATOR_REVISION));
+
+	const rebound = await fixture.store.relinkLinkedVideoOriginal(
+		PROJECT_ID,
+		videoSource(),
+		NEW_LOCATOR_ID,
+		{
+			admission: 'changed-content',
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: changedBody,
+		},
+	);
+
+	assert.equal(rebound.locatorId, NEW_LOCATOR_ID);
+	assert.equal(rebound.byteLength, changedBody.size);
+	assert.notEqual(rebound.sha256, fixture.original.sha256);
+	assert.equal(rebound.mimeType, fixture.original.mimeType);
+	assert.deepEqual(rebound.sourceShape, fixture.original.sourceShape);
+	assert.notEqual(rebound.bindingToken, fixture.original.bindingToken);
+	assert.deepEqual(await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, SOURCE_ID), rebound);
+	assert.equal(currentRoot(fixture.databaseName).bindingToken, rebound.bindingToken);
+	assert.deepEqual(fixture.releases, []);
+});
+
+test('changed-content relink refuses a video source that retains extracted audio', async (context) => {
+	const originalBody = new Blob(['audible original retained bytes'], { type: 'video/mp4' });
+	const changedBody = new Blob(['audible replacement retained bytes!'], { type: 'video/mp4' });
+	const source = Object.freeze({ ...videoSource(), audioCodec: 'aac', hasAudio: true });
+	const fixture = await relinkFixture(context, originalBody, source);
+	fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(changedBody, NEW_LOCATOR_REVISION));
+
+	await assert.rejects(
+		fixture.store.relinkLinkedVideoOriginal(PROJECT_ID, source, NEW_LOCATOR_ID, {
+			admission: 'changed-content',
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: changedBody,
+		}),
+		/retains canonical extracted audio.*silent video source/iu,
+	);
+
+	assert.deepEqual(
+		await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, SOURCE_ID),
+		fixture.original,
+	);
+	assert.equal(currentRoot(fixture.databaseName).bindingToken, fixture.original.bindingToken);
+});
+
+test('changed-content relink refuses a MIME type change and keeps exact admission the default', async (context) => {
+	const originalBody = new Blob(['typed silent retained bytes'], { type: 'video/mp4' });
+	const retypedBody = new Blob(['typed silent replacement bytes'], { type: 'video/webm' });
+	const resizedBody = new Blob(['resized silent replacement retained bytes'], { type: 'video/mp4' });
+	const fixture = await relinkFixture(context, originalBody);
+
+	fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(retypedBody, NEW_LOCATOR_REVISION));
+	await assert.rejects(
+		fixture.store.relinkLinkedVideoOriginal(PROJECT_ID, videoSource(), NEW_LOCATOR_ID, {
+			admission: 'changed-content',
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: retypedBody,
+		}),
+		/does not match the current MIME type/iu,
+	);
+
+	fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(resizedBody, NEW_LOCATOR_REVISION));
+	await assert.rejects(
+		fixture.store.relinkLinkedVideoOriginal(PROJECT_ID, videoSource(), NEW_LOCATOR_ID, {
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: resizedBody,
+		}),
+		/does not match the current byte length/iu,
+	);
+
+	assert.deepEqual(
+		await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, SOURCE_ID),
+		fixture.original,
+	);
+});
+
+test('changed-content relink still requires the selected and loaded bytes to match', async (context) => {
+	const originalBody = new Blob(['drifting silent retained bytes'], { type: 'video/mp4' });
+	const selectedBody = new Blob(['selected silent replacement bytes'], { type: 'video/mp4' });
+	const driftedBody = new Blob(['drifted-on-disk replacement bytes'], { type: 'video/mp4' });
+	assert.equal(driftedBody.size, selectedBody.size);
+	const fixture = await relinkFixture(context, originalBody);
+	fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(driftedBody, NEW_LOCATOR_REVISION));
+
+	await assert.rejects(
+		fixture.store.relinkLinkedVideoOriginal(PROJECT_ID, videoSource(), NEW_LOCATOR_ID, {
+			admission: 'changed-content',
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: selectedBody,
+		}),
+		/changed content after selection|changed byte length after selection/iu,
+	);
+
+	assert.deepEqual(
+		await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, SOURCE_ID),
+		fixture.original,
+	);
+	assert.equal(currentRoot(fixture.databaseName).bindingToken, fixture.original.bindingToken);
+});
+
+async function relinkFixture(
+	context: TestContext,
+	originalBody: Blob,
+	source: LinkedVideoOriginalSource = videoSource(),
+) {
 	const databaseName = `linked-video-relink-${Date.now()}-${Math.random()}`;
 	const snapshots = new Map<string, Readonly<{ blob: Blob; locatorRevision: string }>>([
 		[OLD_LOCATOR_ID, snapshot(originalBody, OLD_LOCATOR_REVISION)],
@@ -248,7 +364,7 @@ async function relinkFixture(context: TestContext, originalBody: Blob) {
 	context.after(async () => { await store.close(); });
 	const original = await store.bindLinkedVideoOriginal(
 		PROJECT_ID,
-		videoSource(),
+		source,
 		OLD_LOCATOR_ID,
 		{
 			expectedLocatorRevision: OLD_LOCATOR_REVISION,

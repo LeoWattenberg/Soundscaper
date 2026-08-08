@@ -99,7 +99,11 @@ export interface RelinkLinkedOriginalOptions {
 }
 
 export type RelinkLinkedAudioOriginalOptions = RelinkLinkedOriginalOptions;
-export type RelinkLinkedVideoOriginalOptions = RelinkLinkedOriginalOptions;
+
+export interface RelinkLinkedVideoOriginalOptions extends RelinkLinkedOriginalOptions {
+	/** Exact-content relink is the default; changed content requires explicit admission. */
+	readonly admission?: 'exact-content' | 'changed-content';
+}
 
 type ActiveLifecycle = LinkedOriginalLifecycleCoordinator | LinkedVideoOriginalLifecycleCoordinator;
 
@@ -367,7 +371,9 @@ export class LinkedOriginalStoreService {
 				throw new Error('The linked video original binding changed before relink.');
 			}
 			await resolver.assertBindingCurrent(projectId, source, current, { signal: options.signal });
-			const selected = await exactRelinkSnapshot(current, options, 'video');
+			const selected = options.admission === 'changed-content'
+				? await changedContentRelinkSnapshot(current, options)
+				: await exactRelinkSnapshot(current, options, 'video');
 			return resolver.bind(projectId, source, locatorId, {
 				expectedBindingToken: current.bindingToken,
 				expectedLocatorRevision: options.expectedLocatorRevision,
@@ -539,6 +545,24 @@ function throwIfRelinkAborted(
 	const error = new Error(`Linked ${kind} original relink was cancelled.`);
 	error.name = 'AbortError';
 	throw error;
+}
+
+async function changedContentRelinkSnapshot(
+	current: Readonly<{ mimeType: string; sourceShape: Readonly<{ hasAudio: boolean }> }>,
+	options: RelinkLinkedOriginalOptions,
+): Promise<Blob> {
+	const selected = canonicalMediaContentBlob(options.expectedSnapshot);
+	if (current.sourceShape.hasAudio !== false) {
+		throw new Error(
+			'The linked video original retains canonical extracted audio; '
+			+ 'changed-content relink requires a silent video source.',
+		);
+	}
+	if ((selected.type || 'video/mp4') !== current.mimeType) {
+		throw new Error('The selected linked video original does not match the current MIME type.');
+	}
+	throwIfRelinkAborted(options.signal, 'video');
+	return selected;
 }
 
 async function exactRelinkSnapshot(
