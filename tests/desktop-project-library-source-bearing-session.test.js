@@ -120,10 +120,14 @@ test('source-bearing advance session uses native input before the UI handoff sna
 	});
 	const nextProject = { ...previous.project, revision: 2, sha256: 'bc'.repeat(32) };
 	const nextSources = previous.sources.map((source, index) => ({
-		...source, bindingId: `${source.kind === 'audio' ? 'm' : 'v'}${(index ? '12' : '34').repeat(32)}`,
+		...source,
+		bindingId: `${source.kind === 'audio' ? 'm' : 'v'}${String(index + 5).repeat(64).slice(0, 64)}`,
 	}));
 	const executions = [
 		{ phase: 'prepared', sources: previous.sources },
+		...plan.seed.roleWitnesses.map((witness) => ({
+			phase: 'witnessed', fallback: fallbackFor(witness),
+		})),
 		{ phase: 'editing', project: previous.project, sources: previous.sources, ui: uiFor(plan, previous.sources, true) },
 		{ phase: 'activated', project: previous.project, sources: previous.sources, ui: uiFor(plan, previous.sources, true) },
 	];
@@ -156,6 +160,7 @@ test('source-bearing advance session uses native input before the UI handoff sna
 	});
 
 	assert.equal(await session.run(webContents), null);
+	for (const _witness of plan.seed.roleWitnesses) assert.equal(await session.run(webContents), null);
 	const result = await session.run(webContents);
 	assert.equal(result.project.revision, 2);
 	assert.deepEqual(result.sources, nextSources);
@@ -176,7 +181,7 @@ function sourcesFor(plan) {
 		{
 			bindingId: `v${'ef'.repeat(32)}`, byteLength: 1_024,
 			encoding: 'video-original-v1', kind: 'video', sha256: SHA256,
-			sourceId: plan.seed.video.sourceId, storageKey: plan.seed.video.storageKey,
+			 sourceId: plan.seed.video.sourceId, storageKey: plan.seed.video.storageKey,
 		},
 	];
 }
@@ -186,6 +191,9 @@ function uiFor(plan, sources, handoffInvoked) {
 		activeProjectId: plan.seed.projectId,
 		audioTrackName: plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
 		clipCount: 2,
+		fallbackRoles: plan.stage === 'advance'
+			? plan.seed.roleWitnesses.map(fallbackFor)
+			: [],
 		handoffInvoked,
 		playbackStarted: true,
 		playbackStopped: true,
@@ -193,6 +201,18 @@ function uiFor(plan, sources, handoffInvoked) {
 		projectBinSourceId: plan.seed.video.sourceId,
 		trackCount: 2,
 		videoSha256: sources[1].sha256,
+	};
+}
+
+function fallbackFor(witness) {
+	return {
+		featureId: witness.featureId,
+		kind: witness.kind,
+		projectId: witness.projectId,
+		requirementId: witness.requirementId,
+		role: witness.role,
+		sha256: SHA256,
+		sourceId: witness.fallback.sourceId,
 	};
 }
 

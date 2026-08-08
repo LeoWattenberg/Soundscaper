@@ -126,6 +126,7 @@ export function createDesktopProjectLibrarySourceBearingAggregate(results) {
 		const final = admitted.at(-1);
 		workflows.push({
 			id: workflow.id,
+			fallbackRoles: admitted.flatMap((result) => result.ui.fallbackRoles),
 			project: final.project,
 			sources: final.sources,
 			stages: admitted.map((result) => ({
@@ -257,6 +258,10 @@ function assertAggregateShape(aggregate) {
 	for (const [index, expected] of createDesktopProjectLibrarySourceBearingWorkflows().entries()) {
 		const workflow = aggregate.workflows[index];
 		if (workflow?.id !== expected.id || !workflow.project
+			|| !Array.isArray(workflow.fallbackRoles) || workflow.fallbackRoles.length !== 2
+			|| workflow.fallbackRoles.some((fallback, fallbackIndex) => (
+				fallback?.role !== expected.seed.roleWitnesses[fallbackIndex]?.role
+			))
 			|| !Array.isArray(workflow.sources) || workflow.sources.length !== 2
 			|| !Array.isArray(workflow.stages) || workflow.stages.length !== 3
 			|| workflow.stages.some((stage, stageIndex) => (

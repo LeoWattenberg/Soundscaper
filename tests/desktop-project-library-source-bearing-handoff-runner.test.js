@@ -100,7 +100,15 @@ test('source-bearing output parsing and aggregate validation retain exact UI and
 	for (const workflow of aggregate.workflows) {
 		assert.equal(workflow.project.revision, 2);
 		assert.equal(workflow.sources.length, 2);
+		assert.equal(workflow.fallbackRoles.length, 2);
 	}
+	assert.deepEqual(
+		aggregate.workflows.flatMap(({ fallbackRoles }) => fallbackRoles.map(({ role }) => role)),
+		[
+			'project-audio-mix-v1', 'audio-track-render-v1',
+			'project-video-render-v1', 'video-clip-render-v1',
+		],
+	);
 	const line = formatDesktopProjectLibrarySourceBearingAggregate(aggregate);
 	assert.ok(line.startsWith(DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_AGGREGATE_PREFIX));
 	assert.doesNotMatch(line, /"document"/u);
@@ -159,7 +167,7 @@ function resultFor(plan, fencingToken, catalogRevision) {
 	const sources = plan.stage === 'advance'
 		? plan.previous.sources.map((source, index) => ({
 			...source,
-			bindingId: `${index === 0 ? 'm' : 'v'}${'34'.repeat(32)}`,
+			bindingId: `${source.kind === 'audio' ? 'm' : 'v'}${String(index + 5).repeat(64).slice(0, 64)}`,
 		}))
 		: plan.previous?.sources ?? sourcesFor(plan);
 	return {
@@ -174,6 +182,9 @@ function resultFor(plan, fencingToken, catalogRevision) {
 			activeProjectId: plan.seed.projectId,
 			audioTrackName: plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
 			clipCount: 2,
+			fallbackRoles: plan.stage === 'advance'
+				? plan.seed.roleWitnesses.map(fallbackFor)
+				: [],
 			handoffInvoked: plan.stage !== 'return',
 			playbackStarted: true,
 			playbackStopped: true,
@@ -187,5 +198,17 @@ function resultFor(plan, fencingToken, catalogRevision) {
 			tookOverStaleLease: false, recovery: { outcome: 'clean' },
 		},
 		catalogRevision,
+	};
+}
+
+function fallbackFor(witness) {
+	return {
+		featureId: witness.featureId,
+		kind: witness.kind,
+		projectId: witness.projectId,
+		requirementId: witness.requirementId,
+		role: witness.role,
+		sha256: SHA256,
+		sourceId: witness.fallback.sourceId,
 	};
 }

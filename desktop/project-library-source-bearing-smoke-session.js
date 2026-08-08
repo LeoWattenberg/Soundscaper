@@ -20,6 +20,8 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 	}
 	let phase = 'prepare';
 	let preparedSources = null;
+	let witnessIndex = 0;
+	const fallbackRoles = [];
 	let complete = false;
 
 	return Object.freeze({
@@ -30,7 +32,11 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 				|| typeof webContents.getURL !== 'function' || typeof webContents.loadURL !== 'function') {
 				throw new TypeError('Source-bearing packaged smoke session requires web contents');
 			}
-			const prior = preparedSources ? { sources: preparedSources } : null;
+			const prior = preparedSources ? {
+				sources: preparedSources,
+				witnessIndex,
+				fallbackRoles,
+			} : null;
 			const handoffNavigation = phase === 'activate' && plan.stage === 'publish'
 				? expectHandoffNavigation(webContents, plan)
 				: null;
@@ -44,12 +50,25 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 			if (phase === 'prepare') {
 				assertPhase(result, 'prepared');
 				preparedSources = result.sources;
-				phase = 'activate';
-				const url = new URL(webContents.getURL());
-				url.pathname = '/';
-				url.search = `?project=${encodeURIComponent(plan.seed.projectId)}`;
-				url.hash = '';
-				await webContents.loadURL(url.href);
+				phase = plan.stage === 'advance' && plan.seed.roleWitnesses.length > 0
+					? 'witness'
+					: 'activate';
+				await loadProject(webContents, phase === 'witness'
+					? plan.seed.roleWitnesses[0].projectId
+					: plan.seed.projectId);
+				return null;
+			}
+			if (phase === 'witness') {
+				assertPhase(result, 'witnessed');
+				fallbackRoles.push(result.fallback);
+				witnessIndex += 1;
+				const witness = plan.seed.roleWitnesses[witnessIndex];
+				if (witness) {
+					await loadProject(webContents, witness.projectId);
+				} else {
+					phase = 'activate';
+					await loadProject(webContents, plan.seed.projectId);
+				}
 				return null;
 			}
 			if (phase === 'activate') {
@@ -99,6 +118,14 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 		complete = true;
 		return payload;
 	}
+}
+
+async function loadProject(webContents, projectId) {
+	const url = new URL(webContents.getURL());
+	url.pathname = '/';
+	url.search = `?project=${encodeURIComponent(projectId)}`;
+	url.hash = '';
+	await webContents.loadURL(url.href);
 }
 
 async function enterTrackName(webContents, value) {

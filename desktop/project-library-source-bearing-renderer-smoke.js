@@ -29,12 +29,12 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		const digest = await scope.crypto.subtle.digest('SHA-256', bytes);
 		return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 	};
-	const projectDescriptor = async (document) => {
+	const projectDescriptor = async (document, expected = plan.seed) => {
 		if (typeof document !== 'string') throw new Error('Packaged shared project document is unavailable');
 		let project;
 		try { project = JSON.parse(document); } catch { throw new Error('Packaged shared project document is invalid'); }
 		if (JSON.stringify(project) !== document || project?.schemaVersion !== 9
-			|| project.id !== plan.seed.projectId || project.title !== plan.seed.title) {
+			|| project.id !== expected.projectId || project.title !== expected.title) {
 			throw new Error('Packaged shared project document is not the fixed exact-schema project');
 		}
 		const sha256 = await hexDigest(new scope.TextEncoder().encode(document));
@@ -64,6 +64,29 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 			};
 		});
 	};
+	const normalizeWitnessSources = (sources, witness) => {
+		if (!Array.isArray(sources) || sources.length !== 2) {
+			throw new Error('Packaged fallback witness does not expose two exact managed descriptors');
+		}
+		return sources.map((source, index) => {
+			const expected = index === 0 ? witness.source : witness.fallback;
+			if (source?.kind !== witness.kind || source.sourceId !== expected.sourceId
+				|| source.storageKey !== expected.storageKey
+				|| typeof source.bindingId !== 'string' || typeof source.sha256 !== 'string'
+				|| !Number.isSafeInteger(source.byteLength) || source.byteLength < 1) {
+				throw new Error(`Packaged ${witness.role} managed descriptor is invalid`);
+			}
+			return {
+				bindingId: source.bindingId,
+				byteLength: source.byteLength,
+				encoding: source.encoding,
+				kind: source.kind,
+				sha256: source.sha256,
+				sourceId: source.sourceId,
+				storageKey: source.storageKey,
+			};
+		});
+	};
 	const assertSourceContents = (actual, expected) => {
 		for (const [index, source] of actual.entries()) {
 			const priorSource = expected[index];
@@ -80,28 +103,53 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		const document = await projectDescriptor(bundle.document);
 		return { ...document, sources: normalizeSources(bundle.sources) };
 	};
-	const createAudioBytes = () => {
-		const { channelCount, frameCount, sampleRate } = plan.seed.audio;
+	const readWitnessBundle = async (witness) => {
+		const bundle = await api.readSharedProjectBundle(witness.projectId);
+		if (!bundle) throw new Error(`Packaged ${witness.role} project is unavailable`);
+		const document = await projectDescriptor(bundle.document, witness);
+		return { ...document, sources: normalizeWitnessSources(bundle.sources, witness) };
+	};
+	const createAudioBytes = (source = plan.seed.audio) => {
+		const { channelCount, frameCount, sampleRate } = source;
 		const bytes = new Uint8Array(4 + frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT);
 		const view = new DataView(bytes.buffer);
 		view.setUint32(0, frameCount, true);
-		for (let frame = 0; frame < frameCount; frame += 1) {
-			view.setFloat32(4 + frame * 4, Math.sin(2 * Math.PI * 220 * frame / sampleRate) * 0.2, true);
+		let offset = 4;
+		for (let channel = 0; channel < channelCount; channel += 1) {
+			for (let frame = 0; frame < frameCount; frame += 1) {
+				const polarity = channel % 2 === 0 ? 1 : -1;
+				view.setFloat32(offset, Math.sin(2 * Math.PI * 220 * frame / sampleRate) * 0.2 * polarity, true);
+				offset += Float32Array.BYTES_PER_ELEMENT;
+			}
 		}
 		return bytes;
 	};
-	const createVideoBytes = async () => {
+	const materializeWitnessDocument = (witness, sha256) => {
+		const project = JSON.parse(witness.document);
+		const requirements = project?.featureRequirements?.requirements;
+		if (!Array.isArray(requirements) || requirements.length !== 1) {
+			throw new Error('Packaged fallback manifest is unavailable');
+		}
+		const requirement = requirements[0];
+		if (requirement?.id !== witness.requirementId
+			|| requirement.fallback?.sha256 !== '0'.repeat(64)) {
+			throw new Error('Packaged fallback manifest placeholder is invalid');
+		}
+		requirement.fallback.sha256 = sha256;
+		return JSON.stringify(project);
+	};
+	const createVideoBytes = async (source = plan.seed.video) => {
 		if (typeof scope.MediaRecorder !== 'function') {
 			throw new Error('Packaged mixed-media smoke requires MediaRecorder');
 		}
 		const canvas = scope.document.createElement('canvas');
-		canvas.width = plan.seed.video.width;
-		canvas.height = plan.seed.video.height;
+		canvas.width = source.width;
+		canvas.height = source.height;
 		const context = canvas.getContext('2d');
 		if (!context || typeof canvas.captureStream !== 'function') {
 			throw new Error('Packaged mixed-media smoke requires canvas video capture');
 		}
-		const stream = canvas.captureStream(plan.seed.video.frameRate);
+		const stream = canvas.captureStream(source.frameRate);
 		const mimeType = scope.MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
 			? 'video/webm;codecs=vp8' : 'video/webm';
 		const recorder = new scope.MediaRecorder(stream, { mimeType, videoBitsPerSecond: 200_000 });
@@ -129,12 +177,12 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		if (!bytes.byteLength) throw new Error('Packaged video generation returned no bytes');
 		return bytes;
 	};
-	const publishSource = async (source, encoding, bytes) => {
+	const publishSource = async (projectId, source, encoding, bytes) => {
 		const sha256 = await hexDigest(bytes);
 		const admission = await api.beginSharedSourceWrite({
 			byteLength: bytes.byteLength,
 			encoding,
-			projectId: plan.seed.projectId,
+			projectId,
 			projectRevision: 1,
 			sha256,
 			sourceId: source.sourceId,
@@ -160,6 +208,13 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 			&& root.dataset.trackCount === '2'
 			&& root.dataset.clipCount === '2' ? root : null;
 	}, 'Packaged mixed-media editor activation');
+	const waitForWitnessWorkspace = async (witness) => waitFor(() => {
+		const root = scope.document.querySelector('[data-audio-editor]');
+		return root?.dataset.projectId === witness.projectId
+			&& root.dataset.product === plan.productId
+			&& root.dataset.trackCount === '1'
+			&& root.dataset.clipCount === '1' ? root : null;
+	}, `Packaged ${witness.role} editor activation`);
 	const verifyProjectBinVideo = async (root, expectedDigest) => {
 		const card = await waitFor(() => root.querySelector(
 			`[data-project-bin-item][data-source-id="${plan.seed.video.sourceId}"]`,
@@ -215,10 +270,41 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 				&& project.tracks.find((track) => track.id === plan.seed.audio.trackId)?.name === plan.seed.advanceTrackName;
 		}, 'Packaged recipient project save');
 	};
-	const uiResult = (videoSha256) => ({
+	const fallbackEvidence = async (root, witness, project, sources) => {
+		const markerAttribute = witness.kind === 'audio'
+			? 'data-project-feature-audio-rendered-fallback'
+			: 'data-project-feature-video-rendered-fallback';
+		await waitFor(() => root.querySelector(
+			`[data-project-feature-requirement="${witness.featureId}"] [${markerAttribute}]`,
+		), 'Packaged fallback compatibility indicator');
+		const requirements = project?.featureRequirements?.requirements;
+		const matches = Array.isArray(requirements)
+			? requirements.filter(({ id }) => id === witness.requirementId)
+			: [];
+		const requirement = matches[0];
+		const source = sources.find(({ sourceId }) => sourceId === witness.fallback.sourceId);
+		if (matches.length !== 1 || requirement.featureId !== witness.featureId
+			|| requirement.fallback?.kind !== witness.kind
+			|| requirement.fallback?.role !== witness.role
+			|| requirement.fallback?.sourceId !== witness.fallback.sourceId
+			|| requirement.fallback?.sha256 !== source?.sha256) {
+			throw new Error('Packaged fallback role evidence is invalid');
+		}
+		return {
+			featureId: witness.featureId,
+			kind: witness.kind,
+			projectId: witness.projectId,
+			requirementId: witness.requirementId,
+			role: witness.role,
+			sha256: source.sha256,
+			sourceId: witness.fallback.sourceId,
+		};
+	};
+	const uiResult = (videoSha256, fallbackRoles) => ({
 		activeProjectId: plan.seed.projectId,
 		audioTrackName: plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
 		clipCount: 2,
+		fallbackRoles,
 		handoffInvoked: plan.stage !== 'return',
 		playbackStarted: true,
 		playbackStopped: true,
@@ -243,10 +329,28 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		const bundle = await api.readSharedProjectBundle(plan.seed.projectId);
 		if (plan.stage === 'publish') {
 			if (bundle !== null) throw new Error('Packaged source-bearing publish target already exists');
+			const audioBytes = createAudioBytes();
+			const videoBytes = await createVideoBytes();
 			const committed = await api.commitSharedProject(plan.seed.document);
 			if (committed !== plan.seed.document) throw new Error('Packaged source-bearing seed commit changed');
-			await publishSource(plan.seed.audio, 'audio-f32le-chunks-v1', createAudioBytes());
-			await publishSource(plan.seed.video, 'video-original-v1', await createVideoBytes());
+			await publishSource(plan.seed.projectId, plan.seed.audio, 'audio-f32le-chunks-v1', audioBytes);
+			await publishSource(plan.seed.projectId, plan.seed.video, 'video-original-v1', videoBytes);
+			for (const witness of plan.seed.roleWitnesses) {
+				const witnessBytes = witness.kind === 'audio'
+					? createAudioBytes(witness.source)
+					: videoBytes;
+				const sha256 = await hexDigest(witnessBytes);
+				const document = materializeWitnessDocument(witness, sha256);
+				const witnessCommit = await api.commitSharedProject(document);
+				if (witnessCommit !== document) {
+					throw new Error(`Packaged ${witness.role} seed commit changed`);
+				}
+				const encoding = witness.kind === 'audio'
+					? 'audio-f32le-chunks-v1'
+					: 'video-original-v1';
+				await publishSource(witness.projectId, witness.source, encoding, witnessBytes);
+				await publishSource(witness.projectId, witness.fallback, encoding, witnessBytes);
+			}
 		} else if (bundle === null) {
 			throw new Error('Packaged source-bearing previous project is missing');
 		}
@@ -265,6 +369,21 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		return { phase: 'prepared', sources: current.sources };
 	}
 
+	if (phase === 'witness') {
+		if (plan.stage !== 'advance' || !Number.isSafeInteger(prior?.witnessIndex)) {
+			throw new Error('Packaged fallback witness phase is unavailable');
+		}
+		const witness = plan.seed.roleWitnesses[prior.witnessIndex];
+		if (!witness || witness.recipientProductId !== plan.productId) {
+			throw new Error('Packaged fallback witness identity is invalid');
+		}
+		const root = await waitForWitnessWorkspace(witness);
+		const activated = await readWitnessBundle(witness);
+		const fallback = await fallbackEvidence(root, witness, activated.project, activated.sources);
+		await exerciseTransport(root);
+		return { phase: 'witnessed', fallback };
+	}
+
 	if (phase === 'activate') {
 		const expectedSources = plan.previous?.sources ?? prior?.sources;
 		if (!Array.isArray(expectedSources)) throw new Error('Packaged activation expected media is unavailable');
@@ -278,7 +397,7 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		if (!audioName?.includes(expectedInitialName)) throw new Error('Packaged activated audio track name is invalid');
 		const videoSha256 = await verifyProjectBinVideo(root, expectedSources[1].sha256);
 		await exerciseTransport(root);
-		const ui = uiResult(videoSha256);
+		const ui = uiResult(videoSha256, prior?.fallbackRoles ?? []);
 		if (plan.stage === 'advance') {
 			await beginRecipientTrackEdit(root);
 			return { phase: 'editing', project: activated.descriptor, sources: activated.sources, ui };
@@ -298,7 +417,7 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 			phase: 'activated',
 			project: plan.previous.project,
 			sources: plan.previous.sources,
-			ui: uiResult(plan.previous.sources[1].sha256),
+			ui: uiResult(plan.previous.sources[1].sha256, prior?.fallbackRoles ?? []),
 		};
 	}
 

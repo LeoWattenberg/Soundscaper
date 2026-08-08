@@ -136,6 +136,7 @@ function uiFor(plan, sources) {
 		activeProjectId: plan.seed.projectId,
 		audioTrackName: 'Packaged sound',
 		clipCount: 2,
+		fallbackRoles: [],
 		handoffInvoked: true,
 		playbackStarted: true,
 		playbackStopped: true,

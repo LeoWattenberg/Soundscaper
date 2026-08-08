@@ -62,6 +62,23 @@ test('source-bearing packaged handoff owns the two frozen Electron roundtrips', 
 		assert.equal(project.projectBin.clips[0].sourceId, workflow.seed.video.sourceId);
 		assert.equal(workflow.seed.audio.frameCount, 4_800);
 		assert.equal(workflow.seed.audio.channelCount, 1);
+		assert.deepEqual(
+			workflow.seed.roleWitnesses.map(({ role }) => role),
+			workflow.id.startsWith('electron-soundscaper')
+				? ['project-audio-mix-v1', 'audio-track-render-v1']
+				: ['project-video-render-v1', 'video-clip-render-v1'],
+		);
+		for (const witness of workflow.seed.roleWitnesses) {
+			const witnessProject = parseScapeProjectDocument(witness.document);
+			assert.equal(validateAudioEditorProjectV9(witnessProject), true);
+			assert.equal(serializeScapeProjectDocument(witnessProject), witness.document);
+			assert.equal(witnessProject.id, witness.projectId);
+			assert.deepEqual(
+				witnessProject.featureRequirements.requirements.map(({ fallback }) => fallback.role),
+				[witness.role],
+			);
+			assert.equal(witness.recipientProductId, workflow.stages[1].productId);
+		}
 		assert.equal(workflow.seed.video.width, 64);
 		assert.equal(workflow.seed.video.height, 36);
 		assert.equal(workflow.seed.video.frameRate, 30);
@@ -84,10 +101,7 @@ test('source-bearing packaged plans are bounded, canonical, and stage-bound', ()
 			revision: 1,
 			sha256: SHA256,
 		},
-		sources: [
-			managedSource(workflow.seed.audio, 'audio', 'm'),
-			managedSource(workflow.seed.video, 'video', 'v'),
-		],
+			sources: managedSources(workflow.seed),
 	};
 	const advance = createDesktopProjectLibrarySourceBearingPlan({
 		workflowId: workflow.id,
@@ -134,10 +148,7 @@ test('source-bearing packaged results bind UI playback, one recipient edit, and 
 	});
 	const published = resultFor(publishPlan, {
 		project: { id: workflow.seed.projectId, title: workflow.seed.title, revision: 1, sha256: SHA256 },
-		sources: [
-			managedSource(workflow.seed.audio, 'audio', 'm'),
-			managedSource(workflow.seed.video, 'video', 'v'),
-		],
+		sources: managedSources(workflow.seed),
 	});
 	assert.deepEqual(validateDesktopProjectLibrarySourceBearingResult(published, publishPlan), published);
 
@@ -149,7 +160,7 @@ test('source-bearing packaged results bind UI playback, one recipient edit, and 
 	const advanced = resultFor(advancePlan, {
 		project: { ...published.project, revision: 2, sha256: 'ef'.repeat(32) },
 		sources: published.sources.map((source, index) => ({
-			...source, bindingId: `${index === 0 ? 'm' : 'v'}${'12'.repeat(32)}`,
+			...source, bindingId: `${source.kind === 'audio' ? 'm' : 'v'}${String(index + 1).repeat(64).slice(0, 64)}`,
 		})),
 	});
 	assert.deepEqual(validateDesktopProjectLibrarySourceBearingResult(advanced, advancePlan), advanced);
@@ -182,13 +193,22 @@ test('source-bearing packaged results bind UI playback, one recipient edit, and 
 function managedSource(source, kind, prefix) {
 	return {
 		bindingId: `${prefix}${'cd'.repeat(32)}`,
-		byteLength: kind === 'audio' ? 4 + source.frameCount * Float32Array.BYTES_PER_ELEMENT : 1_024,
+		byteLength: kind === 'audio'
+			? 4 + source.frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT
+			: 1_024,
 		encoding: kind === 'audio' ? 'audio-f32le-chunks-v1' : 'video-original-v1',
 		kind,
 		sha256: SHA256,
 		sourceId: source.sourceId,
 		storageKey: source.storageKey,
 	};
+}
+
+function managedSources(seed) {
+	return [
+		managedSource(seed.audio, 'audio', 'm'),
+		managedSource(seed.video, 'video', 'v'),
+	];
 }
 
 function resultFor(plan, { project, sources }) {
@@ -205,6 +225,7 @@ function resultFor(plan, { project, sources }) {
 			activeProjectId: plan.seed.projectId,
 			audioTrackName: stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
 			clipCount: 2,
+			fallbackRoles: fallbackEvidence(plan),
 			handoffInvoked: stage !== 'return',
 			playbackStarted: true,
 			playbackStopped: true,
@@ -221,4 +242,17 @@ function resultFor(plan, { project, sources }) {
 		},
 		catalogRevision: stage === 'publish' ? 1 : stage === 'advance' ? 2 : 3,
 	};
+}
+
+function fallbackEvidence(plan) {
+	if (plan.stage !== 'advance') return [];
+	return plan.seed.roleWitnesses.map((witness) => ({
+		featureId: witness.featureId,
+		kind: witness.kind,
+		projectId: witness.projectId,
+		requirementId: witness.requirementId,
+		role: witness.role,
+		sha256: SHA256,
+		sourceId: witness.fallback.sourceId,
+	}));
 }

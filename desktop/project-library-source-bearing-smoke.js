@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	createDesktopProjectLibraryFallbackRoleWitnesses,
+} from './project-library-fallback-role-witnesses.js';
+
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE = 'project-library-source-bearing-handoff-v1';
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING ';
 export const MAX_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_PLAN_BYTES = 64 * 1024;
@@ -17,12 +21,14 @@ const WORKFLOW_DEFINITIONS = Object.freeze([
 		projectPrefix: 'packaged-sound-roundtrip',
 		products: Object.freeze(['soundscaper', 'framescaper', 'soundscaper']),
 		title: 'Packaged Soundscaper mixed-media roundtrip',
+		fallbackRoles: Object.freeze(['project-audio-mix-v1', 'audio-track-render-v1']),
 	}),
 	Object.freeze({
 		id: DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_WORKFLOW_IDS[1],
 		projectPrefix: 'packaged-frame-roundtrip',
 		products: Object.freeze(['framescaper', 'soundscaper', 'framescaper']),
 		title: 'Packaged Framescaper mixed-media roundtrip',
+		fallbackRoles: Object.freeze(['project-video-render-v1', 'video-clip-render-v1']),
 	}),
 ]);
 
@@ -167,12 +173,18 @@ function createSeed(definition) {
 		height: 36,
 		frameRate: 30,
 	});
+	const roleWitnesses = createDesktopProjectLibraryFallbackRoleWitnesses({
+		projectPrefix: definition.projectPrefix,
+		roles: definition.fallbackRoles,
+		recipientProductId: definition.products[1],
+	});
 	return deepFreeze({
 		projectId,
 		title: definition.title,
 		document: createProjectDocument({ projectId, title: definition.title, audio, video, workflowId: definition.id }),
 		audio,
 		video,
+		roleWitnesses,
 		advanceTrackName: `Edited in ${definition.products[1] === 'framescaper' ? 'Framescaper' : 'Soundscaper'}`,
 	});
 }
@@ -329,10 +341,11 @@ function validateResultSources(value, plan) {
 
 function validateResultUi(value, plan, sources) {
 	assertExactKeys(value, [
-		'activeProjectId', 'audioTrackName', 'clipCount', 'handoffInvoked', 'playbackStarted',
+		'activeProjectId', 'audioTrackName', 'clipCount', 'fallbackRoles', 'handoffInvoked', 'playbackStarted',
 		'playbackStopped', 'productId', 'projectBinSourceId', 'trackCount', 'videoSha256',
 	], 'source-bearing packaged handoff UI result');
 	const expectedTrackName = plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName;
+	const fallbackRoles = validateFallbackRoleEvidence(value.fallbackRoles, plan);
 	if (value.activeProjectId !== plan.seed.projectId || value.productId !== plan.productId
 		|| value.trackCount !== 2 || value.clipCount !== 2
 		|| value.projectBinSourceId !== plan.seed.video.sourceId
@@ -342,7 +355,32 @@ function validateResultUi(value, plan, sources) {
 		|| value.handoffInvoked !== (plan.stage !== 'return')) {
 		throw new TypeError('Source-bearing packaged handoff UI playback, video, track, or handoff result is invalid');
 	}
-	return Object.freeze({ ...value });
+	return Object.freeze({ ...value, fallbackRoles });
+}
+
+function validateFallbackRoleEvidence(value, plan) {
+	if (!Array.isArray(value)) {
+		throw new TypeError('Source-bearing packaged fallback role evidence must be an array');
+	}
+	const expected = plan.stage === 'advance' ? plan.seed.roleWitnesses : [];
+	if (value.length !== expected.length) {
+		throw new TypeError('Source-bearing packaged fallback role evidence is incomplete');
+	}
+	return Object.freeze(value.map((item, index) => {
+		assertExactKeys(
+			item,
+			['featureId', 'kind', 'projectId', 'requirementId', 'role', 'sha256', 'sourceId'],
+			'source-bearing packaged fallback role evidence',
+		);
+		const witness = expected[index];
+		if (item.featureId !== witness.featureId || item.kind !== witness.kind
+			|| item.projectId !== witness.projectId || item.requirementId !== witness.requirementId
+			|| item.role !== witness.role || item.sourceId !== witness.fallback.sourceId
+			|| typeof item.sha256 !== 'string' || !SHA256.test(item.sha256)) {
+			throw new TypeError('Source-bearing packaged fallback role evidence is invalid');
+		}
+		return Object.freeze({ ...item });
+	}));
 }
 
 function validateResultHost(value, plan) {
