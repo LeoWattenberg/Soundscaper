@@ -37,8 +37,16 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 				witnessIndex,
 				fallbackRoles,
 			} : null;
-			const handoffNavigation = phase === 'activate' && plan.stage === 'publish'
-				? expectHandoffNavigation(webContents, plan)
+			const activeWitness = phase === 'witness'
+				? plan.seed.roleWitnesses[witnessIndex]
+				: null;
+			const handoffProjectId = phase === 'activate' && plan.stage === 'publish'
+				? plan.seed.projectId
+				: phase === 'witness' && plan.stage === 'advance'
+					? activeWitness?.projectId
+					: null;
+			const handoffNavigation = handoffProjectId
+				? expectHandoffNavigation(webContents, plan, handoffProjectId)
 				: null;
 			let result;
 			try {
@@ -50,7 +58,7 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 			if (phase === 'prepare') {
 				assertPhase(result, 'prepared');
 				preparedSources = result.sources;
-				phase = plan.stage === 'advance' && plan.seed.roleWitnesses.length > 0
+				phase = plan.stage !== 'publish' && plan.seed.roleWitnesses.length > 0
 					? 'witness'
 					: 'activate';
 				await loadProject(webContents, phase === 'witness'
@@ -61,6 +69,7 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 			if (phase === 'witness') {
 				assertPhase(result, 'witnessed');
 				fallbackRoles.push(result.fallback);
+				if (handoffNavigation) await handoffNavigation.promise;
 				witnessIndex += 1;
 				const witness = plan.seed.roleWitnesses[witnessIndex];
 				if (witness) {
@@ -74,7 +83,7 @@ export function createDesktopProjectLibrarySourceBearingSmokeSession({
 			if (phase === 'activate') {
 				if (result?.phase === 'editing') {
 					await enterTrackName(webContents, plan.seed.advanceTrackName);
-					const editNavigation = expectHandoffNavigation(webContents, plan);
+					const editNavigation = expectHandoffNavigation(webContents, plan, plan.seed.projectId);
 					let completed;
 					try {
 						completed = await executePhase(webContents, plan, 'complete-edit', prior);
@@ -147,7 +156,7 @@ function executePhase(webContents, plan, phase, prior) {
 	);
 }
 
-function expectHandoffNavigation(webContents, plan) {
+function expectHandoffNavigation(webContents, plan, projectId) {
 	if (typeof webContents.once !== 'function' || typeof webContents.removeListener !== 'function') {
 		throw new TypeError('Source-bearing packaged handoff requires navigation evidence');
 	}
@@ -160,7 +169,7 @@ function expectHandoffNavigation(webContents, plan) {
 			settled = true;
 			clearTimeout(timer);
 			try {
-				validateHandoffNavigation(candidate, webContents.getURL(), plan);
+				validateHandoffNavigation(candidate, webContents.getURL(), plan, projectId);
 				resolve();
 			} catch (error) {
 				reject(error);
@@ -185,7 +194,7 @@ function expectHandoffNavigation(webContents, plan) {
 	};
 }
 
-function validateHandoffNavigation(candidate, currentValue, plan) {
+function validateHandoffNavigation(candidate, currentValue, plan, projectId) {
 	const current = new URL(currentValue);
 	const url = new URL(String(candidate));
 	const expectedPath = plan.productId === 'soundscaper'
@@ -194,7 +203,7 @@ function validateHandoffNavigation(candidate, currentValue, plan) {
 	if (url.protocol !== current.protocol || url.hostname !== current.hostname
 		|| !expectedPath.test(url.pathname) || url.hash
 		|| url.searchParams.size !== 1
-		|| url.searchParams.get('project') !== plan.seed.projectId) {
+		|| url.searchParams.get('project') !== projectId) {
 		throw new Error('Source-bearing packaged UI handoff navigation is invalid');
 	}
 }

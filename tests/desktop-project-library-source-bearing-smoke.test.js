@@ -245,14 +245,24 @@ function resultFor(plan, { project, sources }) {
 }
 
 function fallbackEvidence(plan) {
-	if (plan.stage !== 'advance') return [];
+	if (plan.stage === 'publish') return [];
+	const recipient = plan.stage === 'advance';
 	return plan.seed.roleWitnesses.map((witness) => ({
+		workflowId: witness.workflowId,
 		featureId: witness.featureId,
 		kind: witness.kind,
 		projectId: witness.projectId,
 		requirementId: witness.requirementId,
 		role: witness.role,
+		documentSha256: SHA256,
+		nativeSha256: SHA256,
 		sha256: SHA256,
 		sourceId: witness.fallback.sourceId,
+		readOnly: recipient,
+		editable: !recipient,
+		compatibilityNotice: recipient,
+		handoffInvoked: recipient,
+		playbackStarted: true,
+		playbackStopped: true,
 	}));
 }

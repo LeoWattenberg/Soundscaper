@@ -101,6 +101,7 @@ test('source-bearing output parsing and aggregate validation retain exact UI and
 		assert.equal(workflow.project.revision, 2);
 		assert.equal(workflow.sources.length, 2);
 		assert.equal(workflow.fallbackRoles.length, 2);
+		assert.equal(workflow.fallbackRoundtrips.length, 2);
 	}
 	assert.deepEqual(
 		aggregate.workflows.flatMap(({ fallbackRoles }) => fallbackRoles.map(({ role }) => role)),
@@ -182,8 +183,8 @@ function resultFor(plan, fencingToken, catalogRevision) {
 			activeProjectId: plan.seed.projectId,
 			audioTrackName: plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
 			clipCount: 2,
-			fallbackRoles: plan.stage === 'advance'
-				? plan.seed.roleWitnesses.map(fallbackFor)
+			fallbackRoles: plan.stage !== 'publish'
+				? plan.seed.roleWitnesses.map((witness) => fallbackFor(witness, plan.stage))
 				: [],
 			handoffInvoked: plan.stage !== 'return',
 			playbackStarted: true,
@@ -201,14 +202,25 @@ function resultFor(plan, fencingToken, catalogRevision) {
 	};
 }
 
-function fallbackFor(witness) {
+
+function fallbackFor(witness, stage) {
+	const recipient = stage === 'advance';
 	return {
+		workflowId: witness.workflowId,
 		featureId: witness.featureId,
 		kind: witness.kind,
 		projectId: witness.projectId,
 		requirementId: witness.requirementId,
 		role: witness.role,
+		documentSha256: SHA256,
+		nativeSha256: SHA256,
 		sha256: SHA256,
 		sourceId: witness.fallback.sourceId,
+		readOnly: recipient,
+		editable: !recipient,
+		compatibilityNotice: recipient,
+		handoffInvoked: recipient,
+		playbackStarted: true,
+		playbackStopped: true,
 	};
 }

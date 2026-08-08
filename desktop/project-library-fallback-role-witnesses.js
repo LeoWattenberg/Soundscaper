@@ -7,6 +7,13 @@ export const DESKTOP_PROJECT_LIBRARY_FALLBACK_ROLE_IDS = Object.freeze([
 	'video-clip-render-v1',
 ]);
 
+export const DESKTOP_PROJECT_LIBRARY_FALLBACK_RETURN_WORKFLOW_IDS = Object.freeze([
+	'audio-whole-mix-electron-roundtrip',
+	'audio-track-render-electron-roundtrip',
+	'video-full-project-electron-roundtrip',
+	'video-clip-render-electron-roundtrip',
+]);
+
 export const DESKTOP_PROJECT_LIBRARY_FALLBACK_DIGEST_PLACEHOLDER = '0'.repeat(64);
 
 const AUDIO_EFFECTS = 'org.soundscaper.capability.audio-effects';
@@ -50,8 +57,12 @@ function createWitness({ projectPrefix, recipientProductId, role }) {
 		: role === 'audio-track-render-v1' ? AUDIO_EFFECTS
 			: role === 'project-video-render-v1' ? VIDEO_COMPOSITING : VIDEO_EFFECTS;
 	const requirementId = `${projectId}-requirement`;
+	const workflowId = DESKTOP_PROJECT_LIBRARY_FALLBACK_RETURN_WORKFLOW_IDS[
+		DESKTOP_PROJECT_LIBRARY_FALLBACK_ROLE_IDS.indexOf(role)
+	];
 	return deepFreeze({
 		projectId,
+		workflowId,
 		title: `Packaged ${role} witness`,
 		recipientProductId,
 		kind,

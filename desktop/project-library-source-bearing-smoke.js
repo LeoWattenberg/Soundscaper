@@ -362,21 +362,32 @@ function validateFallbackRoleEvidence(value, plan) {
 	if (!Array.isArray(value)) {
 		throw new TypeError('Source-bearing packaged fallback role evidence must be an array');
 	}
-	const expected = plan.stage === 'advance' ? plan.seed.roleWitnesses : [];
+	const expected = plan.stage === 'publish' ? [] : plan.seed.roleWitnesses;
 	if (value.length !== expected.length) {
 		throw new TypeError('Source-bearing packaged fallback role evidence is incomplete');
 	}
 	return Object.freeze(value.map((item, index) => {
 		assertExactKeys(
 			item,
-			['featureId', 'kind', 'projectId', 'requirementId', 'role', 'sha256', 'sourceId'],
+			[
+				'compatibilityNotice', 'documentSha256', 'editable', 'featureId', 'handoffInvoked',
+				'kind', 'nativeSha256', 'playbackStarted', 'playbackStopped', 'projectId', 'readOnly',
+				'requirementId', 'role', 'sha256', 'sourceId', 'workflowId',
+			],
 			'source-bearing packaged fallback role evidence',
 		);
 		const witness = expected[index];
-		if (item.featureId !== witness.featureId || item.kind !== witness.kind
+		const recipient = plan.stage === 'advance';
+		if (item.workflowId !== witness.workflowId
+			|| item.featureId !== witness.featureId || item.kind !== witness.kind
 			|| item.projectId !== witness.projectId || item.requirementId !== witness.requirementId
 			|| item.role !== witness.role || item.sourceId !== witness.fallback.sourceId
-			|| typeof item.sha256 !== 'string' || !SHA256.test(item.sha256)) {
+			|| typeof item.documentSha256 !== 'string' || !SHA256.test(item.documentSha256)
+			|| typeof item.nativeSha256 !== 'string' || !SHA256.test(item.nativeSha256)
+			|| typeof item.sha256 !== 'string' || !SHA256.test(item.sha256)
+			|| item.readOnly !== recipient || item.editable !== !recipient
+			|| item.compatibilityNotice !== recipient || item.handoffInvoked !== recipient
+			|| item.playbackStarted !== true || item.playbackStopped !== true) {
 			throw new TypeError('Source-bearing packaged fallback role evidence is invalid');
 		}
 		return Object.freeze({ ...item });

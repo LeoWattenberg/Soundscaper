@@ -124,9 +124,17 @@ export function createDesktopProjectLibrarySourceBearingAggregate(results) {
 			offset += 1;
 		}
 		const final = admitted.at(-1);
+		const recipientFallbacks = admitted.find(({ stage }) => stage === 'advance')?.ui.fallbackRoles ?? [];
+		const originFallbacks = admitted.find(({ stage }) => stage === 'return')?.ui.fallbackRoles ?? [];
+		const fallbackRoundtrips = pairFallbackRoundtrips(
+			workflow.seed.roleWitnesses,
+			recipientFallbacks,
+			originFallbacks,
+		);
 		workflows.push({
 			id: workflow.id,
-			fallbackRoles: admitted.flatMap((result) => result.ui.fallbackRoles),
+			fallbackRoles: recipientFallbacks,
+			fallbackRoundtrips,
 			project: final.project,
 			sources: final.sources,
 			stages: admitted.map((result) => ({
@@ -142,6 +150,24 @@ export function createDesktopProjectLibrarySourceBearingAggregate(results) {
 		schemaVersion: 1,
 		mode: DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
 		workflows,
+	});
+}
+
+function pairFallbackRoundtrips(witnesses, recipientFallbacks, originFallbacks) {
+	if (recipientFallbacks.length !== witnesses.length || originFallbacks.length !== witnesses.length) {
+		throw new TypeError('Source-bearing packaged fallback roundtrip evidence is incomplete');
+	}
+	return witnesses.map((witness, index) => {
+		const recipient = recipientFallbacks[index];
+		const origin = originFallbacks[index];
+		const identityKeys = ['workflowId', 'featureId', 'kind', 'projectId', 'requirementId', 'role', 'sourceId'];
+		const digestKeys = ['documentSha256', 'nativeSha256', 'sha256'];
+		if (recipient?.workflowId !== witness.workflowId
+			|| identityKeys.some((key) => recipient[key] !== origin?.[key])
+			|| digestKeys.some((key) => recipient[key] !== origin?.[key])) {
+			throw new Error(`Source-bearing packaged ${witness.role} fallback roundtrip changed`);
+		}
+		return { workflowId: witness.workflowId, recipient, origin };
 	});
 }
 
@@ -261,6 +287,12 @@ function assertAggregateShape(aggregate) {
 			|| !Array.isArray(workflow.fallbackRoles) || workflow.fallbackRoles.length !== 2
 			|| workflow.fallbackRoles.some((fallback, fallbackIndex) => (
 				fallback?.role !== expected.seed.roleWitnesses[fallbackIndex]?.role
+			))
+			|| !Array.isArray(workflow.fallbackRoundtrips) || workflow.fallbackRoundtrips.length !== 2
+			|| workflow.fallbackRoundtrips.some((roundtrip, fallbackIndex) => (
+				roundtrip?.workflowId !== expected.seed.roleWitnesses[fallbackIndex]?.workflowId
+				|| roundtrip.recipient?.workflowId !== roundtrip.workflowId
+				|| roundtrip.origin?.workflowId !== roundtrip.workflowId
 			))
 			|| !Array.isArray(workflow.sources) || workflow.sources.length !== 2
 			|| !Array.isArray(workflow.stages) || workflow.stages.length !== 3

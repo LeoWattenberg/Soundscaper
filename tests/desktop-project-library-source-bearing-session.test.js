@@ -81,6 +81,9 @@ test('source-bearing return session completes after UI activation without anothe
 	});
 	const executions = [
 		{ phase: 'prepared', sources: previous.sources },
+		...plan.seed.roleWitnesses.map((witness) => ({
+			phase: 'witnessed', fallback: fallbackFor(witness, plan.stage),
+		})),
 		{
 			phase: 'activated',
 			project: previous.project,
@@ -101,7 +104,15 @@ test('source-bearing return session completes after UI activation without anothe
 	};
 
 	assert.equal(await session.run(webContents), null);
-	assert.deepEqual(navigations, [`soundscaper-app://bundle/?project=${plan.seed.projectId}`]);
+	assert.deepEqual(navigations, [
+		`soundscaper-app://bundle/?project=${plan.seed.roleWitnesses[0].projectId}`,
+	]);
+	for (const _witness of plan.seed.roleWitnesses) assert.equal(await session.run(webContents), null);
+	assert.deepEqual(navigations, [
+		`soundscaper-app://bundle/?project=${plan.seed.roleWitnesses[0].projectId}`,
+		`soundscaper-app://bundle/?project=${plan.seed.roleWitnesses[1].projectId}`,
+		`soundscaper-app://bundle/?project=${plan.seed.projectId}`,
+	]);
 	const result = await session.run(webContents);
 	assert.deepEqual(result.project, previous.project);
 	assert.equal(result.ui.audioTrackName, plan.seed.advanceTrackName);
@@ -126,7 +137,7 @@ test('source-bearing advance session uses native input before the UI handoff sna
 	const executions = [
 		{ phase: 'prepared', sources: previous.sources },
 		...plan.seed.roleWitnesses.map((witness) => ({
-			phase: 'witnessed', fallback: fallbackFor(witness),
+			phase: 'witnessed', projectId: witness.projectId, fallback: fallbackFor(witness, plan.stage),
 		})),
 		{ phase: 'editing', project: previous.project, sources: previous.sources, ui: uiFor(plan, previous.sources, true) },
 		{ phase: 'activated', project: previous.project, sources: previous.sources, ui: uiFor(plan, previous.sources, true) },
@@ -145,9 +156,9 @@ test('source-bearing advance session uses native input before the UI handoff sna
 		sendInputEvent: (event) => { input.push(event); },
 		async executeJavaScript() {
 			const execution = executions.shift();
-			if (execution?.phase === 'activated') {
+			if (execution?.phase === 'witnessed' || execution?.phase === 'activated') {
 				queueMicrotask(() => navigationListener?.(
-					{}, `framescaper-app://bundle/en/?project=${plan.seed.projectId}`,
+					{}, `framescaper-app://bundle/en/?project=${execution.projectId ?? plan.seed.projectId}`,
 				));
 			}
 			return execution;
@@ -191,8 +202,8 @@ function uiFor(plan, sources, handoffInvoked) {
 		activeProjectId: plan.seed.projectId,
 		audioTrackName: plan.stage === 'publish' ? 'Packaged sound' : plan.seed.advanceTrackName,
 		clipCount: 2,
-		fallbackRoles: plan.stage === 'advance'
-			? plan.seed.roleWitnesses.map(fallbackFor)
+		fallbackRoles: plan.stage !== 'publish'
+			? plan.seed.roleWitnesses.map((witness) => fallbackFor(witness, plan.stage))
 			: [],
 		handoffInvoked,
 		playbackStarted: true,
@@ -204,15 +215,25 @@ function uiFor(plan, sources, handoffInvoked) {
 	};
 }
 
-function fallbackFor(witness) {
+function fallbackFor(witness, stage) {
+	const recipient = stage === 'advance';
 	return {
+		workflowId: witness.workflowId,
 		featureId: witness.featureId,
 		kind: witness.kind,
 		projectId: witness.projectId,
 		requirementId: witness.requirementId,
 		role: witness.role,
+		documentSha256: SHA256,
+		nativeSha256: SHA256,
 		sha256: SHA256,
 		sourceId: witness.fallback.sourceId,
+		readOnly: recipient,
+		editable: !recipient,
+		compatibilityNotice: recipient,
+		handoffInvoked: recipient,
+		playbackStarted: true,
+		playbackStopped: true,
 	};
 }
 

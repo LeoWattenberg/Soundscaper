@@ -107,7 +107,13 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		const bundle = await api.readSharedProjectBundle(witness.projectId);
 		if (!bundle) throw new Error(`Packaged ${witness.role} project is unavailable`);
 		const document = await projectDescriptor(bundle.document, witness);
-		return { ...document, sources: normalizeWitnessSources(bundle.sources, witness) };
+		const sources = normalizeWitnessSources(bundle.sources, witness);
+		const fallback = sources.find(({ sourceId }) => sourceId === witness.fallback.sourceId);
+		const expectedDocument = materializeWitnessDocument(witness, fallback?.sha256);
+		if (bundle.document !== expectedDocument) {
+			throw new Error(`Packaged ${witness.role} canonical document changed`);
+		}
+		return { ...document, sources };
 	};
 	const createAudioBytes = (source = plan.seed.audio) => {
 		const { channelCount, frameCount, sampleRate } = source;
@@ -270,34 +276,73 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 				&& project.tracks.find((track) => track.id === plan.seed.audio.trackId)?.name === plan.seed.advanceTrackName;
 		}, 'Packaged recipient project save');
 	};
-	const fallbackEvidence = async (root, witness, project, sources) => {
+	const assertWitnessEditable = async (root) => {
+		if (root.dataset.editBlockReason) {
+			throw new Error('Packaged fallback witness did not return editable');
+		}
+		const name = root.querySelector('[data-track-row] .track-control-panel__track-name-text');
+		if (!name) throw new Error('Packaged fallback witness track name is unavailable');
+		name.dispatchEvent(new scope.MouseEvent('dblclick', { bubbles: true, detail: 2 }));
+		const input = await waitFor(
+			() => root.querySelector('[data-track-row] [data-track-name] input'),
+			'Packaged fallback witness editable control',
+		);
+		if (input.disabled || input.readOnly) {
+			throw new Error('Packaged fallback witness edit control is blocked');
+		}
+		input.dispatchEvent(new scope.KeyboardEvent('keydown', {
+			bubbles: true, cancelable: true, key: 'Escape', code: 'Escape',
+		}));
+	};
+	const fallbackEvidence = async (root, witness, document, sources) => {
 		const markerAttribute = witness.kind === 'audio'
 			? 'data-project-feature-audio-rendered-fallback'
 			: 'data-project-feature-video-rendered-fallback';
-		await waitFor(() => root.querySelector(
-			`[data-project-feature-requirement="${witness.featureId}"] [${markerAttribute}]`,
-		), 'Packaged fallback compatibility indicator');
-		const requirements = project?.featureRequirements?.requirements;
+		const recipient = plan.stage === 'advance';
+		const markerSelector = `[data-project-feature-requirement="${witness.featureId}"] [${markerAttribute}]`;
+		if (recipient) {
+			if (root.dataset.editBlockReason !== 'read-only') {
+				throw new Error('Packaged fallback recipient is not read-only');
+			}
+			await waitFor(() => root.querySelector(markerSelector), 'Packaged fallback compatibility indicator');
+		} else {
+			if (root.querySelector(markerSelector)) {
+				throw new Error('Packaged fallback compatibility indicator remained at the origin');
+			}
+			await assertWitnessEditable(root);
+		}
+		const requirements = document.project?.featureRequirements?.requirements;
 		const matches = Array.isArray(requirements)
 			? requirements.filter(({ id }) => id === witness.requirementId)
 			: [];
 		const requirement = matches[0];
-		const source = sources.find(({ sourceId }) => sourceId === witness.fallback.sourceId);
+		const nativeSource = sources.find(({ sourceId }) => sourceId === witness.source.sourceId);
+		const fallbackSource = sources.find(({ sourceId }) => sourceId === witness.fallback.sourceId);
 		if (matches.length !== 1 || requirement.featureId !== witness.featureId
 			|| requirement.fallback?.kind !== witness.kind
 			|| requirement.fallback?.role !== witness.role
 			|| requirement.fallback?.sourceId !== witness.fallback.sourceId
-			|| requirement.fallback?.sha256 !== source?.sha256) {
+			|| requirement.fallback?.sha256 !== fallbackSource?.sha256
+			|| typeof nativeSource?.sha256 !== 'string') {
 			throw new Error('Packaged fallback role evidence is invalid');
 		}
 		return {
+			workflowId: witness.workflowId,
 			featureId: witness.featureId,
 			kind: witness.kind,
 			projectId: witness.projectId,
 			requirementId: witness.requirementId,
 			role: witness.role,
-			sha256: source.sha256,
+			documentSha256: document.descriptor.sha256,
+			nativeSha256: nativeSource.sha256,
+			sha256: fallbackSource.sha256,
 			sourceId: witness.fallback.sourceId,
+			readOnly: recipient,
+			editable: !recipient,
+			compatibilityNotice: recipient,
+			handoffInvoked: recipient,
+			playbackStarted: true,
+			playbackStopped: true,
 		};
 	};
 	const uiResult = (videoSha256, fallbackRoles) => ({
@@ -370,17 +415,21 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 	}
 
 	if (phase === 'witness') {
-		if (plan.stage !== 'advance' || !Number.isSafeInteger(prior?.witnessIndex)) {
+		if (plan.stage === 'publish' || !Number.isSafeInteger(prior?.witnessIndex)) {
 			throw new Error('Packaged fallback witness phase is unavailable');
 		}
 		const witness = plan.seed.roleWitnesses[prior.witnessIndex];
-		if (!witness || witness.recipientProductId !== plan.productId) {
+		const expectedProductId = plan.stage === 'advance'
+			? witness?.recipientProductId
+			: witness?.recipientProductId === 'soundscaper' ? 'framescaper' : 'soundscaper';
+		if (!witness || expectedProductId !== plan.productId) {
 			throw new Error('Packaged fallback witness identity is invalid');
 		}
 		const root = await waitForWitnessWorkspace(witness);
 		const activated = await readWitnessBundle(witness);
-		const fallback = await fallbackEvidence(root, witness, activated.project, activated.sources);
+		const fallback = await fallbackEvidence(root, witness, activated, activated.sources);
 		await exerciseTransport(root);
+		if (plan.stage === 'advance') await invokeHandoff(root);
 		return { phase: 'witnessed', fallback };
 	}
 
