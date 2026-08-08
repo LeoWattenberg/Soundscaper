@@ -10,7 +10,7 @@ import {
 	createVideoEffectParityFixture,
 } from './browser/video-effect-parity-helpers.js';
 
-type BudgetStatus = 'blocked' | 'optional' | 'planned' | 'provisional';
+type BudgetStatus = 'blocked' | 'optional' | 'planned' | 'provisional' | 'qualified';
 type Comparison = 'eq' | 'gte' | 'lte';
 type EnvironmentStatus = 'active' | 'unprovisioned';
 type RendererRequirement = 'any' | 'hardware';
@@ -84,10 +84,12 @@ interface QualityBudgetConfig {
 		timingWorkers: number;
 	}>;
 	readonly qualification: Readonly<{
+		acceptedResultCohorts: readonly Readonly<Record<string, unknown>>[];
 		qualifiedWorkloadIds: readonly string[];
 		resultContract: Readonly<{
 			attemptCount: number;
 			budgetDigest: string;
+			cohortAuditor: string;
 			environmentFingerprint: string;
 			evidenceWriter: string;
 			evaluator: string;
@@ -112,7 +114,7 @@ interface QualityBudgetConfig {
 
 const configUrl = new URL('../config/quality-budgets.json', import.meta.url);
 
-test('quality budget contract names numeric gates for every later milestone without claiming qualification', async () => {
+test('quality budget contract names numeric gates and the exact qualified structural set', async () => {
 	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
 	const packageMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
 		readonly scripts: Readonly<Record<string, string>>;
@@ -129,12 +131,20 @@ test('quality budget contract names numeric gates for every later milestone with
 	assert.equal(config.schemaVersion, 1);
 	assert.match(config.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
 	assert.equal(config.qualification.status, 'in-progress');
-	assert.deepEqual(config.qualification.qualifiedWorkloadIds, []);
+	assert.deepEqual(config.qualification.qualifiedWorkloadIds, [
+		'm2-streaming-project-8gib-v1',
+		'm2-direct-wav-385mib-v1',
+		'm2-direct-stem-archives-v3',
+		'm2-direct-compressed-output-v2',
+		'm2-direct-mp4-webm-video-output-v1',
+	]);
+	assert.equal(config.qualification.acceptedResultCohorts.length, 1);
 	assert.deepEqual(config.qualification.resultContract, {
 		schemaVersion: 1,
 		evaluator: 'scripts/quality-budget-result.mjs',
 		fileVerifier: 'scripts/verify-quality-budget-result.mjs',
 		evidenceWriter: 'scripts/quality-budget-evidence.mjs',
+		cohortAuditor: 'scripts/audit-quality-result-cohorts.mjs',
 		attemptCount: 1,
 		retryCount: 0,
 		budgetDigest: 'sha256-exact-config-bytes',
@@ -146,6 +156,7 @@ test('quality budget contract names numeric gates for every later milestone with
 		config.qualification.resultContract.evaluator,
 		config.qualification.resultContract.fileVerifier,
 		config.qualification.resultContract.evidenceWriter,
+		config.qualification.resultContract.cohortAuditor,
 	]);
 	assert.deepEqual(config.measurementPolicy, {
 		percentileMethod: 'nearest-rank',

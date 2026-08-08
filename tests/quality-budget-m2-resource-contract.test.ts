@@ -64,7 +64,7 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 		};
 		assert.ok(workload, id);
 		assert.equal(workload.milestone, '2', id);
-		assert.equal(workload.status, 'provisional', id);
+		assert.equal(workload.status, 'qualified', id);
 		assert.deepEqual(workload.fixtureIds, [id], id);
 		assert.deepEqual(workload.environmentIds, [ENVIRONMENT_ID], id);
 		assert.deepEqual(workload.thresholds, thresholds, id);
@@ -72,6 +72,28 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 		for (const reference of workload.evidence) {
 			await assert.doesNotReject(access(new URL(`../${reference}`, import.meta.url)), reference);
 		}
+	}
+});
+
+test('one reviewed no-retry cohort covers the exact qualified workload set', async () => {
+	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
+	const qualifiedIds = [...EXPECTED_THRESHOLDS.keys()];
+	assert.deepEqual(budgets.qualification.qualifiedWorkloadIds, qualifiedIds);
+	assert.equal(budgets.qualification.acceptedResultCohorts.length, 1);
+	const cohort = budgets.qualification.acceptedResultCohorts[0];
+	assert.equal(cohort.id, 'm2-structural-aad0ba1');
+	assert.equal(cohort.sourceRevision, 'aad0ba1630d6c1a554da1ba5134307d274210f47');
+	assert.equal(cohort.budgetSha256, '9ebd33f88b5ce7af51a99175b48d6ddf19175b11f962c6f765d2825d59fdf7d1');
+	assert.equal(cohort.environmentId, ENVIRONMENT_ID);
+	assert.equal(cohort.attemptCount, 1);
+	assert.equal(cohort.retryCount, 0);
+	assert.equal(cohort.retention, 'reviewed-workspace-artifacts-with-checked-in-byte-length-and-sha256');
+	assert.deepEqual(cohort.artifacts.map(({ workloadId }: { readonly workloadId: string }) => workloadId), qualifiedIds);
+	for (const artifact of cohort.artifacts) {
+		assert.ok(Number.isSafeInteger(artifact.resultByteLength) && artifact.resultByteLength > 0);
+		assert.ok(Number.isSafeInteger(artifact.rawByteLength) && artifact.rawByteLength > 0);
+		assert.match(artifact.resultSha256, /^[a-f\d]{64}$/u);
+		assert.match(artifact.rawSha256, /^[a-f\d]{64}$/u);
 	}
 });
 

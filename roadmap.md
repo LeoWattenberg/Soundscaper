@@ -244,8 +244,7 @@ products before adding new editorial models or native engines.
   `.scape` opening without a final renderer-sized archive `Blob`.
 - **Web Core — Implemented (provisional):** installable verified application
   shells and an explicit verified FFmpeg runtime cache with rollback.
-  Browser/device qualification is tracked by `m2-browser-durability-matrix` and
-  `m2-pipeline-resource-qualification`.
+  Browser/device qualification is tracked by `m2-browser-durability-matrix`.
 - **Shared — Implemented for current surfaces:** bounded retained-media writes,
   content digests, derivative-cache policy, cleanup fencing, storage-capacity UI,
   and safe project-publication admission.
@@ -278,12 +277,6 @@ Implementation details and evidence belong in each item's `ownerRefs`. Agents
 update an item's status only after its listed acceptance conditions pass.
 
 ### Open closure items, in priority order
-
-#### 2.1 Bounded pipelines
-
-- `m2-pipeline-resource-qualification`
-
-Qualify exactly the listed quality-budget workload IDs.
 
 #### 2.2 Compatibility completion
 
@@ -320,7 +313,7 @@ desktop workflows, and platform sets named in the inventory.
 | Gate ID | State | Closure item IDs |
 | --- | --- | --- |
 | `m2-gate-mixed-media-handoff` | **Implemented** | `m2-handoff-packaged-roundtrip`, `m2-media-relationship-roundtrip`, `m2-linked-media-lifecycle`, `m2-managed-capacity-admission` |
-| `m2-gate-bounded-pipelines` | **Partial** | `m2-pipeline-route-qualification`, `m2-pipeline-resource-qualification`, `m2-opfs-worker-boundary` |
+| `m2-gate-bounded-pipelines` | **Implemented** | `m2-pipeline-route-qualification`, `m2-pipeline-resource-qualification`, `m2-opfs-worker-boundary` |
 | `m2-gate-feature-compatibility` | **Partial** | `m2-compatibility-affected-objects`, `m2-compatibility-bypass`, `m2-compatibility-fallback-roles`, `m2-compatibility-future-archive`, `m2-compatibility-less-capable-roundtrip` |
 | `m2-gate-crash-safe-publication` | **Partial** | `m2-publication-fault-matrix`, `m2-browser-durability-matrix` |
 | `m2-gate-electron-concurrency` | **Partial** | `m2-electron-lease-matrix` |

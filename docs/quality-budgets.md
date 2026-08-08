@@ -2,8 +2,9 @@
 
 Soundscaper's quality-budget foundation is **in progress**. The checked-in
 ledger names fixtures and proposed numeric limits, validates its own contract,
-and provides a deterministic fail-closed evaluator. It does not claim that any
-performance workload or platform has qualified.
+and provides a deterministic fail-closed evaluator. The five frozen milestone 2
+first-party structural workloads have qualified; no timing, heap/RSS,
+third-party codec-memory, device, durability, or release platform workload has.
 
 The source of truth is
 [`config/quality-budgets.json`](../config/quality-budgets.json). The roadmap
@@ -35,13 +36,14 @@ must not weaken either limit.
 
 ## Contract statuses
 
-`provisional` identifies existing evidence that is not yet a reproducible
+`qualified` identifies a workload covered by a reviewed result cohort.
+`provisional` identifies broader fixture evidence that is not itself a
 qualification gate. `planned` identifies an accepted future fixture and its
 starting budget. `optional` applies only to milestone 7. `blocked` preserves the
 milestone 8B upstream-design fence.
 
-The top-level `qualification.qualifiedWorkloadIds` array stays empty until a
-workload has all of the following:
+The top-level `qualification.qualifiedWorkloadIds` array admits a workload only
+after it has all of the following:
 
 1. a deterministic, digest-pinned fixture or generator;
 2. a provisioned and exact environment descriptor;
@@ -52,6 +54,16 @@ workload has all of the following:
 A workload does not become qualified merely because an individual test passed,
 a proposed threshold was checked in, or a hosted runner happened to report a
 fast result.
+
+The accepted `m2-structural-aad0ba1` cohort binds all five frozen workload IDs
+to source revision `aad0ba1`, the exact quality-budget digest, the scoped
+portable Node environment, one attempt, zero retries, and checked-in byte
+length/SHA-256 records for each ignored raw and accepted workspace artifact.
+Each pair was re-read and independently verified after collection. This cohort
+qualifies only the declared first-party structural counters; every broader
+fixture limitation below remains in force. The composite
+`m2-streaming-bounded-memory` performance workload is not in the frozen closure
+set and remains planned.
 
 ## Measurement procedure
 
@@ -436,26 +448,25 @@ artifact:
 ```json
 {
 	"schemaVersion": 1,
-	"workloadId": "m2-streaming-bounded-memory",
-	"fixtureIds": ["m2-streaming-project-8gib-v1", "m2-direct-wav-385mib-v1"],
-	"environmentId": "reference-linux-gpu-01",
-	"environmentFingerprint": { "osImage": "reviewed-exact-value" },
-	"rendererClass": "hardware",
+	"workloadId": "m2-streaming-project-8gib-v1",
+	"fixtureIds": ["m2-streaming-project-8gib-v1"],
+	"environmentId": "portable-node-structural-26.5.0",
+	"environmentFingerprint": { "measurementClass": "first-party-owned-structural-counters" },
+	"rendererClass": "unknown",
 	"budgetSha256": "64-lowercase-hex-digits",
 	"sourceRevision": "40-or-64-lowercase-hex-digits",
 	"attemptCount": 1,
 	"retryCount": 0,
 	"rawEvidence": {
-		"artifactName": "m2-streaming-bounded-memory.json",
+		"artifactName": "m2-streaming-project-8gib-v1.raw.json",
 		"byteLength": 4096,
 		"sha256": "64-lowercase-hex-digits"
 	},
 	"metrics": {
-		"streaming.rendererHeapDeltaBytes": 524288,
-		"streaming.maxBufferedBinaryBytes": 41943040,
-		"streaming.oversizePreflightBytesRead": 0,
-		"streaming.invalidPublishedRevisions": 0,
-		"streaming.partialPublishedOutputs": 0
+		"streaming.maximumProtocolRangeBytes": 4194304,
+		"streaming.maximumMediaEmissionBytes": 4194304,
+		"streaming.retainedMediaPayloadBytes": 0,
+		"streaming.invalidPublishedRevisions": 0
 	}
 }
 ```
@@ -480,6 +491,12 @@ the exact platform, architecture, Node, npm, and Git identity, rejects failed
 metrics before creating files, uses exclusive file creation, and verifies the
 completed pair from disk. Generated pairs remain under ignored `test-results/`
 until their raw artifact is retained and their accepted summary is reviewed.
+
+`npm run audit:quality-results` resolves every accepted cohort's historical
+budget from Git, recomputes its digest, and requires one artifact descriptor for
+every qualified workload. Supplying `-- --evidence-directory <path>` also
+rehashes each retained raw/result body and re-evaluates its historical workload
+and environment contract.
 
 ## CI progression
 

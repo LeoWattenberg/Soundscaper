@@ -23,7 +23,7 @@
 	"gates": [
 		{
 			"id": "m2-gate-bounded-pipelines",
-			"status": "partial",
+			"status": "implemented",
 			"itemIds": [
 				"m2-pipeline-route-qualification",
 				"m2-pipeline-resource-qualification",
@@ -101,7 +101,7 @@
 		{
 			"id": "m2-pipeline-resource-qualification",
 			"gateId": "m2-gate-bounded-pipelines",
-			"status": "partial",
+			"status": "implemented",
 			"workloadIds": [
 				"m2-streaming-project-8gib-v1",
 				"m2-direct-wav-385mib-v1",

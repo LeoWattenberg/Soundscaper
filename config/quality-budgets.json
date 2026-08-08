@@ -3,13 +3,68 @@
 	"groundedAt": "2026-08-08",
 	"qualification": {
 		"status": "in-progress",
-		"qualifiedWorkloadIds": [],
-		"reason": "The deterministic contract exists, but no fixed hardware renderer or native/capture lab has been provisioned and no workload has produced qualification evidence.",
+		"qualifiedWorkloadIds": [
+			"m2-streaming-project-8gib-v1",
+			"m2-direct-wav-385mib-v1",
+			"m2-direct-stem-archives-v3",
+			"m2-direct-compressed-output-v2",
+			"m2-direct-mp4-webm-video-output-v1"
+		],
+		"reason": "The five frozen milestone-2 first-party structural workloads have one reviewed no-retry cohort. Fixed-hardware performance, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability and release qualification remain open or out of this cohort's scope.",
+		"acceptedResultCohorts": [
+			{
+				"id": "m2-structural-aad0ba1",
+				"sourceRevision": "aad0ba1630d6c1a554da1ba5134307d274210f47",
+				"budgetSha256": "9ebd33f88b5ce7af51a99175b48d6ddf19175b11f962c6f765d2825d59fdf7d1",
+				"environmentId": "portable-node-structural-26.5.0",
+				"attemptCount": 1,
+				"retryCount": 0,
+				"retention": "reviewed-workspace-artifacts-with-checked-in-byte-length-and-sha256",
+				"artifacts": [
+					{
+						"workloadId": "m2-streaming-project-8gib-v1",
+						"resultByteLength": 976,
+						"resultSha256": "0d7b0f4d49baaba8949120eb5711aaed249260616aa395432398041466cfcc77",
+						"rawByteLength": 1374,
+						"rawSha256": "1cd9a3681bbf691212a5b32ebcf09e86b7c885845eacb66962652a300dc6e0cd"
+					},
+					{
+						"workloadId": "m2-direct-wav-385mib-v1",
+						"resultByteLength": 1011,
+						"resultSha256": "78d97462105a02962ce8d72cff9957d7c1edb09b101c739cbd61c29ceb695bfe",
+						"rawByteLength": 1369,
+						"rawSha256": "20bc01c58044a3f1ee8796cd912127f8056abea5348feba82ac7950db1516720"
+					},
+					{
+						"workloadId": "m2-direct-stem-archives-v3",
+						"resultByteLength": 1020,
+						"resultSha256": "c9ad7165eaa3fdde711f2b590209b38e49290db617adb1184e85f090f67783fc",
+						"rawByteLength": 3363,
+						"rawSha256": "34a43fe9ab6a3bfc18aedbfdc47986a75c16a640ea26a583c0dfb9498d71aac1"
+					},
+					{
+						"workloadId": "m2-direct-compressed-output-v2",
+						"resultByteLength": 1054,
+						"resultSha256": "9497d9545165d7fa72779e2dcf197172301b1cfd97475403ecfa2cd2ed636e1a",
+						"rawByteLength": 3842,
+						"rawSha256": "20357704c18c9187e241ba2753592d2f50cf5a5ee02bdaa0dab01da6e06487ab"
+					},
+					{
+						"workloadId": "m2-direct-mp4-webm-video-output-v1",
+						"resultByteLength": 1041,
+						"resultSha256": "9c1cafe744721d09ea2326c9e834c2bad733345866a7ffed4d94b8f2435dbd28",
+						"rawByteLength": 3400,
+						"rawSha256": "dbeb2a874e1832ef6a8f6ceb0ab6668d5de3d6fe6e28afce2dbc16c01f98eb69"
+					}
+				]
+			}
+		],
 		"resultContract": {
 			"schemaVersion": 1,
 			"evaluator": "scripts/quality-budget-result.mjs",
 			"fileVerifier": "scripts/verify-quality-budget-result.mjs",
 			"evidenceWriter": "scripts/quality-budget-evidence.mjs",
+			"cohortAuditor": "scripts/audit-quality-result-cohorts.mjs",
 			"attemptCount": 1,
 			"retryCount": 0,
 			"budgetDigest": "sha256-exact-config-bytes",
@@ -847,7 +902,7 @@
 		{
 			"id": "m2-streaming-project-8gib-v1",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-streaming-project-8gib-v1"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
@@ -861,7 +916,7 @@
 		{
 			"id": "m2-direct-wav-385mib-v1",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-direct-wav-385mib-v1"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
@@ -876,7 +931,7 @@
 		{
 			"id": "m2-direct-stem-archives-v3",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-direct-stem-archives-v3"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
@@ -891,7 +946,7 @@
 		{
 			"id": "m2-direct-compressed-output-v2",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-direct-compressed-output-v2"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
@@ -906,7 +961,7 @@
 		{
 			"id": "m2-direct-mp4-webm-video-output-v1",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-direct-mp4-webm-video-output-v1"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
