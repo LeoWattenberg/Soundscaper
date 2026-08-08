@@ -279,6 +279,18 @@ function humanText(value: unknown, label: string, maximumLength: number): string
 	return value;
 }
 
+export const DESKTOP_LIBRARY_SPACE_EXHAUSTED_MESSAGE
+	= 'The save destination ran out of space; the staged file was discarded';
+
+/** Space exhaustion is terminal for a staged library write; other failures stay generic. */
+export function typedDesktopLibrarySpaceExhaustion(error: unknown): unknown {
+	const detail = error as Readonly<{ code?: unknown; cause?: Readonly<{ code?: unknown }> }> | null;
+	const code = detail?.code ?? detail?.cause?.code;
+	return code === 'ENOSPC' || code === 'EDQUOT'
+		? new Error(DESKTOP_LIBRARY_SPACE_EXHAUSTED_MESSAGE, { cause: error })
+		: error;
+}
+
 function opaqueId(value: unknown, label: string): string {
 	if (typeof value !== 'string' || !OPAQUE_ID.test(value)) throw new TypeError(`${label} is invalid`);
 	return value;

@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import {
 	type DesktopLibraryMedia,
 	type DesktopLibraryMetadata,
+	typedDesktopLibrarySpaceExhaustion,
 	validateDesktopLibraryMetadata,
 } from './project-library-contract.ts';
 import {
@@ -96,6 +97,7 @@ export interface DesktopLibraryManagedMediaStoreOptions {
 	readonly maximumMetadataBytes?: number;
 	readonly hardLink?: (existingPath: string, newPath: string) => Promise<void>;
 	readonly randomId?: () => string;
+	readonly stageOpenImpl?: typeof open;
 	readonly statfsImpl?: DesktopLibraryMediaStatfs;
 }
 
@@ -131,6 +133,7 @@ export class DesktopLibraryManagedMediaStore {
 	readonly #hardLink: ((existingPath: string, newPath: string) => Promise<void>) | undefined;
 	readonly #inventory: DesktopLibraryManagedMediaInventoryPort;
 	readonly #randomId: () => string;
+	readonly #stageOpen: typeof open;
 	readonly #bindingTails = new Map<string, Promise<void>>();
 	#catalogTail: Promise<void> = Promise.resolve();
 
@@ -171,6 +174,7 @@ export class DesktopLibraryManagedMediaStore {
 		);
 		this.#hardLink = options.hardLink;
 		this.#randomId = options.randomId ?? (() => randomBytes(16).toString('hex'));
+		this.#stageOpen = options.stageOpenImpl ?? open;
 	}
 
 	publishAudio(options: DesktopLibraryPublishAudioOptions): Promise<DesktopLibraryMedia> {
@@ -281,7 +285,7 @@ export class DesktopLibraryManagedMediaStore {
 				await this.#verifyBody(descriptor, signal);
 				throw new Error('Desktop library managed-media inventory final path already exists');
 			}
-			handle = await open(stagePath, 'wx', 0o600);
+			handle = await this.#stageOpen(stagePath, 'wx', 0o600);
 			stageOwned = true;
 			await writeDeclaredMediaBody(handle, chunks, descriptor, this.#maximumChunkBytes, signal);
 			await handle.sync();
@@ -290,7 +294,8 @@ export class DesktopLibraryManagedMediaStore {
 			throwIfAborted(signal);
 			promotionAttempted = true;
 			await this.#inventory.materialize({ descriptor, stageFile, stageKind: 'upload' });
-		} catch (error) {
+		} catch (caught) {
+			const error = promotionAttempted ? caught : typedDesktopLibrarySpaceExhaustion(caught);
 			const cleanupFailures: unknown[] = [];
 			if (handle) {
 				try { await handle.close(); } catch (closeError) { cleanupFailures.push(closeError); }

@@ -28,6 +28,7 @@ import {
 	type DesktopLibraryMedia,
 	type DesktopLibraryProduct,
 	type DesktopLibraryProject,
+	typedDesktopLibrarySpaceExhaustion,
 	validateDesktopLibraryMetadata,
 } from './project-library-contract.ts';
 import { SharedDesktopProjectLibrary } from './project-library.ts';
@@ -38,6 +39,7 @@ const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
 export interface DesktopLibraryProjectStoreOptions {
 	readonly maximumDocumentBytes?: number;
 	readonly randomId?: () => string;
+	readonly stageOpenImpl?: typeof open;
 	readonly statfsImpl?: DesktopLibraryMediaStatfs;
 }
 
@@ -93,6 +95,7 @@ export class DesktopLibraryProjectStore {
 	#library: SharedDesktopProjectLibrary;
 	#maximumDocumentBytes: number;
 	#randomId: () => string;
+	#stageOpen: typeof open;
 	#statfs: DesktopLibraryMediaStatfs;
 
 	constructor(library: SharedDesktopProjectLibrary, options: DesktopLibraryProjectStoreOptions = {}) {
@@ -102,6 +105,7 @@ export class DesktopLibraryProjectStore {
 		this.#library = library;
 		this.#maximumDocumentBytes = maximumDocumentBytes(options.maximumDocumentBytes);
 		this.#randomId = options.randomId ?? (() => randomBytes(16).toString('hex'));
+		this.#stageOpen = options.stageOpenImpl ?? open;
 		this.#statfs = options.statfsImpl ?? statfs;
 	}
 
@@ -250,7 +254,7 @@ export class DesktopLibraryProjectStore {
 		let stageExists = false;
 		this.#library.reserveProjectFile({ lease, metadataFile: catalog.metadataFile, stageFile });
 		try {
-			handle = await open(stagePath, 'wx', 0o600);
+			handle = await this.#stageOpen(stagePath, 'wx', 0o600);
 			stageExists = true;
 			await chmod(stagePath, 0o600);
 			await handle.writeFile(bytes, { signal });
@@ -261,7 +265,7 @@ export class DesktopLibraryProjectStore {
 			this.#library.materializeProjectFile({ lease, metadataFile: catalog.metadataFile, stageFile });
 			stageExists = false;
 		} catch (error) {
-			await throwAfterStageCleanup(error, handle, () => this.#library.discardProjectStageFile({
+			await throwAfterStageCleanup(typedDesktopLibrarySpaceExhaustion(error), handle, () => this.#library.discardProjectStageFile({
 				lease,
 				metadataFile: catalog.metadataFile,
 				removeFile: stageExists,
