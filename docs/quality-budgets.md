@@ -333,6 +333,27 @@ main/renderer RSS, whole-archive storage atomicity, or publisher authentication.
 The direct-WAV witness additionally does not qualify File System Access,
 Electron filesystem publication, native picker behavior, packaged application
 UI, or filesystem durability.
+
+The dedicated OPFS storage worker owns exactly six closed operation IDs. It
+creates synchronous access handles only after capability detection and accepts
+at most 16 MiB in one read or write message. Canonical PCM is exposed through
+exact bounded ranges; media and derivative writes consume at-most-16-MiB
+`Blob` slices, while worker-owned `File` snapshots cross back only after an
+exact synchronous size check. Store close terminates the worker after admitted
+storage work drains. When the synchronous worker capability is unavailable,
+the repository retains its asynchronous OPFS path; when OPFS is unavailable or
+fails, the existing PCM, media, and derivative repositories retain their tested
+IndexedDB correctness fallback.
+
+The focused Chromium witness disables main-realm `createWritable` and `getFile`,
+then proves persisted PCM, original video, and derivatives can be imported,
+reloaded, and used for playback through the worker route. It is a small
+correctness witness, not Firefox or WebKit evidence and not reference-scale,
+heap, RSS, quota, durability, crash, or power-loss qualification. Media and
+derivative body consumption after the worker-owned snapshot still uses the
+browser's `File`/`Blob` backend; it is not a claim that those complete bodies
+are synchronously copied through worker messages.
+
 The milestone 2 bounded-memory workload therefore remains planned.
 
 The fixture specifications are deliberately concrete:

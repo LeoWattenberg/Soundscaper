@@ -14,7 +14,9 @@ change can be reviewed without loading the complete storage implementation:
   and streamed writes while clear or close drains their terminal settlement.
 - `pcm-repository.ts` owns PCM codec fallback, validation, and corruption errors.
 - `opfs-repository.ts` owns the `audio-editor-sources` directory, blobs, and PCM
-  containers.
+  containers. Its capability-detected dedicated worker handles the six bounded
+  synchronous operation classes; unsupported browsers retain asynchronous OPFS
+  and the owning repositories' IndexedDB fallback.
 - `retention-repository.ts` coordinates cross-domain reachability, temporary
   cleanup, and whole-store clearing.
 - `repositories.ts` is the composition root. Repositories receive only the

@@ -92,7 +92,22 @@
 				},
 				"web-enhanced": {
 					"status": "partial",
-					"evidence": ["src/common/editor/storage.js", "src/common/editor/controller/native-project-service.ts"]
+					"evidence": [
+						"src/common/editor/storage.js",
+						"src/common/editor/controller/native-project-service.ts",
+						"src/common/editor/storage/opfs-repository.ts",
+						"src/common/editor/storage/opfs-sync-repository-bridge.ts",
+						"src/common/editor/storage/opfs-sync-worker-client.ts",
+						"src/common/editor/storage/opfs-sync-worker-protocol.ts",
+						"src/common/editor/storage/opfs-sync-worker-runtime.ts",
+						"src/common/editor/storage/opfs-sync-worker.ts",
+						"src/common/editor/storage/opfs-sync-writer-adapters.ts",
+						"tests/audio-editor-opfs-worker-client.test.ts",
+						"tests/audio-editor-opfs-worker-repository.test.ts",
+						"tests/audio-editor-opfs-worker-runtime.test.ts",
+						"tests/audio-editor-storage-persistence.test.ts",
+						"tests/browser/audio-editor-opfs-worker.spec.js"
+					]
 				},
 				"electron-enhanced": {
 					"status": "partial",
@@ -208,7 +223,22 @@
 				},
 				"web-enhanced": {
 					"status": "partial",
-					"evidence": ["src/common/editor/video-media.js", "src/common/editor/controller/native-project-service.ts"]
+					"evidence": [
+						"src/common/editor/video-media.js",
+						"src/common/editor/controller/native-project-service.ts",
+						"src/common/editor/storage/opfs-repository.ts",
+						"src/common/editor/storage/opfs-sync-repository-bridge.ts",
+						"src/common/editor/storage/opfs-sync-worker-client.ts",
+						"src/common/editor/storage/opfs-sync-worker-protocol.ts",
+						"src/common/editor/storage/opfs-sync-worker-runtime.ts",
+						"src/common/editor/storage/opfs-sync-worker.ts",
+						"src/common/editor/storage/opfs-sync-writer-adapters.ts",
+						"tests/audio-editor-opfs-worker-client.test.ts",
+						"tests/audio-editor-opfs-worker-repository.test.ts",
+						"tests/audio-editor-opfs-worker-runtime.test.ts",
+						"tests/audio-editor-storage-persistence.test.ts",
+						"tests/browser/audio-editor-opfs-worker.spec.js"
+					]
 				},
 				"electron-enhanced": {
 					"status": "partial",

@@ -284,10 +284,8 @@ update an item's status only after its listed acceptance conditions pass.
 
 - `m2-pipeline-route-qualification`
 - `m2-pipeline-resource-qualification`
-- `m2-opfs-worker-boundary`
 
 Qualify exactly the listed publication routes and quality-budget workload IDs.
-The worker boundary covers exactly the six listed OPFS operation classes.
 
 #### 2.2 Compatibility completion
 

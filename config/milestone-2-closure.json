@@ -118,7 +118,7 @@
 		{
 			"id": "m2-opfs-worker-boundary",
 			"gateId": "m2-gate-bounded-pipelines",
-			"status": "planned",
+			"status": "implemented",
 			"operationIds": [
 				"canonical-pcm-chunk-read",
 				"canonical-pcm-chunk-write",
