@@ -61,6 +61,18 @@ test('desktop late chooser cancellation returns silently without publication', a
 	assert.equal(fixture.errors.length, 0);
 });
 
+test('browser early picker cancellation returns silently before any encode work', async () => {
+	const cancellation = Object.freeze({ mode: 'cancelled', cancelled: true, fileName: 'Direct-video.mp4' });
+	const fixture = createFixture({ prepared: cancellation });
+	const result = await fixture.exportVideo();
+
+	assert.strictEqual(result, cancellation);
+	assert.equal(fixture.events.includes('encode-sink'), false);
+	assert.equal(fixture.events.includes('encode-bytes'), false);
+	assert.equal(fixture.events.includes('download'), false);
+	assert.equal(fixture.errors.length, 0);
+});
+
 test('prepared Blob mode preserves legacy whole-byte video publication', async () => {
 	const fixture = createFixture({ prepared: Object.freeze({ mode: 'blob' }) });
 	const result = await fixture.exportVideo();
