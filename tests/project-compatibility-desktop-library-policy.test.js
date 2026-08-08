@@ -16,6 +16,9 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	const managedHandoff = policy.rules.find(
 		({ id }) => id === 'current-desktop-managed-mixed-media-handoff',
 	);
+	const packagedHandoff = policy.rules.find(
+		({ id }) => id === 'current-desktop-packaged-source-bearing-handoff',
+	);
 
 	assert.ok(rule);
 	assert.deepEqual(rule.evidence, [
@@ -242,6 +245,14 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
+		/second maintained Linux x64 CI job.*two frozen Electron\s+shared-library workflow IDs.*six sequential processes.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*isolated shared\s+appData.*separate product profiles.*return stage reuses the origin\s+profile.*exact schema 9.*canonical-PCM audio track\s+and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh\s+recipient activates.*normal project route.*exact Project\s+Bin `Blob`.*starts and stops transport.*native input.*revision-2 save.*visible.*Edit in.*other product.*origin return.*exact edited\s+revision.*both bindings.*main-owned evidence.*handoff navigation.*document digest.*binding IDs and digests.*increasing catalog revisions and fencing tokens/isu,
+	);
+	assert.match(
+		documentation,
+		/electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*fixed\s+small first-party fixture.*Linux x64.*two web `.scape` workflow IDs remain\s+open.*muted audio.*audible or device-output fidelity.*browser or codec behavior.*rendered fallbacks.*linked or unmanaged media.*installers.*file associations.*concurrency.*crash or power loss.*Windows.*macOS.*ARM64/isu,
+	);
+	assert.match(
+		documentation,
 		/existing V1–V8 raw-project migrations remain maintained.*compatibility\s+beyond those retained raw-document migration paths.*prior shared\s+`?v1`?\s+scope.*product-private Soundscaper libraries.*not a\s+current priority.*milestone prerequisite.*Audacity.*separate compatibility\s+boundary/isu,
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
@@ -356,6 +367,38 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(
 		managedHandoff.currentBehavior,
 		/injected-port linked retained-video slice.*qualified separately.*does not qualify.*packaged.*UI.*browser codec playback.*linked audio.*other linked and unmanaged originals.*authored proxies or rendered-fallback authoring and transfer semantics beyond.*closed audio whole-mix.*maintained video roles.*product chooser.*relink.*watch.*copy or consolidation.*continuous runtime cleanup beyond the startup-bounded tracked inventory.*whole-handoff.*durable capacity reservation.*operating-system.*exact allocation.*write-time capacity.*SQLite or WAL overhead.*external writers.*separate store instances or processes.*portable hard-link capacity.*durable playback identity.*shared cross-product revision journal or undo\/redo history/iu,
+	);
+	assert.ok(packagedHandoff);
+	assert.equal(packagedHandoff.status, 'implemented');
+	assert.deepEqual(packagedHandoff.evidence, [
+		'desktop/project-library-source-bearing-smoke.js',
+		'desktop/project-library-source-bearing-renderer-smoke.js',
+		'desktop/project-library-source-bearing-smoke-session.js',
+		'desktop/project-library-smoke-evidence.js',
+		'desktop/desktop-smoke.js',
+		'desktop/main.mjs',
+		'scripts/lib/desktop-project-library-source-bearing-handoff.mjs',
+		'scripts/desktop-project-library-source-bearing-handoff-smoke.mjs',
+		'tests/desktop-project-library-source-bearing-smoke.test.js',
+		'tests/desktop-project-library-source-bearing-session.test.js',
+		'tests/desktop-project-library-source-bearing-probe.test.js',
+		'tests/desktop-project-library-source-bearing-handoff-runner.test.js',
+		'tests/desktop-project-library-smoke-evidence.test.js',
+		'tests/desktop-project-library-packaging.test.js',
+		'package.json',
+		'.github/workflows/desktop-preview.yml',
+	]);
+	assert.match(
+		packagedHandoff.requiredOutcome,
+		/two frozen Electron shared-library workflow IDs.*separately packaged Soundscaper and Framescaper UI processes.*exact current-schema mixed-media identity.*activation.*playback.*recipient edit and save.*return to the originating product profile/iu,
+	);
+	assert.match(
+		packagedHandoff.currentBehavior,
+		/Linux x64.*two frozen Electron workflows.*six sequential packaged executable processes.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*canonical PCM.*retained-original VP8 WebM.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*main-owned.*handoff navigation.*document digest.*binding IDs and digests.*increasing catalog revisions and fencing tokens/iu,
+	);
+	assert.match(
+		packagedHandoff.currentBehavior,
+		/two web `.scape` workflow IDs remain open.*fixed small first-party fixture.*Linux x64.*muted audio.*does not qualify audible or device-output fidelity.*general browser or codec coverage.*rendered-fallback roles.*linked or unmanaged media.*installers or file associations.*concurrent opens.*crash.*power[- ]loss.*Windows, macOS, or ARM64/iu,
 	);
 	assert.ok(mediaAdmission);
 	assert.equal(mediaAdmission.status, 'implemented');
@@ -502,7 +545,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/managed-media\s+runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or\s+whole-handoff capacity reservation.*stable playback identity beyond the\s+maintained owned canonical PCM, linked-PCM, and retained-video lifecycles.*content-frozen.*same-inode mutation.*browser codec playback.*packaged.*UI.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
+		/managed-media\s+runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or\s+whole-handoff capacity reservation.*stable playback identity beyond the\s+maintained owned canonical PCM, linked-PCM, and retained-video lifecycles.*content-frozen.*same-inode mutation.*browser codec playback.*packaged source-bearing relationships beyond the fixed\s+two-body Electron workflows.*portable hard-link capacity\s+qualification.*shared cross-product\s+revision journal and undo\/redo history remain unqualified/isu,
 	);
 	assert.match(
 		documentation,

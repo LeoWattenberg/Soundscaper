@@ -39,6 +39,9 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	const packagedSourceFreeControl = risk?.currentControls.find(
 		({ id }) => id === 'packaged-linux-x64-source-free-project-library-handoff',
 	);
+	const packagedSourceBearingControl = risk?.currentControls.find(
+		({ id }) => id === 'packaged-linux-x64-source-bearing-project-library-handoff',
+	);
 	const preloadControl = ipcRisk?.currentControls.find(
 		({ id }) => id === 'sandboxed-versioned-preload-bridge',
 	);
@@ -159,6 +162,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.ok(reclamationControl);
 	assert.ok(stageReclamationControl);
 	assert.ok(packagedSourceFreeControl);
+	assert.ok(packagedSourceBearingControl);
 	for (const path of [
 		'desktop/project-library-contract.ts',
 		'desktop/project-library-database.ts',
@@ -411,6 +415,32 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		packagedSourceFreeControl.summary,
 		/combined with.*composed editor.*closes only the generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap.*does not qualify packaged controller autosave or tab activation.*source-bearing bytes, playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/isu,
 	);
+	assert.deepEqual(packagedSourceBearingControl.evidence, [
+		['implementation', 'desktop/project-library-source-bearing-smoke.js'],
+		['implementation', 'desktop/project-library-source-bearing-renderer-smoke.js'],
+		['implementation', 'desktop/project-library-source-bearing-smoke-session.js'],
+		['implementation', 'desktop/project-library-smoke-evidence.js'],
+		['implementation', 'desktop/desktop-smoke.js'],
+		['implementation', 'desktop/main.mjs'],
+		['implementation', 'scripts/lib/desktop-project-library-source-bearing-handoff.mjs'],
+		['implementation', 'scripts/desktop-project-library-source-bearing-handoff-smoke.mjs'],
+		['test', 'tests/desktop-project-library-source-bearing-smoke.test.js'],
+		['test', 'tests/desktop-project-library-source-bearing-session.test.js'],
+		['test', 'tests/desktop-project-library-source-bearing-probe.test.js'],
+		['test', 'tests/desktop-project-library-source-bearing-handoff-runner.test.js'],
+		['test', 'tests/desktop-project-library-smoke-evidence.test.js'],
+		['test', 'tests/desktop-project-library-packaging.test.js'],
+		['implementation', 'package.json'],
+		['workflow', '.github/workflows/desktop-preview.yml'],
+	].map(([kind, path]) => ({ kind, path })));
+	assert.match(
+		packagedSourceBearingControl.summary,
+		/Linux x64 CI.*two frozen Electron workflow IDs.*six sequential packaged Soundscaper and Framescaper UI processes.*isolated shared appData.*separate product profiles.*origin profile.*exact schema 9.*one canonical-PCM audio track and clip.*one retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal project route into editor activation.*hashes the exact Project Bin Blob.*starts and stops transport.*edits the audio track name.*native input.*revision 2.*visible Edit in.*other product.*main-owned handoff-navigation.*document-digest.*binding-ID-and-digest evidence.*increasing catalog revisions and fencing tokens/iu,
+	);
+	assert.match(
+		packagedSourceBearingControl.summary,
+		/qualifies only.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*fixed small first-party fixture.*Linux x64.*two web `.scape` workflows remain open.*muted audio.*audible or device output.*general browser or codec.*fallback.*linked or unmanaged media.*installers or file associations.*concurrency.*crash.*power loss.*Windows, macOS, (?:and|or) ARM64/iu,
+	);
 	for (const path of [
 		'src/common/editor/controller/project-bootstrap-service.ts', 'src/common/editor/controller/source-audio.ts',
 		'src/common/editor/retention.js',
@@ -577,14 +607,14 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(managedMedia?.exposure ?? '', /unmanaged recipient admission.*sequential point-in-time check.*not transactionally bound.*owned canonical PCM playback.*generation-fenced.*root and copy-on-write ancestry observed at session open.*not a durable intended-base proof.*content lease.*cross-store or cross-process byte snapshot.*linked retained video.*product-local chooser.*private main-owned registry.*pathless.*not an operating-system bookmark.*same-inode external mutation.*not fenced.*not an immutable, durable, or cross-process byte snapshot.*successful maintained bootstrap.*durable IndexedDB opens.*before project loading.*point-in-time authoritative catalog.*10,000 summaries.*closed own-data.*id, revision.*invalid or duplicate identities.*reject before the binding transaction.*Memory fallback returns before catalog listing, binding mutation, or IPC.*durable platform port without reconciliation.*no binding mutation or IPC.*one IndexedDB readwrite transaction.*local current projects, retained revisions, and linked-original bindings.*100,000 closed mixed-kind rows.*every storage alias.*generic pass.*128 mixed-kind exact locator\/revision pairs.*legacy video-only fallback.*full-store rows and aliases.*reference cardinality and deletion only to video.*preserving audio.*catalog-absent bindings.*unreachable.*catalog-live bindings.*source-pruned only.*product-local exact-schema-9 current document.*catalog revision.*64 exact retained revisions.*timeline, Project Bin, and every feature-fallback source.*without publisher gating.*Missing, stale, invalid, incomplete, or over-bound graph state.*retains.*aggregate root overflow.*retains every catalog-live binding.*catalog-absent deletion.*surviving alias.*positive inventory.*catalog snapshot.*local transaction.*main registry write.*not one cross-boundary atomic operation.*binding deletion.*commit.*later main rejection.*retry.*at most one successful serialized pass.*store\/process.*startup-loaded metadata.*runtime-created records.*never loads, stats, writes, or deletes external media.*current-process abandoned locators.*later restart.*cannot authenticate inventory or local-graph completeness.*catalog revision.*not a document-content digest.*compromised renderer.*same-revision hostile local graph.*retire startup metadata.*separate store, profile, or process.*not serialized.*cooperative lifecycle housekeeping.*rather than a renderer-compromise integrity control.*orderly close, dispose, and reopen.*not abrupt process death.*power-loss qualification.*continuous runtime cleanup beyond bounded startup and maintained save\/activation\/delete\/clear.*open/isu);
 	assert.match(managedMedia?.exposure ?? '', /maintained linked-PCM exception.*point-in-time.*initial whole-body binding materialization.*exact-revision owner-scoped stable-handle range lease.*canonical Float32 PCM.*without another whole-original Blob.*fresh recipient.*reopens without the locator.*external WAV or AIFF container.*does not cross the managed bridge.*binding-backed exact- or shape-compatible changed-content Project Bin relink.*(?:not|without using) missing-source state.*classifies byte length and SHA-256.*exact project and project revision.*changed choice.*localized confirmation.*\{projectId, projectRevision\}.*target.*before.*shared.*task.*cancell?ing current work.*publication guard.*target.*structural probe.*same maintained MIME and file identity.*exact frame count, channel count, sample rate, and original sample rate.*before timeline transport.*measured byte length and SHA-256.*current audio-operation ownership.*active project.*controller lifetime.*shared video.*project-lock.*before publication.*restore.*old runtime.*after publication.*activation.*incomplete.*missing state.*completed owned activation.*availability.*linked audio.*RIFF\/RF64.*first-party BW64 `?\.wav`?.*classic integer-PCM AIFF.*canonical first-party AIFF-C float32.*exact-`?\.aif`?\/`?\.aiff`?.*`?audio\/aiff`?.*authored proxies.*rendered-fallback authoring.*packaged whole-project.*changed-geometry.*changed-container.*watch.*general consolidation.*ranged linked-PCM path.*unqualified.*broader or compressed AIFC.*third-party AIFC interoperability and provenance.*`?\.aifc`? extension.*source-container metadata preservation.*content-frozen or cross-process leasing.*same-inode mutation fencing.*reference-scale memory/isu);
-	assert.match(managedMedia?.exposure ?? '', /chooser, import, and ranged-playback slice.*not qualified in a packaged executable.*browser video-codec behavior.*packaged Electron UI two-product source-bearing lifecycle.*open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu);
+	assert.match(managedMedia?.exposure ?? '', /chooser, import, and ranged-playback slice.*not qualified in a packaged executable.*browser video-codec behavior.*fixed Linux x64 Electron UI two-product source-bearing lifecycle.*canonical-PCM.*retained-original-video.*both directions.*qualified separately.*two web `.scape` counterparts.*packaged rendered-fallback.*linked or unmanaged-media relationships.*broader fixtures.*remaining platform matrix remain open.*cross-platform hard-link.*crash or power-loss.*unqualified/isu);
 	assert.doesNotMatch(
 		managedMedia?.exposure ?? '',
 		/digestless retained video.*not authenticated/iu,
 	);
 	assert.match(
 		managedMedia?.requiredControl ?? '',
-		/portable mixed-media handoff.*qualify the maintained least-authority linked-video chooser, import, and ranged playback plus maintained linked-PCM ranged reads.*packaged executables.*supported platforms.*durable operating-system locator.*immutable or cross-process byte-identity semantics.*reference-scale or stable playback.*extend source-level linked-binding reachability beyond the bounded revision-matched startup pass and maintained same-store saves and successful writable activations.*continuous cleanup beyond the bounded startup pass.*replace renderer-asserted completeness.*independently authenticated liveness authority.*compromised-renderer availability integrity.*coordinate catalog, binding, and registry mutation.*cross-store or cross-process atomicity.*portable stable original and authored-proxy relationships.*remaining rendered-fallback relationships.*linked audio and otherwise unmanaged media.*relink.*watch.*general consolidation.*extend the bounded managed-media collector.*continuous runtime.*empty-directory.*database-space.*foreign-file cleanup.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate immutable byte identity through ranged reads and playback.*durable lease or equivalent same-inode mutation fence.*packaged Electron UI two-product source-bearing save and return lifecycle.*role-defined whole-project and first-party clip-local videoEffects fallbacks.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
+		/portable mixed-media handoff.*qualify the maintained least-authority linked-video chooser, import, and ranged playback plus maintained linked-PCM ranged reads.*packaged executables.*supported platforms.*durable operating-system locator.*immutable or cross-process byte-identity semantics.*reference-scale or stable playback.*extend source-level linked-binding reachability beyond the bounded revision-matched startup pass and maintained same-store saves and successful writable activations.*continuous cleanup beyond the bounded startup pass.*replace renderer-asserted completeness.*independently authenticated liveness authority.*compromised-renderer availability integrity.*coordinate catalog, binding, and registry mutation.*cross-store or cross-process atomicity.*portable stable original and authored-proxy relationships.*remaining rendered-fallback relationships.*linked audio and otherwise unmanaged media.*relink.*watch.*general consolidation.*extend the bounded managed-media collector.*continuous runtime.*empty-directory.*database-space.*foreign-file cleanup.*capacity control.*exact allocation.*whole-handoff.*renderer-session.*cross-store.*cross-process.*safe write-time behavior.*hold or revalidate immutable byte identity through ranged reads and playback.*durable lease or equivalent same-inode mutation fence.*close the two web `.scape` source-bearing workflows.*extend packaged UI qualification beyond the fixed Linux x64 canonical-PCM plus retained-original-video fixture.*role-defined whole-project and first-party clip-local videoEffects fallbacks.*browser video-codec behavior.*supported-platform fallback.*optional body reuse/isu,
 	);
 	assert.match(
 		managedMedia?.acceptanceCriteria.join(' ') ?? '',
@@ -594,5 +624,9 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	assert.match(
 		threatModel,
 		/Four narrower one-way headless fixtures.*audio fixture.*original and whole-mix PCM.*fresh Framescaper shadow.*controller manifest verification.*exact-sample activation.*role-defined `org\.example\.future-video-pipeline` whole-project fixture.*editable retained-video original.*full-render\s+fallback.*fresh Soundscaper shadow.*controller manifest verification.*exact fallback Blob URL.*separate first-party\s+clip-local videoEffects fixture.*canonical original.*digest-bound\s+fallback.*fresh recipient.*exact target clip ID.*closes and\s+reopens.*canonical shadow.*admits the relationship.*role.*target\s+clip ID.*source ID.*SHA-256.*target-only playback.*separate\s+first-party track-local audioEffects fixture.*target-lane and\s+native-lane originals.*digest-bound track render.*editable\s+compatible Soundscaper sender.*ordinary save stays document-only.*fresh Framescaper recipient that reports the registered capability unavailable.*role, target track ID, source ID, and SHA-256 before\s+target-lane-only playback.*corrupted recipient-local render\s+PCM.*mixes the native lane with the verified private render.*exact WAV\s+output.*canonical shadow stays unchanged.*Managed acquisition\s+verifies transfer descriptors and body digests.*does not authenticate any\s+manifest declaration.*no packaged UI.*browser-codec.*durable-lease.*whole-handoff atomicity claim/isu,
+	);
+	assert.match(
+		threatModel,
+		/separate maintained Linux x64 CI job.*two frozen Electron source-bearing shared-library workflows.*six sequential packaged UI processes.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*Soundscaper.*Framescaper.*isolated shared appData.*separate product profiles.*origin profile.*exact-schema-9 fixture.*canonical-PCM audio track and clip.*retained-original VP8 WebM video track and clip.*Project Bin.*fresh recipient.*normal editor project route.*exact Project Bin Blob.*starts and stops transport.*native input.*revision-2 save.*visible cross-product handoff action.*origin return.*exact edited revision.*both media bindings.*main-owned handoff-navigation.*canonical-document-digest.*media-binding-ID-and-digest.*increasing catalog revisions and fencing tokens.*electron-soundscaper-to-framescaper-to-soundscaper-library.*electron-framescaper-to-soundscaper-to-framescaper-library.*two web `.scape` workflows remain open/isu,
 	);
 });

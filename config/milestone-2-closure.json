@@ -199,6 +199,10 @@
 				"electron-soundscaper-to-framescaper-to-soundscaper-library",
 				"electron-framescaper-to-soundscaper-to-framescaper-library"
 			],
+			"completedWorkflowIds": [
+				"electron-soundscaper-to-framescaper-to-soundscaper-library",
+				"electron-framescaper-to-soundscaper-to-framescaper-library"
+			],
 			"acceptance": [
 				"Each workflow preserves project identity, editable history-visible state and exact required media while supporting activation, playback, one edit and save on the recipient.",
 				"The Electron workflows run through packaged UI products; headless-only evidence is insufficient."

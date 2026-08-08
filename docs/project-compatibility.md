@@ -1012,8 +1012,9 @@ runtime cleanup beyond the startup-bounded tracked inventory, recipient-local or
 whole-handoff capacity reservation, stable playback identity beyond the
 maintained owned canonical PCM, linked-PCM, and retained-video lifecycles,
 content-frozen identity against same-inode mutation,
-browser codec playback, packaged executable and UI two-product source-bearing
-handoff, portable hard-link capacity qualification, and a shared cross-product
+browser codec playback, packaged source-bearing relationships beyond the fixed
+two-body Electron workflows described below, portable hard-link capacity
+qualification, and a shared cross-product
 revision journal and undo/redo history remain unqualified.
 Product-local bounded revision history is the only history proven by the
 composed return fixture.
@@ -1049,6 +1050,31 @@ interruption or power loss; parent-, database-, or project-root path identity;
 installers or file associations; or Windows, macOS, or ARM64. Third-party
 activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
+
+A second maintained Linux x64 CI job closes the two frozen Electron
+shared-library workflow IDs with source-bearing packaged UI evidence. It runs
+six sequential processes: Soundscaper → Framescaper → Soundscaper and
+Framescaper → Soundscaper → Framescaper. Each workflow has isolated shared
+appData and separate product profiles, and its return stage reuses the origin
+profile. The fixed exact schema 9 project contains one canonical-PCM audio track
+and clip and one retained-original VP8 WebM video track and clip that is also in
+the Project Bin. The origin publishes both exact managed bodies. A fresh
+recipient activates through the normal project route, hashes the exact Project
+Bin `Blob`, starts and stops transport, edits the audio track name through
+native input, waits for the revision-2 save, and invokes the visible “Edit in
+the other product” action. The origin return reactivates the exact edited
+revision and both bindings. Main-owned evidence binds the handoff navigation,
+canonical document digest, media binding IDs and digests, and strictly
+increasing catalog revisions and fencing tokens.
+
+This qualifies only
+`electron-soundscaper-to-framescaper-to-soundscaper-library` and
+`electron-framescaper-to-soundscaper-to-framescaper-library` for that fixed
+small first-party fixture on Linux x64. The two web `.scape` workflow IDs remain
+open. Muted audio does not qualify audible or device-output fidelity. General
+browser or codec behavior, rendered fallbacks, linked or unmanaged media,
+installers and file associations, concurrency, crash or power loss, Windows,
+macOS, and ARM64 remain unqualified.
 
 This catalog rule is current-only. Activation-specific feature-capability
 evaluation remains editor-owned. Explicit managed canonical PCM and retained

@@ -59,7 +59,20 @@ test('milestone 2 has one frozen finite closure inventory', async () => {
 		for (const reference of item.ownerRefs) {
 			await assert.doesNotReject(access(new URL(`../${reference}`, import.meta.url)), reference);
 		}
+		if (item.completedWorkflowIds) {
+			assert.ok(Array.isArray(item.workflowIds), `${item.id} completed workflows need a workflow set`);
+			assert.ok(item.completedWorkflowIds.every((id) => item.workflowIds.includes(id)), item.id);
+		}
 	}
+
+	const packagedHandoff = inventory.items.find(
+		({ id }) => id === 'm2-handoff-packaged-roundtrip',
+	);
+	assert.deepEqual(packagedHandoff.completedWorkflowIds, [
+		'electron-soundscaper-to-framescaper-to-soundscaper-library',
+		'electron-framescaper-to-soundscaper-to-framescaper-library',
+	]);
+	assert.equal(packagedHandoff.status, 'partial');
 
 	for (const gate of inventory.gates) {
 		assert.ok(Array.isArray(gate.itemIds) && gate.itemIds.length > 0, gate.id);

@@ -206,6 +206,30 @@
 			]
 		},
 		{
+			"id": "current-desktop-packaged-source-bearing-handoff",
+			"status": "implemented",
+			"requiredOutcome": "The two frozen Electron shared-library workflow IDs run through separately packaged Soundscaper and Framescaper UI processes while preserving exact current-schema mixed-media identity, activation, playback, one recipient edit and save, and return to the originating product profile.",
+			"currentBehavior": "A maintained Linux x64 CI job runs the two frozen Electron workflows as six sequential packaged executable processes: Soundscaper to Framescaper to Soundscaper and Framescaper to Soundscaper to Framescaper. Each workflow owns isolated shared appData and separate product profiles, then returns to its origin profile. Its fixed exact schema 9 project contains one canonical PCM audio track and clip plus one retained-original VP8 WebM video track and clip that is also represented in the Project Bin. The origin publishes both exact managed bodies. A fresh recipient follows the normal project route into editor activation, hashes the exact Project Bin Blob, starts and stops transport, edits the audio track name through native input, waits for the shared revision 2 save, and invokes the visible Edit in the other product action. The origin return reactivates the exact edited revision and both media bindings. Main-owned evidence binds the handoff navigation, canonical document digest, media binding IDs and digests, and strictly increasing catalog revisions and fencing tokens across all six processes. This qualifies only the electron-soundscaper-to-framescaper-to-soundscaper-library and electron-framescaper-to-soundscaper-to-framescaper-library workflow IDs. The two web `.scape` workflow IDs remain open. The evidence uses one fixed small first-party fixture on Linux x64 with muted audio; it does not qualify audible or device-output fidelity, general browser or codec coverage, rendered-fallback roles, linked or unmanaged media, installers or file associations, concurrent opens, crash or power-loss behavior, or Windows, macOS, or ARM64.",
+			"evidence": [
+				"desktop/project-library-source-bearing-smoke.js",
+				"desktop/project-library-source-bearing-renderer-smoke.js",
+				"desktop/project-library-source-bearing-smoke-session.js",
+				"desktop/project-library-smoke-evidence.js",
+				"desktop/desktop-smoke.js",
+				"desktop/main.mjs",
+				"scripts/lib/desktop-project-library-source-bearing-handoff.mjs",
+				"scripts/desktop-project-library-source-bearing-handoff-smoke.mjs",
+				"tests/desktop-project-library-source-bearing-smoke.test.js",
+				"tests/desktop-project-library-source-bearing-session.test.js",
+				"tests/desktop-project-library-source-bearing-probe.test.js",
+				"tests/desktop-project-library-source-bearing-handoff-runner.test.js",
+				"tests/desktop-project-library-smoke-evidence.test.js",
+				"tests/desktop-project-library-packaging.test.js",
+				"package.json",
+				".github/workflows/desktop-preview.yml"
+			]
+		},
+		{
 			"id": "current-desktop-recipient-media-admission",
 			"status": "implemented",
 			"requiredOutcome": "An authoritative latest exact-schema-9 desktop shared-project load with reachable source references must preflight its complete logical-source, canonical-byte, and PCM-chunk budgets before any source-body read, shared body transfer, or recipient write; acquire exact managed canonical PCM and retained original video into a fresh recipient through digest-verified atomic if-absent publication where available; qualify every remaining source through bounded recipient-local admission; and fail before activation without deleting a concurrent local replacement; a demand-loaded provider over owned canonical PCM must fence the generation observed at session open across bounded copy-on-write ancestry.",
