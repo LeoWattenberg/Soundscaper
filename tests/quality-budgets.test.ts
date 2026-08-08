@@ -89,6 +89,7 @@ interface QualityBudgetConfig {
 			attemptCount: number;
 			budgetDigest: string;
 			environmentFingerprint: string;
+			evidenceWriter: string;
 			evaluator: string;
 			fileVerifier: string;
 			metricSet: string;
@@ -133,6 +134,7 @@ test('quality budget contract names numeric gates for every later milestone with
 		schemaVersion: 1,
 		evaluator: 'scripts/quality-budget-result.mjs',
 		fileVerifier: 'scripts/verify-quality-budget-result.mjs',
+		evidenceWriter: 'scripts/quality-budget-evidence.mjs',
 		attemptCount: 1,
 		retryCount: 0,
 		budgetDigest: 'sha256-exact-config-bytes',
@@ -143,6 +145,7 @@ test('quality budget contract names numeric gates for every later milestone with
 	await assertEvidenceExists([
 		config.qualification.resultContract.evaluator,
 		config.qualification.resultContract.fileVerifier,
+		config.qualification.resultContract.evidenceWriter,
 	]);
 	assert.deepEqual(config.measurementPolicy, {
 		percentileMethod: 'nearest-rank',

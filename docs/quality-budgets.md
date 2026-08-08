@@ -450,6 +450,13 @@ named sibling raw artifact, requires the summary's source revision to equal
 `HEAD`, rejects ambiguous workload or environment descriptors, and exits
 nonzero on any failed threshold or identity check.
 
+Workload collectors pass observed counters to
+`writeStructuralQualityBudgetEvidence`. It requires a clean checkout, derives
+the exact platform, architecture, Node, npm, and Git identity, rejects failed
+metrics before creating files, uses exclusive file creation, and verifies the
+completed pair from disk. Generated pairs remain under ignored `test-results/`
+until their raw artifact is retained and their accepted summary is reviewed.
+
 ## CI progression
 
 The safe progression is:
