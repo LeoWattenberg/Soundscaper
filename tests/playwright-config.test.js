@@ -29,3 +29,17 @@ test('desktop verification installs every configured browser engine', async () =
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
 	assert.match(workflow, /playwright install --with-deps chromium firefox webkit/u);
 });
+
+test('quality verification isolates each browser engine in a supported Playwright container', async () => {
+	const workflow = await readFile(new URL('../.github/workflows/quality.yml', import.meta.url), 'utf8');
+	const browserJob = workflow.slice(workflow.indexOf('\n  browser:\n'));
+
+	assert.ok(browserJob.startsWith('\n  browser:\n'), 'quality workflow must retain its browser job');
+	assert.ok(browserJob.includes('name: Browser / ${{ matrix.project }}'));
+	assert.match(browserJob, /strategy:\n\s+fail-fast: false\n\s+matrix:\n\s+project: \[chromium, firefox, webkit\]/u);
+	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:[^\n]+\n\s+options: --user 1001/u);
+	assert.match(browserJob, /npm install --global --prefix "\$HOME\/\.local" npm@12\.0\.1/u);
+	assert.match(browserJob, /echo "\$HOME\/\.local\/bin" >> "\$GITHUB_PATH"/u);
+	assert.ok(browserJob.includes('npm run test:browser:built -- --project=${{ matrix.project }}'));
+	assert.ok(browserJob.includes('name: browser-diagnostics-${{ matrix.project }}'));
+});
