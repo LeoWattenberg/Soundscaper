@@ -73,10 +73,19 @@ test('disposable video previews remain reproducible local relationships, not dur
 		'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts',
 		'tests/audio-editor-feature-requirement-retention.test.ts',
 		'tests/audio-editor-scape-feature-requirements.test.ts',
+		'tests/audio-editor-scape-video-return-roundtrip.test.ts',
 	]) assert.ok(relationship.evidence.includes(evidence), evidence);
+	assert.match(
+		relationship.currentBehavior,
+		/after a portable-archive transfer.*recipient regenerates a preview bound to the exact admitted original digest.*neither transfer direction carries it/iu,
+	);
 
 	const documentation = await readFile(documentationUrl, 'utf8');
 	assert.match(documentation, /Disposable video preview relationships/iu);
+	assert.match(
+		documentation,
+		/after a portable-archive transfer.*recipient regenerates a preview\s+bound to the exact admitted original digest.*neither transfer direction\s+carries it/isu,
+	);
 	assert.match(
 		documentation,
 		/poster.*thumbnail.*trusted retained original.*versioned recipe.*output.*SHA-256/isu,

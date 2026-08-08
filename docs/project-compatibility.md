@@ -6,6 +6,17 @@ Its statuses distinguish behavior enforced today from outcomes owned by later
 roadmap milestones. A planned row is a release requirement, not permission to
 discard state until that row is implemented.
 
+The milestone-2 closure inventory names nine media-relationship IDs; each maps
+to one documented relationship here. `owned-canonical-pcm` and
+`owned-retained-video` are the managed mixed-media handoff bodies of the shared
+desktop persistence section. `linked-pcm` and `linked-retained-video` are the
+linked originals of that same section; both convert to recipient-owned media on
+handoff by design, and only linked PCM has a portable-archive route.
+`project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`, and
+`video-clip-render-v1` are the closed rendered-fallback roles of the project
+feature-requirements section. `disposable-preview-nonportable` is the
+disposable video preview relationship.
+
 ## Core document versus `.scape`
 
 The core project loader and the portable archive are separate compatibility
@@ -1463,7 +1474,12 @@ Portable `.scape` export and import preserve the same relationship; a copy
 collision remaps only the fallback source ID and preserves the canonical target
 clip ID. Ordinary video export, portable `.scape` collision handling, and
 managed handoff therefore share the same closed relationship rather than
-inventing route-local identities.
+inventing route-local identities. Composed product-identified return roundtrips
+close the archive loop in both product orders for the clip-target and
+whole-project video roles and the track-local audio role: the less-capable
+recipient reports rendered-fallback, returns the exact portable bodies it
+received, and the origin reopens natively editable with byte-identical
+manifests, native effect payloads, and asset digests.
 
 Deeply frozen per-tab and document-snapshot metadata and the localized
 source/component UI bind only the exact feature ID and requirement ID without
@@ -1929,7 +1945,9 @@ maintained source-update commands cannot author them, desktop recipient binding
 ignores old locator values, and managed source declarations omit them. The
 nullable schema fields remain readable for old and opaque future documents.
 Archive export includes only its canonical source assets, not derivative cache
-entries. By contrast, rendered fallbacks and their referenced sources remain
+entries. After a portable-archive transfer, the recipient regenerates a preview
+bound to the exact admitted original digest, and neither transfer direction
+carries it. By contrast, rendered fallbacks and their referenced sources remain
 durable project, retention, and portable-archive state under the fallback rules
 below. The maintained exact-schema role-defined audio whole-mix fallback is
 separately qualified for fresh-recipient managed acquisition and activation.

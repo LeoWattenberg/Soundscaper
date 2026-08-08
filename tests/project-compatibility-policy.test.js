@@ -117,19 +117,19 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 
 	const currentScapeFeatureRequirements = rules.get('current-scape-feature-requirements');
 	assert.deepEqual(currentScapeFeatureRequirements.evidence, [
-		'src/common/editor/retention.js',
-		'src/common/editor/project-feature-requirements.ts',
-		'src/common/editor/scape-export-plan.ts',
-		'src/common/editor/scape-project.js',
+		'src/common/editor/retention.js', 'src/common/editor/project-feature-requirements.ts',
+		'src/common/editor/scape-export-plan.ts', 'src/common/editor/scape-project.js',
 		'src/common/editor/scape-project-assets.ts',
 		'tests/audio-editor-feature-requirement-retention.test.ts',
 		'tests/audio-editor-scape-feature-requirements.test.ts', 'tests/audio-editor-scape-video-clip-fallback-roundtrip.test.ts',
 		'tests/audio-editor-scape-audio-track-fallback-roundtrip.test.ts',
+		'tests/audio-editor-scape-return-roundtrip.test.ts', 'tests/audio-editor-scape-video-return-roundtrip.test.ts',
 	]);
 	assert.match(
 		currentScapeFeatureRequirements.currentBehavior,
 		/rendered-fallback.*compaction.*every project source asset.*preserves each closed relationship.*video-clip-render-v1.*exact target clip ID.*audio-track-render-v1.*exact target track ID.*copy collision.*remaps the fallback source ID.*preserving.*target clip or track ID/iu,
 	);
+	assert.match(currentScapeFeatureRequirements.currentBehavior, /product-identified return roundtrips.*portable-archive route in both directions.*Soundscaper-sent audio-track-render-v1.*Framescaper-sent video-clip-render-v1.*whole-project project-video-render-v1.*rendered-fallback on the less-capable recipient.*re-export the exact portable bodies.*reopen natively editable at the origin.*byte-identical manifests, native effect payloads, and asset digests/iu);
 	assert.match(
 		currentScapeFeatureRequirements.currentBehavior,
 		/digest integrity.*route-specific.*arbitrary future schemas/iu,
