@@ -413,6 +413,7 @@
 				"browserBlobFallbackRetained": true,
 				"compressedPreparedDestinationMode": "maximum-size-stream",
 				"compressedMinimumEntryMaximumBytes": 1048576,
+				"maximumOwnedCompressedStemBytes": 268435456,
 				"compressedStagingBoundFormula": "realtime outputBytesPerRender; offline max(outputFrames × inputChannels × offlineBytesPerSample, outputBytesPerRender)",
 				"compressedOfflineBytesPerSampleFormula": "requested FLAC integer bytes per sample; 4 for the other six formats",
 				"compressedRealtimeRetryOutputFormula": "outputBytesPerRender = outputFrames × outputChannels × Float32(4)",
@@ -427,6 +428,7 @@
 				"compressedCompleteWorkerMemfsOutputRetained": true,
 				"compressedWholeEncodedStemResultRetained": true,
 				"directRouteFinalZipBlobConstructions": 0,
+				"partialPublishedOutputs": 0,
 				"offlineCompressedStemDirectRouteVerified": true,
 				"offlineCompressedCentralAdmissionVerified": true,
 				"offlineCompressedInputWidthStagingVerified": true,
@@ -553,6 +555,8 @@
 				"destinationOpenedAfterFfmpegStat": true,
 				"preparedBlobFallbackRetained": true,
 				"directRouteDownloadCalls": 0,
+				"retainedFinalOutputBytes": 0,
+				"partialPublishedOutputs": 0,
 				"productionPipeline": [
 					"export-planner-exact-realtime-or-centrally-admitted-offline-canonical-compressed-audio",
 					"export-controller-realtime-mapped-or-offline-unmapped-input-width-WAV-staging",
@@ -650,6 +654,8 @@
 				"directFinalBlobCreated": false,
 				"directObjectUrlCalls": 0,
 				"directDownloadCalls": 0,
+				"retainedFinalOutputBytes": 0,
+				"partialPublishedOutputs": 0,
 				"productionPipeline": [
 					"rendered-fallback-verification-when-required",
 					"version-4-canonical-video-plan",
@@ -880,7 +886,7 @@
 				{ "metricId": "directStems.finalArchiveBlobBytes", "comparison": "eq", "value": 0, "unit": "bytes" },
 				{ "metricId": "directStems.partialPublishedOutputs", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["tests/audio-editor-export-direct-compressed-stem-stream.test.ts", "tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
+			"evidence": ["scripts/collect-m2-direct-structural-quality.mjs", "tests/quality-budget-direct-structural-collector.test.ts", "tests/audio-editor-export-direct-compressed-stem-stream.test.ts", "tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
 		},
 		{
 			"id": "m2-direct-compressed-output-v2",
@@ -895,7 +901,7 @@
 				{ "metricId": "directCompressed.retainedFinalOutputBytes", "comparison": "eq", "value": 0, "unit": "bytes" },
 				{ "metricId": "directCompressed.partialPublishedOutputs", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["tests/audio-editor-export-direct-compressed-service.test.ts", "tests/audio-editor-ffmpeg-output-stream.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
+			"evidence": ["scripts/collect-m2-direct-structural-quality.mjs", "tests/quality-budget-direct-structural-collector.test.ts", "tests/audio-editor-export-direct-compressed-service.test.ts", "tests/audio-editor-ffmpeg-output-stream.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
 		},
 		{
 			"id": "m2-direct-mp4-webm-video-output-v1",
@@ -910,7 +916,7 @@
 				{ "metricId": "directVideo.retainedFinalOutputBytes", "comparison": "eq", "value": 0, "unit": "bytes" },
 				{ "metricId": "directVideo.partialPublishedOutputs", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["tests/audio-editor-export-direct-video.test.ts", "tests/audio-editor-ffmpeg-output-stream.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
+			"evidence": ["scripts/collect-m2-direct-structural-quality.mjs", "tests/quality-budget-direct-structural-collector.test.ts", "tests/audio-editor-export-direct-video.test.ts", "tests/audio-editor-ffmpeg-output-stream.test.ts", "docs/quality-budgets.md#fixtures-and-project-sizes"]
 		},
 		{
 			"id": "m3-longform-editorial",

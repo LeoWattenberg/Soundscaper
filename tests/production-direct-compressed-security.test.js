@@ -201,6 +201,8 @@ test('the direct compressed fixture records both render strategies without memor
 	assert.equal(fixture.specification.destinationOpenedAfterFfmpegStat, true);
 	assert.equal(fixture.specification.preparedBlobFallbackRetained, true);
 	assert.equal(fixture.specification.directRouteDownloadCalls, 0);
+	assert.equal(fixture.specification.retainedFinalOutputBytes, 0);
+	assert.equal(fixture.specification.partialPublishedOutputs, 0);
 	for (const field of [
 		'actualFfmpegCodecExecutionQualified',
 		'codecConformanceQualified',

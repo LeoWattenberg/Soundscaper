@@ -311,6 +311,17 @@ packaged, quota, durability, crash, power-loss, and reference-scale behavior
 remain unqualified. The fixture stays outside the milestone 2 bounded-memory
 workload, which stays planned.
 
+The three focused structural collectors run with
+`npm run quality:collect:m2-direct-stems`,
+`npm run quality:collect:m2-direct-compressed`, and
+`npm run quality:collect:m2-direct-video`. Each starts one no-retry Node test
+process over its exact production/security files, retains that output in the
+raw evidence, and maps independently named fixture counters to its frozen
+workload thresholds. These collectors qualify only first-party slice,
+sequential-retention, final-Blob, and partial-publication counters; the codec,
+worker MEMFS, native/WASM, heap/RSS, timing, browser, OS, and durability
+exclusions above remain unchanged.
+
 The [collision-cancel inspection witness](../tests/desktop-scape-sparse-range-integration.test.ts)
 remains payload-lazy. It follows the real capability store, protocol, desktop
 range adapter, file service, project router, and inspector through single exact

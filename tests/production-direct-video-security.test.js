@@ -182,6 +182,8 @@ test('the direct video fixture records exact MP4 and WebM transport without code
 	assert.equal(fixture.specification.directFinalBlobCreated, false);
 	assert.equal(fixture.specification.directObjectUrlCalls, 0);
 	assert.equal(fixture.specification.directDownloadCalls, 0);
+	assert.equal(fixture.specification.retainedFinalOutputBytes, 0);
+	assert.equal(fixture.specification.partialPublishedOutputs, 0);
 	for (const field of [
 		'workerMemfsQualified',
 		'sourceVideoBlobResidencyQualified',

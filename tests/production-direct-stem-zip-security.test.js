@@ -279,6 +279,7 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	assert.equal(fixture.specification.compressedRenderStrategy, undefined);
 	assert.equal(fixture.specification.compressedPreparedDestinationMode, 'maximum-size-stream');
 	assert.equal(fixture.specification.compressedMinimumEntryMaximumBytes, 1_048_576);
+	assert.equal(fixture.specification.maximumOwnedCompressedStemBytes, 256 * 1024 ** 2);
 	assert.equal(
 		fixture.specification.compressedStagingBoundFormula,
 		`realtime outputBytesPerRender; offline ${offlineStagingFormula}`,
@@ -306,6 +307,7 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	assert.equal(fixture.specification.compressedCompleteWorkerMemfsOutputRetained, true);
 	assert.equal(fixture.specification.compressedWholeEncodedStemResultRetained, true);
 	assert.equal(fixture.specification.directRouteFinalZipBlobConstructions, 0);
+	assert.equal(fixture.specification.partialPublishedOutputs, 0);
 	assert.equal(fixture.specification.offlineCompressedStemDirectRouteVerified, true);
 	assert.equal(fixture.specification.offlineCompressedCentralAdmissionVerified, true);
 	assert.equal(fixture.specification.offlineCompressedInputWidthStagingVerified, true);
