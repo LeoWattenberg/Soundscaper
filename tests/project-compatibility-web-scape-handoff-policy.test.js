@@ -53,7 +53,7 @@ test('web Scape handoff policy closes both frozen cross-product workflows', asyn
 	}]);
 	assert.match(
 		control.summary,
-		/two frozen web workflow IDs.*three isolated Chromium browser contexts.*browser-download `.scape`.*exact project identity.*manifest media bod.*size and SHA-256.*activat.*playback.*undoable recipient track-name edit.*explicit save.*return/iu,
+		/maintained Chromium browser workflow.*two frozen web `.scape` workflow IDs.*three isolated browser contexts.*browser-download archive.*exact project ID.*verifies every manifest asset body.*byte length and SHA-256.*activates both clips.*starts and stops transport.*undoable track-name edit.*native input.*explicit save.*return archive/iu,
 	);
 
 	assert.match(

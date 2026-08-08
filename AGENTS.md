@@ -38,6 +38,11 @@
   `test-results/`, but do not edit or commit that generated directory.
 - Preserve AGPL and third-party notices, pinned source hashes, and the StaffPad
   reproducibility/audit workflow.
+- Markdown blocks fenced by `<!-- policy-narrative:… -->` comments are derived
+  from register prose (see `scripts/lib/policy-narratives.mjs`); edit the
+  register field, run `node scripts/sync-policy-narratives.mjs`, and never edit
+  the fenced text by hand. When a register paragraph duplicates a narrative
+  document, prefer adding a binding over hand-mirroring the prose.
 - After editing any file digest-pinned by `config/ffmpeg-runtime-manifest.json`
   (notably `config/production-security-matrix.json` and
   `docs/production-threat-model.md`), run

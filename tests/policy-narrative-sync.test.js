@@ -16,6 +16,12 @@ const HANDOFF_BINDING = POLICY_NARRATIVE_BINDINGS.find(
 	({ marker }) => marker === 'packaged-source-bearing-handoff',
 );
 
+test('the checked-in policy narratives are in sync with their registers', async () => {
+	const { stale, narrativeCount } = await syncPolicyNarratives(join(import.meta.dirname, '..'), { write: false });
+	assert.deepEqual(stale, []);
+	assert.equal(narrativeCount, POLICY_NARRATIVE_BINDINGS.length);
+});
+
 test('rendering arrows product orders without touching ordinary prose', () => {
 	assert.equal(
 		renderPolicyNarrative('Soundscaper to Framescaper to Soundscaper and Framescaper to Soundscaper to Framescaper.', { intro: null }),
