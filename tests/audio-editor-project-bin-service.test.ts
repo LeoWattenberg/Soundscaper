@@ -476,7 +476,10 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		normalizeTimelineStartFrame: (value) => Math.max(0, Math.round(Number(value))),
 		getVisualData: () => options.visualMediaUrl == null ? null : { mediaUrl: options.visualMediaUrl },
 		activateStoredSource: async () => null, invalidateSourceRuntime: async () => undefined, activateVideoSource: async () => null,
-		digestMediaContent: async (blob) => `digest:${await (blob as Blob).text()}`, admitChangedContentVideoCandidate: async () => undefined, deleteVideoDerivative: async () => undefined,
+		digestMediaContent: async (blob) => `digest:${await (blob as Blob).text()}`,
+		admitChangedContentAudioCandidate: async () => undefined,
+		admitChangedContentVideoCandidate: async () => undefined,
+		deleteVideoDerivative: async () => undefined,
 		captureActiveDocument: () => ({ history, project }),
 		restoreActiveDocument: (snapshot) => {
 			history = snapshot.history;

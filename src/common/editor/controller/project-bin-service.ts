@@ -81,13 +81,18 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	readonly invalidateSourceRuntime: ProjectBinLinkedAudioRelinkDependencies['invalidateSourceRuntime'];
 	readonly activateVideoSource: ProjectBinLinkedVideoRelinkDependencies['activateVideoSource'];
 	readonly digestMediaContent: ProjectBinLinkedVideoRelinkDependencies['digestContent'];
+	readonly admitChangedContentAudioCandidate:
+	ProjectBinLinkedAudioRelinkDependencies['admitChangedContentCandidate'];
 	readonly admitChangedContentVideoCandidate:
 	ProjectBinLinkedVideoRelinkDependencies['admitChangedContentCandidate'];
 	readonly deleteVideoDerivative: ProjectBinLinkedVideoRelinkDependencies['deleteVideoDerivatives'];
 }
 
 export interface ProjectBinService extends ProjectBinReplacementService,
-	Pick<ProjectBinLinkedAudioRelinkService, 'canRelinkLinkedAudio' | 'relinkLinkedAudio'>,
+	Pick<
+		ProjectBinLinkedAudioRelinkService,
+		'canRelinkLinkedAudio' | 'classifyLinkedAudioRelink' | 'relinkLinkedAudio'
+	>,
 	Pick<
 		ProjectBinLinkedVideoRelinkService,
 		'canRelinkLinkedVideo' | 'classifyLinkedVideoRelink' | 'relinkLinkedVideo'
@@ -124,6 +129,7 @@ export function createProjectBinService(
 		removeProjectBinSource,
 		...replacement,
 		canRelinkLinkedAudio: audioRelink.canRelinkLinkedAudio,
+		classifyLinkedAudioRelink: audioRelink.classifyLinkedAudioRelink,
 		relinkLinkedAudio: audioRelink.relinkLinkedAudio,
 		canRelinkLinkedVideo: videoRelink.canRelinkLinkedVideo,
 		classifyLinkedVideoRelink: videoRelink.classifyLinkedVideoRelink,
@@ -385,6 +391,8 @@ function audioRelinkDependencies(
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
 		getLinkedOriginalBinding: (...args) => dependencies.store.getLinkedOriginalBinding(...args),
+		digestContent: dependencies.digestMediaContent,
+		admitChangedContentCandidate: dependencies.admitChangedContentAudioCandidate,
 		stopTimelinePlayback: () => dependencies.playbackEngine.stop(),
 		stopProjectBinPreview: () => preview.stopProjectBinPreview({ dispose: true }),
 		retireSourceChunkProvider: dependencies.retireSourceChunkProvider,

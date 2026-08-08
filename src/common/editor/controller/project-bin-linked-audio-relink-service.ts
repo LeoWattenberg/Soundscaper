@@ -19,17 +19,26 @@ export interface ProjectBinLinkedAudioRelinkLocator {
 export interface ProjectBinLinkedAudioRelinkBinding extends ProjectBinLinkedAudioRelinkLocator {
 	readonly kind: 'audio';
 	readonly bindingToken: string;
+	readonly byteLength: number;
+	readonly sha256: string;
 }
 
 interface LinkedOriginalBinding extends ProjectBinLinkedAudioRelinkLocator {
 	readonly kind: string;
 	readonly bindingToken: string;
+	readonly byteLength?: number;
+	readonly sha256?: string;
 }
 
 interface ProjectBinLinkedAudioRelinkSource {
 	readonly id: string;
 	readonly kind?: string;
 	readonly storageKey?: string | null;
+	readonly mimeType?: string;
+	readonly frameCount?: number;
+	readonly channelCount?: number;
+	readonly sampleRate?: number;
+	readonly originalSampleRate?: number;
 }
 
 interface ProjectBinLinkedAudioRelinkClip {
@@ -47,9 +56,18 @@ interface ProjectBinLinkedAudioRelinkProject {
 	}>;
 }
 
-type AudioSource = ProjectBinLinkedAudioRelinkSource & Readonly<{ kind: 'audio' }>;
+type AudioSource = ProjectBinLinkedAudioRelinkSource & Readonly<{
+	kind: 'audio';
+	storageKey: string;
+	mimeType: string;
+	frameCount: number;
+	channelCount: number;
+	sampleRate: number;
+	originalSampleRate: number;
+}>;
 
 interface RelinkOptions {
+	readonly admission?: 'exact-content' | 'changed-content';
 	readonly expectedBindingToken: string;
 	readonly expectedLocatorRevision: string;
 	readonly expectedSnapshot: Blob;
@@ -76,6 +94,12 @@ export interface ProjectBinLinkedAudioRelinkDependencies {
 		projectId: string,
 		sourceId: string,
 	): MaybePromise<LinkedOriginalBinding | null>;
+	digestContent(blob: Blob, options: Readonly<{ signal?: AbortSignal }>): MaybePromise<string>;
+	admitChangedContentCandidate(
+		file: Blob,
+		source: AudioSource,
+		options: Readonly<{ signal: AbortSignal }>,
+	): MaybePromise<unknown>;
 	stopTimelinePlayback(): MaybePromise<unknown>;
 	stopProjectBinPreview(options: Readonly<{ dispose: true }>): MaybePromise<unknown>;
 	retireSourceChunkProvider(sourceId: string): MaybePromise<void>;
@@ -94,14 +118,22 @@ export interface ProjectBinLinkedAudioRelinkDependencies {
 
 export interface ProjectBinLinkedAudioRelinkService {
 	canRelinkLinkedAudio(clipId: string): Promise<boolean>;
+	classifyLinkedAudioRelink(
+		clipId: string,
+		file: Blob,
+		target: ProjectBinLinkedAudioRelinkTarget,
+	): Promise<ProjectBinLinkedAudioRelinkClassification>;
 	relinkLinkedAudio(
 		clipId: string,
 		file: Blob,
 		locator: ProjectBinLinkedAudioRelinkLocator,
 		target: ProjectBinLinkedAudioRelinkTarget,
+		options?: Readonly<{ allowChangedContent?: boolean }>,
 	): Promise<string>;
 	dispose(): Promise<void>;
 }
+
+export type ProjectBinLinkedAudioRelinkClassification = 'exact-content' | 'changed-content';
 
 export interface ProjectBinLinkedAudioRelinkTarget {
 	readonly projectId: string;
@@ -121,7 +153,42 @@ export function createProjectBinLinkedAudioRelinkService(
 	let disposed = false;
 	let disposal: Promise<void> | null = null;
 
-	return Object.freeze({ canRelinkLinkedAudio, relinkLinkedAudio, dispose });
+	return Object.freeze({
+		canRelinkLinkedAudio,
+		classifyLinkedAudioRelink,
+		relinkLinkedAudio,
+		dispose,
+	});
+
+	async function classifyLinkedAudioRelink(
+		clipId: string,
+		file: Blob,
+		target: ProjectBinLinkedAudioRelinkTarget,
+	): Promise<ProjectBinLinkedAudioRelinkClassification> {
+		const expectedTarget = projectTargetSnapshot(target);
+		assertNotDisposed(disposed);
+		dependencies.lifetime.assertActive();
+		const project = dependencies.getProject();
+		assertProjectTarget(project, expectedTarget);
+		const projectToken = dependencies.captureProject();
+		const source = compoundAudioSource(project, clipId, true);
+		const binding = await dependencies.getLinkedOriginalBinding(project.id, source.id);
+		assertNotDisposed(disposed);
+		dependencies.lifetime.assertActive();
+		dependencies.assertProject(projectToken);
+		assertProjectTarget(dependencies.getProject(), expectedTarget);
+		if (binding?.kind !== 'audio') {
+			throw new Error('The Project Bin audio source is not currently bound to a linked audio original.');
+		}
+		const currentBinding = requiredAudioRelinkBinding(binding);
+		if (file.size !== currentBinding.byteLength) return 'changed-content';
+		const digest = await dependencies.digestContent(file, {});
+		assertNotDisposed(disposed);
+		dependencies.lifetime.assertActive();
+		dependencies.assertProject(projectToken);
+		assertProjectTarget(dependencies.getProject(), expectedTarget);
+		return digest === currentBinding.sha256 ? 'exact-content' : 'changed-content';
+	}
 
 	async function canRelinkLinkedAudio(clipId: string): Promise<boolean> {
 		assertNotDisposed(disposed);
@@ -142,8 +209,9 @@ export function createProjectBinLinkedAudioRelinkService(
 		file: Blob,
 		locator: ProjectBinLinkedAudioRelinkLocator,
 		target: ProjectBinLinkedAudioRelinkTarget,
+		relinkOptions: Readonly<{ allowChangedContent?: boolean }> = {},
 	): Promise<string> {
-		const operation = performRelink(clipId, file, locator, target);
+		const operation = performRelink(clipId, file, locator, target, relinkOptions);
 		const settlement: Promise<void> = operation.then(() => undefined, () => undefined).finally(() => {
 			settlements.delete(settlement);
 		});
@@ -156,6 +224,7 @@ export function createProjectBinLinkedAudioRelinkService(
 		file: Blob,
 		locator: ProjectBinLinkedAudioRelinkLocator,
 		target: ProjectBinLinkedAudioRelinkTarget,
+		relinkOptions: Readonly<{ allowChangedContent?: boolean }>,
 	): Promise<string> {
 		const candidate = locatorSnapshot(locator);
 		let operationId = 0;
@@ -183,7 +252,26 @@ export function createProjectBinLinkedAudioRelinkService(
 			if (binding?.kind !== 'audio') {
 				throw new Error('The Project Bin audio source is not currently bound to a linked audio original.');
 			}
-			oldBinding = binding as ProjectBinLinkedAudioRelinkBinding;
+			oldBinding = requiredAudioRelinkBinding(binding);
+			const changedContent = file.size !== oldBinding.byteLength
+				|| await dependencies.digestContent(file, { signal: activeTask.signal }) !== oldBinding.sha256;
+			assertCurrent(dependencies, activeTask, projectToken);
+			assertProjectTarget(dependencies.getProject(), expectedTarget);
+			assertWritable(dependencies);
+			if (changedContent) {
+				if (relinkOptions.allowChangedContent !== true) {
+					throw new Error(
+						'The selected linked audio original has changed content; '
+						+ 'changed-content relink requires explicit confirmation.',
+					);
+				}
+				await dependencies.admitChangedContentCandidate(file, source, {
+					signal: activeTask.signal,
+				});
+				assertCurrent(dependencies, activeTask, projectToken);
+				assertProjectTarget(dependencies.getProject(), expectedTarget);
+				assertWritable(dependencies);
+			}
 
 			await dependencies.stopTimelinePlayback();
 			assertCurrent(dependencies, activeTask, projectToken);
@@ -200,6 +288,7 @@ export function createProjectBinLinkedAudioRelinkService(
 				source,
 				candidate.locatorId,
 				Object.freeze({
+					...(changedContent ? { admission: 'changed-content' as const } : {}),
 					expectedBindingToken: oldBinding.bindingToken,
 					expectedLocatorRevision: candidate.locatorRevision,
 					expectedSnapshot: file,
@@ -397,6 +486,17 @@ function requiredSourceMetadata(value: unknown): object {
 		throw new Error('The linked Project Bin audio source has no stored metadata.');
 	}
 	return value;
+}
+
+function requiredAudioRelinkBinding(
+	binding: LinkedOriginalBinding,
+): ProjectBinLinkedAudioRelinkBinding {
+	if (binding.kind !== 'audio'
+		|| !Number.isSafeInteger(binding.byteLength) || Number(binding.byteLength) < 1
+		|| typeof binding.sha256 !== 'string' || !binding.sha256) {
+		throw new Error('The linked Project Bin audio binding has invalid content identity.');
+	}
+	return binding as ProjectBinLinkedAudioRelinkBinding;
 }
 
 function compoundAudioSource(
