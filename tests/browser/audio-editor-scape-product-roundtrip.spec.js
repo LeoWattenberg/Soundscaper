@@ -22,6 +22,7 @@ import {
 	registerAudioEditorHooks,
 	trackNameText,
 } from './audio-editor-test-helpers.js';
+import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const PRODUCT_PATHS = {
@@ -44,6 +45,7 @@ test.describe('cross-product Scape handoff roundtrips', () => {
 
 	for (const workflow of WORKFLOWS) {
 		test(workflow.id, async ({ browser, page }) => {
+			test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 			test.setTimeout(120_000);
 			await disableDirectScapeSave(page);
 			const origin = await bootEditor(page, PRODUCT_PATHS[workflow.origin]);

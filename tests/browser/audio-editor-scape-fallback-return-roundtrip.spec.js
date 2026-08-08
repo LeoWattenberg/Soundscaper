@@ -25,6 +25,7 @@ import {
 	registerAudioEditorHooks,
 	trackNameText,
 } from './audio-editor-test-helpers.js';
+import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const PRODUCT_PATHS = {
@@ -79,6 +80,7 @@ test.describe('rendered-fallback Scape return roundtrips', () => {
 
 	for (const workflow of WORKFLOWS) {
 		test(workflow.id, async ({ browser, page }) => {
+			if (workflow.kind === 'video') test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 			test.setTimeout(120_000);
 			const origin = await bootEditor(page, PRODUCT_PATHS[workflow.origin]);
 			const originErrors = collectClientErrors(page);

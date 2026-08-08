@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+
 const DATABASE_NAME = 'kw-media-audio-editor';
 const DATABASE_VERSION = 8;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -34,6 +36,7 @@ test.describe('dedicated OPFS storage worker', () => {
 	});
 
 	test('opfs-multitab-writer persists media and transfers one project writer', async ({ context, page }) => {
+		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(90_000);
 		const workerRequests = [];
 		page.on('request', (request) => {

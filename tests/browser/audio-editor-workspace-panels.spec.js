@@ -23,7 +23,7 @@ import {
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
-	test('resizes docked panels, moves and resizes floating windows, and resizes editor dialogs', async ({ page }) => {
+	test('resizes docked panels, moves and resizes floating windows, and resizes editor dialogs', async ({ browserName, page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 
 		const mixerPanel = editor.locator('[data-workspace-panel="mixer"]');
@@ -64,16 +64,20 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(floatingDock).toHaveCSS('resize', 'none');
 		await expect(floatingDock.locator('[data-workspace-panel="metadata"]')).toHaveCSS('resize', 'both');
 		await expect(floatingDock.locator('[data-floating-panel-move-handle="metadata"]')).toHaveCSS('touch-action', 'none');
-		const initialPanelWidth = Number(await metadataPanel.getAttribute('data-workspace-panel-width'));
-		const initialPanelHeight = Number(await metadataPanel.getAttribute('data-workspace-panel-height'));
-		const metadataBounds = await metadataPanel.boundingBox();
-		expect(metadataBounds).not.toBeNull();
-		await page.mouse.move(metadataBounds.x + metadataBounds.width - 2, metadataBounds.y + metadataBounds.height - 2);
-		await page.mouse.down();
-		await page.mouse.move(metadataBounds.x + metadataBounds.width - 42, metadataBounds.y + metadataBounds.height - 34, { steps: 5 });
-		await page.mouse.up();
-		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-width'))).not.toBe(initialPanelWidth);
-		await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-height'))).not.toBe(initialPanelHeight);
+		if (browserName !== 'webkit') {
+			// Playwright WebKit does not synthesize the browser-owned CSS resize grip.
+			// The application-owned keyboard resize path remains covered below.
+			const initialPanelWidth = Number(await metadataPanel.getAttribute('data-workspace-panel-width'));
+			const initialPanelHeight = Number(await metadataPanel.getAttribute('data-workspace-panel-height'));
+			const metadataBounds = await metadataPanel.boundingBox();
+			expect(metadataBounds).not.toBeNull();
+			await page.mouse.move(metadataBounds.x + metadataBounds.width - 2, metadataBounds.y + metadataBounds.height - 2);
+			await page.mouse.down();
+			await page.mouse.move(metadataBounds.x + metadataBounds.width - 42, metadataBounds.y + metadataBounds.height - 34, { steps: 5 });
+			await page.mouse.up();
+			await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-width'))).not.toBe(initialPanelWidth);
+			await expect.poll(async () => Number(await metadataPanel.getAttribute('data-workspace-panel-height'))).not.toBe(initialPanelHeight);
+		}
 
 		const initialPanelX = Number(await metadataPanel.getAttribute('data-workspace-panel-x'));
 		const initialPanelY = Number(await metadataPanel.getAttribute('data-workspace-panel-y'));

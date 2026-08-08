@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 test.use({ serviceWorkers: 'allow' });
 test.setTimeout(90_000);
 
-test('a controlled offline page can read only an explicitly installed runtime release', async ({ context, page }) => {
+test('a controlled offline page can read only an explicitly installed runtime release', async ({ browserName, context, page }) => {
+	test.skip(browserName === 'webkit', 'Playwright WebKit cannot route an offline cross-origin fetch through the service worker.');
 	await page.goto('/en/');
 	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
 	await page.evaluate(async () => {

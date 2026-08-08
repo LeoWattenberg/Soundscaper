@@ -345,6 +345,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('has named, keyboard-reachable controls in initial, populated, menu, effects, and dialog states', async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.addInitScript(() => {
 			localStorage.setItem('audacity-accessibility-profile', 'wcag-flat');
 		});

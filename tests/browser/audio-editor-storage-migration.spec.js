@@ -10,7 +10,11 @@ test.describe('editor storage schema migration', () => {
 	registerAudioEditorHooks();
 
 	test('atomically backfills v2 derivatives, creates v8 stores, and sanitizes v6 provenance', async ({ page }) => {
-		await page.goto('/logo/logo-schwarz.svg');
+		await page.route('/__soundscaper-test/storage-migration-setup', (route) => route.fulfill({
+			contentType: 'text/html; charset=utf-8',
+			body: '<!doctype html><title>Storage migration setup</title>',
+		}));
+		await page.goto('/__soundscaper-test/storage-migration-setup');
 		await page.evaluate(async (databaseName) => {
 			await new Promise((resolve, reject) => {
 				const deletion = indexedDB.deleteDatabase(databaseName);

@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 test.use({ serviceWorkers: 'allow' });
 test.setTimeout(90_000);
 
-test('offline-shell-upgrade replaces a prior shell and keeps both products usable offline', async ({ context, page }) => {
+test('offline-shell-upgrade replaces a prior shell and keeps both products usable offline', async ({ browserName, context, page }) => {
+	test.skip(browserName === 'webkit', 'Playwright WebKit cannot reliably reload a service-worker page in offline emulation.');
 	const staleCacheName = `soundscaper-application-shell-v1-${'0'.repeat(64)}`;
 	await page.goto('/logo/logo-klein-schwarz.svg');
 	await page.evaluate(async (cacheName) => {

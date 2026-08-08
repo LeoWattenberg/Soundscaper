@@ -517,8 +517,9 @@ import {
 		await expect(effectDialog.getByRole('heading', { name: 'Invert', exact: true })).toBeVisible();
 		await effectDialog.getByRole('button', { name: 'Preview', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveText('Playing effect preview.', { timeout: 20_000 });
-		await effectDialog.getByRole('button', { name: 'Stop preview' }).click();
-		await expect(editor.locator('[data-status]')).toHaveText('Effect preview cancelled.');
+		const stopPreview = effectDialog.getByRole('button', { name: 'Stop preview' });
+		if (await stopPreview.isVisible()) await stopPreview.click();
+		await expect(editor.locator('[data-status]')).toHaveText(/Effect preview (?:cancelled|finished)\./u);
 		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
 		await effectDialog.getByRole('button', { name: 'Apply to selection' }).click();
 

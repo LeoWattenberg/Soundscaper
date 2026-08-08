@@ -349,6 +349,7 @@ export async function disableOfflineAudio(page) {
 export async function stubDisplayCapture(page) {
 	await page.addInitScript(() => {
 		globalThis.__soundscaperDisplayCaptureRequests = 0;
+		const mediaDevices = navigator.mediaDevices ?? {};
 		const createTrack = (kind) => {
 			const target = new EventTarget();
 			let readyState = 'live';
@@ -364,7 +365,7 @@ export async function stubDisplayCapture(page) {
 			});
 			return target;
 		};
-		Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia', {
+		Object.defineProperty(mediaDevices, 'getDisplayMedia', {
 			configurable: true,
 			value: async () => {
 				globalThis.__soundscaperDisplayCaptureRequests += 1;
@@ -377,7 +378,25 @@ export async function stubDisplayCapture(page) {
 				};
 			},
 		});
+		Object.defineProperty(navigator, 'mediaDevices', {
+			configurable: true,
+			value: mediaDevices,
+		});
 	});
+}
+
+export async function stubStorageEstimate(page, estimate) {
+	await page.addInitScript((value) => {
+		const storage = navigator.storage ?? {};
+		Object.defineProperty(storage, 'estimate', {
+			configurable: true,
+			value: () => Promise.resolve(value),
+		});
+		Object.defineProperty(navigator, 'storage', {
+			configurable: true,
+			value: storage,
+		});
+	}, estimate);
 }
 
 export async function assertAccessibleBasics(root) {

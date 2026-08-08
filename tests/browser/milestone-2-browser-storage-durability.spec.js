@@ -10,6 +10,7 @@ import {
 	chooseNestedCommandAction,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -54,6 +55,7 @@ test.describe('milestone 2 browser storage durability', () => {
 	});
 
 	test('opfs-quota-refusal preserves the project or uses the IndexedDB fallback', async ({ page }) => {
+		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(60_000);
 		let wrappedWorkerRequests = 0;
 		await page.route(/\/assets\/opfs-sync-worker-[^/?]+\.js(?:\?.*)?$/u, async (route) => {

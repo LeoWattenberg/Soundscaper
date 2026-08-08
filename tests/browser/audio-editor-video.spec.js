@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test.describe('audio editor video composition workflow', () => {
@@ -13,6 +15,7 @@ test.describe('audio editor video composition workflow', () => {
 	});
 
 	test('imports generated A/V fixtures, layers tracks, crossfades, rejects a third overlap, and reorders layers', async ({ page }) => {
+		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(60_000);
 		await page.setViewportSize({ width: 1_440, height: 1_200 });
 		const red = await createGeneratedVideoFixture(page, {
@@ -164,6 +167,7 @@ test.describe('audio editor video composition workflow', () => {
 	});
 
 	test('edits the selected video effect rack and falls back cleanly if WebGL is interrupted', async ({ page }) => {
+		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1_280, height: 960 });
 		const fixture = await createGeneratedVideoFixture(page, {
@@ -292,6 +296,7 @@ test.describe('audio editor video composition workflow', () => {
 	});
 
 	test('keeps the DOM preview and warns when WebGL2 is unavailable', async ({ page }) => {
+		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(60_000);
 		const fixture = await createGeneratedVideoFixture(page, {
 			name: 'effects-fallback.webm',

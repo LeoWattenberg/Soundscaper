@@ -25,7 +25,9 @@ import {
 	importFiles,
 	openEffectsForTrack,
 	registerAudioEditorHooks,
+	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
+import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 
 const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
 const OVERSIZED_FALLBACK_FRAME_COUNT = SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES
@@ -38,12 +40,7 @@ test.describe('Scape open feature decisions', () => {
 	registerAudioEditorHooks();
 
 	test('cancels or opens a unique incompatible project read-only', async ({ page }) => {
-		await page.addInitScript(() => {
-			Object.defineProperty(navigator.storage, 'estimate', {
-				configurable: true,
-				value: () => Promise.resolve({ usage: 1024 ** 2, quota: 2 * 1024 ** 3 }),
-			});
-		});
+		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const originalId = await editor.getAttribute('data-project-id');
@@ -250,12 +247,7 @@ test.describe('Scape open feature decisions', () => {
 
 	test('streams an oversized admitted Soundscaper audio-effects render in Framescaper', async ({ page }) => {
 		test.setTimeout(120_000);
-		await page.addInitScript(() => {
-			Object.defineProperty(navigator.storage, 'estimate', {
-				configurable: true,
-				value: () => Promise.resolve({ usage: 1024 ** 2, quota: 2 * 1024 ** 3 }),
-			});
-		});
+		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const errors = collectClientErrors(page);
 		const soundscaper = await bootEditor(page, '/embed/en/');
 		const originalId = await soundscaper.getAttribute('data-project-id');
@@ -350,6 +342,7 @@ test.describe('Scape open feature decisions', () => {
 	});
 
 	test('opens Framescaper video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }) => {
+		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(90_000);
 		const fixture = await createGeneratedVideoFixture(page, {
 			name: 'compatibility-video.webm',
