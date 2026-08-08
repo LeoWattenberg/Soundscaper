@@ -38,5 +38,11 @@
   `test-results/`, but do not edit or commit that generated directory.
 - Preserve AGPL and third-party notices, pinned source hashes, and the StaffPad
   reproducibility/audit workflow.
+- After editing any file digest-pinned by `config/ffmpeg-runtime-manifest.json`
+  (notably `config/production-security-matrix.json` and
+  `docs/production-threat-model.md`), run
+  `node scripts/repin-runtime-evidence.mjs` to refresh the byteLength/sha256
+  pins and the review payload digest in the same commit; never hand-edit those
+  pins. `--check` verifies without writing.
 - Use tabs in existing JavaScript/JSX sources and keep changes narrowly scoped.
 - Make atomic commits.
