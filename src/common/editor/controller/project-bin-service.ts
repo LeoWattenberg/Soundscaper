@@ -80,11 +80,18 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	readonly activateStoredSource: ProjectBinLinkedAudioRelinkDependencies['activateStoredSource'];
 	readonly invalidateSourceRuntime: ProjectBinLinkedAudioRelinkDependencies['invalidateSourceRuntime'];
 	readonly activateVideoSource: ProjectBinLinkedVideoRelinkDependencies['activateVideoSource'];
+	readonly digestMediaContent: ProjectBinLinkedVideoRelinkDependencies['digestContent'];
+	readonly admitChangedContentVideoCandidate:
+	ProjectBinLinkedVideoRelinkDependencies['admitChangedContentCandidate'];
+	readonly deleteVideoDerivative: ProjectBinLinkedVideoRelinkDependencies['deleteVideoDerivatives'];
 }
 
 export interface ProjectBinService extends ProjectBinReplacementService,
 	Pick<ProjectBinLinkedAudioRelinkService, 'canRelinkLinkedAudio' | 'relinkLinkedAudio'>,
-	Pick<ProjectBinLinkedVideoRelinkService, 'canRelinkLinkedVideo' | 'relinkLinkedVideo'> {
+	Pick<
+		ProjectBinLinkedVideoRelinkService,
+		'canRelinkLinkedVideo' | 'classifyLinkedVideoRelink' | 'relinkLinkedVideo'
+	> {
 	moveClipsToProjectBin(clipId?: string | readonly (string | null | undefined)[] | null): readonly string[] | null;
 	placeProjectBinClip(binClipId: string, placement?: Readonly<{ trackId?: string | null; timelineStartFrame?: unknown }>): string | null;
 	renameProjectBinClip(clipId: string, requestedName: unknown): string | null;
@@ -119,6 +126,7 @@ export function createProjectBinService(
 		canRelinkLinkedAudio: audioRelink.canRelinkLinkedAudio,
 		relinkLinkedAudio: audioRelink.relinkLinkedAudio,
 		canRelinkLinkedVideo: videoRelink.canRelinkLinkedVideo,
+		classifyLinkedVideoRelink: videoRelink.classifyLinkedVideoRelink,
 		relinkLinkedVideo: videoRelink.relinkLinkedVideo,
 		playPauseProjectBinClip: preview.playPauseProjectBinClip,
 		stopProjectBinPreview: preview.stopProjectBinPreview,
@@ -407,6 +415,9 @@ function videoRelinkDependencies(
 		relinkLinkedVideoOriginal: (...args) => dependencies.store.relinkLinkedVideoOriginal(...args),
 		releaseLinkedVideoOriginalLocator: (...args) => dependencies.store.releaseLinkedVideoOriginalLocator(...args),
 		activateVideoSource: dependencies.activateVideoSource,
+		digestContent: dependencies.digestMediaContent,
+		admitChangedContentCandidate: dependencies.admitChangedContentVideoCandidate,
+		deleteVideoDerivatives: dependencies.deleteVideoDerivative,
 		publish: dependencies.publish,
 	};
 }

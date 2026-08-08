@@ -29,7 +29,7 @@ test('the linked-video Project Bin action forwards only the chosen File and opaq
 
 	assert.match(source, /const chooseLinkedVideo = \(\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const choice = await fileService\.chooseLinkedVideoOriginal\(\)/u);
 	assert.match(source, /if \(!choice\) return;[\s\S]*controller\.actions\.project\.importFiles\(\[choice\.file\], \{[\s\S]*destination: 'project-bin',[\s\S]*linkedVideoLocatorId: choice\.locatorId,[\s\S]*linkedVideoLocatorRevision: choice\.locatorRevision,[\s\S]*\}\)/u);
-	assert.doesNotMatch(source, /releaseLinkedVideoOriginal/u);
+	assert.doesNotMatch(source, /chooseLinkedVideo = [\s\S]{0,400}releaseLinkedVideoOriginal/u);
 	assert.doesNotMatch(source, /choice\.(?:name|path|mimeType|size)/u);
 });
 
@@ -39,11 +39,22 @@ test('a bound Project Bin video can relink through only the pathless chooser sna
 	assert.equal(ENGLISH_COPY.projectBinRelink, 'Relink');
 	assert.equal(GERMAN_COPY.projectBinRelink, 'Neu verknüpfen');
 	assert.match(source, /const relinkLinkedVideo = \(clipId\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const choice = await fileService\.chooseLinkedVideoOriginal\(\)/u);
-	assert.match(source, /controller\.actions\.projectBin\.relinkLinkedVideo\(clipId, choice\.file, \{\s*locatorId: choice\.locatorId,\s*locatorRevision: choice\.locatorRevision,\s*\}\)/u);
+	assert.match(source, /const locator = \{\s*locatorId: choice\.locatorId,\s*locatorRevision: choice\.locatorRevision,\s*\};/u);
+	assert.match(source, /classifyLinkedVideoRelink\(clipId, choice\.file\)/u, 'the panel classifies content before dispatching');
+	assert.match(source, /classification === 'changed-content'[\s\S]{0,200}setRelinkChangedChoice\(\{ clipId, file: choice\.file, locator \}\)/u);
+	assert.match(source, /controller\.actions\.projectBin\.relinkLinkedVideo\(clipId, choice\.file, locator\)/u);
+	assert.match(
+		source,
+		/applyRelinkChangedChoice[\s\S]{0,400}\{ allowChangedContent: true \}/u,
+		'changed content dispatches only through the explicit confirmation',
+	);
+	assert.match(source, /cancelRelinkChangedChoice[\s\S]{0,300}releaseLinkedVideoOriginal\(declined\.locator\)/u);
 	assert.match(source, /fileService\.linkedVideoOriginalsAvailable && menuVideoRelinkEligible[\s\S]*label=\{copy\.projectBinRelink\}/u);
 	assert.match(source, /canRelinkLinkedVideo\(videoClip\.id\)/u, 'menu eligibility asks the controller for the binding, not missing-source state');
 	assert.doesNotMatch(source, /menuVideoMissing/u, 'missing-source state is no longer relink eligibility');
 	assert.doesNotMatch(source, /relinkLinkedVideo[\s\S]{0,500}choice\.(?:name|path|mimeType|size)/u);
+	assert.equal(ENGLISH_COPY.projectBinRelinkChangedReplace, 'Replace');
+	assert.equal(GERMAN_COPY.projectBinRelinkChangedReplace, 'Ersetzen');
 });
 
 function renderProjectBin(

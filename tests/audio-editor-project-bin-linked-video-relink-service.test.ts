@@ -3,30 +3,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import {
-	createProjectBinLinkedVideoRelinkService,
-	type ProjectBinLinkedVideoRelinkBinding,
-	type ProjectBinLinkedVideoRelinkDependencies,
-	type ProjectBinLinkedVideoRelinkLocator,
-} from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
+	FIRST_LOCATOR,
+	OLD_BINDING,
+	OLD_LOCATOR,
+	SECOND_LOCATOR,
+	changedVideoFile,
+	createHarness,
+	deferred,
+	replacementBinding,
+	videoFile,
+} from './helpers/project-bin-video-relink-harness.ts';
 
-const OLD_LOCATOR = Object.freeze({
-	locatorId: 'locator_relink_original_0001',
-	locatorRevision: 'revision_relink_original_01',
-});
-const FIRST_LOCATOR = Object.freeze({
-	locatorId: 'locator_relink_selected_0001',
-	locatorRevision: 'revision_relink_selected_01',
-});
-const SECOND_LOCATOR = Object.freeze({
-	locatorId: 'locator_relink_selected_0002',
-	locatorRevision: 'revision_relink_selected_02',
-});
-const OLD_BINDING = Object.freeze({
-	...OLD_LOCATOR,
-	bindingToken: 'binding_relink_original_0001',
-});
 
 test('relink fences stale playback, preview, and visual before publishing a missing compound video', async () => {
 	const fixture = createHarness();
@@ -303,6 +291,123 @@ test('a newer relink supersedes the old lifetime task and cleans only its unpubl
 	assert.equal(fixture.publishCount, 1);
 });
 
+test('a changed-content relink requires explicit confirmation before any side effects', async () => {
+	const fixture = createHarness({ missing: false });
+
+	await assert.rejects(
+		fixture.service.relinkLinkedVideo('bin-solo-video', changedVideoFile(), FIRST_LOCATOR),
+		/changed content.*requires explicit confirmation/iu,
+	);
+
+	assert.deepEqual(fixture.order, ['binding', 'release'], 'refusal precedes playback, preview, and visual work');
+	assert.deepEqual(fixture.releases, [FIRST_LOCATOR]);
+	assert.equal(fixture.publishCount, 0);
+});
+
+test('an authorized changed-content relink probes the candidate and purges stale derivatives', async () => {
+	const fixture = createHarness({ missing: false });
+	const file = changedVideoFile();
+	const projectBefore = JSON.stringify(fixture.project);
+
+	assert.equal(
+		await fixture.service.relinkLinkedVideo('bin-solo-video', file, FIRST_LOCATOR, {
+			allowChangedContent: true,
+		}),
+		'video-solo-source',
+	);
+
+	assert.deepEqual(fixture.order, [
+		'binding', 'probe', 'timeline', 'preview', 'revoke', 'relink', 'derivatives', 'activate', 'publish',
+	]);
+	assert.deepEqual(fixture.revokedIds, ['video-solo-source']);
+	const relink = fixture.relinks[0];
+	assert.equal(relink?.options.admission, 'changed-content');
+	assert.equal(relink?.options.expectedSnapshot, file);
+	assert.deepEqual(fixture.releases, []);
+	assert.equal(fixture.publishCount, 1);
+	assert.equal(JSON.stringify(fixture.project), projectBefore, 'relink must not edit the canonical project');
+});
+
+test('changed-content relink refuses audio-paired items and retained-audio sources', async () => {
+	const paired = createHarness({ missing: false });
+	await assert.rejects(
+		paired.service.relinkLinkedVideo('bin-video', changedVideoFile(), FIRST_LOCATOR, {
+			allowChangedContent: true,
+		}),
+		/pairs the video with an audio member/iu,
+	);
+	assert.deepEqual(paired.order, ['binding', 'release']);
+
+	const audible = createHarness({ missing: false });
+	await assert.rejects(
+		audible.service.relinkLinkedVideo('bin-audible-video', changedVideoFile(), FIRST_LOCATOR, {
+			allowChangedContent: true,
+		}),
+		/retains canonical extracted audio.*silent video source/iu,
+	);
+	assert.deepEqual(audible.order, ['binding', 'release']);
+	assert.deepEqual(audible.releases, [FIRST_LOCATOR]);
+});
+
+test('a failed changed-content probe releases only the candidate before side effects', async () => {
+	const fixture = createHarness({
+		missing: false,
+		admitCandidate: async () => {
+			throw new Error('The selected video does not match the linked source frame size.');
+		},
+	});
+
+	await assert.rejects(
+		fixture.service.relinkLinkedVideo('bin-solo-video', changedVideoFile(), FIRST_LOCATOR, {
+			allowChangedContent: true,
+		}),
+		/does not match the linked source frame size/iu,
+	);
+
+	assert.deepEqual(fixture.order, ['binding', 'probe', 'release']);
+	assert.deepEqual(fixture.releases, [FIRST_LOCATOR]);
+	assert.equal(fixture.missingSourceIds.has('video-solo-source'), false);
+	assert.equal(fixture.publishCount, 0);
+});
+
+test('a failed derivative purge keeps the relink and reports cleanup at disposal', async () => {
+	const fixture = createHarness({
+		missing: false,
+		deleteDerivatives: async () => { throw new Error('derivative purge failed'); },
+	});
+
+	assert.equal(
+		await fixture.service.relinkLinkedVideo('bin-solo-video', changedVideoFile(), FIRST_LOCATOR, {
+			allowChangedContent: true,
+		}),
+		'video-solo-source',
+	);
+
+	assert.equal(fixture.publishCount, 1);
+	await assert.rejects(fixture.service.dispose(), /candidate cleanup failed/iu);
+});
+
+test('classifyLinkedVideoRelink distinguishes exact from changed content', async () => {
+	const fixture = createHarness({ missing: false });
+	assert.equal(await fixture.service.classifyLinkedVideoRelink('bin-video', videoFile()), 'exact-content');
+	assert.equal(
+		await fixture.service.classifyLinkedVideoRelink('bin-video', changedVideoFile()),
+		'changed-content',
+	);
+	const sameSizeChanged = new File(['same-video!'.slice(0, 10)], 'other.mp4', { type: 'video/mp4' });
+	assert.equal(sameSizeChanged.size, videoFile().size);
+	assert.equal(
+		await fixture.service.classifyLinkedVideoRelink('bin-video', sameSizeChanged),
+		'changed-content',
+	);
+
+	const unbound = createHarness({ getBinding: async () => null });
+	await assert.rejects(
+		unbound.service.classifyLinkedVideoRelink('bin-video', videoFile()),
+		/not currently bound/iu,
+	);
+});
+
 test('relink eligibility reports only a bound single-video item', async () => {
 	const bound = createHarness({ missing: false });
 	assert.equal(await bound.service.canRelinkLinkedVideo('bin-video'), true);
@@ -314,131 +419,3 @@ test('relink eligibility reports only a bound single-video item', async () => {
 	const unbound = createHarness({ getBinding: async () => null });
 	assert.equal(await unbound.service.canRelinkLinkedVideo('bin-video'), false);
 });
-
-interface HarnessOptions {
-	readonly missing?: boolean;
-	readonly editingBlocked?: () => boolean;
-	readonly activate?: ProjectBinLinkedVideoRelinkDependencies['activateVideoSource'];
-	readonly getBinding?: ProjectBinLinkedVideoRelinkDependencies['getLinkedVideoOriginalBinding'];
-	readonly relink?: ProjectBinLinkedVideoRelinkDependencies['relinkLinkedVideoOriginal'];
-	readonly release?: ProjectBinLinkedVideoRelinkDependencies['releaseLinkedVideoOriginalLocator'];
-	readonly revoke?: (missingSourceIds: Set<string>) => void;
-}
-
-function createHarness(options: HarnessOptions = {}) {
-	const lifetime = new EditorControllerLifetime();
-	const projectGeneration = new EditorProjectGeneration();
-	const project = projectFixture();
-	projectGeneration.activate(project.id);
-	const missingSourceIds = new Set(options.missing === false ? [] : ['video-source']);
-	const order: string[] = [];
-	const releases: ProjectBinLinkedVideoRelinkLocator[] = [];
-	const relinks: Array<Readonly<{
-		projectId: string;
-		source: unknown;
-		locatorId: string;
-		options: Readonly<{
-			expectedBindingToken: string;
-			expectedLocatorRevision: string;
-			expectedSnapshot: Blob;
-			assertCanPublish(): void;
-			signal: AbortSignal;
-		}>;
-	}>> = [];
-	let publishCount = 0;
-	const dependencies: ProjectBinLinkedVideoRelinkDependencies = {
-		lifetime,
-		missingSourceIds,
-		editingBlocked: options.editingBlocked ?? (() => false),
-		getProject: () => project,
-		captureProject: () => projectGeneration.capture(),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		async getLinkedVideoOriginalBinding() {
-			order.push('binding');
-			return options.getBinding ? options.getBinding(project.id, 'video-source') : OLD_BINDING;
-		},
-		async stopTimelinePlayback() { order.push('timeline'); },
-		async stopProjectBinPreview() { order.push('preview'); },
-		async revokeVideoVisual(sourceId) {
-			assert.equal(sourceId, 'video-source');
-			order.push('revoke');
-			options.revoke?.(missingSourceIds);
-		},
-		async relinkLinkedVideoOriginal(projectId, source, locatorId, relinkOptions) {
-			order.push('relink');
-			relinks.push({ projectId, source, locatorId, options: relinkOptions });
-			if (!options.relink) relinkOptions.assertCanPublish();
-			return options.relink
-				? options.relink(projectId, source, locatorId, relinkOptions)
-				: replacementBinding({ locatorId, locatorRevision: relinkOptions.expectedLocatorRevision });
-		},
-		async releaseLinkedVideoOriginalLocator(reference) {
-			order.push('release');
-			releases.push(reference);
-			return options.release ? options.release(reference) : true;
-		},
-		async activateVideoSource(source, activationOptions) {
-			order.push('activate');
-			if (options.activate) return options.activate(source, activationOptions);
-			return Object.freeze({ mediaUrl: 'soundscaper-app://linked-video' });
-		},
-		publish() {
-			order.push('publish');
-			publishCount += 1;
-		},
-	};
-	const service = createProjectBinLinkedVideoRelinkService(dependencies);
-	return {
-		service,
-		project,
-		missingSourceIds,
-		order,
-		releases,
-		relinks,
-		get publishCount() { return publishCount; },
-	};
-}
-
-function projectFixture() {
-	return Object.freeze({
-		schemaVersion: 9,
-		id: 'project-bin-relink-project',
-		sampleRate: 48_000,
-		sources: Object.freeze([
-			Object.freeze({ id: 'audio-source', kind: 'audio' as const, frameCount: 48_000 }),
-			Object.freeze({
-				id: 'video-source', kind: 'video' as const, storageKey: 'video-storage',
-				mimeType: 'video/mp4', frameCount: 48_000, sampleRate: 48_000,
-				width: 1_920, height: 1_080, frameRate: 30,
-				videoCodec: 'h264', audioCodec: null, hasAudio: false,
-			}),
-		]),
-		clips: Object.freeze([]),
-		tracks: Object.freeze([]),
-		projectBin: Object.freeze({ clips: Object.freeze([
-			Object.freeze({
-				id: 'bin-audio', sourceId: 'audio-source', kind: 'audio' as const, binItemId: 'compound-item',
-			}),
-			Object.freeze({
-				id: 'bin-video', sourceId: 'video-source', kind: 'video' as const, binItemId: 'compound-item',
-			}),
-			Object.freeze({
-				id: 'bin-solo-audio', sourceId: 'audio-source', kind: 'audio' as const, binItemId: 'solo-item',
-			}),
-		]) }),
-	});
-}
-
-function replacementBinding(locator: ProjectBinLinkedVideoRelinkLocator): ProjectBinLinkedVideoRelinkBinding {
-	return Object.freeze({ ...locator, bindingToken: 'binding_relink_selected_0001' });
-}
-
-function videoFile(): File {
-	return new File(['same video'], 'selected.mp4', { type: 'video/mp4' });
-}
-
-function deferred<Value>() {
-	let resolve!: (value: Value | PromiseLike<Value>) => void;
-	const promise = new Promise<Value>((complete) => { resolve = complete; });
-	return { promise, resolve };
-}

@@ -21,6 +21,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const [replacementClipId, setReplacementClipId] = useState(null);
 	const [replacementChoice, setReplacementChoice] = useState(null);
 	const [removeConfirmation, setRemoveConfirmation] = useState(null);
+	const [relinkChangedChoice, setRelinkChangedChoice] = useState(null);
 	const project = snapshot.project;
 	const projectId = project?.id;
 	const projectRevision = project?.revision;
@@ -117,11 +118,33 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		if (mutationBlocked) return;
 		const choice = await fileService.chooseLinkedVideoOriginal();
 		if (!choice) return;
-		await controller.actions.projectBin.relinkLinkedVideo(clipId, choice.file, {
+		const locator = {
 			locatorId: choice.locatorId,
 			locatorRevision: choice.locatorRevision,
-		});
+		};
+		const classification = await controller.actions.projectBin.classifyLinkedVideoRelink(clipId, choice.file);
+		if (classification === 'changed-content') {
+			setRelinkChangedChoice({ clipId, file: choice.file, locator });
+			return;
+		}
+		await controller.actions.projectBin.relinkLinkedVideo(clipId, choice.file, locator);
 	});
+	const cancelRelinkChangedChoice = () => {
+		const declined = relinkChangedChoice;
+		setRelinkChangedChoice(null);
+		if (declined) run(() => fileService.releaseLinkedVideoOriginal(declined.locator));
+	};
+	const applyRelinkChangedChoice = () => {
+		const accepted = relinkChangedChoice;
+		setRelinkChangedChoice(null);
+		if (!accepted) return;
+		run(() => controller.actions.projectBin.relinkLinkedVideo(
+			accepted.clipId,
+			accepted.file,
+			accepted.locator,
+			{ allowChangedContent: true },
+		));
+	};
 	const isFileDrag = (dataTransfer) => {
 		const types = [...(dataTransfer?.types || [])];
 		return types.includes('Files') || [...(dataTransfer?.items || [])].some((item) => item.kind === 'file');
@@ -411,6 +434,20 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 								setRemoveConfirmation(null);
 								run(() => controller.actions.projectBin.removeFromProject(clipId));
 							}}>{copy.projectBinRemoveFromProject}</Button>
+						</div>
+					</div>
+				</div>
+			</div>
+		)}
+		{relinkChangedChoice && (
+			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-relink-changed-dialog>
+				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-relink-changed-title">
+					<DialogHeader title={copy.projectBinRelinkChangedTitle} onClose={cancelRelinkChangedChoice} />
+					<div className="kw-audio-editor-dialog__body">
+						<p id="project-bin-relink-changed-title">{copy.projectBinRelinkChangedConfirm}</p>
+						<div className="kw-audio-editor-dialog__actions">
+							<Button variant="secondary" onClick={cancelRelinkChangedChoice}>{copy.projectBinRelinkChangedCancel}</Button>
+							<Button variant="primary" onClick={applyRelinkChangedChoice}>{copy.projectBinRelinkChangedReplace}</Button>
 						</div>
 					</div>
 				</div>

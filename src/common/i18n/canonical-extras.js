@@ -360,6 +360,10 @@ const COPY_ENTRIES = Object.freeze([
 	["projectBinLinkVideo","Link video","Video verknüpfen"],
 	["projectBinRelink","Relink","Neu verknüpfen"],
 	["projectBinLinkAudio","Link WAV","WAV verknüpfen"],
+	["projectBinRelinkChangedTitle","Replace linked video","Verknüpftes Video ersetzen"],
+	["projectBinRelinkChangedConfirm","The selected file has different content than the linked original. Replace the link with the selected file? Previews will be regenerated.","Die ausgewählte Datei hat einen anderen Inhalt als das verknüpfte Original. Verknüpfung durch die ausgewählte Datei ersetzen? Vorschauen werden neu erstellt."],
+	["projectBinRelinkChangedReplace","Replace","Ersetzen"],
+	["projectBinRelinkChangedCancel","Cancel","Abbrechen"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

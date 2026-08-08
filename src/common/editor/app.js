@@ -299,6 +299,8 @@ import { createProjectImportService } from './controller/project-import-service.
 import { createProjectAdminService } from './controller/project-admin-service.ts';
 import { fitAudioBufferToFrames } from './controller/audio-buffer-frame-fit.ts';
 import { createProjectBinService } from './controller/project-bin-service.ts';
+import { admitChangedContentVideoCandidate } from './controller/video-relink-probe.ts';
+import { digestMediaContent } from './storage/media-content-digest.ts';
 import { createProjectVisualService } from './controller/project-visual-service.ts';
 import { createRackEffectService } from './controller/rack-effect-service.ts';
 import { createVideoEffectService } from './controller/video-effect-service.ts';
@@ -1445,6 +1447,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			return result;
 		},
 		activateStoredSource, invalidateSourceRuntime: sourceLifecycleService.invalidateSourceRuntime, projectChanged, publish: publishDocumentSnapshot, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, revokeVideoVisual,
+		digestMediaContent, deleteVideoDerivative: (sourceId) => store.deleteVideoDerivative(sourceId),
+		admitChangedContentVideoCandidate: (file, source, probeOptions) => admitChangedContentVideoCandidate(file, source, { createAudioEditorVideoFrameExtractor, engine, ffmpeg }, probeOptions),
 	});
 	const videoEffectService = createVideoEffectService({
 		state, copy, getProject: () => project,
@@ -1718,7 +1722,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
-		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
+		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,

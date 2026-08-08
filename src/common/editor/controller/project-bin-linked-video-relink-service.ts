@@ -18,11 +18,14 @@ export interface ProjectBinLinkedVideoRelinkLocator {
 
 export interface ProjectBinLinkedVideoRelinkBinding extends ProjectBinLinkedVideoRelinkLocator {
 	readonly bindingToken: string;
+	readonly byteLength: number;
+	readonly sha256: string;
 }
 
 interface ProjectBinLinkedVideoRelinkSource {
 	readonly id: string;
 	readonly kind?: string;
+	readonly hasAudio?: boolean;
 }
 
 interface ProjectBinLinkedVideoRelinkClip {
@@ -40,6 +43,7 @@ interface ProjectBinLinkedVideoRelinkProject {
 type VideoSource = ProjectBinLinkedVideoRelinkSource & Readonly<{ kind: 'video' }>;
 
 interface RelinkOptions {
+	readonly admission?: 'exact-content' | 'changed-content';
 	readonly expectedBindingToken: string;
 	readonly expectedLocatorRevision: string;
 	readonly expectedSnapshot: Blob;
@@ -78,15 +82,29 @@ export interface ProjectBinLinkedVideoRelinkDependencies {
 		source: VideoSource,
 		options: Readonly<{ signal: AbortSignal }>,
 	): MaybePromise<unknown>;
+	digestContent(blob: Blob, options: Readonly<{ signal?: AbortSignal }>): MaybePromise<string>;
+	admitChangedContentCandidate(
+		file: Blob,
+		source: VideoSource,
+		options: Readonly<{ signal: AbortSignal }>,
+	): MaybePromise<unknown>;
+	deleteVideoDerivatives(sourceId: string): MaybePromise<unknown>;
 	publish(): void;
 }
 
+export type ProjectBinLinkedVideoRelinkClassification = 'exact-content' | 'changed-content';
+
 export interface ProjectBinLinkedVideoRelinkService {
 	canRelinkLinkedVideo(clipId: string): Promise<boolean>;
+	classifyLinkedVideoRelink(
+		clipId: string,
+		file: Blob,
+	): Promise<ProjectBinLinkedVideoRelinkClassification>;
 	relinkLinkedVideo(
 		clipId: string,
 		file: Blob,
 		locator: ProjectBinLinkedVideoRelinkLocator,
+		options?: Readonly<{ allowChangedContent?: boolean }>,
 	): Promise<string>;
 	dispose(): Promise<void>;
 }
@@ -103,7 +121,31 @@ export function createProjectBinLinkedVideoRelinkService(
 	let operationSequence = 0;
 	let disposed = false;
 	let disposal: Promise<void> | null = null;
-	return Object.freeze({ canRelinkLinkedVideo, relinkLinkedVideo, dispose });
+	return Object.freeze({ canRelinkLinkedVideo, classifyLinkedVideoRelink, relinkLinkedVideo, dispose });
+
+	async function classifyLinkedVideoRelink(
+		clipId: string,
+		file: Blob,
+	): Promise<ProjectBinLinkedVideoRelinkClassification> {
+		assertNotDisposed(disposed);
+		dependencies.lifetime.assertActive();
+		const project = dependencies.getProject();
+		const projectToken = dependencies.captureProject();
+		const source = compoundVideoSource(project, clipId, true) as VideoSource;
+		const binding = await dependencies.getLinkedVideoOriginalBinding(project.id, source.id);
+		assertNotDisposed(disposed);
+		dependencies.lifetime.assertActive();
+		dependencies.assertProject(projectToken);
+		if (!binding) {
+			throw new Error('The Project Bin video is not currently bound to a linked original.');
+		}
+		if (file.size !== binding.byteLength) return 'changed-content';
+		const digest = await dependencies.digestContent(file, {});
+		assertNotDisposed(disposed);
+		dependencies.lifetime.assertActive();
+		dependencies.assertProject(projectToken);
+		return digest === binding.sha256 ? 'exact-content' : 'changed-content';
+	}
 
 	async function canRelinkLinkedVideo(clipId: string): Promise<boolean> {
 		assertNotDisposed(disposed);
@@ -123,8 +165,9 @@ export function createProjectBinLinkedVideoRelinkService(
 		clipId: string,
 		file: Blob,
 		locator: ProjectBinLinkedVideoRelinkLocator,
+		relinkOptions: Readonly<{ allowChangedContent?: boolean }> = {},
 	): Promise<string> {
-		const operation = performRelink(clipId, file, locator);
+		const operation = performRelink(clipId, file, locator, relinkOptions);
 		const settlement: Promise<void> = operation.then(() => undefined, () => undefined).finally(() => {
 			settlements.delete(settlement);
 		});
@@ -136,6 +179,7 @@ export function createProjectBinLinkedVideoRelinkService(
 		clipId: string,
 		file: Blob,
 		locator: ProjectBinLinkedVideoRelinkLocator,
+		relinkOptions: Readonly<{ allowChangedContent?: boolean }>,
 	): Promise<string> {
 		const candidate = locatorSnapshot(locator);
 		let operationId = 0;
@@ -162,6 +206,33 @@ export function createProjectBinLinkedVideoRelinkService(
 			if (!oldBinding) {
 				throw new Error('The Project Bin video is not currently bound to a linked original.');
 			}
+			const changedContent = file.size !== oldBinding.byteLength
+				|| await dependencies.digestContent(file, { signal: activeTask.signal }) !== oldBinding.sha256;
+			assertCurrent(dependencies, activeTask, projectToken);
+			assertWritable(dependencies);
+			if (changedContent) {
+				if (relinkOptions.allowChangedContent !== true) {
+					throw new Error(
+						'The selected linked video original has changed content; '
+						+ 'changed-content relink requires explicit confirmation.',
+					);
+				}
+				if (source.hasAudio !== false) {
+					throw new Error(
+						'The linked video source retains canonical extracted audio; '
+						+ 'changed-content relink requires a silent video source.',
+					);
+				}
+				if (itemHasAudioMember(project, clipId)) {
+					throw new Error(
+						'The Project Bin item pairs the video with an audio member; '
+						+ 'changed-content relink requires a silent video item.',
+					);
+				}
+				await dependencies.admitChangedContentCandidate(file, source, { signal: activeTask.signal });
+				assertCurrent(dependencies, activeTask, projectToken);
+				assertWritable(dependencies);
+			}
 			wasMissing = dependencies.missingSourceIds.has(source.id);
 
 			await dependencies.stopTimelinePlayback();
@@ -182,6 +253,7 @@ export function createProjectBinLinkedVideoRelinkService(
 				source,
 				candidate.locatorId,
 				Object.freeze({
+					...(changedContent ? { admission: 'changed-content' as const } : {}),
 					expectedBindingToken: oldBinding.bindingToken,
 					expectedLocatorRevision: candidate.locatorRevision,
 					expectedSnapshot: file,
@@ -197,6 +269,11 @@ export function createProjectBinLinkedVideoRelinkService(
 			assertCurrent(dependencies, activeTask, projectToken);
 			if (!sameLocator(rebound, candidate)) {
 				throw new Error('The linked-video relink published an unexpected locator snapshot.');
+			}
+			if (changedContent) {
+				try { await dependencies.deleteVideoDerivatives(source.id); }
+				catch (purgeError) { cleanupFailures.push(purgeError); }
+				assertCurrent(dependencies, activeTask, projectToken);
 			}
 
 			activationStarted = true;
@@ -365,6 +442,20 @@ function compoundVideoSource(
 		return null;
 	}
 	return [...videos.values()][0] as VideoSource;
+}
+
+function itemHasAudioMember(
+	project: ProjectBinLinkedVideoRelinkProject,
+	clipId: string,
+): boolean {
+	const clips = Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [];
+	const selected = clips.find((clip) => clip.id === clipId);
+	if (!selected) return false;
+	const itemClips = selected.binItemId
+		? clips.filter((clip) => clip.binItemId === selected.binItemId)
+		: [selected];
+	const sourceById = new Map(project.sources.map((source) => [source.id, source]));
+	return itemClips.some((clip) => sourceById.get(clip.sourceId)?.kind === 'audio');
 }
 
 function assertNotDisposed(disposed: boolean): void {
