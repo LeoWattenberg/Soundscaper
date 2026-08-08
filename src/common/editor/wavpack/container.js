@@ -193,15 +193,13 @@ export async function parsePcmContainerIndex(file, {
 	if (file.size < PCM_CONTAINER_HEADER_BYTES + PCM_CONTAINER_FOOTER_BYTES) {
 		throw corruption('The PCM container is truncated.', 'PCM_CONTAINER_TRUNCATED');
 	}
-	const [headerBytes, footerBytes] = await Promise.all([
-		readExactSlice(file, 0, PCM_CONTAINER_HEADER_BYTES, signal),
-		readExactSlice(
-			file,
-			file.size - PCM_CONTAINER_FOOTER_BYTES,
-			file.size,
-			signal,
-		),
-	]);
+	const headerBytes = await readExactSlice(file, 0, PCM_CONTAINER_HEADER_BYTES, signal);
+	const footerBytes = await readExactSlice(
+		file,
+		file.size - PCM_CONTAINER_FOOTER_BYTES,
+		file.size,
+		signal,
+	);
 	const header = parseHeader(headerBytes);
 	const footer = parseFooter(footerBytes);
 	if (expectedChannelCount != null && header.channelCount !== Number(expectedChannelCount)) {

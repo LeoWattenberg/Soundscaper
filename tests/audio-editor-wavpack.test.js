@@ -159,6 +159,14 @@ test('the indexed PCM container validates geometry, CRCs, truncation, and random
 	});
 	assert.equal(index.entries.length, 2);
 	assert.equal(index.entries[0].offset, PCM_CONTAINER_HEADER_BYTES);
+	const exclusiveIndex = await parsePcmContainerIndex(exclusiveSliceReads(file), {
+		expectedChannelCount: 2,
+		expectedSampleRate: 48_000,
+		expectedChunkFrames: 65_536,
+		expectedChunkCount: 2,
+		expectedFrameCount: 65_538,
+	});
+	assert.equal(exclusiveIndex.entries.length, 2);
 	const randomPayload = await readPcmContainerPayload(file, index.entries[1]);
 	assert.deepEqual(
 		unpackPlanarFloat32(randomPayload, 2, 2).map((channel) => [...channel]),
@@ -301,6 +309,33 @@ function memoryWritable() {
 		file() {
 			assert.equal(closed, true);
 			return new Blob(parts);
+		},
+	};
+}
+
+function exclusiveSliceReads(file) {
+	let active = false;
+	return {
+		size: file.size,
+		slice(start, end) {
+			const part = file.slice(start, end);
+			return {
+				size: part.size,
+				async arrayBuffer() {
+					if (active) {
+						const error = new Error('Concurrent file reads are unavailable.');
+						error.name = 'NoModificationAllowedError';
+						throw error;
+					}
+					active = true;
+					try {
+						await Promise.resolve();
+						return await part.arrayBuffer();
+					} finally {
+						active = false;
+					}
+				},
+			};
 		},
 	};
 }
