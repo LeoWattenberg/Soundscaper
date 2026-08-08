@@ -462,7 +462,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation.replace(/\s+/gu, ' '),
-		/relink beyond these exact-content retained-video and linked-PCM Project Bin flows and automatic watch behavior.*remain outside/iu,
+		/relink beyond these exact- or shape-compatible changed-content retained-video and linked-PCM Project Bin flows and automatic watch behavior.*remain outside/iu,
 	);
 	assert.match(
 		documentation,

@@ -420,7 +420,7 @@ and can close and reopen the canonical PCM without the linked-original port or
 locator. External container bytes and locator identity do not cross the
 managed-media bridge or enter the shared catalog or recipient.
 
-A binding-backed exact-content Project Bin linked-PCM relink resolves the
+A binding-backed exact- or shape-compatible changed-content Project Bin linked-PCM relink resolves the
 compound item to exactly one audio source with a current audio binding; it does
 not use missing-source state as eligibility. The component fences its
 asynchronous decision to the exact project revision and menu request. Its UI
@@ -428,12 +428,20 @@ handoff carries only the pathless selected `File`, opaque locator ID and
 revision, and exact `{projectId, projectRevision}` target. A stale chooser scope
 is released before dispatch. The service validates that target before starting
 the shared audio/video relink task and releases a mismatch without cancelling
-current work, then rechecks the target in storage publication admission. The
-controller stops timeline transport and Project Bin preview, retires the
-current source provider, and awaits its drain before storage. Storage proves
-the old binding and platform snapshot are current, requires the selected bytes
-to have the same byte length and SHA-256, and reloads the candidate at its exact
-revision. One synchronous `assertCanPublish` runs inside the same compensated
+current work, then rechecks the target in storage publication admission. The UI
+classifies the candidate by byte length and SHA-256 at the exact project and
+project revision. Exact content dispatches immediately. A changed choice stays
+owned by the UI until explicit localized confirmation; cancellation, failure,
+or stale scope releases it. Before timeline transport, Project Bin preview, or
+the provider is disturbed, a bounded structural probe requires the same
+maintained container identity and exact frame count, channel count, sample
+rate, and original sample rate without retaining decoded PCM. The controller
+then stops transport and preview and retires and drains the current provider.
+Storage proves the old binding and platform snapshot are current. Its default
+admission still requires exact byte-length and SHA-256 equality. Changed-content
+admission reloads the candidate at its exact revision and publishes its measured
+byte length and SHA-256 while copying the bound MIME and source shape unchanged.
+One synchronous `assertCanPublish` runs inside the same compensated
 memory batch or IndexedDB binding-and-provisional-root transaction and rechecks
 the shared task, exact target, project generation, and writable editor state.
 Project, source, clip, and history identity remain unchanged. After publication,
@@ -455,8 +463,8 @@ controller disposal prevents stale recovery. The displaced old locator waits
 for bounded alias-aware startup reconciliation.
 
 This exception does not qualify packaged executable or UI behavior,
-operating-system file-dialog or path durability, changed-content or other-media
-relink, automatic watch or discovery,
+operating-system file-dialog or path durability, changed-geometry,
+changed-container or other-media relink, automatic watch or discovery,
 broader audio formats, arbitrary third-party BW64, new BW64 ADM preservation or
 editing semantics, AIFF metadata preservation, broader or compressed AIFC,
 third-party AIFC interoperability and provenance, the `.aifc` extension,
@@ -992,8 +1000,9 @@ The maintained pathless desktop linked retained-video slice and narrow
 linked-PCM managed-handoff exception described above are also qualified. Other
 linked audio and every other linked or unmanaged original, authored proxies,
 rendered-fallback authoring and transfer semantics beyond the closed audio
-whole-mix and maintained video roles, relink beyond these exact-content
-retained-video and linked-PCM Project Bin flows and automatic watch behavior, general
+whole-mix and maintained video roles, relink beyond these exact- or
+shape-compatible changed-content retained-video and linked-PCM Project Bin flows
+and automatic watch behavior, general
 copy/consolidate beyond the bounded same-store project-alias duplication above,
 source-level linked-locator cleanup outside maintained same-store saves and
 successful writable activations, general linked-locator cleanup beyond the
@@ -1053,8 +1062,9 @@ qualified. Other linked audio and every other linked or unmanaged original,
 authored proxies, rendered-fallback authoring and transfer semantics beyond the
 closed audio whole-mix and maintained video roles, general
 copy/consolidate beyond the bounded same-store project-alias
-duplication above, relink beyond these exact-content retained-video and
-linked-PCM Project Bin flows and automatic watch behavior, source-level linked-locator cleanup
+duplication above, relink beyond these exact- or shape-compatible changed-content
+retained-video and linked-PCM Project Bin flows and automatic watch behavior,
+source-level linked-locator cleanup
 outside maintained same-store saves and successful writable activations,
 general linked-locator cleanup beyond the bounded startup and same-store
 save/activation/delete/clear inventories, packaged chooser/import qualification,

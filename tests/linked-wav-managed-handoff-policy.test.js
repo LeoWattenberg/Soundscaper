@@ -43,11 +43,11 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 	);
 	assert.match(
 		handoff.requiredOutcome,
-		/binding-backed.*Project Bin relink.*exactly one audio source.*must not depend on missing-source state.*same byte length and SHA-256.*consumers and provider.*drain before.*binding-and-provisional-root compare-and-swap.*preserve project, source, clip, and history identity.*bounded.*alias-aware startup reconciliation/isu,
+		/binding-backed.*Project Bin relink.*exactly one audio source.*must not depend on missing-source state.*exact content by default.*changed content.*explicit localized confirmation.*same maintained container identity.*exact frame count, channel count, sample rate, and original sample rate.*measured replacement byte length and SHA-256.*consumers and provider.*drain.*before.*binding-and-provisional-root compare-and-swap.*preserve project, source, clip, and history identity.*bounded.*alias-aware startup reconciliation/isu,
 	);
 	assert.match(
 		handoff.currentBehavior,
-		/eligibility.*current audio binding.*even when.*not missing.*timeline transport.*Project Bin preview.*provider.*(?:retire|drain).*before.*old binding and platform snapshot.*current.*select(?:ed|ion).*byte length and SHA-256.*candidate.*exact locator revision.*synchronous.*assertCanPublish.*same compensated memory batch or IndexedDB.*binding-and-provisional-root CAS.*invalidate.*source buffer.*peaks.*waveform.*analysis.*displaced old locator.*startup reconciliation/isu,
+		/eligibility.*current audio binding.*even when.*not missing.*classif.*byte length and SHA-256.*exact project and project revision.*changed choice.*localized confirmation.*structural probe.*before.*timeline transport.*Project Bin preview.*provider.*(?:retire|drain).*same maintained MIME and file identity.*exact frame count, channel count, sample rate, and original sample rate.*old binding and platform snapshot.*current.*candidate.*exact locator revision.*measured byte length and SHA-256.*synchronous.*assertCanPublish.*same compensated memory batch or IndexedDB.*binding-and-provisional-root CAS.*invalidate.*source buffer.*peaks.*waveform.*analysis.*displaced old locator.*startup reconciliation/isu,
 	);
 	assertLinkedAudioTargetAndRecovery(`${handoff.requiredOutcome} ${handoff.currentBehavior}`);
 	for (const text of [portable.currentBehavior, handoff.currentBehavior]) {
@@ -70,6 +70,7 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 		'src/common/editor/app.js',
 		'src/common/editor/controller/action-facade.ts',
 		'src/common/editor/controller/clip-time-pitch-service.ts',
+		'src/common/editor/controller/audio-relink-probe.ts',
 		'src/common/editor/controller/project-bin-linked-audio-relink-service.ts',
 		'src/common/editor/controller/project-bin-linked-original-relink-task.ts',
 		'src/common/editor/controller/project-bin-service.ts',
@@ -88,11 +89,13 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 		'src/common/editor/ui/workspace/linked-audio-choice-handoff.ts',
 		'tests/audio-editor-controller-action-facade.test.ts',
 		'tests/audio-editor-clip-time-pitch-service.test.ts',
+		'tests/audio-editor-audio-relink-probe.test.ts',
 		'tests/audio-editor-linked-audio-original-relink.test.ts',
 		'tests/audio-editor-linked-audio-choice-handoff.test.ts',
 		'tests/audio-editor-linked-audio-project-bin-ui.test.ts',
 		'tests/audio-editor-linked-source-controller-disposal.test.js',
 		'tests/audio-editor-project-bin-linked-audio-relink-service.test.ts',
+		'tests/audio-editor-project-bin-linked-audio-changed-relink.test.ts',
 		'tests/audio-editor-project-bin-service.test.ts',
 		'tests/audio-editor-project-lock-service.test.ts',
 		'tests/audio-editor-project-admin-service-coverage.test.ts',
@@ -129,7 +132,7 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 	);
 	assert.match(
 		handoff.summary,
-		/binding-backed.*Project Bin relink.*exactly one audio source.*does not use missing-source state.*timeline transport.*Project Bin preview.*(?:provider.*drain|drain.*provider).*before.*byte length and SHA-256.*candidate.*exact locator revision.*assertCanPublish.*same compensated memory batch or IndexedDB.*binding-and-provisional-root CAS.*project, source, clip, and history.*unchanged.*startup.*reconciliation/isu,
+		/binding-backed.*Project Bin relink.*exactly one audio source.*does not use missing-source state.*classif.*byte length and SHA-256.*exact project and project revision.*changed choice.*localized confirmation.*structural probe.*before.*timeline transport.*Project Bin preview.*(?:provider.*drain|drain.*provider).*same maintained MIME and file identity.*exact frame count, channel count, sample rate, and original sample rate.*old binding and platform snapshot.*current.*candidate.*exact locator revision.*measured byte length and SHA-256.*assertCanPublish.*same compensated memory batch or IndexedDB.*binding-and-provisional-root CAS.*project, source, clip, and history.*unchanged.*startup.*reconciliation/isu,
 	);
 	assertLinkedAudioTargetAndRecovery(handoff.summary);
 	assert.match(
@@ -169,6 +172,7 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 	for (const path of [
 		'src/common/editor/app.js',
 		'src/common/editor/controller/action-facade.ts',
+		'src/common/editor/controller/audio-relink-probe.ts',
 		'src/common/editor/controller/project-bin-linked-audio-relink-service.ts',
 		'src/common/editor/controller/project-bin-linked-original-relink-task.ts',
 		'src/common/editor/controller/project-bin-service.ts',
@@ -181,10 +185,12 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 		'src/common/editor/ui/workspace/ProjectBinPanel.jsx',
 		'src/common/editor/ui/workspace/linked-audio-choice-handoff.ts',
 		'tests/audio-editor-controller-action-facade.test.ts',
+		'tests/audio-editor-audio-relink-probe.test.ts',
 		'tests/audio-editor-linked-audio-original-relink.test.ts',
 		'tests/audio-editor-linked-audio-choice-handoff.test.ts',
 		'tests/audio-editor-linked-audio-project-bin-ui.test.ts',
 		'tests/audio-editor-project-bin-linked-audio-relink-service.test.ts',
+		'tests/audio-editor-project-bin-linked-audio-changed-relink.test.ts',
 		'tests/audio-editor-project-bin-service.test.ts',
 		'tests/audio-editor-project-lock-service.test.ts',
 		'tests/audio-editor-source-lifecycle-service.test.ts',
@@ -227,8 +233,11 @@ test('linked PCM compatibility and threat documentation own the detailed limits'
 			documentation,
 			/binding-backed.*Project Bin.*(?:linked-PCM\s+)?relink.*exactly\s+one audio source.*(?:does not|must not|not).*missing-source\s+state.*pathless.*selected\s+`?File`?.*opaque locator ID\s+and\s+(?:exact\s+)?revision/isu,
 		);
+		assert.match(documentation, /classif.*byte length and SHA-256.*exact\s+project\s+and\s+project\s+revision.*changed choice.*localized confirmation/isu);
+		assert.match(documentation, /(?:structural(?:ly)? (?:probe|inspect).*before.*timeline\s+transport.*Project\s+Bin\s+preview.*(?:provider.*drain|drain.*provider)|Before timeline\s+transport.*Project\s+Bin\s+preview.*structural probe.*controller.*(?:provider.*drain|drain.*provider))/isu);
+		assert.match(documentation, /same\s+maintained\s+(?:container|MIME\s+and\s+file)\s+identity.*exact\s+frame\s+count,\s+channel\s+count,\s+sample\s+rate,\s+and\s+original\s+sample\s+rate/isu);
 		assert.match(documentation, /timeline\s+transport.*Project\s+Bin\s+preview.*(?:provider.*drain|drain.*provider).*before.*storage/isu);
-		assert.match(documentation, /(?:same\s+byte\s+length\s+and\s+SHA-256|exact\s+byte-length\s+and\s+SHA-256\s+equality).*candidate.*exact\s+revision/isu);
+		assert.match(documentation, /default.*(?:same\s+byte\s+length\s+and\s+SHA-256|exact\s+byte-length\s+and\s+SHA-256\s+equality).*changed.*candidate.*exact\s+revision.*measured.*byte length.*SHA-256/isu);
 		assert.match(documentation, /synchronous.*assertCanPublish/isu);
 		assert.match(documentation, /same\s+compensated\s+memory\s+batch\s+or\s+IndexedDB.*binding-and-provisional-root/isu);
 		assert.match(documentation, /(?:guard|assertCanPublish).*rechecks.*task.*project\s+generation.*writable/isu);
