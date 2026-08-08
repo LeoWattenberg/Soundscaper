@@ -49,7 +49,8 @@ test('a binding-backed Project Bin audio member exposes exact-content relink wit
 	assert.match(source, /useEffect\(\(\) => \{\s*linkedAudioRelinkRequestRef\.current \+= 1;\s*setItemMenu\(null\);[\s\S]*\}, \[projectId, projectRevision\]\);/u);
 	assert.match(source, /linkedAudioRelinkProjectRef\.current === relinkScope/u);
 	assert.match(source, /requestId !== linkedAudioRelinkRequestRef\.current/u);
-	assert.match(source, /current\.itemId !== item\.id[\s\S]*current\.audioClipId !== audioClip\.id[\s\S]*current\.projectId !== requestedProjectId[\s\S]*current\.projectRevision !== requestedProjectRevision/u);
+	assert.match(source, /current\.itemId === item\.id[\s\S]*current\.projectId === requestedProjectId[\s\S]*current\.projectRevision === requestedProjectRevision/u);
+	assert.match(source, /!currentMenuRequest\(current\) \|\| current\.audioClipId !== audioClip\.id/u);
 	assert.match(source, /fileService\.linkedAudioOriginalsAvailable && menuAudioRelinkEligible[\s\S]*label=\{copy\.projectBinRelink\}/u);
 	assert.doesNotMatch(source, /linkedAudioOriginalsAvailable && menuAudioMissing/u);
 });

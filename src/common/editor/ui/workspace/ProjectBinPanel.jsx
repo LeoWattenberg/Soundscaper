@@ -59,7 +59,9 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		&& itemMenu?.audioClipId === menuAudioClip.id
 		&& itemMenu.linkedAudioRelinkEligible);
 	const menuVideoClip = menuItem?.clips.find((clip) => clip.kind === 'video') || null;
-	const menuVideoMissing = Boolean(menuVideoClip && missingSourceIds.has(menuVideoClip.sourceId));
+	const menuVideoRelinkEligible = Boolean(menuVideoClip
+		&& itemMenu?.videoClipId === menuVideoClip.id
+		&& itemMenu.linkedVideoRelinkEligible);
 
 	const importFiles = async (files) => {
 		if (mutationBlocked || !files.length) return undefined;
@@ -136,33 +138,47 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const openItemMenu = (event, item) => {
 		const rect = event.currentTarget.getBoundingClientRect();
 		const audioClip = item.clips.find((clip) => clip.kind !== 'video') || null;
+		const videoClip = item.clips.find((clip) => clip.kind === 'video') || null;
 		const requestId = ++linkedAudioRelinkRequestRef.current;
 		const requestedProjectId = projectId;
 		const requestedProjectRevision = projectRevision;
 		setItemMenu({
 			itemId: item.id,
 			audioClipId: audioClip?.id || null,
+			videoClipId: videoClip?.id || null,
 			linkedAudioRelinkEligible: false,
+			linkedVideoRelinkEligible: false,
 			projectId: requestedProjectId,
 			projectRevision: requestedProjectRevision,
 			requestId,
 			x: rect.left,
 			y: rect.bottom + 4,
 		});
-		if (!fileService.linkedAudioOriginalsAvailable || !audioClip) return;
-		run(async () => {
-			const eligible = await controller.actions.projectBin.canRelinkLinkedAudio(audioClip.id);
-			if (requestId !== linkedAudioRelinkRequestRef.current) return;
-			setItemMenu((current) => {
-				if (!current
-					|| current.requestId !== requestId
-					|| current.itemId !== item.id
-					|| current.audioClipId !== audioClip.id
-					|| current.projectId !== requestedProjectId
-					|| current.projectRevision !== requestedProjectRevision) return current;
-				return { ...current, linkedAudioRelinkEligible: eligible === true };
+		const currentMenuRequest = (current) => Boolean(current
+			&& current.requestId === requestId
+			&& current.itemId === item.id
+			&& current.projectId === requestedProjectId
+			&& current.projectRevision === requestedProjectRevision);
+		if (fileService.linkedAudioOriginalsAvailable && audioClip) {
+			run(async () => {
+				const eligible = await controller.actions.projectBin.canRelinkLinkedAudio(audioClip.id);
+				if (requestId !== linkedAudioRelinkRequestRef.current) return;
+				setItemMenu((current) => {
+					if (!currentMenuRequest(current) || current.audioClipId !== audioClip.id) return current;
+					return { ...current, linkedAudioRelinkEligible: eligible === true };
+				});
 			});
-		});
+		}
+		if (fileService.linkedVideoOriginalsAvailable && videoClip) {
+			run(async () => {
+				const eligible = await controller.actions.projectBin.canRelinkLinkedVideo(videoClip.id);
+				if (requestId !== linkedAudioRelinkRequestRef.current) return;
+				setItemMenu((current) => {
+					if (!currentMenuRequest(current) || current.videoClipId !== videoClip.id) return current;
+					return { ...current, linkedVideoRelinkEligible: eligible === true };
+				});
+			});
+		}
 	};
 	const openReplacementPicker = (clipId) => {
 		closeItemMenu();
@@ -369,7 +385,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 					onClose={closeItemMenu}
 				/>
 			)}
-			{fileService.linkedVideoOriginalsAvailable && menuVideoMissing && (
+			{fileService.linkedVideoOriginalsAvailable && menuVideoRelinkEligible && (
 				<ContextMenuItem
 					label={copy.projectBinRelink}
 					disabled={mutationBlocked}

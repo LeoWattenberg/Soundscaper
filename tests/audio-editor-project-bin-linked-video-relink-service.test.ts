@@ -28,14 +28,14 @@ const OLD_BINDING = Object.freeze({
 	bindingToken: 'binding_relink_original_0001',
 });
 
-test('relink fences the stale preview and visual before publishing an available compound video', async () => {
+test('relink fences stale playback, preview, and visual before publishing a missing compound video', async () => {
 	const fixture = createHarness();
 	const file = new File(['same video'], 'selected.mp4', { type: 'video/mp4' });
 	const projectBefore = JSON.stringify(fixture.project);
 
 	assert.equal(await fixture.service.relinkLinkedVideo('bin-audio', file, FIRST_LOCATOR), 'video-source');
 
-	assert.deepEqual(fixture.order, ['binding', 'preview', 'revoke', 'relink', 'activate', 'publish']);
+	assert.deepEqual(fixture.order, ['binding', 'timeline', 'preview', 'revoke', 'relink', 'activate', 'publish']);
 	assert.equal(fixture.relinks.length, 1);
 	const relink = fixture.relinks[0];
 	assert.equal(relink?.projectId, fixture.project.id);
@@ -52,6 +52,27 @@ test('relink fences the stale preview and visual before publishing an available 
 	assert.equal(JSON.stringify(fixture.project), projectBefore, 'relink must not edit the canonical project');
 });
 
+test('an available bound video relinks without using missing-source state as eligibility', async () => {
+	const fixture = createHarness({ missing: false });
+
+	assert.equal(await fixture.service.relinkLinkedVideo('bin-video', videoFile(), FIRST_LOCATOR), 'video-source');
+
+	assert.deepEqual(fixture.order, ['binding', 'timeline', 'preview', 'revoke', 'relink', 'activate', 'publish']);
+	assert.deepEqual(fixture.releases, []);
+	assert.equal(fixture.missingSourceIds.has('video-source'), false);
+	assert.equal(fixture.publishCount, 1);
+});
+
+test('an available video may rebind its live locator without candidate cleanup', async () => {
+	const fixture = createHarness({ missing: false });
+
+	assert.equal(await fixture.service.relinkLinkedVideo('bin-video', videoFile(), OLD_LOCATOR), 'video-source');
+
+	assert.equal(fixture.relinks[0]?.options.expectedBindingToken, OLD_BINDING.bindingToken);
+	assert.deepEqual(fixture.releases, [], 'the live old locator is never candidate cleanup');
+	assert.equal(fixture.publishCount, 1);
+});
+
 test('wrong, stale, and cancelled pre-publication relinks clean only a new candidate locator', async () => {
 	const blocked = createHarness({ editingBlocked: () => true });
 	await assert.rejects(
@@ -61,20 +82,15 @@ test('wrong, stale, and cancelled pre-publication relinks clean only a new candi
 	assert.deepEqual(blocked.releases, [FIRST_LOCATOR]);
 	assert.deepEqual(blocked.order, ['release']);
 
-	const wrong = createHarness({ missing: false });
+	const becameAvailable = createHarness({
+		revoke: (missingSourceIds) => { missingSourceIds.delete('video-source'); },
+	});
 	await assert.rejects(
-		wrong.service.relinkLinkedVideo('bin-video', videoFile(), FIRST_LOCATOR),
-		/currently unavailable/iu,
+		becameAvailable.service.relinkLinkedVideo('bin-video', videoFile(), FIRST_LOCATOR),
+		/became available before relink publication/iu,
 	);
-	assert.deepEqual(wrong.releases, [FIRST_LOCATOR]);
-	assert.deepEqual(wrong.order, ['binding', 'release']);
-
-	const oldReference = createHarness({ missing: false });
-	await assert.rejects(
-		oldReference.service.relinkLinkedVideo('bin-video', videoFile(), OLD_LOCATOR),
-		/currently unavailable/iu,
-	);
-	assert.deepEqual(oldReference.releases, [], 'the live old locator is never candidate cleanup');
+	assert.deepEqual(becameAvailable.order, ['binding', 'timeline', 'preview', 'revoke', 'release']);
+	assert.deepEqual(becameAvailable.releases, [FIRST_LOCATOR]);
 
 	const stale = createHarness({
 		relink: async () => { throw new Error('The linked video binding changed before publication.'); },
@@ -101,6 +117,50 @@ test('wrong, stale, and cancelled pre-publication relinks clean only a new candi
 	await disposal;
 	assert.deepEqual(cancelled.releases, [FIRST_LOCATOR]);
 	assert.equal(cancelled.missingSourceIds.has('video-source'), true);
+});
+
+test('an available pre-publication failure restores the previous visual before candidate cleanup', async () => {
+	const fixture = createHarness({
+		missing: false,
+		relink: async () => { throw new Error('The linked video binding changed before publication.'); },
+	});
+
+	await assert.rejects(
+		fixture.service.relinkLinkedVideo('bin-video', videoFile(), FIRST_LOCATOR),
+		/binding changed/iu,
+	);
+
+	assert.deepEqual(fixture.order, ['binding', 'timeline', 'preview', 'revoke', 'relink', 'activate', 'release']);
+	assert.deepEqual(fixture.releases, [FIRST_LOCATOR]);
+	assert.equal(fixture.missingSourceIds.has('video-source'), false, 'a restored visual stays available');
+	assert.equal(fixture.publishCount, 0);
+});
+
+test('a failed visual restoration records missing state beside candidate cleanup', async () => {
+	const primary = new Error('The linked video binding changed before publication.');
+	let activations = 0;
+	const fixture = createHarness({
+		missing: false,
+		relink: async () => { throw primary; },
+		activate: async () => {
+			activations += 1;
+			throw new Error('previous video could not activate');
+		},
+	});
+
+	await assert.rejects(
+		fixture.service.relinkLinkedVideo('bin-video', videoFile(), FIRST_LOCATOR),
+		(error: unknown) => error instanceof AggregateError && error.errors[0] === primary,
+	);
+
+	assert.equal(activations, 1);
+	assert.deepEqual(fixture.order, [
+		'binding', 'timeline', 'preview', 'revoke', 'relink', 'activate', 'revoke', 'publish', 'release',
+	]);
+	assert.deepEqual(fixture.releases, [FIRST_LOCATOR]);
+	assert.equal(fixture.missingSourceIds.has('video-source'), true);
+	assert.equal(fixture.publishCount, 1);
+	await assert.rejects(fixture.service.dispose(), /cleanup/iu);
 });
 
 test('relink rechecks writable admission before side effects and at storage publication', async () => {
@@ -145,7 +205,7 @@ test('relink rechecks writable admission before side effects and at storage publ
 });
 
 test('dispose reports a failed candidate cleanup after draining the operation', async () => {
-	const fixture = createHarness({ missing: false, release: () => false });
+	const fixture = createHarness({ editingBlocked: () => true, release: () => false });
 	await assert.rejects(
 		fixture.service.relinkLinkedVideo('bin-video', videoFile(), FIRST_LOCATOR),
 		AggregateError,
@@ -191,10 +251,30 @@ test('activation failure retains the committed candidate binding and the missing
 		(error) => error === activationFailure,
 	);
 
-	assert.deepEqual(fixture.order, ['binding', 'preview', 'revoke', 'relink', 'activate']);
+	assert.deepEqual(fixture.order, ['binding', 'timeline', 'preview', 'revoke', 'relink', 'activate', 'revoke']);
 	assert.deepEqual(fixture.releases, [], 'a published replacement remains owned after activation fails');
 	assert.equal(fixture.missingSourceIds.has('video-source'), true);
 	assert.equal(fixture.publishCount, 0);
+});
+
+test('an available activation failure records missing state on the committed binding', async () => {
+	const activationFailure = new Error('selected video could not activate');
+	const fixture = createHarness({
+		missing: false,
+		activate: async () => { throw activationFailure; },
+	});
+
+	await assert.rejects(
+		fixture.service.relinkLinkedVideo('bin-video', videoFile(), FIRST_LOCATOR),
+		(error) => error === activationFailure,
+	);
+
+	assert.deepEqual(fixture.order, [
+		'binding', 'timeline', 'preview', 'revoke', 'relink', 'activate', 'revoke', 'publish',
+	]);
+	assert.deepEqual(fixture.releases, [], 'a published replacement remains owned after activation fails');
+	assert.equal(fixture.missingSourceIds.has('video-source'), true);
+	assert.equal(fixture.publishCount, 1);
 });
 
 test('a newer relink supersedes the old lifetime task and cleans only its unpublished candidate', async () => {
@@ -223,6 +303,18 @@ test('a newer relink supersedes the old lifetime task and cleans only its unpubl
 	assert.equal(fixture.publishCount, 1);
 });
 
+test('relink eligibility reports only a bound single-video item', async () => {
+	const bound = createHarness({ missing: false });
+	assert.equal(await bound.service.canRelinkLinkedVideo('bin-video'), true);
+	assert.equal(await bound.service.canRelinkLinkedVideo('bin-audio'), true, 'the compound item resolves its video');
+	assert.equal(await bound.service.canRelinkLinkedVideo('bin-solo-audio'), false);
+	assert.equal(await bound.service.canRelinkLinkedVideo('unknown-item'), false);
+	assert.deepEqual(bound.order, ['binding', 'binding'], 'video-free items never consult the binding');
+
+	const unbound = createHarness({ getBinding: async () => null });
+	assert.equal(await unbound.service.canRelinkLinkedVideo('bin-video'), false);
+});
+
 interface HarnessOptions {
 	readonly missing?: boolean;
 	readonly editingBlocked?: () => boolean;
@@ -230,6 +322,7 @@ interface HarnessOptions {
 	readonly getBinding?: ProjectBinLinkedVideoRelinkDependencies['getLinkedVideoOriginalBinding'];
 	readonly relink?: ProjectBinLinkedVideoRelinkDependencies['relinkLinkedVideoOriginal'];
 	readonly release?: ProjectBinLinkedVideoRelinkDependencies['releaseLinkedVideoOriginalLocator'];
+	readonly revoke?: (missingSourceIds: Set<string>) => void;
 }
 
 function createHarness(options: HarnessOptions = {}) {
@@ -264,10 +357,12 @@ function createHarness(options: HarnessOptions = {}) {
 			order.push('binding');
 			return options.getBinding ? options.getBinding(project.id, 'video-source') : OLD_BINDING;
 		},
+		async stopTimelinePlayback() { order.push('timeline'); },
 		async stopProjectBinPreview() { order.push('preview'); },
 		async revokeVideoVisual(sourceId) {
 			assert.equal(sourceId, 'video-source');
 			order.push('revoke');
+			options.revoke?.(missingSourceIds);
 		},
 		async relinkLinkedVideoOriginal(projectId, source, locatorId, relinkOptions) {
 			order.push('relink');
@@ -326,6 +421,9 @@ function projectFixture() {
 			}),
 			Object.freeze({
 				id: 'bin-video', sourceId: 'video-source', kind: 'video' as const, binItemId: 'compound-item',
+			}),
+			Object.freeze({
+				id: 'bin-solo-audio', sourceId: 'audio-source', kind: 'audio' as const, binItemId: 'solo-item',
 			}),
 		]) }),
 	});

@@ -84,7 +84,7 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 
 export interface ProjectBinService extends ProjectBinReplacementService,
 	Pick<ProjectBinLinkedAudioRelinkService, 'canRelinkLinkedAudio' | 'relinkLinkedAudio'>,
-	Pick<ProjectBinLinkedVideoRelinkService, 'relinkLinkedVideo'> {
+	Pick<ProjectBinLinkedVideoRelinkService, 'canRelinkLinkedVideo' | 'relinkLinkedVideo'> {
 	moveClipsToProjectBin(clipId?: string | readonly (string | null | undefined)[] | null): readonly string[] | null;
 	placeProjectBinClip(binClipId: string, placement?: Readonly<{ trackId?: string | null; timelineStartFrame?: unknown }>): string | null;
 	renameProjectBinClip(clipId: string, requestedName: unknown): string | null;
@@ -118,6 +118,7 @@ export function createProjectBinService(
 		...replacement,
 		canRelinkLinkedAudio: audioRelink.canRelinkLinkedAudio,
 		relinkLinkedAudio: audioRelink.relinkLinkedAudio,
+		canRelinkLinkedVideo: videoRelink.canRelinkLinkedVideo,
 		relinkLinkedVideo: videoRelink.relinkLinkedVideo,
 		playPauseProjectBinClip: preview.playPauseProjectBinClip,
 		stopProjectBinPreview: preview.stopProjectBinPreview,
@@ -400,6 +401,7 @@ function videoRelinkDependencies(
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
 		getLinkedVideoOriginalBinding: (...args) => dependencies.store.getLinkedVideoOriginalBinding(...args),
+		stopTimelinePlayback: () => dependencies.playbackEngine.stop(),
 		stopProjectBinPreview: () => preview.stopProjectBinPreview(),
 		revokeVideoVisual: dependencies.revokeVideoVisual,
 		relinkLinkedVideoOriginal: (...args) => dependencies.store.relinkLinkedVideoOriginal(...args),
