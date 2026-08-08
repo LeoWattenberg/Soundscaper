@@ -83,6 +83,34 @@ test('an IndexedDB schema-v1 row reopens as generic video without rewriting its 
 	assert.equal(Object.hasOwn(raw.binding, 'kind'), false);
 });
 
+test('an IndexedDB quota rejection during binding publication preserves the previous pair', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = `linked-original-quota-${Date.now()}-${Math.random()}`;
+	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	context.after(() => { database.close(); });
+	const memory = getMemoryDatabase(`${databaseName}-unused`);
+	const repository = new LinkedOriginalRepository(
+		{ memory, database: async () => database }, deterministicOptions(),
+	);
+	const previous = await repository.putIfCurrent(audioInput(), null);
+	assert.ok(previous);
+
+	const exhaustion = new DOMException('The storage quota was exceeded during a write.', 'QuotaExceededError');
+	indexedDB.failNextPutForStore(LINKED_ORIGINAL_STORE_NAME, exhaustion);
+	const replacement = audioInput({ locatorRevision: 'snapshot_audio_0000000002' });
+	await assert.rejects(
+		repository.putIfCurrent(replacement, previous.bindingToken),
+		(error: unknown) => error === exhaustion,
+	);
+
+	assert.deepEqual(await repository.get(previous.projectId, previous.sourceId), previous);
+	assert.equal(indexedDB.recordCount(databaseName, LINKED_ORIGINAL_STORE_NAME), 1);
+
+	const replaced = await repository.putIfCurrent(replacement, previous.bindingToken);
+	assert.ok(replaced);
+	assert.deepEqual(await repository.get(previous.projectId, previous.sourceId), replaced);
+});
+
 test('storage-key lookup returns one complete frozen exact alias group across schema versions', async () => {
 	const memory = getMemoryDatabase(`linked-original-aliases-${Date.now()}-${Math.random()}`);
 	const port = { memory, database: async () => null };

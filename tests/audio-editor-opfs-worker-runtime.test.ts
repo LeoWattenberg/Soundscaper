@@ -174,6 +174,29 @@ test('OPFS worker runtime writes sequential chunks and flushes before close', as
 	);
 });
 
+test('OPFS worker runtime aborts a mid-body writer and preserves committed siblings', async () => {
+	const committed = Uint8Array.of(9, 9, 9);
+	const fixture = fakeDirectory({ 'committed.blob': committed });
+	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });
+	await runtime.handle({ id: 'init', type: 'initialize', directory: fixture.directory });
+	const { writerId } = await runtime.handle({
+		id: 'open', type: 'open-writer', operationId: 'media-asset-chunk-write', path: 'staged.blob',
+	});
+	const body = new ArrayBuffer(4);
+	new Uint8Array(body).set(Uint8Array.of(1, 2, 3, 4));
+	await runtime.handle({ id: 'write', type: 'write', writerId, bytes: body });
+	assert.equal(fixture.files.get('staged.blob')?.bytes().byteLength, 4);
+
+	await runtime.handle({ id: 'abort', type: 'abort-writer', writerId });
+	assert.deepEqual(fixture.removals, ['staged.blob']);
+	assert.equal(fixture.files.has('staged.blob'), false, 'the staged mid-body path is removed');
+	assert.deepEqual(fixture.files.get('committed.blob')?.bytes(), committed, 'the committed sibling is untouched');
+	await assert.rejects(
+		runtime.handle({ id: 'late', type: 'write', writerId, bytes: new ArrayBuffer(1) }),
+		/writer/iu,
+	);
+});
+
 test('OPFS worker runtime closes and removes an aborted staged writer', async () => {
 	const fixture = fakeDirectory();
 	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });

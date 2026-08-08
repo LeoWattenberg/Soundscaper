@@ -110,6 +110,41 @@ test('known IndexedDB shortage rejects before project mutation and a boundary re
 	assert.equal(estimateCalls, 3);
 });
 
+test('an in-flight IndexedDB quota rejection rolls the publication back to the retained revision', async (context) => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const store = createProjectStore({
+		indexedDB,
+		memoryFallback: false,
+		preferOpfs: false,
+		databaseName: uniqueDatabaseName('project-publication-quota-write'),
+	});
+	context.after(async () => { await store.close(); });
+	const retained = {
+		schemaVersion: 9,
+		id: 'quota-write-project',
+		title: 'Retained',
+		revision: 1,
+		updatedAt: '2026-08-01T00:00:00.000Z',
+	};
+	await store.saveProject(retained);
+	const replacement = { ...retained, title: 'Replacement', revision: 2 };
+	const exhaustion = new DOMException('The storage quota was exceeded during a write.', 'QuotaExceededError');
+	indexedDB.failNextPutForStore('projects', exhaustion);
+
+	await assert.rejects(
+		store.saveProject(replacement),
+		/IndexedDB transaction/u,
+	);
+	assert.deepEqual(await store.loadProject(retained.id), retained);
+	assert.deepEqual(
+		(await store.listProjectRevisions(retained.id)).map(({ revision }) => revision),
+		[1],
+	);
+
+	assert.deepEqual(await store.saveProject(replacement), replacement);
+	assert.equal((await store.loadProject(retained.id))?.revision, 2);
+});
+
 test('memory and IndexedDB fallback saves do not consult durable capacity', async (context) => {
 	let estimateCalls = 0;
 	const storageManager = {
