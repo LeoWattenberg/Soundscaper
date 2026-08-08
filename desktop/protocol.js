@@ -128,7 +128,7 @@ export function securityHeaders({ html = null, immutable = false } = {}) {
 			"img-src 'self' data: blob:",
 			"media-src 'self' blob:",
 			"worker-src 'self' blob:",
-			"connect-src 'self'",
+			"connect-src 'self' blob:",
 			"object-src 'none'",
 			"base-uri 'self'",
 			"frame-src 'none'",

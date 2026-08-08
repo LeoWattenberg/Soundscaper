@@ -88,6 +88,7 @@ test('CSP hashes exact inline script bodies and byte ranges are bounded', () => 
 	assert.equal(inlineScriptHashes(html).length, 2);
 	const headers = securityHeaders({ html });
 	assert.match(headers['Content-Security-Policy'], /frame-ancestors 'none'/u);
+	assert.match(headers['Content-Security-Policy'], /connect-src 'self' blob:/u);
 	assert.deepEqual(parseSingleRange('bytes=2-5', 10), { start: 2, end: 5, length: 4 });
 	assert.deepEqual(parseSingleRange('bytes=-3', 10), { start: 7, end: 9, length: 3 });
 	assert.throws(() => parseSingleRange('bytes=20-30', 10), (error) => error.status === 416);
