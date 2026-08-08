@@ -11,6 +11,118 @@ import {
 } from '../src/common/offline/browser-runtime-store.ts';
 import type { VerifiedRuntimeFile, VerifiedRuntimeRelease } from '../src/common/offline/ffmpeg-runtime-cache.ts';
 
+const STREAM_CACHE_PROBE_SUFFIX = '/runtime/ffmpeg/0.12.10/.soundscaper-stream-probe-v1';
+
+test('browser runtime probes stream-backed Cache.put once and keeps it as the primary staging path', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	let probeAttempts = 0;
+	cacheStorage.failPut = (_cacheName, key) => {
+		if (key.endsWith(STREAM_CACHE_PROBE_SUFFIX)) probeAttempts += 1;
+		return null;
+	};
+	const store = createBrowserFfmpegRuntimeStore({
+		cacheStorage,
+		lockManager: new MemoryLockManager(),
+		origin: 'https://soundscaper.org',
+		randomUUID: sequence('stream-primary-one', 'stream-primary-two'),
+	});
+
+	await install(store, release('e'));
+	await install(store, release('f'));
+
+	assert.equal(probeAttempts, 1);
+	assert.equal((await store.readActive())?.releaseId, release('f').releaseId);
+});
+
+test('browser runtime falls back to bounded byte-backed staging when stream Cache.put is unsupported', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	let probeAttempts = 0;
+	cacheStorage.failPut = (_cacheName, key) => {
+		if (!key.endsWith(STREAM_CACHE_PROBE_SUFFIX)) return null;
+		probeAttempts += 1;
+		return new TypeError('Stream-backed Cache.put is unsupported.');
+	};
+	const store = createBrowserFfmpegRuntimeStore({
+		cacheStorage,
+		lockManager: new MemoryLockManager(),
+		origin: 'https://soundscaper.org',
+		randomUUID: () => 'byte-backed-fallback',
+	});
+	const installed = release('f');
+
+	await install(store, installed);
+
+	assert.equal(probeAttempts, 1);
+	assert.equal((await store.readActive())?.releaseId, installed.releaseId);
+});
+
+test('browser runtime stream probe does not mask CacheStorage quota failures', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	cacheStorage.failPut = (_cacheName, key) => key.endsWith(STREAM_CACHE_PROBE_SUFFIX)
+		? new DOMException('Injected CacheStorage quota exhaustion.', 'QuotaExceededError')
+		: null;
+	const store = createBrowserFfmpegRuntimeStore({
+		cacheStorage,
+		lockManager: new MemoryLockManager(),
+		origin: 'https://soundscaper.org',
+		randomUUID: () => 'quota-failure',
+	});
+	const candidate = release('f');
+	const transaction = await store.begin(candidate);
+
+	await assert.rejects(
+		transaction.put(candidate.files[0]!, runtimeResponse(candidate.files[0]!)),
+		(error: unknown) => error instanceof DOMException && error.name === 'QuotaExceededError',
+	);
+	await transaction.rollback();
+	assert.deepEqual(cacheStorage.keysSync(), []);
+});
+
+test('browser runtime byte-backed fallback refuses a body beyond its declared bound', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	cacheStorage.failPut = (_cacheName, key) => key.endsWith(STREAM_CACHE_PROBE_SUFFIX)
+		? new TypeError('Stream-backed Cache.put is unsupported.')
+		: null;
+	const store = createBrowserFfmpegRuntimeStore({
+		cacheStorage,
+		lockManager: new MemoryLockManager(),
+		origin: 'https://soundscaper.org',
+		randomUUID: () => 'bounded-fallback',
+	});
+	const candidate = release('f');
+	const transaction = await store.begin(candidate);
+	const runtimeFile = candidate.files[0]!;
+	const expectedBody = runtimeBodyForFile(runtimeFile);
+	const oversizedBody = new Uint8Array(expectedBody.byteLength + 1);
+	oversizedBody.set(expectedBody);
+
+	await assert.rejects(
+		transaction.put(runtimeFile, runtimeResponse(runtimeFile, oversizedBody)),
+		/exceeds its verified byte length/u,
+	);
+	await transaction.rollback();
+	assert.deepEqual(cacheStorage.keysSync(), []);
+});
+
+test('browser runtime refuses candidates above the 64 MiB file bound before staging', async () => {
+	const store = createBrowserFfmpegRuntimeStore({
+		cacheStorage: new MemoryCacheStorage(),
+		lockManager: new MemoryLockManager(),
+		origin: 'https://soundscaper.org',
+		randomUUID: () => 'oversized-candidate',
+	});
+	const candidate = release('f');
+	const oversized = {
+		...candidate,
+		files: [
+			{ ...candidate.files[0]!, byteLength: 64 * 1024 * 1024 + 1 },
+			candidate.files[1]!,
+		],
+	};
+
+	await assert.rejects(store.begin(oversized), /ffmpeg-core\.js byte length is invalid/u);
+});
+
 test('browser runtime commit publishes metadata last and retains one previous complete release', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const store = createBrowserFfmpegRuntimeStore({

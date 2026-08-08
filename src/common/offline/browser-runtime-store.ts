@@ -16,10 +16,13 @@ const STATE_CACHE_NAME = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}state`;
 const CANDIDATE_CACHE_PREFIX = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}candidate-`;
 const COMMIT_LOCK_NAME = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}commit`;
 const STATE_PATH = '/.soundscaper/offline/ffmpeg-runtime-state-v1.json';
+const STREAM_CACHE_PROBE_URL =
+	'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/.soundscaper-stream-probe-v1';
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const CANDIDATE_ID_PATTERN = /^[A-Za-z\d-]{1,128}$/u;
 const RUNTIME_FILE_NAMES = Object.freeze(['ffmpeg-core.js', 'ffmpeg-core.wasm']);
 const MAXIMUM_STATE_BYTES = 64 * 1024;
+const MAXIMUM_RUNTIME_FILE_BYTES = 64 * 1024 * 1024;
 
 interface RuntimeCache {
 	match(input: RequestInfo | URL): Promise<Response | undefined>;
@@ -73,6 +76,18 @@ export function createBrowserFfmpegRuntimeStore(
 	const stateKey = new URL(STATE_PATH, origin).href;
 	const randomUUID = options.randomUUID ?? globalThis.crypto?.randomUUID?.bind(globalThis.crypto);
 	if (typeof randomUUID !== 'function') throw new Error('A secure runtime candidate identifier is unavailable.');
+	let streamCachePutSupported: Promise<boolean> | null = null;
+
+	async function supportsStreamBackedCachePut(cache: RuntimeCache): Promise<boolean> {
+		if (!streamCachePutSupported) {
+			streamCachePutSupported = probeStreamBackedCachePut(cache, STREAM_CACHE_PROBE_URL).catch((error: unknown) => {
+				if (isUnsupportedStreamCachePut(error)) return false;
+				streamCachePutSupported = null;
+				throw error;
+			});
+		}
+		return streamCachePutSupported;
+	}
 
 	async function readState(): Promise<BrowserRuntimeState | null> {
 		const cache = await cacheStorage.open(STATE_CACHE_NAME);
@@ -145,7 +160,11 @@ export function createBrowserFfmpegRuntimeStore(
 					|| response.headers.get('content-type')?.toLowerCase() !== expected.contentType.toLowerCase()) {
 					throw new Error(`${expected.name} staged response is invalid.`);
 				}
-				await candidate.put(expected.url, response);
+				if (await supportsStreamBackedCachePut(candidate)) {
+					await candidate.put(expected.url, response);
+				} else {
+					await candidate.put(expected.url, await byteBackedRuntimeResponse(response, expected));
+				}
 				stored.add(expected.name);
 			},
 			commit: async () => {
@@ -231,6 +250,81 @@ export function createBrowserFfmpegRuntimeStore(
 	}
 
 	return Object.freeze({ readActive, begin });
+}
+
+async function probeStreamBackedCachePut(cache: RuntimeCache, key: string): Promise<boolean> {
+	let emitted = false;
+	const response = new Response(new ReadableStream<Uint8Array>({
+		pull: async (controller) => {
+			await Promise.resolve();
+			if (emitted) {
+				controller.close();
+				return;
+			}
+			emitted = true;
+			controller.enqueue(new Uint8Array([0]));
+			controller.close();
+		},
+	}), {
+		status: 200,
+		headers: {
+			'content-length': '1',
+			'content-type': 'application/octet-stream',
+		},
+	});
+	try {
+		await cache.put(key, response);
+		return true;
+	} catch (error) {
+		await response.body?.cancel(error).catch(() => undefined);
+		throw error;
+	}
+}
+
+function isUnsupportedStreamCachePut(error: unknown): boolean {
+	if (error instanceof TypeError) return true;
+	if (error === null || typeof error !== 'object') return false;
+	const name = (error as Readonly<{ name?: unknown }>).name;
+	return name === 'TypeError' || name === 'NotSupportedError';
+}
+
+async function byteBackedRuntimeResponse(
+	response: Response,
+	file: VerifiedRuntimeFile,
+): Promise<Response> {
+	if (!response.body) throw new Error(`${file.name} response has no readable body.`);
+	const bytes = new Uint8Array(file.byteLength);
+	const reader = response.body.getReader();
+	let offset = 0;
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (!(value instanceof Uint8Array) || value.byteLength < 1) {
+				throw new Error(`${file.name} returned an invalid response chunk.`);
+			}
+			if (value.byteLength > bytes.byteLength - offset) {
+				throw new Error(`${file.name} body exceeds its verified byte length.`);
+			}
+			bytes.set(value, offset);
+			offset += value.byteLength;
+		}
+	} catch (error) {
+		await reader.cancel(error).catch(() => undefined);
+		throw error;
+	} finally {
+		reader.releaseLock();
+	}
+	if (offset !== bytes.byteLength) {
+		throw new Error(`${file.name} body ended at ${offset} bytes; expected ${file.byteLength}.`);
+	}
+	return new Response(bytes.buffer, {
+		status: 200,
+		headers: {
+			'content-length': String(file.byteLength),
+			'content-type': file.contentType,
+		},
+	});
 }
 
 async function cachedBodyMatches(response: Response, file: VerifiedRuntimeFile): Promise<boolean> {
@@ -347,7 +441,8 @@ function validateFile(
 	if (file.name !== expectedName || file.url !== new URL(expectedName, baseUrl).href) {
 		throw new Error(`${label} ${expectedName} identity is invalid.`);
 	}
-	if (!Number.isSafeInteger(file.byteLength) || Number(file.byteLength) < 1) {
+	if (!Number.isSafeInteger(file.byteLength) || Number(file.byteLength) < 1
+		|| Number(file.byteLength) > MAXIMUM_RUNTIME_FILE_BYTES) {
 		throw new Error(`${label} ${expectedName} byte length is invalid.`);
 	}
 	const contentType = expectedName.endsWith('.wasm')
