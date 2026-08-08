@@ -288,7 +288,6 @@ Qualify exactly the listed quality-budget workload IDs.
 #### 2.2 Compatibility completion
 
 - `m2-compatibility-fallback-roles`
-- `m2-compatibility-future-archive`
 - `m2-compatibility-less-capable-roundtrip`
 
 `m2-compatibility-affected-objects` and `m2-compatibility-bypass` are already

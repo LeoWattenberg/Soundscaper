@@ -930,13 +930,17 @@
 		},
 		{
 			"id": "future-scape-round-trip",
-			"status": "planned",
-			"milestone": "2",
+			"status": "implemented",
 			"requiredOutcome": "A future-schema portable archive opens read-only and can be exported unchanged without ID, storage-key, binary, or unknown-field loss.",
-			"currentBehavior": "The archive importer traverses known collections and may rewrite project and source identity, so arbitrary future-schema .scape round trips are not yet claimed.",
+			"currentBehavior": "A format-1 archive whose project document carries a schema greater than 9 opens read-only without graph interpretation: the importer returns the unmutated document before collision or source-identity rewriting, asset extraction, or store publication, and the native service retains the original archive so save-copy publishes an exact byte copy. The unchanged-copy publisher validates only the envelope, the digest-bound project document, and the future schema-version scalar, refuses current-schema, mismatched, tampered, and unknown-format archives before any bytes flow, and never repacks, so IDs, storage keys, binary state, and unknown entries survive byte-identically. Editing remains refused and unknown archive format versions remain rejected before persistence.",
 			"evidence": [
+				"src/common/editor/scape-archive-copy.ts",
 				"src/common/editor/scape-project.js",
-				"tests/audio-editor-scape-project.test.js"
+				"src/common/editor/controller/native-scape-save.ts",
+				"src/common/editor/controller/native-project-service.ts",
+				"tests/audio-editor-scape-archive-copy.test.ts",
+				"tests/audio-editor-scape-project.test.js",
+				"tests/audio-editor-native-project-service.test.ts"
 			]
 		},
 		{

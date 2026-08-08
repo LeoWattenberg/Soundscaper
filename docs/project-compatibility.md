@@ -25,12 +25,13 @@ boundaries.
 - A raw project object whose `schemaVersion` is newer than the maintained
   version is structured-cloned and returned read-only with reason
   `newer-schema`. It is not normalized through the current schema.
-- That core behavior does not yet make an arbitrary future `.scape` archive
-  lossless. The current archive importer walks known source and clip
-  collections, may rewrite project/source identity on collisions, and restores
-  media into current storage records. Future-archive read-only activation must
-  avoid those mutations and preserve every unknown entry before it can be
-  called compatible.
+- A format-1 archive carrying a project schema greater than 9 opens read-only
+  without graph interpretation: the importer returns the unmutated document
+  before collision or source-identity rewriting, asset extraction, or store
+  publication, and the retained original archive saves as an exact byte copy
+  through the maintained save-copy action, so IDs, storage keys, binary state,
+  and unknown entries survive byte-identically. Editing and repacking remain
+  refused.
 - A future `.scape` `formatVersion` is rejected before project persistence.
   Container-version support is never inferred from the inner project version.
 - Current-format exact schema 9 `.scape` round trips promise JSON-semantic

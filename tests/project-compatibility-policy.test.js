@@ -58,7 +58,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'current-scape-pre-open-feature-report': 'implemented',
 		'current-scape-open-feature-decision': 'implemented',
 		'future-core-read-only': 'implemented',
-		'future-scape-round-trip': 'planned',
+		'future-scape-round-trip': 'implemented',
 		'json-opaque-extensions': 'implemented',
 		'binary-opaque-native-state': 'implemented',
 		'unavailable-native-feature': 'planned',

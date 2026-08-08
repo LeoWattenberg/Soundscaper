@@ -353,7 +353,7 @@
 		{
 			"id": "m2-compatibility-future-archive",
 			"gateId": "m2-gate-feature-compatibility",
-			"status": "planned",
+			"status": "implemented",
 			"archiveContract": {
 				"formatVersion": 1,
 				"projectSchema": "greater-than-9",
