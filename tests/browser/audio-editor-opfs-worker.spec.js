@@ -5,14 +5,14 @@ const DATABASE_VERSION = 8;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test.describe('dedicated OPFS storage worker', () => {
-	test.beforeEach(async ({ page }) => {
+	test.beforeEach(async ({ context, page }) => {
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',
 			headers: { 'Access-Control-Allow-Origin': '*' },
 			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
 		}));
-		await page.addInitScript(() => {
+		await context.addInitScript(() => {
 			globalThis.__opfsMainThreadFallbacks = { createWritable: 0, getFile: 0 };
 			const prototype = globalThis.FileSystemFileHandle?.prototype;
 			if (!prototype) return;
@@ -33,7 +33,7 @@ test.describe('dedicated OPFS storage worker', () => {
 		});
 	});
 
-	test('persists and reopens PCM, media, and derivatives without main-thread OPFS I/O', async ({ page }) => {
+	test('opfs-multitab-writer persists media and transfers one project writer', async ({ context, page }) => {
 		test.setTimeout(90_000);
 		const workerRequests = [];
 		page.on('request', (request) => {
@@ -63,6 +63,28 @@ test.describe('dedicated OPFS storage worker', () => {
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		expect(await mainThreadFallbacks(page)).toEqual({ createWritable: 0, getFile: 0 });
+
+		const secondPage = await context.newPage();
+		await secondPage.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: { 'Access-Control-Allow-Origin': '*' },
+			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
+		}));
+		await secondPage.goto('/framescaper/en/');
+		const second = await waitForVideoEditor(secondPage);
+		await expect(second.locator('[data-video-preview-clip]')).toBeVisible();
+		const firstAddTrack = editor.getByRole('button', { name: 'Add track', exact: true });
+		const secondAddTrack = second.getByRole('button', { name: 'Add track', exact: true });
+		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only', { timeout: 5_000 });
+		const firstTrackCount = await editor.getAttribute('data-track-count');
+		await firstAddTrack.click();
+		await expect(editor).toHaveAttribute('data-track-count', firstTrackCount);
+		await expect(second).not.toHaveAttribute('data-edit-block-reason', 'read-only');
+		await expect(secondAddTrack).toBeEnabled();
+		await secondPage.close();
+		await expect(editor).not.toHaveAttribute('data-edit-block-reason', 'read-only', { timeout: 5_000 });
+		await expect(firstAddTrack).toBeEnabled();
 	});
 });
 

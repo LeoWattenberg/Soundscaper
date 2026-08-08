@@ -238,7 +238,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('automatically moves the project lock to the newest tab', async ({ page, context }) => {
+	test('indexeddb-multitab-writer moves the project lock to the newest tab', async ({ page, context }) => {
 		const first = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });

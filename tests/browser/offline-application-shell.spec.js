@@ -3,7 +3,13 @@ import { expect, test } from '@playwright/test';
 test.use({ serviceWorkers: 'allow' });
 test.setTimeout(90_000);
 
-test('verified application shell reloads both products while the browser is offline', async ({ context, page }) => {
+test('offline-shell-upgrade replaces a prior shell and keeps both products usable offline', async ({ context, page }) => {
+	const staleCacheName = `soundscaper-application-shell-v1-${'0'.repeat(64)}`;
+	await page.goto('/logo/logo-klein-schwarz.svg');
+	await page.evaluate(async (cacheName) => {
+		const cache = await caches.open(cacheName);
+		await cache.put('/', new Response('stale application shell'));
+	}, staleCacheName);
 	await page.goto('/en/');
 	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
 	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest-soundscaper.webmanifest');
@@ -13,8 +19,9 @@ test('verified application shell reloads both products while the browser is offl
 		await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
 	});
 	await expect.poll(() => page.evaluate(async () => (
-		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v1-')).length
-	))).toBe(1);
+		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v1-'))
+	))).toHaveLength(1);
+	expect(await page.evaluate(async (cacheName) => (await caches.keys()).includes(cacheName), staleCacheName)).toBe(false);
 
 	await context.setOffline(true);
 	await page.reload({ waitUntil: 'domcontentloaded' });

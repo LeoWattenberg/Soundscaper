@@ -6,7 +6,7 @@ const RUNTIME_ROOT = 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10';
 
 test.setTimeout(60_000);
 
-test('explicit runtime updates commit only complete verified releases', async ({ page }) => {
+test('offline-runtime-rollback keeps the previous verified release after a failed update', async ({ page }) => {
 	const first = runtimeRelease('first');
 	const second = runtimeRelease('second');
 	let published = first;
