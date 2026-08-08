@@ -32,6 +32,20 @@ export interface OpfsSyncWriter {
 	abort(): Promise<void>;
 }
 
+export interface OpfsSyncStoragePort {
+	initialize(directory: FileSystemDirectoryHandle): Promise<boolean>;
+	read(
+		operationId: OpfsSyncOperationId,
+		path: string,
+		range: Readonly<{ offset: number; length: number }>,
+		signal?: AbortSignal,
+	): Promise<OpfsSyncReadResult>;
+	snapshot(operationId: OpfsSyncOperationId, path: string, signal?: AbortSignal): Promise<Blob>;
+	openWriter(operationId: OpfsSyncOperationId, path: string, signal?: AbortSignal): Promise<OpfsSyncWriter>;
+	remove(path: string): Promise<void>;
+	close(): void;
+}
+
 interface WorkerResponse {
 	readonly id?: unknown;
 	readonly type?: unknown;
@@ -48,10 +62,15 @@ interface WorkerOpenResult {
 	readonly writerId?: unknown;
 }
 
+interface WorkerSnapshotResult {
+	readonly size?: unknown;
+	readonly file?: unknown;
+}
+
 let nextRequestId = 1;
 
 /** Capability-detected request client for the dedicated synchronous OPFS worker. */
-export class OpfsSyncWorkerClient {
+export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 	readonly #workerFactory: () => OpfsWorkerLike;
 	readonly #broker: WorkerRequestBroker;
 	#worker: OpfsWorkerLike | null = null;
@@ -125,6 +144,28 @@ export class OpfsSyncWorkerClient {
 				await this.#request({ type: 'abort-writer', writerId });
 			},
 		});
+	}
+
+	async snapshot(
+		operationId: OpfsSyncOperationId,
+		pathValue: string,
+		signal?: AbortSignal,
+	): Promise<Blob> {
+		assertOpfsSyncOperationId(operationId);
+		if (!operationId.endsWith('-read')) throw new TypeError('An OPFS read operation id is required.');
+		const path = normalizeOpfsWorkerPath(pathValue);
+		this.#assertSupported();
+		const result = await this.#request<WorkerSnapshotResult>({
+			type: 'snapshot', operationId, path,
+		}, signal);
+		const size = Number(result?.size);
+		if (!(result?.file instanceof Blob)
+			|| !Number.isSafeInteger(size)
+			|| size < 0
+			|| result.file.size !== size) {
+			throw new Error('OPFS worker returned an invalid file snapshot.');
+		}
+		return result.file;
 	}
 
 	async remove(pathValue: string): Promise<void> {

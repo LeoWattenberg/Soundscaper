@@ -70,7 +70,15 @@ function fakeDirectory(initial: Record<string, Uint8Array> = {}) {
 				files.set(path, access);
 			}
 			if (!access) throw Object.assign(new Error('missing'), { name: 'NotFoundError' });
-			return { createSyncAccessHandle: async () => access };
+			return {
+				createSyncAccessHandle: async () => access,
+				getFile: async () => {
+					const bytes = access.bytes();
+					const buffer = new ArrayBuffer(bytes.byteLength);
+					new Uint8Array(buffer).set(bytes);
+					return new Blob([buffer]);
+				},
+			};
 		},
 		async removeEntry(path: string) {
 			removals.push(path);
@@ -121,6 +129,22 @@ test('OPFS worker runtime performs exact bounded reads with a short-lived sync h
 		}),
 		/exceeds the OPFS file/u,
 	);
+});
+
+test('OPFS worker runtime snapshots genuine Blob content after sync size validation', async () => {
+	const fixture = fakeDirectory({ 'media.blob': Uint8Array.of(8, 9, 10) });
+	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });
+	await runtime.handle({ id: 'init', type: 'initialize', directory: fixture.directory });
+
+	const result = await runtime.handle({
+		id: 'snapshot', type: 'snapshot', operationId: 'media-asset-chunk-read', path: 'media.blob',
+	});
+	assert.equal(result.size, 3);
+	assert.deepEqual([...new Uint8Array(await (result.file as Blob).arrayBuffer())], [8, 9, 10]);
+	assert.deepEqual(fixture.files.get('media.blob')?.calls, [
+		{ type: 'size' },
+		{ type: 'close' },
+	]);
 });
 
 test('OPFS worker runtime writes sequential chunks and flushes before close', async () => {

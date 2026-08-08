@@ -56,6 +56,9 @@ test('OPFS sync worker client detects support before issuing bounded operations'
 				result: { size: 9, bytes: Uint8Array.of(3, 4, 5).buffer },
 			};
 		}
+		if (message.type === 'snapshot') {
+			return { type: 'result', result: { size: 3, file: new Blob(['abc']) } };
+		}
 		if (message.type === 'open-writer') return { type: 'result', result: { writerId: 'writer-1' } };
 		return { type: 'result', result: null };
 	});
@@ -70,6 +73,8 @@ test('OPFS sync worker client detects support before issuing bounded operations'
 	);
 	assert.deepEqual([...read.bytes], [3, 4, 5]);
 	assert.equal(read.size, 9);
+	const snapshot = await client.snapshot('media-asset-chunk-read', 'media.blob');
+	assert.equal(await snapshot.text(), 'abc');
 
 	const writer = await client.openWriter('media-asset-chunk-write', 'media.blob');
 	await writer.write(Uint8Array.of(7, 8));
@@ -78,6 +83,7 @@ test('OPFS sync worker client detects support before issuing bounded operations'
 	assert.deepEqual(worker.posted.map(({ type }) => type), [
 		'initialize',
 		'read',
+		'snapshot',
 		'open-writer',
 		'write',
 		'close-writer',
@@ -90,8 +96,8 @@ test('OPFS sync worker client detects support before issuing bounded operations'
 		offset: 4,
 		length: 3,
 	});
-	assert.equal(worker.transfers[3].length, 1);
-	assert.equal((worker.posted[3].bytes as ArrayBuffer).byteLength, 2);
+	assert.equal(worker.transfers[4].length, 1);
+	assert.equal((worker.posted[4].bytes as ArrayBuffer).byteLength, 2);
 
 	client.close();
 	assert.equal(worker.terminated, 1);

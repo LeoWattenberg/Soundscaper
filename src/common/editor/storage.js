@@ -120,6 +120,7 @@ export class AudioEditorProjectStore {
 		this.linkedVideoOriginalProjectReachabilityRepository = repositories.linkedVideoOriginalProjectReachability || null;
 		this.linkedVideoOriginalResolver = repositories.linkedVideoOriginals || null;
 		this.retentionRepository = repositories.retention;
+		this.opfsRepository = repositories.opfs || null;
 		this.linkedOriginalStoreService = new LinkedOriginalStoreService(
 			repositories,
 			{ onCleanupError: onLinkedVideoOriginalLocatorCleanupError },
@@ -539,6 +540,7 @@ export class AudioEditorProjectStore {
 		} catch (error) {
 			closeErrors.push(error);
 		} finally {
+			this.opfsRepository?.close?.();
 			const database = this.databasePromise
 				? await this.databasePromise.catch(() => null)
 				: null;

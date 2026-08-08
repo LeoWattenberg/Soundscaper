@@ -21,6 +21,7 @@ interface SyncAccessHandleLike {
 
 interface SyncFileHandleLike {
 	createSyncAccessHandle(options?: { readonly mode?: string }): Promise<SyncAccessHandleLike>;
+	getFile(): Promise<Blob>;
 }
 
 interface WorkerWriter {
@@ -68,6 +69,7 @@ export class OpfsSyncWorkerRuntime {
 		this.#throwIfCancelled(id);
 		try {
 			if (type === 'read') return await this.#read(request, id);
+			if (type === 'snapshot') return await this.#snapshot(request, id);
 			if (type === 'open-writer') return await this.#openWriter(request, id);
 			if (type === 'write') return this.#write(request, id);
 			if (type === 'close-writer') return this.#closeWriter(request, id);
@@ -77,6 +79,29 @@ export class OpfsSyncWorkerRuntime {
 		} finally {
 			this.#cancelled.delete(id);
 		}
+	}
+
+	async #snapshot(request: WorkerRequest, requestIdValue: string): Promise<Record<string, unknown>> {
+		const operationId = readOperation(request.operationId);
+		const path = normalizeOpfsWorkerPath(request.path);
+		const fileHandle = await this.#fileHandle(path, false);
+		this.#throwIfCancelled(requestIdValue);
+		const access = await createSyncAccess(fileHandle, true);
+		let size: number;
+		try {
+			size = access.getSize();
+			if (!Number.isSafeInteger(size) || size < 0) {
+				throw new Error('OPFS synchronous access returned an invalid file size.');
+			}
+		} finally {
+			access.close();
+		}
+		this.#throwIfCancelled(requestIdValue);
+		const file = await fileHandle.getFile();
+		if (!(file instanceof Blob) || file.size !== size) {
+			throw new Error('The OPFS file changed during snapshot acquisition.');
+		}
+		return Object.freeze({ operationId, size, file });
 	}
 
 	#initialize(request: WorkerRequest): Record<string, unknown> {

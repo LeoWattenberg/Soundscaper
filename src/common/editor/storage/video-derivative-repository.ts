@@ -104,7 +104,9 @@ export class VideoDerivativeRepository {
 		assertDerivativeFitsCache(publication.binaryPayload.bytes, this.#cacheLimits);
 		const outputSha256 = await digestMediaContent(blob);
 		let previous: StorageRecord | null = null;
-		const storedFile = await this.#opfs.writeBlob(`video-${identity.sourceId}-${identity.type}`, blob);
+		const storedFile = await this.#opfs.writeBlob(`video-${identity.sourceId}-${identity.type}`, blob, {
+			operationId: 'derivative-payload-write',
+		});
 		let record: StorageRecord;
 		let removed: StorageRecord[] = [];
 		try {
@@ -282,6 +284,7 @@ export class VideoDerivativeRepository {
 		const blob = await this.#opfs.loadBinaryRecord(
 			record,
 			'The requested local video derivative is missing.',
+			'derivative-payload-read',
 		);
 		if (!Number.isSafeInteger(record.size) || record.size !== blob.size) {
 			throw new Error('The requested local video derivative failed its size integrity check.');

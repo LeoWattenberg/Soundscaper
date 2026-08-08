@@ -14,6 +14,10 @@ import {
 	type StorageRecord,
 } from './media-records.ts';
 import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
+import { OpfsSyncRepositoryBridge } from './opfs-sync-repository-bridge.ts';
+import type { OpfsSyncStoragePort } from './opfs-sync-worker-client.ts';
+import type { OpfsSyncOperationId } from './opfs-sync-worker-protocol.ts';
+import { syncBinaryWriter, syncPcmWriter } from './opfs-sync-writer-adapters.ts';
 
 interface PcmIndexEntry {
 	readonly index: number;
@@ -87,6 +91,7 @@ export interface OpfsRepositoryOptions {
 	readonly preferOpfs: boolean;
 	readonly storageManager?: StorageManager | null;
 	readonly opfsRoot?: FileSystemDirectoryHandle | null;
+	readonly syncWorkerClient?: OpfsSyncStoragePort | null;
 }
 
 /** Origin-private binary and PCM-container storage. */
@@ -94,9 +99,11 @@ export class OpfsRepository {
 	readonly #options: OpfsRepositoryOptions;
 	#directoryPromise: Promise<FileSystemDirectoryHandle | null> | null = null;
 	readonly #indexCache = new Map<string, Promise<PcmContainerIndex>>();
+	readonly #sync: OpfsSyncRepositoryBridge;
 
 	constructor(options: OpfsRepositoryOptions) {
 		this.#options = options;
+		this.#sync = new OpfsSyncRepositoryBridge({ client: options.syncWorkerClient });
 	}
 
 	async directory(): Promise<FileSystemDirectoryHandle | null> {
@@ -115,13 +122,21 @@ export class OpfsRepository {
 		return this.#directoryPromise;
 	}
 
-	async loadBinaryRecord(record: StorageRecord, missingMessage: string): Promise<BlobLike> {
+	async loadBinaryRecord(
+		record: StorageRecord,
+		missingMessage: string,
+		operationId: OpfsSyncOperationId = 'media-asset-chunk-read',
+	): Promise<BlobLike> {
 		if (record.storage !== 'opfs') {
 			if (!record.blob) throw new Error(missingMessage);
 			return blobWithMimeType(record.blob as BlobLike, record.mimeType);
 		}
 		const directory = await this.directory();
 		try {
+			const snapshot = record.path && directory
+				? await this.#sync.snapshot(directory, operationId, record.path)
+				: null;
+			if (snapshot) return blobWithMimeType(snapshot, record.mimeType);
 			const handle = record.path ? await directory?.getFileHandle(record.path) : null;
 			if (!handle) throw new Error(missingMessage);
 			return blobWithMimeType(await handle.getFile(), record.mimeType);
@@ -133,7 +148,10 @@ export class OpfsRepository {
 	async writeBlob(
 		prefix: string,
 		blob: BlobLike,
-		{ signal }: { readonly signal?: AbortSignal } = {},
+		{
+			signal,
+			operationId = 'media-asset-chunk-write',
+		}: { readonly signal?: AbortSignal; readonly operationId?: OpfsSyncOperationId } = {},
 	): Promise<{ path: string } | null> {
 		throwIfAborted(signal);
 		const directory = await this.directory();
@@ -143,6 +161,7 @@ export class OpfsRepository {
 		const path = `${stem}-${createId('asset').replace(/[^a-z0-9._-]+/giu, '-')}.blob`;
 		let writable: FileSystemWritableFileStream | undefined;
 		try {
+			if (await this.#sync.writeBlob(directory, operationId, path, blob, signal)) return { path };
 			const handle = await directory.getFileHandle(path, { create: true });
 			throwIfAborted(signal);
 			writable = await handle.createWritable();
@@ -170,6 +189,17 @@ export class OpfsRepository {
 		if (!directory?.getFileHandle) return null;
 		const stem = String(prefix || 'media').replace(/[^a-z0-9._-]+/giu, '-').slice(0, 80);
 		const path = `${stem}-${createId('asset').replace(/[^a-z0-9._-]+/giu, '-')}.blob`;
+		if (await this.#sync.available(directory)) {
+			return {
+				path,
+				open: async () => {
+					const writer = await this.#sync.openWriter(
+						directory, 'media-asset-chunk-write', path, signal,
+					);
+					return writer ? syncBinaryWriter(path, writer, signal) : null;
+				},
+			};
+		}
 		return {
 			path,
 			open: () => openBinaryWriter(directory, path, signal),
@@ -186,7 +216,10 @@ export class OpfsRepository {
 		if (!path) return;
 		this.#indexCache.delete(path);
 		const directory = await this.directory();
-		try { await directory?.removeEntry(path); } catch { /* Missing and orphaned files are harmless. */ }
+		try {
+			if (directory && await this.#sync.remove(directory, path)) return;
+			await directory?.removeEntry(path);
+		} catch { /* Missing and orphaned files are harmless. */ }
 	}
 
 	invalidate(path: string | null | undefined): void {
@@ -199,6 +232,10 @@ export class OpfsRepository {
 		const path = `${token.replace(/[^a-z0-9._-]+/giu, '-')}${PCM_CONTAINER_EXTENSION}`;
 		const invalidate = () => this.invalidate(path);
 		try {
+			const syncWriter = await this.#sync.openWriter(
+				directory, 'canonical-pcm-chunk-write', path,
+			);
+			if (syncWriter) return syncPcmWriter(path, syncWriter, metadata, invalidate, () => this.deletePath(path));
 			const handle = await directory.getFileHandle(path, { create: true });
 			const writable = await handle.createWritable();
 			let container: ContainerWriterInstance | null = null;
@@ -249,7 +286,7 @@ export class OpfsRepository {
 		{ priority = 'foreground', signal }: { readonly priority?: string; readonly signal?: AbortSignal } = {},
 	): AsyncGenerator<PcmChunk> {
 		throwIfAborted(signal);
-		const file = await this.#sourceFile(source);
+		const file = await this.#sourceFile(source, signal);
 		throwIfAborted(signal);
 		const index = await this.#containerIndex(source, file);
 		throwIfAborted(signal);
@@ -268,7 +305,7 @@ export class OpfsRepository {
 		signal?: AbortSignal,
 		priority = 'foreground',
 	): Promise<PcmChunk> {
-		const file = await this.#sourceFile(source);
+		const file = await this.#sourceFile(source, signal);
 		const index = await this.#containerIndex(source, file);
 		const entry = index.entries[chunkIndex];
 		if (!entry) throw new RangeError(`Source storage chunk ${chunkIndex} does not exist.`);
@@ -281,7 +318,7 @@ export class OpfsRepository {
 		{ signal }: { readonly signal?: AbortSignal } = {},
 	): AsyncGenerator<PcmChunk> {
 		throwIfAborted(signal);
-		const file = await this.#sourceFile(source);
+		const file = await this.#sourceFile(source, signal);
 		throwIfAborted(signal);
 		let offset = 0;
 		let index = 0;
@@ -318,7 +355,7 @@ export class OpfsRepository {
 			}
 			throw new RangeError(`Source storage chunk ${chunkIndex} does not exist.`);
 		}
-		const file = await this.#sourceFile(source);
+		const file = await this.#sourceFile(source, signal);
 		throwIfAborted(signal);
 		const fullChunkBytes = 8 + chunkFrames * channelCount * Float32Array.BYTES_PER_ELEMENT;
 		let offset = chunkIndex * fullChunkBytes;
@@ -357,7 +394,12 @@ export class OpfsRepository {
 		this.#indexCache.clear();
 	}
 
-	async #containerIndex(source: StorageRecord, file: Blob): Promise<PcmContainerIndex> {
+	close(): void {
+		this.#indexCache.clear();
+		this.#sync.close();
+	}
+
+	async #containerIndex(source: StorageRecord, file: BlobLike): Promise<PcmContainerIndex> {
 		if (!source.path) throw new Error('The requested local audio source is missing.');
 		let cached = this.#indexCache.get(source.path);
 		if (!cached) {
@@ -376,14 +418,19 @@ export class OpfsRepository {
 		return cached;
 	}
 
-	async #sourceFile(source: StorageRecord): Promise<File> {
+	async #sourceFile(source: StorageRecord, signal?: AbortSignal): Promise<BlobLike> {
 		const directory = await this.directory();
 		if (!directory) throw new Error('Origin-private audio storage is unavailable.');
 		try {
 			if (!source.path) throw new Error('Missing path.');
+			const readable = await this.#sync.readable(
+				directory, 'canonical-pcm-chunk-read', source.path, signal,
+			);
+			if (readable) return readable;
 			const handle = await directory.getFileHandle(source.path);
 			return await handle.getFile();
 		} catch {
+			throwIfAborted(signal);
 			throw new Error('The requested local audio source is missing.');
 		}
 	}
