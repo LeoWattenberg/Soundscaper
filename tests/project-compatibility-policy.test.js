@@ -129,7 +129,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		currentScapeFeatureRequirements.currentBehavior,
 		/rendered-fallback.*compaction.*every project source asset.*preserves each closed relationship.*video-clip-render-v1.*exact target clip ID.*audio-track-render-v1.*exact target track ID.*copy collision.*remaps the fallback source ID.*preserving.*target clip or track ID/iu,
 	);
-	assert.match(currentScapeFeatureRequirements.currentBehavior, /product-identified return roundtrips.*portable-archive route in both directions.*Soundscaper-sent audio-track-render-v1.*Framescaper-sent video-clip-render-v1.*whole-project project-video-render-v1.*rendered-fallback on the less-capable recipient.*re-export the exact portable bodies.*reopen natively editable at the origin.*byte-identical manifests, native effect payloads, and asset digests/iu);
+	assert.match(currentScapeFeatureRequirements.currentBehavior, /product-identified return roundtrips.*portable-archive route in both directions for all four closed roles.*Soundscaper-sent audio-track-render-v1 and whole-mix project-audio-mix-v1.*Framescaper-sent video-clip-render-v1.*whole-project project-video-render-v1.*rendered-fallback on the less-capable recipient.*re-export the exact portable bodies.*reopen natively editable at the origin.*byte-identical manifests, native effect payloads, and asset digests/iu);
 	assert.match(
 		currentScapeFeatureRequirements.currentBehavior,
 		/digest integrity.*route-specific.*arbitrary future schemas/iu,

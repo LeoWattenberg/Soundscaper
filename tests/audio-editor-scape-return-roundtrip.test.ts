@@ -40,7 +40,13 @@ test('a portable Scape roundtrip returns owned PCM and its track fallback to a n
 	const sender = memoryStore(context, 'scape-return-sender');
 	const recipient = memoryStore(context, 'scape-return-recipient');
 	const home = memoryStore(context, 'scape-return-home');
-	const project = trackFallbackProject();
+	const project = fallbackProject({
+		role: 'audio-track-render-v1',
+		kind: 'audio',
+		sourceId: FALLBACK_SOURCE_ID,
+		sha256: audioAssetDigest(FALLBACK_SAMPLES),
+		targetTrackId: TARGET_TRACK_ID,
+	});
 	await persistPcm(sender, LANE_SOURCE_ID, LANE_SAMPLES);
 	await persistPcm(sender, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 
@@ -96,7 +102,51 @@ test('a portable Scape roundtrip returns owned PCM and its track fallback to a n
 	assert.deepEqual(reopenedHome.tracks[0]?.effects, [...TRACK_EFFECTS]);
 });
 
-function trackFallbackProject(): AudioEditorProjectV9 {
+test('a whole-mix audio render fallback survives the same Scape return roundtrip', async (context) => {
+	const sender = memoryStore(context, 'scape-whole-mix-return-sender');
+	const recipient = memoryStore(context, 'scape-whole-mix-return-recipient');
+	const home = memoryStore(context, 'scape-whole-mix-return-home');
+	const project = fallbackProject({
+		role: 'project-audio-mix-v1',
+		kind: 'audio',
+		sourceId: FALLBACK_SOURCE_ID,
+		sha256: audioAssetDigest(FALLBACK_SAMPLES),
+	});
+	await persistPcm(sender, LANE_SOURCE_ID, LANE_SAMPLES);
+	await persistPcm(sender, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
+
+	const outbound = await exportScapeProject(project, sender);
+	const delivered = await importScapeProject(outbound.blob, recipient) as ScapeImportResult;
+	const deliveredReport = evaluateProjectFeatureRequirements(
+		delivered.project.featureRequirements,
+		{ ...productAvailability('framescaper'), ...projectStructures(delivered.project) },
+	);
+	assert.equal(deliveredReport.compatible, false);
+	assert.equal(deliveredReport.items[0]?.disposition, 'rendered-fallback');
+	assert.equal(deliveredReport.items[0]?.fallback?.role, 'project-audio-mix-v1');
+
+	const reopenedValue = await recipient.loadProject(PROJECT_ID);
+	assert.ok(reopenedValue);
+	const returning = await exportScapeProject(reopenedValue as unknown as AudioEditorProjectV9, recipient);
+	assert.deepEqual(assetDigests(returning), assetDigests(outbound),
+		'the read-only recipient must return the exact portable bodies it received');
+
+	const returned = await importScapeProject(returning.blob, home) as ScapeImportResult;
+	const returnedReport = evaluateProjectFeatureRequirements(
+		returned.project.featureRequirements,
+		{ ...productAvailability('soundscaper'), ...projectStructures(returned.project) },
+	);
+	assert.equal(returnedReport.compatible, true, 'the returning Soundscaper must reopen natively editable');
+	assert.equal(returnedReport.items[0]?.disposition, 'native');
+	assert.equal(returnedReport.items[0]?.fallback?.role, 'project-audio-mix-v1');
+	assert.deepEqual(returned.project.featureRequirements, project.featureRequirements);
+	assert.deepEqual(await storedSamples(home, LANE_SOURCE_ID), [...LANE_SAMPLES]);
+	assert.deepEqual(await storedSamples(home, FALLBACK_SOURCE_ID), [...FALLBACK_SAMPLES]);
+});
+
+function fallbackProject(
+	fallback: AudioEditorProjectV9['featureRequirements']['requirements'][number]['fallback'],
+): AudioEditorProjectV9 {
 	const laneSource = createAudioSourceV9({
 		id: LANE_SOURCE_ID,
 		storageKey: LANE_SOURCE_ID,
@@ -139,13 +189,7 @@ function trackFallbackProject(): AudioEditorProjectV9 {
 				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 				displayName: 'Publisher track render',
 				disposition: 'rendered-fallback',
-				fallback: {
-					role: 'audio-track-render-v1',
-					kind: 'audio',
-					sourceId: FALLBACK_SOURCE_ID,
-					sha256: audioAssetDigest(FALLBACK_SAMPLES),
-					targetTrackId: TARGET_TRACK_ID,
-				},
+				fallback,
 			}],
 		},
 	});

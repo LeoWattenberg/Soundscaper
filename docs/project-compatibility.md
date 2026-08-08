@@ -1475,11 +1475,11 @@ collision remaps only the fallback source ID and preserves the canonical target
 clip ID. Ordinary video export, portable `.scape` collision handling, and
 managed handoff therefore share the same closed relationship rather than
 inventing route-local identities. Composed product-identified return roundtrips
-close the archive loop in both product orders for the clip-target and
-whole-project video roles and the track-local audio role: the less-capable
-recipient reports rendered-fallback, returns the exact portable bodies it
-received, and the origin reopens natively editable with byte-identical
-manifests, native effect payloads, and asset digests.
+close the archive loop in both product orders for all four closed roles — the
+clip-target and whole-project video roles and the track-local and whole-mix
+audio roles: the less-capable recipient reports rendered-fallback, returns the
+exact portable bodies it received, and the origin reopens natively editable
+with byte-identical manifests, native effect payloads, and asset digests.
 
 Deeply frozen per-tab and document-snapshot metadata and the localized
 source/component UI bind only the exact feature ID and requirement ID without
