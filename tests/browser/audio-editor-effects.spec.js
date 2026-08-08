@@ -16,6 +16,7 @@ import {
 	closeEffectsPanel,
 	collectClientErrors,
 	commitInput,
+	disableNativeSavePicker,
 	effectSourceMetadata,
 	importFiles,
 	openEffectsForTrack,
@@ -77,6 +78,7 @@ import {
 	});
 
 	test('renders an Audacity rack effect from the first offline quantum', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		test.skip(!await page.evaluate(() => typeof globalThis.OfflineAudioContext === 'function'
@@ -271,6 +273,7 @@ import {
 	});
 
 	test('edits and restores a parametric EQ rack through its graph controls', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);

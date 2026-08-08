@@ -5,6 +5,7 @@ import {
 	chooseDropdown,
 	collectClientErrors,
 	commitInput,
+	disableNativeSavePicker,
 	disableOfflineAudio,
 	importFiles,
 	openExportDialog,
@@ -71,6 +72,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 	});
 
 	test('downloads an offline BWF with authored BEXT v2 metadata and canonical coding history', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		test.skip(!await page.evaluate(() => typeof globalThis.OfflineAudioContext === 'function'
@@ -92,6 +94,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 	});
 
 	test('downloads the same BEXT structure through bounded realtime BWF rendering', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

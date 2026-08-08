@@ -18,6 +18,7 @@ import {
 	closeDialog,
 	closeEffectsPanel,
 	collectClientErrors,
+	disableNativeSavePicker,
 	disableOfflineAudio,
 	effectSourceMetadata,
 	effectSourcePeak,
@@ -41,6 +42,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
 	test('streams aligned WAV stems into a local ZIP archive', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA, toneB]);
@@ -164,6 +166,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('renders a local WAV mix when OfflineAudioContext is available', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		test.skip(!await page.evaluate(() => typeof globalThis.OfflineAudioContext === 'function' || typeof globalThis.webkitOfflineAudioContext === 'function'), 'OfflineAudioContext is unavailable in this browser.');
@@ -186,6 +189,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('falls back to bounded realtime WAV rendering without OfflineAudioContext', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -200,6 +204,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('validates export choices and cancels a realtime render', async ({ page }) => {
+		await disableNativeSavePicker(page);
 		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

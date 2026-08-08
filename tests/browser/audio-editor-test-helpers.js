@@ -339,6 +339,12 @@ export async function dispatchPinch(timeline) {
 	await timeline.dispatchEvent('pointerup', { bubbles: true, pointerId: 102, pointerType: 'touch', isPrimary: false, button: 0, clientX: box.x + 290, clientY: y });
 }
 
+export async function disableNativeSavePicker(page) {
+	await page.addInitScript(() => {
+		Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined });
+	});
+}
+
 export async function disableOfflineAudio(page) {
 	await page.addInitScript(() => {
 		Object.defineProperty(globalThis, 'OfflineAudioContext', { configurable: true, value: undefined });
