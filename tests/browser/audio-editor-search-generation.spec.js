@@ -317,6 +317,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(metadataPanel).toBeVisible();
 		await commitInput(metadataPanel.locator('input[name="title"]'), 'Browser parity project');
 		await commitInput(metadataPanel.locator('input[name="artist"]'), 'Audacity tester');
+		const saveState = editor.locator('[data-save-state]');
+		await expect(saveState).toHaveAttribute('data-state', 'saving');
+		await expect(saveState).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await metadataPanel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
 		await expect(metadataPanel).toHaveCount(0);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
