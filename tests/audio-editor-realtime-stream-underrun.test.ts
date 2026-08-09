@@ -131,6 +131,54 @@ test('stream completion resumes a context suspended by final sink backpressure',
 	}
 });
 
+test('realtime cancellation is observed while AudioContext resume remains pending', async () => {
+	const previousAudioContext = globalThis.AudioContext;
+	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
+	const context = new PendingResumeAudioContext();
+	const abort = new AbortController();
+	const unhandled: unknown[] = [];
+	const onUnhandled = (reason: unknown): void => { unhandled.push(reason); };
+	let engine: WebAudioEditorEngine | null = null;
+	globalThis.AudioContext = function MockAudioContextFactory() {
+		return context;
+	} as unknown as typeof AudioContext;
+	globalThis.AudioWorkletNode = MockCaptureNode as unknown as typeof AudioWorkletNode;
+	process.on('unhandledRejection', onUnhandled);
+	try {
+		engine = createAudioEditorEngine();
+		engine.loadProject({
+			sampleRate: 48_000,
+			masterChannels: 1,
+			tracks: [],
+			clips: [],
+			master: { gain: 1, pan: 0, mute: false, effects: [] },
+		});
+		const rendering = engine.renderMixRealtime({
+			outputFrames: 1,
+			onChunk: () => undefined,
+			signal: abort.signal,
+		});
+		void rendering.catch(() => undefined);
+		await context.resumeStarted.promise;
+		abort.abort();
+		await new Promise((resolve) => setImmediate(resolve));
+		await new Promise((resolve) => setImmediate(resolve));
+		const observedBeforeResume = [...unhandled];
+		context.allowResume.resolve();
+		await assert.rejects(rendering, { name: 'AbortError' });
+
+		assert.deepEqual(observedBeforeResume, []);
+	} finally {
+		context.allowResume.resolve();
+		process.off('unhandledRejection', onUnhandled);
+		await engine?.dispose();
+		if (previousAudioContext === undefined) Reflect.deleteProperty(globalThis, 'AudioContext');
+		else globalThis.AudioContext = previousAudioContext;
+		if (previousAudioWorkletNode === undefined) Reflect.deleteProperty(globalThis, 'AudioWorkletNode');
+		else globalThis.AudioWorkletNode = previousAudioWorkletNode;
+	}
+});
+
 test('interactive scheduling retains silence-on-underrun behavior by default', async () => {
 	const context = new MockRealtimeAudioContext();
 	const streams = new MockChunkStreamClient();
@@ -247,6 +295,18 @@ class MockRealtimeAudioContext {
 	async close(): Promise<void> {
 		this.closeCalls += 1;
 		this.state = 'closed';
+	}
+}
+
+class PendingResumeAudioContext extends MockRealtimeAudioContext {
+	readonly resumeStarted = deferred<void>();
+	readonly allowResume = deferred<void>();
+
+	override async resume(): Promise<void> {
+		this.resumeCalls += 1;
+		this.resumeStarted.resolve();
+		await this.allowResume.promise;
+		this.state = 'running';
 	}
 }
 

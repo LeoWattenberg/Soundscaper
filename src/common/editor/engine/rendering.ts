@@ -368,6 +368,10 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let resolveDone!: () => void;
 		let rejectDone!: (reason?: unknown) => void;
 		const done = new Promise<void>((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
+		// Cancellation can reject completion while a delayed AudioContext resume is
+		// still pending. Observe it immediately; awaiting `done` below still reports
+		// the original failure to the render caller.
+		void done.catch(() => undefined);
 		let doneReceived = false;
 		let terminating = false;
 		interface SinkQueue {
