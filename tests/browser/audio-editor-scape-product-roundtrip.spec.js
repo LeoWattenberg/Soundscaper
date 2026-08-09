@@ -216,11 +216,28 @@ async function createGeneratedVideoFixture(page, name) {
 		canvas.width = 96;
 		canvas.height = 54;
 		const drawing = canvas.getContext('2d');
-		const stream = canvas.captureStream(15);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-			? 'video/webm;codecs=vp8'
+		const videoStream = canvas.captureStream(15);
+		const audioContext = new AudioContext({ sampleRate: 48_000 });
+		const oscillator = audioContext.createOscillator();
+		const gain = audioContext.createGain();
+		const audioDestination = audioContext.createMediaStreamDestination();
+		oscillator.frequency.value = 330;
+		gain.gain.value = 0.06;
+		oscillator.connect(gain).connect(audioDestination);
+		oscillator.start();
+		await audioContext.resume();
+		const stream = new MediaStream([
+			...videoStream.getVideoTracks(),
+			...audioDestination.stream.getAudioTracks(),
+		]);
+		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+			? 'video/webm;codecs=vp8,opus'
 			: 'video/webm';
-		const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 120_000 });
+		const recorder = new MediaRecorder(stream, {
+			mimeType,
+			videoBitsPerSecond: 120_000,
+			audioBitsPerSecond: 32_000,
+		});
 		const chunks = [];
 		recorder.addEventListener('dataavailable', (event) => {
 			if (event.data.size) chunks.push(event.data);
@@ -237,6 +254,8 @@ async function createGeneratedVideoFixture(page, name) {
 		recorder.stop();
 		await stopped;
 		stream.getTracks().forEach((track) => track.stop());
+		oscillator.stop();
+		await audioContext.close();
 		const bytes = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
 		let binary = '';
 		for (const byte of bytes) binary += String.fromCharCode(byte);

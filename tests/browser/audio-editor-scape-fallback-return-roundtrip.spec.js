@@ -162,7 +162,7 @@ async function createVideoBaseArchive(page, editor, id) {
 }
 
 async function renderedFallbackArchive(input, workflow) {
-	return rewriteArchive(input, ({ project, manifest }) => {
+	return rewriteArchive(input, ({ project, manifest, payloads }) => {
 		project.id = workflow.id;
 		project.title = `${workflow.role} return witness`;
 		project.opaqueExtensions = {
@@ -174,15 +174,30 @@ async function renderedFallbackArchive(input, workflow) {
 		const [canonicalSource, fallbackSource] = sources;
 		const fallbackAsset = manifest.assets.find(({ sourceId }) => sourceId === fallbackSource.id);
 		if (!fallbackAsset) throw new Error(`${workflow.id} is missing its fallback asset.`);
-		const fallbackClipIds = new Set(project.clips
+		const fallbackAvLinkIds = new Set(project.clips
 			.filter(({ sourceId }) => sourceId === fallbackSource.id)
+			.map(({ avLinkId }) => avLinkId)
+			.filter(Boolean));
+		const fallbackClipIds = new Set(project.clips
+			.filter(({ sourceId, avLinkId }) => (
+				sourceId === fallbackSource.id || fallbackAvLinkIds.has(avLinkId)
+			))
 			.map(({ id }) => id));
+		const orphanedCompanionSourceIds = new Set(project.clips
+			.filter(({ avLinkId, sourceId }) => (
+				fallbackAvLinkIds.has(avLinkId) && sourceId !== fallbackSource.id
+			))
+			.map(({ sourceId }) => sourceId));
 		project.clips = project.clips.filter(({ id }) => !fallbackClipIds.has(id));
+		project.sources = project.sources.filter(({ id }) => !orphanedCompanionSourceIds.has(id));
+		for (const asset of manifest.assets) {
+			if (orphanedCompanionSourceIds.has(asset.sourceId)) payloads.delete(asset.entry);
+		}
+		manifest.assets = manifest.assets.filter(({ sourceId }) => !orphanedCompanionSourceIds.has(sourceId));
 		for (const track of project.tracks) {
 			if (Array.isArray(track.clipIds)) {
 				track.clipIds = track.clipIds.filter((id) => !fallbackClipIds.has(id));
 			}
-			if (Object.hasOwn(track, 'laneGroupId')) track.laneGroupId = null;
 		}
 		project.tracks = project.tracks.filter((track) => track.type === 'label' || track.clipIds.length > 0);
 		const targetClip = project.clips.find(({ sourceId }) => sourceId === canonicalSource.id);
@@ -341,7 +356,7 @@ async function rewriteArchive(input, mutate) {
 	const encoder = new TextEncoder();
 	const project = JSON.parse(decoder.decode(payloads.get('project.json')));
 	const manifest = JSON.parse(decoder.decode(payloads.get('manifest.json')));
-	mutate({ project, manifest });
+	mutate({ project, manifest, payloads });
 	const projectBytes = encoder.encode(JSON.stringify(project));
 	payloads.set('project.json', projectBytes);
 	manifest.project.schemaVersion = project.schemaVersion;
@@ -354,7 +369,9 @@ async function rewriteArchive(input, mutate) {
 		zip64: true,
 	});
 	for (const entry of entries) {
-		await writer.add(entry.filename, new Uint8ArrayReader(payloads.get(entry.filename)), {
+		const payload = payloads.get(entry.filename);
+		if (!payload) continue;
+		await writer.add(entry.filename, new Uint8ArrayReader(payload), {
 			level: 0,
 			zip64: true,
 		});
@@ -420,11 +437,28 @@ async function createGeneratedVideoFixture(page, name) {
 		canvas.width = 96;
 		canvas.height = 54;
 		const drawing = canvas.getContext('2d');
-		const stream = canvas.captureStream(15);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-			? 'video/webm;codecs=vp8'
+		const videoStream = canvas.captureStream(15);
+		const audioContext = new AudioContext({ sampleRate: 48_000 });
+		const oscillator = audioContext.createOscillator();
+		const gain = audioContext.createGain();
+		const audioDestination = audioContext.createMediaStreamDestination();
+		oscillator.frequency.value = 330;
+		gain.gain.value = 0.06;
+		oscillator.connect(gain).connect(audioDestination);
+		oscillator.start();
+		await audioContext.resume();
+		const stream = new MediaStream([
+			...videoStream.getVideoTracks(),
+			...audioDestination.stream.getAudioTracks(),
+		]);
+		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+			? 'video/webm;codecs=vp8,opus'
 			: 'video/webm';
-		const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 120_000 });
+		const recorder = new MediaRecorder(stream, {
+			mimeType,
+			videoBitsPerSecond: 120_000,
+			audioBitsPerSecond: 32_000,
+		});
 		const chunks = [];
 		recorder.addEventListener('dataavailable', (event) => {
 			if (event.data.size) chunks.push(event.data);
@@ -441,6 +475,8 @@ async function createGeneratedVideoFixture(page, name) {
 		recorder.stop();
 		await stopped;
 		stream.getTracks().forEach((track) => track.stop());
+		oscillator.stop();
+		await audioContext.close();
 		const bytes = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
 		let binary = '';
 		for (const byte of bytes) binary += String.fromCharCode(byte);
