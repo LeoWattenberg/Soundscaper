@@ -84,10 +84,10 @@ test.describe('rendered-fallback Scape return roundtrips', () => {
 			test.setTimeout(120_000);
 			const origin = await bootEditor(page, PRODUCT_PATHS[workflow.origin]);
 			const originErrors = collectClientErrors(page);
-			const baseArchive = workflow.kind === 'audio'
-				? await createAudioBaseArchive(page, origin)
+			const base = workflow.kind === 'audio'
+				? { archive: await createAudioBaseArchive(page, origin), fallback: null }
 				: await createVideoBaseArchive(page, origin, workflow.id);
-			const outboundArchive = await renderedFallbackArchive(baseArchive, workflow);
+			const outboundArchive = await renderedFallbackArchive(base.archive, workflow, base.fallback);
 			const outbound = await inspectScapeArchive(outboundArchive);
 
 			const baseURL = new URL(page.url()).origin;
@@ -153,15 +153,15 @@ async function createAudioBaseArchive(page, editor) {
 
 async function createVideoBaseArchive(page, editor, id) {
 	const canonical = await createGeneratedVideoFixture(page, `${id}-canonical.webm`);
-	const fallback = { ...canonical, name: `${id}-fallback.webm`, buffer: Buffer.from(canonical.buffer) };
-	await importFiles(editor, [canonical, fallback]);
+	const fallback = await createGeneratedVideoFixture(page, `${id}-fallback.webm`, { withAudio: false });
+	await importFiles(editor, [canonical]);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 10_000,
 	});
-	return exportScapeArchive(page, editor);
+	return { archive: await exportScapeArchive(page, editor), fallback };
 }
 
-async function renderedFallbackArchive(input, workflow) {
+async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 	return rewriteArchive(input, ({ project, manifest, payloads }) => {
 		project.id = workflow.id;
 		project.title = `${workflow.role} return witness`;
@@ -170,30 +170,55 @@ async function renderedFallbackArchive(input, workflow) {
 			publisherReturnWitness: { role: workflow.role, revision: 1 },
 		};
 		const sources = project.sources.filter(({ kind }) => kind === workflow.kind);
-		if (sources.length !== 2) throw new Error(`${workflow.id} requires exactly two ${workflow.kind} sources.`);
-		const [canonicalSource, fallbackSource] = sources;
-		const fallbackAsset = manifest.assets.find(({ sourceId }) => sourceId === fallbackSource.id);
-		if (!fallbackAsset) throw new Error(`${workflow.id} is missing its fallback asset.`);
-		const fallbackAvLinkIds = new Set(project.clips
-			.filter(({ sourceId }) => sourceId === fallbackSource.id)
-			.map(({ avLinkId }) => avLinkId)
-			.filter(Boolean));
-		const fallbackClipIds = new Set(project.clips
-			.filter(({ sourceId, avLinkId }) => (
-				sourceId === fallbackSource.id || fallbackAvLinkIds.has(avLinkId)
-			))
-			.map(({ id }) => id));
-		const orphanedCompanionSourceIds = new Set(project.clips
-			.filter(({ avLinkId, sourceId }) => (
-				fallbackAvLinkIds.has(avLinkId) && sourceId !== fallbackSource.id
-			))
-			.map(({ sourceId }) => sourceId));
-		project.clips = project.clips.filter(({ id }) => !fallbackClipIds.has(id));
-		project.sources = project.sources.filter(({ id }) => !orphanedCompanionSourceIds.has(id));
-		for (const asset of manifest.assets) {
-			if (orphanedCompanionSourceIds.has(asset.sourceId)) payloads.delete(asset.entry);
+		let canonicalSource;
+		let fallbackSource;
+		let fallbackAsset;
+		if (workflow.kind === 'video') {
+			if (sources.length !== 1 || !fallbackFixture) {
+				throw new Error(`${workflow.id} requires one canonical video and one silent fallback fixture.`);
+			}
+			[canonicalSource] = sources;
+			const fallbackSourceId = `${canonicalSource.id}-fallback`;
+			fallbackSource = {
+				...structuredClone(canonicalSource),
+				id: fallbackSourceId,
+				storageKey: fallbackSourceId,
+				name: fallbackFixture.name,
+				mimeType: fallbackFixture.mimeType,
+				audioCodec: null,
+				hasAudio: false,
+				posterStorageKey: null,
+				thumbnailStorageKey: null,
+			};
+			const fallbackBytes = new Uint8Array(fallbackFixture.buffer);
+			const entry = `media/${fallbackSourceId}/original`;
+			if (payloads.has(entry)) throw new Error(`${workflow.id} fallback entry collides with the base archive.`);
+			fallbackAsset = {
+				sourceId: fallbackSourceId,
+				kind: 'video',
+				entry,
+				encoding: 'original',
+				mimeType: fallbackFixture.mimeType,
+				size: fallbackBytes.byteLength,
+				sha256: createHash('sha256').update(fallbackBytes).digest('hex'),
+			};
+			const canonicalAsset = manifest.assets.find(({ sourceId }) => sourceId === canonicalSource.id);
+			if (!canonicalAsset || canonicalAsset.sha256 === fallbackAsset.sha256) {
+				throw new Error(`${workflow.id} requires an independent silent video fallback asset.`);
+			}
+			project.sources.push(fallbackSource);
+			manifest.assets.push(fallbackAsset);
+			payloads.set(entry, fallbackBytes);
+		} else {
+			if (sources.length !== 2) throw new Error(`${workflow.id} requires exactly two audio sources.`);
+			[canonicalSource, fallbackSource] = sources;
+			fallbackAsset = manifest.assets.find(({ sourceId }) => sourceId === fallbackSource.id);
+			if (!fallbackAsset) throw new Error(`${workflow.id} is missing its fallback asset.`);
 		}
-		manifest.assets = manifest.assets.filter(({ sourceId }) => !orphanedCompanionSourceIds.has(sourceId));
+		const fallbackClipIds = new Set(project.clips
+			.filter(({ sourceId }) => sourceId === fallbackSource.id)
+			.map(({ id }) => id));
+		project.clips = project.clips.filter(({ id }) => !fallbackClipIds.has(id));
 		for (const track of project.tracks) {
 			if (Array.isArray(track.clipIds)) {
 				track.clipIds = track.clipIds.filter((id) => !fallbackClipIds.has(id));
@@ -368,10 +393,8 @@ async function rewriteArchive(input, mutate) {
 		useWebWorkers: false,
 		zip64: true,
 	});
-	for (const entry of entries) {
-		const payload = payloads.get(entry.filename);
-		if (!payload) continue;
-		await writer.add(entry.filename, new Uint8ArrayReader(payload), {
+	for (const [filename, payload] of payloads) {
+		await writer.add(filename, new Uint8ArrayReader(payload), {
 			level: 0,
 			zip64: true,
 		});
@@ -431,33 +454,44 @@ async function installAudioScheduleProbe(page) {
 	});
 }
 
-async function createGeneratedVideoFixture(page, name) {
-	const base64 = await page.evaluate(async () => {
+async function createGeneratedVideoFixture(page, name, { withAudio = true } = {}) {
+	const base64 = await page.evaluate(async (includeAudio) => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 96;
 		canvas.height = 54;
 		const drawing = canvas.getContext('2d');
 		const videoStream = canvas.captureStream(15);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = 330;
-		gain.gain.value = 0.06;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+		let audioContext = null;
+		let oscillator = null;
+		let stream = videoStream;
+		if (includeAudio) {
+			audioContext = new AudioContext({ sampleRate: 48_000 });
+			oscillator = audioContext.createOscillator();
+			const gain = audioContext.createGain();
+			const audioDestination = audioContext.createMediaStreamDestination();
+			oscillator.frequency.value = 330;
+			gain.gain.value = 0.06;
+			oscillator.connect(gain).connect(audioDestination);
+			oscillator.start();
+			await audioContext.resume();
+			stream = new MediaStream([
+				...videoStream.getVideoTracks(),
+				...audioDestination.stream.getAudioTracks(),
+			]);
+		}
+		if (stream.getVideoTracks().length !== 1
+			|| stream.getAudioTracks().length !== (includeAudio ? 1 : 0)) {
+			throw new Error('Generated video fixture has an unexpected media-track inventory.');
+		}
+		const mimeType = includeAudio && MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
 			? 'video/webm;codecs=vp8,opus'
-			: 'video/webm';
+			: MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+				? 'video/webm;codecs=vp8'
+				: 'video/webm';
 		const recorder = new MediaRecorder(stream, {
 			mimeType,
 			videoBitsPerSecond: 120_000,
-			audioBitsPerSecond: 32_000,
+			...(includeAudio ? { audioBitsPerSecond: 32_000 } : {}),
 		});
 		const chunks = [];
 		recorder.addEventListener('dataavailable', (event) => {
@@ -475,12 +509,12 @@ async function createGeneratedVideoFixture(page, name) {
 		recorder.stop();
 		await stopped;
 		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
+		oscillator?.stop();
+		if (audioContext) await audioContext.close();
 		const bytes = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
 		let binary = '';
 		for (const byte of bytes) binary += String.fromCharCode(byte);
 		return btoa(binary);
-	});
+	}, withAudio);
 	return { name, mimeType: 'video/webm', buffer: Buffer.from(base64, 'base64') };
 }
