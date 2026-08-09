@@ -346,6 +346,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(tracks.nth(0).locator('[data-clip-id]')).toHaveCount(0);
 		await expect(tracks.nth(1).locator('[data-clip-id]')).toHaveCount(1);
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
+		await expect(tracks.nth(1).locator('[data-clip-id]')).toHaveCount(0);
+		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		await expect(tracks.nth(1).locator('[data-clip-id]')).toHaveCount(1);
 		expect(errors).toEqual([]);
 	});
 

@@ -308,8 +308,9 @@ test('legacy finalization handles discard, empty, fatal, and selected punch tran
 		selection: { startFrame: 10, endFrame: 30 },
 	}));
 	const punch = selectedFixture.commits[0]?.commands[1] as Readonly<{
-		readonly options: Readonly<{ readonly endFrame: number }>;
+		readonly options: Readonly<{ readonly startFrame: number; readonly endFrame: number }>;
 	}>;
+	assert.equal(punch.options.startFrame, 10);
 	assert.equal(punch.options.endFrame, 30);
 });
 
@@ -339,6 +340,11 @@ test('routed finalization snapshots entries and publishes one atomic batch', asy
 	assert.equal(fixture.commits.length, 1);
 	assert.equal(fixture.commits[0]?.commands.length, 2);
 	assert.strictEqual(fixture.commits[0]?.project, fixture.project);
+	const punch = fixture.commits[0]?.commands[1] as Readonly<{
+		readonly options: Readonly<{ readonly startFrame: number; readonly endFrame: number }>;
+	}>;
+	assert.equal(punch.options.startFrame, 10);
+	assert.equal(punch.options.endFrame, 105);
 });
 
 test('routed finalization rejects malformed entries before disposing the recorder', () => {
