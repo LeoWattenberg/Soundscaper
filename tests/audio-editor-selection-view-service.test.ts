@@ -7,6 +7,7 @@ import {
 	createSelectionViewService,
 	type SelectionViewServiceRuntime,
 } from '../src/common/editor/controller/selection-view-service.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 function createFixture() {
 	type TestProject = {
@@ -23,11 +24,13 @@ function createFixture() {
 			timelineStartFrame: number;
 			durationFrames: number;
 		}>;
+		timelineAnnotations?: unknown[];
 		selection: {
 			startFrame: number;
 			endFrame: number;
 			trackIds: string[];
 			clipIds: string[];
+			annotationIds?: string[];
 			frequencyRange?: Record<string, number> | null;
 		} | null;
 	};
@@ -61,6 +64,7 @@ function createFixture() {
 		analysisProcessing: false,
 		selectedTrackId: 'track-a',
 		selectedClipId: null,
+		selectedAnnotationId: null,
 		showRms: false,
 		showVerticalRulers: false,
 		updateDisplayWhilePlaying: true,
@@ -190,6 +194,62 @@ test('selection frame validation and normalization remain centralized', () => {
 	const next = fixture.service.setSelection(120, -10);
 	assert.equal(next.selection.startFrame, 0);
 	assert.equal(next.selection.endFrame, 100);
+});
+
+test('track, clip, and time selection intentionally clear annotation focus and selection', () => {
+	const fixture = createFixture();
+	fixture.updateProject({
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		timelineAnnotations: [],
+		selection: {
+			startFrame: 10,
+			endFrame: 30,
+			trackIds: ['track-a'],
+			clipIds: [],
+			annotationIds: ['annotation-a'],
+		},
+	});
+	fixture.state.selectedAnnotationId = 'annotation-a';
+
+	fixture.service.selectTrack('track-b');
+	assert.equal(fixture.state.selectedAnnotationId, null);
+	assert.deepEqual(fixture.project().selection?.annotationIds, []);
+
+	fixture.updateProject({
+		selection: { ...fixture.project().selection!, annotationIds: ['annotation-a'] },
+	});
+	fixture.state.selectedAnnotationId = 'annotation-a';
+	fixture.service.selectClip('clip-a');
+	assert.equal(fixture.state.selectedAnnotationId, null);
+	assert.deepEqual(fixture.project().selection?.annotationIds, []);
+
+	fixture.updateProject({
+		selection: { ...fixture.project().selection!, annotationIds: ['annotation-a'] },
+	});
+	fixture.state.selectedAnnotationId = 'annotation-a';
+	fixture.service.setSelection(12, 24, { trackIds: ['track-a'] });
+	assert.equal(fixture.state.selectedAnnotationId, null);
+	assert.deepEqual(fixture.project().selection?.annotationIds, []);
+});
+
+test('selection does not infer annotation ownership without the current annotation collection', () => {
+	const fixture = createFixture();
+	fixture.updateProject({
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		timelineAnnotations: undefined,
+		selection: {
+			startFrame: 10,
+			endFrame: 30,
+			trackIds: ['track-a'],
+			clipIds: [],
+			annotationIds: ['opaque-annotation'],
+		},
+	});
+	fixture.state.selectedAnnotationId = 'opaque-annotation';
+
+	fixture.service.selectTrack('track-b');
+	assert.equal(fixture.state.selectedAnnotationId, null);
+	assert.deepEqual(fixture.project().selection?.annotationIds, ['opaque-annotation']);
 });
 
 test('track and clip selection cover modern, additive, toggle, clear, and legacy paths', () => {

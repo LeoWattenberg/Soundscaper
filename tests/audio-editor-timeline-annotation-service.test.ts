@@ -225,6 +225,20 @@ test('previous and next navigation use projected order within the requested sequ
 	assert.equal(fixture.service.navigateNextAnnotation('secondary')?.id, 'foreign');
 });
 
+test('blocked navigation retains view focus without changing durable selection', () => {
+	const fixture = serviceFixture({
+		editingBlocked: true,
+		positionFrame: 15,
+		annotations: [sampleMarker('late', 30), sampleRegion('middle-region', 20, 25), sampleMarker('early', 10)],
+	});
+
+	assert.equal(fixture.service.navigateNextAnnotation()?.id, 'middle-region');
+	assert.equal(fixture.state.selectedAnnotationId, 'middle-region');
+	assert.deepEqual(fixture.commands, []);
+	assert.equal(fixture.service.createMarker(), null);
+	assert.equal(fixture.service.selectAnnotation('early'), null);
+});
+
 test('older and future projects clear focus without traversing annotation state', () => {
 	let annotationReads = 0;
 	const future = {
@@ -352,6 +366,7 @@ interface ServiceFixtureOptions {
 	readonly sequences?: readonly Readonly<{ readonly id: string }>[];
 	readonly positionFrame?: number;
 	readonly ids?: readonly string[];
+	readonly editingBlocked?: boolean;
 }
 
 function serviceFixture(options: ServiceFixtureOptions = {}) {
@@ -375,7 +390,7 @@ function serviceFixture(options: ServiceFixtureOptions = {}) {
 		lifetime: { assertActive: () => undefined },
 		state,
 		getProject: () => project,
-		editingBlocked: () => false,
+		editingBlocked: () => options.editingBlocked === true,
 		createId: () => ids.shift() ?? `annotation-${String(commands.length + 1)}`,
 		getPositionFrames: () => options.positionFrame ?? 0,
 		commit: (command) => {

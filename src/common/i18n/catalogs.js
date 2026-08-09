@@ -2,6 +2,7 @@ import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
+import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js';
 import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js';
 // Canonical bundled catalogs. Audacity-sourced overrides are merged at runtime.
 // User-visible copy intentionally omits ellipsis punctuation.
@@ -9,6 +10,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 	de: {
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.de,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.de,
+		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.de,
 		framescaperEyebrow: 'Video lokal bearbeiten',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.',
@@ -97,12 +99,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF oder WebM',
 		aupImporting: 'Altes Audacity-Projekt und Blockdateien werden lokal importiert',
 		aupImported: 'Altes AUP-Projekt mit Spuren, Clips und Beschriftungen importiert.',
-		labels: 'Beschriftungen',
-		labelsImporting: 'Beschriftungen werden lokal importiert',
-		labelsImported: '{count} Beschriftung(en) importiert.',
-		labelsExported: '{count} Beschriftung(en) exportiert.',
-		labelsImportEmpty: 'Die Datei enthält keine lesbaren Beschriftungen.',
-		labelTrackMissing: 'Füge zuerst eine Beschriftungsspur hinzu.',
 		v2Required: 'Diese Funktion benötigt Audio Editor V2.',
 		localProject: 'Lokal auf diesem Gerät',
 		projectSaved: 'Alle Änderungen lokal gespeichert',
@@ -1048,6 +1044,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 	en: {
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.en,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.en,
+		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.en,
 		framescaperEyebrow: 'Local video editing',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.',
@@ -1136,12 +1133,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF, or WebM',
 		aupImporting: 'Importing the legacy Audacity project and block files locally',
 		aupImported: 'Imported the legacy AUP tracks, clips, and labels.',
-		labels: 'Labels',
-		labelsImporting: 'Importing labels locally',
-		labelsImported: 'Imported {count} label(s).',
-		labelsExported: 'Exported {count} label(s).',
-		labelsImportEmpty: 'The file contains no readable labels.',
-		labelTrackMissing: 'Add a label track first.',
 		v2Required: 'This feature requires Audio Editor V2.',
 		localProject: 'Local to this device',
 		projectSaved: 'All changes saved locally',

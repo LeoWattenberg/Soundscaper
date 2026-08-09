@@ -13,6 +13,7 @@ import type {
 } from './project-feature-requirements.ts';
 import type { SampleFrame } from './timeline-time.ts';
 import type { TimelineAnnotationV11 } from './timeline-annotation.ts';
+import type { RuntimeTimelineAnnotationProjection } from './runtime-timeline-annotation-projection.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 export type { SampleFrame, SourceTicks, VideoFrame } from './timeline-time.ts';
@@ -223,6 +224,7 @@ export interface EditorActions extends EditorActionTree {
 	readonly audioDevices: EditorActionTree;
 	readonly storage: EditorActionTree;
 	readonly timeline: EditorActionTree;
+	readonly timelineAnnotations: EditorActionTree;
 	readonly sampleEdit: EditorActionTree;
 	readonly spectral: EditorActionTree;
 	readonly track: EditorActionTree;
@@ -247,6 +249,7 @@ export interface EditorSnapshot {
 	readonly selectedTrackId: EditorId | null;
 	readonly selectedClipId: EditorId | null;
 	readonly selectedAnnotationId: EditorId | null;
+	readonly timelineAnnotations: readonly RuntimeTimelineAnnotationProjection[];
 	readonly readOnly: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;

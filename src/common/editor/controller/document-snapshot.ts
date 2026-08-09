@@ -4,6 +4,7 @@ import { projectFeatureAffectedObjects } from '../project-feature-affected-objec
 import type { ProjectFeatureRequirementsReport } from '../project-feature-requirements.ts';
 import type { EditorStoreStatus } from '../storage/status.ts';
 import type { StorageCapacitySnapshot } from './storage-capacity-service.ts';
+import { createDocumentTimelineAnnotationSnapshot } from './document-timeline-annotation-snapshot.ts';
 
 interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 	readonly startFrame: number;
@@ -194,6 +195,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		selectedTrackId: state.selectedTrackId,
 		selectedClipId: state.selectedClipId,
 		selectedAnnotationId: state.selectedAnnotationId,
+		timelineAnnotations: createDocumentTimelineAnnotationSnapshot(currentProject),
 		selection,
 		transportState: state.transportState,
 		projectBinPreview: state.projectBinPreview

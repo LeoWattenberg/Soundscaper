@@ -7,6 +7,7 @@ import {
 	type SnapshotProject,
 } from '../src/common/editor/controller/document-snapshot.ts';
 import { createInitialStorageCapacitySnapshot } from '../src/common/editor/controller/storage-capacity-service.ts';
+import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
 
 test('document snapshots expose durability, scheduling, history, and compatibility semantically', () => {
 	const project: SnapshotProject = {
@@ -178,6 +179,49 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 	assert.equal(snapshot.recording, false);
 	assert.equal(snapshot.locale, 'de');
 });
+
+test('document snapshots expose one sorted immutable runtime annotation view', () => {
+	const project = createAudioEditorProjectV11({
+		id: 'annotation-project',
+		now: 1_700_000_000_000,
+		timelineAnnotations: [
+			{
+				id: 'later', sequenceId: 'main-sequence', name: 'Later', color: 'blue', batchId: null,
+				opaqueExtensions: {}, kind: 'marker', anchor: 'sample', positionFrame: 48_000,
+			},
+			{
+				id: 'first', sequenceId: 'main-sequence', name: 'First', color: 'red', batchId: null,
+				opaqueExtensions: {}, kind: 'region', anchor: 'musical',
+				startBeat: { num: 1, den: 1 }, endBeat: { num: 2, den: 1 },
+			},
+		],
+	});
+	const snapshot = createEditorDocumentSnapshot(documentRuntimeFixture(project as unknown as SnapshotProject));
+
+	assert.deepEqual(snapshot.timelineAnnotations.map(({ id }) => id), ['first', 'later']);
+	assert.equal(snapshot.timelineAnnotations[0]?.coordinateDomain, 'resolved-samples');
+	assert.equal(Object.isFrozen(snapshot.timelineAnnotations), true);
+	assert.equal(Object.isFrozen(snapshot.timelineAnnotations[0]), true);
+	assert.notStrictEqual(snapshot.timelineAnnotations, project.timelineAnnotations);
+});
+
+function documentRuntimeFixture(project: SnapshotProject) {
+	return {
+		state: stateFixture(), product: null, productId: 'soundscaper', capabilities: {}, locale: 'en',
+		getCurrentProject: () => project, projectForPlayback: () => project,
+		getProjectTabs: () => [], getCurrentTabMetadata: () => ({}),
+		recordingPreviewSnapshot: () => null, getAudioDevicesSnapshot: () => ({}),
+		sampleEditingAvailable: () => false, canUndo: () => false, canRedo: () => false,
+		historyEntrySummary: (entry: unknown) => entry,
+		getStorageStatus: () => ({
+			state: 'indexeddb' as const, backend: 'indexeddb' as const, persistent: true,
+			ephemeral: false, degradedReason: null,
+		}),
+		getRackEffectTypes: () => [], getVideoEffectTypes: () => [],
+		getSelectionEffectTypes: () => [], getSelectionEffectParams: () => ({}),
+		getSelectionEffectDefinition: () => null, getEffectPresets: () => [],
+	};
+}
 
 function stateFixture(
 	overrides: Partial<EditorDocumentSnapshotState> = {},

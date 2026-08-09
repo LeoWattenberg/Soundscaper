@@ -65,8 +65,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 	toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-	trimClips, updatePreferences, updateRackEffect, updateSelection,
-	updateVideoClipEffect, updateWorkspacePreference, updateZoom,
+	trimClips, updatePreferences, updateRackEffect,
+	updateVideoClipEffect, updateWorkspacePreference, updateZoom, timelineAnnotationService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -285,22 +285,12 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			cleanupDisposable: cleanupDisposableStorage,
 			cleanupDerivatives: cleanupDerivativeCache,
 		}),
-	timeline: Object.freeze({
-		selectTrack,
-		selectClip,
-		setSelection,
-		clearSelection: () => {
-			state.selectedClipId = null;
-			return updateSelection({
-				type: 'selection/set',
-				startFrame: 0,
-				endFrame: 0,
-				trackIds: [],
-				clipIds: [],
-				frequencyRange: null,
-			});
-		},
-		selectAllTracks,
+		timeline: Object.freeze({
+			selectTrack,
+			selectClip,
+			setSelection,
+			clearSelection: () => setSelection(0, 0, { trackIds: [], frequencyRange: null }),
+			selectAllTracks,
 			selectLeftOfPlayback: selectLeftOfPlaybackPosition,
 			selectRightOfPlayback: selectRightOfPlaybackPosition,
 			selectTrackStartToCursor,
@@ -315,9 +305,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			toggleVerticalRulers,
 			toggleUpdateWhilePlaying,
 			togglePinnedPlayhead,
-		toggleRulerPlayback,
-		setViewportWidth: setTimelineViewportWidth,
-		setZoom,
+			toggleRulerPlayback,
+			setViewportWidth: setTimelineViewportWidth,
+			setZoom,
 			zoomIn: () => updateZoom('in'),
 			zoomOut: () => updateZoom('out'),
 			zoomFit: (viewportWidth: RuntimeValue) => updateZoom('fit', viewportWidth),
@@ -327,6 +317,25 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getClipVisualData,
 			getVisibleClips,
 			requestWaveformPcmWindow,
+		}),
+		timelineAnnotations: Object.freeze({
+			createMarkerAtPlayhead: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.createMarker(...args)),
+			createRegionFromSelection: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.createRegion(...args)),
+			focus: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.focusAnnotation(...args)),
+			clearFocus: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.clearFocus(...args)),
+			select: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.selectAnnotation(...args)),
+			selectMany: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.selectAnnotations(...args)),
+			toggle: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.toggleAnnotation(...args)),
+			rename: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.renameAnnotations(...args)),
+			setColor: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.setAnnotationColor(...args)),
+			move: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.moveAnnotations(...args)),
+			resize: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.resizeAnnotation(...args)),
+			convert: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.convertAnnotation(...args)),
+			batch: restricted('timelineAnnotations', (annotationIds: RuntimeValue, batchId: RuntimeValue = createStableId('annotation-batch')) => timelineAnnotationService.setAnnotationBatch(annotationIds, batchId)),
+			unbatch: restricted('timelineAnnotations', (annotationIds: RuntimeValue) => timelineAnnotationService.setAnnotationBatch(annotationIds, null)),
+			remove: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.removeAnnotations(...args)),
+			previous: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigatePreviousAnnotation(...args)),
+			next: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigateNextAnnotation(...args)),
 		}),
 		sampleEdit: Object.freeze({
 			setMode: restricted('audioSampleEditing', setSampleEditMode),

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicitly named legacy ports keep the migration seam typo-safe while project shapes are narrowed. */
 
 type LegacyPort = (...args: any[]) => any;
@@ -59,9 +61,10 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const changed = state.selectedTrackId !== (trackId || null);
 		state.selectedTrackId = trackId || null;
 		state.selectedClipId = null;
+		state.selectedAnnotationId = null;
 		if (changed) resetRoutedInputMeter();
 		synchronizeMicrophoneMeterTarget();
-		publishProjectState();
+		if (!clearDurableAnnotationSelection(project)) publishProjectState();
 	}
 
 	function expandSelectedClipIds(rawClipIds: any) {
@@ -72,7 +75,11 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const project = getProject();
 		if (clipId == null) {
 			state.selectedClipId = null;
-			if (project?.schemaVersion >= 2 && project.selection?.clipIds?.length) {
+			state.selectedAnnotationId = null;
+			if (project?.schemaVersion >= 2 && (
+				project.selection?.clipIds?.length
+				|| (hasCurrentTimelineAnnotations(project) && project.selection?.annotationIds?.length)
+			)) {
 				const selection = project.selection;
 				return updateSelection({
 					type: 'selection/set',
@@ -80,6 +87,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 					endFrame: selection.endFrame,
 					trackIds: [],
 					clipIds: [],
+					...clearedAnnotationSelectionDetails(project),
 					frequencyRange: selection.frequencyRange || null,
 				});
 			}
@@ -89,6 +97,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const clip = findClip(project, clipId);
 		const track = clip ? findClipTrack(project, clip.id) : null;
 		if (!clip || !track) throw new Error(copy.audioClipNotFound);
+		state.selectedAnnotationId = null;
 		if (project.schemaVersion < 2) {
 			state.selectedTrackId = track.id;
 			state.selectedClipId = clip.id;
@@ -119,6 +128,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			endFrame: 0,
 			trackIds,
 			clipIds: nextClipIds,
+			...clearedAnnotationSelectionDetails(project),
 			frequencyRange: null,
 		});
 		return activeClipId;
@@ -136,9 +146,26 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const start = snapTimelineFrame(clampSelectionFrame(Math.min(Number(startFrame), Number(endFrame))), { maximumFrame });
 		const end = snapTimelineFrame(clampSelectionFrame(Math.max(Number(startFrame), Number(endFrame))), { maximumFrame });
 		state.selectedClipId = null;
+		state.selectedAnnotationId = null;
 		const command: any = { type: 'selection/set', startFrame: start, endFrame: end };
 		if (Object.keys(details).length) Object.assign(command, details, { clipIds: [] });
+		Object.assign(command, clearedAnnotationSelectionDetails(project));
 		return updateSelection(command);
+	}
+
+	function clearDurableAnnotationSelection(project: any) {
+		if (!hasCurrentTimelineAnnotations(project) || !project.selection?.annotationIds?.length) return false;
+		const selection = project.selection;
+		updateSelection({
+			type: 'selection/set', startFrame: selection.startFrame, endFrame: selection.endFrame,
+			trackIds: selection.trackIds || [], clipIds: selection.clipIds || [], annotationIds: [],
+			frequencyRange: selection.frequencyRange || null,
+		});
+		return true;
+	}
+
+	function clearedAnnotationSelectionDetails(project: any) {
+		return hasCurrentTimelineAnnotations(project) && project.selection?.annotationIds?.length ? { annotationIds: [] } : {};
 	}
 
 	function selectAllTracks() {
@@ -330,4 +357,9 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		toggleUpdateWhilePlaying,
 		toggleVerticalRulers,
 	});
+}
+
+function hasCurrentTimelineAnnotations(project: any): boolean {
+	return project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		&& Array.isArray(project.timelineAnnotations);
 }

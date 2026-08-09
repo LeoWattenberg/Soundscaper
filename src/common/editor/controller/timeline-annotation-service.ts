@@ -107,7 +107,7 @@ export interface TimelineAnnotationService {
 	removeAnnotations(annotationIds: readonly string[]): unknown;
 	navigatePreviousAnnotation(sequenceId?: string): RuntimeTimelineAnnotationProjection | null;
 	navigateNextAnnotation(sequenceId?: string): RuntimeTimelineAnnotationProjection | null;
-	synchronizeFocus(): string | null;
+	synchronizeFocus(publish?: boolean): string | null;
 }
 
 /**
@@ -340,7 +340,6 @@ export function createTimelineAnnotationService(
 
 	function navigate(direction: -1 | 1, sequenceId?: string): RuntimeTimelineAnnotationProjection | null {
 		dependencies.lifetime.assertActive();
-		if (dependencies.editingBlocked()) return null;
 		const project = requireCurrentProject(dependencies.getProject());
 		const ownerId = sequenceId ?? project.primarySequenceId;
 		requireSequenceId(project, ownerId);
@@ -357,15 +356,19 @@ export function createTimelineAnnotationService(
 				: [...annotations].reverse().find(({ timelineStartFrame }) => timelineStartFrame <= position);
 		}
 		if (!target) return null;
+		if (dependencies.editingBlocked()) {
+			setFocus(target.id, true);
+			return target;
+		}
 		updateDurableSelection(project, [target.id], target.id, target);
 		return target;
 	}
 
-	function synchronizeFocus(): string | null {
+	function synchronizeFocus(publish = true): string | null {
 		dependencies.lifetime.assertActive();
 		const candidate = dependencies.getProject();
 		if (!hasExactV11Schema(candidate)) {
-			setFocus(null, true);
+			setFocus(null, publish);
 			return null;
 		}
 		let next: string | null = null;
@@ -378,7 +381,7 @@ export function createTimelineAnnotationService(
 		} catch {
 			next = null;
 		}
-		setFocus(next, true);
+		setFocus(next, publish);
 		return next;
 	}
 

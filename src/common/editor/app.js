@@ -217,6 +217,7 @@ import { createDerivedSourceService } from './controller/derived-source-service.
 import { createMixRenderService } from './controller/mix-render-service.ts';
 import { createNativeProjectService } from './controller/native-project-service.ts';
 import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
+import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
@@ -652,19 +653,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		evictSourceCaches: evictUnreferencedSourceCaches,
 	});
 	const projectViewService = createProjectViewService({
-		lifetime,
-		state,
-		getProject: () => project,
-		projectDurationFrames,
-		editorTimelineDurationFrames,
+		lifetime, state, getProject: () => project, projectDurationFrames, editorTimelineDurationFrames,
 		projectSampleRate: () => projectSampleRate(),
 		maximumTimelinePixels: MAX_TIMELINE_PIXELS,
-		synchronizeAutomaticSampleEditMode,
+		synchronizeAutomaticSampleEditMode, updatePlayhead, publishDocumentSnapshot, editingBlocked, commit,
 		getEnginePositionFrames: () => engine.getPositionFrames(),
-		updatePlayhead,
-		publishDocumentSnapshot,
-		editingBlocked,
-		commit,
+	});
+	const timelineAnnotationService = createTimelineAnnotationService({
+		lifetime, state, getProject: () => project, editingBlocked, createId: createStableId,
+		getPositionFrames: () => engine.getPositionFrames(), commit, updateSelection, publishProjectState,
 	});
 	const projectMutationService = createProjectMutationService({
 		lifetime,
@@ -688,6 +685,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		findClip,
 		findTrack,
 		synchronizeMicrophoneMeterTarget,
+		synchronizeAnnotationFocus: () => timelineAnnotationService.synchronizeFocus(false),
 		getPlaybackState: () => engine.getState().state,
 		projectHasTimePitchClips,
 		beginPlaybackCachePreparation,
@@ -1759,7 +1757,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-		trimClips, updatePreferences, updateRackEffect, updateSelection,
+		timelineAnnotationService, trimClips, updatePreferences, updateRackEffect,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;

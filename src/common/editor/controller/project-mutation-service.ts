@@ -95,6 +95,7 @@ export interface ProjectMutationServiceDependencies<
 	readonly findClip: (project: Project, clipId: string) => Readonly<{ id: string }> | null;
 	readonly findTrack: (project: Project, trackId: string) => Track | null;
 	readonly synchronizeMicrophoneMeterTarget: () => void;
+	readonly synchronizeAnnotationFocus: () => void;
 	readonly getPlaybackState: () => string;
 	readonly projectHasTimePitchClips: (project: Project) => boolean;
 	readonly beginPlaybackCachePreparation: (project: Project) => PromiseLike<unknown>;
@@ -169,6 +170,7 @@ export function createProjectMutationService<
 		dependencies.setHistory(nextHistory);
 		dependencies.state.history = nextHistory;
 		dependencies.setProject(nextProject);
+		dependencies.synchronizeAnnotationFocus();
 		dependencies.publisher.publishProjectState();
 		return nextProject;
 	}
@@ -200,6 +202,7 @@ export function createProjectMutationService<
 			dependencies.state.selectedTrackId = project.tracks[0]?.id ?? null;
 		}
 		dependencies.synchronizeMicrophoneMeterTarget();
+		dependencies.synchronizeAnnotationFocus();
 		if (!options.skipPlaybackEngine) queuePlaybackProject(project);
 		dependencies.publisher.publishProjectState();
 		dependencies.saves.scheduleAutosave();

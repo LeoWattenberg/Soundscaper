@@ -56,12 +56,12 @@ test('public controller types retain grouped actions and project schema unions',
 test('public action types expose every stable action group', () => {
 	const groupNames: readonly (keyof EditorActions)[] = [
 		'project', 'projectBin', 'video', 'edit', 'transport', 'recording',
-		'metering', 'audioDevices', 'timeline', 'sampleEdit', 'spectral', 'track',
+		'metering', 'audioDevices', 'timeline', 'timelineAnnotations', 'sampleEdit', 'spectral', 'track',
 		'mixer', 'generators', 'nyquist', 'labels', 'metadata', 'preferences',
 		'clip', 'effects', 'macros', 'analysis', 'export',
 	];
 
-	assert.equal(groupNames.length, 23);
+	assert.equal(groupNames.length, 24);
 });
 
 test('public label-track type matches the serialized label model', () => {

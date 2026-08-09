@@ -66,6 +66,7 @@ test('selection updates replace only history.present and do not autosave or comp
 	let published = 0;
 	let autosaves = 0;
 	let compacted = 0;
+	let annotationSynchronizations = 0;
 	const fixture = mutationFixture({
 		getProject: () => history.present,
 		setProject: () => undefined,
@@ -78,6 +79,7 @@ test('selection updates replace only history.present and do not autosave or comp
 		publish: () => { published += 1; },
 		autosave: () => { autosaves += 1; return true; },
 		compact: () => { compacted += 1; },
+		synchronizeAnnotationFocus: () => { annotationSynchronizations += 1; },
 	});
 
 	assert.equal(fixture.service.updateSelection({
@@ -87,6 +89,7 @@ test('selection updates replace only history.present and do not autosave or comp
 	assert.equal(published, 1);
 	assert.equal(autosaves, 0);
 	assert.equal(compacted, 0);
+	assert.equal(annotationSynchronizations, 1);
 });
 
 test('read-only mutation fails before command execution', () => {
@@ -134,6 +137,17 @@ test('projectChanged normalizes routing, prunes stale selections, and owns publi
 	assert.equal(fixture.state.recordingRouting, normalized);
 	assert.equal(persisted, 1);
 	assert.deepEqual(events, ['compact', 'retain', 'publish', 'autosave']);
+});
+
+test('projectChanged synchronizes ephemeral timeline annotation focus before publication', () => {
+	const events: string[] = [];
+	const fixture = mutationFixture({
+		synchronizeAnnotationFocus: () => { events.push('annotations'); },
+		publish: () => { events.push('publish'); },
+	});
+
+	fixture.service.projectChanged({ skipPlaybackEngine: true });
+	assert.deepEqual(events, ['annotations', 'publish']);
 });
 
 test('superseded playback preparation cannot apply or report an expected cancellation', async () => {
@@ -214,6 +228,7 @@ interface FixtureOverrides {
 	readonly captureProject?: (projectId: string) => Readonly<{ projectId: string; generation: number }>;
 	readonly assertProject?: (token: Readonly<{ projectId: string; generation: number }>) => void;
 	readonly handleError?: (error: unknown) => void;
+	readonly synchronizeAnnotationFocus?: () => void;
 }
 
 function mutationFixture(overrides: FixtureOverrides = {}) {
@@ -266,6 +281,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		findClip: (value, clipId) => value.clips.find((clip) => clip.id === clipId) || null,
 		findTrack: (value, trackId) => value.tracks.find((track) => track.id === trackId) || null,
 		synchronizeMicrophoneMeterTarget: () => undefined,
+		synchronizeAnnotationFocus: overrides.synchronizeAnnotationFocus || (() => undefined),
 		getPlaybackState: () => overrides.playing ? 'playing' : 'stopped',
 		projectHasTimePitchClips: () => overrides.hasTimePitch || false,
 		beginPlaybackCachePreparation: overrides.beginPlaybackPreparation || (async () => undefined),

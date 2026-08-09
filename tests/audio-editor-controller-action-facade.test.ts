@@ -30,6 +30,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'spectral',
 	'storage',
 	'timeline',
+	'timelineAnnotations',
 	'track',
 	'transport',
 	'video',
@@ -114,6 +115,79 @@ test('controller action facade enforces product capabilities at invocation', () 
 	assert.equal(typeof addEffect, 'function');
 	if (typeof addEffect !== 'function') throw new TypeError('The effects action must be callable.');
 	assert.throws(() => addEffect(), /does not support audioEffects/u);
+});
+
+test('controller action facade exposes the complete native timeline annotation workflow', () => {
+	const calls: Array<readonly [string, ...unknown[]]> = [];
+	const service = new Proxy<Record<string, (...args: unknown[]) => unknown>>({}, {
+		get(_target, name) {
+			return (...args: unknown[]) => {
+				calls.push([String(name), ...args]);
+				return name;
+			};
+		},
+	});
+	const base = createRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'timelineAnnotationService') return service;
+			if (name === 'createStableId') return () => 'annotation-batch-created';
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime).timelineAnnotations;
+	const invoke = (name: string, ...args: unknown[]) => {
+		const action = actions[name];
+		if (typeof action !== 'function') throw new TypeError(`Missing timeline annotation action: ${name}.`);
+		return action(...args);
+	};
+
+	invoke('createMarkerAtPlayhead', { anchor: 'musical' });
+	invoke('createRegionFromSelection', { name: 'Verse' });
+	invoke('focus', 'marker');
+	invoke('clearFocus');
+	invoke('select', 'marker', true);
+	invoke('selectMany', ['marker', 'region'], 'region');
+	invoke('toggle', 'marker');
+	invoke('rename', ['marker'], 'Cue');
+	invoke('setColor', ['marker'], 'red');
+	invoke('move', ['marker'], 48, 'marker');
+	invoke('resize', 'region', 'end', 96);
+	invoke('convert', 'marker', { kind: 'region', anchor: 'sample', regionEndFrame: 144 });
+	invoke('batch', ['marker', 'region'], 'batch');
+	invoke('batch', ['marker', 'region']);
+	invoke('unbatch', ['marker', 'region']);
+	invoke('remove', ['marker']);
+	invoke('previous', 'main-sequence');
+	invoke('next', 'main-sequence');
+
+	assert.deepEqual(calls, [
+		['createMarker', { anchor: 'musical' }],
+		['createRegion', { name: 'Verse' }],
+		['focusAnnotation', 'marker'],
+		['clearFocus'],
+		['selectAnnotation', 'marker', true],
+		['selectAnnotations', ['marker', 'region'], 'region'],
+		['toggleAnnotation', 'marker'],
+		['renameAnnotations', ['marker'], 'Cue'],
+		['setAnnotationColor', ['marker'], 'red'],
+		['moveAnnotations', ['marker'], 48, 'marker'],
+		['resizeAnnotation', 'region', 'end', 96],
+		['convertAnnotation', 'marker', { kind: 'region', anchor: 'sample', regionEndFrame: 144 }],
+		['setAnnotationBatch', ['marker', 'region'], 'batch'],
+		['setAnnotationBatch', ['marker', 'region'], 'annotation-batch-created'],
+		['setAnnotationBatch', ['marker', 'region'], null],
+		['removeAnnotations', ['marker']],
+		['navigatePreviousAnnotation', 'main-sequence'],
+		['navigateNextAnnotation', 'main-sequence'],
+	]);
+});
+
+test('timeline annotation actions remain capability gated until product activation', () => {
+	const actions = createGroupedEditorActions(createRuntime(false)).timelineAnnotations;
+	const createMarker = actions.createMarkerAtPlayhead;
+	if (typeof createMarker !== 'function') throw new TypeError('Timeline marker creation must be callable.');
+	assert.throws(() => createMarker(), /does not support timelineAnnotations/u);
 });
 
 test('controller action facade exposes explicit safe storage operations', async () => {

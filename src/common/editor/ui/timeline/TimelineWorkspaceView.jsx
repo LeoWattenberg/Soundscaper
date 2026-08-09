@@ -1,12 +1,21 @@
 import { Button, Icon, TimelineRuler } from '@dilsonspickles/components';
+import { useCallback, useRef } from 'react';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../project-schema-version.ts';
 import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
 import { AudioTrackRow } from './AudioTrackRow.jsx';
 import { EMPTY_TIMELINE_CLIPS } from './constants.ts';
 import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT, normalizeWaveformRulerState } from './geometry.ts';
 import { LabelTrackRow } from './LabelTrackRow.jsx';
 import { MusicalTimelineRuler } from './MusicalTimelineRuler.jsx';
+import { TimelineAnnotationLayer } from './TimelineAnnotationLayer.jsx';
+import { TimelineAnnotationLaneActions } from './TimelineAnnotationLaneActions.jsx';
+import { TimelineAnnotationPanel } from './TimelineAnnotationPanel.jsx';
+import {
+	focusCreatedTimelineAnnotation,
+	useTimelineAnnotationCreateFeedback,
+} from './useTimelineAnnotationCreateFeedback.js';
 import { usesMusicalMapRuler } from './musical-ruler-model.ts';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
@@ -19,10 +28,13 @@ import { ContainerAddTrackFlyout } from './TimelineFlyouts.jsx';
 import { TimelineMenus } from './TimelineMenus.jsx';
 import { VideoTrackRow } from './VideoTrackRow.jsx';
 
+const TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS = 33;
+
 export function TimelineWorkspaceView({
 	controller,
 	snapshot,
 	copy,
+	locale,
 	mobile,
 	showArmControls,
 	displayAudioSupported,
@@ -115,17 +127,32 @@ export function TimelineWorkspaceView({
 	const mappedTempo = rationalValue(tempoEvents[0]?.bpm, project.tempo?.bpm || 120);
 	const mappedSignature = signatureEvents[0] || project.tempo?.timeSignature || { numerator: 4, denominator: 4 };
 	const useMusicalMapRuler = usesMusicalMapRuler(project);
+	const showTimelineAnnotations = snapshot.capabilities?.timelineAnnotations === true
+		&& project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		&& Array.isArray(project.timelineAnnotations);
+	const timelinePanelRef = useRef(null);
+	const setTimelinePanelNode = useCallback((node) => {
+		timelinePanelRef.current = node;
+		setTimelineNode(node);
+	}, [setTimelineNode]);
+	const focusCreatedInLayer = useCallback((annotationId) => (
+		focusCreatedTimelineAnnotation(timelinePanelRef.current, annotationId, 'layer')
+	), []);
+	const { createAnnotation, status: annotationCreateStatus } = useTimelineAnnotationCreateFeedback({
+		controller, copy, locale, sampleRate, run,
+	});
 
 	return (
 		<section
 			className="audio-editor-timeline-panel"
 			aria-label={copy.timeline}
-			ref={setTimelineNode}
+			ref={setTimelinePanelNode}
 			data-has-output-tracks={outputTracks.length ? 'true' : 'false'}
 			data-output-track-count={outputTracks.length}
 			data-sample-pencil={snapshot.sampleEdit?.mode === 'pencil' ? 'true' : 'false'}
 			data-split-tool={splitToolActive ? 'true' : 'false'}
 			data-automation-tool={automationToolEnabled ? 'true' : 'false'}
+			data-has-annotations={showTimelineAnnotations ? 'true' : 'false'}
 			data-edit-block-reason={editBlock.reason || undefined}
 			style={{
 				'--track-panel-width': `${panelWidth}px`,
@@ -172,6 +199,16 @@ export function TimelineWorkspaceView({
 							>
 								{copy.addTrack}
 							</Button>
+							{showTimelineAnnotations && <TimelineAnnotationLaneActions
+								controller={controller}
+								project={project}
+								annotations={snapshot.timelineAnnotations || []}
+								copy={copy}
+								blocked={mutationsBlocked}
+								run={run}
+								createAnnotation={createAnnotation}
+								focusCreated={focusCreatedInLayer}
+							/>}
 						</div>
 						<div
 							className="audio-editor-ruler-viewport"
@@ -187,7 +224,20 @@ export function TimelineWorkspaceView({
 							style={{ left: panelWidth, width: viewportWidth }}
 							onContextMenu={openTimelineRulerMenu}
 							onKeyDown={(event) => {
-								if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+								const annotationShortcut = showTimelineAnnotations
+									&& event.target === event.currentTarget
+									&& !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
+									&& (event.key.toLowerCase() === 'm' || event.key.toLowerCase() === 'r');
+								if (annotationShortcut) {
+									event.preventDefault();
+								if (!mutationsBlocked && (event.key.toLowerCase() === 'm'
+									|| project.selection?.endFrame > project.selection?.startFrame)) {
+										createAnnotation(
+											event.key.toLowerCase() === 'm' ? 'marker' : 'region',
+											focusCreatedInLayer,
+										);
+								}
+								} else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
 									openTimelineRulerMenu(event);
 								} else if (event.key === 'Tab' && !event.shiftKey && project.tracks.length) {
 									event.preventDefault();
@@ -198,6 +248,7 @@ export function TimelineWorkspaceView({
 							}}
 						>
 							{useMusicalMapRuler ? <MusicalTimelineRuler
+								height={showTimelineAnnotations ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
 								width={timelineWidth}
@@ -211,6 +262,7 @@ export function TimelineWorkspaceView({
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
 							/> : <TimelineRuler
+								height={showTimelineAnnotations ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
 								totalDuration={durationSeconds}
@@ -225,6 +277,21 @@ export function TimelineWorkspaceView({
 								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
+							/>}
+							{showTimelineAnnotations && <TimelineAnnotationLayer
+								controller={controller}
+								project={project}
+								annotations={snapshot.timelineAnnotations || []}
+								selectedAnnotationId={snapshot.selectedAnnotationId}
+								copy={copy}
+								locale={locale}
+								pixelsPerSecond={pixelsPerSecond}
+								sampleRate={sampleRate}
+								scrollX={scrollX}
+								viewportWidth={viewportWidth}
+								blocked={mutationsBlocked}
+								run={run}
+								createAnnotation={createAnnotation}
 							/>}
 							<TelemetryRulerPlayhead
 								controller={controller}
@@ -415,6 +482,25 @@ export function TimelineWorkspaceView({
 					/>
 				</div>
 			</div>
+			{showTimelineAnnotations && <TimelineAnnotationPanel
+				controller={controller}
+				project={project}
+				annotations={snapshot.timelineAnnotations || []}
+				selectedAnnotationId={snapshot.selectedAnnotationId}
+				copy={copy}
+				locale={locale}
+				sampleRate={sampleRate}
+				blocked={mutationsBlocked}
+				run={run}
+				createAnnotation={createAnnotation}
+			/>}
+			{showTimelineAnnotations && <span
+				className="kw-audio-editor-sr-only"
+				data-timeline-annotation-create-status
+				role="status"
+				aria-live="polite"
+				aria-atomic="true"
+			>{annotationCreateStatus}</span>}
 
 			{outputTracks.length > 0 && <OutputTrackDock
 				controller={controller}

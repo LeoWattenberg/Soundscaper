@@ -41,6 +41,7 @@ export function useTimelinePointerStart({
 	const { frameAtClientX } = hitTesting;
 	const { run } = menuActions;
 	const onPointerDown = useCallback((event) => {
+		if (event.target.closest?.('[data-timeline-annotation-interactive]')) return;
 		if (event.pointerType === 'touch') {
 			touchPointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
 			if (touchPointers.current.size === 2) {

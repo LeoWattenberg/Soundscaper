@@ -156,6 +156,7 @@ export default function TimelineController({
 			controller={controller}
 			snapshot={snapshot}
 			copy={copy}
+			locale={locale}
 			mobile={mobile}
 			showArmControls={showArmControls}
 			displayAudioSupported={displayAudioSupported}

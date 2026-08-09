@@ -1,0 +1,366 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import React, { type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import { TimelineAnnotationLayer } from '../src/common/editor/ui/timeline/TimelineAnnotationLayer.jsx';
+import {
+	primarySequenceSelectionIds,
+	TimelineAnnotationLaneActions,
+} from '../src/common/editor/ui/timeline/TimelineAnnotationLaneActions.jsx';
+import { completeTimelineAnnotationCreation } from '../src/common/editor/ui/timeline/useTimelineAnnotationCreateFeedback.js';
+import {
+	completeTimelineAnnotationNavigation,
+	TimelineAnnotationPanel,
+} from '../src/common/editor/ui/timeline/TimelineAnnotationPanel.jsx';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import type { RuntimeTimelineAnnotationProjection } from '../src/common/editor/runtime-timeline-annotation-projection.ts';
+
+const REGION: RuntimeTimelineAnnotationProjection = Object.freeze({
+	id: 'verse', sequenceId: 'main', name: 'Verse', color: 'blue', batchId: null,
+	opaqueExtensions: {}, kind: 'region', anchor: 'sample', startFrame: 24_000, endFrame: 48_000,
+	timelineStartFrame: 24_000, timelineEndFrame: 48_000, durationFrames: 24_000,
+	coordinateDomain: 'resolved-samples',
+});
+
+test('timeline annotation layer renders roving multi-selection semantics and resize handles', () => {
+	const markup = render(<TimelineAnnotationLayer
+		controller={controllerFixture()}
+		project={projectFixture()}
+		annotations={[REGION]}
+		selectedAnnotationId="verse"
+		copy={ENGLISH_COPY}
+		locale="en"
+		pixelsPerSecond={120}
+		sampleRate={48_000}
+		scrollX={0}
+		viewportWidth={1_000}
+		blocked={false}
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+	/>);
+
+	assert.match(markup, /data-timeline-annotation-layer="true"/u);
+	assert.match(markup, /role="listbox"/u);
+	assert.match(markup, /aria-multiselectable="true"/u);
+	assert.match(markup, /role="option"/u);
+	assert.match(markup, /aria-selected="true"/u);
+	assert.match(markup, /data-annotation-edge="start"/u);
+	assert.match(markup, /data-annotation-edge="end"/u);
+	assert.match(markup, /Verse, Region, 0\.500–1\.000 s/u);
+	assert.doesNotMatch(markup, /data-timeline-annotation-create-actions/u);
+	assert.doesNotMatch(markup, /<button/u);
+	assert.match(markup, /<\/div><span id="[^"]+" class="kw-audio-editor-sr-only" role="status"/u);
+});
+
+test('ruler-corner lane actions expose pointer create and batch parity outside annotation content', () => {
+	const markup = render(<TimelineAnnotationLaneActions
+		controller={controllerFixture()}
+		project={projectFixture()}
+		annotations={[REGION]}
+		copy={ENGLISH_COPY}
+		blocked={false}
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+		focusCreated={() => undefined}
+	/>);
+	const blockedMarkup = render(<TimelineAnnotationLaneActions
+		controller={controllerFixture()}
+		project={projectFixture()}
+		annotations={[REGION]}
+		copy={ENGLISH_COPY}
+		blocked
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+		focusCreated={() => undefined}
+	/>);
+
+	assert.match(markup, /data-timeline-annotation-create-actions="true"/u);
+	for (const name of [
+		'Add marker at playhead', 'Add region from selection',
+		'Batch selected annotations', 'Remove selected annotations from batch',
+	]) assert.match(markup, new RegExp(`aria-label="${name}"`, 'u'));
+	assert.equal(blockedMarkup.match(/disabled=""/gu)?.length, 4);
+	assert.match(markup, /<\/div><span id="[^"]+" class="kw-audio-editor-sr-only" role="status"/u);
+});
+
+test('ruler-corner batch actions ignore selected annotations outside the primary sequence', () => {
+	const foreign = Object.freeze({ ...REGION, id: 'foreign', sequenceId: 'secondary' });
+	const project = {
+		...projectFixture(),
+		selection: { ...projectFixture().selection, annotationIds: ['verse', 'foreign'] },
+	};
+	const markup = render(<TimelineAnnotationLaneActions
+		controller={controllerFixture()}
+		project={project}
+		annotations={[REGION, foreign]}
+		copy={ENGLISH_COPY}
+		blocked={false}
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+		focusCreated={() => undefined}
+	/>);
+
+	assert.deepEqual(
+		primarySequenceSelectionIds([REGION, foreign], 'main', ['verse', 'foreign']),
+		['verse'],
+	);
+	assert.match(markup, /aria-label="Batch selected annotations"[^>]*disabled=""/u);
+	assert.doesNotMatch(markup, /aria-label="Remove selected annotations from batch"[^>]*disabled=""/u);
+});
+
+test('annotation creation feedback is success-only, announces the created row, then focuses it', () => {
+	const statuses: string[] = [];
+	const focused: string[] = [];
+	const scheduled: Array<() => void> = [];
+	const input = {
+		snapshot: { timelineAnnotations: [REGION] },
+		copy: ENGLISH_COPY,
+		locale: 'en',
+		sampleRate: 48_000,
+		setStatus: (status: string) => statuses.push(status),
+		focusCreated: (id: string) => focused.push(id),
+		schedule: (callback: () => void) => {
+			scheduled.push(callback);
+			return 0;
+		},
+	};
+
+	assert.equal(completeTimelineAnnotationCreation(null, input), null);
+	assert.equal(completeTimelineAnnotationCreation('missing', input), 'missing');
+	assert.deepEqual(statuses, []);
+	assert.deepEqual(focused, []);
+	assert.equal(completeTimelineAnnotationCreation('verse', input), 'verse');
+	assert.deepEqual(statuses, ['Created Region: Verse, 0.500–1.000 s']);
+	assert.deepEqual(focused, []);
+	scheduled[0]?.();
+	assert.deepEqual(focused, ['verse']);
+});
+
+test('corner, panel, layer, and ruler creation entries share the accessible completion path', () => {
+	const directory = new URL('../src/common/editor/ui/timeline/', import.meta.url);
+	const entries = [
+		['TimelineAnnotationLaneActions.jsx', 2],
+		['TimelineAnnotationPanel.jsx', 4],
+		['TimelineAnnotationLayer.jsx', 2],
+		['TimelineWorkspaceView.jsx', 1],
+	] as const;
+	for (const [file, expected] of entries) {
+		const source = readFileSync(new URL(file, directory), 'utf8');
+		assert.equal(source.match(/createAnnotation\(/gu)?.length, expected, file);
+	}
+});
+
+test('short annotation regions retain two non-overlapping edge hit targets', () => {
+	const shortRegion = Object.freeze({
+		...REGION,
+		id: 'short',
+		startFrame: 24_000,
+		endFrame: 24_001,
+		timelineStartFrame: 24_000,
+		timelineEndFrame: 24_001,
+		durationFrames: 1,
+	});
+	const markup = render(<TimelineAnnotationLayer
+		controller={controllerFixture()}
+		project={{ ...projectFixture(), selection: { ...projectFixture().selection, annotationIds: ['short'] } }}
+		annotations={[shortRegion]}
+		selectedAnnotationId="short"
+		copy={ENGLISH_COPY}
+		locale="en"
+		pixelsPerSecond={1}
+		sampleRate={48_000}
+		scrollX={0}
+		viewportWidth={1_000}
+		blocked={false}
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+	/>);
+
+	assert.match(markup, /style="left:0\.5px;width:16px"/u);
+	assert.equal(markup.match(/data-annotation-edge="(?:start|end)"/gu)?.length, 2);
+});
+
+test('annotation visuals occupy a dedicated lane below the unblocked ruler surface', () => {
+	const css = readFileSync(new URL(
+		'../src/common/editor/ui/audio-editor-design-system/19-timeline-annotations.css', import.meta.url,
+	), 'utf8');
+	const workspace = readFileSync(new URL(
+		'../src/common/editor/ui/timeline/TimelineWorkspaceView.jsx', import.meta.url,
+	), 'utf8');
+	const cornerIndex = workspace.indexOf('className="audio-editor-ruler-corner"');
+	const actionsIndex = workspace.indexOf('<TimelineAnnotationLaneActions', cornerIndex);
+	const viewportIndex = workspace.indexOf('className="audio-editor-ruler-viewport"', actionsIndex);
+	assert.match(css, /data-has-annotations='true'[^}]*audio-editor-ruler-viewport[^}]*\{\s*height: 66px;/u);
+	assert.match(css, /audio-editor-timeline-annotations\s*\{[^}]*top: 33px;/u);
+	assert.match(css, /audio-editor-timeline-annotation\s*\{[^}]*min-width: 16px;/u);
+	assert.ok(cornerIndex >= 0 && cornerIndex < actionsIndex && actionsIndex < viewportIndex);
+	assert.equal(
+		workspace.match(/height=\{showTimelineAnnotations \? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined\}/gu)?.length,
+		2,
+	);
+});
+
+test('annotation list exposes equivalent named editing fields and native workflow actions', () => {
+	const markup = render(<TimelineAnnotationPanel
+		controller={controllerFixture()}
+		project={projectFixture()}
+		annotations={[REGION]}
+		selectedAnnotationId="verse"
+		copy={ENGLISH_COPY}
+		locale="en"
+		sampleRate={48_000}
+		blocked={false}
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+	/>);
+
+	assert.match(markup, /data-timeline-annotation-panel="true"/u);
+	assert.match(markup, />Add marker at playhead</u);
+	assert.match(markup, />Add region from selection</u);
+	assert.match(markup, /aria-label="Marker and region list"/u);
+	assert.match(markup, />Start sample<input type="number" min="0" max="47999" step="1" value="24000"/u);
+	assert.match(markup, />End sample<input type="number"/u);
+	assert.doesNotMatch(markup, /defaultValue/u);
+	assert.match(markup, />Batch selected annotations</u);
+	assert.match(markup, /role="status"/u);
+});
+
+test('blocked annotation surfaces retain roving focus while exposing disabled mutation state', () => {
+	const layerMarkup = render(<TimelineAnnotationLayer
+		controller={controllerFixture()}
+		project={projectFixture()}
+		annotations={[REGION]}
+		selectedAnnotationId="verse"
+		copy={ENGLISH_COPY}
+		locale="en"
+		pixelsPerSecond={120}
+		sampleRate={48_000}
+		scrollX={0}
+		viewportWidth={1_000}
+		blocked
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+	/>);
+	const panelMarkup = render(<TimelineAnnotationPanel
+		controller={controllerFixture()}
+		project={projectFixture()}
+		annotations={[REGION]}
+		selectedAnnotationId="verse"
+		copy={ENGLISH_COPY}
+		locale="en"
+		sampleRate={48_000}
+		blocked
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+	/>);
+
+	assert.match(layerMarkup, /role="option"[^>]*aria-disabled="true"[^>]*tabindex="0"/u);
+	assert.match(panelMarkup, /class="audio-editor-timeline-annotation-list__item"[^>]*aria-disabled="true"[^>]*tabindex="0"/u);
+	assert.doesNotMatch(panelMarkup, /audio-editor-timeline-annotation-list__item"[^>]*\sdisabled=/u);
+	assert.match(panelMarkup, />Name<input disabled=""/u);
+	assert.match(panelMarkup, />Previous annotation<\/button>/u);
+});
+
+test('navigation completion focuses, reveals, and announces targets for editable and read-only action results', () => {
+	for (const mode of ['editable', 'read-only']) {
+		const calls: string[] = [];
+		const statuses: string[] = [];
+		const item = {
+			focus: () => calls.push(`${mode}:focus`),
+			scrollIntoView: () => calls.push(`${mode}:scroll`),
+		};
+		const result = completeTimelineAnnotationNavigation(
+			REGION,
+			[{ id: 'verse', timingLabel: '0.500–1.000 s' }],
+			ENGLISH_COPY,
+			new Map([['verse', item]]),
+			(status: string) => statuses.push(status),
+			(callback: () => void) => {
+				callback();
+				return 0;
+			},
+		);
+		assert.equal(result, 'verse');
+		assert.deepEqual(calls, [`${mode}:focus`, `${mode}:scroll`]);
+		assert.deepEqual(statuses, ['Verse, Region, 0.500–1.000 s']);
+	}
+});
+
+test('cap-scale selection renders one editor and keeps visual-lane controls linear', () => {
+	const annotations = Array.from({ length: 4_096 }, (_, index) => marker(`annotation-${index}`, index * 48_000));
+	const annotationIds = annotations.map(({ id }) => id);
+	const project = {
+		...projectFixture(),
+		selection: { ...projectFixture().selection, annotationIds },
+	};
+	const panelMarkup = render(<TimelineAnnotationPanel
+		controller={controllerFixture()}
+		project={project}
+		annotations={annotations}
+		selectedAnnotationId="annotation-2048"
+		copy={ENGLISH_COPY}
+		locale="en"
+		sampleRate={48_000}
+		blocked={false}
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+	/>);
+	const layerMarkup = render(<TimelineAnnotationLayer
+		controller={controllerFixture()}
+		project={project}
+		annotations={annotations}
+		selectedAnnotationId="annotation-2048"
+		copy={ENGLISH_COPY}
+		locale="en"
+		pixelsPerSecond={100}
+		sampleRate={48_000}
+		scrollX={0}
+		viewportWidth={100}
+		blocked={false}
+		run={(action: () => unknown) => action()}
+		createAnnotation={createAnnotationFixture}
+	/>);
+
+	assert.equal(panelMarkup.match(/audio-editor-timeline-annotation-list__editor"/gu)?.length, 1);
+	assert.ok((panelMarkup.match(/<(?:button|input|select)\b/gu)?.length || 0) <= 4_110);
+	assert.ok((layerMarkup.match(/role="option"/gu)?.length || 0) <= 3);
+});
+
+function render(node: ReactNode): string {
+	return renderToStaticMarkup(React.createElement(React.Fragment, null, node));
+}
+
+function projectFixture() {
+	return {
+		primarySequenceId: 'main',
+		selection: {
+			startFrame: 24_000, endFrame: 48_000, trackIds: [], clipIds: [], annotationIds: ['verse'],
+		},
+	};
+}
+
+function controllerFixture() {
+	const callable = () => undefined;
+	return {
+		actions: {
+			timelineAnnotations: new Proxy<Record<string, () => undefined>>({}, { get: () => callable }),
+		},
+	};
+}
+
+function createAnnotationFixture(): null {
+	return null;
+}
+
+function marker(id: string, positionFrame: number): RuntimeTimelineAnnotationProjection {
+	return Object.freeze({
+		id, sequenceId: 'main', name: id, color: 'auto', batchId: null, opaqueExtensions: {},
+		kind: 'marker', anchor: 'sample', positionFrame,
+		timelineStartFrame: positionFrame, timelineEndFrame: positionFrame,
+		durationFrames: 0, coordinateDomain: 'resolved-samples',
+	});
+}
