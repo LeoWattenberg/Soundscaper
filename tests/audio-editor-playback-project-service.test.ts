@@ -343,7 +343,7 @@ test('the playback service retains the existing bounded bypass path and never tr
 
 	const future = {
 		...bypass,
-		schemaVersion: 12,
+		schemaVersion: 13,
 		get featureRequirements(): never { throw new Error('future feature requirements were traversed'); },
 		get tracks(): never { throw new Error('future tracks were traversed'); },
 	};

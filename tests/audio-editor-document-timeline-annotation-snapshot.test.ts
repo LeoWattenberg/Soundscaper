@@ -6,11 +6,11 @@ import test from 'node:test';
 import {
 	createDocumentTimelineAnnotationSnapshot,
 } from '../src/common/editor/controller/document-timeline-annotation-snapshot.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
 
 test('document annotation snapshot projects the exact current annotation document and sorts by runtime timing', () => {
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'annotation-view',
 		now: 1_700_000_000_000,
 		timelineAnnotations: [
@@ -39,7 +39,7 @@ test('document annotation snapshot does not traverse older, future, or absent sc
 		},
 	});
 	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(10)), []);
-	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(12)), []);
+	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(13)), []);
 	assert.deepEqual(createDocumentTimelineAnnotationSnapshot({
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	}), []);

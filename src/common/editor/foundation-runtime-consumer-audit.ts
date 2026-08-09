@@ -237,10 +237,10 @@ export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeCon
 		surface: 'playback',
 		file: 'src/common/editor/engine/lifecycle.ts',
 		entryPoint: 'loadProject',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
+		inputIdentifier: 'mediaProject',
+		projectedIdentifier: 'resolvedProject',
 		boundary: 'resolveRuntimeProjectProjection',
-		evidence: 'The engine stores, sizes, seeks, and schedules only the transient resolved project created at loadProject entry.',
+		evidence: 'The engine stores, sizes, seeks, and schedules only the transient resolved project derived from the folder media projection at loadProject entry.',
 	},
 	{
 		id: 'engine-project-apply',

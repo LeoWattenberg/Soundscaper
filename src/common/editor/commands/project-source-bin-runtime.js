@@ -9,7 +9,7 @@ import {
 } from '../snap-grid.js';
 import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
 import { authoredAdmChannelCount, normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -42,10 +42,10 @@ function setSelection(project, command) {
 	const range = startFrame <= endFrame
 		? { startFrame, endFrame }
 		: { startFrame: endFrame, endFrame: startFrame };
-	const supportsAnnotations = project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+	const supportsAnnotations = isTimelineAnnotationProjectSchema(project.schemaVersion)
 		&& Array.isArray(project.timelineAnnotations);
 	if (Object.hasOwn(command, 'annotationIds') && !supportsAnnotations) {
-		throw new RangeError('Timeline annotation selection requires an AudioEditorProjectV11 project.');
+		throw new RangeError('Timeline annotation selection requires schema 11 or 12.');
 	}
 	if (!['trackIds', 'clipIds', 'annotationIds', 'frequencyRange'].some((key) => Object.hasOwn(command, key))) {
 		project.selection = supportsAnnotations ? { ...range, annotationIds: [] } : range;

@@ -525,7 +525,7 @@ async function createFixture(
 	await mkdir(root, { recursive: true, mode: 0o700 });
 	const fixture = {
 		root,
-		metadata: validateDesktopLibraryMetadata({ schemaVersion: 3, revision: 0, projects: [], media: [] }),
+		metadata: validateDesktopLibraryMetadata({ schemaVersion: 4, revision: 0, projects: [], media: [] }),
 		publications: [] as DesktopLibraryMetadata[],
 		onPublish: null,
 	} as Fixture;

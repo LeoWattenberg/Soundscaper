@@ -330,7 +330,7 @@ function exactProject(value: unknown): ExactProjectCurrent {
 }
 
 function assertSourceFree(project: ExactProjectCurrent): void {
-	assert.equal(project.schemaVersion, 11);
+	assert.equal(project.schemaVersion, 12);
 	assert.deepEqual(project.sources, []);
 	assert.deepEqual(project.clips, []);
 	assert.deepEqual(project.projectBin.clips, []);

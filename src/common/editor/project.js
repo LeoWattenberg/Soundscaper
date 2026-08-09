@@ -285,7 +285,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 7) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion === 8) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion === 9) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project) && validateLegacyProjectFeatureRequirements(project);
-	if (project.schemaVersion === 10) return validateLegacyProjectFeatureRequirements(project);
+	if (project.schemaVersion === 10 || project.schemaVersion === 11) return validateLegacyProjectFeatureRequirements(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}

@@ -24,6 +24,7 @@ export const FRAMESCAPER_PROFILE = {
 		videoCompositing: true,
 		musicalTimeline: false,
 		timelineAnnotations: false,
+		trackFolders: false,
 		audioWarp: false,
 		sequenceTiming: true,
 		videoRetime: false,

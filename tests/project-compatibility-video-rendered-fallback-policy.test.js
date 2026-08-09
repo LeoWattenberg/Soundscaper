@@ -30,7 +30,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative actual project history.*exact schema 11.*exactly one qualifying item.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*video-clip-render-v1.*exact videoEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/authoritative actual project history.*exact schema 12.*exactly one qualifying item.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*video-clip-render-v1.*exact videoEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -140,7 +140,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		normalizedDocumentation,
-		/exact schema 11 video rendered-fallback projection.*two closed relationships.*`project-video-render-v1`.*canonical namespaced feature ID.*reported unavailable or unknown.*`video-clip-render-v1`.*restricted to exact `videoEffects`.*reported unavailable.*exactly one.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
+		/exact schema 12 video rendered-fallback projection.*two closed relationships.*`project-video-render-v1`.*canonical namespaced feature ID.*reported unavailable or unknown.*`video-clip-render-v1`.*restricted to exact `videoEffects`.*reported unavailable.*exactly one.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
 	);
 	assert.match(
 		normalizedDocumentation,

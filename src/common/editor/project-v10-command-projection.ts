@@ -5,7 +5,10 @@ import {
 	resolveRuntimeClipProjection,
 	resolveRuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION,
+	isTimelineAnnotationProjectSchema,
+} from './project-schema-version.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
 	beatToSampleFrame,
@@ -17,12 +20,14 @@ import {
 import {
 	CONFORMED_SEQUENCE_PLACEMENT,
 	FOUNDATION_EDIT_OPERATION,
+	LEGACY_TRACK_STRUCTURE_EDIT,
 } from './commands/command-projection-transients.ts';
 
 type EditOperation = object;
 type DataRecord = Record<string, unknown> & {
 	[CONFORMED_SEQUENCE_PLACEMENT]?: true;
 	[FOUNDATION_EDIT_OPERATION]?: EditOperation;
+	[LEGACY_TRACK_STRUCTURE_EDIT]?: true;
 };
 
 interface ConformedBoundaryDelta {
@@ -137,8 +142,12 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 	draft.projectBin = bin;
 	conformLabels(draft, persistedBase, tempoMap, sampleRate);
 	reconcileSequenceTracks(draft, sequences, primarySequenceId);
-	if (draft.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) reconcileTimelineAnnotations(draft);
+	if (draft.schemaVersion === AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION) {
+		reconcileV12TrackHierarchy(draft, persistedBase, sequences);
+	}
+	if (isTimelineAnnotationProjectSchema(draft.schemaVersion)) reconcileTimelineAnnotations(draft);
 	delete draft.runtimeProjectionVersion;
+	delete draft[LEGACY_TRACK_STRUCTURE_EDIT];
 }
 
 function reconcileTimelineAnnotations(draft: DataRecord): void {
@@ -416,6 +425,68 @@ function reconcileSequenceTracks(draft: DataRecord, sequences: readonly DataReco
 	const primary = sequences.find(({ id }) => id === primarySequenceId);
 	if (!primary) throw new ReferenceError('The primary sequence is missing.');
 	primary.trackIds = [...(primary.trackIds as string[]), ...[...live].filter((id) => !assigned.has(id))];
+}
+
+function reconcileV12TrackHierarchy(
+	draft: DataRecord,
+	persistedBase: DataRecord,
+	sequences: readonly DataRecord[],
+): void {
+	const folders = recordArray(draft.trackFolders, 'project.trackFolders');
+	const tracks = recordArray(draft.tracks, 'project.tracks');
+	const trackIds = tracks.map(({ id }) => String(id));
+	const baseTrackIds = recordArray(persistedBase.tracks, 'project.tracks').map(({ id }) => String(id));
+	if (folders.length > 0 && draft[LEGACY_TRACK_STRUCTURE_EDIT]) {
+		throw new RangeError('Structural edits to a track folder hierarchy require folder-aware track commands.');
+	}
+	if (folders.length > 0 && !sameStrings(trackIds, baseTrackIds)) {
+		throw new RangeError('A track folder hierarchy cannot drift from its persisted track order.');
+	}
+	if (folders.length > 0) return;
+	assertLegacyV12SequenceBoundaries(trackIds, persistedBase);
+	const assigned = new Set<string>();
+	for (const sequence of sequences) {
+		const membership = new Set(Array.isArray(sequence.trackIds) ? sequence.trackIds.map(String) : []);
+		const ordered = trackIds.filter((id) => membership.has(id) && !assigned.has(id));
+		for (const id of ordered) assigned.add(id);
+		sequence.trackIds = ordered;
+		sequence.trackNodes = ordered.map((id) => ({ kind: 'track', id, parentFolderId: null }));
+	}
+	const hierarchyOrder = sequences.flatMap((sequence) => sequence.trackIds as readonly string[]);
+	if (hierarchyOrder.length !== trackIds.length) {
+		throw new RangeError('V12 track hierarchy must own every project track exactly once.');
+	}
+	const trackById = new Map(tracks.map((track) => [String(track.id), track]));
+	draft.tracks = hierarchyOrder.map((id) => {
+		const track = trackById.get(id);
+		if (!track) throw new ReferenceError(`V12 track hierarchy references missing track ${id}.`);
+		return track;
+	});
+}
+
+function assertLegacyV12SequenceBoundaries(trackIds: readonly string[], persistedBase: DataRecord): void {
+	const sequenceIndexByTrackId = new Map<string, number>();
+	for (const [sequenceIndex, sequence] of recordArray(
+		persistedBase.sequences,
+		'project.sequences',
+	).entries()) {
+		for (const trackId of Array.isArray(sequence.trackIds) ? sequence.trackIds.map(String) : []) {
+			sequenceIndexByTrackId.set(trackId, sequenceIndex);
+		}
+	}
+	let previousSequenceIndex = -1;
+	for (const trackId of trackIds) {
+		const sequenceIndex = sequenceIndexByTrackId.get(trackId);
+		if (sequenceIndex === undefined) continue;
+		if (sequenceIndex < previousSequenceIndex) {
+			throw new RangeError('Legacy track reorder cannot cross V12 sequence boundaries.');
+		}
+		previousSequenceIndex = sequenceIndex;
+	}
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+	return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function stripProjection(clip: DataRecord, additional: readonly string[] = []): void {

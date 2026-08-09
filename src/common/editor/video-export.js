@@ -8,6 +8,11 @@ import {
 	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	isTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from './track-folder-media-runtime.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -365,9 +370,7 @@ function projectTimelineDurationFrames(project) {
 function firstVisibleTimelineVideo(project, options) {
 	const clipById = new Map((project?.clips || []).map((clip) => [clip.id, clip]));
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
-	const visible = typeof options.isTrackVisible === 'function'
-		? options.isTrackVisible
-		: isVisibleVideoTrack;
+	const visible = videoTrackVisibility(project, options.isTrackVisible);
 	const candidates = [];
 	for (const [trackIndex, track] of (project?.tracks || []).entries()) {
 		if (!visible(track)) continue;
@@ -426,8 +429,18 @@ function optionalPositiveRate(value, name) {
 }
 
 function ensureRuntimeProject(project) {
-	if (isRuntimeProjectProjection(project)) return project;
-	return resolveRuntimeProjectProjection(project);
+	const mediaProject = projectTrackFolderMediaStateV12(project);
+	if (isRuntimeProjectProjection(mediaProject)) return mediaProject;
+	return inheritTrackFolderMediaStateProjectionV12(
+		mediaProject,
+		resolveRuntimeProjectProjection(mediaProject),
+	);
+}
+
+function videoTrackVisibility(project, requested) {
+	if (typeof requested !== 'function') return isVisibleVideoTrack;
+	if (!isTrackFolderMediaStateProjectionV12(project)) return requested;
+	return (track) => isVisibleVideoTrack(track) && requested(track);
 }
 
 function positiveFiniteNumber(value, name) {

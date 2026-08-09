@@ -107,9 +107,9 @@ test('project session selection falls back to the first label and then null when
 	});
 });
 
-test('project session selection restores an existing annotation only for exact current V11', () => {
+test('project session selection restores an existing annotation only for the current timeline-annotation schema', () => {
 	const fixture = createFixture({
-		schemaVersion: 11,
+		schemaVersion: 12,
 		timelineAnnotations: [{ id: 'annotation' }, { id: 'other' }],
 		tracks: [],
 		clips: [],
@@ -124,7 +124,7 @@ test('project session selection restores an existing annotation only for exact c
 
 test('project session selection clears malformed annotation focus', () => {
 	const malformed = createFixture({
-		schemaVersion: 11,
+		schemaVersion: 12,
 		timelineAnnotations: [{ id: 'annotation' }, null],
 		tracks: [],
 		clips: [],
@@ -134,7 +134,7 @@ test('project session selection clears malformed annotation focus', () => {
 
 	assert.equal(malformed.state.selectedAnnotationId, null);
 	const malformedMetadata = createFixture({
-		schemaVersion: 11,
+		schemaVersion: 12,
 		timelineAnnotations: [{ id: 'annotation' }],
 		tracks: [],
 		clips: [],
@@ -156,7 +156,7 @@ test('project session selection clears malformed annotation focus', () => {
 test('project session selection does not traverse future annotation storage', () => {
 	let annotationReads = 0;
 	const futureProject: TestProject = {
-		schemaVersion: 12,
+		schemaVersion: 13,
 		get timelineAnnotations(): never {
 			annotationReads += 1;
 			throw new Error('future timelineAnnotations was traversed');

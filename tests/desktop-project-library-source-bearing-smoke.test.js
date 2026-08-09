@@ -51,7 +51,7 @@ test('source-bearing packaged handoff owns the two frozen Electron roundtrips', 
 		const project = parseScapeProjectDocument(workflow.seed.document);
 		assert.equal(validateCurrentAudioEditorProject(project), true);
 		assert.equal(serializeScapeProjectDocument(project), workflow.seed.document);
-		assert.equal(project.schemaVersion, 11);
+		assert.equal(project.schemaVersion, 12);
 		assert.equal(project.id, workflow.seed.projectId);
 		assert.equal(project.revision, 1);
 		assert.equal(project.sources.length, 2);

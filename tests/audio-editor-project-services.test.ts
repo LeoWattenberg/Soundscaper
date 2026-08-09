@@ -282,7 +282,7 @@ test('project session service deduplicates legacy recents and persists active UI
 		selectedAnnotationId: 'annotation',
 	}]]);
 	service.restoreProjectSelection({
-		schemaVersion: 11,
+		schemaVersion: 12,
 		timelineAnnotations: [{ id: 'restored-annotation' }],
 		tracks: [{ id: 'labels', type: 'label' }, { id: 'audio', type: 'audio' }],
 		clips: [{ id: 'restored-clip' }],

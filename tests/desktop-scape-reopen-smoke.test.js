@@ -292,7 +292,7 @@ function validReopenResult(plan) {
 		token: plan.token,
 		project: plan.project,
 		sharedProject: {
-			schemaVersion: 11,
+			schemaVersion: 12,
 			revision: plan.project.revision,
 			sourceCount: 1,
 			trackCount: 1,

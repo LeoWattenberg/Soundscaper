@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import {
 	resolveRuntimeTimelineAnnotationsInDocumentOrder,
 	restoreTimelineAnnotationsFromRuntimeProjection,
@@ -45,7 +45,7 @@ export function createTimelineAnnotationRippleOperations(
 	targetClipIdsValue: readonly string[],
 ): readonly TimelineAnnotationRippleOperation[] {
 	const project = dataRecord(projectValue, 'project');
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) return Object.freeze([]);
+	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return Object.freeze([]);
 	const sampleRate = positiveSafeInteger(project.sampleRate, 'project.sampleRate');
 	const tempoMap = dataRecord(project.tempoMap, 'project.tempoMap') as HoldTempoMap & DataRecord;
 	const tracks = recordArray(project.tracks, 'project.tracks');
@@ -86,13 +86,13 @@ export function stageTimelineAnnotationRippleMutation(
 	const project = dataRecord(projectValue, 'project') as MutableRippleProject;
 	const command = dataRecord(commandValue, 'range ripple-delete command');
 	const ownsOperations = Object.hasOwn(command, 'annotationRippleOperations');
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
+	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) {
 		if (ownsOperations) {
-			throw new RangeError('Annotation ripple operations are only valid for an exact-schema-11 ripple delete.');
+			throw new RangeError('Annotation ripple operations are only valid for a schema 11 or 12 ripple delete.');
 		}
 		return () => undefined;
 	}
-	if (!ownsOperations) throw new TypeError('An exact-schema-11 ripple delete requires annotation ripple operations.');
+	if (!ownsOperations) throw new TypeError('A schema 11 or 12 ripple delete requires annotation ripple operations.');
 	if (!isRuntimeProjectProjection(project)) {
 		throw new TypeError('Timeline annotation ripple requires a trusted runtime projection.');
 	}

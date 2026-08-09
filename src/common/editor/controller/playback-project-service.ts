@@ -17,6 +17,10 @@ import {
 	projectFeatureVideoRenderedFallbackPlayback,
 	type ProjectFeatureVideoRenderedFallbackMetadata,
 } from '../project-feature-video-rendered-fallback.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
 import type { PreparedRequiredProjectSources } from './source-lifecycle-service.ts';
 
@@ -128,7 +132,8 @@ export function createPlaybackProjectService(
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
-		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(project, featureRequirementsReport);
+		const mediaProject = projectTrackFolderMediaStateV12(project);
+		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(mediaProject, featureRequirementsReport);
 		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
 			renderedAudio.project,
 			featureRequirementsReport,
@@ -142,7 +147,7 @@ export function createPlaybackProjectService(
 			featureRequirementsReport,
 		);
 		return Object.freeze({
-			project: bypassedVideo.project,
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedVideo.project),
 			featureRequirementsReport,
 			audioEffectPlaybackBypass: bypassedAudio.metadata,
 			audioRenderedFallback: renderedAudio.metadata,
@@ -162,12 +167,13 @@ export function createPlaybackProjectService(
 		project: Project,
 	): AudioRenderedFallbackDeliveryProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
+		const mediaProject = projectTrackFolderMediaStateV12(project);
 		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(
-			project,
+			mediaProject,
 			featureRequirementsReport,
 		);
 		return Object.freeze({
-			project: renderedAudio.project,
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedAudio.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			requiredAudioSourceIds: Object.freeze(
@@ -181,8 +187,9 @@ export function createPlaybackProjectService(
 		project: Project,
 	): VideoRenderedFallbackDeliveryProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
+		const mediaProject = projectTrackFolderMediaStateV12(project);
 		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(
-			project,
+			mediaProject,
 			featureRequirementsReport,
 		);
 		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
@@ -190,7 +197,7 @@ export function createPlaybackProjectService(
 			featureRequirementsReport,
 		);
 		return Object.freeze({
-			project: renderedVideo.project,
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedVideo.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			videoRenderedFallback: renderedVideo.metadata,

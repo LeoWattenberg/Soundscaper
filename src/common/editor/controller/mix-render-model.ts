@@ -6,6 +6,10 @@ import {
 	createAddTrackCommand,
 } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
 import type { AudioBufferLike } from './source-audio.ts';
 import {
 	findControllerClip,
@@ -86,7 +90,11 @@ export function createMixRenderSnapshot(
 	project: ControllerProject,
 	targetTracks: readonly ControllerTrack[],
 ): MutableControllerProject {
-	const snapshot = cloneProject(project);
+	const mediaProject = projectTrackFolderMediaStateV12(project);
+	const snapshot = inheritTrackFolderMediaStateProjectionV12(
+		mediaProject,
+		cloneProject(mediaProject),
+	);
 	const targetIds = new Set(targetTracks.map((track) => track.id));
 	const multipleTracks = targetTracks.length > 1;
 	const relevantBusIds = multipleTracks ? mixRenderBusIds(snapshot, targetIds) : new Set<string>();

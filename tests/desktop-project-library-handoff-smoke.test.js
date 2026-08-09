@@ -27,7 +27,7 @@ import {
 } from '../src/common/editor/scape-project-document.ts';
 import { parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 
-test('packaged handoff fixtures are canonical source-free exact-schema-11 revisions', () => {
+test('packaged handoff fixtures are canonical source-free exact-schema-12 revisions', () => {
 	const stages = createDesktopProjectLibraryHandoffStages();
 	assert.deepEqual(stages.map(({ stage, productId, profileId, target }) => ({
 		stage,
@@ -63,7 +63,7 @@ test('packaged handoff fixtures are canonical source-free exact-schema-11 revisi
 		const project = parseScapeProjectDocument(fixture.target.document);
 		assert.equal(validateCurrentAudioEditorProject(project), true);
 		assert.equal(serializeScapeProjectDocument(project), fixture.target.document);
-		assert.equal(project.schemaVersion, 11);
+		assert.equal(project.schemaVersion, 12);
 		assert.equal(project.id, DESKTOP_PROJECT_LIBRARY_HANDOFF_PROJECT_ID);
 		assert.equal(project.title, fixture.target.title);
 		assert.equal(project.revision, index + 1);

@@ -10,8 +10,8 @@ import {
 	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION } from './project-schema-version.ts';
 import { validateProjectV9Document } from './project-v9-document-validation.ts';
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
 import { projectRecord, projectUniqueStrings } from './project-v9-validation-primitives.ts';
 import {
 	admitAudioEditorProjectV9ValidationStructure,
@@ -23,15 +23,26 @@ import {
 	type TimelineAnnotationV11,
 } from './timeline-annotation.ts';
 import type { HoldTempoMap } from './timeline-time.ts';
+import { validateTrackFoldersV12, type TrackFolderV12 } from './track-folder-v12.ts';
+import {
+	validateTrackHierarchyV12,
+	type TrackNodeV12,
+} from './track-hierarchy-v12.ts';
 
-export { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
+export { AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION } from './project-schema-version.ts';
 
-export interface AudioEditorProjectV11ValidationOptions {
+export interface AudioEditorProjectV12ValidationOptions {
 	readonly limits?: Partial<AudioEditorProjectV9ValidationLimits>;
 }
 
-export interface AudioEditorProjectV11 extends Record<string, unknown> {
-	readonly schemaVersion: 11;
+export interface AudioEditorProjectSequenceV12 extends Readonly<Record<string, unknown>> {
+	readonly id: string;
+	readonly trackIds: readonly string[];
+	readonly trackNodes: readonly TrackNodeV12[];
+}
+
+export interface AudioEditorProjectV12 extends Record<string, unknown> {
+	readonly schemaVersion: 12;
 	readonly id: string;
 	readonly title: string;
 	readonly revision: number;
@@ -43,10 +54,11 @@ export interface AudioEditorProjectV11 extends Record<string, unknown> {
 	readonly sources: readonly Readonly<Record<string, unknown>>[];
 	readonly clips: readonly Readonly<Record<string, unknown>>[];
 	readonly tracks: readonly Readonly<Record<string, unknown>>[];
+	readonly trackFolders: readonly TrackFolderV12[];
 	readonly projectBin: Readonly<Record<string, unknown>> & {
 		readonly clips: readonly Readonly<Record<string, unknown>>[];
 	};
-	readonly sequences: readonly Readonly<Record<string, unknown>>[];
+	readonly sequences: readonly AudioEditorProjectSequenceV12[];
 	readonly primarySequenceId: string;
 	readonly tempoMap: HoldTempoMap & Readonly<Record<string, unknown>>;
 	readonly signatureMap: Readonly<Record<string, unknown>>;
@@ -57,33 +69,22 @@ export interface AudioEditorProjectV11 extends Record<string, unknown> {
 	readonly timelineAnnotations: readonly TimelineAnnotationV11[];
 }
 
-/** Validate the exact V11 persistence document without constructing runtime projections. */
-export function validateAudioEditorProjectV11(
+/** Validate the exact V12 persistence document and its authoritative folder hierarchy. */
+export function validateAudioEditorProjectV12(
 	project: unknown,
-	options: AudioEditorProjectV11ValidationOptions = {},
-): project is AudioEditorProjectV11 {
+	options: AudioEditorProjectV12ValidationOptions = {},
+): project is AudioEditorProjectV12 {
 	if (!options || typeof options !== 'object' || Array.isArray(options)) {
-		throw new TypeError('Audio editor project V11 validation options must be an object.');
+		throw new TypeError('Audio editor project V12 validation options must be an object.');
 	}
 	for (const name of Object.keys(options)) if (name !== 'limits') {
-		throw new TypeError(`Unsupported audio editor project V11 validation option: ${name}.`);
+		throw new TypeError(`Unsupported audio editor project V12 validation option: ${name}.`);
 	}
 	const limits = resolveAudioEditorProjectV9ValidationLimits(options.limits ?? {});
 	admitAudioEditorProjectV9ValidationStructure(project, limits);
 	const candidate = projectRecord(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
+	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
-	}
-	if (Object.hasOwn(candidate, 'trackFolders')) {
-		throw new RangeError('project.trackFolders belongs to schema V12 and cannot appear in V11.');
-	}
-	if (Array.isArray(candidate.sequences)) {
-		for (const sequence of candidate.sequences) {
-			if (sequence && typeof sequence === 'object' && !Array.isArray(sequence)
-				&& Object.hasOwn(sequence, 'trackNodes')) {
-				throw new RangeError('sequence.trackNodes belongs to schema V12 and cannot appear in V11.');
-			}
-		}
 	}
 	if (Object.hasOwn(candidate, 'runtimeProjectionVersion')
 		|| Object.hasOwn(candidate, 'trackFolderStateProjectionVersion')) {
@@ -95,17 +96,26 @@ export function validateAudioEditorProjectV11(
 	if (metadata.cart != null) normalizeCartMetadata(metadata.cart as CartMetadataInput);
 	validateAdmProjectMetadata(metadata);
 	validateAdmProjectChannelCount(candidate);
+	const sequences = candidate.sequences as readonly Readonly<Record<string, unknown>>[];
 	const featureRequirements = normalizeProjectFeatureRequirements(candidate.featureRequirements, {
 		sources: media.sources,
 		clips: media.clips,
 		tracks: media.tracks,
 		schemaVersion: candidate.schemaVersion,
 		sampleRate: candidate.sampleRate,
-		sequences: candidate.sequences as readonly Readonly<Record<string, unknown>>[],
+		sequences,
 		primarySequenceId: candidate.primarySequenceId,
 	});
 	validateProjectV10Foundation(candidate, media);
-	const sequences = candidate.sequences as readonly Readonly<Record<string, unknown>>[];
+	validateTrackFoldersV12(candidate.trackFolders);
+	validateTrackHierarchyV12(sequenceHierarchyProjection(sequences), {
+		trackFolders: candidate.trackFolders,
+		tracks: media.tracks.map((track) => ({
+			id: track.id,
+			type: track.type,
+			...(Object.hasOwn(track, 'laneGroupId') ? { laneGroupId: track.laneGroupId } : {}),
+		})),
+	});
 	validateTimelineAnnotationsV11(candidate.timelineAnnotations, {
 		tempoMap: candidate.tempoMap as HoldTempoMap,
 		sampleRate: Number(candidate.sampleRate),
@@ -116,6 +126,16 @@ export function validateAudioEditorProjectV11(
 		throw new RangeError('Project state and owned feature requirements must agree.');
 	}
 	return true;
+}
+
+function sequenceHierarchyProjection(
+	sequences: readonly Readonly<Record<string, unknown>>[],
+): readonly Readonly<Record<string, unknown>>[] {
+	return sequences.map((sequence) => ({
+		id: sequence.id,
+		trackNodes: sequence.trackNodes,
+		trackIds: sequence.trackIds,
+	}));
 }
 
 function validateAnnotationSelection(value: unknown, annotations: readonly TimelineAnnotationV11[]): void {

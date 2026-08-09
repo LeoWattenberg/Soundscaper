@@ -61,7 +61,7 @@ export interface RiffAnnotationImportResult {
 	readonly report: TimelineAnnotationInterchangeReport;
 }
 
-/** Project exact-V11 annotations or one explicitly selected legacy label track into RIFF cues. */
+/** Project schema-11-or-12 annotations or one explicitly selected legacy label track into RIFF cues. */
 export function createRiffAnnotationExport(
 	projectValue: RuntimeClipProject,
 	options: RiffAnnotationExportOptions,

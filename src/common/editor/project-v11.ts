@@ -29,7 +29,7 @@ export interface AudioEditorProjectV11Options extends AudioEditorProjectV10Optio
 	};
 }
 
-/** Create the exact current document while retaining V10's media and timing foundation. */
+/** Create the historical V11 document while retaining V10's media and timing foundation. */
 export function createAudioEditorProjectV11(
 	options: AudioEditorProjectV11Options = {},
 ): AudioEditorProjectV11 {

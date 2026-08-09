@@ -14,6 +14,10 @@ import {
 	normalizeSourceResolver,
 } from './clip-schedule-plan.ts';
 import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
 import { resolveRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
@@ -203,9 +207,13 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		this[ENGINE_CANCEL_SCRUB]();
 		this[ENGINE_HALT_GRAPH]();
-		const runtimeProject = project?.schemaVersion
-			? resolveRuntimeProjectProjection(project)
-			: project;
+		const mediaProject = project ? projectTrackFolderMediaStateV12(project) : project;
+		const resolvedProject = mediaProject?.schemaVersion
+			? resolveRuntimeProjectProjection(mediaProject)
+			: mediaProject;
+		const runtimeProject = mediaProject && resolvedProject
+			? inheritTrackFolderMediaStateProjectionV12(mediaProject, resolvedProject)
+			: resolvedProject;
 		this.project = runtimeProject || null;
 		if (this.context && runtimeProject) {
 			configureNativeSurroundDestination(this.context.destination, Number(runtimeProject.masterChannels) || 2);

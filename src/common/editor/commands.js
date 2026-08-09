@@ -5,9 +5,15 @@ import { dispatchEditorCommand } from './commands/registry.ts';
 import { createEditorCommandRuntime } from './commands/runtime-registry.ts';
 import { pruneMissingProjectSelections } from './commands/shared-runtime.js';
 import { isFoundationProjectSchema, projectForCommandConsumers } from './project-current-runtime.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION,
+} from './project-schema-version.ts';
 import { brandRuntimeProjectProjection } from './runtime-clip-projection.ts';
-import { FOUNDATION_EDIT_OPERATION } from './commands/command-projection-transients.ts';
+import {
+	FOUNDATION_EDIT_OPERATION,
+	LEGACY_TRACK_STRUCTURE_EDIT,
+} from './commands/command-projection-transients.ts';
 
 export {
 	collectClipTransformIds,
@@ -82,6 +88,7 @@ export {
  *   | import('./project-v9.ts').AudioEditorProjectV9
  *   | import('./project-v10.ts').AudioEditorProjectV10
  *   | import('./project-v11.ts').AudioEditorProjectV11
+ *   | import('./project-v12.ts').AudioEditorProjectV12
  * } CurrentAudioEditorProject
  */
 
@@ -116,6 +123,10 @@ export function applyEditorCommand(project, command, options = {}) {
 const editorCommandHandlers = createEditorCommandRuntime(mutateCommand);
 
 function mutateCommand(project, command) {
+	if (project.schemaVersion === AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION
+		&& (command.type === 'track/add' || command.type === 'track/remove' || command.type === 'track/reorder')) {
+		project[LEGACY_TRACK_STRUCTURE_EDIT] = true;
+	}
 	if (isFoundationProjectSchema(project.schemaVersion) && command.type !== 'batch') {
 		const before = new Map(project.clips.map((clip) => [clip.id, commandTimingSignature(clip)]));
 		dispatchEditorCommand(editorCommandHandlers, project, command);

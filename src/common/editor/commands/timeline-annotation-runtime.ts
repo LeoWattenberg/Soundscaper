@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from '../timeline-coordinate-limits.ts';
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import {
 	createTimelineAnnotationsV11,
 	type TimelineAnnotationCollectionContext,
@@ -62,14 +62,14 @@ export function createTimelineAnnotationRuntimeHandlers(): Readonly<TimelineAnno
 	return RUNTIME_HANDLERS;
 }
 
-/** Apply a global command through an exact-V11, branded runtime projection. */
+/** Apply a global command through a schema-11-or-12 branded runtime projection. */
 export function applyProjectedTimelineAnnotationCommand(
 	project: EditorCommandProject,
 	command: TimelineAnnotationCommand,
 ): void {
 	const candidate = project as MutableProjectedTimelineAnnotationProject;
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
-		throw new RangeError('Timeline annotation commands require exact schema V11.');
+	if (!isTimelineAnnotationProjectSchema(candidate.schemaVersion)) {
+		throw new RangeError('Timeline annotation commands require schema 11 or 12.');
 	}
 	if (!isRuntimeProjectProjection(candidate)) {
 		throw new TypeError('Timeline annotation commands require a trusted runtime projection.');

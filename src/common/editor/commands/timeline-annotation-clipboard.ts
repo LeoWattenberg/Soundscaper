@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import {
 	resolveRuntimeTimelineAnnotationsInDocumentOrder,
 	restoreTimelineAnnotationsFromRuntimeProjection,
@@ -71,7 +71,7 @@ export function createTimelineAnnotationClipboardDescriptors(
 	options: TimelineAnnotationClipboardCopyOptions,
 ): readonly AudioEditorClipboardAnnotation[] {
 	const project = projectRecord(projectValue);
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) return Object.freeze([]);
+	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return Object.freeze([]);
 	const startFrame = nonNegativeSafeInteger(options.startFrame, 'clipboard range startFrame');
 	const endFrame = nonNegativeSafeInteger(options.endFrame, 'clipboard range endFrame');
 	if (endFrame <= startFrame) throw new RangeError('The clipboard range must have a positive duration.');
@@ -105,8 +105,8 @@ export function stageTimelineAnnotationClipboardPaste(
 	const project = dataRecord(projectValue, 'project') as MutableClipboardAnnotationProject;
 	const command = dataRecord(commandValue, 'clipboard paste command');
 	const annotations = clipboard.schemaVersion === 3 ? clipboard.annotations || [] : [];
-	if (annotations.length && project.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
-		throw new RangeError('Timeline annotation paste requires an exact-schema-11 project.');
+	if (annotations.length && !isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+		throw new RangeError('Timeline annotation paste requires schema 11 or 12.');
 	}
 	let maps: ValidatedAnnotationPasteMaps | null = null;
 	if (clipboard.schemaVersion !== 3) {
@@ -117,7 +117,7 @@ export function stageTimelineAnnotationClipboardPaste(
 		maps = validateCurrentMaps(project, clipboard, command);
 	}
 	const expands = mode === 'insert-all'
-		&& project.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
+		&& isTimelineAnnotationProjectSchema(project.schemaVersion)
 		&& project.timelineAnnotations.length > 0;
 	if (!annotations.length && !expands) return () => undefined;
 	if (!isRuntimeProjectProjection(project)) {

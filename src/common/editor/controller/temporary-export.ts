@@ -1,5 +1,9 @@
 import { cloneProject } from '../project.js';
 import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
+import {
 	createSequentialZip32Archive,
 	type Zip32StreamInput,
 } from './sequential-zip32-stream.ts';
@@ -165,7 +169,11 @@ export function stemProject(
 	project: Parameters<typeof cloneProject>[0],
 	trackId: string,
 ): ReturnType<typeof cloneProject> {
-	const snapshot = cloneProject(project);
+	const mediaProject = projectTrackFolderMediaStateV12(project);
+	const snapshot = inheritTrackFolderMediaStateProjectionV12(
+		mediaProject,
+		cloneProject(mediaProject),
+	);
 	snapshot.tracks = snapshot.tracks.map((track) => track.id === trackId
 		? { ...track, mute: false, solo: false }
 		: { ...track, mute: true, solo: false, effects: [] });

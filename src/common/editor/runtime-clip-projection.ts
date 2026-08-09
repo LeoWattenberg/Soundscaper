@@ -9,7 +9,7 @@ import {
 	videoFrameToSampleFrame,
 } from './timeline-time.ts';
 import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from './project-schema-version.ts';
 import {
 	resolveRuntimeTimelineAnnotationsInDocumentOrder,
 	assertRuntimeTimelineAnnotationsProjectionShape,
@@ -154,7 +154,7 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 			clips: Object.freeze((Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [])
 				.map((clip) => resolveRuntimeClipProjection(project, clip, context))),
 		}),
-		...(project.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION ? {
+		...(isTimelineAnnotationProjectSchema(project.schemaVersion) ? {
 			timelineAnnotations: resolveRuntimeTimelineAnnotationsInDocumentOrder(
 				project as unknown as RuntimeTimelineAnnotationProject,
 			),
@@ -196,12 +196,12 @@ function assertRuntimeProjectProjectionShape(project: RuntimeClipProject): void 
 			}
 		}
 	}
-	if (project.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
+	if (isTimelineAnnotationProjectSchema(project.schemaVersion)) {
 		assertRuntimeTimelineAnnotationsProjectionShape(
 			project as unknown as RuntimeTimelineAnnotationProject,
 		);
 	} else if (project.timelineAnnotations !== undefined) {
-		throw new TypeError('Only an exact-schema-11 runtime projection can contain timeline annotations.');
+		throw new TypeError('Only a timeline-annotation project schema can contain timeline annotations.');
 	}
 }
 

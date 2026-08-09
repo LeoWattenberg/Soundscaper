@@ -32,6 +32,6 @@ const lease = await library.acquireLease({
 leaseToken = lease.fencingToken;
 await library.publishMetadata({
 	lease,
-	metadata: { schemaVersion: 3, revision: 1, projects: [], media: [] },
+	metadata: { schemaVersion: 4, revision: 1, projects: [], media: [] },
 });
 throw new Error('Crash fixture publication unexpectedly completed');

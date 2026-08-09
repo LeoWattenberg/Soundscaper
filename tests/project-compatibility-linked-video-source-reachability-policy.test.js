@@ -17,7 +17,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		rule.requiredOutcome,
-		/exact-schema-11 current project.*every retained revision.*timeline.*Project Bin.*feature fallback.*durable roots.*first- or third-party provenance/iu,
+		/exact-schema-12 current project.*every retained revision.*timeline.*Project Bin.*feature fallback.*durable roots.*first- or third-party provenance/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
@@ -63,7 +63,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		rule.currentBehavior,
-		/current exact-schema-11 document.*every retained exact-schema-11 revision.*timeline clips, Project Bin clips, and every feature-requirement fallback.*without provenance gating.*at most 64.*100,000.*128.*fails? closed.*no binding deletion/iu,
+		/current exact-schema-12 document.*every retained exact-schema-12 revision.*timeline clips, Project Bin clips, and every feature-requirement fallback.*without provenance gating.*at most 64.*100,000.*128.*fails? closed.*no binding deletion/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -143,7 +143,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		documentation,
-		/current exact-schema-11 project.*every retained exact-schema-11 revision.*timeline clips, Project Bin clips, and every feature-requirement fallback.*first-party or third-party provenance.*64 retained revisions.*100,000.*128/iu,
+		/current exact-schema-12 project.*every retained exact-schema-12 revision.*timeline clips, Project Bin clips, and every feature-requirement fallback.*first-party or third-party provenance.*64 retained revisions.*100,000.*128/iu,
 	);
 	assert.match(
 		documentation,

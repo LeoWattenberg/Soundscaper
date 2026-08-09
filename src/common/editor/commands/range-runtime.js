@@ -11,7 +11,7 @@ import {
 	addClip,
 	mergeEditingRanges,
 } from './clip-basic-runtime.js';
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import { isFoundationProjectSchema, projectForCommandConsumers } from '../project-current-runtime.ts';
 import {
 	brandRuntimeProjectProjection,
@@ -217,7 +217,7 @@ export function prepareRangeDeleteCommand(project, options = {}, idFactory = cre
 		}
 	}
 	const command = { type, trackIds, clipIds, ...range, splitClipIds, splitAvLinkIds, videoEffectIds };
-	return type === 'range/ripple-delete' && project.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
+	return type === 'range/ripple-delete' && isTimelineAnnotationProjectSchema(project.schemaVersion)
 		? {
 			...command,
 			annotationRippleOperations: createTimelineAnnotationRippleOperations(project, geometry, clipIds),

@@ -7,7 +7,7 @@ import {
 	type SnapshotProject,
 } from '../src/common/editor/controller/document-snapshot.ts';
 import { createInitialStorageCapacitySnapshot } from '../src/common/editor/controller/storage-capacity-service.ts';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';
 
 const SOUND_ACTIVATION_SNAPSHOT = Object.freeze({
@@ -192,7 +192,7 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 });
 
 test('document snapshots expose one sorted immutable runtime annotation view', () => {
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'annotation-project',
 		now: 1_700_000_000_000,
 		timelineAnnotations: [

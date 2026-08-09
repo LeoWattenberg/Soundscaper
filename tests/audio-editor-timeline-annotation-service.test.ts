@@ -9,7 +9,7 @@ import {
 	createTimelineAnnotationService,
 	type TimelineAnnotationControllerState,
 } from '../src/common/editor/controller/timeline-annotation-service.ts';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
 
 const NOW = new Date('2026-08-09T12:00:00.000Z');
@@ -242,7 +242,7 @@ test('blocked navigation retains view focus without changing durable selection',
 test('older and future projects clear focus without traversing annotation state', () => {
 	let annotationReads = 0;
 	const future = {
-		schemaVersion: 12,
+		schemaVersion: 13,
 		get timelineAnnotations() {
 			annotationReads += 1;
 			throw new Error('future annotations must remain opaque');
@@ -263,8 +263,8 @@ test('older and future projects clear focus without traversing annotation state'
 
 	assert.equal(service.synchronizeFocus(), null);
 	assert.equal(state.selectedAnnotationId, null);
-	assert.throws(() => service.createMarker(), /exact schema V11/iu);
-	assert.throws(() => service.navigateNextAnnotation(), /exact schema V11/iu);
+	assert.throws(() => service.createMarker(), /schema V11 or V12/iu);
+	assert.throws(() => service.navigateNextAnnotation(), /schema V11 or V12/iu);
 	assert.equal(annotationReads, 0);
 
 	const older = { schemaVersion: 10 };
@@ -317,7 +317,7 @@ test('conversion preserves resolved geometry and requires an endpoint when expan
 });
 
 test('focus rolls back when a mutation or durable-selection application port rejects', () => {
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'annotation-service-rollback',
 		now: NOW,
 		timelineAnnotations: [sampleMarker('existing', 10)],
@@ -348,7 +348,7 @@ test('focus rolls back when a mutation or durable-selection application port rej
 	assert.deepEqual(project.timelineAnnotations.map(({ id }) => id), ['existing']);
 });
 
-type TestProject = ReturnType<typeof createAudioEditorProjectV11>;
+type TestProject = ReturnType<typeof createCurrentAudioEditorProject>;
 
 interface ServiceFixtureOptions {
 	readonly annotations?: readonly TimelineAnnotationV11[];
@@ -370,7 +370,7 @@ interface ServiceFixtureOptions {
 }
 
 function serviceFixture(options: ServiceFixtureOptions = {}) {
-	let project = createAudioEditorProjectV11({
+	let project = createCurrentAudioEditorProject({
 		id: 'annotation-service-test',
 		now: NOW,
 		sequences: options.sequences,

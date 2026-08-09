@@ -2,7 +2,7 @@
 
 import { createAddTimelineAnnotationCommand } from '../commands/factories.ts';
 import type { BatchAudioEditorCommand } from '../commands/protocol.ts';
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-v11-validation.ts';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import {
 	AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS,
 	createTimelineAnnotationV11,
@@ -203,8 +203,8 @@ function markerIncludesEnd(options: RegularIntervalAnnotationOptions): boolean {
 
 function assertProject(project: RegularIntervalProject): void {
 	if (!project || typeof project !== 'object'
-		|| project.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
-		throw new RangeError('Regular interval annotations require an exact schema 11 project.');
+		|| !isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+		throw new RangeError('Regular interval annotations require schema 11 or 12.');
 	}
 	if (!Array.isArray(project.timelineAnnotations)
 		|| project.timelineAnnotations.length > AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumAnnotations) {

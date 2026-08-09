@@ -192,6 +192,15 @@ export type EditorProjectV11 = Omit<EditorProjectV10, 'schemaVersion' | 'selecti
 	timelineAnnotations: readonly TimelineAnnotationV11[];
 }>;
 
+export type EditorProjectV12 = Omit<EditorProjectV11, 'schemaVersion' | 'sequences'> & Readonly<{
+	schemaVersion: 12;
+	trackFolders: readonly Readonly<Record<string, unknown>>[];
+	sequences: readonly (Readonly<Record<string, unknown>> & {
+		readonly trackIds: readonly string[];
+		readonly trackNodes: readonly Readonly<Record<string, unknown>>[];
+	})[];
+}>;
+
 export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 	readonly schemaVersion: Version;
 	readonly id: EditorId;
@@ -208,7 +217,7 @@ export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 export type EditorProjectV2 = EditorLegacyProject<2>;
 export type EditorProjectV3 = EditorLegacyProject<3>;
 export type EditorProjectV4 = EditorLegacyProject<4>;
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11;
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

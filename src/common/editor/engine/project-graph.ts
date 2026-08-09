@@ -2,6 +2,7 @@
 
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
+import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { createAdmBedRouter } from './adm-bed-routing.ts';
 import {
 	addNode,
@@ -123,6 +124,7 @@ export function buildProjectGraph(
 		onParametricEqError,
 	}: BuildProjectGraphOptions = {},
 ): ProjectGraph {
+	project = projectTrackFolderMediaStateV12(project);
 	const nodes: AudioNodeArray = [];
 	const sources = new Set<AudioScheduledSourceNode>();
 	const trackInputs = new Map<string, AudioNode>();

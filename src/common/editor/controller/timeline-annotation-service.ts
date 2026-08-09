@@ -12,7 +12,7 @@ import {
 import type {
 	AudioEditorCommand,
 } from '../commands/protocol.ts';
-import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import {
 	resolveRuntimeTimelineAnnotationProjection,
 	resolveRuntimeTimelineAnnotationsProjection,
@@ -51,7 +51,7 @@ export interface TimelineAnnotationSelection {
 }
 
 export interface TimelineAnnotationControllerProject extends RuntimeTimelineAnnotationProject {
-	readonly schemaVersion: typeof AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION;
+	readonly schemaVersion: 11 | 12;
 	readonly primarySequenceId: string;
 	readonly selection: TimelineAnnotationSelection;
 }
@@ -367,7 +367,7 @@ export function createTimelineAnnotationService(
 	function synchronizeFocus(publish = true): string | null {
 		dependencies.lifetime.assertActive();
 		const candidate = dependencies.getProject();
-		if (!hasExactV11Schema(candidate)) {
+		if (!hasTimelineAnnotationSchema(candidate)) {
 			setFocus(null, publish);
 			return null;
 		}
@@ -481,15 +481,19 @@ function selectionCommand(
 }
 
 function requireCurrentProject(value: unknown): TimelineAnnotationControllerProject {
-	if (!hasExactV11Schema(value)) throw new RangeError('Timeline annotations require an exact schema V11 project.');
+	if (!hasTimelineAnnotationSchema(value)) {
+		throw new RangeError('Timeline annotations require schema V11 or V12.');
+	}
 	return value as TimelineAnnotationControllerProject;
 }
 
-function hasExactV11Schema(value: unknown): value is Readonly<Record<string, unknown>> {
+function hasTimelineAnnotationSchema(value: unknown): value is Readonly<Record<string, unknown>> {
 	return value !== null
 		&& typeof value === 'object'
 		&& !Array.isArray(value)
-		&& (value as Readonly<{ schemaVersion?: unknown }>).schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION;
+		&& isTimelineAnnotationProjectSchema(
+			(value as Readonly<{ schemaVersion?: unknown }>).schemaVersion,
+		);
 }
 
 function annotationCollection(project: TimelineAnnotationControllerProject): readonly TimelineAnnotationV11[] {

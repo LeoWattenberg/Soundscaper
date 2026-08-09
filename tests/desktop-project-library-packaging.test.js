@@ -68,7 +68,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-owned-feature-requirements.js',
 		'src/common/editor/project-schema-version.js',
 		'src/common/editor/project-v10-foundation-validation.js',
-		'src/common/editor/project-v11-validation.js',
+		'src/common/editor/project-v12-validation.js',
 		'src/common/editor/project-v9-document-validation.js',
 		'src/common/editor/project-v9-media-validation.js',
 		'src/common/editor/project-v9-validation-budget.js',
@@ -84,6 +84,10 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/timeline-coordinate-limits.js',
 		'src/common/editor/timeline-tempo-inverse.js',
 		'src/common/editor/timeline-time.js',
+		'src/common/editor/track-folder-media-runtime.js',
+		'src/common/editor/track-folder-state-projection.js',
+		'src/common/editor/track-folder-v12.js',
+		'src/common/editor/track-hierarchy-v12.js',
 		'src/common/editor/video-effects.js',
 		'src/common/editor/video-source-time.js',
 		'src/common/editor/video-timeline.js',
@@ -94,7 +98,9 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		const source = await readFile(join(outputRoot, name), 'utf8');
 		assert.doesNotMatch(source, /from ['"].*\.ts['"]/u);
 	}
-	assert.ok(result.files.includes('src/common/editor/project-v11-validation.js'));
+	assert.ok(result.files.includes('src/common/editor/project-v12-validation.js'));
+	assert.ok(result.files.includes('src/common/editor/track-folder-v12.js'));
+	assert.ok(result.files.includes('src/common/editor/track-hierarchy-v12.js'));
 	assert.ok(result.files.includes('src/common/editor/timeline-annotation.js'));
 	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
 	assert.equal(result.files.includes('src/common/editor/project-v11.js'), false);
@@ -217,7 +223,9 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-sequential-upload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
-	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v11-validation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v12-validation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/track-folder-v12.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/track-hierarchy-v12.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/timeline-annotation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/runtime-timeline-annotation-projection.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/timeline-coordinate-limits.js'));

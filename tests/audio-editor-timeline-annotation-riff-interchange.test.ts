@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioEditorProjectV10, createLabelTrackV10 } from '../src/common/editor/project-v10.ts';
 import { createRiffMarkerChunks, parseRiffMarkers } from '../src/common/editor/riff-markers.ts';
 import {
@@ -111,7 +111,7 @@ test('WAV planning keeps annotations and maintained label tracks explicitly sele
 			{ id: 'ending-at-range', title: 'Before', startFrame: 5, endFrame: 10, color: 'auto', opaqueExtensions: {} },
 		],
 	});
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'distinct-riff-sources',
 		title: 'Distinct RIFF sources',
 		now: NOW,
@@ -163,7 +163,7 @@ function annotation(overrides: Record<string, unknown>): Record<string, unknown>
 }
 
 function annotationProject(timelineAnnotations: readonly Record<string, unknown>[]) {
-	return createAudioEditorProjectV11({
+	return createCurrentAudioEditorProject({
 		id: 'riff-annotations',
 		title: 'RIFF annotations',
 		now: NOW,

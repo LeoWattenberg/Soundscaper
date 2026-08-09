@@ -62,14 +62,14 @@ test('project commits publish a verified immutable document before its catalog e
 		metadataFile: createDesktopLibraryProjectMetadataFile(ENTRY_ID, 1, sha256),
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 10_001,
-		projectSchemaVersion: 11,
+		projectSchemaVersion: 12,
 		projectRevision: 1,
 		byteLength: Buffer.byteLength(documentJson, 'utf8'),
 		sha256,
 	});
 	assert.deepEqual(committed.project, project);
 	assert.deepEqual(observer.readMetadata(), {
-		schemaVersion: 3,
+		schemaVersion: 4,
 		revision: 1,
 		projects: [committed.catalog],
 		media: [],
@@ -91,7 +91,7 @@ test('project persistence admission is current-schema, bounded, and mutation-fre
 	const valid = currentProject(1);
 	const attempts: readonly unknown[] = [
 		{ ...valid, schemaVersion: 8 },
-		{ ...valid, schemaVersion: 12 },
+		{ ...valid, schemaVersion: 13 },
 		{ ...valid, id: '' },
 		{ ...valid, revision: -1 },
 		{ ...valid, title: 'x'.repeat(4_096) },
@@ -181,7 +181,7 @@ test('catalog publication preserves other entries and media and rejects divergen
 	await library.publishMetadata({
 		lease,
 		metadata: {
-			schemaVersion: 3,
+			schemaVersion: 4,
 			revision: 1,
 			projects: [],
 			media: [{
@@ -212,7 +212,7 @@ test('catalog publication preserves other entries and media and rejects divergen
 		/divergent project revision/u,
 	);
 	assert.deepEqual(library.readMetadata(), {
-		schemaVersion: 3,
+		schemaVersion: 4,
 		revision: 2,
 		projects: [first.catalog],
 		media: [{

@@ -4,6 +4,7 @@ import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
+import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -30,7 +31,7 @@ const FRAMESCAPER_OWNER = Object.freeze({
 });
 const ENTRY_ID = 'handoff-entry-1';
 
-test('desktop hosts serialize cross-product writers while preserving V11 annotations', async (context) => {
+test('desktop hosts serialize cross-product writers while preserving V12 annotations and folders', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-handoff-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
 	const soundscaper = await startHost(appDataPath, SOUNDSCAPER_OWNER);
@@ -144,6 +145,15 @@ function commitOptions(
 				title: 'Shared handoff project',
 				revision,
 				now: '2026-07-29T12:00:00.000Z',
+				tracks: [createAudioTrackV10({ id: 'handoff-track', name: 'Handoff track' })],
+				trackFolders: [{ id: 'handoff-folder', name: 'Handoff folder', collapsed: true }],
+				sequences: [{
+					id: 'main-sequence',
+					trackNodes: [
+						{ kind: 'folder', id: 'handoff-folder', parentFolderId: null },
+						{ kind: 'track', id: 'handoff-track', parentFolderId: 'handoff-folder' },
+					],
+				}],
 				timelineAnnotations: [{
 					id: 'handoff-marker',
 					sequenceId: 'main-sequence',
@@ -177,6 +187,20 @@ function commitOptions(
 function assertHandoffAnnotations(value: unknown, revision: number): void {
 	assert.equal(validateCurrentAudioEditorProject(value), true);
 	const project = value as Readonly<Record<string, unknown>>;
+	assert.deepEqual(project.trackFolders, [{
+		id: 'handoff-folder',
+		name: 'Handoff folder',
+		collapsed: true,
+		height: 40,
+		hidden: false,
+		mute: false,
+		solo: false,
+	}]);
+	const sequences = project.sequences as readonly Readonly<Record<string, unknown>>[];
+	assert.deepEqual(sequences[0]?.trackNodes, [
+		{ kind: 'folder', id: 'handoff-folder', parentFolderId: null },
+		{ kind: 'track', id: 'handoff-track', parentFolderId: 'handoff-folder' },
+	]);
 	assert.deepEqual(project.timelineAnnotations, [{
 		id: 'handoff-marker',
 		sequenceId: 'main-sequence',

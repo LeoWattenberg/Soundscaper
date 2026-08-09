@@ -144,13 +144,18 @@ function metadataAudioProject(
 		id, title: 'Recipient metadata-only preflight', revision: 1,
 		now: '2026-08-01T12:00:00.000Z',
 	});
-	const track = createAudioTrackV10({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) });
+	const trackId = `${id}-track`;
+	const track = createAudioTrackV10({ id: trackId, clipIds: clips.map(({ id: clipId }) => clipId) });
 	return {
 		...foundation,
 		sources,
 		clips,
 		tracks: [track],
-		sequences: foundation.sequences.map((sequence) => ({ ...sequence, trackIds: [track.id] })),
+		sequences: foundation.sequences.map((sequence) => ({
+			...sequence,
+			trackIds: [trackId],
+			trackNodes: [{ kind: 'track', id: trackId, parentFolderId: null }],
+		})),
 	};
 }
 

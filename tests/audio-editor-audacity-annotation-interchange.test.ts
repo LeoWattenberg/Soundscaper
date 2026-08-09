@@ -14,7 +14,7 @@ import { decodeAudacityProjectTree } from '../src/common/editor/aup4-conversion.
 import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
 import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js';
 import { parseAudioEditorLabels } from '../src/common/editor/label-io.js';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createLabelTrackV10 } from '../src/common/editor/project-v10.ts';
 
 const NOW = '2026-08-09T00:00:00.000Z';
@@ -97,7 +97,7 @@ test('a positive Audacity label region remains a region below one destination sa
 	}));
 });
 
-test('legacy XML AUP labels import as V11 annotations instead of internal label-track objects', () => {
+test('legacy XML AUP labels import as V12 annotations instead of internal label-track objects', () => {
 	let nextId = 0;
 	const decoded = convertLegacyAupToProject({
 		sampleRate: 48_000,
@@ -116,7 +116,7 @@ test('legacy XML AUP labels import as V11 annotations instead of internal label-
 		idFactory: (prefix: string) => `${prefix}-${String(++nextId)}`,
 	});
 
-	assert.equal(decoded.project.schemaVersion, 11);
+	assert.equal(decoded.project.schemaVersion, 12);
 	assert.equal(decoded.project.tracks.some(({ type }: { type?: string }) => type === 'label'), false);
 	assert.deepEqual(decoded.project.timelineAnnotations.map(({ kind }: { kind: string }) => kind), ['marker', 'region']);
 	assert.equal((decoded.project.timelineAnnotations[0] as { positionFrame: number }).positionFrame, 12_000);
@@ -156,7 +156,7 @@ test('AUP4 export adds a distinct projected annotation label track and reports s
 		name: 'Internal labels',
 		labels: [{ id: 'internal', title: 'Internal', startFrame: 5, endFrame: 5, color: 'auto', opaqueExtensions: {} }],
 	});
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'aup4-annotation-export',
 		title: 'AUP4 annotation export',
 		now: NOW,

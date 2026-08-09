@@ -2,6 +2,10 @@
 
 import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../browser-export-output.ts';
 import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
+import {
 	admitAudioRenderedFallbackExport,
 	assertAudioRenderedFallbackExportSettings,
 	audioRenderedFallbackRenderSources,
@@ -69,7 +73,8 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			handleError(error);
 			return;
 		}
-		if (!delivery.project.clips.length) return;
+		const deliveredProject = projectTrackFolderMediaStateV12(delivery.project);
+		if (!deliveredProject.clips.length) return;
 		// The whole-mix role renders from its verified provider alone; the track
 		// role still mixes native lanes, so their sources must be present.
 		if (delivery.audioRenderedFallback?.role !== 'project-audio-mix-v1' && hasMissingTimelineSources()) {
@@ -88,7 +93,10 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		state.exportAbort = abort;
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
-		let exportProject = cloneProject(delivery.project);
+		let exportProject = inheritTrackFolderMediaStateProjectionV12(
+			deliveredProject,
+			cloneProject(deliveredProject),
+		);
 		let exportRenderSources: ExportRenderSources;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectPcmDestination | DirectCompressedDestination | null = null;
@@ -119,11 +127,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				productName,
 			});
 			if (plan.format === 'bw64' && plan.adm) {
-				exportProject = {
+				exportProject = inheritTrackFolderMediaStateProjectionV12(exportProject, {
 					...exportProject,
 					masterChannels: plan.channelCount,
 					metadata: { ...exportProject.metadata, adm: plan.adm.metadata },
-				};
+				});
 			}
 			const directStemTemporaryBytes = directStemArchiveTemporaryBytes(plan);
 			const directCompressedTemporaryBytes = directCompressedStagingTemporaryBytes(plan);

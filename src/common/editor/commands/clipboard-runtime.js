@@ -7,6 +7,7 @@ import {
 	createStableId,
 	normalizeFrameRange,
 } from '../project.js';
+import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
 import {
 	cloneVideoEffects,
 } from '../video-effects.js';
@@ -90,7 +91,7 @@ export function createClipboardDescriptor(project, options = {}) {
 			&& tracks[1].type === 'audio'
 		) pairedLaneGroupIds.add(laneGroupId);
 	}
-	const currentClipboard = project.schemaVersion === 11;
+	const currentClipboard = isTimelineAnnotationProjectSchema(project.schemaVersion);
 	const sourceSequenceIds = currentClipboard
 		? [...new Set(trackIds.map((trackId) => sequenceForTrack(project, trackId).id))]
 		: [];

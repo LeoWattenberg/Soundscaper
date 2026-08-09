@@ -22,6 +22,7 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	videoCompositing: 'org.soundscaper.capability.video-compositing',
 	musicalTimeline: 'org.soundscaper.capability.musical-timeline',
 	timelineAnnotations: 'org.soundscaper.capability.timeline-annotations',
+	trackFolders: 'org.soundscaper.capability.track-folders',
 	audioWarp: 'org.soundscaper.capability.audio-warp',
 	sequenceTiming: 'org.soundscaper.capability.sequence-timing',
 	videoRetime: 'org.soundscaper.capability.video-retime',

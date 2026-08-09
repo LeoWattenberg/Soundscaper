@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { loadVideoTimingAsset } from '../video-timing-storage.ts';
+import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import {
 	acquireVideoTimingIndex,
 	type VideoTimingIndexLease,
@@ -77,7 +78,7 @@ function visibleTimedVideoSources(
 	projectValue: unknown,
 	dependencies: VideoExportTimingDependencies,
 ): readonly DataRecord[] {
-	const project = record(projectValue, 'video export project');
+	const project = projectTrackFolderMediaStateV12(record(projectValue, 'video export project'));
 	if (!Array.isArray(project.tracks)) throw new TypeError('The video export project requires tracks.');
 	const sources: DataRecord[] = [];
 	const seen = new Set<string>();
@@ -86,11 +87,11 @@ function visibleTimedVideoSources(
 		if (track.type !== 'video' || track.hidden === true || !Array.isArray(track.clipIds)) continue;
 		for (const clipId of track.clipIds) {
 			if (typeof clipId !== 'string' || !clipId) continue;
-			const clipValue = dependencies.findClip(projectValue, clipId);
+			const clipValue = dependencies.findClip(project, clipId);
 			if (!clipValue || typeof clipValue !== 'object') continue;
 			const clip = record(clipValue, 'video export clip');
 			if (clip.kind !== 'video' || typeof clip.sourceId !== 'string') continue;
-			const sourceValue = dependencies.findSource(projectValue, clip.sourceId);
+			const sourceValue = dependencies.findSource(project, clip.sourceId);
 			if (!sourceValue || typeof sourceValue !== 'object') continue;
 			const source = record(sourceValue, 'video export source');
 			if (source.kind !== 'video') continue;

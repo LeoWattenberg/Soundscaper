@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { prepareBrowserExportBlob } from '../browser-export-output.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
 import { audioRenderedFallbackRenderSources } from './audio-rendered-fallback-export.ts';
 import {
 	admitVideoRenderedFallbackExport,
@@ -56,7 +60,11 @@ export function createEditorVideoExportAction(
 		if (state.exportAbort) return null;
 		const canonicalProject = getProject();
 		const delivery = projectForVideoRenderedFallbackExport(canonicalProject, playbackProjects);
-		const exportProject = cloneProject(delivery.project);
+		const deliveredProject = projectTrackFolderMediaStateV12(delivery.project);
+		const exportProject = inheritTrackFolderMediaStateProjectionV12(
+			deliveredProject,
+			cloneProject(deliveredProject),
+		);
 		const hasTimelineVideo = exportProject.tracks.some((track: RuntimeValue) => (
 			track.type === 'video'
 			&& track.hidden !== true

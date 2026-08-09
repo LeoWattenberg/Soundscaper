@@ -36,7 +36,7 @@ dispatches children into that same draft, so it must never call
 Runtime responsibilities are intentionally narrow: project/source/Project Bin,
 tempo/signature, track/mixer/label, effects/video, clip/range/clipboard, and
 timeline annotation commands each have explicit handler maps. Timeline
-annotation mutation is exact-V11 and requires a branded runtime projection;
+annotation mutation accepts schemas 11 and 12 and requires a branded runtime projection;
 product capability policy remains a separate controller boundary. The larger
 clip domain is further divided into basic edits, transforms, links/groups,
 ranges, and clipboard preparation. Shared validation and stable-ID helpers live

@@ -75,7 +75,7 @@ test('a managed-media stage write that runs out of space refuses with a typed te
 	const root = await mkdtemp(join(tmpdir(), 'scape-media-space-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const state = {
-		metadata: validateDesktopLibraryMetadata({ schemaVersion: 3, revision: 0, projects: [], media: [] }),
+		metadata: validateDesktopLibraryMetadata({ schemaVersion: 4, revision: 0, projects: [], media: [] }),
 	};
 	const catalog: DesktopLibraryMediaCatalogPort = {
 		readMetadata: () => state.metadata,

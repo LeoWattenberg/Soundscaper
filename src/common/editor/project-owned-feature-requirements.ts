@@ -16,6 +16,7 @@ export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	videoEffects: 'soundscaper.video-effects',
 	musicalTimeline: 'soundscaper.musical-timeline',
 	timelineAnnotations: 'soundscaper.timeline-annotations',
+	trackFolders: 'soundscaper.track-folders',
 	audioWarp: 'soundscaper.audio-warp',
 	sequenceTiming: 'framescaper.sequence-timing',
 	videoRetime: 'framescaper.video-retime',
@@ -49,6 +50,7 @@ const OWNED_VIDEO_EFFECT_REQUIREMENT: ProjectFeatureRequirement = Object.freeze(
 const FOUNDATION_REQUIREMENTS = Object.freeze({
 	musicalTimeline: requirement('musicalTimeline', 'Musical timeline'),
 	timelineAnnotations: requirement('timelineAnnotations', 'Timeline markers and regions'),
+	trackFolders: requirement('trackFolders', 'Nested track folders'),
 	audioWarp: requirement('audioWarp', 'Audio warp maps'),
 	sequenceTiming: requirement('sequenceTiming', 'Sequence timing'),
 	videoRetime: requirement('videoRetime', 'Video retime maps'),
@@ -70,6 +72,10 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		FOUNDATION_REQUIREMENTS.timelineAnnotations,
 		(project) => dataArray(project, 'timelineAnnotations').length > 0,
 	),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.trackFolders,
+		(project) => dataArray(project, 'trackFolders').length > 0,
+	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.audioWarp, (project) => projectHasClipField(project, 'audio', 'warpMap')),
 	foundationOwned(FOUNDATION_REQUIREMENTS.sequenceTiming, projectHasNonDefaultSequenceTiming),
 	foundationOwned(FOUNDATION_REQUIREMENTS.videoRetime, (project) => projectHasClipField(project, 'video', 'retimeMap')),
@@ -77,7 +83,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 ]);
 
 function requirement(
-	key: 'musicalTimeline' | 'timelineAnnotations' | 'audioWarp' | 'sequenceTiming' | 'videoRetime' | 'videoTimingAssets',
+	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'audioWarp' | 'sequenceTiming' | 'videoRetime' | 'videoTimingAssets',
 	displayName: string,
 ): ProjectFeatureRequirement {
 	return Object.freeze({

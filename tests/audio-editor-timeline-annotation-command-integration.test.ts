@@ -14,8 +14,8 @@ import {
 	createResizeTimelineAnnotationCommand,
 	createUpdateTimelineAnnotationsCommand,
 } from '../src/common/editor/commands.js';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
 import { createTimelineAnnotationRuntimeHandlers } from '../src/common/editor/commands/timeline-annotation-runtime.ts';
@@ -29,7 +29,7 @@ import {
 
 const NOW = '2026-08-09T18:00:00.000Z';
 
-test('the global runtime applies all seven exact-V11 annotation commands without leaking transients', () => {
+test('the global runtime applies all seven current annotation commands without leaking transients', () => {
 	let project = fixtureProject();
 	project = applyEditorCommand(project, createAddTimelineAnnotationCommand(sampleMarker('added', 90)), { now: NOW });
 	project = applyEditorCommand(project, createUpdateTimelineAnnotationsCommand(
@@ -78,8 +78,8 @@ test('the global runtime applies all seven exact-V11 annotation commands without
 	}
 });
 
-test('annotation commands are exact-V11, atomic, and reconcile the reserved owned requirement', () => {
-	const empty = createAudioEditorProjectV11({ id: 'annotation-requirement', now: NOW });
+test('annotation commands are exact-current, atomic, and reconcile the reserved owned requirement', () => {
+	const empty = createCurrentAudioEditorProject({ id: 'annotation-requirement', now: NOW });
 	const added = applyEditorCommand(empty, createAddTimelineAnnotationCommand(sampleMarker('only', 10)), { now: NOW });
 	assert.ok(added.featureRequirements.requirements.some(({ id }) => (
 		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.timelineAnnotations
@@ -92,7 +92,7 @@ test('annotation commands are exact-V11, atomic, and reconcile the reserved owne
 	const historical = createAudioEditorProjectV10({ id: 'annotation-v10-reject', now: NOW });
 	assert.throws(
 		() => applyEditorCommand(historical, createAddTimelineAnnotationCommand(sampleMarker('no-v10', 10)), { now: NOW }),
-		/exact schema V11|schema 11/iu,
+		/schema V11 or V12|schema 11 or 12/iu,
 	);
 
 	const original = fixtureProject();
@@ -170,7 +170,7 @@ test('cross-domain batches rebase annotation commands after a tempo-map mutation
 });
 
 test('history restores annotation state, selection, and its owned requirement through undo and redo', () => {
-	let history = createEditorHistory(createAudioEditorProjectV11({
+	let history = createEditorHistory(createCurrentAudioEditorProject({
 		id: 'annotation-history',
 		now: NOW,
 	}));
@@ -220,7 +220,7 @@ test('maximum annotation and tempo maps remain bounded through command and share
 		anchor: 'musical' as const,
 		positionBeat: { num: index, den: 1 },
 	}));
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'annotation-command-maximum',
 		now: NOW,
 		tempoMap: {
@@ -352,8 +352,8 @@ test('the low-level runtime rejects non-replayable nested command records atomic
 	assert.deepEqual(original, snapshot);
 });
 
-function fixtureProject(): ReturnType<typeof createAudioEditorProjectV11> {
-	return createAudioEditorProjectV11({
+function fixtureProject(): ReturnType<typeof createCurrentAudioEditorProject> {
+	return createCurrentAudioEditorProject({
 		id: 'annotation-command-integration',
 		now: NOW,
 		timelineAnnotations: [
@@ -405,7 +405,7 @@ function musicalRegion(
 }
 
 function annotation(
-	project: ReturnType<typeof createAudioEditorProjectV11>,
+	project: ReturnType<typeof createCurrentAudioEditorProject>,
 	id: string,
 ): TimelineAnnotationV11 {
 	const result = project.timelineAnnotations.find((candidate) => candidate.id === id);
@@ -414,7 +414,7 @@ function annotation(
 }
 
 function historyState(projectValue: object) {
-	const project = projectValue as ReturnType<typeof createAudioEditorProjectV11>;
+	const project = projectValue as ReturnType<typeof createCurrentAudioEditorProject>;
 	return {
 		timelineAnnotations: structuredClone(project.timelineAnnotations),
 		annotationIds: [...project.selection.annotationIds],

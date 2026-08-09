@@ -759,7 +759,7 @@ test('track move actions reorder paired video and audio lanes as one layer block
 		laneGroupId: 'background-lane-group',
 		opaqueExtensions: {},
 	});
-	projectInput.sequences[0].trackIds.push('background-video-track', 'background-audio-track');
+	projectInput.sequences[0].trackIds.push('background-video-track', 'background-audio-track'); projectInput.sequences[0].trackNodes.push({ kind: 'track', id: 'background-video-track', parentFolderId: null }, { kind: 'track', id: 'background-audio-track', parentFolderId: null });
 	const project = createCurrentAudioEditorProject(projectInput);
 	validateCurrentAudioEditorProject(project);
 	store.projects.set(project.id, project);

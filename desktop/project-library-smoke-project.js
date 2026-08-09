@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION = 11;
+export const DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION = 12;
 export const DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID = 'main-sequence';
 
 export function createDesktopSmokeProjectFoundation(trackIds) {
@@ -9,6 +9,7 @@ export function createDesktopSmokeProjectFoundation(trackIds) {
 	}
 	return {
 		schemaVersion: DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION,
+		trackFolders: [],
 		sequences: [{
 			id: DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
 			name: 'Main sequence',
@@ -16,6 +17,7 @@ export function createDesktopSmokeProjectFoundation(trackIds) {
 			dropFrame: false,
 			startTimecode: { negative: false, hours: 0, minutes: 0, seconds: 0, frames: 0 },
 			trackIds: [...trackIds],
+			trackNodes: trackIds.map((id) => ({ kind: 'track', id, parentFolderId: null })),
 		}],
 		primarySequenceId: DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
 		tempoMap: {

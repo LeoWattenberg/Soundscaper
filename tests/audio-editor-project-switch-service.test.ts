@@ -26,6 +26,7 @@ interface TestProject extends ProjectLifecycleProject {
 	readonly title: string; readonly sampleRate: number;
 	readonly tracks: readonly TestTrack[]; readonly clips: readonly Readonly<{ id: string }>[];
 	readonly schemaVersion?: number; readonly featureRequirements?: unknown;
+	readonly trackFolders?: readonly unknown[];
 }
 interface TestHistory extends ProjectLifecycleHistory<TestProject> { readonly present: TestProject; }
 type TestTab = ProjectLifecycleTab<TestProject, TestHistory>;
@@ -33,7 +34,7 @@ interface TestLock extends ProjectLifecycleLock { releases: number; }
 
 function project(id: string, tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }]): TestProject {
 	return {
-		id, title: id, sampleRate: 48_000, tracks, clips: [], schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		id, title: id, sampleRate: 48_000, tracks, clips: [], trackFolders: [], schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: [] },
 	};
 }
