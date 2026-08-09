@@ -45,8 +45,8 @@ test('less-capable return qualification records the same two browser engines and
 	const inventory = JSON.parse(await readFile(new URL('config/milestone-2-closure.json', root), 'utf8'));
 	const item = inventory.items.find(({ id }) => id === 'm2-compatibility-less-capable-roundtrip');
 	assert.ok(item);
-	assert.equal(item.status, 'partial');
+	assert.equal(item.status, 'implemented');
 	assert.deepEqual(item.qualifiedBrowserProjects, ['chromium', 'firefox']);
-	assert.deepEqual(item.unqualifiedBrowserProjects, ['webkit']);
+	assert.deepEqual(item.deferredBrowserProjects, ['webkit']);
 	assert.equal(item.packagedProductPairQualified, true);
 });

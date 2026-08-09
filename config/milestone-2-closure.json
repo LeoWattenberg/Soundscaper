@@ -58,7 +58,7 @@
 		},
 		{
 			"id": "m2-gate-feature-compatibility",
-			"status": "partial",
+			"status": "implemented",
 			"itemIds": [
 				"m2-compatibility-affected-objects",
 				"m2-compatibility-bypass",
@@ -370,7 +370,7 @@
 		{
 			"id": "m2-compatibility-less-capable-roundtrip",
 			"gateId": "m2-gate-feature-compatibility",
-			"status": "partial",
+			"status": "implemented",
 			"workflowIds": [
 				"audio-whole-mix-web-roundtrip",
 				"audio-track-render-web-roundtrip",
@@ -382,7 +382,7 @@
 				"video-clip-render-electron-roundtrip"
 			],
 			"qualifiedBrowserProjects": ["chromium", "firefox"],
-			"unqualifiedBrowserProjects": ["webkit"],
+			"deferredBrowserProjects": ["webkit"],
 			"packagedProductPairQualified": true,
 			"acceptance": [
 				"Each workflow ID opens on the less-capable product, uses its admitted fallback, saves or exports without canonical mutation and returns to the originating product with editable and opaque state preserved.",

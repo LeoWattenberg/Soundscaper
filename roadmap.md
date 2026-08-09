@@ -286,10 +286,10 @@ update an item's status only after its listed acceptance conditions pass.
 
 #### 2.2 Compatibility completion
 
-- `m2-compatibility-less-capable-roundtrip`
-
-Its exact web workflow set is qualified in Chromium and Firefox, and its
-packaged product-pair workflow is qualified. WebKit remains unqualified.
+The exact `m2-compatibility-less-capable-roundtrip` web workflow set is
+qualified in Chromium and Firefox, and its packaged product-pair workflow is
+qualified. WebKit qualification is deferred by scope revision 2, so that item
+and the feature-compatibility gate are implemented.
 
 `m2-compatibility-affected-objects` and `m2-compatibility-bypass` are already
 implemented. The implemented fallback role set is exactly
@@ -324,7 +324,7 @@ desktop workflows, and platform sets named in the inventory.
 | --- | --- | --- |
 | `m2-gate-mixed-media-handoff` | **Implemented** | `m2-handoff-packaged-roundtrip`, `m2-media-relationship-roundtrip`, `m2-linked-media-lifecycle`, `m2-managed-capacity-admission` |
 | `m2-gate-bounded-pipelines` | **Implemented** | `m2-pipeline-route-qualification`, `m2-pipeline-resource-qualification`, `m2-opfs-worker-boundary` |
-| `m2-gate-feature-compatibility` | **Partial** | `m2-compatibility-affected-objects`, `m2-compatibility-bypass`, `m2-compatibility-fallback-roles`, `m2-compatibility-future-archive`, `m2-compatibility-less-capable-roundtrip` |
+| `m2-gate-feature-compatibility` | **Implemented** | `m2-compatibility-affected-objects`, `m2-compatibility-bypass`, `m2-compatibility-fallback-roles`, `m2-compatibility-future-archive`, `m2-compatibility-less-capable-roundtrip` |
 | `m2-gate-crash-safe-publication` | **Implemented** | `m2-publication-fault-matrix`, `m2-browser-durability-matrix` |
 | `m2-gate-electron-concurrency` | **Partial** | `m2-electron-lease-matrix` |
 | `m2-gate-cache-cleanup` | **Implemented** | `m2-cache-root-safety` |
