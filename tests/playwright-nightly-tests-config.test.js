@@ -35,6 +35,13 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 		assert.equal(config.failOnFlakyTests, false);
 		assert.equal(config.updateSnapshots, 'none');
 		assert.deepEqual(config.projects.map(({ name }) => name), ['chromium', 'firefox', 'webkit']);
+		const firefox = config.projects.find(({ name }) => name === 'firefox');
+		assert.deepEqual(firefox.use.launchOptions.firefoxUserPrefs, {
+			'media.cubeb.force_mock_context': true,
+		});
+		for (const project of config.projects.filter(({ name }) => name !== 'firefox')) {
+			assert.equal(project.use.launchOptions?.firefoxUserPrefs, undefined);
+		}
 		assert.deepEqual(config.reporter, [
 			['list'],
 			['html', { outputFolder: resolve(runRoot, 'playwright-report'), open: 'never' }],

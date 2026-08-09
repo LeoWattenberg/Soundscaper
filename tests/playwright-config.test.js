@@ -22,6 +22,13 @@ test('Playwright runs the maintained evergreen browser-engine matrix', async () 
 		assert.equal(project.use.viewport.width, 1280);
 		assert.equal(project.use.viewport.height, 720);
 	}
+	const firefox = config.projects.find(({ name }) => name === 'firefox');
+	assert.deepEqual(firefox.use.launchOptions.firefoxUserPrefs, {
+		'media.cubeb.force_mock_context': true,
+	});
+	for (const project of config.projects.filter(({ name }) => name !== 'firefox')) {
+		assert.equal(project.use.launchOptions?.firefoxUserPrefs, undefined);
+	}
 	assert.equal(config.use.serviceWorkers, 'block', 'ordinary browser tests must not install the offline shell');
 });
 

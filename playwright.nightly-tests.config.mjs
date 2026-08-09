@@ -63,7 +63,16 @@ export function createNightlyTestsConfig(environment = process.env) {
 		},
 		projects: [
 			{ name: 'chromium', use: { ...devices['Desktop Chrome'], browserName: 'chromium' } },
-			{ name: 'firefox', use: { ...devices['Desktop Firefox'], browserName: 'firefox' } },
+			{
+				name: 'firefox',
+				use: {
+					...devices['Desktop Firefox'],
+					browserName: 'firefox',
+					launchOptions: {
+						firefoxUserPrefs: { 'media.cubeb.force_mock_context': true },
+					},
+				},
+			},
 			{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit' } },
 		],
 	});
