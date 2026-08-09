@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import type { ScapeAssetDescriptor } from '../src/common/editor/scape-archive-envelope.ts';
 import { indexScapeProjectAssets } from '../src/common/editor/scape-project-assets.ts';
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 
 test('scape project assets are indexed by exact migrated source identity', () => {
 	const audio = descriptor('audio-source', 'audio');
@@ -20,6 +21,23 @@ test('scape project assets are indexed by exact migrated source identity', () =>
 	assert.equal(result.get('audio-source'), audio);
 	assert.equal(result.get('video-source'), video);
 	assert.equal(indexScapeProjectAssets({ sources: [] }, { assets: [] }).size, 0);
+});
+
+test('current Scape video assets bind archive bytes to source.contentSha256', () => {
+	const sourceSha256 = '1'.repeat(64);
+	const project = createAudioEditorProjectV10({
+		sources: [{
+			id: 'video-source', kind: 'video', storageKey: 'video-original', name: 'video.mp4',
+			mimeType: 'video/mp4', frameCount: 4_800, sampleRate: 48_000, width: 16, height: 16,
+			frameRate: { num: 30, den: 1 }, sourceFrameCount: 3, contentSha256: sourceSha256,
+		}],
+	});
+	const video = { ...descriptor('video-source', 'video'), sha256: sourceSha256 };
+	assert.equal(indexScapeProjectAssets(project, { assets: [video] }).get(video.sourceId), video);
+	assert.throws(
+		() => indexScapeProjectAssets(project, { assets: [{ ...video, sha256: '2'.repeat(64) }] }),
+		/source content|content SHA-256|original.*digest/iu,
+	);
 });
 
 test('current Scape projects bind every rendered fallback digest to its canonical asset', () => {

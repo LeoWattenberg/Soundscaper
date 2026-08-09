@@ -1,0 +1,75 @@
+{
+	"schemaVersion": 1,
+	"workPacket": "WP-0.3",
+	"acceptance": "Probe results on the supported-browser and Electron matrix for representative CFR and VFR fixtures.",
+	"fixtures": [
+		{
+			"id": "cfr-25fps-mp4-v1",
+			"kind": "cfr",
+			"sourceSha256": "28978274c947a886046d7f7bd42f836fb7de2556dc9bac239d950b273b283140",
+			"provenance": "Generated in-repository by the pinned @ffmpeg/core 0.12.10 conformVideoToCfr path at 25/1 from the repository-generated VFR fixture."
+		},
+		{
+			"id": "vfr-irregular-webm-v1",
+			"kind": "vfr",
+			"sourceSha256": "29042248295aa6bfbf7adc0e15a2cfecf716279452073f7410734251aed31ae4",
+			"provenance": "Generated in-repository from a 32x24 canvas with Chromium MediaRecorder and deliberately irregular requestFrame intervals."
+		}
+	],
+	"browserRows": [
+		{
+			"project": "chromium",
+			"version": "149.0.7827.55",
+			"revision": "1228",
+			"status": "automated",
+			"fixtureIds": ["cfr-25fps-mp4-v1", "vfr-irregular-webm-v1"],
+			"evidence": ["tests/browser/audio-editor-video-timing-probe.spec.js"]
+		},
+		{
+			"project": "firefox",
+			"version": "151.0",
+			"revision": "1532",
+			"status": "automated",
+			"fixtureIds": ["cfr-25fps-mp4-v1", "vfr-irregular-webm-v1"],
+			"evidence": ["tests/browser/audio-editor-video-timing-probe.spec.js"]
+		},
+		{
+			"project": "webkit",
+			"version": "26.5",
+			"revision": "2311",
+			"status": "deferred",
+			"reason": "Milestone-2 scope revision 2 and the milestone-3 watch item explicitly defer WebKit qualification."
+		}
+	],
+	"electronRows": [
+		{
+			"product": "soundscaper",
+			"version": "43.1.1",
+			"target": "linux-x64",
+			"status": "pending-external",
+			"blocker": "No packaged Electron timing-probe witness imports both pinned fixtures and validates the persisted timing body."
+		},
+		{
+			"product": "framescaper",
+			"version": "43.1.1",
+			"target": "linux-x64",
+			"status": "pending-external",
+			"blocker": "No packaged Electron timing-probe witness imports both pinned fixtures and validates the persisted timing body."
+		},
+		{
+			"product": "soundscaper",
+			"version": "43.1.1",
+			"target": "windows-x64",
+			"status": "pending-external",
+			"blocker": "A Windows x64 packaged runner and accepted timing-probe result are required."
+		},
+		{
+			"product": "framescaper",
+			"version": "43.1.1",
+			"target": "windows-x64",
+			"status": "pending-external",
+			"blocker": "A Windows x64 packaged runner and accepted timing-probe result are required."
+		}
+	],
+	"minimumFollowUp": "Add a packaged Electron harness that drives the ordinary import path, validates the exact persisted timing asset body for both fixtures, and publish passing Soundscaper and Framescaper results from the maintained linux-x64 and windows-x64 runners."
+}

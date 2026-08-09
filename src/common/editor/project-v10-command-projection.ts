@@ -1,18 +1,35 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	brandRuntimeProjectProjection,
 	resolveRuntimeClipProjection,
 	resolveRuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
+	beatToSampleFrame,
 	sampleFrameToVideoFrame,
 	subtractRationals,
 	type HoldTempoMap,
 	type RationalRate,
 } from './timeline-time.ts';
+import {
+	CONFORMED_SEQUENCE_PLACEMENT,
+	FOUNDATION_EDIT_OPERATION,
+} from './commands/command-projection-transients.ts';
 
-type DataRecord = Record<string, unknown>;
+type EditOperation = object;
+type DataRecord = Record<string, unknown> & {
+	[CONFORMED_SEQUENCE_PLACEMENT]?: true;
+	[FOUNDATION_EDIT_OPERATION]?: EditOperation;
+};
+
+interface ConformedBoundaryDelta {
+	readonly baseSequenceBoundary: number;
+	readonly resolvedSampleDelta: number;
+}
+
+type ConformedOperationDeltas = Map<number, ConformedBoundaryDelta>;
 
 /** Supply command implementations with legacy-shaped, transient resolved coordinates. */
 export function projectV10ForCommand(project: DataRecord): DataRecord {
@@ -28,7 +45,7 @@ export function projectV10ForCommand(project: DataRecord): DataRecord {
 			clips: projectBinClips(project).map((clip) => resolveRuntimeClipProjection(project, clip)),
 		},
 	};
-	return projected;
+	return brandRuntimeProjectProjection(projected);
 }
 
 /** Convert a command's resolved-sample mutations back to one authoritative v10 domain per coordinate. */
@@ -53,14 +70,45 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 	const sourceById = new Map(sources.map((source) => [String(source.id), source]));
 	const baseClips = new Map(recordArray(persistedBase.clips, 'project.clips').map((clip) => [String(clip.id), clip]));
 	const clips = recordArray(draft.clips, 'project.clips').map((clip) => ({ ...clip }));
+	const sequenceIdByClipId = sequenceIdsByClip(draft, sequences);
+	const conformedDeltas = new Map<string, Map<EditOperation, ConformedOperationDeltas>>();
 	for (const clip of clips) if (clip.kind === 'video') {
-		conformVideoClip(clip, sequenceById, sourceById, primarySequenceId, sampleRate);
+		const owningSequenceId = sequenceIdByClipId.get(String(clip.id));
+		if (owningSequenceId) clip.sequenceId = owningSequenceId;
+		const editOperation = clip[FOUNDATION_EDIT_OPERATION];
+		const conformed = conformVideoClip(
+			clip,
+			baseClips.get(String(clip.id)),
+			persistedBase,
+			sequenceById,
+			sourceById,
+			primarySequenceId,
+			sampleRate,
+		);
+		if (!conformed || !editOperation) continue;
+		const byOperation = conformedDeltas.get(conformed.sequenceId) ?? new Map();
+		const byDelta = byOperation.get(editOperation) ?? new Map();
+		for (const boundary of conformed.boundaries) {
+			const previous = byDelta.get(boundary.requestedSampleDelta);
+			if (!previous || boundary.baseSequenceBoundary < previous.baseSequenceBoundary) {
+				byDelta.set(boundary.requestedSampleDelta, boundary);
+			}
+		}
+		byOperation.set(editOperation, byDelta);
+		conformedDeltas.set(conformed.sequenceId, byOperation);
 	}
 	const resolvedVideoByLink = new Map<string, ReturnType<typeof resolveRuntimeClipProjection>>();
 	for (const clip of clips) if (clip.kind === 'video' && typeof clip.avLinkId === 'string') {
 		resolvedVideoByLink.set(clip.avLinkId, resolveRuntimeClipProjection(draft, clip));
 	}
 	for (const clip of clips) if (clip.kind === 'audio') {
+		conformMixedOperationAudioPlacement(
+			clip,
+			baseClips.get(String(clip.id)),
+			persistedBase,
+			sequenceIdByClipId,
+			conformedDeltas,
+		);
 		const linked = typeof clip.avLinkId === 'string' ? resolvedVideoByLink.get(clip.avLinkId) : null;
 		if (linked) {
 			clip.timelineStartFrame = linked.timelineStartFrame;
@@ -73,7 +121,15 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 	const bin = record(draft.projectBin, 'project.projectBin');
 	const binClips = recordArray(bin.clips, 'project.projectBin.clips').map((clip) => ({ ...clip }));
 	for (const clip of binClips) {
-		if (clip.kind === 'video') conformVideoClip(clip, sequenceById, sourceById, primarySequenceId, sampleRate);
+		if (clip.kind === 'video') conformVideoClip(
+			clip,
+			baseBinClips.get(String(clip.id)),
+			persistedBase,
+			sequenceById,
+			sourceById,
+			primarySequenceId,
+			sampleRate,
+		);
 		else conformAudioClip(clip, baseBinClips.get(String(clip.id)), tempoMap, sampleRate);
 	}
 	bin.clips = binClips;
@@ -85,29 +141,191 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 
 function conformVideoClip(
 	clip: DataRecord,
+	base: DataRecord | undefined,
+	persistedBase: DataRecord,
 	sequenceById: ReadonlyMap<string, DataRecord>,
 	sourceById: ReadonlyMap<string, DataRecord>,
 	primarySequenceId: string,
 	sampleRate: number,
-): void {
+): Readonly<{
+	sequenceId: string;
+	boundaries: readonly Readonly<{
+		requestedSampleDelta: number;
+		baseSequenceBoundary: number;
+		resolvedSampleDelta: number;
+	}>[];
+}> | null {
 	const sequenceId = String(clip.sequenceId ?? primarySequenceId);
 	const sequence = sequenceById.get(sequenceId);
 	if (!sequence) throw new ReferenceError(`Video clip ${String(clip.id)} references a missing sequence.`);
 	const source = sourceById.get(String(clip.sourceId));
 	if (!source || source.kind !== 'video') throw new ReferenceError(`Video clip ${String(clip.id)} references a missing video source.`);
 	const rate = rationalRate(sequence.rate, 'sequence.rate');
+	let operation = null;
 	if (Number.isSafeInteger(clip.timelineStartFrame) && Number.isSafeInteger(clip.durationFrames)) {
 		const timelineStart = Number(clip.timelineStartFrame);
 		const timelineEnd = safeAdd(timelineStart, Number(clip.durationFrames), 'clip timeline range');
-		const start = sampleFrameToVideoFrame(timelineStart, rate, sampleRate, 'point');
-		const end = sampleFrameToVideoFrame(timelineEnd, rate, sampleRate, 'point');
-		clip.sequenceStartFrame = start;
-		clip.sequenceFrameCount = Math.max(1, end - start);
+		if (base?.kind === 'video' && String(base.sequenceId) === sequenceId) {
+			const baseProjection = resolveRuntimeClipProjection(persistedBase, base);
+			const baseStart = nonNegativeSafeInteger(base.sequenceStartFrame, 'clip.sequenceStartFrame');
+			const baseCount = positiveSafeInteger(base.sequenceFrameCount, 'clip.sequenceFrameCount');
+			const requestedSampleDelta = timelineStart - baseProjection.timelineStartFrame;
+			const requestedEndDelta = timelineEnd - baseProjection.timelineEndFrame;
+			const startDelta = sampleFrameToVideoFrame(requestedSampleDelta, rate, sampleRate, 'point');
+			const endDelta = sampleFrameToVideoFrame(requestedEndDelta, rate, sampleRate, 'point');
+			const start = safeAdd(baseStart, startDelta, 'clip sequence start');
+			const end = safeAdd(safeAdd(baseStart, baseCount, 'clip sequence range'), endDelta, 'clip sequence end');
+			if (start < 0 || end <= start) throw new RangeError(`Video clip ${String(clip.id)} does not retain a positive frame-grid range.`);
+			clip.sequenceStartFrame = start;
+			clip.sequenceFrameCount = end - start;
+			const conformedProjection = resolveRuntimeClipProjection(persistedBase, {
+				...base,
+				sequenceStartFrame: start,
+				sequenceFrameCount: end - start,
+			});
+			operation = {
+				sequenceId,
+				boundaries: [
+					{
+						requestedSampleDelta,
+						baseSequenceBoundary: baseStart,
+						resolvedSampleDelta: conformedProjection.timelineStartFrame - baseProjection.timelineStartFrame,
+					},
+					{
+						requestedSampleDelta: requestedEndDelta,
+						baseSequenceBoundary: safeAdd(baseStart, baseCount, 'clip sequence range'),
+						resolvedSampleDelta: conformedProjection.timelineEndFrame - baseProjection.timelineEndFrame,
+					},
+				],
+			};
+		} else if (base?.kind === 'video') {
+			const baseProjection = resolveRuntimeClipProjection(persistedBase, base);
+			const baseCount = positiveSafeInteger(base.sequenceFrameCount, 'clip.sequenceFrameCount');
+			const requestedSampleDelta = timelineStart - baseProjection.timelineStartFrame;
+			const requestedEndDelta = timelineEnd - baseProjection.timelineEndFrame;
+			const start = sampleFrameToVideoFrame(timelineStart, rate, sampleRate, 'point');
+			const end = requestedSampleDelta === requestedEndDelta
+				? safeAdd(start, baseCount, 'clip sequence range')
+				: sampleFrameToVideoFrame(timelineEnd, rate, sampleRate, 'point');
+			if (start < 0 || end <= start) throw new RangeError(`Video clip ${String(clip.id)} does not retain a positive frame-grid range.`);
+			clip.sequenceStartFrame = start;
+			clip.sequenceFrameCount = end - start;
+			const conformedProjection = resolveRuntimeClipProjection(persistedBase, {
+				...base,
+				sequenceId,
+				sequenceStartFrame: start,
+				sequenceFrameCount: end - start,
+			});
+			operation = {
+				sequenceId,
+				boundaries: [
+					{
+						requestedSampleDelta,
+						baseSequenceBoundary: start,
+						resolvedSampleDelta: conformedProjection.timelineStartFrame - baseProjection.timelineStartFrame,
+					},
+					{
+						requestedSampleDelta: requestedEndDelta,
+						baseSequenceBoundary: end,
+						resolvedSampleDelta: conformedProjection.timelineEndFrame - baseProjection.timelineEndFrame,
+					},
+				],
+			};
+		} else if (clip[CONFORMED_SEQUENCE_PLACEMENT] === true) {
+			const sequenceStart = nonNegativeSafeInteger(clip.sequenceStartFrame, 'clip.sequenceStartFrame');
+			const sequenceCount = positiveSafeInteger(clip.sequenceFrameCount, 'clip.sequenceFrameCount');
+			const resolved = resolveRuntimeClipProjection(persistedBase, {
+				...clip,
+				sequenceId,
+				sequenceStartFrame: sequenceStart,
+				sequenceFrameCount: sequenceCount,
+			});
+			if (resolved.timelineStartFrame !== timelineStart || resolved.timelineEndFrame !== timelineEnd) {
+				throw new RangeError(`Video clip ${String(clip.id)} has inconsistent conformed sequence placement.`);
+			}
+		} else {
+			const start = sampleFrameToVideoFrame(timelineStart, rate, sampleRate, 'point');
+			const end = sampleFrameToVideoFrame(timelineEnd, rate, sampleRate, 'point');
+			clip.sequenceStartFrame = start;
+			clip.sequenceFrameCount = Math.max(1, end - start);
+		}
 	}
 	clip.sequenceId = sequenceId;
 	if (Number.isSafeInteger(clip.sourceStartFrame)) clip.sourceInFrame = clip.sourceStartFrame;
 	if (Number.isSafeInteger(clip.sourceDurationFrames)) clip.sourceFrameCount = clip.sourceDurationFrames;
 	stripProjection(clip, ['timelineStartFrame', 'durationFrames', 'sourceStartFrame', 'sourceDurationFrames']);
+	delete clip[CONFORMED_SEQUENCE_PLACEMENT];
+	return operation;
+}
+
+function conformMixedOperationAudioPlacement(
+	clip: DataRecord,
+	base: DataRecord | undefined,
+	persistedBase: DataRecord,
+	sequenceIdByClipId: ReadonlyMap<string, string>,
+	conformedDeltas: ReadonlyMap<string, ReadonlyMap<EditOperation, ReadonlyMap<number, ConformedBoundaryDelta>>>,
+): void {
+	const operation = clip[FOUNDATION_EDIT_OPERATION];
+	if (!operation) return;
+	if (!base || base.kind !== 'audio' || !Number.isSafeInteger(clip.timelineStartFrame)
+		|| !Number.isSafeInteger(clip.durationFrames)) return;
+	const sequenceId = sequenceIdByClipId.get(String(clip.id));
+	if (!sequenceId) return;
+	const baseProjection = resolveRuntimeClipProjection(persistedBase, base);
+	const requestedStart = Number(clip.timelineStartFrame);
+	const requestedEnd = safeAdd(requestedStart, Number(clip.durationFrames), 'clip timeline range');
+	const requestedStartDelta = requestedStart - baseProjection.timelineStartFrame;
+	const requestedEndDelta = requestedEnd - baseProjection.timelineEndFrame;
+	const byDelta = conformedDeltas.get(sequenceId)?.get(operation);
+	if (!byDelta) return;
+	const startDelta = byDelta.get(requestedStartDelta);
+	if (!startDelta) return;
+	const resolvedStart = baseProjection.timelineStartFrame + startDelta.resolvedSampleDelta;
+	if (requestedStartDelta === requestedEndDelta) {
+		clip.timelineStartFrame = resolvedStart;
+		return;
+	}
+	const endDelta = byDelta.get(requestedEndDelta);
+	if (!endDelta) return;
+	const resolvedEnd = baseProjection.timelineEndFrame + endDelta.resolvedSampleDelta;
+	if (resolvedEnd <= resolvedStart) {
+		throw new RangeError(`Audio clip ${String(clip.id)} does not retain a positive conformed range.`);
+	}
+	clip.timelineStartFrame = resolvedStart;
+	clip.durationFrames = resolvedEnd - resolvedStart;
+	if (!Number.isSafeInteger(clip.sourceStartFrame) || !Number.isSafeInteger(clip.sourceDurationFrames)) return;
+	const requestedSourceStart = Number(clip.sourceStartFrame);
+	const requestedSourceEnd = safeAdd(
+		requestedSourceStart,
+		Number(clip.sourceDurationFrames),
+		'clip source range',
+	);
+	const requestedSourceStartDelta = requestedSourceStart - baseProjection.sourceStartFrame;
+	const requestedSourceEndDelta = requestedSourceEnd - baseProjection.sourceEndFrame;
+	if (requestedSourceStartDelta !== requestedStartDelta || requestedSourceEndDelta !== requestedEndDelta) return;
+	const resolvedSourceStart = baseProjection.sourceStartFrame + startDelta.resolvedSampleDelta;
+	const resolvedSourceEnd = baseProjection.sourceEndFrame + endDelta.resolvedSampleDelta;
+	if (resolvedSourceStart < 0 || resolvedSourceEnd <= resolvedSourceStart) {
+		throw new RangeError(`Audio clip ${String(clip.id)} does not retain a positive conformed source range.`);
+	}
+	clip.sourceStartFrame = resolvedSourceStart;
+	clip.sourceDurationFrames = resolvedSourceEnd - resolvedSourceStart;
+}
+
+function sequenceIdsByClip(project: DataRecord, sequences: readonly DataRecord[]): ReadonlyMap<string, string> {
+	const sequenceIdByTrackId = new Map<string, string>();
+	for (const sequence of sequences) for (const trackId of Array.isArray(sequence.trackIds) ? sequence.trackIds : []) {
+		sequenceIdByTrackId.set(String(trackId), String(sequence.id));
+	}
+	const result = new Map<string, string>();
+	for (const track of recordArray(project.tracks, 'project.tracks')) {
+		const sequenceId = sequenceIdByTrackId.get(String(track.id));
+		if (!sequenceId) continue;
+		for (const clipId of Array.isArray(track.clipIds) ? track.clipIds : []) {
+			result.set(String(clipId), sequenceId);
+		}
+	}
+	return result;
 }
 
 function conformAudioClip(
@@ -152,9 +370,14 @@ function conformLabels(draft: DataRecord, persistedBase: DataRecord, tempoMap: H
 			const start = nonNegativeSafeInteger(label.startFrame, 'label.startFrame');
 			const end = nonNegativeSafeInteger(label.endFrame, 'label.endFrame');
 			const base = baseLabels.get(String(label.id));
-			const baseStart = base ? sampleFrameToBeat(start, tempoMap, sampleRate) : null;
-			if (!base || JSON.stringify(base.startBeat) !== JSON.stringify(baseStart)) label.startBeat = sampleFrameToBeat(start, tempoMap, sampleRate);
-			label.endBeat = sampleFrameToBeat(end, tempoMap, sampleRate);
+			const baseStart = base?.anchor === 'musical'
+				? beatToSampleFrame(base.startBeat as { num: number; den: number }, tempoMap, sampleRate)
+				: null;
+			const baseEnd = base?.anchor === 'musical'
+				? beatToSampleFrame(base.endBeat as { num: number; den: number }, tempoMap, sampleRate)
+				: null;
+			if (baseStart === null || start !== baseStart) label.startBeat = sampleFrameToBeat(start, tempoMap, sampleRate);
+			if (baseEnd === null || end !== baseEnd) label.endBeat = sampleFrameToBeat(end, tempoMap, sampleRate);
 			delete label.startFrame;
 			delete label.endFrame;
 			delete label.coordinateDomain;
@@ -184,6 +407,7 @@ function stripProjection(clip: DataRecord, additional: readonly string[] = []): 
 	]) {
 		delete clip[name];
 	}
+	delete clip[FOUNDATION_EDIT_OPERATION];
 }
 
 function projectBinClips(project: DataRecord): DataRecord[] {

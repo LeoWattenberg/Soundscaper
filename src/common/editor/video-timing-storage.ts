@@ -1,26 +1,37 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
-
 import {
 	createVideoTimingAssetPublication,
-	decodeVideoTimingAsset,
 	normalizeVideoTimingAssetReference,
+	validateVideoTimingAssetBytes,
 	VIDEO_TIMING_ASSET_MIME_TYPE,
 	type VideoTimingAssetInput,
 	type VideoTimingAssetReference,
 	type VideoTimingIndex,
 } from './video-timing-asset.ts';
+import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
+import type {
+	OwnedMediaAssetPublication,
+	OwnedMediaAssetWriter,
+} from './storage/media-asset-write-contract.ts';
 
 export interface VideoTimingMediaStore {
 	getMediaAssetMetadata(storageKey: string): PromiseLike<Readonly<Record<string, unknown>> | null>;
-	writeMediaAsset(
+	writeMediaAsset?(
 		storageKey: string,
 		input: Blob,
 		metadata?: Readonly<Record<string, unknown>>,
 		options?: Readonly<{ signal?: AbortSignal }>,
 	): PromiseLike<Readonly<Record<string, unknown>>>;
+	beginMediaAssetWrite(
+		storageKey: string,
+		metadata: Readonly<Record<string, unknown>>,
+		options: Readonly<{
+			expectedBytes: number;
+			expectedSha256: string;
+			signal?: AbortSignal;
+		}>,
+	): PromiseLike<OwnedMediaAssetWriter>;
 	loadMediaAsset(storageKey: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<Blob | null>;
 }
 
@@ -29,7 +40,11 @@ export async function publishVideoTimingAsset(
 	sourceSha256: string,
 	input: VideoTimingAssetInput,
 	options: Readonly<{ signal?: AbortSignal }> = {},
-): Promise<Readonly<{ reference: Readonly<VideoTimingAssetReference>; created: boolean }>> {
+): Promise<Readonly<{
+	reference: Readonly<VideoTimingAssetReference>;
+	created: boolean;
+	publication: OwnedMediaAssetPublication | null;
+}>> {
 	const publication = createVideoTimingAssetPublication(sourceSha256, input);
 	const { reference, bytes } = publication;
 	const existing = await store.getMediaAssetMetadata(reference.storageKey);
@@ -37,22 +52,60 @@ export async function publishVideoTimingAsset(
 		if (existing.sha256 !== reference.sha256 || existing.size !== reference.byteLength) {
 			throw new Error('An immutable timing asset key is occupied by different content.');
 		}
-		return Object.freeze({ reference, created: false });
+		const loaded = await loadVideoTimingAsset(store, reference, {
+			signal: options.signal,
+			sourceSha256,
+		});
+		if (loaded.status !== 'available') {
+			throw new Error(`The immutable stored timing asset is ${loaded.status}.`);
+		}
+		return Object.freeze({ reference, created: false, publication: null });
 	}
-	const metadata = await store.writeMediaAsset(
+	validateVideoTimingAssetBytes(reference, bytes);
+	const writer = await store.beginMediaAssetWrite(
 		reference.storageKey,
-		new Blob([Uint8Array.from(bytes).buffer], { type: VIDEO_TIMING_ASSET_MIME_TYPE }),
 		{
 			name: `${reference.sha256}.scti`,
 			mimeType: VIDEO_TIMING_ASSET_MIME_TYPE,
 			kind: 'video-timing',
 		},
-		options,
+		{
+			expectedBytes: reference.byteLength,
+			expectedSha256: reference.sha256,
+			signal: options.signal,
+		},
 	);
-	if (metadata.sha256 !== reference.sha256 || metadata.size !== reference.byteLength) {
-		throw new Error('Published timing asset metadata disagrees with its canonical reference.');
+	let ownedPublication: OwnedMediaAssetPublication | null = null;
+	try {
+		const chunkBytes = timingWriterChunkBytes(writer.maximumChunkBytes);
+		for (let offset = 0; offset < bytes.byteLength; offset += chunkBytes) {
+			throwIfTimingAborted(options.signal);
+			await writer.write(bytes.subarray(offset, Math.min(offset + chunkBytes, bytes.byteLength)), options);
+		}
+		if (writer.bytesWritten !== reference.byteLength) {
+			throw new Error('Published timing asset emitted an unexpected byte length.');
+		}
+		ownedPublication = await writer.commitOwned(options);
+		throwIfTimingAborted(options.signal);
+		if (ownedPublication.metadata.sha256 !== reference.sha256
+			|| ownedPublication.metadata.size !== reference.byteLength) {
+			throw new Error('Published timing asset metadata disagrees with its canonical reference.');
+		}
+	} catch (error) {
+		try {
+			if (ownedPublication) await ownedPublication.discardIfCurrent();
+			else await writer.abort();
+		} catch (cleanupError) {
+			throw new AggregateError(
+				[error, cleanupError],
+				'Timing asset publication and cleanup both failed.',
+				{ cause: error },
+			);
+		}
+		throw error;
 	}
-	return Object.freeze({ reference, created: true });
+	if (!ownedPublication) throw new Error('The timing asset publication did not return an ownership capability.');
+	return Object.freeze({ reference, created: true, publication: ownedPublication });
 }
 
 export async function loadVideoTimingAsset(
@@ -73,16 +126,25 @@ export async function loadVideoTimingAsset(
 	const blob = await store.loadMediaAsset(reference.storageKey, options);
 	if (!blob) return Object.freeze({ status: 'missing', index: null });
 	try {
-		const bytes = new Uint8Array(await blob.arrayBuffer());
-		if (bytesToHex(sha256(bytes)) !== reference.sha256) throw new Error('digest');
-		const index = decodeVideoTimingAsset(bytes);
-		if (blob.size !== reference.byteLength || index.frameCount !== reference.frameCount
-			|| index.timescale !== reference.timescale
-			|| index.finalFrameDurationTicks.toString() !== reference.finalFrameDurationTicks) {
-			throw new Error('summary');
-		}
+		const canonicalBlob = canonicalMediaContentBlob(blob);
+		if (canonicalBlob.size !== reference.byteLength) throw new Error('length');
+		const bytes = new Uint8Array(await canonicalBlob.arrayBuffer());
+		const index = validateVideoTimingAssetBytes(reference, bytes);
 		return Object.freeze({ status: 'available', index });
 	} catch {
 		return Object.freeze({ status: 'corrupt', index: null });
 	}
+}
+
+function timingWriterChunkBytes(value: unknown): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 1) {
+		throw new RangeError('The timing media writer has an invalid chunk bound.');
+	}
+	return Number(value);
+}
+
+function throwIfTimingAborted(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	if (signal.reason !== undefined) throw signal.reason;
+	throw new DOMException('Timing asset publication was cancelled.', 'AbortError');
 }

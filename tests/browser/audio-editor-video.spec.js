@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test.describe('audio editor video composition workflow', () => {
 	test.beforeEach(async ({ page }) => {
+		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

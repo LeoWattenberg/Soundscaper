@@ -15,12 +15,12 @@ import {
 	validateScapeOpenSmokeResult,
 } from '../../desktop/scape-open-smoke.js';
 import {
-	createAudioClipV9,
-	createAudioEditorProjectV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	validateAudioEditorProjectV9,
-} from '../../src/common/editor/project-v9.ts';
+	createAudioClipV10,
+	createAudioEditorProjectV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
+} from '../../src/common/editor/project-v10.ts';
+import { validateAudioEditorProjectV10 } from '../../src/common/editor/project-v10-validation.ts';
 import { exportScapeProject } from '../../src/common/editor/scape-project.js';
 import {
 	packagedExecutableCandidates,
@@ -63,7 +63,7 @@ export const DESKTOP_SCAPE_OPEN_FIXTURE = deepFreeze({
 export async function createDesktopScapeOpenFixture(profileRoot) {
 	const profile = absolutePath(profileRoot, 'fixture profile root');
 	const project = createFixtureProject();
-	validateAudioEditorProjectV9(project);
+	validateAudioEditorProjectV10(project);
 	const samples = createFixtureSamples();
 	const store = {
 		async loadMediaAsset() { return null; },
@@ -432,7 +432,7 @@ export async function findPackagedExecutable(invocation) {
 
 function createFixtureProject() {
 	const fixture = DESKTOP_SCAPE_OPEN_FIXTURE;
-	const source = createAudioSourceV9({
+	const source = createAudioSourceV10({
 		id: fixture.project.sourceId,
 		storageKey: fixture.project.sourceId,
 		name: 'Packaged source.wav',
@@ -443,19 +443,19 @@ function createFixtureProject() {
 		originalSampleRate: fixture.audio.sampleRate,
 		chunkFrames: fixture.audio.chunkFrames,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClipV10({
 		id: fixture.project.clipId,
 		sourceId: fixture.project.sourceId,
 		title: 'Packaged clip',
 		durationFrames: fixture.audio.frameCount,
 		sourceDurationFrames: fixture.audio.frameCount,
 	});
-	const track = createAudioTrackV9({
+	const track = createAudioTrackV10({
 		id: fixture.project.trackId,
 		name: 'Packaged track',
 		clipIds: [fixture.project.clipId],
 	}, fixture.audio.sampleRate);
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: fixture.project.id,
 		title: fixture.project.title,
 		revision: fixture.project.revision,

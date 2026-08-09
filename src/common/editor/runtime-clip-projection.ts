@@ -11,6 +11,8 @@ import {
 
 export const RUNTIME_CLIP_PROJECTION_VERSION = 1;
 
+const RUNTIME_PROJECT_PROJECTIONS = new WeakSet<object>();
+
 export interface RuntimeClipProject extends Readonly<Record<string, unknown>> {
 	readonly schemaVersion?: number;
 	readonly sampleRate?: number;
@@ -61,6 +63,33 @@ export type RuntimeProjectProjection<Project extends RuntimeClipProject> = Omit<
 	runtimeProjectionVersion: typeof RUNTIME_CLIP_PROJECTION_VERSION;
 }>;
 
+/**
+ * Return whether a project was produced or explicitly derived from this
+ * module's runtime projection. The private WeakSet makes the marker impossible
+ * to forge through persisted JSON or an object spread.
+ */
+export function isRuntimeProjectProjection(
+	value: unknown,
+): value is RuntimeProjectProjection<RuntimeClipProject> {
+	return Boolean(
+		value
+		&& typeof value === 'object'
+		&& RUNTIME_PROJECT_PROJECTIONS.has(value)
+		&& (value as RuntimeClipProject).runtimeProjectionVersion === RUNTIME_CLIP_PROJECTION_VERSION,
+	);
+}
+
+/**
+ * Register a transient derivative of an existing runtime projection.
+ * Command adapters use this after adding legacy-shaped transient fields; the
+ * complete resolved shape is checked before the unforgeable brand is granted.
+ */
+export function brandRuntimeProjectProjection<Project extends RuntimeClipProject>(project: Project): Project {
+	assertRuntimeProjectProjectionShape(project);
+	RUNTIME_PROJECT_PROJECTIONS.add(project);
+	return project;
+}
+
 /** Resolve one persisted clip into the only timing surface runtime consumers read. */
 export function resolveRuntimeClipProjection(
 	project: RuntimeClipProject,
@@ -85,7 +114,7 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 ): RuntimeProjectProjection<Project> {
 	if (!project || typeof project !== 'object') throw new TypeError('A project is required for runtime projection.');
 	if (!Array.isArray(project.clips)) throw new TypeError('project.clips must be an array.');
-	return Object.freeze({
+	const projection = Object.freeze({
 		...project,
 		clips: Object.freeze(project.clips.map((clip) => resolveRuntimeClipProjection(project, clip))),
 		tracks: Object.freeze((Array.isArray(project.tracks) ? project.tracks : []).map((track) => (
@@ -98,6 +127,54 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 		}),
 		runtimeProjectionVersion: RUNTIME_CLIP_PROJECTION_VERSION,
 	}) as RuntimeProjectProjection<Project>;
+	return brandRuntimeProjectProjection(projection);
+}
+
+function assertRuntimeProjectProjectionShape(project: RuntimeClipProject): void {
+	if (project.runtimeProjectionVersion !== RUNTIME_CLIP_PROJECTION_VERSION) {
+		throw new TypeError('A resolved runtime projection requires the exact projection version.');
+	}
+	if (!Array.isArray(project.clips) || !project.clips.every(isResolvedRuntimeClip)) {
+		throw new TypeError('A resolved runtime projection requires resolved timeline clips.');
+	}
+	const projectBin = project.projectBin;
+	if (!projectBin || typeof projectBin !== 'object' || !Array.isArray(projectBin.clips)
+		|| !projectBin.clips.every(isResolvedRuntimeClip)) {
+		throw new TypeError('A resolved runtime projection requires resolved Project Bin clips.');
+	}
+	if (!Array.isArray(project.tracks)) {
+		throw new TypeError('A resolved runtime projection requires projected tracks.');
+	}
+	for (const track of project.tracks) {
+		const candidate = track as Readonly<Record<string, unknown>>;
+		if (candidate.type !== 'label' || !Array.isArray(candidate.labels)) continue;
+		for (const value of candidate.labels) {
+			if (!value || typeof value !== 'object' || Array.isArray(value)) {
+				throw new TypeError('A resolved runtime projection requires projected labels.');
+			}
+			const label = value as Readonly<Record<string, unknown>>;
+			if (label.anchor === 'musical' && (
+				label.coordinateDomain !== 'resolved-samples'
+				|| !Number.isSafeInteger(label.startFrame)
+				|| !Number.isSafeInteger(label.endFrame)
+			)) {
+				throw new TypeError('A resolved runtime projection requires resolved musical labels.');
+			}
+		}
+	}
+}
+
+function isResolvedRuntimeClip(value: RuntimePersistedClip): boolean {
+	const clip = value as Readonly<Record<string, unknown>>;
+	return clip.coordinateDomain === 'resolved-samples'
+		&& Number.isSafeInteger(clip.timelineStartFrame)
+		&& Number.isSafeInteger(clip.timelineEndFrame)
+		&& Number.isSafeInteger(clip.durationFrames)
+		&& Number(clip.durationFrames) > 0
+		&& Number.isSafeInteger(clip.sourceStartFrame)
+		&& Number.isSafeInteger(clip.sourceEndFrame)
+		&& Number.isSafeInteger(clip.sourceDurationFrames)
+		&& Number(clip.sourceDurationFrames) > 0;
 }
 
 function resolveRuntimeTrackProjection(

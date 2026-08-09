@@ -92,6 +92,19 @@ class CapacityProbeStore implements ScapeImportStore {
 					sha256: options.expectedSha256,
 				});
 			},
+			async commitOwned(): Promise<Readonly<{
+				metadata: Readonly<Record<string, unknown>>;
+				discardIfCurrent(): Promise<boolean>;
+			}>> {
+				const metadata = await this.commit();
+				return Object.freeze({
+					metadata,
+					async discardIfCurrent(): Promise<boolean> {
+						events.push('media-publication-discarded');
+						return true;
+					},
+				});
+			},
 			async abort(): Promise<void> {
 				events.push('media-writer-cleaned');
 			},

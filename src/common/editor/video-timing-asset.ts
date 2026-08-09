@@ -8,6 +8,7 @@ import {
 	VIDEO_TIMING_ASSET_HEADER_BYTES,
 	VIDEO_TIMING_ASSET_MAXIMUM_BYTES,
 	VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
+	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
 	type VideoTimingAssetReference,
 } from './video-timing-asset-reference.ts';
 
@@ -17,6 +18,7 @@ export {
 	VIDEO_TIMING_ASSET_HEADER_BYTES,
 	VIDEO_TIMING_ASSET_MAXIMUM_BYTES,
 	VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
+	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
 	VIDEO_TIMING_ASSET_MIME_TYPE,
 	type VideoTimingAssetReference,
 } from './video-timing-asset-reference.ts';
@@ -61,6 +63,9 @@ export interface VideoTimingAssetReclaimOptions {
 /** Encode normalized PTS ticks; adjacent deltas plus the explicit final duration own every frame extent. */
 export function encodeVideoTimingAsset(input: VideoTimingAssetInput): Uint8Array {
 	const timescale = positiveSafeInteger(input?.timescale, 'timing timescale');
+	if (timescale > VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE) {
+		throw new RangeError('The timing timescale exceeds its unsigned 32-bit maximum.');
+	}
 	if (!Array.isArray(input?.presentationTicks)) throw new TypeError('Presentation ticks must be an array.');
 	const frameCount = input.presentationTicks.length;
 	if (frameCount < 1 || frameCount > VIDEO_TIMING_ASSET_MAXIMUM_FRAMES) {
@@ -143,6 +148,24 @@ export function decodeVideoTimingAsset(input: Uint8Array): VideoTimingIndex {
 	});
 }
 
+/** Decode bytes only after proving their immutable digest and persisted summary binding. */
+export function validateVideoTimingAssetBytes(
+	value: unknown,
+	input: Uint8Array,
+): VideoTimingIndex {
+	const reference = normalizeVideoTimingAssetReference(value);
+	if (!(input instanceof Uint8Array) || input.byteLength !== reference.byteLength
+		|| bytesToHex(sha256(input)) !== reference.sha256) {
+		throw new Error('The timing asset bytes failed their immutable digest binding.');
+	}
+	const index = decodeVideoTimingAsset(input);
+	if (index.frameCount !== reference.frameCount || index.timescale !== reference.timescale
+		|| index.finalFrameDurationTicks.toString() !== reference.finalFrameDurationTicks) {
+		throw new Error('The timing asset bytes failed their persisted summary binding.');
+	}
+	return index;
+}
+
 /** Process-local contract implementation; durable adapters use the same immutable key/reference rules. */
 export class VideoTimingAssetStore {
 	readonly #records = new Map<string, StoredTimingAsset>();
@@ -179,11 +202,7 @@ export class VideoTimingAssetStore {
 		const record = this.#records.get(normalized.storageKey);
 		if (!record) return Object.freeze({ status: 'missing', index: null });
 		try {
-			if (bytesToHex(sha256(record.bytes)) !== normalized.sha256) throw new Error('digest');
-			const index = decodeVideoTimingAsset(record.bytes);
-			if (index.frameCount !== normalized.frameCount || index.timescale !== normalized.timescale
-				|| index.finalFrameDurationTicks.toString() !== normalized.finalFrameDurationTicks
-				|| record.bytes.byteLength !== normalized.byteLength) throw new Error('metadata');
+			const index = validateVideoTimingAssetBytes(normalized, record.bytes);
 			return Object.freeze({ status: 'available', index });
 		} catch {
 			return Object.freeze({ status: 'corrupt', index: null });
@@ -198,15 +217,7 @@ export class VideoTimingAssetStore {
 
 	async importAsset(reference: VideoTimingAssetReference, input: Uint8Array): Promise<void> {
 		const normalized = normalizeVideoTimingAssetReference(reference);
-		if (!(input instanceof Uint8Array) || input.byteLength !== normalized.byteLength
-			|| bytesToHex(sha256(input)) !== normalized.sha256) {
-			throw new Error('The handed-off timing asset failed its digest binding.');
-		}
-		const index = decodeVideoTimingAsset(input);
-		if (index.frameCount !== normalized.frameCount || index.timescale !== normalized.timescale
-			|| index.finalFrameDurationTicks.toString() !== normalized.finalFrameDurationTicks) {
-			throw new Error('The handed-off timing asset failed its summary binding.');
-		}
+		validateVideoTimingAssetBytes(normalized, input);
 		const existing = this.#records.get(normalized.storageKey);
 		if (existing && !equalBytes(existing.bytes, input)) throw new Error('The immutable timing asset cannot be overwritten.');
 		if (!existing) this.#records.set(normalized.storageKey, Object.freeze({

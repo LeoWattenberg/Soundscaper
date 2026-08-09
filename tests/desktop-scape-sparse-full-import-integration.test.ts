@@ -25,6 +25,7 @@ import {
 } from '../src/common/editor/scape-archive-video.ts';
 import type { ScapeImportStore } from '../src/common/editor/scape-import-transaction.ts';
 import { importScapeProject, inspectScapeProject } from '../src/common/editor/scape-project.js';
+import type { OwnedMediaAssetPublication } from '../src/common/editor/storage/media-asset-write-contract.ts';
 import { withDesktopProjectReadDescriptor } from '../src/common/editor/ui/workspace/desktop-project-file-routing.ts';
 import {
 	createSparseEightGiBScapeFixture,
@@ -69,6 +70,7 @@ class CountingSha256MediaWriter implements ScapeVideoWriter {
 	readonly #digest: Hash = createHash('sha256');
 	readonly #onCommit: (metadata: Readonly<{ size: number; sha256: string }>) => void;
 	readonly #onAbort: (committed: boolean) => void;
+	readonly #onDiscard: () => boolean;
 	#activeWrite = false;
 	#committed = false;
 	#terminal = false;
@@ -85,12 +87,14 @@ class CountingSha256MediaWriter implements ScapeVideoWriter {
 		expectedSha256: string;
 		onCommit: (metadata: Readonly<{ size: number; sha256: string }>) => void;
 		onAbort: (committed: boolean) => void;
+		onDiscard: () => boolean;
 	}>) {
 		this.sourceId = options.sourceId;
 		this.expectedBytes = options.expectedBytes;
 		this.expectedSha256 = options.expectedSha256;
 		this.#onCommit = options.onCommit;
 		this.#onAbort = options.onAbort;
+		this.#onDiscard = options.onDiscard;
 	}
 
 	async write(bytes: Uint8Array, options: Readonly<{ signal?: AbortSignal }> = {}): Promise<void> {
@@ -134,6 +138,17 @@ class CountingSha256MediaWriter implements ScapeVideoWriter {
 		});
 		this.#onCommit(result);
 		return result;
+	}
+
+	async commitOwned(
+		options: Readonly<{ signal?: AbortSignal }> = {},
+	): Promise<OwnedMediaAssetPublication> {
+		const metadata = await this.commit(options);
+		await this.abort();
+		return Object.freeze({
+			metadata,
+			discardIfCurrent: async () => this.#onDiscard(),
+		});
 	}
 
 	async abort(): Promise<void> {
@@ -221,6 +236,12 @@ class CountingSha256ImportStore implements ScapeImportStore {
 			onAbort: (committed) => {
 				assert.equal(committed, true, 'successful import cleans the committed writer');
 				this.events.push('media-writer-cleaned');
+			},
+			onDiscard: () => {
+				if (this.mediaMetadata?.sourceId !== sourceId) return false;
+				this.mediaMetadata = null;
+				this.events.push('media-publication-discarded');
+				return true;
 			},
 		});
 		this.mediaWriter = writer;

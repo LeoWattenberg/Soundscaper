@@ -2,6 +2,7 @@
 
 import { aggregateScapeErrors, awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
 import type { ScapeVideoWriter } from './scape-archive-video.ts';
+import type { OwnedMediaAssetPublication } from './storage/media-asset-write-contract.ts';
 
 interface ScapeProjectDocument {
 	readonly id: string;
@@ -26,6 +27,10 @@ export interface ScapeImportStore {
 	listProjectRevisions(projectId: string): Promise<ScapeProjectRevision[]>;
 	getSourceMetadata(sourceId: string): PromiseLike<unknown>;
 	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown>;
+	loadMediaAsset?(sourceId: string, options?: Readonly<{
+		signal?: AbortSignal;
+		backfillDigest?: boolean;
+	}>): PromiseLike<Blob | null>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<Record<string, unknown>>): PromiseLike<unknown>;
 	beginMediaAssetWrite(
 		sourceId: string,
@@ -51,6 +56,7 @@ export class ScapeImportTransaction {
 	readonly #store: ScapeImportStore;
 	readonly #signal?: AbortSignal;
 	readonly #sourceIds: string[] = [];
+	readonly #mediaPublications: OwnedMediaAssetPublication[] = [];
 	#projectId: string | null = null;
 	#projectSnapshot: ProjectSnapshot | null = null;
 	#projectWriteAttempted = false;
@@ -64,6 +70,15 @@ export class ScapeImportTransaction {
 	trackProvisionalSource(sourceId: string): void {
 		if (this.#complete) throw new Error('The .scape import transaction is already complete.');
 		if (!this.#sourceIds.includes(sourceId)) this.#sourceIds.push(sourceId);
+	}
+
+	trackProvisionalMedia(publication: OwnedMediaAssetPublication): void {
+		if (this.#complete) throw new Error('The .scape import transaction is already complete.');
+		if (!publication || typeof publication !== 'object'
+			|| typeof publication.discardIfCurrent !== 'function') {
+			throw new TypeError('A .scape provisional media publication requires exact ownership.');
+		}
+		if (!this.#mediaPublications.includes(publication)) this.#mediaPublications.push(publication);
 	}
 
 	async captureProject(projectId: string): Promise<void> {
@@ -96,6 +111,13 @@ export class ScapeImportTransaction {
 		if (this.#projectWriteAttempted && this.#projectId && this.#projectSnapshot) {
 			try {
 				await this.#restoreProject(this.#projectId, this.#projectSnapshot);
+			} catch (error) {
+				cleanupErrors.push(error);
+			}
+		}
+		for (const publication of [...this.#mediaPublications].reverse()) {
+			try {
+				await publication.discardIfCurrent();
 			} catch (error) {
 				cleanupErrors.push(error);
 			}

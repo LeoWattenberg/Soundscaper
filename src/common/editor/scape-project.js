@@ -48,6 +48,10 @@ import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-
 import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
+import {
+	normalizeVideoTimingAssetReference,
+	validateVideoTimingAssetBytes,
+} from './video-timing-asset.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION };
 export const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -107,6 +111,12 @@ export async function exportScapeProject(project, store, options = {}) {
 			const mediaBlob = canonicalMediaContentBlob(loaded);
 			if (mediaBlob.size !== asset.size) {
 				throw new Error(`Media source ${asset.source.name || asset.sourceId} changed since archive admission.`);
+			}
+			if (asset.kind === 'video-timing') {
+				validateVideoTimingAssetBytes(
+					asset.timingReference,
+					new Uint8Array(await mediaBlob.arrayBuffer()),
+				);
 			}
 			mediaBySourceId.set(asset.sourceId, mediaBlob);
 		}
@@ -181,6 +191,7 @@ export async function importScapeProject(input, store, options = {}) {
 			}
 			const assetBySourceId = indexScapeProjectAssets(project, manifest);
 			const timingAssetByStorageKey = indexScapeProjectTimingAssets(project, manifest);
+			const timingReferenceByStorageKey = indexScapeTimingReferences(project.sources || []);
 			assertScapeImportStore(store);
 			const existingProject = await awaitScapeOperation(store.loadProject(project.id), signal);
 			const collision = options.collision || 'copy';
@@ -209,28 +220,69 @@ export async function importScapeProject(input, store, options = {}) {
 					if (existingTiming.sha256 !== asset.sha256 || existingTiming.size !== asset.size) {
 						throw new Error(`Timing asset ${storageKey} conflicts with immutable stored content.`);
 					}
+					const reference = timingReferenceByStorageKey.get(storageKey);
+					if (typeof store.loadMediaAsset !== 'function') {
+						throw new TypeError('A media store with timing-body reads is required for .scape import.');
+					}
+					const loadedTiming = await awaitScapeOperation(store.loadMediaAsset(
+						storageKey,
+						{ signal, backfillDigest: false },
+					), signal);
+					if (!loadedTiming) throw new Error(`Timing asset ${storageKey} body is unavailable.`);
+					const canonicalTiming = canonicalMediaContentBlob(loadedTiming);
+					if (canonicalTiming.size !== reference.byteLength) {
+						throw new Error(`Timing asset ${storageKey} body has an unexpected byte length.`);
+					}
+					validateVideoTimingAssetBytes(
+						reference,
+						new Uint8Array(await canonicalTiming.arrayBuffer()),
+					);
 					continue;
 				}
 				const entry = entryByName.get(asset.entry);
 				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
 				let timingWriter = null;
+				let timingPublication = null;
 				try {
 					timingWriter = await store.beginMediaAssetWrite(storageKey, {
 						name: `${asset.sha256}.scti`,
 						mimeType: 'application/vnd.soundscaper.video-timing',
 						kind: 'video-timing',
 					}, { expectedBytes: asset.size, expectedSha256: asset.sha256, signal });
-					const extracted = await extractScapeVideo(entry, timingWriter, signal, expandedByteBudget);
+					assertOwnedScapeMediaWriter(timingWriter);
+					const timingChunks = [];
+					const extracted = await extractScapeVideo(
+						entry,
+						captureScapeTimingWriter(timingWriter, timingChunks),
+						signal,
+						expandedByteBudget,
+					);
 					verifyScapeExtractedAsset(asset, extracted.digest, extracted.size, storageKey);
-					const persisted = await awaitScapeOperation(timingWriter.commit({ signal }), signal);
+					validateVideoTimingAssetBytes(
+						timingReferenceByStorageKey.get(storageKey),
+						joinScapeTimingChunks(timingChunks, asset.size),
+					);
+					// Capture exact publication ownership before checking a concurrent abort.
+					timingPublication = await timingWriter.commitOwned({ signal });
+					throwIfScapeAborted(signal);
+					const persisted = timingPublication.metadata;
 					if (persisted?.sha256 !== asset.sha256 || persisted?.size !== asset.size) {
 						throw new Error(`Persisted timing asset ${storageKey} failed verification.`);
 					}
+					transaction.trackProvisionalMedia(timingPublication);
 				} catch (error) {
-					if (timingWriter) await timingWriter.abort().catch(() => undefined);
+					try {
+						if (timingPublication) await timingPublication.discardIfCurrent();
+						else if (timingWriter) await timingWriter.abort();
+					} catch (cleanupError) {
+						throw aggregateScapeErrors(
+							error,
+							[cleanupError],
+							'The .scape timing write and cleanup both failed.',
+						);
+					}
 					throw error;
 				}
-				if (timingWriter) await timingWriter.abort();
 			}
 
 			const sourceIdMap = new Map();
@@ -271,9 +323,9 @@ export async function importScapeProject(input, store, options = {}) {
 				const asset = assetBySourceId.get(originalSourceId);
 				const entry = entryByName.get(asset.entry);
 				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
-				transaction.trackProvisionalSource(finalSourceId);
 				if (source.kind === 'video') {
 					let mediaWriter = null;
+					let mediaPublication = null;
 					let mediaFailure = null;
 					let mediaFailed = false;
 					try {
@@ -285,6 +337,7 @@ export async function importScapeProject(input, store, options = {}) {
 							expectedSha256: asset.sha256,
 							signal,
 						});
+						assertOwnedScapeMediaWriter(mediaWriter);
 						throwIfScapeAborted(signal);
 						const { digest, size } = await extractScapeVideo(
 							entry,
@@ -293,20 +346,33 @@ export async function importScapeProject(input, store, options = {}) {
 							expandedByteBudget,
 						);
 						verifyScapeExtractedAsset(asset, digest, size, source.name || source.id);
-						const persisted = await awaitScapeOperation(mediaWriter.commit({ signal }), signal);
+						// Retain the ownership token before observing a cancellation that can arrive
+						// concurrently with durable publication. Racing this promise would lose the
+						// only capability that can safely remove the just-published generation.
+						mediaPublication = await mediaWriter.commitOwned({ signal });
+						throwIfScapeAborted(signal);
+						const persisted = mediaPublication.metadata;
 						if (persisted?.sha256 !== asset.sha256) {
 							throw new Error(`Persisted media SHA-256 verification failed for ${source.name || source.id}.`);
 						}
 						if (persisted?.size !== asset.size) {
 							throw new Error(`Persisted media size verification failed for ${source.name || source.id}.`);
 						}
+						transaction.trackProvisionalMedia(mediaPublication);
 					} catch (error) {
 						mediaFailed = true;
 						mediaFailure = error;
 					}
 					let abortFailure = null;
 					let abortFailed = false;
-					if (mediaWriter) {
+					if (mediaPublication && mediaFailed) {
+						try {
+							await mediaPublication.discardIfCurrent();
+						} catch (error) {
+							abortFailed = true;
+							abortFailure = error;
+						}
+					} else if (mediaWriter && !mediaPublication) {
 						try {
 							await mediaWriter.abort();
 						} catch (error) {
@@ -324,6 +390,7 @@ export async function importScapeProject(input, store, options = {}) {
 					}
 					if (abortFailed) throw abortFailure;
 				} else {
+					transaction.trackProvisionalSource(finalSourceId);
 					if (asset.encoding !== AUDIO_ENCODING) throw new Error(`Unsupported audio asset encoding: ${asset.encoding}.`);
 					throwIfScapeAborted(signal);
 					const sourceWriter = await store.beginSourceWrite(finalSourceId, {
@@ -382,6 +449,64 @@ function remapScapeProjectSourceReferences(project, sourceIdMap) {
 	for (const clip of [...(project.clips || []), ...(project.projectBin?.clips || [])]) {
 		clip.sourceId = sourceIdMap.get(clip.sourceId) || clip.sourceId;
 	}
+}
+
+function indexScapeTimingReferences(sources) {
+	const references = new Map();
+	for (const source of sources) {
+		if (source?.kind !== 'video' || source.timingAsset == null) continue;
+		const reference = normalizeVideoTimingAssetReference(source.timingAsset);
+		const existing = references.get(reference.storageKey);
+		if (existing && !sameScapeTimingBodyReference(existing, reference)) {
+			throw new Error(`Video sources sharing timing asset ${reference.storageKey} have conflicting references.`);
+		}
+		if (!existing) references.set(reference.storageKey, reference);
+	}
+	return references;
+}
+
+function sameScapeTimingBodyReference(left, right) {
+	return left.encoding === right.encoding
+		&& left.storageKey === right.storageKey
+		&& left.sha256 === right.sha256
+		&& left.byteLength === right.byteLength
+		&& left.frameCount === right.frameCount
+		&& left.timescale === right.timescale
+		&& left.finalFrameDurationTicks === right.finalFrameDurationTicks;
+}
+
+function captureScapeTimingWriter(writer, chunks) {
+	return {
+		maximumChunkBytes: writer.maximumChunkBytes,
+		get bytesWritten() { return writer.bytesWritten; },
+		async write(bytes, options) {
+			chunks.push(bytes.slice());
+			await writer.write(bytes, options);
+		},
+		commit: (options) => writer.commit(options),
+		commitOwned: (options) => writer.commitOwned(options),
+		abort: () => writer.abort(),
+	};
+}
+
+function assertOwnedScapeMediaWriter(writer) {
+	if (!writer || typeof writer !== 'object' || typeof writer.commitOwned !== 'function') {
+		throw new TypeError('A .scape media import requires an ownership-aware transactional writer.');
+	}
+}
+
+function joinScapeTimingChunks(chunks, expectedBytes) {
+	const output = new Uint8Array(expectedBytes);
+	let offset = 0;
+	for (const chunk of chunks) {
+		if (!(chunk instanceof Uint8Array) || chunk.byteLength > output.byteLength - offset) {
+			throw new Error('The .scape timing asset exceeded its admitted byte length.');
+		}
+		output.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	if (offset !== output.byteLength) throw new Error('The .scape timing asset ended before its admitted byte length.');
+	return output;
 }
 
 /**

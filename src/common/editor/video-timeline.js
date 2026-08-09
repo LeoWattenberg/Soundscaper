@@ -1,4 +1,7 @@
-import { resolveRuntimeProjectProjection } from './runtime-clip-projection.ts';
+import {
+	isRuntimeProjectProjection,
+	resolveRuntimeProjectProjection,
+} from './runtime-clip-projection.ts';
 import {
 	mapVideoTimelineFrameToSource,
 	videoClipPlaybackRate,
@@ -118,6 +121,7 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 			const mapping = mapVideoTimelineFrameToSource(clip, frame, {
 				projectSampleRate: sampleRate,
 				sourceSampleRate: sourceCoordinateRate,
+				source,
 			});
 			const role = transition == null
 				? 'single'
@@ -131,7 +135,7 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceId: source.id,
 				sourceFrame: mapping.sourceFrame,
 				sourceTimeSeconds: mapping.sourceTimeSeconds,
-				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate),
+				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source),
 				opacity: transition == null
 					? 1
 					: videoTransitionOpacity(transition, role, frame),
@@ -202,9 +206,11 @@ export function resolveVideoCompositionIntervals(project, options = {}) {
 				const sourceCoordinateRate = videoSourceCoordinateRate(activeClip.clip, activeClip.source);
 				const sourceStart = mapVideoTimelineFrameToSource(activeClip.clip, intervalStart, {
 					sourceSampleRate: sourceCoordinateRate,
+					source: activeClip.source,
 				});
 				const sourceEnd = mapVideoTimelineFrameToSource(activeClip.clip, intervalEnd, {
 					sourceSampleRate: sourceCoordinateRate,
+					source: activeClip.source,
 				});
 				const transition = layer.clips.length === 2
 					? videoTransition(layer.clips[0].clip, layer.clips[1].clip)
@@ -338,6 +344,7 @@ export function resolveVideoTimelineSegments(project, options = {}) {
 			if (previous.kind === 'video') {
 				const sourceEnd = mapVideoTimelineFrameToSource(previous.clip, segmentEnd, {
 					sourceSampleRate: videoSourceCoordinateRate(previous.clip, previous.source),
+					source: previous.source,
 				});
 				previous.sourceEndFrame = sourceEnd.sourceFrame;
 				previous.sourceDurationFrames = previous.sourceEndFrame - previous.sourceStartFrame;
@@ -360,9 +367,11 @@ export function resolveVideoTimelineSegments(project, options = {}) {
 		const sourceCoordinateRate = videoSourceCoordinateRate(active.clip, active.source);
 		const sourceStart = mapVideoTimelineFrameToSource(active.clip, segmentStart, {
 			sourceSampleRate: sourceCoordinateRate,
+			source: active.source,
 		});
 		const sourceEnd = mapVideoTimelineFrameToSource(active.clip, segmentEnd, {
 			sourceSampleRate: sourceCoordinateRate,
+			source: active.source,
 		});
 		segments.push({
 			kind: 'video',
@@ -399,7 +408,7 @@ export function videoTimelineDurationFrames(project) {
 }
 
 function runtimeProject(project) {
-	return project?.runtimeProjectionVersion ? project : resolveRuntimeProjectProjection(project);
+	return isRuntimeProjectProjection(project) ? project : resolveRuntimeProjectProjection(project);
 }
 
 function normalizeClipLookup(value) {

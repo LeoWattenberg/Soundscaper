@@ -20,7 +20,7 @@ import {
 	parseDesktopProjectLibraryHandoffOutput,
 	validateDesktopProjectLibraryHandoffResults,
 } from '../scripts/lib/desktop-project-library-handoff-smoke.mjs';
-import { validateAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
+import { validateAudioEditorProjectV10 } from '../src/common/editor/project-v10-validation.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -61,9 +61,9 @@ test('packaged handoff fixtures are canonical source-free exact-schema-10 revisi
 
 	for (const [index, fixture] of stages.entries()) {
 		const project = parseScapeProjectDocument(fixture.target.document);
-		assert.equal(validateAudioEditorProjectV9(project), true);
+		assert.equal(validateAudioEditorProjectV10(project), true);
 		assert.equal(serializeScapeProjectDocument(project), fixture.target.document);
-		assert.equal(project.schemaVersion, 9);
+		assert.equal(project.schemaVersion, 10);
 		assert.equal(project.id, DESKTOP_PROJECT_LIBRARY_HANDOFF_PROJECT_ID);
 		assert.equal(project.title, fixture.target.title);
 		assert.equal(project.revision, index + 1);
@@ -73,7 +73,7 @@ test('packaged handoff fixtures are canonical source-free exact-schema-10 revisi
 		assert.deepEqual(project.clips, []);
 		assert.deepEqual(project.tracks, []);
 		assert.deepEqual(project.projectBin.clips, []);
-		assert.deepEqual(project.featureRequirements, { schemaVersion: 1, requirements: [] });
+		assert.deepEqual(project.featureRequirements, { schemaVersion: 2, requirements: [] });
 		assert.equal(
 			createHash('sha256').update(fixture.target.document).digest('hex'),
 			fixture.target.sha256,

@@ -4,11 +4,18 @@ import {
 	resolveRuntimeProjectProjection,
 	type RuntimeClipProject,
 } from '../runtime-clip-projection.ts';
+import { loadVideoTimingAsset } from '../video-timing-storage.ts';
+import {
+	registerVideoTimingIndex,
+	unregisterVideoTimingIndex,
+} from '../video-source-time.ts';
 
 export interface ProjectVisualSource extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly kind?: string;
 	readonly storageKey?: string;
+	readonly contentSha256?: string;
+	readonly timingAsset?: unknown;
 }
 
 export interface ProjectVisualClip extends Readonly<Record<string, unknown>> {
@@ -255,6 +262,15 @@ export function createProjectVisualService(
 		let linkedPlaybackLease: LinkedVideoPlaybackLease | null = null;
 		try {
 			throwIfAborted(options.signal);
+			const timing = source.timingAsset == null
+				? null
+				: await loadVideoTimingAsset(dependencies.store, source.timingAsset, {
+					signal: options.signal,
+					sourceSha256: source.contentSha256,
+				});
+			if (timing && (timing.status !== 'available' || !timing.index)) {
+				throw new Error(`The video timing asset is ${timing.status}.`);
+			}
 			let mediaBlob = await dependencies.store.loadMediaAsset(sourceId, options);
 			throwIfAborted(options.signal);
 			if (!isActivationCurrent(source.id, operation, project, projectToken)) {
@@ -351,6 +367,8 @@ export function createProjectVisualService(
 				posterUrl: posterUrl || thumbnails[0]?.url || null,
 				thumbnails: Object.freeze(thumbnails),
 			});
+			if (timing?.index) registerVideoTimingIndex(source, timing.index);
+			else unregisterVideoTimingIndex(source.id);
 			videoVisuals.set(source.id, Object.freeze({
 				visual,
 				objectUrls: Object.freeze([...ownedUrls]),
@@ -378,6 +396,7 @@ export function createProjectVisualService(
 		const sourceIds = new Set([...generations.keys(), ...videoVisuals.keys()]);
 		for (const sourceId of sourceIds) nextGeneration(sourceId);
 		const records = [...videoVisuals.values()];
+		for (const sourceId of videoVisuals.keys()) unregisterVideoTimingIndex(sourceId);
 		videoVisuals.clear();
 		await cleanupRecords(records);
 	}
@@ -470,6 +489,7 @@ export function createProjectVisualService(
 		const record = videoVisuals.get(sourceId);
 		if (!record) return false;
 		videoVisuals.delete(sourceId);
+		unregisterVideoTimingIndex(sourceId);
 		await cleanupRecord(record);
 		return true;
 	}

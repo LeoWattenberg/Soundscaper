@@ -29,6 +29,10 @@ import {
 	type ScapeProjectFallbackClaim,
 } from './scape-project-assets.ts';
 import { serializeScapeProjectDocument } from './scape-project-document.ts';
+import {
+	normalizeVideoTimingAssetReference,
+	type VideoTimingAssetReference,
+} from './video-timing-asset.ts';
 
 const AUDIO_ENCODING = 'audio-f32le-chunks-v1';
 const PLACEHOLDER_SHA256 = '0'.repeat(64);
@@ -41,6 +45,7 @@ interface ScapeExportSource extends Partial<ScapeAudioSource> {
 	readonly name?: string;
 	readonly mimeType?: string;
 	readonly timingAsset?: unknown;
+	readonly contentSha256?: unknown;
 }
 
 interface ScapeExportProject extends Record<string, unknown> {
@@ -62,6 +67,8 @@ export interface PlannedScapeExportAsset {
 	readonly encoding: string;
 	readonly mimeType: string;
 	readonly size: number;
+	readonly expectedSha256?: string;
+	readonly timingReference?: Readonly<VideoTimingAssetReference>;
 }
 
 export interface ScapeExportPlan {
@@ -93,13 +100,17 @@ export async function prepareScapeExport(
 	const sourceInputs = project.sources ?? [];
 	if (!Array.isArray(sourceInputs)) throw new TypeError('Project sources must be an array.');
 	const sourceCount = sourceInputs.length;
-	const timingAssetCount = sourceInputs.filter((source) => isRecord(source) && isRecord(source.timingAsset)).length;
-	if (sourceCount + timingAssetCount + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
-		throw new RangeError('The project has too many sources for the portable archive.');
-	}
 	const sources: ScapeExportSource[] = [];
 	for (let index = 0; index < sourceCount; index += 1) {
 		sources.push(snapshotScapeExportSource(sourceInputs[index], index, projectSchemaVersion));
+	}
+	const timingStorageKeys = new Set(sources.flatMap((source) => (
+		source.kind === 'video' && isRecord(source.timingAsset)
+			? [normalizeVideoTimingAssetReference(source.timingAsset).storageKey]
+			: []
+	)));
+	if (sourceCount + timingStorageKeys.size + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
+		throw new RangeError('The project has too many sources for the portable archive.');
 	}
 	project.sources = Object.freeze(sources);
 	const maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
@@ -125,6 +136,7 @@ export async function prepareScapeExport(
 	const assets: PlannedScapeExportAsset[] = [];
 	const sourceIds = new Set<string>();
 	const entryNames = new Set<string>([SCAPE_PROJECT_ENTRY, SCAPE_MANIFEST_ENTRY]);
+	const timingAssetByStorageKey = new Map<string, PlannedScapeExportAsset>();
 	for (const source of sources) {
 		throwIfScapeAborted(signal);
 		const sourceId = nonEmptyString(source?.id, 'Scape source ID');
@@ -138,6 +150,7 @@ export async function prepareScapeExport(
 		entryNames.add(entry);
 		const storageKey = nonEmptyString(source.storageKey || sourceId, `Storage key for ${sourceId}`);
 		let size: number;
+		let expectedSha256: string | undefined;
 		if (kind === 'video') {
 			if (typeof store?.getMediaAssetMetadata !== 'function') {
 				throw new TypeError('A project store with media metadata is required for video export.');
@@ -145,6 +158,12 @@ export async function prepareScapeExport(
 			const metadata = await awaitScapeOperation(store.getMediaAssetMetadata(storageKey), signal);
 			if (!isRecord(metadata)) throw new Error(`Media source ${source.name || sourceId} is unavailable.`);
 			size = nonNegativeSafeInteger(metadata.size, `Media source ${sourceId} size`);
+			if (source.contentSha256 !== undefined) {
+				expectedSha256 = sha256Digest(source.contentSha256, `Media source ${sourceId} content digest`);
+				if (metadata.sha256 !== expectedSha256) {
+					throw new Error(`Media source ${source.name || sourceId} does not match its source content digest.`);
+				}
+			}
 		} else {
 			size = scapeAudioSourceLayout(source as ScapeAudioSource).archiveBytes;
 		}
@@ -157,12 +176,20 @@ export async function prepareScapeExport(
 			encoding: kind === 'video' ? 'original' : AUDIO_ENCODING,
 			mimeType: String(source.mimeType || ''),
 			size,
+			expectedSha256,
 		}));
 		if (kind === 'video' && isRecord(source.timingAsset)) {
-			const reference = source.timingAsset;
-			const timingStorageKey = nonEmptyString(reference.storageKey, `Timing storage key for ${sourceId}`);
-			const timingSha256 = nonEmptyString(reference.sha256, `Timing digest for ${sourceId}`);
+			const reference = normalizeVideoTimingAssetReference(source.timingAsset);
+			const timingStorageKey = reference.storageKey;
+			const timingSha256 = reference.sha256;
 			const timingEntry = `timing/${safeScapeEntryId(timingSha256)}.scti`;
+			const existingTimingAsset = timingAssetByStorageKey.get(timingStorageKey);
+			if (existingTimingAsset) {
+				if (!sameTimingReference(existingTimingAsset.timingReference, reference)) {
+					throw new Error(`Video sources sharing timing asset ${timingStorageKey} have conflicting references.`);
+				}
+				continue;
+			}
 			if (entryNames.has(timingEntry)) throw new Error(`Duplicate Scape archive entry: ${timingEntry}.`);
 			entryNames.add(timingEntry);
 			if (typeof store?.getMediaAssetMetadata !== 'function') throw new TypeError('A media store is required for timing export.');
@@ -172,7 +199,7 @@ export async function prepareScapeExport(
 			if (timingMetadata.sha256 !== timingSha256 || timingSize !== reference.byteLength) {
 				throw new Error(`Timing asset for ${source.name || sourceId} disagrees with its project reference.`);
 			}
-			assets.push(Object.freeze({
+			const timingAsset = Object.freeze({
 				source,
 				sourceId: timingStorageKey,
 				storageKey: timingStorageKey,
@@ -181,7 +208,11 @@ export async function prepareScapeExport(
 				encoding: String(reference.encoding),
 				mimeType: 'application/vnd.soundscaper.video-timing',
 				size: timingSize,
-			}));
+				expectedSha256: timingSha256,
+				timingReference: reference,
+			});
+			assets.push(timingAsset);
+			timingAssetByStorageKey.set(timingStorageKey, timingAsset);
 		}
 	}
 	const createdAt = new Date().toISOString();
@@ -248,8 +279,9 @@ export function serializeScapeExportManifest(
 			|| descriptor.encoding !== planned.encoding
 			|| descriptor.mimeType !== planned.mimeType
 			|| descriptor.size !== planned.size
-			|| !/^[a-f0-9]{64}$/u.test(descriptor.sha256)) {
-			throw new Error('The Scape export manifest drifted from its admitted plan.');
+			|| !/^[a-f0-9]{64}$/u.test(descriptor.sha256)
+			|| (planned.expectedSha256 !== undefined && descriptor.sha256 !== planned.expectedSha256)) {
+			throw new Error('The Scape export manifest drifted from its admitted plan or expected body digest.');
 		}
 	}
 	assertScapeProjectFallbackAssets(
@@ -373,4 +405,25 @@ function nonNegativeSafeInteger(value: unknown, field: string): number {
 		throw new RangeError(`${field} must be a safe non-negative integer.`);
 	}
 	return Number(value);
+}
+
+function sha256Digest(value: unknown, field: string): string {
+	if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) {
+		throw new TypeError(`${field} must be a lowercase SHA-256 digest.`);
+	}
+	return value;
+}
+
+function sameTimingReference(
+	left: Readonly<VideoTimingAssetReference> | undefined,
+	right: Readonly<VideoTimingAssetReference>,
+): boolean {
+	return Boolean(left
+		&& left.encoding === right.encoding
+		&& left.storageKey === right.storageKey
+		&& left.sha256 === right.sha256
+		&& left.byteLength === right.byteLength
+		&& left.frameCount === right.frameCount
+		&& left.timescale === right.timescale
+		&& left.finalFrameDurationTicks === right.finalFrameDurationTicks);
 }

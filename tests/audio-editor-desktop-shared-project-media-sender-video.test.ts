@@ -145,6 +145,67 @@ test('managed sender carries digest-bound video timing and rejects corrupt timin
 	);
 });
 
+test('managed sender rejects self-consistent malformed timing before publishing it', async () => {
+	const fixture = mixedFixture({ audio: false });
+	const malformedBytes = new Uint8Array(40);
+	const malformedSha256 = digest(malformedBytes);
+	const reference = Object.freeze({
+		encoding: 'soundscaper-video-timing-v1' as const,
+		storageKey: `video-timing-sha256:${malformedSha256}`,
+		sha256: malformedSha256,
+		sourceSha256: fixture.videoSha256,
+		byteLength: malformedBytes.byteLength,
+		frameCount: 1,
+		timescale: 1_000,
+		finalFrameDurationTicks: '40',
+	});
+	const project = createAudioEditorProjectV10({
+		...fixture.project,
+		sources: fixture.project.sources.map((source) => source.id === fixture.video.id ? {
+			...source,
+			contentSha256: fixture.videoSha256,
+			sourceFrameCount: 1,
+			timingAsset: reference,
+		} : source),
+	});
+	const baseStore = senderStore(fixture, []);
+	const store = {
+		...baseStore,
+		getMediaAssetMetadata(storageKey: string) {
+			if (storageKey !== reference.storageKey) return baseStore.getMediaAssetMetadata(storageKey);
+			return {
+				sourceId: reference.storageKey, storage: 'indexeddb-blob', path: undefined,
+				committedAt: '2026-08-01T12:00:00.000Z', mimeType: VIDEO_TIMING_ASSET_MIME_TYPE,
+				size: malformedBytes.byteLength, sha256: malformedSha256,
+			};
+		},
+		loadMediaAsset(storageKey: string, options?: Readonly<{ backfillDigest?: boolean }>) {
+			return storageKey === reference.storageKey
+				? Promise.resolve(mediaBlob(malformedBytes, VIDEO_TIMING_ASSET_MIME_TYPE))
+				: baseStore.loadMediaAsset(storageKey, options);
+		},
+	};
+	let timingAdmissions = 0;
+	const bridge = senderBridge({
+		async begin(declaration) {
+			if (declaration.encoding === DESKTOP_SHARED_VIDEO_ENCODING) {
+				return { status: 'present', source: videoDescriptor(fixture, '4') };
+			}
+			timingAdmissions += 1;
+			return { status: 'present', source: Object.freeze({
+				bindingId: `t${'5'.repeat(64)}`, byteLength: reference.byteLength,
+				encoding: DESKTOP_SHARED_VIDEO_TIMING_ENCODING, kind: 'video-timing' as const,
+				sha256: reference.sha256, sourceId: fixture.video.id, storageKey: reference.storageKey,
+			}) };
+		},
+	});
+	await assert.rejects(
+		prepareDesktopSharedProjectMediaHandoff(project, bridge, store),
+		/magic|timing asset|codec/iu,
+	);
+	assert.equal(timingAdmissions, 0);
+});
+
 test('managed sender excludes disposable preview locators while retaining fallback-only media', async () => {
 	const fixture = mixedFixture({ audioFallbackOnly: true });
 	assert.ok(fixture.audio);

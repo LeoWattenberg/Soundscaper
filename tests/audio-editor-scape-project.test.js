@@ -159,6 +159,16 @@ test('scape imports reject a persisted media digest mismatch before project publ
 						const metadata = await writer.commit(...commitArgs);
 						return { ...metadata, sha256: String(metadata.sha256).toUpperCase() };
 					},
+					async commitOwned(...commitArgs) {
+						const publication = await writer.commitOwned(...commitArgs);
+						return {
+							metadata: {
+								...publication.metadata,
+								sha256: String(publication.metadata.sha256).toUpperCase(),
+							},
+							discardIfCurrent: publication.discardIfCurrent.bind(publication),
+						};
+					},
 					abort: writer.abort.bind(writer),
 				};
 			};
@@ -201,6 +211,7 @@ test('scape imports reject writer mutation that differs from independently hashe
 						await writer.write(stagedMediaBytes, options);
 					},
 					commit: writer.commit.bind(writer),
+					commitOwned: writer.commitOwned.bind(writer),
 					abort: writer.abort.bind(writer),
 				};
 			};

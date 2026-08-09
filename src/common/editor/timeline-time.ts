@@ -99,22 +99,16 @@ export function secondsToSampleFrame(
 	direction?: TimeRoundingDirection,
 ): SampleFrame {
 	const rate = positiveSafeInteger(sampleRate, 'sampleRate');
-	if (typeof seconds === 'number') {
-		const scaled = finiteNumber(seconds, 'seconds') * rate;
-		if (!Number.isFinite(scaled) || Math.abs(scaled) > Number.MAX_SAFE_INTEGER) {
-			throw new RangeError('The resolved timeline value is outside the safe integer range.');
-		}
+	const numericSeconds = typeof seconds === 'number' ? finiteNumber(seconds, 'seconds') : null;
+	const frames = multiplyFractions(bigFraction(numericSeconds ?? seconds), bigFraction(rate));
+	if (numericSeconds !== null) {
+		const scaled = numericSeconds * rate;
+		if (!Number.isFinite(scaled) || Math.abs(scaled) > Number.MAX_SAFE_INTEGER) throw new RangeError('The resolved timeline value is outside the safe integer range.');
+		if (absoluteBigInt(frames.numerator % frames.denominator) * 2n === frames.denominator) return fractionToInteger(frames, policy, direction) as SampleFrame;
 		const named = roundingPolicy(policy, direction);
-		return safeRoundedResult(named === 'point'
-			? (scaled < 0 ? -Math.round(-scaled) : Math.round(scaled))
-			: named === 'floor' ? Math.floor(scaled) : Math.ceil(scaled)) as SampleFrame;
+		return safeRoundedResult(named === 'point' ? (scaled < 0 ? -Math.round(-scaled) : Math.round(scaled)) : named === 'floor' ? Math.floor(scaled) : Math.ceil(scaled)) as SampleFrame;
 	}
-	const secondsFraction = bigFraction(seconds);
-	return fractionToInteger(
-		multiplyFractions(secondsFraction, bigFraction(rate)),
-		policy,
-		direction,
-	) as SampleFrame;
+	return fractionToInteger(frames, policy, direction) as SampleFrame;
 }
 export function sampleFrameToSeconds(frame: SampleFrame | number, sampleRate: number): number {
 	return safeInteger(frame, 'frame') / positiveSafeInteger(sampleRate, 'sampleRate');
@@ -239,7 +233,8 @@ export function countInSampleFrames(
 	const measures = nonNegativeSafeInteger(measureCount, 'measureCount');
 	const numerator = positiveSafeInteger(tempo.timeSignature.numerator, 'timeSignature.numerator');
 	const denominator = positiveSafeInteger(tempo.timeSignature.denominator, 'timeSignature.denominator');
-	if ((denominator & (denominator - 1)) !== 0) {
+	const denominatorBits = BigInt(denominator);
+	if ((denominatorBits & (denominatorBits - 1n)) !== 0n) {
 		throw new RangeError('timeSignature.denominator must be a power of two.');
 	}
 	const quarterBeats = normalizeBigFraction(
@@ -249,6 +244,7 @@ export function countInSampleFrames(
 	const samples = tempoSegmentSamples(quarterBeats, { numerator: 0n, denominator: 1n }, bigFraction(tempo.bpm), sampleRate);
 	return fractionToInteger(samples, 'point') as SampleFrame;
 }
+
 export function validateBreakpointMap(map: BreakpointMap): true {
 	if (!map || typeof map !== 'object' || !['audio-warp', 'video-retime'].includes(map.feature)) {
 		throw new TypeError('A breakpoint map with a supported feature is required.');
@@ -369,7 +365,7 @@ function normalizeBreakpoint(point: Breakpoint, index: number): Readonly<{
 
 function normalizeRate(rate: RationalRate): RationalRate {
 	if (!rate || typeof rate !== 'object') throw new TypeError('A rational rate is required.');
-	const normalized = normalizeRational(rate, { maximumDenominator: MAX_RATIONAL_DENOMINATOR });
+	const normalized = normalizeRational(rate, { maximumDenominator: Number.MAX_SAFE_INTEGER });
 	if (normalized.num <= 0) throw new RangeError('A rational rate must be positive.');
 	return normalized;
 }

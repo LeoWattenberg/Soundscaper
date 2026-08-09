@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	assertFrame,
 	clipEndFrame,
 	clipsOverlap,
 	createStableId,
@@ -26,6 +27,10 @@ import {
 	sortTrack,
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
+import {
+	sampleFrameToVideoFrame,
+	videoFrameToSampleFrame,
+} from '../timeline-time.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -197,7 +202,9 @@ function buildClipTransformState(project, transforms) {
 			if (!allowed.has(key)) throw new RangeError(`Clip field cannot be transformed: ${key}.`);
 		}
 		const durationFrames = changes.durationFrames ?? clip.durationFrames;
-		const timelineStartFrame = changes.timelineStartFrame ?? clip.timelineStartFrame;
+		const timelineStartFrame = Object.hasOwn(changes, 'timelineStartFrame')
+			? assertFrame(changes.timelineStartFrame, 'clip transform destination')
+			: clip.timelineStartFrame;
 		const updated = normalizeClipForProject(project, {
 			...clip,
 			...changes,
@@ -269,7 +276,20 @@ function overwriteClipRanges(project, state) {
 		clipsByAvLinkId.set(clip.avLinkId, linked);
 	}
 	const cutsByTrackId = new Map();
-	for (const item of state) appendOverwriteCut(cutsByTrackId, item.track.id, item.updated);
+	const conformedCutByAvLinkId = new Map();
+	const conformedCutByClipId = new Map();
+	for (const item of state) {
+		if (item.updated.kind !== 'video') continue;
+		const cut = conformedOverwriteCut(project, item);
+		conformedCutByClipId.set(item.clip.id, cut);
+		if (item.updated.avLinkId) conformedCutByAvLinkId.set(item.updated.avLinkId, cut);
+	}
+	for (const item of state) {
+		const cut = conformedCutByClipId.get(item.clip.id)
+			?? (item.updated.avLinkId ? conformedCutByAvLinkId.get(item.updated.avLinkId) : null)
+			?? item.updated;
+		appendOverwriteCut(cutsByTrackId, item.track.id, cut);
+	}
 
 	let changed = true;
 	while (changed) {
@@ -314,6 +334,55 @@ function overwriteClipRanges(project, state) {
 	return rangesByClipId;
 }
 
+function conformedOverwriteCut(project, item) {
+	if (Number(project.schemaVersion) < 10 || item.updated.kind !== 'video') return item.updated;
+	const owningSequence = project.sequences?.find((candidate) => (
+		Array.isArray(candidate.trackIds) && candidate.trackIds.includes(item.track?.id)
+	));
+	const sequenceId = owningSequence?.id ?? item.updated.sequenceId ?? project.primarySequenceId;
+	const sequence = project.sequences?.find((candidate) => candidate.id === sequenceId);
+	if (!sequence) throw new ReferenceError(`Video clip ${item.clip.id} references a missing sequence.`);
+	const baseSequenceStart = item.clip.sequenceStartFrame;
+	const baseSequenceEnd = baseSequenceStart + item.clip.sequenceFrameCount;
+	const requestedStartDelta = item.updated.timelineStartFrame - item.clip.timelineStartFrame;
+	const requestedEndDelta = clipEndFrame(item.updated) - clipEndFrame(item.clip);
+	const changesSequence = sequenceId !== item.clip.sequenceId;
+	const sequenceStart = changesSequence
+		? sampleFrameToVideoFrame(item.updated.timelineStartFrame, sequence.rate, project.sampleRate, 'point')
+		: baseSequenceStart + sampleFrameToVideoFrame(
+			requestedStartDelta,
+			sequence.rate,
+			project.sampleRate,
+			'point',
+		);
+	const sequenceEnd = changesSequence && requestedStartDelta === requestedEndDelta
+		? sequenceStart + item.clip.sequenceFrameCount
+		: changesSequence
+			? sampleFrameToVideoFrame(clipEndFrame(item.updated), sequence.rate, project.sampleRate, 'point')
+			: baseSequenceEnd + sampleFrameToVideoFrame(
+				requestedEndDelta,
+				sequence.rate,
+				project.sampleRate,
+				'point',
+			);
+	if (sequenceStart < 0 || sequenceEnd <= sequenceStart) {
+		throw new RangeError(`Video clip ${item.clip.id} does not retain a positive frame-grid range.`);
+	}
+	const timelineStartFrame = videoFrameToSampleFrame(
+		sequenceStart,
+		sequence.rate,
+		project.sampleRate,
+		'point',
+	);
+	const timelineEndFrame = videoFrameToSampleFrame(
+		sequenceEnd,
+		sequence.rate,
+		project.sampleRate,
+		'point',
+	);
+	return { timelineStartFrame, durationFrames: timelineEndFrame - timelineStartFrame };
+}
+
 function appendOverwriteCut(cutsByTrackId, trackId, clip) {
 	const startFrame = clip.timelineStartFrame;
 	const endFrame = clipEndFrame(clip);
@@ -336,7 +405,9 @@ export function overwriteClip(project, command) {
 	const oldTrack = requireClipTrack(project, clip.id);
 	const targetTrack = requireTrack(project, command.trackId || oldTrack.id);
 	const requestedChanges = command.changes || {};
-	const timelineStartFrame = requestedChanges.timelineStartFrame ?? clip.timelineStartFrame;
+	const timelineStartFrame = Object.hasOwn(requestedChanges, 'timelineStartFrame')
+		? assertFrame(requestedChanges.timelineStartFrame, 'clip overwrite destination')
+		: clip.timelineStartFrame;
 	const durationFrames = requestedChanges.durationFrames ?? clip.durationFrames;
 	const updated = normalizeClipForProject(project, {
 		...clip,
@@ -347,21 +418,22 @@ export function overwriteClip(project, command) {
 		id: clip.id,
 	});
 	assertClipSourceBounds(project, updated);
+	const overwriteCut = conformedOverwriteCut(project, { clip, updated, track: targetTrack });
 
 	const replacements = [];
 	const removedIds = new Set();
 	for (const clipId of targetTrack.clipIds) {
 		if (clipId === clip.id) continue;
 		const inactiveClip = requireClip(project, clipId);
-		if (!clipsOverlap(inactiveClip, updated)) {
+		if (!clipsOverlap(inactiveClip, overwriteCut)) {
 			replacements.push(inactiveClip);
 			continue;
 		}
 		removedIds.add(inactiveClip.id);
 		const inactiveStart = inactiveClip.timelineStartFrame;
 		const inactiveEnd = clipEndFrame(inactiveClip);
-		const activeStart = updated.timelineStartFrame;
-		const activeEnd = clipEndFrame(updated);
+		const activeStart = overwriteCut.timelineStartFrame;
+		const activeEnd = clipEndFrame(overwriteCut);
 		const hasLeadingSegment = inactiveStart < activeStart;
 		const hasTrailingSegment = inactiveEnd > activeEnd;
 		if (hasLeadingSegment) {
@@ -397,16 +469,21 @@ export function prepareOverwriteClipCommand(project, clipId, options = {}, idFac
 	if (!clip) throw new ReferenceError(`Unknown clip ${clipId}.`);
 	const targetTrack = findTrack(project, options.trackId) || findClipTrack(project, clipId);
 	if (!targetTrack) throw new ReferenceError(`Unknown target track for clip ${clipId}.`);
-	const candidate = normalizeClipForProject(project, { ...clip, ...(options.changes || {}), id: clip.id });
+	const changes = options.changes || {};
+	if (Object.hasOwn(changes, 'timelineStartFrame')) {
+		assertFrame(changes.timelineStartFrame, 'clip overwrite destination');
+	}
+	const candidate = normalizeClipForProject(project, { ...clip, ...changes, id: clip.id });
+	const overwriteCut = conformedOverwriteCut(project, { clip, updated: candidate, track: targetTrack });
 	const splitClipIds = {};
 	const videoEffectIds = {};
 	for (const targetClipId of targetTrack.clipIds) {
 		if (targetClipId === clip.id) continue;
 		const inactiveClip = requireClip(project, targetClipId);
 		if (
-			clipsOverlap(inactiveClip, candidate)
-			&& inactiveClip.timelineStartFrame < candidate.timelineStartFrame
-			&& clipEndFrame(inactiveClip) > clipEndFrame(candidate)
+			clipsOverlap(inactiveClip, overwriteCut)
+			&& inactiveClip.timelineStartFrame < overwriteCut.timelineStartFrame
+			&& clipEndFrame(inactiveClip) > clipEndFrame(overwriteCut)
 		) {
 			splitClipIds[inactiveClip.id] = idFactory('clip');
 			const effectIds = prepareVideoEffectIds(inactiveClip, idFactory);
@@ -426,7 +503,9 @@ export function prepareOverwriteClipCommand(project, clipId, options = {}, idFac
 export function trimClip(project, command) {
 	const clip = requireClip(project, command.clipId);
 	const track = requireClipTrack(project, clip.id);
-	const timelineStartFrame = command.timelineStartFrame ?? clip.timelineStartFrame;
+	const timelineStartFrame = command.timelineStartFrame == null
+		? clip.timelineStartFrame
+		: assertFrame(command.timelineStartFrame, 'clip trim destination');
 	const durationFrames = command.durationFrames ?? clip.durationFrames;
 	const sourceDurationFrames = command.sourceDurationFrames ?? Math.max(
 		1,

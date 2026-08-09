@@ -13,6 +13,7 @@ import {
 } from './project-v9.ts';
 import { createLabelV2 } from './project-v2.js';
 import {
+	AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR,
 	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
 	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
 } from './project-v10-foundation-validation.ts';
@@ -29,6 +30,7 @@ import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-ve
 import { createStableId } from './stable-id.js';
 import {
 	beatToSampleFrame,
+	addRationals,
 	normalizeRational,
 	sampleFrameToVideoFrame,
 	type BreakpointMap,
@@ -39,6 +41,7 @@ import {
 	validateBreakpointMap,
 	videoFrameRangeToSampleRange,
 } from './timeline-time.ts';
+import { validateTempoInverseRationalClosure } from './timeline-tempo-inverse.ts';
 import {
 	normalizeVideoTimingAssetReference,
 } from './video-timing-asset-reference.ts';
@@ -96,6 +99,13 @@ export function createVideoSourceV10(
 		frameCount: sampleFrameCount,
 		frameRate: frameRate.num / frameRate.den,
 	}, sampleRate);
+	const timingAsset = options.timingAsset == null
+		? null
+		: normalizeVideoTimingAssetReference(options.timingAsset);
+	const timingDecision = normalizeTimingDecision(options.timingDecision, frameRate);
+	if (timingDecision.mode === 'exact' && timingAsset === null) {
+		throw new RangeError('An exact video timing decision requires a timing asset.');
+	}
 	const result: Record<string, unknown> = {
 		...clone(options),
 		...legacy,
@@ -103,10 +113,8 @@ export function createVideoSourceV10(
 		sampleFrameCount,
 		frameRate,
 		sourceFrameCount,
-		timingAsset: options.timingAsset == null
-			? null
-			: normalizeVideoTimingAssetReference(options.timingAsset),
-		timingDecision: normalizeTimingDecision(options.timingDecision, frameRate),
+		timingAsset,
+		timingDecision,
 	};
 	delete result.frameCount;
 	return result;
@@ -128,10 +136,10 @@ export function createAudioClipV10(
 	const anchor = options.anchor === 'musical' ? 'musical' : 'sample';
 	const musicalExtent = options.musicalExtent === 'beat' ? 'beat' : 'fixedSamples';
 	const musicalStartBeat = anchor === 'musical'
-		? rational(options.musicalStartBeat ?? 0, 'clip.musicalStartBeat')
+		? coordinateRational(options.musicalStartBeat ?? 0, 'clip.musicalStartBeat')
 		: null;
 	const musicalDurationBeats = anchor === 'musical' && musicalExtent === 'beat'
-		? positiveRational(options.musicalDurationBeats, 'clip.musicalDurationBeats')
+		? positiveCoordinateRational(options.musicalDurationBeats, 'clip.musicalDurationBeats')
 		: null;
 	const derivedDuration = context && musicalStartBeat && musicalDurationBeats
 		? beatToSampleFrame(addRational(musicalStartBeat, musicalDurationBeats), context.tempoMap, context.projectSampleRate)
@@ -261,7 +269,7 @@ export function createAudioEditorProjectV10(options: AudioEditorProjectV10Option
 	const tracks = arrayOr(input.tracks, base.tracks).map((value) => createMediaTrackV10(object(value, 'track'), sampleRate));
 	const primarySequenceId = nonEmptyString(input.primarySequenceId ?? DEFAULT_SEQUENCE_ID, 'project.primarySequenceId');
 	const sequences = normalizeSequences(input.sequences, primarySequenceId, tracks.map(({ id }) => String(id)));
-	const tempoMap = normalizeTempoMap(input.tempoMap, base);
+	const tempoMap = normalizeTempoMap(input.tempoMap, base, sampleRate);
 	const signatureMap = normalizeSignatureMap(input.signatureMap, base);
 	const sourceById = new Map(sources.map((source) => [String(source.id), source]));
 	const sequenceById = new Map(sequences.map((sequence) => [String(sequence.id), sequence]));
@@ -350,7 +358,11 @@ function normalizeSequences(
 	});
 }
 
-function normalizeTempoMap(value: unknown, base: Record<string, unknown>): HoldTempoMap & Record<string, unknown> {
+function normalizeTempoMap(
+	value: unknown,
+	base: Record<string, unknown>,
+	sampleRate: number,
+): HoldTempoMap & Record<string, unknown> {
 	const legacyTempo = object(base.tempo, 'project.tempo');
 	const map = value == null ? {} : object(value, 'project.tempoMap');
 	const mode = map.mode === 'sampleLocked' ? 'sampleLocked' : 'musical';
@@ -362,14 +374,16 @@ function normalizeTempoMap(value: unknown, base: Record<string, unknown>): HoldT
 		const normalized: Record<string, unknown> = {
 			...clone(event),
 			id: nonEmptyString(event.id ?? `tempo-${String(index + 1)}`, 'tempo event ID'),
-			beat: rational(event.beat ?? 0, 'tempo event beat'),
+			beat: coordinateRational(event.beat ?? 0, 'tempo event beat'),
 			bpm: positiveRational(event.bpm ?? legacyTempo.bpm, 'tempo event bpm'),
 		};
 		if (mode === 'sampleLocked') normalized.samplePosition = nonNegativeSafeInteger(event.samplePosition ?? 0, 'tempo event samplePosition');
 		else delete normalized.samplePosition;
 		return normalized;
 	});
-	return { ...clone(map), mode, events } as unknown as HoldTempoMap & Record<string, unknown>;
+	const result = { ...clone(map), mode, events } as unknown as HoldTempoMap & Record<string, unknown>;
+	validateTempoInverseRationalClosure(result, sampleRate);
+	return result;
 }
 
 function normalizeSignatureMap(value: unknown, base: Record<string, unknown>): Record<string, unknown> {
@@ -418,8 +432,8 @@ function normalizeLabel(value: Record<string, unknown>): Record<string, unknown>
 		...clone(value),
 		id: nonEmptyString(value.id ?? createStableId('label'), 'label.id'),
 		anchor,
-		startBeat: anchor === 'musical' ? rational(value.startBeat ?? 0, 'label.startBeat') : null,
-		endBeat: anchor === 'musical' ? rational(value.endBeat ?? value.startBeat ?? 0, 'label.endBeat') : null,
+		startBeat: anchor === 'musical' ? coordinateRational(value.startBeat ?? 0, 'label.startBeat') : null,
+		endBeat: anchor === 'musical' ? coordinateRational(value.endBeat ?? value.startBeat ?? 0, 'label.endBeat') : null,
 	};
 	if (anchor === 'musical') {
 		delete result.startFrame;
@@ -470,16 +484,28 @@ function positiveRational(value: RationalInput | unknown, name: string): Rationa
 	return result;
 }
 
+function coordinateRational(value: RationalInput | unknown, name: string): Rational {
+	if (typeof value !== 'number' && (!value || typeof value !== 'object' || Array.isArray(value))) {
+		throw new TypeError(`${name} must be rational.`);
+	}
+	return normalizeRational(value as RationalInput, {
+		maximumDenominator: AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR,
+	});
+}
+
+function positiveCoordinateRational(value: RationalInput | unknown, name: string): Rational {
+	const result = coordinateRational(value, name);
+	if (result.num <= 0 || result.den <= 0) throw new RangeError(`${name} must be positive.`);
+	return result;
+}
+
 function rationalRate(value: unknown, name: string): RationalRate {
 	const result = positiveRational(value, name);
 	return { num: result.num, den: result.den };
 }
 
 function addRational(left: Rational, right: Rational): Rational {
-	return normalizeRational({
-		num: left.num * right.den + right.num * left.den,
-		den: left.den * right.den,
-	});
+	return addRationals(left, right);
 }
 
 function boundedSampleRate(value: unknown): number {

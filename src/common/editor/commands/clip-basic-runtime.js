@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	assertFrame,
 	clipEndFrame,
 	findClip,
 	findClipTrack,
@@ -215,9 +216,10 @@ export function moveClip(project, command) {
 	const clip = requireClip(project, command.clipId);
 	const oldTrack = requireClipTrack(project, clip.id);
 	const targetTrack = requireTrack(project, command.trackId || oldTrack.id);
+	const timelineStartFrame = assertFrame(command.timelineStartFrame, 'clip move destination');
 	const updated = normalizeClipForProject(project, {
 		...clip,
-		timelineStartFrame: command.timelineStartFrame,
+		timelineStartFrame,
 		id: clip.id,
 	});
 	assertClipSpace(project, targetTrack, updated, clip.id);

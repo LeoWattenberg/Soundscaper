@@ -15,7 +15,7 @@ import {
 import { registerDesktopProjectLibraryIpc } from '../desktop/project-library-ipc.js';
 
 const PROJECT_ID = 'π'.repeat(12);
-const DOCUMENT = JSON.stringify({ schemaVersion: 9, id: PROJECT_ID, title: 'Shared project', revision: 3 });
+const DOCUMENT = JSON.stringify({ schemaVersion: 10, id: PROJECT_ID, title: 'Shared project', revision: 3 });
 const SUMMARY = Object.freeze({
 	id: PROJECT_ID,
 	title: 'Shared project',

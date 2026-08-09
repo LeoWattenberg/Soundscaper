@@ -38,6 +38,11 @@ export interface ManagedTimingAsset extends Record<string, unknown> {
 	readonly storageKey: string;
 	readonly byteLength: number;
 	readonly sha256: string;
+	readonly sourceSha256: string;
+	readonly frameCount: number;
+	readonly timescale: number;
+	readonly finalFrameDurationTicks: string;
+	readonly encoding: string;
 }
 
 export type ManagedSource = ManagedAudioSource | ManagedVideoSource | ManagedTimingAsset;
@@ -53,5 +58,10 @@ export function managedVideoTimingTransfers(
 		storageKey: reference.storageKey,
 		byteLength: reference.byteLength,
 		sha256: reference.sha256,
+		sourceSha256: reference.sourceSha256,
+		frameCount: reference.frameCount,
+		timescale: reference.timescale,
+		finalFrameDurationTicks: reference.finalFrameDurationTicks,
+		encoding: reference.encoding,
 	})];
 }

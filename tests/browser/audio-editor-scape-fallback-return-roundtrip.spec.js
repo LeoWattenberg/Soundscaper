@@ -9,6 +9,9 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
+import { resolveRuntimeClipProjection } from '../../src/common/editor/runtime-clip-projection.ts';
+import { validateAudioEditorProjectV10 } from '../../src/common/editor/project-v10-validation.ts';
+
 import {
 	asymmetricStereoTone,
 	expect,
@@ -26,6 +29,7 @@ import {
 	trackNameText,
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const PRODUCT_PATHS = {
@@ -82,6 +86,7 @@ test.describe('rendered-fallback Scape return roundtrips', () => {
 		test(workflow.id, async ({ browser, page }) => {
 			if (workflow.kind === 'video') test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 			test.setTimeout(120_000);
+			await installPinnedFfmpegRuntimeRoutes(page);
 			const origin = await bootEditor(page, PRODUCT_PATHS[workflow.origin]);
 			const originErrors = collectClientErrors(page);
 			const base = workflow.kind === 'audio'
@@ -189,6 +194,11 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				hasAudio: false,
 				posterStorageKey: null,
 				thumbnailStorageKey: null,
+				timingAsset: null,
+				timingDecision: {
+					mode: 'conform-cfr-at-ingest',
+					rate: structuredClone(canonicalSource.frameRate),
+				},
 			};
 			const fallbackBytes = new Uint8Array(fallbackFixture.buffer);
 			const entry = `media/${fallbackSourceId}/original`;
@@ -206,6 +216,7 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 			if (!canonicalAsset || canonicalAsset.sha256 === fallbackAsset.sha256) {
 				throw new Error(`${workflow.id} requires an independent silent video fallback asset.`);
 			}
+			fallbackSource.contentSha256 = fallbackAsset.sha256;
 			project.sources.push(fallbackSource);
 			manifest.assets.push(fallbackAsset);
 			payloads.set(entry, fallbackBytes);
@@ -225,6 +236,10 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 			}
 		}
 		project.tracks = project.tracks.filter((track) => track.type === 'label' || track.clipIds.length > 0);
+		const retainedTrackIds = new Set(project.tracks.map(({ id }) => id));
+		for (const sequence of project.sequences) {
+			sequence.trackIds = sequence.trackIds.filter((id) => retainedTrackIds.has(id));
+		}
 		const targetClip = project.clips.find(({ sourceId }) => sourceId === canonicalSource.id);
 		const targetTrack = project.tracks.find(({ clipIds }) => clipIds?.includes(targetClip?.id));
 		if (!targetClip || !targetTrack) throw new Error(`${workflow.id} is missing its canonical target.`);
@@ -235,8 +250,11 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 			targetTrack.effectsActive = true;
 			targetTrack.effects = [structuredClone(AUDIO_EFFECT)];
 		} else {
+			const targetDurationFrames = resolveRuntimeClipProjection(project, targetClip).durationFrames;
 			fallbackSource.sampleRate = canonicalSource.sampleRate;
-			fallbackSource.frameCount = targetClip.durationFrames;
+			fallbackSource.sampleFrameCount = targetDurationFrames;
+			fallbackSource.sourceFrameCount = targetClip.sourceFrameCount;
+			delete fallbackSource.frameCount;
 			fallbackSource.width = canonicalSource.width;
 			fallbackSource.height = canonicalSource.height;
 			fallbackSource.frameRate = canonicalSource.frameRate;
@@ -244,9 +262,12 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 			targetClip.videoEffects = [structuredClone(VIDEO_EFFECT)];
 		}
 
+		const retainedRequirements = project.featureRequirements.requirements.filter(({ featureId }) => (
+			featureId !== FEATURE_IDS[workflow.kind]
+		));
 		project.featureRequirements = {
 			schemaVersion: 2,
-			requirements: [{
+			requirements: [...retainedRequirements, {
 				id: `publisher-${workflow.kind}-render`,
 				featureId: FEATURE_IDS[workflow.kind],
 				displayName: `${workflow.role} publisher state`,
@@ -265,6 +286,7 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				},
 			}],
 		};
+		validateAudioEditorProjectV10(project);
 	});
 }
 
@@ -309,6 +331,7 @@ async function assertFallbackPlayback(runtime, workflow) {
 
 async function openProductRuntime(browser, baseURL, productId) {
 	const page = await browser.newPage({ baseURL, serviceWorkers: 'block' });
+	await installPinnedFfmpegRuntimeRoutes(page);
 	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 		status: 200,
 		contentType: 'application/json',
@@ -363,7 +386,7 @@ async function renameFirstTrack(editor, name) {
 	await expect(input).toBeFocused();
 	await input.fill(name);
 	await input.press('Enter');
-	await expect(label).toHaveText(name);
+	await expect(label, `Editor status: ${await editor.locator('[data-status]').textContent()}`).toHaveText(name);
 }
 
 function normalizeTrackNames(tracks, expectedTracks) {

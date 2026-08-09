@@ -15,6 +15,7 @@ import {
 	validateDirectVideoOutput,
 	type DirectVideoDestination,
 } from './direct-video-export.ts';
+import { acquireVideoExportTimingIndexes } from './video-export-timing.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -94,12 +95,24 @@ export function createEditorVideoExportAction(
 			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
 			const format = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
 			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind !== 'video');
-			const plan = createVideoExportPlan(exportProject, {
-				format,
-				range: requestedSettings.range || 'project',
-				includeAudio,
-				canvas: requestedSettings.canvas,
-			});
+			const timingIndexes = await acquireVideoExportTimingIndexes(
+				exportProject,
+				store,
+				{ findClip, findSource },
+				{ signal: abort.signal, assertCurrent: assertVideoExportCurrent },
+			);
+			let plan: RuntimeValue;
+			try {
+				assertVideoExportCurrent();
+				plan = createVideoExportPlan(exportProject, {
+					format,
+					range: requestedSettings.range || 'project',
+					includeAudio,
+					canvas: requestedSettings.canvas,
+				});
+			} finally {
+				timingIndexes.release();
+			}
 			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
 			const directPreparation = await prepareDirectVideoDestination(
 				fileService,

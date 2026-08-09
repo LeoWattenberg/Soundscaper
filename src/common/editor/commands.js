@@ -6,6 +6,8 @@ import { createEditorCommandRuntime } from './commands/runtime-registry.ts';
 import { pruneMissingProjectSelections } from './commands/shared-runtime.js';
 import { projectV10ForCommand } from './project-v10-command-projection.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { brandRuntimeProjectProjection } from './runtime-clip-projection.ts';
+import { FOUNDATION_EDIT_OPERATION } from './commands/command-projection-transients.ts';
 
 export {
 	collectClipTransformIds,
@@ -90,6 +92,9 @@ export function applyEditorCommand(project, command, options = {}) {
 		? projectV10ForCommand(project)
 		: project;
 	return /** @type {Project} */ (commitProject(commandProject, (draft) => {
+		if (project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+			brandRuntimeProjectProjection(draft);
+		}
 		mutateCommand(draft, command);
 		pruneMissingProjectSelections(draft);
 	}, { ...options, persistedBase: project }));
@@ -98,5 +103,26 @@ export function applyEditorCommand(project, command, options = {}) {
 const editorCommandHandlers = createEditorCommandRuntime(mutateCommand);
 
 function mutateCommand(project, command) {
+	if (project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION && command.type !== 'batch') {
+		const before = new Map(project.clips.map((clip) => [clip.id, commandTimingSignature(clip)]));
+		dispatchEditorCommand(editorCommandHandlers, project, command);
+		const operation = {};
+		for (const clip of project.clips) {
+			const previous = before.get(clip.id);
+			if (previous != null && previous !== commandTimingSignature(clip)) {
+				clip[FOUNDATION_EDIT_OPERATION] = operation;
+			}
+		}
+		return;
+	}
 	dispatchEditorCommand(editorCommandHandlers, project, command);
+}
+
+function commandTimingSignature(clip) {
+	return [
+		clip.timelineStartFrame,
+		clip.durationFrames,
+		clip.sourceStartFrame,
+		clip.sourceDurationFrames,
+	].map((value) => `${typeof value}:${String(value)}`).join('|');
 }

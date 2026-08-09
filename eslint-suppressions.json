@@ -64,11 +64,6 @@
       "count": 1
     }
   },
-  "src/common/editor/ffmpeg.js": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/file-service.js": {
     "no-control-regex": {
       "count": 1

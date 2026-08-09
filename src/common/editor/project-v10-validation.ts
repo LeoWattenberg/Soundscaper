@@ -4,6 +4,7 @@ import { validateAdmProjectChannelCount, validateAdmProjectMetadata } from './ad
 import { normalizeCartMetadata, type CartMetadataInput } from './cart-metadata.ts';
 import { normalizeIxmlMetadata, type IxmlMetadataInput } from './ixml.ts';
 import { validateProjectBextMetadata } from './project-bext-metadata.ts';
+import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import { validateProjectV10Foundation } from './project-v10-foundation-validation.ts';
 import { normalizeProjectFeatureRequirements, type ProjectFeatureRequirementsManifest } from './project-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
@@ -59,13 +60,16 @@ export function validateAudioEditorProjectV10(
 	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
+	if (Object.hasOwn(candidate, 'runtimeProjectionVersion')) {
+		throw new RangeError('A persisted project cannot contain a runtime projection marker.');
+	}
 	const { metadata, media } = validateProjectV9Document(candidate);
 	validateProjectBextMetadata(metadata);
 	if (metadata.ixml != null) normalizeIxmlMetadata(metadata.ixml as IxmlMetadataInput);
 	if (metadata.cart != null) normalizeCartMetadata(metadata.cart as CartMetadataInput);
 	validateAdmProjectMetadata(metadata);
 	validateAdmProjectChannelCount(candidate);
-	normalizeProjectFeatureRequirements(candidate.featureRequirements, {
+	const featureRequirements = normalizeProjectFeatureRequirements(candidate.featureRequirements, {
 		sources: media.sources,
 		clips: media.clips,
 		tracks: media.tracks,
@@ -75,5 +79,8 @@ export function validateAudioEditorProjectV10(
 		primarySequenceId: candidate.primarySequenceId,
 	});
 	validateProjectV10Foundation(candidate, media);
+	if (reconcileProjectOwnedFeatureRequirements(candidate, featureRequirements) !== featureRequirements) {
+		throw new RangeError('Project state and owned feature requirements must agree.');
+	}
 	return true;
 }

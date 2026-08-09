@@ -45,6 +45,7 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from './project-library-lease-smoke.js';
+import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from './project-library-smoke-project-v10.js';
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
@@ -423,7 +424,7 @@ function validateMainDocument(document, descriptor, label) {
 		throw new TypeError(`${label} is not a canonical document`, { cause: error });
 	}
 	if (JSON.stringify(project) !== document) throw new TypeError(`${label} is not a canonical document`);
-	if (project?.schemaVersion !== 9 || project.id !== descriptor.id
+	if (project?.schemaVersion !== DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION || project.id !== descriptor.id
 		|| project.title !== descriptor.title || project.revision !== descriptor.revision) {
 		throw new TypeError(`${label} does not match its descriptor`);
 	}

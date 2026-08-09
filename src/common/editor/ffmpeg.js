@@ -21,6 +21,11 @@ import {
 import { readBoundedFfmpegOutputFile } from './browser-export-output.ts';
 import { getVideoExportFormat } from './video-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
+import {
+	buildFfmpegVideoTimingProbeArgs,
+	parseFfmpegVideoTimingLogs,
+} from './ffmpeg-video-timing-probe.ts';
+import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
@@ -278,7 +283,7 @@ export function createEditorFfmpeg(options = {}) {
 			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 			const mountPoint = `/editor-encode-${stamp}`;
 			const inputName = typeof File !== 'undefined' && file instanceof File
-				? file.name.replace(/[\\/\u0000]/g, '-')
+				? safeFfmpegFileName(file.name, `editor-${stamp}.wav`)
 				: `editor-${stamp}.wav`;
 			const output = `editor-${stamp}.${normalized.extension}`;
 			const onAbort = () => terminateRuntime();
@@ -424,6 +429,58 @@ export function createEditorFfmpeg(options = {}) {
 		});
 	}
 
+	async function probeVideoTiming(file, settings = {}) {
+		if (!(file instanceof Blob)) throw new TypeError('Expected a video Blob for timing probe.');
+		const signal = settings.signal;
+		if (signal?.aborted) throw signal.reason ?? abortError();
+		return run(async (instance) => {
+			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+			const mountPoint = `/editor-probe-${stamp}`;
+			let input = `editor-probe-${stamp}`;
+			let mounted = false;
+			const logs = [];
+			const handleLog = ({ message = '' }) => {
+				if (typeof message === 'string' && (message.includes('showinfo') || message.includes('config in time_base:'))) {
+					logs.push(message);
+				}
+			};
+			const onAbort = () => terminateRuntime();
+			instance.on('log', handleLog);
+			signal?.addEventListener('abort', onAbort, { once: true });
+			try {
+				if (typeof File !== 'undefined' && file instanceof File && module?.FFFSType) {
+					const inputName = safeFfmpegFileName(file.name, `video-${stamp}`);
+					await instance.createDir(mountPoint);
+					await instance.mount(module.FFFSType.WORKERFS, {
+						blobs: [{ name: inputName, data: file }],
+					}, mountPoint);
+					input = `${mountPoint}/${inputName}`;
+					mounted = true;
+				} else {
+					await instance.writeFile(input, new Uint8Array(await file.arrayBuffer()), { signal });
+				}
+				const code = await instance.exec(buildFfmpegVideoTimingProbeArgs(input), -1, { signal });
+				if (code !== 0) throw new Error(`FFmpeg timing probe exited with code ${code}.`);
+				return parseFfmpegVideoTimingLogs(logs);
+			} finally {
+				signal?.removeEventListener('abort', onAbort);
+				try { instance.off('log', handleLog); } catch {}
+				if (mounted) {
+					await instance.unmount(mountPoint).catch(() => undefined);
+					await instance.deleteDir(mountPoint).catch(() => undefined);
+				} else await instance.deleteFile(input).catch(() => undefined);
+			}
+		});
+	}
+
+	function conformVideoToCfr(file, settings = {}) {
+		return conformFfmpegVideoToCfr({
+			file, rate: settings.rate, signal: settings.signal, run,
+			workerFsType: () => module?.FFFSType?.WORKERFS,
+			terminateRuntime,
+		});
+	}
+
 	async function encodeVideo(videoBlobsBySourceId, audioMix, plan, settings = {}) {
 		return encodeFfmpegVideoBytes({
 			videoBlobsBySourceId, audioMix, plan, settings,
@@ -470,7 +527,7 @@ export function createEditorFfmpeg(options = {}) {
 
 	return {
 		load, encode, encodeFile, encodeFileToSink, encodeVideo, encodeVideoToSink,
-		decode, dispose, capabilities: () => capabilities,
+		decode, probeVideoTiming, conformVideoToCfr, dispose, capabilities: () => capabilities,
 	};
 }
 
@@ -481,6 +538,11 @@ function normalizeIdleTimeout(value) {
 		throw new TypeError('FFmpeg idleTimeoutMs must be a non-negative finite number, false, or null.');
 	}
 	return value;
+}
+
+function safeFfmpegFileName(value, fallback) {
+	const normalized = String(value || '').replaceAll('\0', '-').replace(/[\\/]/gu, '-');
+	return normalized || fallback;
 }
 
 export function encoderArgs(input, output, format, settings = {}) {

@@ -14,6 +14,7 @@ import {
 	projectDurationFrames,
 	normalizeFrameRange,
 } from './project.js';
+import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import {
 	canonicalMediaExportFormat,
 	getMediaExportFormat,
@@ -147,16 +148,17 @@ export function createExportFileName(project, options = {}) {
 
 /** @returns {AudioExportPlan} */
 export function createExportPlan(project, options = {}) {
+	const runtimeProject = projectForRuntimeConsumers(project);
 	const mode = options.mode || 'mix';
 	if (mode !== 'mix' && mode !== 'stems') throw new RangeError('Export mode must be mix or stems.');
 	const format = canonicalMediaExportFormat(options.format || 'wav');
 	if (format === 'bw64' && mode !== 'mix') throw new RangeError('BW64 / ADM export is mix-only.');
-	const bw64Adm = format === 'bw64' ? resolveBw64Adm(project, options) : null;
+	const bw64Adm = format === 'bw64' ? resolveBw64Adm(runtimeProject, options) : null;
 	let encoding = normalizeMediaExportSettings(format, {
 		...options,
-		sampleRate: options.sampleRate ?? project.sampleRate ?? AUDIO_EDITOR_SAMPLE_RATE,
+		sampleRate: options.sampleRate ?? runtimeProject.sampleRate ?? AUDIO_EDITOR_SAMPLE_RATE,
 		inputChannelCount: bw64Adm?.channelCount
-			?? options.inputChannelCount ?? project.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS,
+			?? options.inputChannelCount ?? runtimeProject.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS,
 		...(bw64Adm ? { channelMapping: 'preserve' } : {}),
 	});
 	const preservedRiffChunks = bw64Adm?.metadata.mode === 'passthrough'
@@ -169,12 +171,12 @@ export function createExportPlan(project, options = {}) {
 		throw new Error('ADM passthrough with preserved RIFF INFO cannot add replacement INFO metadata.');
 	}
 	const sampleRate = encoding.sampleRate;
-	const range = resolveExportRange(project, options.range || 'project');
-	let markers = createExportMarkers(project, range, sampleRate, options.markerTrackId);
-	let ixml = project.metadata?.ixml ?? null;
-	let cart = format === 'bwf' || format === 'bw64' ? project.metadata?.cart ?? null : null;
+	const range = resolveExportRange(runtimeProject, options.range || 'project');
+	let markers = createExportMarkers(runtimeProject, range, sampleRate, options.markerTrackId);
+	let ixml = runtimeProject.metadata?.ixml ?? null;
+	let cart = format === 'bwf' || format === 'bw64' ? runtimeProject.metadata?.cart ?? null : null;
 	let bext = format === 'bwf' || format === 'bw64'
-		? createBwfExportMetadata(project, {
+		? createBwfExportMetadata(runtimeProject, {
 			bext: options.bext,
 			rangeStartFrame: range.startFrame,
 			outputSampleRate: sampleRate,
@@ -187,7 +189,7 @@ export function createExportPlan(project, options = {}) {
 		if (options.measureLoudness === true) {
 			throw new Error('ADM passthrough with preserved BEXT cannot replace its loudness metadata.');
 		}
-		if (options.bext != null && !sameBextMetadata(options.bext, projectBextMetadata(project))) {
+		if (options.bext != null && !sameBextMetadata(options.bext, projectBextMetadata(runtimeProject))) {
 			throw new Error('ADM passthrough with preserved BEXT cannot add replacement BEXT metadata.');
 		}
 		bext = null;
@@ -199,11 +201,11 @@ export function createExportPlan(project, options = {}) {
 	if (preservedRiffChunks?.ixml) ixml = null;
 	if (preservedRiffChunks?.cart) cart = null;
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
-	const tailFrames = determineTailFrames(project, mode, options.includeTail !== false);
-	const rangeOutputFrames = Math.ceil(range.durationFrames * sampleRate / project.sampleRate);
-	const tailOutputFrames = Math.ceil(tailFrames * sampleRate / project.sampleRate);
+	const tailFrames = determineTailFrames(runtimeProject, mode, options.includeTail !== false);
+	const rangeOutputFrames = Math.ceil(range.durationFrames * sampleRate / runtimeProject.sampleRate);
+	const tailOutputFrames = Math.ceil(tailFrames * sampleRate / runtimeProject.sampleRate);
 	const outputFrames = rangeOutputFrames + tailOutputFrames;
-	const adm = bw64Adm ? createBw64AdmExport(project, bw64Adm, {
+	const adm = bw64Adm ? createBw64AdmExport(runtimeProject, bw64Adm, {
 		range,
 		outputFrames,
 		encoding,
@@ -234,14 +236,14 @@ export function createExportPlan(project, options = {}) {
 	const outputs = mode === 'mix'
 		? [{
 			kind: 'mix',
-			fileName: createExportFileName(project, { format, extension: encoding.extension, date: options.date }),
+			fileName: createExportFileName(runtimeProject, { format, extension: encoding.extension, date: options.date }),
 			trackId: null,
 			includeMaster: true,
 			respectMuteSolo: true,
 		}]
-		: project.tracks.filter((track) => track.type !== 'label' && track.type !== 'video').map((track, trackIndex) => ({
+		: runtimeProject.tracks.filter((track) => track.type !== 'label' && track.type !== 'video').map((track, trackIndex) => ({
 			kind: 'stem',
-			fileName: createExportFileName(project, { format, extension: encoding.extension, mode: 'stem', trackIndex, trackName: track.name }),
+			fileName: createExportFileName(runtimeProject, { format, extension: encoding.extension, mode: 'stem', trackIndex, trackName: track.name }),
 			trackId: track.id,
 			includeMaster: false,
 			respectMuteSolo: false,
@@ -249,14 +251,14 @@ export function createExportPlan(project, options = {}) {
 	const renderStrategyOptions = {
 		mobile: Boolean(options.mobile),
 		outputBytes,
-		livePcmBytes: options.livePcmBytes ?? estimateProjectPcmBytes(project),
+		livePcmBytes: options.livePcmBytes ?? estimateProjectPcmBytes(runtimeProject),
 	};
 	const legacyRender = chooseRenderStrategy(renderStrategyOptions);
 	const render = legacyRender.strategy === 'offline'
 		? chooseRenderStrategy({
 			...renderStrategyOptions,
 			offlineRenderAdmission: selectExportOfflineRenderAdmission({
-				project,
+				project: runtimeProject,
 				mode,
 				outputs,
 				range,
@@ -268,7 +270,7 @@ export function createExportPlan(project, options = {}) {
 	const fallbackTemporaryBytes = multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
 	const archive = mode === 'stems'
 		? createStemArchivePlan(
-			`${sanitizeExportName(project.title)}-stems-${isoDate(options.date)}`,
+			`${sanitizeExportName(runtimeProject.title)}-stems-${isoDate(options.date)}`,
 			outputs.map((output) => ({
 				fileName: output.fileName,
 				expectedByteLength: outputLayout?.byteLength ?? null,
@@ -311,7 +313,7 @@ export function createExportPlan(project, options = {}) {
 		render,
 		outputs,
 		archive,
-		aggregateStereoMinutes: aggregateStereoMinutes(project),
+		aggregateStereoMinutes: aggregateStereoMinutes(runtimeProject),
 	};
 }
 
@@ -496,12 +498,13 @@ function createRiffChunk(id, payload) {
 }
 
 function createExportMarkers(project, range, outputSampleRate, requestedTrackId) {
-	const tracks = project.tracks.filter((track) => track.type === 'label');
+	const runtimeProject = projectForRuntimeConsumers(project);
+	const tracks = runtimeProject.tracks.filter((track) => track.type === 'label');
 	const track = requestedTrackId == null
 		? tracks[0]
 		: tracks.find((candidate) => candidate.id === requestedTrackId);
 	if (!track) return Object.freeze([]);
-	const scale = outputSampleRate / project.sampleRate;
+	const scale = outputSampleRate / runtimeProject.sampleRate;
 	return Object.freeze(track.labels.flatMap((label, index) => {
 		if (label.endFrame < range.startFrame || label.startFrame >= range.endFrame) return [];
 		const start = Math.max(label.startFrame, range.startFrame);

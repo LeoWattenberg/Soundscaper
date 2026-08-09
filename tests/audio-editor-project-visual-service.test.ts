@@ -6,6 +6,7 @@ import {
 	type ProjectVisualServiceDependencies,
 } from '../src/common/editor/controller/project-visual-service.ts';
 import { EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
+import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 
 type VideoDerivatives = Awaited<ReturnType<
 	ProjectVisualServiceDependencies['store']['listVideoDerivatives']
@@ -130,6 +131,39 @@ test('video activation resolves an exact project-scoped linked original after re
 	assert.equal(service.getVideoSourceVisualData('unknown'), null);
 	assert.deepEqual(resolutions, [{ projectId: project.id, sourceId: 'video' }]);
 	assert.deepEqual(derivativeReads, ['list', 'load']);
+});
+
+test('video activation rejects a digest-valid reference whose durable timing body is corrupt', async () => {
+	const project = projectFixture();
+	const sourceSha256 = '11'.repeat(32);
+	const publication = createVideoTimingAssetPublication(sourceSha256, {
+		timescale: 1_000,
+		presentationTicks: [0n, 40n],
+		finalFrameDurationTicks: 40n,
+	});
+	Object.assign(project.sources[1], {
+		contentSha256: sourceSha256,
+		timingAsset: publication.reference,
+	});
+	const service = createProjectVisualService({
+		getProject: () => project,
+		...projectFence(),
+		missingSourceIds: new Set(),
+		sourceBuffers: new Map(),
+		sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async (storageKey) => storageKey === publication.reference.storageKey
+				? new Blob([new Uint8Array(publication.bytes.byteLength)])
+				: new Blob(['video']),
+			listVideoDerivatives: async () => [],
+			loadVideoDerivative: async () => null,
+		},
+		projectDurationFrames: () => 1_000,
+		url: fakeUrlPort(),
+	});
+
+	await assert.rejects(service.activateVideoSource(project.sources[1]), /timing asset is corrupt/iu);
 });
 
 test('video activation owns ranged linked playback without materializing another original Blob', async () => {

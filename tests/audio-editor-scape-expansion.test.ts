@@ -60,6 +60,10 @@ test('cumulative actual bytes stop a lying asset stream before media or project 
 						mediaWrites += 1;
 						return writer.commit(...commitArgs);
 					},
+					async commitOwned(...commitArgs: Parameters<NonNullable<typeof writer.commitOwned>>) {
+						mediaWrites += 1;
+						return writer.commitOwned!(...commitArgs);
+					},
 					abort: writer.abort.bind(writer),
 				};
 			};

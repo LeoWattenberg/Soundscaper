@@ -2,7 +2,7 @@
 
 import {
 	clipEndFrame,
-	commitProject,
+	cloneProject,
 	createStableId,
 	findClip,
 	normalizeFrameRange,
@@ -11,6 +11,16 @@ import {
 	addClip,
 	mergeEditingRanges,
 } from './clip-basic-runtime.js';
+import {
+	sampleFrameToVideoFrame,
+	videoFrameToSampleFrame,
+} from '../timeline-time.ts';
+import { projectV10ForCommand } from '../project-v10-command-projection.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import {
+	brandRuntimeProjectProjection,
+	isRuntimeProjectProjection,
+} from '../runtime-clip-projection.ts';
 import {
 	assertUnusedClipId,
 	assertUnusedId,
@@ -34,13 +44,16 @@ export function deleteRange(project, command, rippleMode) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'delete range');
 	const trackIds = command.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
 	const affectedClipIds = Array.isArray(command.clipIds) ? new Set(command.clipIds) : null;
+	const conformedRanges = conformedVideoOperationRanges(project, trackIds, range);
 	for (const trackId of trackIds) {
 		const track = requireTrack(project, trackId);
 		if (!Array.isArray(track.clipIds)) continue;
+		const operationRange = conformedRanges.has(trackId) ? conformedRanges.get(trackId) : range;
+		if (!operationRange) continue;
 		processTrackRange(
 			project,
 			track,
-			range,
+			operationRange,
 			rippleMode,
 			command.splitClipIds || {},
 			command.splitAvLinkIds || {},
@@ -48,6 +61,47 @@ export function deleteRange(project, command, rippleMode) {
 			affectedClipIds,
 		);
 	}
+}
+
+function conformedVideoOperationRanges(project, trackIds, range) {
+	const result = new Map();
+	if (Number(project.schemaVersion) < 10 || !Array.isArray(project.sequences)) return result;
+	const selectedTrackIds = new Set(trackIds);
+	const trackById = new Map(project.tracks.map((track) => [track.id, track]));
+	for (const sequence of project.sequences) {
+		const participating = (Array.isArray(sequence.trackIds) ? sequence.trackIds : [])
+			.filter((trackId) => selectedTrackIds.has(trackId));
+		if (!participating.some((trackId) => trackById.get(trackId)?.type === 'video')) continue;
+		const startVideoFrame = sampleFrameToVideoFrame(
+			range.startFrame,
+			sequence.rate,
+			project.sampleRate,
+			'point',
+		);
+		const endVideoFrame = sampleFrameToVideoFrame(
+			range.endFrame,
+			sequence.rate,
+			project.sampleRate,
+			'point',
+		);
+		const startFrame = videoFrameToSampleFrame(
+			startVideoFrame,
+			sequence.rate,
+			project.sampleRate,
+			'point',
+		);
+		const endFrame = videoFrameToSampleFrame(
+			endVideoFrame,
+			sequence.rate,
+			project.sampleRate,
+			'point',
+		);
+		const conformed = endFrame > startFrame
+			? { startFrame, endFrame, durationFrames: endFrame - startFrame }
+			: null;
+		for (const trackId of participating) result.set(trackId, conformed);
+	}
+	return result;
 }
 
 export function processTrackRange(
@@ -198,10 +252,15 @@ export function prepareDisjointRangeDeleteCommand(project, options = {}, idFacto
 			rippleMode: options.rippleMode,
 		}, idFactory);
 		commands.push(command);
-		working = commitProject(working, (draft) => {
-			deleteRange(draft, command, rangeDeleteRippleMode(command.type));
-			pruneMissingProjectSelections(draft);
-		});
+		const commandProject = working.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+			? isRuntimeProjectProjection(working) ? working : projectV10ForCommand(working)
+			: working;
+		working = cloneProject(commandProject);
+		if (working.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+			brandRuntimeProjectProjection(working);
+		}
+		deleteRange(working, command, rangeDeleteRippleMode(command.type));
+		pruneMissingProjectSelections(working);
 	}
 	return commands.length === 1 ? commands[0] : { type: 'batch', commands };
 }

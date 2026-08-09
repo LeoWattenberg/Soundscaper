@@ -4,7 +4,10 @@ import type { AudioEditorProjectV10 } from '../project-v10-validation.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../scape-archive-envelope.ts';
 import { createScapeDigest, scapeHex } from '../scape-archive-media.ts';
-import { VIDEO_TIMING_ASSET_MIME_TYPE } from '../video-timing-asset.ts';
+import {
+	validateVideoTimingAssetBytes,
+	VIDEO_TIMING_ASSET_MIME_TYPE,
+} from '../video-timing-asset.ts';
 import {
 	DESKTOP_SHARED_VIDEO_TIMING_ENCODING,
 	MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES,
@@ -132,6 +135,7 @@ async function validateTimingPass(
 	if (sha256 !== asset.sha256) {
 		throw new Error(`Video timing asset ${asset.storageKey} failed its digest binding.`);
 	}
+	validateVideoTimingAssetBytes(asset, new Uint8Array(await blob.arrayBuffer()));
 	await assertTimingMetadataCurrent(store, asset, metadata, signal);
 }
 

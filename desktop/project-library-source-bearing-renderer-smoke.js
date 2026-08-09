@@ -2,6 +2,7 @@
 
 /** Runs one phase inside the packaged renderer. Keep this function self-contained for executeJavaScript. */
 export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, plan, phase, prior) {
+	const currentProjectSchemaVersion = 10;
 	const api = scope?.scapeDesktop?.v1;
 	const requiredMethods = [
 		'readSharedProjectBundle', 'commitSharedProject', 'beginSharedSourceWrite',
@@ -33,7 +34,7 @@ export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, 
 		if (typeof document !== 'string') throw new Error('Packaged shared project document is unavailable');
 		let project;
 		try { project = JSON.parse(document); } catch { throw new Error('Packaged shared project document is invalid'); }
-		if (JSON.stringify(project) !== document || project?.schemaVersion !== 9
+		if (JSON.stringify(project) !== document || project?.schemaVersion !== currentProjectSchemaVersion
 			|| project.id !== expected.projectId || project.title !== expected.title) {
 			throw new Error('Packaged shared project document is not the fixed exact-schema project');
 		}

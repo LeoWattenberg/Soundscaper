@@ -11,13 +11,10 @@ import {
 	VideoPreviewEncodedPayloadTooLargeError,
 	VideoPreviewSourceGeometryTooLargeError,
 } from '../src/common/editor/video-preview-capture-admission.ts';
-
-interface VideoFile {
-	readonly name: string;
-	readonly type: string;
-	readonly size: number;
-	arrayBuffer(): Promise<ArrayBuffer>;
-}
+import {
+	beginOwnedMediaAssetWriteFixture,
+	videoFile,
+} from './helpers/audio-editor-source-import-fixture.ts';
 
 function isSourceAddCommand(value: unknown): value is Readonly<{
 	type: 'source/add';
@@ -31,16 +28,7 @@ function isSourceAddCommand(value: unknown): value is Readonly<{
 		&& !Array.isArray(command.source);
 }
 
-function videoFile(name = 'movie.mp4'): VideoFile {
-	return {
-		name,
-		type: 'video/mp4',
-		size: 32,
-		arrayBuffer: async () => new ArrayBuffer(8),
-	};
-}
-
-function createFixture() {
+export function createFixture() {
 	const calls: string[] = [];
 	const addedSources: Record<string, unknown>[] = [];
 	const derivatives: Array<{ timestamp: number; type: string }> = [];
@@ -54,6 +42,8 @@ function createFixture() {
 		sourceId: string;
 		bindingToken: string;
 	}>> = [];
+	const mediaDiscardAttempts: string[] = [];
+	const mediaGenerations = new Map<string, number>();
 	const sourceBuffers = new Map<string, unknown>();
 	const sourcePeaks = new Map<string, unknown>();
 	const options = {
@@ -65,6 +55,7 @@ function createFixture() {
 		writeMediaFails: false,
 		writerFails: false,
 		activateFails: false,
+		replaceMediaBeforeRollback: false,
 		activationGate: null as Promise<void> | null,
 		bindFails: false,
 		commitFails: false,
@@ -127,7 +118,12 @@ function createFixture() {
 		activateVideoSource: async (source: { id: string }) => {
 			calls.push(`activate:${source.id}`);
 			if (options.activationGate) await options.activationGate;
-			if (options.activateFails) throw new Error('activation failed');
+			if (options.activateFails) {
+				if (options.replaceMediaBeforeRollback) {
+					mediaGenerations.set(source.id, (mediaGenerations.get(source.id) ?? 0) + 1);
+				}
+				throw new Error('activation failed');
+			}
 		},
 		audioBufferChannels: (value: typeof canonicalAudio) => value.channels || canonicalAudio.channels,
 		audioEditorVideoThumbnailTimes: () => [1, 2],
@@ -203,9 +199,18 @@ function createFixture() {
 		sourceBuffers,
 		sourcePeaks,
 		store: {
-			async writeMediaAsset(sourceId: string) {
-				calls.push(`write-media:${sourceId}`);
-				if (options.writeMediaFails) throw new Error('media write failed');
+			async beginMediaAssetWrite(
+				sourceId: string,
+				_metadata: Readonly<Record<string, unknown>>,
+				writeOptions: Readonly<{ expectedBytes: number; expectedSha256: string }>,
+			) {
+				return beginOwnedMediaAssetWriteFixture(sourceId, writeOptions, {
+					calls,
+					deletedMedia,
+					discardAttempts: mediaDiscardAttempts,
+					generations: mediaGenerations,
+					writeFails: options.writeMediaFails,
+				});
 			},
 			async saveVideoDerivative(_sourceId: string, derivative: { timestamp: number; type: string }) {
 				derivatives.push(derivative);
@@ -268,7 +273,11 @@ function createFixture() {
 		derivatives,
 		options,
 		getProject: () => project,
+		mediaDiscardAttempts,
 		releasedLocators,
+		replaceMediaGeneration: (sourceId: string) => {
+			mediaGenerations.set(sourceId, (mediaGenerations.get(sourceId) ?? 0) + 1);
+		},
 		runtime,
 		setProject: (value: typeof project) => { projectGeneration += 1; project = value; },
 		sourceBuffers,
@@ -416,18 +425,6 @@ test('video import aborts a failed extracted-audio write and keeps cleanup idemp
 	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
 });
 
-test('video import does not delete media that failed before persistence', async () => {
-	const fixture = createFixture();
-	fixture.options.writeMediaFails = true;
-	await assert.rejects(
-		() => createImportVideoFile(fixture.runtime)(videoFile()),
-		/media write failed/u,
-	);
-	assert.deepEqual(fixture.deletedMedia, []);
-	assert.equal(fixture.calls.includes('revoke:video-source-1'), true);
-	assert.equal(fixture.calls.at(-1), 'dispose');
-});
-
 test('linked video import keeps local derivatives and extracted PCM while activating the exact binding', async () => {
 	const fixture = createFixture();
 	const locatorId = 'locator_0000000000000001';
@@ -479,7 +476,7 @@ test('linked video import unlinks and releases its locator when activation fails
 	}]);
 	assert.deepEqual(fixture.releasedLocators, [{ locatorId, locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
-	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.deepEqual(fixture.deletedMedia, []);
 	assert.equal(fixture.commits.length, 0);
 });
 
@@ -532,7 +529,7 @@ test('linked video import rolls back its binding and local media when commit ref
 	assert.deepEqual(fixture.releasedLocators, [{ locatorId, locatorRevision: 'revision_0000000000000001' }]);
 	assert.equal(fixture.unlinkedBindings.length, 1);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
-	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.deepEqual(fixture.deletedMedia, []);
 	assert.equal(fixture.commits.length, 0);
 });
 
@@ -554,7 +551,7 @@ test('linked video import rolls back when the active project changes during acti
 	assert.equal(fixture.unlinkedBindings.length, 1);
 	assert.deepEqual(fixture.releasedLocators, [{ locatorId: 'locator_0000000000000001', locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
-	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.deepEqual(fixture.deletedMedia, []);
 	assert.deepEqual(fixture.getProject().sources, []);
 });
 
@@ -576,7 +573,7 @@ test('linked video import rolls back when the active project generation changes 
 	assert.equal(fixture.unlinkedBindings.length, 1);
 	assert.deepEqual(fixture.releasedLocators, [{ locatorId: 'locator_0000000000000001', locatorRevision: 'revision_0000000000000001' }]);
 	assert.deepEqual(fixture.deletedSources, ['source-1']);
-	assert.deepEqual(fixture.deletedMedia, ['video-source-1']);
+	assert.deepEqual(fixture.deletedMedia, []);
 	assert.deepEqual(fixture.getProject().sources, []);
 });
 

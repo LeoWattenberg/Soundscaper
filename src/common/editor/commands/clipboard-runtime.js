@@ -14,8 +14,18 @@ import {
 	collectRelatedClipIds,
 } from './clip-basic-runtime.js';
 import {
+	clipboardContainsVideo,
+	conformClipboardVideoPlacement,
+	conformedPasteAnchors,
+	pasteSpanForSequence,
+	pasteSpanForTrack,
+	pasteTrackGroups,
+	sequenceForTrack,
+} from './clipboard-time-runtime.js';
+import {
 	collectAvLinkedClipIds,
 	collectLinkedTrackRippleTargets,
+	deleteRange,
 	prepareRangeDeleteCommand,
 	processTrackRange,
 } from './range-runtime.js';
@@ -96,6 +106,23 @@ export function createClipboardDescriptor(project, options = {}) {
 					avLinkId: segment.avLinkId || null,
 					color: segment.color,
 					speedRatio: segment.speedRatio,
+					...(segment.coordinateDomain === 'resolved-samples' ? {
+						coordinateDomain: segment.coordinateDomain,
+					} : {}),
+					...(segment.anchor === 'sample' || segment.anchor === 'musical' ? {
+						anchor: segment.anchor,
+						musicalStartBeat: cloneRational(segment.musicalStartBeat),
+						musicalExtent: segment.musicalExtent,
+						musicalDurationBeats: cloneRational(segment.musicalDurationBeats),
+						warpMap: cloneBreakpointMap(segment.warpMap),
+					} : {}),
+					...(segment.kind === 'video' ? {
+						sequenceId: segment.sequenceId,
+						sequenceFrameCount: segment.sequenceFrameCount,
+						sourceInFrame: segment.sourceStartFrame,
+						sourceFrameCount: segment.sourceDurationFrames,
+						retimeMap: cloneBreakpointMap(segment.retimeMap),
+					} : {}),
 					...(Number.isFinite(segment.gain) ? { gain: segment.gain } : {}),
 					...(Number.isSafeInteger(segment.fadeInFrames) ? { fadeInFrames: segment.fadeInFrames } : {}),
 					...(Number.isSafeInteger(segment.fadeOutFrames) ? { fadeOutFrames: segment.fadeOutFrames } : {}),
@@ -176,6 +203,14 @@ export function pasteClipboard(project, command) {
 	const scale = project.sampleRate / clipboard.sampleRate;
 	if (!Number.isFinite(scale) || scale <= 0) throw new RangeError('The clipboard sample rate is invalid.');
 	const pastedDurationFrames = Math.max(1, Math.round(clipboard.durationFrames * scale));
+	const conformsToVideoGrid = project.schemaVersion >= 10 && clipboardContainsVideo(clipboard);
+	const conformedAnchorBySequenceId = conformedPasteAnchors(
+		project,
+		clipboard,
+		command,
+		atFrame,
+		pastedDurationFrames,
+	);
 	const mode = command.mode || 'reject';
 	const targetTracks = new Set();
 	for (const clipboardTrack of clipboard.tracks || []) {
@@ -198,19 +233,27 @@ export function pasteClipboard(project, command) {
 			command.videoEffectIds || {},
 		);
 	} else if (mode === 'overlap' && command.collisionClipIds?.length) {
-		const range = normalizeFrameRange(atFrame, atFrame + pastedDurationFrames, 'paste overlap range');
-		const affectedClipIds = new Set(command.collisionClipIds);
-		for (const trackId of command.collisionTrackIds || []) {
-			processTrackRange(
+		const collisionTrackIds = command.collisionTrackIds || [];
+		const groups = pasteTrackGroups(project, collisionTrackIds, conformsToVideoGrid);
+		const clipTrackId = new Map(command.collisionClipIds.map((clipId) => (
+			[clipId, requireClipTrack(project, clipId).id]
+		)));
+		for (const group of groups) {
+			const span = pasteSpanForSequence(
 				project,
-				requireTrack(project, trackId),
-				range,
-				'none',
-				command.splitClipIds || {},
-				command.splitAvLinkIds || {},
-				command.videoEffectIds || {},
-				affectedClipIds,
+				group.sequence,
+				atFrame,
+				pastedDurationFrames,
 			);
+			const trackIdSet = new Set(group.trackIds);
+			deleteRange(project, {
+				...span,
+				trackIds: group.trackIds,
+				clipIds: command.collisionClipIds.filter((clipId) => trackIdSet.has(clipTrackId.get(clipId))),
+				splitClipIds: command.splitClipIds || {},
+				splitAvLinkIds: command.splitAvLinkIds || {},
+				videoEffectIds: command.videoEffectIds || {},
+			}, 'none');
 		}
 	} else if (mode === 'insert-track' || mode === 'insert-all') {
 		const tracks = command.collisionTrackIds?.length
@@ -220,11 +263,18 @@ export function pasteClipboard(project, command) {
 				: [...targetTracks];
 		const affectedClipIds = command.collisionClipIds?.length ? new Set(command.collisionClipIds) : null;
 		for (const track of tracks) {
+			const span = pasteSpanForTrack(
+				project,
+				track.id,
+				atFrame,
+				pastedDurationFrames,
+				conformsToVideoGrid,
+			);
 			insertSpaceOnTrack(
 				project,
 				track,
-				atFrame,
-				pastedDurationFrames,
+				span.startFrame,
+				span.durationFrames,
 				command.splitClipIds || {},
 				command.splitAvLinkIds || {},
 				command.videoEffectIds || {},
@@ -235,6 +285,8 @@ export function pasteClipboard(project, command) {
 	const additions = [];
 	for (const clipboardTrack of clipboard.tracks || []) {
 		const targetTrack = requireTrack(project, command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId);
+		const targetSequence = project.schemaVersion >= 10 ? sequenceForTrack(project, targetTrack.id) : null;
+		const conformedAnchor = targetSequence ? conformedAnchorBySequenceId.get(targetSequence.id) : null;
 		for (const descriptor of clipboardTrack.clips || []) {
 			const id = command.clipIds?.[descriptor.key];
 			if (!id) throw new TypeError(`A stable pasted clip ID is required for ${descriptor.key}.`);
@@ -245,9 +297,11 @@ export function pasteClipboard(project, command) {
 				atFrame,
 				id,
 				command.groupIds || {},
-				command.avLinkIds || {},
-				command.videoEffectIds?.[descriptor.key],
-			));
+					command.avLinkIds || {},
+					command.videoEffectIds?.[descriptor.key],
+					targetSequence,
+					conformedAnchor,
+				));
 			assertClipSourceBounds(project, clip);
 			if (mode === 'reject') {
 				const existing = targetTrack.clipIds.map((clipId) => requireClip(project, clipId));
@@ -270,6 +324,7 @@ export function pasteClipboard(project, command) {
 function preparePasteCollisionIds(project, command, idFactory) {
 	const scale = project.sampleRate / command.clipboard.sampleRate;
 	const durationFrames = Math.max(1, Math.round(command.clipboard.durationFrames * scale));
+	const conformsToVideoGrid = project.schemaVersion >= 10 && clipboardContainsVideo(command.clipboard);
 	const targetIds = new Set((command.clipboard.tracks || []).map((track) => command.trackMap?.[track.sourceTrackId] || track.sourceTrackId));
 	const targetTracks = command.mode === 'insert-all'
 		? project.tracks.filter((track) => Array.isArray(track.clipIds))
@@ -283,9 +338,16 @@ function preparePasteCollisionIds(project, command, idFactory) {
 			.filter((track) => pastedVideoTrackIds.has(track.id))
 			.flatMap((track) => track.clipIds.filter((clipId) => {
 				const clip = requireClip(project, clipId);
+				const span = pasteSpanForTrack(
+					project,
+					track.id,
+					command.atFrame,
+					durationFrames,
+					conformsToVideoGrid,
+				);
 				return (
-					clip.timelineStartFrame < command.atFrame + durationFrames
-					&& clipEndFrame(clip) > command.atFrame
+					clip.timelineStartFrame < span.endFrame
+					&& clipEndFrame(clip) > span.startFrame
 				);
 			}));
 	} else {
@@ -305,10 +367,17 @@ function preparePasteCollisionIds(project, command, idFactory) {
 		for (const clipId of track.clipIds) {
 			if (!collisionClipIdSet.has(clipId)) continue;
 			const clip = requireClip(project, clipId);
+			const span = pasteSpanForTrack(
+				project,
+				track.id,
+				command.atFrame,
+				durationFrames,
+				conformsToVideoGrid,
+			);
 			const spansBoundary = command.mode === 'overlap'
-				? clip.timelineStartFrame < command.atFrame && clipEndFrame(clip) > command.atFrame + durationFrames
+				? clip.timelineStartFrame < span.startFrame && clipEndFrame(clip) > span.endFrame
 				: (command.mode === 'insert-track' || command.mode === 'insert-all')
-					&& clip.timelineStartFrame < command.atFrame && clipEndFrame(clip) > command.atFrame;
+					&& clip.timelineStartFrame < span.startFrame && clipEndFrame(clip) > span.startFrame;
 			if (spansBoundary) {
 				command.splitClipIds[clip.id] = idFactory('clip');
 				const effectIds = prepareVideoEffectIds(clip, idFactory);
@@ -377,18 +446,36 @@ function insertSpaceOnTrack(
 		.map((clip) => clip.id);
 }
 
-function scaleClipboardClip(descriptor, scale, atFrame, id, groupIds, avLinkIds, videoEffectIds = undefined) {
+function scaleClipboardClip(
+	descriptor,
+	scale,
+	atFrame,
+	id,
+	groupIds,
+	avLinkIds,
+	videoEffectIds = undefined,
+	targetSequence = null,
+	conformedAnchor = null,
+) {
 	const durationFrames = Math.max(1, Math.round(descriptor.durationFrames * scale));
+	const videoPlacement = descriptor.kind === 'video' && targetSequence && conformedAnchor
+		? conformClipboardVideoPlacement(descriptor, scale, targetSequence, conformedAnchor)
+		: null;
+	const timelineStartFrame = videoPlacement?.timelineStartFrame
+		?? atFrame + Math.round(descriptor.offsetFrame * scale) + (conformedAnchor?.sampleDelta ?? 0);
+	const timelineDurationFrames = videoPlacement?.durationFrames ?? durationFrames;
 	return {
 		...descriptor,
 		kind: descriptor.kind || 'audio',
 		id,
+		binItemId: null,
 		groupId: descriptor.groupId ? groupIds[descriptor.groupId] || null : null,
 		avLinkId: descriptor.avLinkId ? avLinkIds[descriptor.avLinkId] || null : null,
-		timelineStartFrame: atFrame + Math.round(descriptor.offsetFrame * scale),
-		durationFrames,
-		fadeInFrames: Math.min(durationFrames, Math.round((descriptor.fadeInFrames || 0) * scale)),
-		fadeOutFrames: Math.min(durationFrames, Math.round((descriptor.fadeOutFrames || 0) * scale)),
+		timelineStartFrame,
+		durationFrames: timelineDurationFrames,
+		...(videoPlacement || {}),
+		fadeInFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeInFrames || 0) * scale)),
+		fadeOutFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeOutFrames || 0) * scale)),
 		...(descriptor.kind === 'video' && Array.isArray(descriptor.videoEffects) ? {
 			videoEffects: cloneVideoEffectsWithCommandIds(
 				descriptor.videoEffects,
@@ -407,4 +494,23 @@ function scaleClipboardClip(descriptor, scale, atFrame, id, groupIds, avLinkIds,
 
 function isCompatibleClipboard(clipboard) {
 	return Boolean(clipboard && (clipboard.schemaVersion === 1 || clipboard.schemaVersion === 2));
+}
+
+function cloneRational(value) {
+	return value && typeof value === 'object'
+		? { num: value.num, den: value.den }
+		: value ?? null;
+}
+
+function cloneBreakpointMap(value) {
+	return value && typeof value === 'object' && Array.isArray(value.points)
+		? {
+			...value,
+			points: value.points.map((point) => ({
+				...point,
+				outer: cloneRational(point.outer),
+				source: cloneRational(point.source),
+			})),
+		}
+		: value ?? null;
 }

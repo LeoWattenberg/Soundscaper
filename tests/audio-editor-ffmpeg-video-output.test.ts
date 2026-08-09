@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 import { createEditorFfmpeg } from '../src/common/editor/ffmpeg.js';
+import { createFfmpegVideoTimingProbe } from '../src/common/editor/video-timing-probe.ts';
 import {
 	encodeFfmpegVideoBytes,
 	encodeFfmpegVideoToSink,
@@ -18,6 +19,8 @@ interface TestSinkOutput {
 test('editor FFmpeg exposes the extracted video sink route', () => {
 	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
 	assert.equal(typeof ffmpeg.encodeVideoToSink, 'function');
+	assert.equal(typeof ffmpeg.probeVideoTiming, 'function');
+	assert.equal(createFfmpegVideoTimingProbe(ffmpeg)?.id, 'ffmpeg');
 	ffmpeg.dispose();
 });
 

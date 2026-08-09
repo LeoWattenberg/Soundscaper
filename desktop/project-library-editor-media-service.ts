@@ -150,6 +150,7 @@ export class DesktopSharedProjectMediaService {
 				throw new Error('Desktop shared project revision changed during managed-media preparation');
 			}
 			const source = requiredReachableSource(project, request.sourceId, request.encoding);
+			assertManagedSourceDigest(source, request.sha256);
 			const expectedBytes = declaredSourceBytes(source, request.byteLength);
 			const bindingKey = desktopSharedManagedSourceBindingKey(source);
 			const binding = createDesktopLibraryMediaBinding(
@@ -399,6 +400,7 @@ function managedSourceDescriptor(
 	media: DesktopLibraryMedia,
 	expectedBytes: number,
 ): DesktopSharedManagedSourceDescriptor {
+	assertManagedSourceDigest(source, media.sha256);
 	if (media.byteLength !== expectedBytes) {
 		throw new Error(source.kind === 'audio'
 			? 'Desktop library managed audio does not match its canonical PCM geometry'
@@ -488,6 +490,16 @@ function declaredSourceBytes(source: ManagedSource, declaredBytes: number): numb
 	return canonicalBytes;
 }
 
+function assertManagedSourceDigest(source: ManagedSource, sha256: string): void {
+	if (source.kind === 'video-timing' && sha256 !== source.sha256) {
+		throw new Error('Desktop library managed timing does not match its immutable source digest');
+	}
+	if (source.kind === 'video' && source.contentSha256 !== undefined
+		&& sha256 !== source.contentSha256) {
+		throw new Error('Desktop library managed video does not match its source content digest');
+	}
+}
+
 export function desktopSharedManagedSourceBindingKey(source: ManagedSource): string {
 	return source.kind === 'audio'
 		? JSON.stringify([
@@ -500,7 +512,10 @@ export function desktopSharedManagedSourceBindingKey(source: ManagedSource): str
 				source.frameRate.den, source.videoCodec,
 				source.audioCodec, source.hasAudio,
 			source.contentSha256 ?? null, source.timingAsset ?? null,
-		]) : JSON.stringify([source.storageKey, source.byteLength, source.sha256]);
+			]) : JSON.stringify([
+				source.storageKey, source.byteLength, source.sha256,
+				source.frameCount, source.timescale, source.finalFrameDurationTicks, source.encoding,
+			]);
 }
 
 function sourceEncoding(source: ManagedSource): DesktopLibraryManagedMediaEncoding {

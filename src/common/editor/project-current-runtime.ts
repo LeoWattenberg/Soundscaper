@@ -6,6 +6,7 @@ import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-ve
 import { reconcileProjectV10CommandResult } from './project-v10-command-projection.ts';
 import { validateAudioEditorProjectV10 } from './project-v10-validation.ts';
 import {
+	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
 	type RuntimeClipProject,
 } from './runtime-clip-projection.ts';
@@ -14,7 +15,7 @@ type DataRecord = Record<string, unknown>;
 
 /** Resolve authoritative project timing into the transient coordinates shared consumers expect. */
 export function projectForRuntimeConsumers(project: RuntimeClipProject): RuntimeClipProject {
-	return project.runtimeProjectionVersion
+	return isRuntimeProjectProjection(project)
 		? project
 		: resolveRuntimeProjectProjection(project);
 }
@@ -28,9 +29,20 @@ export function preparePersistedProjectCommandDraft(draft: DataRecord, persisted
 	const sources = recordArray(draft.sources, 'project.sources');
 	const clips = recordArray(draft.clips, 'project.clips');
 	const tracks = recordArray(draft.tracks, 'project.tracks');
+	const foundationContext = draft.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION ? {
+		schemaVersion: draft.schemaVersion,
+		sampleRate: draft.sampleRate,
+		sequences: recordArray(draft.sequences, 'project.sequences'),
+		primarySequenceId: draft.primarySequenceId,
+	} : {};
 	draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(
 		draft,
-		normalizeProjectFeatureRequirements(draft.featureRequirements, { sources, clips, tracks }),
+		normalizeProjectFeatureRequirements(draft.featureRequirements, {
+			sources,
+			clips,
+			tracks,
+			...foundationContext,
+		}),
 	);
 }
 

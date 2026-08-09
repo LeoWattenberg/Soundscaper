@@ -9,6 +9,8 @@ import {
 	createAudioEditorProjectV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
+	createLabelTrackV10,
+	createLabelV10,
 	createVideoClipV10,
 	createVideoSourceV10,
 	createVideoTrackV10,
@@ -16,6 +18,7 @@ import {
 	validateAudioEditorProjectV10,
 } from '../src/common/editor/project-v10.ts';
 import { resolveRuntimeClipProjection } from '../src/common/editor/runtime-clip-projection.ts';
+import { sampleFrameToBeat } from '../src/common/editor/timeline-tempo-inverse.ts';
 
 const NOW = '2026-08-09T12:00:00.000Z';
 
@@ -46,6 +49,23 @@ test('foundation projects close sequence, tempo, signature, and sample-rate wire
 	})), /drop.frame/iu);
 });
 
+test('tempo maps admit only exact sample-inverse rationals inside the safe wire domain', () => {
+	const tempoMap = {
+		mode: 'musical' as const,
+		events: [
+			{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
+			{
+				id: 'tempo-2', beat: { num: 1, den: 999_983 },
+				bpm: { num: 120_000_001, den: 1_000_000 },
+			},
+		],
+	};
+	assert.throws(() => sampleFrameToBeat(1, tempoMap, 48_000), /safe integer domain/iu);
+	assert.throws(() => createAudioEditorProjectV10({ now: NOW, tempoMap }), /inverse|reconcil|safe rational/iu);
+	const baseline = createAudioEditorProjectV10({ now: NOW });
+	assert.throws(() => validateAudioEditorProjectV10({ ...baseline, tempoMap }), /inverse|reconcil|safe rational/iu);
+});
+
 test('video source and clip factories retain exact source and sequence authority', () => {
 	const source = createVideoSourceV10({
 		id: 'video-source', frameCount: 44_100, sampleRate: 44_100,
@@ -74,6 +94,26 @@ test('video source and clip factories retain exact source and sequence authority
 		sequences: [{ id: 'main', rate: { num: 24, den: 1 } }],
 	}, clip);
 	assert.deepEqual([resolved.timelineStartFrame, resolved.durationFrames], [1_838, 1_837]);
+});
+
+test('exact video timing decisions require their immutable timing sidecar', () => {
+	const sourceOptions = {
+		id: 'video-source', frameCount: 48_000, sampleRate: 48_000,
+		width: 16, height: 16, frameRate: { num: 24, den: 1 }, sourceFrameCount: 24,
+		timingDecision: { mode: 'exact', rate: { num: 24, den: 1 } },
+	};
+	assert.throws(() => createVideoSourceV10(sourceOptions), /exact.*timing asset|timing asset.*exact/iu);
+	const source = createVideoSourceV10({
+		...sourceOptions,
+		timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 24, den: 1 } },
+	});
+	const project = createAudioEditorProjectV10({ now: NOW, sources: [source] });
+	assert.throws(() => validateAudioEditorProjectV10({
+		...project,
+		sources: project.sources.map((value) => value.id === source.id
+			? { ...value, timingDecision: sourceOptions.timingDecision }
+			: value),
+	}), /exact.*timing asset|timing asset.*exact/iu);
 });
 
 test('musical audio authority and foundation breakpoint maps survive load and edit normalization', () => {
@@ -136,4 +176,195 @@ test('derived A/V equality and frame-grid caches are validator invariants', () =
 			? { ...candidate, timelineStartFrame: 1_839 }
 			: candidate),
 	}), /derived|cache/iu);
+});
+
+test('sample-locked tempo anchors must form one continuous positive runtime map', () => {
+	const project = createAudioEditorProjectV10({
+		now: NOW,
+		tempoMap: {
+			mode: 'sampleLocked',
+			events: [
+				{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 0 },
+				{ id: 'tempo-2', beat: { num: 4, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 96_000 },
+			],
+		},
+	});
+	assert.throws(() => validateAudioEditorProjectV10({
+		...project,
+		tempoMap: {
+			mode: 'sampleLocked',
+			events: [
+				{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 0 },
+				{ id: 'tempo-2', beat: { num: 4, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 100 },
+			],
+		},
+	}), /continuous|sample.*position/iu);
+	assert.throws(() => validateAudioEditorProjectV10({
+		...project,
+		tempoMap: {
+			...project.tempoMap,
+			events: project.tempoMap.events.map((event, index) => (
+				index === 0 ? { ...event, samplePosition: 1 } : event
+			)),
+		},
+	}), /first.*sample|sample zero/iu);
+
+	const source = createAudioSourceV10({ id: 'source', frameCount: 1_000, channelCount: 1 });
+	const clip = createAudioClipV10({
+		id: 'clip', sourceId: source.id, anchor: 'musical', musicalStartBeat: { num: 0, den: 1 },
+		musicalExtent: 'beat', musicalDurationBeats: { num: 1, den: 1 }, durationFrames: 24_000,
+		sourceDurationFrames: 1,
+	});
+	const track = createAudioTrackV10({ id: 'track', clipIds: [clip.id] });
+	const musical = createAudioEditorProjectV10({ now: NOW, sources: [source], clips: [clip], tracks: [track] });
+	assert.throws(() => validateAudioEditorProjectV10({
+		...musical,
+		clips: musical.clips.map((value) => value.id === clip.id ? {
+			...value,
+			musicalDurationBeats: { num: 1, den: 1_000_000 },
+		} : value),
+		tempoMap: {
+			mode: 'musical',
+			events: [{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 1_000, den: 1 } }],
+		},
+	}), /positive.*runtime|positive.*range/iu);
+
+	const label = createLabelV10({
+		id: 'label', title: 'Region', color: '#ffffff', anchor: 'musical',
+		startBeat: { num: 0, den: 1 }, endBeat: { num: 1, den: 1_000_000 },
+	});
+	const labelTrack = createLabelTrackV10({ id: 'label-track', labels: [label] });
+	const labelProject = createAudioEditorProjectV10({
+		now: NOW,
+		tracks: [labelTrack],
+		tempoMap: {
+			mode: 'musical',
+			events: [{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 1_000, den: 1 } }],
+		},
+	});
+	assert.throws(() => validateAudioEditorProjectV10(labelProject), /positive.*runtime|positive.*range/iu);
+});
+
+test('foundation graph binds clips to same-kind sources and their owning sequence', () => {
+	const audioSource = createAudioSourceV10({ id: 'audio-source', frameCount: 48_000, channelCount: 1 });
+	const videoSource = createVideoSourceV10({
+		id: 'video-source', frameCount: 48_000, sampleRate: 48_000, width: 16, height: 16,
+		frameRate: { num: 24, den: 1 }, sourceFrameCount: 24,
+	});
+	const audioClip = createAudioClipV10({
+		id: 'audio-clip', sourceId: audioSource.id, durationFrames: 100, sourceDurationFrames: 100,
+	});
+	const audioTrack = createAudioTrackV10({ id: 'audio-track', clipIds: [audioClip.id] });
+	const audioProject = createAudioEditorProjectV10({
+		now: NOW, sources: [audioSource, videoSource], clips: [audioClip], tracks: [audioTrack],
+	});
+	assert.throws(() => validateAudioEditorProjectV10({
+		...audioProject,
+		clips: audioProject.clips.map((value) => value.id === audioClip.id
+			? { ...value, sourceId: videoSource.id }
+			: value),
+	}), /source kind|different source kind/iu);
+
+	const videoClip = createVideoClipV10({
+		id: 'video-clip', sourceId: videoSource.id, sequenceId: 'main', sequenceStartFrame: 0,
+		sequenceFrameCount: 1, sourceInFrame: 0, sourceFrameCount: 1,
+	}, { projectSampleRate: 48_000, sequence: { id: 'main', rate: { num: 24, den: 1 } }, source: videoSource });
+	const videoTrack = createVideoTrackV10({ id: 'video-track', clipIds: [videoClip.id] });
+	const sequenceProject = createAudioEditorProjectV10({
+		now: NOW,
+		sources: [videoSource], clips: [videoClip], tracks: [videoTrack],
+		sequences: [
+			{ id: 'main', rate: { num: 24, den: 1 }, trackIds: [] },
+			{ id: 'secondary', rate: { num: 30, den: 1 }, trackIds: [videoTrack.id] },
+		],
+		primarySequenceId: 'main',
+	});
+	assert.throws(() => validateAudioEditorProjectV10(sequenceProject), /owning sequence|track sequence/iu);
+});
+
+test('foundation rates, timing decisions, signatures, and breakpoints are canonical and bounded', () => {
+	const project = createAudioEditorProjectV10({
+		now: NOW,
+		sampleRate: 8_000,
+		sequences: [{ id: 'main-sequence', rate: { num: 24, den: 1 } }],
+	});
+	assert.throws(() => validateAudioEditorProjectV10({
+		...project,
+		sequences: project.sequences.map((sequence) => ({ ...sequence, rate: { num: 20_000, den: 1 } })),
+	}), /rate.*sample|rate.*bound/iu);
+	assert.throws(() => validateAudioEditorProjectV10({
+		...project,
+		signatureMap: { events: [{ id: 'signature-1', bar: 0, numerator: 4, denominator: 2 ** 32 + 1 }] },
+	}), /denominator|power.of.two/iu);
+
+	const source = createVideoSourceV10({
+		id: 'video-source', frameCount: 8_000, sampleRate: 8_000, width: 16, height: 16,
+		frameRate: { num: 24, den: 1 }, sourceFrameCount: 24,
+	});
+	const sourceProject = createAudioEditorProjectV10({ now: NOW, sampleRate: 8_000, sources: [source] });
+	assert.throws(() => validateAudioEditorProjectV10({
+		...sourceProject,
+		sources: sourceProject.sources.map((value) => value.id === source.id ? {
+			...value,
+			timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 25, den: 1 } },
+		} : value),
+	}), /timing.*rate|frame.*rate/iu);
+	assert.throws(() => validateAudioEditorProjectV10({
+		...sourceProject,
+		sources: sourceProject.sources.map((value) => value.id === source.id ? {
+			...value,
+			frameRate: { num: 16_000, den: 1 },
+			timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 16_000, den: 1 } },
+		} : value),
+	}), /rate.*sample|rate.*bound/iu);
+	assert.throws(() => validateAudioEditorProjectV10({
+		...sourceProject,
+		sources: sourceProject.sources.map((value) => value.id === source.id ? {
+			...value,
+			frameRate: { num: 48, den: 2 },
+			timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 48, den: 2 } },
+		} : value),
+	}), /canonical|reduced/iu);
+
+	const audioSource = createAudioSourceV10({ id: 'audio', frameCount: 48_000, channelCount: 1 });
+	const audioClip = createAudioClipV10({
+		id: 'clip', sourceId: audioSource.id, durationFrames: 100, sourceDurationFrames: 100,
+		warpMap: {
+			feature: 'audio-warp',
+			points: [
+				{ outer: { num: 0, den: 1 }, source: { num: 0, den: 1 }, mode: 'forward' },
+				{ outer: { num: 1, den: 1 }, source: { num: 1, den: 1 }, mode: 'forward' },
+			],
+		},
+	});
+	const audioTrack = createAudioTrackV10({ id: 'track', clipIds: [audioClip.id] });
+	const breakpointProject = createAudioEditorProjectV10({
+		now: NOW, sources: [audioSource], clips: [audioClip], tracks: [audioTrack],
+	});
+	assert.throws(() => validateAudioEditorProjectV10({
+		...breakpointProject,
+		clips: breakpointProject.clips.map((value) => value.id === audioClip.id ? {
+			...value,
+			warpMap: {
+				feature: 'audio-warp',
+				points: [
+					{ outer: { num: 0, den: 1 }, source: { num: 0, den: 1 }, mode: 'forward' },
+					{ outer: { num: 2, den: 2 }, source: { num: 1, den: 1 }, mode: 'forward' },
+				],
+			},
+		} : value),
+	}), /canonical|reduced/iu);
+	assert.equal(validateAudioEditorProjectV10({
+		...breakpointProject,
+		clips: breakpointProject.clips.map((value) => value.id === audioClip.id ? {
+			...value,
+			warpMap: {
+				feature: 'audio-warp',
+				points: [
+					{ outer: { num: -1, den: 1 }, source: { num: -1, den: 1 }, mode: 'forward' },
+					{ outer: { num: 1, den: 1 }, source: { num: 1, den: 1 }, mode: 'forward' },
+				],
+			},
+		} : value),
+	}), true, 'canonical rational breakpoints retain the signed domain accepted by numeric coordinates');
 });

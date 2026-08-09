@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export async function runProjectLibraryRendererSmoke(scope, plan) {
+	const currentProjectSchemaVersion = 10;
 	const api = scope?.scapeDesktop?.v1;
 	if (!api || typeof api.readSharedProject !== 'function'
 		|| typeof api.commitSharedProject !== 'function'
@@ -18,7 +19,7 @@ export async function runProjectLibraryRendererSmoke(scope, plan) {
 		try { project = JSON.parse(document); } catch { throw new Error(`${label} is not a canonical project document`); }
 		if (JSON.stringify(project) !== document) throw new Error(`${label} is not a canonical project document`);
 		if (!project || typeof project !== 'object' || Array.isArray(project)
-			|| project.schemaVersion !== 9 || project.id !== expected.id
+			|| project.schemaVersion !== currentProjectSchemaVersion || project.id !== expected.id
 			|| project.title !== expected.title || project.revision !== expected.revision) {
 			throw new Error(`${label} does not match its project descriptor`);
 		}

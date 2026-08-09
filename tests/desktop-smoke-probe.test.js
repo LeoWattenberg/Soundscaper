@@ -398,7 +398,7 @@ function handoffPlan({
 
 function projectDocument(revision, title, overrides = {}) {
 	return canonicalJson({
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: PROJECT_ID,
 		title,
 		revision,

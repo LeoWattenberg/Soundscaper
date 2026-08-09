@@ -3,6 +3,10 @@
 import {
 	createDesktopProjectLibraryFallbackRoleWitnesses,
 } from './project-library-fallback-role-witnesses.js';
+import {
+	DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
+	createDesktopSmokeProjectFoundation,
+} from './project-library-smoke-project-v10.js';
 
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE = 'project-library-source-bearing-handoff-v1';
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING ';
@@ -190,8 +194,9 @@ function createSeed(definition) {
 }
 
 function createProjectDocument({ projectId, title, audio, video, workflowId }) {
+	const sourceFrameCount = videoFrameCount(video);
 	return JSON.stringify({
-		schemaVersion: 9,
+		...createDesktopSmokeProjectFoundation([audio.trackId, video.trackId]),
 		id: projectId,
 		title,
 		revision: 1,
@@ -221,8 +226,10 @@ function createProjectDocument({ projectId, title, audio, video, workflowId }) {
 			},
 			{
 				kind: 'video', id: video.sourceId, name: 'Packaged picture.webm', mimeType: 'video/webm',
-				storageKey: video.storageKey, frameCount: video.frameCount, sampleRate: video.sampleRate,
-				width: video.width, height: video.height, frameRate: video.frameRate,
+				storageKey: video.storageKey, sampleFrameCount: video.frameCount, sampleRate: video.sampleRate,
+				width: video.width, height: video.height, frameRate: { num: video.frameRate, den: 1 },
+				sourceFrameCount, timingAsset: null,
+				timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: video.frameRate, den: 1 } },
 				videoCodec: 'vp8', audioCodec: null, hasAudio: false,
 				posterStorageKey: null, thumbnailStorageKey: null, opaqueExtensions: {},
 			},
@@ -236,6 +243,8 @@ function createProjectDocument({ projectId, title, audio, video, workflowId }) {
 				groupId: null, color: 'auto', pitchCents: 0, speedRatio: 1,
 				preserveFormants: false, stretchToTempo: false, renderCacheRevision: 0,
 				opaqueExtensions: {}, kind: 'audio', avLinkId: null, binItemId: null,
+				anchor: 'sample', musicalStartBeat: null, musicalExtent: 'fixedSamples',
+				musicalDurationBeats: null, warpMap: null,
 			},
 			videoClip(video, false),
 		],
@@ -268,14 +277,24 @@ function createProjectDocument({ projectId, title, audio, video, workflowId }) {
 }
 
 function videoClip(video, projectBin) {
+	const sourceFrameCount = videoFrameCount(video);
 	return {
 		kind: 'video', id: projectBin ? video.binClipId : video.clipId, sourceId: video.sourceId,
 		title: projectBin ? 'Packaged picture master' : 'Exact packaged picture',
-		timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: video.frameCount,
-		durationFrames: video.frameCount, trimStartFrames: 0, trimEndFrames: 0,
+		sequenceId: DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
+		sequenceStartFrame: 0, sequenceFrameCount: sourceFrameCount,
+		sourceInFrame: 0, sourceFrameCount, trimStartFrames: 0, trimEndFrames: 0,
 		groupId: null, color: 'auto', speedRatio: 1, avLinkId: null,
-		binItemId: projectBin ? video.binItemId : null, opaqueExtensions: {}, videoEffects: [],
+		binItemId: projectBin ? video.binItemId : null, opaqueExtensions: {}, videoEffects: [], retimeMap: null,
 	};
+}
+
+function videoFrameCount(video) {
+	const frameCount = video.frameCount * video.frameRate / video.sampleRate;
+	if (!Number.isSafeInteger(frameCount) || frameCount < 1) {
+		throw new RangeError('Packaged source-bearing video geometry must resolve to whole CFR frames');
+	}
+	return frameCount;
 }
 
 function validatePrevious(value, workflow) {

@@ -233,6 +233,10 @@ test('cancellation as a video writer is acquired aborts staging before extractio
 						commits += 1;
 						return writer.commit(...commitArgs);
 					},
+					async commitOwned(...commitArgs: Parameters<NonNullable<typeof writer.commitOwned>>) {
+						commits += 1;
+						return writer.commitOwned!(...commitArgs);
+					},
 					async abort() { aborts += 1; await writer.abort(); },
 				};
 			};
@@ -277,6 +281,12 @@ test('cancellation during video publication deletes the provisional asset and pr
 						const result = await writer.commit(...commitArgs);
 						controller.abort(abortReason('cancel during video write'));
 						return result;
+					},
+					async commitOwned(...commitArgs: Parameters<NonNullable<typeof writer.commitOwned>>) {
+						mediaWrites += 1;
+						const publication = await writer.commitOwned!(...commitArgs);
+						controller.abort(abortReason('cancel during video write'));
+						return publication;
 					},
 					abort: writer.abort.bind(writer),
 				};

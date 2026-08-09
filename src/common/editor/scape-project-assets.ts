@@ -78,6 +78,15 @@ export function indexScapeProjectAssets(
 		if (source.kind !== asset.kind) {
 			throw new Error(`Source ${source.id} has an incompatible asset kind.`);
 		}
+		if ((project as ScapeProjectWithSources).schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+			&& source.kind === 'video' && source.contentSha256 !== undefined) {
+			if (typeof source.contentSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(source.contentSha256)) {
+				throw new TypeError(`Source ${source.id} has an invalid source content SHA-256.`);
+			}
+			if (asset.sha256 !== source.contentSha256) {
+				throw new Error(`Source ${source.id} original asset digest does not match its source content SHA-256.`);
+			}
+		}
 	}
 	assertScapeProjectFallbackAssets(snapshotScapeProjectFallbackIntegrity(project).claims, assetBySourceId);
 	indexScapeProjectTimingAssets(project, manifest);

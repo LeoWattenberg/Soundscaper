@@ -16,6 +16,10 @@ import {
 	segmentOfClip,
 	sortTrack,
 } from './shared-runtime.js';
+import {
+	sampleFrameToVideoFrame,
+	videoFrameToSampleFrame,
+} from '../timeline-time.ts';
 
 // foundation-edit-matrix: split
 
@@ -28,7 +32,8 @@ export function splitClip(project, command) {
 	if (!command.rightClipId) throw new TypeError('A stable rightClipId is required for a replayable split.');
 	assertUnusedClipId(project, command.rightClipId);
 	if (!clip.avLinkId) {
-		splitSingleClip(project, clip, atFrame, command.rightClipId, null, command.rightVideoEffectIds);
+		const splitFrame = conformedSplitFrame(project, clip, null, atFrame);
+		splitSingleClip(project, clip, splitFrame, command.rightClipId, null, command.rightVideoEffectIds);
 		return;
 	}
 	const linkedClip = project.clips.find((candidate) => (
@@ -45,8 +50,9 @@ export function splitClip(project, command) {
 	const rightAvLinkId = requireStableCommandId(command.rightAvLinkId, 'right A/V link');
 	assertUnusedClipId(project, linkedRightClipId);
 	if (linkedRightClipId === command.rightClipId) throw new RangeError('Split clip IDs must be unique.');
-	splitSingleClip(project, clip, atFrame, command.rightClipId, rightAvLinkId, command.rightVideoEffectIds);
-	splitSingleClip(project, linkedClip, atFrame, linkedRightClipId, rightAvLinkId, command.linkedRightVideoEffectIds);
+	const splitFrame = conformedSplitFrame(project, clip, linkedClip, atFrame);
+	splitSingleClip(project, clip, splitFrame, command.rightClipId, rightAvLinkId, command.rightVideoEffectIds);
+	splitSingleClip(project, linkedClip, splitFrame, linkedRightClipId, rightAvLinkId, command.linkedRightVideoEffectIds);
 }
 
 export function prepareSplitCommand(clipId, atFrame, idFactory = createStableId, videoEffects = []) {
@@ -101,6 +107,20 @@ function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = nu
 	const index = track.clipIds.indexOf(clip.id);
 	track.clipIds.splice(index + 1, 0, right.id);
 	sortTrack(project, track);
+}
+
+function conformedSplitFrame(project, clip, linkedClip, atFrame) {
+	if (Number(project.schemaVersion) < 10) return atFrame;
+	const video = clip.kind === 'video' ? clip : linkedClip?.kind === 'video' ? linkedClip : null;
+	if (!video) return atFrame;
+	const sequence = project.sequences?.find((candidate) => candidate.id === video.sequenceId);
+	if (!sequence) throw new ReferenceError(`Video clip ${video.id} references a missing sequence.`);
+	const sequenceFrame = sampleFrameToVideoFrame(atFrame, sequence.rate, project.sampleRate, 'point');
+	const resolved = videoFrameToSampleFrame(sequenceFrame, sequence.rate, project.sampleRate, 'point');
+	if (resolved <= video.timelineStartFrame || resolved >= clipEndFrame(video)) {
+		throw new RangeError('The split does not resolve inside the video frame range.');
+	}
+	return resolved;
 }
 
 export function linkAvClips(project, command) {

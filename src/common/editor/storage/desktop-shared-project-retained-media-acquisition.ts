@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { throwIfScapeAborted } from '../scape-abort.ts';
-import { VIDEO_TIMING_ASSET_MIME_TYPE } from '../video-timing-asset.ts';
+import {
+	validateVideoTimingAssetBytes,
+	VIDEO_TIMING_ASSET_MIME_TYPE,
+} from '../video-timing-asset.ts';
 import {
 	MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES,
 	type DesktopSharedManagedVideoSourceDescriptor,
@@ -47,6 +50,10 @@ export function recipientManagedMediaMetadata(
 		&& (size !== source.byteLength || sha256 !== source.sha256)) {
 		throw new Error('Recipient-local video timing asset does not match its immutable reference.');
 	}
+	if (source.kind === 'video' && source.contentSha256 !== undefined
+		&& sha256 !== source.contentSha256) {
+		throw new Error(`Recipient-local video source ${source.id} does not match its source content digest.`);
+	}
 	return Object.freeze({ size: Number(size), sha256 });
 }
 
@@ -57,12 +64,17 @@ export async function acquireManagedMediaAsset(
 	store: Pick<DesktopSharedSourceTransferStore, 'beginMediaAssetWrite'>,
 	signal?: AbortSignal,
 ): Promise<OwnedMediaAssetPublication> {
+	if (source.kind === 'video' && source.contentSha256 !== undefined
+		&& descriptor.sha256 !== source.contentSha256) {
+		throw new Error(`Managed video source ${source.id} does not match its source content digest.`);
+	}
 	const writer = await store.beginMediaAssetWrite(
 		source.storageKey,
 		{ name: sourceName(source), mimeType: sourceMimeType(source) },
 		{ expectedBytes: descriptor.byteLength, expectedSha256: descriptor.sha256, signal },
 	);
 	let publication: OwnedMediaAssetPublication | null = null;
+	const timingChunks: Uint8Array[] | null = source.kind === 'video-timing' ? [] : null;
 	try {
 		const chunkSize = writerChunkSize(writer.maximumChunkBytes);
 		let offset = 0;
@@ -77,12 +89,17 @@ export async function acquireManagedMediaAsset(
 			if (!(bytes instanceof Uint8Array) || bytes.byteLength !== length) {
 				throw new Error('Desktop shared-source read returned an unexpected chunk.');
 			}
+			timingChunks?.push(bytes.slice());
 			await writer.write(bytes, { signal });
 			offset += bytes.byteLength;
 		}
 		if (offset !== descriptor.byteLength || writer.bytesWritten !== descriptor.byteLength) {
 			throw new Error(`Managed ${label(source)} emitted an unexpected byte length.`);
 		}
+		if (timingChunks) validateVideoTimingAssetBytes(
+			source,
+			joinTimingChunks(timingChunks, descriptor.byteLength),
+		);
 		publication = await writer.commitOwned({ signal });
 		assertPublication(publication, source, descriptor);
 		return publication;
@@ -141,4 +158,18 @@ function writerChunkSize(value: unknown): number {
 		throw new RangeError('Managed retained-media writer chunk size is invalid.');
 	}
 	return Math.min(Number(value), MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES);
+}
+
+function joinTimingChunks(chunks: readonly Uint8Array[], byteLength: number): Uint8Array {
+	const output = new Uint8Array(byteLength);
+	let offset = 0;
+	for (const chunk of chunks) {
+		if (chunk.byteLength > output.byteLength - offset) {
+			throw new Error('Managed video timing emitted more bytes than declared.');
+		}
+		output.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	if (offset !== output.byteLength) throw new Error('Managed video timing ended before its declared length.');
+	return output;
 }

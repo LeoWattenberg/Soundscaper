@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
+	createDesktopSmokeProjectFoundation,
+} from './project-library-smoke-project-v10.js';
+
 export const DESKTOP_PROJECT_LIBRARY_FALLBACK_ROLE_IDS = Object.freeze([
 	'project-audio-mix-v1',
 	'audio-track-render-v1',
@@ -116,7 +121,7 @@ function createDocument({
 		...(clipRelationship ? { targetClipId: clipId } : {}),
 	};
 	return JSON.stringify({
-		schemaVersion: 9,
+		...createDesktopSmokeProjectFoundation([trackId]),
 		id: projectId,
 		title,
 		revision: 1,
@@ -169,8 +174,10 @@ function sourceDocument(source) {
 	}
 	return {
 		kind: 'video', id: source.sourceId, name: source.name, mimeType: 'video/webm', storageKey: source.storageKey,
-		frameCount: source.frameCount, sampleRate: source.sampleRate, width: source.width, height: source.height,
-		frameRate: source.frameRate, videoCodec: 'vp8', audioCodec: null, hasAudio: false,
+		sampleFrameCount: source.frameCount, sampleRate: source.sampleRate, width: source.width, height: source.height,
+		frameRate: { num: source.frameRate, den: 1 }, sourceFrameCount: videoFrameCount(source), timingAsset: null,
+		timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: source.frameRate, den: 1 } },
+		videoCodec: 'vp8', audioCodec: null, hasAudio: false,
 		posterStorageKey: null, thumbnailStorageKey: null, opaqueExtensions: {},
 	};
 }
@@ -183,18 +190,31 @@ function audioClip(id, source) {
 		reversed: false, envelope: [], groupId: null, color: 'auto', pitchCents: 0, speedRatio: 1,
 		preserveFormants: false, stretchToTempo: false, renderCacheRevision: 0,
 		opaqueExtensions: {}, kind: 'audio', avLinkId: null, binItemId: null,
+		anchor: 'sample', musicalStartBeat: null, musicalExtent: 'fixedSamples',
+		musicalDurationBeats: null, warpMap: null,
 	};
 }
 
 function videoClip(id, source, effect, binItemId = null) {
+	const sourceFrameCount = videoFrameCount(source);
 	return {
-		kind: 'video', id, sourceId: source.sourceId, title: 'Packaged native video', timelineStartFrame: 0,
-		sourceStartFrame: 0, sourceDurationFrames: source.frameCount, durationFrames: source.frameCount,
+		kind: 'video', id, sourceId: source.sourceId, title: 'Packaged native video',
+		sequenceId: DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
+		sequenceStartFrame: 0, sequenceFrameCount: sourceFrameCount,
+		sourceInFrame: 0, sourceFrameCount,
 		trimStartFrames: 0, trimEndFrames: 0, groupId: null, color: 'auto', speedRatio: 1,
 		avLinkId: null, binItemId, opaqueExtensions: {}, videoEffects: effect ? [{
 			id: `${id}-pixelate`, type: 'pixelate', enabled: true, params: { blockSize: 16 },
-		}] : [],
+		}] : [], retimeMap: null,
 	};
+}
+
+function videoFrameCount(source) {
+	const frameCount = source.frameCount * source.frameRate / source.sampleRate;
+	if (!Number.isSafeInteger(frameCount) || frameCount < 1) {
+		throw new RangeError('Packaged fallback video geometry must resolve to whole CFR frames');
+	}
+	return frameCount;
 }
 
 function audioTrack(id, clipId, effect) {

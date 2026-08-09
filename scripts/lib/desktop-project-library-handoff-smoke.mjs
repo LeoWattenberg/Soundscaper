@@ -6,6 +6,7 @@ import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { createDesktopSmokeProjectFoundation } from '../../desktop/project-library-smoke-project-v10.js';
 import {
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
@@ -258,7 +259,7 @@ function createStages() {
 function createSourceFreeProjectDocument({ revision, title }) {
 	const updatedAt = `2026-07-30T12:00:0${String(revision)}.000Z`;
 	return JSON.stringify({
-		schemaVersion: 9,
+		...createDesktopSmokeProjectFoundation([]),
 		id: DESKTOP_PROJECT_LIBRARY_HANDOFF_PROJECT_ID,
 		title,
 		revision,
@@ -289,7 +290,7 @@ function createSourceFreeProjectDocument({ revision, title }) {
 		mixer: { groups: [], sends: [], routes: {} },
 		opaqueExtensions: {},
 		projectBin: { clips: [] },
-		featureRequirements: { schemaVersion: 1, requirements: [] },
+		featureRequirements: { schemaVersion: 2, requirements: [] },
 	});
 }
 

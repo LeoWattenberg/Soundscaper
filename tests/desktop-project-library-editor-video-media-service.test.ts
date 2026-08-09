@@ -24,6 +24,7 @@ import {
 	type DesktopLibraryManagedMediaReadOptions,
 } from '../desktop/project-library-media.ts';
 import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
+import { managedSourceBinding } from '../src/common/editor/storage/desktop-shared-project-media-sources.ts';
 import {
 	createVideoClipV9,
 	createVideoSourceV9,
@@ -79,6 +80,10 @@ test('project bundles and present admission carry the video timing sidecar indep
 		timing.reference.storageKey,
 		timing.reference.byteLength,
 		timing.reference.sha256,
+		timing.reference.frameCount,
+		timing.reference.timescale,
+		timing.reference.finalFrameDurationTicks,
+		timing.reference.encoding,
 	]);
 	const timingBinding = createDesktopLibraryVideoTimingBinding(
 		project.id,
@@ -114,6 +119,30 @@ test('project bundles and present admission carry the video timing sidecar indep
 			storageKey: timing.reference.storageKey,
 		},
 	});
+});
+
+test('timing CAS binding is body-stable across source-specific digest bindings', () => {
+	const timing = createVideoTimingAssetPublication('c'.repeat(64), {
+		timescale: 1_000,
+		presentationTicks: [0n],
+		finalFrameDurationTicks: 40n,
+	});
+	const transfer = {
+		id: 'video-a',
+		kind: 'video-timing' as const,
+		...timing.reference,
+		mimeType: 'application/vnd.soundscaper.video-timing' as const,
+	};
+	const alias = { ...transfer, id: 'video-b', sourceSha256: 'd'.repeat(64) };
+	assert.equal(managedSourceBinding(transfer), managedSourceBinding(alias));
+	assert.equal(
+		desktopSharedManagedSourceBindingKey(transfer),
+		desktopSharedManagedSourceBindingKey(alias),
+	);
+	assert.equal(
+		managedSourceBinding(transfer),
+		desktopSharedManagedSourceBindingKey(transfer),
+	);
 });
 
 test('video source writes use the existing bounded upload session and exact project fence', async () => {

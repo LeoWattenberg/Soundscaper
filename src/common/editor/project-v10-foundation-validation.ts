@@ -2,12 +2,16 @@
 
 import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
 import {
+	beatToSampleFrame,
 	compareRationals,
 	normalizeRational,
+	subtractRationals,
 	type BreakpointMap,
 	type HoldTempoMap,
+	type Rational,
 	validateBreakpointMap,
 } from './timeline-time.ts';
+import { validateTempoInverseRationalClosure } from './timeline-tempo-inverse.ts';
 import { normalizeVideoTimingAssetReference } from './video-timing-asset-reference.ts';
 import { validateVideoTrackComposition } from './video-timeline.js';
 import {
@@ -25,6 +29,7 @@ import {
 export const AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE = 8_000;
 export const AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE = 768_000;
 export const AUDIO_EDITOR_RATIONAL_MAXIMUM_DENOMINATOR = 1_000_000;
+export const AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR = Number.MAX_SAFE_INTEGER;
 export const AUDIO_EDITOR_FOUNDATION_MAXIMUM_EVENTS = 4_096;
 
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -50,17 +55,33 @@ export function validateProjectV10Foundation(
 	if (sampleRate > AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE) {
 		throw new RangeError(`project.sampleRate cannot exceed ${String(AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE)}.`);
 	}
-	const sequences = validateSequences(project, media.tracks);
-	validateTempoMap(project.tempoMap);
+	const sequences = validateSequences(project, media.tracks, sampleRate);
+	validateTempoMap(project.tempoMap, sampleRate);
 	validateSignatureMap(project.signatureMap);
 	const sourceById = new Map(media.sources.map((source) => [String(source.id), source]));
 	const sequenceById = new Map(sequences.map((sequence) => [String(sequence.id), sequence]));
+	const sequenceIdByTrackId = new Map<string, string>();
+	for (const sequence of sequences) for (const trackId of sequence.trackIds as readonly string[]) {
+		sequenceIdByTrackId.set(trackId, String(sequence.id));
+	}
+	const sequenceIdByClipId = new Map<string, string>();
+	for (const track of media.tracks) {
+		const sequenceId = sequenceIdByTrackId.get(String(track.id));
+		if (!sequenceId || !Array.isArray(track.clipIds)) continue;
+		for (const clipId of track.clipIds) sequenceIdByClipId.set(String(clipId), sequenceId);
+	}
 	for (const source of media.sources) validateFoundationSource(source);
-	for (const clip of [...media.clips, ...media.binClips]) {
-		validateFoundationClip(project, clip, sourceById, sequenceById, sampleRate);
+	for (const clip of media.clips) {
+		validateFoundationClip(
+			project, clip, sourceById, sequenceById, sampleRate,
+			sequenceIdByClipId.get(String(clip.id)) ?? null,
+		);
+	}
+	for (const clip of media.binClips) {
+		validateFoundationClip(project, clip, sourceById, sequenceById, sampleRate, null);
 	}
 	validateFoundationBinItems(project, media.binClips);
-	for (const track of media.tracks) validateFoundationTrack(track);
+	for (const track of media.tracks) validateFoundationTrack(track, project, sampleRate);
 	const resolvedClipById = new Map(media.clips.map((clip) => {
 		const resolved = resolveRuntimeClipProjection(project, clip);
 		return [String(resolved.id), resolved];
@@ -95,6 +116,7 @@ function validateFoundationBinItems(project: ProjectDataRecord, clips: readonly 
 function validateSequences(
 	project: ProjectDataRecord,
 	tracks: readonly ProjectDataRecord[],
+	sampleRate: number,
 ): readonly ProjectDataRecord[] {
 	const sequences = recordArray(project.sequences, 'project.sequences');
 	if (!sequences.length || sequences.length > 1_024) throw new RangeError('A project requires 1 through 1024 sequences.');
@@ -105,7 +127,7 @@ function validateSequences(
 		const prefix = `sequence ${String(sequence.id)}`;
 		projectString(sequence.id, `${prefix}.id`);
 		projectString(sequence.name, `${prefix}.name`);
-		const rate = canonicalRational(sequence.rate, `${prefix}.rate`, true);
+		const rate = boundedFrameRate(sequence.rate, `${prefix}.rate`, sampleRate);
 		const dropFrame = projectBoolean(sequence.dropFrame, `${prefix}.dropFrame`);
 		if (dropFrame && !DROP_FRAME_RATES.has(`${String(rate.num)}/${String(rate.den)}`)) {
 			throw new RangeError(`${prefix} uses an illegal drop-frame rate combination.`);
@@ -135,16 +157,17 @@ function validateStartTimecode(value: unknown, rate: { num: number; den: number 
 	}
 }
 
-function validateTempoMap(value: unknown): void {
+function validateTempoMap(value: unknown, sampleRate: number): void {
 	const map = projectRecord(value, 'project.tempoMap');
 	if (map.mode !== 'musical' && map.mode !== 'sampleLocked') throw new RangeError('tempoMap.mode is unsupported.');
 	const events = boundedEvents(map.events, 'tempoMap.events');
 	projectUniqueIds(events, 'tempoMap.events');
 	let previousBeat: { num: number; den: number } | null = null;
+	let previousBpm: Rational | null = null;
 	let previousSample = -1;
 	for (const [index, event] of events.entries()) {
 		projectString(event.id, `tempoMap.events[${String(index)}].id`);
-		const beat = canonicalRational(event.beat, `tempoMap.events[${String(index)}].beat`);
+		const beat = canonicalCoordinateRational(event.beat, `tempoMap.events[${String(index)}].beat`);
 		const bpm = canonicalRational(event.bpm, `tempoMap.events[${String(index)}].bpm`, true);
 		if (bpm.num / bpm.den > 1_000) throw new RangeError('Tempo values cannot exceed 1000 BPM.');
 		if (index === 0 && compareRationals(beat, 0) !== 0) throw new RangeError('The first tempo event must begin at beat zero.');
@@ -152,13 +175,30 @@ function validateTempoMap(value: unknown): void {
 		if (map.mode === 'sampleLocked') {
 			const sample = projectSafeInteger(event.samplePosition, 0, `tempoMap.events[${String(index)}].samplePosition`);
 			if (sample <= previousSample && index > 0) throw new RangeError('Sample-locked tempo positions must increase.');
+			if (index === 0 && sample !== 0) throw new RangeError('The first sample-locked tempo position must begin at sample zero.');
+			if (previousBeat && previousBpm) {
+				const span = subtractRationals(beat, previousBeat);
+				const segmentFrames = beatToSampleFrame(span, {
+					mode: 'musical',
+					events: [{ beat: { num: 0, den: 1 }, bpm: previousBpm }],
+				}, sampleRate);
+				const expected = safeAdd(previousSample, segmentFrames, 'sample-locked tempo segment');
+				if (sample !== expected) {
+					throw new RangeError('Sample-locked tempo positions must form one continuous hold-tempo map.');
+				}
+			}
 			previousSample = sample;
 		} else if (Object.hasOwn(event, 'samplePosition')) {
 			throw new RangeError('Musical tempo events cannot persist derived sample positions.');
 		}
 		previousBeat = beat;
+		previousBpm = bpm;
 	}
-	void (map as unknown as HoldTempoMap);
+	if (map.mode === 'musical') {
+		const tempoMap = map as unknown as HoldTempoMap;
+		beatToSampleFrame(events.at(-1)!.beat as Rational, tempoMap, sampleRate);
+	}
+	validateTempoInverseRationalClosure(map as unknown as HoldTempoMap, sampleRate);
 }
 
 function validateSignatureMap(value: unknown): void {
@@ -173,7 +213,7 @@ function validateSignatureMap(value: unknown): void {
 		const denominator = projectSafeInteger(event.denominator, 1, `signatureMap.events[${String(index)}].denominator`);
 		if (index === 0 && bar !== 0) throw new RangeError('The first signature event must begin at bar zero.');
 		if (bar <= previousBar && index > 0) throw new RangeError('Signature bars must increase.');
-		if ((denominator & (denominator - 1)) !== 0 || numerator > 1_000) {
+		if (!isPowerOfTwo(denominator) || numerator > 1_000) {
 			throw new RangeError('Signature events require a bounded numerator and power-of-two denominator.');
 		}
 		previousBar = bar;
@@ -186,13 +226,20 @@ function validateFoundationSource(source: ProjectDataRecord): void {
 	forbidDerived(source, ['frameCount'], prefix);
 	projectSafeInteger(source.sampleFrameCount, 1, `${prefix}.sampleFrameCount`);
 	const sourceFrameCount = projectSafeInteger(source.sourceFrameCount, 1, `${prefix}.sourceFrameCount`);
-	canonicalRational(source.frameRate, `${prefix}.frameRate`, true);
+	const sourceSampleRate = projectSafeInteger(source.sampleRate, 1, `${prefix}.sampleRate`);
+	const frameRate = boundedFrameRate(source.frameRate, `${prefix}.frameRate`, sourceSampleRate);
 	const decision = projectRecord(source.timingDecision, `${prefix}.timingDecision`);
 	if (decision.mode !== 'exact' && decision.mode !== 'conform-cfr-at-ingest') {
 		throw new RangeError(`${prefix}.timingDecision.mode is unsupported.`);
 	}
-	canonicalRational(decision.rate, `${prefix}.timingDecision.rate`, true);
-	if (source.timingAsset === null) return;
+	const decisionRate = boundedFrameRate(decision.rate, `${prefix}.timingDecision.rate`, sourceSampleRate);
+	if (compareRationals(decisionRate, frameRate) !== 0) {
+		throw new RangeError(`${prefix}.timingDecision.rate must equal its canonical frame rate.`);
+	}
+	if (source.timingAsset === null) {
+		if (decision.mode === 'exact') throw new RangeError(`${prefix} exact timing requires a timing asset.`);
+		return;
+	}
 	const reference = normalizeVideoTimingAssetReference(source.timingAsset);
 	if (reference.frameCount !== sourceFrameCount) throw new RangeError(`${prefix} timing asset frame count disagrees.`);
 	if (typeof source.contentSha256 !== 'string' || !SHA256.test(source.contentSha256)
@@ -207,21 +254,27 @@ function validateFoundationClip(
 	sourceById: ReadonlyMap<string, ProjectDataRecord>,
 	sequenceById: ReadonlyMap<string, ProjectDataRecord>,
 	sampleRate: number,
+	owningSequenceId: string | null,
 ): void {
 	const prefix = `clip ${String(clip.id)}`;
 	const source = sourceById.get(String(clip.sourceId));
 	if (!source) throw new ReferenceError(`${prefix} references a missing source.`);
+	if (source.kind !== clip.kind) throw new RangeError(`${prefix} references a different source kind.`);
 	if (clip.kind === 'audio') {
 		validateAudioAuthority(clip, prefix);
 		const sourceStart = projectSafeInteger(clip.sourceStartFrame, 0, `${prefix}.sourceStartFrame`);
 		const sourceDuration = projectSafeInteger(clip.sourceDurationFrames, 1, `${prefix}.sourceDurationFrames`);
 		if (sourceStart + sourceDuration > Number(source.frameCount)) throw new RangeError(`${prefix} exceeds source bounds.`);
 		validateOptionalBreakpoint(clip.warpMap, 'audio-warp', `${prefix}.warpMap`);
+		validateResolvedClipRange(resolveRuntimeClipProjection(project, clip), prefix);
 		return;
 	}
 	forbidDerived(clip, ['timelineStartFrame', 'durationFrames', 'sourceStartFrame', 'sourceDurationFrames'], prefix);
 	const sequenceId = projectString(clip.sequenceId, `${prefix}.sequenceId`);
 	if (!sequenceById.has(sequenceId)) throw new ReferenceError(`${prefix} references missing sequence ${sequenceId}.`);
+	if (owningSequenceId && sequenceId !== owningSequenceId) {
+		throw new RangeError(`${prefix} must use its owning track sequence ${owningSequenceId}.`);
+	}
 	const sequenceStart = projectSafeInteger(clip.sequenceStartFrame, 0, `${prefix}.sequenceStartFrame`);
 	const sequenceCount = projectSafeInteger(clip.sequenceFrameCount, 1, `${prefix}.sequenceFrameCount`);
 	const sourceIn = projectSafeInteger(clip.sourceInFrame, 0, `${prefix}.sourceInFrame`);
@@ -229,7 +282,8 @@ function validateFoundationClip(
 	if (sourceIn + sourceCount > Number(source.sourceFrameCount)) throw new RangeError(`${prefix} exceeds source-frame bounds.`);
 	validateOptionalBreakpoint(clip.retimeMap, 'video-retime', `${prefix}.retimeMap`);
 	const resolved = resolveRuntimeClipProjection(project, clip);
-	if (resolved.durationFrames < 1 || resolved.timelineStartFrame < 0 || sequenceStart + sequenceCount > Number.MAX_SAFE_INTEGER) {
+	validateResolvedClipRange(resolved, prefix);
+	if (sequenceStart + sequenceCount > Number.MAX_SAFE_INTEGER) {
 		throw new RangeError(`${prefix} does not resolve to a positive frame-grid range at ${String(sampleRate)} Hz.`);
 	}
 }
@@ -246,7 +300,7 @@ function validateAudioAuthority(clip: ProjectDataRecord, prefix: string): void {
 	}
 	if (clip.anchor !== 'musical') throw new RangeError(`${prefix}.anchor is unsupported.`);
 	forbidDerived(clip, ['timelineStartFrame'], prefix);
-	canonicalRational(clip.musicalStartBeat, `${prefix}.musicalStartBeat`);
+	canonicalCoordinateRational(clip.musicalStartBeat, `${prefix}.musicalStartBeat`);
 	if (clip.musicalExtent === 'fixedSamples') {
 		projectSafeInteger(clip.durationFrames, 1, `${prefix}.durationFrames`);
 		if (clip.musicalDurationBeats !== null) throw new RangeError(`${prefix} fixed extent cannot carry beat duration.`);
@@ -254,11 +308,11 @@ function validateAudioAuthority(clip: ProjectDataRecord, prefix: string): void {
 	}
 	if (clip.musicalExtent !== 'beat') throw new RangeError(`${prefix}.musicalExtent is unsupported.`);
 	forbidDerived(clip, ['durationFrames'], prefix);
-	const duration = canonicalRational(clip.musicalDurationBeats, `${prefix}.musicalDurationBeats`, true);
+	const duration = canonicalCoordinateRational(clip.musicalDurationBeats, `${prefix}.musicalDurationBeats`, true);
 	if (duration.num <= 0) throw new RangeError(`${prefix}.musicalDurationBeats must be positive.`);
 }
 
-function validateFoundationTrack(track: ProjectDataRecord): void {
+function validateFoundationTrack(track: ProjectDataRecord, project: ProjectDataRecord, sampleRate: number): void {
 	if (track.type !== 'label') return;
 	for (const label of recordArray(track.labels, `track ${String(track.id)}.labels`)) {
 		const prefix = `label ${String(label.id)}`;
@@ -268,9 +322,16 @@ function validateFoundationTrack(track: ProjectDataRecord): void {
 			if (label.startBeat !== null || label.endBeat !== null) throw new RangeError(`${prefix} has conflicting anchors.`);
 		} else if (label.anchor === 'musical') {
 			forbidDerived(label, ['startFrame', 'endFrame'], prefix);
-			const start = canonicalRational(label.startBeat, `${prefix}.startBeat`);
-			const end = canonicalRational(label.endBeat, `${prefix}.endBeat`);
+			const start = canonicalCoordinateRational(label.startBeat, `${prefix}.startBeat`);
+			const end = canonicalCoordinateRational(label.endBeat, `${prefix}.endBeat`);
 			if (compareRationals(start, end) > 0) throw new RangeError(`${prefix} has a negative musical range.`);
+			const tempoMap = project.tempoMap as HoldTempoMap;
+			const resolvedStart = beatToSampleFrame(start, tempoMap, sampleRate);
+			const resolvedEnd = beatToSampleFrame(end, tempoMap, sampleRate);
+			if (resolvedStart < 0 || resolvedEnd < resolvedStart
+				|| (compareRationals(start, end) < 0 && resolvedStart === resolvedEnd)) {
+				throw new RangeError(`${prefix} must resolve to an ordered positive runtime range.`);
+			}
 		} else throw new RangeError(`${prefix}.anchor is unsupported.`);
 	}
 }
@@ -309,11 +370,24 @@ function validateDerivedAvLinks(
 }
 
 function canonicalRational(value: unknown, name: string, positive = false): { num: number; den: number } {
+	return canonicalRationalWithBound(value, name, AUDIO_EDITOR_RATIONAL_MAXIMUM_DENOMINATOR, positive);
+}
+
+function canonicalCoordinateRational(value: unknown, name: string, positive = false): { num: number; den: number } {
+	return canonicalRationalWithBound(value, name, AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR, positive);
+}
+
+function canonicalRationalWithBound(
+	value: unknown,
+	name: string,
+	maximumDenominator: number,
+	positive: boolean,
+): { num: number; den: number } {
 	const candidate = projectRecord(value, name);
 	const num = projectSafeInteger(candidate.num, positive ? 1 : 0, `${name}.num`);
 	const den = projectSafeInteger(candidate.den, 1, `${name}.den`);
-	if (den > AUDIO_EDITOR_RATIONAL_MAXIMUM_DENOMINATOR) throw new RangeError(`${name}.den exceeds its bound.`);
-	const normalized = normalizeRational({ num, den }, { maximumDenominator: AUDIO_EDITOR_RATIONAL_MAXIMUM_DENOMINATOR });
+	if (den > maximumDenominator) throw new RangeError(`${name}.den exceeds its bound.`);
+	const normalized = normalizeRational({ num, den }, { maximumDenominator });
 	if (normalized.num !== num || normalized.den !== den) throw new RangeError(`${name} must be canonically reduced.`);
 	return normalized;
 }
@@ -323,6 +397,57 @@ function validateOptionalBreakpoint(value: unknown, feature: BreakpointMap['feat
 	const map = value as BreakpointMap;
 	if (map?.feature !== feature) throw new RangeError(`${name} has the wrong breakpoint feature.`);
 	validateBreakpointMap(map);
+	const points = projectArray(map.points, `${name}.points`);
+	for (const [index, value] of points.entries()) {
+		const point = projectRecord(value, `${name}.points[${String(index)}]`);
+		canonicalBreakpointCoordinate(point.outer, `${name}.points[${String(index)}].outer`);
+		canonicalBreakpointCoordinate(point.source, `${name}.points[${String(index)}].source`);
+	}
+}
+
+function canonicalBreakpointCoordinate(value: unknown, name: string): void {
+	if (typeof value === 'number') {
+		projectSafeInteger(value, Number.MIN_SAFE_INTEGER, name);
+		return;
+	}
+	const candidate = projectRecord(value, name);
+	const num = projectSafeInteger(candidate.num, Number.MIN_SAFE_INTEGER, `${name}.num`);
+	const den = projectSafeInteger(candidate.den, 1, `${name}.den`);
+	if (den > AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR) throw new RangeError(`${name}.den exceeds its bound.`);
+	const normalized = normalizeRational({ num, den }, { maximumDenominator: AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR });
+	if (normalized.num !== num || normalized.den !== den) throw new RangeError(`${name} must be canonically reduced.`);
+}
+
+function boundedFrameRate(value: unknown, name: string, sampleRate: number): { num: number; den: number } {
+	const rate = canonicalRational(value, name, true);
+	if (compareRationals(rate, { num: sampleRate, den: 1 }) > 0) {
+		throw new RangeError(`${name} cannot exceed its sample-rate bound.`);
+	}
+	return rate;
+}
+
+function validateResolvedClipRange(
+	resolved: Readonly<{ timelineStartFrame: number; timelineEndFrame: number; durationFrames: number }>,
+	prefix: string,
+): void {
+	if (!Number.isSafeInteger(resolved.timelineStartFrame) || resolved.timelineStartFrame < 0
+		|| !Number.isSafeInteger(resolved.timelineEndFrame)
+		|| !Number.isSafeInteger(resolved.durationFrames) || resolved.durationFrames < 1
+		|| resolved.timelineEndFrame - resolved.timelineStartFrame !== resolved.durationFrames) {
+		throw new RangeError(`${prefix} must resolve to a positive safe runtime range.`);
+	}
+}
+
+function isPowerOfTwo(value: number): boolean {
+	if (!Number.isSafeInteger(value) || value <= 0) return false;
+	const integer = BigInt(value);
+	return (integer & (integer - 1n)) === 0n;
+}
+
+function safeAdd(left: number, right: number, name: string): number {
+	const result = left + right;
+	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
+	return result;
 }
 
 function boundedEvents(value: unknown, name: string): readonly ProjectDataRecord[] {

@@ -57,7 +57,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		.find(({ id }) => id === 'packaged-linux-x64-current-schema-scape-reopen');
 	assert.ok(packagedReopenControl);
 	for (const claim of [
-		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*exact 69,349-byte.*current-schema-10.*revision 7.*source-bearing/iu,
+		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*exact 69,913-byte.*current-schema-10.*revision 7.*source-bearing/iu,
 		/first packaged process.*isolated user and application-data roots.*verifies.*archive unchanged.*exits cleanly.*removes.*archive.*ENOENT/iu,
 		/second packaged process.*same user-data and application-data roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/iu,
 		/canonical schema-10.*revision-7.*shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/iu,
@@ -190,7 +190,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/does not qualify.*installer.*file-association registration.*shell launch.*8 GiB.*reference scale.*payload laziness.*whole materialization.*known range route.*playback.*persistent reopen.*durability.*crash.*power loss.*memory.*RSS.*quota.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*third-party ZIP or effect.*legacy Soundscaper.*Audacity.*separate/isu,
 	]) assert.match(threatModel, claim);
 	for (const claim of [
-		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*69,349-byte.*schema 10.*revision 7.*source-bearing/isu,
+		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*69,913-byte.*schema 10.*revision 7.*source-bearing/isu,
 		/first process.*isolated user and application-data roots.*archive unchanged.*clean exit.*removes.*archive.*ENOENT.*second process.*same roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/isu,
 		/canonical schema-10 revision-7 shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/isu,
 		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/isu,

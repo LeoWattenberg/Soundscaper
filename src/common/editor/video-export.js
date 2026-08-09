@@ -4,7 +4,10 @@ import {
 	videoClipEndFrame,
 } from './video-timeline.js';
 import { normalizeVideoEffects } from './video-effects.js';
-import { resolveRuntimeProjectProjection } from './runtime-clip-projection.ts';
+import {
+	isRuntimeProjectProjection,
+	resolveRuntimeProjectProjection,
+} from './runtime-clip-projection.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -423,7 +426,7 @@ function optionalPositiveRate(value, name) {
 }
 
 function ensureRuntimeProject(project) {
-	if (project?.runtimeProjectionVersion) return project;
+	if (isRuntimeProjectProjection(project)) return project;
 	return resolveRuntimeProjectProjection(project);
 }
 

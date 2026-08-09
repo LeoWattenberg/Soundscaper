@@ -71,6 +71,12 @@ test('rational composition reduces before evaluation and rejects unsafe results'
 test('seconds and hold-tempo beats use named point conversion from the origin', () => {
 	assert.equal(secondsToSampleFrame(0.5, 44_100, 'point'), 22_050);
 	assert.equal(secondsToSampleFrame(-0.5, 44_100, 'point'), -22_050);
+	assert.throws(() => secondsToSampleFrame(Number.NaN, 44_100), /seconds must be finite/iu);
+	assert.equal(
+		secondsToSampleFrame(187.825, 44_100, 'point'),
+		secondsToSampleFrame({ num: 7_513, den: 40 }, 44_100, 'point'),
+		'equivalent decimal and rational inputs must share exact tie behavior',
+	);
 	const tempoMap = {
 		mode: 'musical' as const,
 		events: [
@@ -82,6 +88,15 @@ test('seconds and hold-tempo beats use named point conversion from the origin', 
 	assert.equal(beatToSampleFrame({ num: 5, den: 1 }, tempoMap, 48_000), 144_000);
 });
 
+test('composed rational rates remain consumable by exact frame conversion', () => {
+	const rate = composeRationalRates(
+		{ num: 30_000, den: 1_001 },
+		{ num: 24_000, den: 1_001 },
+	);
+	assert.deepEqual(rate, { num: 720_000_000, den: 1_002_001 });
+	assert.equal(videoFrameToSampleFrame(1, rate, 48_000), 67);
+});
+
 test('count-in measures honor the signature denominator', () => {
 	assert.equal(countInSampleFrames(1, {
 		bpm: { num: 120, den: 1 },
@@ -91,6 +106,14 @@ test('count-in measures honor the signature denominator', () => {
 		bpm: { num: 120, den: 1 },
 		timeSignature: { numerator: 3, denominator: 4 },
 	}, 48_000), 144_000);
+	assert.throws(() => countInSampleFrames(1, {
+		bpm: { num: 120, den: 1 },
+		timeSignature: { numerator: 4, denominator: 2 ** 32 + 1 },
+	}, 48_000), /denominator/iu);
+	assert.equal(countInSampleFrames(1, {
+		bpm: { num: 120, den: 1 },
+		timeSignature: { numerator: 4, denominator: 2 ** 32 },
+	}, 48_000), 0, 'the exact check must not reject a large genuine power of two');
 });
 
 test('shared breakpoint maps enforce audio and video direction semantics', () => {

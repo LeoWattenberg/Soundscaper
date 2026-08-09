@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
@@ -8,6 +9,7 @@ const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translat
 
 test.describe('dedicated OPFS storage worker', () => {
 	test.beforeEach(async ({ context, page }) => {
+		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

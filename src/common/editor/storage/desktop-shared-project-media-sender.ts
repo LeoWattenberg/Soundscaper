@@ -125,6 +125,7 @@ async function preflightSenderSources(
 	const byteBudget = new ScapeExpandedByteBudget(SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes);
 	const chunkBudget = new ScapeAudioChunkBudget();
 	const prepared: PreparedSource[] = [];
+	const timingBindingByPhysicalSource = new Map<string, string>();
 	for (const source of sources) {
 		throwIfScapeAborted(signal);
 		if (source.kind === 'audio') {
@@ -139,6 +140,14 @@ async function preflightSenderSources(
 		prepared.push(Object.freeze({ kind: 'video', metadata, source }));
 		const timingAsset = managedTimingAssetForSource(source);
 		if (timingAsset) {
+			const physicalSource = JSON.stringify([timingAsset.kind, timingAsset.storageKey]);
+			const binding = managedSourceBinding(timingAsset);
+			const existing = timingBindingByPhysicalSource.get(physicalSource);
+			if (existing && existing !== binding) {
+				throw new Error(`Managed video-timing aliases for ${timingAsset.storageKey} have conflicting geometry.`);
+			}
+			if (existing) continue;
+			timingBindingByPhysicalSource.set(physicalSource, binding);
 			byteBudget.consume(timingAsset.byteLength, timingAsset.storageKey);
 			prepared.push(await preflightDesktopSharedTimingAsset(
 				timingAsset,
@@ -337,6 +346,9 @@ async function readTrustedVideoMetadata(
 		|| mimeType !== source.mimeType || !Number.isSafeInteger(size) || Number(size) < 1
 		|| typeof sha256 !== 'string' || !DIGEST.test(sha256)) {
 		throw new Error(`Video source ${source.id} has invalid trusted retained-media metadata.`);
+	}
+	if (source.contentSha256 !== undefined && sha256 !== source.contentSha256) {
+		throw new Error(`Video source ${source.id} does not match its source content digest.`);
 	}
 	return Object.freeze({
 		committedAt,

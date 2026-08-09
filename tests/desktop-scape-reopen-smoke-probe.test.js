@@ -236,7 +236,7 @@ function smokeArgv(encoded = encodeScapeReopenSmokePlan(PLAN)) {
 function rendererResult() {
 	return {
 		sharedProject: {
-			schemaVersion: 9,
+			schemaVersion: 10,
 			revision: PLAN.project.revision,
 			sourceCount: 1,
 			trackCount: 1,
@@ -271,7 +271,7 @@ function smokeResult() {
 
 function sharedProjectDocument(plan, overrides = {}) {
 	return JSON.stringify({
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: plan.project.id,
 		title: plan.project.title,
 		revision: plan.project.revision,

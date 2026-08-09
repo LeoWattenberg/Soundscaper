@@ -91,6 +91,38 @@ test('video timing handoff publishes exact bytes and rolls back the original whe
 	);
 	assert.equal(await readMediaBytes(corruptStore, video.storageKey), null);
 	assert.equal(await readMediaBytes(corruptStore, timing.reference.storageKey), null);
+
+	const malformedBytes = new Uint8Array(timing.bytes.byteLength);
+	const malformedSha256 = digest(malformedBytes);
+	const malformedReference = Object.freeze({
+		...timing.reference,
+		storageKey: `video-timing-sha256:${malformedSha256}`,
+		sha256: malformedSha256,
+	});
+	const malformedProject = createAudioEditorProjectV10({
+		...project,
+		sources: project.sources.map((source) => source.id === video.id
+			? { ...source, timingAsset: malformedReference }
+			: source),
+	});
+	const malformedDescriptors: readonly DesktopSharedManagedSourceDescriptor[] = Object.freeze([
+		descriptors[0]!,
+		Object.freeze({
+			...descriptors[1]!,
+			sha256: malformedSha256,
+			storageKey: malformedReference.storageKey,
+		}),
+	]);
+	bodies.set(descriptors[1]!.bindingId, malformedBytes);
+	const malformedStore = memoryStore(context, 'timing-malformed');
+	await assert.rejects(
+		acquireDesktopSharedProjectMedia(
+			malformedProject, null, malformedDescriptors, { readSharedSourceChunk: transfer }, malformedStore,
+		),
+		/magic|timing asset|codec/iu,
+	);
+	assert.equal(await readMediaBytes(malformedStore, video.storageKey), null);
+	assert.equal(await readMediaBytes(malformedStore, malformedReference.storageKey), null);
 });
 
 function memoryStore(context: TestContext, label: string): AudioEditorProjectStore {

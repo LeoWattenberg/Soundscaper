@@ -30,7 +30,10 @@ import {
 	createMediaSourceV10,
 	createMediaTrackV10,
 } from '../project-v10.ts';
-import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
+import {
+	isRuntimeProjectProjection,
+	resolveRuntimeClipProjection,
+} from '../runtime-clip-projection.ts';
 import {
 	cloneVideoEffects,
 } from '../video-effects.js';
@@ -80,10 +83,12 @@ export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timeline
 	const offsetFrames = segmentStartFrame - clip.timelineStartFrame;
 	const durationFrames = segmentEndFrame - segmentStartFrame;
 	const sourceDuration = clip.sourceDurationFrames ?? clip.durationFrames;
-	const sourceOffsetFrames = Math.round(offsetFrames * sourceDuration / clip.durationFrames);
-	const segmentSourceDuration = segmentEndFrame === clipEndFrame(clip)
-		? sourceDuration - sourceOffsetFrames
-		: Math.max(1, Math.round(durationFrames * sourceDuration / clip.durationFrames));
+	const { sourceOffsetFrames, segmentSourceDuration } = sourceRangeForSegment(
+		clip,
+		segmentStartFrame,
+		segmentEndFrame,
+		sourceDuration,
+	);
 	const sourceStartFrame = clip.reversed
 		? clip.sourceStartFrame + sourceDuration - sourceOffsetFrames - segmentSourceDuration
 		: clip.sourceStartFrame + sourceOffsetFrames;
@@ -102,8 +107,16 @@ export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timeline
 		trimStartFrames: segmentStartFrame === clip.timelineStartFrame ? clip.trimStartFrames : 0,
 		trimEndFrames: segmentEndFrame === clipEndFrame(clip) ? clip.trimEndFrames : 0,
 		...(envelope ? { envelope } : {}),
-		fadeInFrames: segmentStartFrame === clip.timelineStartFrame ? Math.min(clip.fadeInFrames, durationFrames) : 0,
-		fadeOutFrames: segmentEndFrame === clipEndFrame(clip) ? Math.min(clip.fadeOutFrames, durationFrames) : 0,
+		...(Number.isSafeInteger(clip.fadeInFrames) ? {
+			fadeInFrames: segmentStartFrame === clip.timelineStartFrame
+				? Math.min(clip.fadeInFrames, durationFrames)
+				: 0,
+		} : {}),
+		...(Number.isSafeInteger(clip.fadeOutFrames) ? {
+			fadeOutFrames: segmentEndFrame === clipEndFrame(clip)
+				? Math.min(clip.fadeOutFrames, durationFrames)
+				: 0,
+		} : {}),
 	};
 	if (!clip.kind) return normalizeClipValue(value);
 	if (clip.kind === 'video' && id !== clip.id && clip.videoEffects?.length) {
@@ -115,6 +128,33 @@ export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timeline
 	}
 	if (clip.anchor != null || clip.sequenceId != null) return value;
 	return Array.isArray(clip.videoEffects) ? createMediaClipV5(value) : createMediaClipV4(value);
+}
+
+function sourceRangeForSegment(clip, segmentStartFrame, segmentEndFrame, sourceDuration) {
+	const timelineDuration = clip.durationFrames;
+	const startOffset = segmentStartFrame - clip.timelineStartFrame;
+	let sourceStartOffset = Math.round(startOffset * sourceDuration / timelineDuration);
+	let segmentSourceDuration = segmentEndFrame === clipEndFrame(clip)
+		? sourceDuration - sourceStartOffset
+		: Math.max(1, Math.round((segmentEndFrame - segmentStartFrame) * sourceDuration / timelineDuration));
+	if (clip.kind === 'video' && (
+		segmentSourceDuration < 1
+		|| sourceStartOffset < 0
+		|| sourceStartOffset + segmentSourceDuration > sourceDuration
+	)) {
+		// A slow or held source span can map several positive timeline ranges
+		// onto one discrete source frame. Retain that in-bounds frame in every
+		// survivor instead of emitting an impossible zero-length source range.
+		sourceStartOffset = Math.max(0, Math.min(sourceDuration - 1, sourceStartOffset));
+		segmentSourceDuration = Math.max(1, Math.min(
+			segmentSourceDuration,
+			sourceDuration - sourceStartOffset,
+		));
+	}
+	return {
+		sourceOffsetFrames: sourceStartOffset,
+		segmentSourceDuration,
+	};
 }
 
 export function envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames) {
@@ -329,7 +369,7 @@ export function normalizeTrackForProject(project, value) {
 
 export function normalizeClipForProject(project, value) {
 	if (project.schemaVersion >= 10) {
-		if (project.runtimeProjectionVersion && value?.coordinateDomain === 'resolved-samples') {
+		if (isRuntimeProjectProjection(project) && value?.coordinateDomain === 'resolved-samples') {
 			const timelineStartFrame = Number(value.timelineStartFrame);
 			const durationFrames = Number(value.durationFrames);
 			const sourceStartFrame = Number(value.sourceStartFrame);

@@ -184,6 +184,13 @@ test('post-commit size metadata is verified before project publication and rolle
 			const metadata = await writer.commit(options);
 			return { ...metadata, size: Number(metadata.size) + 1 };
 		},
+		async commitOwned(options) {
+			const publication = await writer.commitOwned!(options);
+			return {
+				metadata: { ...publication.metadata, size: Number(publication.metadata.size) + 1 },
+				discardIfCurrent: publication.discardIfCurrent.bind(publication),
+			};
+		},
 	})), {
 		get(target, property, receiver) {
 			if (property === 'saveProject') return async (...args: Parameters<typeof target.saveProject>) => {

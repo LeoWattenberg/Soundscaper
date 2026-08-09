@@ -4,6 +4,7 @@ export const VIDEO_TIMING_ASSET_ENCODING = 'soundscaper-video-timing-v1';
 export const VIDEO_TIMING_ASSET_MIME_TYPE = 'application/vnd.soundscaper.video-timing';
 export const VIDEO_TIMING_ASSET_HEADER_BYTES = 32;
 export const VIDEO_TIMING_ASSET_MAXIMUM_FRAMES = 2_000_000;
+export const VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE = 0xffff_ffff;
 export const VIDEO_TIMING_ASSET_MAXIMUM_BYTES = VIDEO_TIMING_ASSET_HEADER_BYTES
 	+ VIDEO_TIMING_ASSET_MAXIMUM_FRAMES * BigInt64Array.BYTES_PER_ELEMENT;
 
@@ -46,6 +47,9 @@ export function normalizeVideoTimingAssetReference(value: unknown): Readonly<Vid
 		throw new RangeError('The timing asset summary is inconsistent.');
 	}
 	const timescale = positiveSafeInteger(candidate.timescale, 'timing asset timescale');
+	if (timescale > VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE) {
+		throw new RangeError('The timing asset timescale exceeds its unsigned 32-bit maximum.');
+	}
 	const finalFrameDurationTicks = positiveDecimalInt64(
 		candidate.finalFrameDurationTicks,
 		'timing asset final frame duration',

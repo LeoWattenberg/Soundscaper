@@ -23,6 +23,7 @@ import {
 	trackNameText,
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const PRODUCT_PATHS = {
@@ -47,6 +48,7 @@ test.describe('cross-product Scape handoff roundtrips', () => {
 		test(workflow.id, async ({ browser, page }) => {
 			test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 			test.setTimeout(120_000);
+			await installPinnedFfmpegRuntimeRoutes(page);
 			await disableDirectScapeSave(page);
 			const origin = await bootEditor(page, PRODUCT_PATHS[workflow.origin]);
 			const originErrors = collectClientErrors(page);
@@ -64,7 +66,8 @@ test.describe('cross-product Scape handoff roundtrips', () => {
 			const outboundArchive = await exportScapeArchive(page, origin);
 			const outbound = await inspectScapeArchive(outboundArchive);
 			expect(outbound.projectId).toBe(projectId);
-			expect([...new Set(outbound.assets.map(({ kind }) => kind))].sort()).toEqual(['audio', 'video']);
+			expect([...new Set(outbound.assets.map(({ kind }) => kind))].sort())
+				.toEqual(['audio', 'video', 'video-timing']);
 
 			const baseURL = new URL(page.url()).origin;
 			const openedRuntimes = [];
@@ -109,6 +112,7 @@ test.describe('cross-product Scape handoff roundtrips', () => {
 
 async function openProductRuntime(browser, baseURL, productId) {
 	const page = await browser.newPage({ baseURL, serviceWorkers: 'block' });
+	await installPinnedFfmpegRuntimeRoutes(page);
 	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 		status: 200,
 		contentType: 'application/json',

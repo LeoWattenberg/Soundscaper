@@ -7,6 +7,10 @@ import {
 import { linkedVideoLocatorReferenceFromImportOptions } from './project-import-options.ts';
 import { sampleFrameToVideoFrame } from '../timeline-time.ts';
 import { digestMediaContent } from '../storage/media-content-digest.ts';
+import type {
+	OwnedMediaAssetPublication,
+	OwnedMediaAssetWriter,
+} from '../storage/media-asset-write-contract.ts';
 import { createFfmpegVideoTimingProbe, probeVideoTiming } from '../video-timing-probe.ts';
 import { publishVideoTimingAsset } from '../video-timing-storage.ts';
 export interface ImportVideoRuntime {
@@ -47,21 +51,48 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			const startingVideoTrackCount = startingProject.tracks
 				.filter((track: RuntimeValue) => track.type === 'video').length;
 			await preflightStorage(Math.max(file.size * 2, 16 * 1024 * 1024), 'import');
-			extractor = await createAudioEditorVideoFrameExtractor(file);
+			let canonicalVideoFile = file;
+			extractor = await createAudioEditorVideoFrameExtractor(canonicalVideoFile);
 			const sampleRate = projectSampleRate();
 			const ffmpegTimingProbe = createFfmpegVideoTimingProbe(ffmpeg);
-			const timingProbe = file instanceof Blob
-				? await probeVideoTiming(file, { probes: ffmpegTimingProbe ? [ffmpegTimingProbe] : [] })
+			let timingProbe = canonicalVideoFile instanceof Blob
+				? await probeVideoTiming(canonicalVideoFile, { probes: ffmpegTimingProbe ? [ffmpegTimingProbe] : [] })
 				: Object.freeze({
 					decision: 'conform-cfr-at-ingest' as const,
 					rate: Object.freeze({ num: 30, den: 1 }),
 					reason: 'timing-probe-unavailable' as const,
 					failures: Object.freeze([]),
 				});
+			let conformedAtIngest = false;
+			if (timingProbe.decision === 'conform-cfr-at-ingest'
+				&& canonicalVideoFile instanceof Blob) {
+				if (typeof ffmpeg?.conformVideoToCfr !== 'function') {
+					throw new Error('Exact video timing could not be established and CFR conformance is unavailable.');
+				}
+				if (linkedVideoLocatorId) {
+					throw new Error('A linked original cannot be replaced by a conformed ingest derivative.');
+				}
+				canonicalVideoFile = await ffmpeg.conformVideoToCfr(canonicalVideoFile, {
+					rate: timingProbe.rate,
+					signal: importOptions.signal,
+				});
+				extractor.dispose();
+				extractor = await createAudioEditorVideoFrameExtractor(canonicalVideoFile);
+				const conformedProbe = createFfmpegVideoTimingProbe(ffmpeg);
+				timingProbe = await probeVideoTiming(canonicalVideoFile, {
+					probes: conformedProbe ? [conformedProbe] : [],
+					fallbackRate: timingProbe.rate,
+					signal: importOptions.signal,
+				});
+				if (timingProbe.decision !== 'timing-asset') {
+					throw new Error('The conformed video output did not expose exact frame timing.');
+				}
+				conformedAtIngest = true;
+			}
 			const trackName = stripExtension(file.name) || `Video ${startingVideoTrackCount + 1}`;
 			prepared = {
 				startingProjectId, startingProjectToken,
-				sampleRate, timingProbe,
+				sampleRate, timingProbe, canonicalVideoFile, conformedAtIngest,
 				durationFrames: Math.max(1, Math.round(extractor.metadata.durationSeconds * sampleRate)),
 				videoSourceId: createStableId('video-source'),
 				videoClipId: createStableId('video-clip'),
@@ -82,7 +113,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		}
 		const {
 			startingProjectId, startingProjectToken, sampleRate, durationFrames, videoSourceId, videoClipId,
-			binItemId, trackName, sourceName, timingProbe,
+			binItemId, trackName, sourceName, timingProbe, canonicalVideoFile, conformedAtIngest,
 		} = prepared;
 		const assertImportProjectCurrent = () => {
 			try { assertProject(startingProjectToken); } catch (error) {
@@ -96,10 +127,8 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		let audioClipId = null;
 		let canonicalAudio = null;
 		let originalAudioSampleRate = sampleRate;
-		let mediaPersisted = false;
-		let timingAssetCreated = false;
-		let timingAssetStorageKey: string | null = null;
-		let derivativeCleanupRequired = false;
+		let mediaPublication: OwnedMediaAssetPublication | null = null;
+		let timingAssetPublication: OwnedMediaAssetPublication | null = null;
 		let audioPersisted = false;
 		let linkedBinding: RuntimeValue = null;
 		let linkedProjectId: RuntimeValue = null;
@@ -108,31 +137,33 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			if (linkedVideoLocatorId) pendingLinkedDerivatives.push(derivative);
 			else {
 				await store.saveVideoDerivative(videoSourceId, derivative);
-				derivativeCleanupRequired = true;
 			}
 		};
 		try {
 			assertImportProjectCurrent();
 			let sourceContentSha256: string;
 			if (!linkedVideoLocatorId) {
-				const mediaMetadata = await store.writeMediaAsset(videoSourceId, file, {
+				const published = await publishImportedVideo(
+					store,
+					videoSourceId,
+					canonicalVideoFile,
+					{
 					name: sourceName,
-					mimeType: file.type || 'video/mp4',
+					mimeType: canonicalVideoFile.type || 'video/mp4',
 					width: extractor.metadata.width,
 					height: extractor.metadata.height,
 					durationSeconds: extractor.metadata.durationSeconds,
-				});
-				sourceContentSha256 = typeof mediaMetadata?.sha256 === 'string'
-					? mediaMetadata.sha256
-					: await digestImportFile(file);
-				mediaPersisted = true;
-			} else sourceContentSha256 = await digestImportFile(file);
+					},
+					importOptions.signal,
+				);
+				sourceContentSha256 = published.sha256;
+				mediaPublication = published.publication;
+			} else sourceContentSha256 = await digestImportFile(canonicalVideoFile);
 			let timingAsset = null;
 			if (timingProbe.decision === 'timing-asset') {
 				const published = await publishVideoTimingAsset(store, sourceContentSha256, timingProbe.timing);
 				timingAsset = published.reference;
-				timingAssetCreated = published.created;
-				timingAssetStorageKey = published.reference.storageKey;
+				timingAssetPublication = published.publication;
 			}
 			const thumbnailTimes = audioEditorVideoThumbnailTimes(extractor.metadata.durationSeconds);
 			let sourcePreviewUnavailable = false;
@@ -179,11 +210,11 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 					// The browser has already decoded this container for thumbnails,
 					// and native Web Audio handles AAC tracks that may be unavailable
 					// to a particular FFmpeg core build.
-					const encoded = await file.arrayBuffer();
+					const encoded = await canonicalVideoFile.arrayBuffer();
 					declaredAudioSampleRate = inspectEncodedAudioSampleRate(encoded);
 					decodedAudio = await engine.decodeAudioData(encoded);
 				} catch {
-					decodedAudio = await ffmpeg.decode(file, { sampleRate });
+					decodedAudio = await ffmpeg.decode(canonicalVideoFile, { sampleRate });
 				}
 				const decodedChannels = decodedAudio?.channels?.length
 					? decodedAudio.channels
@@ -245,7 +276,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				id: videoSourceId,
 				storageKey: videoSourceId,
 				name: sourceName,
-				mimeType: file.type || 'video/mp4',
+				mimeType: canonicalVideoFile.type || 'video/mp4',
 				sampleFrameCount: durationFrames,
 				sampleRate,
 				width: extractor.metadata.width,
@@ -255,10 +286,14 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				contentSha256: sourceContentSha256,
 				timingAsset,
 				timingDecision: timingProbe.decision === 'timing-asset'
-					? { mode: 'exact', rate: sourceRate, backend: timingProbe.backend }
+					? {
+						mode: conformedAtIngest ? 'conform-cfr-at-ingest' : 'exact',
+						rate: sourceRate,
+						backend: timingProbe.backend,
+					}
 					: { mode: 'conform-cfr-at-ingest', rate: sourceRate, reason: timingProbe.reason, failures: timingProbe.failures },
-				videoCodec: 'unknown',
-				audioCodec: canonicalAudio ? 'unknown' : null,
+				videoCodec: conformedAtIngest ? 'h264' : 'unknown',
+				audioCodec: canonicalAudio ? (conformedAtIngest ? 'aac' : 'unknown') : null,
 				hasAudio: Boolean(canonicalAudio),
 				posterStorageKey: null,
 				thumbnailStorageKey: null,
@@ -384,7 +419,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				);
 				for (const derivative of pendingLinkedDerivatives) {
 					try {
-						derivativeCleanupRequired = true;
 						await store.saveLinkedVideoDerivative(
 							linkedProjectId, videoSource, linkedBinding, derivative,
 						);
@@ -431,11 +465,11 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 					try { await store.deleteSource(audioSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
 				}
 			}
-			if (mediaPersisted || derivativeCleanupRequired) {
-				try { await store.deleteMediaAsset(videoSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			if (timingAssetPublication) {
+				try { await timingAssetPublication.discardIfCurrent(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
 			}
-			if (timingAssetCreated && timingAssetStorageKey) {
-				try { await store.deleteMediaAsset(timingAssetStorageKey); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			if (mediaPublication) {
+				try { await mediaPublication.discardIfCurrent(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
 			}
 			if (releaseLinkedLocator) {
 				try { await releaseUnusedLinkedVideoLocator(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
@@ -457,4 +491,63 @@ async function digestImportFile(file: RuntimeValue): Promise<string> {
 	if (file instanceof Blob) return digestMediaContent(file);
 	if (typeof file?.arrayBuffer !== 'function') throw new TypeError('Video media must provide bytes for digest binding.');
 	return digestMediaContent(new Blob([await file.arrayBuffer()]));
+}
+
+async function publishImportedVideo(
+	store: RuntimeValue,
+	storageKey: string,
+	file: RuntimeValue,
+	metadata: Readonly<Record<string, unknown>>,
+	signal?: AbortSignal,
+): Promise<Readonly<{ sha256: string; publication: OwnedMediaAssetPublication }>> {
+	const body = file instanceof Blob
+		? file
+		: new Blob([await file.arrayBuffer()], { type: typeof file?.type === 'string' ? file.type : '' });
+	if (!body.size) throw new RangeError('Video media must contain at least one byte.');
+	const sha256 = await digestMediaContent(body);
+	const writer = await store.beginMediaAssetWrite(storageKey, metadata, {
+		expectedBytes: body.size,
+		expectedSha256: sha256,
+		signal,
+	}) as OwnedMediaAssetWriter;
+	let publication: OwnedMediaAssetPublication | null = null;
+	try {
+		const maximumChunkBytes = positiveWriterChunkBytes(writer.maximumChunkBytes);
+		for (let offset = 0; offset < body.size; offset += maximumChunkBytes) {
+			throwIfImportAborted(signal);
+			const end = Math.min(offset + maximumChunkBytes, body.size);
+			const bytes = new Uint8Array(await body.slice(offset, end).arrayBuffer());
+			if (bytes.byteLength !== end - offset) throw new Error('Video media returned an incomplete byte range.');
+			await writer.write(bytes, { signal });
+		}
+		if (writer.bytesWritten !== body.size) throw new Error('Video media emitted an unexpected byte length.');
+		publication = await writer.commitOwned({ signal });
+		throwIfImportAborted(signal);
+		if (!publication || typeof publication.discardIfCurrent !== 'function'
+			|| publication.metadata.sha256 !== sha256 || publication.metadata.size !== body.size) {
+			throw new Error('Published video metadata disagrees with its admitted content.');
+		}
+		return Object.freeze({ sha256, publication });
+	} catch (error) {
+		try {
+			if (publication) await publication.discardIfCurrent();
+			else await writer.abort();
+		} catch (cleanupError) {
+			throw new AggregateError([error, cleanupError], 'Video publication and cleanup both failed.', { cause: error });
+		}
+		throw error;
+	}
+}
+
+function positiveWriterChunkBytes(value: unknown): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 1) {
+		throw new RangeError('The video media writer has an invalid chunk bound.');
+	}
+	return Number(value);
+}
+
+function throwIfImportAborted(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	if (signal.reason !== undefined) throw signal.reason;
+	throw new DOMException('Video import was cancelled.', 'AbortError');
 }
