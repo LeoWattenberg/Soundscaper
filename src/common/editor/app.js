@@ -216,6 +216,7 @@ import { createSourceLifecycleService } from './controller/source-lifecycle-serv
 import { createDerivedSourceService } from './controller/derived-source-service.ts';
 import { createMixRenderService } from './controller/mix-render-service.ts';
 import { createNativeProjectService } from './controller/native-project-service.ts';
+import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
@@ -1084,6 +1085,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 			persistRouting: persistRecordingRouting,
 			publish: publishDocumentSnapshot,
 		},
+	});
+	const {
+		addTrack, addVideoTrackPair, assignPreferredInputToTrack, addLabelTrack,
+		reorderTrack, moveTrack, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
+	} = createTrackActionAdapter({
+		service: trackService,
+		getSelectedTrackId: () => state.selectedTrackId,
+		projectSampleRate,
 	});
 	const {
 		exportVideo,
@@ -2167,42 +2176,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function stopProjectBinPreview({ dispose = false } = {}) {
 		return projectBinService.stopProjectBinPreview({ dispose });
-	}
-
-	function addTrack(options = {}) {
-		return trackService.addTrack(options);
-	}
-
-	function addVideoTrackPair(options = {}) {
-		return trackService.addVideoTrackPair(options);
-	}
-
-	function assignPreferredInputToTrack(trackId) {
-		return trackService.assignPreferredInputToTrack(trackId);
-	}
-
-	function addLabelTrack(options = {}) {
-		return trackService.addLabelTrack(options);
-	}
-
-	function reorderTrack(trackId, requestedIndex) {
-		return trackService.reorderTrack(trackId, requestedIndex);
-	}
-
-	function moveTrack(trackId, direction) {
-		return trackService.moveTrack(trackId, direction);
-	}
-
-	function setTrackDisplayMode(trackId, displayMode) {
-		return trackService.setTrackDisplayMode(trackId, displayMode);
-	}
-
-	function setTrackRate(trackId = state.selectedTrackId, requestedSampleRate = projectSampleRate()) {
-		return trackService.setTrackRate(trackId, requestedSampleRate);
-	}
-
-	function setTrackSampleFormat(trackId = state.selectedTrackId, sampleFormat = 'float32') {
-		return trackService.setTrackSampleFormat(trackId, sampleFormat);
 	}
 
 	async function mixAndRenderTracks() {
