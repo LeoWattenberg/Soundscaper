@@ -2,7 +2,6 @@ import { Button, Icon, TimelineRuler } from '@dilsonspickles/components';
 import { useCallback, useRef } from 'react';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../project-schema-version.ts';
 import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
 import { AudioTrackRow } from './AudioTrackRow.jsx';
 import { EMPTY_TIMELINE_CLIPS } from './constants.ts';
@@ -71,6 +70,7 @@ export function TimelineWorkspaceView({
 		projectIndex,
 		visualTrackHeight,
 		totalTrackHeight,
+		showTimelineAnnotations,
 	} = geometry;
 	const { documentSelection, timeSelection, selectedClipIdSet } = selection;
 	const {
@@ -86,6 +86,7 @@ export function TimelineWorkspaceView({
 	} = preview;
 	const {
 		scrollRef,
+		timelineScrollRef,
 		addTrackTriggerRef,
 		setTimelineNode,
 		handleTimelineScroll,
@@ -127,14 +128,15 @@ export function TimelineWorkspaceView({
 	const mappedTempo = rationalValue(tempoEvents[0]?.bpm, project.tempo?.bpm || 120);
 	const mappedSignature = signatureEvents[0] || project.tempo?.timeSignature || { numerator: 4, denominator: 4 };
 	const useMusicalMapRuler = usesMusicalMapRuler(project);
-	const showTimelineAnnotations = snapshot.capabilities?.timelineAnnotations === true
-		&& project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		&& Array.isArray(project.timelineAnnotations);
 	const timelinePanelRef = useRef(null);
 	const setTimelinePanelNode = useCallback((node) => {
 		timelinePanelRef.current = node;
 		setTimelineNode(node);
 	}, [setTimelineNode]);
+	const setTimelineScrollNode = useCallback((node) => {
+		scrollRef.current = node;
+		timelineScrollRef(node);
+	}, [scrollRef, timelineScrollRef]);
 	const focusCreatedInLayer = useCallback((annotationId) => (
 		focusCreatedTimelineAnnotation(timelinePanelRef.current, annotationId, 'layer')
 	), []);
@@ -164,7 +166,7 @@ export function TimelineWorkspaceView({
 			<div
 				className="audio-editor-timeline-scroll"
 				data-timeline
-				ref={scrollRef}
+				ref={setTimelineScrollNode}
 				onScroll={handleTimelineScroll}
 				onPointerDownCapture={onPointerDown}
 				onPointerMove={onPointerMove}

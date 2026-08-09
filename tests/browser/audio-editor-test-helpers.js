@@ -560,7 +560,12 @@ export function collectClientErrors(page) {
 		errors.push(source ? `${message.text()} (${source})` : message.text());
 	});
 	page.on('requestfailed', (request) => {
-		if (isBrowserDependency(request)) reportRequest(request, request.failure()?.errorText || 'request failed');
+		const reason = request.failure()?.errorText || 'request failed';
+		// Browsers abort still-loading dependencies when the element or document
+		// that asked for them goes away. That cancellation is not a rejection, and
+		// a genuinely broken dependency still surfaces through the response check.
+		if (/^(?:NS_BINDING_ABORTED|net::ERR_ABORTED)$/u.test(reason)) return;
+		if (isBrowserDependency(request)) reportRequest(request, reason);
 	});
 	page.on('response', (response) => {
 		const request = response.request();

@@ -34,6 +34,16 @@
 	top: 72px;
 }
 
+/* Overlays anchored below the ruler row follow the taller annotation ruler. */
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-time-selection-overlay {
+	top: 67px;
+}
+
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-playhead-boundary {
+	top: 67px;
+	height: calc(100% - 67px);
+}
+
 #kw-audio-editor-design-system .audio-editor-timeline-annotations {
 	position: absolute;
 	z-index: 4;

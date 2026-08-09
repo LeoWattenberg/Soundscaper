@@ -30,10 +30,17 @@ export function useTimelineHitTesting({ state, model }) {
 	}, [durationFrames, pixelsPerSecond, sampleRate, scrollX]);
 
 	const isInNewTrackDropZone = useCallback((clientY) => {
-		const rect = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect();
-		return Boolean(rect
-			&& clientY >= Math.max(rect.top, rect.bottom - NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT)
-			&& clientY < rect.bottom);
+		const surface = scrollRef.current?.querySelector('.audio-editor-timeline-inner');
+		const rect = surface?.getBoundingClientRect();
+		if (!rect) return false;
+		// The drop preview is an in-flow row, so anchoring the zone to the raw
+		// surface bottom would push the zone past the pointer that opened it and
+		// flicker the preview away again.
+		const previewHeight = surface
+			.querySelector('.audio-editor-new-track-drop-preview')
+			?.getBoundingClientRect().height || 0;
+		const bottom = rect.bottom - previewHeight;
+		return clientY >= Math.max(rect.top, bottom - NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT) && clientY < bottom;
 	}, []);
 
 	const trackAtClientY = useCallback((clientY, fallbackTrackId) => {

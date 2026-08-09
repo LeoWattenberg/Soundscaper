@@ -130,6 +130,7 @@ export default function TimelineController({
 		...pointerMove,
 		...projectBinDnd,
 		scrollRef: state.scrollRef,
+		timelineScrollRef: state.timelineScrollRef,
 		addTrackTriggerRef: state.addTrackTriggerRef,
 	};
 	const actions = {

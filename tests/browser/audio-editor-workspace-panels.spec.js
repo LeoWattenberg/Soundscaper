@@ -508,7 +508,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		};
 
 		await expect(trackRows).toHaveCount(1);
-		expect((await trackRows.first().boundingBox())?.height).toBe(300);
+		// A lone track fills the lane area left by the sticky ruler row, capped at
+		// the auto-fit ceiling. The lane area shrinks whenever the timeline shares
+		// the panel with docks, so derive it instead of pinning a viewport height.
+		const laneHeight = await timeline.evaluate((element) => Math.floor(
+			element.getBoundingClientRect().height
+			- element.querySelector('.audio-editor-ruler-row').getBoundingClientRect().height,
+		));
+		expect((await trackRows.first().boundingBox())?.height).toBe(Math.min(300, laneHeight));
 		await importFiles(editor, [toneA]);
 		let trackCount = await trackRows.count();
 		while ((await trackRows.first().boundingBox())?.height > 114 && trackCount < 10) {

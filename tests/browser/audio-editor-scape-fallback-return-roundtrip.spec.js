@@ -239,6 +239,11 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 		const retainedTrackIds = new Set(project.tracks.map(({ id }) => id));
 		for (const sequence of project.sequences) {
 			sequence.trackIds = sequence.trackIds.filter((id) => retainedTrackIds.has(id));
+			// V12 derives the sequence track order from its hierarchy, so pruned
+			// tracks have to leave the node list as well.
+			sequence.trackNodes = sequence.trackNodes.filter((node) => (
+				node.kind !== 'track' || retainedTrackIds.has(node.id)
+			));
 		}
 		const targetClip = project.clips.find(({ sourceId }) => sourceId === canonicalSource.id);
 		const targetTrack = project.tracks.find(({ clipIds }) => clipIds?.includes(targetClip?.id));

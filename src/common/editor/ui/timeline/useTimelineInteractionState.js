@@ -4,6 +4,9 @@ import { useElementSize } from '../DesignSystemRuntime.jsx';
 
 export function useTimelineInteractionState() {
 	const [timelineRef, timelineSize] = useElementSize();
+	// The scroll viewport excludes the annotation panel and the output dock, so
+	// it is the only measurement that reflects the space tracks can occupy.
+	const [timelineScrollRef, timelineScrollSize] = useElementSize();
 	const navigationRootRef = useRef(null);
 	const scrollRef = useRef(null);
 	const pointerSession = useRef(null);
@@ -37,6 +40,8 @@ export function useTimelineInteractionState() {
 	return {
 		timelineRef,
 		timelineSize,
+		timelineScrollRef,
+		timelineScrollSize,
 		navigationRootRef,
 		scrollRef,
 		pointerSession,

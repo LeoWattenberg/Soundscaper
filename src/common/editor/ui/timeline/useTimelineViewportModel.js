@@ -7,10 +7,12 @@ import {
 	secondsToFrames,
 } from '../../design-system-adapters.js';
 import { editorTimelineDurationFrames } from '../../project.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../project-schema-version.ts';
 import { resolveRuntimeProjectProjection } from '../../runtime-clip-projection.ts';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT,
+	RECORDING_INPUT_CONTROLS_HEIGHT,
 	trackVisualHeight,
 } from './geometry.ts';
 import {
@@ -19,6 +21,8 @@ import {
 	COMPACT_TRACK_PANEL_WIDTH,
 	DESKTOP_TRACK_PANEL_WIDTH,
 	SPECTROGRAM_RULER_WIDTH,
+	TIMELINE_RULER_ROW_HEIGHT,
+	TIMELINE_RULER_ROW_HEIGHT_WITH_ANNOTATIONS,
 	VERTICAL_RULER_WIDTH,
 } from './constants.ts';
 
@@ -31,6 +35,7 @@ export function useTimelineViewportModel({
 }) {
 	const {
 		timelineSize,
+		timelineScrollSize,
 		pendingPinchAnchorRef,
 		scrollRef,
 		waveformCacheRef,
@@ -67,11 +72,25 @@ export function useTimelineViewportModel({
 		Math.floor((timelineSize.height || COLLAPSED_TRACK_HEIGHT * 3) / 3),
 	);
 	const outputDockHeight = Math.min(outputDockContentHeight, outputDockMaximumHeight);
+	const showTimelineAnnotations = snapshot.capabilities?.timelineAnnotations === true
+		&& project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		&& Array.isArray(project?.timelineAnnotations);
+	const rulerRowHeight = showTimelineAnnotations
+		? TIMELINE_RULER_ROW_HEIGHT_WITH_ANNOTATIONS
+		: TIMELINE_RULER_ROW_HEIGHT;
 	const autoFitTrackHeightEnabled = snapshot.timeline?.autoFitTrackHeight !== false;
 	const expandedTrackCount = project?.tracks.length || 0;
+	// Armed audio tracks carry a recording input row on top of their lane, so the
+	// fitted lane height has to reserve it or the row overlaps the track controls.
+	const armedTrackCount = showArmControls
+		? (project?.tracks.filter((track) => track.type === 'audio').length || 0)
+		: 0;
+	// The scroll viewport already excludes the output dock and the annotation
+	// panel, so only the sticky ruler row has to come off the top.
 	const availableTrackHeight = Math.max(
 		TRACK_HEIGHT,
-		Math.floor((timelineSize.height || AUTO_FIT_TRACK_HEIGHT + 34) - outputDockHeight - 34),
+		Math.floor((timelineScrollSize.height || AUTO_FIT_TRACK_HEIGHT + rulerRowHeight) - rulerRowHeight)
+		- armedTrackCount * RECORDING_INPUT_CONTROLS_HEIGHT,
 	);
 	const fittedTrackHeight = expandedTrackCount > 0
 		? Math.max(TRACK_HEIGHT, Math.min(
@@ -145,7 +164,7 @@ export function useTimelineViewportModel({
 		if (trackResizePreview?.trackId === track.id) {
 			return trackVisualHeight(track, showArmControls, trackResizePreview.height);
 		}
-		if (autoFitTrackHeightEnabled) return fittedTrackHeight;
+		if (autoFitTrackHeightEnabled) return trackVisualHeight(track, showArmControls, fittedTrackHeight);
 		return trackVisualHeight(track, showArmControls);
 	}, [autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
 	const totalTrackHeight = project?.tracks.reduce((total, track) => total + visualTrackHeight(track), 0) || TRACK_HEIGHT;
@@ -178,5 +197,6 @@ export function useTimelineViewportModel({
 		timeSelection,
 		visualTrackHeight,
 		totalTrackHeight,
+		showTimelineAnnotations,
 	};
 }
