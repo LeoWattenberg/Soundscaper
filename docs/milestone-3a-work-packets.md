@@ -102,6 +102,11 @@ old catalog rows cannot poison startup. There are no pre-release migrations.
 
 ## 3A-3 — Nested track folders
 
+The V12 document model landed schema-first with no editing surface. The
+remaining half — folder-aware commands, clipboard survival, and the native
+tree, through the Soundscaper capability flip — is decomposed in
+[`docs/milestone-3a-track-folder-editing.md`](milestone-3a-track-folder-editing.md).
+
 - **Outcome:** Add a bounded folder tree with stable identities and one
   authoritative parent relation. Implement deterministic subtree creation,
   rename, move, reorder, expand/collapse, delete/promote, visibility, mute/solo,
