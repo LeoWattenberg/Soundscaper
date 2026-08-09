@@ -1,6 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
+import {
+	recordingCapturePeak,
+	recordingCapturePeakDb,
+	selectRoutedRecordingChannels,
+} from './recording-capture-channels.ts';
+import {
+	createSoundActivatedRecordingCaptureSession,
+	type SoundActivatedRecordingCaptureSession,
+} from './sound-activated-recording-capture-session.ts';
 import { calculateAudioEditorCountInFrames } from './transport-model.ts';
 import { countInSampleFrames } from '../timeline-time.ts';
 import type {
@@ -96,6 +105,10 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 		runtime.publishDocumentSnapshot();
 		const entries: RoutedRecordingEntry[] = [];
 		const sourceSessions: RoutedRecordingSourceSession[] = [];
+		const soundActivationSessions = new Map<
+			RoutedRecordingSourceSession,
+			SoundActivatedRecordingCaptureSession
+		>();
 		let routedRecorder: ReturnType<RoutedRecordingCaptureRuntime['createRoutedController']> | null = null;
 		const ownsGeneration = () => scope.generation === state.recordingStartGeneration;
 		const isCurrent = () => {
@@ -137,6 +150,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				for (const remove of session.listeners) remove();
 				await Promise.resolve(session.controller?.dispose?.({ stopTracks: false })).catch(() => undefined);
 				for (const entry of session.entries) await entry.writer.abort().catch(() => undefined);
+				soundActivationSessions.delete(session);
 				for (let index = entries.length - 1; index >= 0; index -= 1) {
 					if (session.entries.includes(entries[index])) entries.splice(index, 1);
 				}
@@ -236,12 +250,27 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			scope.assertCurrent();
 			if (!sourceSessions.length) throw new Error(runtime.messages.noInputsAvailable);
 			const captureSampleRate = context.sampleRate || sampleRate;
+			const selection = runtime.activeSelection(project);
+			// Exact punch owns the whole selected deletion range. Gated source PCM
+			// stays disabled here until storage can retain discontinuous offsets.
+			for (const session of sourceSessions) {
+				soundActivationSessions.set(session, createSoundActivatedRecordingCaptureSession(
+					selection ? undefined : runtime.soundActivation,
+					{
+						sourceKey: session.sourceKey,
+						kind: session.kind,
+						sampleRate: captureSampleRate,
+						channelCount: session.channelCount,
+					},
+					isCurrent,
+					runtime.handleError,
+				));
+			}
 			await runtime.preflightStorage(
 				captureSampleRate * routedChannelCount * Float32Array.BYTES_PER_ELEMENT * 60,
 				'recording',
 			);
 			scope.assertCurrent();
-			const selection = runtime.activeSelection(project);
 			const requestedStartFrame = selection?.startFrame ?? runtime.engine.getPositionFrames();
 			for (const session of sourceSessions) {
 				if (session.disconnected) continue;
@@ -337,21 +366,23 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			};
 			for (const session of sourceSessions) {
 				try {
-					session.controller = await runtime.createRecorder({
+					const soundActivation = soundActivationSessions.get(session);
+					if (!soundActivation) throw new Error('The routed sound activation session is unavailable.');
+					const createdController = await runtime.createRecorder({
 						context,
 						stream: session.stream,
 						channelCount: session.channelCount,
 						monitor: session.kind === 'device' && state.monitoring,
 						inputGain: session.kind === 'device' ? state.recordingInputGain : 1,
-						onChunk: async ({ channels }) => {
+						onChunk: async (chunk) => {
 							if (!isCurrent() || state.recorder !== routedRecorder || state.recordingFinishing) return;
+							const { channels } = chunk;
 							let sourcePeak = 0;
-							const writes = await Promise.allSettled(session.entries.map(async (entry) => {
-								const routedChannels = Array.from(
-									{ length: entry.route.channelCount },
-									(_, channelIndex) => channels[entry.route.channelStart + channelIndex]
-										|| (session.kind === 'display' ? channels[0] : null)
-										|| new Float32Array(channels[0]?.length || 0),
+							for (const entry of session.entries) {
+								const routedChannels = selectRoutedRecordingChannels(
+									channels,
+									entry.route,
+									session.kind,
 								);
 								const meter = runtime.getLoudnessMeter().meter;
 								if (entry === selectedMeterEntry && routedChannels[0]?.length) {
@@ -361,17 +392,22 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 										state.inputMeterDb = Math.max(-60, Number(reading.dbfs) || -60);
 									});
 								}
-								if (routedChannels[0]?.length) await entry.writer.write(routedChannels);
-								scope.assertCurrent();
-								runtime.appendPreview(entry.preview, entry.previewResampler.push(routedChannels));
-								let peak = 0;
-								for (const channel of routedChannels) {
-									for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
-								}
+								const peak = recordingCapturePeak(routedChannels);
 								sourcePeak = Math.max(sourcePeak, peak);
-								state.inputMeters[entry.trackId] = peak > 0
-									? Math.max(-60, 20 * Math.log10(peak))
-									: -60;
+								state.inputMeters[entry.trackId] = recordingCapturePeakDb(routedChannels);
+							}
+							const segments = soundActivation.process(chunk);
+							const writes = await Promise.allSettled(session.entries.map(async (entry) => {
+								for (const segment of segments) {
+									const routedChannels = selectRoutedRecordingChannels(
+										segment.channels,
+										entry.route,
+										session.kind,
+									);
+									if (routedChannels[0]?.length) await entry.writer.write(routedChannels);
+									scope.assertCurrent();
+									runtime.appendPreview(entry.preview, entry.previewResampler.push(routedChannels));
+								}
 							}));
 							const failedWrite = writes.find((result) => result.status === 'rejected');
 							if (failedWrite?.status === 'rejected') throw failedWrite.reason;
@@ -384,12 +420,14 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						onError: handleFatalRecordingError,
 						onState: (recordingState) => {
 							if (recordingState !== 'stopped' || !isCurrent()) return;
+							soundActivation.cancel();
 							session.stopped = true;
 							if (state.recorder === routedRecorder
 								&& sourceSessions.every((source) => source.stopped)
 								&& !state.recordingFinishing) void runtime.finalizeRecording();
 						},
 					});
+					session.controller = soundActivation.wrapController(createdController);
 					scope.assertCurrent();
 					if (!runtime.recordingStreamIsLive(session.stream, session.kind)) disconnectSession(session);
 				} catch (error) {

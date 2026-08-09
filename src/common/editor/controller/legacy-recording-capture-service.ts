@@ -7,6 +7,11 @@ import type {
 	RecordingSourceWriter,
 } from './recording-transaction-types.ts';
 import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
+import {
+	createSoundActivatedRecordingCaptureSession,
+	type SoundActivatedRecordingCaptureSession,
+} from './sound-activated-recording-capture-session.ts';
+import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { calculateAudioEditorCountInFrames } from './transport-model.ts';
 import { countInSampleFrames } from '../timeline-time.ts';
 
@@ -40,6 +45,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 		runtime.publishDocumentSnapshot();
 		let writer: RecordingSourceWriter | null = null;
 		let recorder: RecordingCaptureControllerLike | null = null;
+		let soundActivation: SoundActivatedRecordingCaptureSession | null = null;
 		const ownsGeneration = () => scope.generation === state.recordingStartGeneration;
 		const ownsStart = () => {
 			if (!ownsGeneration()) return false;
@@ -78,6 +84,21 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			const trackSettings = inputTrack?.getSettings?.() || {};
 			const channelCount = Math.min(2, Number(trackSettings.channelCount) || 1);
 			const captureSampleRate = context.sampleRate || sampleRate;
+			const selection = runtime.activeSelection(project);
+			// A gated selection would compact PCM and make punch/replace stretch it
+			// over the exact deletion range. Keep the exact punch path ungated until
+			// capture storage can represent discontinuous absolute source offsets.
+			soundActivation = createSoundActivatedRecordingCaptureSession(
+				selection ? undefined : runtime.soundActivation,
+				{
+					sourceKey: `device:${runtime.defaultDeviceId}`,
+					kind: 'device',
+					sampleRate: captureSampleRate,
+					channelCount,
+				},
+				ownsStart,
+				runtime.handleError,
+			);
 			await runtime.preflightStorage(
 				captureSampleRate * channelCount * Float32Array.BYTES_PER_ELEMENT * 60,
 				'recording',
@@ -94,7 +115,6 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			scope.assertCurrent();
 			const openedWriter = writer;
 			const previewResampler = runtime.createPreviewResampler(captureSampleRate, sampleRate, channelCount);
-			const selection = runtime.activeSelection(project);
 			const requestedStartFrame = selection?.startFrame ?? runtime.engine.getPositionFrames();
 			const automaticLatency = (context.baseLatency || 0)
 				+ (context.outputLatency || 0)
@@ -111,24 +131,24 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				channelCount,
 				framesToSkip: sourceOffsetProjectFrames,
 			});
-			recorder = await runtime.createRecorder({
+			const createdRecorder = await runtime.createRecorder({
 				context,
 				stream,
 				channelCount,
 				discreteChannels: false,
 				monitor: state.monitoring,
 				inputGain: state.recordingInputGain,
-				onChunk: async ({ channels }) => {
+				onChunk: async (chunk) => {
 					if (!ownsStart() || state.recorder !== recorder || state.recordingFinishing) return;
-					if (channels[0]?.length) await openedWriter.write(channels);
-					scope.assertCurrent();
-					if (state.recorder !== recorder || state.recordingFinishing) return;
-					runtime.appendPreview(preview, previewResampler.push(channels));
-					let peak = 0;
-					for (const channel of channels) {
-						for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
+					const { channels } = chunk;
+					state.inputMeterDb = recordingCapturePeakDb(channels);
+					const segments = soundActivation?.process(chunk) || [];
+					for (const segment of segments) {
+						if (segment.channels[0]?.length) await openedWriter.write(segment.channels);
+						scope.assertCurrent();
+						if (state.recorder !== recorder || state.recordingFinishing) return;
+						runtime.appendPreview(preview, previewResampler.push(segment.channels));
 					}
-					state.inputMeterDb = Math.max(-60, peak > 0 ? 20 * Math.log10(peak) : -60);
 					runtime.updatePlayhead();
 					runtime.publishRecordingPreview();
 				},
@@ -143,10 +163,12 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				onState: (recordingState) => {
 					if (recordingState === 'stopped' && ownsStart()
 						&& state.recorder && !state.recordingFinishing) {
+						soundActivation?.cancel();
 						void runtime.finalizeRecording();
 					}
 				},
 			});
+			recorder = soundActivation.wrapController(createdRecorder);
 			scope.assertCurrent();
 			state.recordingStartFrame = recordingStartFrame;
 			state.recordingSourceOffsetFrames = sourceOffsetFrames;

@@ -46,7 +46,11 @@ test('legacy capture publishes one initialized take and releases its start guard
 	assert.equal(fixture.publishes(), 2);
 	const recorderOptions = fixture.recorderOptions();
 	assert.ok(recorderOptions);
-	await recorderOptions.onChunk({ channels: [Float32Array.from([0.5, -0.25])] });
+	await recorderOptions.onChunk({
+		frameStart: 0,
+		frames: 2,
+		channels: [Float32Array.from([0.5, -0.25])],
+	});
 	assert.ok(fixture.state.inputMeterDb > -7 && fixture.state.inputMeterDb < -5);
 	assert.equal(fixture.previewPublishes(), 1);
 	const failure = new Error('processor failed');
@@ -198,7 +202,7 @@ test('legacy recorder callbacks ignore superseded work and handle silent chunks'
 	);
 	const recorderOptions = fixture.recorderOptions();
 	assert.ok(recorderOptions);
-	await recorderOptions.onChunk({ channels: [] });
+	await recorderOptions.onChunk({ frameStart: 0, frames: 0, channels: [] });
 	assert.equal(fixture.state.inputMeterDb, -60);
 	fixture.state.recordingStartGeneration += 1;
 	recorderOptions.onError(new Error('stale'));

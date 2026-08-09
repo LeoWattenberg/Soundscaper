@@ -86,7 +86,11 @@ test('routed capture initializes assigned entries and hands one recorder to the 
 	assert.equal(fixture.publishes(), 2);
 	const recorderOptions = fixture.recorderOptions();
 	assert.ok(recorderOptions);
-	await recorderOptions.onChunk({ channels: [Float32Array.from([0.25, -0.5])] });
+	await recorderOptions.onChunk({
+		frameStart: 0,
+		frames: 2,
+		channels: [Float32Array.from([0.25, -0.5])],
+	});
 	assert.ok((fixture.state.inputMeters['track-1'] || -60) > -7);
 	assert.equal(fixture.previewPublishes(), 1);
 	recorderOptions.onState('stopped');
@@ -183,7 +187,11 @@ test('routed display capture supports ranges, channel fallback, meters, and time
 	assert.deepEqual(fixture.state.recordingSelection, { startFrame: 30, endFrame: 90 });
 	const recorderOptions = fixture.recorderOptions();
 	assert.ok(recorderOptions);
-	await recorderOptions.onChunk({ channels: [Float32Array.from([0.4, -0.2])] });
+	await recorderOptions.onChunk({
+		frameStart: 0,
+		frames: 2,
+		channels: [Float32Array.from([0.4, -0.2])],
+	});
 	assert.deepEqual(fixture.state.inputMeter, { dbfs: -12 });
 	assert.equal(fixture.state.inputMeters['track-1']! > -9, true);
 	recorderOptions.onState('recording');

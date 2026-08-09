@@ -6,15 +6,20 @@ import type {
 	RecordingMediaStream,
 	RecordingProject,
 	RecordingSelection,
+	RecordingSoundActivationSource,
 	RecordingSourceWriter,
 	RoutedRecordingCaptureRuntime,
 } from '../../src/common/editor/controller/recording-transaction-types.ts';
 import type {
 	RecordingCaptureControllerLike,
 	RecordingStartScope,
-	RoutedRecordingController,
 } from '../../src/common/editor/controller/recording-session-service.ts';
+import { createRoutedRecordingController } from '../../src/common/editor/controller/recording-session-service.ts';
 import type { RecordingPreview } from '../../src/common/editor/controller/recording-model.ts';
+import type {
+	SoundActivationGateState,
+	SoundActivationSettings,
+} from '../../src/common/editor/controller/sound-activated-recording-gate.ts';
 
 export function deferred<T>() {
 	let resolve!: (value: T | PromiseLike<T>) => void;
@@ -110,6 +115,7 @@ interface RuntimeOptions {
 	readonly selection?: RecordingSelection | null;
 	readonly playAt?: (scheduledTime: number, startFrame: number) => Promise<unknown>;
 	readonly streamIsLive?: () => boolean;
+	readonly soundActivationSettings?: SoundActivationSettings | null;
 }
 
 export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
@@ -130,13 +136,19 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		},
 	};
 	const stream = createStream();
-	const writer: RecordingSourceWriter = {
-		framesWritten: 0,
-		async write() {},
-		async commit() { return { name: 'Take', channelCount: 1 }; },
-		async abort() {},
-	};
 	let recorderOptions: RecordingControllerFactoryOptions | null = null;
+	const recorderOptionsList: RecordingControllerFactoryOptions[] = [];
+	const recorderStartOptions: Array<Readonly<{ startFrame?: number; stopFrame?: number }> | undefined> = [];
+	const writerRecords: Array<Readonly<{
+		sourceId: string;
+		writes: Float32Array[][];
+		writer: RecordingSourceWriter;
+	}>> = [];
+	const previewSegments: Array<Readonly<{ trackId: string; channels: Float32Array[] }>> = [];
+	const soundActivationStates: Array<Readonly<{
+		source: RecordingSoundActivationSource;
+		state: SoundActivationGateState;
+	}>> = [];
 	let releases = 0;
 	let publishes = 0;
 	let recorderCreations = 0;
@@ -146,21 +158,12 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 	let finalizeCalls = 0;
 	let previewPublishes = 0;
 	let startCalls = 0;
+	let stableId = 0;
 	const seekCalls: number[] = [];
 	const playAtCalls: number[][] = [];
 	const errors: unknown[] = [];
 	let loudnessMeter: ReturnType<RoutedRecordingCaptureRuntime['createLoudnessMeter']> | null = null;
 	let loudnessMeterKey: string | null = null;
-	const routedController: RoutedRecordingController = {
-		state: 'ready',
-		start: () => { startCalls += 1; },
-		pause: () => true,
-		resume: () => true,
-		stop: async () => {},
-		dispose: async () => {},
-		setMonitoring: () => {},
-		setInputGain: () => {},
-	};
 	const runtime: RoutedRecordingCaptureRuntime = {
 		state,
 		engine: {
@@ -200,32 +203,75 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 			assignInput: 'Assign an input.',
 			noInputsAvailable: 'No inputs.',
 		},
+		soundActivation: options.soundActivationSettings === undefined ? undefined : {
+			getSettings: () => options.soundActivationSettings ?? null,
+			setState: (source, activationState) => {
+				soundActivationStates.push(Object.freeze({
+					source: Object.freeze({ ...source }),
+					state: activationState,
+				}));
+			},
+		},
 		getProject: () => project,
 		findTrack: (target, trackId) => target.tracks.find((track) => track.id === trackId) || null,
 		projectSampleRate: () => 48_000,
 		activeSelection: () => options.selection || null,
 		beginPlaybackCachePreparation: async () => {},
 		currentTimeMs: () => 1_000,
-		createStableId: () => 'source-1',
+		createStableId: () => `source-${++stableId}`,
 		createRecordingName: () => 'Recording 10:00',
-		openSourceWriter: async () => writer,
+		openSourceWriter: async (sourceId) => {
+			let framesWritten = 0;
+			const writes: Float32Array[][] = [];
+			const writer: RecordingSourceWriter = {
+				get framesWritten() { return framesWritten; },
+				async write(channels) {
+					const copy = channels.map((channel) => channel.slice());
+					writes.push(copy);
+					framesWritten += copy[0]?.length || 0;
+				},
+				async commit() { return { name: 'Take', channelCount: writes[0]?.length || 1 }; },
+				async abort() {},
+			};
+			writerRecords.push(Object.freeze({ sourceId, writes, writer }));
+			return writer;
+		},
 		createPreview: ({ trackId, startFrame }) => createPreview(trackId, startFrame),
 		createPreviewResampler: () => ({ push: (channels) => channels, finish: () => [] }),
-		appendPreview: () => {},
+		appendPreview: (preview, channels) => {
+			previewSegments.push(Object.freeze({
+				trackId: preview.trackId,
+				channels: channels.map((channel) => channel.slice()),
+			}));
+		},
 		scaleFrames: (frames) => frames,
 		streamAudioChannelCount: (mediaStream) => mediaStream.getAudioTracks()[0]?.getSettings?.().channelCount || 1,
 		recordingStreamIsLive: () => options.streamIsLive?.() ?? true,
 		createRecorder: async (factoryOptions) => {
 			recorderCreations += 1;
 			recorderOptions = factoryOptions;
+			recorderOptionsList.push(factoryOptions);
 			if (options.createRecorder) return options.createRecorder(factoryOptions);
+			let controllerState = 'ready';
 			return {
-				state: 'ready',
-				start: () => { startCalls += 1; },
-				pause: () => true,
-				resume: () => true,
-				stop: async () => {},
-				dispose: async () => {},
+				get state() { return controllerState; },
+				start: (startOptions) => {
+					controllerState = 'recording';
+					startCalls += 1;
+					recorderStartOptions.push(startOptions);
+				},
+				pause: () => {
+					if (controllerState !== 'recording') return false;
+					controllerState = 'paused';
+					return true;
+				},
+				resume: () => {
+					if (controllerState !== 'paused') return false;
+					controllerState = 'recording';
+					return true;
+				},
+				stop: async () => { controllerState = 'stopped'; },
+				dispose: async () => { controllerState = 'disposed'; },
 				setMonitoring: () => {},
 				setInputGain: () => {},
 			};
@@ -243,7 +289,7 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		setStatus: () => {},
 		updateTransportState: () => {},
 		recordingRouteSourceKey: (route) => route.kind === 'display' ? 'display' : `device:${route.deviceId}`,
-		createRoutedController: () => routedController,
+		createRoutedController: (sessions) => createRoutedRecordingController(sessions),
 		createLoudnessMeter: () => ({
 			push: (_channels, publish) => publish({ dbfs: -12 }),
 			snapshot: () => ({ dbfs: -60 }),
@@ -263,6 +309,11 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		publishes: () => publishes,
 		recorderCreations: () => recorderCreations,
 		recorderOptions: () => recorderOptions,
+		recorderOptionsList,
+		recorderStartOptions,
+		writerRecords,
+		previewSegments,
+		soundActivationStates,
 		hardwareRequests: () => hardwareRequests,
 		displayRequests: () => displayRequests,
 		stopCalls: () => stopCalls,

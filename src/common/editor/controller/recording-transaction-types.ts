@@ -8,6 +8,10 @@ import type {
 	RoutedRecordingController,
 } from './recording-session-service.ts';
 import type { RecordingPreview } from './recording-model.ts';
+import type {
+	SoundActivationGateState,
+	SoundActivationSettings,
+} from './sound-activated-recording-gate.ts';
 
 export type MaybePromise<T> = T | PromiseLike<T>;
 
@@ -83,6 +87,29 @@ export interface RecordingSourceWriter {
 	abort(reason?: unknown): Promise<unknown>;
 }
 
+export interface RecordingCaptureChunk {
+	readonly frameStart: number;
+	readonly frames: number;
+	readonly channels: readonly Float32Array[];
+}
+
+export interface RecordingSoundActivationSource {
+	readonly sourceKey: string;
+	readonly kind: 'device' | 'display';
+	readonly sampleRate: number;
+	readonly channelCount: number;
+}
+
+/**
+ * Optional composition boundary for sound activation. Omitting the whole port
+ * preserves ordinary recording; returning settings creates one gate for the
+ * identified input source.
+ */
+export interface RecordingSoundActivationPort {
+	getSettings(source: RecordingSoundActivationSource): SoundActivationSettings | null;
+	setState(source: RecordingSoundActivationSource, state: SoundActivationGateState): void;
+}
+
 export interface RecordingControllerFactoryOptions {
 	readonly context: RecordingAudioContext;
 	readonly stream: RecordingMediaStream;
@@ -90,7 +117,7 @@ export interface RecordingControllerFactoryOptions {
 	readonly discreteChannels?: boolean;
 	readonly monitor: boolean;
 	readonly inputGain: number;
-	readonly onChunk: (chunk: Readonly<{ readonly channels: readonly Float32Array[] }>) => Promise<void>;
+	readonly onChunk: (chunk: RecordingCaptureChunk) => Promise<void>;
 	readonly onError: (error: unknown) => void;
 	readonly onState: (state: string) => void;
 }
@@ -220,6 +247,7 @@ export interface RecordingCaptureCommonRuntime {
 	readonly defaultDeviceId: string;
 	readonly sourceChunkFrames: number;
 	readonly messages: RecordingCaptureMessages;
+	readonly soundActivation?: RecordingSoundActivationPort;
 	readonly getProject: () => RecordingProject;
 	readonly findTrack: (project: RecordingProject, trackId: string) => RecordingTrack | null;
 	readonly projectSampleRate: (project: RecordingProject) => number;
