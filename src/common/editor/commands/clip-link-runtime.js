@@ -17,6 +17,8 @@ import {
 	sortTrack,
 } from './shared-runtime.js';
 
+// foundation-edit-matrix: split
+
 export function splitClip(project, command) {
 	const clip = requireClip(project, command.clipId);
 	const atFrame = assertFrame(command.atFrame, 'split.atFrame');

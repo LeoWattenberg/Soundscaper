@@ -89,9 +89,9 @@ function validateSelection(value: unknown, sampleRate: number): void {
 	const start = projectSafeInteger(selection.startFrame, 0, 'selection.startFrame');
 	const end = projectSafeInteger(selection.endFrame, 0, 'selection.endFrame');
 	if (end < start) throw new RangeError('selection.endFrame cannot precede selection.startFrame.');
-	projectUniqueStrings(selection.trackIds, 'selection.trackIds');
-	projectUniqueStrings(selection.clipIds, 'selection.clipIds');
-	if (selection.frequencyRange === null) return;
+	if (selection.trackIds !== undefined) projectUniqueStrings(selection.trackIds, 'selection.trackIds');
+	if (selection.clipIds !== undefined) projectUniqueStrings(selection.clipIds, 'selection.clipIds');
+	if (selection.frequencyRange == null) return;
 	const frequencyRange = projectRecord(selection.frequencyRange, 'selection.frequencyRange');
 	const minimum = projectFiniteInRange(
 		frequencyRange.minimumFrequency,

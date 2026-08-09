@@ -53,7 +53,7 @@ export interface ScapeProjectDescriptor extends ScapeDescriptor {
 
 export interface ScapeAssetDescriptor extends ScapeDescriptor {
 	sourceId: string;
-	kind: 'audio' | 'video';
+	kind: 'audio' | 'video' | 'video-timing';
 	encoding: string;
 	mimeType?: string;
 }
@@ -240,7 +240,7 @@ function parseScapeManifest(text: string): ScapeManifest {
 		if (typeof asset.sourceId !== 'string' || !asset.sourceId) {
 			throw new TypeError('A .scape asset has an invalid source ID.');
 		}
-		if (asset.kind !== 'audio' && asset.kind !== 'video') {
+		if (asset.kind !== 'audio' && asset.kind !== 'video' && asset.kind !== 'video-timing') {
 			throw new TypeError(`A .scape asset has an invalid kind: ${String(asset.kind)}.`);
 		}
 		if (typeof asset.encoding !== 'string' || !asset.encoding) {

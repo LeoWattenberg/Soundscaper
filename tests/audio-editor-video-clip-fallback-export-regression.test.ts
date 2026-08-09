@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -14,20 +16,18 @@ import type {
 } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 
 const SAMPLE_RATE = 48_000;
 const TARGET_START = 24_000;
 const TARGET_DURATION = 48_000;
-const TRANSITION_START = 60_000;
+const TRANSITION_START = 60_800;
 const TARGET_END = TARGET_START + TARGET_DURATION;
 const PROJECT_END = 96_000;
 const TARGET_CLIP_ID = 'effect-target';
@@ -114,8 +114,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 	const sourceBuffers = new Map<string, unknown>([[AUDIO_SOURCE_ID, Object.freeze({ owner: 'canonical-audio' })]]);
 	const loadedStorageKeys: string[] = [];
 	const errors: unknown[] = [];
-	let plannedProject: AudioEditorProjectV9 | null = null;
-	let renderedProject: AudioEditorProjectV9 | null = null;
+	let plannedProject: AudioEditorProjectV10 | null = null;
+	let renderedProject: AudioEditorProjectV10 | null = null;
 	let renderedRange: RenderRange | null = null;
 	let renderedSourceMap: ReadonlyMap<string, unknown> | null = null;
 	let renderedChunkSources: ReadonlyMap<string, EngineChunkSource> | null = null;
@@ -173,14 +173,14 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 	const runtime = {
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		audioBufferChannels: (buffer: Readonly<{ channels: readonly Float32Array[] }>) => buffer.channels,
-		cloneProject: (project: AudioEditorProjectV9) => structuredClone(project),
+		cloneProject: (project: AudioEditorProjectV10) => structuredClone(project),
 		copy: {
 			localSourcesMissing: 'Local sources missing',
 			rendering: 'Rendering',
 			encoding: 'Encoding',
 			done: 'Done',
 		},
-		createVideoExportPlan(project: AudioEditorProjectV9, options: Readonly<Record<string, unknown>>) {
+		createVideoExportPlan(project: AudioEditorProjectV10, options: Readonly<Record<string, unknown>>) {
 			plannedProject = project;
 			return createVideoExportPlan(project, options) as unknown as VideoPlan;
 		},
@@ -210,8 +210,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 				});
 			},
 		},
-		findClip: (project: AudioEditorProjectV9, id: string) => project.clips.find((clip) => clip.id === id),
-		findSource: (project: AudioEditorProjectV9, id: string) => project.sources.find((source) => source.id === id),
+		findClip: (project: AudioEditorProjectV10, id: string) => project.clips.find((clip) => clip.id === id),
+		findSource: (project: AudioEditorProjectV10, id: string) => project.sources.find((source) => source.id === id),
 		getProject: () => canonical,
 		handleError(error: unknown) { errors.push(error); },
 		hasMissingTimelineSources(
@@ -268,7 +268,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		},
 	};
 	const renderSnapshot = async (
-		project: AudioEditorProjectV9,
+		project: AudioEditorProjectV10,
 		range: RenderRange,
 		buffers: ReadonlyMap<string, unknown>,
 		_signal?: AbortSignal,
@@ -297,8 +297,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		method: 'object-url',
 	});
 	assert.deepEqual(canonical, before, 'ordinary export must not mutate the canonical project');
-	const exportedProject = capturedValue<AudioEditorProjectV9>(plannedProject, 'planned project');
-	const audioRenderProject = capturedValue<AudioEditorProjectV9>(renderedProject, 'audio render project');
+	const exportedProject = capturedValue<AudioEditorProjectV10>(plannedProject, 'planned project');
+	const audioRenderProject = capturedValue<AudioEditorProjectV10>(renderedProject, 'audio render project');
 	const plan = capturedValue<VideoPlan>(encodedPlan, 'encoded plan');
 	const videoBlobs = capturedValue<ReadonlyMap<string, Blob>>(encodedVideoBlobs, 'encoded video blobs');
 	const audioMix = capturedValue<Blob>(encodedAudioMix, 'encoded audio mix');
@@ -330,16 +330,16 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 	});
 	assert.deepEqual({
 		sourceId: target.sourceId,
-		sourceStartFrame: target.sourceStartFrame,
-		sourceDurationFrames: target.sourceDurationFrames,
+		sourceInFrame: target.sourceInFrame,
+		sourceFrameCount: target.sourceFrameCount,
 		trimStartFrames: target.trimStartFrames,
 		trimEndFrames: target.trimEndFrames,
 		speedRatio: target.speedRatio,
 		videoEffects: target.videoEffects,
 	}, {
 		sourceId: FALLBACK_SOURCE_ID,
-		sourceStartFrame: 0,
-		sourceDurationFrames: TARGET_DURATION,
+		sourceInFrame: 0,
+		sourceFrameCount: 30,
 		trimStartFrames: 0,
 		trimEndFrames: 0,
 		speedRatio: 1,
@@ -405,8 +405,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		role: 'outgoing',
 		clipId: TARGET_CLIP_ID,
 		sourceId: FALLBACK_SOURCE_ID,
-		sourceStartFrame: TRANSITION_START - TARGET_START,
-		sourceEndFrame: TARGET_DURATION,
+		sourceStartFrame: 23,
+		sourceEndFrame: 30,
 		playbackRate: 1,
 		opacityStart: 1,
 		opacityEnd: 0,
@@ -416,7 +416,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		clipId: 'unaffected-clip',
 		sourceId: UNAFFECTED_SOURCE_ID,
 		sourceStartFrame: 0,
-		sourceEndFrame: TARGET_END - TRANSITION_START,
+		sourceEndFrame: 7,
 		playbackRate: 1,
 		opacityStart: 0,
 		opacityEnd: 1,
@@ -444,7 +444,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 	assert.deepEqual(new Uint8Array(await publication.arrayBuffer()), encodedBytes);
 });
 
-function clipFallbackProject(): AudioEditorProjectV9 {
+function clipFallbackProject(): AudioEditorProjectV10 {
 	const targetSource = createVideoSourceV9({
 		id: CANONICAL_TARGET_SOURCE_ID,
 		storageKey: 'canonical-target-video-storage',
@@ -524,7 +524,7 @@ function clipFallbackProject(): AudioEditorProjectV9 {
 		groupId: 'scene-group',
 		avLinkId: 'target-av-link',
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'clip-fallback-export',
 		title: 'Clip fallback export',
 		now: '2026-08-03T12:00:00.000Z',

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -13,11 +15,9 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
@@ -40,7 +40,7 @@ interface BridgeProbe {
 
 interface HeadlessEngineProbe {
 	readonly engine: Readonly<Record<string, unknown>>;
-	readonly project: () => AudioEditorProjectV9 | null;
+	readonly project: () => AudioEditorProjectV10 | null;
 	readonly state: () => 'paused' | 'playing' | 'stopped';
 }
 
@@ -253,7 +253,7 @@ function fallbackProjectFixture() {
 		videoEffects: [createVideoEffect('pixelate', { id: 'video-fallback-handoff-pixelate' })],
 	});
 	const fallbackSha256 = digest(FALLBACK_BYTES);
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'video-rendered-fallback-handoff', title: 'Video rendered fallback handoff', revision: 4,
 		now: '2026-08-02T12:00:00.000Z', sampleRate: 48_000,
 		sources: [original, fallback], clips: [clip],
@@ -333,12 +333,12 @@ async function readVideo(store: AudioEditorProjectStore, storageKey: string): Pr
 }
 
 function createHeadlessEngine(): HeadlessEngineProbe {
-	let appliedProject: AudioEditorProjectV9 | null = null;
+	let appliedProject: AudioEditorProjectV10 | null = null;
 	let state: 'paused' | 'playing' | 'stopped' = 'stopped';
 	const engine = Object.freeze({
 		setSourceResolver() { return this; },
-		loadProject(project: unknown) { appliedProject = project as AudioEditorProjectV9; },
-		async applyProject(project: unknown) { appliedProject = project as AudioEditorProjectV9; },
+		loadProject(project: unknown) { appliedProject = project as AudioEditorProjectV10; },
+		async applyProject(project: unknown) { appliedProject = project as AudioEditorProjectV10; },
 		async getAudioContext() {
 			return Object.freeze({
 				createBuffer: (channelCount: number, frameCount: number, sampleRate: number) => (

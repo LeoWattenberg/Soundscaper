@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 
 import type { ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
@@ -11,10 +13,8 @@ import { PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS } from '../../src/common/editor/
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../src/common/editor/project-feature-capabilities.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../../src/common/editor/project-v9.ts';
 import { inspectWavLayout } from '../../src/common/editor/wav.js';
 
@@ -131,7 +131,7 @@ export function createFixture(options: FixtureOptions = {}) {
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		applyMediaChannelMapping: (channels: readonly Float32Array[]) => channels,
 		audioBufferChannels: (value: typeof audio) => value.channels,
-		cloneProject: (project: AudioEditorProjectV9) => structuredClone(project),
+		cloneProject: (project: AudioEditorProjectV10) => structuredClone(project),
 		copy: {
 			localSourcesMissing: 'Local sources missing.', rendering: 'Rendering', encoding: 'Encoding', done: 'Done',
 			largeProjectRealtimeExport: 'Realtime export', realtimeExportFallback: 'Realtime fallback',
@@ -141,7 +141,7 @@ export function createFixture(options: FixtureOptions = {}) {
 		createCacheAwareRenderEngine() {
 			events.push('create-engine');
 			return {
-				loadProject(project: AudioEditorProjectV9, buffers: ReadonlyMap<string, unknown>, renderOptions?: Readonly<{
+				loadProject(project: AudioEditorProjectV10, buffers: ReadonlyMap<string, unknown>, renderOptions?: Readonly<{
 					chunkSources?: ReadonlyMap<string, EngineChunkSource>;
 				}>) {
 					events.push('load-project');
@@ -160,7 +160,7 @@ export function createFixture(options: FixtureOptions = {}) {
 				async dispose() { events.push('dispose-engine'); },
 			};
 		},
-		createExportPlan(project: AudioEditorProjectV9) {
+		createExportPlan(project: AudioEditorProjectV10) {
 			events.push('plan');
 			if (activeFallback) assertProjectedFallback(project, role);
 			else assert.deepEqual(project, canonical);
@@ -230,7 +230,7 @@ export function createFixture(options: FixtureOptions = {}) {
 			async renderSnapshot(...args: unknown[]) {
 				events.push('render-offline');
 				const [project, , buffers, signal, chunkSources] = args as [
-					AudioEditorProjectV9, unknown, ReadonlyMap<string, unknown>, AbortSignal,
+					AudioEditorProjectV10, unknown, ReadonlyMap<string, unknown>, AbortSignal,
 					ReadonlyMap<string, EngineChunkSource> | undefined,
 				];
 				assert.equal(signal.aborted, false);
@@ -316,7 +316,7 @@ export function createFixture(options: FixtureOptions = {}) {
 	};
 }
 
-function fallbackProject(featureId: string, role: FallbackRole = 'mix'): AudioEditorProjectV9 {
+function fallbackProject(featureId: string, role: FallbackRole = 'mix'): AudioEditorProjectV10 {
 	const canonical = createAudioSourceV9({
 		id: CANONICAL_SOURCE_ID, storageKey: CANONICAL_SOURCE_ID, frameCount: 8,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
@@ -328,7 +328,7 @@ function fallbackProject(featureId: string, role: FallbackRole = 'mix'): AudioEd
 	const clip = createAudioClipV9({
 		id: 'canonical-clip', sourceId: canonical.id, durationFrames: canonical.frameCount,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'audio-fallback-export-service', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, fallback], clips: [clip],
 		tracks: [createAudioTrackV9({
@@ -432,7 +432,7 @@ function expectedSelector(role: FallbackRole = 'mix') {
 	});
 }
 
-function assertProjectedFallback(project: AudioEditorProjectV9, role: FallbackRole = 'mix'): void {
+function assertProjectedFallback(project: AudioEditorProjectV10, role: FallbackRole = 'mix'): void {
 	if (role === 'track') {
 		assert.equal(project.tracks[0]?.id, 'canonical-track');
 		assert.deepEqual(project.tracks[0]?.clipIds, [PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS.clip]);

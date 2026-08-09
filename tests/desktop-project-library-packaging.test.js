@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -11,7 +13,6 @@ import {
 	compileDesktopProjectLibraryRuntime,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,6 +32,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-api.js',
 		'desktop/project-library-contract.js',
 		'desktop/project-library-database.js',
+		'desktop/project-library-editor-managed-source.js',
 		'desktop/project-library-editor-media-service.js',
 		'desktop/project-library-editor-service.js',
 		'desktop/project-library-file-inventory.js',
@@ -59,20 +61,26 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/persisted-audio-effect-validation.js',
 		'src/common/editor/project-bext-metadata.js',
 		'src/common/editor/project-feature-capabilities.js',
+		'src/common/editor/project-feature-requirement-types.js',
 		'src/common/editor/project-feature-requirements.js',
 		'src/common/editor/project-schema-version.js',
+		'src/common/editor/project-v10-foundation-validation.js',
+		'src/common/editor/project-v10-validation.js',
 		'src/common/editor/project-v9-document-validation.js',
 		'src/common/editor/project-v9-media-validation.js',
 		'src/common/editor/project-v9-validation-budget.js',
 		'src/common/editor/project-v9-validation-primitives.js',
-		'src/common/editor/project-v9-validation.js',
 		'src/common/editor/retention.js',
+		'src/common/editor/runtime-clip-projection.js',
 		'src/common/editor/scape-project-document.js',
 		'src/common/editor/scape-project-json-preflight.js',
 		'src/common/editor/stable-id.js',
 		'src/common/editor/terminal-channel-widths.js',
+		'src/common/editor/timeline-time.js',
 		'src/common/editor/video-effects.js',
+		'src/common/editor/video-source-time.js',
 		'src/common/editor/video-timeline.js',
+		'src/common/editor/video-timing-asset-reference.js',
 		'src/common/editor/wav-opaque-chunks.js',
 	]);
 	for (const name of result.files) {
@@ -111,7 +119,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		createEntryId: () => 'packaging-entry-0001',
 		now: () => 10_000,
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'packaging-project',
 		title: 'Packaging project',
 		now: '2026-07-30T12:00:00.000Z',
@@ -196,7 +204,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-sequential-upload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
-	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v10-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation-budget.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/retention.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));

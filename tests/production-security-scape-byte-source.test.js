@@ -30,7 +30,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		.find(({ id }) => id === 'packaged-linux-x64-current-schema-scape-open');
 	assert.ok(packagedOpenControl);
 	for (const claim of [
-		/Soundscaper-only Linux x64 packaged smoke.*production-exports.*exact-schema-9.*one mono source.*one track.*one clip.*16,384 Float32 frames.*48 kHz.*65,536 PCM bytes.*four-byte chunk header.*65,540-byte asset.*larger than.*65,557-byte.*no larger than 96 KiB/iu,
+		/Soundscaper-only Linux x64 packaged smoke.*production-exports.*exact-schema-10.*one mono source.*one track.*one clip.*16,384 Float32 frames.*48 kHz.*65,536 PCM bytes.*four-byte chunk header.*65,540-byte asset.*larger than.*65,557-byte.*no larger than 96 KiB/iu,
 		/unpacked packaged executable.*`\.scape`.*positional argument.*isolated user and application-data roots.*native OS-open argument extraction.*pending dispatch.*main-owned `scape-range-v1`.*preload event.*renderer router.*range adapter and protocol.*inspection and import.*real packaged application store.*workspace activation.*exact project, track, and clip identities.*visible success.*without an alert or dialog/iu,
 		/capability.*live before delivery.*retired after open.*closed sanitized result.*no capability ID, URL, or filesystem path/iu,
 		/only that small current-schema packaged application path.*does not qualify installer file-association registration.*shell-generated launch.*packaged 8 GiB.*reference-scale.*payload laziness.*whole materialization beyond.*known range route.*playback.*persistent reopen.*durability.*crash.*power loss.*memory.*heap.*RSS.*quota accuracy.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*arbitrary third-party ZIP or effect semantics.*legacy Soundscaper schemas or libraries/iu,
@@ -57,10 +57,10 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		.find(({ id }) => id === 'packaged-linux-x64-current-schema-scape-reopen');
 	assert.ok(packagedReopenControl);
 	for (const claim of [
-		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*exact 69,349-byte.*current-schema-9.*revision 7.*source-bearing/iu,
+		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*exact 69,349-byte.*current-schema-10.*revision 7.*source-bearing/iu,
 		/first packaged process.*isolated user and application-data roots.*verifies.*archive unchanged.*exits cleanly.*removes.*archive.*ENOENT/iu,
 		/second packaged process.*same user-data and application-data roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/iu,
-		/canonical schema-9.*revision-7.*shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/iu,
+		/canonical schema-10.*revision-7.*shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/iu,
 		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/iu,
 		/qualifies only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/iu,
 		/does not qualify audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party ZIP or effect.*legacy Soundscaper/iu,
@@ -184,15 +184,15 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/OPFS.*IndexedDB.*durable.*real production browser or filesystem quota accuracy.*reservation.*write-time success.*concurrent writers.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/isu,
 	]) assert.match(threatModel, claim);
 	for (const claim of [
-		/maintained Soundscaper-only Linux x64 packaged smoke.*production-exports.*exact-schema-9.*one mono source.*one track.*one clip.*16,384 Float32 frames.*48 kHz.*65,540-byte.*asset.*65,557-byte.*96 KiB/isu,
+		/maintained Soundscaper-only Linux x64 packaged smoke.*production-exports.*exact-schema-10.*one mono source.*one track.*one clip.*16,384 Float32 frames.*48 kHz.*65,540-byte.*asset.*65,557-byte.*96 KiB/isu,
 		/packaged executable.*\.scape.*positional.*isolated user and application-data roots.*native OS-open argument extraction.*pending queue.*main-owned `scape-range-v1`.*preload.*renderer router.*range adapter and protocol.*inspection.*real packaged application storage.*activation.*exact project, track, and clip identities.*visible success/isu,
 		/capability.*live before delivery.*retired after open.*sanitized result.*no capability ID, URL, or filesystem path/isu,
 		/does not qualify.*installer.*file-association registration.*shell launch.*8 GiB.*reference scale.*payload laziness.*whole materialization.*known range route.*playback.*persistent reopen.*durability.*crash.*power loss.*memory.*RSS.*quota.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*third-party ZIP or effect.*legacy Soundscaper.*Audacity.*separate/isu,
 	]) assert.match(threatModel, claim);
 	for (const claim of [
-		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*69,349-byte.*schema 9.*revision 7.*source-bearing/isu,
+		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*69,349-byte.*schema 10.*revision 7.*source-bearing/isu,
 		/first process.*isolated user and application-data roots.*archive unchanged.*clean exit.*removes.*archive.*ENOENT.*second process.*same roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/isu,
-		/canonical schema-9 revision-7 shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/isu,
+		/canonical schema-10 revision-7 shared project.*exactly one source, track, and clip.*relations.*exact active project, track, and clip identities.*Audacity.*PCM.*waveform.*no waveform error, alert, or dialog/isu,
 		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/isu,
 		/qualifies only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/isu,
 		/does not establish audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,

@@ -49,7 +49,7 @@ function effect(
 
 function project() {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: 'project',
 		clips: [{
 			id: 'video-clip',
@@ -120,7 +120,7 @@ test('the video projector ignores unsupported reports and returns before future-
 
 	const future = {
 		...input,
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get clips(): never { throw new Error('future clips were traversed'); },
 		get projectBin(): never { throw new Error('future Project Bin was traversed'); },
 	};
@@ -143,7 +143,7 @@ test('video placeholder inventory never reads effect payload state or silently t
 		});
 	}
 	const input = {
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: 'project',
 		clips: [{ id: 'video-clip', kind: 'video', videoEffects: [guardedEffect] }],
 		projectBin: { clips: [] },

@@ -69,16 +69,6 @@ const AUDIO_SOURCE_SHAPE_FIELDS = Object.freeze([
 	'sampleFormat',
 	'chunkFrames',
 ] as const);
-const VIDEO_SOURCE_SHAPE_FIELDS = Object.freeze([
-	'frameCount',
-	'sampleRate',
-	'width',
-	'height',
-	'frameRate',
-	'videoCodec',
-	'audioCodec',
-	'hasAudio',
-] as const);
 const VALIDATION_LOCATOR_ID = 'locator_validation_token';
 const VALIDATION_LOCATOR_REVISION = 'snapshot_validation_token';
 const VALIDATION_BINDING_TOKEN = 'binding_validation_token';
@@ -332,9 +322,9 @@ function projectSource(
 	if ((fields.kind !== 'audio' && fields.kind !== 'video') || !managedKindsValue.has(fields.kind)) {
 		throw new TypeError('A linked original project source kind is not managed by this repository.');
 	}
-	const shapeFields = fields.kind === 'audio'
-		? AUDIO_SOURCE_SHAPE_FIELDS
-		: VIDEO_SOURCE_SHAPE_FIELDS;
+	const sourceShape = fields.kind === 'audio'
+		? Object.fromEntries(AUDIO_SOURCE_SHAPE_FIELDS.map((field) => [field, dataField(source, field)]))
+		: projectVideoSourceShape(source);
 	const binding = normalizeLinkedOriginalBinding({
 		schemaVersion: LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 		kind: fields.kind,
@@ -346,7 +336,7 @@ function projectSource(
 		mimeType: fields.mimeType,
 		byteLength: 1,
 		sha256: VALIDATION_DIGEST,
-		sourceShape: Object.fromEntries(shapeFields.map((field) => [field, dataField(source, field)])),
+		sourceShape,
 		bindingToken: VALIDATION_BINDING_TOKEN,
 		boundAt: VALIDATION_INSTANT,
 	});
@@ -357,6 +347,32 @@ function projectSource(
 		mimeType: binding.mimeType,
 		sourceShape: binding.sourceShape,
 	});
+}
+
+function projectVideoSourceShape(source: Record<string, unknown>): Readonly<Record<string, unknown>> {
+	const rate = dataField(source, 'frameRate');
+	const sampleFrameCount = optionalDataField(source, 'sampleFrameCount');
+	const frameCount = sampleFrameCount === undefined
+		? dataField(source, 'frameCount')
+		: sampleFrameCount;
+	const frameRate = typeof rate === 'number'
+		? rate
+		: rationalFrameRate(rate);
+	return Object.freeze({
+		frameCount,
+		sampleRate: dataField(source, 'sampleRate'),
+		width: dataField(source, 'width'),
+		height: dataField(source, 'height'),
+		frameRate,
+		videoCodec: dataField(source, 'videoCodec'),
+		audioCodec: dataField(source, 'audioCodec'),
+		hasAudio: dataField(source, 'hasAudio'),
+	});
+}
+
+function rationalFrameRate(value: unknown): number {
+	const rational = plainRecord(value, 'video source frame rate');
+	return Number(dataField(rational, 'num')) / Number(dataField(rational, 'den'));
 }
 
 function assertSourceMatches(
@@ -540,6 +556,15 @@ function plainRecord(value: unknown, label: string): Record<string, unknown> {
 function dataField(record: Record<string, unknown>, field: string): unknown {
 	const descriptor = Object.getOwnPropertyDescriptor(record, field);
 	if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(`Linked original project source ${field} must be an enumerable data field.`);
+	}
+	return descriptor.value;
+}
+
+function optionalDataField(record: Record<string, unknown>, field: string): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(record, field);
+	if (!descriptor) return undefined;
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
 		throw new TypeError(`Linked original project source ${field} must be an enumerable data field.`);
 	}
 	return descriptor.value;

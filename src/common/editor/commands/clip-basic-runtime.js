@@ -22,6 +22,8 @@ import {
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
 
+// foundation-edit-matrix: move
+
 export function addClip(project, trackId, value) {
 	const track = requireTrack(project, trackId);
 	if (!Array.isArray(track.clipIds)) throw new RangeError('Media clips can only be added to media tracks.');

@@ -9,17 +9,23 @@ import {
 	type ProjectFeatureRequirement,
 } from './project-feature-requirements.ts';
 import type { ProjectAudioFallbackSource } from './project-fallback-integrity-audio.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 
 export interface ProjectFallbackIntegritySource extends ProjectAudioFallbackSource {
 	readonly width?: number;
 	readonly height?: number;
-	readonly frameRate?: number;
+	readonly sampleFrameCount?: number;
+	readonly sourceFrameCount?: number;
+	readonly frameRate?: unknown;
+	readonly timingAsset?: unknown;
 	readonly hasAudio?: boolean;
 }
 
 export interface CapturedProjectFallbackIntegrity {
 	readonly schemaVersion: unknown;
+	readonly sampleRate: unknown;
+	readonly primarySequenceId: unknown;
+	readonly sequences: readonly Readonly<Record<PropertyKey, unknown>>[];
 	readonly claims: readonly ScapeProjectFallbackClaim[];
 	readonly requirements: readonly ProjectFeatureRequirement[];
 	readonly sources: readonly ProjectFallbackIntegritySource[];
@@ -33,6 +39,9 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 	if (schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		return Object.freeze({
 			schemaVersion,
+			sampleRate: undefined,
+			primarySequenceId: undefined,
+			sequences: Object.freeze([]),
 			claims: Object.freeze([]),
 			requirements: Object.freeze([]),
 			sources: Object.freeze([]),
@@ -53,11 +62,21 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 	const tracks = tracksValue === undefined
 		? Object.freeze([])
 		: snapshotArray(tracksValue, 'project.tracks', snapshotTrack);
+	const sampleRate = ownDataValue(candidate, 'sampleRate', 'project');
+	const primarySequenceId = ownDataValue(candidate, 'primarySequenceId', 'project');
+	const sequences = snapshotArray(
+		ownDataValue(candidate, 'sequences', 'project'),
+		'project.sequences',
+		snapshotSequence,
+	);
 	const featureRequirements = snapshotFeatureRequirements(
 		ownDataValue(candidate, 'featureRequirements', 'project'),
 	);
 	const snapshot = snapshotScapeProjectFallbackIntegrity(Object.freeze({
 		schemaVersion,
+		sampleRate,
+		primarySequenceId,
+		sequences,
 		sources,
 		clips,
 		tracks,
@@ -65,6 +84,9 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 	}));
 	return Object.freeze({
 		schemaVersion,
+		sampleRate,
+		primarySequenceId,
+		sequences,
 		claims: snapshot.claims,
 		requirements: snapshot.featureRequirements?.requirements ?? Object.freeze([]),
 		sources,
@@ -78,6 +100,9 @@ export function sameCapturedProjectFallbackIntegrity(
 	right: CapturedProjectFallbackIntegrity,
 ): boolean {
 	if (left.schemaVersion !== right.schemaVersion
+		|| left.sampleRate !== right.sampleRate
+		|| left.primarySequenceId !== right.primarySequenceId
+		|| !sameSnapshotValue(left.sequences, right.sequences)
 		|| left.claims.length !== right.claims.length
 		|| left.sources.length !== right.sources.length
 		|| left.clips.length !== right.clips.length
@@ -112,12 +137,15 @@ function snapshotSource(value: unknown, index: number): ProjectFallbackIntegrity
 		kind: optionalOwnDataValue(source, 'kind', `project source ${id}`) as 'audio' | 'video' | undefined,
 		storageKey: optionalOwnDataValue(source, 'storageKey', `project source ${id}`) as string | undefined,
 		frameCount: optionalOwnDataValue(source, 'frameCount', `project source ${id}`) as number,
+		sampleFrameCount: optionalOwnDataValue(source, 'sampleFrameCount', `project source ${id}`) as number,
+		sourceFrameCount: optionalOwnDataValue(source, 'sourceFrameCount', `project source ${id}`) as number,
 		channelCount: optionalOwnDataValue(source, 'channelCount', `project source ${id}`) as number,
 		chunkFrames: optionalOwnDataValue(source, 'chunkFrames', `project source ${id}`) as number,
 		sampleRate: optionalOwnDataValue(source, 'sampleRate', `project source ${id}`) as number | undefined,
 		width: optionalOwnDataValue(source, 'width', `project source ${id}`) as number | undefined,
 		height: optionalOwnDataValue(source, 'height', `project source ${id}`) as number | undefined,
-		frameRate: optionalOwnDataValue(source, 'frameRate', `project source ${id}`) as number | undefined,
+		frameRate: snapshotOptionalRecordValue(source, 'frameRate', `project source ${id}`),
+		timingAsset: snapshotOptionalRecordValue(source, 'timingAsset', `project source ${id}`),
 		hasAudio: optionalOwnDataValue(source, 'hasAudio', `project source ${id}`) as boolean | undefined,
 	});
 }
@@ -132,9 +160,23 @@ function snapshotClip(value: unknown, index: number): Readonly<Record<PropertyKe
 		sourceId: optionalOwnDataValue(clip, 'sourceId', label),
 		timelineStartFrame: optionalOwnDataValue(clip, 'timelineStartFrame', label),
 		durationFrames: optionalOwnDataValue(clip, 'durationFrames', label),
+		sequenceId: optionalOwnDataValue(clip, 'sequenceId', label),
+		sequenceStartFrame: optionalOwnDataValue(clip, 'sequenceStartFrame', label),
+		sequenceFrameCount: optionalOwnDataValue(clip, 'sequenceFrameCount', label),
+		sourceInFrame: optionalOwnDataValue(clip, 'sourceInFrame', label),
+		sourceFrameCount: optionalOwnDataValue(clip, 'sourceFrameCount', label),
 		videoEffects: videoEffects === undefined
 			? undefined
 			: snapshotVideoEffects(videoEffects, `${label}.videoEffects`),
+	});
+}
+
+function snapshotSequence(value: unknown, index: number): Readonly<Record<PropertyKey, unknown>> {
+	const label = `project.sequences[${String(index)}]`;
+	const sequence = objectRecord(value, label);
+	return Object.freeze({
+		id: ownDataValue(sequence, 'id', label),
+		rate: snapshotOptionalRecordValue(sequence, 'rate', label),
 	});
 }
 
@@ -311,10 +353,27 @@ function sameSource(
 ): boolean {
 	return Boolean(left && right && left.id === right.id && left.kind === right.kind
 		&& left.storageKey === right.storageKey && left.frameCount === right.frameCount
+		&& left.sampleFrameCount === right.sampleFrameCount
+		&& left.sourceFrameCount === right.sourceFrameCount
 		&& left.channelCount === right.channelCount && left.chunkFrames === right.chunkFrames
 		&& left.sampleRate === right.sampleRate && left.width === right.width
-		&& left.height === right.height && left.frameRate === right.frameRate
+		&& left.height === right.height && sameSnapshotValue(left.frameRate, right.frameRate)
+		&& sameSnapshotValue(left.timingAsset, right.timingAsset)
 		&& left.hasAudio === right.hasAudio);
+}
+
+function snapshotOptionalRecordValue(
+	record: Record<PropertyKey, unknown>,
+	key: PropertyKey,
+	label: string,
+): unknown {
+	const value = optionalOwnDataValue(record, key, label);
+	if (value == null || typeof value !== 'object') return value;
+	if (Array.isArray(value)) return Object.freeze(value.map((item) => item));
+	return Object.freeze(snapshotEnumerableDataRecord(
+		objectRecord(value, `${label}.${String(key)}`),
+		`${label}.${String(key)}`,
+	));
 }
 
 function sameSnapshotValue(left: unknown, right: unknown, remainingDepth = 4): boolean {

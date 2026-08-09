@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -46,7 +48,6 @@ import {
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 
 const OWNER_A = Object.freeze({
 	product: 'soundscaper' as const,
@@ -358,7 +359,7 @@ async function commitRevision(
 	lease: DesktopLibraryLease,
 	revision: number,
 ): Promise<DesktopLibraryProject> {
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'managed-media-reclamation-project',
 		title: 'Managed media reclamation project',
 		revision,

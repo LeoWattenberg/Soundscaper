@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -8,7 +10,6 @@ import type { ProjectFeatureRequirementsReport } from '../src/common/editor/proj
 import { projectFeatureVideoRenderedFallbackPlayback } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
@@ -33,7 +34,7 @@ function fixture() {
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
 	const fallbackVideo = createVideoSourceV9({
-		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 20,
+		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 1_600,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 		hasAudio: false,
 	});
@@ -56,7 +57,7 @@ function fixture() {
 		timelineStartFrame: 4, sourceStartFrame: 2, sourceDurationFrames: 10,
 		durationFrames: 10, color: '#abcdef', opaqueExtensions: { titleCard: true },
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'clip-fallback-project', now: '2026-08-03T10:00:00.000Z', sampleRate: 48_000,
 		sources: [audioSource, canonicalVideo, unaffectedVideo, fallbackVideo],
 		clips: [unaffected, linkedAudio, target],
@@ -138,15 +139,16 @@ test('a clip-local video-effects render replaces only its target in a transient 
 	assert.deepEqual(projected.clips[2], {
 		...project.clips[2],
 		sourceId: 'fallback-video',
-		sourceStartFrame: 0,
-		sourceDurationFrames: 20,
+		sourceInFrame: 0,
+		sourceFrameCount: 1,
+		retimeMap: null,
 		trimStartFrames: 0,
 		trimEndFrames: 0,
 		speedRatio: 1,
 		videoEffects: [],
 	});
 	for (const key of [
-		'id', 'title', 'timelineStartFrame', 'durationFrames', 'groupId', 'color',
+		'id', 'title', 'sequenceId', 'sequenceStartFrame', 'sequenceFrameCount', 'groupId', 'color',
 		'avLinkId', 'binItemId', 'opaqueExtensions',
 	]) assert.strictEqual(
 		(projected.clips[2] as Readonly<Record<string, unknown>>)[key],
@@ -217,11 +219,11 @@ test('an unknown feature cannot activate the first-party clip-local video role',
 test('clip-local projection rechecks fallback source and target geometry', () => {
 	const { project, report } = fixture();
 	const cases: ReadonlyArray<readonly [Readonly<Record<string, unknown>>, RegExp]> = [
-		[{ frameCount: 21 }, /frame count must equal the target duration/iu],
+		[{ sampleFrameCount: 21 }, /sample-frame count must equal the target duration/iu],
 		[{ sampleRate: 44_100 }, /sample rate must match/iu],
 		[{ width: 1_280 }, /width must match/iu],
 		[{ height: 720 }, /height must match/iu],
-		[{ frameRate: 24 }, /frame rate must match/iu],
+		[{ frameRate: { num: 24, den: 1 } }, /frame rate must match/iu],
 		[{ hasAudio: true }, /must not contain audio/iu],
 	];
 	for (const [changes, message] of cases) {

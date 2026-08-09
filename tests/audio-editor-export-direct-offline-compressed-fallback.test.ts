@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -12,10 +14,8 @@ import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/edito
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 
 const CANONICAL_SOURCE_ID = 'canonical-audio';
@@ -65,7 +65,7 @@ test('private rendered fallback publishes an admitted offline compressed mix dir
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		applyMediaChannelMapping: () => { throw new Error('renderer-side mapping reached'); },
 		audioBufferChannels: (value: Readonly<{ channels: readonly Float32Array[] }>) => value.channels,
-		cloneProject: (project: AudioEditorProjectV9) => structuredClone(project),
+		cloneProject: (project: AudioEditorProjectV10) => structuredClone(project),
 		copy: {
 			localSourcesMissing: 'missing', rendering: 'Rendering', encoding: 'Encoding', done: 'Done',
 			largeProjectRealtimeExport: 'Realtime', realtimeExportFallback: 'Fallback',
@@ -73,7 +73,7 @@ test('private rendered fallback publishes an admitted offline compressed mix dir
 		},
 		createAiffStreamEncoder: () => { throw new Error('AIFF reached'); },
 		createCacheAwareRenderEngine: () => { throw new Error('global render engine reached'); },
-		createExportPlan(project: AudioEditorProjectV9) {
+		createExportPlan(project: AudioEditorProjectV10) {
 			events.push('plan');
 			assertProjectedFallback(project);
 			return plan;
@@ -123,7 +123,7 @@ test('private rendered fallback publishes an admitted offline compressed mix dir
 		normalizeProjectSampleRate: (sampleRate: number) => sampleRate,
 		options: {
 			async renderSnapshot(
-				project: AudioEditorProjectV9,
+				project: AudioEditorProjectV10,
 				_range: unknown,
 				buffers: ReadonlyMap<string, unknown>,
 				signal: AbortSignal,
@@ -187,7 +187,7 @@ test('private rendered fallback publishes an admitted offline compressed mix dir
 	assert.deepEqual([...sourceChunkProviders.entries()], [[CANONICAL_SOURCE_ID, globalProvider]]);
 });
 
-function fallbackProject(): AudioEditorProjectV9 {
+function fallbackProject(): AudioEditorProjectV10 {
 	const canonical = createAudioSourceV9({
 		id: CANONICAL_SOURCE_ID, storageKey: CANONICAL_SOURCE_ID, frameCount: 8,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
@@ -197,7 +197,7 @@ function fallbackProject(): AudioEditorProjectV9 {
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
 	});
 	const clip = createAudioClipV9({ id: 'canonical-clip', sourceId: canonical.id, durationFrames: canonical.frameCount });
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'offline-compressed-fallback', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, fallback], clips: [clip],
 		tracks: [createAudioTrackV9({ id: 'canonical-track', clipIds: [clip.id] })],
@@ -227,7 +227,7 @@ function expectedSelector() {
 	};
 }
 
-function assertProjectedFallback(project: AudioEditorProjectV9): void {
+function assertProjectedFallback(project: AudioEditorProjectV10): void {
 	assert.equal(project.tracks[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track);
 	assert.equal(project.clips[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip);
 	assert.equal(project.clips[0]?.sourceId, FALLBACK_SOURCE_ID);

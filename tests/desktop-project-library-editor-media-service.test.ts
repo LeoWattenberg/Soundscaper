@@ -28,13 +28,15 @@ import type {
 } from '../desktop/project-library-projects.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
+import {
+	createAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../src/common/editor/project-v10.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 const NOW = '2026-08-01T12:00:00.000Z';
@@ -54,7 +56,7 @@ interface TestAudioSource extends Readonly<Record<string, unknown>> {
 }
 
 interface ProjectFixture {
-	readonly project: AudioEditorProjectV9;
+	readonly project: AudioEditorProjectV10;
 	readonly reachableAudio: TestAudioSource;
 	readonly uncataloguedAudio: TestAudioSource;
 	readonly unreachableAudio: TestAudioSource;
@@ -437,7 +439,7 @@ function projectFixture(): ProjectFixture {
 		sourceId: reachableAudio.id,
 		durationFrames: reachableAudio.frameCount,
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Managed media service fixture',
 		revision: 7,
@@ -489,13 +491,13 @@ function audioSource(id: string): TestAudioSource {
 }
 
 function bundle(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	media: readonly DesktopLibraryMedia[] = [],
 ): DesktopLibraryLoadedProjectBundle {
 	return Object.freeze({ catalog: catalogProject(project), project, media: Object.freeze([...media]) });
 }
 
-function catalogProject(project: AudioEditorProjectV9): DesktopLibraryProject {
+function catalogProject(project: AudioEditorProjectV10): DesktopLibraryProject {
 	return Object.freeze({
 		id: 'media-service-entry',
 		projectId: project.id,
@@ -503,7 +505,7 @@ function catalogProject(project: AudioEditorProjectV9): DesktopLibraryProject {
 		metadataFile: 'projects/media-service-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 9,
+		projectSchemaVersion: 10,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: '0'.repeat(64),
@@ -511,7 +513,7 @@ function catalogProject(project: AudioEditorProjectV9): DesktopLibraryProject {
 }
 
 function mediaForSource(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	source: TestAudioSource,
 	sha256: string,
 ): DesktopLibraryMedia {
@@ -532,7 +534,7 @@ function mediaForPublication(options: DesktopProjectLibraryHostPublishMediaOptio
 }
 
 function uploadDeclaration(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	source: TestAudioSource,
 	sha256: string,
 ): DesktopSharedSourceWriteDeclaration {

@@ -469,7 +469,7 @@ async function audioEffectsRenderedFallbackArchive(input, {
 	fallbackFrameCount = null,
 }) {
 	return rewriteArchive(input, ({ project, manifest, payloads }) => {
-		if (project.schemaVersion !== 9) throw new Error('Rendered fallback fixture requires schema 9.');
+		if (project.schemaVersion !== 9) throw new Error('Rendered fallback fixture requires schema 10.');
 		project.id = id;
 		project.title = title;
 		const source = project.sources.find((candidate) => (

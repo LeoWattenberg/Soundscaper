@@ -18,7 +18,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { ENGLISH_COPY } = await import('../src/common/i18n/catalogs.js');
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
-const { createAudioEditorProjectV2 } = await import('../src/common/editor/project-v2.js');
+const { createAudioEditorProjectV10 } = await import('../src/common/editor/project-v10.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 test('Nyquist processors receive selected PCM and persist their returned audio as one destructive edit', async () => {
@@ -481,7 +481,7 @@ async function createFixture(prefix, options) {
 		await writer.write([track.input]);
 		await writer.commit({ sampleRate: options.sampleRate, channelCount: 1 });
 	}
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV10({
 		id: `${prefix}-project`,
 		title: 'Nyquist fixture',
 		now: '2026-07-15T00:00:00.000Z',

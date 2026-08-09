@@ -397,7 +397,7 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 			metadataFile: createDesktopLibraryProjectMetadataFile('shared-project-1', 1, 'a'.repeat(64)),
 			preferredProduct: 'soundscaper',
 			updatedAtMs: 9_000 + revision,
-			projectSchemaVersion: 9,
+			projectSchemaVersion: 10,
 			projectRevision: 1,
 			byteLength: 48_000,
 			sha256: 'a'.repeat(64),

@@ -12,6 +12,7 @@ import {
 import {
 	createProjectFeatureCompatibilityService,
 } from '../src/common/editor/controller/project-feature-compatibility-service.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 type Requirement = Readonly<{
 	id: string;
@@ -81,7 +82,7 @@ test('capability availability is a strict immutable construction-time snapshot',
 test('future project schemas remain opaque to feature compatibility evaluation', () => {
 	const service = createProjectFeatureCompatibilityService(PRODUCT_PROFILES.soundscaper.capabilities);
 	const futureProject = {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get featureRequirements(): never {
 			throw new Error('future feature metadata was traversed');
 		},
@@ -92,7 +93,7 @@ test('future project schemas remain opaque to feature compatibility evaluation',
 
 function featureProject(requirements: readonly Requirement[]) {
 	return {
-		schemaVersion: 9,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements },
 	};
 }

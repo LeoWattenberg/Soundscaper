@@ -9,6 +9,7 @@ import type { AudioSourceWriter } from './source-write-repository.ts';
 
 export const DESKTOP_SHARED_AUDIO_ENCODING = 'audio-f32le-chunks-v1' as const;
 export const DESKTOP_SHARED_VIDEO_ENCODING = 'video-original-v1' as const;
+export const DESKTOP_SHARED_VIDEO_TIMING_ENCODING = 'soundscaper-video-timing-v1' as const;
 export const MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES = 4 * 1024 * 1024;
 
 interface DesktopSharedManagedSourceDescriptorBase {
@@ -29,14 +30,22 @@ export type DesktopSharedManagedVideoSourceDescriptor = DesktopSharedManagedSour
 	readonly kind: 'video';
 }>;
 
+export type DesktopSharedManagedVideoTimingDescriptor = DesktopSharedManagedSourceDescriptorBase & Readonly<{
+	readonly encoding: typeof DESKTOP_SHARED_VIDEO_TIMING_ENCODING;
+	readonly kind: 'video-timing';
+}>;
+
 export type DesktopSharedManagedSourceDescriptor =
 	| DesktopSharedManagedAudioSourceDescriptor
-	| DesktopSharedManagedVideoSourceDescriptor;
+	| DesktopSharedManagedVideoSourceDescriptor
+	| DesktopSharedManagedVideoTimingDescriptor;
 
 export interface DesktopSharedSourceTransferBridge {
 	beginSharedSourceWrite(declaration: Readonly<{
 		byteLength: number;
-		encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING | typeof DESKTOP_SHARED_VIDEO_ENCODING;
+		encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING
+			| typeof DESKTOP_SHARED_VIDEO_ENCODING
+			| typeof DESKTOP_SHARED_VIDEO_TIMING_ENCODING;
 		projectId: string;
 		projectRevision: number;
 		sha256: string;

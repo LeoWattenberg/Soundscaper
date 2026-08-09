@@ -1,5 +1,18 @@
-export const VIDEO_THUMBNAIL_BASE_INTERVAL_SECONDS = 5;
-export const VIDEO_THUMBNAIL_MINIMUM_SPACING_PIXELS = 80;
+import { resolveRuntimeProjectProjection } from './runtime-clip-projection.ts';
+import {
+	mapVideoTimelineFrameToSource,
+	videoClipPlaybackRate,
+	videoSourceCoordinateRate,
+} from './video-source-time.ts';
+export {
+	mapVideoSourceFrameToTimeline,
+	mapVideoTimelineFrameToSource,
+	selectVideoThumbnailTimestamps,
+	videoClipPlaybackRate,
+	videoThumbnailIntervalSeconds,
+	VIDEO_THUMBNAIL_BASE_INTERVAL_SECONDS,
+	VIDEO_THUMBNAIL_MINIMUM_SPACING_PIXELS,
+} from './video-source-time.ts';
 
 /**
  * A video track participates in the visual stack unless it is explicitly
@@ -72,87 +85,11 @@ export function validateVideoTrackComposition(track, clipById) {
 }
 
 /**
- * The source range is the active, trimmed range. Comparing its wall-clock
- * duration with the timeline duration accounts for both source/project sample
- * rate differences and clip stretching.
- */
-export function videoClipPlaybackRate(clip, projectSampleRate, sourceSampleRate = projectSampleRate) {
-	const timelineRate = positiveFiniteNumber(projectSampleRate, 'projectSampleRate');
-	const mediaRate = positiveFiniteNumber(sourceSampleRate, 'sourceSampleRate');
-	const sourceDurationFrames = positiveSafeInteger(clip?.sourceDurationFrames, 'clip.sourceDurationFrames');
-	const durationFrames = positiveSafeInteger(clip?.durationFrames, 'clip.durationFrames');
-	return sourceDurationFrames / mediaRate / (durationFrames / timelineRate);
-}
-
-/**
- * Map a project timeline frame into the active source range. Fractional source
- * frames are intentionally retained: video seeking and FFmpeg trims operate in
- * time, and rounding here would accumulate drift across stretched edits.
- */
-export function mapVideoTimelineFrameToSource(clip, timelineFrame, options = {}) {
-	const timelineStartFrame = nonNegativeSafeInteger(clip?.timelineStartFrame, 'clip.timelineStartFrame');
-	const durationFrames = positiveSafeInteger(clip?.durationFrames, 'clip.durationFrames');
-	const sourceStartFrame = nonNegativeSafeInteger(clip?.sourceStartFrame, 'clip.sourceStartFrame');
-	const sourceDurationFrames = positiveSafeInteger(clip?.sourceDurationFrames, 'clip.sourceDurationFrames');
-	const requestedFrame = finiteNumber(timelineFrame, 'timelineFrame');
-	const timelineEndFrame = timelineStartFrame + durationFrames;
-	const mappedTimelineFrame = boundedPosition(
-		requestedFrame,
-		timelineStartFrame,
-		timelineEndFrame,
-		Boolean(options.clamp),
-		'timelineFrame',
-	);
-	const progress = (mappedTimelineFrame - timelineStartFrame) / durationFrames;
-	const sourceFrame = sourceStartFrame + progress * sourceDurationFrames;
-	const sourceSampleRate = optionalPositiveRate(options.sourceSampleRate ?? options.source?.sampleRate, 'sourceSampleRate');
-	const projectSampleRate = optionalPositiveRate(options.projectSampleRate, 'projectSampleRate');
-
-	return Object.freeze({
-		timelineFrame: mappedTimelineFrame,
-		timelineTimeSeconds: projectSampleRate == null ? null : mappedTimelineFrame / projectSampleRate,
-		localTimelineFrame: mappedTimelineFrame - timelineStartFrame,
-		progress,
-		sourceFrame,
-		sourceTimeSeconds: sourceSampleRate == null ? null : sourceFrame / sourceSampleRate,
-	});
-}
-
-/** Map an active source frame back to its project timeline position. */
-export function mapVideoSourceFrameToTimeline(clip, sourceFrame, options = {}) {
-	const timelineStartFrame = nonNegativeSafeInteger(clip?.timelineStartFrame, 'clip.timelineStartFrame');
-	const durationFrames = positiveSafeInteger(clip?.durationFrames, 'clip.durationFrames');
-	const sourceStartFrame = nonNegativeSafeInteger(clip?.sourceStartFrame, 'clip.sourceStartFrame');
-	const sourceDurationFrames = positiveSafeInteger(clip?.sourceDurationFrames, 'clip.sourceDurationFrames');
-	const requestedFrame = finiteNumber(sourceFrame, 'sourceFrame');
-	const sourceEndFrame = sourceStartFrame + sourceDurationFrames;
-	const mappedSourceFrame = boundedPosition(
-		requestedFrame,
-		sourceStartFrame,
-		sourceEndFrame,
-		Boolean(options.clamp),
-		'sourceFrame',
-	);
-	const progress = (mappedSourceFrame - sourceStartFrame) / sourceDurationFrames;
-	const timelineFrame = timelineStartFrame + progress * durationFrames;
-	const sourceSampleRate = optionalPositiveRate(options.sourceSampleRate ?? options.source?.sampleRate, 'sourceSampleRate');
-	const projectSampleRate = optionalPositiveRate(options.projectSampleRate, 'projectSampleRate');
-
-	return Object.freeze({
-		sourceFrame: mappedSourceFrame,
-		sourceTimeSeconds: sourceSampleRate == null ? null : mappedSourceFrame / sourceSampleRate,
-		localSourceFrame: mappedSourceFrame - sourceStartFrame,
-		progress,
-		timelineFrame,
-		timelineTimeSeconds: projectSampleRate == null ? null : timelineFrame / projectSampleRate,
-	});
-}
-
-/**
  * Resolve every visible video track at a timeline frame. Project track order is
  * foreground-first, while the returned array is bottom-to-top painter order.
  */
 export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
+	project = runtimeProject(project);
 	const frame = nonNegativeFiniteNumber(timelineFrame, 'timelineFrame');
 	const sampleRate = positiveFiniteNumber(project?.sampleRate, 'project.sampleRate');
 	const clipById = new Map((project?.clips || []).map((clip) => [clip.id, clip]));
@@ -177,9 +114,10 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 			: null;
 		const clips = activeClips.map((clip, clipIndex) => {
 			const source = videoSourceForClip(sourceById, clip);
+			const sourceCoordinateRate = videoSourceCoordinateRate(clip, source);
 			const mapping = mapVideoTimelineFrameToSource(clip, frame, {
 				projectSampleRate: sampleRate,
-				sourceSampleRate: source.sampleRate,
+				sourceSampleRate: sourceCoordinateRate,
 			});
 			const role = transition == null
 				? 'single'
@@ -193,7 +131,7 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceId: source.id,
 				sourceFrame: mapping.sourceFrame,
 				sourceTimeSeconds: mapping.sourceTimeSeconds,
-				playbackRate: videoClipPlaybackRate(clip, sampleRate, source.sampleRate),
+				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate),
 				opacity: transition == null
 					? 1
 					: videoTransitionOpacity(transition, role, frame),
@@ -219,7 +157,8 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
  * begins partway through a transition retains the correct fade progress.
  */
 export function resolveVideoCompositionIntervals(project, options = {}) {
-	const sampleRate = positiveFiniteNumber(project?.sampleRate, 'project.sampleRate');
+	project = runtimeProject(project);
+	positiveFiniteNumber(project?.sampleRate, 'project.sampleRate');
 	const startFrame = nonNegativeSafeInteger(options.startFrame ?? 0, 'startFrame');
 	const endFrame = nonNegativeSafeInteger(
 		options.endFrame ?? videoTimelineDurationFrames(project),
@@ -260,11 +199,12 @@ export function resolveVideoCompositionIntervals(project, options = {}) {
 			trackId: layer.trackId,
 			trackIndex: layer.trackIndex,
 			clips: Object.freeze(layer.clips.map((activeClip) => {
+				const sourceCoordinateRate = videoSourceCoordinateRate(activeClip.clip, activeClip.source);
 				const sourceStart = mapVideoTimelineFrameToSource(activeClip.clip, intervalStart, {
-					sourceSampleRate: activeClip.source.sampleRate,
+					sourceSampleRate: sourceCoordinateRate,
 				});
 				const sourceEnd = mapVideoTimelineFrameToSource(activeClip.clip, intervalEnd, {
-					sourceSampleRate: activeClip.source.sampleRate,
+					sourceSampleRate: sourceCoordinateRate,
 				});
 				const transition = layer.clips.length === 2
 					? videoTransition(layer.clips[0].clip, layer.clips[1].clip)
@@ -312,6 +252,7 @@ export function resolveVideoCompositionIntervals(project, options = {}) {
  * @deprecated Use resolveActiveVideoLayers().
  */
 export function resolveActiveVideoClip(project, timelineFrame, options = {}) {
+	project = runtimeProject(project);
 	const frame = nonNegativeFiniteNumber(timelineFrame, 'timelineFrame');
 	const sampleRate = positiveFiniteNumber(project?.sampleRate, 'project.sampleRate');
 	const layers = resolveActiveVideoLayers(project, frame, options);
@@ -352,6 +293,7 @@ export function resolveActiveVideoClip(project, timelineFrame, options = {}) {
  * @deprecated Use resolveVideoCompositionIntervals().
  */
 export function resolveVideoTimelineSegments(project, options = {}) {
+	project = runtimeProject(project);
 	const startFrame = nonNegativeSafeInteger(options.startFrame ?? 0, 'startFrame');
 	const endFrame = nonNegativeSafeInteger(
 		options.endFrame ?? videoTimelineDurationFrames(project),
@@ -395,7 +337,7 @@ export function resolveVideoTimelineSegments(project, options = {}) {
 			previous.durationFrames = segmentEnd - previous.timelineStartFrame;
 			if (previous.kind === 'video') {
 				const sourceEnd = mapVideoTimelineFrameToSource(previous.clip, segmentEnd, {
-					sourceSampleRate: previous.source.sampleRate,
+					sourceSampleRate: videoSourceCoordinateRate(previous.clip, previous.source),
 				});
 				previous.sourceEndFrame = sourceEnd.sourceFrame;
 				previous.sourceDurationFrames = previous.sourceEndFrame - previous.sourceStartFrame;
@@ -415,11 +357,12 @@ export function resolveVideoTimelineSegments(project, options = {}) {
 			continue;
 		}
 
+		const sourceCoordinateRate = videoSourceCoordinateRate(active.clip, active.source);
 		const sourceStart = mapVideoTimelineFrameToSource(active.clip, segmentStart, {
-			sourceSampleRate: active.source.sampleRate,
+			sourceSampleRate: sourceCoordinateRate,
 		});
 		const sourceEnd = mapVideoTimelineFrameToSource(active.clip, segmentEnd, {
-			sourceSampleRate: active.source.sampleRate,
+			sourceSampleRate: sourceCoordinateRate,
 		});
 		segments.push({
 			kind: 'video',
@@ -445,99 +388,18 @@ export function resolveVideoTimelineSegments(project, options = {}) {
 	return Object.freeze(segments.map((segment) => Object.freeze(segment)));
 }
 
-/** Resolve the five-second source grid to a zoom-readable interval. */
-export function videoThumbnailIntervalSeconds(options = {}) {
-	const baseIntervalSeconds = positiveFiniteNumber(
-		options.baseIntervalSeconds ?? VIDEO_THUMBNAIL_BASE_INTERVAL_SECONDS,
-		'baseIntervalSeconds',
-	);
-	if (options.pixelsPerSecond == null) return baseIntervalSeconds;
-	const pixelsPerSecond = positiveFiniteNumber(options.pixelsPerSecond, 'pixelsPerSecond');
-	const playbackRate = positiveFiniteNumber(options.playbackRate ?? 1, 'playbackRate');
-	const minimumSpacingPixels = positiveFiniteNumber(
-		options.minimumSpacingPixels ?? VIDEO_THUMBNAIL_MINIMUM_SPACING_PIXELS,
-		'minimumSpacingPixels',
-	);
-	const baseGridPixels = baseIntervalSeconds / playbackRate * pixelsPerSecond;
-	const multiplier = Math.max(1, Math.ceil(minimumSpacingPixels / baseGridPixels - Number.EPSILON));
-	return baseIntervalSeconds * multiplier;
-}
-
-/**
- * Select source timestamps for the visible portion of a clip. Grid points are
- * anchored at source time zero so generated thumbnails can be reused by every
- * placement of a Project Bin item.
- */
-export function selectVideoThumbnailTimestamps(clip, source, options = {}) {
-	const projectSampleRate = positiveFiniteNumber(options.projectSampleRate, 'projectSampleRate');
-	const sourceSampleRate = positiveFiniteNumber(source?.sampleRate, 'source.sampleRate');
-	const clipStartFrame = nonNegativeSafeInteger(clip?.timelineStartFrame, 'clip.timelineStartFrame');
-	const clipEndFrame = videoClipEndFrame(clip);
-	const visibleStartFrame = Math.max(
-		clipStartFrame,
-		finiteNumber(options.visibleStartFrame ?? clipStartFrame, 'visibleStartFrame'),
-	);
-	const visibleEndFrame = Math.min(
-		clipEndFrame,
-		finiteNumber(options.visibleEndFrame ?? clipEndFrame, 'visibleEndFrame'),
-	);
-	if (visibleEndFrame <= visibleStartFrame) return Object.freeze([]);
-
-	const playbackRate = videoClipPlaybackRate(clip, projectSampleRate, sourceSampleRate);
-	const intervalSeconds = videoThumbnailIntervalSeconds({
-		...options,
-		playbackRate,
-	});
-	const intervalFrames = Math.max(1, Math.round(intervalSeconds * sourceSampleRate));
-	const sourceStart = mapVideoTimelineFrameToSource(clip, visibleStartFrame, {
-		sourceSampleRate,
-	}).sourceFrame;
-	const sourceEnd = mapVideoTimelineFrameToSource(clip, visibleEndFrame, {
-		sourceSampleRate,
-	}).sourceFrame;
-	const candidateFrames = [];
-	const firstGridFrame = Math.ceil(sourceStart / intervalFrames) * intervalFrames;
-	if (firstGridFrame > sourceStart && firstGridFrame >= sourceEnd) {
-		candidateFrames.push(sourceStart);
-	} else if (firstGridFrame > sourceStart) {
-		candidateFrames.push(sourceStart);
-	}
-	for (let sourceFrame = firstGridFrame; sourceFrame < sourceEnd; sourceFrame += intervalFrames) {
-		candidateFrames.push(sourceFrame);
-	}
-	if (!candidateFrames.length) candidateFrames.push(sourceStart);
-
-	const seen = new Set();
-	const timestamps = [];
-	for (const candidate of candidateFrames) {
-		const sourceFrame = Math.max(sourceStart, Math.min(sourceEnd, candidate));
-		const cacheFrame = Math.round(sourceFrame);
-		if (seen.has(cacheFrame)) continue;
-		seen.add(cacheFrame);
-		const mapped = mapVideoSourceFrameToTimeline(clip, sourceFrame, {
-			projectSampleRate,
-			sourceSampleRate,
-			clamp: true,
-		});
-		timestamps.push(Object.freeze({
-			sourceFrame: cacheFrame,
-			sourceTimeSeconds: cacheFrame / sourceSampleRate,
-			timelineFrame: mapped.timelineFrame,
-			timelineTimeSeconds: mapped.timelineTimeSeconds,
-			gridIndex: Math.round(cacheFrame / intervalFrames),
-			intervalSeconds,
-		}));
-	}
-	return Object.freeze(timestamps);
-}
-
 export function videoTimelineDurationFrames(project) {
+	project = runtimeProject(project);
 	let durationFrames = 0;
 	for (const clip of project?.clips || []) {
 		if (clip?.kind !== 'video') continue;
 		durationFrames = Math.max(durationFrames, videoClipEndFrame(clip));
 	}
 	return durationFrames;
+}
+
+function runtimeProject(project) {
+	return project?.runtimeProjectionVersion ? project : resolveRuntimeProjectProjection(project);
 }
 
 function normalizeClipLookup(value) {
@@ -591,17 +453,6 @@ function normalizeBlackColor(value) {
 	const color = String(value || '#000000').trim();
 	if (!color) throw new TypeError('blackColor must not be empty.');
 	return color;
-}
-
-function boundedPosition(value, minimum, maximum, clamp, name) {
-	if (value >= minimum && value <= maximum) return value;
-	if (clamp) return Math.max(minimum, Math.min(maximum, value));
-	throw new RangeError(`${name} must be inside the active clip range.`);
-}
-
-function optionalPositiveRate(value, name) {
-	if (value == null) return null;
-	return positiveFiniteNumber(value, name);
 }
 
 function finiteNumber(value, name) {

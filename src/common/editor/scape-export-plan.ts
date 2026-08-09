@@ -40,6 +40,7 @@ interface ScapeExportSource extends Partial<ScapeAudioSource> {
 	readonly storageKey?: string;
 	readonly name?: string;
 	readonly mimeType?: string;
+	readonly timingAsset?: unknown;
 }
 
 interface ScapeExportProject extends Record<string, unknown> {
@@ -56,7 +57,7 @@ export interface PlannedScapeExportAsset {
 	readonly source: ScapeExportSource;
 	readonly sourceId: string;
 	readonly storageKey: string;
-	readonly kind: 'audio' | 'video';
+	readonly kind: 'audio' | 'video' | 'video-timing';
 	readonly entry: string;
 	readonly encoding: string;
 	readonly mimeType: string;
@@ -92,7 +93,8 @@ export async function prepareScapeExport(
 	const sourceInputs = project.sources ?? [];
 	if (!Array.isArray(sourceInputs)) throw new TypeError('Project sources must be an array.');
 	const sourceCount = sourceInputs.length;
-	if (sourceCount + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
+	const timingAssetCount = sourceInputs.filter((source) => isRecord(source) && isRecord(source.timingAsset)).length;
+	if (sourceCount + timingAssetCount + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
 		throw new RangeError('The project has too many sources for the portable archive.');
 	}
 	const sources: ScapeExportSource[] = [];
@@ -156,6 +158,31 @@ export async function prepareScapeExport(
 			mimeType: String(source.mimeType || ''),
 			size,
 		}));
+		if (kind === 'video' && isRecord(source.timingAsset)) {
+			const reference = source.timingAsset;
+			const timingStorageKey = nonEmptyString(reference.storageKey, `Timing storage key for ${sourceId}`);
+			const timingSha256 = nonEmptyString(reference.sha256, `Timing digest for ${sourceId}`);
+			const timingEntry = `timing/${safeScapeEntryId(timingSha256)}.scti`;
+			if (entryNames.has(timingEntry)) throw new Error(`Duplicate Scape archive entry: ${timingEntry}.`);
+			entryNames.add(timingEntry);
+			if (typeof store?.getMediaAssetMetadata !== 'function') throw new TypeError('A media store is required for timing export.');
+			const timingMetadata = await awaitScapeOperation(store.getMediaAssetMetadata(timingStorageKey), signal);
+			if (!isRecord(timingMetadata)) throw new Error(`Timing asset for ${source.name || sourceId} is unavailable.`);
+			const timingSize = nonNegativeSafeInteger(timingMetadata.size, `Timing asset ${sourceId} size`);
+			if (timingMetadata.sha256 !== timingSha256 || timingSize !== reference.byteLength) {
+				throw new Error(`Timing asset for ${source.name || sourceId} disagrees with its project reference.`);
+			}
+			assets.push(Object.freeze({
+				source,
+				sourceId: timingStorageKey,
+				storageKey: timingStorageKey,
+				kind: 'video-timing',
+				entry: timingEntry,
+				encoding: String(reference.encoding),
+				mimeType: 'application/vnd.soundscaper.video-timing',
+				size: timingSize,
+			}));
+		}
 	}
 	const createdAt = new Date().toISOString();
 	const placeholderAssets = assets.map((asset) => completeScapeExportAsset(

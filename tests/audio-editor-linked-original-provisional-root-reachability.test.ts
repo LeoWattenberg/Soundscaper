@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import {
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
@@ -221,7 +221,7 @@ function bindingInput(locatorId: string) {
 	};
 }
 
-function project(rooted = false): AudioEditorProjectV9 {
+function project(rooted = false): AudioEditorProjectV10 {
 	const source = createAudioSourceV9({
 		id: SOURCE_ID,
 		storageKey: 'provisional-audio-storage',
@@ -239,7 +239,7 @@ function project(rooted = false): AudioEditorProjectV9 {
 		durationFrames: 120,
 		sourceDurationFrames: 120,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Provisional-root reachability',
 		revision: 1,

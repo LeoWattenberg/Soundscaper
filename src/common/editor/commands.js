@@ -4,6 +4,8 @@ import { commitProject } from './project.js';
 import { dispatchEditorCommand } from './commands/registry.ts';
 import { createEditorCommandRuntime } from './commands/runtime-registry.ts';
 import { pruneMissingProjectSelections } from './commands/shared-runtime.js';
+import { projectV10ForCommand } from './project-v10-command-projection.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 
 export {
 	collectClipTransformIds,
@@ -62,6 +64,7 @@ export {
  *   | import('./project-v7.ts').AudioEditorProjectV7
  *   | import('./project-v8.ts').AudioEditorProjectV8
  *   | import('./project-v9.ts').AudioEditorProjectV9
+ *   | import('./project-v10.ts').AudioEditorProjectV10
  * } CurrentAudioEditorProject
  */
 
@@ -75,16 +78,21 @@ export {
  * @returns {Project}
  */
 export function applyEditorCommand(project, command, options = {}) {
-	if (![2, 3, 4, 5, 6, 7, 8, 9].includes(project?.schemaVersion)) {
+	if (!Number.isSafeInteger(project?.schemaVersion)
+		|| project.schemaVersion < 2
+		|| project.schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new RangeError('Editor commands require a current audio editor project.');
 	}
 	if (!command || typeof command.type !== 'string') {
 		throw new TypeError('A serializable editor command is required.');
 	}
-	return /** @type {Project} */ (commitProject(project, (draft) => {
+	const commandProject = project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		? projectV10ForCommand(project)
+		: project;
+	return /** @type {Project} */ (commitProject(commandProject, (draft) => {
 		mutateCommand(draft, command);
 		pruneMissingProjectSelections(draft);
-	}, options));
+	}, { ...options, persistedBase: project }));
 }
 
 const editorCommandHandlers = createEditorCommandRuntime(mutateCommand);

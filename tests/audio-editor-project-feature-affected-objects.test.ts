@@ -47,7 +47,7 @@ function effect(
 
 function project(): Record<string, unknown> {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: 'project',
 		tracks: [
 			{
@@ -304,7 +304,7 @@ test('the pass never mutates or reprojects the canonical project', () => {
 	assert.strictEqual(source.tracks, tracks, 'no container may be replaced');
 });
 
-test('compatible, non-schema-9, and available-only reports produce no index', () => {
+test('compatible, non-schema-10, and available-only reports produce no index', () => {
 	assert.equal(projectFeatureAffectedObjects(project(), null), null);
 	assert.equal(projectFeatureAffectedObjects(project(), report({}) && {
 		...report(),

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
-} from '../project-v9.ts';
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../project-v10-validation.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../scape-archive-envelope.ts';
 import {
@@ -31,12 +31,18 @@ import {
 	type DesktopSharedSourceTransferStore,
 } from './desktop-shared-project-media-contract.ts';
 import {
+	managedTimingAssetForSource,
 	managedSourceBinding,
 	reachableProjectSources,
 	type ManagedAudioSource,
 	type ManagedSource,
 	type ManagedVideoSource,
 } from './desktop-shared-project-media-sources.ts';
+import {
+	preflightDesktopSharedTimingAsset,
+	publishDesktopSharedTimingAsset,
+	type PreparedDesktopSharedTimingAsset,
+} from './desktop-shared-project-timing-media.ts';
 
 const DIGEST = /^[a-f0-9]{64}$/u;
 const AUDIO_BINDING_ID = /^m[a-f0-9]{64}$/u;
@@ -62,7 +68,7 @@ type PreparedSource = Readonly<{
 	readonly kind: 'video';
 	readonly metadata: TrustedVideoMetadata;
 	readonly source: ManagedVideoSource;
-}>;
+}> | PreparedDesktopSharedTimingAsset;
 
 export async function prepareDesktopSharedProjectMediaHandoff(
 	projectValue: unknown,
@@ -70,8 +76,8 @@ export async function prepareDesktopSharedProjectMediaHandoff(
 	store: DesktopSharedMediaSenderStore,
 	options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<readonly DesktopSharedManagedSourceDescriptor[]> {
-	validateAudioEditorProjectV9(projectValue);
-	const project = projectValue as AudioEditorProjectV9;
+	validateAudioEditorProjectV10(projectValue);
+	const project = projectValue as AudioEditorProjectV10;
 	const sources = await preflightSenderSources(project, store, options.signal);
 	if (!sources.length) return Object.freeze([]);
 	const bridge = transferBridge(bridgeValue);
@@ -80,7 +86,15 @@ export async function prepareDesktopSharedProjectMediaHandoff(
 		throwIfScapeAborted(options.signal);
 		results.push(prepared.kind === 'audio'
 			? await publishAudioSource(project, prepared.source, bridge, store, options.signal)
-			: await publishVideoSource(project, prepared, bridge, videoSenderStore(store), options.signal));
+			: prepared.kind === 'video'
+				? await publishVideoSource(project, prepared, bridge, videoSenderStore(store), options.signal)
+				: await publishDesktopSharedTimingAsset(
+					project,
+					prepared,
+					bridge,
+					videoSenderStore(store),
+					options.signal,
+				));
 	}
 	return Object.freeze(results);
 }
@@ -91,8 +105,8 @@ export async function prepareDesktopSharedProjectAudioHandoff(
 	store: Pick<DesktopSharedSourceTransferStore, 'readSourceChunks'>,
 	options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<readonly DesktopSharedManagedSourceDescriptor[]> {
-	validateAudioEditorProjectV9(projectValue);
-	const project = projectValue as AudioEditorProjectV9;
+	validateAudioEditorProjectV10(projectValue);
+	const project = projectValue as AudioEditorProjectV10;
 	for (const source of reachableProjectSources(project)) {
 		if (source.kind === 'video') {
 			throw new Error(`PCM-only desktop shared handoff does not support reachable video source ${source.id}.`);
@@ -102,7 +116,7 @@ export async function prepareDesktopSharedProjectAudioHandoff(
 }
 
 async function preflightSenderSources(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	store: DesktopSharedMediaSenderStore,
 	signal?: AbortSignal,
 ): Promise<readonly PreparedSource[]> {
@@ -123,6 +137,15 @@ async function preflightSenderSources(
 		const metadata = await readTrustedVideoMetadata(videoSenderStore(store), source, signal);
 		byteBudget.consume(metadata.size, source.id);
 		prepared.push(Object.freeze({ kind: 'video', metadata, source }));
+		const timingAsset = managedTimingAssetForSource(source);
+		if (timingAsset) {
+			byteBudget.consume(timingAsset.byteLength, timingAsset.storageKey);
+			prepared.push(await preflightDesktopSharedTimingAsset(
+				timingAsset,
+				videoSenderStore(store),
+				signal,
+			));
+		}
 	}
 	return Object.freeze(prepared);
 }
@@ -145,7 +168,7 @@ function uniquePhysicalSources(sources: readonly ManagedSource[]): readonly Mana
 }
 
 async function publishAudioSource(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	source: ManagedAudioSource,
 	bridge: DesktopSharedSourceTransferBridge,
 	store: Pick<DesktopSharedSourceTransferStore, 'readSourceChunks'>,
@@ -197,7 +220,7 @@ async function publishAudioSource(
 }
 
 async function publishVideoSource(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	prepared: Extract<PreparedSource, { readonly kind: 'video' }>,
 	bridge: DesktopSharedSourceTransferBridge,
 	store: Required<Pick<DesktopSharedSourceTransferStore, 'getMediaAssetMetadata' | 'loadMediaAsset'>>,

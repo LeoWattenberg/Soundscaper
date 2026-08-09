@@ -29,7 +29,7 @@ export interface EngineGainOwner {
 	readonly envelope?: readonly EngineEnvelopePoint[];
 }
 
-export interface EngineClip {
+export interface EngineClip extends Readonly<Record<string, unknown>> {
 	readonly id?: unknown;
 	readonly sourceId?: unknown;
 	readonly timelineStartFrame?: number;
@@ -63,7 +63,8 @@ export interface EngineLoop {
 	readonly endFrame?: number;
 }
 
-export interface EngineProject {
+export interface EngineProject extends Readonly<Record<string, unknown>> {
+	readonly schemaVersion?: number;
 	readonly sampleRate?: number;
 	readonly masterChannels?: number;
 	readonly metadata?: Readonly<{ adm?: unknown }>;

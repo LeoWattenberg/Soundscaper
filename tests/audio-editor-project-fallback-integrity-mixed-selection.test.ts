@@ -211,6 +211,9 @@ test('mixed selected audio provider refuses video selector drift before its rand
 
 interface MutableProject {
 	schemaVersion: number;
+	sampleRate: number;
+	primarySequenceId: string;
+	sequences: Array<Record<string, unknown>>;
 	sources: Array<Record<string, unknown>>;
 	clips: Array<Record<string, unknown>>;
 	featureRequirements: {
@@ -227,7 +230,10 @@ interface MutableProject {
 
 function project(): MutableProject {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
+		sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		sources: [{
 			id: AUDIO_SELECTOR.sourceId,
 			kind: 'audio',

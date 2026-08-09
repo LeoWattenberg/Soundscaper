@@ -38,7 +38,7 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 
 function project(): Record<string, unknown> {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: 'project',
 		tracks: [{
 			id: 'track-a',

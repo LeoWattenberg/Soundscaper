@@ -45,7 +45,7 @@ import {
 	type CapturedProjectFallbackIntegrity,
 	type ProjectFallbackIntegritySource,
 } from './project-fallback-integrity-snapshot.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -108,7 +108,7 @@ export interface ProjectFallbackIntegrityAdmission {
 }
 
 /**
- * Verifies exact-schema-9 rendered fallbacks against their canonical stored
+ * Verifies exact-schema-10 rendered fallbacks against their canonical stored
  * bytes before controller activation. Future schemas are intentionally opaque.
  */
 export async function verifyProjectFallbackIntegrity(
@@ -129,10 +129,10 @@ export async function verifyProjectFallbackIntegrity(
 	}
 	const captured = captureProjectFallbackIntegrity(project);
 	if (audioSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new Error('A selected audio rendered fallback requires exact project schema 9.');
+		throw new Error('A selected audio rendered fallback requires exact project schema 10.');
 	}
 	if (videoSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new Error('A selected video rendered fallback requires exact project schema 9.');
+		throw new Error('A selected video rendered fallback requires exact project schema 10.');
 	}
 	const admissionState = snapshotAdmissionState(captured);
 	if (!captured.claims.length && !audioSelector && !videoSelector) return createAdmission(admissionState);
@@ -338,6 +338,9 @@ function snapshotAdmissionState(
 ): CapturedProjectFallbackIntegrity {
 	return Object.freeze({
 		schemaVersion: captured.schemaVersion,
+		sampleRate: captured.sampleRate,
+		primarySequenceId: captured.primarySequenceId,
+		sequences: captured.sequences,
 		claims: captured.claims,
 		requirements: captured.requirements,
 		sources: captured.sources,

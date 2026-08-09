@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -17,7 +19,6 @@ import {
 } from '../src/common/editor/storage/project-repository.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
@@ -56,7 +57,7 @@ test('desktop shared saves publish the local compacted snapshot before canonical
 		sourceId: reachableSource.id,
 		durationFrames: 48,
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'shared-save-project',
 		title: 'Shared save',
 		revision: 4,
@@ -255,7 +256,7 @@ test('desktop shared latest load leaves prior local history untouched when recip
 		durationFrames: 48,
 	});
 	const track = createAudioTrackV9({ id: 'remote-track', clipIds: [clip.id] });
-	const stale = createAudioEditorProjectV9({
+	const stale = createAudioEditorProjectV10({
 		id: 'missing-pcm-project',
 		title: 'Prior local revision',
 		revision: 1,
@@ -264,7 +265,7 @@ test('desktop shared latest load leaves prior local history untouched when recip
 		clips: [clip],
 		tracks: [track],
 	}) as unknown as CurrentProject;
-	const latest = createAudioEditorProjectV9({
+	const latest = createAudioEditorProjectV10({
 		id: stale.id,
 		title: 'Remote latest',
 		revision: 2,
@@ -328,7 +329,7 @@ test('concurrent shared latest loads cannot let a slow older admission replace a
 	});
 	const clip = createAudioClipV9({ id: 'ordered-clip', sourceId: source.id, durationFrames: 1 });
 	const track = createAudioTrackV9({ id: 'ordered-track', clipIds: [clip.id] });
-	const revision = (value: number): CurrentProject => createAudioEditorProjectV9({
+	const revision = (value: number): CurrentProject => createAudioEditorProjectV10({
 		id: 'ordered-project', title: `Revision ${value}`, revision: value, now: NOW,
 		sources: [source], clips: [clip], tracks: [track],
 	}) as unknown as CurrentProject;
@@ -489,7 +490,7 @@ test('desktop shared delete completes remotely before local cleanup and never re
 });
 
 function sourceFreeProject(id: string, revision: number, title = 'Source-free project'): CurrentProject {
-	return createAudioEditorProjectV9({ id, title, revision, now: NOW }) as unknown as CurrentProject;
+	return createAudioEditorProjectV10({ id, title, revision, now: NOW }) as unknown as CurrentProject;
 }
 
 function memoryRepository(scope: string): ProjectRepository {

@@ -286,8 +286,8 @@ export function createAup4ProjectTree(project, channelBlocks = new Map()) {
 		attribute('snap_enabled', 'bool', Boolean(project.snap?.enabled)),
 		attribute('snap_type', 'int', aup4SnapType(project.snap)),
 		attribute('snap_triplets', 'bool', Boolean(project.snap?.triplets)),
-		attribute('sel0', 'double', framesToSeconds(project.selection?.startFrame, sampleRate), 10),
-		attribute('sel1', 'double', framesToSeconds(project.selection?.endFrame, sampleRate), 10),
+		attribute('sel0', 'double', framesToSeconds(project.selection?.startFrame ?? 0, sampleRate), 10),
+		attribute('sel1', 'double', framesToSeconds(project.selection?.endFrame ?? 0, sampleRate), 10),
 		attribute('vpos', 'int', 0),
 		attribute('h', 'double', finite(project.view?.horizontalPosition, 0), 10),
 		attribute('zoom', 'double', finite(project.view?.zoom, 86.1328125), 10),
@@ -952,13 +952,11 @@ function createGroupNumberMap(project) {
 	}
 	return result;
 }
-
 function compareGroupIds(left, right) {
 	const leftKey = `${typeof left}:${String(left)}`;
 	const rightKey = `${typeof right}:${String(right)}`;
 	return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
 }
-
 function importedGroupNumber(groupId) {
 	if (Number.isSafeInteger(groupId) && groupId >= 0) return groupId;
 	const imported = /^aup4-group-(\d+)$/.exec(String(groupId));

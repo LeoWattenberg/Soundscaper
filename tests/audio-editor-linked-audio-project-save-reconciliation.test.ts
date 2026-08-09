@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 } from '../src/common/editor/project-v9.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
@@ -125,7 +126,7 @@ function project(revision: number, source?: ReturnType<typeof audioSource>) {
 		durationFrames: source.frameCount,
 		sourceDurationFrames: source.frameCount,
 	}) : null;
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Linked audio live roots',
 		revision,

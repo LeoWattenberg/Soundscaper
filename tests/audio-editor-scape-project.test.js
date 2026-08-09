@@ -17,7 +17,7 @@ import {
 	readAup4EffectsNode,
 } from '../src/common/editor/aup4-effects.js';
 import { migrateAudioEditorProject } from '../src/common/editor/migration.js';
-import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import {
 	SCAPE_FORMAT,
 	exportScapeProject,
@@ -103,7 +103,7 @@ test('a future-schema scape opens read-only without interpreting, rewriting, or 
 	await persistAssets(sourceStore);
 	const exported = await exportScapeProject(project, sourceStore);
 	const future = await rewriteScapeProjectDocument(exported.blob, (document) => {
-		document.schemaVersion = 10;
+		document.schemaVersion = 11;
 		const videoSource = document.sources.find((source) => source.kind === 'video');
 		videoSource.posterStorageKey = 'future-poster-locator';
 		videoSource.thumbnailStorageKey = 'future-thumbnail-locator';
@@ -343,7 +343,7 @@ async function persistAssets(store) {
 }
 
 function mixedProject() {
-	return createAudioEditorProjectV6({
+	return createAudioEditorProjectV10({
 		id: 'mixed-scape-project',
 		title: 'Mixed project',
 		metadata: {
@@ -401,4 +401,3 @@ async function readArchiveJson(blob, filename) {
 		await reader.close();
 	}
 }
-

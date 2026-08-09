@@ -352,7 +352,7 @@ test('empty and future manifests perform no storage reads or future-field traver
 	};
 	await verifyProjectFallbackIntegrity(project([], []), store);
 	const future = {
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get sources(): never { throw new Error('future sources traversed'); },
 		get featureRequirements(): never { throw new Error('future requirements traversed'); },
 	};
@@ -365,7 +365,10 @@ function project(
 	requirements: readonly Readonly<Record<string, unknown>>[],
 ): Readonly<Record<string, unknown>> {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
+		sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		sources,
 		featureRequirements: { schemaVersion: 1, requirements },
 	};

@@ -134,11 +134,13 @@ export function createAddLabelCommand(
 }
 
 function normalizeSourceValue(value: CommandFactoryValue): CommandObject {
+	if (value.sampleFrameCount != null || value.timingDecision != null) return structuredClone(value) as CommandObject;
 	if ((value.schemaVersion ?? 0) >= 5) return createMediaSourceV5(value) as CommandObject;
 	return value.kind ? createMediaSourceV4(value) as CommandObject : createAudioSourceV2(value) as CommandObject;
 }
 
 function normalizeTrackValue(value: CommandFactoryValue): CommandObject {
+	if ((value.schemaVersion ?? 0) >= 10) return structuredClone(value) as CommandObject;
 	if ((value.schemaVersion ?? 0) >= 5) return createMediaTrackV5(value) as CommandObject;
 	if (value.type === 'video') return createMediaTrackV4(value) as CommandObject;
 	if ((value.schemaVersion ?? 0) >= 4 && value.type === 'label') return createLabelTrackV4(value) as CommandObject;
@@ -148,6 +150,7 @@ function normalizeTrackValue(value: CommandFactoryValue): CommandObject {
 }
 
 function normalizeClipValue(value: CommandFactoryValue): CommandObject {
+	if (value.anchor != null || value.sequenceStartFrame != null) return structuredClone(value) as CommandObject;
 	if ((value.schemaVersion ?? 0) >= 8) return createMediaClipV8(value) as CommandObject;
 	if (Array.isArray(value.videoEffects) || (value.schemaVersion ?? 0) >= 5) {
 		return createMediaClipV5(value) as CommandObject;

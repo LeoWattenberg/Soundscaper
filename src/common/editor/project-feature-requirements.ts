@@ -1,7 +1,42 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
+import type {
+	EvaluateProjectFeatureRequirementsOptions,
+	NormalizeProjectFeatureRequirementsOptions,
+	ProjectFeatureAvailability,
+	ProjectFeatureEffectiveDisposition,
+	ProjectFeatureFallback,
+	ProjectFeatureFallbackKind,
+	ProjectFeatureFallbackRole,
+	ProjectFeatureRequirementsManifest,
+	ProjectFeatureRequirementsReport,
+	ProjectFeatureRequirementsReportItem,
+	ProjectSourceReference,
+	ProjectTimelineClipReference,
+	ProjectTrackReference,
+} from './project-feature-requirement-types.ts';
 import { normalizeVideoEffects } from './video-effects.js';
+import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
+
+export type {
+	EvaluateProjectFeatureRequirementsOptions,
+	NormalizeProjectFeatureRequirementsOptions,
+	ProjectFeatureAudioMixFallback,
+	ProjectFeatureAudioTrackRenderFallback,
+	ProjectFeatureAvailability,
+	ProjectFeatureEffectiveDisposition,
+	ProjectFeatureFallback,
+	ProjectFeatureFallbackKind,
+	ProjectFeatureFallbackRole,
+	ProjectFeatureRequirement,
+	ProjectFeatureRequirementDisposition,
+	ProjectFeatureRequirementsManifest,
+	ProjectFeatureRequirementsReport,
+	ProjectFeatureRequirementsReportItem,
+	ProjectFeatureVideoClipRenderFallback,
+	ProjectFeatureVideoRenderFallback,
+} from './project-feature-requirement-types.ts';
 
 export const PROJECT_FEATURE_REQUIREMENTS_SCHEMA_VERSION = 2;
 export const PROJECT_FEATURE_REQUIREMENTS_LIMITS = Object.freeze({
@@ -11,128 +46,6 @@ export const PROJECT_FEATURE_REQUIREMENTS_LIMITS = Object.freeze({
 	maximumDisplayNameLength: 256,
 	maximumSourceIdLength: 256,
 });
-
-export type ProjectFeatureRequirementDisposition = 'bypass' | 'rendered-fallback';
-export type ProjectFeatureFallbackKind = 'audio' | 'video';
-export type ProjectFeatureFallbackRole =
-	| 'project-audio-mix-v1'
-	| 'audio-track-render-v1'
-	| 'project-video-render-v1'
-	| 'video-clip-render-v1';
-
-export interface ProjectFeatureAudioMixFallback {
-	readonly role: 'project-audio-mix-v1';
-	readonly kind: 'audio';
-	readonly sourceId: string;
-	readonly sha256: string;
-}
-
-export interface ProjectFeatureAudioTrackRenderFallback {
-	readonly role: 'audio-track-render-v1';
-	readonly kind: 'audio';
-	readonly sourceId: string;
-	readonly sha256: string;
-	readonly targetTrackId: string;
-}
-
-export interface ProjectFeatureVideoRenderFallback {
-	readonly role: 'project-video-render-v1';
-	readonly kind: 'video';
-	readonly sourceId: string;
-	readonly sha256: string;
-}
-
-export interface ProjectFeatureVideoClipRenderFallback {
-	readonly role: 'video-clip-render-v1';
-	readonly kind: 'video';
-	readonly sourceId: string;
-	readonly sha256: string;
-	readonly targetClipId: string;
-}
-
-export type ProjectFeatureFallback =
-	| ProjectFeatureAudioMixFallback
-	| ProjectFeatureAudioTrackRenderFallback
-	| ProjectFeatureVideoRenderFallback
-	| ProjectFeatureVideoClipRenderFallback;
-
-export interface ProjectFeatureRequirement {
-	readonly id: string;
-	readonly featureId: string;
-	readonly displayName: string;
-	readonly disposition: ProjectFeatureRequirementDisposition;
-	readonly fallback: ProjectFeatureFallback | null;
-}
-
-export interface ProjectFeatureRequirementsManifest {
-	readonly schemaVersion: 2;
-	readonly requirements: readonly ProjectFeatureRequirement[];
-}
-
-export type ProjectFeatureAvailability = 'available' | 'unavailable' | 'unknown';
-export type ProjectFeatureEffectiveDisposition = 'native' | 'bypassed' | 'rendered-fallback';
-
-export interface ProjectFeatureRequirementsReportItem {
-	readonly requirementId: string;
-	readonly featureId: string;
-	readonly displayName: string;
-	readonly availability: ProjectFeatureAvailability;
-	readonly declaredDisposition: ProjectFeatureRequirementDisposition;
-	readonly disposition: ProjectFeatureEffectiveDisposition;
-	readonly fallback: ProjectFeatureFallback | null;
-	readonly message: string;
-}
-
-export interface ProjectFeatureRequirementsReport {
-	readonly schemaVersion: 1;
-	readonly format: 'soundscaper-project';
-	readonly compatible: boolean;
-	readonly counts: Readonly<Record<ProjectFeatureAvailability, number>>;
-	readonly items: readonly ProjectFeatureRequirementsReportItem[];
-}
-
-interface ProjectSourceReference {
-	readonly id?: unknown;
-	readonly kind?: unknown;
-	readonly frameCount?: unknown;
-	readonly channelCount?: unknown;
-	readonly sampleRate?: unknown;
-	readonly width?: unknown;
-	readonly height?: unknown;
-	readonly frameRate?: unknown;
-	readonly hasAudio?: unknown;
-}
-
-interface ProjectTimelineClipReference {
-	readonly id?: unknown;
-	readonly kind?: unknown;
-	readonly sourceId?: unknown;
-	readonly timelineStartFrame?: unknown;
-	readonly durationFrames?: unknown;
-	readonly videoEffects?: unknown;
-}
-
-interface ProjectTrackReference {
-	readonly id?: unknown;
-	readonly type?: unknown;
-	readonly effectsActive?: unknown;
-	readonly effects?: unknown;
-	readonly clipIds?: unknown;
-}
-
-interface NormalizeProjectFeatureRequirementsOptions {
-	readonly sources: readonly ProjectSourceReference[];
-	readonly clips?: readonly ProjectTimelineClipReference[];
-	readonly tracks?: readonly ProjectTrackReference[];
-}
-
-interface EvaluateProjectFeatureRequirementsOptions {
-	readonly knownFeatureIds: ReadonlySet<string>;
-	readonly availableFeatureIds: ReadonlySet<string>;
-	readonly sources?: readonly ProjectSourceReference[];
-	readonly clips?: readonly ProjectTimelineClipReference[];
-	readonly tracks?: readonly ProjectTrackReference[];
-}
 
 const MANIFEST_KEYS = new Set(['schemaVersion', 'requirements']);
 const REQUIREMENT_KEYS = new Set(['id', 'featureId', 'displayName', 'disposition', 'fallback']);
@@ -206,6 +119,7 @@ function normalizeFallback(
 	sourcesById: ReadonlyMap<string, ProjectSourceReference>,
 	clips: readonly ProjectTimelineClipReference[],
 	tracks: readonly ProjectTrackReference[],
+	options: NormalizeProjectFeatureRequirementsOptions,
 ): ProjectFeatureFallback {
 	const candidate = objectValue(value, 'requirement.fallback');
 	if (manifestSchemaVersion === 1) {
@@ -257,7 +171,7 @@ function normalizeFallback(
 		'requirement.fallback.targetClipId',
 		PROJECT_FEATURE_REQUIREMENTS_LIMITS.maximumSourceIdLength,
 	);
-	validateVideoClipFallback(featureId, targetClipId, sourceId, source, sourcesById, clips);
+	validateVideoClipFallback(featureId, targetClipId, sourceId, source, sourcesById, clips, options);
 	return Object.freeze({
 		role,
 		kind: 'video',
@@ -351,6 +265,7 @@ function validateVideoClipFallback(
 	fallbackSource: ProjectSourceReference,
 	sourcesById: ReadonlyMap<string, ProjectSourceReference>,
 	clips: readonly ProjectTimelineClipReference[],
+	options: NormalizeProjectFeatureRequirementsOptions,
 ): void {
 	if (featureId !== PROJECT_FEATURE_CAPABILITY_IDS.videoEffects) {
 		throw new RangeError('A video clip rendered fallback requires the maintained video-effects feature.');
@@ -378,14 +293,49 @@ function validateVideoClipFallback(
 	if (fallbackSource.hasAudio !== false) {
 		throw new RangeError('A video clip rendered fallback source must have hasAudio false.');
 	}
-	if (fallbackSource.frameCount !== target.durationFrames) {
-		throw new RangeError('A video clip rendered fallback source frameCount must equal the target durationFrames.');
+	const fallbackFrameCount = fallbackSource.sampleFrameCount ?? fallbackSource.frameCount;
+	if (fallbackFrameCount !== resolveVideoClipDurationFrames(target, options)) {
+		throw new RangeError('A video clip rendered fallback source sample-frame count must equal the resolved target duration.');
 	}
-	for (const field of ['sampleRate', 'width', 'height', 'frameRate'] as const) {
+	for (const field of ['sampleRate', 'width', 'height'] as const) {
 		if (fallbackSource[field] !== targetSource[field]) {
 			throw new RangeError(`A video clip rendered fallback source ${field} must match its canonical source.`);
 		}
 	}
+	if (!sameRationalRate(fallbackSource.frameRate, targetSource.frameRate)) {
+		throw new RangeError('A video clip rendered fallback source frameRate must match its canonical source.');
+	}
+}
+
+function resolveVideoClipDurationFrames(
+	target: ProjectTimelineClipReference,
+	options: NormalizeProjectFeatureRequirementsOptions,
+): number {
+	if (Number.isSafeInteger(target.durationFrames) && Number(target.durationFrames) > 0) {
+		return Number(target.durationFrames);
+	}
+	if (!Number.isSafeInteger(target.sequenceFrameCount) || Number(target.sequenceFrameCount) < 1) {
+		throw new RangeError('A video clip rendered fallback target has no resolvable duration.');
+	}
+	if (!Number.isSafeInteger(options.schemaVersion) || !Number.isSafeInteger(options.sampleRate)
+		|| typeof options.primarySequenceId !== 'string') {
+		throw new RangeError('A video clip rendered fallback target has no foundation timeline context.');
+	}
+	return resolveRuntimeClipProjection({
+		schemaVersion: Number(options.schemaVersion),
+		sampleRate: Number(options.sampleRate),
+		sequences: options.sequences,
+		primarySequenceId: options.primarySequenceId,
+	}, target as Readonly<Record<string, unknown>>).durationFrames;
+}
+
+function sameRationalRate(left: unknown, right: unknown): boolean {
+	if (left === right) return true;
+	if (!left || typeof left !== 'object' || Array.isArray(left)
+		|| !right || typeof right !== 'object' || Array.isArray(right)) return false;
+	const leftRate = left as Readonly<Record<string, unknown>>;
+	const rightRate = right as Readonly<Record<string, unknown>>;
+	return leftRate.num === rightRate.num && leftRate.den === rightRate.den;
 }
 
 function sourceMap(sources: readonly ProjectSourceReference[]): ReadonlyMap<string, ProjectSourceReference> {
@@ -444,7 +394,7 @@ export function normalizeProjectFeatureRequirements(
 			throw new TypeError('A rendered-fallback disposition requires a fallback descriptor.');
 		}
 		const fallback = requirement.disposition === 'rendered-fallback'
-			? normalizeFallback(requirement.fallback, manifestSchemaVersion, featureId, sourcesById, clips, tracks)
+			? normalizeFallback(requirement.fallback, manifestSchemaVersion, featureId, sourcesById, clips, tracks, options)
 			: null;
 		return Object.freeze({ id, featureId, displayName, disposition: requirement.disposition, fallback });
 	});
@@ -524,6 +474,10 @@ export function evaluateProjectFeatureRequirements(
 		sources: options.sources ?? evaluationSources(manifest),
 		clips: options.clips ?? [],
 		tracks: options.tracks ?? [],
+		schemaVersion: options.schemaVersion,
+		sampleRate: options.sampleRate,
+		sequences: options.sequences,
+		primarySequenceId: options.primarySequenceId,
 	});
 	const knownFeatureIds = featureIdSet(options.knownFeatureIds, 'knownFeatureIds');
 	const availableFeatureIds = featureIdSet(options.availableFeatureIds, 'availableFeatureIds');

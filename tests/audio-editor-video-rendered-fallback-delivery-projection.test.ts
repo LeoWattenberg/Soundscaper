@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -9,7 +11,6 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
@@ -112,7 +113,7 @@ test('video delivery projects the closed whole-project role across feature ident
 });
 
 test('video delivery replaces only the clip-render target and keeps the unaffected video', () => {
-	const geometry = { frameCount: 8, sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30 } as const;
+	const geometry = { frameCount: 1_600, sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30 } as const;
 	const canonical = createVideoSourceV9({ id: 'clip-target-video', storageKey: 'clip-target-video', ...geometry });
 	const unaffected = createVideoSourceV9({ id: 'unaffected-video', storageKey: 'unaffected-video', ...geometry });
 	const fallback = createVideoSourceV9({ id: 'clip-fallback-video', storageKey: 'clip-fallback-video', ...geometry });
@@ -121,7 +122,7 @@ test('video delivery replaces only the clip-render target and keeps the unaffect
 		videoEffects: [{ id: 'clip-fx', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
 	const other = createVideoClipV9({ id: 'unaffected-clip', sourceId: unaffected.id, durationFrames: 8 });
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'clip-render-delivery', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, unaffected, fallback],
 		clips: [target, other],
@@ -189,7 +190,7 @@ test('video delivery identifies the actual registered unavailable feature', () =
 
 test('video delivery does not traverse future project feature or media state', () => {
 	const future = {
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get featureRequirements(): never { throw new Error('future feature requirements were traversed'); },
 		get sources(): never { throw new Error('future sources were traversed'); },
 		get clips(): never { throw new Error('future clips were traversed'); },
@@ -230,7 +231,7 @@ function combinedFallbackProject() {
 		id: 'canonical-video-clip', sourceId: canonicalVideo.id, durationFrames: 8,
 		videoEffects: [{ id: 'video-effect', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'combined-fallback-project', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonicalAudio, fallbackAudio, canonicalVideo, fallbackVideo],
 		clips: [audioClip, videoClip],
@@ -269,7 +270,7 @@ function videoRequirementProject(requirement: Readonly<{
 	const clip = createVideoClipV9({
 		id: 'canonical-video-clip', sourceId: canonical.id, durationFrames: 8,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: `video-requirement-${requirement.disposition}`,
 		now: '2026-08-02T12:00:00.000Z', sources: [canonical, fallback], clips: [clip],
 		tracks: [createVideoTrackV9({ id: 'canonical-video-track', clipIds: [clip.id] })],

@@ -3,8 +3,7 @@ import { createStableId } from './stable-id.js';
 import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js';
 import { validateProjectBextMetadata } from './project-bext-metadata.ts';
 import { validateAdmProjectChannelCount, validateAdmProjectMetadata } from './adm-project-metadata.ts';
-import { normalizeProjectFeatureRequirements } from './project-feature-requirements.ts';
-import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
+import { preparePersistedProjectCommandDraft, projectForRuntimeConsumers, validateCurrentAudioEditorProject, validateLegacyProjectFeatureRequirements } from './project-current-runtime.ts';
 export { createStableId } from './stable-id.js';
 const AUDIO_EDITOR_SCHEMA_VERSION = 1;
 export const AUDIO_EDITOR_SAMPLE_RATE = 48_000;
@@ -207,8 +206,9 @@ export function clipsOverlap(first, second) {
 
 /** @param {AudioEditorProjectV1} project @returns {number} */
 export function projectDurationFrames(project) {
-	let endFrame = project.clips.reduce((maximum, clip) => Math.max(maximum, clipEndFrame(clip)), 0);
-	for (const track of project.tracks || []) {
+	const runtimeProject = projectForRuntimeConsumers(project);
+	let endFrame = runtimeProject.clips.reduce((maximum, clip) => Math.max(maximum, clipEndFrame(clip)), 0);
+	for (const track of runtimeProject.tracks || []) {
 		if (track.type !== 'label') continue;
 		for (const label of track.labels || []) endFrame = Math.max(endFrame, label.endFrame);
 	}
@@ -263,12 +263,12 @@ export function projectEnvelope(project, options = {}) {
 }
 
 export function commitProject(project, mutate, options = {}) {
-	validateAudioEditorProject(project);
+	const persistedBase = options.persistedBase || project; validateAudioEditorProject(persistedBase);
 	const draft = cloneProject(project);
 	mutate(draft);
 	draft.revision = project.revision + 1;
 	draft.updatedAt = isoTimestamp(options.now);
-	if (draft.schemaVersion === 9) draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(draft, normalizeProjectFeatureRequirements(draft.featureRequirements, { sources: draft.sources, clips: draft.clips, tracks: draft.tracks }));
+	preparePersistedProjectCommandDraft(draft, persistedBase);
 	validateAudioEditorProject(draft);
 	return draft;
 }
@@ -276,6 +276,7 @@ export function commitProject(project, mutate, options = {}) {
 /** @param {AudioEditorProjectV1} project @returns {true} */
 export function validateAudioEditorProject(project) {
 	if (!project || typeof project !== 'object') throw new TypeError('An audio editor project is required.');
+	if (validateCurrentAudioEditorProject(project)) return true;
 	if (project.schemaVersion === 2) return validateProjectV2Shape(project);
 	if (project.schemaVersion === 3) return validateProjectV3Shape(project);
 	if (project.schemaVersion === 4) return validateProjectV4Shape(project);
@@ -283,7 +284,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 6) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata);
 	if (project.schemaVersion === 7) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion === 8) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
-	if (project.schemaVersion === 9) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project) && Boolean(normalizeProjectFeatureRequirements(project.featureRequirements, { sources: project.sources, clips: project.clips, tracks: project.tracks }));
+	if (project.schemaVersion === 9) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project) && validateLegacyProjectFeatureRequirements(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}
@@ -294,7 +295,6 @@ export function validateAudioEditorProject(project) {
 	if (!Array.isArray(project.sources) || !Array.isArray(project.clips) || !Array.isArray(project.tracks)) {
 		throw new TypeError('Project sources, clips, and tracks must be arrays.');
 	}
-
 	assertUniqueIds(project.sources, 'source');
 	assertUniqueIds(project.clips, 'clip');
 	assertUniqueIds(project.tracks, 'track');

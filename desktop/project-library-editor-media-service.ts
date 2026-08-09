@@ -10,6 +10,7 @@ import {
 	createDesktopLibraryMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
 	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
 	isDesktopLibraryManagedMediaBindingId,
 	relativeFileForManagedMediaBinding,
 	type DesktopLibraryManagedMediaEncoding,
@@ -17,11 +18,17 @@ import {
 import { DesktopLibraryMediaReuseUnavailableError } from './project-library-media-reuse.ts';
 import type { DesktopProjectLibraryHost } from './project-library-host.ts';
 import {
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
-} from '../src/common/editor/project-v9-validation.ts';
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../src/common/editor/project-v10-validation.ts';
 import { collectProjectSourceIds } from '../src/common/editor/retention.js';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
+import {
+	managedVideoTimingTransfers,
+	type ManagedAudioSource,
+	type ManagedSource,
+	type ManagedVideoSource,
+} from './project-library-editor-managed-source.ts';
 import { SequentialUploadInput } from './project-library-sequential-upload.ts';
 
 export const MAXIMUM_SHARED_SOURCE_CHUNK_BYTES = 4 * 1024 * 1024;
@@ -31,35 +38,6 @@ export const MAXIMUM_SHARED_SOURCE_SESSIONS = 4;
 
 const DIGEST = /^[a-f0-9]{64}$/u;
 const WRITE_ID = /^[a-f0-9]{32}$/u;
-
-interface ManagedAudioSource extends Record<string, unknown> {
-	readonly id: string;
-	readonly kind: 'audio';
-	readonly storageKey: string;
-	readonly frameCount: number;
-	readonly channelCount: number;
-	readonly sampleRate: number;
-	readonly originalSampleRate: number;
-	readonly sampleFormat: string;
-	readonly chunkFrames: number;
-}
-
-interface ManagedVideoSource extends Record<string, unknown> {
-	readonly id: string;
-	readonly kind: 'video';
-	readonly storageKey: string;
-	readonly mimeType: string;
-	readonly frameCount: number;
-	readonly sampleRate: number;
-	readonly width: number;
-	readonly height: number;
-	readonly frameRate: number;
-	readonly videoCodec: string;
-	readonly audioCodec?: string;
-	readonly hasAudio: boolean;
-}
-
-type ManagedSource = ManagedAudioSource | ManagedVideoSource;
 
 interface DesktopSharedManagedSourceDescriptorBase {
 	readonly bindingId: string;
@@ -72,6 +50,7 @@ interface DesktopSharedManagedSourceDescriptorBase {
 export type DesktopSharedManagedSourceDescriptor = DesktopSharedManagedSourceDescriptorBase & (
 	| Readonly<{ readonly encoding: typeof DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING; readonly kind: 'audio' }>
 	| Readonly<{ readonly encoding: typeof DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING; readonly kind: 'video' }>
+	| Readonly<{ readonly encoding: typeof DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING; readonly kind: 'video-timing' }>
 );
 
 export interface DesktopSharedProjectBundle {
@@ -185,10 +164,10 @@ export class DesktopSharedProjectMediaService {
 				if (existing.byteLength !== expectedBytes) {
 					throw new Error(source.kind === 'audio'
 						? 'Desktop library managed audio does not match its canonical PCM geometry'
-						: 'Desktop library managed original video does not match its declared byte geometry');
+						: 'Desktop library managed retained media does not match its declared byte geometry');
 				}
 				if (existing.sha256 !== request.sha256) {
-					throw new Error(`Desktop library managed ${source.kind === 'audio' ? 'audio' : 'original video'} does not match the source-write declaration`);
+					throw new Error(`Desktop library managed ${source.kind === 'audio' ? 'audio' : 'retained media'} does not match the source-write declaration`);
 				}
 				const sourceDescriptor = managedSourceDescriptor(source, existing, expectedBytes);
 				await this.#host.publishManagedMedia({
@@ -205,7 +184,8 @@ export class DesktopSharedProjectMediaService {
 				this.#assertOpen();
 				return Object.freeze({ status: 'present', source: sourceDescriptor });
 			}
-			const prefix = request.encoding === DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING ? 'm' : 'v';
+			const prefix = request.encoding === DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING ? 'm'
+				: request.encoding === DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING ? 'v' : 't';
 			const reusable = loaded.media.some((media) => isDesktopLibraryManagedMediaBindingId(media.id)
 				&& media.id.startsWith(prefix)
 				&& media.relativeFile === relativeFileForManagedMediaBinding(media.id)
@@ -383,30 +363,33 @@ export class DesktopSharedProjectMediaService {
 	}
 }
 
-function currentProject(loaded: DesktopLibraryLoadedProjectBundle): AudioEditorProjectV9 {
-	validateAudioEditorProjectV9(loaded.project);
-	return loaded.project as AudioEditorProjectV9;
+function currentProject(loaded: DesktopLibraryLoadedProjectBundle): AudioEditorProjectV10 {
+	validateAudioEditorProjectV10(loaded.project);
+	return loaded.project as AudioEditorProjectV10;
 }
 
 function managedSources(
 	loaded: DesktopLibraryLoadedProjectBundle,
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 ): readonly DesktopSharedManagedSourceDescriptor[] {
 	const descriptors: DesktopSharedManagedSourceDescriptor[] = [];
 	for (const sourceId of collectProjectSourceIds(project)) {
-		const source = requiredReachableSource(project, sourceId);
-		const encoding = sourceEncoding(source);
-		const binding = createDesktopLibraryMediaBinding(
-			encoding,
-			project.id,
-			desktopSharedManagedSourceBindingKey(source),
-			project.revision,
-			loaded.catalog.sha256,
-		);
-		const media = loaded.media.find(({ id }) => id === binding.id);
-		if (!media) continue;
-		const expectedBytes = source.kind === 'audio' ? canonicalAudioBytes(source) : positiveVideoBytes(media.byteLength);
-		descriptors.push(managedSourceDescriptor(source, media, expectedBytes));
+		const source = requiredReachableSource(project, sourceId) as ManagedAudioSource | ManagedVideoSource;
+		for (const transfer of [source, ...managedVideoTimingTransfers(source)]) {
+			const encoding = sourceEncoding(transfer);
+			const binding = createDesktopLibraryMediaBinding(
+				encoding,
+				project.id,
+				desktopSharedManagedSourceBindingKey(transfer),
+				project.revision,
+				loaded.catalog.sha256,
+			);
+			const media = loaded.media.find(({ id }) => id === binding.id);
+			if (!media) continue;
+			const expectedBytes = transfer.kind === 'audio' ? canonicalAudioBytes(transfer)
+				: transfer.kind === 'video-timing' ? transfer.byteLength : positiveVideoBytes(media.byteLength);
+			descriptors.push(managedSourceDescriptor(transfer, media, expectedBytes));
+		}
 	}
 	return Object.freeze(descriptors);
 }
@@ -419,7 +402,7 @@ function managedSourceDescriptor(
 	if (media.byteLength !== expectedBytes) {
 		throw new Error(source.kind === 'audio'
 			? 'Desktop library managed audio does not match its canonical PCM geometry'
-			: 'Desktop library managed original video byte geometry is invalid');
+			: 'Desktop library managed retained-media byte geometry is invalid');
 	}
 	const common = {
 		bindingId: media.id,
@@ -430,11 +413,13 @@ function managedSourceDescriptor(
 	};
 	return source.kind === 'audio'
 		? Object.freeze({ ...common, encoding: DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING, kind: 'audio' as const })
-		: Object.freeze({ ...common, encoding: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING, kind: 'video' as const });
+		: source.kind === 'video'
+			? Object.freeze({ ...common, encoding: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING, kind: 'video' as const })
+			: Object.freeze({ ...common, encoding: DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING, kind: 'video-timing' as const });
 }
 
 function requiredReachableSource(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	sourceId: string,
 	encoding?: DesktopLibraryManagedMediaEncoding,
 ): ManagedSource {
@@ -443,12 +428,16 @@ function requiredReachableSource(
 	}
 	const matches = project.sources.filter((candidate) => candidate.id === sourceId);
 	if (matches.length !== 1) throw new ReferenceError('Desktop shared-source declaration has no unique project source');
-	const source = matches[0] as ManagedSource;
+	const source = matches[0] as ManagedAudioSource | ManagedVideoSource;
 	if (source.kind !== 'audio' && source.kind !== 'video') throw new TypeError('Desktop managed-source kind is unsupported');
-	if (encoding && sourceEncoding(source) !== encoding) {
+	const transfer = encoding === DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING
+		? managedVideoTimingTransfers(source)[0]
+		: source;
+	if (!transfer) throw new ReferenceError('Desktop shared-source timing asset is unavailable');
+	if (encoding && sourceEncoding(transfer) !== encoding) {
 		throw new TypeError('Desktop shared-source encoding does not match its reachable source kind');
 	}
-	return source;
+	return transfer;
 }
 
 function sourceWriteDeclaration(value: unknown): DesktopSharedSourceWriteDeclaration {
@@ -458,8 +447,8 @@ function sourceWriteDeclaration(value: unknown): DesktopSharedSourceWriteDeclara
 	const record = value as Record<string, unknown>;
 	const encoding = sourceEncodingFromValue(record.encoding);
 	const byteLength = boundedBytes(record.byteLength);
-	if (encoding === DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING && byteLength === 0) {
-		throw new RangeError('Desktop shared-source original video byte length must be positive');
+	if (encoding !== DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING && byteLength === 0) {
+			throw new RangeError('Desktop shared-source retained-media byte length must be positive');
 	}
 	return Object.freeze({
 		byteLength,
@@ -486,6 +475,12 @@ function canonicalAudioBytes(source: ManagedAudioSource): number {
 
 function declaredSourceBytes(source: ManagedSource, declaredBytes: number): number {
 	if (source.kind === 'video') return positiveVideoBytes(declaredBytes);
+	if (source.kind === 'video-timing') {
+		if (declaredBytes !== source.byteLength) {
+			throw new RangeError('Desktop shared-source timing declaration does not match its canonical byte length');
+		}
+		return source.byteLength;
+	}
 	const canonicalBytes = canonicalAudioBytes(source);
 	if (canonicalBytes !== declaredBytes) {
 		throw new RangeError('Desktop shared-source declaration does not match canonical PCM geometry');
@@ -499,21 +494,27 @@ export function desktopSharedManagedSourceBindingKey(source: ManagedSource): str
 			source.storageKey, source.frameCount, source.channelCount, source.sampleRate,
 			source.originalSampleRate, source.sampleFormat, source.chunkFrames,
 		])
-		: JSON.stringify([
-			source.storageKey, source.mimeType, source.frameCount, source.sampleRate,
-			source.width, source.height, source.frameRate, source.videoCodec,
-			source.audioCodec, source.hasAudio,
-		]);
+		: source.kind === 'video' ? JSON.stringify([
+			source.storageKey, source.mimeType, source.sampleFrameCount, source.sourceFrameCount,
+			source.sampleRate, source.width, source.height, source.frameRate.num,
+				source.frameRate.den, source.videoCodec,
+				source.audioCodec, source.hasAudio,
+			source.contentSha256 ?? null, source.timingAsset ?? null,
+		]) : JSON.stringify([source.storageKey, source.byteLength, source.sha256]);
 }
 
 function sourceEncoding(source: ManagedSource): DesktopLibraryManagedMediaEncoding {
 	return source.kind === 'audio'
 		? DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING
-		: DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING;
+		: source.kind === 'video'
+			? DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING
+			: DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING;
 }
 
 function sourceEncodingFromValue(value: unknown): DesktopLibraryManagedMediaEncoding {
-	if (value !== DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING && value !== DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING) {
+	if (value !== DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING
+		&& value !== DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING
+		&& value !== DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING) {
 		throw new TypeError('Desktop shared-source write declaration has an unsupported encoding');
 	}
 	return value;

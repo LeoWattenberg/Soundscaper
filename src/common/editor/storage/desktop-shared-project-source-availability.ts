@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
-} from '../project-v9.ts';
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../project-v10-validation.ts';
 import { collectProjectSourceIds } from '../retention.js';
 import { SCAPE_ARCHIVE_LIMITS } from '../scape-archive-envelope.ts';
 import { scapeAudioSourceLayout } from '../scape-archive-media.ts';
@@ -104,13 +104,13 @@ interface VideoAvailabilityPlan {
 const MAXIMUM_SOURCE_TARGETS = SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 
-export function desktopSharedProjectHasSourceReferences(project: AudioEditorProjectV9): boolean {
+export function desktopSharedProjectHasSourceReferences(project: AudioEditorProjectV10): boolean {
 	return collectProjectSourceIds(project).size > 0;
 }
 
 /**
  * Proves a point-in-time, read-only recipient-local outcome for every durable
- * exact-V9 source reference. The prior local revision binds otherwise opaque
+ * exact-V10 source reference. The prior local revision binds otherwise opaque
  * storage keys to this project; this operation neither copies nor relinks data.
  */
 export async function verifyDesktopSharedProjectSourceAvailability(
@@ -121,8 +121,8 @@ export async function verifyDesktopSharedProjectSourceAvailability(
 ): Promise<void> {
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
-	validateAudioEditorProjectV9(project);
-	const current = project as AudioEditorProjectV9;
+	validateAudioEditorProjectV10(project);
+	const current = project as AudioEditorProjectV10;
 	const sources = captureReachableSources(current);
 	if (!sources.length) return;
 	if (sources.length > MAXIMUM_SOURCE_TARGETS) {

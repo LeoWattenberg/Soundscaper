@@ -195,6 +195,9 @@ function clipVideoProject(): MutableProject {
 
 interface MutableProject {
 	schemaVersion: number;
+	sampleRate: number;
+	primarySequenceId: string;
+	sequences: Array<Record<string, unknown>>;
 	sources: Array<Record<string, unknown>>;
 	clips: Array<Record<string, unknown>>;
 	featureRequirements: {
@@ -211,7 +214,10 @@ interface MutableProject {
 
 function project(fallback: Record<string, unknown>): MutableProject {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
+		sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		sources: [{
 			id: 'canonical-video', kind: 'video', storageKey: 'canonical-video',
 			frameCount: 48, sampleRate: 48_000, width: 1_920, height: 1_080,
@@ -242,7 +248,10 @@ function project(fallback: Record<string, unknown>): MutableProject {
 
 function audioProject(): Record<string, unknown> {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
+		sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		sources: [{
 			id: 'rendered-audio', kind: 'audio', storageKey: 'rendered-audio',
 			frameCount: 1, channelCount: 1, chunkFrames: 1, sampleRate: 48_000,

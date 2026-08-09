@@ -4,8 +4,8 @@ import test from 'node:test';
 import { convertLegacyAupToProject } from '../src/common/editor/aup-legacy-conversion.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	validateAudioEditorProjectV9,
-} from '../src/common/editor/project-v9.ts';
+	validateAudioEditorProjectV10,
+} from '../src/common/editor/project-v10.ts';
 
 test('legacy AUP conversion materializes audio and labels without a dry mix', () => {
 	const ids = ['project', 'track', 'source', 'clip', 'labels', 'label'];
@@ -45,5 +45,5 @@ test('legacy AUP conversion materializes audio and labels without a dry mix', ()
 	assert.equal(converted.project.clips[0].pitchCents, 200);
 	assert.equal(converted.project.tracks[1].labels[0].startFrame, 88_200);
 	assert.equal(converted.sources[0].channels.length, 2);
-	assert.equal(validateAudioEditorProjectV9(converted.project), true);
+	assert.equal(validateAudioEditorProjectV10(converted.project), true);
 });

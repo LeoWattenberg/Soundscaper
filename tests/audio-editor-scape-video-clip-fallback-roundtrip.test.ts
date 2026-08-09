@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureVideoClipRenderFallback } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
@@ -29,7 +29,7 @@ const FALLBACK_DIGEST = digestScapeBytes(FALLBACK_BODY);
 type ProjectStore = ReturnType<typeof createProjectStore>;
 
 interface ScapeImportResult {
-	readonly project: AudioEditorProjectV9;
+	readonly project: AudioEditorProjectV10;
 	readonly collision: 'copy' | 'replace' | null;
 }
 
@@ -52,7 +52,7 @@ test('portable Scape preserves a clip-local rendered fallback in a fresh recipie
 
 	const reopenedValue = await recipient.loadProject(PROJECT_ID);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV9;
+	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
 	assertClipFallbackRelationship(reopened, FALLBACK_SOURCE_ID);
 	await assertStoredFallback(recipient, reopened, FALLBACK_SOURCE_ID, FALLBACK_BODY);
 });
@@ -64,7 +64,7 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 	await persistProjectMedia(sender);
 	const exported = await exportScapeProject(project, sender);
 
-	await recipient.saveProject(createAudioEditorProjectV9({
+	await recipient.saveProject(createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Existing recipient project',
 		now: NOW,
@@ -88,12 +88,12 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 
 	const reopenedValue = await recipient.loadProject(copied.project.id);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV9;
+	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
 	assertClipFallbackRelationship(reopened, copiedFallback.sourceId);
 	assert.equal(clipFallback(reopened).targetClipId, TARGET_CLIP_ID);
 });
 
-function clipFallbackProject(): AudioEditorProjectV9 {
+function clipFallbackProject(): AudioEditorProjectV10 {
 	const canonicalSource = createVideoSourceV9({
 		id: CANONICAL_SOURCE_ID,
 		storageKey: CANONICAL_SOURCE_ID,
@@ -113,7 +113,7 @@ function clipFallbackProject(): AudioEditorProjectV9 {
 		storageKey: FALLBACK_SOURCE_ID,
 		name: 'Rendered target.mp4',
 		mimeType: 'video/mp4',
-		frameCount: 20,
+		frameCount: 1_600,
 		sampleRate: 48_000,
 		width: 1_280,
 		height: 720,
@@ -138,7 +138,7 @@ function clipFallbackProject(): AudioEditorProjectV9 {
 			params: { blockSize: 12 },
 		}],
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Portable video clip fallback',
 		now: NOW,
@@ -169,7 +169,7 @@ function clipFallbackProject(): AudioEditorProjectV9 {
 	});
 }
 
-function assertClipFallbackRelationship(project: AudioEditorProjectV9, fallbackSourceId: string): void {
+function assertClipFallbackRelationship(project: AudioEditorProjectV10, fallbackSourceId: string): void {
 	const fallback = clipFallback(project);
 	assert.deepEqual(fallback, {
 		role: 'video-clip-render-v1',
@@ -184,7 +184,7 @@ function assertClipFallbackRelationship(project: AudioEditorProjectV9, fallbackS
 	assert.ok(project.sources.some((source) => source.id === fallbackSourceId));
 }
 
-function clipFallback(project: AudioEditorProjectV9): ProjectFeatureVideoClipRenderFallback {
+function clipFallback(project: AudioEditorProjectV10): ProjectFeatureVideoClipRenderFallback {
 	const fallback = project.featureRequirements.requirements.find(
 		({ id }) => id === 'publisher-video-effects-render',
 	)?.fallback;
@@ -196,7 +196,7 @@ function clipFallback(project: AudioEditorProjectV9): ProjectFeatureVideoClipRen
 
 async function assertStoredFallback(
 	store: ProjectStore,
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	fallbackSourceId: string,
 	expectedBody: Uint8Array,
 ): Promise<void> {

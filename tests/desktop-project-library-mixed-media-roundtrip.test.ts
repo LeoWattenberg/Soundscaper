@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
@@ -16,14 +18,11 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import {
 	parseScapeProjectDocument,
@@ -147,7 +146,7 @@ test('mixed media returns to the original Soundscaper profile without copying lo
 	assert.deepEqual(new Set(frameProbe.bodyReads.map(({ bindingId }) => bindingId[0])), new Set(['m', 'v']));
 	assertManagedRevision(frameHost, fixture, 1, 'fresh acquisition must not publish shared media');
 
-	actions(framescaper).rename('Mixed picture edit in Framescaper');
+	await actions(framescaper).rename('Mixed picture edit in Framescaper');
 	const frameEdit = exactProject(framescaper.getSnapshot().project);
 	assert.deepEqual(frameEdit, {
 		...fixture.project,
@@ -250,7 +249,7 @@ function mixedProjectFixture() {
 		id: 'roundtrip-bin-video', binItemId: 'roundtrip-bin-item', sourceId: video.id,
 		title: 'Original picture master', durationFrames: 48_000, sourceDurationFrames: 48_000,
 	});
-	const project = exactProject(createAudioEditorProjectV9({
+	const project = exactProject(createAudioEditorProjectV10({
 		id: 'mixed-media-roundtrip-project', title: 'Mixed media roundtrip', revision: 3,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: 48_000,
 		sources: [audio, video], clips: [audioClip, videoClip],
@@ -490,13 +489,13 @@ async function assertManagedBodiesReused(
 	}
 }
 
-async function projectHistory(store: AudioEditorProjectStore, projectId: string): Promise<AudioEditorProjectV9[]> {
+async function projectHistory(store: AudioEditorProjectStore, projectId: string): Promise<AudioEditorProjectV10[]> {
 	return (await store.listProjectRevisions(projectId)).map(({ project }) => exactProject(project));
 }
 
-function exactProject(value: unknown): AudioEditorProjectV9 {
+function exactProject(value: unknown): AudioEditorProjectV10 {
 	const project = typeof value === 'string' ? parseScapeProjectDocument(value) : value;
-	if (!validateAudioEditorProjectV9(project)) throw new TypeError('Expected an exact-V9 project.');
+	if (!validateAudioEditorProjectV10(project)) throw new TypeError('Expected an exact-V10 project.');
 	if (typeof value === 'string') assert.equal(serializeScapeProjectDocument(project), value);
 	return project;
 }

@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import {
 	DesktopSharedProjectSourceUnavailableError,
@@ -542,7 +542,7 @@ function videoSource(
 function projectWithSources(
 	id: string,
 	sources: readonly Readonly<Record<string, unknown>>[],
-): AudioEditorProjectV9 {
+): AudioEditorProjectV10 {
 	const timelineClips: Readonly<Record<string, unknown>>[] = [];
 	const tracks: Readonly<Record<string, unknown>>[] = [];
 	const binClips: Readonly<Record<string, unknown>>[] = [];
@@ -568,7 +568,7 @@ function projectWithSources(
 			? createVideoClipV9(clipOptions)
 			: createAudioClipV9(clipOptions));
 	}
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id,
 		title: `Project ${id}`,
 		revision: 2,
@@ -581,10 +581,10 @@ function projectWithSources(
 }
 
 function priorProject(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	sources: readonly Readonly<Record<string, unknown>>[] = project.sources,
-): AudioEditorProjectV9 {
-	return structuredClone({
+): AudioEditorProjectV10 {
+	return createAudioEditorProjectV10({
 		...project,
 		revision: 1,
 		createdAt: PRIOR_NOW,

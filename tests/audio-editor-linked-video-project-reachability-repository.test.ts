@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { LINKED_ORIGINAL_BINDING_SCHEMA_VERSION } from '../src/common/editor/storage/linked-original-binding.ts';
 import { LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME } from '../src/common/editor/storage/linked-original-provisional-root.ts';
@@ -161,7 +161,7 @@ test('unknown current and retained projects suppress cleanup before the binding 
 		({ store }) => store === LINKED_VIDEO_ORIGINAL_STORE_NAME,
 	).length ?? 0;
 
-	fixture.indexedDB?.seedRecord(fixture.databaseName, 'projects', { ...valid, schemaVersion: 10 });
+	fixture.indexedDB?.seedRecord(fixture.databaseName, 'projects', { ...valid, schemaVersion: 11 });
 	assert.equal(await fixture.reachability.pruneProjectBindings(PROJECT_ID, []), null);
 	assert.equal(bindingCursorCount(), 0);
 
@@ -431,7 +431,7 @@ function rootedProject(
 		bin?: TestVideoSource;
 		fallback?: TestVideoSource;
 	}>,
-): AudioEditorProjectV9 {
+): AudioEditorProjectV10 {
 	const sources = [roots.timeline, roots.bin, roots.fallback].filter(
 		(source): source is TestVideoSource => source !== undefined,
 	);
@@ -448,7 +448,7 @@ function rootedProject(
 		durationFrames: roots.bin.frameCount,
 		sourceDurationFrames: roots.bin.frameCount,
 	}) : null;
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Reachability fixture',
 		revision,

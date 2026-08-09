@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -16,10 +18,8 @@ import {
 import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 
 const PROJECT_ID = 'managed-media-freshness-project';
@@ -91,7 +91,7 @@ test('present admission rejects stale renderer revisions and mismatched catalog 
 	assert.equal(corruptHost.publications.length, 0);
 });
 
-function fakeHost(projectValue: AudioEditorProjectV9, mediaValues: readonly DesktopLibraryMedia[]) {
+function fakeHost(projectValue: AudioEditorProjectV10, mediaValues: readonly DesktopLibraryMedia[]) {
 	const publications: DesktopProjectLibraryHostPublishMediaOptions[] = [];
 	const loaded = bundle(projectValue, mediaValues);
 	return {
@@ -113,7 +113,7 @@ function fakeHost(projectValue: AudioEditorProjectV9, mediaValues: readonly Desk
 	};
 }
 
-function project(revision: number): AudioEditorProjectV9 {
+function project(revision: number): AudioEditorProjectV10 {
 	const source = createAudioSourceV9({
 		id: SOURCE_ID,
 		name: 'Managed media freshness source',
@@ -127,7 +127,7 @@ function project(revision: number): AudioEditorProjectV9 {
 		chunkFrames: 2,
 	});
 	const clip = createAudioClipV9({ id: 'freshness-clip', sourceId: source.id, durationFrames: 4 });
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Managed media freshness',
 		revision,
@@ -140,7 +140,7 @@ function project(revision: number): AudioEditorProjectV9 {
 }
 
 function media(
-	projectValue: AudioEditorProjectV9,
+	projectValue: AudioEditorProjectV10,
 	source: AudioSource,
 	sha256: string,
 	projectSha256 = '0'.repeat(64),
@@ -155,7 +155,7 @@ function media(
 }
 
 function declaration(
-	projectValue: AudioEditorProjectV9,
+	projectValue: AudioEditorProjectV10,
 	source: AudioSource,
 	sha256: string,
 ): DesktopSharedSourceWriteDeclaration {
@@ -170,7 +170,7 @@ function declaration(
 }
 
 function bundle(
-	projectValue: AudioEditorProjectV9,
+	projectValue: AudioEditorProjectV10,
 	mediaValues: readonly DesktopLibraryMedia[],
 ): DesktopLibraryLoadedProjectBundle {
 	const catalog: DesktopLibraryProject = Object.freeze({
@@ -180,7 +180,7 @@ function bundle(
 		metadataFile: 'projects/managed-media-freshness-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 9,
+		projectSchemaVersion: 10,
 		projectRevision: projectValue.revision,
 		byteLength: 1,
 		sha256: '0'.repeat(64),

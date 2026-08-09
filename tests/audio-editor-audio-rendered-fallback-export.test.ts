@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -19,7 +21,6 @@ import {
 import type { ProjectAudioFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
@@ -280,7 +281,7 @@ function canonicalProject(
 	const clip = createAudioClipV9({
 		id: 'canonical-clip', sourceId: original.id, durationFrames: original.frameCount,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'audio-fallback-export', now: '2026-08-02T12:00:00.000Z',
 		sources: [original, fallback], clips: [clip],
 		tracks: [createAudioTrackV9({ id: 'canonical-track', clipIds: [clip.id] })],

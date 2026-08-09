@@ -12,7 +12,7 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import { ScapeAudioChunkBudget } from '../src/common/editor/scape-expanded-byte-budget.ts';
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import {
@@ -166,7 +166,7 @@ test('export rejects projects outside the importable entry envelope before asset
 
 test('export rejects aggregate PCM work outside the portable archive budget before asset reads', async () => {
 	let assetReads = 0;
-	const project = createAudioEditorProjectV6({
+	const project = createAudioEditorProjectV10({
 		id: 'too-many-audio-chunks',
 		title: 'Too many audio chunks',
 		sources: [
@@ -239,7 +239,7 @@ test('overlapping local entry ranges are rejected before manifest or storage pub
 
 test('compressed Scape entries reject from metadata before decompression or storage work', async () => {
 	const sourceStore = memoryStore('scape-compression-source');
-	const project = createAudioEditorProjectV6({
+	const project = createAudioEditorProjectV10({
 		id: 'compressed-scape',
 		title: 'Compressed Scape',
 		sources: [],
@@ -430,11 +430,11 @@ async function inventory(store: ReturnType<typeof memoryStore>) {
 }
 
 function projectOnly(id: string) {
-	return createAudioEditorProjectV6({ id, title: id, sources: [], clips: [], tracks: [] });
+	return createAudioEditorProjectV10({ id, title: id, sources: [], clips: [], tracks: [] });
 }
 
 function videoProject(id: string) {
-	return createAudioEditorProjectV6({
+	return createAudioEditorProjectV10({
 		id,
 		title: id,
 		sources: [{
@@ -448,7 +448,7 @@ function videoProject(id: string) {
 }
 
 function audioProject(id: string, overrides: Readonly<{ frameCount?: number; chunkFrames?: number }> = {}) {
-	return createAudioEditorProjectV6({
+	return createAudioEditorProjectV10({
 		id,
 		title: id,
 		sources: [{

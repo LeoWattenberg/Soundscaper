@@ -4,6 +4,7 @@ import {
 	videoClipEndFrame,
 } from './video-timeline.js';
 import { normalizeVideoEffects } from './video-effects.js';
+import { resolveRuntimeProjectProjection } from './runtime-clip-projection.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -61,13 +62,14 @@ export function getVideoExportFormat(format = 'mp4') {
  * even numbers, and fit within 1280x720 unless the caller narrows the limits.
  */
 export function resolveVideoExportCanvas(project, options = {}) {
+	const runtimeProject = ensureRuntimeProject(project);
 	const maximumWidth = positiveEvenLimit(options.maximumWidth ?? DEFAULT_MAXIMUM_WIDTH, 'maximumWidth');
 	const maximumHeight = positiveEvenLimit(options.maximumHeight ?? DEFAULT_MAXIMUM_HEIGHT, 'maximumHeight');
 	const maximumFrameRate = positiveFiniteNumber(
 		options.maximumFrameRate ?? DEFAULT_MAXIMUM_FRAME_RATE,
 		'maximumFrameRate',
 	);
-	const reference = firstVisibleTimelineVideo(project, options);
+	const reference = firstVisibleTimelineVideo(runtimeProject, options);
 	const sourceWidth = optionalPositiveInteger(options.width, 'width')
 		?? optionalPositiveInteger(reference?.source.width, 'source.width')
 		?? maximumWidth;
@@ -78,7 +80,7 @@ export function resolveVideoExportCanvas(project, options = {}) {
 	const width = evenFloor(sourceWidth * scale);
 	const height = evenFloor(sourceHeight * scale);
 	const requestedFrameRate = optionalPositiveNumber(options.frameRate, 'frameRate')
-		?? optionalPositiveNumber(reference?.source.frameRate, 'source.frameRate')
+		?? optionalPositiveRate(reference?.source.frameRate, 'source.frameRate')
 		?? maximumFrameRate;
 	const frameRate = Math.min(maximumFrameRate, requestedFrameRate);
 
@@ -102,12 +104,13 @@ export function resolveVideoExportCanvas(project, options = {}) {
  * canvas, codec, and staged-audio metadata.
  */
 export function createVideoExportPlan(project, options = {}) {
-	const projectSampleRate = positiveSafeInteger(project?.sampleRate, 'project.sampleRate');
+	const runtimeProject = ensureRuntimeProject(project);
+	const projectSampleRate = positiveSafeInteger(runtimeProject.sampleRate, 'project.sampleRate');
 	const format = getVideoExportFormat(options.format || 'mp4');
-	const range = resolveExportRange(project, options.range || 'project');
+	const range = resolveExportRange(runtimeProject, options.range || 'project');
 	if (range.durationFrames <= 0) throw new RangeError('Video export range must contain at least one frame.');
-	const canvas = resolveVideoExportCanvas(project, options.canvas || {});
-	const compositionIntervals = resolveVideoCompositionIntervals(project, {
+	const canvas = resolveVideoExportCanvas(runtimeProject, options.canvas || {});
+	const compositionIntervals = resolveVideoCompositionIntervals(runtimeProject, {
 		startFrame: range.startFrame,
 		endFrame: range.endFrame,
 		blackColor: canvas.backgroundColor,
@@ -407,6 +410,21 @@ function optionalPositiveInteger(value, name) {
 function optionalPositiveNumber(value, name) {
 	if (value == null) return null;
 	return positiveFiniteNumber(value, name);
+}
+
+function optionalPositiveRate(value, name) {
+	if (value == null) return null;
+	if (typeof value === 'object' && !Array.isArray(value)) {
+		const num = positiveSafeInteger(value.num, `${name}.num`);
+		const den = positiveSafeInteger(value.den, `${name}.den`);
+		return num / den;
+	}
+	return positiveFiniteNumber(value, name);
+}
+
+function ensureRuntimeProject(project) {
+	if (project?.runtimeProjectionVersion) return project;
+	return resolveRuntimeProjectProjection(project);
 }
 
 function positiveFiniteNumber(value, name) {

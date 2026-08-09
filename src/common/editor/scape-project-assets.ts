@@ -6,7 +6,7 @@ import {
 	type ProjectFeatureFallback,
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 
 interface ScapeProjectWithSources {
 	readonly schemaVersion?: unknown;
@@ -14,6 +14,9 @@ interface ScapeProjectWithSources {
 	readonly sources: readonly unknown[];
 	readonly clips?: readonly unknown[];
 	readonly tracks?: readonly unknown[];
+	readonly sampleRate?: unknown;
+	readonly sequences?: readonly Readonly<Record<string, unknown>>[];
+	readonly primarySequenceId?: unknown;
 }
 
 interface ScapeManifestAssets {
@@ -42,11 +45,12 @@ export function indexScapeProjectAssets(
 	manifest: ScapeManifestAssets,
 ): ReadonlyMap<string, ScapeAssetDescriptor> {
 	const sources = projectSources(project);
-	if (sources.length !== manifest.assets.length) {
+	const sourceAssets = manifest.assets.filter(({ kind }) => kind !== 'video-timing');
+	if (sources.length !== sourceAssets.length) {
 		throw new Error('The .scape project sources and manifest assets do not form a one-to-one mapping.');
 	}
 	const assetBySourceId = new Map<string, ScapeAssetDescriptor>();
-	for (const asset of manifest.assets) {
+	for (const asset of sourceAssets) {
 		if (assetBySourceId.has(asset.sourceId)) {
 			throw new Error(`Duplicate .scape source asset: ${asset.sourceId}.`);
 		}
@@ -76,7 +80,36 @@ export function indexScapeProjectAssets(
 		}
 	}
 	assertScapeProjectFallbackAssets(snapshotScapeProjectFallbackIntegrity(project).claims, assetBySourceId);
+	indexScapeProjectTimingAssets(project, manifest);
 	return assetBySourceId;
+}
+
+export function indexScapeProjectTimingAssets(
+	project: unknown,
+	manifest: ScapeManifestAssets,
+): ReadonlyMap<string, ScapeAssetDescriptor> {
+	const timingAssets = manifest.assets.filter(({ kind }) => kind === 'video-timing');
+	const byStorageKey = new Map(timingAssets.map((asset) => [asset.sourceId, asset]));
+	if (byStorageKey.size !== timingAssets.length) throw new Error('The .scape archive contains duplicate timing assets.');
+	const referenced = new Set<string>();
+	for (const value of projectSources(project)) {
+		if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+		const source = value as Record<string, unknown>;
+		if (source.kind !== 'video' || source.timingAsset == null) continue;
+		if (!source.timingAsset || typeof source.timingAsset !== 'object' || Array.isArray(source.timingAsset)) {
+			throw new TypeError(`Source ${String(source.id)} has an invalid timing reference.`);
+		}
+		const reference = source.timingAsset as Record<string, unknown>;
+		const storageKey = String(reference.storageKey);
+		const asset = byStorageKey.get(storageKey);
+		if (!asset || asset.sha256 !== reference.sha256 || asset.size !== reference.byteLength
+			|| asset.encoding !== reference.encoding) {
+			throw new Error(`The .scape archive is missing the bound timing asset for source ${String(source.id)}.`);
+		}
+		referenced.add(storageKey);
+	}
+	if (referenced.size !== timingAssets.length) throw new Error('The .scape archive contains an unreferenced timing asset.');
+	return byStorageKey;
 }
 
 /** Snapshots the bounded normalized fallback contract from the exact current project schema. */
@@ -93,7 +126,15 @@ export function snapshotScapeProjectFallbackIntegrity(project: unknown): ScapePr
 	const tracks = Array.isArray(candidate.tracks)
 		? candidate.tracks as readonly Readonly<Record<string, unknown>>[]
 		: [];
-	const manifest = normalizeProjectFeatureRequirements(candidate.featureRequirements, { sources, clips, tracks });
+	const manifest = normalizeProjectFeatureRequirements(candidate.featureRequirements, {
+		sources,
+		clips,
+		tracks,
+		schemaVersion: candidate.schemaVersion,
+		sampleRate: candidate.sampleRate,
+		sequences: candidate.sequences,
+		primarySequenceId: candidate.primarySequenceId,
+	});
 	const claims = Object.freeze(manifest.requirements.flatMap((requirement) => (
 		requirement.disposition === 'rendered-fallback' && requirement.fallback
 			? [Object.freeze({ ...requirement.fallback })]

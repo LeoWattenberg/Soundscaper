@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	createAudioEditorProjectV10,
+	createVideoSourceV10,
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
@@ -12,12 +19,7 @@ import {
 	type ProjectVideoFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
 import {
-	createAudioEditorProjectV9,
-	createVideoClipV9,
-	createVideoSourceV9,
 	createVideoTrackV9,
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
@@ -105,7 +107,7 @@ test('fresh recipient activates an exact clip-render fallback after managed hand
 		revision: fixture.project.revision,
 	});
 	assert.ok(reopened);
-	if (!validateAudioEditorProjectV9(reopened)) throw new Error('Recipient did not reopen an exact V9 project.');
+	if (!validateAudioEditorProjectV10(reopened)) throw new Error('Recipient did not reopen an exact V9 project.');
 	assert.notStrictEqual(reopened, fixture.project);
 	assertCanonicalRelationship(reopened, fixture, canonicalDocument);
 
@@ -158,7 +160,7 @@ interface ClipFallbackFixture {
 	readonly bodyBySourceId: ReadonlyMap<string, Uint8Array>;
 	readonly fallbackDigest: string;
 	readonly fallbackSourceId: string;
-	readonly project: AudioEditorProjectV9;
+	readonly project: AudioEditorProjectV10;
 	readonly sources: readonly FixtureVideoSource[];
 	readonly targetClipId: string;
 	readonly targetSourceId: string;
@@ -179,38 +181,43 @@ function clipFallbackFixture(): ClipFallbackFixture {
 	const fallbackSourceId = 'rendered-target-video';
 	const targetClipId = 'target-video-clip';
 	const unaffectedClipId = 'unaffected-video-clip';
-	const targetSource = createVideoSourceV9({
+	const targetSource = createVideoSourceV10({
 		id: targetSourceId, storageKey: 'canonical-target-video-storage',
-		name: 'Target.mp4', mimeType: 'video/mp4', frameCount: 120,
-		sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080, frameRate: 30,
+		name: 'Target.mp4', mimeType: 'video/mp4', sampleFrameCount: 192_000,
+		sourceFrameCount: 120, sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
+		frameRate: { num: 30, den: 1 },
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	}) as unknown as FixtureVideoSource;
-	const unaffectedSource = createVideoSourceV9({
+	const unaffectedSource = createVideoSourceV10({
 		id: unaffectedSourceId, storageKey: 'canonical-unaffected-video-storage',
-		name: 'Unaffected.mp4', mimeType: 'video/mp4', frameCount: 24,
-		sampleRate: SAMPLE_RATE, width: 1_280, height: 720, frameRate: 24,
+		name: 'Unaffected.mp4', mimeType: 'video/mp4', sampleFrameCount: 48_000,
+		sourceFrameCount: 24, sampleRate: SAMPLE_RATE, width: 1_280, height: 720,
+		frameRate: { num: 24, den: 1 },
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	}) as unknown as FixtureVideoSource;
-	const fallbackSource = createVideoSourceV9({
+	const fallbackSource = createVideoSourceV10({
 		id: fallbackSourceId, storageKey: 'rendered-target-video-storage',
-		name: 'Rendered target.mp4', mimeType: 'video/mp4', frameCount: 20,
-		sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
-		frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
+		name: 'Rendered target.mp4', mimeType: 'video/mp4', sampleFrameCount: 32_000,
+		sourceFrameCount: 20, sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
+		frameRate: { num: 30, den: 1 }, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	}) as unknown as FixtureVideoSource;
-	const targetClip = createVideoClipV9({
+	const targetClip = {
+		kind: 'video',
 		id: targetClipId, sourceId: targetSourceId, title: 'Effect shot',
-		timelineStartFrame: 12, sourceStartFrame: 8, sourceDurationFrames: 40,
-		durationFrames: 20, trimStartFrames: 2, trimEndFrames: 3, speedRatio: 2,
+		sequenceId: 'main-sequence', sequenceStartFrame: 12, sequenceFrameCount: 20,
+		sourceInFrame: 8, sourceFrameCount: 40,
+		trimStartFrames: 2, trimEndFrames: 3, speedRatio: 2,
 		groupId: 'scene-a',
 		videoEffects: [createVideoEffect('pixelate', { id: 'pixelate-target' })],
-	});
-	const unaffectedClip = createVideoClipV9({
+	};
+	const unaffectedClip = {
+		kind: 'video',
 		id: unaffectedClipId, sourceId: unaffectedSourceId, title: 'Unaffected shot',
-		timelineStartFrame: 48, sourceStartFrame: 2, sourceDurationFrames: 12,
-		durationFrames: 12, groupId: 'scene-b',
-	});
+		sequenceId: 'main-sequence', sequenceStartFrame: 48, sequenceFrameCount: 12,
+		sourceInFrame: 2, sourceFrameCount: 12, groupId: 'scene-b',
+	};
 	const fallbackBody = Uint8Array.of(0x66, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63, 0x6b);
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'managed-clip-fallback-project', title: 'Managed clip fallback', revision: 3,
 		now: '2026-08-03T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [targetSource, unaffectedSource, fallbackSource],
@@ -251,7 +258,7 @@ function clipFallbackFixture(): ClipFallbackFixture {
 
 function assertProjectedClipFallback(
 	projection: Readonly<{
-		project: AudioEditorProjectV9;
+		project: AudioEditorProjectV10;
 		videoRenderedFallback: Readonly<{
 			role: string;
 			sourceId: string;
@@ -260,7 +267,7 @@ function assertProjectedClipFallback(
 		requiredVideoSourceIds: readonly string[];
 	}>,
 	fixture: ClipFallbackFixture,
-	canonicalProject: AudioEditorProjectV9,
+	canonicalProject: AudioEditorProjectV10,
 ): void {
 	assert.deepEqual(projection.videoRenderedFallback, {
 		schemaVersion: 1,
@@ -278,8 +285,9 @@ function assertProjectedClipFallback(
 	assert.deepEqual(projectedTarget, {
 		...canonicalTarget,
 		sourceId: fixture.fallbackSourceId,
-		sourceStartFrame: 0,
-		sourceDurationFrames: canonicalTarget.durationFrames,
+		sourceInFrame: 0,
+		sourceFrameCount: 20,
+		retimeMap: null,
 		trimStartFrames: 0,
 		trimEndFrames: 0,
 		speedRatio: 1,
@@ -290,7 +298,7 @@ function assertProjectedClipFallback(
 }
 
 function assertCanonicalRelationship(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	fixture: ClipFallbackFixture,
 	expectedDocument: string,
 ): void {
@@ -304,7 +312,7 @@ function assertCanonicalRelationship(
 	});
 }
 
-function handoffTransport(project: AudioEditorProjectV9, sources: readonly FixtureVideoSource[]): {
+function handoffTransport(project: AudioEditorProjectV10, sources: readonly FixtureVideoSource[]): {
 	readonly bodyByBinding: ReadonlyMap<string, Uint8Array>;
 	readonly bridge: DesktopSharedSourceTransferBridge;
 	readonly declaredSourceIds: readonly string[];
@@ -400,7 +408,7 @@ function joinBytes(chunks: readonly Uint8Array[]): Uint8Array {
 	return output;
 }
 
-function videoBinding(project: AudioEditorProjectV9, source: FixtureVideoSource): string {
+function videoBinding(project: AudioEditorProjectV10, source: FixtureVideoSource): string {
 	const projectDigest = createHash('sha256')
 		.update(serializeScapeProjectDocument(project), 'utf8')
 		.digest('hex');

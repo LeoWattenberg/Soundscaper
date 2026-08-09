@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
@@ -219,7 +220,7 @@ function project(revision: number, source?: ReturnType<typeof videoSource>) {
 		durationFrames: source.frameCount,
 		sourceDurationFrames: source.frameCount,
 	}) : null;
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Save reachability',
 		revision,

@@ -22,6 +22,11 @@ export const SOUNDSCAPER_PROFILE = {
 		audioSampleEditing: true,
 		videoEffects: false,
 		videoCompositing: false,
+		musicalTimeline: true,
+		audioWarp: false,
+		sequenceTiming: true,
+		videoRetime: false,
+		videoTimingAssets: true,
 	},
 	desktop: {
 		appId: 'org.soundscaper.desktop',

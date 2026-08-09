@@ -13,7 +13,7 @@ import { serializeScapeProjectDocument } from '../src/common/editor/scape-projec
 
 test('project revision publication counts exact canonical UTF-8 payloads twice', () => {
 	const project = {
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: 'project-non-ascii',
 		title: 'Grüße 🎛️',
 		opaqueExtensions: {

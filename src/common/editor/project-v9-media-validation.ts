@@ -32,6 +32,7 @@ export function validateProjectV9Media(
 	project: ProjectDataRecord,
 	sampleRate: number,
 ): ProjectV9MediaCollections {
+	const foundation = Number(project.schemaVersion) >= 10;
 	const sources = recordArray(project.sources, 'project.sources');
 	const clips = recordArray(project.clips, 'project.clips');
 	const tracks = recordArray(project.tracks, 'project.tracks');
@@ -40,22 +41,22 @@ export function validateProjectV9Media(
 	projectUniqueIds(sources, 'project.sources');
 	projectUniqueIds([...clips, ...binClips], 'project clips');
 	projectUniqueIds(tracks, 'project.tracks');
-	for (const source of sources) validateSource(source);
-	for (const clip of clips) validateClip(clip, false);
-	for (const clip of binClips) validateClip(clip, true);
-	for (const track of tracks) validateTrack(track, sampleRate);
-	validateMediaGraph({ project, sources, clips, tracks, binClips });
+	for (const source of sources) validateSource(source, foundation);
+	for (const clip of clips) validateClip(clip, false, foundation);
+	for (const clip of binClips) validateClip(clip, true, foundation);
+	for (const track of tracks) validateTrack(track, sampleRate, foundation);
+	validateMediaGraph({ project, sources, clips, tracks, binClips }, foundation);
 	return { sources, clips, tracks, binClips };
 }
 
-function validateSource(source: ProjectDataRecord): void {
+function validateSource(source: ProjectDataRecord, foundation: boolean): void {
 	projectString(source.id, 'source.id');
 	projectString(source.name, `source ${String(source.id)}.name`);
 	projectString(source.mimeType, `source ${String(source.id)}.mimeType`);
 	projectString(source.storageKey, `source ${String(source.id)}.storageKey`);
-	projectSafeInteger(source.frameCount, 1, `source ${String(source.id)}.frameCount`);
 	projectSafeInteger(source.sampleRate, 1, `source ${String(source.id)}.sampleRate`);
 	if (source.kind === 'audio') {
+		projectSafeInteger(source.frameCount, 1, `source ${String(source.id)}.frameCount`);
 		projectSafeInteger(source.channelCount, 1, `source ${String(source.id)}.channelCount`);
 		projectSafeInteger(source.originalSampleRate, 1, `source ${String(source.id)}.originalSampleRate`);
 		if (typeof source.sampleFormat !== 'string' || !SAMPLE_FORMATS.has(source.sampleFormat)) {
@@ -65,9 +66,14 @@ function validateSource(source: ProjectDataRecord): void {
 		return;
 	}
 	if (source.kind !== 'video') throw new RangeError(`Unsupported source kind: ${String(source.kind)}.`);
+	projectSafeInteger(
+		foundation ? source.sampleFrameCount : source.frameCount,
+		1,
+		`source ${String(source.id)}.${foundation ? 'sampleFrameCount' : 'frameCount'}`,
+	);
 	projectSafeInteger(source.width, 1, `source ${String(source.id)}.width`);
 	projectSafeInteger(source.height, 1, `source ${String(source.id)}.height`);
-	projectPositiveFinite(source.frameRate, `source ${String(source.id)}.frameRate`);
+	if (!foundation) projectPositiveFinite(source.frameRate, `source ${String(source.id)}.frameRate`);
 	projectString(source.videoCodec, `source ${String(source.id)}.videoCodec`);
 	optionalString(source.audioCodec, `source ${String(source.id)}.audioCodec`);
 	projectBoolean(source.hasAudio, `source ${String(source.id)}.hasAudio`);
@@ -75,15 +81,23 @@ function validateSource(source: ProjectDataRecord): void {
 	optionalString(source.thumbnailStorageKey, `source ${String(source.id)}.thumbnailStorageKey`);
 }
 
-function validateClip(clip: ProjectDataRecord, inProjectBin: boolean): void {
+function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation: boolean): void {
 	const prefix = `clip ${String(clip.id)}`;
 	projectString(clip.id, `${prefix}.id`);
 	projectString(clip.sourceId, `${prefix}.sourceId`);
 	projectString(clip.title, `${prefix}.title`);
-	projectSafeInteger(clip.timelineStartFrame, 0, `${prefix}.timelineStartFrame`);
-	projectSafeInteger(clip.sourceStartFrame, 0, `${prefix}.sourceStartFrame`);
-	const sourceDuration = projectSafeInteger(clip.sourceDurationFrames, 1, `${prefix}.sourceDurationFrames`);
-	const duration = projectSafeInteger(clip.durationFrames, 1, `${prefix}.durationFrames`);
+	const foundationAudio = foundation && clip.kind === 'audio';
+	const foundationVideo = foundation && clip.kind === 'video';
+	if (!foundationVideo && (!foundationAudio || clip.anchor === 'sample')) {
+		projectSafeInteger(clip.timelineStartFrame, 0, `${prefix}.timelineStartFrame`);
+	}
+	if (!foundationVideo) {
+		projectSafeInteger(clip.sourceStartFrame, 0, `${prefix}.sourceStartFrame`);
+		projectSafeInteger(clip.sourceDurationFrames, 1, `${prefix}.sourceDurationFrames`);
+	}
+	const duration = !foundationVideo && (!foundationAudio || clip.musicalExtent !== 'beat')
+		? projectSafeInteger(clip.durationFrames, 1, `${prefix}.durationFrames`)
+		: null;
 	projectSafeInteger(clip.trimStartFrames, 0, `${prefix}.trimStartFrames`);
 	projectSafeInteger(clip.trimEndFrames, 0, `${prefix}.trimEndFrames`);
 	projectOptionalId(clip.groupId, `${prefix}.groupId`);
@@ -99,12 +113,12 @@ function validateClip(clip: ProjectDataRecord, inProjectBin: boolean): void {
 	if (clip.kind === 'audio') {
 		const fadeIn = projectSafeInteger(clip.fadeInFrames, 0, `${prefix}.fadeInFrames`);
 		const fadeOut = projectSafeInteger(clip.fadeOutFrames, 0, `${prefix}.fadeOutFrames`);
-		if (fadeIn > duration || fadeOut > duration) throw new RangeError('Clip fades cannot be longer than the clip.');
+		if (duration != null && (fadeIn > duration || fadeOut > duration)) throw new RangeError('Clip fades cannot be longer than the clip.');
 		projectFiniteInRange(clip.gain, 0, 16, `${prefix}.gain`);
 		projectBoolean(clip.reversed, `${prefix}.reversed`);
 		validateProjectEnvelope(clip.envelope, `${prefix}.envelope`);
 		for (const point of recordArray(clip.envelope, `${prefix}.envelope`)) {
-			if (Number(point.frame) > duration) throw new RangeError(`${prefix}.envelope points must be inside the clip.`);
+			if (duration != null && Number(point.frame) > duration) throw new RangeError(`${prefix}.envelope points must be inside the clip.`);
 		}
 		projectFiniteInRange(clip.pitchCents, -1_200, 1_200, `${prefix}.pitchCents`);
 		projectFiniteInRange(clip.speedRatio, 0.001, 1_000, `${prefix}.speedRatio`);
@@ -116,10 +130,9 @@ function validateClip(clip: ProjectDataRecord, inProjectBin: boolean): void {
 	if (clip.kind !== 'video') throw new RangeError(`Unsupported clip kind: ${String(clip.kind)}.`);
 	projectPositiveFinite(clip.speedRatio, `${prefix}.speedRatio`);
 	normalizeVideoEffects(clip.videoEffects, `${prefix}.videoEffects`);
-	void sourceDuration;
 }
 
-function validateTrack(track: ProjectDataRecord, sampleRate: number): void {
+function validateTrack(track: ProjectDataRecord, sampleRate: number, foundation: boolean): void {
 	const prefix = `track ${String(track.id)}`;
 	projectString(track.id, `${prefix}.id`);
 	projectString(track.name, `${prefix}.name`);
@@ -129,7 +142,7 @@ function validateTrack(track: ProjectDataRecord, sampleRate: number): void {
 		if (track.laneGroupId !== null) throw new RangeError(`${prefix} cannot belong to a media lane group.`);
 		const labels = recordArray(track.labels, `${prefix}.labels`);
 		projectUniqueIds(labels, `${prefix}.labels`);
-		for (const label of labels) validateLabel(label, prefix);
+		for (const label of labels) validateLabel(label, prefix, foundation);
 		return;
 	}
 	projectOptionalId(track.laneGroupId, `${prefix}.laneGroupId`);
@@ -155,13 +168,15 @@ function validateTrack(track: ProjectDataRecord, sampleRate: number): void {
 	validatePersistedAudioEffects(track.effects, `${prefix}.effects`);
 }
 
-function validateLabel(label: ProjectDataRecord, trackName: string): void {
+function validateLabel(label: ProjectDataRecord, trackName: string, foundation: boolean): void {
 	const prefix = `${trackName}.label ${String(label.id)}`;
 	projectString(label.id, `${prefix}.id`);
 	projectString(label.title, `${prefix}.title`, true);
-	const start = projectSafeInteger(label.startFrame, 0, `${prefix}.startFrame`);
-	const end = projectSafeInteger(label.endFrame, 0, `${prefix}.endFrame`);
-	if (end < start) throw new RangeError(`${prefix}.endFrame cannot precede its startFrame.`);
+	if (!foundation || label.anchor !== 'musical') {
+		const start = projectSafeInteger(label.startFrame, 0, `${prefix}.startFrame`);
+		const end = projectSafeInteger(label.endFrame, 0, `${prefix}.endFrame`);
+		if (end < start) throw new RangeError(`${prefix}.endFrame cannot precede its startFrame.`);
+	}
 	projectString(label.color, `${prefix}.color`);
 }
 
@@ -178,13 +193,16 @@ function validateSpectrogram(value: unknown, sampleRate: number, name: string): 
 	projectFiniteInRange(spectrogram.range, 1, 240, `${name}.range`);
 }
 
-function validateMediaGraph(collections: ProjectV9MediaCollections & { readonly project: ProjectDataRecord }): void {
+function validateMediaGraph(
+	collections: ProjectV9MediaCollections & { readonly project: ProjectDataRecord },
+	foundation: boolean,
+): void {
 	const { project, sources, clips, tracks, binClips } = collections;
 	const sourceById = new Map(sources.map((source) => [String(source.id), source]));
 	const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 	const trackById = new Map(tracks.map((track) => [String(track.id), track]));
 	const assigned = new Map<string, ProjectDataRecord>();
-	for (const clip of [...clips, ...binClips]) validateClipSourceBounds(clip, sourceById);
+	if (!foundation) for (const clip of [...clips, ...binClips]) validateClipSourceBounds(clip, sourceById);
 	for (const track of tracks) {
 		if (track.type === 'label') continue;
 		for (const clipId of projectUniqueStrings(track.clipIds, `track ${String(track.id)}.clipIds`)) {
@@ -194,13 +212,13 @@ function validateMediaGraph(collections: ProjectV9MediaCollections & { readonly 
 			if (assigned.has(clipId)) throw new RangeError(`Clip ${clipId} is assigned to more than one track.`);
 			assigned.set(clipId, track);
 		}
-		if (track.type === 'video') validateVideoTrackComposition(track, clipById);
+		if (track.type === 'video' && !foundation) validateVideoTrackComposition(track, clipById);
 	}
 	if (assigned.size !== clips.length) throw new RangeError('Every clip must belong to exactly one media track.');
 	validateStateReferences(project, clipById, trackById);
 	validateLaneGroups(tracks);
-	validateAvLinks(clips, assigned);
-	validateBinItems(binClips);
+	if (!foundation) validateAvLinks(clips, assigned);
+	if (!foundation) validateBinItems(binClips);
 }
 
 function validateClipSourceBounds(
@@ -230,12 +248,12 @@ function validateStateReferences(
 	const selection = projectRecord(project.selection, 'project.selection');
 	const view = projectRecord(project.view, 'project.view');
 	for (const trackId of [
-		...projectUniqueStrings(selection.trackIds, 'selection.trackIds'),
+		...(selection.trackIds === undefined ? [] : projectUniqueStrings(selection.trackIds, 'selection.trackIds')),
 		...projectUniqueStrings(view.selectedTrackIds, 'view.selectedTrackIds'),
 	]) {
 		if (!trackById.has(trackId)) throw new ReferenceError(`Project state references missing track ${trackId}.`);
 	}
-	for (const clipId of projectUniqueStrings(selection.clipIds, 'selection.clipIds')) {
+	for (const clipId of selection.clipIds === undefined ? [] : projectUniqueStrings(selection.clipIds, 'selection.clipIds')) {
 		if (!clipById.has(clipId)) throw new ReferenceError(`Selection references missing timeline clip ${clipId}.`);
 	}
 }

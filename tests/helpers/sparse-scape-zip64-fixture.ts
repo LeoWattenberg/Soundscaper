@@ -3,7 +3,6 @@
 import { createHash } from 'node:crypto';
 import { open, rm, type FileHandle } from 'node:fs/promises';
 import { join } from 'node:path';
-
 import { createAudioEditorProjectV9 } from '../../src/common/editor/project-v9.ts';
 
 const TEXT_ENCODER = new TextEncoder();

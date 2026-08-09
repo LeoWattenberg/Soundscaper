@@ -5,6 +5,10 @@ import {
 	VideoPreviewSourceGeometryTooLargeError,
 } from '../video-preview-capture-admission.ts';
 import { linkedVideoLocatorReferenceFromImportOptions } from './project-import-options.ts';
+import { sampleFrameToVideoFrame } from '../timeline-time.ts';
+import { digestMediaContent } from '../storage/media-content-digest.ts';
+import { createFfmpegVideoTimingProbe, probeVideoTiming } from '../video-timing-probe.ts';
+import { publishVideoTimingAsset } from '../video-timing-storage.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,10 +49,19 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			await preflightStorage(Math.max(file.size * 2, 16 * 1024 * 1024), 'import');
 			extractor = await createAudioEditorVideoFrameExtractor(file);
 			const sampleRate = projectSampleRate();
+			const ffmpegTimingProbe = createFfmpegVideoTimingProbe(ffmpeg);
+			const timingProbe = file instanceof Blob
+				? await probeVideoTiming(file, { probes: ffmpegTimingProbe ? [ffmpegTimingProbe] : [] })
+				: Object.freeze({
+					decision: 'conform-cfr-at-ingest' as const,
+					rate: Object.freeze({ num: 30, den: 1 }),
+					reason: 'timing-probe-unavailable' as const,
+					failures: Object.freeze([]),
+				});
 			const trackName = stripExtension(file.name) || `Video ${startingVideoTrackCount + 1}`;
 			prepared = {
 				startingProjectId, startingProjectToken,
-				sampleRate,
+				sampleRate, timingProbe,
 				durationFrames: Math.max(1, Math.round(extractor.metadata.durationSeconds * sampleRate)),
 				videoSourceId: createStableId('video-source'),
 				videoClipId: createStableId('video-clip'),
@@ -69,7 +82,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		}
 		const {
 			startingProjectId, startingProjectToken, sampleRate, durationFrames, videoSourceId, videoClipId,
-			binItemId, trackName, sourceName,
+			binItemId, trackName, sourceName, timingProbe,
 		} = prepared;
 		const assertImportProjectCurrent = () => {
 			try { assertProject(startingProjectToken); } catch (error) {
@@ -84,6 +97,8 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		let canonicalAudio = null;
 		let originalAudioSampleRate = sampleRate;
 		let mediaPersisted = false;
+		let timingAssetCreated = false;
+		let timingAssetStorageKey: string | null = null;
 		let derivativeCleanupRequired = false;
 		let audioPersisted = false;
 		let linkedBinding: RuntimeValue = null;
@@ -98,15 +113,26 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		};
 		try {
 			assertImportProjectCurrent();
+			let sourceContentSha256: string;
 			if (!linkedVideoLocatorId) {
-				await store.writeMediaAsset(videoSourceId, file, {
+				const mediaMetadata = await store.writeMediaAsset(videoSourceId, file, {
 					name: sourceName,
 					mimeType: file.type || 'video/mp4',
 					width: extractor.metadata.width,
 					height: extractor.metadata.height,
 					durationSeconds: extractor.metadata.durationSeconds,
 				});
+				sourceContentSha256 = typeof mediaMetadata?.sha256 === 'string'
+					? mediaMetadata.sha256
+					: await digestImportFile(file);
 				mediaPersisted = true;
+			} else sourceContentSha256 = await digestImportFile(file);
+			let timingAsset = null;
+			if (timingProbe.decision === 'timing-asset') {
+				const published = await publishVideoTimingAsset(store, sourceContentSha256, timingProbe.timing);
+				timingAsset = published.reference;
+				timingAssetCreated = published.created;
+				timingAssetStorageKey = published.reference.storageKey;
 			}
 			const thumbnailTimes = audioEditorVideoThumbnailTimes(extractor.metadata.durationSeconds);
 			let sourcePreviewUnavailable = false;
@@ -210,17 +236,27 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				await store.saveAnalysis(peakCacheKey(audioSourceId), peaks);
 			}
 
+			const sourceRate = timingProbe.decision === 'timing-asset' ? timingProbe.nominalRate : timingProbe.rate;
+			const sourceFrameCount = timingProbe.decision === 'timing-asset'
+				? timingProbe.timing.frameCount
+				: Math.max(1, sampleFrameToVideoFrame(durationFrames, sourceRate, sampleRate, 'enclosingEnd'));
 			const videoSource = {
 				kind: 'video',
 				id: videoSourceId,
 				storageKey: videoSourceId,
 				name: sourceName,
 				mimeType: file.type || 'video/mp4',
-				frameCount: durationFrames,
+				sampleFrameCount: durationFrames,
 				sampleRate,
 				width: extractor.metadata.width,
 				height: extractor.metadata.height,
-				frameRate: 30,
+				frameRate: sourceRate,
+				sourceFrameCount,
+				contentSha256: sourceContentSha256,
+				timingAsset,
+				timingDecision: timingProbe.decision === 'timing-asset'
+					? { mode: 'exact', rate: sourceRate, backend: timingProbe.backend }
+					: { mode: 'conform-cfr-at-ingest', rate: sourceRate, reason: timingProbe.reason, failures: timingProbe.failures },
 				videoCodec: 'unknown',
 				audioCodec: canonicalAudio ? 'unknown' : null,
 				hasAudio: Boolean(canonicalAudio),
@@ -243,15 +279,22 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				originalSampleRate: originalAudioSampleRate,
 				opaqueExtensions: { originVideoSourceId: videoSourceId },
 			} : null;
+			const activeProject = getProject();
+			const sequenceId = activeProject.primarySequenceId || 'main-sequence';
+			const sequence = activeProject.sequences?.find((candidate: RuntimeValue) => candidate.id === sequenceId)
+				|| { id: sequenceId, rate: { num: 30, den: 1 } };
+			const sequenceStartFrame = sampleFrameToVideoFrame(importOptions.timelineStartFrame, sequence.rate, sampleRate, 'point');
+			const sequenceEndFrame = sampleFrameToVideoFrame(importOptions.timelineStartFrame + durationFrames, sequence.rate, sampleRate, 'point');
 			const videoClip = {
 				kind: 'video',
 				id: videoClipId,
 				sourceId: videoSourceId,
 				title: trackName,
-				timelineStartFrame: importOptions.timelineStartFrame,
-				sourceStartFrame: 0,
-				sourceDurationFrames: durationFrames,
-				durationFrames,
+				sequenceId,
+				sequenceStartFrame,
+				sequenceFrameCount: Math.max(1, sequenceEndFrame - sequenceStartFrame),
+				sourceInFrame: 0,
+				sourceFrameCount,
 				trimStartFrames: 0,
 				trimEndFrames: 0,
 				groupId: null,
@@ -391,6 +434,9 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			if (mediaPersisted || derivativeCleanupRequired) {
 				try { await store.deleteMediaAsset(videoSourceId); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
 			}
+			if (timingAssetCreated && timingAssetStorageKey) {
+				try { await store.deleteMediaAsset(timingAssetStorageKey); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			}
 			if (releaseLinkedLocator) {
 				try { await releaseUnusedLinkedVideoLocator(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
 			}
@@ -405,4 +451,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		}
 	}
 	return importVideoFile;
+}
+
+async function digestImportFile(file: RuntimeValue): Promise<string> {
+	if (file instanceof Blob) return digestMediaContent(file);
+	if (typeof file?.arrayBuffer !== 'function') throw new TypeError('Video media must provide bytes for digest binding.');
+	return digestMediaContent(new Blob([await file.arrayBuffer()]));
 }

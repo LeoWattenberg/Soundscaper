@@ -119,23 +119,29 @@ test('default verification still verifies every declared fallback and exposes no
 	);
 
 	await assert.doesNotReject(() => verifyProjectFallbackIntegrity({
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get sources(): never { throw new Error('future sources traversed'); },
 		get featureRequirements(): never { throw new Error('future requirements traversed'); },
 	}, {}));
 	await assert.rejects(
-		() => verifyProjectFallbackIntegrity({ schemaVersion: 10 }, {}, { videoFallback: VIDEO_SELECTOR }),
-		/selected video rendered fallback.*schema 9/iu,
+		() => verifyProjectFallbackIntegrity({ schemaVersion: 11 }, {}, { videoFallback: VIDEO_SELECTOR }),
+		/selected video rendered fallback.*schema 10/iu,
 	);
 });
 
 function fallbackProject(): {
 	schemaVersion: number;
+	sampleRate: number;
+	primarySequenceId: string;
+	sequences: Array<Record<string, unknown>>;
 	sources: Array<Record<string, unknown>>;
 	featureRequirements: { schemaVersion: number; requirements: Array<Record<string, unknown>> };
 } {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
+		sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		sources: [
 			{ id: 'rendered-audio', kind: 'audio', storageKey: 'audio-storage', frameCount: 1, channelCount: 1, chunkFrames: 1 },
 			{ id: 'rendered-video', kind: 'video', storageKey: 'video-storage', frameCount: 48, channelCount: 1, chunkFrames: 48 },

@@ -32,7 +32,7 @@ interface TestLock extends ProjectLifecycleLock { releases: number; }
 
 function project(id: string, tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }]): TestProject {
 	return {
-		id, title: id, sampleRate: 48_000, tracks, clips: [], schemaVersion: 9,
+		id, title: id, sampleRate: 48_000, tracks, clips: [], schemaVersion: 10,
 		featureRequirements: { schemaVersion: 1, requirements: [] },
 	};
 }
@@ -543,7 +543,7 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 	assert.deepEqual(fixture.assignedTracks, ['prepared-track']);
 
 	fixture.setMigrationReadOnly(true);
-	const future = { ...project('future-project'), schemaVersion: 10,
+	const future = { ...project('future-project'), schemaVersion: 11,
 		get featureRequirements(): never { throw new Error('future feature metadata was traversed'); } };
 	await fixture.service.openProject(future);
 	assert.equal(fixture.getProject(), future);
@@ -558,7 +558,7 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 test('feature compatibility transiently bypasses affected audio effects before engine activation', async () => {
 	const fixture = createFixture({ audioEffects: false, videoEffects: false });
 	const effect = { id: 'compressor-a', type: 'compressor', enabled: true, bypassed: false, params: { threshold: -24 } };
-	const next = { ...project('feature-project', [{ id: 'audio-a', type: 'audio', effectsActive: true, effects: [effect] }]), schemaVersion: 9,
+	const next = { ...project('feature-project', [{ id: 'audio-a', type: 'audio', effectsActive: true, effects: [effect] }]), schemaVersion: 10,
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'audio-effects', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, displayName: 'Audio effects', disposition: 'bypass', fallback: null,
 		}],
@@ -591,7 +591,7 @@ test('feature compatibility transiently bypasses affected audio effects before e
 test('malformed current feature metadata rejects before project activation side effects', async () => {
 	const fixture = createFixture();
 	const malformed = {
-		...project('malformed-feature-project'), schemaVersion: 9,
+		...project('malformed-feature-project'), schemaVersion: 10,
 		featureRequirements: { schemaVersion: 1, requirements: {} },
 	};
 	await assert.rejects(fixture.service.switchProject(malformed), /requirements must be an array/iu);

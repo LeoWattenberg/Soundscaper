@@ -8,8 +8,15 @@ import {
 	normalizeLinkedVideoOriginalBindingInput,
 	type LinkedVideoOriginalBinding,
 	type LinkedVideoOriginalBindingInput,
-	type LinkedVideoOriginalSourceShape,
 } from './linked-video-original-binding.ts';
+import {
+	linkedVideoOriginalSourceShape,
+	type CompatibleLinkedVideoOriginalSource,
+} from './linked-video-original-source.ts';
+export type {
+	FoundationLinkedVideoOriginalSource,
+	LinkedVideoOriginalSource,
+} from './linked-video-original-source.ts';
 import type { LinkedVideoOriginalLocatorReference, LinkedVideoOriginalRepository } from './linked-video-original-repository.ts';
 import {
 	canonicalMediaContentBlob,
@@ -19,21 +26,6 @@ import {
 
 export const LINKED_VIDEO_ORIGINAL_STORAGE_TYPE = 'linked-video-original-v1' as const;
 export const LINKED_VIDEO_PLAYBACK_VERIFY_CHUNK_BYTES = MEDIA_CONTENT_DIGEST_CHUNK_BYTES;
-
-export interface LinkedVideoOriginalSource extends Readonly<Record<string, unknown>> {
-	readonly kind: 'video';
-	readonly id: string;
-	readonly storageKey: string;
-	readonly mimeType: string;
-	readonly frameCount: number;
-	readonly sampleRate: number;
-	readonly width: number;
-	readonly height: number;
-	readonly frameRate: number;
-	readonly videoCodec: string;
-	readonly audioCodec: string | null;
-	readonly hasAudio: boolean;
-}
 
 export interface LinkedVideoOriginalSnapshot {
 	readonly blob: unknown;
@@ -124,7 +116,7 @@ export class LinkedVideoOriginalResolver {
 	}
 	async bind(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		locatorId: string,
 		options: BindLinkedVideoOriginalOptions = {},
 	): Promise<LinkedVideoOriginalBinding> {
@@ -181,7 +173,7 @@ export class LinkedVideoOriginalResolver {
 
 	async resolve(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		options: Readonly<{ signal?: AbortSignal }> = {},
 	): Promise<ResolvedLinkedVideoOriginal | null> {
 		const inspected = await this.inspect(projectId, source, options);
@@ -213,7 +205,7 @@ export class LinkedVideoOriginalResolver {
 	}
 	async leasePlayback(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		options: Readonly<{ signal?: AbortSignal }> = {},
 	): Promise<ResolvedLinkedVideoOriginalPlayback | null> {
 		const inspected = await this.inspect(projectId, source, options);
@@ -252,7 +244,7 @@ export class LinkedVideoOriginalResolver {
 
 	async inspect(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		options: Readonly<{ signal?: AbortSignal }> = {},
 	): Promise<InspectedLinkedVideoOriginal | null> {
 		throwIfAborted(options.signal);
@@ -265,7 +257,7 @@ export class LinkedVideoOriginalResolver {
 
 	async assertBindingCurrent(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 		binding: LinkedVideoOriginalBinding,
 		options: Readonly<{ signal?: AbortSignal }> = {},
 	): Promise<void> {
@@ -280,7 +272,7 @@ export class LinkedVideoOriginalResolver {
 
 	async metadata(
 		projectId: string,
-		source: LinkedVideoOriginalSource,
+		source: CompatibleLinkedVideoOriginalSource,
 	): Promise<ResolvedLinkedVideoOriginal['metadata'] | null> {
 		return (await this.inspect(projectId, source))?.metadata ?? null;
 	}
@@ -330,7 +322,7 @@ export class LinkedVideoOriginalResolver {
 
 function bindingInput(
 	projectId: string,
-	source: LinkedVideoOriginalSource,
+	source: CompatibleLinkedVideoOriginalSource,
 	content: Readonly<Pick<LinkedVideoOriginalBindingInput,
 		'locatorId' | 'locatorRevision' | 'byteLength' | 'sha256'>>,
 ): LinkedVideoOriginalBindingInput {
@@ -344,27 +336,14 @@ function bindingInput(
 		storageKey: source.storageKey,
 		mimeType: source.mimeType,
 		...content,
-		sourceShape: sourceShape(source),
+		sourceShape: linkedVideoOriginalSourceShape(source),
 	});
-}
-
-function sourceShape(source: LinkedVideoOriginalSource): LinkedVideoOriginalSourceShape {
-	return {
-		frameCount: source.frameCount,
-		sampleRate: source.sampleRate,
-		width: source.width,
-		height: source.height,
-		frameRate: source.frameRate,
-		videoCodec: source.videoCodec,
-		audioCodec: source.audioCodec,
-		hasAudio: source.hasAudio,
-	};
 }
 
 function assertSourceBinding(
 	binding: LinkedVideoOriginalBinding,
 	projectId: string,
-	source: LinkedVideoOriginalSource,
+	source: CompatibleLinkedVideoOriginalSource,
 ): void {
 	const expected = bindingInput(projectId, source, {
 		locatorId: binding.locatorId,
@@ -372,19 +351,15 @@ function assertSourceBinding(
 		byteLength: binding.byteLength,
 		sha256: binding.sha256,
 	});
-	const actual = bindingInput(binding.projectId, {
-		...source,
-		id: binding.sourceId,
-		storageKey: binding.storageKey,
-		mimeType: binding.mimeType,
-		...binding.sourceShape,
-	}, {
-		locatorId: binding.locatorId,
-		locatorRevision: binding.locatorRevision,
-		byteLength: binding.byteLength,
-		sha256: binding.sha256,
-	});
-	if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+	if (binding.projectId !== expected.projectId
+		|| binding.sourceId !== expected.sourceId
+		|| binding.storageKey !== expected.storageKey
+		|| binding.mimeType !== expected.mimeType
+		|| binding.locatorId !== expected.locatorId
+		|| binding.locatorRevision !== expected.locatorRevision
+		|| binding.byteLength !== expected.byteLength
+		|| binding.sha256 !== expected.sha256
+		|| JSON.stringify(binding.sourceShape) !== JSON.stringify(expected.sourceShape)) {
 		throw new Error('The linked video original binding does not match its project source.');
 	}
 }

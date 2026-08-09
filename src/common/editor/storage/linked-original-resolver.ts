@@ -359,15 +359,28 @@ function sourceShape(source: LinkedOriginalSource): LinkedOriginalBinding['sourc
 			chunkFrames: source.chunkFrames,
 		}
 		: {
-			frameCount: source.frameCount,
+			frameCount: foundationVideoSampleFrameCount(source),
 			sampleRate: source.sampleRate,
 			width: source.width,
 			height: source.height,
-			frameRate: source.frameRate,
+			frameRate: foundationVideoFrameRate(source),
 			videoCodec: source.videoCodec,
 			audioCodec: source.audioCodec,
 			hasAudio: source.hasAudio,
 		};
+}
+
+function foundationVideoSampleFrameCount(source: LinkedVideoOriginalSourceV2): number {
+	const value = (source as Readonly<Record<string, unknown>>).sampleFrameCount;
+	return typeof value === 'number' ? value : source.frameCount;
+}
+
+function foundationVideoFrameRate(source: LinkedVideoOriginalSourceV2): number {
+	const value = (source as Readonly<Record<string, unknown>>).frameRate;
+	return value && typeof value === 'object' && !Array.isArray(value)
+		? Number((value as Readonly<Record<string, unknown>>).num)
+			/ Number((value as Readonly<Record<string, unknown>>).den)
+		: source.frameRate;
 }
 
 function assertSourceBinding(

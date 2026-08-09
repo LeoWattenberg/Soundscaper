@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
@@ -32,7 +32,7 @@ const CLIP_VIDEO_EFFECTS = [{
 type ProjectStore = ReturnType<typeof createProjectStore>;
 
 interface ScapeImportResult {
-	readonly project: AudioEditorProjectV9;
+	readonly project: AudioEditorProjectV10;
 	readonly readOnly: boolean;
 	readonly collision: 'copy' | 'replace' | null;
 }
@@ -84,7 +84,7 @@ test('a portable Scape roundtrip returns the clip-render fallback to a natively 
 
 	const reopenedValue = await recipient.loadProject(PROJECT_ID);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV9;
+	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
 	assert.deepEqual(reopened.featureRequirements, project.featureRequirements);
 	assert.deepEqual(reopened.clips[0]?.videoEffects, [...CLIP_VIDEO_EFFECTS]);
 
@@ -130,7 +130,7 @@ test('a portable Scape roundtrip returns the clip-render fallback to a natively 
 
 	const homeValue = await home.loadProject(PROJECT_ID);
 	assert.ok(homeValue);
-	const reopenedHome = homeValue as unknown as AudioEditorProjectV9;
+	const reopenedHome = homeValue as unknown as AudioEditorProjectV10;
 	assert.deepEqual(reopenedHome.featureRequirements, project.featureRequirements);
 	assert.deepEqual(reopenedHome.clips[0]?.videoEffects, [...CLIP_VIDEO_EFFECTS]);
 	assert.deepEqual(
@@ -164,7 +164,7 @@ test('a whole-project video render fallback survives the same Scape return round
 
 	const reopenedValue = await recipient.loadProject(PROJECT_ID);
 	assert.ok(reopenedValue);
-	const returning = await exportScapeProject(reopenedValue as unknown as AudioEditorProjectV9, recipient);
+	const returning = await exportScapeProject(reopenedValue as unknown as AudioEditorProjectV10, recipient);
 	assert.deepEqual(assetDigests(returning), assetDigests(outbound),
 		'the read-only recipient must return the exact portable bodies it received');
 
@@ -182,8 +182,8 @@ test('a whole-project video render fallback survives the same Scape return round
 });
 
 function fallbackProject(
-	fallback: AudioEditorProjectV9['featureRequirements']['requirements'][number]['fallback'],
-): AudioEditorProjectV9 {
+	fallback: AudioEditorProjectV10['featureRequirements']['requirements'][number]['fallback'],
+): AudioEditorProjectV10 {
 	const canonicalSource = createVideoSourceV9({
 		id: CANONICAL_SOURCE_ID,
 		storageKey: CANONICAL_SOURCE_ID,
@@ -203,7 +203,7 @@ function fallbackProject(
 		storageKey: FALLBACK_SOURCE_ID,
 		name: 'Rendered target.mp4',
 		mimeType: 'video/mp4',
-		frameCount: 20,
+		frameCount: 1_600,
 		sampleRate: 48_000,
 		width: 1_280,
 		height: 720,
@@ -223,7 +223,7 @@ function fallbackProject(
 		speedRatio: 2,
 		videoEffects: [...CLIP_VIDEO_EFFECTS],
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Portable video return roundtrip',
 		now: NOW,
@@ -262,12 +262,24 @@ function productAvailability(productId: 'soundscaper' | 'framescaper'): Readonly
 	};
 }
 
-function projectStructures(project: AudioEditorProjectV9): Readonly<{
-	sources: AudioEditorProjectV9['sources'];
-	clips: AudioEditorProjectV9['clips'];
-	tracks: AudioEditorProjectV9['tracks'];
+function projectStructures(project: AudioEditorProjectV10): Readonly<{
+	sources: AudioEditorProjectV10['sources'];
+	clips: AudioEditorProjectV10['clips'];
+	tracks: AudioEditorProjectV10['tracks'];
+	schemaVersion: number;
+	sampleRate: number;
+	sequences: AudioEditorProjectV10['sequences'];
+	primarySequenceId: string;
 }> {
-	return { sources: project.sources, clips: project.clips, tracks: project.tracks };
+	return {
+		sources: project.sources,
+		clips: project.clips,
+		tracks: project.tracks,
+		schemaVersion: project.schemaVersion,
+		sampleRate: project.sampleRate,
+		sequences: project.sequences,
+		primarySequenceId: project.primarySequenceId,
+	};
 }
 
 function assetDigests(exported: Readonly<{

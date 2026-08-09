@@ -1,6 +1,6 @@
 import { createClipboardDescriptor } from './commands.js';
 import { freezeProjectFeatureReportMetadata } from './project-feature-report-metadata.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-v9.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { collectHistorySourceIds } from './retention.js';
 import { createProjectActivationReservations, projectHistoryChangedError } from './session-activation.js';
 import {

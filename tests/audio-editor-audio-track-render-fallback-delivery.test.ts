@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
@@ -22,10 +24,8 @@ import {
 } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
@@ -45,7 +45,7 @@ const TRACK_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 	targetTrackId: 'fx-track',
 });
 
-function trackFallbackProject(): AudioEditorProjectV9 {
+function trackFallbackProject(): AudioEditorProjectV10 {
 	const laneSource = createAudioSourceV9({
 		id: 'lane-source', storageKey: 'lane-source', frameCount: 3, channelCount: 2, chunkFrames: 2,
 	});
@@ -61,7 +61,7 @@ function trackFallbackProject(): AudioEditorProjectV9 {
 	const dryClip = createAudioClipV9({
 		id: 'dry-clip', sourceId: drySource.id, timelineStartFrame: 0, durationFrames: 3,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'track-fallback-delivery', now: '2026-08-08T12:00:00.000Z', sampleRate: 48_000,
 		sources: [laneSource, drySource, fallbackSource],
 		clips: [laneClip, dryClip],

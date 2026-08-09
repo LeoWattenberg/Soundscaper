@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { DesktopSharedProjectRepository } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
@@ -169,7 +170,7 @@ test('local save maintenance observes the compacted retained revision set', asyn
 });
 
 function project(id: string, revision: number): ProjectDocument {
-	return createAudioEditorProjectV9({ id, title: `Revision ${revision}`, revision, now: NOW });
+	return createAudioEditorProjectV10({ id, title: `Revision ${revision}`, revision, now: NOW });
 }
 
 function memoryRepository(scope: string): ProjectRepository {

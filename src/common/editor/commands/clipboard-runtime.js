@@ -33,6 +33,9 @@ import {
 	sortTrack,
 } from './shared-runtime.js';
 
+// foundation-edit-matrix: paste
+// foundation-edit-matrix: duplicate
+
 export function createClipboardDescriptor(project, options = {}) {
 	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'clipboard range');
 	const requestedTrackIds = options.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
@@ -85,23 +88,25 @@ export function createClipboardDescriptor(project, options = {}) {
 					offsetFrame: segment.timelineStartFrame,
 					sourceStartFrame: segment.sourceStartFrame,
 					durationFrames: segment.durationFrames,
-					gain: segment.gain,
-					fadeInFrames: segment.fadeInFrames,
-					fadeOutFrames: segment.fadeOutFrames,
-					reversed: segment.reversed,
 					title: segment.title,
 					sourceDurationFrames: segment.sourceDurationFrames,
 					trimStartFrames: segment.trimStartFrames,
 					trimEndFrames: segment.trimEndFrames,
-					envelope: segment.envelope,
 					groupId: segment.groupId,
 					avLinkId: segment.avLinkId || null,
 					color: segment.color,
-					pitchCents: segment.pitchCents,
 					speedRatio: segment.speedRatio,
-					preserveFormants: segment.preserveFormants,
-					stretchToTempo: segment.stretchToTempo,
-					renderCacheRevision: segment.renderCacheRevision,
+					...(Number.isFinite(segment.gain) ? { gain: segment.gain } : {}),
+					...(Number.isSafeInteger(segment.fadeInFrames) ? { fadeInFrames: segment.fadeInFrames } : {}),
+					...(Number.isSafeInteger(segment.fadeOutFrames) ? { fadeOutFrames: segment.fadeOutFrames } : {}),
+					...(typeof segment.reversed === 'boolean' ? { reversed: segment.reversed } : {}),
+					...(Array.isArray(segment.envelope) ? { envelope: segment.envelope } : {}),
+					...(Number.isFinite(segment.pitchCents) ? { pitchCents: segment.pitchCents } : {}),
+					...(typeof segment.preserveFormants === 'boolean' ? { preserveFormants: segment.preserveFormants } : {}),
+					...(typeof segment.stretchToTempo === 'boolean' ? { stretchToTempo: segment.stretchToTempo } : {}),
+					...(Number.isSafeInteger(segment.renderCacheRevision) ? {
+						renderCacheRevision: segment.renderCacheRevision,
+					} : {}),
 					...(segment.kind === 'video' && Array.isArray(segment.videoEffects) ? {
 						videoEffects: cloneVideoEffects(segment.videoEffects),
 					} : {}),

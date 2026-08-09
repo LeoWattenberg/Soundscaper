@@ -20,7 +20,8 @@ const SOURCE_DESCRIPTOR_KEYS = Object.freeze([
 const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 const MANAGED_AUDIO_ENCODING = 'audio-f32le-chunks-v1';
 const MANAGED_VIDEO_ENCODING = 'video-original-v1';
-const MANAGED_BINDING_ID = /^[mv][a-f0-9]{64}$/u;
+const MANAGED_VIDEO_TIMING_ENCODING = 'soundscaper-video-timing-v1';
+const MANAGED_BINDING_ID = /^[mvt][a-f0-9]{64}$/u;
 const SOURCE_WRITE_ID = /^[a-f0-9]{32}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 
@@ -302,7 +303,7 @@ function nullableProjectBundle(value, maximumDocumentBytes) {
 		throw new RangeError('Desktop shared-project bundle has an invalid source count');
 	}
 	const sources = Object.freeze(record.sources.map(managedSourceDescriptor));
-	if (new Set(sources.map(({ sourceId }) => sourceId)).size !== sources.length) {
+	if (new Set(sources.map(({ kind, sourceId }) => `${kind}:${sourceId}`)).size !== sources.length) {
 		throw new TypeError('Desktop shared-project bundle contains duplicate source identities');
 	}
 	return Object.freeze({
@@ -316,11 +317,12 @@ function managedSourceDescriptor(value) {
 	const encoding = managedSourceEncoding(record.kind, record.encoding);
 	const bindingId = managedBindingId(record.bindingId);
 	const byteLength = sharedSourceBytes(record.byteLength);
-	if (bindingId[0] !== (record.kind === 'audio' ? 'm' : 'v')) {
+	const expectedPrefix = record.kind === 'audio' ? 'm' : record.kind === 'video' ? 'v' : 't';
+	if (bindingId[0] !== expectedPrefix) {
 		throw new TypeError('Desktop shared-source descriptor has an invalid media binding');
 	}
-	if (record.kind === 'video' && byteLength === 0) {
-		throw new RangeError('Desktop shared-source original video byte length must be positive');
+	if (record.kind !== 'audio' && byteLength === 0) {
+		throw new RangeError('Desktop shared-source retained-media byte length must be positive');
 	}
 	return Object.freeze({
 		bindingId,
@@ -341,8 +343,8 @@ function sourceWriteDeclaration(value) {
 	);
 	const encoding = managedEncoding(record.encoding);
 	const byteLength = sharedSourceBytes(record.byteLength);
-	if (encoding === MANAGED_VIDEO_ENCODING && byteLength === 0) {
-		throw new RangeError('Desktop shared-source original video byte length must be positive');
+	if (encoding !== MANAGED_AUDIO_ENCODING && byteLength === 0) {
+		throw new RangeError('Desktop shared-source retained-media byte length must be positive');
 	}
 	return Object.freeze({
 		byteLength,
@@ -446,7 +448,8 @@ function managedBindingId(value) {
 }
 
 function managedEncoding(value) {
-	if (value !== MANAGED_AUDIO_ENCODING && value !== MANAGED_VIDEO_ENCODING) {
+	if (value !== MANAGED_AUDIO_ENCODING && value !== MANAGED_VIDEO_ENCODING
+		&& value !== MANAGED_VIDEO_TIMING_ENCODING) {
 		throw new TypeError('Desktop shared-source media encoding is unsupported');
 	}
 	return value;
@@ -455,7 +458,8 @@ function managedEncoding(value) {
 function managedSourceEncoding(kind, encoding) {
 	const admitted = managedEncoding(encoding);
 	if ((kind === 'audio' && admitted === MANAGED_AUDIO_ENCODING)
-		|| (kind === 'video' && admitted === MANAGED_VIDEO_ENCODING)) return admitted;
+		|| (kind === 'video' && admitted === MANAGED_VIDEO_ENCODING)
+		|| (kind === 'video-timing' && admitted === MANAGED_VIDEO_TIMING_ENCODING)) return admitted;
 	throw new TypeError('Desktop shared-source kind and encoding do not match');
 }
 

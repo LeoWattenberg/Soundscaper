@@ -14,6 +14,10 @@ import {
 	createLabelTrackV4,
 } from '../project-v4.js';
 import {
+	createLabelTrackV10,
+	createLabelV10,
+} from '../project-v10.ts';
+import {
 	allEffects,
 } from './effects-video-runtime.js';
 import {
@@ -30,7 +34,9 @@ import {
 function addTrack(project, value, requestedIndex) {
 	if (value?.type === 'label') {
 		if (project.schemaVersion < 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 or newer project.');
-		const labelTrack = project.schemaVersion >= 4 ? createLabelTrackV4(value) : createLabelTrackV2(value);
+		const labelTrack = project.schemaVersion >= 10
+			? createLabelTrackV10(value)
+			: project.schemaVersion >= 4 ? createLabelTrackV4(value) : createLabelTrackV2(value);
 		assertUnusedId(project.tracks, labelTrack.id, 'track');
 		const labelIndex = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
 		project.tracks.splice(labelIndex, 0, labelTrack);
@@ -100,7 +106,9 @@ function updateTrack(project, trackId, changes = {}) {
 	if (track.type === 'label') {
 		const allowed = new Set(['name', 'collapsed', 'height']);
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label track field cannot be updated: ${key}.`);
-		Object.assign(track, project.schemaVersion >= 4
+		Object.assign(track, project.schemaVersion >= 10
+			? createLabelTrackV10({ ...track, ...changes, labels: track.labels })
+			: project.schemaVersion >= 4
 			? createLabelTrackV4({ ...track, ...changes, labels: track.labels })
 			: createLabelTrackV2({ ...track, ...changes, labels: track.labels }));
 		return;
@@ -162,7 +170,7 @@ function reorderTrack(project, trackId, requestedIndex) {
 
 function addLabel(project, trackId, value) {
 	const track = requireLabelTrack(project, trackId);
-	const label = createLabelV2(value);
+	const label = project.schemaVersion >= 10 ? createLabelV10(value) : createLabelV2(value);
 	assertUnusedId(track.labels, label.id, 'label');
 	track.labels.push(label);
 	track.labels.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame || left.id.localeCompare(right.id));
@@ -174,7 +182,9 @@ function updateLabel(project, trackId, labelId, changes = {}) {
 	if (index < 0) throw new ReferenceError(`Unknown label: ${labelId}.`);
 	const allowed = new Set(['title', 'startFrame', 'endFrame', 'color', 'opaqueExtensions']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label field cannot be updated: ${key}.`);
-	track.labels[index] = createLabelV2({ ...track.labels[index], ...changes, id: labelId });
+	track.labels[index] = project.schemaVersion >= 10
+		? createLabelV10({ ...track.labels[index], ...changes, id: labelId })
+		: createLabelV2({ ...track.labels[index], ...changes, id: labelId });
 	track.labels.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame || left.id.localeCompare(right.id));
 }
 

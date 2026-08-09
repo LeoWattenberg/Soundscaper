@@ -22,7 +22,6 @@ import {
 	normalizeProjectFeatureRequirements,
 } from './project-feature-requirements.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import {
 	validateAudioEditorProjectV9,
 	type AudioEditorProjectV9,
@@ -30,8 +29,8 @@ import {
 
 export {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 } from './project-schema-version.ts';
+export const AUDIO_EDITOR_PROJECT_SCHEMA_VERSION = 9 as const;
 export const AUDIO_EDITOR_MEDIA_KINDS = V8_MEDIA_KINDS;
 export const AUDIO_EDITOR_TRACK_TYPES = V8_TRACK_TYPES;
 export { validateAudioEditorProjectV9, type AudioEditorProjectV9 } from './project-v9-validation.ts';
@@ -81,7 +80,7 @@ export function createAudioEditorProjectV9(options: AudioEditorProjectV9Options 
 	});
 	return {
 		...base,
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaVersion: AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 		featureRequirements: reconcileProjectOwnedFeatureRequirements(base, normalizedFeatureRequirements),
 	};
 }
@@ -106,7 +105,7 @@ export function loadAudioEditorProjectV9(value: unknown): {
 } {
 	const candidate = objectValue(value, 'saved project');
 	const schemaVersion = Number(candidate.schemaVersion);
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+	if (schemaVersion > AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
 		return { project: clone(candidate), readOnly: true, reason: 'newer-schema' };
 	}
 	validateAudioEditorProjectV9(candidate);

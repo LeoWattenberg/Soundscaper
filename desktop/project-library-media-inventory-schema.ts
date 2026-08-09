@@ -7,6 +7,7 @@ import {
 	createDesktopLibraryMediaBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
 	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
 	relativeFileForManagedMediaBinding,
 	validatedManagedMediaBindingId,
 	type DesktopLibraryManagedMediaEncoding,
@@ -70,7 +71,11 @@ export function initializeDesktopLibraryManagedMediaInventorySchema(database: Da
 			portable_key TEXT NOT NULL UNIQUE,
 			byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
 			sha256 TEXT NOT NULL,
-			encoding TEXT NOT NULL CHECK (encoding IN ('audio-f32le-chunks-v1', 'video-original-v1')),
+			encoding TEXT NOT NULL CHECK (encoding IN (
+				'audio-f32le-chunks-v1',
+				'video-original-v1',
+				'soundscaper-video-timing-v1'
+			)),
 			project_id TEXT NOT NULL,
 			project_revision INTEGER NOT NULL CHECK (project_revision >= 0),
 			project_sha256 TEXT NOT NULL,
@@ -328,7 +333,9 @@ export function nonNegativeInteger(value: unknown, label: string): number {
 }
 
 function validateEncoding(value: unknown): DesktopLibraryManagedMediaEncoding {
-	if (value !== DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING && value !== DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING) {
+	if (value !== DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING
+		&& value !== DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING
+		&& value !== DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING) {
 		throw new TypeError('Desktop library managed-media encoding is unsupported');
 	}
 	return value;

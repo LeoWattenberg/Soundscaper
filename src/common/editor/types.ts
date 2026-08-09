@@ -11,11 +11,14 @@ import type {
 	ProjectFeatureRequirementsManifest,
 	ProjectFeatureRequirementsReport,
 } from './project-feature-requirements.ts';
+import type { SampleFrame } from './timeline-time.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
+export type { SampleFrame, SourceTicks, VideoFrame } from './timeline-time.ts';
 
 export type EditorId = string;
-export type EditorFrame = number;
+/** @deprecated Prefer the domain-specific SampleFrame name at new API boundaries. */
+export type EditorFrame = SampleFrame;
 
 export interface EditorSelection {
 	readonly startFrame: EditorFrame;
@@ -167,6 +170,14 @@ export type EditorProjectV9 = Omit<EditorProjectV8, 'schemaVersion'> & Readonly<
 	featureRequirements: ProjectFeatureRequirementsManifest;
 }>;
 
+export type EditorProjectV10 = Omit<EditorProjectV9, 'schemaVersion'> & Readonly<{
+	schemaVersion: 10;
+	sequences: readonly Readonly<Record<string, unknown>>[];
+	primarySequenceId: string;
+	tempoMap: Readonly<Record<string, unknown>>;
+	signatureMap: Readonly<Record<string, unknown>>;
+}>;
+
 export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 	readonly schemaVersion: Version;
 	readonly id: EditorId;
@@ -183,7 +194,7 @@ export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
 export type EditorProjectV2 = EditorLegacyProject<2>;
 export type EditorProjectV3 = EditorLegacyProject<3>;
 export type EditorProjectV4 = EditorLegacyProject<4>;
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9;
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

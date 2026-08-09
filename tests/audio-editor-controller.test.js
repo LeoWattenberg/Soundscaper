@@ -20,15 +20,17 @@ const {
 	calculateAudioEditorMetronomeSchedule,
 	createAudioEditorController,
 } = await import('../src/common/editor/app.js');
-const { createAudioEditorProjectV2 } = await import('../src/common/editor/project-v2.js');
 const {
 	createAudioClipV4,
-	createAudioEditorProjectV4,
-	createAudioSourceV4,
 	createVideoClipV4,
-	createVideoSourceV4,
 } = await import('../src/common/editor/project-v4.js');
+const {
+	createAudioEditorProjectV10,
+	validateAudioEditorProjectV10,
+} = await import('../src/common/editor/project-v10.ts');
+const { resolveRuntimeProjectProjection } = await import('../src/common/editor/runtime-clip-projection.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
+const { createPersistedVideoProject } = await import('./helpers/persisted-video-project-fixture.ts');
 
 const COPY = Object.freeze({
 	ready: 'Ready',
@@ -537,6 +539,7 @@ test('controller opens persisted compound video bin items, restores visuals, and
 		['persisted-bin-audio', 'audio', 'persisted-bin-item'],
 	]);
 	const visual = controller.actions.projectBin.getVisualData('persisted-bin-audio');
+	assert.ok(visual, JSON.stringify({ phase: snapshot.phase, status: snapshot.status, notifications: snapshot.notifications }));
 	assert.equal(visual.videoClip.id, 'persisted-bin-video');
 	assert.deepEqual(visual.itemClips.map((clip) => clip.id), [
 		'persisted-bin-video',
@@ -570,8 +573,9 @@ test('controller opens persisted compound video bin items, restores visuals, and
 	assert.deepEqual(placed.project.tracks.map((track) => track.type), ['video', 'audio']);
 	assert.ok(placed.project.tracks[0].laneGroupId);
 	assert.equal(placed.project.tracks[0].laneGroupId, placed.project.tracks[1].laneGroupId);
-	const placedVideo = placed.project.clips.find((clip) => clip.id === placedVideoId);
-	const placedAudio = placed.project.clips.find((clip) => clip.kind === 'audio');
+	const placedRuntime = resolveRuntimeProjectProjection(placed.project);
+	const placedVideo = placedRuntime.clips.find((clip) => clip.id === placedVideoId);
+	const placedAudio = placedRuntime.clips.find((clip) => clip.kind === 'audio');
 	assert.equal(placedVideo.kind, 'video');
 	assert.equal(placedVideo.timelineStartFrame, 24_000);
 	assert.equal(placedAudio.timelineStartFrame, 24_000);
@@ -610,6 +614,7 @@ test('moving a linked video clip below the timeline creates a fresh paired lane 
 
 	const targetTrackId = controller.actions.clip.moveToNewTrack('persisted-timeline-video', 12_000);
 	const snapshot = controller.getSnapshot();
+	const runtimeSnapshot = resolveRuntimeProjectProjection(snapshot.project);
 	assert.deepEqual(snapshot.project.tracks.map((track) => track.type), [
 		'video',
 		'audio',
@@ -626,10 +631,10 @@ test('moving a linked video clip below the timeline creates a fresh paired lane 
 	assert.notEqual(snapshot.project.tracks[2].laneGroupId, 'persisted-lane-group');
 	assert.equal(snapshot.project.tracks[2].laneGroupId, snapshot.project.tracks[3].laneGroupId);
 	assert.deepEqual(
-		snapshot.project.clips.map((clip) => [clip.kind, clip.timelineStartFrame, clip.avLinkId]),
+		runtimeSnapshot.clips.map((clip) => [clip.kind, clip.timelineStartFrame, clip.avLinkId]),
 		[
-			['video', 12_000, 'persisted-av-link'],
-			['audio', 12_000, 'persisted-av-link'],
+			['video', 12_800, 'persisted-av-link'],
+			['audio', 12_800, 'persisted-av-link'],
 		],
 	);
 	await controller.dispose();
@@ -638,7 +643,7 @@ test('moving a linked video clip below the timeline creates a fresh paired lane 
 test('linked video moves create crossfades with aligned audio and reject a third overlap atomically', async () => {
 	const store = createMemoryStore();
 	const fixture = createPersistedVideoProject({ timeline: true });
-	const project = structuredClone(fixture.project);
+	const projectInput = structuredClone(fixture.project);
 	for (const [suffix, timelineStartFrame] of [['second', 48_000], ['third', 96_000]]) {
 		const avLinkId = `${suffix}-av-link`;
 		const videoClip = createVideoClipV4({
@@ -661,10 +666,11 @@ test('linked video moves create crossfades with aligned audio and reject a third
 			durationFrames: 48_000,
 			avLinkId,
 		});
-		project.clips.push(videoClip, audioClip);
-		project.tracks[0].clipIds.push(videoClip.id);
-		project.tracks[1].clipIds.push(audioClip.id);
+		projectInput.clips.push(videoClip, audioClip);
+		projectInput.tracks[0].clipIds.push(videoClip.id);
+		projectInput.tracks[1].clipIds.push(audioClip.id);
 	}
+	const project = createAudioEditorProjectV10(projectInput);
 	store.projects.set(project.id, project);
 	store.settings.set('last-project-id', project.id);
 	store.mediaAssets.set(fixture.videoSource.id, new Blob(['persisted-video'], { type: 'video/mp4' }));
@@ -684,16 +690,16 @@ test('linked video moves create crossfades with aligned audio and reject a third
 
 	controller.actions.clip.move('persisted-timeline-video', 'persisted-video-track', 24_000);
 	let snapshot = controller.getSnapshot();
-	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame, 24_000);
-	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-audio').timelineStartFrame, 24_000);
+	assert.equal(runtimeClip(snapshot.project, 'persisted-timeline-video').timelineStartFrame, 24_000);
+	assert.equal(runtimeClip(snapshot.project, 'persisted-timeline-audio').timelineStartFrame, 24_000);
 
 	controller.actions.edit.undo();
 	snapshot = controller.getSnapshot();
-	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame, 0);
-	assert.equal(snapshot.project.clips.find((clip) => clip.id === 'persisted-timeline-audio').timelineStartFrame, 0);
+	assert.equal(runtimeClip(snapshot.project, 'persisted-timeline-video').timelineStartFrame, 0);
+	assert.equal(runtimeClip(snapshot.project, 'persisted-timeline-audio').timelineStartFrame, 0);
 	controller.actions.edit.redo();
 	assert.equal(
-		controller.getSnapshot().project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame,
+		runtimeClip(controller.getSnapshot().project, 'persisted-timeline-video').timelineStartFrame,
 		24_000,
 	);
 
@@ -709,7 +715,7 @@ test('linked video moves create crossfades with aligned audio and reject a third
 	});
 	await controller.ready;
 	assert.equal(
-		controller.getSnapshot().project.clips.find((clip) => clip.id === 'persisted-timeline-video').timelineStartFrame,
+		runtimeClip(controller.getSnapshot().project, 'persisted-timeline-video').timelineStartFrame,
 		24_000,
 	);
 
@@ -719,7 +725,7 @@ test('linked video moves create crossfades with aligned audio and reject a third
 	));
 	assert.strictEqual(controller.getSnapshot().project, beforeInvalidMove);
 	assert.equal(
-		controller.getSnapshot().project.clips.find((clip) => clip.id === 'third-timeline-audio').timelineStartFrame,
+		runtimeClip(controller.getSnapshot().project, 'third-timeline-audio').timelineStartFrame,
 		96_000,
 	);
 	await controller.dispose();
@@ -728,8 +734,8 @@ test('linked video moves create crossfades with aligned audio and reject a third
 test('track move actions reorder paired video and audio lanes as one layer block', async () => {
 	const store = createMemoryStore();
 	const fixture = createPersistedVideoProject({ timeline: true });
-	const project = structuredClone(fixture.project);
-	project.tracks.push({
+	const projectInput = structuredClone(fixture.project);
+	projectInput.tracks.push({
 		type: 'video',
 		id: 'background-video-track',
 		name: 'Background video',
@@ -756,6 +762,9 @@ test('track move actions reorder paired video and audio lanes as one layer block
 		laneGroupId: 'background-lane-group',
 		opaqueExtensions: {},
 	});
+	projectInput.sequences[0].trackIds.push('background-video-track', 'background-audio-track');
+	const project = createAudioEditorProjectV10(projectInput);
+	validateAudioEditorProjectV10(project);
 	store.projects.set(project.id, project);
 	store.settings.set('last-project-id', project.id);
 	const controller = createAudioEditorController(null, {
@@ -819,8 +828,9 @@ test('cross-project video paste creates one adjacent paired lane group with fres
 		assert.notEqual(mediaTracks[0].laneGroupId, 'persisted-lane-group');
 		assert.equal(snapshot.project.tracks.indexOf(mediaTracks[1]), snapshot.project.tracks.indexOf(mediaTracks[0]) + 1);
 
-		const videoClip = snapshot.project.clips.find((clip) => clip.kind === 'video');
-		const audioClip = snapshot.project.clips.find((clip) => clip.avLinkId === videoClip?.avLinkId && clip.kind === 'audio');
+		const runtimeProject = resolveRuntimeProjectProjection(snapshot.project);
+		const videoClip = runtimeProject.clips.find((clip) => clip.kind === 'video');
+		const audioClip = runtimeProject.clips.find((clip) => clip.avLinkId === videoClip?.avLinkId && clip.kind === 'audio');
 		assert.ok(videoClip);
 		assert.ok(audioClip);
 		assert.notEqual(videoClip.avLinkId, 'persisted-av-link');
@@ -877,6 +887,7 @@ test('video export API and generic export dispatch stage raw media and audio for
 	await controller.ready;
 
 	const mp4 = await controller.actions.video.export({ format: 'video-mp4' });
+	assert.ok(mp4);
 	assert.deepEqual({
 		fileName: mp4.fileName,
 		mimeType: mp4.mimeType,
@@ -900,8 +911,8 @@ test('video export API and generic export dispatch stage raw media and audio for
 		'persisted-timeline-video',
 	);
 	assert.equal(renderCalls[0].range.startFrame, 0);
-	assert.equal(renderCalls[0].range.endFrame, fixture.videoSource.frameCount);
-	assert.equal(renderCalls[0].range.outputFrames, fixture.videoSource.frameCount);
+	assert.equal(renderCalls[0].range.endFrame, fixture.videoSource.sampleFrameCount);
+	assert.equal(renderCalls[0].range.outputFrames, fixture.videoSource.sampleFrameCount);
 	assert.equal(downloads[0].purpose, 'video');
 	assert.equal(downloads[0].mimeType, 'video/mp4');
 
@@ -1992,7 +2003,7 @@ test('controller renders a macro as an ordered isolated rack and persists one de
 	});
 	await writer.write([input]);
 	await writer.commit({ sampleRate: 48_000, channelCount: 1 });
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV10({
 		id: 'controller-macro-project',
 		title: 'Macro project',
 		now: '2026-07-15T00:00:00.000Z',
@@ -2284,7 +2295,7 @@ test('controller gates sample tools by zoom and commits pencil and smoothing as 
 	await writer.write([input.subarray(0, 65_536)]);
 	await writer.write([input.subarray(65_536)]);
 	await writer.commit({ chunkFrames: 65_536 });
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV10({
 		id: 'controller-sample-project',
 		title: 'Sample project',
 		now: '2026-07-13T00:00:00.000Z',
@@ -2488,7 +2499,7 @@ test('controller rewrites stereo channels with immutable sources and round-trips
 	});
 	await writer.write([left, right]);
 	await writer.commit({ sampleRate: 48_000, channelCount: 2 });
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV10({
 		id: 'controller-channel-project',
 		title: 'Channel project',
 		now: '2026-07-13T00:00:00.000Z',
@@ -3162,116 +3173,8 @@ function createMemoryStore() {
 	};
 }
 
-function createPersistedVideoProject({ projectBin = false, timeline = false } = {}) {
-	const frameCount = 48_000;
-	const videoSource = createVideoSourceV4({
-		id: 'persisted-video-source',
-		name: 'persisted-camera.mp4',
-		mimeType: 'video/mp4',
-		storageKey: 'persisted-video-source',
-		frameCount,
-		sampleRate: 48_000,
-		width: 640,
-		height: 360,
-		frameRate: 25,
-		videoCodec: 'h264',
-		audioCodec: 'aac',
-		hasAudio: true,
-		opaqueExtensions: { byteLength: 15 },
-	});
-	const audioSource = createAudioSourceV4({
-		id: 'persisted-audio-source',
-		name: 'persisted camera audio',
-		storageKey: 'persisted-audio-source',
-		frameCount,
-		channelCount: 2,
-		sampleRate: 48_000,
-	});
-	const binClips = projectBin
-		? [
-			createVideoClipV4({
-				id: 'persisted-bin-video',
-				sourceId: videoSource.id,
-				title: 'Persisted scene',
-				sourceStartFrame: 0,
-				sourceDurationFrames: frameCount,
-				durationFrames: frameCount,
-				binItemId: 'persisted-bin-item',
-			}),
-			createAudioClipV4({
-				id: 'persisted-bin-audio',
-				sourceId: audioSource.id,
-				title: 'Persisted scene',
-				sourceStartFrame: 0,
-				sourceDurationFrames: frameCount,
-				durationFrames: frameCount,
-				binItemId: 'persisted-bin-item',
-			}),
-		]
-		: [];
-	const avLinkId = timeline ? 'persisted-av-link' : null;
-	const timelineClips = timeline
-		? [
-			createVideoClipV4({
-				id: 'persisted-timeline-video',
-				sourceId: videoSource.id,
-				title: 'Timeline scene',
-				sourceStartFrame: 0,
-				sourceDurationFrames: frameCount,
-				durationFrames: frameCount,
-				avLinkId,
-			}),
-			createAudioClipV4({
-				id: 'persisted-timeline-audio',
-				sourceId: audioSource.id,
-				title: 'Timeline scene audio',
-				sourceStartFrame: 0,
-				sourceDurationFrames: frameCount,
-				durationFrames: frameCount,
-				avLinkId,
-			}),
-		]
-		: [];
-	const laneGroupId = timeline ? 'persisted-lane-group' : null;
-	const tracks = timeline
-		? [{
-			type: 'video',
-			id: 'persisted-video-track',
-			name: 'Persisted video',
-			clipIds: ['persisted-timeline-video'],
-			mute: false,
-			hidden: false,
-			collapsed: false,
-			height: 96,
-			laneGroupId,
-			opaqueExtensions: {},
-		}, {
-			type: 'audio',
-			id: 'persisted-audio-track',
-			name: 'Persisted audio',
-			clipIds: ['persisted-timeline-audio'],
-			mute: false,
-			solo: false,
-			armed: false,
-			gain: 1,
-			pan: 0,
-			channelCount: 2,
-			color: 'auto',
-			effects: [],
-			laneGroupId,
-			opaqueExtensions: {},
-		}]
-		: [];
-	const project = createAudioEditorProjectV4({
-		id: `persisted-video-project-${projectBin ? 'bin' : 'timeline'}`,
-		title: 'Persisted video project',
-		now: '2026-07-18T12:00:00.000Z',
-		sources: [videoSource, audioSource],
-		clips: timelineClips,
-		tracks,
-		projectBin: { clips: binClips },
-	});
-	return { project, videoSource, audioSource };
+function runtimeClip(project, clipId) {
+	return resolveRuntimeProjectProjection(project).clips.find(({ id }) => id === clipId);
 }
 
 function audioBuffer(channels, sampleRate) {

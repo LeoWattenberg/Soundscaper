@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 import {
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { exportScapeProject, inspectScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
@@ -237,7 +237,7 @@ test('Scape export rejects video classification in an audio-only retained schema
 	assert.equal(mediaReads, 0);
 });
 
-function featureProject(id: string, fallbackDigest = FALLBACK_DIGEST): AudioEditorProjectV9 {
+function featureProject(id: string, fallbackDigest = FALLBACK_DIGEST): AudioEditorProjectV10 {
 	const source = createAudioSourceV9({
 		id: FALLBACK_SOURCE_ID,
 		storageKey: FALLBACK_SOURCE_ID,
@@ -248,7 +248,7 @@ function featureProject(id: string, fallbackDigest = FALLBACK_DIGEST): AudioEdit
 		sampleRate: 48_000,
 		originalSampleRate: 48_000,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id,
 		title: 'Feature requirements project',
 		now: NOW,
@@ -266,7 +266,7 @@ function featureProject(id: string, fallbackDigest = FALLBACK_DIGEST): AudioEdit
 	});
 }
 
-function firstSource(project: AudioEditorProjectV9): Readonly<Record<string, unknown>> {
+function firstSource(project: AudioEditorProjectV10): Readonly<Record<string, unknown>> {
 	const source = (project.sources as readonly Readonly<Record<string, unknown>>[])[0];
 	assert.ok(source);
 	return source;

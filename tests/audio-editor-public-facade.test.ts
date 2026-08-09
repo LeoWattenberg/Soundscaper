@@ -12,6 +12,7 @@ import type {
 	EditorActions,
 	EditorLabelTrack,
 	EditorProject,
+	SampleFrame,
 	EditorSnapshot,
 } from '../src/common/editor/index.js';
 
@@ -66,8 +67,8 @@ test('public label-track type matches the serialized label model', () => {
 		labels: [{
 			id: 'label-1',
 			title: 'Verse',
-			startFrame: 24,
-			endFrame: 48,
+			startFrame: 24 as SampleFrame,
+			endFrame: 48 as SampleFrame,
 			color: 'auto',
 		}],
 	} satisfies EditorLabelTrack;

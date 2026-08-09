@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 } from '../src/common/editor/project-v9.ts';
@@ -178,7 +179,7 @@ function videoSource(id: string) {
 }
 
 function videoProject(sources: readonly ReturnType<typeof videoSource>[]) {
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: PROJECT_ID,
 		title: 'Linked alias project',
 		revision: 2,

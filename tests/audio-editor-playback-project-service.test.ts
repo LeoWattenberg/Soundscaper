@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -17,7 +19,6 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
@@ -77,7 +78,7 @@ function fallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audi
 		id: 'original-track', clipIds: [clip.id],
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'fallback-project', now: '2026-07-30T12:00:00.000Z',
 		sources: [source, fallback], clips: [clip], tracks: [track],
 		featureRequirements: { schemaVersion: 1, requirements: [{
@@ -104,7 +105,7 @@ function videoFallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS
 		videoEffects: [{ id: 'effect-a', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
 	const track = createVideoTrackV9({ id: 'original-video-track', clipIds: [clip.id] });
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'video-fallback-project', now: '2026-08-01T12:00:00.000Z',
 		sources: [original, fallback], clips: [clip], tracks: [track],
 		featureRequirements: { schemaVersion: 1, requirements: [{
@@ -187,7 +188,7 @@ test('a track-render fallback replaces one lane while other tracks stay native s
 	});
 	const fxClip = createAudioClipV9({ id: 'fx-clip', sourceId: source.id, durationFrames: 4 });
 	const dryClip = createAudioClipV9({ id: 'dry-clip', sourceId: drySource.id, durationFrames: 4 });
-	const canonical = createAudioEditorProjectV9({
+	const canonical = createAudioEditorProjectV10({
 		id: 'track-render-project', now: '2026-08-08T12:00:00.000Z',
 		sources: [source, drySource, fallback], clips: [fxClip, dryClip],
 		tracks: [
@@ -325,7 +326,7 @@ test('combined fallback reapply keeps staged audio out of direct video readiness
 });
 
 test('the playback service retains the existing bounded bypass path and never traverses future projects', () => {
-	const bypass = createAudioEditorProjectV9({
+	const bypass = createAudioEditorProjectV10({
 		id: 'bypass', now: '2026-07-30T12:00:00.000Z',
 		tracks: [createAudioTrackV9({
 			id: 'track', effects: [createEffect('limiter', { id: 'limiter-a' })],
@@ -342,7 +343,7 @@ test('the playback service retains the existing bounded bypass path and never tr
 
 	const future = {
 		...bypass,
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get featureRequirements(): never { throw new Error('future feature requirements were traversed'); },
 		get tracks(): never { throw new Error('future tracks were traversed'); },
 	};

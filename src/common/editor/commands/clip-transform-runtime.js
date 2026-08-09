@@ -27,6 +27,11 @@ import {
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
 
+// foundation-edit-matrix: move
+// foundation-edit-matrix: roll
+// foundation-edit-matrix: slip
+// foundation-edit-matrix: slide
+
 /**
  * Prepares an atomic transform for selected/grouped clips. When overwrite is
  * enabled, stable IDs are reserved for any inactive clip that is split into

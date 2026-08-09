@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { DesktopSharedProjectConflictError } from '../src/common/editor/storage/desktop-shared-project-commit.ts';
 import type { ProjectDocument, ProjectRepositoryPort } from '../src/common/editor/storage/project-repository.ts';
@@ -92,7 +93,7 @@ test('a catalog summary does not authorize overwriting a document that was never
 });
 
 function project(id: string, revision: number): ProjectDocument {
-	return createAudioEditorProjectV9({ id, title: id, revision, now: NOW }) as unknown as ProjectDocument;
+	return createAudioEditorProjectV10({ id, title: id, revision, now: NOW }) as unknown as ProjectDocument;
 }
 
 function memoryShadow() {

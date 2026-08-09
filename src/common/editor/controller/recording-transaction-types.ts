@@ -29,7 +29,7 @@ export interface RecordingProject extends Readonly<Record<string, unknown>> {
 	readonly selection?: RecordingSelection | null;
 	readonly tempo?: Readonly<{
 		readonly bpm?: number;
-		readonly timeSignature?: Readonly<{ readonly numerator?: number }>;
+		readonly timeSignature?: Readonly<{ readonly numerator?: number; readonly denominator?: number }>;
 	}>;
 }
 

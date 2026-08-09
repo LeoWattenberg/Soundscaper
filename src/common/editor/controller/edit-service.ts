@@ -9,6 +9,8 @@ export interface EditServiceRuntime {
 type RuntimeValue = EditServiceRuntime[string];
 export type HandleEditorEdit = (action: string) => RuntimeValue;
 
+// foundation-edit-matrix: duplicate
+
 export function createEditorEditService(runtime: EditServiceRuntime): HandleEditorEdit {
 	const {
 		activeSelection, commit, commitSplitAtFrames, compactLiveSourceState,

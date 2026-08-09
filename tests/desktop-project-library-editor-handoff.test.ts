@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -15,11 +17,8 @@ import { createEditorController } from '../src/common/editor/facade.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import {
 	parseScapeProjectDocument,
@@ -31,7 +30,7 @@ import {
 } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import type { EditorController } from '../src/common/editor/types.ts';
 
-type ExactProjectV9 = AudioEditorProjectV9 & Readonly<{
+type ExactProjectV10 = AudioEditorProjectV10 & Readonly<{
 	id: string;
 	title: string;
 	revision: number;
@@ -59,7 +58,7 @@ const FRAME_OWNER = Object.freeze({
 	instanceId: 'editor-handoff-framescaper',
 });
 
-test('source-bearing exact-V9 handoff refuses activation without recipient-local PCM', async (context) => {
+test('source-bearing exact-V10 handoff refuses activation without recipient-local PCM', async (context) => {
 	const fixture = await createFixture();
 	const resources = trackResources(context, fixture);
 	const soundHost = await resources.startHost(SOUND_OWNER);
@@ -92,7 +91,7 @@ test('source-bearing exact-V9 handoff refuses activation without recipient-local
 		name: 'Soundscaper audio',
 		clipIds: [clip.id],
 	});
-	const project = exactV9(createAudioEditorProjectV9({
+	const project = exactV9(createAudioEditorProjectV10({
 		id: 'handoff-project-with-audio',
 		title: 'Source-bearing handoff',
 		revision: 3,
@@ -188,7 +187,7 @@ test('source-bearing exact-V9 handoff refuses activation without recipient-local
 	assert.ok(failed.status.message.includes(sourceId));
 });
 
-test('source-free exact-V9 composed editor autosave hands off from Soundscaper to Framescaper', async (context) => {
+test('source-free exact-V10 composed editor autosave hands off from Soundscaper to Framescaper', async (context) => {
 	const fixture = await createFixture();
 	const resources = trackResources(context, fixture);
 	const soundHost = await resources.startHost(SOUND_OWNER);
@@ -323,15 +322,15 @@ function serviceBridge(
 	});
 }
 
-function exactV9(value: unknown): ExactProjectV9 {
+function exactV9(value: unknown): ExactProjectV10 {
 	const project = typeof value === 'string' ? parseScapeProjectDocument(value) : value;
-	if (!validateAudioEditorProjectV9(project)) throw new TypeError('Expected an exact-V9 project.');
+	if (!validateAudioEditorProjectV10(project)) throw new TypeError('Expected an exact-V10 project.');
 	if (typeof value === 'string') assert.equal(serializeScapeProjectDocument(project), value);
-	return project as ExactProjectV9;
+	return project as ExactProjectV10;
 }
 
-function assertSourceFree(project: ExactProjectV9): void {
-	assert.equal(project.schemaVersion, 9);
+function assertSourceFree(project: ExactProjectV10): void {
+	assert.equal(project.schemaVersion, 10);
 	assert.deepEqual(project.sources, []);
 	assert.deepEqual(project.clips, []);
 	assert.deepEqual(project.projectBin.clips, []);
@@ -362,8 +361,8 @@ function manualTimers() {
 async function waitForProject(
 	service: DesktopSharedProjectLibraryService,
 	projectId: string,
-	accept: (project: ExactProjectV9) => boolean,
-): Promise<ExactProjectV9> {
+	accept: (project: ExactProjectV10) => boolean,
+): Promise<ExactProjectV10> {
 	for (let attempt = 0; attempt < 100; attempt += 1) {
 		const document = await service.readSharedProject(projectId);
 		if (document) {

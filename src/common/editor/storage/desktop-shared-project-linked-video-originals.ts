@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
-} from '../project-v9.ts';
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../project-v10-validation.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import {
 	managedSourceBinding,
@@ -12,6 +12,7 @@ import {
 } from './desktop-shared-project-media-sources.ts';
 import type {
 	InspectedLinkedVideoOriginal,
+	FoundationLinkedVideoOriginalSource,
 	LinkedVideoOriginalResolver,
 	ResolvedLinkedVideoOriginal,
 } from './linked-video-original-resolver.ts';
@@ -75,9 +76,9 @@ export async function resolveDesktopSharedProjectLinkedVideoOriginals(
 	resolver: LinkedVideoResolver,
 	options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<DesktopSharedLinkedVideoOriginalSession> {
-	validateAudioEditorProjectV9(projectValue);
+	validateAudioEditorProjectV10(projectValue);
 	assertResolver(resolver);
-	const project = projectValue as AudioEditorProjectV9;
+	const project = projectValue as AudioEditorProjectV10;
 	const groups = linkedVideoGroups(project);
 	const byStorageKey = new Map<string, LinkedVideoEntry>();
 	const sourceBindings = new Map<string, string>();
@@ -87,7 +88,11 @@ export async function resolveDesktopSharedProjectLinkedVideoOriginals(
 		const inspected: InspectedLinkedVideoOriginal[] = [];
 		let complete = true;
 		for (const source of sources) {
-			const value = await resolver.inspect(project.id, source, { signal: options.signal });
+			const value = await resolver.inspect(
+				project.id,
+				source as FoundationLinkedVideoOriginalSource,
+				{ signal: options.signal },
+			);
 			throwIfScapeAborted(options.signal);
 			if (!value) {
 				complete = false;
@@ -191,7 +196,7 @@ export function desktopSharedLinkedVideoGroupMatches(
 		&& ownDataValue(candidate, 'sha256') === entry.metadata.sha256;
 }
 
-function linkedVideoGroups(project: AudioEditorProjectV9): ReadonlyMap<string, readonly ManagedVideoSource[]> {
+function linkedVideoGroups(project: AudioEditorProjectV10): ReadonlyMap<string, readonly ManagedVideoSource[]> {
 	const groups = new Map<string, ManagedVideoSource[]>();
 	const bindings = new Map<string, string>();
 	for (const source of reachableProjectSources(project)) {
@@ -238,7 +243,11 @@ async function loadEntry(entry: LinkedVideoEntry, signal?: AbortSignal): Promise
 	const source = entry.sources[0];
 	const inspected = entry.inspected[0];
 	if (!source || !inspected) throw new Error('The linked video original group is empty.');
-	const resolved = await entry.resolver.resolve(entry.projectId, source, { signal });
+	const resolved = await entry.resolver.resolve(
+		entry.projectId,
+		source as FoundationLinkedVideoOriginalSource,
+		{ signal },
+	);
 	throwIfScapeAborted(signal);
 	if (!resolved || !sameInspectedBinding(resolved, inspected)) {
 		throw new Error('The linked video original binding changed during grouped resolution.');
@@ -253,7 +262,12 @@ async function assertEntryCurrent(entry: LinkedVideoEntry, signal?: AbortSignal)
 		const source = entry.sources[index];
 		const inspected = entry.inspected[index];
 		if (!source || !inspected) throw new Error('The linked video original alias set is incomplete.');
-		await entry.resolver.assertBindingCurrent(entry.projectId, source, inspected.binding, { signal });
+		await entry.resolver.assertBindingCurrent(
+			entry.projectId,
+			source as FoundationLinkedVideoOriginalSource,
+			inspected.binding,
+			{ signal },
+		);
 	}
 }
 

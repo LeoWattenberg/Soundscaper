@@ -3,7 +3,7 @@
 import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
 export const DESKTOP_LIBRARY_SCHEMA_VERSION = 2 as const;
-export const DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 9 as const;
+export const DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 10 as const;
 export const MAX_LIBRARY_METADATA_BYTES = 4 * 1024 * 1024;
 export const MAX_LIBRARY_PROJECT_DOCUMENT_BYTES = 256 * 1024 * 1024;
 export const MAX_LIBRARY_PROJECT_ID_BYTES = 4 * 1024;

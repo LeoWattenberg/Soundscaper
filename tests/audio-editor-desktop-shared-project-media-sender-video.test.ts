@@ -6,21 +6,28 @@ import test from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
+import {
+	createAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../src/common/editor/project-v10.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import {
 	DESKTOP_SHARED_AUDIO_ENCODING,
 	DESKTOP_SHARED_VIDEO_ENCODING,
+	DESKTOP_SHARED_VIDEO_TIMING_ENCODING,
 	prepareDesktopSharedProjectMediaHandoff,
 	type DesktopSharedManagedSourceDescriptor,
 	type DesktopSharedSourceTransferBridge,
 } from '../src/common/editor/storage/desktop-shared-project-media-transfer.ts';
+import {
+	createVideoTimingAssetPublication,
+	VIDEO_TIMING_ASSET_MIME_TYPE,
+} from '../src/common/editor/video-timing-asset.ts';
 
 const SAMPLE_RATE = 48_000;
 
@@ -30,7 +37,9 @@ test('mixed sender preflights trusted video metadata before two-pass bounded pub
 	const store = senderStore(fixture, events);
 	const declarations = new Map<string, Readonly<{
 		byteLength: number;
-		encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING | typeof DESKTOP_SHARED_VIDEO_ENCODING;
+		encoding: typeof DESKTOP_SHARED_AUDIO_ENCODING
+			| typeof DESKTOP_SHARED_VIDEO_ENCODING
+			| typeof DESKTOP_SHARED_VIDEO_TIMING_ENCODING;
 		sha256: string;
 		sourceId: string;
 	}>>();
@@ -69,6 +78,73 @@ test('mixed sender preflights trusted video metadata before two-pass bounded pub
 	assert.equal(declarations.get(fixture.video.id)?.sha256, fixture.videoSha256);
 });
 
+test('managed sender carries digest-bound video timing and rejects corrupt timing bytes', async () => {
+	const fixture = mixedFixture({ audio: false });
+	const timing = createVideoTimingAssetPublication(fixture.videoSha256, {
+		timescale: 1_000,
+		presentationTicks: [0n],
+		finalFrameDurationTicks: 40n,
+	});
+	const project = createAudioEditorProjectV10({
+		...fixture.project,
+		sources: fixture.project.sources.map((source) => source.id === fixture.video.id ? {
+			...source,
+			contentSha256: fixture.videoSha256,
+			sourceFrameCount: timing.reference.frameCount,
+			timingAsset: timing.reference,
+		} : source),
+	});
+	const baseStore = senderStore(fixture, []);
+	const timingMetadata = {
+		sourceId: timing.reference.storageKey,
+		storage: 'indexeddb-blob',
+		path: undefined,
+		committedAt: '2026-08-01T12:00:00.000Z',
+		mimeType: VIDEO_TIMING_ASSET_MIME_TYPE,
+		size: timing.bytes.byteLength,
+		sha256: timing.reference.sha256,
+	};
+	let corrupt = false;
+	const store = {
+		...baseStore,
+		getMediaAssetMetadata(storageKey: string) {
+			return storageKey === timing.reference.storageKey
+				? timingMetadata
+				: baseStore.getMediaAssetMetadata(storageKey);
+		},
+		loadMediaAsset(storageKey: string, options?: Readonly<{ backfillDigest?: boolean }>) {
+			if (storageKey !== timing.reference.storageKey) return baseStore.loadMediaAsset(storageKey, options);
+			const bytes = timing.bytes.slice();
+			if (corrupt) bytes[bytes.byteLength - 1] ^= 1;
+			return Promise.resolve(mediaBlob(bytes, VIDEO_TIMING_ASSET_MIME_TYPE));
+		},
+	};
+	const bridge = senderBridge({
+		async begin(declaration) {
+			return declaration.encoding === DESKTOP_SHARED_VIDEO_ENCODING
+				? { status: 'present', source: videoDescriptor(fixture, '4') }
+				: { status: 'present', source: Object.freeze({
+					bindingId: `t${'5'.repeat(64)}`,
+					byteLength: timing.bytes.byteLength,
+					encoding: DESKTOP_SHARED_VIDEO_TIMING_ENCODING,
+					kind: 'video-timing' as const,
+					sha256: timing.reference.sha256,
+					sourceId: fixture.video.id,
+					storageKey: timing.reference.storageKey,
+				}) };
+		},
+	});
+	assert.deepEqual(
+		(await prepareDesktopSharedProjectMediaHandoff(project, bridge, store)).map(({ kind }) => kind),
+		['video', 'video-timing'],
+	);
+	corrupt = true;
+	await assert.rejects(
+		prepareDesktopSharedProjectMediaHandoff(project, bridge, store),
+		/digest binding/iu,
+	);
+});
+
 test('managed sender excludes disposable preview locators while retaining fallback-only media', async () => {
 	const fixture = mixedFixture({ audioFallbackOnly: true });
 	assert.ok(fixture.audio);
@@ -79,7 +155,7 @@ test('managed sender excludes disposable preview locators while retaining fallba
 		sources: fixture.project.sources.map((source) => source.id === fixture.video.id
 			? { ...source, posterStorageKey: posterLocator, thumbnailStorageKey: thumbnailLocator }
 			: source),
-	} as AudioEditorProjectV9;
+	} as AudioEditorProjectV10;
 	const declarations: Array<Parameters<DesktopSharedSourceTransferBridge['beginSharedSourceWrite']>[0]> = [];
 	const bridge = senderBridge({
 		async begin(declaration) {
@@ -210,7 +286,7 @@ test('mixed sender refuses aggregate video and PCM bytes before body or bridge I
 interface MixedFixture {
 	readonly audio: ReturnType<typeof createAudioSourceV9> | null;
 	readonly audioBytes: Uint8Array;
-	readonly project: AudioEditorProjectV9;
+	readonly project: AudioEditorProjectV10;
 	readonly video: ReturnType<typeof createVideoSourceV9>;
 	readonly videoBytes: Uint8Array;
 	readonly videoSha256: string;
@@ -236,7 +312,7 @@ function mixedFixture(options: Readonly<{ audio?: boolean; audioFallbackOnly?: b
 	const videoClip = createVideoClipV9({
 		id: 'mixed-video-clip', sourceId: video.id, durationFrames: 30, binItemId: 'mixed-video-item',
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: includeAudio ? 'mixed-media-project' : 'video-project', title: 'Managed mixed media', revision: 7,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: audio ? [audio, video] : [video],

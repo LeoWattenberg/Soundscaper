@@ -26,6 +26,12 @@ import {
 } from '../project-v5.js';
 import { createMediaClipV8 } from '../project-v8.ts';
 import {
+	createMediaClipV10,
+	createMediaSourceV10,
+	createMediaTrackV10,
+} from '../project-v10.ts';
+import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
+import {
 	cloneVideoEffects,
 } from '../video-effects.js';
 
@@ -107,6 +113,7 @@ export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timeline
 			`Segment ${id}`,
 		);
 	}
+	if (clip.anchor != null || clip.sequenceId != null) return value;
 	return Array.isArray(clip.videoEffects) ? createMediaClipV5(value) : createMediaClipV4(value);
 }
 
@@ -120,7 +127,8 @@ export function envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrame
 export function assertClipSourceBounds(project, clip) {
 	const source = findSource(project, clip.sourceId);
 	if (!source) throw new ReferenceError(`Unknown source: ${clip.sourceId}.`);
-	if (clip.sourceStartFrame + (clip.sourceDurationFrames ?? clip.durationFrames) > source.frameCount) throw new RangeError('Clip exceeds its source bounds.');
+	const sourceFrames = source.kind === 'video' ? (source.sourceFrameCount ?? source.frameCount) : source.frameCount;
+	if (clip.sourceStartFrame + (clip.sourceDurationFrames ?? clip.durationFrames) > sourceFrames) throw new RangeError('Clip exceeds its source bounds.');
 }
 
 export function assertClipSpace(project, track, candidate, excludedClipId = null, additionalClips = []) {
@@ -297,6 +305,10 @@ function normalizeClipValue(value) {
 }
 
 export function normalizeSourceForProject(project, value) {
+	if (project.schemaVersion >= 10) {
+		const source = createMediaSourceV10({ ...value, kind: value?.kind || 'audio' }, project.sampleRate);
+		return source.kind === 'video' ? { ...source, frameCount: source.sampleFrameCount } : source;
+	}
 	return project.schemaVersion >= 5
 		? createMediaSourceV5({ ...value, kind: value?.kind || 'audio' }, project.sampleRate)
 		: project.schemaVersion >= 4
@@ -305,6 +317,9 @@ export function normalizeSourceForProject(project, value) {
 }
 
 export function normalizeTrackForProject(project, value) {
+	if (project.schemaVersion >= 10) {
+		return createMediaTrackV10({ ...value, type: value?.type || 'audio' }, project.sampleRate);
+	}
 	return project.schemaVersion >= 5
 		? createMediaTrackV5({ ...value, type: value?.type || 'audio' }, project.sampleRate)
 		: project.schemaVersion >= 4
@@ -313,6 +328,35 @@ export function normalizeTrackForProject(project, value) {
 }
 
 export function normalizeClipForProject(project, value) {
+	if (project.schemaVersion >= 10) {
+		if (project.runtimeProjectionVersion && value?.coordinateDomain === 'resolved-samples') {
+			const timelineStartFrame = Number(value.timelineStartFrame);
+			const durationFrames = Number(value.durationFrames);
+			const sourceStartFrame = Number(value.sourceStartFrame);
+			const sourceDurationFrames = Number(value.sourceDurationFrames);
+			return {
+				...value,
+				timelineEndFrame: timelineStartFrame + durationFrames,
+				sourceEndFrame: sourceStartFrame + sourceDurationFrames,
+			};
+		}
+		const source = requireSource(project, value.sourceId);
+		const sequenceId = value.sequenceId || project.primarySequenceId;
+		const sequence = project.sequences.find((candidate) => candidate.id === sequenceId);
+		if (!sequence) throw new ReferenceError(`Unknown sequence: ${sequenceId}.`);
+		const clip = createMediaClipV10({
+			...value,
+			kind: value?.kind || 'audio',
+			binItemId: value?.binItemId ?? null,
+			avLinkId: value?.avLinkId ?? null,
+		}, {
+			projectSampleRate: project.sampleRate,
+			tempoMap: project.tempoMap,
+			sequence,
+			source,
+		});
+		return resolveRuntimeClipProjection(project, clip);
+	}
 	return project.schemaVersion >= 8
 		? createMediaClipV8({
 			...value,

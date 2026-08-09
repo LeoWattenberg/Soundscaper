@@ -89,8 +89,8 @@ test('selected audio rejects selector mismatch, ambiguity, and future schemas be
 		/duplicate project source ID/iu,
 	);
 	await assert.rejects(
-		() => verifyProjectFallbackIntegrity({ schemaVersion: 10 }, store, { audioFallback: AUDIO_SELECTOR }),
-		/selected audio rendered fallback.*schema 9/iu,
+		() => verifyProjectFallbackIntegrity({ schemaVersion: 11 }, store, { audioFallback: AUDIO_SELECTOR }),
+		/selected audio rendered fallback.*schema 10/iu,
 	);
 	assert.equal(reads, 0);
 });
@@ -201,11 +201,17 @@ test('default and selected-video admission behavior does not expose an audio pro
 
 function fallbackProject(includeVideo = true): {
 	schemaVersion: number;
+	sampleRate: number;
+	primarySequenceId: string;
+	sequences: Array<Record<string, unknown>>;
 	sources: Array<Record<string, unknown>>;
 	featureRequirements: { schemaVersion: number; requirements: Array<Record<string, unknown>> };
 } {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
+		sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		sources: [
 			{ id: 'rendered-audio', kind: 'audio', storageKey: 'audio-storage', frameCount: 3, channelCount: 2, chunkFrames: 2, sampleRate: 48_000 },
 			...(includeVideo ? [{ id: 'rendered-video', kind: 'video', storageKey: 'video-storage', frameCount: 1, channelCount: 1, chunkFrames: 1, sampleRate: 48_000 }] : []),

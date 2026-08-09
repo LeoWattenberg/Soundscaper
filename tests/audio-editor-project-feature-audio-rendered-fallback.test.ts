@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -15,7 +17,6 @@ import {
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
@@ -82,7 +83,7 @@ function project(featureId: string = AUDIO_EFFECTS) {
 		gain: 0.5,
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'project-a',
 		now: '2026-07-30T12:00:00.000Z',
 		masterChannels: 2,
@@ -122,6 +123,8 @@ test('every registered first-party audio capability can bind one whole-mix fallb
 		PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis,
 		PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
 		PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
+		PROJECT_FEATURE_CAPABILITY_IDS.musicalTimeline,
+		PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
 	]);
 	for (const featureId of PROJECT_FEATURE_AUDIO_CAPABILITY_IDS) {
 		const input = project(featureId);
@@ -289,7 +292,7 @@ test('available, bypass, wrong-role, and future requirements never activate fall
 
 	const future = {
 		...input,
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get sources(): never { throw new Error('future sources were traversed'); },
 	};
 	const projected = projectFeatureAudioRenderedFallbackPlayback(future, report());

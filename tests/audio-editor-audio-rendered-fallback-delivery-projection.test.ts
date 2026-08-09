@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -8,7 +10,6 @@ import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/edito
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createLabelTrackV9,
@@ -122,7 +123,7 @@ test('audio delivery identifies the actual registered unavailable feature', () =
 
 test('audio delivery does not traverse future project feature or media state', () => {
 	const future = {
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get featureRequirements(): never { throw new Error('future feature requirements were traversed'); },
 		get sources(): never { throw new Error('future sources were traversed'); },
 		get clips(): never { throw new Error('future clips were traversed'); },
@@ -161,7 +162,7 @@ function combinedFallbackProject() {
 		id: 'canonical-video-clip', sourceId: canonicalVideo.id, durationFrames: 8,
 		videoEffects: [{ id: 'video-effect', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'combined-fallback-project', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonicalAudio, fallbackAudio, canonicalVideo, fallbackVideo],
 		clips: [audioClip, videoClip],
@@ -205,7 +206,7 @@ function audioRequirementProject(requirement: Readonly<{
 	const clip = createAudioClipV9({
 		id: 'canonical-audio-clip', sourceId: canonical.id, durationFrames: 8,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: `audio-requirement-${requirement.disposition}`,
 		now: '2026-08-02T12:00:00.000Z', sources: [canonical, fallback], clips: [clip],
 		tracks: [createAudioTrackV9({ id: 'canonical-audio-track', clipIds: [clip.id] })],

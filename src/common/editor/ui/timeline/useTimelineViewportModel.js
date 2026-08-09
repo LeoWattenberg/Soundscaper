@@ -7,6 +7,7 @@ import {
 	secondsToFrames,
 } from '../../design-system-adapters.js';
 import { editorTimelineDurationFrames } from '../../project.js';
+import { resolveRuntimeProjectProjection } from '../../runtime-clip-projection.ts';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT,
@@ -37,7 +38,11 @@ export function useTimelineViewportModel({
 		selectionPreview,
 		trackResizePreview,
 	} = state;
-	const project = snapshot.project;
+	const persistedProject = snapshot.project;
+	const project = useMemo(
+		() => persistedProject ? resolveRuntimeProjectProjection(persistedProject) : null,
+		[persistedProject],
+	);
 	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
 	const { activeProfile } = useAccessibilityProfile();
 	const isFlatNavigation = activeProfile.config.tabNavigation === 'sequential';

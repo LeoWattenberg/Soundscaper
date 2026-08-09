@@ -5,6 +5,7 @@ import {
 	PROJECT_FEATURE_CAPABILITY_IDS,
 } from './project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from './project-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 
 export const PROJECT_FEATURE_AUDIO_EFFECT_BYPASS_LIMITS = Object.freeze({
 	maximumAffectedEffects: 4_096,
@@ -63,7 +64,7 @@ export function projectFeatureAudioEffectPlaybackBypass<
 	options: ProjectFeatureAudioEffectBypassOptions = {},
 ): ProjectFeatureAudioEffectBypassProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (dataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
+	if (dataProperty(projectRecord, 'schemaVersion', 'project') !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return unchanged(project);
 	const requirementIds = qualifyingRequirementIds(report);
 	if (requirementIds.length === 0) return unchanged(project);
 	const maximumAffectedEffects = lowerOnlyLimit(

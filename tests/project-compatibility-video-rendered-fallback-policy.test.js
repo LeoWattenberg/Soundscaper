@@ -30,7 +30,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative actual project history.*exact schema 9.*exactly one qualifying item.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*video-clip-render-v1.*exact videoEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/authoritative actual project history.*exact schema 10.*exactly one qualifying item.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*video-clip-render-v1.*exact videoEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -140,11 +140,15 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		normalizedDocumentation,
-		/exact schema 9 video rendered-fallback projection.*two closed relationships.*`project-video-render-v1`.*canonical namespaced feature ID.*reported unavailable or unknown.*`video-clip-render-v1`.*restricted to exact `videoEffects`.*reported unavailable.*exactly one.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
+		/exact schema 10 video rendered-fallback projection.*two closed relationships.*`project-video-render-v1`.*canonical namespaced feature ID.*reported unavailable or unknown.*`video-clip-render-v1`.*restricted to exact `videoEffects`.*reported unavailable.*exactly one.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/joint operation-time integrity.*audio.*video selectors.*requirement.*feature.*role.*target clip ID.*source ID.*SHA-256.*cumulative.*before.*body reads.*private chunk provider.*canonical native `Blob`.*exact immutable `Blob`.*nonselected fallback bodies.*not read.*before the video plan.*storage preflight.*render.*FFmpeg.*publication/isu,
+		/joint operation-time integrity.*audio.*video selectors.*requirement.*feature.*role.*target clip ID.*source ID.*SHA-256.*cumulative.*before.*body reads/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
+		/private chunk provider.*canonical native `Blob`.*exact immutable `Blob`.*nonselected fallback bodies.*not read.*before the video plan.*storage preflight.*render.*FFmpeg.*publication/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
@@ -160,7 +164,15 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		normalizedDocumentation,
-		/video-delivery projection.*audio whole-mix.*then.*selected video rendered fallback.*one.*audio.*one.*video.*bypass projection.*not.*whole-project plan.*only video input.*clip-local plan.*selected target input.*unaffected video.*active audio whole-mix.*private.*chunk.*otherwise.*canonical audio.*separately staged mix.*embedded fallback-video audio.*not extracted or mapped/isu,
+		/video-delivery projection.*audio whole-mix.*then.*selected video rendered fallback.*one.*audio.*one.*video.*bypass projection.*not/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
+		/whole-project plan.*only video input.*clip-local plan.*selected target input.*unaffected video/isu,
+	);
+	assert.match(
+		normalizedDocumentation,
+		/active audio whole-mix.*private.*chunk.*otherwise.*canonical audio.*separately staged mix.*embedded fallback-video audio.*not extracted or mapped/isu,
 	);
 	assert.match(
 		normalizedDocumentation,

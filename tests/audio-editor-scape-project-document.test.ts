@@ -117,7 +117,7 @@ test('the Scape project binary codec exposes frozen lower-only production limits
 	}
 });
 
-test('schema 9 serializes canonical tags and restores explicit binary types byte-exactly', () => {
+test('schema 10 serializes canonical tags and restores explicit binary types byte-exactly', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
 	const storage = Uint8Array.from([99, 0, 1, 2, 253, 254, 255, 88]);
@@ -166,10 +166,10 @@ test('schema 9 serializes canonical tags and restores explicit binary types byte
 	assert.equal(decoded.opaqueExtensions.empty.byteLength, 0);
 });
 
-test('only exact schema 9 receives binary tag traversal', () => {
+test('only exact schema 10 receives binary tag traversal', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
-	for (const schemaVersion of [8, 10, '9']) {
+	for (const schemaVersion of [8, 11, '9']) {
 		const value = {
 			schemaVersion,
 			opaqueExtensions: {
@@ -188,7 +188,7 @@ test('non-current schemas retain ordinary values but receive structural JSON adm
 	const { parse } = codecFunctions();
 	if (!parse) return;
 	const future = {
-		schemaVersion: 10,
+		schemaVersion: 11,
 		opaqueExtensions: { candidate: binaryTag() },
 	};
 	assert.deepEqual(parse(JSON.stringify(future)), future);
@@ -358,7 +358,7 @@ test('current-schema serialization rejects reserved collisions without activatin
 	assert.throws(() => serialize(currentProject({ unsupported: new DataView(new ArrayBuffer(1)) })), /only Uint8Array/iu);
 });
 
-test('schema 9 preserves non-callable toJSON data while rejecting hooks and accessors', () => {
+test('schema 10 preserves non-callable toJSON data while rejecting hooks and accessors', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
 	const text = serialize(currentProject({ toJSON: 'ordinary opaque data' }));
@@ -369,7 +369,7 @@ test('schema 9 preserves non-callable toJSON data while rejecting hooks and acce
 		enumerable: true,
 		get() {
 			activations += 1;
-			return 9;
+			return 10;
 		},
 	});
 	assert.throws(() => serialize(root), /schemaVersion.*accessor/iu);
@@ -382,7 +382,7 @@ test('schema 9 preserves non-callable toJSON data while rejecting hooks and acce
 	assert.throws(() => serialize(currentProject(hookedArray)), /toJSON hooks/iu);
 	assert.equal(activations, 0);
 	class ProjectRoot {
-		readonly schemaVersion = 9;
+		readonly schemaVersion = 10;
 		readonly opaqueExtensions = {};
 	}
 	assert.throws(() => serialize(new ProjectRoot()), /plain object/iu);
@@ -421,11 +421,11 @@ test('lowered traversal limits remain round-trip closed for encoded binary descr
 		maximumTraversalDepth: 1,
 	};
 	const document = serialize({
-		schemaVersion: 9,
+		schemaVersion: 10,
 		bytes: new Uint8Array([1]),
 	}, { limits });
 	assert.deepEqual(parse(document, { limits }), {
-		schemaVersion: 9,
+		schemaVersion: 10,
 		bytes: new Uint8Array([1]),
 	});
 });
@@ -480,7 +480,7 @@ test('JSON structural preflight counts valid lexical forms and duplicate members
 	}), /node limit/iu);
 });
 
-test('schema 9 serialization rejects cycles before JSON serialization', () => {
+test('schema 10 serialization rejects cycles before JSON serialization', () => {
 	const { serialize } = codecFunctions();
 	if (!serialize) return;
 	const opaqueExtensions: Record<string, unknown> = {};
@@ -524,7 +524,7 @@ function codecFunctions(): Readonly<{
 }
 
 function currentProject(opaqueExtensions: unknown): Record<string, unknown> {
-	return { schemaVersion: 9, opaqueExtensions };
+	return { schemaVersion: 10, opaqueExtensions };
 }
 
 function binaryTag(overrides: Partial<BinaryDescriptor> = {}): Record<string, BinaryDescriptor> {

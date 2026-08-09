@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -16,7 +18,6 @@ import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
@@ -132,7 +133,7 @@ test('editor service rejects generated entry ids that cannot form portable proje
 	assert.deepEqual(host.readCatalog().projects, []);
 });
 
-test('editor service requires a bounded exact-V9 root envelope without publishing rejected input', async (context) => {
+test('editor service requires a bounded exact-V10 root envelope without publishing rejected input', async (context) => {
 	const fixture = await createFixture(context);
 	const host = await startHost(fixture.appDataRoot, OWNER);
 	context.after(() => host.close());
@@ -159,7 +160,7 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 		channelCount: 2,
 		sampleRate: 48_000,
 	});
-	const withSource = createAudioEditorProjectV9({
+	const withSource = createAudioEditorProjectV10({
 		id: 'domain-project-1',
 		title: 'Domain project',
 		revision: 1,
@@ -172,7 +173,7 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 		durationFrames: 48_000,
 	});
 	const track = createAudioTrackV9({ id: 'domain-track-1', clipIds: [clip.id] });
-	const withGraph = createAudioEditorProjectV9({
+	const withGraph = createAudioEditorProjectV10({
 		id: 'domain-graph-project-1',
 		title: 'Domain graph project',
 		revision: 1,
@@ -183,7 +184,7 @@ test('editor service requires a bounded exact-V9 root envelope without publishin
 	});
 	for (const candidate of [
 		{ ...current, schemaVersion: 8 },
-		{ ...current, schemaVersion: 10 },
+		{ ...current, schemaVersion: 11 },
 		{ ...current, id: '' },
 		{ ...current, id: 'x'.repeat(4 * 1024 + 1) },
 		{ ...current, title: 'x'.repeat(256) },
@@ -294,14 +295,14 @@ test('editor service applies lower-only structural budgets before host mutation 
 		createEntryId: () => 'opaque-entry-0009',
 		documentLimits: {
 			maximumPayloadCount: 1,
-			maximumTraversalNodes: 80,
-			maximumTraversalDepth: 4,
+			maximumTraversalNodes: 120,
+			maximumTraversalDepth: 5,
 		},
 	});
 
 	await assert.rejects(
 		() => commitDocument(service, serializeScapeProjectDocument(wideProject)),
-		/JSON.*structural traversal node limit/iu,
+		/structural traversal node limit|binary traversal node limit/iu,
 	);
 	assert.equal(commitCalls, 0, 'over-budget renderer input must not reach the host');
 	assert.equal(host.readCatalog().revision, 0);
@@ -396,7 +397,7 @@ test('canonical source references remain metadata-only and do not claim managed 
 		channelCount: 2,
 		sampleRate: 48_000,
 	});
-	const document = serializeScapeProjectDocument(createAudioEditorProjectV9({
+	const document = serializeScapeProjectDocument(createAudioEditorProjectV10({
 		id: 'source-metadata-project',
 		title: 'Source metadata project',
 		revision: 1,
@@ -514,7 +515,7 @@ function startHost(appDataPath: string, owner: DesktopLibraryOwner) {
 }
 
 function currentDocument(revision: number): string {
-	return serializeScapeProjectDocument(createAudioEditorProjectV9({
+	return serializeScapeProjectDocument(createAudioEditorProjectV10({
 		id: 'editor-project-1',
 		title: 'Editor project',
 		revision,

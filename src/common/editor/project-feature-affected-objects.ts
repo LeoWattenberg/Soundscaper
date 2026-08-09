@@ -10,6 +10,7 @@ import type {
 	ProjectFeatureRequirementsReportItem,
 } from './project-feature-requirements.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 
 export const PROJECT_FEATURE_AFFECTED_OBJECT_LIMITS = Object.freeze({
 	maximumAffectedObjects: 4_096,
@@ -86,7 +87,7 @@ export function projectFeatureAffectedObjects<Project extends object>(
 ): ProjectFeatureAffectedObjectIndex | null {
 	if (!isRecord(project)) return null;
 	const projectRecord = project;
-	if (dataProperty(projectRecord, 'schemaVersion') !== 9) return null;
+	if (dataProperty(projectRecord, 'schemaVersion') !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return null;
 	if (report?.compatible !== false || report.format !== 'soundscaper-project') return null;
 	if (!Array.isArray(report.items)) return null;
 	const budget = new ObjectBudget(lowerOnlyLimit(

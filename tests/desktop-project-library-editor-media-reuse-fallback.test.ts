@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
@@ -18,7 +20,6 @@ import { DesktopLibraryMediaReuseUnavailableError } from '../desktop/project-lib
 import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
@@ -92,7 +93,7 @@ function mediaFixture() {
 		sourceId: source.id,
 		durationFrames: source.frameCount,
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'reuse-fallback-project',
 		title: 'Reuse fallback',
 		revision: 8,
@@ -119,7 +120,7 @@ function mediaFixture() {
 		metadataFile: 'projects/reuse-fallback-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 9,
+		projectSchemaVersion: 10,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: PROJECT_SHA256,

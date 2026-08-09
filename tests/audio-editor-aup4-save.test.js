@@ -17,8 +17,7 @@ const assetLoader = `
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
-const { createAudioEditorProjectV2 } = await import('../src/common/editor/project-v2.js');
-const { createAudioEditorProjectV4 } = await import('../src/common/editor/project-v4.js');
+const { createAudioEditorProjectV10 } = await import('../src/common/editor/project-v10.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 const SOURCE_CHUNK_FRAMES = 65_536;
@@ -295,7 +294,7 @@ test('AUP4 audio-only save does not require or read a referenced video source', 
 		dispose() {},
 	};
 	const controller = createTestController({ aup4Client });
-	const videoProject = createAudioEditorProjectV4({
+	const videoProject = createAudioEditorProjectV10({
 		id: 'video-only-project',
 		title: 'Video only',
 		sources: [{
@@ -347,7 +346,7 @@ test('AUP4 audio-only save does not require or read a referenced video source', 
 
 test('AUP4 open stores its compatibility report on the imported project tab and removes the native staging database', async () => {
 	const deletedIds = [];
-	const imported = createAudioEditorProjectV2({ id: 'aup4-imported', title: 'Imported' });
+	const imported = createAudioEditorProjectV10({ id: 'aup4-imported', title: 'Imported' });
 	const aup4Client = {
 		async initialize() { return { opfs: true }; },
 		async openFile() {

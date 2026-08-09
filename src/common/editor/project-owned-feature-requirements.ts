@@ -14,6 +14,11 @@ import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	audioEffects: 'soundscaper.audio-effects',
 	videoEffects: 'soundscaper.video-effects',
+	musicalTimeline: 'soundscaper.musical-timeline',
+	audioWarp: 'soundscaper.audio-warp',
+	sequenceTiming: 'framescaper.sequence-timing',
+	videoRetime: 'framescaper.video-retime',
+	videoTimingAssets: 'framescaper.video-timing-assets',
 } as const);
 
 type RecordValue = Readonly<Record<string, unknown>>;
@@ -40,6 +45,13 @@ const OWNED_VIDEO_EFFECT_REQUIREMENT: ProjectFeatureRequirement = Object.freeze(
 	disposition: 'bypass',
 	fallback: null,
 });
+const FOUNDATION_REQUIREMENTS = Object.freeze({
+	musicalTimeline: requirement('musicalTimeline', 'Musical timeline'),
+	audioWarp: requirement('audioWarp', 'Audio warp maps'),
+	sequenceTiming: requirement('sequenceTiming', 'Sequence timing'),
+	videoRetime: requirement('videoRetime', 'Video retime maps'),
+	videoTimingAssets: requirement('videoTimingAssets', 'Exact video timing assets'),
+});
 const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.freeze([
 	Object.freeze({
 		requirement: OWNED_AUDIO_EFFECT_REQUIREMENT,
@@ -51,7 +63,36 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		conflictMessage: 'The reserved owned video-effects requirement conflicts with publisher data.',
 		projectNeedsRequirement: projectHasMaintainedVideoEffects,
 	}),
+	foundationOwned(FOUNDATION_REQUIREMENTS.musicalTimeline, projectHasMusicalTimeline),
+	foundationOwned(FOUNDATION_REQUIREMENTS.audioWarp, (project) => projectHasClipField(project, 'audio', 'warpMap')),
+	foundationOwned(FOUNDATION_REQUIREMENTS.sequenceTiming, projectHasNonDefaultSequenceTiming),
+	foundationOwned(FOUNDATION_REQUIREMENTS.videoRetime, (project) => projectHasClipField(project, 'video', 'retimeMap')),
+	foundationOwned(FOUNDATION_REQUIREMENTS.videoTimingAssets, projectHasVideoTimingAsset),
 ]);
+
+function requirement(
+	key: 'musicalTimeline' | 'audioWarp' | 'sequenceTiming' | 'videoRetime' | 'videoTimingAssets',
+	displayName: string,
+): ProjectFeatureRequirement {
+	return Object.freeze({
+		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS[key],
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS[key],
+		displayName,
+		disposition: 'bypass',
+		fallback: null,
+	});
+}
+
+function foundationOwned(
+	requirementValue: ProjectFeatureRequirement,
+	predicate: OwnedFeatureRequirement['projectNeedsRequirement'],
+): OwnedFeatureRequirement {
+	return Object.freeze({
+		requirement: requirementValue,
+		conflictMessage: `The reserved owned ${requirementValue.id} requirement conflicts with publisher data.`,
+		projectNeedsRequirement: predicate,
+	});
+}
 
 /**
  * Keep editor-owned declarations aligned with maintained effect state. A
@@ -150,6 +191,74 @@ function projectHasMaintainedVideoEffects(project: Readonly<Record<string, unkno
 	const projectBin = dataProperty(project, 'projectBin');
 	return isRecord(projectBin)
 		&& clipCollectionHasMaintainedVideoEffects(dataArray(projectBin, 'clips'));
+}
+
+function projectHasMusicalTimeline(project: Readonly<Record<string, unknown>>): boolean {
+	const tempoMap = dataProperty(project, 'tempoMap');
+	if (isRecord(tempoMap)) {
+		const events = dataArray(tempoMap, 'events');
+		if (dataProperty(tempoMap, 'mode') !== 'musical' || events.length !== 1 || !isDefaultTempo(events[0])) return true;
+	}
+	const signatureMap = dataProperty(project, 'signatureMap');
+	if (isRecord(signatureMap)) {
+		const events = dataArray(signatureMap, 'events');
+		if (events.length !== 1 || !isDefaultSignature(events[0])) return true;
+	}
+	for (const clip of projectClips(project)) {
+		if (isRecord(clip) && dataProperty(clip, 'kind') === 'audio' && dataProperty(clip, 'anchor') === 'musical') return true;
+	}
+	for (const track of dataArray(project, 'tracks')) {
+		if (!isRecord(track) || dataProperty(track, 'type') !== 'label') continue;
+		if (dataArray(track, 'labels').some((label) => isRecord(label) && dataProperty(label, 'anchor') === 'musical')) return true;
+	}
+	return false;
+}
+
+function projectHasClipField(
+	project: Readonly<Record<string, unknown>>,
+	kind: 'audio' | 'video',
+	field: 'warpMap' | 'retimeMap',
+): boolean {
+	return projectClips(project).some((clip) => isRecord(clip)
+		&& dataProperty(clip, 'kind') === kind
+		&& dataProperty(clip, field) != null);
+}
+
+function projectHasNonDefaultSequenceTiming(project: Readonly<Record<string, unknown>>): boolean {
+	return dataArray(project, 'sequences').some((value) => {
+		if (!isRecord(value)) return false;
+		const rate = dataProperty(value, 'rate');
+		const timecode = dataProperty(value, 'startTimecode');
+		return dataProperty(value, 'dropFrame') === true
+			|| !isRational(rate, 30, 1)
+			|| (isRecord(timecode) && ['negative', 'hours', 'minutes', 'seconds', 'frames']
+				.some((key) => Boolean(dataProperty(timecode, key))));
+	});
+}
+
+function projectHasVideoTimingAsset(project: Readonly<Record<string, unknown>>): boolean {
+	return dataArray(project, 'sources').some((source) => isRecord(source)
+		&& dataProperty(source, 'kind') === 'video'
+		&& dataProperty(source, 'timingAsset') != null);
+}
+
+function projectClips(project: Readonly<Record<string, unknown>>): readonly unknown[] {
+	const bin = dataProperty(project, 'projectBin');
+	return [...dataArray(project, 'clips'), ...(isRecord(bin) ? dataArray(bin, 'clips') : [])];
+}
+
+function isDefaultTempo(value: unknown): boolean {
+	return isRecord(value) && isRational(dataProperty(value, 'beat'), 0, 1)
+		&& isRational(dataProperty(value, 'bpm'), 120, 1);
+}
+
+function isDefaultSignature(value: unknown): boolean {
+	return isRecord(value) && dataProperty(value, 'bar') === 0
+		&& dataProperty(value, 'numerator') === 4 && dataProperty(value, 'denominator') === 4;
+}
+
+function isRational(value: unknown, num: number, den: number): boolean {
+	return isRecord(value) && dataProperty(value, 'num') === num && dataProperty(value, 'den') === den;
 }
 
 function clipCollectionHasMaintainedVideoEffects(clips: readonly unknown[]): boolean {

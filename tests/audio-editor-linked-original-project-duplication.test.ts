@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createVideoClipV9,
 	createVideoSourceV9,
@@ -89,7 +90,7 @@ function mixedProject() {
 		frameCount: 120, sampleRate: 48_000, width: 1_920, height: 1_080,
 		frameRate: 30, videoCodec: 'h264', audioCodec: 'aac', hasAudio: true,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: SOURCE_PROJECT_ID,
 		title: 'Mixed linked originals',
 		now: NOW,

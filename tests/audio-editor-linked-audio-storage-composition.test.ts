@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
@@ -159,7 +160,7 @@ test('generic lifecycle retires audio and legacy-video locators through one kind
 		frameCount: 2, sampleRate: 48_000, width: 16, height: 9, frameRate: 30,
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'mixed-linked-project',
 		sources: [audio, video],
 		clips: [
@@ -283,7 +284,7 @@ function audioProject(id: string, source: ReturnType<typeof audioSource>) {
 		id: `${id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id,
 		sources: [source],
 		clips: [clip],

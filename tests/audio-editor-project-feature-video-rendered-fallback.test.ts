@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -14,7 +16,6 @@ import {
 } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createLabelTrackV9,
@@ -74,7 +75,7 @@ function project(featureId: string = VIDEO_EFFECTS) {
 	const audioTrack = createAudioTrackV9({ id: 'audio-track', clipIds: [audioClip.id] });
 	const videoTrack = createVideoTrackV9({ id: 'video-track', clipIds: [videoClip.id], mute: true });
 	const labelTrack = createLabelTrackV9({ id: 'label-track', labels: [] });
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: 'project-a', now: '2026-08-01T12:00:00.000Z', sampleRate: 48_000,
 		sources: [audioSource, originalVideo, fallbackVideo],
 		clips: [audioClip, videoClip], tracks: [audioTrack, videoTrack, labelTrack],
@@ -96,6 +97,9 @@ test('every registered first-party video capability can bind one full-render fal
 		PROJECT_FEATURE_CAPABILITY_IDS.videoExport,
 		PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 		PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+		PROJECT_FEATURE_CAPABILITY_IDS.sequenceTiming,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoRetime,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoTimingAssets,
 	]);
 	for (const featureId of PROJECT_FEATURE_VIDEO_CAPABILITY_IDS) {
 		const input = project(featureId);
@@ -132,10 +136,12 @@ test('an admitted first-party video-effects render becomes one neutral full-leng
 		kind: 'video',
 		sourceId: 'fallback-video',
 		title: 'Rendered video fallback',
-		timelineStartFrame: 0,
-		sourceStartFrame: 0,
-		sourceDurationFrames: 24,
-		durationFrames: 24,
+		sequenceId: 'main-sequence',
+		sequenceStartFrame: 0,
+		sequenceFrameCount: 1,
+		sourceInFrame: 0,
+		sourceFrameCount: 1,
+		retimeMap: null,
 		trimStartFrames: 0,
 		trimEndFrames: 0,
 		groupId: null,
@@ -209,7 +215,7 @@ test('the video fallback projector ignores unrelated reports and never traverses
 
 	const future = {
 		...input,
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get featureRequirements(): never { throw new Error('future manifest was traversed'); },
 		get clips(): never { throw new Error('future clips were traversed'); },
 	};

@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
@@ -87,7 +88,7 @@ function audioFixture() {
 	const clip = createAudioClipV9({
 		id: 'ownership-clip', sourceId: source.id, durationFrames: 1, sourceDurationFrames: 1,
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'ownership-project', title: 'Managed ownership', revision: 1,
 		now: '2026-08-01T12:00:00.000Z', sources: [source], clips: [clip],
 		tracks: [createAudioTrackV9({ id: 'ownership-track', clipIds: [clip.id] })],

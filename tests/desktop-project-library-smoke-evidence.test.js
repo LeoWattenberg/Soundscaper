@@ -11,8 +11,18 @@ test('desktop smoke evidence snapshots the current document and exact revision-b
 	const project = {
 		id: 'smoke-project', title: 'Smoke project', revision: 3,
 		sources: [
-			{ id: 'audio-source', kind: 'audio', storageKey: 'audio-storage' },
-			{ id: 'video-source', kind: 'video', storageKey: 'video-storage' },
+			{
+				id: 'audio-source', kind: 'audio', storageKey: 'audio-storage',
+				frameCount: 4, channelCount: 1, sampleRate: 48_000,
+				originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 4,
+			},
+			{
+				id: 'video-source', kind: 'video', storageKey: 'video-storage',
+				mimeType: 'video/mp4', sampleFrameCount: 1_600, sourceFrameCount: 1,
+				sampleRate: 48_000, width: 1_920, height: 1_080,
+				frameRate: { num: 30, den: 1 }, videoCodec: 'h264', audioCodec: null,
+				hasAudio: false,
+			},
 		],
 	};
 	const sha256 = 'ab'.repeat(32);

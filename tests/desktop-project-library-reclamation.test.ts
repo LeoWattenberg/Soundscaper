@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -32,7 +34,6 @@ import { DesktopLibraryProjectReclaimer } from '../desktop/project-library-recla
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 const OWNER_A = Object.freeze({
@@ -526,7 +527,7 @@ async function createFixture(context: TestContext) {
 }
 
 function currentProject(id: string, revision: number) {
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id,
 		title: 'Reclamation project',
 		revision,

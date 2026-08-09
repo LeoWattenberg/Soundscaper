@@ -38,7 +38,7 @@ test('V9 projects require a normalized feature-requirements manifest', () => {
 		featureRequirements: input,
 	});
 
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 9);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 10);
 	assert.strictEqual(validateAudioEditorProjectV9, validateAudioEditorProjectV9Direct);
 	assert.equal(project.schemaVersion, 9);
 	assert.deepEqual(project.featureRequirements, { ...input, schemaVersion: 2 });
@@ -58,7 +58,7 @@ test('V9 projects require a normalized feature-requirements manifest', () => {
 	assert.throws(() => validateAudioEditorProjectV9(malformed), /duplicate.*requirement.*id/iu);
 });
 
-test('V9 current loads clone canonical manifests and route as editable without migration', () => {
+test('V9 direct loads clone canonical manifests while the current router requires re-import', () => {
 	const project = createAudioEditorProjectV9({ now: NOW, featureRequirements: featureRequirements() });
 	const loaded = loadAudioEditorProjectV9(project);
 
@@ -73,13 +73,11 @@ test('V9 current loads clone canonical manifests and route as editable without m
 	assert.notStrictEqual(cloned.featureRequirements, project.featureRequirements);
 	assert.equal(Object.isFrozen(cloned.featureRequirements), true);
 
-	const routed = migrateAudioEditorProject(project);
-	assert.equal(routed.migrated, false);
-	assert.equal(routed.fromVersion, 9);
-	assert.equal(routed.readOnly, false);
-	assert.equal(routed.reason, null);
-	assert.deepEqual(routed.project, project);
-	assert.notStrictEqual(routed.project, project);
+	assert.throws(
+		() => migrateAudioEditorProject(project),
+		(error: unknown) => error instanceof RangeError
+			&& (error as Readonly<{ code?: string }>).code === 'REIMPORT_REQUIRED',
+	);
 });
 
 test('V9 projects remain editable while commands retain requirement state', () => {
@@ -103,7 +101,7 @@ test('V9 loading and the migration boundary preserve future projects opaquely re
 	const current = createAudioEditorProjectV9({ now: NOW });
 	const future = {
 		...current,
-		schemaVersion: 10,
+		schemaVersion: 11,
 		featureRequirements: {
 			schemaVersion: 99,
 			unknownFutureManifestState: { retained: true },
@@ -121,7 +119,7 @@ test('V9 loading and the migration boundary preserve future projects opaquely re
 
 	const routed = migrateAudioEditorProject(future);
 	assert.equal(routed.migrated, false);
-	assert.equal(routed.fromVersion, 10);
+	assert.equal(routed.fromVersion, 11);
 	assert.equal(routed.readOnly, true);
 	assert.equal(routed.reason, 'newer-schema');
 	assert.deepEqual(routed.project, future);

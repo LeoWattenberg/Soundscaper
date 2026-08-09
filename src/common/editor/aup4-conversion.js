@@ -9,24 +9,22 @@ import {
 	addAup4CompatibilityItem,
 	createAup4CompatibilityReport,
 } from './aup4-profile.js';
+import { readAup4ClipTiming } from './aup4-clip-timing.ts';
 import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
 import {
 	createLabelV2,
 } from './project-v2.js';
 import {
-	createAudioClipV9,
-	createAudioEditorProjectV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createLabelTrackV9,
-} from './project-v9.ts';
+	createAudioClipV10,
+	createAudioEditorProjectV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
+	createLabelTrackV10,
+} from './project-v10.ts';
 import { createStableId } from './project.js';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
 import {
-	divideRationals,
-	multiplyRationals,
-	normalizeRational,
 	scaleSampleFrame,
 	secondsToSampleFrame,
 } from './timeline-time.ts';
@@ -137,28 +135,10 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				warn(state, `Clip ${clipIndex + 1} on track ${trackIndex + 1} had mismatched channel lengths and was padded.`);
 			}
 			const clipNode = channelNodes[0];
-			const storedStretchRatio = positive(audacityXmlAttribute(clipNode, 'clipStretchRatio', 1), 1);
-			const clipTempo = optionalPositive(audacityXmlAttribute(clipNode, 'clipTempo', null));
-			const rawAudioTempo = optionalPositive(audacityXmlAttribute(clipNode, 'rawAudioTempo', null));
-			const stretchRatio = storedStretchRatio * (clipTempo != null && rawAudioTempo != null ? rawAudioTempo / clipTempo : 1);
-			const trimLeftSeconds = nonNegative(audacityXmlAttribute(clipNode, 'trimLeft', 0));
-			const trimRightSeconds = nonNegative(audacityXmlAttribute(clipNode, 'trimRight', 0));
-			const trimStartFrames = secondsToSampleFrame(
-				divideRationals(normalizeRational(trimLeftSeconds), normalizeRational(stretchRatio)),
-				trackRate,
-			);
-			const trimEndFrames = secondsToSampleFrame(
-				divideRationals(normalizeRational(trimRightSeconds), normalizeRational(stretchRatio)),
-				trackRate,
-			);
-			const sourceDurationFrames = Math.max(1, frameCount - trimStartFrames - trimEndFrames);
-			const offsetSeconds = finite(audacityXmlAttribute(clipNode, 'offset', 0), 0);
-			const timelineStartFrame = Math.max(0, secondsToSampleFrame(offsetSeconds + trimLeftSeconds, projectRate));
-			const sourceSeconds = divideRationals(sourceDurationFrames, normalizeRational(trackRate));
-			const durationFrames = Math.max(1, secondsToSampleFrame(
-				multiplyRationals(sourceSeconds, normalizeRational(stretchRatio)),
-				projectRate,
-			));
+			const {
+				stretchRatio, trimLeftSeconds, trimStartFrames, trimEndFrames,
+				sourceDurationFrames, timelineStartFrame, durationFrames,
+			} = readAup4ClipTiming(clipNode, frameCount, trackRate, projectRate);
 			const sourceId = idFactory('source');
 			const clipId = idFactory('clip');
 			const pitchAndSpeedPreset = readPitchAndSpeedPreset(clipNode);
@@ -169,7 +149,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				durationFrames,
 			);
 			const nativeEnvelopeNode = audacityXmlChildren(clipNode, 'envelope')[0];
-			const source = createAudioSourceV9({
+			const source = createAudioSourceV10({
 				id: sourceId,
 				name: String(audacityXmlAttribute(clipNode, 'name', `Audio ${clipIndex + 1}`)),
 				mimeType: 'audio/x-audacity-sampleblocks',
@@ -182,7 +162,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				opaqueExtensions: { aup4Sequence: opaqueNode(audacityXmlChildren(clipNode, 'sequence')[0]) },
 			});
 			const groupId = audacityXmlAttribute(clipNode, 'groupId', -1);
-			const clip = createAudioClipV9({
+			const clip = createAudioClipV10({
 				id: clipId,
 				sourceId,
 				title: String(audacityXmlAttribute(clipNode, 'name', `Audio ${clipIndex + 1}`)),
@@ -241,7 +221,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				data: {},
 			});
 		}
-		const track = createAudioTrackV9({
+		const track = createAudioTrackV10({
 			id: trackId,
 			name: String(audacityXmlAttribute(group[0], 'name', `Track ${trackIndex + 1}`)),
 			color: trackColor(audacityXmlAttribute(group[0], 'colorindex', 0)),
@@ -281,7 +261,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			opaqueExtensions: { aup4Label: opaqueNode(node) },
 		}));
 		if (Boolean(audacityXmlAttribute(labelNode, 'isSelected', false))) selectedTrackIds.push(trackId);
-		const track = createLabelTrackV9({
+		const track = createLabelTrackV10({
 			id: trackId,
 			name: String(audacityXmlAttribute(labelNode, 'name', `Labels ${index + 1}`)),
 			labels,
@@ -313,7 +293,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	const masterEffects = readEffectsWithReport(masterEffectsNode, state, {
 		kind: 'master',
 	}, idFactory, (active) => { masterEffectsActive = active; });
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: options.projectId || idFactory('project'),
 		title,
 		sampleRate: projectRate,

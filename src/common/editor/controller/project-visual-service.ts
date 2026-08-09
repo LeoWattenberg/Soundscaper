@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	resolveRuntimeProjectProjection,
+	type RuntimeClipProject,
+} from '../runtime-clip-projection.ts';
+
 export interface ProjectVisualSource extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly kind?: string;
@@ -10,8 +15,8 @@ export interface ProjectVisualClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly kind?: string;
 	readonly sourceId: string;
-	readonly timelineStartFrame: number;
-	readonly durationFrames: number;
+	readonly timelineStartFrame?: number;
+	readonly durationFrames?: number;
 	readonly binItemId?: string | null;
 }
 
@@ -411,6 +416,7 @@ export function createProjectVisualService(
 	}> = {}): readonly (Readonly<ClipVisualData> | null)[] {
 		const project = dependencies.getProject();
 		if (!project) return Object.freeze([]);
+		const runtimeProject = resolveRuntimeProjectProjection(project as RuntimeClipProject);
 		const startFrame = Math.max(0, Number.isSafeInteger(options.startFrame) ? options.startFrame || 0 : 0);
 		const defaultEndFrame = Math.max(startFrame, dependencies.projectDurationFrames(project));
 		const endFrame = Math.max(
@@ -425,10 +431,10 @@ export function createProjectVisualService(
 		);
 		const visibleStart = Math.max(0, startFrame - overscanFrames);
 		const visibleEnd = endFrame + overscanFrames;
-		return Object.freeze(project.clips
+		return Object.freeze(runtimeProject.clips
 			.filter((clip) => clip.timelineStartFrame < visibleEnd
 				&& clip.timelineStartFrame + clip.durationFrames > visibleStart)
-			.map((clip) => getClipVisualData(clip.id)));
+			.map((clip) => getClipVisualData(String(clip.id))));
 	}
 
 	function dispose(): Promise<void> {

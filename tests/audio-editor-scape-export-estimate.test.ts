@@ -14,7 +14,7 @@ import {
 	maximumScapeStoreArchiveBytes,
 } from '../src/common/editor/scape-export-estimate.ts';
 import { scapeAudioSourceLayout } from '../src/common/editor/scape-archive-media.ts';
-import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import { exportScapeProject, inspectScapeProject } from '../src/common/editor/scape-project.js';
 
 const TEXT_ENCODER = new TextEncoder();
@@ -205,7 +205,7 @@ test('save admission snapshots source geometry before awaited metadata work', as
 });
 
 test('generated source entry segments remain safe for the Scape importer', async () => {
-	const project = createAudioEditorProjectV6({
+	const project = createAudioEditorProjectV10({
 		id: 'safe-entry-id',
 		title: 'Safe entry ID',
 		sources: [{

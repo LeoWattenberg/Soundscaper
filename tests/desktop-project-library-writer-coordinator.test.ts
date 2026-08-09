@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -15,7 +17,6 @@ import {
 	DesktopLibraryProjectStore,
 } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 
 const OWNER_A = Object.freeze({
 	product: 'soundscaper' as const,
@@ -123,7 +124,7 @@ test('an aborted prepared publication recovers and reclaims its own lease invent
 		expectedRevision: null,
 		name: 'Prepared abort',
 		preferredProduct: 'soundscaper',
-		project: createAudioEditorProjectV9({
+		project: createAudioEditorProjectV10({
 			id: 'prepared-abort-project', title: 'Prepared abort', revision: 1,
 		}),
 		signal: controller.signal,

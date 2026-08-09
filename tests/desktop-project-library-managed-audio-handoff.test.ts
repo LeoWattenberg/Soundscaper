@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -13,11 +15,8 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import {
 	parseScapeProjectDocument,
@@ -130,7 +129,7 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 		name: 'Managed handoff audio',
 		clipIds: [clip.id],
 	});
-	const project = exactProject(createAudioEditorProjectV9({
+	const project = exactProject(createAudioEditorProjectV10({
 		id: 'managed-handoff-project',
 		title: 'Managed audio handoff',
 		revision: 3,
@@ -332,9 +331,9 @@ function serviceBridge(service: DesktopSharedProjectLibraryService): DesktopShar
 	return Object.freeze(bridge);
 }
 
-function exactProject(value: unknown): AudioEditorProjectV9 {
+function exactProject(value: unknown): AudioEditorProjectV10 {
 	const project = typeof value === 'string' ? parseScapeProjectDocument(value) : value;
-	if (!validateAudioEditorProjectV9(project)) throw new TypeError('Expected an exact-V9 project.');
+	if (!validateAudioEditorProjectV10(project)) throw new TypeError('Expected an exact-V10 project.');
 	if (typeof value === 'string') assert.equal(serializeScapeProjectDocument(project), value);
 	return project;
 }

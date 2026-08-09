@@ -49,7 +49,7 @@ function effect(
 
 function project() {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
 		id: 'project',
 		tracks: [{
 			id: 'track-a',
@@ -118,7 +118,7 @@ test('the projector ignores unsupported dispositions, unknown IDs, future schema
 
 	const future = {
 		...input,
-		schemaVersion: 10,
+		schemaVersion: 11,
 		get tracks(): never { throw new Error('future tracks were traversed'); },
 	};
 	const result = projectFeatureAudioEffectPlaybackBypass(future, report());

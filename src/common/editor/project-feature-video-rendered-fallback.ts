@@ -13,6 +13,11 @@ import {
 	projectFeatureVideoClipRenderV1Playback,
 	type ProjectFeatureVideoClipRenderV1Metadata,
 } from './project-feature-video-clip-render-v1.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	sampleFrameToVideoFrame,
+	type RationalRate,
+} from './timeline-time.ts';
 
 export const PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS = Object.freeze({
 	track: 'framescaper:rendered-video-fallback:track',
@@ -66,7 +71,7 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	report: ProjectFeatureRequirementsReport | null | undefined,
 ): ProjectFeatureVideoRenderedFallbackProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (optionalDataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
+	if (optionalDataProperty(projectRecord, 'schemaVersion', 'project') !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
 	if (isQualifiedClipFallback(qualified)) {
@@ -75,14 +80,10 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	assertManifestBinding(projectRecord, qualified);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
-	assertVideoGeometry(projectRecord, source);
+	const geometry = videoFallbackGeometry(projectRecord, source);
 	assertReservedIdsAvailable(projectRecord);
 
-	const frameCount = positiveSafeInteger(
-		dataProperty(source, 'frameCount', `project source ${qualified.fallback.sourceId}`),
-		'Rendered video fallback frame count',
-	);
-	const clip = renderedClip(qualified.fallback.sourceId, frameCount);
+	const clip = renderedClip(qualified.fallback.sourceId, geometry);
 	const track = renderedTrack();
 	const clips = projectedCollection(
 		arrayValue(dataProperty(projectRecord, 'clips', 'project'), 'project.clips'),
@@ -200,14 +201,44 @@ function fallbackSource(sources: readonly unknown[], sourceId: string): RecordVa
 	return source;
 }
 
-function assertVideoGeometry(project: RecordValue, source: RecordValue): void {
+function videoFallbackGeometry(project: RecordValue, source: RecordValue): Readonly<{
+	sequenceId: string;
+	sequenceFrameCount: number;
+	sourceFrameCount: number;
+}> {
 	const projectRate = positiveSafeInteger(dataProperty(project, 'sampleRate', 'project'), 'Project sample rate');
 	const sourceRate = positiveSafeInteger(dataProperty(source, 'sampleRate', 'rendered fallback source'), 'Rendered fallback sample rate');
 	if (sourceRate !== projectRate) throw new RangeError('Rendered fallback sample rate must match the project sample rate.');
-	positiveSafeInteger(dataProperty(source, 'frameCount', 'rendered fallback source'), 'Rendered fallback frame count');
+	const sampleFrameCount = positiveSafeInteger(
+		dataProperty(source, 'sampleFrameCount', 'rendered fallback source'),
+		'Rendered fallback sample-frame count',
+	);
+	const sourceFrameCount = positiveSafeInteger(
+		dataProperty(source, 'sourceFrameCount', 'rendered fallback source'),
+		'Rendered fallback source-frame count',
+	);
 	positiveSafeInteger(dataProperty(source, 'width', 'rendered fallback source'), 'Rendered fallback width');
 	positiveSafeInteger(dataProperty(source, 'height', 'rendered fallback source'), 'Rendered fallback height');
-	positiveFinite(dataProperty(source, 'frameRate', 'rendered fallback source'), 'Rendered fallback frame rate');
+	rationalRate(dataProperty(source, 'frameRate', 'rendered fallback source'), 'Rendered fallback frame rate');
+	const sequenceId = canonicalString(dataProperty(project, 'primarySequenceId', 'project'), 'Primary sequence ID');
+	const sequences = arrayValue(dataProperty(project, 'sequences', 'project'), 'project.sequences');
+	const matching = sequences.filter((candidate, index) => isRecord(candidate)
+		&& dataProperty(candidate, 'id', `project.sequences[${String(index)}]`) === sequenceId);
+	if (matching.length !== 1) throw new ReferenceError('The primary sequence is missing or duplicated.');
+	const sequenceRate = rationalRate(
+		dataProperty(matching[0] as RecordValue, 'rate', 'primary sequence'),
+		'Primary sequence rate',
+	);
+	return Object.freeze({
+		sequenceId,
+		sequenceFrameCount: Math.max(1, sampleFrameToVideoFrame(
+			sampleFrameCount,
+			sequenceRate,
+			projectRate,
+			'enclosingEnd',
+		)),
+		sourceFrameCount,
+	});
 }
 
 function assertReservedIdsAvailable(project: RecordValue): void {
@@ -230,16 +261,21 @@ function assertReservedIdsAvailable(project: RecordValue): void {
 	}
 }
 
-function renderedClip(sourceId: string, frameCount: number): RecordValue {
+function renderedClip(
+	sourceId: string,
+	geometry: Readonly<{ sequenceId: string; sequenceFrameCount: number; sourceFrameCount: number }>,
+): RecordValue {
 	return Object.freeze({
 		id: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip,
 		kind: 'video',
 		sourceId,
 		title: 'Rendered video fallback',
-		timelineStartFrame: 0,
-		sourceStartFrame: 0,
-		sourceDurationFrames: frameCount,
-		durationFrames: frameCount,
+		sequenceId: geometry.sequenceId,
+		sequenceStartFrame: 0,
+		sequenceFrameCount: geometry.sequenceFrameCount,
+		sourceInFrame: 0,
+		sourceFrameCount: geometry.sourceFrameCount,
+		retimeMap: null,
 		trimStartFrames: 0,
 		trimEndFrames: 0,
 		groupId: null,
@@ -249,6 +285,14 @@ function renderedClip(sourceId: string, frameCount: number): RecordValue {
 		binItemId: null,
 		opaqueExtensions: Object.freeze({}),
 		videoEffects: Object.freeze([]),
+	});
+}
+
+function rationalRate(value: unknown, name: string): RationalRate {
+	if (!isRecord(value)) throw new TypeError(`${name} must be a rational rate.`);
+	return Object.freeze({
+		num: positiveSafeInteger(dataProperty(value, 'num', name), `${name} numerator`),
+		den: positiveSafeInteger(dataProperty(value, 'den', name), `${name} denominator`),
 	});
 }
 
@@ -294,11 +338,6 @@ function positiveSafeInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) {
 		throw new RangeError(`${name} must be a positive safe integer.`);
 	}
-	return Number(value);
-}
-
-function positiveFinite(value: unknown, name: string): number {
-	if (!Number.isFinite(value) || Number(value) <= 0) throw new RangeError(`${name} must be positive.`);
 	return Number(value);
 }
 

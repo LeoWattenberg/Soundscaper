@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
@@ -15,7 +17,6 @@ import {
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 const OWNER_A = Object.freeze({
@@ -61,7 +62,7 @@ test('project commits publish a verified immutable document before its catalog e
 		metadataFile: createDesktopLibraryProjectMetadataFile(ENTRY_ID, 1, sha256),
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 10_001,
-		projectSchemaVersion: 9,
+		projectSchemaVersion: 10,
 		projectRevision: 1,
 		byteLength: Buffer.byteLength(documentJson, 'utf8'),
 		sha256,
@@ -90,7 +91,7 @@ test('project persistence admission is current-schema, bounded, and mutation-fre
 	const valid = currentProject(1);
 	const attempts: readonly unknown[] = [
 		{ ...valid, schemaVersion: 8 },
-		{ ...valid, schemaVersion: 10 },
+		{ ...valid, schemaVersion: 11 },
 		{ ...valid, id: '' },
 		{ ...valid, revision: -1 },
 		{ ...valid, title: 'x'.repeat(4_096) },
@@ -323,7 +324,7 @@ async function createFixture(context: TestContext) {
 }
 
 function currentProject(revision: number) {
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'project / identity',
 		title: 'Shared project',
 		revision,

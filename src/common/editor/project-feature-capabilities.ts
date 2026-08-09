@@ -20,6 +20,11 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	audioSampleEditing: 'org.soundscaper.capability.audio-sample-editing',
 	videoEffects: 'org.soundscaper.capability.video-effects',
 	videoCompositing: 'org.soundscaper.capability.video-compositing',
+	musicalTimeline: 'org.soundscaper.capability.musical-timeline',
+	audioWarp: 'org.soundscaper.capability.audio-warp',
+	sequenceTiming: 'org.soundscaper.capability.sequence-timing',
+	videoRetime: 'org.soundscaper.capability.video-retime',
+	videoTimingAssets: 'org.soundscaper.capability.video-timing-assets',
 } as const);
 
 export type ProjectFeatureCapabilityKey = keyof typeof PROJECT_FEATURE_CAPABILITY_IDS;
@@ -37,6 +42,8 @@ export const PROJECT_FEATURE_AUDIO_CAPABILITY_IDS = Object.freeze([
 	PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis,
 	PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
 	PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
+	PROJECT_FEATURE_CAPABILITY_IDS.musicalTimeline,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
 ] as const);
 
 export type ProjectFeatureAudioCapabilityId = typeof PROJECT_FEATURE_AUDIO_CAPABILITY_IDS[number];
@@ -57,6 +64,9 @@ export const PROJECT_FEATURE_VIDEO_CAPABILITY_IDS = Object.freeze([
 	PROJECT_FEATURE_CAPABILITY_IDS.videoExport,
 	PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 	PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
+	PROJECT_FEATURE_CAPABILITY_IDS.sequenceTiming,
+	PROJECT_FEATURE_CAPABILITY_IDS.videoRetime,
+	PROJECT_FEATURE_CAPABILITY_IDS.videoTimingAssets,
 ] as const);
 
 export type ProjectFeatureVideoCapabilityId = typeof PROJECT_FEATURE_VIDEO_CAPABILITY_IDS[number];

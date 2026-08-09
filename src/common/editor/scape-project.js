@@ -4,6 +4,7 @@ import {
 } from '@zip.js/zip.js';
 
 import { createStableId } from './project.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { migrateAudioEditorProject } from './migration.js';
 import { remapProjectFeatureRequirementSourceIds } from './project-feature-requirements.ts';
 import {
@@ -43,7 +44,7 @@ import {
 	ScapeImportTransaction,
 } from './scape-import-transaction.ts';
 import { preflightScapeImportCapacity } from './scape-import-capacity.ts';
-import { indexScapeProjectAssets } from './scape-project-assets.ts';
+import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-project-assets.ts';
 import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
@@ -100,7 +101,7 @@ export async function exportScapeProject(project, store, options = {}) {
 
 	try {
 		for (const asset of plan.assets) {
-			if (asset.kind !== 'video') continue;
+			if (asset.kind === 'audio') continue;
 			const loaded = await awaitScapeOperation(store.loadMediaAsset(asset.storageKey, { signal }), signal);
 			if (!loaded) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
 			const mediaBlob = canonicalMediaContentBlob(loaded);
@@ -119,7 +120,7 @@ export async function exportScapeProject(project, store, options = {}) {
 			throwIfScapeAborted(signal);
 			const digest = createScapeDigest();
 			let size = 0;
-			if (asset.kind === 'video') {
+			if (asset.kind !== 'audio') {
 				const media = mediaBySourceId.get(asset.sourceId);
 				if (!media) throw new Error(`Media source ${asset.source.name || asset.sourceId} is unavailable.`);
 				size = media.size;
@@ -179,6 +180,7 @@ export async function importScapeProject(input, store, options = {}) {
 				return { project, manifest, readOnly: true, reason: loaded.reason, collision: null };
 			}
 			const assetBySourceId = indexScapeProjectAssets(project, manifest);
+			const timingAssetByStorageKey = indexScapeProjectTimingAssets(project, manifest);
 			assertScapeImportStore(store);
 			const existingProject = await awaitScapeOperation(store.loadProject(project.id), signal);
 			const collision = options.collision || 'copy';
@@ -200,6 +202,36 @@ export async function importScapeProject(input, store, options = {}) {
 			}
 			transaction = new ScapeImportTransaction(store, signal);
 			await transaction.captureProject(project.id);
+			for (const [storageKey, asset] of timingAssetByStorageKey) {
+				throwIfScapeAborted(signal);
+				const existingTiming = await awaitScapeOperation(store.getMediaAssetMetadata(storageKey), signal);
+				if (existingTiming) {
+					if (existingTiming.sha256 !== asset.sha256 || existingTiming.size !== asset.size) {
+						throw new Error(`Timing asset ${storageKey} conflicts with immutable stored content.`);
+					}
+					continue;
+				}
+				const entry = entryByName.get(asset.entry);
+				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
+				let timingWriter = null;
+				try {
+					timingWriter = await store.beginMediaAssetWrite(storageKey, {
+						name: `${asset.sha256}.scti`,
+						mimeType: 'application/vnd.soundscaper.video-timing',
+						kind: 'video-timing',
+					}, { expectedBytes: asset.size, expectedSha256: asset.sha256, signal });
+					const extracted = await extractScapeVideo(entry, timingWriter, signal, expandedByteBudget);
+					verifyScapeExtractedAsset(asset, extracted.digest, extracted.size, storageKey);
+					const persisted = await awaitScapeOperation(timingWriter.commit({ signal }), signal);
+					if (persisted?.sha256 !== asset.sha256 || persisted?.size !== asset.size) {
+						throw new Error(`Persisted timing asset ${storageKey} failed verification.`);
+					}
+				} catch (error) {
+					if (timingWriter) await timingWriter.abort().catch(() => undefined);
+					throw error;
+				}
+				if (timingWriter) await timingWriter.abort();
+			}
 
 			const sourceIdMap = new Map();
 			for (const source of project.sources || []) {
@@ -217,11 +249,19 @@ export async function importScapeProject(input, store, options = {}) {
 				}
 			}
 			remapScapeProjectSourceReferences(project, sourceIdMap);
-			if (!loaded.readOnly && project.schemaVersion === 9) {
+			if (!loaded.readOnly && project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 				project.featureRequirements = remapProjectFeatureRequirementSourceIds(
 					project.featureRequirements,
 					sourceIdMap,
-					{ sources: project.sources, clips: project.clips, tracks: project.tracks },
+					{
+						sources: project.sources,
+						clips: project.clips,
+						tracks: project.tracks,
+						schemaVersion: project.schemaVersion,
+						sampleRate: project.sampleRate,
+						sequences: project.sequences,
+						primarySequenceId: project.primarySequenceId,
+					},
 				);
 			}
 

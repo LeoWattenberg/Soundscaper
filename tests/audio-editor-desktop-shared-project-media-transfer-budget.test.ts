@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import {
@@ -125,7 +125,7 @@ function metadataAudioProject(
 		channelCount?: number;
 		chunkFrames?: number;
 	}>[],
-): AudioEditorProjectV9 {
+): AudioEditorProjectV10 {
 	const sources = specifications.map((value) => createAudioSourceV9({
 		...value,
 		name: `${value.id}.wav`,
@@ -140,14 +140,14 @@ function metadataAudioProject(
 		id: `${source.id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	}));
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id, title: 'Recipient metadata-only preflight', revision: 1,
 		now: '2026-08-01T12:00:00.000Z', sources, clips,
 		tracks: [createAudioTrackV9({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) })],
 	});
 }
 
-function managedDescriptors(project: AudioEditorProjectV9): readonly DesktopSharedManagedSourceDescriptor[] {
+function managedDescriptors(project: AudioEditorProjectV10): readonly DesktopSharedManagedSourceDescriptor[] {
 	return project.sources.map((source, index) => {
 		const audio = source as unknown as ScapeAudioSource & Readonly<{ storageKey: string }>;
 		return Object.freeze({

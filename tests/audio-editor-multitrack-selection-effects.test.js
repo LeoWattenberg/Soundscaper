@@ -18,7 +18,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { ENGLISH_COPY } = await import('../src/common/i18n/catalogs.js');
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
-const { createAudioEditorProjectV2 } = await import('../src/common/editor/project-v2.js');
+const { createAudioEditorProjectV10 } = await import('../src/common/editor/project-v10.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 test('selection effects replace every selected audio track in one atomic history entry', async () => {
@@ -229,7 +229,7 @@ test('destructive selection renders exclude track automation and downstream mixe
 		sends: [],
 		routes: { 'effect-track-a': { groupId: 'effect-group', sends: {} } },
 	};
-	await store.saveProject(project);
+	await store.saveProject(createAudioEditorProjectV10(project));
 	let drySnapshot;
 	const controller = createController(store, async (snapshot, range) => {
 		drySnapshot = structuredClone(snapshot);
@@ -322,9 +322,9 @@ test('length-changing effects ripple selected tracks whose selection range is si
 });
 
 test('Truncate Silence links silence detection across selected tracks by default', async () => {
-	const sampleRate = 10;
-	const firstInput = Float32Array.from([1, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
-	const secondInput = Float32Array.from([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]);
+	const sampleRate = 8_000;
+	const firstInput = expandFixtureSamples([1, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+	const secondInput = expandFixtureSamples([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]);
 	const inputs = new Map([
 		['effect-track-a', firstInput],
 		['effect-track-b', secondInput],
@@ -367,9 +367,9 @@ test('Truncate Silence links silence detection across selected tracks by default
 });
 
 test('independent Truncate Silence ripples each selected track and selects the longest output', async () => {
-	const sampleRate = 10;
-	const firstInput = Float32Array.from([1, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
-	const secondInput = Float32Array.from([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]);
+	const sampleRate = 8_000;
+	const firstInput = expandFixtureSamples([1, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+	const secondInput = expandFixtureSamples([0, 0, 0, 0, 1, 0, 0, 0, 0, 0]);
 	const inputs = new Map([
 		['effect-track-a', firstInput],
 		['effect-track-b', secondInput],
@@ -406,8 +406,8 @@ test('independent Truncate Silence ripples each selected track and selects the l
 			const replacement = snapshot.project.clips.find((clip) => track.clipIds.includes(clip.id));
 			return snapshot.project.sources.find((source) => source.id === replacement.sourceId).frameCount;
 		});
-		assert.deepEqual(outputLengths, [4, 7]);
-		assert.equal(snapshot.project.selection.endFrame, 7);
+		assert.deepEqual(outputLengths, [3_200, 5_600]);
+		assert.equal(snapshot.project.selection.endFrame, 5_600);
 		assert.deepEqual(snapshot.history.undoEntries[0].commands, ['range/replace', 'range/replace', 'selection/set']);
 	} finally {
 		await controller.dispose();
@@ -473,7 +473,7 @@ async function createTwoTrackFixture(prefix, inputs, sampleRate, spectrogram = f
 		await writer.write([input]);
 		await writer.commit({ sampleRate, channelCount: 1 });
 	}
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV10({
 		id: `${prefix}-project`,
 		title: 'Multitrack effect project',
 		now: '2026-07-15T00:00:00.000Z',
@@ -531,6 +531,9 @@ function twoTone(frameCount, sampleRate, lowAmplitude, highAmplitude) {
 	));
 }
 
+function expandFixtureSamples(values) {
+	return Float32Array.from({ length: values.length * 800 }, (_, frame) => values[Math.floor(frame / 800)]);
+}
 function audioBuffer(channels, sampleRate) {
 	return {
 		numberOfChannels: channels.length,
@@ -539,7 +542,6 @@ function audioBuffer(channels, sampleRate) {
 		getChannelData(channel) { return channels[channel]; },
 	};
 }
-
 function createMemoryEngine() {
 	return {
 		positionFrame: 0,
@@ -562,7 +564,6 @@ function createMemoryEngine() {
 		async dispose() {},
 	};
 }
-
 class MockAudioBuffer {
 	constructor(numberOfChannels, length, sampleRate) {
 		this.numberOfChannels = numberOfChannels;
@@ -574,7 +575,6 @@ class MockAudioBuffer {
 	getChannelData(channel) { return this.channels[channel]; }
 	copyToChannel(values, channel, offset = 0) { this.channels[channel].set(values, offset); }
 }
-
 async function storedSample(store, sourceId, frame) {
 	return (await storedChannel(store, sourceId, 0))[frame];
 }

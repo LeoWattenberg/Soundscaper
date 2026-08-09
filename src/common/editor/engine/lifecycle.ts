@@ -14,6 +14,7 @@ import {
 	normalizeSourceResolver,
 } from './clip-schedule-plan.ts';
 import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
+import { resolveRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
 	ENGINE_CANCEL_SCRUB,
@@ -202,25 +203,28 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		this[ENGINE_CANCEL_SCRUB]();
 		this[ENGINE_HALT_GRAPH]();
-		this.project = project || null;
-		if (this.context && project) {
-			configureNativeSurroundDestination(this.context.destination, Number(project.masterChannels) || 2);
+		const runtimeProject = project?.schemaVersion
+			? resolveRuntimeProjectProjection(project)
+			: project;
+		this.project = runtimeProject || null;
+		if (this.context && runtimeProject) {
+			configureNativeSurroundDestination(this.context.destination, Number(runtimeProject.masterChannels) || 2);
 		}
 		this.sources = sourceBuffers instanceof Map ? new Map(sourceBuffers) : new Map(Object.entries(sourceBuffers || {}));
 		if (options.chunkSources !== undefined) this.setChunkSources(options.chunkSources);
-		this.durationFrames = getProjectDurationFrames(project);
-		this.playbackDurationFrames = getProjectTimelineDurationFrames(project);
+		this.durationFrames = getProjectDurationFrames(runtimeProject);
+		this.playbackDurationFrames = getProjectTimelineDurationFrames(runtimeProject);
 		this.playbackRate = 1;
 		this.playbackMode = 'normal';
 		this.preparedSpeedPlayback = null;
 		this.positionFrame = Math.min(this.positionFrame, this.playbackDurationFrames);
 		this.playEndFrame = this.playbackDurationFrames;
-		this.loop = normalizeLoop(project?.loop, this.durationFrames);
+		this.loop = normalizeLoop(runtimeProject?.loop, this.durationFrames);
 		this.loudnessMeasurementManuallyPaused = false;
 		this.masterLoudnessMeter?.setRunning(false);
 		this.masterLoudnessMeter?.reset();
 		this.latestMasterLoudnessMeter = null;
-		this[ENGINE_SET_STATE](project ? 'stopped' : 'empty');
+		this[ENGINE_SET_STATE](runtimeProject ? 'stopped' : 'empty');
 		this[ENGINE_EMIT_POSITION]();
 		return this;
 	},

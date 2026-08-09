@@ -5,6 +5,7 @@ import {
 	type ProjectFeatureVideoCapabilityId,
 } from './project-feature-capabilities.ts';
 import type { ProjectFeatureVideoClipRenderFallback } from './project-feature-requirements.ts';
+import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
 import { normalizeVideoEffects } from './video-effects.js';
 
 export interface ProjectFeatureVideoClipRenderV1Descriptor {
@@ -65,14 +66,26 @@ export function projectFeatureVideoClipRenderV1Playback<Project extends object>(
 	const targetSource = exactRecordById(sources, targetSourceId, 'target canonical source').value;
 	assertSourceGeometry(projectRecord, target.value, targetSource, fallbackSource);
 
-	const durationFrames = positiveSafeInteger(
-		dataProperty(target.value, 'durationFrames', target.name),
-		'Video clip rendered fallback target duration',
-	);
-	const projectedTarget = replaceDataProperties(target.value, {
+	const foundationCoordinates = Object.hasOwn(target.value, 'sequenceFrameCount');
+	const projectedTarget = replaceDataProperties(target.value, foundationCoordinates ? {
+		sourceId: descriptor.fallback.sourceId,
+		sourceInFrame: 0,
+		sourceFrameCount: positiveSafeInteger(
+			dataProperty(fallbackSource, 'sourceFrameCount', 'fallback source'),
+			'Video clip rendered fallback source-frame count',
+		),
+		retimeMap: null,
+		trimStartFrames: 0,
+		trimEndFrames: 0,
+		speedRatio: 1,
+		videoEffects: Object.freeze([]),
+	} : {
 		sourceId: descriptor.fallback.sourceId,
 		sourceStartFrame: 0,
-		sourceDurationFrames: durationFrames,
+		sourceDurationFrames: positiveSafeInteger(
+			dataProperty(target.value, 'durationFrames', target.name),
+			'Video clip rendered fallback target duration',
+		),
 		trimStartFrames: 0,
 		trimEndFrames: 0,
 		speedRatio: 1,
@@ -158,16 +171,15 @@ function assertSourceGeometry(
 	if (fallbackRate !== projectRate) {
 		throw new RangeError('Video clip rendered fallback sample rate must match the project sample rate.');
 	}
-	const targetDuration = positiveSafeInteger(
-		dataProperty(targetClip, 'durationFrames', 'target clip'),
-		'Video clip rendered fallback target duration',
-	);
+	const targetDuration = resolveRuntimeClipProjection(project, targetClip).durationFrames;
 	const fallbackFrames = positiveSafeInteger(
-		dataProperty(fallbackSource, 'frameCount', 'fallback source'),
-		'Video clip rendered fallback frame count',
+		dataProperty(fallbackSource, Object.hasOwn(fallbackSource, 'sampleFrameCount')
+			? 'sampleFrameCount'
+			: 'frameCount', 'fallback source'),
+		'Video clip rendered fallback sample-frame count',
 	);
 	if (fallbackFrames !== targetDuration) {
-		throw new RangeError('Video clip rendered fallback frame count must equal the target duration.');
+		throw new RangeError('Video clip rendered fallback sample-frame count must equal the target duration.');
 	}
 	for (const field of ['sampleRate', 'width', 'height'] as const) {
 		const fallbackValue = positiveSafeInteger(
@@ -182,17 +194,21 @@ function assertSourceGeometry(
 			throw new RangeError(`Video clip rendered fallback ${field} must match its canonical source.`);
 		}
 	}
-	const fallbackFrameRate = positiveFinite(
+	if (!sameFrameRate(
 		dataProperty(fallbackSource, 'frameRate', 'fallback source'),
-		'Video clip rendered fallback frame rate',
-	);
-	const targetFrameRate = positiveFinite(
 		dataProperty(targetSource, 'frameRate', 'target canonical source'),
-		'Video clip rendered fallback target frame rate',
-	);
-	if (fallbackFrameRate !== targetFrameRate) {
+	)) {
 		throw new RangeError('Video clip rendered fallback frame rate must match its canonical source.');
 	}
+}
+
+function sameFrameRate(left: unknown, right: unknown): boolean {
+	if (left === right) return true;
+	if (!isRecord(left) || !isRecord(right)) return false;
+	return dataProperty(left, 'num', 'fallback source frameRate')
+		=== dataProperty(right, 'num', 'canonical source frameRate')
+		&& dataProperty(left, 'den', 'fallback source frameRate')
+			=== dataProperty(right, 'den', 'canonical source frameRate');
 }
 
 function exactRecordById(
@@ -215,11 +231,6 @@ function positiveSafeInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) {
 		throw new RangeError(`${name} must be a positive safe integer.`);
 	}
-	return Number(value);
-}
-
-function positiveFinite(value: unknown, name: string): number {
-	if (!Number.isFinite(value) || Number(value) <= 0) throw new RangeError(`${name} must be positive.`);
 	return Number(value);
 }
 

@@ -53,8 +53,10 @@ import {
 export {
 	createDesktopLibraryAudioMediaBinding,
 	createDesktopLibraryVideoMediaBinding,
+	createDesktopLibraryVideoTimingBinding,
 	DESKTOP_LIBRARY_AUDIO_MEDIA_ENCODING,
 	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
 } from './project-library-media-binding.ts';
 export type {
 	DesktopLibraryManagedMediaEncoding,
@@ -378,7 +380,7 @@ export class DesktopLibraryManagedMediaStore {
 	async #verifyReusableSource(
 		path: string,
 		descriptor: DesktopLibraryMedia,
-		category: 'audio' | 'video',
+		category: 'audio' | 'video' | 'timing',
 		signal: AbortSignal | undefined,
 	): Promise<boolean> {
 		try {
@@ -411,14 +413,14 @@ export class DesktopLibraryManagedMediaStore {
 		return published;
 	}
 
-	async #prepareDirectory(directory: string, category: 'audio' | 'video'): Promise<void> {
+	async #prepareDirectory(directory: string, category: 'audio' | 'video' | 'timing'): Promise<void> {
 		await mkdir(this.#root, { recursive: true, mode: 0o700 });
 		await assertRealMediaDirectory(this.#root);
 		await createRealMediaDirectory(join(this.#root, category));
 		await createRealMediaDirectory(directory);
 	}
 
-	async #assertScope(directory: string, category: 'audio' | 'video'): Promise<void> {
+	async #assertScope(directory: string, category: 'audio' | 'video' | 'timing'): Promise<void> {
 		for (const candidate of [this.#root, join(this.#root, category), directory]) {
 			await assertRealMediaDirectory(candidate);
 		}

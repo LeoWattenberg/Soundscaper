@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
 import {
 	exportScapeProject,
@@ -15,7 +16,7 @@ import { createProjectStore } from '../src/common/editor/storage.js';
 test('project inspection and import share the bounded archive byte-source path', async () => {
 	const sourceStore = memoryStore('scape-project-byte-source-export');
 	const targetStore = memoryStore('scape-project-byte-source-import');
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'byte-source-project',
 		title: 'Byte source project',
 		now: '2026-07-30T00:00:00.000Z',

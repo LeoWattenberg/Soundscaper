@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -11,7 +13,6 @@ import {
 	reconcileProjectOwnedFeatureRequirements,
 } from '../src/common/editor/project-owned-feature-requirements.ts';
 import {
-	createAudioEditorProjectV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
@@ -60,7 +61,7 @@ function videoClipWithEffect(id = 'video-effect-a', enabled = true) {
 }
 
 test('owned audio-effect requirements follow maintained rack state across create and commit', () => {
-	const project = createAudioEditorProjectV9({ tracks: [audioTrackWithEffect()] });
+	const project = createAudioEditorProjectV10({ tracks: [audioTrackWithEffect()] });
 	assert.deepEqual(project.featureRequirements.requirements, [{
 		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioEffects,
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
@@ -83,7 +84,7 @@ test('owned audio-effect requirements follow maintained rack state across create
 });
 
 test('owned video-effect requirements follow maintained timeline state across create and commit', () => {
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect()],
 		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
@@ -110,11 +111,11 @@ test('owned video-effect requirements follow maintained timeline state across cr
 });
 
 test('disabled and Project Bin video effects still declare the owned preservation requirement', () => {
-	for (const project of [createAudioEditorProjectV9({
+	for (const project of [createAudioEditorProjectV10({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect('disabled-video-effect', false)],
 		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
-	}), createAudioEditorProjectV9({
+	}), createAudioEditorProjectV10({
 		sources: [videoSource()],
 		projectBin: { clips: [videoClipWithEffect('bin-video-effect')] },
 	})]) {
@@ -126,7 +127,7 @@ test('disabled and Project Bin video effects still declare the owned preservatio
 });
 
 test('audio and video ownership reconcile independently while foreign video state stays inert', () => {
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect()],
 		tracks: [
@@ -161,11 +162,11 @@ test('disabled and inactive maintained effects still declare preservation requir
 	}, {
 		mixer: { groups: [], sends: [{ id: 'send-a', effects: [createEffect('reverb', { id: 'send-effect' })] }], routes: {} },
 	}]) {
-		const created = createAudioEditorProjectV9(project);
+		const created = createAudioEditorProjectV10(project);
 		assert.equal(created.featureRequirements.requirements[0]?.featureId, PROJECT_FEATURE_CAPABILITY_IDS.audioEffects);
 	}
 
-	const missing = createAudioEditorProjectV9({
+	const missing = createAudioEditorProjectV10({
 		tracks: [createAudioTrackV9({
 			id: 'missing-track',
 			effects: [createEffect('missing', {
@@ -195,7 +196,7 @@ test('explicit audio-effect requirements win without being overwritten or duplic
 		frameCount: 1, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536, opaqueExtensions: {},
 	};
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		sources: [source],
 		tracks: [audioTrackWithEffect()],
 		featureRequirements: { schemaVersion: 2, requirements: [explicit] },
@@ -224,7 +225,7 @@ test('explicit video-effect requirements win without being overwritten or duplic
 		disposition: 'bypass' as const,
 		fallback: null,
 	};
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect()],
 		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],

@@ -27,6 +27,9 @@ import {
 	validateTrackReplacement,
 } from './shared-runtime.js';
 
+// foundation-edit-matrix: ripple
+// foundation-edit-matrix: range-delete
+
 export function deleteRange(project, command, rippleMode) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'delete range');
 	const trackIds = command.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
@@ -335,6 +338,7 @@ export function replaceRange(project, command) {
 	const source = normalizeRangeReplacementSource(project, command.source);
 	const clipId = requireStableCommandId(command.clipId, 'replacement clip');
 	assertUnusedId(project.sources, source.id, 'source');
+	project.sources.push(source);
 	const generatedClipIds = new Set();
 	reserveReplacementClipId(project, clipId, generatedClipIds);
 
@@ -387,7 +391,6 @@ export function replaceRange(project, command) {
 	});
 	const nextTrackClips = [...replacements, replacement]
 		.sort((first, second) => first.timelineStartFrame - second.timelineStartFrame || first.id.localeCompare(second.id));
-	project.sources.push(source);
 	validateTrackReplacement(project, track, deletedIds, nextTrackClips);
 	project.clips = project.clips.filter((clip) => !deletedIds.has(clip.id));
 	project.clips.push(...nextTrackClips);

@@ -297,7 +297,7 @@ test('clip-local video fallback rejects mismatched feature, clip, effects, and m
 				fixture.targetSource,
 				{ ...fixture.fallbackSource, [field]: Number(fixture.fallbackSource[field]) + 1 },
 			]),
-			expected: new RegExp(field, 'iu'),
+			expected: new RegExp(field === 'frameCount' ? 'sample-frame count' : field, 'iu'),
 		});
 	}
 

@@ -76,7 +76,8 @@ import {
 } from './project.js';
 import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCountV2 } from './project-v2.js';
 import { verifyProjectFallbackIntegrity } from './project-fallback-integrity.ts';
-import { createAudioEditorProjectV9 } from './project-v9.ts';
+import { createAudioEditorProjectV10 } from './project-v10.ts';
+import { resolveRuntimeProjectProjection } from './runtime-clip-projection.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import {
 	compactEditorHistorySourceMetadata,
@@ -523,6 +524,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	let removeDeviceChangeListener = () => {};
 	let project = null;
+	const getCommandProject = () => project?.schemaVersion === 10 ? resolveRuntimeProjectProjection(project) : project;
 	const projectVisualService = createProjectVisualService({
 		getProject: () => project, captureProject: (projectId) => projectGeneration.capture(projectId), assertProject: (token) => projectGeneration.assertCurrent(token),
 		missingSourceIds: state.missingSourceIds,
@@ -776,7 +778,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 		getProject: () => project,
 		setProject: (nextProject) => { project = nextProject; },
-		createProject: createAudioEditorProjectV9,
+		createProject: createAudioEditorProjectV10,
 		normalizeProjectSampleRate,
 		createInitialAudioTrackCommand: createAddTrackCommand,
 		createHistory: createEditorHistory,
@@ -954,7 +956,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const clipTransformService = createClipTransformService({
 		lifetime,
 		copy,
-		getProject: () => project,
+		getProject: getCommandProject,
 		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked,
 		createId: createStableId,
@@ -1335,7 +1337,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		copy,
 		session: sessionController,
 		sourceBuffers,
-		getProject: () => project,
+		getProject: getCommandProject,
 		editingBlocked,
 		getPositionFrames: () => engine.getPositionFrames(),
 		normalizeFrame: normalizeTimelineFrame,
@@ -1382,7 +1384,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
-		prepareRangeDeleteCommand, prepareSplitCommand, getProject: () => project, projectChanged,
+		prepareRangeDeleteCommand, prepareSplitCommand, getProject: getCommandProject, projectChanged,
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard: clipboardEditService.setSessionClipboard,
 		state, undoEditorCommand,
 	});
@@ -2963,11 +2965,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function refreshStorageUsage() { return storageCapacityService.refreshStorageUsage(); }
-
 	function estimateStorageForPreflight(requiredBytes, operation, signal) {
 		return storageCapacityService.estimateStorageForPreflight(requiredBytes, operation, signal);
 	}
-
 	function preflightStorage(requiredBytes, operation) { return storageCapacityService.preflightStorage(requiredBytes, operation); }
 
 	function activeSelection() {

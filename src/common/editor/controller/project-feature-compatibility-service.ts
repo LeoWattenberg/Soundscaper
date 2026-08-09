@@ -6,6 +6,7 @@ import {
 	type ProjectFeatureRequirementsReport,
 } from '../project-feature-requirements.ts';
 import { snapshotProjectFeatureCapabilities } from '../project-feature-capabilities.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
 
 interface ProjectWithFeatureRequirements {
 	readonly schemaVersion?: unknown;
@@ -13,6 +14,9 @@ interface ProjectWithFeatureRequirements {
 	readonly sources?: unknown;
 	readonly clips?: unknown;
 	readonly tracks?: unknown;
+	readonly sampleRate?: unknown;
+	readonly sequences?: unknown;
+	readonly primarySequenceId?: unknown;
 }
 
 export interface ProjectFeatureCompatibilityService {
@@ -34,7 +38,7 @@ export function createProjectFeatureCompatibilityService(
 	function evaluate(project: unknown): ProjectFeatureRequirementsReport | null {
 		if (!project || typeof project !== 'object' || Array.isArray(project)) return null;
 		const candidate = project as ProjectWithFeatureRequirements;
-		if (candidate.schemaVersion !== 9) return null;
+		if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return null;
 		return evaluateProjectFeatureRequirements(
 			candidate.featureRequirements as ProjectFeatureRequirementsManifest,
 			{
@@ -43,6 +47,10 @@ export function createProjectFeatureCompatibilityService(
 				sources: Array.isArray(candidate.sources) ? candidate.sources : [],
 				clips: Array.isArray(candidate.clips) ? candidate.clips : [],
 				tracks: Array.isArray(candidate.tracks) ? candidate.tracks : [],
+				schemaVersion: candidate.schemaVersion,
+				sampleRate: candidate.sampleRate,
+				sequences: Array.isArray(candidate.sequences) ? candidate.sequences : [],
+				primarySequenceId: candidate.primarySequenceId,
 			},
 		);
 	}

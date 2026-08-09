@@ -10,8 +10,10 @@ import test, { type TestContext } from 'node:test';
 import {
 	createDesktopLibraryAudioMediaBinding,
 	createDesktopLibraryVideoMediaBinding,
+	createDesktopLibraryVideoTimingBinding,
 	DesktopLibraryManagedMediaStore,
 	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
 	type DesktopLibraryMediaCatalogPort,
 } from '../desktop/project-library-media.ts';
 import {
@@ -34,12 +36,18 @@ test('original video has a revision-bound namespace distinct from canonical audi
 	const video = createDesktopLibraryVideoMediaBinding(
 		PROJECT_ID, STORAGE_KEY, PROJECT_REVISION, PROJECT_SHA256,
 	);
+	const timing = createDesktopLibraryVideoTimingBinding(
+		PROJECT_ID, STORAGE_KEY, PROJECT_REVISION, PROJECT_SHA256,
+	);
 
 	assert.match(audio.id, /^m[a-f0-9]{64}$/u);
 	assert.match(audio.relativeFile, /^audio\/[a-f0-9]{2}\/m[a-f0-9]{64}\.f32c$/u);
 	assert.match(video.id, /^v[a-f0-9]{64}$/u);
 	assert.match(video.relativeFile, /^video\/[a-f0-9]{2}\/v[a-f0-9]{64}\.bin$/u);
+	assert.match(timing.id, /^t[a-f0-9]{64}$/u);
+	assert.match(timing.relativeFile, /^timing\/[a-f0-9]{2}\/t[a-f0-9]{64}\.scti$/u);
 	assert.notEqual(video.id.slice(1), audio.id.slice(1));
+	assert.notEqual(timing.id.slice(1), video.id.slice(1));
 	assert.notEqual(
 		createDesktopLibraryVideoMediaBinding(
 			PROJECT_ID, STORAGE_KEY, PROJECT_REVISION + 1, PROJECT_SHA256,
@@ -52,6 +60,29 @@ test('original video has a revision-bound namespace distinct from canonical audi
 		).id,
 		video.id,
 	);
+});
+
+test('video timing assets publish through their digest-bound managed namespace', async (context) => {
+	const fixture = await createFixture(context);
+	const bytes = Uint8Array.of(0x53, 0x43, 0x54, 0x49, 1, 0, 0, 0);
+	const binding = createDesktopLibraryVideoTimingBinding(
+		PROJECT_ID, STORAGE_KEY, PROJECT_REVISION, PROJECT_SHA256,
+	);
+	const descriptor = await fixture.store.publish({
+		encoding: DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
+		projectId: PROJECT_ID,
+		projectRevision: PROJECT_REVISION,
+		projectSha256: PROJECT_SHA256,
+		storageKey: STORAGE_KEY,
+		byteLength: bytes.byteLength,
+		sha256: digest(bytes),
+		chunks: chunks(bytes.subarray(0, 3), bytes.subarray(3, 6), bytes.subarray(6)),
+	});
+	assert.deepEqual(descriptor, { ...binding, byteLength: bytes.byteLength, sha256: digest(bytes) });
+	assert.deepEqual(joinBytes([
+		await fixture.store.read(binding.id, { offset: 0, length: 4 }),
+		await fixture.store.read(binding.id, { offset: 4, length: 4 }),
+	]), bytes);
 });
 
 test('original video is materialized before catalog publication and supports bounded reads', async (context) => {
@@ -161,4 +192,14 @@ async function* chunks(...values: readonly Uint8Array[]): AsyncGenerator<Uint8Ar
 
 function digest(bytes: Uint8Array): string {
 	return createHash('sha256').update(bytes).digest('hex');
+}
+
+function joinBytes(chunks: readonly Uint8Array[]): Uint8Array {
+	const bytes = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.byteLength, 0));
+	let offset = 0;
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return bytes;
 }

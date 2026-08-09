@@ -4,6 +4,8 @@
  * than from a project's `sources` array.
  */
 
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+
 export function collectProjectSourceIds(project, target = new Set()) {
 	const clips = [
 		...(project?.clips || []),
@@ -12,7 +14,7 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	for (const clip of clips) {
 		if (typeof clip?.sourceId === 'string' && clip.sourceId) target.add(clip.sourceId);
 	}
-	if (project?.schemaVersion === 9) {
+	if (project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		const requirements = project.featureRequirements?.requirements;
 		if (Array.isArray(requirements)) {
 			for (const requirement of requirements) {
@@ -29,8 +31,11 @@ export function collectProjectStorageKeys(project, target = new Set()) {
 	const sources = Array.isArray(project?.sources) ? project.sources : [];
 	const sourceById = new Map(sources.map((source) => [source?.id, source]));
 	for (const sourceId of collectProjectSourceIds(project)) {
-		const storageKey = sourceById.get(sourceId)?.storageKey;
+		const source = sourceById.get(sourceId);
+		const storageKey = source?.storageKey;
 		target.add(typeof storageKey === 'string' && storageKey ? storageKey : sourceId);
+		const timingStorageKey = source?.timingAsset?.storageKey;
+		if (typeof timingStorageKey === 'string' && timingStorageKey) target.add(timingStorageKey);
 	}
 	return target;
 }

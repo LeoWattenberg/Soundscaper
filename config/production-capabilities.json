@@ -205,7 +205,12 @@
 				"audioMacros": true,
 				"audioSampleEditing": true,
 				"videoEffects": false,
-				"videoCompositing": false
+				"videoCompositing": false,
+				"musicalTimeline": true,
+				"audioWarp": false,
+				"sequenceTiming": true,
+				"videoRetime": false,
+				"videoTimingAssets": true
 			}
 		},
 		"framescaper": {
@@ -334,7 +339,12 @@
 				"audioMacros": false,
 				"audioSampleEditing": false,
 				"videoEffects": true,
-				"videoCompositing": true
+				"videoCompositing": true,
+				"musicalTimeline": false,
+				"audioWarp": false,
+				"sequenceTiming": true,
+				"videoRetime": false,
+				"videoTimingAssets": true
 			}
 		}
 	}

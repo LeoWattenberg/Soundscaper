@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import { SCAPE_MAXIMUM_AUDIO_CHUNKS } from '../src/common/editor/scape-archive-media.ts';
@@ -285,7 +285,7 @@ test('sender rejects video-only and mixed projects before any media I/O', async 
 });
 
 test('source-free sender handoff succeeds without transfer capabilities', async () => {
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'source-free-handoff', title: 'Source-free handoff', revision: 1,
 		now: '2026-08-01T12:00:00.000Z',
 	});
@@ -363,7 +363,7 @@ test('sender preflight counts aliased audio storage geometry only once', async (
 
 interface AudioFixture {
 	readonly bytes: Uint8Array;
-	readonly project: AudioEditorProjectV9;
+	readonly project: AudioEditorProjectV10;
 	readonly samples: readonly (readonly number[])[];
 	readonly sha256: string;
 	readonly source: ReturnType<typeof createAudioSourceV9>;
@@ -417,7 +417,7 @@ function metadataAudioProject(
 		channelCount?: number;
 		chunkFrames?: number;
 	}>[],
-): AudioEditorProjectV9 {
+): AudioEditorProjectV10 {
 	const sources = specifications.map((value) => createAudioSourceV9({
 		...value,
 		name: `${value.id}.wav`,
@@ -432,14 +432,14 @@ function metadataAudioProject(
 		id: `${source.id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	}));
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id, title: 'Metadata-only handoff preflight', revision: 1,
 		now: '2026-08-01T12:00:00.000Z', sources, clips,
 		tracks: [createAudioTrackV9({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) })],
 	});
 }
 
-function projectWithReachableVideo(includeAudio: boolean): AudioEditorProjectV9 {
+function projectWithReachableVideo(includeAudio: boolean): AudioEditorProjectV10 {
 	const video = createVideoSourceV9({
 		id: 'preflight-video', storageKey: 'preflight-video-storage', name: 'video.mp4',
 		mimeType: 'video/mp4', frameCount: 30, sampleRate: SAMPLE_RATE,
@@ -454,7 +454,7 @@ function projectWithReachableVideo(includeAudio: boolean): AudioEditorProjectV9 
 	const audioClip = createAudioClipV9({
 		id: 'preflight-audio-clip', sourceId: audio.id, durationFrames: 1,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id: includeAudio ? 'mixed-preflight' : 'video-preflight',
 		title: 'Video handoff preflight', revision: 1, now: '2026-08-01T12:00:00.000Z',
 		sources: includeAudio ? [audio, video] : [video],
@@ -487,7 +487,7 @@ function guardedSenderPorts(onRead?: () => never) {
 	};
 }
 
-function projectWithFixtures(id: string, fixtures: readonly AudioFixture[]): AudioEditorProjectV9 {
+function projectWithFixtures(id: string, fixtures: readonly AudioFixture[]): AudioEditorProjectV10 {
 	const clips = fixtures.map(({ source }, index) => createAudioClipV9({
 		id: `${id}-clip-${String(index)}`,
 		sourceId: source.id,
@@ -495,7 +495,7 @@ function projectWithFixtures(id: string, fixtures: readonly AudioFixture[]): Aud
 		durationFrames: source.frameCount,
 		sourceDurationFrames: source.frameCount,
 	}));
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id,
 		title: 'Managed PCM transfer',
 		revision: 1,

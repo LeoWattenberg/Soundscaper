@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -9,7 +11,6 @@ import test, { type TestContext } from 'node:test';
 import { createDesktopProjectLibraryPaths } from '../desktop/project-library-contract.ts';
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 
 const OWNER = Object.freeze({
 	product: 'soundscaper' as const,
@@ -85,7 +86,7 @@ async function capacityFixture(
 		await rm(appDataPath, { recursive: true, force: true });
 	});
 	const store = new DesktopLibraryProjectStore(library, { statfsImpl });
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'document-capacity-project',
 		title: 'Document capacity project',
 		revision: 1,

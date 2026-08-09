@@ -219,11 +219,17 @@ async function admissionWithSignal(
 
 function project(): {
 	schemaVersion: number;
+	sampleRate: number;
+	primarySequenceId: string;
+	sequences: Array<Record<string, unknown>>;
 	sources: Array<Record<string, unknown>>;
 	featureRequirements: { schemaVersion: number; requirements: Array<Record<string, unknown>> };
 } {
 	return {
-		schemaVersion: 9,
+		schemaVersion: 10,
+		sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		sources: [{
 			id: SELECTOR.sourceId,
 			kind: 'audio',

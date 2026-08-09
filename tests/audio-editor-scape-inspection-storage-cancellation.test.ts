@@ -9,7 +9,7 @@ import { BlobReader, ZipReader } from '@zip.js/zip.js';
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
 import { createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
-import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import type {
 	ScapeArchiveEntry,
 } from '../src/common/editor/scape-archive-envelope.ts';
@@ -28,7 +28,7 @@ interface InspectionOutcome {
 }
 
 test('Scape inspection promptly aborts a signal-ignoring collision lookup', async () => {
-	const project = createAudioEditorProjectV6({
+	const project = createAudioEditorProjectV10({
 		id: 'scape-inspection-storage-cancellation',
 		title: 'Storage cancellation',
 		sources: [],
@@ -117,7 +117,7 @@ test('Scape inspection promptly aborts a signal-ignoring collision lookup', asyn
 });
 
 test('inspection quiescence retains a signal-ignoring collision lookup after prompt rejection', async () => {
-	const project = createAudioEditorProjectV6({
+	const project = createAudioEditorProjectV10({
 		id: 'scape-inspection-provider-join',
 		title: 'Provider join',
 		sources: [],
@@ -199,7 +199,7 @@ test('inspection quiescence retains a signal-ignoring collision lookup after pro
 	}
 });
 
-async function projectOnlyArchive(project: ReturnType<typeof createAudioEditorProjectV6>): Promise<Blob> {
+async function projectOnlyArchive(project: ReturnType<typeof createAudioEditorProjectV10>): Promise<Blob> {
 	const exported = await exportScapeProject(project, {
 		async *readSourceChunks() { return; },
 		async loadMediaAsset() { return null; },

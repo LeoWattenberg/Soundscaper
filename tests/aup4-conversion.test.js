@@ -1002,7 +1002,6 @@ test('AUP4 conversion reports and strips unsupported nested wave clips', async (
 	assert.equal(item.data.count, 1);
 	assert.equal(decoded.compatibilityReport.counts.omitted, 1);
 	assert.match(decoded.warnings.join(' '), /unsupported nested wave clip/);
-
 	const rewritten = createAup4ProjectTree(decoded.project);
 	const rewrittenTrack = audacityXmlChildren(rewritten, 'wavetrack')[0];
 	const rewrittenClip = audacityXmlChildren(rewrittenTrack, 'waveclip')[0];

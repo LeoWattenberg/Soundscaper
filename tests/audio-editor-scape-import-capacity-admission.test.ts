@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import type {
 	ScapeArchiveEntry,
 } from '../src/common/editor/scape-archive-envelope.ts';
@@ -377,7 +377,7 @@ function byteEntry(filename: string, bytes: Uint8Array): ScapeArchiveEntry {
 }
 
 function videoProject(id: string) {
-	return createAudioEditorProjectV6({
+	return createAudioEditorProjectV10({
 		id,
 		title: 'Capacity admission',
 		sources: [{

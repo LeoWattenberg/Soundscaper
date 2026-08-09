@@ -18,7 +18,6 @@ import {
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import type { ScapeManifest } from '../src/common/editor/scape-archive-envelope.ts';
 import { inspectScapeProject } from '../src/common/editor/scape-project.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-v9.ts';
 import { withDesktopProjectReadDescriptor } from '../src/common/editor/ui/workspace/desktop-project-file-routing.ts';
 import {
 	createSparseEightGiBScapeFixture,
@@ -31,7 +30,7 @@ const MAX_INSPECTION_TRANSFER_BYTES = 8 * 1024 ** 2;
 const ZIP_END_SEARCH_BYTES = 22 + 0xffff;
 type SparseScapeInspection = ScapeProjectInspection & { readonly manifest: ScapeManifest };
 
-test('an 8 GiB sparse desktop Scape is inspected through bounded ranges and cancelled before import', async (context) => {
+test('an historical 8 GiB sparse desktop Scape is range-inspected and rejected before import', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-sparse-scape-'));
 	let store: ReadCapabilityStore | null = null;
 	context.after(async () => {
@@ -149,7 +148,7 @@ test('an 8 GiB sparse desktop Scape is inspected through bounded ranges and canc
 		},
 	});
 
-	const result = await withDesktopProjectReadDescriptor(fileService, descriptor, {
+	await assert.rejects(() => withDesktopProjectReadDescriptor(fileService, descriptor, {
 		openMaterialized: async () => {
 			materializedOpenCalls += 1;
 			throw new Error('the range profile must not materialize the archive');
@@ -158,15 +157,19 @@ test('an 8 GiB sparse desktop Scape is inspected through bounded ranges and canc
 			decisionCalls += 1;
 			assert.equal(request.kind, 'collision');
 			assert.equal(request.inspected.id, fixture.projectId);
-			assert.equal(request.inspected.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
+			assert.equal(request.inspected.schemaVersion, 9);
 			assert.equal(request.inspected.manifest.assets[0]?.sha256, fixture.assetSha256);
 			return 'cancel';
 		}),
-	});
+	}), (error: unknown) => Boolean(
+		error instanceof Error
+		&& error.name === 'AudioEditorProjectReimportRequiredError'
+		&& 'code' in error
+		&& error.code === 'REIMPORT_REQUIRED'
+	));
 
-	assert.deepEqual(result, { cancelled: true });
-	assert.equal(collisionLookups, 1);
-	assert.equal(decisionCalls, 1);
+	assert.equal(collisionLookups, 0);
+	assert.equal(decisionCalls, 0);
 	assert.equal(materializedOpenCalls, 0);
 	assert.equal(importCalls, 0);
 	assert.equal(releaseCalls, 1);

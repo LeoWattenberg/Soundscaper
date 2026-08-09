@@ -17,7 +17,6 @@ export interface HoldTempoEvent {
 	readonly bpm: Rational;
 	readonly samplePosition?: SampleFrame;
 }
-
 export interface HoldTempoMap {
 	readonly mode: 'musical' | 'sampleLocked';
 	readonly events: readonly HoldTempoEvent[];
@@ -99,9 +98,20 @@ export function secondsToSampleFrame(
 	policy: TimeRoundingPolicy = 'point',
 	direction?: TimeRoundingDirection,
 ): SampleFrame {
+	const rate = positiveSafeInteger(sampleRate, 'sampleRate');
+	if (typeof seconds === 'number') {
+		const scaled = finiteNumber(seconds, 'seconds') * rate;
+		if (!Number.isFinite(scaled) || Math.abs(scaled) > Number.MAX_SAFE_INTEGER) {
+			throw new RangeError('The resolved timeline value is outside the safe integer range.');
+		}
+		const named = roundingPolicy(policy, direction);
+		return safeRoundedResult(named === 'point'
+			? (scaled < 0 ? -Math.round(-scaled) : Math.round(scaled))
+			: named === 'floor' ? Math.floor(scaled) : Math.ceil(scaled)) as SampleFrame;
+	}
 	const secondsFraction = bigFraction(seconds);
 	return fractionToInteger(
-		multiplyFractions(secondsFraction, bigFraction(positiveSafeInteger(sampleRate, 'sampleRate'))),
+		multiplyFractions(secondsFraction, bigFraction(rate)),
 		policy,
 		direction,
 	) as SampleFrame;
@@ -218,7 +228,6 @@ export function beatToSampleFrame(
 	position = addFractions(position, tempoSegmentSamples(target, eventBeat, tempo, rate));
 	return fractionToInteger(position, policy) as SampleFrame;
 }
-
 export function countInSampleFrames(
 	measureCount: number,
 	tempo: Readonly<{
@@ -240,7 +249,6 @@ export function countInSampleFrames(
 	const samples = tempoSegmentSamples(quarterBeats, { numerator: 0n, denominator: 1n }, bigFraction(tempo.bpm), sampleRate);
 	return fractionToInteger(samples, 'point') as SampleFrame;
 }
-
 export function validateBreakpointMap(map: BreakpointMap): true {
 	if (!map || typeof map !== 'object' || !['audio-warp', 'video-retime'].includes(map.feature)) {
 		throw new TypeError('A breakpoint map with a supported feature is required.');
@@ -270,7 +278,6 @@ export function validateBreakpointMap(map: BreakpointMap): true {
 	}
 	return true;
 }
-
 export function evaluateBreakpointMap(map: BreakpointMap, outer: RationalInput): Rational {
 	validateBreakpointMap(map);
 	const target = bigFraction(outer);
@@ -291,7 +298,6 @@ export function evaluateBreakpointMap(map: BreakpointMap, outer: RationalInput):
 	}
 	throw new RangeError('The breakpoint position could not be evaluated.');
 }
-
 function normalizeTempoEvents(tempoMap: HoldTempoMap): readonly HoldTempoEvent[] {
 	if (!tempoMap || typeof tempoMap !== 'object' || !['musical', 'sampleLocked'].includes(tempoMap.mode)) {
 		throw new TypeError('A hold tempo map is required.');
@@ -317,7 +323,6 @@ function normalizeTempoEvents(tempoMap: HoldTempoMap): readonly HoldTempoEvent[]
 	}
 	return tempoMap.events;
 }
-
 function sampleLockedBeatToFrame(
 	target: BigFraction,
 	events: readonly HoldTempoEvent[],
@@ -333,7 +338,6 @@ function sampleLockedBeatToFrame(
 	const absolute = addFractions(bigFraction(active.samplePosition ?? 0), relative);
 	return fractionToInteger(absolute, policy) as SampleFrame;
 }
-
 function tempoSegmentSamples(
 	endBeat: BigFraction,
 	startBeat: BigFraction,
@@ -555,13 +559,9 @@ function gcdBigInt(left: bigint, right: bigint): bigint {
 	return left || 1n;
 }
 
-function absoluteBigInt(value: bigint): bigint {
-	return value < 0n ? -value : value;
-}
-
+function absoluteBigInt(value: bigint): bigint { return value < 0n ? -value : value; }
 function safeRoundedResult(value: number): number {
-	if (!Number.isSafeInteger(value)) throw new RangeError('The resolved timeline value is outside the safe integer range.');
-	return value;
+	if (!Number.isSafeInteger(value)) throw new RangeError('The resolved timeline value is outside the safe integer range.'); return value;
 }
 
 function safeSum(left: number, right: number, name: string): number {

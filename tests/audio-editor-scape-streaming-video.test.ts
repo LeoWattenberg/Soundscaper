@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import { ScapeExpandedByteBudget } from '../src/common/editor/scape-expanded-byte-budget.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
@@ -415,7 +415,7 @@ function proxyMediaWriter(
 }
 
 function videoProject(id: string) {
-	return createAudioEditorProjectV6({
+	return createAudioEditorProjectV10({
 		id,
 		title: 'Streamed video',
 		sources: [{

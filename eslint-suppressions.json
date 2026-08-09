@@ -79,11 +79,6 @@
       "count": 2
     }
   },
-  "src/common/editor/project-v4.js": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/common/editor/ui/AudacityEffectLayout.jsx": {
     "no-unused-vars": {
       "count": 1
@@ -114,22 +109,12 @@
       "count": 1
     }
   },
-  "src/common/editor/video-timeline.js": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/common/products.js": {
     "no-constant-binary-expression": {
       "count": 1
     }
   },
   "src/common/site/App.jsx": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/audio-editor-project-v2.test.js": {
     "no-unused-vars": {
       "count": 1
     }

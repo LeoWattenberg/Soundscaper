@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -12,7 +14,7 @@ import { SourceChunkProviderRegistry } from '../src/common/editor/controller/sou
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import { createAudioClipV9, createAudioEditorProjectV9, createAudioSourceV9, createAudioTrackV9 } from '../src/common/editor/project-v9.ts';
+import { createAudioClipV9, createAudioSourceV9, createAudioTrackV9 } from '../src/common/editor/project-v9.ts';
 
 interface TestProject extends ProjectLifecycleProject {
 	readonly marker: string;
@@ -233,7 +235,7 @@ test('controller disposal aborts in-flight verification with the exact lifetime 
 	assert.deepEqual(fixture.effects, ['verify:dispose']);
 });
 
-test('exact-schema-9 rendered fallback readiness rejects before activation side effects', async () => {
+test('exact-schema-10 rendered fallback readiness rejects before activation side effects', async () => {
 	const readinessFailure = new Error('Required rendered fallback source fallback-source has no stored metadata.');
 	const incoming = renderedFallbackProject('unready-rendered-project', 'unready-rendered');
 	const fixture = createFixture({
@@ -297,7 +299,7 @@ function renderedFallbackProject(id: string, marker: string): TestProject {
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
 	return Object.freeze({
-		...createAudioEditorProjectV9({
+		...createAudioEditorProjectV10({
 			id, now: '2026-07-30T12:00:00.000Z',
 			sources: [source, fallback], clips: [clip], tracks: [track],
 			featureRequirements: { schemaVersion: 1, requirements: [{

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
-} from '../project-v9.ts';
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../project-v10-validation.ts';
 import { collectProjectSourceIds } from '../retention.js';
 
 export type CapturedSource = CapturedAudioSource | CapturedVideoSource;
@@ -58,7 +58,7 @@ export class DesktopSharedProjectSourceUnavailableError extends Error {
 	}
 }
 
-export function captureReachableSources(project: AudioEditorProjectV9): readonly CapturedSource[] {
+export function captureReachableSources(project: AudioEditorProjectV10): readonly CapturedSource[] {
 	const sourceById = new Map(project.sources.map((source) => [String(source.id), source]));
 	const captured: CapturedSource[] = [];
 	for (const sourceId of collectProjectSourceIds(project)) {
@@ -70,12 +70,15 @@ export function captureReachableSources(project: AudioEditorProjectV9): readonly
 }
 
 export function captureSource(source: Readonly<Record<string, unknown>>): CapturedSource {
+	const videoRate = source.kind === 'video' && source.frameRate && typeof source.frameRate === 'object'
+		? source.frameRate as Readonly<Record<string, unknown>>
+		: null;
 	const base = {
 		id: source.id as string,
 		kind: source.kind as 'audio' | 'video',
 		storageKey: source.storageKey as string,
 		mimeType: source.mimeType as string,
-		frameCount: source.frameCount as number,
+		frameCount: (source.kind === 'video' ? source.sampleFrameCount : source.frameCount) as number,
 		sampleRate: source.sampleRate as number,
 	};
 	if (base.kind === 'audio') {
@@ -93,7 +96,9 @@ export function captureSource(source: Readonly<Record<string, unknown>>): Captur
 		kind: 'video',
 		width: source.width as number,
 		height: source.height as number,
-		frameRate: source.frameRate as number,
+		frameRate: videoRate
+			? Number(videoRate.num) / Number(videoRate.den)
+			: source.frameRate as number,
 		videoCodec: source.videoCodec as string,
 		audioCodec: source.audioCodec as string | null,
 		hasAudio: source.hasAudio as boolean,
@@ -141,11 +146,11 @@ export function assertPriorBindings(
 	if (!untrusted.length) return;
 	if (priorLocalProject == null) unavailable(untrusted[0] as CapturedSource);
 	try {
-		validateAudioEditorProjectV9(priorLocalProject);
+		validateAudioEditorProjectV10(priorLocalProject);
 	} catch (cause) {
 		unavailable(untrusted[0] as CapturedSource, cause);
 	}
-	const prior = priorLocalProject as AudioEditorProjectV9;
+	const prior = priorLocalProject as AudioEditorProjectV10;
 	if (prior.id !== projectId) unavailable(untrusted[0] as CapturedSource);
 	const priorById = new Map(prior.sources.map((source) => [String(source.id), captureSource(source)]));
 	for (const source of untrusted) {

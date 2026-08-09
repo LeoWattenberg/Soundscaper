@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -16,10 +18,8 @@ import type { EngineChunkSource, EngineChunkReadValue } from '../src/common/edit
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
@@ -55,7 +55,7 @@ interface BridgeProbe {
 
 interface HeadlessEngineProbe {
 	readonly engine: Readonly<Record<string, unknown>>;
-	readonly project: () => AudioEditorProjectV9 | null;
+	readonly project: () => AudioEditorProjectV10 | null;
 	readonly samplesFor: (sourceId: string) => readonly (readonly number[])[] | null;
 	readonly state: () => 'paused' | 'playing' | 'stopped';
 }
@@ -257,7 +257,7 @@ function fallbackProjectFixture() {
 		sourceDurationFrames: original.frameCount,
 	});
 	const fallbackSha256 = digest(canonicalPcmBytes(FALLBACK_CHANNELS));
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'audio-rendered-fallback-handoff', title: 'Audio rendered fallback handoff', revision: 3,
 		now: '2026-08-02T12:00:00.000Z', sampleRate: 48_000, masterChannels: 2,
 		sources: [original, fallback], clips: [clip],
@@ -354,10 +354,10 @@ async function readPcm(store: AudioEditorProjectStore, storageKey: string): Prom
 
 function createHeadlessEngine(): HeadlessEngineProbe {
 	const appliedSources = new Map<string, readonly (readonly number[])[]>();
-	let appliedProject: AudioEditorProjectV9 | null = null;
+	let appliedProject: AudioEditorProjectV10 | null = null;
 	let state: 'paused' | 'playing' | 'stopped' = 'stopped';
 	const capture = (project: unknown, buffers: unknown): void => {
-		appliedProject = project as AudioEditorProjectV9;
+		appliedProject = project as AudioEditorProjectV10;
 		appliedSources.clear();
 		if (!(buffers instanceof Map)) return;
 		for (const [sourceId, buffer] of buffers) {
@@ -403,7 +403,7 @@ function createAudioExportProbe(fallbackSourceId: string) {
 		downloads,
 		renders,
 		async renderSnapshot(
-			project: AudioEditorProjectV9,
+			project: AudioEditorProjectV10,
 			_range: unknown,
 			buffers: ReadonlyMap<string, unknown>,
 			signal: AbortSignal,

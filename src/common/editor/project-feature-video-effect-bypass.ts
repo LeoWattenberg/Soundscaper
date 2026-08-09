@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import type { ProjectFeatureRequirementsReport } from './project-feature-requirements.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 
@@ -55,7 +56,7 @@ export function projectFeatureVideoEffectPlaybackBypass<Project extends object>(
 	options: ProjectFeatureVideoEffectBypassOptions = {},
 ): ProjectFeatureVideoEffectBypassProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (dataProperty(projectRecord, 'schemaVersion', 'project') !== 9) return unchanged(project);
+	if (dataProperty(projectRecord, 'schemaVersion', 'project') !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return unchanged(project);
 	const requirementIds = qualifyingRequirementIds(report);
 	if (requirementIds.length === 0) return unchanged(project);
 	const maximumAffectedEffects = lowerOnlyLimit(

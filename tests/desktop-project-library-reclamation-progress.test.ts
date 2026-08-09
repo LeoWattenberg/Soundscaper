@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import {
@@ -28,7 +30,6 @@ import { DesktopLibraryProjectReclaimer } from '../desktop/project-library-recla
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 import { createDesktopLibraryProjectStageFile } from '../desktop/project-library-stage-inventory.ts';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 
 const PRODUCTION_RECLAMATION_CAP = 100_000;
 const OWNER_A = Object.freeze({
@@ -48,7 +49,7 @@ test('a fixed low cap advances past a protected prefix across close and reopen',
 	context.after(() => library.close());
 	const firstLease = await library.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
 	const projects = new DesktopLibraryProjectStore(library);
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'reclamation-progress-protected-project',
 		title: 'Protected reclamation progress project',
 		revision: 1,
@@ -118,7 +119,7 @@ test('a protected row preserves its only crash-left quarantine copy', async (con
 	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
 	context.after(() => library.close());
 	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'reclamation-progress-quarantine-project',
 		title: 'Protected quarantine project',
 		revision: 1,

@@ -484,15 +484,16 @@ function projectFixture() {
 	return {
 		id: 'project',
 		schemaVersion: 5,
+		sampleRate: 48_000,
 		sources: [
 			{ id: 'audio', kind: 'audio', storageKey: 'audio' },
 			{ id: 'video', kind: 'video', storageKey: 'video' },
 			{ id: 'missing', kind: 'audio', storageKey: 'missing' },
 		],
 		clips: [
-			{ id: 'audio-clip', kind: 'audio', sourceId: 'audio', timelineStartFrame: 0, durationFrames: 100 },
-			{ id: 'video-clip', kind: 'video', sourceId: 'video', timelineStartFrame: 200, durationFrames: 100 },
-			{ id: 'missing-clip', kind: 'audio', sourceId: 'missing', timelineStartFrame: 400, durationFrames: 100 },
+			{ id: 'audio-clip', kind: 'audio', sourceId: 'audio', timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
+			{ id: 'video-clip', kind: 'video', sourceId: 'video', timelineStartFrame: 200, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
+			{ id: 'missing-clip', kind: 'audio', sourceId: 'missing', timelineStartFrame: 400, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
 		],
 		tracks: [
 			{ id: 'audio-track', type: 'audio', clipIds: ['audio-clip', 'missing-clip'] },
@@ -500,8 +501,8 @@ function projectFixture() {
 		],
 		projectBin: {
 			clips: [
-				{ id: 'bin-video', kind: 'video', sourceId: 'video', binItemId: 'item', timelineStartFrame: 0, durationFrames: 100 },
-				{ id: 'bin-audio', kind: 'audio', sourceId: 'audio', binItemId: 'item', timelineStartFrame: 0, durationFrames: 100 },
+				{ id: 'bin-video', kind: 'video', sourceId: 'video', binItemId: 'item', timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
+				{ id: 'bin-audio', kind: 'audio', sourceId: 'audio', binItemId: 'item', timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
 			],
 		},
 	};

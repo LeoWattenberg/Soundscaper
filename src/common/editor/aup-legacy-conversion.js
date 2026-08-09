@@ -2,12 +2,12 @@ import {
 	createLabelV2,
 } from './project-v2.js';
 import {
-	createAudioClipV9,
-	createAudioEditorProjectV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createLabelTrackV9,
-} from './project-v9.ts';
+	createAudioClipV10,
+	createAudioEditorProjectV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
+	createLabelTrackV10,
+} from './project-v10.ts';
 import { createStableId } from './project.js';
 import {
 	divideRationals,
@@ -27,7 +27,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 	const warnings = [...(structure.warnings || [])];
 	for (const [trackIndex, inputTrack] of structure.tracks.entries()) {
 		if (inputTrack.type === 'label') {
-			tracks.push(createLabelTrackV9({
+			tracks.push(createLabelTrackV10({
 				id: idFactory('label-track'),
 				name: String(inputTrack.name || `Labels ${trackIndex + 1}`),
 				labels: (inputTrack.labels || []).map((label) => createLabelV2({
@@ -61,7 +61,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 			const sourceId = idFactory('source');
 			const clipId = idFactory('clip');
 			const name = String(inputClip.name || `${inputTrack.name || 'Audio'} ${clipIndex + 1}`);
-			const source = createAudioSourceV9({
+		const source = createAudioSourceV10({
 				id: sourceId,
 				storageKey: sourceId,
 				name,
@@ -73,7 +73,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 				sampleFormat: legacySampleFormat(inputTrack.sampleFormat),
 				opaqueExtensions: { legacyAupSource: inputClip.opaqueExtensions || {} },
 			});
-			const clip = createAudioClipV9({
+			const clip = createAudioClipV10({
 				id: clipId,
 				sourceId,
 				title: name,
@@ -96,7 +96,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 			clips.push(clip);
 			clipIds.push(clip.id);
 		}
-		tracks.push(createAudioTrackV9({
+		tracks.push(createAudioTrackV10({
 			id: trackId,
 			name: String(inputTrack.name || `Track ${trackIndex + 1}`),
 			gain: finiteInRange(inputTrack.gain, 0, 4, 1),
@@ -114,7 +114,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 		title: String(options.title || structure.metadata?.title || '').replace(/\.aup$/i, ''),
 		artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {},
 	};
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: options.projectId || idFactory('project'),
 		title: metadata.title || 'Audacity project',
 		now: options.now,

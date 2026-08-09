@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV9,
-	type AudioEditorProjectV9,
-} from '../project-v9.ts';
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../project-v10-validation.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS, type ScapeArchiveEntry } from '../scape-archive-envelope.ts';
 import {
@@ -18,10 +18,12 @@ import {
 import {
 	DESKTOP_SHARED_AUDIO_ENCODING,
 	DESKTOP_SHARED_VIDEO_ENCODING,
+	DESKTOP_SHARED_VIDEO_TIMING_ENCODING,
 	MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES,
 	type DesktopSharedManagedAudioSourceDescriptor,
 	type DesktopSharedManagedSourceDescriptor,
 	type DesktopSharedManagedVideoSourceDescriptor,
+	type DesktopSharedManagedVideoTimingDescriptor,
 	type DesktopSharedMediaAcquisition,
 	type DesktopSharedSourceTransferBridge,
 	type DesktopSharedSourceTransferStore,
@@ -31,25 +33,33 @@ import {
 	type DesktopSharedLinkedVideoOriginalSession,
 } from './desktop-shared-project-linked-video-originals.ts';
 import {
+	managedTimingAssetForSource,
 	managedSourceBinding,
 	reachableProjectSources,
 	type ManagedAudioSource,
 	type ManagedSource,
+	type ManagedTimingAsset,
+	type ManagedTransfer,
 	type ManagedVideoSource,
 } from './desktop-shared-project-media-sources.ts';
+import {
+	acquireManagedMediaAsset,
+	recipientManagedMediaMetadata,
+} from './desktop-shared-project-retained-media-acquisition.ts';
 import type { OwnedMediaAssetPublication } from './media-asset-write-contract.ts';
 import type { StorageRecord } from './media-records.ts';
 
 const DIGEST = /^[a-f0-9]{64}$/u;
 const AUDIO_BINDING_ID = /^m[a-f0-9]{64}$/u;
 const VIDEO_BINDING_ID = /^v[a-f0-9]{64}$/u;
+const TIMING_BINDING_ID = /^t[a-f0-9]{64}$/u;
 
 interface SourceGroup {
 	readonly binding: string;
 	descriptor: DesktopSharedManagedSourceDescriptor | null;
-	readonly kind: 'audio' | 'video';
+	readonly kind: 'audio' | 'video' | 'video-timing';
 	readonly physicalKey: string;
-	readonly sources: ManagedSource[];
+	readonly sources: ManagedTransfer[];
 }
 
 interface MissingGroupPlan {
@@ -61,7 +71,7 @@ type AcquiredOwnership = Readonly<{
 	readonly kind: 'audio';
 	readonly record: StorageRecord;
 }> | Readonly<{
-	readonly kind: 'video';
+	readonly kind: 'media';
 	readonly publication: OwnedMediaAssetPublication;
 }>;
 
@@ -76,8 +86,8 @@ export async function acquireDesktopSharedProjectMedia(
 		signal?: AbortSignal;
 	}> = {},
 ): Promise<DesktopSharedMediaAcquisition> {
-	validateAudioEditorProjectV9(projectValue);
-	const project = projectValue as AudioEditorProjectV9;
+	validateAudioEditorProjectV10(projectValue);
+	const project = projectValue as AudioEditorProjectV10;
 	const groups = preflightGroups(project, descriptorValues);
 	const expandedByteBudget = preflightAudioBudgets(groups);
 	const prior = validPriorProject(priorProjectValue, project.id);
@@ -111,7 +121,7 @@ export async function acquireDesktopSharedProjectMedia(
 	try {
 		for (const group of plan.groups) {
 			throwIfScapeAborted(options.signal);
-			const source = group.sources[0] as ManagedSource;
+			const source = group.sources[0] as ManagedTransfer;
 			const descriptor = requiredGroupDescriptor(group);
 			if (group.kind === 'audio') {
 				acquired.push(Object.freeze({
@@ -126,10 +136,11 @@ export async function acquireDesktopSharedProjectMedia(
 				}));
 			} else {
 				acquired.push(Object.freeze({
-					kind: 'video',
-					publication: await acquireVideoSource(
-						source as ManagedVideoSource,
-						descriptor as DesktopSharedManagedVideoSourceDescriptor,
+					kind: 'media',
+					publication: await acquireManagedMediaAsset(
+						source as ManagedVideoSource | ManagedTimingAsset,
+						descriptor as DesktopSharedManagedVideoSourceDescriptor
+							| DesktopSharedManagedVideoTimingDescriptor,
 						bridgeValue,
 						store,
 						options.signal,
@@ -176,15 +187,22 @@ export function acquireDesktopSharedProjectAudio(
 }
 
 function preflightGroups(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	descriptorValues: readonly unknown[],
 ): readonly SourceGroup[] {
 	if (!Array.isArray(descriptorValues)) throw new TypeError('Desktop shared-source descriptors must be an array.');
 	const sources = reachableProjectSources(project);
-	const sourceById = new Map(sources.map((source) => [source.id, source]));
+	const transfers = sources.flatMap((source) => {
+		const timing = managedTimingAssetForSource(source);
+		return timing ? [source, timing] : [source];
+	});
+	const sourceByIdentity = new Map(transfers.map((source) => [
+		descriptorIdentity(source.kind, source.id),
+		source,
+	]));
 	const groupByPhysicalKey = new Map<string, SourceGroup>();
 	const groups: SourceGroup[] = [];
-	for (const source of sources) {
+	for (const source of transfers) {
 		const physicalKey = JSON.stringify([source.kind, source.storageKey]);
 		const binding = managedSourceBinding(source);
 		const existing = groupByPhysicalKey.get(physicalKey);
@@ -208,11 +226,12 @@ function preflightGroups(
 	const physicalKeyByBindingId = new Map<string, string>();
 	for (const value of descriptorValues) {
 		const descriptor = managedDescriptor(value);
-		if (descriptorSourceIds.has(descriptor.sourceId)) {
+		const descriptorKey = descriptorIdentity(descriptor.kind, descriptor.sourceId);
+		if (descriptorSourceIds.has(descriptorKey)) {
 			throw new Error(`Duplicate managed source ${descriptor.sourceId}.`);
 		}
-		descriptorSourceIds.add(descriptor.sourceId);
-		const source = sourceById.get(descriptor.sourceId);
+		descriptorSourceIds.add(descriptorKey);
+		const source = sourceByIdentity.get(descriptorKey);
 		if (!source) {
 			throw new Error(`Managed source ${descriptor.sourceId} is not reachable from project ${project.id}.`);
 		}
@@ -222,6 +241,10 @@ function preflightGroups(
 		if (source.kind === 'audio'
 			&& descriptor.byteLength !== scapeAudioSourceLayout(source as ManagedAudioSource).archiveBytes) {
 			throw new Error(`Managed source descriptor does not match audio source ${source.id}.`);
+		}
+		if (source.kind === 'video-timing'
+			&& (descriptor.byteLength !== source.byteLength || descriptor.sha256 !== source.sha256)) {
+			throw new Error(`Managed source descriptor does not match timing asset ${source.storageKey}.`);
 		}
 		const physicalKey = JSON.stringify([source.kind, source.storageKey]);
 		const group = groupByPhysicalKey.get(physicalKey) as SourceGroup;
@@ -237,7 +260,7 @@ function preflightGroups(
 	}
 	return Object.freeze(groups.map((group) => Object.freeze({
 		...group,
-		sources: Object.freeze([...group.sources]) as unknown as ManagedSource[],
+		sources: Object.freeze([...group.sources]) as unknown as ManagedTransfer[],
 	})));
 }
 
@@ -245,7 +268,7 @@ function preflightAudioBudgets(groups: readonly SourceGroup[]): ScapeExpandedByt
 	const byteBudget = new ScapeExpandedByteBudget(SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes);
 	const chunkBudget = new ScapeAudioChunkBudget();
 	for (const group of groups) {
-		const source = group.sources[0] as ManagedSource;
+		const source = group.sources[0] as ManagedTransfer;
 		if (group.kind !== 'audio') continue;
 		const layout = scapeAudioSourceLayout(source as ManagedAudioSource);
 		byteBudget.consume(layout.archiveBytes, source.id);
@@ -256,7 +279,7 @@ function preflightAudioBudgets(groups: readonly SourceGroup[]): ScapeExpandedByt
 
 async function planMissingGroups(
 	groups: readonly SourceGroup[],
-	prior: AudioEditorProjectV9 | null,
+	prior: AudioEditorProjectV10 | null,
 	store: Pick<DesktopSharedSourceTransferStore, 'getMediaAssetMetadata' | 'getSourceMetadata'>,
 	expandedByteBudget: ScapeExpandedByteBudget,
 	linkedVideoOriginals?: DesktopSharedLinkedVideoOriginalSession | null,
@@ -266,23 +289,27 @@ async function planMissingGroups(
 	const linkedSourceIds: string[] = [];
 	for (const group of groups) {
 		throwIfScapeAborted(signal);
-		const source = group.sources[0] as ManagedSource;
+		const source = group.sources[0] as ManagedTransfer;
 		const metadata = group.kind === 'audio'
 			? await store.getSourceMetadata(source.storageKey)
 			: await store.getMediaAssetMetadata(source.storageKey);
 		throwIfScapeAborted(signal);
 		if (metadata != null) {
 			const priorMatches = priorGroupMatches(prior, group);
-			if (group.kind === 'video') {
-				const local = recipientVideoMetadata(source as ManagedVideoSource, metadata);
+			if (group.kind !== 'audio') {
+				const local = recipientManagedMediaMetadata(
+					source as ManagedVideoSource | ManagedTimingAsset,
+					metadata,
+				);
 				const linkedMatches = !priorMatches && linkedVideoOriginals != null
+					&& group.kind === 'video'
 					&& desktopSharedLinkedVideoGroupMatches(
 						linkedVideoOriginals,
 						group.sources as ManagedVideoSource[],
 						metadata,
 					);
 				if (!priorMatches && !linkedMatches) {
-					throw new Error(`Recipient-local video source ${source.id} conflicts with a managed shared source.`);
+					throw new Error(`Recipient-local ${group.kind} source ${source.id} conflicts with a managed shared source.`);
 				}
 				if (group.descriptor && (local.size !== group.descriptor.byteLength
 					|| local.sha256 !== group.descriptor.sha256)) {
@@ -298,45 +325,13 @@ async function planMissingGroups(
 			continue;
 		}
 		const descriptor = requiredGroupDescriptor(group);
-		if (group.kind === 'video') expandedByteBudget.consume(descriptor.byteLength, source.id);
+		if (group.kind !== 'audio') expandedByteBudget.consume(descriptor.byteLength, source.id);
 		plans.push(group);
 	}
 	return Object.freeze({
 		groups: Object.freeze(plans),
 		linkedSourceIds: Object.freeze(linkedSourceIds),
 	});
-}
-
-function recipientVideoMetadata(
-	source: ManagedVideoSource,
-	value: unknown,
-): Readonly<{ size: number; sha256: string }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new Error(`Recipient-local video source ${source.id} metadata is missing.`);
-	}
-	const record = value as Record<PropertyKey, unknown>;
-	const sourceId = ownDataValue(record, 'sourceId');
-	const mimeType = ownDataValue(record, 'mimeType');
-	const size = ownDataValue(record, 'size');
-	const sha256 = ownDataValue(record, 'sha256');
-	if (sourceId !== source.storageKey || mimeType !== source.mimeType) {
-		throw new Error(`Recipient-local video source ${source.id} metadata does not match its project binding.`);
-	}
-	if (!Number.isSafeInteger(size) || Number(size) < 1) {
-		throw new RangeError('Recipient-local video metadata.size is invalid.');
-	}
-	if (typeof sha256 !== 'string' || !DIGEST.test(sha256)) {
-		throw new TypeError(`Recipient-local video source ${source.id} has an invalid SHA-256.`);
-	}
-	return Object.freeze({ size: Number(size), sha256 });
-}
-
-function ownDataValue(record: Record<PropertyKey, unknown>, key: PropertyKey): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record, key);
-	if (!descriptor || !('value' in descriptor)) {
-		throw new TypeError(`Recipient-local metadata.${String(key)} must be a data property.`);
-	}
-	return descriptor.value;
 }
 
 async function acquireAudioSource(
@@ -369,53 +364,6 @@ async function acquireAudioSource(
 	} catch (error) {
 		try { await writer.abort(); } catch (cleanupError) {
 			throw new AggregateError([error, cleanupError], 'Managed audio source write and cleanup failed.');
-		}
-		throw error;
-	}
-}
-
-async function acquireVideoSource(
-	source: ManagedVideoSource,
-	descriptor: DesktopSharedManagedVideoSourceDescriptor,
-	bridge: Pick<DesktopSharedSourceTransferBridge, 'readSharedSourceChunk'>,
-	store: Pick<DesktopSharedSourceTransferStore, 'beginMediaAssetWrite'>,
-	signal?: AbortSignal,
-): Promise<OwnedMediaAssetPublication> {
-	const writer = await store.beginMediaAssetWrite(
-		source.storageKey,
-		{ name: source.name, mimeType: source.mimeType },
-		{ expectedBytes: descriptor.byteLength, expectedSha256: descriptor.sha256, signal },
-	);
-	let publication: OwnedMediaAssetPublication | null = null;
-	try {
-		const chunkSize = writerChunkSize(writer.maximumChunkBytes);
-		let offset = 0;
-		while (offset < descriptor.byteLength) {
-			throwIfScapeAborted(signal);
-			const length = Math.min(chunkSize, descriptor.byteLength - offset);
-			const bytes = await bridge.readSharedSourceChunk({
-				bindingId: descriptor.bindingId,
-				length,
-				offset,
-			});
-			if (!(bytes instanceof Uint8Array) || bytes.byteLength !== length) {
-				throw new Error('Desktop shared-source read returned an unexpected chunk.');
-			}
-			await writer.write(bytes, { signal });
-			offset += bytes.byteLength;
-		}
-		if (offset !== descriptor.byteLength || writer.bytesWritten !== descriptor.byteLength) {
-			throw new Error(`Managed video source ${source.id} emitted an unexpected byte length.`);
-		}
-		publication = await writer.commitOwned({ signal });
-		assertVideoPublication(publication, source, descriptor);
-		return publication;
-	} catch (error) {
-		try {
-			if (publication) await publication.discardIfCurrent();
-			else await writer.abort();
-		} catch (cleanupError) {
-			throw new AggregateError([error, cleanupError], 'Managed video source write and cleanup failed.');
 		}
 		throw error;
 	}
@@ -482,10 +430,15 @@ function managedDescriptor(value: unknown): DesktopSharedManagedSourceDescriptor
 		&& common && Number(record.byteLength) >= 1) {
 		return freezeDescriptor(record, DESKTOP_SHARED_VIDEO_ENCODING, 'video');
 	}
+	if (record.kind === 'video-timing' && record.encoding === DESKTOP_SHARED_VIDEO_TIMING_ENCODING
+		&& typeof record.bindingId === 'string' && TIMING_BINDING_ID.test(record.bindingId)
+		&& common && Number(record.byteLength) >= 1) {
+		return freezeDescriptor(record, DESKTOP_SHARED_VIDEO_TIMING_ENCODING, 'video-timing');
+	}
 	throw new TypeError('Desktop shared-source descriptor is invalid.');
 }
 
-function freezeDescriptor<Encoding extends string, Kind extends 'audio' | 'video'>(
+function freezeDescriptor<Encoding extends string, Kind extends 'audio' | 'video' | 'video-timing'>(
 	record: Record<string, unknown>,
 	encoding: Encoding,
 	kind: Kind,
@@ -519,46 +472,27 @@ function requiredGroupDescriptor(group: SourceGroup): DesktopSharedManagedSource
 	return group.descriptor;
 }
 
-function validPriorProject(value: unknown, projectId: string): AudioEditorProjectV9 | null {
+function validPriorProject(value: unknown, projectId: string): AudioEditorProjectV10 | null {
 	if (value == null) return null;
 	try {
-		validateAudioEditorProjectV9(value);
+		validateAudioEditorProjectV10(value);
 	} catch {
 		return null;
 	}
-	const project = value as AudioEditorProjectV9;
+	const project = value as AudioEditorProjectV10;
 	return project.id === projectId ? project : null;
 }
 
-function priorGroupMatches(prior: AudioEditorProjectV9 | null, group: SourceGroup): boolean {
+function priorGroupMatches(prior: AudioEditorProjectV10 | null, group: SourceGroup): boolean {
 	return Boolean(prior && group.sources.every((source) => {
-		const candidate = prior.sources.find(({ id }) => id === source.id) as ManagedSource | undefined;
+		const projectSource = prior.sources.find(({ id }) => id === source.id) as ManagedSource | undefined;
+		const candidate = source.kind === 'video-timing' && projectSource
+			? managedTimingAssetForSource(projectSource)
+			: projectSource;
 		return candidate?.kind === source.kind && managedSourceBinding(candidate) === managedSourceBinding(source);
 	}));
 }
 
-function writerChunkSize(value: unknown): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) {
-		throw new RangeError('Managed video writer chunk size is invalid.');
-	}
-	return Math.min(Number(value), MAXIMUM_DESKTOP_SHARED_SOURCE_CHUNK_BYTES);
-}
-
-function assertVideoPublication(
-	publication: OwnedMediaAssetPublication,
-	source: ManagedVideoSource,
-	descriptor: DesktopSharedManagedVideoSourceDescriptor,
-): void {
-	if (!publication || typeof publication !== 'object'
-		|| typeof publication.discardIfCurrent !== 'function'
-		|| !publication.metadata || typeof publication.metadata !== 'object') {
-		throw new TypeError('Managed video publication is invalid.');
-	}
-	const metadata = publication.metadata;
-	if (metadata.sourceId !== source.storageKey
-		|| metadata.size !== descriptor.byteLength
-		|| metadata.sha256 !== descriptor.sha256
-		|| metadata.mimeType !== source.mimeType) {
-		throw new Error(`Managed video source ${source.id} publication does not match its descriptor.`);
-	}
+function descriptorIdentity(kind: string, sourceId: string): string {
+	return `${kind}:${sourceId}`;
 }

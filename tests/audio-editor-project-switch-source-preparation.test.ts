@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -27,21 +29,19 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
 	createVideoTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 
 const FALLBACK_SOURCE_ID = 'fallback-source';
 
 interface TestProject extends ProjectLifecycleProject {
-	readonly clips: AudioEditorProjectV9['clips'];
-	readonly sources: AudioEditorProjectV9['sources'];
-	readonly featureRequirements: AudioEditorProjectV9['featureRequirements'];
+	readonly clips: AudioEditorProjectV10['clips'];
+	readonly sources: AudioEditorProjectV10['sources'];
+	readonly featureRequirements: AudioEditorProjectV10['featureRequirements'];
 }
 
 interface TestHistory extends ProjectLifecycleHistory<TestProject> {
@@ -189,7 +189,7 @@ function createFixture(options: Readonly<{
 	productCapabilities?: Readonly<Record<string, unknown>>;
 }> = {}) {
 	const incoming = options.incoming ?? renderedFallbackProject('incoming-project');
-	const active = createAudioEditorProjectV9({ id: 'active-project' }) as unknown as TestProject;
+	const active = createAudioEditorProjectV10({ id: 'active-project' }) as unknown as TestProject;
 	const lifetime = new EditorControllerLifetime();
 	const events: string[] = [];
 	const reservationFailure = new DOMException('The project history changed before activation.', 'AbortError');
@@ -447,7 +447,7 @@ function renderedFallbackProject(id: string): TestProject {
 		id: 'original-track', clipIds: [clip.id],
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id, now: '2026-07-30T12:00:00.000Z', sources: [source, fallback], clips: [clip], tracks: [track],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
@@ -468,7 +468,7 @@ function videoRenderedFallbackProject(id: string): TestProject {
 	});
 	const clip = createVideoClipV9({ id: 'original-video-clip', sourceId: original.id, durationFrames: 4 });
 	const track = createVideoTrackV9({ id: 'original-video-track', clipIds: [clip.id] });
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id, now: '2026-08-01T12:00:00.000Z', sources: [original, fallback], clips: [clip], tracks: [track],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-video-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,

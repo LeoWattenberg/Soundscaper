@@ -22,6 +22,11 @@ export const FRAMESCAPER_PROFILE = {
 		audioSampleEditing: false,
 		videoEffects: true,
 		videoCompositing: true,
+		musicalTimeline: false,
+		audioWarp: false,
+		sequenceTiming: true,
+		videoRetime: false,
+		videoTimingAssets: true,
 	},
 	desktop: {
 		appId: 'org.framescaper.desktop',

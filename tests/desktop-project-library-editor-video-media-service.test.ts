@@ -9,6 +9,7 @@ import type {
 	DesktopLibraryProject,
 } from '../desktop/project-library-contract.ts';
 import {
+	desktopSharedManagedSourceBindingKey,
 	DesktopSharedProjectMediaService,
 	type DesktopSharedSourceWriteDeclaration,
 } from '../desktop/project-library-editor-media-service.ts';
@@ -17,16 +18,21 @@ import type {
 } from '../desktop/project-library-host.ts';
 import {
 	createDesktopLibraryVideoMediaBinding,
+	createDesktopLibraryVideoTimingBinding,
 	DESKTOP_LIBRARY_VIDEO_MEDIA_ENCODING,
+	DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
 	type DesktopLibraryManagedMediaReadOptions,
 } from '../desktop/project-library-media.ts';
 import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
+import {
+	createAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from '../src/common/editor/project-v10.ts';
+import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 
 const PROJECT_DIGEST = '0'.repeat(64);
 const WRITE_ID = '2'.repeat(32);
@@ -49,6 +55,65 @@ test('project bundles expose exact reachable managed original-video descriptors'
 		sourceId: fixture.source.id,
 		storageKey: fixture.source.storageKey,
 	}]);
+});
+
+test('project bundles and present admission carry the video timing sidecar independently', async () => {
+	const fixture = videoFixture();
+	const sourceSha256 = 'c'.repeat(64);
+	const timing = createVideoTimingAssetPublication(sourceSha256, {
+		timescale: 1_000,
+		presentationTicks: [0n],
+		finalFrameDurationTicks: 40n,
+	});
+	const project = createAudioEditorProjectV10({
+		...fixture.project,
+		sources: fixture.project.sources.map((source) => source.id === fixture.source.id ? {
+			...source,
+			contentSha256: sourceSha256,
+			sourceFrameCount: timing.reference.frameCount,
+			timingAsset: timing.reference,
+		} : source),
+	});
+	const original = mediaForVideo(project, fixture.source, 11, sourceSha256);
+	const timingBindingKey = JSON.stringify([
+		timing.reference.storageKey,
+		timing.reference.byteLength,
+		timing.reference.sha256,
+	]);
+	const timingBinding = createDesktopLibraryVideoTimingBinding(
+		project.id,
+		timingBindingKey,
+		project.revision,
+		PROJECT_DIGEST,
+	);
+	const timingMedia = Object.freeze({
+		...timingBinding,
+		byteLength: timing.reference.byteLength,
+		sha256: timing.reference.sha256,
+	});
+	const host = new FakeManagedMediaHost(bundle(project, [original, timingMedia]));
+	const service = new DesktopSharedProjectMediaService(host);
+	const result = await service.readProjectBundle(project.id);
+	assert.deepEqual(result?.sources.map(({ kind }) => kind), ['video', 'video-timing']);
+	assert.deepEqual(await service.beginSourceWrite({
+		byteLength: timing.reference.byteLength,
+		encoding: DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
+		projectId: project.id,
+		projectRevision: project.revision,
+		sha256: timing.reference.sha256,
+		sourceId: fixture.source.id,
+	}), {
+		status: 'present',
+		source: {
+			bindingId: timingBinding.id,
+			byteLength: timing.reference.byteLength,
+			encoding: DESKTOP_LIBRARY_VIDEO_TIMING_ENCODING,
+			kind: 'video-timing',
+			sha256: timing.reference.sha256,
+			sourceId: fixture.source.id,
+			storageKey: timing.reference.storageKey,
+		},
+	});
 });
 
 test('video source writes use the existing bounded upload session and exact project fence', async () => {
@@ -120,11 +185,11 @@ test('present video admission revalidates the exact body and project fence witho
 	}, /must not consume a new body/iu);
 	await assert.rejects(
 		service.beginSourceWrite(videoDeclaration(fixture, media.byteLength, 'b'.repeat(64))),
-		/original video.*source-write declaration/iu,
+		/retained media.*source-write declaration/iu,
 	);
 	await assert.rejects(
 		service.beginSourceWrite(videoDeclaration(fixture, media.byteLength + 1, media.sha256)),
-		/original video.*byte geometry/iu,
+		/retained media.*byte geometry/iu,
 	);
 	assert.equal(host.publications.length, 1);
 });
@@ -161,7 +226,7 @@ interface TestVideoSource extends Readonly<Record<string, unknown>> {
 }
 
 interface VideoFixture {
-	readonly project: AudioEditorProjectV9;
+	readonly project: AudioEditorProjectV10;
 	readonly source: TestVideoSource;
 }
 
@@ -219,7 +284,7 @@ function videoFixture(): VideoFixture {
 		durationFrames: source.frameCount,
 		binItemId: 'managed-video-bin-item',
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'managed-video-project',
 		title: 'Managed video project',
 		revision: 8,
@@ -247,13 +312,13 @@ function videoDeclaration(
 }
 
 function bundle(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	media: readonly DesktopLibraryMedia[] = [],
 ): DesktopLibraryLoadedProjectBundle {
 	return Object.freeze({ catalog: catalogProject(project), project, media: Object.freeze([...media]) });
 }
 
-function catalogProject(project: AudioEditorProjectV9): DesktopLibraryProject {
+function catalogProject(project: AudioEditorProjectV10): DesktopLibraryProject {
 	return Object.freeze({
 		id: 'managed-video-entry',
 		projectId: project.id,
@@ -261,7 +326,7 @@ function catalogProject(project: AudioEditorProjectV9): DesktopLibraryProject {
 		metadataFile: 'projects/managed-video-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 9,
+		projectSchemaVersion: 10,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: PROJECT_DIGEST,
@@ -269,13 +334,20 @@ function catalogProject(project: AudioEditorProjectV9): DesktopLibraryProject {
 }
 
 function mediaForVideo(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	source: TestVideoSource,
 	byteLength: number,
 	sha256: string,
 ): DesktopLibraryMedia {
 	const binding = createDesktopLibraryVideoMediaBinding(
-		project.id, videoBindingKey(source), project.revision, PROJECT_DIGEST,
+		project.id,
+		desktopSharedManagedSourceBindingKey(
+			project.sources.find(({ id }) => id === source.id) as Parameters<
+				typeof desktopSharedManagedSourceBindingKey
+			>[0],
+		),
+		project.revision,
+		PROJECT_DIGEST,
 	);
 	return Object.freeze({ ...binding, byteLength, sha256 });
 }
@@ -288,21 +360,6 @@ function mediaForPublication(options: DesktopProjectLibraryHostPublishMediaOptio
 		options.expectedProjectSha256,
 	);
 	return Object.freeze({ ...binding, byteLength: options.byteLength, sha256: options.sha256 });
-}
-
-function videoBindingKey(source: TestVideoSource): string {
-	return JSON.stringify([
-		source.storageKey,
-		source.mimeType,
-		source.frameCount,
-		source.sampleRate,
-		source.width,
-		source.height,
-		source.frameRate,
-		source.videoCodec,
-		source.audioCodec,
-		source.hasAudio,
-	]);
 }
 
 function digest(bytes: Uint8Array): string {

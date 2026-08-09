@@ -3,8 +3,8 @@
 import { normalizeEffect } from './effects.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	loadAudioEditorProjectV9,
-} from './project-v9.ts';
+	loadAudioEditorProjectV10,
+} from './project-v10.ts';
 
 function clone(value) {
 	if (value === undefined || value === null) return value;
@@ -48,7 +48,7 @@ export function migrateAudioEditorProject(value) {
 	if (schemaVersion < AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new AudioEditorProjectReimportRequiredError(schemaVersion);
 	}
-	const loaded = loadAudioEditorProjectV9(value);
+	const loaded = loadAudioEditorProjectV10(value);
 	const normalized = (value.tracks || []).some((track) => track?.type !== 'label' && (
 		Object.hasOwn(track, 'channelCount')
 		|| Object.hasOwn(track, 'channelLayout')

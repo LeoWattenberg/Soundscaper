@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
 	createAudioClipV9,
-	createAudioEditorProjectV9,
 	createAudioSourceV9,
 	createAudioTrackV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import {
@@ -42,7 +42,7 @@ test('managed acquisition rolls back when the local shadow save fails', async ()
 test('managed acquisition rolls back every shadow result that is not the exact authoritative snapshot', async (context) => {
 	const cases: readonly Readonly<{
 		label: string;
-		mutate(project: AudioEditorProjectV9): ProjectDocument;
+		mutate(project: AudioEditorProjectV10): ProjectDocument;
 		pattern: RegExp;
 	}>[] = [
 		{
@@ -102,7 +102,7 @@ test('an accepted shadow commits managed acquisition before observing late cance
 });
 
 function managedLoadScenario(
-	save: (project: AudioEditorProjectV9) => Promise<ProjectDocument>,
+	save: (project: AudioEditorProjectV10) => Promise<ProjectDocument>,
 ) {
 	const source = createAudioSourceV9({
 		id: 'managed-load-source',
@@ -122,7 +122,7 @@ function managedLoadScenario(
 		durationFrames: 1,
 		sourceDurationFrames: 1,
 	});
-	const project = createAudioEditorProjectV9({
+	const project = createAudioEditorProjectV10({
 		id: 'managed-load-project',
 		title: 'Managed load project',
 		revision: 4,
@@ -159,7 +159,7 @@ function managedLoadScenario(
 }
 
 function managedBridge(
-	project: AudioEditorProjectV9,
+	project: AudioEditorProjectV10,
 	descriptor: DesktopSharedManagedSourceDescriptor,
 	body: Uint8Array,
 ): DesktopSharedProjectBridge {
@@ -264,10 +264,10 @@ function availableAudio(
 }
 
 function shadowRepository(
-	save: (project: AudioEditorProjectV9) => Promise<ProjectDocument>,
+	save: (project: AudioEditorProjectV10) => Promise<ProjectDocument>,
 ): ProjectRepositoryPort {
 	return {
-		save: (project) => save(project as AudioEditorProjectV9),
+		save: (project) => save(project as AudioEditorProjectV10),
 		load: async () => null,
 		list: async () => [],
 		listRevisions: async () => [],

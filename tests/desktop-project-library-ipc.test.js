@@ -257,7 +257,7 @@ test('main and preload preserve the closed managed original-video protocol', asy
 	assert.deepEqual(structuredClone(calls[1]), { channel: IPC.beginSharedSourceWrite, value: declaration });
 	preloadDescriptor = { ...VIDEO_DESCRIPTOR, encoding: 'audio-f32le-chunks-v1' };
 	await assert.rejects(api.readSharedProjectBundle(PROJECT_ID), /kind and encoding|descriptor is invalid/iu);
-	assert.throws(() => api.beginSharedSourceWrite({ ...declaration, byteLength: 0 }), /video byte length.*positive/iu);
+	assert.throws(() => api.beginSharedSourceWrite({ ...declaration, byteLength: 0 }), /retained-media byte length.*positive/iu);
 });
 
 test('main caps concurrent managed-source reads and releases capacity after settlement', async () => {

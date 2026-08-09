@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -12,7 +14,6 @@ import {
 	type DesktopLibraryCommitProjectOptions,
 	DesktopLibraryProjectStore,
 } from '../desktop/project-library-projects.ts';
-import { createAudioEditorProjectV9 } from '../src/common/editor/project-v9.ts';
 
 const SOUNDSCAPER_OWNER = Object.freeze({
 	product: 'soundscaper' as const,
@@ -132,7 +133,7 @@ function commitOptions(
 		entryId: ENTRY_ID,
 		name: 'Shared handoff project',
 		project: {
-			...createAudioEditorProjectV9({
+			...createAudioEditorProjectV10({
 				id: 'shared handoff project identity',
 				title: 'Shared handoff project',
 				revision,

@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioEditorProjectV9,
 	createVideoClipV9,
 	createVideoSourceV9,
-	type AudioEditorProjectV9,
 } from '../src/common/editor/project-v9.ts';
 import { ProjectPublicationQuotaError } from '../src/common/editor/project-publication-admission.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
@@ -551,7 +551,7 @@ function mutatingCreateFactory(): StorageRepositoryFactory {
 	};
 }
 
-function linkedProject(id: string, title: string, revision = 3): AudioEditorProjectV9 {
+function linkedProject(id: string, title: string, revision = 3): AudioEditorProjectV10 {
 	const source = linkedSource();
 	const clip = createVideoClipV9({
 		id: `${id}-bin-clip`,
@@ -560,7 +560,7 @@ function linkedProject(id: string, title: string, revision = 3): AudioEditorProj
 		durationFrames: source.frameCount,
 		sourceDurationFrames: source.frameCount,
 	});
-	return createAudioEditorProjectV9({
+	return createAudioEditorProjectV10({
 		id, title, revision, now: NOW,
 		sources: [source],
 		projectBin: { clips: [clip] },

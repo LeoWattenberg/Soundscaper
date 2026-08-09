@@ -12,7 +12,6 @@ import {
 	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { validateProjectV9Document } from './project-v9-document-validation.ts';
 import { projectRecord } from './project-v9-validation-primitives.ts';
 import {
@@ -75,7 +74,7 @@ export function validateAudioEditorProjectV9(
 	const limits = validationLimits(options);
 	admitAudioEditorProjectV9ValidationStructure(project, limits);
 	const candidate = projectRecord(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+	if (candidate.schemaVersion !== 9) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
 	const { metadata, media } = validateProjectV9Document(candidate);
