@@ -1,15 +1,12 @@
-import {
-	createLabelV2,
-} from './project-v2.js';
 import { createCurrentAudioEditorProject } from './project-current.ts';
 import {
 	createAudioClipV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
-	createLabelTrackV10,
 } from './project-v10.ts';
 import { createStableId } from './project.js';
 import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
+import { createAudacityAnnotationImport } from './audacity-annotation-interchange.ts';
 import {
 	divideRationals,
 	normalizeRational,
@@ -25,21 +22,20 @@ export function convertLegacyAupToProject(structure, options = {}) {
 	const sourceAudio = [];
 	const clips = [];
 	const tracks = [];
+	const annotationTracks = [];
 	const warnings = [...(structure.warnings || [])];
 	for (const [trackIndex, inputTrack] of structure.tracks.entries()) {
 		if (inputTrack.type === 'label') {
-			tracks.push(createLabelTrackV10({
-				id: idFactory('label-track'),
+			annotationTracks.push({
 				name: String(inputTrack.name || `Labels ${trackIndex + 1}`),
-				labels: (inputTrack.labels || []).map((label) => createLabelV2({
-					id: idFactory('label'),
+				labels: (inputTrack.labels || []).map((label) => ({
 					title: String(label.title || ''),
-					startFrame: secondsToSampleFrame(nonNegative(label.startSeconds), sampleRate),
-					endFrame: secondsToSampleFrame(nonNegative(Math.max(label.startSeconds, label.endSeconds)), sampleRate),
+					startSeconds: nonNegative(label.startSeconds),
+					endSeconds: nonNegative(Math.max(label.startSeconds, label.endSeconds)),
 					opaqueExtensions: label.opaqueExtensions || {},
 				})),
 				opaqueExtensions: inputTrack.opaqueExtensions || {},
-			}));
+			});
 			continue;
 		}
 		const trackId = idFactory('track');
@@ -116,21 +112,30 @@ export function convertLegacyAupToProject(structure, options = {}) {
 		artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {},
 	};
 	const importedTempoBpm = finiteInRange(structure.tempo?.bpm, 1, 1_000, 120);
+	const musicalRoot = canonicalAudacityMusicalRoot(importedTempoBpm, structure.tempo?.timeSignature);
+	const annotationImport = createAudacityAnnotationImport(annotationTracks, {
+		sampleRate,
+		tempoMap: musicalRoot.tempoMap,
+		sequenceId: 'main-sequence',
+		idFactory,
+	});
 	const project = createCurrentAudioEditorProject({
 		id: options.projectId || idFactory('project'),
 		title: metadata.title || 'Audacity project',
 		now: options.now,
 		sampleRate,
-		...canonicalAudacityMusicalRoot(importedTempoBpm, structure.tempo?.timeSignature),
+		...musicalRoot,
 		selection: {
 			startFrame: secondsToSampleFrame(nonNegative(structure.selection?.startSeconds), sampleRate),
 			endFrame: secondsToSampleFrame(nonNegative(Math.max(structure.selection?.startSeconds || 0, structure.selection?.endSeconds || 0)), sampleRate),
+			annotationIds: annotationImport.selectedAnnotationIds,
 		},
 		view: structure.view,
 		metadata,
 		sources,
 		clips,
 		tracks: laneTracks,
+		timelineAnnotations: annotationImport.annotations,
 		opaqueExtensions: {
 			legacyAupProject: structure.opaqueExtensions?.legacyAupProject || null,
 			legacyAupWarnings: warnings,

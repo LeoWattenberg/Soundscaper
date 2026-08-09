@@ -12,7 +12,7 @@
 		"src/common/editor/audacity-effects/live.js": { "maxLines": 1235, "reason": "Legacy realtime effect graph implementation." },
 		"src/common/editor/audacity-effects/realtime.js": { "maxLines": 788, "reason": "Legacy realtime effect processors and routing helpers." },
 		"src/common/editor/audacity-effects/spectral.js": { "maxLines": 916, "reason": "Legacy spectral effect algorithms with shared FFT plumbing." },
-		"src/common/editor/aup4-conversion.js": { "maxLines": 788, "reason": "AUP4 compatibility conversion matrix retained for interoperability." },
+		"src/common/editor/aup4-conversion.js": { "maxLines": 772, "reason": "AUP4 compatibility conversion matrix retained for interoperability." },
 		"src/common/editor/aup4-database.js": { "maxLines": 726, "reason": "Legacy SQLite AUP4 codec with strict schema validation." },
 		"src/common/editor/aup4-effects.js": { "maxLines": 912, "reason": "Audacity effect mapping and compatibility policy." },
 		"src/common/editor/aup4-export.js": { "maxLines": 1092, "reason": "AUP4 exporter with interoperability fixtures and release audit." },

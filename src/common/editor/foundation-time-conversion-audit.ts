@@ -39,6 +39,12 @@ export interface FoundationTimeConversionSite {
  */
 export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversionSite[] = deepFreeze([
 	{
+		id: 'audacity-annotation-import',
+		file: 'src/common/editor/audacity-annotation-interchange.ts',
+		behavior: 'Audacity label points and regions become nearest sample-authoritative V11 annotation coordinates at the imported project rate.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'audacity-live-effect-windows',
 		file: 'src/common/editor/audacity-effects/live.js',
 		behavior: 'Effect durations and analysis windows resolve seconds as nearest sample instants, preserving Audacity block behavior.',
@@ -124,6 +130,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		file: 'src/common/editor/commands/timeline-annotation-ripple.ts',
 		behavior: 'A whole-sequence ripple exactly inverts its single conformed sample span to one musical span before applying both authoritative-domain deltas.',
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
+		id: 'riff-annotation-interchange',
+		file: 'src/common/editor/timeline-annotation-riff-interchange.ts',
+		behavior: 'RIFF cue import and export scale absolute range-relative sample boundaries once with nearest-point semantics at the source and destination rates.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
 		id: 'tempo-command-map-authority',

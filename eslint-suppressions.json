@@ -39,11 +39,6 @@
       "count": 1
     }
   },
-  "src/common/editor/aup4-conversion.js": {
-    "no-extra-boolean-cast": {
-      "count": 1
-    }
-  },
   "src/common/editor/aup4-export.js": {
     "no-unused-vars": {
       "count": 1

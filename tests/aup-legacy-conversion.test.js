@@ -7,7 +7,7 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 
-test('legacy AUP conversion materializes audio and labels without a dry mix', () => {
+test('legacy AUP conversion materializes audio and first-class annotations without a dry mix', () => {
 	const ids = ['project', 'track', 'source', 'clip', 'labels', 'label'];
 	const converted = convertLegacyAupToProject({
 		sampleRate: 44_100,
@@ -43,7 +43,10 @@ test('legacy AUP conversion materializes audio and labels without a dry mix', ()
 	assert.equal(converted.project.clips[0].sourceDurationFrames, 3);
 	assert.equal(converted.project.clips[0].speedRatio, 0.5);
 	assert.equal(converted.project.clips[0].pitchCents, 200);
-	assert.equal(converted.project.tracks[1].labels[0].startFrame, 88_200);
+	assert.equal(converted.project.tracks.some((track) => track.type === 'label'), false);
+	assert.equal(converted.project.timelineAnnotations[0].kind, 'region');
+	assert.equal(converted.project.timelineAnnotations[0].startFrame, 88_200);
+	assert.equal(converted.project.timelineAnnotations[0].endFrame, 132_300);
 	assert.equal(converted.sources[0].channels.length, 2);
 	assert.equal(validateCurrentAudioEditorProject(converted.project), true);
 });

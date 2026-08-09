@@ -4,7 +4,7 @@ import { audioEffectLabel } from './effects.js';
 import { addAup4CompatibilityItem, createAup4CompatibilityReport } from './aup4-profile.js';
 import { flattenAup4MusicalMaps, isCurrentAup4MusicalSnapshot } from './aup4-musical-export.ts';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
-
+import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
 const AUP4_CLIP_ENVELOPE_MAX = 4;
 
 /**
@@ -57,7 +57,7 @@ export function createAup4ExportPlan(project) {
 	reportOmittedProjectFeatures(project, normalizedProject, compatibilityReport);
 	reportAup4EffectCompatibility(project, compatibilityReport);
 	flattenAup4MusicalMaps(project, normalizedProject, compatibilityReport);
-
+	flattenAup4TimelineAnnotations(project, normalizedProject, compatibilityReport);
 	for (let trackIndex = 0; trackIndex < project.tracks.length; trackIndex += 1) {
 		const track = project.tracks[trackIndex];
 		if (!isAup4AudioTrack(track)) continue;

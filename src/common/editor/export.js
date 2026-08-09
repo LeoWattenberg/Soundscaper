@@ -30,6 +30,7 @@ import {
 } from './adm-metadata.ts';
 import { decodeWavOpaqueRiffChunk } from './wav-opaque-chunks.ts';
 import { findUnsafeAdmRenderEffects } from './adm-render-safety.ts';
+import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
 import {
 	isNeutralAdmSignalPath,
@@ -84,6 +85,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {Uint8Array|readonly Uint8Array[]} [preDataChunks]
  * @property {Uint8Array|readonly Uint8Array[]} [trailingChunks]
  * @property {readonly import('./riff-markers.ts').RiffMarker[]} markers
+ * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} markerInterchangeReport
  */
 
 export function estimatePcmBytes(frameCount, channelCount = AUDIO_EDITOR_MASTER_CHANNELS, bytesPerSample = 4) {
@@ -172,7 +174,14 @@ export function createExportPlan(project, options = {}) {
 	}
 	const sampleRate = encoding.sampleRate;
 	const range = resolveExportRange(runtimeProject, options.range || 'project');
-	let markers = createExportMarkers(runtimeProject, range, sampleRate, options.markerTrackId);
+	const markerExport = createRiffAnnotationExport(runtimeProject, {
+		range,
+		outputSampleRate: sampleRate,
+		...(options.markerSource == null ? {} : { markerSource: options.markerSource }),
+		...(options.markerTrackId == null ? {} : { markerTrackId: options.markerTrackId }),
+		preservedRiffMarkers: preservedRiffChunks?.markers === true,
+	});
+	let markers = markerExport.markers;
 	let ixml = runtimeProject.metadata?.ixml ?? null;
 	let cart = format === 'bwf' || format === 'bw64' ? runtimeProject.metadata?.cart ?? null : null;
 	let bext = format === 'bwf' || format === 'bw64'
@@ -197,7 +206,6 @@ export function createExportPlan(project, options = {}) {
 		delete encodingWithoutBext.bext;
 		encoding = Object.freeze(encodingWithoutBext);
 	}
-	if (preservedRiffChunks?.markers) markers = Object.freeze([]);
 	if (preservedRiffChunks?.ixml) ixml = null;
 	if (preservedRiffChunks?.cart) cart = null;
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
@@ -295,6 +303,7 @@ export function createExportPlan(project, options = {}) {
 		ditherMode: encoding.dither,
 		metadata: encoding.metadata,
 		markers,
+		markerInterchangeReport: markerExport.report,
 		ixml,
 		cart,
 		...(bext ? { bext } : {}),
@@ -495,24 +504,6 @@ function createRiffChunk(id, payload) {
 	new DataView(chunk.buffer).setUint32(4, payload.byteLength, true);
 	chunk.set(payload, 8);
 	return chunk;
-}
-
-function createExportMarkers(project, range, outputSampleRate, requestedTrackId) {
-	const runtimeProject = projectForRuntimeConsumers(project);
-	const tracks = runtimeProject.tracks.filter((track) => track.type === 'label');
-	const track = requestedTrackId == null
-		? tracks[0]
-		: tracks.find((candidate) => candidate.id === requestedTrackId);
-	if (!track) return Object.freeze([]);
-	const scale = outputSampleRate / runtimeProject.sampleRate;
-	return Object.freeze(track.labels.flatMap((label, index) => {
-		if (label.endFrame < range.startFrame || label.startFrame >= range.endFrame) return [];
-		const start = Math.max(label.startFrame, range.startFrame);
-		const end = Math.min(label.endFrame, range.endFrame);
-		const sampleOffset = Math.round((start - range.startFrame) * scale);
-		const sampleLength = Math.max(0, Math.round((end - start) * scale));
-		return [{ id: index + 1, sampleOffset, sampleLength, label: label.title, note: String(label.opaqueExtensions?.note || '') }];
-	}));
 }
 
 function multiplySafeIntegers(left, right, name) {

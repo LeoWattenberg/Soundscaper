@@ -73,6 +73,8 @@ test('deferred MIDI and Framescaper capture capabilities are absent from maintai
 
 	assert.doesNotMatch(serializedProfiles, /midi/u);
 	assert.equal(inventory.products.framescaper.projectFeatures.audioRecording, false);
+	assert.equal(inventory.products.soundscaper.projectFeatures.timelineAnnotations, true);
+	assert.equal(inventory.products.framescaper.projectFeatures.timelineAnnotations, false);
 	assert.equal(inventory.products.framescaper.platforms['electron-only'].status, 'not-applicable');
 	assert.deepEqual(dependencyNames.filter((name) => /midi/u.test(name)), []);
 });

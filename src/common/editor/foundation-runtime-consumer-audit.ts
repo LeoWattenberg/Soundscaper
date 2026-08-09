@@ -98,6 +98,8 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/engine/lifecycle.ts', surfaces: ['playback'] },
 	{ file: 'src/common/editor/export.js', surfaces: ['audio-export'] },
 	{ file: 'src/common/editor/aup4-export.js', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/aup4-annotation-interchange.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/timeline-annotation-riff-interchange.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/nyquist-host-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/video-export.js', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
@@ -128,6 +130,11 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 		file: 'src/common/editor/project.js',
 		entryPoint: 'validateProjectV3Shape',
 		reason: 'Retained legacy persisted-shape validation is authoritative schema work rather than runtime timing consumption.',
+	},
+	{
+		file: 'src/common/editor/timeline-annotation-riff-interchange.ts',
+		entryPoint: 'createRiffAnnotationImport',
+		reason: 'RIFF import creates new persisted sample-authoritative coordinates and does not consume resolved runtime timing.',
 	},
 ]);
 
@@ -185,6 +192,26 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
  * boundary before reading any persisted/resolved clip timing field.
  */
 export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeConsumerEvidence[] = deepFreeze([
+	{
+		id: 'aup4-annotation-flattening',
+		surface: 'interchange',
+		file: 'src/common/editor/aup4-annotation-interchange.ts',
+		entryPoint: 'flattenAup4TimelineAnnotations',
+		inputIdentifier: 'projectValue',
+		projectedIdentifier: 'project',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'AUP4 annotation flattening projects the current document before sorting annotations and reading resolved marker or region endpoints.',
+	},
+	{
+		id: 'riff-annotation-export',
+		surface: 'interchange',
+		file: 'src/common/editor/timeline-annotation-riff-interchange.ts',
+		entryPoint: 'createRiffAnnotationExport',
+		inputIdentifier: 'projectValue',
+		projectedIdentifier: 'project',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'RIFF cue and region export projects the current document before resolving annotations or maintained musical labels into bounded sample offsets.',
+	},
 	{
 		id: 'aup4-export-plan',
 		surface: 'interchange',
@@ -284,16 +311,6 @@ export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeCon
 		projectedIdentifier: 'runtimeProject',
 		boundary: 'projectForRuntimeConsumers',
 		evidence: 'Audio range, marker, tail, render-admission, and stem planning share one projection captured at export-plan entry.',
-	},
-	{
-		id: 'audio-export-markers',
-		surface: 'audio-export',
-		file: 'src/common/editor/export.js',
-		entryPoint: 'createExportMarkers',
-		inputIdentifier: 'project',
-		projectedIdentifier: 'runtimeProject',
-		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Marker extraction independently projects its input so callers outside the main export plan cannot read persisted musical labels.',
 	},
 	{
 		id: 'audio-export-range',

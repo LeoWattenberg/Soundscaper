@@ -12,18 +12,15 @@ import {
 } from './aup4-profile.js';
 import { readAup4ClipTiming } from './aup4-clip-timing.ts';
 import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
-import {
-	createLabelV2,
-} from './project-v2.js';
 import { createCurrentAudioEditorProject } from './project-current.ts';
 import {
 	createAudioClipV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
-	createLabelTrackV10,
 } from './project-v10.ts';
 import { createStableId } from './project.js';
 import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
+import { createAudacityAnnotationImport, readAup4AnnotationTracks } from './audacity-annotation-interchange.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
 import {
@@ -85,6 +82,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	const sourceAudio = [];
 	const selectedTrackIds = [];
 	const selectedClipIds = [];
+	const annotationTracks = readAup4AnnotationTracks(root, compatibilityReport, opaqueNode);
 	const waveTracks = audacityXmlChildren(root, 'wavetrack');
 	const channelGroups = groupWaveTracks(waveTracks, state);
 	const trackIdByRootNode = new Map();
@@ -253,29 +251,6 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 		for (const node of group) trackIdByRootNode.set(node, track.id);
 	}
 
-	for (const [index, labelNode] of audacityXmlChildren(root, 'labeltrack').entries()) {
-		const trackId = idFactory('label-track');
-		const labels = audacityXmlChildren(labelNode, 'label').map((node) => createLabelV2({
-			id: idFactory('label'),
-			title: String(audacityXmlAttribute(node, 'title', '')),
-			startFrame: secondsToSampleFrame(nonNegative(audacityXmlAttribute(node, 't', 0)), projectRate),
-			endFrame: secondsToSampleFrame(nonNegative(audacityXmlAttribute(node, 't1', audacityXmlAttribute(node, 't', 0))), projectRate),
-			opaqueExtensions: { aup4Label: opaqueNode(node) },
-		}));
-		if (Boolean(audacityXmlAttribute(labelNode, 'isSelected', false))) selectedTrackIds.push(trackId);
-		const track = createLabelTrackV10({
-			id: trackId,
-			name: String(audacityXmlAttribute(labelNode, 'name', `Labels ${index + 1}`)),
-			labels,
-			collapsed: Number(audacityXmlAttribute(labelNode, 'height', 96)) > 0
-				&& Number(audacityXmlAttribute(labelNode, 'height', 96)) < 60,
-			height: Math.max(40, Math.round(positive(audacityXmlAttribute(labelNode, 'height', 96), 96))),
-			opaqueExtensions: { aup4LabelTrack: opaqueNode(labelNode) },
-		});
-		tracks.push(track);
-		trackIdByRootNode.set(labelNode, track.id);
-	}
-
 	const orderedTrackIds = [];
 	for (const entry of root.content || []) {
 		const trackId = entry.kind === 'node' ? trackIdByRootNode.get(entry.node) : null;
@@ -296,15 +271,22 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 		kind: 'master',
 	}, idFactory, (active) => { masterEffectsActive = active; });
 	const importedTempoBpm = finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 1000, 120);
+	const musicalRoot = canonicalAudacityMusicalRoot(importedTempoBpm, {
+		numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4), 1, 0x7fff_ffff, 4),
+		denominator: powerOfTwo(audacityXmlAttribute(root, 'time_signature_lower', 4), 4),
+	});
+	const annotationImport = createAudacityAnnotationImport(annotationTracks, {
+		sampleRate: projectRate,
+		tempoMap: musicalRoot.tempoMap,
+		sequenceId: 'main-sequence',
+		idFactory,
+	});
 	const project = createCurrentAudioEditorProject({
 		id: options.projectId || idFactory('project'),
 		title,
 		sampleRate: projectRate,
 		masterChannels: 2,
-		...canonicalAudacityMusicalRoot(importedTempoBpm, {
-			numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4), 1, 0x7fff_ffff, 4),
-			denominator: powerOfTwo(audacityXmlAttribute(root, 'time_signature_lower', 4), 4),
-		}),
+		...musicalRoot,
 		snap: readSnap(root),
 		timeDisplay: { format: String(audacityXmlAttribute(root, 'selectionformat', 'seconds')) || 'seconds' },
 		metadata,
@@ -313,6 +295,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			endFrame: secondsToSampleFrame(nonNegative(audacityXmlAttribute(root, 'sel1', 0)), projectRate),
 			trackIds: selectedTrackIds,
 			clipIds: selectedClipIds,
+			annotationIds: annotationImport.selectedAnnotationIds,
 			frequencyRange: readFrequencyRange(root, projectRate),
 		},
 		view: {
@@ -324,6 +307,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 		sources,
 		clips,
 		tracks,
+		timelineAnnotations: annotationImport.annotations,
 		master: {
 			gain: 1,
 			pan: 0,

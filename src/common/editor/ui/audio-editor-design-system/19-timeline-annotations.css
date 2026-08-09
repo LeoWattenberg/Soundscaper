@@ -198,7 +198,7 @@
 }
 
 #kw-audio-editor-design-system .audio-editor-timeline-annotation-panel__header small {
-	color: var(--kw-editor-stage-muted);
+	color: var(--kw-editor-text);
 	font-size: 10px;
 }
 
@@ -213,7 +213,7 @@
 #kw-audio-editor-design-system .audio-editor-timeline-annotation-panel input,
 #kw-audio-editor-design-system .audio-editor-timeline-annotation-panel select {
 	min-height: 28px;
-	color: var(--kw-editor-text);
+	color: var(--kw-editor-stage-text);
 	background: var(--kw-editor-stage);
 	border: 1px solid var(--kw-editor-stage-line);
 	border-radius: 4px;
@@ -284,7 +284,7 @@
 #kw-audio-editor-design-system .audio-editor-timeline-annotation-list__editor label {
 	display: grid;
 	gap: 3px;
-	color: var(--kw-editor-stage-muted);
+	color: var(--kw-editor-stage-text);
 	font-size: 10px;
 }
 
@@ -302,7 +302,7 @@
 #kw-audio-editor-design-system .audio-editor-timeline-annotation-panel__status {
 	margin: 0;
 	padding: 7px 10px;
-	color: var(--kw-editor-stage-muted);
+	color: var(--kw-editor-text);
 	font-size: 11px;
 }
 

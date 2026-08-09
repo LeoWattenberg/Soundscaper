@@ -19,12 +19,12 @@ import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const EMPTY_MANIFEST = Object.freeze({ schemaVersion: 2 as const, requirements: Object.freeze([]) });
 
-test('timeline annotations have one registered but unavailable structural capability', () => {
+test('timeline annotations are native only in Soundscaper and never qualify for rendered fallback', () => {
 	assert.equal(
 		PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations,
 		'org.soundscaper.capability.timeline-annotations',
 	);
-	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.timelineAnnotations, false);
+	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.timelineAnnotations, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.timelineAnnotations, false);
 	assert.equal(
 		PROJECT_FEATURE_AUDIO_CAPABILITY_IDS.includes(PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations as never),
@@ -88,7 +88,7 @@ test('non-empty timeline annotation state reconciles one bypass-only owned requi
 	assert.strictEqual(reconcileProjectOwnedFeatureRequirements({}, EMPTY_MANIFEST), EMPTY_MANIFEST);
 });
 
-test('same-schema timeline annotation state is known unavailable in both products', () => {
+test('same-schema timeline annotation state is native in Soundscaper and bypass-preserved in Framescaper', () => {
 	const featureRequirements = reconcileProjectOwnedFeatureRequirements({
 		timelineAnnotations: [{ id: 'annotation-a' }],
 	}, EMPTY_MANIFEST);
@@ -96,16 +96,29 @@ test('same-schema timeline annotation state is known unavailable in both product
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements,
 	};
-	for (const profile of [PRODUCT_PROFILES.soundscaper, PRODUCT_PROFILES.framescaper]) {
-		const report = createProjectFeatureCompatibilityService(profile.capabilities).evaluate(project);
-		assert.equal(report?.compatible, false, profile.id);
-		assert.deepEqual(report?.items.map(({ requirementId, featureId, availability, disposition }) => ({
-			requirementId, featureId, availability, disposition,
-		})), [{
-			requirementId: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.timelineAnnotations,
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations,
-			availability: 'unavailable',
-			disposition: 'bypassed',
-		}], profile.id);
-	}
+	const soundscaper = createProjectFeatureCompatibilityService(
+		PRODUCT_PROFILES.soundscaper.capabilities,
+	).evaluate(project);
+	assert.equal(soundscaper?.compatible, true);
+	assert.deepEqual(soundscaper?.items.map(({ requirementId, featureId, availability, disposition }) => ({
+		requirementId, featureId, availability, disposition,
+	})), [{
+		requirementId: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.timelineAnnotations,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations,
+		availability: 'available',
+		disposition: 'native',
+	}]);
+
+	const framescaper = createProjectFeatureCompatibilityService(
+		PRODUCT_PROFILES.framescaper.capabilities,
+	).evaluate(project);
+	assert.equal(framescaper?.compatible, false);
+	assert.deepEqual(framescaper?.items.map(({ requirementId, featureId, availability, disposition }) => ({
+		requirementId, featureId, availability, disposition,
+	})), [{
+		requirementId: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.timelineAnnotations,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations,
+		availability: 'unavailable',
+		disposition: 'bypassed',
+	}]);
 });

@@ -76,14 +76,15 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 	assert.equal(decoded.project.metadata.title, 'Native title');
 	assert.equal(decoded.project.metadata.artist, 'kw.media');
 	assert.equal(decoded.project.tracks.filter((track) => track.type === 'audio').length, 1);
-	assert.equal(decoded.project.tracks.filter((track) => track.type === 'label').length, 1);
+	assert.equal(decoded.project.tracks.filter((track) => track.type === 'label').length, 0);
+	assert.equal(decoded.project.timelineAnnotations.length, 1);
 	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
 		assert.equal(Object.hasOwn(decoded.project.tracks.find((track) => track.type === 'audio'), field), false);
 	}
 	assert.equal(decoded.project.sources[0].channelCount, 2);
 	assert.equal(decoded.project.sources[0].sampleRate, 44_100);
 	const decodedAudioTrack = decoded.project.tracks.find((track) => track.type === 'audio');
-	assert.equal(decoded.project.tracks.find((track) => track.type === 'label').labels[0].title, 'Verse');
+	assert.equal(decoded.project.timelineAnnotations[0].name, 'Verse');
 	assert.deepEqual(decoded.project.selection.trackIds, [decodedAudioTrack.id]);
 	assert.deepEqual(decoded.project.selection.clipIds, [decodedAudioTrack.clipIds[0]]);
 	assert.deepEqual(decoded.project.selection.frequencyRange, {
@@ -475,7 +476,9 @@ test('AUP4 conversion preserves empty stereo track rate, collapsed state, and bo
 		idFactory: (prefix) => `${prefix}-${++nextId}`,
 	});
 	assert.equal(decoded.project.tracks[0].collapsed, true);
-	assert.equal(decoded.project.tracks[1].collapsed, true);
+	assert.equal(decoded.project.tracks.length, 1);
+	assert.equal(decoded.project.timelineAnnotations.length, 0);
+	assert.ok(decoded.compatibilityReport.items.some(({ code }) => code === 'AUDACITY_EMPTY_LABEL_TRACK_OMITTED'));
 	assert.deepEqual(decoded.project.tempo, {
 		bpm: 1_000,
 		timeSignature: { numerator: 33, denominator: 64 },
@@ -486,7 +489,7 @@ test('AUP4 conversion preserves empty stereo track rate, collapsed state, and bo
 	assert.equal(rewrittenWaveTracks.length, 2);
 	assert.deepEqual(rewrittenWaveTracks.map((node) => audacityXmlAttribute(node, 'rate')), [44_100, 44_100]);
 	assert.deepEqual(rewrittenWaveTracks.map((node) => audacityXmlAttribute(node, 'height')), [40, 40]);
-	assert.equal(audacityXmlAttribute(audacityXmlChildren(rewritten, 'labeltrack')[0], 'height'), 40);
+	assert.equal(audacityXmlChildren(rewritten, 'labeltrack').length, 0);
 });
 
 test('AUP4 conversion preserves interleaved track and opaque-root child order', async () => {
@@ -553,17 +556,14 @@ test('AUP4 conversion preserves interleaved track and opaque-root child order', 
 		idFactory: (prefix) => `${prefix}-${++nextId}`,
 	});
 
-	assert.deepEqual(decoded.project.tracks.map((track) => track.name), [
-		'First audio',
-		'Middle labels',
-		'Second audio',
-	]);
+	assert.deepEqual(decoded.project.tracks.map((track) => track.name), ['First audio', 'Second audio']);
+	assert.ok(decoded.compatibilityReport.items.some(({ code }) => code === 'AUDACITY_EMPTY_LABEL_TRACK_OMITTED'));
 	const rewritten = createAup4ProjectTree(decoded.project);
 	assert.deepEqual(
 		rewritten.content
 			.filter((entry) => entry.kind === 'node')
 			.map((entry) => entry.node.name),
-		['tags', 'wavetrack', 'labeltrack', 'opaque-track-divider', 'wavetrack', 'effects'],
+		['tags', 'wavetrack', 'wavetrack', 'opaque-track-divider', 'effects'],
 	);
 	assert.equal(audacityXmlAttribute(audacityXmlChildren(rewritten, 'opaque-track-divider')[0], 'revision'), 7);
 

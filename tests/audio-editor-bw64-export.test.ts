@@ -452,6 +452,9 @@ test('pristine BW64 sequence retains ADM, INFO, adtl, and opaque chunk order byt
 	assert.deepEqual(plan.preDataChunks, before);
 	assert.deepEqual(plan.trailingChunks, after);
 	assert.deepEqual(plan.markers, []);
+	assert.ok(plan.markerInterchangeReport.items.some(({ code }) => (
+		code === 'RIFF_MARKER_SOURCE_OMITTED_FOR_PASSTHROUGH'
+	)));
 	assert.equal(plan.bext, undefined);
 	assert.equal(createExportPlan(project, { ...options, bext: bextMetadata }).bext, undefined);
 	assert.throws(

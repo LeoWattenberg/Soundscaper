@@ -1,34 +1,212 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readFile } from 'node:fs/promises';
-import { expect, test } from '@playwright/test';
 
 import {
-	cycleTimelineAnnotationHitId,
-	timelineAnnotationCreationAnnouncement,
-} from '../../src/common/editor/ui/timeline/timeline-annotation-ui-model.ts';
-import { focusCreatedTimelineAnnotation } from '../../src/common/editor/ui/timeline/useTimelineAnnotationCreateFeedback.js';
-
+	expect,
+	test,
+	toneA,
+	TRANSLATIONS_ROOT,
+} from './audio-editor-test-fixtures.js';
 import {
+	assertNoSeriousAxeViolations,
 	bootEditor,
+	chooseFileAction,
+	collectClientErrors,
+	importFiles,
 	registerAudioEditorHooks,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
 
-test.describe('timeline annotation capability boundary', () => {
+const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
+const ANNOTATION_CAPABILITY_ID = 'org.soundscaper.capability.timeline-annotations';
+
+test.describe('native timeline annotations', () => {
 	registerAudioEditorHooks(test);
 
-	test('keeps the complete native surface unavailable before the product activation commit', async ({ page, browserName }) => {
+	test('authors with pointer and keyboard, announces state, survives forced colors, and reopens', async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this surface in Chromium and Firefox.');
-		const editor = await bootEditor(page, '/embed/en/');
+		test.setTimeout(60_000);
+		await page.setViewportSize({ width: 1440, height: 1100 });
+		const errors = collectClientErrors(page);
+		let editor = await bootEditor(page, '/embed/en/');
 		await expect(editor).toHaveAttribute('data-product', 'soundscaper');
-		await expect(editor.getByRole('listbox', { name: 'Markers and named regions' })).toHaveCount(0);
-		await expect(editor.getByRole('region', { name: 'Markers and named regions' })).toHaveCount(0);
-		await expect(editor.getByRole('button', { name: 'Add marker at playhead' })).toHaveCount(0);
+		await expect(editor.locator('.audio-editor-timeline-panel')).toHaveAttribute('data-has-annotations', 'true');
+		const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
+		await expect(panel).toBeVisible();
+		await expect(panel).toContainText('M: marker · R: region');
+		await expect(panel.getByText('The primary sequence has no markers or regions yet.', { exact: true })).toBeVisible();
+
+		await importFiles(editor, [toneA]);
+		await panel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
+		let layer = editor.getByRole('listbox', { name: 'Markers and named regions', exact: true });
+		await expect(layer).toBeVisible();
+		await expect(layer).toHaveAttribute('aria-multiselectable', 'true');
+		let options = layer.getByRole('option');
+		await expect(options).toHaveCount(1);
+		const marker = options.first();
+		await expect(marker).toHaveAttribute('aria-label', /Unnamed annotation, Marker, \d+\.\d{3} s/u);
+		await expect(marker).toHaveAttribute('aria-selected', 'true');
+		await expect(marker).toHaveAttribute('aria-posinset', '1');
+		await expect(marker).toHaveAttribute('aria-setsize', '1');
+		await expect(panel.locator('[data-timeline-annotation]').first()).toBeFocused();
+
+		const creationStatus = editor.locator('[data-timeline-annotation-create-status]');
+		await expect(creationStatus).toHaveAttribute('role', 'status');
+		await expect(creationStatus).toHaveAttribute('aria-live', 'polite');
+		await expect(creationStatus).toHaveAttribute('aria-atomic', 'true');
+		await expect(creationStatus).toHaveText(/Created Marker: Unnamed annotation, \d+\.\d{3} s/u);
+
+		await marker.focus();
+		await marker.press('Enter');
+		const rename = editor.locator('.audio-editor-timeline-annotation__rename--overlay');
+		await expect(rename).toBeFocused();
+		await rename.fill('Pointer cue');
+		await rename.press('Enter');
+		await expect(marker).toHaveAttribute('aria-label', /Pointer cue, Marker/u);
+		await expect(marker).toBeFocused();
 
 		const ruler = editor.locator('[data-ruler-focus]').first();
+		await ruler.scrollIntoViewIfNeeded();
+		const rulerBounds = await ruler.boundingBox();
+		expect(rulerBounds).not.toBeNull();
+		await page.mouse.move(rulerBounds.x + 35, rulerBounds.y + 24);
+		await page.mouse.down();
+		await page.mouse.move(rulerBounds.x + 145, rulerBounds.y + 24, { steps: 5 });
+		await page.mouse.up();
+		await expect(panel.getByRole('button', { name: 'Add region from selection', exact: true })).toBeEnabled();
+
 		await ruler.focus();
-		await ruler.press('m');
-		await expect(editor.getByRole('listbox', { name: 'Markers and named regions' })).toHaveCount(0);
+		await ruler.press('r');
+		options = layer.getByRole('option');
+		await expect(options).toHaveCount(2);
+		const region = options.nth(1);
+		await expect(region).toBeFocused();
+		await expect(region).toHaveAttribute('aria-label', /Unnamed annotation, Region, \d+\.\d{3}–\d+\.\d{3} s/u);
+		await expect(region).toHaveAttribute('aria-selected', 'true');
+		await expect(region).toHaveAttribute('aria-posinset', '2');
+		await expect(region).toHaveAttribute('aria-setsize', '2');
+		await expect(creationStatus).toHaveText(/Created Region: Unnamed annotation, \d+\.\d{3}–\d+\.\d{3} s/u);
+
+		const regionLabelBeforeMove = await region.getAttribute('aria-label');
+		await region.press('Control+ArrowRight');
+		await expect.poll(() => region.getAttribute('aria-label')).not.toBe(regionLabelBeforeMove);
+		const regionLabelBeforeResize = await region.getAttribute('aria-label');
+		const endHandle = region.locator('[data-annotation-edge="end"]');
+		const endHandleBounds = await endHandle.boundingBox();
+		expect(endHandleBounds).not.toBeNull();
+		await page.mouse.move(
+			endHandleBounds.x + endHandleBounds.width / 2,
+			endHandleBounds.y + endHandleBounds.height / 2,
+		);
+		await page.mouse.down();
+		await page.mouse.move(
+			endHandleBounds.x + endHandleBounds.width / 2 + 32,
+			endHandleBounds.y + endHandleBounds.height / 2,
+			{ steps: 4 },
+		);
+		await page.mouse.up();
+		await expect.poll(() => region.getAttribute('aria-label')).not.toBe(regionLabelBeforeResize);
+
+		await marker.click({ modifiers: ['Shift'] });
+		await expect(marker).toHaveAttribute('aria-selected', 'true');
+		await expect(region).toHaveAttribute('aria-selected', 'true');
+		const laneActions = editor.locator('[data-timeline-annotation-create-actions]');
+		const laneStatus = editor.locator('[data-timeline-annotation-create-actions] + [role="status"]');
+		await laneActions.getByRole('button', { name: 'Batch selected annotations', exact: true }).click();
+		await expect(laneStatus).toHaveText('Batched 2 annotation(s)');
+		await laneActions.getByRole('button', { name: 'Remove selected annotations from batch', exact: true }).click();
+		await expect(laneStatus).toHaveText('Removed 2 annotation(s) from batch');
+		await expect(editor.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
+		await assertNoSeriousAxeViolations(page, '[data-timeline-annotation-panel]');
+		await assertNoSeriousAxeViolations(page, '[data-timeline-annotation-layer]');
+
+		if (browserName === 'chromium') {
+			await page.emulateMedia({ forcedColors: 'active' });
+			await expect(region).toHaveCSS('forced-color-adjust', 'none');
+			await expect(region).toHaveCSS('border-top-width', '2px');
+			await page.emulateMedia({ forcedColors: 'none' });
+		}
+
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 15_000 });
+		const projectId = await editor.getAttribute('data-project-id');
+		expect(projectId).toBeTruthy();
+		await page.reload();
+		editor = await waitForEditor(page);
+		await expect(editor).toHaveAttribute('data-project-id', projectId);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		layer = editor.getByRole('listbox', { name: 'Markers and named regions', exact: true });
+		await expect(layer.getByRole('option')).toHaveCount(2);
+		await expect(layer.getByRole('option', { name: /Pointer cue, Marker/u })).toBeVisible();
+		await expect(layer.getByRole('option', { name: /Unnamed annotation, Region/u })).toBeVisible();
+		expect(errors).toEqual([]);
+	});
+
+	test('keeps Framescaper unavailable and preserves annotations through a read-only Scape handoff', async ({ browser, page, browserName }) => {
+		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this boundary in Chromium and Firefox.');
+		test.setTimeout(90_000);
+		const originErrors = collectClientErrors(page);
+		const origin = await bootEditor(page, '/embed/en/');
+		await importFiles(origin, [toneA]);
+		const originPanel = origin.getByRole('region', { name: 'Markers and named regions', exact: true });
+		await originPanel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
+		const originMarker = origin.getByRole('listbox', { name: 'Markers and named regions', exact: true })
+			.getByRole('option');
+		await expect(originMarker).toHaveCount(1);
+		await originMarker.focus();
+		await originMarker.press('Enter');
+		const rename = origin.locator('.audio-editor-timeline-annotation__rename--overlay');
+		await rename.fill('Cross-product cue');
+		await rename.press('Enter');
+		await expect(origin.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 15_000 });
+		const projectId = await origin.getAttribute('data-project-id');
+		const outbound = await captureScapeArchive(page, origin);
+		const baseURL = new URL(page.url()).origin;
+		const openedPages = [];
+		try {
+			const framesPage = await browser.newPage({ baseURL, serviceWorkers: 'block' });
+			openedPages.push(framesPage);
+			await routeTranslations(framesPage);
+			const frameErrors = collectClientErrors(framesPage);
+			const framescaper = await bootEditor(framesPage, '/framescaper/embed/en/');
+			await openScapeArchive(framescaper, outbound, 'timeline-annotations.scape');
+			const decision = framesPage.getByRole('dialog', { name: 'Project features unavailable', exact: true });
+			await expect(decision).toHaveAttribute('data-scape-open-decision', 'compatibility');
+			await expect(decision).toContainText('Timeline markers and regions');
+			await expect(decision).toContainText(ANNOTATION_CAPABILITY_ID);
+			await expect(decision).toContainText(/Unavailable.*Bypass declared/isu);
+			await decision.getByRole('button', { name: 'Open read-only', exact: true }).click();
+			await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
+			await expect(framescaper).toHaveAttribute('data-project-id', projectId);
+			await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+			await expect(framescaper.getByRole('region', { name: 'Markers and named regions' })).toHaveCount(0);
+			await expect(framescaper.getByRole('listbox', { name: 'Markers and named regions' })).toHaveCount(0);
+			const notice = framescaper.locator(`[data-project-feature-requirement="${ANNOTATION_CAPABILITY_ID}"]`);
+			await expect(notice).toContainText('Timeline markers and regions');
+			await expect(notice).toHaveAttribute('data-declared-disposition', 'bypass');
+			await expect(notice).toHaveAttribute('data-effective-disposition', 'bypassed');
+
+			const returned = await captureScapeArchive(framesPage, framescaper);
+			const homePage = await browser.newPage({ baseURL, serviceWorkers: 'block' });
+			openedPages.push(homePage);
+			await routeTranslations(homePage);
+			const homeErrors = collectClientErrors(homePage);
+			const home = await bootEditor(homePage, '/embed/en/');
+			await openScapeArchive(home, returned, 'timeline-annotations-return.scape');
+			await expect(home).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
+			await expect(home).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+			await expect(home.locator('[data-project-feature-compatibility]')).toHaveCount(0);
+			const returnedLayer = home.getByRole('listbox', { name: 'Markers and named regions', exact: true });
+			await expect(returnedLayer.getByRole('option')).toHaveCount(1);
+			await expect(returnedLayer.getByRole('option', { name: /Cross-product cue, Marker/u })).toBeVisible();
+			expect(frameErrors).toEqual([]);
+			expect(homeErrors).toEqual([]);
+		} finally {
+			for (const openedPage of openedPages.reverse()) {
+				if (!openedPage.isClosed()) await openedPage.close({ runBeforeUnload: false });
+			}
+		}
+		expect(originErrors).toEqual([]);
 	});
 
 	test('keeps ruler-corner actions outside both right-edge resize hit targets', async ({ page, browserName }) => {
@@ -82,139 +260,36 @@ test.describe('timeline annotation capability boundary', () => {
 			expect(hit).toBe(edge);
 		}
 	});
-
-	test('cycles overlapping body rename and both resize-edge pointer targets', async ({ page, browserName }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this surface in Chromium and Firefox.');
-		const annotationCss = await readFile(new URL(
-			'../../src/common/editor/ui/audio-editor-design-system/19-timeline-annotations.css', import.meta.url,
-		), 'utf8');
-		await page.exposeFunction('cycleAnnotationHit', cycleTimelineAnnotationHitId);
-		await page.setContent(`
-			<style>${annotationCss}</style>
-			<div id="kw-audio-editor-design-system">
-				<div data-stack style="position:relative;width:500px;height:33px">
-					<div class="audio-editor-timeline-annotation audio-editor-timeline-annotation--region"
-						data-annotation-id="first" style="left:100px;width:60px">
-						<span class="audio-editor-timeline-annotation__handle" data-annotation-edge="start"></span>
-						<span class="audio-editor-timeline-annotation__handle" data-annotation-edge="end"></span>
-					</div>
-					<div class="audio-editor-timeline-annotation audio-editor-timeline-annotation--region"
-						data-annotation-id="second" style="left:100px;width:60px">
-						<span class="audio-editor-timeline-annotation__handle" data-annotation-edge="start"></span>
-						<span class="audio-editor-timeline-annotation__handle" data-annotation-edge="end"></span>
-					</div>
-				</div>
-			<script>
-				const stack = document.querySelector('[data-stack]');
-				let cycle = { signature: null, id: null };
-				let pending = Promise.resolve();
-				stack.addEventListener('pointerdown', (event) => {
-					const edge = event.target.getAttribute('data-annotation-edge') || 'body';
-					const eventTargetId = event.target.closest('[data-annotation-id]').getAttribute('data-annotation-id');
-					pending = pending.then(async () => {
-						const previous = cycle.signature === edge ? cycle.id : null;
-						const id = await window.cycleAnnotationHit(['first', 'second'], eventTargetId, previous);
-						cycle = { signature: edge, id };
-						document.body.dataset.pointerTarget = id;
-						document.body.dataset.pointerEdge = edge;
-					});
-				});
-				stack.addEventListener('dblclick', () => {
-					pending = pending.then(() => { document.body.dataset.renameTarget = cycle.id; });
-				});
-			</script>
-		`);
-		const topRegion = await page.locator('[data-annotation-id="second"]').boundingBox();
-		expect(topRegion).not.toBeNull();
-		await page.mouse.dblclick(topRegion.x + topRegion.width / 2, topRegion.y + topRegion.height / 2);
-		await expect(page.locator('body')).toHaveAttribute('data-rename-target', 'first');
-		for (const edge of ['start', 'end']) {
-			const handle = await page.locator(`[data-annotation-id="second"] [data-annotation-edge="${edge}"]`).boundingBox();
-			expect(handle).not.toBeNull();
-			const x = handle.x + handle.width / 2;
-			const y = handle.y + handle.height / 2;
-			await page.mouse.click(x, y);
-			await expect(page.locator('body')).toHaveAttribute('data-pointer-target', 'second');
-			await page.mouse.click(x, y);
-			await expect(page.locator('body')).toHaveAttribute('data-pointer-target', 'first');
-			await expect(page.locator('body')).toHaveAttribute('data-pointer-edge', edge);
-		}
-	});
-
-	test('all create entry surfaces announce and focus the created annotation', async ({ page, browserName }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this surface in Chromium and Firefox.');
-		await page.exposeFunction('annotationCreationAnnouncement', timelineAnnotationCreationAnnouncement);
-		await page.setContent(`
-			<section data-root>
-				<button data-create="corner-marker">Corner marker</button>
-				<div data-timeline-annotation-layer tabindex="-1"><button data-annotation-id="existing">Existing layer row</button></div>
-				<section data-timeline-annotation-panel>
-					<button data-create="panel-marker">Panel marker</button>
-					<button data-annotation-id="existing">Existing panel row</button>
-				</section>
-				<div data-ruler tabindex="0">Ruler</div>
-				<span data-status role="status" aria-live="polite" aria-atomic="true"></span>
-			</section>
-		`);
-		await page.evaluate(({ focusSource }) => {
-			const focusCreated = (0, eval)(`(${focusSource})`);
-			const root = document.querySelector('[data-root]');
-			const layer = root.querySelector('[data-timeline-annotation-layer]');
-			const panel = root.querySelector('[data-timeline-annotation-panel]');
-			const status = root.querySelector('[data-status]');
-			let sequence = 0;
-			const create = async (kind, origin, preferredSurface) => {
-				sequence += 1;
-				const id = `created-${origin}-${sequence}`;
-				const start = sequence * 24_000;
-				const annotation = {
-					id, sequenceId: 'main', name: origin, color: 'blue', batchId: null,
-					opaqueExtensions: {}, kind, anchor: 'sample',
-					timelineStartFrame: start,
-					timelineEndFrame: kind === 'marker' ? start : start + 12_000,
-					durationFrames: kind === 'marker' ? 0 : 12_000,
-					coordinateDomain: 'resolved-samples',
-				};
-				for (const surface of [layer, panel]) {
-					const item = document.createElement('button');
-					item.dataset.annotationId = id;
-					item.textContent = origin;
-					surface.append(item);
-				}
-				status.textContent = await window.annotationCreationAnnouncement(annotation, {
-					sampleRate: 48_000, locale: 'en', secondsUnit: 's', unnamed: 'Unnamed annotation',
-					marker: 'Marker', region: 'Region', template: 'Created {kind}: {name}, {timing}',
-				});
-				requestAnimationFrame(() => focusCreated(root, id, preferredSurface));
-			};
-			root.querySelector('[data-create="corner-marker"]').addEventListener('click', () => {
-				void create('marker', 'corner', 'layer');
-			});
-			root.querySelector('[data-create="panel-marker"]').addEventListener('click', () => {
-				void create('marker', 'panel', 'panel');
-			});
-			layer.addEventListener('keydown', (event) => {
-				if (event.key.toLowerCase() === 'm') void create('marker', 'layer', 'layer');
-			});
-			root.querySelector('[data-ruler]').addEventListener('keydown', (event) => {
-				if (event.key.toLowerCase() === 'r') void create('region', 'ruler', 'layer');
-			});
-		}, { focusSource: focusCreatedTimelineAnnotation.toString() });
-
-		const status = page.locator('[data-status]');
-		await page.locator('[data-create="corner-marker"]').click();
-		await expect(status).toHaveText('Created Marker: corner, 0.500 s');
-		await expect(page.locator('[data-timeline-annotation-layer] [data-annotation-id="created-corner-1"]')).toBeFocused();
-		await page.locator('[data-create="panel-marker"]').click();
-		await expect(status).toHaveText('Created Marker: panel, 1.000 s');
-		await expect(page.locator('[data-timeline-annotation-panel] [data-annotation-id="created-panel-2"]')).toBeFocused();
-		await page.locator('[data-timeline-annotation-layer]').focus();
-		await page.locator('[data-timeline-annotation-layer]').press('m');
-		await expect(status).toHaveText('Created Marker: layer, 1.500 s');
-		await expect(page.locator('[data-timeline-annotation-layer] [data-annotation-id="created-layer-3"]')).toBeFocused();
-		await page.locator('[data-ruler]').focus();
-		await page.locator('[data-ruler]').press('r');
-		await expect(status).toHaveText('Created Region: ruler, 2.000–2.250 s');
-		await expect(page.locator('[data-timeline-annotation-layer] [data-annotation-id="created-ruler-4"]')).toBeFocused();
-	});
 });
+
+async function captureScapeArchive(page, editor) {
+	await page.evaluate(() => Object.defineProperty(globalThis, 'showSaveFilePicker', {
+		configurable: true,
+		value: undefined,
+	}));
+	const downloading = page.waitForEvent('download');
+	await chooseFileAction(page, editor, 'Export project file (.scape)');
+	const download = await downloading;
+	const path = await download.path();
+	expect(path).toBeTruthy();
+	const archive = await readFile(path);
+	await download.delete();
+	return archive;
+}
+
+async function openScapeArchive(editor, archive, name) {
+	await editor.locator('[data-aup4-input]').setInputFiles({
+		name,
+		mimeType: SCAPE_MIME_TYPE,
+		buffer: archive,
+	});
+}
+
+async function routeTranslations(page) {
+	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
+		status: 200,
+		contentType: 'application/json',
+		headers: { 'Access-Control-Allow-Origin': '*' },
+		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
+	}));
+}

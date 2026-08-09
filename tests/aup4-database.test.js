@@ -320,7 +320,7 @@ test('browser AUP4 snapshot survives SQLite export and reopen with sample hashes
 			assert.equal(decoded.project.clips[0].sourceStartFrame, 1);
 			assert.deepEqual(decoded.project.clips[0].envelope, [{ frame: 0, value: 0.75 }, { frame: 4, value: 0.5 }]);
 			assert.deepEqual(
-				decoded.project.tracks.find((track) => track.type === 'label').labels.map(({ title, startFrame, endFrame }) => ({ title, startFrame, endFrame })),
+				decoded.project.timelineAnnotations.map((annotation) => ({ title: annotation.name, startFrame: annotation.kind === 'marker' ? annotation.positionFrame : annotation.startFrame, endFrame: annotation.kind === 'marker' ? annotation.positionFrame : annotation.endFrame })),
 				[
 					{ title: 'Point', startFrame: 240, endFrame: 240 },
 					{ title: 'Range', startFrame: 480, endFrame: 960 },

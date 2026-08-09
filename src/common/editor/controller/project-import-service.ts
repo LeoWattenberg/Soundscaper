@@ -17,6 +17,11 @@ import {
 import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
 import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
+import { createAddTimelineAnnotationCommand } from '../commands/factories.ts';
+import {
+	createOmittedRiffAnnotationImportReport,
+	createRiffAnnotationImport,
+} from '../timeline-annotation-riff-interchange.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -238,6 +243,15 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const projectAdm = createImportedAdmPassthroughMetadata({
 			candidate: projectAdmCandidate, source, descriptor: wavDescriptor, project: getProject(),
 		});
+		const markerImport = wavMarkers.length
+			? importOptions.destination === 'project-bin'
+				? { annotations: [], report: createOmittedRiffAnnotationImportReport(wavMarkers, 'project-bin') }
+				: createRiffAnnotationImport(getProject(), wavMarkers, {
+					sourceSampleRate,
+					timelineStartFrame: importOptions.timelineStartFrame,
+					idFactory: createStableId,
+				})
+			: null;
 		const commands = [];
 		if (projectBext || projectIxml || projectCart || projectAdm) commands.push({ type: 'metadata/update', changes: {
 			...(projectBext ? { bext: projectBext } : {}),
@@ -256,6 +270,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 					sourceId: source.id,
 					clipId: clip.id,
 					trackId: null,
+					...(markerImport ? { timelineAnnotationInterchangeReport: markerImport.report } : {}),
 				}),
 			};
 		}
@@ -281,29 +296,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			...clip,
 			timelineStartFrame: importOptions.timelineStartFrame,
 		}));
-		if (wavMarkers.length) {
-			commands.push(createAddTrackCommand({
-				schemaVersion: 2,
-				type: 'label',
-				id: createStableId('label-track'),
-				name: `${trackName} markers`,
-				labels: wavMarkers.map((marker: RuntimeValue) => {
-					const startFrame = importOptions.timelineStartFrame
-						+ Math.round(marker.sampleOffset * projectSampleRate() / sourceSampleRate);
-					return {
-						id: createStableId('label'),
-						title: marker.label || marker.note || '',
-						startFrame,
-						endFrame: startFrame + Math.round(marker.sampleLength * projectSampleRate() / sourceSampleRate),
-						color: 'auto',
-						opaqueExtensions: {
-							riffCueId: marker.id,
-							...(marker.note ? { note: marker.note } : {}),
-						},
-					};
-				}),
-			}));
-		}
+		if (markerImport) commands.push(...markerImport.annotations.map(createAddTimelineAnnotationCommand));
 		return {
 			command: { type: 'batch', commands },
 			selection: { selectTrackId: trackId, selectClipId: clip.id },
@@ -312,6 +305,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				sourceId: source.id,
 				clipId: clip.id,
 				trackId,
+				...(markerImport ? { timelineAnnotationInterchangeReport: markerImport.report } : {}),
 			}),
 		};
 	}
