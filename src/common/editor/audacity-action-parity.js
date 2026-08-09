@@ -232,9 +232,8 @@ const definitions = [
 	implemented('action://record/toggle-mic-metering', 'Show microphone metering', ['Meter toolbar'], 'recording.toggleMicMetering', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('action://record/toggle-input-monitoring', 'Input monitoring', ['Meter toolbar'], 'recording.toggleInputMonitoring', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('set-up-timed-recording', 'Set up timed recording', ['Record'], 'recording.setupTimer', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
-	disabled('toggle-sound-activated-recording', 'Sound-activated recording', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
-	disabled('set-sound-activation-level', 'Sound activation level', ['Record'], DISABLED_REASONS.todo, { source: UPSTREAM.menu }),
-
+	implemented('toggle-sound-activated-recording', 'Sound-activated recording', ['Record'], 'recording.toggleSoundActivation', { enableWhen: 'sound-activation-preferences-mutable', source: UPSTREAM.menu }),
+	implemented('set-sound-activation-level', 'Sound activation level', ['Record'], 'recording.openSoundActivation', { enableWhen: 'sound-activation-preferences-available', source: UPSTREAM.menu }),
 	// Tracks and track context actions.
 	implemented('new-mono-track', 'New mono track', ['Tracks'], 'track.addMono', { enableWhen: 'project-writable', source: UPSTREAM.trackEdit }),
 	implemented('new-stereo-track', 'New stereo track', ['Tracks'], 'track.addStereo', { enableWhen: 'project-writable', source: UPSTREAM.trackEdit }),
@@ -682,6 +681,8 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'playing-or-recording': playing || recording,
 		recording,
 		'not-recording': !recording,
+		'sound-activation-preferences-available': projectOpened && snapshot.productId === 'soundscaper' && Boolean(snapshot.recordingInputs?.soundActivation),
+		'sound-activation-preferences-mutable': projectWritable && snapshot.productId === 'soundscaper' && Boolean(snapshot.recordingInputs?.soundActivation) && !snapshot.recordingInputs?.soundActivation?.preferenceMutationBlocked,
 		'spectrogram-track-selected': Boolean(selectedAudioTrack && (
 			selectedAudioTrack.displayMode === 'spectrogram'
 			|| selectedAudioTrack.displayMode === 'multiview'
@@ -699,7 +700,6 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 	if (!Object.hasOwn(predicates, enableWhen)) throw new ReferenceError(`Unknown Audacity enableWhen predicate: ${enableWhen}.`);
 	return Boolean(predicates[enableWhen]);
 }
-
 /**
  * Resolve an implemented manifest action against a concrete runtime action
  * tree. Disabled and excluded actions are deliberately never resolved, even

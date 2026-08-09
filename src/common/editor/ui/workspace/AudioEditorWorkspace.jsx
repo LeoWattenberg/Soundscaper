@@ -259,7 +259,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
 			const requestedSection = options?.section;
-			setPreferencesPage(['appearance', 'editing', 'workspace', 'panels', 'shortcuts', 'spectrogram'].includes(requestedSection)
+			setPreferencesPage(['appearance', 'editing', 'workspace', 'panels', 'shortcuts', 'spectrogram', 'sound-activation'].includes(requestedSection)
 				? requestedSection
 				: requestedSection === 'snap' ? 'editing' : 'shortcuts');
 		}

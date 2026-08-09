@@ -58,6 +58,7 @@ export function RecordFlyout({
 	snapshot,
 	recordLabel,
 	toggleRecording,
+	actionRuntime,
 	controller,
 	run,
 	onOpenRecordingOffset,
@@ -65,6 +66,10 @@ export function RecordFlyout({
 	onClose,
 }) {
 	const recordingInputBlocked = snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording;
+	const soundActivation = snapshot.recordingInputs?.soundActivation;
+	const soundActivationMutationBlocked = snapshot.readOnly
+		|| !soundActivation
+		|| soundActivation.preferenceMutationBlocked;
 	const items = [
 		{
 			label: snapshot.recording ? copy.stopRecording : recordLabel,
@@ -116,12 +121,23 @@ export function RecordFlyout({
 			onClick: () => run(() => controller.actions.recording.toggleLeadIn()),
 		},
 		{
+			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setUpTimedRecording,
 			label: copy.timedRecording,
 			disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling,
 			onClick: onOpenTimedRecording,
 		},
-		{ label: copy.soundActivatedRecording, disabled: true },
-		{ label: copy.soundActivationLevel, disabled: true },
+		...(snapshot.productId === 'soundscaper' ? [{
+			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleSoundActivatedRecording,
+			label: copy.soundActivatedRecording,
+			checked: Boolean(soundActivation?.preferences.enabled),
+			disabled: soundActivationMutationBlocked,
+			onClick: () => run(() => actionRuntime.recording.toggleSoundActivation()),
+		}, {
+			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setSoundActivationLevel,
+			label: copy.soundActivationLevel,
+			disabled: !soundActivation,
+			onClick: () => actionRuntime.recording.openSoundActivation(),
+		}] : []),
 	];
 	return <SplitButtonMenuItems items={items} onClose={onClose} />;
 }

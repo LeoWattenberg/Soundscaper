@@ -14,6 +14,7 @@ import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '../../preferences.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
+import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
 import OfflineRuntimePreferencePanel from './OfflineRuntimePreferencePanel.tsx';
 import {
 	WORKSPACE_DOCK_IDS,
@@ -21,6 +22,11 @@ import {
 	workspaceDockLabel,
 	workspacePanelLabel,
 } from '../workspace/workspace-panel-model.ts';
+
+const SOUNDSCAPER_ONLY_SHORTCUT_IDS = new Set([
+	'toggle-sound-activated-recording',
+	'set-sound-activation-level',
+]);
 
 export default function WorkspacePreferencesDialog({
 	controller,
@@ -34,13 +40,16 @@ export default function WorkspacePreferencesDialog({
 	isPanelVisible = null,
 	onTogglePanel,
 	onClose,
+	productId = 'soundscaper',
 }) {
 	const sideNavRef = useRef(null);
-	const [selectedPage, setSelectedPage] = useState(initialPage);
+	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage));
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
-	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale, copy }), [copy, locale, menus]);
+	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale, copy }).filter((command) => (
+		productId === 'soundscaper' || !SOUNDSCAPER_ONLY_SHORTCUT_IDS.has(command.id)
+	)), [copy, locale, menus, productId]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
 	const pages = [
@@ -78,7 +87,7 @@ export default function WorkspacePreferencesDialog({
 		if (next.maximumFrequency <= next.minimumFrequency) return;
 		updateSpectrogram({ [name]: value });
 	};
-	useEffect(() => setSelectedPage(initialPage), [initialPage]);
+	useEffect(() => setSelectedPage(preferencePage(initialPage)), [initialPage]);
 	const handleSideNavKeyDown = (event) => {
 		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
 		event.preventDefault();
@@ -105,7 +114,7 @@ export default function WorkspacePreferencesDialog({
 			title={copy.preferencesTitle}
 			onClose={onClose}
 			width={900}
-			initialFocus="dialog"
+			initialFocus={initialPage === 'sound-activation' ? '[data-sound-activation-threshold]' : 'dialog'}
 			className="kw-audio-editor-preferences"
 			bodyClassName="kw-audio-editor-preferences__body"
 			footer={<div className="kw-audio-editor-dialog__actions kw-audio-editor-preferences__footer"><Button onClick={onClose}>{copy.close}</Button></div>}
@@ -317,6 +326,15 @@ export default function WorkspacePreferencesDialog({
 										/>
 										<small>{copy.recordingKeepInputsOpenDescription}</small>
 									</div>
+									{snapshot.recordingInputs?.soundActivation && <SoundActivationPreferences
+										productId={productId}
+										locale={locale}
+										readOnly={Boolean(snapshot.readOnly)}
+										soundActivation={snapshot.recordingInputs.soundActivation}
+										copy={copy}
+										controller={controller}
+										run={run}
+									/>}
 								</PreferencePanel>
 							</>
 						)}
@@ -376,6 +394,10 @@ export default function WorkspacePreferencesDialog({
 					</main>
 		</AudioEditorDialogShell>
 	);
+}
+
+function preferencePage(requestedPage) {
+	return requestedPage === 'sound-activation' ? 'editing' : requestedPage;
 }
 
 function PreferenceDropdownField({ label, options, value, visuallyHiddenLabel = false, onChange }) {

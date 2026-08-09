@@ -37,6 +37,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		preferences,
 		preferencesPage,
 		projectBinEffectivelyOpen,
+		productId,
 		run,
 		scapeOpenDecision,
 		setActiveSurface,
@@ -194,6 +195,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 						menus={applicationMenus}
 						run={run}
 						initialPage={preferencesPage}
+						productId={productId}
 						isPanelVisible={(panelId) => (
 							panelId === 'project-bin'
 								? projectBinEffectivelyOpen

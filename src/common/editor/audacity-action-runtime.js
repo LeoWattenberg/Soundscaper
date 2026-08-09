@@ -433,6 +433,17 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			...controllerActions.recording,
 			startCurrentTrack: controllerActions.recording.start,
 			setupTimer: () => ui.issue('open-timed-recording'),
+			toggleSoundActivation: () => {
+				const current = snapshot();
+				const policy = current.recordingInputs?.soundActivation;
+				if (current.productId !== 'soundscaper' || current.readOnly || !policy || policy.preferenceMutationBlocked) return false;
+				return controllerActions.recording.soundActivation.setEnabled(!policy.preferences.enabled);
+			},
+			openSoundActivation: () => {
+				const current = snapshot();
+				if (current.productId !== 'soundscaper' || !current.recordingInputs?.soundActivation) return false;
+				return openSurface('preferences', { section: 'sound-activation' });
+			},
 			setLevel: (level = null) => level == null
 				? ui.issue('focus-recording-level')
 				: controllerActions.recording.setLevel(Number(level)),

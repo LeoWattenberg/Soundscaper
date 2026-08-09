@@ -92,10 +92,14 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 
 	for (const id of [
 		'select-previous-clip', 'align-together', 'sort-by-name', 'spectral-brush',
-		'toggle-sound-activated-recording', 'raw-data-import',
+		'raw-data-import',
 	]) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
 		assert.equal(audacityActionDefinition(id).roadmapMilestone, '3', id);
+	}
+	for (const id of ['toggle-sound-activated-recording', 'set-sound-activation-level']) {
+		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.IMPLEMENTED, id);
+		assert.equal(audacityActionDefinition(id).roadmapMilestone, undefined, id);
 	}
 	for (const id of ['plugin-manager', 'audio-setup', 'diagnostic-save-diagnostic-files']) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
@@ -118,8 +122,6 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		'menu-skip',
 		'menu-align',
 		'menu-sort',
-		'toggle-sound-activated-recording',
-		'set-sound-activation-level',
 		'menu-macros',
 		'raw-data-import',
 		'reset-configuration',
@@ -135,6 +137,71 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		assert.ok(audacityActionReason(id, 'en'));
 		assert.ok(audacityActionReason(id, 'de'));
 	}
+});
+
+test('sound activation parity actions expose real handlers and guarded enablement', () => {
+	const toggle = audacityActionDefinition('toggle-sound-activated-recording');
+	assert.equal(toggle.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
+	assert.equal(toggle.handler, 'recording.toggleSoundActivation');
+	assert.equal(toggle.enableWhen, 'sound-activation-preferences-mutable');
+	assert.equal(toggle.shortcut, null);
+	const level = audacityActionDefinition('set-sound-activation-level');
+	assert.equal(level.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
+	assert.equal(level.handler, 'recording.openSoundActivation');
+	assert.equal(level.enableWhen, 'sound-activation-preferences-available');
+
+	const context = {
+		snapshot: {
+			productId: 'soundscaper',
+			project: { tracks: [], clips: [] },
+			readOnly: false,
+			recordingInputs: { soundActivation: {
+				preferences: { enabled: false, thresholdDb: -40, hysteresisDb: 6, holdMilliseconds: 250 },
+				preferenceMutationBlocked: false,
+				preferenceMutationBlockReason: null,
+				sources: [],
+			} },
+		},
+	};
+	assert.equal(evaluateAudacityActionEnablement(toggle.id, context), true);
+	assert.equal(evaluateAudacityActionEnablement(level.id, context), true);
+	const pending = structuredClone(context);
+	pending.snapshot.recordingInputs.soundActivation.preferenceMutationBlocked = true;
+	pending.snapshot.recordingInputs.soundActivation.preferenceMutationBlockReason = 'preference-update';
+	assert.equal(evaluateAudacityActionEnablement(toggle.id, pending), false);
+	assert.equal(evaluateAudacityActionEnablement(level.id, pending), true);
+	const readOnly = structuredClone(context);
+	readOnly.snapshot.readOnly = true;
+	assert.equal(evaluateAudacityActionEnablement(toggle.id, readOnly), false);
+	assert.equal(evaluateAudacityActionEnablement(level.id, readOnly), true);
+	const framescaper = structuredClone(context);
+	framescaper.snapshot.productId = 'framescaper';
+	assert.equal(evaluateAudacityActionEnablement(toggle.id, framescaper), false);
+	assert.equal(evaluateAudacityActionEnablement(level.id, framescaper), false);
+
+	const actionRuntime = {
+		recording: {
+			toggleSoundActivation: () => true,
+			openSoundActivation: () => true,
+		},
+	};
+	const [record] = applyAudacityParityToMenus([{
+		id: 'record',
+		label: 'Record',
+		items: [
+			{ id: toggle.id, label: 'stale toggle label' },
+			{ id: level.id, label: 'stale level label' },
+		],
+	}], { actionRuntime, actionContext: context });
+	assert.deepEqual(record.items.map(({ label, disabled }) => [label, disabled]), [
+		['Sound-activated recording', undefined],
+		['Sound activation level', undefined],
+	]);
+	assert.strictEqual(record.items[0].onClick, actionRuntime.recording.toggleSoundActivation);
+	assert.strictEqual(record.items[1].onClick, actionRuntime.recording.openSoundActivation);
+	const commands = new Map(collectAudacityShortcutCommands([record]).map((command) => [command.id, command]));
+	assert.equal(commands.get(toggle.id).disabled, false);
+	assert.equal(commands.get(level.id).disabled, false);
 });
 
 test('removed and superseded actions remain auditable without entering application menus', () => {
@@ -355,7 +422,9 @@ test('critical functional manifest surfaces have semantic menu registry entries'
 		'select-track-start-to-cursor', 'select-cursor-to-track-end', 'select-track-start-to-end',
 		'toggle-loop-region', 'clear-loop-region', 'set-loop-region-to-selection', 'set-loop-region-in-out',
 		'toggle-rms-in-waveform', 'record-on-new-track', 'action://record/pause',
-		'action://record/lead-in-recording', 'metronome', 'track-resample', 'repeat-last-effect',
+		'action://record/lead-in-recording', 'set-up-timed-recording',
+		'toggle-sound-activated-recording', 'set-sound-activation-level',
+		'metronome', 'track-resample', 'repeat-last-effect',
 		'online-handbook', 'local://support', 'revert-factory', 'about-audacity',
 	];
 	assert.equal(explicitIds.size, critical.length);

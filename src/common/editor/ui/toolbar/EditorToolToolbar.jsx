@@ -189,6 +189,7 @@ export default function EditorToolToolbar({
 								controller={controller}
 								recordLabel={recordLabel}
 								toggleRecording={toggleRecording}
+								actionRuntime={actionRuntime}
 								run={run}
 								onOpenRecordingOffset={onOpenRecordingOffset}
 								onOpenTimedRecording={onOpenTimedRecording}

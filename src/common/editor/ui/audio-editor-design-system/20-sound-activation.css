@@ -1,0 +1,100 @@
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation {
+	display: grid;
+	gap: 12px;
+	padding: 14px;
+	margin-top: 14px;
+	background: color-mix(in srgb, var(--kw-editor-control) 76%, transparent);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 6px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation h3,
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation p {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation > p {
+	color: var(--kw-editor-text);
+	font-size: 11px;
+	line-height: 1.45;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__switch {
+	display: flex;
+	min-height: 36px;
+	align-items: center;
+	gap: 9px;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__switch input {
+	width: 18px;
+	min-width: 18px;
+	height: 18px;
+	min-height: 18px;
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__controls {
+	display: grid;
+	padding: 0;
+	margin: 0;
+	border: 0;
+	gap: 12px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__control {
+	display: grid;
+	gap: 5px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__control > span {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__control output {
+	color: var(--kw-editor-text);
+	font-variant-numeric: tabular-nums;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__control input[type='range'] {
+	width: 100%;
+	min-height: 28px;
+	padding: 0;
+	accent-color: var(--kw-editor-accent);
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__control input[type='range']:disabled {
+	cursor: not-allowed;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__control small {
+	color: var(--kw-editor-text);
+	font-size: 10px;
+	line-height: 1.35;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-sound-activation__status {
+	min-height: 16px;
+	padding-inline-start: 8px;
+	border-inline-start: 3px solid var(--kw-editor-accent);
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system .kw-audio-editor-sound-activation {
+		forced-color-adjust: none;
+		color: CanvasText;
+		background: Canvas;
+		border-color: CanvasText;
+	}
+
+	#kw-audio-editor-design-system .kw-audio-editor-sound-activation__status {
+		border-color: Highlight;
+	}
+}

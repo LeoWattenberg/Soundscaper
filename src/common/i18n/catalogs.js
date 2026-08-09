@@ -1429,7 +1429,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		pauseRecording: 'Pause recording',
 		resumeRecording: 'Resume recording',
 		leadInTime: 'Enable lead-in time',
-		soundActivatedRecording: 'Sound activated recording',
+		soundActivatedRecording: 'Sound-activated recording',
 		playhead: 'Playhead',
 		selection: 'Time selection',
 		selectionStart: 'Selection start',
