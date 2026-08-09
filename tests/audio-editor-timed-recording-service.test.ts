@@ -202,6 +202,58 @@ test('cancelling an armed recorder discards it through the joinable finalizer', 
 	assert.equal(state.timedRecordingCancelling, false);
 });
 
+test('cancelling an armed recorder still finalizes after its stop rejects', async () => {
+	const stopFailure = new Error('worklet stop failed');
+	const recorder: RecordingControllerLike & { stopCalls: number } = {
+		stopCalls: 0,
+		async stop() {
+			this.stopCalls += 1;
+			throw stopFailure;
+		},
+	};
+	const state = createState({
+		recorder,
+		timedRecording: Object.freeze({
+			generation: 4,
+			projectId: 'project-1',
+			startTimeMs: 5_000,
+			options: Object.freeze({}),
+			inputKeys: Object.freeze(['device:default']),
+		}),
+		timedRecordingGeneration: 4,
+		timedRecordingTimer: 9,
+	});
+	const errors: unknown[] = [];
+	let finalizations = 0;
+	const service = createTimedRecordingService({
+		state,
+		getProjectId: () => 'project-1',
+		normalizeStartTime: Number,
+		currentTimeMs: () => 1_000,
+		prepareInputs: async () => ({ inputKeys: [] }),
+		prepareContext: async () => {},
+		startRecording: async () => {},
+		cancelRecordingStart: () => false,
+		finalizeRecording: async () => {
+			finalizations += 1;
+			state.recorder = null;
+		},
+		activatePreparedRecording: async () => {},
+		scheduleTimer: () => 1,
+		clearTimer: () => {},
+		handleError: (error) => { errors.push(error); },
+		messages: messages(),
+	});
+
+	assert.equal(service.cancelTimedRecording(), true);
+	await settle();
+	assert.equal(recorder.stopCalls, 1);
+	assert.equal(finalizations, 1);
+	assert.equal(state.recorder, null);
+	assert.deepEqual(errors, [stopFailure]);
+	assert.equal(state.timedRecordingCancelling, false);
+});
+
 function messages() {
 	return {
 		projectReadOnly: 'read only',

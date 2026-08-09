@@ -8,6 +8,14 @@ import {
 } from '../src/common/editor/controller/document-snapshot.ts';
 import { createInitialStorageCapacitySnapshot } from '../src/common/editor/controller/storage-capacity-service.ts';
 import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';
+
+const SOUND_ACTIVATION_SNAPSHOT = Object.freeze({
+	preferences: DEFAULT_SOUND_ACTIVATION_PREFERENCES,
+	preferenceMutationBlocked: false,
+	preferenceMutationBlockReason: null,
+	sources: Object.freeze([]),
+});
 
 test('document snapshots expose durability, scheduling, history, and compatibility semantically', () => {
 	const project: SnapshotProject = {
@@ -68,6 +76,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		}),
 		recordingPreviewSnapshot: (preview) => preview,
 		getAudioDevicesSnapshot: () => ({ inputSupported: true }),
+		getSoundActivationSnapshot: () => SOUND_ACTIVATION_SNAPSHOT,
 		sampleEditingAvailable: () => true,
 		canUndo: () => true,
 		canRedo: () => true,
@@ -96,6 +105,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		trackId: 'track',
 	});
 	assert.equal(snapshot.recording, false);
+	assert.strictEqual(snapshot.recordingInputs.soundActivation, SOUND_ACTIVATION_SNAPSHOT);
 	assert.deepEqual(snapshot.recordingPreviews, [{ frames: 4 }]);
 	assert.deepEqual(snapshot.history.undoEntries, ['summary:new', 'summary:old']);
 	assert.equal(snapshot.storage.ephemeral, true);
@@ -156,6 +166,7 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 		getCurrentTabMetadata: () => ({}),
 		recordingPreviewSnapshot: () => null,
 		getAudioDevicesSnapshot: () => ({}),
+		getSoundActivationSnapshot: () => SOUND_ACTIVATION_SNAPSHOT,
 		sampleEditingAvailable: () => false,
 		canUndo: () => false,
 		canRedo: () => false,
@@ -211,6 +222,7 @@ function documentRuntimeFixture(project: SnapshotProject) {
 		getCurrentProject: () => project, projectForPlayback: () => project,
 		getProjectTabs: () => [], getCurrentTabMetadata: () => ({}),
 		recordingPreviewSnapshot: () => null, getAudioDevicesSnapshot: () => ({}),
+		getSoundActivationSnapshot: () => SOUND_ACTIVATION_SNAPSHOT,
 		sampleEditingAvailable: () => false, canUndo: () => false, canRedo: () => false,
 		historyEntrySummary: (entry: unknown) => entry,
 		getStorageStatus: () => ({

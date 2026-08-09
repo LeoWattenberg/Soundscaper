@@ -118,7 +118,7 @@ export function createSoundActivatedRecordingGate(
 	}
 
 	function cancel(): boolean {
-		if (state === 'disarmed' || state === 'cancelled') return false;
+		if (state === 'cancelled') return false;
 		quietFrames = 0;
 		state = 'cancelled';
 		return true;

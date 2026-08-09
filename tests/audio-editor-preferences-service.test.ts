@@ -201,3 +201,182 @@ test('preferences reject invalid targets and shortcut conflicts without persisti
 	fixture.setReadOnly(true);
 	assert.throws(() => service.update({}), /newer schema/u);
 });
+
+test('failed persistence rolls back the exact optimistic preference publication', async () => {
+	const observed: Preferences[] = [];
+	const fixture = createFixture({
+		persistSetting: async () => { throw new Error('settings unavailable'); },
+	});
+	const service = createEditorPreferencesService({
+		...fixture.dependencies,
+		publish: () => { observed.push(fixture.preferences()); },
+	});
+	const original = fixture.preferences();
+
+	await assert.rejects(service.setWorkspace('compact'), /settings unavailable/u);
+
+	assert.strictEqual(fixture.preferences(), original);
+	assert.deepEqual(observed.map(({ workspace }) => workspace.activeId), ['compact', 'modern']);
+});
+
+test('a stale persistence failure cannot roll back a newer preference publication', async () => {
+	let rejectFirst = (_error: Error): void => { throw new Error('The first persistence operation was not captured.'); };
+	let persistenceCall = 0;
+	const fixture = createFixture({
+		productId: 'framescaper',
+		persistSetting: () => {
+			persistenceCall += 1;
+			if (persistenceCall === 1) return new Promise((_resolve, reject) => { rejectFirst = reject; });
+			return Promise.resolve();
+		},
+	});
+	const service = createEditorPreferencesService(fixture.dependencies);
+	const stale = service.setWorkspace('compact');
+	const newer = service.setWorkspace('editing');
+	await Promise.resolve();
+	rejectFirst(new Error('stale failure'));
+
+	await assert.rejects(stale, /stale failure/u);
+	await newer;
+	assert.equal(fixture.preferences().workspace.activeId, 'editing');
+});
+
+test('Soundscaper preference persistence commits the compatibility mirror before its authoritative key', async () => {
+	const calls: Array<readonly [string, string]> = [];
+	const fixture = createFixture({
+		persistSetting: async (key, value) => {
+			calls.push([key, (value as Preferences).workspace.activeId]);
+		},
+	});
+
+	await createEditorPreferencesService(fixture.dependencies).setWorkspace('compact');
+
+	assert.deepEqual(calls, [
+		['audio-editor-preferences-v1', 'compact'],
+		['soundscaper:preferences', 'compact'],
+	]);
+});
+
+test('concurrent Soundscaper preference writes preserve invocation order in both durable keys', async () => {
+	let releaseFirstWrite = (): void => undefined;
+	const firstWritePending = new Promise<void>((resolve) => { releaseFirstWrite = resolve; });
+	const calls: Array<readonly [string, string]> = [];
+	const durable = new Map<string, string>();
+	let writeCount = 0;
+	const fixture = createFixture({
+		persistSetting: async (key, value) => {
+			writeCount += 1;
+			const activeId = (value as Preferences).workspace.activeId;
+			calls.push([key, activeId]);
+			if (writeCount === 1) await firstWritePending;
+			durable.set(key, activeId);
+		},
+	});
+	const service = createEditorPreferencesService(fixture.dependencies);
+
+	const first = service.setWorkspace('compact');
+	const second = service.setWorkspace('editing');
+	await Promise.resolve();
+	releaseFirstWrite();
+	await Promise.all([first, second]);
+
+	assert.equal(fixture.preferences().workspace.activeId, 'editing');
+	assert.deepEqual(calls, [
+		['audio-editor-preferences-v1', 'compact'],
+		['soundscaper:preferences', 'compact'],
+		['audio-editor-preferences-v1', 'editing'],
+		['soundscaper:preferences', 'editing'],
+	]);
+	assert.deepEqual(Object.fromEntries(durable), {
+		'audio-editor-preferences-v1': 'editing',
+		'soundscaper:preferences': 'editing',
+	});
+});
+
+test('a failed compatibility write never attempts the authoritative preference commit', async () => {
+	const calls: string[] = [];
+	const fixture = createFixture({
+		persistSetting: async (key) => {
+			calls.push(key);
+			if (key === 'audio-editor-preferences-v1') throw new Error('compatibility unavailable');
+		},
+	});
+	const original = fixture.preferences();
+
+	await assert.rejects(
+		createEditorPreferencesService(fixture.dependencies).setWorkspace('compact'),
+		/compatibility unavailable/u,
+	);
+
+	assert.deepEqual(calls, ['audio-editor-preferences-v1']);
+	assert.strictEqual(fixture.preferences(), original);
+});
+
+test('a failed authoritative write restores the compatibility mirror before rolling memory back', async () => {
+	const calls: Array<readonly [string, string]> = [];
+	const fixture = createFixture({
+		persistSetting: async (key, value) => {
+			const activeId = (value as Preferences).workspace.activeId;
+			calls.push([key, activeId]);
+			if (key === 'soundscaper:preferences') throw new Error('authoritative unavailable');
+		},
+	});
+	const original = fixture.preferences();
+
+	await assert.rejects(
+		createEditorPreferencesService(fixture.dependencies).setWorkspace('compact'),
+		/authoritative unavailable/u,
+	);
+
+	assert.deepEqual(calls, [
+		['audio-editor-preferences-v1', 'compact'],
+		['soundscaper:preferences', 'compact'],
+		['audio-editor-preferences-v1', 'modern'],
+	]);
+	assert.strictEqual(fixture.preferences(), original);
+});
+
+test('compatibility rollback failure is surfaced with the authoritative error', async () => {
+	let compatibilityWrites = 0;
+	const fixture = createFixture({
+		persistSetting: async (key) => {
+			if (key === 'soundscaper:preferences') throw new Error('authoritative unavailable');
+			compatibilityWrites += 1;
+			if (compatibilityWrites === 2) throw new Error('compatibility rollback unavailable');
+		},
+	});
+	const original = fixture.preferences();
+
+	await assert.rejects(
+		createEditorPreferencesService(fixture.dependencies).setWorkspace('compact'),
+		(error: unknown) => {
+			assert.ok(error instanceof AggregateError);
+			assert.match(error.message, /rollback both failed/u);
+			assert.deepEqual(error.errors.map((entry: Error) => entry.message), [
+				'authoritative unavailable',
+				'compatibility rollback unavailable',
+			]);
+			return true;
+		},
+	);
+	assert.strictEqual(fixture.preferences(), original);
+});
+
+test('durable mutations use the required writer without changing best-effort load recovery', async () => {
+	const calls: string[] = [];
+	const fixture = createFixture({
+		loadSetting: async () => ({ invalid: true }),
+		loadPreferences: () => { throw new Error('invalid'); },
+		persistSetting: async () => { calls.push('best-effort'); },
+		persistSettingRequired: async () => {
+			calls.push('required');
+			throw new Error('required unavailable');
+		},
+	});
+	const service = createEditorPreferencesService(fixture.dependencies);
+
+	await service.load(async (value) => value);
+	assert.deepEqual(calls, ['best-effort']);
+	await assert.rejects(service.setWorkspace('compact'), /required unavailable/u);
+	assert.deepEqual(calls, ['best-effort', 'required']);
+});

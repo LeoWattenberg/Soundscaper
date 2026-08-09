@@ -233,6 +233,27 @@ test('preference updates publish both pending and settled policy snapshots', asy
 	)), ['preference-update', null]);
 });
 
+test('pending policy snapshots retain the last committed preference record', async () => {
+	let settleUpdate = (): void => undefined;
+	const pending = new Promise<void>((resolve) => { settleUpdate = resolve; });
+	const fixture = createFixture({
+		update: async (patch, commit) => {
+			commit(patch.recording.soundActivation);
+			await pending;
+			commit(DEFAULT_SOUND_ACTIVATION_PREFERENCES);
+			throw new Error('durable storage refused');
+		},
+	});
+
+	const operation = fixture.service.setEnabled(true);
+	assert.deepEqual(fixture.service.getSnapshot().preferences, DEFAULT_SOUND_ACTIVATION_PREFERENCES);
+	assert.equal(fixture.service.getSnapshot().preferenceMutationBlockReason, 'preference-update');
+	assert.equal(fixture.service.getSettings(DEVICE_SOURCE), null);
+	settleUpdate();
+	await assert.rejects(operation, /durable storage refused/u);
+	assert.deepEqual(fixture.service.getSnapshot().preferences, DEFAULT_SOUND_ACTIVATION_PREFERENCES);
+});
+
 test('terminal cancellation, explicit discard, and reset remove stale source sessions exactly once', () => {
 	const fixture = createFixture({ preferences: ENABLED_PREFERENCES });
 	fixture.service.getSettings(DEVICE_SOURCE);

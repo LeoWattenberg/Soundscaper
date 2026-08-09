@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorActions } from '../types.ts';
+import {
+	createRecordingActionFacade,
+	createRecordingPreferenceActionFacade,
+	type RecordingActionScope,
+} from './recording-action-facade.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -19,7 +24,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	applyProjectBinReplacement, applySamplePencil, applySpectralSelection, beginParametricEqGesture,
 	beginRackEffectGesture, beginVideoEffectGesture, bypassVideoClipEffect, cancelAudacityEffectPreview,
 	cancelNyquistEvaluation, cancelParametricEqGesture, cancelPlaybackCachePreparation, cancelProjectBinReplacement,
-	cancelRackEffectGesture, cancelSampleEdit, cancelTimedRecording, cancelVideoEffectGesture,
+	cancelRackEffectGesture, cancelSampleEdit, cancelVideoEffectGesture,
 	capabilities, captureRackNoiseProfileFromController, captureSelectedNoiseProfile, claimProjectLock,
 	clearLocalData, clearLoopRegion, clearRecentProjects, closeProjectTab,
 	commit, commitParametricEqGesture, commitRackEffectGesture, commitVideoEffectGesture,
@@ -39,31 +44,30 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 	prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 	previewRackEffect, previewVideoEffectGesture, product, getProject,
-	projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs,
+	projectBinInstanceCount, refreshAudioDevices, refreshStorageUsage,
 	canRelinkLinkedAudio, relinkLinkedAudio, canRelinkLinkedVideo, classifyLinkedVideoRelink, relinkLinkedVideo,
 	releaseVideoSourceVisual, removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 	renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 	repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
-	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight, revertFactorySettings,
+	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight,
 	runEffectMacro, runNyquistEvaluation, saveAup4, saveEffectPreset,
-	saveNow, saveScape, scheduleTimedRecording, selectAllTracks,
+	saveNow, saveScape, selectAllTracks,
 	selectAtZeroCrossings, selectClip, selectCursorToTrackEnd, selectLeftOfPlaybackPosition,
 	selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor,
 	selectTrackStartToEnd, sessionTab, setAllTracksView, setAudacityControlTrack,
 	setAudacityEffectParamsFromController, setAudacityEffectType, setAudioOutputDevice, setAutoFitTrackHeight,
-	setClipTimePitch, setLatencyOffset, setLoopRegion, setLoopRegionInOut,
-	setLoopRegionToSelection, setMicrophoneMetering, setMonitoring, setPanelPreference,
+	setClipTimePitch, setLoopRegion, setLoopRegionInOut,
+	setLoopRegionToSelection, setPanelPreference,
 	setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
-	setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
 	setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
 	setSnapSettings, setSpectralBoxSelection, setTimelineView, setTimelineViewportWidth,
 	setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 	setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
-	snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording,
-	startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage, cleanupDerivativeCache,
+	snapTimelineFrame, splitAtFrame, splitStereoTrack,
+	state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache,
 	store, stretchClip, swapTrackChannels, switchProject,
-	toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
-	toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
+	toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
+	toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, timelineAnnotationService,
@@ -74,6 +78,10 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		}
 		return action(...args);
 	};
+	const recordingPreferences = createRecordingPreferenceActionFacade(
+		scope as RecordingActionScope,
+		restricted,
+	);
 	return Object.freeze({
 		project: Object.freeze({
 			create: (projectOptions: RuntimeValue) => newProject(projectOptions),
@@ -246,26 +254,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			toggleSelectionFollowsLoop: toggleSelectionFollowsLoop,
 			toggleMetronome,
 		}),
-		recording: Object.freeze({
-			start: restricted('audioRecording', startRecording),
-			startNewTrack: restricted('audioRecording', startRecordingOnNewTrack),
-			schedule: restricted('audioRecording', scheduleTimedRecording),
-			cancelScheduled: cancelTimedRecording,
-			pause: toggleRecordingPause,
-			stop: stopRecording,
-			toggleLeadIn: restricted('audioRecording', toggleLeadInRecording),
-			setMonitoring: restricted('audioRecording', setMonitoring),
-			setMetering: restricted('audioRecording', setMicrophoneMetering),
-			setLevel: restricted('audioRecording', setRecordingInputGain),
-			setLatencyOffset: restricted('audioRecording', setLatencyOffset),
-			requestInputAccess: restricted('audioRecording', requestInputAccess),
-			refreshInputs: restricted('audioRecording', refreshRecordingInputs),
-			setTrackInput: restricted('audioRecording', setRecordingTrackInput),
-			clearTrackInput: restricted('audioRecording', (trackId: RuntimeValue) => setRecordingTrackInput(trackId, null)),
-			setSourceOffset: restricted('audioRecording', setRecordingSourceLatency),
-			setRetainInputs: restricted('audioRecording', setRetainInputs),
-			releaseInputs,
-		}),
+		recording: createRecordingActionFacade(scope as RecordingActionScope, restricted),
 		metering: Object.freeze({
 			pause: pauseLoudnessMeasurement,
 			continue: continueLoudnessMeasurement,
@@ -414,8 +403,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			update: (changes: RuntimeValue) => commit({ type: 'metadata/update', changes }),
 		}),
 		preferences: Object.freeze({
-			update: updatePreferences,
-			revertFactorySettings,
+			update: recordingPreferences.update,
+			revertFactorySettings: recordingPreferences.revertFactorySettings,
 			setWorkspace: setWorkspacePreference,
 			setTheme: (theme: RuntimeValue) => updatePreferences({ appearance: { theme } }),
 			setClipStyle: (clipStyle: RuntimeValue) => updatePreferences({ appearance: { clipStyle } }),

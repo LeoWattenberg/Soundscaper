@@ -14,8 +14,10 @@ import type {
 import type { SampleFrame } from './timeline-time.ts';
 import type { TimelineAnnotationV11 } from './timeline-annotation.ts';
 import type { RuntimeTimelineAnnotationProjection } from './runtime-timeline-annotation-projection.ts';
+import type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
+export type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
 export type { SampleFrame, SourceTicks, VideoFrame } from './timeline-time.ts';
 
 export type EditorId = string;
@@ -213,13 +215,24 @@ export interface EditorActionTree {
 	readonly [action: string]: EditorAction | EditorActionTree;
 }
 
+export interface EditorSoundActivationActions extends EditorActionTree {
+	readonly setEnabled: EditorAction;
+	readonly setThresholdDb: EditorAction;
+	readonly setHysteresisDb: EditorAction;
+	readonly setHoldMilliseconds: EditorAction;
+}
+
+export interface EditorRecordingActions extends EditorActionTree {
+	readonly soundActivation: EditorSoundActivationActions;
+}
+
 export interface EditorActions extends EditorActionTree {
 	readonly project: EditorActionTree;
 	readonly projectBin: EditorActionTree;
 	readonly video: EditorActionTree;
 	readonly edit: EditorActionTree;
 	readonly transport: EditorActionTree;
-	readonly recording: EditorActionTree;
+	readonly recording: EditorRecordingActions;
 	readonly metering: EditorActionTree;
 	readonly audioDevices: EditorActionTree;
 	readonly storage: EditorActionTree;
@@ -241,6 +254,10 @@ export interface EditorActions extends EditorActionTree {
 	readonly export: EditorActionTree;
 }
 
+export interface EditorRecordingInputSnapshot extends Readonly<Record<string, unknown>> {
+	readonly soundActivation: SoundActivationPolicySnapshot;
+}
+
 export interface EditorSnapshot {
 	readonly phase: EditorControllerPhase;
 	readonly ready: boolean;
@@ -250,6 +267,7 @@ export interface EditorSnapshot {
 	readonly selectedClipId: EditorId | null;
 	readonly selectedAnnotationId: EditorId | null;
 	readonly timelineAnnotations: readonly RuntimeTimelineAnnotationProjection[];
+	readonly recordingInputs: EditorRecordingInputSnapshot;
 	readonly readOnly: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;

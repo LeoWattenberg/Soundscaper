@@ -5,6 +5,8 @@ import type { ProjectFeatureRequirementsReport } from '../project-feature-requir
 import type { EditorStoreStatus } from '../storage/status.ts';
 import type { StorageCapacitySnapshot } from './storage-capacity-service.ts';
 import { createDocumentTimelineAnnotationSnapshot } from './document-timeline-annotation-snapshot.ts';
+import { createDocumentRecordingInputSnapshot } from './document-recording-input-snapshot.ts';
+import type { SoundActivationPolicySnapshot } from './sound-activation-policy-service.ts';
 
 interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 	readonly startFrame: number;
@@ -140,6 +142,7 @@ export interface EditorDocumentSnapshotRuntime<Project extends SnapshotProject> 
 	getCurrentTabMetadata(projectId: string): CurrentTabMetadata;
 	recordingPreviewSnapshot(preview: unknown): unknown;
 	getAudioDevicesSnapshot(): unknown;
+	getSoundActivationSnapshot(): SoundActivationPolicySnapshot;
 	sampleEditingAvailable(): boolean;
 	canUndo(history: SnapshotHistory): boolean;
 	canRedo(history: SnapshotHistory): boolean;
@@ -223,15 +226,10 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		recordingPreviews: Object.freeze(state.recordingPreviews
 			.map(runtime.recordingPreviewSnapshot)
 			.filter(Boolean)),
-		recordingInputs: Object.freeze({
-			devices: Object.freeze(state.recordingDevices),
-			routes: state.recordingRouting.routes,
-			offsets: state.recordingRouting.offsets,
-			health: Object.freeze({ ...state.recordingRouteHealth }),
-			sources: Object.freeze(state.recordingPoolSources),
-			retainInputs: state.preferences.recording.retainInputs,
-			hasOpenInputs: state.recordingPoolSources.length > 0,
-		}),
+		recordingInputs: createDocumentRecordingInputSnapshot(
+			state,
+			runtime.getSoundActivationSnapshot(),
+		),
 		audioDevices: runtime.getAudioDevicesSnapshot(),
 		processingEffect: state.audacityEffectProcessing,
 		exporting: Boolean(state.exportAbort),

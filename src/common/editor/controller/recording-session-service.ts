@@ -141,6 +141,7 @@ export interface RecordingSessionServiceRuntime {
 	readonly publishDocumentSnapshot?: () => void;
 	readonly publishTelemetrySnapshot?: () => void;
 	readonly syncRecordingPoolSnapshot?: () => void;
+	readonly resetSoundActivationSources?: () => boolean;
 	readonly handleError?: (error: unknown) => void;
 }
 
@@ -315,7 +316,10 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		const scope = createStartScope();
 		const operation = invokeAsPromise(() => runtime.beginRecording(options, scope));
 		const tracked = operation.finally(() => {
-			if (state.recordingStartPromise === tracked) state.recordingStartPromise = null;
+			if (state.recordingStartPromise === tracked) {
+				state.recordingStartPromise = null;
+				publishDocumentSnapshot();
+			}
 		});
 		state.recordingStartPromise = tracked;
 		return tracked;
@@ -335,6 +339,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		if (!state.recordingStarting && !state.recordingStartPromise) return false;
 		state.recordingStartGeneration += 1;
 		state.recordingStarting = false;
+		runtime.resetSoundActivationSources?.();
 		if (!state.recorder) releaseInputs();
 		return true;
 	}
@@ -419,6 +424,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 			releaseInputs({ force: state.recordingReleaseAfterStop });
 		}
 		state.recordingReleaseAfterStop = false;
+		runtime.resetSoundActivationSources?.();
 		runtime.syncRecordingPoolSnapshot?.();
 		runtime.publishTelemetrySnapshot?.();
 		runtime.updateTransportState?.(runtime.getTransportState?.() || 'stopped');
@@ -430,6 +436,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		const snapshot = finalizationSnapshot();
 		if (!snapshot) return;
 		state.recordingFinishing = true;
+		publishDocumentSnapshot();
 		try {
 			if (snapshot.entries) {
 				await runtime.performRoutedFinalization({ ...snapshot, entries: snapshot.entries });

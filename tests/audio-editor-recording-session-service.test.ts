@@ -293,7 +293,7 @@ test('recording finalization is joinable, selects the routed path, and resets st
 	await first;
 	assert.equal(cleanupCalls, 1);
 	assert.equal(releases, 1);
-	assert.equal(publishes, 1);
+	assert.equal(publishes, 2);
 	assert.equal(state.recorder, null);
 	assert.equal(state.recordingEntries, null);
 	assert.equal(state.recordingPreview, null);
@@ -389,6 +389,25 @@ test('new-track recording does not add an orphan track during a pending start', 
 
 	assert.equal(await service.startRecordingOnNewTrack(), null);
 	assert.equal(addTrackCalls, 0);
+});
+
+test('recording cancellation and terminal finalization reset sound activation ownership', async () => {
+	const state = createState({ recordingStarting: true });
+	let resets = 0;
+	const service = createRecordingSessionService({
+		state,
+		getProjectId: () => 'project-1',
+		beginRecording: async () => {},
+		performLegacyFinalization: async () => {},
+		performRoutedFinalization: async () => {},
+		resetSoundActivationSources: () => { resets += 1; return true; },
+	});
+
+	assert.equal(service.cancelRecordingStart(), true);
+	assert.equal(resets, 1);
+	state.recorder = createRecorder();
+	await service.finalizeRecording();
+	assert.equal(resets, 2);
 });
 
 function createRecorder({ stopError }: { stopError?: Error } = {}): RecordingControllerLike {

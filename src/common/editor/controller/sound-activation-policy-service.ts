@@ -113,6 +113,7 @@ export function createSoundActivationPolicyService(
 	const sessions = new Map<string, SourceSession>();
 	const publish = dependencies.publish ?? (() => {});
 	let preferenceUpdatePending = false;
+	let pendingPreferences: SoundActivationPreferences | null = null;
 
 	return Object.freeze({
 		getSettings,
@@ -197,16 +198,18 @@ export function createSoundActivationPolicyService(
 		});
 		if (preferencesEqual(current, next)) return false;
 		const patch = frozenPreferencePatch(next);
+		pendingPreferences = current;
 		preferenceUpdatePending = true;
 		try {
 			publish();
 			await dependencies.updatePreferences(patch);
-			if (!preferencesEqual(readPreferences(), next)) {
+			if (!preferencesEqual(readPublishedPreferences(), next)) {
 				throw new Error('The sound activation preference update did not commit atomically.');
 			}
 			return true;
 		} finally {
 			preferenceUpdatePending = false;
+			pendingPreferences = null;
 			publish();
 		}
 	}
@@ -226,6 +229,11 @@ export function createSoundActivationPolicyService(
 	}
 
 	function readPreferences(): SoundActivationPreferences {
+		if (pendingPreferences) return pendingPreferences;
+		return readPublishedPreferences();
+	}
+
+	function readPublishedPreferences(): SoundActivationPreferences {
 		return normalizeSoundActivationPreferences(dependencies.getPreferences());
 	}
 

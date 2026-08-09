@@ -151,6 +151,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				for (const remove of session.listeners) remove();
 				await Promise.resolve(session.controller?.dispose?.({ stopTracks: false })).catch(() => undefined);
 				for (const entry of session.entries) await entry.writer.abort().catch(() => undefined);
+				soundActivationSessions.get(session)?.cancel();
 				soundActivationSessions.delete(session);
 				for (let index = entries.length - 1; index >= 0; index -= 1) {
 					if (session.entries.includes(entries[index])) entries.splice(index, 1);
@@ -538,6 +539,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				await Promise.resolve(routedRecorder?.dispose()).catch(() => undefined);
 				for (const session of sourceSessions) {
 					await Promise.resolve(session.controller?.dispose?.({ stopTracks: false })).catch(() => undefined);
+					soundActivationSessions.get(session)?.cancel();
 				}
 				for (const entry of entries) await entry.writer.abort().catch(() => undefined);
 			}

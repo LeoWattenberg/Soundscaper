@@ -40,6 +40,7 @@ export interface EditorPreferencesServiceDependencies<Preferences extends Editor
 	readonly setReadOnly: (readOnly: boolean) => void;
 	readonly loadSetting: (key: string, fallback: unknown) => Promise<unknown>;
 	readonly persistSetting: (key: string, value: unknown) => Promise<unknown>;
+	readonly persistSettingRequired?: (key: string, value: unknown) => Promise<unknown>;
 	readonly publish: () => void;
 	readonly loadPreferences: (saved: unknown) => { readonly readOnly: boolean; readonly preferences: Preferences };
 	readonly createPreferences: (defaultWorkspace: string) => Preferences;
@@ -55,6 +56,9 @@ export interface EditorPreferencesServiceDependencies<Preferences extends Editor
 export function createEditorPreferencesService<Preferences extends EditorPreferencesShape>(
 	dependencies: EditorPreferencesServiceDependencies<Preferences>,
 ) {
+	let persistenceTail: Promise<void> = Promise.resolve();
+	let durablePreferences: Preferences | null = null;
+
 	return Object.freeze({
 		load,
 		update,
@@ -102,14 +106,53 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 
 	function persist(nextPreferences: Preferences): Promise<Preferences> {
 		if (dependencies.getReadOnly()) throw new Error(dependencies.newerSchemaMessage);
+		durablePreferences ??= dependencies.getPreferences();
 		dependencies.setPreferences(nextPreferences);
 		dependencies.publish();
-		return Promise.all([
-			dependencies.persistSetting(dependencies.preferenceSettingKey, nextPreferences),
-			...(dependencies.productId === 'soundscaper'
-				? [dependencies.persistSetting('audio-editor-preferences-v1', nextPreferences)]
-				: []),
-		]).then(() => nextPreferences);
+		const operation = persistenceTail.then(
+			persistPublishedPreferences,
+			persistPublishedPreferences,
+		);
+		persistenceTail = operation.then(
+			() => undefined,
+			() => undefined,
+		);
+		return operation;
+
+		async function persistPublishedPreferences(): Promise<Preferences> {
+			const write = dependencies.persistSettingRequired ?? dependencies.persistSetting;
+			let compatibilityPersisted = false;
+			try {
+				if (dependencies.productId === 'soundscaper') {
+					await write('audio-editor-preferences-v1', nextPreferences);
+					compatibilityPersisted = true;
+				}
+				await write(dependencies.preferenceSettingKey, nextPreferences);
+				durablePreferences = nextPreferences;
+				return nextPreferences;
+			} catch (error) {
+				const rollbackPreferences = durablePreferences ?? dependencies.getPreferences();
+				let rollbackError: unknown = null;
+				if (compatibilityPersisted) {
+					try {
+						await write('audio-editor-preferences-v1', rollbackPreferences);
+					} catch (caught) {
+						rollbackError = caught;
+					}
+				}
+				if (dependencies.getPreferences() === nextPreferences) {
+					dependencies.setPreferences(rollbackPreferences);
+					dependencies.publish();
+				}
+				if (rollbackError) {
+					throw new AggregateError(
+						[error, rollbackError],
+						'Preference persistence and compatibility rollback both failed.',
+					);
+				}
+				throw error;
+			}
+		}
 	}
 
 	function update(patch: unknown): Promise<Preferences> {

@@ -185,6 +185,7 @@ import { createNyquistGeneratedAudioService } from './controller/nyquist-generat
 import { createEditorExportService } from './controller/export-service.ts';
 import { normalizeEditorExportSettings } from './controller/export-settings.ts';
 import { createEditorPreferencesService } from './controller/preferences-service.ts';
+import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
 import { createProjectSaveService } from './controller/project-save-service.ts';
 import { createProjectMutationService } from './controller/project-mutation-service.ts';
 import { createProjectRetentionService } from './controller/project-retention-service.ts';
@@ -353,13 +354,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const productSettingKey = (name) => productId === 'soundscaper' ? name : `${productId}:${name}`;
 	const fileService = options.fileService || createAudioEditorFileService();
 	const store = options.store || createProjectStore({ memoryFallback: !fileService.isDesktop, linkedOriginalPort: fileService.linkedOriginalPort, linkedVideoOriginalPort: fileService.linkedVideoOriginalPort, desktopProjectBridge: fileService.isDesktop ? (fileService.bridge ?? {}) : null });
-	const sourceBuffers = createSourceBufferCache({
-		maxBytes: options.sourceBufferCacheMaxBytes,
-	});
-	const mixRenderMemoryLimitBytes = normalizeByteLimit(
-		options.mixRenderMemoryLimitBytes,
-		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
-	);
+	const sourceBuffers = createSourceBufferCache({ maxBytes: options.sourceBufferCacheMaxBytes });
+	const mixRenderMemoryLimitBytes = normalizeByteLimit(options.mixRenderMemoryLimitBytes, AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES);
 	const sourceChunkProviders = new SourceChunkProviderRegistry();
 	const sourcePeaks = new Map();
 	const clipWaveformPcmWindows = new Map();
@@ -429,6 +425,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		preferredInputDeviceId: RECORDING_DEFAULT_DEVICE_ID,
 	});
+	const soundActivationPolicyService = createControllerSoundActivationPolicy(state, updatePreferences, publishDocumentSnapshot);
 	const storageCapacityService = createControllerStorageCapacityService({
 		store, state,
 		isInactive: () => lifetime.inactive || state.disposed,
@@ -449,7 +446,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProjectTabs: () => sessionController.getSnapshot().tabs,
 		getCurrentTabMetadata: (projectId) => sessionTab(projectId)?.metadata || {},
 		recordingPreviewSnapshot,
-		getAudioDevicesSnapshot: audioDevicesSnapshot,
+		getAudioDevicesSnapshot: audioDevicesSnapshot, getSoundActivationSnapshot: soundActivationPolicyService.getSnapshot,
 		sampleEditingAvailable,
 		canUndo,
 		canRedo,
@@ -588,6 +585,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setReadOnly: (readOnly) => { state.preferencesReadOnly = readOnly; },
 		loadSetting: (key, fallback) => store.loadSetting(key, fallback),
 		persistSetting: (key, value) => persistSetting(key, value),
+		persistSettingRequired: (key, value) => persistSetting(key, value, { policy: 'required' }),
 		publish: publishDocumentSnapshot,
 		loadPreferences: loadAudioEditorPreferencesV1,
 		createPreferences: (activeId) => createAudioEditorPreferencesV1({ workspace: { activeId } }),
@@ -1472,7 +1470,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		editingBlocked, commit, handleError, publishDocumentSnapshot, setStatus,
 	});
 	const recordingCaptureRuntime = {
-		state,
+		state, soundActivation: soundActivationPolicyService,
 		engine,
 		capturePool: recordingCapturePool,
 		defaultDeviceId: RECORDING_DEFAULT_DEVICE_ID,
@@ -1613,7 +1611,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		persistLeadIn: (enabled) => persistSetting('recording-lead-in', enabled),
 		publishDocumentSnapshot,
 		publishTelemetrySnapshot,
-		syncRecordingPoolSnapshot,
+		syncRecordingPoolSnapshot, resetSoundActivationSources: soundActivationPolicyService.resetSources,
 		handleError,
 	});
 	const timedRecordingInputService = createTimedRecordingInputService({
@@ -1757,7 +1755,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-		timelineAnnotationService, trimClips, updatePreferences, updateRackEffect,
+		timelineAnnotationService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;

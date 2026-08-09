@@ -117,6 +117,144 @@ test('controller action facade enforces product capabilities at invocation', () 
 	assert.throws(() => addEffect(), /does not support audioEffects/u);
 });
 
+test('recording actions expose one capability-guarded sound activation preference group', async () => {
+	const calls: unknown[][] = [];
+	const base = createRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'soundActivationPolicyService') return {
+				setEnabled: async (...args: unknown[]) => { calls.push(['enabled', ...args]); return true; },
+				setThresholdDb: async (...args: unknown[]) => { calls.push(['threshold', ...args]); return true; },
+				setHysteresisDb: async (...args: unknown[]) => { calls.push(['hysteresis', ...args]); return true; },
+				setHoldMilliseconds: async (...args: unknown[]) => { calls.push(['hold', ...args]); return true; },
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const soundActivation = createGroupedEditorActions(runtime).recording.soundActivation;
+	if (typeof soundActivation !== 'object' || soundActivation === null) {
+		throw new TypeError('The sound activation action group is unavailable.');
+	}
+	for (const [name, value] of [
+		['setEnabled', true],
+		['setThresholdDb', -24],
+		['setHysteresisDb', 3],
+		['setHoldMilliseconds', 500],
+	] as const) {
+		const action: unknown = (soundActivation as Readonly<Record<string, unknown>>)[name];
+		if (typeof action !== 'function') throw new TypeError(`Missing sound activation action ${name}.`);
+		assert.equal(await action(value), true);
+	}
+	assert.deepEqual(calls, [
+		['enabled', true], ['threshold', -24], ['hysteresis', 3], ['hold', 500],
+	]);
+	assert.equal(Object.isFrozen(soundActivation), true);
+
+	const blocked = createGroupedEditorActions(new Proxy(runtime, {
+		get(target, name, receiver) {
+			if (name === 'capabilities') return { audioRecording: false };
+			return Reflect.get(target, name, receiver);
+		},
+	})).recording.soundActivation;
+	if (typeof blocked !== 'object' || blocked === null) {
+		throw new TypeError('The blocked sound activation action group is unavailable.');
+	}
+	const setEnabled: unknown = (blocked as Readonly<Record<string, unknown>>).setEnabled;
+	if (typeof setEnabled !== 'function') throw new TypeError('The blocked sound activation action is unavailable.');
+	assert.throws(() => setEnabled(true), /does not support audioRecording/u);
+});
+
+test('general preference actions cannot bypass sound activation ownership', () => {
+	let updates = 0;
+	let reverts = 0;
+	const current = {
+		enabled: true,
+		thresholdDb: -24,
+		hysteresisDb: 3,
+		holdMilliseconds: 500,
+	};
+	const base = createRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'updatePreferences') return () => { updates += 1; };
+			if (name === 'revertFactorySettings') return () => { reverts += 1; return 'reverted'; };
+			if (name === 'soundActivationPolicyService') return {
+				getSnapshot: () => ({
+					preferences: current,
+					preferenceMutationBlocked: true,
+				}),
+				setEnabled: async () => true,
+				setThresholdDb: async () => true,
+				setHysteresisDb: async () => true,
+				setHoldMilliseconds: async () => true,
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const preferences = createGroupedEditorActions(runtime).preferences;
+	const update: unknown = preferences.update;
+	const revert: unknown = preferences.revertFactorySettings;
+	if (typeof update !== 'function' || typeof revert !== 'function') {
+		throw new TypeError('The general preference actions are unavailable.');
+	}
+
+	assert.throws(() => update({
+		recording: { soundActivation: current },
+	}), /dedicated recording sound activation actions/u);
+	assert.equal(updates, 0);
+	assert.equal(revert(), false);
+	assert.equal(reverts, 0);
+
+	const pendingDefault = createGroupedEditorActions(new Proxy(runtime, {
+		get(target, name, receiver) {
+			if (name === 'soundActivationPolicyService') return {
+				...Reflect.get(target, name, receiver),
+				getSnapshot: () => ({
+					preferences: {
+						enabled: false,
+						thresholdDb: -40,
+						hysteresisDb: 6,
+						holdMilliseconds: 250,
+					},
+					preferenceMutationBlocked: true,
+					preferenceMutationBlockReason: 'preference-update',
+				}),
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	})).preferences.revertFactorySettings;
+	if (typeof pendingDefault !== 'function') {
+		throw new TypeError('The pending factory reset action is unavailable.');
+	}
+	assert.equal(pendingDefault(), false);
+	assert.equal(reverts, 0);
+
+	const framescaper = createGroupedEditorActions(new Proxy(runtime, {
+		get(target, name, receiver) {
+			if (name === 'capabilities') return { audioRecording: false };
+			if (name === 'soundActivationPolicyService') return {
+				...Reflect.get(target, name, receiver),
+				getSnapshot: () => ({
+					preferences: {
+						enabled: false,
+						thresholdDb: -40,
+						hysteresisDb: 6,
+						holdMilliseconds: 250,
+					},
+					preferenceMutationBlocked: false,
+				}),
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	})).preferences;
+	const framescaperRevert: unknown = framescaper.revertFactorySettings;
+	if (typeof framescaperRevert !== 'function') {
+		throw new TypeError('The Framescaper factory reset action is unavailable.');
+	}
+	assert.equal(framescaperRevert(), 'reverted');
+	assert.equal(reverts, 1);
+});
+
 test('controller action facade exposes the complete native timeline annotation workflow', () => {
 	const calls: Array<readonly [string, ...unknown[]]> = [];
 	const service = new Proxy<Record<string, (...args: unknown[]) => unknown>>({}, {

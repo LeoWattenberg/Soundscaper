@@ -175,7 +175,11 @@ export function createTimedRecordingService<TimerHandle>(
 		const recorder = state.recorder;
 		try {
 			if (recorder && state.recorder === recorder) {
-				await recorder.stop?.();
+				try {
+					await recorder.stop?.();
+				} catch (error) {
+					handleError(error);
+				}
 				await runtime.finalizeRecording();
 			}
 		} catch (error) {

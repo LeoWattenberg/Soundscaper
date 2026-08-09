@@ -256,6 +256,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				state.recordingCleanup = null;
 			}
 			if (!handedOff) {
+				soundActivation?.cancel();
 				await Promise.resolve(recorder?.dispose?.({ stopTracks: false })).catch(() => undefined);
 				await writer?.abort().catch(() => undefined);
 			}
