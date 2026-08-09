@@ -107,22 +107,28 @@ test.describe('audio editor video composition workflow', () => {
 		await expect(firstVideo.locator('[data-clip-kind="video"]')).toHaveCount(2);
 		await expect(secondVideo.locator('[data-clip-kind="video"]')).toHaveCount(0);
 
+		const timelineRuler = editor.locator('[data-ruler]');
+		await timelineRuler.click({ button: 'right', position: { x: 80, y: 20 } });
+		const timelineMenu = page.locator('.timeline-ruler-context-menu');
+		const rulerPlayback = timelineMenu.getByRole('menuitem', { name: 'Click ruler to start playback', exact: true });
+		await expect(rulerPlayback.locator('svg')).toHaveCount(1);
+		await rulerPlayback.click();
+		await expect(timelineMenu).toBeHidden();
+		await timelineRuler.click({ button: 'right', position: { x: 80, y: 20 } });
+		await expect(rulerPlayback.locator('svg')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await expect(timelineMenu).toBeHidden();
+
 		const fade = firstVideo.locator('[data-automatic-crossfade="true"]');
-		const [fadeBox, rulerBox, playPauseBox] = await Promise.all([
+		const [fadeBox, rulerBox] = await Promise.all([
 			fade.boundingBox(),
 			editor.locator('[data-ruler-interaction]').boundingBox(),
-			editor.getByRole('button', { name: 'Play', exact: true }).boundingBox(),
 		]);
 		expect(fadeBox).not.toBeNull();
 		expect(rulerBox).not.toBeNull();
-		expect(playPauseBox).not.toBeNull();
 		await page.mouse.click(
 			fadeBox.x + fadeBox.width / 2,
 			rulerBox.y + rulerBox.height * 0.75,
-		);
-		await page.mouse.click(
-			playPauseBox.x + playPauseBox.width / 2,
-			playPauseBox.y + playPauseBox.height / 2,
 		);
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(preview).toHaveAttribute('data-active-track-count', '2');
@@ -143,8 +149,7 @@ test.describe('audio editor video composition workflow', () => {
 		expect(outgoingOpacity + incomingOpacity).toBeCloseTo(1, 6);
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
-		// Chunk-backed companion audio can take longer to prime against a headless mock output device.
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible({ timeout: 20_000 });
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect.poll(() => preview.locator('[data-video-preview-clip]').evaluateAll(
 			(videos) => videos.some((video) => !video.paused),
 		)).toBe(true);
