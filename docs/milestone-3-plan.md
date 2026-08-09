@@ -603,6 +603,9 @@ WP-0.4 is small and atomic.
 
 ### 3A packets (Soundscaper track, parallel after 3.0)
 
+The pickup decomposition and execution contract is maintained in
+[`docs/milestone-3a-work-packets.md`](milestone-3a-work-packets.md).
+
 Tempo map editing and transport/metronome integration; markers and named
 regions with batch identity and ripple; nested track folders; take lanes,
 cycle recording, comping, and interrupted-take recovery; transient
