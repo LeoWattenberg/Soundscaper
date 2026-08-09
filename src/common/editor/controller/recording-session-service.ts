@@ -168,31 +168,16 @@ export function createRoutedRecordingController(
 		},
 		pause() {
 			if (controllerState !== 'recording') return false;
-			controllerState = 'paused';
-			for (const session of sourceSessions) {
-				if (!session.stopped) session.controller.pause();
-			}
-			return true;
+			return transitionSources('pause');
 		},
 		resume() {
 			if (controllerState !== 'paused') return false;
-			controllerState = 'recording';
-			for (const session of sourceSessions) {
-				if (!session.stopped) session.controller.resume();
-			}
-			return true;
+			return transitionSources('resume');
 		},
 		stop() {
 			if (stopPromise) return stopPromise;
 			if (controllerState === 'stopped' || controllerState === 'disposed') return Promise.resolve();
-			controllerState = 'stopping';
-			stopPromise = Promise.allSettled(sourceSessions.map((session) => (
-				session.stopped ? Promise.resolve() : invokeAsPromise(() => session.controller.stop())
-			))).then(() => {
-				for (const session of sourceSessions) session.stopped = true;
-				if (controllerState !== 'disposed') controllerState = 'stopped';
-			});
-			return stopPromise;
+			return beginStop();
 		},
 		setMonitoring(enabled) {
 			for (const session of sourceSessions) {
@@ -212,6 +197,77 @@ export function createRoutedRecordingController(
 			return disposePromise;
 		},
 	};
+
+	function transitionSources(direction: 'pause' | 'resume'): boolean {
+		const previousControllerState = direction === 'pause' ? 'recording' : 'paused';
+		const nextControllerState = direction === 'pause' ? 'paused' : 'recording';
+		const rollbackDirection = direction === 'pause' ? 'resume' : 'pause';
+		const transitioned: RoutedRecordingSourceSession[] = [];
+		let transitionFailure: unknown = null;
+		let rejected = false;
+		let uncertainFailure = false;
+		for (const session of sourceSessions) {
+			if (session.stopped || session.disconnected) continue;
+			try {
+				const result = session.controller[direction]();
+				if (result === false) {
+					rejected = true;
+					transitionFailure = new Error(`A routed recording source rejected ${direction}.`);
+					if (session.controller.state === nextControllerState) transitioned.push(session);
+					else if (session.controller.state !== undefined
+						&& session.controller.state !== previousControllerState) uncertainFailure = true;
+					break;
+				}
+				transitioned.push(session);
+			} catch (error) {
+				transitionFailure = error;
+				if (session.controller.state === nextControllerState) transitioned.push(session);
+				else if (session.controller.state === undefined
+					|| session.controller.state !== previousControllerState) uncertainFailure = true;
+				break;
+			}
+		}
+		if (transitionFailure === null) {
+			controllerState = nextControllerState;
+			return true;
+		}
+
+		const rollbackFailures: unknown[] = [];
+		for (const session of transitioned.reverse()) {
+			try {
+				const result = session.controller[rollbackDirection]();
+				if (result === false || (session.controller.state !== undefined
+					&& session.controller.state !== previousControllerState)) {
+					rollbackFailures.push(new Error(
+						`A routed recording source rejected the ${direction} rollback.`,
+					));
+				}
+			} catch (error) {
+				rollbackFailures.push(error);
+			}
+		}
+		if (uncertainFailure || rollbackFailures.length) {
+			void beginStop();
+			throw new AggregateError(
+				[transitionFailure, ...rollbackFailures],
+				`Routed recording ${direction} rollback failed; capture is stopping.`,
+			);
+		}
+		if (rejected) return false;
+		throw transitionFailure;
+	}
+
+	function beginStop(): Promise<void> {
+		if (stopPromise) return stopPromise;
+		controllerState = 'stopping';
+		stopPromise = Promise.allSettled(sourceSessions.map((session) => (
+			session.stopped ? Promise.resolve() : invokeAsPromise(() => session.controller.stop())
+		))).then(() => {
+			for (const session of sourceSessions) session.stopped = true;
+			if (controllerState !== 'disposed') controllerState = 'stopped';
+		});
+		return stopPromise;
+	}
 }
 
 /**

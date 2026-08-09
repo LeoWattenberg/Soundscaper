@@ -9,6 +9,7 @@ import type {
 import {
 	filterSoundActivatedRecordingChunk,
 	type SoundActivationAudioSegment,
+	validateSoundActivationRecorderChunk,
 } from './sound-activated-recording-chunk.ts';
 import {
 	createSoundActivatedRecordingGate,
@@ -23,6 +24,11 @@ export interface SoundActivatedRecordingCaptureSession {
 	cancel(): boolean;
 }
 
+export interface SoundActivatedRecordingCaptureOptions {
+	/** Raw capture frames which precede project frame zero after latency compensation. */
+	readonly sourceOffsetFrames?: number;
+}
+
 /**
  * Own one sound-activation gate for one physical or display input. Routed
  * destinations deliberately consume the resulting segments after this layer.
@@ -32,10 +38,14 @@ export function createSoundActivatedRecordingCaptureSession(
 	sourceValue: RecordingSoundActivationSource,
 	isCurrent: () => boolean,
 	reportError: (error: unknown) => void = () => {},
+	options: SoundActivatedRecordingCaptureOptions = {},
 ): SoundActivatedRecordingCaptureSession {
 	const source = freezeSource(sourceValue);
+	const sourceOffsetFrames = normalizeSourceOffsetFrames(options.sourceOffsetFrames);
 	const settings = port ? port.getSettings(source) : null;
 	const gate = settings === null ? null : createSoundActivatedRecordingGate(settings);
+	let scheduledStartFrame: number | null = null;
+	let expectedNextFrame: number | null = null;
 
 	const session: SoundActivatedRecordingCaptureSession = {
 		get enabled() { return gate !== null; },
@@ -70,13 +80,35 @@ export function createSoundActivatedRecordingCaptureSession(
 				channels: chunk.channels,
 			})]);
 		}
+		const admitted = validateSoundActivationRecorderChunk(chunk);
+		if (admitted.channels.length !== source.channelCount) {
+			throw new RangeError('The sound activation chunk channel count changed during capture.');
+		}
+		if (expectedNextFrame !== null && admitted.frameStart !== expectedNextFrame) {
+			throw new RangeError(
+				`Sound activation chunks must be contiguous; expected frame ${expectedNextFrame}.`,
+			);
+		}
+		const chunkEndFrame = admitted.frameStart + admitted.frames;
+		const cutoffFrame = scheduledStartFrame === null
+			? null
+			: scheduledStartFrame + sourceOffsetFrames;
+		const eligibleOffset = cutoffFrame === null
+			? 0
+			: Math.min(admitted.frames, Math.max(0, cutoffFrame - admitted.frameStart));
+		if (eligibleOffset === admitted.frames) {
+			expectedNextFrame = chunkEndFrame;
+			return Object.freeze([]);
+		}
+		const eligibleChunk = eligibleOffset === 0 ? admitted : Object.freeze({
+			frameStart: admitted.frameStart + eligibleOffset,
+			frames: admitted.frames - eligibleOffset,
+			channels: Object.freeze(admitted.channels.map((channel) => channel.slice(eligibleOffset))),
+		});
 		const previous = gate.state;
-		const filtered = filterSoundActivatedRecordingChunk(gate, chunk);
-		if (filtered.transitions.length) {
-			for (const transition of filtered.transitions) {
-				publishDecisionState(transition.type === 'activated' ? 'capturing' : 'armed');
-			}
-		} else publishState(previous);
+		const filtered = filterSoundActivatedRecordingChunk(gate, eligibleChunk);
+		expectedNextFrame = chunkEndFrame;
+		publishState(previous);
 		return filtered.segments;
 	}
 
@@ -95,12 +127,20 @@ export function createSoundActivatedRecordingCaptureSession(
 		return Object.freeze({
 			get state() { return controller.state; },
 			start(options?: Readonly<{ startFrame?: number; stopFrame?: number }>) {
+				const startFrame = normalizeScheduledStartFrame(options?.startFrame, sourceOffsetFrames);
+				if (startFrame !== null && startFrame > Number.MAX_SAFE_INTEGER - sourceOffsetFrames) {
+					throw new RangeError('The sound activation latency cutoff exceeds the safe frame domain.');
+				}
 				const previous = gate.state;
 				if (!gate.arm()) throw new Error('The sound activation gate could not be armed.');
+				scheduledStartFrame = startFrame;
+				expectedNextFrame = startFrame;
 				publishState(previous);
 				try {
 					controller.start(options);
 				} catch (error) {
+					scheduledStartFrame = null;
+					expectedNextFrame = null;
 					cancel();
 					throw error;
 				}
@@ -120,6 +160,9 @@ export function createSoundActivatedRecordingCaptureSession(
 				if (result === false) return false;
 				const previous = gate.state;
 				if (!gate.resume()) return false;
+				// A worklet pause intentionally advances AudioContext time without
+				// producing PCM. The first resumed chunk begins a new contiguous epoch.
+				expectedNextFrame = null;
 				publishState(previous);
 				return result;
 			},
@@ -135,6 +178,22 @@ export function createSoundActivatedRecordingCaptureSession(
 			setInputGain(value: number) { controller.setInputGain(value); },
 		});
 	}
+}
+
+function normalizeSourceOffsetFrames(value: unknown): number {
+	if (value === undefined) return 0;
+	if (!Number.isSafeInteger(value) || Number(value) < 0 || Object.is(value, -0)) {
+		throw new RangeError('The sound activation source offset is invalid.');
+	}
+	return Number(value);
+}
+
+function normalizeScheduledStartFrame(value: unknown, sourceOffsetFrames: number): number | null {
+	if (value === undefined && sourceOffsetFrames === 0) return null;
+	if (!Number.isSafeInteger(value) || Number(value) < 0 || Object.is(value, -0)) {
+		throw new RangeError('The sound activation scheduled start frame is invalid.');
+	}
+	return Number(value);
 }
 
 function freezeSource(value: RecordingSoundActivationSource): RecordingSoundActivationSource {

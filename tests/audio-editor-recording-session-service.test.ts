@@ -105,6 +105,94 @@ test('routed recording controller coordinates live sources and isolates device c
 	assert.deepEqual(disconnected.disposeOptions, [{ stopTracks: false }]);
 });
 
+test('routed pause is atomic for false and thrown failures at every source index', () => {
+	for (const failureKind of ['false', 'throw'] as const) {
+		for (let failureIndex = 0; failureIndex < 3; failureIndex += 1) {
+			const sources = Array.from({ length: 3 }, (_, index) => (
+				createTransactionalCaptureController({
+					pauseFailure: index === failureIndex ? failureKind : null,
+				})
+			));
+			const controller = createRoutedRecordingController(sources.map(({ controller: source }) => ({
+				kind: 'device' as const,
+				controller: source,
+				disconnected: false,
+				stopped: false,
+			})));
+			controller.start();
+
+			if (failureKind === 'throw') {
+				assert.throws(() => controller.pause(), /pause failure/);
+			} else assert.equal(controller.pause(), false);
+
+			assert.equal(controller.state, 'recording');
+			assert.deepEqual(sources.map(({ state }) => state()), [
+				'recording',
+				'recording',
+				'recording',
+			]);
+			for (let index = 0; index < sources.length; index += 1) {
+				assert.deepEqual(sources[index]?.transitions, index < failureIndex
+					? ['pause', 'resume']
+					: index === failureIndex ? ['pause'] : []);
+			}
+		}
+	}
+});
+
+test('routed resume is atomic for false and thrown failures at every source index', () => {
+	for (const failureKind of ['false', 'throw'] as const) {
+		for (let failureIndex = 0; failureIndex < 3; failureIndex += 1) {
+			const sources = Array.from({ length: 3 }, () => createTransactionalCaptureController());
+			const sessions = sources.map(({ controller: source }) => ({
+				kind: 'device' as const,
+				controller: source,
+				disconnected: false,
+				stopped: false,
+			}));
+			const controller = createRoutedRecordingController(sessions);
+			controller.start();
+			assert.equal(controller.pause(), true);
+			for (let index = 0; index < sources.length; index += 1) {
+				sources[index]?.setResumeFailure(index === failureIndex ? failureKind : null);
+				sources[index]?.transitions.splice(0);
+			}
+
+			if (failureKind === 'throw') {
+				assert.throws(() => controller.resume(), /resume failure/);
+			} else assert.equal(controller.resume(), false);
+
+			assert.equal(controller.state, 'paused');
+			assert.deepEqual(sources.map(({ state }) => state()), ['paused', 'paused', 'paused']);
+			for (let index = 0; index < sources.length; index += 1) {
+				assert.deepEqual(sources[index]?.transitions, index < failureIndex
+					? ['resume', 'pause']
+					: index === failureIndex ? ['resume'] : []);
+			}
+		}
+	}
+});
+
+test('a failed routed transition rollback enters a terminal stop', async () => {
+	const first = createTransactionalCaptureController({ resumeFailure: 'false' });
+	const second = createTransactionalCaptureController({ pauseFailure: 'false' });
+	const sessions = [first, second].map(({ controller: source }) => ({
+		kind: 'device' as const,
+		controller: source,
+		disconnected: false,
+		stopped: false,
+	}));
+	const controller = createRoutedRecordingController(sessions);
+	controller.start();
+
+	assert.throws(() => controller.pause(), /rollback/iu);
+	assert.equal(controller.state, 'stopping');
+	await controller.stop();
+	assert.equal(controller.state, 'stopped');
+	assert.deepEqual([first.stopCalls(), second.stopCalls()], [1, 1]);
+	assert.ok(sessions.every(({ stopped }) => stopped));
+});
+
 test('recording starts are single-flight and cancellation invalidates the captured scope', async () => {
 	const state = createState();
 	const gate = deferred<void>();
@@ -343,6 +431,54 @@ function createCaptureController({ stopError }: { stopError?: Error } = {}) {
 		inputGains,
 		disposeOptions,
 		get stopCalls() { return stopCalls; },
+	};
+}
+
+function createTransactionalCaptureController({
+	pauseFailure = null,
+	resumeFailure = null,
+}: {
+	readonly pauseFailure?: 'false' | 'throw' | null;
+	readonly resumeFailure?: 'false' | 'throw' | null;
+} = {}) {
+	let controllerState = 'ready';
+	let currentPauseFailure = pauseFailure;
+	let currentResumeFailure = resumeFailure;
+	let stopCalls = 0;
+	const transitions: string[] = [];
+	const controller: RecordingCaptureControllerLike = {
+		get state() { return controllerState; },
+		start() { controllerState = 'recording'; },
+		pause() {
+			transitions.push('pause');
+			if (currentPauseFailure === 'throw') throw new Error('pause failure');
+			if (currentPauseFailure === 'false') return false;
+			if (controllerState !== 'recording') return false;
+			controllerState = 'paused';
+			return true;
+		},
+		resume() {
+			transitions.push('resume');
+			if (currentResumeFailure === 'throw') throw new Error('resume failure');
+			if (currentResumeFailure === 'false') return false;
+			if (controllerState !== 'paused') return false;
+			controllerState = 'recording';
+			return true;
+		},
+		async stop() {
+			stopCalls += 1;
+			controllerState = 'stopped';
+		},
+		setMonitoring() {},
+		setInputGain() {},
+	};
+	return {
+		controller,
+		transitions,
+		state: () => controllerState,
+		stopCalls: () => stopCalls,
+		setPauseFailure(value: 'false' | 'throw' | null) { currentPauseFailure = value; },
+		setResumeFailure(value: 'false' | 'throw' | null) { currentResumeFailure = value; },
 	};
 }
 

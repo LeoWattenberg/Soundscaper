@@ -42,7 +42,7 @@ export function filterSoundActivatedRecordingChunk(
 	if (!gate || typeof gate !== 'object' || typeof gate.process !== 'function') {
 		throw new TypeError('A sound activation gate is required.');
 	}
-	const chunk = validateChunk(value);
+	const chunk = validateSoundActivationRecorderChunk(value);
 	const decision = gate.process(chunk.channels);
 	const segments = decision.ranges.map(({ startFrame, endFrame }) => Object.freeze({
 		frameStart: chunk.frameStart + startFrame,
@@ -60,7 +60,10 @@ export function filterSoundActivatedRecordingChunk(
 	});
 }
 
-function validateChunk(value: SoundActivationRecorderChunk): SoundActivationRecorderChunk {
+/** Validate a recorder chunk without changing gate or sequence state. */
+export function validateSoundActivationRecorderChunk(
+	value: SoundActivationRecorderChunk,
+): SoundActivationRecorderChunk {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('The sound activation recorder chunk is invalid.');
 	}
@@ -96,5 +99,50 @@ function validateChunk(value: SoundActivationRecorderChunk): SoundActivationReco
 		))) {
 		throw new RangeError('The sound activation chunk frame count must match every channel.');
 	}
+	for (const channel of value.channels) {
+		for (const sample of channel) {
+			if (!Number.isFinite(sample)) {
+				throw new RangeError('Sound activation PCM samples must be finite.');
+			}
+		}
+	}
 	return value;
+}
+
+/**
+ * Compact discontiguous admitted ranges into one persistence batch. Absolute
+ * source geometry remains on the input segments; returned PCM preserves their
+ * exact channel and sample order.
+ */
+export function compactSoundActivationSegments(
+	segments: readonly SoundActivationAudioSegment[],
+): readonly Float32Array[] {
+	const first = segments[0];
+	if (!first) return Object.freeze([]);
+	if (segments.length === 1) return first.channels;
+	const channelCount = first.channels.length;
+	let frameCount = 0;
+	for (const segment of segments) {
+		if (segment.channels.length !== channelCount || segment.frames < 1) {
+			throw new RangeError('Sound activation segments have inconsistent channel geometry.');
+		}
+		if (frameCount > Number.MAX_SAFE_INTEGER - segment.frames) {
+			throw new RangeError('Sound activation compacted PCM exceeds the safe frame domain.');
+		}
+		frameCount += segment.frames;
+		for (const channel of segment.channels) {
+			if (!(channel instanceof Float32Array) || channel.length !== segment.frames) {
+				throw new RangeError('Sound activation segments have inconsistent frame geometry.');
+			}
+		}
+	}
+	const channels = Array.from({ length: channelCount }, () => new Float32Array(frameCount));
+	let offset = 0;
+	for (const segment of segments) {
+		for (let channel = 0; channel < channelCount; channel += 1) {
+			channels[channel]?.set(segment.channels[channel]!, offset);
+		}
+		offset += segment.frames;
+	}
+	return Object.freeze(channels);
 }

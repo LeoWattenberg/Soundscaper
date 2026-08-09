@@ -11,6 +11,7 @@ import {
 	createSoundActivatedRecordingCaptureSession,
 	type SoundActivatedRecordingCaptureSession,
 } from './sound-activated-recording-capture-session.ts';
+import { compactSoundActivationSegments } from './sound-activated-recording-chunk.ts';
 import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { calculateAudioEditorCountInFrames } from './transport-model.ts';
 import { countInSampleFrames } from '../timeline-time.ts';
@@ -85,20 +86,6 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			const channelCount = Math.min(2, Number(trackSettings.channelCount) || 1);
 			const captureSampleRate = context.sampleRate || sampleRate;
 			const selection = runtime.activeSelection(project);
-			// A gated selection would compact PCM and make punch/replace stretch it
-			// over the exact deletion range. Keep the exact punch path ungated until
-			// capture storage can represent discontinuous absolute source offsets.
-			soundActivation = createSoundActivatedRecordingCaptureSession(
-				selection ? undefined : runtime.soundActivation,
-				{
-					sourceKey: `device:${runtime.defaultDeviceId}`,
-					kind: 'device',
-					sampleRate: captureSampleRate,
-					channelCount,
-				},
-				ownsStart,
-				runtime.handleError,
-			);
 			await runtime.preflightStorage(
 				captureSampleRate * channelCount * Float32Array.BYTES_PER_ELEMENT * 60,
 				'recording',
@@ -125,11 +112,30 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			const recordingStartFrame = selection ? requestedStartFrame : Math.max(0, requestedStartFrame - latencyFrames);
 			const sourceOffsetProjectFrames = selection ? latencyFrames : Math.max(0, latencyFrames - requestedStartFrame);
 			const sourceOffsetFrames = runtime.scaleFrames(sourceOffsetProjectFrames, sampleRate, captureSampleRate);
+			// A gated selection would compact PCM and make punch/replace stretch it
+			// over the exact deletion range. Keep the exact punch path ungated until
+			// capture storage can represent discontinuous absolute source offsets.
+			soundActivation = createSoundActivatedRecordingCaptureSession(
+				selection ? undefined : runtime.soundActivation,
+				{
+					sourceKey: `device:${runtime.defaultDeviceId}`,
+					kind: 'device',
+					sampleRate: captureSampleRate,
+					channelCount,
+				},
+				ownsStart,
+				runtime.handleError,
+				{ sourceOffsetFrames },
+			);
+			const persistedSourceOffsetProjectFrames = soundActivation.enabled
+				? 0
+				: sourceOffsetProjectFrames;
+			const persistedSourceOffsetFrames = soundActivation.enabled ? 0 : sourceOffsetFrames;
 			const preview = runtime.createPreview({
 				trackId: track.id,
 				startFrame: recordingStartFrame,
 				channelCount,
-				framesToSkip: sourceOffsetProjectFrames,
+				framesToSkip: persistedSourceOffsetProjectFrames,
 			});
 			const createdRecorder = await runtime.createRecorder({
 				context,
@@ -141,13 +147,14 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				onChunk: async (chunk) => {
 					if (!ownsStart() || state.recorder !== recorder || state.recordingFinishing) return;
 					const { channels } = chunk;
-					state.inputMeterDb = recordingCapturePeakDb(channels);
 					const segments = soundActivation?.process(chunk) || [];
-					for (const segment of segments) {
-						if (segment.channels[0]?.length) await openedWriter.write(segment.channels);
+					const admittedChannels = compactSoundActivationSegments(segments);
+					state.inputMeterDb = recordingCapturePeakDb(channels);
+					if (admittedChannels[0]?.length) {
+						await openedWriter.write(admittedChannels);
 						scope.assertCurrent();
 						if (state.recorder !== recorder || state.recordingFinishing) return;
-						runtime.appendPreview(preview, previewResampler.push(segment.channels));
+						runtime.appendPreview(preview, previewResampler.push(admittedChannels));
 					}
 					runtime.updatePlayhead();
 					runtime.publishRecordingPreview();
@@ -171,7 +178,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			recorder = soundActivation.wrapController(createdRecorder);
 			scope.assertCurrent();
 			state.recordingStartFrame = recordingStartFrame;
-			state.recordingSourceOffsetFrames = sourceOffsetFrames;
+			state.recordingSourceOffsetFrames = persistedSourceOffsetFrames;
 			state.recordingPreview = preview;
 			state.recordingPreviews = [preview];
 			state.recordingWriter = openedWriter;

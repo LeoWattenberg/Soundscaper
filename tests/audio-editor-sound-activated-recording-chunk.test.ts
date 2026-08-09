@@ -57,3 +57,16 @@ test('returns no PCM while armed below threshold and preserves gate state on mal
 	}), /start frame/iu);
 	assert.equal(gate.state, 'armed');
 });
+
+test('rejects non-finite PCM before the gate can transition', () => {
+	for (const sample of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+		const gate = createSoundActivatedRecordingGate({ thresholdDb: -20, hysteresisDb: 6, holdFrames: 0 });
+		gate.arm();
+		assert.throws(() => filterSoundActivatedRecordingChunk(gate, {
+			frameStart: 0,
+			frames: 2,
+			channels: [Float32Array.from([sample, 1])],
+		}), /finite/iu);
+		assert.equal(gate.state, 'armed');
+	}
+});

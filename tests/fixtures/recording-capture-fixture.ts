@@ -31,11 +31,11 @@ export function deferred<T>() {
 	return { promise, resolve, reject };
 }
 
-function createPreview(trackId: string, startFrame: number): RecordingPreview {
+function createPreview(trackId: string, startFrame: number, framesToSkip = 0): RecordingPreview {
 	return {
 		trackId,
 		startFrame,
-		framesToSkip: 0,
+		framesToSkip,
 		frames: 0,
 		framesPerBucket: 64,
 		bucketFrames: 0,
@@ -116,6 +116,7 @@ interface RuntimeOptions {
 	readonly playAt?: (scheduledTime: number, startFrame: number) => Promise<unknown>;
 	readonly streamIsLive?: () => boolean;
 	readonly soundActivationSettings?: SoundActivationSettings | null;
+	readonly streamChannelCount?: number;
 }
 
 export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
@@ -135,7 +136,7 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 			events: [{ id: 'signature-1', bar: 0, numerator: 4, denominator: 4 }],
 		},
 	};
-	const stream = createStream();
+	const stream = createStream(options.streamChannelCount);
 	let recorderOptions: RecordingControllerFactoryOptions | null = null;
 	const recorderOptionsList: RecordingControllerFactoryOptions[] = [];
 	const recorderStartOptions: Array<Readonly<{ startFrame?: number; stopFrame?: number }> | undefined> = [];
@@ -236,7 +237,11 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 			writerRecords.push(Object.freeze({ sourceId, writes, writer }));
 			return writer;
 		},
-		createPreview: ({ trackId, startFrame }) => createPreview(trackId, startFrame),
+		createPreview: ({ trackId, startFrame, framesToSkip }) => createPreview(
+			trackId,
+			startFrame,
+			framesToSkip,
+		),
 		createPreviewResampler: () => ({ push: (channels) => channels, finish: () => [] }),
 		appendPreview: (preview, channels) => {
 			previewSegments.push(Object.freeze({
