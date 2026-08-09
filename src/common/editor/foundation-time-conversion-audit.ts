@@ -141,6 +141,18 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'countInSampleFrames', policies: ['point'] }],
 	},
 	{
+		id: 'timeline-annotation-controller-conversion',
+		file: 'src/common/editor/controller/timeline-annotation-conversion.ts',
+		behavior: 'Annotation kind and anchor conversion preserves musical authority when present and otherwise exactly inverts its resolved sample endpoints.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
+		id: 'timeline-annotation-controller-editing',
+		file: 'src/common/editor/controller/timeline-annotation-service.ts',
+		behavior: 'Annotation creation, movement, and resizing exactly invert user-selected sample positions into the matching musical-authority coordinates.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
 		id: 'video-source-import-placement',
 		file: 'src/common/editor/controller/source-import.ts',
 		behavior: 'Imported video duration encloses the probed source while timeline placement resolves absolute endpoints as point coordinates.',
