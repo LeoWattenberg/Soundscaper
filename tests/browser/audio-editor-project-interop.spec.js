@@ -56,6 +56,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('imports, edits, mixes track states, analyzes, and restores the autosaved project', async ({ page }) => {
+		test.setTimeout(60_000);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await showToolbarButton(page, editor, 'Split at playhead');

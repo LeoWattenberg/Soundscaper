@@ -504,6 +504,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const panelsMenu = page.getByRole('menu', { name: 'Panels', exact: true });
 		await expect(panelsMenu.getByRole('menuitem', { name: 'Spectrogram', exact: true })).toHaveCount(0);
 		await page.keyboard.press('Escape');
+		await expect(panelsMenu).toBeHidden();
+		await page.keyboard.press('Escape');
 		await expect(page.getByRole('menu', { name: 'View', exact: true })).toBeHidden();
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');

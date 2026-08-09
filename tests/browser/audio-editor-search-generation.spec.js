@@ -315,9 +315,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
 		await expect(metadataPanel).toBeVisible();
-		await commitInput(metadataPanel.locator('input[name="title"]'), 'Browser parity project');
-		await commitInput(metadataPanel.locator('input[name="artist"]'), 'Audacity tester');
 		const saveState = editor.locator('[data-save-state]');
+		const titleInput = metadataPanel.locator('input[name="title"]');
+		await commitInput(titleInput, 'Browser parity project');
+		await expect(titleInput).toHaveValue('Browser parity project');
+		await expect(saveState).toHaveAttribute('data-state', 'saving');
+		await expect(saveState).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		const artistInput = metadataPanel.locator('input[name="artist"]');
+		await commitInput(artistInput, 'Audacity tester');
+		await expect(artistInput).toHaveValue('Audacity tester');
 		await expect(saveState).toHaveAttribute('data-state', 'saving');
 		await expect(saveState).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await metadataPanel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
@@ -393,6 +399,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 			const intro = rows.nth(0);
 			await commitInput(intro.getByRole('textbox'), 'Edited intro');
+			await expect(editor.locator('[data-label-track] [data-label-id]').nth(0)).toContainText('Edited intro');
 			await commitInput(intro.getByRole('spinbutton').nth(1), '1.750');
 			await expect(intro.getByRole('textbox')).toHaveValue('Edited intro');
 			await expect(intro.getByRole('spinbutton').nth(1)).toHaveValue('1.750');
