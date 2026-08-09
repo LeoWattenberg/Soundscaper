@@ -11,16 +11,25 @@ import {
 } from './aup4-profile.js';
 import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
 import {
-	createAudioClipV2,
-	createAudioEditorProjectV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-	createLabelTrackV2,
 	createLabelV2,
 } from './project-v2.js';
+import {
+	createAudioClipV9,
+	createAudioEditorProjectV9,
+	createAudioSourceV9,
+	createAudioTrackV9,
+	createLabelTrackV9,
+} from './project-v9.ts';
 import { createStableId } from './project.js';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
+import {
+	divideRationals,
+	multiplyRationals,
+	normalizeRational,
+	scaleSampleFrame,
+	secondsToSampleFrame,
+} from './timeline-time.ts';
 
 const DEFAULT_MAX_DECODED_BYTES = 512 * 1024 * 1024;
 
@@ -134,12 +143,22 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			const stretchRatio = storedStretchRatio * (clipTempo != null && rawAudioTempo != null ? rawAudioTempo / clipTempo : 1);
 			const trimLeftSeconds = nonNegative(audacityXmlAttribute(clipNode, 'trimLeft', 0));
 			const trimRightSeconds = nonNegative(audacityXmlAttribute(clipNode, 'trimRight', 0));
-			const trimStartFrames = secondsToFrames(trimLeftSeconds / stretchRatio, trackRate);
-			const trimEndFrames = secondsToFrames(trimRightSeconds / stretchRatio, trackRate);
+			const trimStartFrames = secondsToSampleFrame(
+				divideRationals(normalizeRational(trimLeftSeconds), normalizeRational(stretchRatio)),
+				trackRate,
+			);
+			const trimEndFrames = secondsToSampleFrame(
+				divideRationals(normalizeRational(trimRightSeconds), normalizeRational(stretchRatio)),
+				trackRate,
+			);
 			const sourceDurationFrames = Math.max(1, frameCount - trimStartFrames - trimEndFrames);
 			const offsetSeconds = finite(audacityXmlAttribute(clipNode, 'offset', 0), 0);
-			const timelineStartFrame = Math.max(0, secondsToFrames(offsetSeconds + trimLeftSeconds, projectRate));
-			const durationFrames = Math.max(1, Math.round(sourceDurationFrames / trackRate * projectRate * stretchRatio));
+			const timelineStartFrame = Math.max(0, secondsToSampleFrame(offsetSeconds + trimLeftSeconds, projectRate));
+			const sourceSeconds = divideRationals(sourceDurationFrames, normalizeRational(trackRate));
+			const durationFrames = Math.max(1, secondsToSampleFrame(
+				multiplyRationals(sourceSeconds, normalizeRational(stretchRatio)),
+				projectRate,
+			));
 			const sourceId = idFactory('source');
 			const clipId = idFactory('clip');
 			const pitchAndSpeedPreset = readPitchAndSpeedPreset(clipNode);
@@ -150,7 +169,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				durationFrames,
 			);
 			const nativeEnvelopeNode = audacityXmlChildren(clipNode, 'envelope')[0];
-			const source = createAudioSourceV2({
+			const source = createAudioSourceV9({
 				id: sourceId,
 				name: String(audacityXmlAttribute(clipNode, 'name', `Audio ${clipIndex + 1}`)),
 				mimeType: 'audio/x-audacity-sampleblocks',
@@ -163,7 +182,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				opaqueExtensions: { aup4Sequence: opaqueNode(audacityXmlChildren(clipNode, 'sequence')[0]) },
 			});
 			const groupId = audacityXmlAttribute(clipNode, 'groupId', -1);
-			const clip = createAudioClipV2({
+			const clip = createAudioClipV9({
 				id: clipId,
 				sourceId,
 				title: String(audacityXmlAttribute(clipNode, 'name', `Audio ${clipIndex + 1}`)),
@@ -222,7 +241,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				data: {},
 			});
 		}
-		const track = createAudioTrackV2({
+		const track = createAudioTrackV9({
 			id: trackId,
 			name: String(audacityXmlAttribute(group[0], 'name', `Track ${trackIndex + 1}`)),
 			color: trackColor(audacityXmlAttribute(group[0], 'colorindex', 0)),
@@ -257,12 +276,12 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 		const labels = audacityXmlChildren(labelNode, 'label').map((node) => createLabelV2({
 			id: idFactory('label'),
 			title: String(audacityXmlAttribute(node, 'title', '')),
-			startFrame: secondsToFrames(nonNegative(audacityXmlAttribute(node, 't', 0)), projectRate),
-			endFrame: secondsToFrames(nonNegative(audacityXmlAttribute(node, 't1', audacityXmlAttribute(node, 't', 0))), projectRate),
+			startFrame: secondsToSampleFrame(nonNegative(audacityXmlAttribute(node, 't', 0)), projectRate),
+			endFrame: secondsToSampleFrame(nonNegative(audacityXmlAttribute(node, 't1', audacityXmlAttribute(node, 't', 0))), projectRate),
 			opaqueExtensions: { aup4Label: opaqueNode(node) },
 		}));
 		if (Boolean(audacityXmlAttribute(labelNode, 'isSelected', false))) selectedTrackIds.push(trackId);
-		const track = createLabelTrackV2({
+		const track = createLabelTrackV9({
 			id: trackId,
 			name: String(audacityXmlAttribute(labelNode, 'name', `Labels ${index + 1}`)),
 			labels,
@@ -294,7 +313,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	const masterEffects = readEffectsWithReport(masterEffectsNode, state, {
 		kind: 'master',
 	}, idFactory, (active) => { masterEffectsActive = active; });
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV9({
 		id: options.projectId || idFactory('project'),
 		title,
 		sampleRate: projectRate,
@@ -310,8 +329,8 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 		timeDisplay: { format: String(audacityXmlAttribute(root, 'selectionformat', 'seconds')) || 'seconds' },
 		metadata,
 		selection: {
-			startFrame: secondsToFrames(nonNegative(audacityXmlAttribute(root, 'sel0', 0)), projectRate),
-			endFrame: secondsToFrames(nonNegative(audacityXmlAttribute(root, 'sel1', 0)), projectRate),
+			startFrame: secondsToSampleFrame(nonNegative(audacityXmlAttribute(root, 'sel0', 0)), projectRate),
+			endFrame: secondsToSampleFrame(nonNegative(audacityXmlAttribute(root, 'sel1', 0)), projectRate),
 			trackIds: selectedTrackIds,
 			clipIds: selectedClipIds,
 			frequencyRange: readFrequencyRange(root, projectRate),
@@ -580,7 +599,7 @@ function readEnvelope(clipNode, projectRate, trimLeftSeconds, durationFrames) {
 			value: nativeEnvelopeValueAt(nativePoints, visibleEnd),
 		}] : []),
 	].map((point) => ({
-		frame: Math.max(0, Math.min(durationFrames, Math.round((point.time - visibleStart) * projectRate))),
+		frame: Math.max(0, Math.min(durationFrames, secondsToSampleFrame(point.time - visibleStart, projectRate))),
 		value: point.value,
 	}));
 	return points.filter((point, index, all) => !index || point.frame > all[index - 1].frame);
@@ -748,7 +767,7 @@ function countUnsupportedWaveClips(root) {
 }
 function resampleMono(input, inputRate, outputRate) {
 	if (!input.length || inputRate === outputRate) return input;
-	const outputFrames = Math.max(1, Math.round(input.length * outputRate / inputRate));
+	const outputFrames = Math.max(1, scaleSampleFrame(input.length, inputRate, outputRate));
 	const resampler = createStreamingWindowedSincResampler(inputRate, outputRate, 1);
 	const head = resampler.push([input])[0];
 	const tail = resampler.finish(outputFrames)[0];
@@ -789,6 +808,5 @@ function powerOfTwo(value, fallback) {
 	const number = Number(value);
 	return Number.isSafeInteger(number) && number > 0 && Number.isInteger(Math.log2(number)) ? number : fallback;
 }
-function secondsToFrames(seconds, sampleRate) { return Math.max(0, Math.round(Number(seconds) * sampleRate)); }
 function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(maximum, value)); }
 function conversionError(message, code) { const error = new Error(message); error.name = 'Aup4ConversionError'; error.code = code; return error; }

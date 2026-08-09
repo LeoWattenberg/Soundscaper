@@ -160,7 +160,7 @@ function createFixture() {
 				};
 			}
 		},
-		convertLegacyAupToProjectV2: () => decodedStructure(),
+		convertLegacyAupToProject: () => decodedStructure(),
 		copy: {
 			importing: 'Importing',
 			done: 'Done',
@@ -223,7 +223,6 @@ function createFixture() {
 		isLegacyAupFile: (input: TestFile) => /\.aup$/iu.test(input.name),
 		isLegacyBlockFile: (input: TestFile) => /\.au$/iu.test(input.name),
 		isWavFile: (input: TestFile) => /\.wav$/iu.test(input.name),
-		migrateAudioEditorProject: (project: unknown) => ({ project }),
 		peakCacheKey: (sourceId: string) => `peaks:${sourceId}`,
 		preflightStorage: async (bytes: number, purpose: string) => { calls.push(`preflight:${purpose}:${bytes}`); },
 		getProject: () => currentProject,

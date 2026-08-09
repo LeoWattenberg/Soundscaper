@@ -11,7 +11,6 @@ import {
 	createVideoClipV4,
 	createVideoSourceV4,
 	createVideoTrackV4,
-	validateAudioEditorProjectV4,
 } from './project-v4.js';
 import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js';
 
@@ -138,39 +137,4 @@ export function createAudioEditorProjectV5(options = {}) {
 /** @param {AudioEditorProjectV5} project @returns {AudioEditorProjectV5} */
 export function cloneAudioEditorProjectV5(project) {
 	return plainClone(project);
-}
-
-/** @param {AudioEditorProjectV5} project @returns {true} */
-export function validateAudioEditorProjectV5(project) {
-	if (!project || typeof project !== 'object') throw new TypeError('An audio editor project is required.');
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
-	}
-	validateAudioEditorProjectV4({ ...project, schemaVersion: 4 });
-	for (const clip of [...project.clips, ...project.projectBin.clips]) {
-		if (clip.kind !== 'video') continue;
-		if (!Array.isArray(clip.videoEffects)) {
-			throw new TypeError(`Video clip ${clip.id}.videoEffects must be an array.`);
-		}
-		normalizeVideoEffects(clip.videoEffects, `Video clip ${clip.id}.videoEffects`, {
-			allowedTypes: VIDEO_EFFECT_V5_TYPES,
-		});
-	}
-	return true;
-}
-
-export function loadAudioEditorProjectV5(value) {
-	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
-	const schemaVersion = Number(value.schemaVersion);
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		return { project: plainClone(value), readOnly: true, reason: 'newer-schema' };
-	}
-	validateAudioEditorProjectV5(value);
-	const project = createAudioEditorProjectV5({ ...value, now: value.createdAt });
-	validateAudioEditorProjectV5(project);
-	return {
-		project,
-		readOnly: false,
-		reason: null,
-	};
 }

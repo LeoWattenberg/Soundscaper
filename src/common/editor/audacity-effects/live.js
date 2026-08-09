@@ -16,6 +16,7 @@ import {
 	applyAudacityNoiseReduction,
 } from './spectral.js';
 import { fft } from '../pffft.js';
+import { secondsToSampleFrame as secondsToFrames } from '../timeline-time.ts';
 
 const CLICK_WINDOW_SIZE = 8_192;
 const CLICK_HOP_SIZE = 4_096;
@@ -1200,7 +1201,6 @@ function ensureArrayLength(array, length, factory) {
 	if (array.length > length) array.length = length;
 }
 
-function secondsToFrames(seconds, sampleRate) { return Math.round(seconds * sampleRate); }
 function dbToLinear(db) { return Math.exp(Math.log(10) * db / 20); }
 function basicDbToLinear(db) { return 10 ** (db / 20); }
 

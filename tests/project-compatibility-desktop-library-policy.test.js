@@ -252,7 +252,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(documentation, PACKAGED_HANDOFF_CLAIMS.compatibilityDocQualification);
 	assert.match(
 		documentation,
-		/existing V1–V8 raw-project migrations remain maintained.*compatibility\s+beyond those retained raw-document migration paths.*prior shared\s+`?v1`?\s+scope.*product-private Soundscaper libraries.*not a\s+current priority.*milestone prerequisite.*Audacity.*separate compatibility\s+boundary/isu,
+		/pre-release schemas 1 through 8.*source-media re-import.*no raw-\s*project migration path.*prior shared\s+`?v1`?\s+scope.*product-\s*private Soundscaper libraries.*unsupported.*AUP.*legacy XML AUP.*AUP4.*separate maintained interchange/isu,
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? (?:open|outside)/iu);
@@ -449,7 +449,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/existing V1-V8 raw-project migrations remain maintained.*prior shared-v1.*product-private-library migration.*deferred and unsupported.*Audacity import.*separate.*first- and third-party effect semantics.*not gated/iu,
+		/pre-release schemas 1 through 8.*source-media re-import.*no raw-project migration path.*prior shared-v1.*product-private-library migration.*unsupported.*Audacity AUP.*legacy XML AUP.*AUP4.*maintained interchange.*first- and third-party effect semantics.*not gated/iu,
 	);
 	assert.match(
 		documentation,

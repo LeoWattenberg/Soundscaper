@@ -89,22 +89,19 @@ post-bind Electron linked-PCM source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
 
-## Retained migrations
+## Pre-release schema breaks
 
-Schema 9 is the current writable schema. Inputs from schemas 1 through 8 are
-validated and migrated atomically to schema 9. Migration functions must be
-pure: the input fixture is retained unchanged, and failure publishes neither a
-partial project nor partial history.
+Schema 9 is the only writable and readable raw-project schema before the first
+shipped release. Inputs from schemas 1 through 8 fail at the core boundary with
+the typed `REIMPORT_REQUIRED` error. They are never partially loaded, silently
+normalized, or published. Development projects are recreated from their source
+media.
 
-Every new schema version must add fixtures for its immediate predecessor and
-the oldest retained schema. Project state, history, clipboard state, `.scape`,
-and both product profiles must agree on the same migration boundary.
-
-Those existing V1–V8 raw-project migrations remain maintained. Compatibility
-beyond those retained raw-document migration paths—especially migration from
-the prior shared `v1` scope or product-private Soundscaper libraries—is not a
-current priority or a milestone prerequisite. Audacity project interchange
-remains a separate compatibility boundary.
+Future raw schemas remain opaque read-only documents, and the exact-byte-copy
+path for a future-schema `.scape` archive remains maintained. AUP, legacy XML
+AUP, and AUP4 import are separate interchange boundaries and create current
+documents directly. Retained raw-schema migrations begin with the first shipped
+release and are governed by a separate versioned policy change.
 
 ## Shared desktop current-schema persistence
 
@@ -1185,11 +1182,10 @@ per-platform parent- and database-path identity, power-loss durability, and
 interrupted foreign collisions at registered random stage paths.
 Unregistered or legacy pre-inventory stage-looking files are deliberately
 foreign content and are not adopted or deleted.
-Existing V1–V8 raw-project migrations remain maintained. Compatibility beyond
-those retained raw-document migration paths—especially migration from the prior
-shared `v1` scope or product-private Soundscaper libraries—is not a current
-priority and remains deferred and unsupported by this contract. Audacity
-project interchange is a separate boundary.
+Pre-release schemas 1 through 8 require source-media re-import and have no raw-
+project migration path. Migration from the prior shared `v1` scope or product-
+private Soundscaper libraries also remains unsupported by this contract. AUP,
+legacy XML AUP, and AUP4 remain separate maintained interchange boundaries.
 
 ## Project feature requirements
 

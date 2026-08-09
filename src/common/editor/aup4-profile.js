@@ -10,6 +10,10 @@ import {
 	audioEditorSnapGrid,
 } from './snap-grid.js';
 import { getPortableProjectSizeLimit } from '../project-size-limits.ts';
+import {
+	sampleFrameToSeconds as framesToSeconds,
+	secondsToSampleFrame as secondsToFrames,
+} from './timeline-time.ts';
 
 export const AUP4_APPLICATION_ID = 0x41554459;
 export const AUP4_USER_VERSION = 0x04000001;
@@ -826,8 +830,6 @@ function finiteInRange(value, minimum, maximum, fallback) { const number = Numbe
 function optionalFiniteInRange(value, minimum, maximum) { const number = Number(value); return value != null && value !== '' && Number.isFinite(number) && number >= minimum && number <= maximum ? number : null; }
 function integerInRange(value, minimum, maximum, fallback) { const number = Number(value); return Number.isSafeInteger(number) && number >= minimum && number <= maximum ? number : fallback; }
 function nonNegativeInteger(value, fallback) { const number = Number(value); return Number.isSafeInteger(number) && number >= 0 ? number : fallback; }
-function framesToSeconds(value, rate) { const frame = Number(value); return Number.isFinite(frame) && frame >= 0 ? frame / rate : 0; }
-function secondsToFrames(value, rate) { const seconds = Number(value); return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * rate) : 0; }
 function displayType(value) { return value === 'spectrogram' ? 1 : value === 'multiview' ? 2 : 0; }
 function inverseRatio(value) { const ratio = Number(value); return Number.isFinite(ratio) && ratio > 0 ? 1 / ratio : 1; }
 function nativeTimeSignatureDenominator(value) {

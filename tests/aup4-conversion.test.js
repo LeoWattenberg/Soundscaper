@@ -19,6 +19,7 @@ import {
 	createAudioTrackV2,
 	createLabelTrackV2,
 } from '../src/common/editor/project-v2.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and selection', async () => {
 	const source = createAudioSourceV2({
@@ -68,7 +69,7 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 		idFactory: (prefix) => `${prefix}-${++nextId}`,
 	});
 
-	assert.equal(decoded.project.schemaVersion, 2);
+	assert.equal(decoded.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.equal(decoded.project.sampleRate, 44_100);
 	assert.equal(decoded.project.tempo.bpm, 145);
 	assert.deepEqual(decoded.project.tempo.timeSignature, { numerator: 7, denominator: 8 });

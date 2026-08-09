@@ -9,9 +9,7 @@ import {
 	createAudioSourceV2,
 	createAudioTrackV2,
 	createLabelTrackV2,
-	loadAudioEditorProjectV2,
 	projectDurationFramesV2,
-	validateAudioEditorProjectV2,
 } from '../src/common/editor/project-v2.js';
 import {
 	applyAudioEditorWorkspace,
@@ -25,70 +23,8 @@ import {
 	updateCustomAudioEditorWorkspace,
 	validateAudioEditorPreferencesV1,
 } from '../src/common/editor/preferences.js';
-import {
-	migrateAudioEditorHistoryV1ToV2,
-	migrateAudioEditorProject,
-	migrateAudioEditorProjectV1ToV2,
-	migrateAudioEditorProjectV2ToV3,
-	migrateAudioEditorProjectV2ToV8, migrateAudioEditorProjectV8ToV9,
-	migrateAudioEditorStateV1ToV2,
-} from '../src/common/editor/migration.js';
-import { validateAudioEditorProject } from '../src/common/editor/project.js';
-
 const CREATED_AT = '2026-07-12T10:00:00.000Z';
 const UPDATED_AT = '2026-07-13T11:30:00.000Z';
-
-function v1Fixture() {
-	return {
-		schemaVersion: 1,
-		id: 'project-v1',
-		title: 'Migration session',
-		revision: 17,
-		createdAt: CREATED_AT,
-		updatedAt: UPDATED_AT,
-		sampleRate: 48_000,
-		masterChannels: 2,
-		selection: { startFrame: 120, endFrame: 360 },
-		loop: { enabled: true, startFrame: 100, endFrame: 900 },
-		sources: [{
-			id: 'source-1',
-			name: 'voice.wav',
-			mimeType: 'audio/wav',
-			storageKey: 'pcm/source-1',
-			frameCount: 2_000,
-			channelCount: 1,
-			sampleRate: 48_000,
-			originalSampleRate: 44_100,
-			importFingerprint: 'legacy-source-metadata',
-		}],
-		clips: [{
-			id: 'clip-1',
-			sourceId: 'source-1',
-			timelineStartFrame: 100,
-			sourceStartFrame: 200,
-			durationFrames: 800,
-			gain: 0.8,
-			fadeInFrames: 20,
-			fadeOutFrames: 30,
-			reversed: false,
-			aupClipAttribute: 'kept',
-		}],
-		tracks: [{
-			id: 'track-1',
-			name: 'Voice',
-			gain: 1,
-			pan: -0.25,
-			mute: false,
-			solo: false,
-			armed: true,
-			effects: [],
-			clipIds: ['clip-1'],
-			legacyTrackColor: '#123456',
-		}],
-		master: { gain: 0.9, effects: [] },
-		aupProjectNode: { name: 'unknown-node', bytes: [1, 2, 3] },
-	};
-}
 
 function richV2Fixture() {
 	const source = createAudioSourceV2({
@@ -175,7 +111,6 @@ test('V2 defaults are explicit and editor projects accept arbitrary project and 
 	assert.equal(empty.timeDisplay.format, 'hh:mm:ss+milliseconds');
 	assert.deepEqual(empty.master.envelope, []);
 	assert.equal(empty.master.collapsed, true);
-	assert.equal(validateAudioEditorProjectV2(empty), true);
 
 	const project = richV2Fixture();
 	assert.equal(project.sampleRate, 96_000);
@@ -190,8 +125,6 @@ test('V2 defaults are explicit and editor projects accept arbitrary project and 
 	assert.equal(project.clips[0].pitchCents, 300);
 	assert.equal(project.selection.frequencyRange.maximumFrequency, 40_000);
 	assert.equal(projectDurationFramesV2(project), 2_400);
-	assert.equal(validateAudioEditorProjectV2(project), true);
-	assert.deepEqual(loadAudioEditorProjectV2(project), { project, readOnly: false, reason: null });
 });
 
 test('master and mixer buses normalize persistent envelope and collapsed row state without extending duration', () => {
@@ -225,18 +158,6 @@ test('master and mixer buses normalize persistent envelope and collapsed row sta
 	assert.equal(Object.hasOwn(project.mixer.groups[0], 'clipIds'), false);
 	assert.equal(projectDurationFramesV2(project), 0);
 
-	const legacy = structuredClone(project);
-	delete legacy.master.envelope;
-	delete legacy.master.collapsed;
-	delete legacy.mixer.groups[0].envelope;
-	delete legacy.mixer.groups[0].collapsed;
-	const loaded = loadAudioEditorProjectV2(legacy);
-	assert.deepEqual(loaded.project.master.envelope, []);
-	assert.equal(loaded.project.master.collapsed, true);
-	assert.deepEqual(loaded.project.mixer.groups[0].envelope, []);
-	assert.equal(loaded.project.mixer.groups[0].collapsed, true);
-	assert.equal(loaded.project.schemaVersion, AUDIO_EDITOR_PROJECT_SCHEMA_VERSION);
-
 	assert.throws(() => createAudioEditorProjectV2({
 		id: 'bad-master-envelope', now: CREATED_AT,
 		master: { envelope: [{ frame: 1, value: 1 }, { frame: 1, value: 0.5 }] },
@@ -245,47 +166,6 @@ test('master and mixer buses normalize persistent envelope and collapsed row sta
 		id: 'bad-send-envelope', now: CREATED_AT,
 		mixer: { sends: [{ id: 'send-1', envelope: [{ frame: 0, value: 17 }] }] },
 	}), /mixer\.send\.envelope\[0\]\.value/);
-});
-
-test('V1 migration and V2 validation preserve multiple armed audio tracks', () => {
-	const legacy = v1Fixture();
-	legacy.tracks.push({
-		...legacy.tracks[0],
-		id: 'track-2',
-		name: 'Room',
-		clipIds: [],
-	});
-	const migrated = migrateAudioEditorProjectV1ToV2(legacy);
-	assert.deepEqual(migrated.tracks.map((track) => track.armed), [true, true]);
-	assert.equal(validateAudioEditorProjectV2(migrated), true);
-});
-
-test('V2 validation permits layered clips and rejects broken references and invalid typed state', () => {
-	const project = richV2Fixture();
-	assert.throws(() => validateAudioEditorProjectV2({
-		...project,
-		selection: { ...project.selection, trackIds: ['missing-track'] },
-	}), /missing track/);
-	assert.equal(validateAudioEditorProjectV2({
-		...project,
-		clips: [...project.clips, { ...project.clips[0], id: 'overlap', timelineStartFrame: 1_000 }],
-		tracks: [{ ...project.tracks[0], clipIds: ['clip-hires', 'overlap'] }, project.tracks[1]],
-	}), true);
-	assert.throws(() => validateAudioEditorProjectV2({
-		...project,
-		clips: [{ ...project.clips[0], trimEndFrames: 701 }],
-	}), /trailing trim/);
-	assert.throws(() => createLabelTrackV2({
-		id: 'labels', labels: [{ id: 'duplicate' }, { id: 'duplicate' }],
-	}), /Duplicate label ID/);
-	assert.throws(() => validateAudioEditorProjectV2({ ...project, sources: undefined }), /must be arrays/);
-
-	const future = { ...project, schemaVersion: 9, futurePayload: { unchanged: true } };
-	const loaded = loadAudioEditorProjectV2(future);
-	assert.equal(loaded.readOnly, true);
-	assert.equal(loaded.reason, 'newer-schema');
-	assert.deepEqual(loaded.project, future);
-	assert.notEqual(loaded.project, future);
 });
 
 test('one audio track accepts sequential clips backed by mixed-rate mono and stereo sources', () => {
@@ -330,7 +210,6 @@ test('one audio track accepts sequential clips backed by mixed-rate mono and ste
 		tracks: [track],
 	});
 
-	assert.equal(validateAudioEditorProjectV2(project), true);
 	assert.deepEqual(project.sources.map(({ sampleRate, channelCount }) => [sampleRate, channelCount]), [
 		[44_100, 1],
 		[96_000, 2],
@@ -470,161 +349,4 @@ test('shortcut normalization reports conflicts without persisting device-specifi
 		'split-delete': ['control+shift+s'],
 		play: ['Space'],
 	}), [{ binding: 'Ctrl+Shift+S', actionIds: ['file-save-as', 'delete-per-clip-ripple'] }]);
-});
-
-test('V1 migration preserves identity, PCM roots, revisions, timestamps, racks, and unknown fields', () => {
-	const original = v1Fixture();
-	const rollback = structuredClone(original);
-	const migrated = migrateAudioEditorProjectV1ToV2(original);
-	assert.deepEqual(original, rollback);
-	assert.equal(migrated.schemaVersion, 2);
-	assert.equal(migrated.id, original.id);
-	assert.equal(migrated.revision, original.revision);
-	assert.equal(migrated.createdAt, original.createdAt);
-	assert.equal(migrated.updatedAt, original.updatedAt);
-	assert.equal(migrated.sources[0].id, 'source-1');
-	assert.equal(migrated.sources[0].storageKey, 'pcm/source-1');
-	assert.equal(migrated.sources[0].sampleRate, 48_000);
-	assert.equal(migrated.sources[0].originalSampleRate, 44_100);
-	assert.equal(migrated.tracks[0].type, 'audio');
-	for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
-		assert.equal(Object.hasOwn(migrated.tracks[0], field), false);
-	}
-	assert.deepEqual(migrated.tracks[0].clipIds, ['clip-1']);
-	assert.equal(migrated.clips[0].title, 'voice.wav');
-	assert.equal(migrated.clips[0].trimStartFrames, 200);
-	assert.equal(migrated.clips[0].trimEndFrames, 1_000);
-	assert.deepEqual(migrated.selection.trackIds, []);
-	assert.deepEqual(migrated.sources[0].opaqueExtensions.legacyV1, { importFingerprint: 'legacy-source-metadata' });
-	assert.deepEqual(migrated.clips[0].opaqueExtensions.legacyV1, { aupClipAttribute: 'kept' });
-	assert.deepEqual(migrated.tracks[0].opaqueExtensions.legacyV1, { legacyTrackColor: '#123456' });
-	assert.deepEqual(migrated.opaqueExtensions.legacyV1.aupProjectNode, original.aupProjectNode);
-	assert.equal(validateAudioEditorProjectV2(migrated), true);
-
-	const result = migrateAudioEditorProject(original);
-	assert.equal(result.migrated, true);
-	assert.equal(result.fromVersion, 1);
-	assert.equal(result.readOnly, false);
-	assert.deepEqual(result.project, migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV2ToV8(migrated)));
-	const alreadyV2 = migrateAudioEditorProject(migrated);
-	assert.equal(alreadyV2.migrated, true);
-	assert.notEqual(alreadyV2.project, migrated);
-	assert.equal(migrateAudioEditorProject(alreadyV2.project).migrated, false);
-});
-
-test('legacy V2 track format fields are normalized without mutating the saved document', () => {
-	const legacy = richV2Fixture();
-	Object.assign(legacy.tracks[0], {
-		channelCount: 6,
-		channelLayout: '5.1',
-		sampleRate: 44_100,
-		sampleFormat: 'int24',
-	});
-	const rollback = structuredClone(legacy);
-
-	const loaded = loadAudioEditorProjectV2(legacy);
-	const migrated = migrateAudioEditorProject(legacy);
-
-	assert.deepEqual(legacy, rollback);
-	assert.equal(migrated.migrated, true);
-	assert.equal(migrated.fromVersion, 2);
-	assert.equal(migrated.readOnly, false);
-	for (const normalized of [loaded.project, migrated.project]) {
-		for (const field of ['channelCount', 'channelLayout', 'sampleRate', 'sampleFormat']) {
-			assert.equal(Object.hasOwn(normalized.tracks[0], field), false);
-		}
-		assert.equal(normalized.sources[0].channelCount, 6);
-		assert.equal(normalized.sources[0].sampleRate, 44_100);
-		assert.equal(normalized.sources[0].sampleFormat, 'int24');
-		assert.deepEqual(normalized.opaqueExtensions, legacy.opaqueExtensions);
-		assert.equal(validateAudioEditorProject(normalized), true);
-	}
-});
-
-test('saved legacy parametric EQ racks migrate atomically across tracks, master, groups, and sends', () => {
-	const project = richV2Fixture();
-	const legacyEq = (id) => ({
-		id,
-		type: 'eq',
-		enabled: true,
-		params: {
-			bands: [100, 500, 2_000, 8_000].map((frequency) => ({ frequency, gain: 0, q: 1 })),
-		},
-	});
-	project.tracks[0].effects = [legacyEq('track-eq')];
-	project.master.effects = [legacyEq('master-eq')];
-	project.mixer.groups = [{
-		id: 'group-eq', name: 'EQ group', color: '#4f87c8', gain: 1, pan: 0,
-		mute: false, solo: false, effects: [legacyEq('group-effect-eq')],
-	}];
-	project.mixer.sends = [{
-		id: 'send-eq', name: 'EQ send', color: '#8c6fd1', gain: 1, pan: 0,
-		mute: false, solo: false, effects: [legacyEq('send-effect-eq')],
-	}];
-	const rollback = structuredClone(project);
-
-	const result = migrateAudioEditorProject(project);
-	assert.deepEqual(project, rollback);
-	assert.equal(result.migrated, true);
-	const migratedEffects = [
-		result.project.tracks[0].effects[0],
-		result.project.master.effects[0],
-		result.project.mixer.groups[0].effects[0],
-		result.project.mixer.sends[0].effects[0],
-	];
-	for (const effect of migratedEffects) {
-		assert.equal(effect.params.outputGain, 0);
-		assert.deepEqual(effect.params.bands.map((band) => band.id), [
-			`${effect.id}-band-1`,
-			`${effect.id}-band-2`,
-			`${effect.id}-band-3`,
-			`${effect.id}-band-4`,
-		]);
-		assert.ok(effect.params.bands.every((band) => (
-			band.enabled && band.type === 'peaking' && band.slope === 12
-		)));
-	}
-	assert.equal(migrateAudioEditorProject(result.project).migrated, false);
-});
-
-test('history and state migration are atomic and future schemas stay intact and read-only', () => {
-	const present = v1Fixture();
-	const previous = { ...v1Fixture(), revision: 16, updatedAt: CREATED_AT };
-	const command = { type: 'clip/move', clipId: 'clip-1', timelineStartFrame: 100 };
-	const history = {
-		limit: 200,
-		present,
-		undoStack: [{ project: previous, command }],
-		redoStack: [],
-	};
-	const rollback = structuredClone(history);
-	const migrated = migrateAudioEditorHistoryV1ToV2(history);
-	assert.deepEqual(history, rollback);
-	assert.equal(migrated.present.schemaVersion, 9);
-	assert.equal(migrated.undoStack[0].project.schemaVersion, 9);
-	assert.deepEqual(migrated.undoStack[0].command, command);
-	assert.notEqual(migrated.undoStack[0].command, command);
-
-	const invalidHistory = structuredClone(history);
-	invalidHistory.redoStack.push({
-		project: { ...v1Fixture(), clips: [{ ...v1Fixture().clips[0], sourceId: 'missing' }] },
-		command: { type: 'broken' },
-	});
-	const invalidRollback = structuredClone(invalidHistory);
-	assert.throws(() => migrateAudioEditorHistoryV1ToV2(invalidHistory), /missing source/);
-	assert.deepEqual(invalidHistory, invalidRollback);
-
-	const stateResult = migrateAudioEditorStateV1ToV2({ project: present, history, clipboard: { sourceIds: ['source-1'] } });
-	assert.equal(stateResult.migrated, true);
-	assert.equal(stateResult.state.project.schemaVersion, 9);
-	assert.deepEqual(stateResult.state.clipboard, { sourceIds: ['source-1'] });
-
-	const future = { ...richV2Fixture(), schemaVersion: 10, opaqueFutureData: new Uint8Array([9, 8, 7]) };
-	const futureResult = migrateAudioEditorProject(future);
-	assert.equal(futureResult.readOnly, true);
-	assert.equal(futureResult.reason, 'newer-schema');
-	assert.deepEqual(futureResult.project, future);
-	const futureState = migrateAudioEditorStateV1ToV2({ project: future, localState: { selected: true } });
-	assert.equal(futureState.readOnly, true);
-	assert.deepEqual(futureState.state, { project: future, localState: { selected: true } });
 });

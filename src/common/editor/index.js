@@ -52,8 +52,6 @@ export {
 	createVideoClipV5,
 	createVideoSourceV5,
 	createVideoTrackV5,
-	loadAudioEditorProjectV5,
-	validateAudioEditorProjectV5,
 } from './project-v5.js';
 export * from './project-v6.ts';
 export * from './project-v7.ts';

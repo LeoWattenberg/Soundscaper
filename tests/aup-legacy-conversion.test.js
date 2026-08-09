@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { convertLegacyAupToProjectV2 } from '../src/common/editor/aup-legacy-conversion.js';
-import { validateAudioEditorProject } from '../src/common/editor/project.js';
+import { convertLegacyAupToProject } from '../src/common/editor/aup-legacy-conversion.js';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	validateAudioEditorProjectV9,
+} from '../src/common/editor/project-v9.ts';
 
 test('legacy AUP conversion materializes audio and labels without a dry mix', () => {
 	const ids = ['project', 'track', 'source', 'clip', 'labels', 'label'];
-	const converted = convertLegacyAupToProjectV2({
+	const converted = convertLegacyAupToProject({
 		sampleRate: 44_100,
 		tempo: { bpm: 100, timeSignature: { numerator: 3, denominator: 4 } },
 		selection: { startSeconds: 0.5, endSeconds: 1 },
@@ -28,7 +31,7 @@ test('legacy AUP conversion materializes audio and labels without a dry mix', ()
 		idFactory: () => ids.shift(),
 		now: '2026-07-13T00:00:00.000Z',
 	});
-	assert.equal(converted.project.schemaVersion, 2);
+	assert.equal(converted.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.equal(converted.project.title, 'Legacy');
 	assert.equal(converted.project.sampleRate, 44_100);
 	assert.equal(converted.project.sources[0].sampleRate, 48_000);
@@ -42,5 +45,5 @@ test('legacy AUP conversion materializes audio and labels without a dry mix', ()
 	assert.equal(converted.project.clips[0].pitchCents, 200);
 	assert.equal(converted.project.tracks[1].labels[0].startFrame, 88_200);
 	assert.equal(converted.sources[0].channels.length, 2);
-	assert.equal(validateAudioEditorProject(converted.project), true);
+	assert.equal(validateAudioEditorProjectV9(converted.project), true);
 });

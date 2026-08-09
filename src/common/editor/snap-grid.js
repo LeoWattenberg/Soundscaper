@@ -1,3 +1,10 @@
+import {
+	divideRationals,
+	multiplyRationals,
+	normalizeRational,
+	roundRational,
+} from './timeline-time.ts';
+
 const MUSICAL_DENOMINATORS = Object.freeze([2, 4, 8, 16, 32, 64, 128]);
 const MODE_ALIASES = Object.freeze(new Map([
 	['nearest', 'nearest'],
@@ -109,18 +116,28 @@ export function normalizeAudioEditorSnapSettings(value = {}) {
 
 /** Return the ideal (possibly fractional) number of project frames per grid cell. */
 export function audioEditorSnapStepFrames(gridValue, context = {}) {
+	const step = audioEditorSnapStepRational(gridValue, context);
+	return step.num / step.den;
+}
+
+function audioEditorSnapStepRational(gridValue, context = {}) {
 	const grid = audioEditorSnapGrid(gridValue);
 	const sampleRate = projectSampleRate(context);
-	if (grid.category === 'samples') return 1;
+	if (grid.category === 'samples') return normalizeRational(1);
 	if (grid.category === 'time' || grid.category === 'video' || grid.category === 'cdda') {
-		return sampleRate * grid.frequencyDenominator / grid.frequencyNumerator;
+		return normalizeRational({
+			num: sampleRate * grid.frequencyDenominator,
+			den: grid.frequencyNumerator,
+		});
 	}
 	const { bpm, numerator, denominator } = projectTempo(context);
-	const quarterFrames = sampleRate * 60 / bpm;
-	if (grid.bar) return quarterFrames * 4 * numerator / denominator;
+	const quarterFrames = divideRationals(multiplyRationals(sampleRate, 60), normalizeRational(bpm));
+	if (grid.bar) {
+		return divideRationals(multiplyRationals(quarterFrames, 4 * numerator), denominator);
+	}
 	const triplets = requestedTriplets(gridValue, context, grid);
 	const division = triplets ? 3 * (grid.denominator / 2) : grid.denominator;
-	return quarterFrames * 4 / division;
+	return divideRationals(multiplyRationals(quarterFrames, 4), division);
 }
 
 /**
@@ -131,9 +148,14 @@ export function audioEditorSnapStepFrames(gridValue, context = {}) {
 export function snapAudioEditorProjectFrame(frame, gridValue, context = {}) {
 	const inputFrame = safeInteger(frame, 'frame');
 	const mode = normalizeMode(context.mode || (typeof gridValue === 'object' ? gridValue.mode : null) || 'nearest');
-	const step = audioEditorSnapStepFrames(gridValue, context);
-	const gridIndex = quantize(inputFrame / step, mode);
-	const result = roundHalfAwayFromZero(gridIndex * step);
+	const step = audioEditorSnapStepRational(gridValue, context);
+	const gridIndex = roundRational(
+		BigInt(inputFrame) * BigInt(step.den),
+		BigInt(step.num),
+		mode === 'nearest' ? 'point' : 'directional',
+		mode === 'nearest' ? undefined : mode,
+	);
+	const result = roundRational(BigInt(gridIndex) * BigInt(step.num), BigInt(step.den), 'point');
 	if (!Number.isSafeInteger(result)) throw new RangeError('The snapped frame is outside the safe integer range.');
 	const minimumFrame = context.minimumFrame === null ? null : safeInteger(context.minimumFrame ?? 0, 'minimumFrame');
 	const maximumFrame = context.maximumFrame == null ? null : safeInteger(context.maximumFrame, 'maximumFrame');
@@ -163,9 +185,14 @@ export function stepAudioEditorSnappedFrame(frame, direction, gridValue, context
 		: direction === 'right' || direction === 'next' || direction === 1 ? 1
 			: 0;
 	if (!sign) throw new RangeError(`Unsupported snap direction: ${direction}.`);
-	const step = audioEditorSnapStepFrames(gridValue, context);
+	const step = audioEditorSnapStepRational(gridValue, context);
 	const inputFrame = safeInteger(frame, 'frame');
-	const result = roundHalfAwayFromZero((roundHalfAwayFromZero(inputFrame / step) + sign) * step);
+	const gridIndex = roundRational(
+		BigInt(inputFrame) * BigInt(step.den),
+		BigInt(step.num),
+		'point',
+	) + sign;
+	const result = roundRational(BigInt(gridIndex) * BigInt(step.num), BigInt(step.den), 'point');
 	if (!Number.isSafeInteger(result)) throw new RangeError('The stepped frame is outside the safe integer range.');
 	const minimumFrame = context.minimumFrame === null ? null : safeInteger(context.minimumFrame ?? 0, 'minimumFrame');
 	const maximumFrame = context.maximumFrame == null ? null : safeInteger(context.maximumFrame, 'maximumFrame');
@@ -187,7 +214,7 @@ function requestedTriplets(gridValue, context, grid) {
 }
 
 function projectSampleRate(context) {
-	return positiveFinite(context.sampleRate ?? context.project?.sampleRate ?? 48_000, 'sampleRate');
+	return positiveSafeInteger(context.sampleRate ?? context.project?.sampleRate ?? 48_000, 'sampleRate');
 }
 
 function projectTempo(context) {
@@ -198,16 +225,6 @@ function projectTempo(context) {
 	const denominator = positiveSafeInteger(signature.denominator ?? signature.lower ?? 4, 'timeSignature.denominator');
 	if ((denominator & (denominator - 1)) !== 0) throw new RangeError('timeSignature.denominator must be a power of two.');
 	return { bpm, numerator, denominator };
-}
-
-function quantize(value, mode) {
-	if (mode === 'previous') return Math.floor(value);
-	if (mode === 'next') return Math.ceil(value);
-	return roundHalfAwayFromZero(value);
-}
-
-function roundHalfAwayFromZero(value) {
-	return value < 0 ? -Math.round(-value) : Math.round(value);
 }
 
 function normalizeMode(value) {

@@ -17,14 +17,6 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import {
-	migrateAudioEditorProject,
-	migrateAudioEditorProjectV4ToV5,
-	migrateAudioEditorProjectV5ToV6,
-	migrateAudioEditorProjectV6ToV7,
-	migrateAudioEditorProjectV7ToV8,
-	migrateAudioEditorProjectV8ToV9,
-} from '../src/common/editor/migration.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import {
 	createAudioEditorProjectV4,
@@ -35,8 +27,6 @@ import {
 import {
 	createAudioEditorProjectV5,
 	createVideoClipV5,
-	loadAudioEditorProjectV5,
-	validateAudioEditorProjectV5,
 } from '../src/common/editor/project-v5.js';
 import {
 	VIDEO_EFFECT_DEFINITIONS,
@@ -320,40 +310,17 @@ test('FFmpeg registry serialization omits no-op effects and rejects raw or malfo
 	}]), /between 2 and 128/);
 });
 
-test('V4 migrates atomically to V5 and every video clip receives an effect stack', () => {
+test('V5 creation initializes every video clip effect stack', () => {
 	const v4 = createV4Project();
-	const original = structuredClone(v4);
-	const migrated = migrateAudioEditorProjectV4ToV5(v4);
+	const migrated = createAudioEditorProjectV5({ ...v4, now: v4.createdAt });
 
-	assert.deepEqual(v4, original);
 	assert.equal(migrated.schemaVersion, 5);
 	assert.deepEqual(migrated.clips[0].videoEffects, []);
-	assert.equal(validateAudioEditorProjectV5(migrated), true);
 	assert.equal(validateAudioEditorProject(migrated), true);
-	const current = migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(
-		migrateAudioEditorProjectV6ToV7(migrateAudioEditorProjectV5ToV6(migrated)),
-	));
-	assert.deepEqual(migrateAudioEditorProject(v4), {
-		project: current,
-		migrated: true,
-		fromVersion: 4,
-		readOnly: false,
-		reason: null,
-	});
-
-	const future = { ...current, schemaVersion: 10, futureField: { retained: true } };
-	assert.deepEqual(migrateAudioEditorProject(future), {
-		project: future,
-		migrated: false,
-		fromVersion: 10,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
 
 	const malformed = structuredClone(migrated);
 	malformed.clips[0].videoEffects = [createVideoEffect('pixelate', { id: 'bad' })];
 	malformed.clips[0].videoEffects[0].params.blockSize = NaN;
-	assert.throws(() => validateAudioEditorProjectV5(malformed), /between 2 and 128/);
 	assert.throws(() => validateAudioEditorProject(malformed), /between 2 and 128/);
 
 	const whitespaceId = structuredClone(migrated);
@@ -363,14 +330,12 @@ test('V4 migrates atomically to V5 and every video clip receives an effect stack
 		enabled: true,
 		params: { blockSize: 16 },
 	}];
-	assert.throws(() => validateAudioEditorProjectV5(whitespaceId), /non-empty string/);
 	assert.throws(() => validateAudioEditorProject(whitespaceId), /non-empty string/);
 
 	for (const invalidParams of [null, undefined]) {
 		const invalid = structuredClone(migrated);
 		invalid.clips[0].videoEffects = [{ id: 'bad-params', type: 'pixelate', enabled: true }];
 		if (invalidParams !== undefined) invalid.clips[0].videoEffects[0].params = invalidParams;
-		assert.throws(() => validateAudioEditorProjectV5(invalid), /params must be an object/);
 		assert.throws(() => validateAudioEditorProject(invalid), /params must be an object/);
 	}
 
@@ -381,9 +346,11 @@ test('V4 migrates atomically to V5 and every video clip receives an effect stack
 		enabled: true,
 		params: { brightness: 0.25 },
 	}];
-	assert.equal(validateAudioEditorProjectV5(defaultable), true);
 	assert.equal(validateAudioEditorProject(defaultable), true);
-	assert.deepEqual(loadAudioEditorProjectV5(defaultable).project.clips[0].videoEffects[0].params, {
+	assert.deepEqual(createAudioEditorProjectV5({
+		...defaultable,
+		now: defaultable.createdAt,
+	}).clips[0].videoEffects[0].params, {
 		brightness: 0.25,
 		contrast: 1,
 		saturation: 1,
@@ -407,13 +374,11 @@ test('canonical V5 video-effect stacks round-trip through JSON persistence', () 
 		],
 	});
 	const persisted = JSON.parse(JSON.stringify(project));
-	const loaded = loadAudioEditorProjectV5(persisted);
+	const loaded = createAudioEditorProjectV5({ ...persisted, now: persisted.createdAt });
 
-	assert.equal(loaded.readOnly, false);
-	assert.equal(loaded.reason, null);
-	assert.deepEqual(loaded.project, persisted);
-	assert.notStrictEqual(loaded.project.clips[0].videoEffects, persisted.clips[0].videoEffects);
-	assert.notStrictEqual(loaded.project.clips[0].videoEffects[0].params, persisted.clips[0].videoEffects[0].params);
+	assert.deepEqual(loaded, persisted);
+	assert.notStrictEqual(loaded.clips[0].videoEffects, persisted.clips[0].videoEffects);
+	assert.notStrictEqual(loaded.clips[0].videoEffects[0].params, persisted.clips[0].videoEffects[0].params);
 });
 
 test('video effect commands are ordered, bypassable, strict, and undoable', () => {

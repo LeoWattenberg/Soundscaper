@@ -15,15 +15,12 @@ import {
 	createVideoClipV6,
 	createVideoSourceV6,
 	createVideoTrackV6,
-	validateAudioEditorProjectV6,
 	type AudioEditorProjectMetadataV6,
 	type AudioEditorProjectV6Options,
 } from './project-v6.ts';
 import {
 	authoredAdmChannelCount,
 	normalizeAdmProjectMetadata,
-	validateAdmProjectChannelCount,
-	validateAdmProjectMetadata,
 	type AdmProjectMetadata,
 	type AdmProjectMetadataInput,
 } from './adm-project-metadata.ts';
@@ -74,13 +71,6 @@ function clone<Value>(value: Value): Value {
 	return JSON.parse(JSON.stringify(value)) as Value;
 }
 
-function objectValue(value: unknown, name: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${name} must be an object.`);
-	}
-	return value as Record<string, unknown>;
-}
-
 export const createAudioSourceV7 = createAudioSourceV6;
 export const createVideoSourceV7 = createVideoSourceV6;
 export const createMediaSourceV7 = createMediaSourceV6;
@@ -113,40 +103,4 @@ export function createAudioEditorProjectV7(options: AudioEditorProjectV7Options 
 
 export function cloneAudioEditorProjectV7(project: AudioEditorProjectV7): AudioEditorProjectV7 {
 	return clone(project);
-}
-
-export function validateAudioEditorProjectV7(project: unknown): project is AudioEditorProjectV7 {
-	const candidate = objectValue(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
-	}
-	validateAdmProjectMetadata(candidate.metadata);
-	validateAdmProjectChannelCount(candidate);
-	validateAudioEditorProjectV6(
-		{ ...candidate, schemaVersion: 6 } as unknown as Parameters<typeof validateAudioEditorProjectV6>[0],
-	);
-	return true;
-}
-
-export function loadAudioEditorProjectV7(value: unknown): {
-	project: AudioEditorProjectV7 | Record<string, unknown>;
-	readOnly: boolean;
-	reason: 'newer-schema' | null;
-} {
-	const candidate = objectValue(value, 'saved project');
-	const schemaVersion = Number(candidate.schemaVersion);
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		return { project: clone(candidate), readOnly: true, reason: 'newer-schema' };
-	}
-	validateAudioEditorProjectV7(candidate);
-	const project = createAudioEditorProjectV7({
-		...candidate,
-		now: candidate.createdAt,
-	} as AudioEditorProjectV7Options);
-	validateAudioEditorProjectV7(project);
-	return {
-		project,
-		readOnly: false,
-		reason: null,
-	};
 }

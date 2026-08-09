@@ -311,8 +311,9 @@ desktop workflows, and platform sets named in the inventory.
 ### Explicitly deferred or outside milestone 2
 
 - Migration from experimental/private legacy Electron libraries is
-  **Deferred** unless a meaningful installed population requires it. Retained
-  raw project-schema migrations and Audacity interchange remain supported.
+	**Deferred** unless a meaningful installed population requires it. Before the
+	first release, older raw project schemas require source-media re-import;
+	Audacity interchange remains supported and emits the current schema directly.
 - Third-party plug-in discovery or activation, native codec/audio helpers,
   Framescaper capture, MIDI, and optional AI belong to later milestones.
 - A documented residual risk that does not violate an exit gate remains in its
@@ -714,8 +715,9 @@ invent an interim Soundscaper-only design.
 
 **Goal:** qualify the complete products as coherent systems.
 
-- **Shared — Planned:** every retained migration through current save/reopen,
-  plus future-schema read-only and opaque-state round trips.
+- **Shared — Planned:** every migration retained from the first shipped release
+	through current save/reopen, plus future-schema read-only and opaque-state
+	round trips.
 - **Web Core — Planned:** current and previous supported Chromium, Firefox, and
   Safari releases, including every fallback.
 - **Electron Enhanced — Planned:** supported Windows, macOS, and Linux x64/ARM64

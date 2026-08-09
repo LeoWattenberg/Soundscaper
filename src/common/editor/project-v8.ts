@@ -13,7 +13,6 @@ import {
 	createVideoClipV7,
 	createVideoSourceV7,
 	createVideoTrackV7,
-	validateAudioEditorProjectV7,
 	type AudioEditorProjectMetadataV7,
 	type AudioEditorProjectV7Options,
 } from './project-v7.ts';
@@ -123,48 +122,4 @@ export function createAudioEditorProjectV8(options: AudioEditorProjectV8Options 
 
 export function cloneAudioEditorProjectV8(project: AudioEditorProjectV8): AudioEditorProjectV8 {
 	return clone(project);
-}
-
-export function validateAudioEditorProjectV8(project: unknown): project is AudioEditorProjectV8 {
-	const candidate = objectValue(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
-	}
-	const clips = Array.isArray(candidate.clips) ? candidate.clips : [];
-	const projectBin = objectValue(candidate.projectBin, 'project.projectBin');
-	const binClips = Array.isArray(projectBin.clips) ? projectBin.clips : [];
-	validateAudioEditorProjectV7({
-		...candidate,
-		schemaVersion: 7,
-		clips: clips.map((clip) => ({ ...objectValue(clip, 'clip'), videoEffects: [] })),
-		projectBin: {
-			...projectBin,
-			clips: binClips.map((clip) => ({ ...objectValue(clip, 'projectBin clip'), videoEffects: [] })),
-		},
-	});
-	for (const clip of [...clips, ...binClips]) {
-		const value = objectValue(clip, 'clip');
-		if (value.kind !== 'video') continue;
-		normalizeVideoEffects(value.videoEffects, `Video clip ${String(value.id)}.videoEffects`);
-	}
-	return true;
-}
-
-export function loadAudioEditorProjectV8(value: unknown): {
-	project: AudioEditorProjectV8 | Record<string, unknown>;
-	readOnly: boolean;
-	reason: 'newer-schema' | null;
-} {
-	const candidate = objectValue(value, 'saved project');
-	const schemaVersion = Number(candidate.schemaVersion);
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		return { project: clone(candidate), readOnly: true, reason: 'newer-schema' };
-	}
-	validateAudioEditorProjectV8(candidate);
-	const project = createAudioEditorProjectV8({
-		...candidate,
-		now: candidate.createdAt,
-	} as AudioEditorProjectV8Options);
-	validateAudioEditorProjectV8(project);
-	return { project, readOnly: false, reason: null };
 }

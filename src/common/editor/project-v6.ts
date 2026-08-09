@@ -13,11 +13,9 @@ import {
 	createVideoClipV5,
 	createVideoSourceV5,
 	createVideoTrackV5,
-	validateAudioEditorProjectV5,
 } from './project-v5.js';
 import {
 	normalizeProjectBextMetadata,
-	validateProjectBextMetadata,
 	type ProjectBextMetadata,
 	type ProjectBextMetadataInput,
 } from './project-bext-metadata.ts';
@@ -128,42 +126,4 @@ export function createAudioEditorProjectV6(options: AudioEditorProjectV6Options 
 
 export function cloneAudioEditorProjectV6(project: AudioEditorProjectV6): AudioEditorProjectV6 {
 	return clone(project);
-}
-
-export function validateAudioEditorProjectV6(project: unknown): project is AudioEditorProjectV6 {
-	const candidate = objectValue(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
-	}
-	validateProjectBextMetadata(candidate.metadata);
-	const metadata = objectValue(candidate.metadata, 'project.metadata');
-	if (metadata.ixml != null) normalizeIxmlMetadata(metadata.ixml as IxmlMetadataInput);
-	if (metadata.cart != null) normalizeCartMetadata(metadata.cart as CartMetadataInput);
-	validateAudioEditorProjectV5(
-		{ ...candidate, schemaVersion: 5 } as unknown as Parameters<typeof validateAudioEditorProjectV5>[0],
-	);
-	return true;
-}
-
-export function loadAudioEditorProjectV6(value: unknown): {
-	project: AudioEditorProjectV6 | Record<string, unknown>;
-	readOnly: boolean;
-	reason: 'newer-schema' | null;
-} {
-	const candidate = objectValue(value, 'saved project');
-	const schemaVersion = Number(candidate.schemaVersion);
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		return { project: clone(candidate), readOnly: true, reason: 'newer-schema' };
-	}
-	validateAudioEditorProjectV6(candidate);
-	const project = createAudioEditorProjectV6({
-		...candidate,
-		now: candidate.createdAt,
-	});
-	validateAudioEditorProjectV6(project);
-	return {
-		project,
-		readOnly: false,
-		reason: null,
-	};
 }

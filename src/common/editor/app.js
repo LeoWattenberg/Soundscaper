@@ -1,7 +1,7 @@
 import { findNearestAudioZeroCrossing } from './analysis.js';
 import { createAiffStreamEncoder, encodeAiff } from './aiff.js';
 import { decodeLegacyAupProject } from './aup-legacy.js';
-import { convertLegacyAupToProjectV2 } from './aup-legacy-conversion.js';
+import { convertLegacyAupToProject } from './aup-legacy-conversion.js';
 import { createAup4Client, requestAup4FileHandle, saveAup4Result } from './aup4-client.js';
 import {
 	applyEditorCommand,
@@ -1394,12 +1394,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 	} = createProjectImportService({
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
-		convertLegacyAupToProjectV2, copy, createAddClipCommand, createAddSourceCommand,
+		convertLegacyAupToProject, copy, createAddClipCommand, createAddSourceCommand,
 		createAddTrackCommand, createStableId, decodeLegacyAupProject,
 		editingBlocked, engine, ffmpeg, findTrack,
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
-		isLegacyAupFile, isLegacyBlockFile, isWavFile, migrateAudioEditorProject,
+		isLegacyAupFile, isLegacyBlockFile, isWavFile,
 		peakCacheKey, preflightStorage, getProject: () => project, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), projectSampleRate, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider,
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
 		sourcePcmBytes, sourcePeaks, state, store,

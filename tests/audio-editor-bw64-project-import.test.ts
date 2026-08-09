@@ -279,7 +279,7 @@ function projectImportFixture(descriptor: ReturnType<typeof bw64Descriptor>, pro
 		cacheSourceBuffer: () => undefined,
 		canonicalizeBuffer: async () => null,
 		commit: (command: unknown) => { commands.push(command); },
-		convertLegacyAupToProjectV2: () => null,
+		convertLegacyAupToProject: () => null,
 		copy: {
 			importing: 'Importing', done: 'Done', importSummary: '', timelineFramesFinite: 'finite',
 			audioTrackNotFound: 'not found', track: 'Track',
@@ -303,7 +303,6 @@ function projectImportFixture(descriptor: ReturnType<typeof bw64Descriptor>, pro
 		isLegacyAupFile: () => false,
 		isLegacyBlockFile: () => false,
 		isWavFile: () => true,
-		migrateAudioEditorProject: (value: unknown) => ({ project: value }),
 		peakCacheKey: (id: string) => id,
 		preflightStorage: async () => undefined,
 		getProject: () => project,

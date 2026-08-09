@@ -8,31 +8,17 @@ import {
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
 import {
-	migrateAudioEditorProject,
-	migrateAudioEditorProjectV2ToV3,
-	migrateAudioEditorProjectV3ToV4,
-	migrateAudioEditorProjectV4ToV6,
-	migrateAudioEditorProjectV6ToV7,
-	migrateAudioEditorProjectV7ToV8,
-	migrateAudioEditorProjectV8ToV9,
-} from '../src/common/editor/migration.js';
-import {
 	findProjectBinClip,
 	projectDurationFrames,
 	validateAudioEditorProject,
 } from '../src/common/editor/project.js';
 import {
 	createAudioClipV2,
-	createAudioEditorProjectV2,
 	createAudioSourceV2,
 	createAudioTrackV2,
-	loadAudioEditorProjectV2,
 } from '../src/common/editor/project-v2.js';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioEditorProjectV3,
-	loadAudioEditorProjectV3,
-	validateAudioEditorProjectV3,
 } from '../src/common/editor/project-v3.js';
 import {
 	collectHistorySourceIds,
@@ -106,41 +92,7 @@ function createBinFixture() {
 	});
 }
 
-test('V3 adds an empty project bin and V2 migration is atomic', () => {
-	const v2 = createAudioEditorProjectV2({ id: 'v2-project', title: 'V2', now: NOW });
-	const rollback = structuredClone(v2);
-	const migrated = migrateAudioEditorProjectV2ToV3(v2);
-
-	assert.deepEqual(v2, rollback);
-	assert.equal(migrated.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-	assert.deepEqual(migrated.projectBin, { clips: [] });
-	assert.equal(Object.hasOwn(migrated.opaqueExtensions, 'projectBin'), false);
-	assert.equal(validateAudioEditorProjectV3(migrated), true);
-	assert.deepEqual(loadAudioEditorProjectV2(migrated), {
-		project: migrated,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
-	assert.deepEqual(migrateAudioEditorProject(v2), {
-		project: migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(migrateAudioEditorProjectV6ToV7(
-			migrateAudioEditorProjectV4ToV6(migrateAudioEditorProjectV3ToV4(migrated)),
-		))),
-		migrated: true,
-		fromVersion: 2,
-		readOnly: false,
-		reason: null,
-	});
-	assert.equal(migrateAudioEditorProject(migrated).migrated, true);
-
-	const future = { ...migrated, schemaVersion: 4, futureData: { retained: true } };
-	assert.deepEqual(loadAudioEditorProjectV3(future), {
-		project: future,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
-});
-
-test('V3 validation checks bin bounds, cross-collection IDs, and timeline-only selections', () => {
+test('V3 factory retains bin clips separately from the timeline', () => {
 	const project = createBinFixture();
 	const binClip = { ...project.clips[0], id: 'bin-clip', groupId: null };
 	const withBin = createAudioEditorProjectV3({
@@ -154,23 +106,9 @@ test('V3 validation checks bin bounds, cross-collection IDs, and timeline-only s
 		selection: { ...project.selection, clipIds: [project.clips[1].id] },
 		projectBin: { clips: [binClip] },
 	});
-	assert.equal(validateAudioEditorProjectV3(withBin), true);
 	assert.equal(validateAudioEditorProject(withBin), true);
 	assert.equal(projectDurationFrames(withBin), 800);
 	assert.equal(findProjectBinClip(withBin, binClip.id).title, 'First');
-
-	assert.throws(() => validateAudioEditorProjectV3({
-		...withBin,
-		projectBin: { clips: [{ ...binClip, id: withBin.clips[0].id }] },
-	}), /Duplicate clip ID/);
-	assert.throws(() => validateAudioEditorProjectV3({
-		...withBin,
-		projectBin: { clips: [{ ...binClip, sourceStartFrame: 900, sourceDurationFrames: 200 }] },
-	}), /source bounds/);
-	assert.throws(() => validateAudioEditorProjectV3({
-		...withBin,
-		selection: { ...withBin.selection, clipIds: [binClip.id] },
-	}), /missing clip/);
 });
 
 test('project-bin commands preserve transforms, clear groups, reuse items, and undo atomically', () => {

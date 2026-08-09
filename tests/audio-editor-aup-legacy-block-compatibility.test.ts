@@ -7,7 +7,7 @@ import {
 	decodeLegacyAupProject,
 	LegacyAupError,
 } from '../src/common/editor/aup-legacy.js';
-import { convertLegacyAupToProjectV2 } from '../src/common/editor/aup-legacy-conversion.js';
+import { convertLegacyAupToProject } from '../src/common/editor/aup-legacy-conversion.js';
 
 test('legacy AUP progress failures propagate without being relabeled as corrupt blocks', async () => {
 	const calls = { blockReads: 0 };
@@ -76,7 +76,7 @@ test('legacy AUP conversion retains admitted equal-length linked channel arrays'
 	);
 	const admittedChannels = decoded.tracks[0].clips[0].channels;
 	let nextId = 0;
-	const converted = convertLegacyAupToProjectV2(decoded, {
+	const converted = convertLegacyAupToProject(decoded, {
 		idFactory: (prefix: string) => `${prefix}-${nextId += 1}`,
 	});
 
@@ -97,7 +97,7 @@ test('legacy AUP conversion retains an admitted zero-padded linked channel', asy
 	);
 	const admittedChannels = decoded.tracks[0].clips[0].channels;
 	let nextId = 0;
-	const converted = convertLegacyAupToProjectV2(decoded, {
+	const converted = convertLegacyAupToProject(decoded, {
 		idFactory: (prefix: string) => `${prefix}-${nextId += 1}`,
 	});
 

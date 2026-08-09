@@ -1,4 +1,5 @@
 import type { FrameConversionOptions } from './types.ts';
+import { sampleFrameToSeconds, secondsToSampleFrame } from '../timeline-time.ts';
 import {
 	clamp,
 	finiteNumber,
@@ -15,7 +16,7 @@ export function secondsToFrames(seconds: number, options: FrameConversionOptions
 	const sampleRate = normalizeSampleRate(options.sampleRate);
 	const value = finiteNumber(seconds, 'seconds');
 	const boundedSeconds = clamp(value, minimumFrame / sampleRate, maximumFrame / sampleRate);
-	return clamp(Math.round(boundedSeconds * sampleRate), minimumFrame, maximumFrame);
+	return clamp(secondsToSampleFrame(boundedSeconds, sampleRate), minimumFrame, maximumFrame);
 }
 
 /** Convert a possibly fractional frame value to design-system seconds. */
@@ -24,7 +25,7 @@ export function framesToSeconds(frames: number, options: FrameConversionOptions 
 	const sampleRate = normalizeSampleRate(options.sampleRate);
 	const value = finiteNumber(frames, 'frames');
 	const boundedFrame = clamp(Math.round(value), minimumFrame, maximumFrame);
-	return boundedFrame / sampleRate;
+	return sampleFrameToSeconds(boundedFrame, sampleRate);
 }
 
 export function gainDbToDesignVolume(gainDb: number): number {

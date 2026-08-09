@@ -7,8 +7,6 @@ import test from 'node:test';
 
 import { preProcessFile } from 'typescript';
 
-import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
-import { validateAudioEditorProjectV8 } from '../src/common/editor/project-v8.ts';
 import {
 	createAudioClipV9,
 	createAudioEditorProjectV9,
@@ -84,17 +82,6 @@ function firstRecord(value: unknown, name: string): MutableProject {
 	const first = array(value, name)[0];
 	assert.notEqual(first, undefined, `${name} fixture must not be empty`);
 	return record(first, `${name}[0]`);
-}
-
-function validateWithLegacyV8AndFeatureOracle(project: unknown): true {
-	const candidate = record(project, 'legacy oracle project');
-	assert.equal(candidate.schemaVersion, 9);
-	validateAudioEditorProjectV8({ ...candidate, schemaVersion: 8 });
-	normalizeProjectFeatureRequirements(candidate.featureRequirements, {
-		sources: candidate.sources as readonly Readonly<Record<string, unknown>>[],
-		clips: candidate.clips as readonly Readonly<Record<string, unknown>>[],
-	});
-	return true;
 }
 
 const invalidMutations: readonly Readonly<{
@@ -175,13 +162,11 @@ test('strict current-schema validation accepts generated V9 persistence document
 	for (const project of fixtures) {
 		const original = structuredClone(project);
 		assert.equal(validateAudioEditorProjectV9(project), true);
-		assert.equal(validateWithLegacyV8AndFeatureOracle(project), true);
 		assert.deepEqual(project, original, 'strict validation must not mutate its input');
 
 		const jsonRoundTrip = JSON.parse(JSON.stringify(project)) as unknown;
 		const roundTripOriginal = structuredClone(jsonRoundTrip);
 		assert.equal(validateAudioEditorProjectV9(jsonRoundTrip), true);
-		assert.equal(validateWithLegacyV8AndFeatureOracle(jsonRoundTrip), true);
 		assert.deepEqual(jsonRoundTrip, roundTripOriginal, 'strict validation must not mutate JSON input');
 	}
 });

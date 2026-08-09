@@ -534,78 +534,6 @@ export function cloneAudioEditorProjectV2(project) {
 	return plainClone(project);
 }
 
-/** @param {AudioEditorProjectV2} project @returns {true} */
-export function validateAudioEditorProjectV2(project) {
-	if (!project || typeof project !== 'object') throw new TypeError('An audio editor project is required.');
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
-		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
-	}
-	nonEmptyString(project.id, 'project.id');
-	nonEmptyString(project.title, 'project.title');
-	isoTimestamp(project.createdAt);
-	isoTimestamp(project.updatedAt);
-	if (!Array.isArray(project.sources) || !Array.isArray(project.clips) || !Array.isArray(project.tracks)) {
-		throw new TypeError('Project sources, clips, and tracks must be arrays.');
-	}
-	for (const name of ['tempo', 'snap', 'timeDisplay', 'metadata', 'selection', 'loop', 'view', 'master']) {
-		if (!project[name] || typeof project[name] !== 'object' || Array.isArray(project[name])) {
-			throw new TypeError(`project.${name} must be an object.`);
-		}
-	}
-	assertUniqueIds(project.sources, 'source');
-	assertUniqueIds(project.clips, 'clip');
-	assertUniqueIds(project.tracks, 'track');
-	for (const source of project.sources) nonEmptyString(source.storageKey, `source ${source.id}.storageKey`);
-	for (const track of project.tracks) {
-		if (!TRACK_TYPE_SET.has(track.type)) throw new RangeError(`Unsupported track type: ${track.type}.`);
-		if (track.type === 'label') {
-			if (!Array.isArray(track.labels)) throw new TypeError(`Label track ${track.id} must contain labels.`);
-			assertUniqueIds(track.labels, 'label');
-		}
-	}
-	const normalized = createAudioEditorProjectV2({ ...project, now: project.createdAt });
-	const sourceById = new Map(normalized.sources.map((source) => [source.id, source]));
-	const clipById = new Map(normalized.clips.map((clip) => [clip.id, clip]));
-	const trackIds = new Set(normalized.tracks.map((track) => track.id));
-	for (const trackId of Object.keys(normalized.mixer.routes)) {
-		const track = normalized.tracks.find((candidate) => candidate.id === trackId);
-		if (!track || track.type !== 'audio') throw new ReferenceError(`Mixer route references missing audio track ${trackId}.`);
-	}
-	const assignedClipIds = new Set();
-
-	for (const clip of normalized.clips) {
-		const source = sourceById.get(clip.sourceId);
-		if (!source) throw new ReferenceError(`Clip ${clip.id} references a missing source.`);
-		if (clip.sourceStartFrame + clip.sourceDurationFrames > source.frameCount) {
-			throw new RangeError(`Clip ${clip.id} exceeds its source bounds.`);
-		}
-		if (clip.trimStartFrames > clip.sourceStartFrame) {
-			throw new RangeError(`Clip ${clip.id} has an invalid leading trim range.`);
-		}
-		if (clip.sourceStartFrame + clip.sourceDurationFrames + clip.trimEndFrames > source.frameCount) {
-			throw new RangeError(`Clip ${clip.id} has an invalid trailing trim range.`);
-		}
-	}
-
-	for (const track of normalized.tracks) {
-		if (track.type === 'label') continue;
-		for (const clipId of track.clipIds) {
-			if (!clipById.has(clipId)) throw new ReferenceError(`Track ${track.id} references a missing clip.`);
-			if (assignedClipIds.has(clipId)) throw new RangeError(`Clip ${clipId} is assigned to more than one track.`);
-			assignedClipIds.add(clipId);
-		}
-	}
-	if (assignedClipIds.size !== normalized.clips.length) throw new RangeError('Every clip must belong to exactly one audio track.');
-
-	for (const trackId of [...normalized.selection.trackIds, ...normalized.view.selectedTrackIds]) {
-		if (!trackIds.has(trackId)) throw new ReferenceError(`Project state references missing track ${trackId}.`);
-	}
-	for (const clipId of normalized.selection.clipIds) {
-		if (!clipById.has(clipId)) throw new ReferenceError(`Selection references missing clip ${clipId}.`);
-	}
-	return true;
-}
-
 export function clipEndFrameV2(clip) {
 	return clip.timelineStartFrame + clip.durationFrames;
 }
@@ -642,18 +570,4 @@ function assertUniqueIds(items, type) {
 		if (ids.has(item.id)) throw new RangeError(`Duplicate ${type} ID: ${item.id}.`);
 		ids.add(item.id);
 	}
-}
-
-export function loadAudioEditorProjectV2(value) {
-	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
-	const schemaVersion = Number(value.schemaVersion);
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
-		return { project: plainClone(value), readOnly: true, reason: 'newer-schema' };
-	}
-	validateAudioEditorProjectV2(value);
-	return {
-		project: createAudioEditorProjectV2({ ...value, now: value.createdAt }),
-		readOnly: false,
-		reason: null,
-	};
 }

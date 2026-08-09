@@ -15,10 +15,10 @@ test('project compatibility policy matches the maintained schema and archive for
 
 	assert.equal(policy.schemaVersion, 1);
 	assert.equal(policy.projectSchema.currentVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-	assert.equal(policy.projectSchema.minimumReadableVersion, 1);
+	assert.equal(policy.projectSchema.minimumReadableVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.deepEqual(
 		policy.projectSchema.retainedMigrationSources,
-		Array.from({ length: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION - 1 }, (_, index) => index + 1),
+		[],
 	);
 	assert.equal(policy.portableArchive.currentFormatVersion, SCAPE_FORMAT_VERSION);
 	assert.equal(policy.portableArchive.futureFormatBehavior, 'reject-before-persistence');
@@ -102,7 +102,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	assert.match(featureRequirements.currentBehavior, /manifest schema 2.*bounded.*rendered-fallback.*closed fallback roles.*project-audio-mix-v1.*project-video-render-v1.*video-clip-render-v1.*legacy nested manifest schema 1.*deterministically normalizes.*whole-project roles only.*clip role.*videoEffects.*exact target clip ID/iu);
 	assert.match(
 		featureRequirements.requiredOutcome,
-		/retained-schema.*do not invent publisher.*create, load, clone, and commit.*editor-owned first-party/iu,
+		/create, load, clone, and commit.*editor-owned first-party/iu,
 	);
 	assert.match(
 		featureRequirements.currentBehavior,
@@ -112,7 +112,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		featureRequirements.currentBehavior,
 		/reserved soundscaper\.video-effects.*timeline.*Project Bin.*video clip.*disabled effects.*inactive audio racks.*missing or foreign.*non-video clips.*explicit publisher.*wins without duplication.*conflicting.*reserved requirement ID rejects/iu,
 	);
-	assert.match(featureRequirements.currentBehavior, /V1-V8 outer-project migration.*empty publisher manifest.*same owned reconciliation/iu);
+	assert.match(featureRequirements.currentBehavior, /Audacity importers.*exact-current.*same owned reconciliation.*without routing an older outer schema/iu);
 	assert.match(featureRequirements.currentBehavior, /without mutating/iu);
 
 	const currentScapeFeatureRequirements = rules.get('current-scape-feature-requirements');
@@ -479,11 +479,10 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const retirement = policy.schemaRetirement;
 
-	assert.equal(retirement.currentMinimumVersion, 1);
+	assert.equal(retirement.currentMinimumVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.equal(retirement.automaticRemoval, false);
-	assert.ok(retirement.requiredConditions.includes('offline-upgrader'));
-	assert.ok(retirement.requiredConditions.includes('oldest-fixture-to-current-gate'));
-	assert.ok(retirement.requiredConditions.includes('two-stable-release-deprecation-window'));
+	assert.deepEqual(retirement.requiredConditions, ['first-shipped-release-baseline']);
+	assert.equal(retirement.approval, 'first-release-versioned-policy-change');
 	assert.equal(policy.forwardReadOnly.allowMutation, false);
 	assert.equal(policy.forwardReadOnly.allowOverwrite, false);
 	assert.equal(policy.forwardReadOnly.opaqueClone, 'structured-clone');

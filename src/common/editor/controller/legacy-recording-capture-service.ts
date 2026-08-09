@@ -7,6 +7,7 @@ import type {
 	RecordingSourceWriter,
 } from './recording-transaction-types.ts';
 import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
+import { countInSampleFrames } from '../timeline-time.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -166,8 +167,13 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				? context.currentTime + (remainingSeconds || 0)
 				: context.currentTime + 0.08;
 			const leadInFrames = !timedStart && state.leadInRecording
-				? Math.round(sampleRate * 60 / Math.max(1, Number(project.tempo?.bpm) || 120)
-					* Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4))
+				? countInSampleFrames(1, {
+					bpm: Math.max(1, Number(project.tempo?.bpm) || 120),
+					timeSignature: {
+						numerator: Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4),
+						denominator: Math.max(1, Number(project.tempo?.timeSignature?.denominator) || 4),
+					},
+				}, sampleRate)
 				: 0;
 			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
 			const currentContextFrame = Math.ceil(

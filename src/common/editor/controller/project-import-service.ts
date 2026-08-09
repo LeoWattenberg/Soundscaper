@@ -36,12 +36,12 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	const {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
-		convertLegacyAupToProjectV2, copy, createAddClipCommand, createAddSourceCommand,
+		convertLegacyAupToProject, copy, createAddClipCommand, createAddSourceCommand,
 		createAddTrackCommand, createStableId, decodeLegacyAupProject, assertProject, captureProject,
 		editingBlocked, engine, ffmpeg, findTrack,
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile,
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
-		isLegacyAupFile, isLegacyBlockFile, isWavFile, migrateAudioEditorProject,
+		isLegacyAupFile, isLegacyBlockFile, isWavFile,
 		peakCacheKey, preflightStorage, getProject, projectSampleRate,
 		publishDocumentSnapshot, retireSourceChunkProvider, setStatus, sourceBuffers,
 		sourcePcmBytes, sourcePeaks, state, store,
@@ -475,7 +475,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
 		setStatus(copy.aupImporting);
 		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateLegacyAupImportProgress });
-		const decoded = convertLegacyAupToProjectV2(structure, {
+		const decoded = convertLegacyAupToProject(structure, {
 			title: stripExtension(file.name),
 			projectId: createStableId('project'),
 		});
@@ -490,7 +490,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 
 	async function persistImportedProject(decoded: RuntimeValue) {
 		if (!decoded?.project || !Array.isArray(decoded.sources)) throw new TypeError(copy.structuredProjectRequired);
-		const importedProject = migrateAudioEditorProject(decoded.project).project;
+		const importedProject = decoded.project;
 		const sourceById: RuntimeValue = new Map(importedProject.sources.map((source: RuntimeValue) => [source.id, source]));
 		const totalBytes = decoded.sources.reduce((sum: RuntimeValue, source: RuntimeValue) => (
 			sum + (source.channels || []).reduce((channelSum: RuntimeValue, channel: RuntimeValue) => channelSum + (channel?.byteLength || 0), 0)

@@ -1,15 +1,22 @@
 import {
-	createAudioClipV2,
-	createAudioEditorProjectV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-	createLabelTrackV2,
 	createLabelV2,
 } from './project-v2.js';
+import {
+	createAudioClipV9,
+	createAudioEditorProjectV9,
+	createAudioSourceV9,
+	createAudioTrackV9,
+	createLabelTrackV9,
+} from './project-v9.ts';
 import { createStableId } from './project.js';
+import {
+	divideRationals,
+	normalizeRational,
+	secondsToSampleFrame,
+} from './timeline-time.ts';
 
-/** Convert structured legacy XML AUP output into the V2 materialized model. */
-export function convertLegacyAupToProjectV2(structure, options = {}) {
+/** Convert structured legacy XML AUP output directly into the current project model. */
+export function convertLegacyAupToProject(structure, options = {}) {
 	if (!structure || !Array.isArray(structure.tracks)) throw new TypeError('Structured legacy AUP data is required.');
 	const idFactory = options.idFactory || createStableId;
 	const sampleRate = positiveRate(structure.sampleRate);
@@ -20,14 +27,14 @@ export function convertLegacyAupToProjectV2(structure, options = {}) {
 	const warnings = [...(structure.warnings || [])];
 	for (const [trackIndex, inputTrack] of structure.tracks.entries()) {
 		if (inputTrack.type === 'label') {
-			tracks.push(createLabelTrackV2({
+			tracks.push(createLabelTrackV9({
 				id: idFactory('label-track'),
 				name: String(inputTrack.name || `Labels ${trackIndex + 1}`),
 				labels: (inputTrack.labels || []).map((label) => createLabelV2({
 					id: idFactory('label'),
 					title: String(label.title || ''),
-					startFrame: secondsToFrames(label.startSeconds, sampleRate),
-					endFrame: secondsToFrames(Math.max(label.startSeconds, label.endSeconds), sampleRate),
+					startFrame: secondsToSampleFrame(nonNegative(label.startSeconds), sampleRate),
+					endFrame: secondsToSampleFrame(nonNegative(Math.max(label.startSeconds, label.endSeconds)), sampleRate),
 					opaqueExtensions: label.opaqueExtensions || {},
 				})),
 				opaqueExtensions: inputTrack.opaqueExtensions || {},
@@ -46,11 +53,15 @@ export function convertLegacyAupToProjectV2(structure, options = {}) {
 			const stretch = positive(inputClip.stretch, 1);
 			const legacySpeed = positive(inputClip.speedRatio, 1);
 			const speedRatio = legacySpeed / stretch;
-			const durationFrames = Math.max(1, Math.round(sourceDurationFrames / trackRate * sampleRate / speedRatio));
+			const sourceSeconds = divideRationals(
+				divideRationals(sourceDurationFrames, normalizeRational(trackRate)),
+				normalizeRational(speedRatio),
+			);
+			const durationFrames = Math.max(1, secondsToSampleFrame(sourceSeconds, sampleRate));
 			const sourceId = idFactory('source');
 			const clipId = idFactory('clip');
 			const name = String(inputClip.name || `${inputTrack.name || 'Audio'} ${clipIndex + 1}`);
-			const source = createAudioSourceV2({
+			const source = createAudioSourceV9({
 				id: sourceId,
 				storageKey: sourceId,
 				name,
@@ -62,11 +73,11 @@ export function convertLegacyAupToProjectV2(structure, options = {}) {
 				sampleFormat: legacySampleFormat(inputTrack.sampleFormat),
 				opaqueExtensions: { legacyAupSource: inputClip.opaqueExtensions || {} },
 			});
-			const clip = createAudioClipV2({
+			const clip = createAudioClipV9({
 				id: clipId,
 				sourceId,
 				title: name,
-				timelineStartFrame: secondsToFrames(inputClip.startSeconds, sampleRate),
+				timelineStartFrame: secondsToSampleFrame(nonNegative(inputClip.startSeconds), sampleRate),
 				sourceStartFrame,
 				sourceDurationFrames,
 				durationFrames,
@@ -85,7 +96,7 @@ export function convertLegacyAupToProjectV2(structure, options = {}) {
 			clips.push(clip);
 			clipIds.push(clip.id);
 		}
-		tracks.push(createAudioTrackV2({
+		tracks.push(createAudioTrackV9({
 			id: trackId,
 			name: String(inputTrack.name || `Track ${trackIndex + 1}`),
 			gain: finiteInRange(inputTrack.gain, 0, 4, 1),
@@ -103,15 +114,15 @@ export function convertLegacyAupToProjectV2(structure, options = {}) {
 		title: String(options.title || structure.metadata?.title || '').replace(/\.aup$/i, ''),
 		artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {},
 	};
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV9({
 		id: options.projectId || idFactory('project'),
 		title: metadata.title || 'Audacity project',
 		now: options.now,
 		sampleRate,
 		tempo: structure.tempo,
 		selection: {
-			startFrame: secondsToFrames(structure.selection?.startSeconds, sampleRate),
-			endFrame: secondsToFrames(Math.max(structure.selection?.startSeconds || 0, structure.selection?.endSeconds || 0), sampleRate),
+			startFrame: secondsToSampleFrame(nonNegative(structure.selection?.startSeconds), sampleRate),
+			endFrame: secondsToSampleFrame(nonNegative(Math.max(structure.selection?.startSeconds || 0, structure.selection?.endSeconds || 0)), sampleRate),
 		},
 		view: structure.view,
 		metadata,
@@ -152,7 +163,13 @@ function spreadLegacyOverlaps(tracks, clips, warnings) {
 
 function convertEnvelope(points = [], inputRate, projectRate, speedRatio, maximumFrame) {
 	return points.map((point) => ({
-		frame: Math.max(0, Math.min(maximumFrame, Math.round(Number(point.frame) / inputRate * projectRate / speedRatio))),
+		frame: Math.max(0, Math.min(maximumFrame, secondsToSampleFrame(
+			divideRationals(
+				divideRationals(nonNegative(point.frame), normalizeRational(inputRate)),
+				normalizeRational(speedRatio),
+			),
+			projectRate,
+		))),
 		value: Math.max(0, Math.min(16, Number(point.value) || 0)),
 	})).sort((left, right) => left.frame - right.frame)
 		.filter((point, index, values) => !index || point.frame > values[index - 1].frame);
@@ -175,10 +192,6 @@ function legacySampleFormat(value) {
 	return Number(value) === 0x00020001 ? 'int16' : Number(value) === 0x00040001 ? 'int24' : Number(value) === 0x0004000f ? 'float32' : 'unknown';
 }
 
-function secondsToFrames(seconds, sampleRate) {
-	return Math.max(0, Math.round((Number(seconds) || 0) * sampleRate));
-}
-
 function positiveRate(value) {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number <= 0 || number > 768_000) throw new RangeError('Legacy AUP sample rate is invalid.');
@@ -186,5 +199,6 @@ function positiveRate(value) {
 }
 
 function positive(value, fallback) { const number = Number(value); return Number.isFinite(number) && number > 0 ? number : fallback; }
+function nonNegative(value) { const number = Number(value); return Number.isFinite(number) && number >= 0 ? number : 0; }
 function finiteInRange(value, minimum, maximum, fallback) { const number = Number(value); return Number.isFinite(number) && number >= minimum && number <= maximum ? number : fallback; }
 function boundedInteger(value, minimum, maximum, fallback) { const number = Number(value); return Number.isSafeInteger(number) && number >= minimum && number <= maximum ? number : fallback; }

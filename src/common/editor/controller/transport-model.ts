@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
+import {
+	beatToSampleFrame,
+	normalizeRational,
+	roundRational,
+} from '../timeline-time.ts';
 
 export interface AudioEditorMetronomeScheduleOptions {
 	readonly bpm: unknown;
@@ -28,9 +33,16 @@ export function calculateAudioEditorMetronomeSchedule({
 	const normalizedPlaybackRate = Number.isFinite(requestedPlaybackRate) && requestedPlaybackRate > 0
 		? requestedPlaybackRate
 		: 1;
-	const beatFrames = normalizedSampleRate * 60 / normalizedBpm;
-	const beatIndex = Math.ceil(normalizedPosition / beatFrames);
-	const nextBeatFrame = beatIndex * beatFrames;
+	const bpmRate = normalizeRational(normalizedBpm);
+	const beatIndex = roundRational(
+		BigInt(normalizedPosition) * BigInt(bpmRate.num),
+		BigInt(normalizedSampleRate) * 60n * BigInt(bpmRate.den),
+		'enclosingEnd',
+	);
+	const nextBeatFrame = beatToSampleFrame(beatIndex, {
+		mode: 'musical',
+		events: [{ beat: { num: 0, den: 1 }, bpm: bpmRate }],
+	}, normalizedSampleRate);
 	return Object.freeze({
 		beatIndex,
 		delaySeconds: Math.max(0, (nextBeatFrame - normalizedPosition) / (normalizedSampleRate * normalizedPlaybackRate)),

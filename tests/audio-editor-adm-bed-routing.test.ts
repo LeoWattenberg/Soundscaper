@@ -8,7 +8,7 @@ import {
 	createAdmBedRouter,
 } from '../src/common/editor/engine/adm-bed-routing.ts';
 import { buildProjectGraph } from '../src/common/editor/engine/project-graph.ts';
-import { createAudioEditorProjectV7, validateAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
+import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
 
 const NOW = '2026-07-28T12:34:56.000Z';
 
@@ -87,7 +87,6 @@ test('authored ADM creation and metadata updates synchronize the project master 
 		metadata: { adm: authored('5.1') },
 	});
 	assert.equal(created.masterChannels, 6);
-	assert.equal(validateAudioEditorProjectV7(created), true);
 
 	const stereo = createAudioEditorProjectV7({ now: NOW });
 	const mono = applyEditorCommand(stereo, {
@@ -103,9 +102,6 @@ test('authored ADM creation and metadata updates synchronize the project master 
 	}, { now: NOW });
 	assert.equal(cleared.masterChannels, 6, 'clearing ADM preserves the explicitly configured master');
 
-	const mismatched = structuredClone(surround) as unknown as Record<string, unknown>;
-	mismatched.masterChannels = 2;
-	assert.throws(() => validateAudioEditorProjectV7(mismatched), /ADM bed.*master channel/i);
 });
 
 test('the ADM bed router maps terminal source channels into canonical bed order', () => {

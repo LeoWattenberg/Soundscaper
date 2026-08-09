@@ -4,11 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import {
-	migrateAudioEditorProject,
-	migrateAudioEditorProjectV8ToV9,
-} from '../src/common/editor/migration.js';
-import { createAudioEditorProjectV8 } from '../src/common/editor/project-v8.ts';
+import { migrateAudioEditorProject } from '../src/common/editor/migration.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	cloneAudioEditorProjectV9,
@@ -60,33 +56,6 @@ test('V9 projects require a normalized feature-requirements manifest', () => {
 		...(malformed.featureRequirements as { requirements: Record<string, unknown>[] }).requirements[0],
 	});
 	assert.throws(() => validateAudioEditorProjectV9(malformed), /duplicate.*requirement.*id/iu);
-});
-
-test('V8 to V9 migration is pure and initializes an empty requirements manifest', () => {
-	const v8 = createAudioEditorProjectV8({
-		id: 'legacy-v8',
-		title: 'Legacy V8',
-		now: NOW,
-		opaqueExtensions: { retained: { value: 42 } },
-	});
-	const original = structuredClone(v8);
-	const migrated = migrateAudioEditorProjectV8ToV9(v8);
-
-	assert.deepEqual(v8, original);
-	assert.equal(migrated.schemaVersion, 9);
-	assert.deepEqual(migrated.featureRequirements, { schemaVersion: 2, requirements: [] });
-	assert.deepEqual(migrated.opaqueExtensions, v8.opaqueExtensions);
-	assert.equal(migrated.createdAt, v8.createdAt);
-	assert.equal(migrated.updatedAt, v8.updatedAt);
-	assert.equal(validateAudioEditorProjectV9(migrated), true);
-
-	const routed = migrateAudioEditorProject(v8);
-	assert.equal(routed.migrated, true);
-	assert.equal(routed.fromVersion, 8);
-	assert.equal(routed.readOnly, false);
-	assert.equal(routed.reason, null);
-	assert.deepEqual(routed.project, migrated);
-	assert.throws(() => migrateAudioEditorProjectV8ToV9(migrated), /V8 project/iu);
 });
 
 test('V9 current loads clone canonical manifests and route as editable without migration', () => {

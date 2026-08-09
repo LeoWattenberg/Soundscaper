@@ -10,19 +10,10 @@ import {
 	validateAdmProjectMetadata,
 } from '../src/common/editor/adm-project-metadata.ts';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import {
-	migrateAudioEditorProject,
-	migrateAudioEditorProjectV6ToV7,
-	migrateAudioEditorProjectV7ToV8,
-	migrateAudioEditorProjectV8ToV9,
-} from '../src/common/editor/migration.js';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createAudioEditorProjectV7,
-	loadAudioEditorProjectV7,
-	validateAudioEditorProjectV7,
 } from '../src/common/editor/project-v7.ts';
 
 const NOW = '2026-07-28T12:34:56.000Z';
@@ -282,15 +273,10 @@ test('V7 projects require canonical nullable ADM and metadata commands normalize
 	const empty = createAudioEditorProjectV7({ now: NOW });
 	assert.equal(empty.schemaVersion, 7);
 	assert.equal(empty.metadata.adm, null);
-	assert.equal(validateAudioEditorProjectV7(empty), true);
 	assert.equal(validateAudioEditorProject(empty as never), true);
 
 	const project = createAudioEditorProjectV7({ now: NOW, metadata: { adm: authoredAdm() } });
 	assert.equal(project.metadata.adm?.mode, 'authored');
-	assert.equal(validateAudioEditorProjectV7(project), true);
-	const missing = structuredClone(project) as unknown as Record<string, unknown>;
-	delete (missing.metadata as Record<string, unknown>).adm;
-	assert.throws(() => validateAudioEditorProjectV7(missing), /metadata\.adm/u);
 
 	const updated = applyEditorCommand(empty, {
 		type: 'metadata/update', changes: { adm: authoredAdm() },
@@ -320,43 +306,3 @@ function riffChunk(id: string, payload: Uint8Array): Uint8Array {
 	chunk.set(payload, 8);
 	return chunk;
 }
-
-test('V6 migration adds null ADM, preserves stereo routing, and leaves the input untouched', () => {
-	const v6 = createAudioEditorProjectV6({
-		id: 'legacy-v6',
-		now: NOW,
-		masterChannels: 2,
-		tracks: [{ type: 'audio', id: 'track', name: 'Track', clipIds: [] }],
-		mixer: { routes: { track: { groupId: null, sends: {} } } },
-		metadata: { bext: { description: 'Legacy BEXT' } },
-	});
-	const original = structuredClone(v6);
-	const migrated = migrateAudioEditorProjectV6ToV7(v6);
-	assert.deepEqual(v6, original);
-	assert.equal(migrated.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-	assert.equal(migrated.metadata.adm, null);
-	assert.equal(migrated.masterChannels, 2);
-	assert.deepEqual(migrated.mixer, v6.mixer);
-	assert.deepEqual(migrateAudioEditorProject(v6), {
-		project: migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(migrated)), migrated: true, fromVersion: 6, readOnly: false, reason: null,
-	});
-});
-
-test('V7 loading clones current projects and preserves future projects read-only', () => {
-	const current = createAudioEditorProjectV7({ now: NOW, metadata: { adm: passthroughAdm() } });
-	assert.deepEqual(loadAudioEditorProjectV7(current), {
-		project: current, readOnly: false, reason: null,
-	});
-	assert.notStrictEqual(loadAudioEditorProjectV7(current).project, current);
-	assert.deepEqual(migrateAudioEditorProject(current), {
-		project: migrateAudioEditorProjectV8ToV9(migrateAudioEditorProjectV7ToV8(current)), migrated: true, fromVersion: 7, readOnly: false, reason: null,
-	});
-	const future = { ...current, schemaVersion: 9, futureData: { retained: true } };
-	assert.deepEqual(loadAudioEditorProjectV7(future), {
-		project: future, readOnly: true, reason: 'newer-schema',
-	});
-	const genericFuture = { ...future, schemaVersion: 10 };
-	assert.deepEqual(migrateAudioEditorProject(genericFuture), {
-		project: genericFuture, migrated: false, fromVersion: 10, readOnly: true, reason: 'newer-schema',
-	});
-});

@@ -24,7 +24,7 @@ test('oversized legacy AUP rejection precedes conversion, persistence, and impor
 			aupImporting: 'Importing AUP',
 			timelineFramesFinite: 'Frames must be finite.',
 		},
-		convertLegacyAupToProjectV2: forbidden('convert'),
+		convertLegacyAupToProject: forbidden('convert'),
 		createStableId: forbidden('create-id'),
 		decodeLegacyAupProject,
 		isLegacyAupFile: (file: { name?: string }) => /\.aup$/iu.test(file.name || ''),
@@ -83,7 +83,7 @@ test('late legacy block-size refusal precedes conversion, persistence, and impor
 			aupImporting: 'Importing AUP',
 			timelineFramesFinite: 'Frames must be finite.',
 		},
-		convertLegacyAupToProjectV2: forbidden('convert'),
+		convertLegacyAupToProject: forbidden('convert'),
 		createStableId: forbidden('create-id'),
 		decodeLegacyAupProject: (
 			file: unknown,
