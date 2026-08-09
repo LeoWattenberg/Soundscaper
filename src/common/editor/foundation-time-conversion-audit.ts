@@ -103,12 +103,18 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	},
 	{
 		id: 'range-video-conformance',
-		file: 'src/common/editor/commands/range-runtime.js',
+		file: 'src/common/editor/commands/range-sequence-geometry.ts',
 		behavior: 'Range operations conform both absolute boundaries once to nearest sequence frames and derive the resolved sample extent.',
 		conversions: [
 			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
 			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
 		],
+	},
+	{
+		id: 'timeline-annotation-ripple-authority',
+		file: 'src/common/editor/commands/timeline-annotation-ripple.ts',
+		behavior: 'A whole-sequence ripple exactly inverts its single conformed sample span to one musical span before applying both authoritative-domain deltas.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
 		id: 'tempo-command-map-authority',

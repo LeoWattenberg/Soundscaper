@@ -169,6 +169,22 @@ export interface CommandRangePayload {
 	readonly videoEffectIds?: StableIdListMap;
 }
 
+export interface TimelineAnnotationRippleOperation {
+	readonly sequenceId: string;
+	readonly sampleRange: Readonly<{
+		readonly startFrame: number;
+		readonly endFrame: number;
+	}>;
+	readonly musicalRange: Readonly<{
+		readonly startBeat: Rational;
+		readonly endBeat: Rational;
+	}>;
+}
+
+export interface CommandRippleRangePayload extends CommandRangePayload {
+	readonly annotationRippleOperations?: readonly TimelineAnnotationRippleOperation[];
+}
+
 export type EffectRackTarget =
 	| { readonly scope: 'master'; readonly trackId?: never; readonly busId?: never }
 	| { readonly scope: 'track'; readonly trackId: string; readonly busId?: never }
@@ -305,7 +321,7 @@ type NonBatchAudioEditorCommandPayloads = {
 	readonly 'clip/ungroup': { readonly clipIds: readonly string[] };
 	readonly 'clip/join': { readonly clipIds: readonly string[] };
 	readonly 'range/lift-delete': CommandRangePayload;
-	readonly 'range/ripple-delete': CommandRangePayload;
+	readonly 'range/ripple-delete': CommandRippleRangePayload;
 	readonly 'range/per-clip-ripple-delete': CommandRangePayload;
 	readonly 'range/keep': CommandRangePayload;
 	readonly 'range/replace': CommandRangePayload & {

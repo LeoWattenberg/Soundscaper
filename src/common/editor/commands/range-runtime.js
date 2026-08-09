@@ -11,10 +11,7 @@ import {
 	addClip,
 	mergeEditingRanges,
 } from './clip-basic-runtime.js';
-import {
-	sampleFrameToVideoFrame,
-	videoFrameToSampleFrame,
-} from '../timeline-time.ts';
+import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-schema-version.ts';
 import { isFoundationProjectSchema, projectForCommandConsumers } from '../project-current-runtime.ts';
 import {
 	brandRuntimeProjectProjection,
@@ -35,6 +32,11 @@ import {
 	segmentOfClip,
 	validateTrackReplacement,
 } from './shared-runtime.js';
+import { resolveRangeSequenceGeometry } from './range-sequence-geometry.ts';
+import {
+	createTimelineAnnotationRippleOperations,
+	stageTimelineAnnotationRippleMutation,
+} from './timeline-annotation-ripple.ts';
 
 // foundation-edit-matrix: ripple
 // foundation-edit-matrix: range-delete
@@ -43,11 +45,25 @@ export function deleteRange(project, command, rippleMode) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'delete range');
 	const trackIds = command.trackIds || project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id);
 	const affectedClipIds = Array.isArray(command.clipIds) ? new Set(command.clipIds) : null;
-	const conformedRanges = conformedVideoOperationRanges(project, trackIds, range);
+	const geometry = resolveRangeSequenceGeometry(project, trackIds, range);
+	if (rippleMode !== 'track' && Object.hasOwn(command, 'annotationRippleOperations')) {
+		throw new RangeError('Annotation ripple operations are only valid for range/ripple-delete.');
+	}
+	const commitAnnotationRipple = rippleMode === 'track'
+		? stageTimelineAnnotationRippleMutation(
+			project,
+			command,
+			createTimelineAnnotationRippleOperations(
+				project,
+				geometry,
+				Array.isArray(command.clipIds) ? command.clipIds : clipIdsForTracks(project, trackIds),
+			),
+		)
+		: () => undefined;
 	for (const trackId of trackIds) {
 		const track = requireTrack(project, trackId);
 		if (!Array.isArray(track.clipIds)) continue;
-		const operationRange = conformedRanges.has(trackId) ? conformedRanges.get(trackId) : range;
+		const operationRange = geometry.trackRanges.has(trackId) ? geometry.trackRanges.get(trackId) : range;
 		if (!operationRange) continue;
 		processTrackRange(
 			project,
@@ -60,47 +76,14 @@ export function deleteRange(project, command, rippleMode) {
 			affectedClipIds,
 		);
 	}
+	commitAnnotationRipple();
 }
 
-function conformedVideoOperationRanges(project, trackIds, range) {
-	const result = new Map();
-	if (Number(project.schemaVersion) < 10 || !Array.isArray(project.sequences)) return result;
-	const selectedTrackIds = new Set(trackIds);
-	const trackById = new Map(project.tracks.map((track) => [track.id, track]));
-	for (const sequence of project.sequences) {
-		const participating = (Array.isArray(sequence.trackIds) ? sequence.trackIds : [])
-			.filter((trackId) => selectedTrackIds.has(trackId));
-		if (!participating.some((trackId) => trackById.get(trackId)?.type === 'video')) continue;
-		const startVideoFrame = sampleFrameToVideoFrame(
-			range.startFrame,
-			sequence.rate,
-			project.sampleRate,
-			'point',
-		);
-		const endVideoFrame = sampleFrameToVideoFrame(
-			range.endFrame,
-			sequence.rate,
-			project.sampleRate,
-			'point',
-		);
-		const startFrame = videoFrameToSampleFrame(
-			startVideoFrame,
-			sequence.rate,
-			project.sampleRate,
-			'point',
-		);
-		const endFrame = videoFrameToSampleFrame(
-			endVideoFrame,
-			sequence.rate,
-			project.sampleRate,
-			'point',
-		);
-		const conformed = endFrame > startFrame
-			? { startFrame, endFrame, durationFrames: endFrame - startFrame }
-			: null;
-		for (const trackId of participating) result.set(trackId, conformed);
-	}
-	return result;
+function clipIdsForTracks(project, trackIds) {
+	return trackIds.flatMap((trackId) => {
+		const track = requireTrack(project, trackId);
+		return Array.isArray(track.clipIds) ? track.clipIds : [];
+	});
 }
 
 export function processTrackRange(
@@ -212,15 +195,18 @@ export function prepareRangeDeleteCommand(project, options = {}, idFactory = cre
 	const { trackIds, clipIds } = collectLinkedRangeTargets(project, requestedTrackIds, {
 		expandTracks: rippleMode === 'track',
 	});
+	const geometry = resolveRangeSequenceGeometry(project, trackIds, range);
 	const clipIdSet = new Set(clipIds);
 	const splitClipIds = {};
 	const splitAvLinkIds = {};
 	const videoEffectIds = {};
 	for (const trackId of trackIds) {
+		const operationRange = geometry.trackRanges.has(trackId) ? geometry.trackRanges.get(trackId) : range;
+		if (!operationRange) continue;
 		for (const clipId of requireTrack(project, trackId).clipIds) {
 			if (!clipIdSet.has(clipId)) continue;
 			const clip = requireClip(project, clipId);
-			if (clip.timelineStartFrame < range.startFrame && clipEndFrame(clip) > range.endFrame) {
+			if (clip.timelineStartFrame < operationRange.startFrame && clipEndFrame(clip) > operationRange.endFrame) {
 				splitClipIds[clip.id] = idFactory('clip');
 				const effectIds = prepareVideoEffectIds(clip, idFactory);
 				if (effectIds) videoEffectIds[splitClipIds[clip.id]] = effectIds;
@@ -230,7 +216,13 @@ export function prepareRangeDeleteCommand(project, options = {}, idFactory = cre
 			}
 		}
 	}
-	return { type, trackIds, clipIds, ...range, splitClipIds, splitAvLinkIds, videoEffectIds };
+	const command = { type, trackIds, clipIds, ...range, splitClipIds, splitAvLinkIds, videoEffectIds };
+	return type === 'range/ripple-delete' && project.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
+		? {
+			...command,
+			annotationRippleOperations: createTimelineAnnotationRippleOperations(project, geometry, clipIds),
+		}
+		: command;
 }
 
 /**

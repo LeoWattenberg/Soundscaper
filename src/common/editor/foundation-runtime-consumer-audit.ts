@@ -153,6 +153,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'Timeline annotation command reconciliation restores authoritative wire coordinates from a branded command projection; it is an edit adapter rather than a runtime consumer.',
 	},
 	{
+		file: 'src/common/editor/commands/timeline-annotation-ripple.ts',
+		reason: 'Timeline annotation ripple verifies a branded command draft before staging authoritative-domain contraction; it is an edit adapter rather than a runtime consumer.',
+	},
+	{
 		file: 'src/common/editor/project-feature-requirements.ts',
 		reason: 'Owned feature-declaration reconciliation resolves a fallback target duration while validating persisted requirements.',
 	},
