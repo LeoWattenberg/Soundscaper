@@ -237,7 +237,12 @@ test('preferences service recovers invalid storage and preserves the read-only s
 });
 
 test('project session service deduplicates legacy recents and persists active UI metadata', async () => {
+	interface SessionProject {
+		readonly tracks: readonly Readonly<{ id: string; type: string }>[];
+		readonly clips: readonly Readonly<{ id: string }>[];
+	}
 	let recent: string[] = [];
+	const selectionState = { selectedTrackId: 'track' as string | null, selectedClipId: 'clip' as string | null };
 	const persisted: Array<[string, unknown]> = [];
 	const metadata: Array<[string, Record<string, unknown>]> = [];
 	const settings = new Map<string, unknown>([
@@ -251,8 +256,9 @@ test('project session service deduplicates legacy recents and persists active UI
 		getRecentProjectIds: () => recent,
 		setRecentProjectIds: (value) => { recent = value; },
 		getActiveProjectId: () => 'first',
-		getSelectedTrackId: () => 'track',
-		getSelectedClipId: () => 'clip',
+		state: selectionState,
+		findTrack: (project: SessionProject, trackId) => project.tracks.find((track) => track.id === trackId) ?? null,
+		findClip: (project: SessionProject, clipId) => project.clips.find((clip) => clip.id === clipId) ?? null,
 		getTabs: () => [{ projectId: 'first', metadata: {} }],
 		updateProjectMetadata: (projectId, value) => { metadata.push([projectId, value]); },
 		loadSetting: async (key, fallback) => settings.get(key) ?? fallback,
@@ -265,6 +271,11 @@ test('project session service deduplicates legacy recents and persists active UI
 	assert.deepEqual(recent, ['first', 'second']);
 	service.persistActiveSessionUiState();
 	assert.deepEqual(metadata, [['first', { selectedTrackId: 'track', selectedClipId: 'clip' }]]);
+	service.restoreProjectSelection({
+		tracks: [{ id: 'labels', type: 'label' }, { id: 'audio', type: 'audio' }],
+		clips: [{ id: 'restored-clip' }],
+	}, { selectedTrackId: 'labels', selectedClipId: 'restored-clip' });
+	assert.deepEqual(selectionState, { selectedTrackId: 'labels', selectedClipId: 'restored-clip' });
 	await service.recordOpenedProject('third', async (value) => value);
 	assert.deepEqual(recent, ['third', 'first', 'second']);
 	assert.deepEqual(persisted.map(([key]) => key), [

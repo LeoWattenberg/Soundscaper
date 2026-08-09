@@ -533,8 +533,7 @@ function createFixture(options: FixtureOptions) {
 		loadRecordingRouting: async (candidate: TestProject) => {
 			effects.push(`recording:routing:${candidate.id}`);
 		},
-		findTrack: () => null,
-		findClip: () => null,
+		restoreProjectSelection: () => undefined,
 		revokeOutputUrl: () => undefined,
 		revokeVideoVisuals: () => undefined,
 		clearWaveformPcmWindows: () => undefined,

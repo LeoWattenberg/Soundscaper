@@ -399,7 +399,7 @@ function createFixture(options: Readonly<{
 		acquireProjectLock: async (projectId: string) => { activeLock = lock(projectId); return activeLock; },
 		watchProjectLockLoss: () => undefined, scheduleProjectLockRecovery: () => undefined,
 		sessionTab: (projectId: string) => tabs.get(projectId) ?? null, session,
-		loadRecordingRouting: async () => undefined, findTrack: () => null, findClip: () => null,
+		loadRecordingRouting: async () => undefined, restoreProjectSelection: () => undefined,
 		revokeOutputUrl: () => undefined, revokeVideoVisuals: () => undefined,
 		clearWaveformPcmWindows: () => undefined,
 		loadProjectSources: sourceLifecycle.loadProjectSources,

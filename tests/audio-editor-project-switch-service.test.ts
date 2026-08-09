@@ -187,12 +187,11 @@ function createFixture(productCapabilities: Readonly<Record<string, unknown>> = 
 		sessionTab: (projectId: string) => tabs.get(projectId) ?? null,
 		session,
 		loadRecordingRouting: async (value: TestProject) => { events.push(`load-routing:${value.id}`); },
-		findTrack: (value: TestProject, trackId: string | null | undefined) => (
-			value.tracks.find((candidate) => candidate.id === trackId) ?? null
-		),
-		findClip: (value: TestProject, clipId: string | null | undefined) => (
-			value.clips.find((candidate) => candidate.id === clipId) ?? null
-		),
+		restoreProjectSelection: (value, metadata) => {
+			state.selectedTrackId = value.tracks.find((candidate) => candidate.id === metadata.selectedTrackId)?.id
+				?? value.tracks.find((candidate) => candidate.type !== 'label')?.id ?? value.tracks[0]?.id ?? null;
+			state.selectedClipId = value.clips.find((candidate) => candidate.id === metadata.selectedClipId)?.id ?? null;
+		},
 		revokeOutputUrl: (url: string) => { revokedUrls.push(url); },
 		revokeVideoVisuals: () => { events.push('revoke-video'); },
 		clearWaveformPcmWindows: () => { events.push('clear-waveform'); },

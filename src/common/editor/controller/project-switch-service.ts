@@ -164,8 +164,7 @@ export interface ProjectSwitchServiceRuntime<
 	readonly sessionTab: (projectId: string) => ProjectLifecycleTab<Project, History> | null;
 	readonly session: ProjectSwitchSession<Project, History>;
 	readonly loadRecordingRouting: (project: Project) => PromiseLike<unknown> | unknown;
-	readonly findTrack: (project: Project, trackId: string | null | undefined) => Readonly<{ id: string }> | null;
-	readonly findClip: (project: Project, clipId: string | null | undefined) => Readonly<{ id: string }> | null;
+	readonly restoreProjectSelection: (project: Project, metadata: ProjectLifecycleTabMetadata) => void;
 	readonly revokeOutputUrl: (url: string) => void;
 	readonly revokeVideoVisuals: () => PromiseLike<void> | void;
 	readonly clearWaveformPcmWindows: () => void;
@@ -441,11 +440,7 @@ export function createProjectSwitchService<
 			runtime.projectGeneration.activate(activeProject.id);
 			await guard(runtime.loadRecordingRouting(activeProject));
 			const tabMetadata = runtime.sessionTab(projectId)?.metadata || {};
-			runtime.state.selectedTrackId = runtime.findTrack(activeProject, tabMetadata.selectedTrackId)?.id
-				?? activeProject.tracks.find((track) => track.type !== 'label')?.id
-				?? activeProject.tracks[0]?.id
-				?? null;
-			runtime.state.selectedClipId = runtime.findClip(activeProject, tabMetadata.selectedClipId)?.id ?? null;
+			runtime.restoreProjectSelection(activeProject, tabMetadata);
 			runtime.state.clipboard = runtime.session.clipboardForProject(projectId)?.descriptor ?? null;
 			resetProjectScopedState();
 			if (runtime.state.outputUrl) runtime.revokeOutputUrl(runtime.state.outputUrl);

@@ -1,3 +1,11 @@
+import {
+	createProjectSessionSelectionService,
+	type ProjectSessionSelectionMetadata,
+	type ProjectSessionSelectionProject,
+	type ProjectSessionSelectionServiceDependencies,
+	type ProjectSessionSelectionState,
+} from './project-session-selection-service.ts';
+
 export type ProjectSessionGuard = <Value>(value: PromiseLike<Value> | Value) => Promise<Value>;
 
 export interface ProjectSessionTab {
@@ -6,15 +14,16 @@ export interface ProjectSessionTab {
 	readonly [key: string]: unknown;
 }
 
-export interface ProjectSessionServiceDependencies {
+export interface ProjectSessionServiceDependencies<Project extends ProjectSessionSelectionProject> {
 	readonly productId: string;
 	readonly recentProjectsSettingKey: string;
 	readonly lastProjectSettingKey: string;
 	readonly getRecentProjectIds: () => string[];
 	readonly setRecentProjectIds: (projectIds: string[]) => void;
 	readonly getActiveProjectId: () => string | null;
-	readonly getSelectedTrackId: () => string | null;
-	readonly getSelectedClipId: () => string | null;
+	readonly state: ProjectSessionSelectionState;
+	readonly findTrack: ProjectSessionSelectionServiceDependencies<Project>['findTrack'];
+	readonly findClip: ProjectSessionSelectionServiceDependencies<Project>['findClip'];
 	readonly getTabs: () => ProjectSessionTab[];
 	readonly updateProjectMetadata: (projectId: string, metadata: Record<string, unknown>) => void;
 	readonly loadSetting: (key: string, fallback: unknown) => Promise<unknown>;
@@ -22,10 +31,14 @@ export interface ProjectSessionServiceDependencies {
 	readonly publish: () => void;
 }
 
-export function createProjectSessionService(dependencies: ProjectSessionServiceDependencies) {
+export function createProjectSessionService<Project extends ProjectSessionSelectionProject>(
+	dependencies: ProjectSessionServiceDependencies<Project>,
+) {
+	const projectSelection = createProjectSessionSelectionService(dependencies);
 	return Object.freeze({
 		sessionTab,
 		persistActiveSessionUiState,
+		restoreProjectSelection,
 		loadRecentProjectState,
 		recordOpenedProject,
 		clearRecentProjects,
@@ -39,10 +52,14 @@ export function createProjectSessionService(dependencies: ProjectSessionServiceD
 	function persistActiveSessionUiState(): void {
 		const projectId = dependencies.getActiveProjectId();
 		if (!projectId || !sessionTab(projectId)) return;
-		dependencies.updateProjectMetadata(projectId, {
-			selectedTrackId: dependencies.getSelectedTrackId(),
-			selectedClipId: dependencies.getSelectedClipId(),
-		});
+		dependencies.updateProjectMetadata(projectId, { ...projectSelection.capture() });
+	}
+
+	function restoreProjectSelection(
+		project: Project,
+		metadata: Readonly<ProjectSessionSelectionMetadata> = {},
+	): void {
+		projectSelection.restore(project, metadata);
 	}
 
 	async function loadRecentProjectState(guard: ProjectSessionGuard): Promise<unknown> {
