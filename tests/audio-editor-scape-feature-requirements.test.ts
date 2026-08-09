@@ -47,7 +47,7 @@ interface ScapeImportResult {
 	readonly collision: 'copy' | 'replace' | null;
 }
 
-test('the current V12 feature requirements retain their compatibility semantics through a Scape round trip', async () => {
+test('the current V13 feature requirements retain their compatibility semantics through a Scape round trip', async () => {
 	const sourceStore = memoryStore('scape-feature-roundtrip-source');
 	const targetStore = memoryStore('scape-feature-roundtrip-target');
 	const project = featureProject('scape-feature-roundtrip');
@@ -62,7 +62,7 @@ test('the current V12 feature requirements retain their compatibility semantics 
 
 	assert.equal(imported.readOnly, false);
 	assert.equal(imported.reason, null);
-	assert.equal(imported.project.schemaVersion, 12);
+	assert.equal(imported.project.schemaVersion, 13);
 	assert.deepEqual(imported.project.featureRequirements, project.featureRequirements);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements), true);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements.requirements), true);
@@ -205,7 +205,7 @@ test('pre-open Scape inspection leaves future project feature requirements opaqu
 
 	const inspected = await service.inspectScape(archive);
 
-	assert.equal(inspected.schemaVersion, 13);
+	assert.equal(inspected.schemaVersion, 14);
 	assert.equal(inspected.readOnly, true);
 	assert.equal(inspected.featureRequirementsCompatibility, null);
 });
@@ -330,7 +330,7 @@ async function storedSamples(store: ProjectStore, sourceId: string): Promise<num
 
 async function futureProjectArchive(): Promise<Blob> {
 	const projectText = JSON.stringify({
-		schemaVersion: 13,
+		schemaVersion: 14,
 		id: 'future-feature-project',
 		title: 'Future feature project',
 		sources: [],
@@ -349,7 +349,7 @@ async function futureProjectArchive(): Promise<Blob> {
 		project: {
 			entry: 'project.json',
 			mimeType: 'application/json',
-			schemaVersion: 13,
+			schemaVersion: 14,
 			size: projectBytes.byteLength,
 			sha256: createHash('sha256').update(projectBytes).digest('hex'),
 		},

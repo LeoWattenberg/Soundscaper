@@ -49,11 +49,11 @@ test('V12 is exact current while V11 and V10 remain honest historical generation
 	const historicalV11 = createAudioEditorProjectV11({ id: 'historical-v11', now: NOW });
 	const historical = createAudioEditorProjectV10({ id: 'historical-v10', now: NOW });
 
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 12);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 12);
+	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 13);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 13);
 	assert.equal(AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION, 11);
 	assert.equal(AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION, 10);
-	assert.equal(current.schemaVersion, 12);
+	assert.equal(current.schemaVersion, 13);
 	assert.equal(historicalV11.schemaVersion, 11);
 	assert.equal(historical.schemaVersion, 10);
 	assert.deepEqual(current.timelineAnnotations, []);
@@ -67,7 +67,7 @@ test('V12 is exact current while V11 and V10 remain honest historical generation
 
 test('the historical V11 contract owns its exact schema boundary', () => {
 	const project = createAudioEditorProjectV11({ id: 'v11-boundary', now: NOW });
-	const future = { ...project, schemaVersion: 12 };
+	const future = { ...project, schemaVersion: 14 };
 
 	assert.deepEqual(loadAudioEditorProjectV11(future), {
 		project: future,
@@ -221,46 +221,46 @@ test('current selection commands preserve the mandatory annotation selection fie
 	assert.equal(validateCurrentAudioEditorProject(selected), true);
 });
 
-test('the raw router rejects schemas 1 through 11, loads exact V12, and preserves V13 opaquely read-only', () => {
-	for (const schemaVersion of [12.5, Number.POSITIVE_INFINITY, '13', 13n]) {
+test('the raw router rejects schemas 1 through 12, loads exact V13, and preserves V14 opaquely read-only', () => {
+	for (const schemaVersion of [13.5, Number.POSITIVE_INFINITY, '14', 14n]) {
 		assert.throws(
 			() => migrateAudioEditorProject({ schemaVersion }),
 			/unsupported.*schema version|schema version.*unsupported/iu,
 		);
 	}
-	for (let schemaVersion = 1; schemaVersion <= 11; schemaVersion += 1) {
+	for (let schemaVersion = 1; schemaVersion <= 12; schemaVersion += 1) {
 		assert.throws(
 			() => migrateAudioEditorProject({ schemaVersion }),
 			(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError
 				&& error.schemaVersion === schemaVersion
-				&& error.currentSchemaVersion === 12,
+				&& error.currentSchemaVersion === 13,
 		);
 	}
-	const current = createCurrentAudioEditorProject({ id: 'router-v12', now: NOW });
+	const current = createCurrentAudioEditorProject({ id: 'router-v13', now: NOW });
 	const loaded = migrateAudioEditorProject(current);
 	assert.equal(loaded.readOnly, false);
 	assert.deepEqual(loaded.project, current);
 
 	const future = {
 		...current,
-		schemaVersion: 13,
+		schemaVersion: 14,
 		timelineAnnotations: { futureShape: { retained: true } },
 	};
 	assert.deepEqual(migrateAudioEditorProject(future), {
 		project: future,
 		migrated: false,
-		fromVersion: 13,
+		fromVersion: 14,
 		readOnly: true,
 		reason: 'newer-schema',
 	});
 });
 
-test('legacy AUP and AUP4 imports author exact V12 documents with empty annotations and folders', async () => {
+test('legacy AUP and AUP4 imports author exact V13 documents with empty annotations and folders', async () => {
 	const legacy = convertLegacyAupToProject({ sampleRate: 48_000, tracks: [] }, {
 		idFactory: (prefix: string) => prefix,
 		now: NOW,
 	});
-	assert.equal(legacy.project.schemaVersion, 12);
+	assert.equal(legacy.project.schemaVersion, 13);
 	assert.deepEqual(legacy.project.timelineAnnotations, []);
 	assert.deepEqual(legacy.project.trackFolders, []);
 	assert.equal(validateCurrentAudioEditorProject(legacy.project), true);
@@ -273,7 +273,7 @@ test('legacy AUP and AUP4 imports author exact V12 documents with empty annotati
 	const aup4 = await decodeAudacityProjectTree(root, async () => null, {
 		idFactory: (prefix: string) => `${prefix}-${String(++nextId)}`,
 	});
-	assert.equal(aup4.project.schemaVersion, 12);
+	assert.equal(aup4.project.schemaVersion, 13);
 	assert.deepEqual(aup4.project.timelineAnnotations, []);
 	assert.deepEqual(aup4.project.trackFolders, []);
 	assert.equal(validateCurrentAudioEditorProject(aup4.project), true);

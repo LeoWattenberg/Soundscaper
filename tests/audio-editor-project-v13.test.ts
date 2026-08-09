@@ -36,19 +36,19 @@ import {
 	validateAudioEditorProjectV11,
 } from '../src/common/editor/project-v11.ts';
 import {
-	AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION,
-	createAudioEditorProjectV12,
-	validateAudioEditorProjectV12,
-	type AudioEditorProjectV12,
-} from '../src/common/editor/project-v12.ts';
+	AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION,
+	createAudioEditorProjectV13,
+	validateAudioEditorProjectV13,
+	type AudioEditorProjectV13,
+} from '../src/common/editor/project-v13.ts';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const NOW = '2026-08-09T18:00:00.000Z';
 
-function folderProject(): AudioEditorProjectV12 {
-	return createAudioEditorProjectV12({
+function folderProject(): AudioEditorProjectV13 {
+	return createAudioEditorProjectV13({
 		id: 'folder-project',
 		title: 'Folder project',
 		now: NOW,
@@ -90,13 +90,13 @@ function folderProject(): AudioEditorProjectV12 {
 	});
 }
 
-test('V12 is exact current and retains V11 annotations with authoritative folder hierarchy', () => {
+test('V13 is exact current and retains V11 annotations with authoritative folder hierarchy', () => {
 	const project = folderProject();
 
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 12);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 12);
-	assert.equal(AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION, 12);
-	assert.equal(project.schemaVersion, 12);
+	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 13);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 13);
+	assert.equal(AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION, 13);
+	assert.equal(project.schemaVersion, 13);
 	assert.deepEqual(project.trackFolders.map(({ id }) => id), ['folder-a', 'folder-b']);
 	assert.deepEqual(project.sequences[0]?.trackIds, ['track-a', 'track-b']);
 	assert.deepEqual(project.sequences[0]?.trackNodes, [
@@ -107,11 +107,11 @@ test('V12 is exact current and retains V11 annotations with authoritative folder
 	]);
 	assert.deepEqual(project.tracks.map(({ id }) => id), ['track-a', 'track-b']);
 	assert.deepEqual(project.selection.annotationIds, ['marker-a']);
-	assert.equal(validateAudioEditorProjectV12(project), true);
+	assert.equal(validateAudioEditorProjectV13(project), true);
 	assert.equal(validateCurrentAudioEditorProject(project), true);
 });
 
-test('V12 derives root track nodes by default while V11 rejects every V12 persistence field', () => {
+test('V13 derives root track nodes by default while V11 rejects every folder persistence field', () => {
 	const current = createCurrentAudioEditorProject({
 		now: NOW,
 		tracks: [createAudioTrackV10({ id: 'track-a' })],
@@ -151,35 +151,35 @@ test('V12 derives root track nodes by default while V11 rejects every V12 persis
 		},
 	});
 	assert.throws(
-		() => createAudioEditorProjectV12({ sequences: [hostileSequence] }),
+		() => createAudioEditorProjectV13({ sequences: [hostileSequence] }),
 		/trackNodes.*own enumerable data property/iu,
 	);
 	assert.equal(getterCalls, 0);
 });
 
-test('V12 rejects hierarchy projection drift and project metadata order drift', () => {
+test('V13 rejects hierarchy projection drift and project metadata order drift', () => {
 	const project = folderProject();
 	const sequence = project.sequences[0]!;
 	assert.throws(
-		() => validateAudioEditorProjectV12({ ...project, trackFolderStateProjectionVersion: 1 }),
+		() => validateAudioEditorProjectV13({ ...project, trackFolderStateProjectionVersion: 1 }),
 		/persisted project.*runtime projection marker/iu,
 	);
 	assert.throws(
-		() => validateAudioEditorProjectV12({
+		() => validateAudioEditorProjectV13({
 			...project,
 			sequences: [{ ...sequence, trackIds: ['track-b', 'track-a'] }],
 		}),
 		/trackIds.*derived leaf order/iu,
 	);
 	assert.throws(
-		() => validateAudioEditorProjectV12({
+		() => validateAudioEditorProjectV13({
 			...project,
 			tracks: [...project.tracks].reverse(),
 		}),
 		/project\.tracks.*exact hierarchy preorder/iu,
 	);
 	assert.throws(
-		() => validateAudioEditorProjectV12({
+		() => validateAudioEditorProjectV13({
 			...project,
 			trackFolders: [...project.trackFolders].reverse(),
 		}),
@@ -187,7 +187,7 @@ test('V12 rejects hierarchy projection drift and project metadata order drift', 
 	);
 });
 
-test('current V12 is byte-idempotent across clone, JSON, and local store save/open', async () => {
+test('current V13 is byte-idempotent across clone, JSON, and local store save/open', async () => {
 	const project = folderProject();
 	const serialized = JSON.stringify(project);
 	const loaded = loadCurrentAudioEditorProject(JSON.parse(serialized));
@@ -219,7 +219,7 @@ test('current .scape archive round trip preserves nonempty folder state byte-exa
 		databaseName: 'v12-folder-scape-target',
 	});
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 12);
+	assert.equal(exported.manifest.project.schemaVersion, 13);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));
@@ -239,7 +239,7 @@ test('current .scape archive round trip preserves nonempty folder state byte-exa
 	await targetStore.close();
 });
 
-test('ordinary edits, undo, and redo preserve exact V12 folder state', () => {
+test('ordinary edits, undo, and redo preserve exact V13 folder state', () => {
 	const project = folderProject();
 	const command = {
 		type: 'metadata/update',
@@ -248,7 +248,7 @@ test('ordinary edits, undo, and redo preserve exact V12 folder state', () => {
 	const edited = applyEditorCommand(project, command, { now: '2026-08-09T18:01:00.000Z' });
 	assert.deepEqual(edited.trackFolders, project.trackFolders);
 	assert.deepEqual(edited.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
-	assert.equal(validateAudioEditorProjectV12(edited), true);
+	assert.equal(validateAudioEditorProjectV13(edited), true);
 
 	const executed = executeEditorCommand(createEditorHistory(project), command, {
 		now: '2026-08-09T18:01:00.000Z',
@@ -261,11 +261,11 @@ test('ordinary edits, undo, and redo preserve exact V12 folder state', () => {
 	assert.deepEqual(redone.present.trackFolders, edited.trackFolders);
 	assert.deepEqual(redone.present.sequences[0]?.trackNodes, edited.sequences[0]?.trackNodes);
 	assert.equal(redone.present.metadata.artist, edited.metadata.artist);
-	assert.equal(validateAudioEditorProjectV12(undone.present), true);
-	assert.equal(validateAudioEditorProjectV12(redone.present), true);
+	assert.equal(validateAudioEditorProjectV13(undone.present), true);
+	assert.equal(validateAudioEditorProjectV13(redone.present), true);
 });
 
-test('legacy track add, reorder, and remove keep empty-folder V12 root hierarchy exact', () => {
+test('legacy track add, reorder, and remove keep empty-folder V13 root hierarchy exact', () => {
 	let project = createCurrentAudioEditorProject({
 		now: NOW,
 		tracks: [
@@ -296,7 +296,7 @@ test('legacy track add, reorder, and remove keep empty-folder V12 root hierarchy
 	}, { now: NOW });
 	assert.deepEqual(project.sequences[0]?.trackIds, ['track-b', 'track-c']);
 	assert.deepEqual(project.sequences[0]?.trackNodes.map(({ id }) => id), ['track-b', 'track-c']);
-	assert.equal(validateAudioEditorProjectV12(project), true);
+	assert.equal(validateAudioEditorProjectV13(project), true);
 });
 
 test('legacy root track edits preserve multi-sequence blocks and reject cross-sequence reorder', () => {
@@ -343,7 +343,7 @@ test('legacy root track edits preserve multi-sequence blocks and reject cross-se
 	assert.deepEqual(project, snapshot);
 });
 
-test('legacy structural track commands reject nonempty V12 hierarchy without mutating it', () => {
+test('legacy structural track commands reject nonempty V13 hierarchy without mutating it', () => {
 	const project = folderProject();
 	const snapshot = structuredClone(project);
 	assert.throws(() => applyEditorCommand(project, {
@@ -364,22 +364,22 @@ test('legacy structural track commands reject nonempty V12 hierarchy without mut
 	assert.deepEqual(project, snapshot);
 });
 
-test('schemas 1 through 11 require typed re-import and future V13 stays opaque read-only', () => {
-	for (let schemaVersion = 1; schemaVersion <= 11; schemaVersion += 1) {
+test('schemas 1 through 12 require typed re-import and future V14 stays opaque read-only', () => {
+	for (let schemaVersion = 1; schemaVersion <= 12; schemaVersion += 1) {
 		assert.throws(
 			() => migrateAudioEditorProject({ schemaVersion }),
 			(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError
 				&& error.schemaVersion === schemaVersion
-				&& error.currentSchemaVersion === 12,
+				&& error.currentSchemaVersion === 13,
 		);
 	}
 	const project = folderProject();
-	const future = { ...project, schemaVersion: 13, futureFolderState: { opaque: true } };
+	const future = { ...project, schemaVersion: 14, futureFolderState: { opaque: true } };
 	const loaded = migrateAudioEditorProject(future);
 	assert.deepEqual(loaded, {
 		project: future,
 		migrated: false,
-		fromVersion: 13,
+		fromVersion: 14,
 		readOnly: true,
 		reason: 'newer-schema',
 	});

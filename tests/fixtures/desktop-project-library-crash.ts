@@ -2,7 +2,10 @@
 
 import { rename, writeFile } from 'node:fs/promises';
 
-import { createDesktopProjectLibraryPaths } from '../../desktop/project-library-contract.ts';
+import {
+	DESKTOP_LIBRARY_SCHEMA_VERSION,
+	createDesktopProjectLibraryPaths,
+} from '../../desktop/project-library-contract.ts';
 import type { DesktopLibraryCheckpoint } from '../../desktop/project-library-api.ts';
 import { SharedDesktopProjectLibrary } from '../../desktop/project-library.ts';
 
@@ -32,6 +35,6 @@ const lease = await library.acquireLease({
 leaseToken = lease.fencingToken;
 await library.publishMetadata({
 	lease,
-	metadata: { schemaVersion: 4, revision: 1, projects: [], media: [] },
+	metadata: { schemaVersion: DESKTOP_LIBRARY_SCHEMA_VERSION, revision: 1, projects: [], media: [] },
 });
 throw new Error('Crash fixture publication unexpectedly completed');

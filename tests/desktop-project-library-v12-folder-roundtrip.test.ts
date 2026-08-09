@@ -7,7 +7,11 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
-import { createDesktopProjectLibraryPaths } from '../desktop/project-library-contract.ts';
+import {
+	DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+	DESKTOP_LIBRARY_SCHEMA_VERSION,
+	createDesktopProjectLibraryPaths,
+} from '../desktop/project-library-contract.ts';
 import { DesktopSharedProjectLibraryService } from '../desktop/project-library-editor-service.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
@@ -19,8 +23,8 @@ import {
 
 const NOW = '2026-08-09T20:00:00.000Z';
 
-test('fresh desktop library V4 saves and reopens nonempty V12 folder hierarchy byte-exactly', async (context) => {
-	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-v12-folder-desktop-'));
+test('fresh desktop library V5 saves and reopens nonempty V13 folder hierarchy byte-exactly', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-v13-folder-desktop-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
 	const paths = createDesktopProjectLibraryPaths(appDataPath);
 	const project = createCurrentAudioEditorProject({
@@ -62,10 +66,13 @@ test('fresh desktop library V4 saves and reopens nonempty V12 folder hierarchy b
 		status: 'committed',
 		document,
 	});
-	assert.equal(firstHost.readCatalog().schemaVersion, 4);
-	assert.equal(firstHost.readCatalog().projects[0]?.projectSchemaVersion, 12);
+	assert.equal(firstHost.readCatalog().schemaVersion, DESKTOP_LIBRARY_SCHEMA_VERSION);
+	assert.equal(
+		firstHost.readCatalog().projects[0]?.projectSchemaVersion,
+		DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+	);
 	const database = new DatabaseSync(paths.databasePath, { readOnly: true });
-	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 6);
+	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 7);
 	database.close();
 	await firstHost.close();
 
@@ -82,4 +89,11 @@ test('fresh desktop library V4 saves and reopens nonempty V12 folder hierarchy b
 	const reopened = parseScapeProjectDocument(reopenedDocument ?? '') as typeof project;
 	assert.deepEqual(reopened.trackFolders, project.trackFolders);
 	assert.deepEqual(reopened.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
+	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).groups.length, 1, 'only the top-level audio-bearing folder owns a bus');
+	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).groups[0]?.id, 'folder-a');
+	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).groups[0]?.name, 'Folder A');
+	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).groups[0]?.mute, false);
+	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).groups[0]?.solo, false);
+	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).routes['track-a']?.groupId, 'folder-a');
+	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).routes['track-b']?.groupId, 'folder-a');
 });

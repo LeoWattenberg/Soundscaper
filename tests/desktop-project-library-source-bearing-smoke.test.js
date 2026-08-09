@@ -13,7 +13,10 @@ import {
 	encodeDesktopProjectLibrarySourceBearingPlan,
 	validateDesktopProjectLibrarySourceBearingResult,
 } from '../desktop/project-library-source-bearing-smoke.js';
-import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -51,7 +54,7 @@ test('source-bearing packaged handoff owns the two frozen Electron roundtrips', 
 		const project = parseScapeProjectDocument(workflow.seed.document);
 		assert.equal(validateCurrentAudioEditorProject(project), true);
 		assert.equal(serializeScapeProjectDocument(project), workflow.seed.document);
-		assert.equal(project.schemaVersion, 12);
+		assert.equal(project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 		assert.equal(project.id, workflow.seed.projectId);
 		assert.equal(project.revision, 1);
 		assert.equal(project.sources.length, 2);

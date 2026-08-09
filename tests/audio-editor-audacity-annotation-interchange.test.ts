@@ -97,7 +97,7 @@ test('a positive Audacity label region remains a region below one destination sa
 	}));
 });
 
-test('legacy XML AUP labels import as V12 annotations instead of internal label-track objects', () => {
+test('legacy XML AUP labels import as V13 annotations instead of internal label-track objects', () => {
 	let nextId = 0;
 	const decoded = convertLegacyAupToProject({
 		sampleRate: 48_000,
@@ -116,7 +116,7 @@ test('legacy XML AUP labels import as V12 annotations instead of internal label-
 		idFactory: (prefix: string) => `${prefix}-${String(++nextId)}`,
 	});
 
-	assert.equal(decoded.project.schemaVersion, 12);
+	assert.equal(decoded.project.schemaVersion, 13);
 	assert.equal(decoded.project.tracks.some(({ type }: { type?: string }) => type === 'label'), false);
 	assert.deepEqual(decoded.project.timelineAnnotations.map(({ kind }: { kind: string }) => kind), ['marker', 'region']);
 	assert.equal((decoded.project.timelineAnnotations[0] as { positionFrame: number }).positionFrame, 12_000);

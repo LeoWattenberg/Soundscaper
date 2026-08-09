@@ -557,11 +557,11 @@ function catalogMedia(storageKey: string, revision: number, bytes: Uint8Array): 
 }
 
 function metadataWith(media: readonly DesktopLibraryMedia[]): DesktopLibraryMetadata {
-	return validateDesktopLibraryMetadata({ schemaVersion: 4, revision: 0, projects: [], media });
+	return validateDesktopLibraryMetadata({ schemaVersion: 5, revision: 0, projects: [], media });
 }
 
 function metadataBytes(revision: number, media: readonly DesktopLibraryMedia[]): number {
-	return Buffer.byteLength(JSON.stringify({ schemaVersion: 4, revision, projects: [], media }), 'utf8');
+	return Buffer.byteLength(JSON.stringify({ schemaVersion: 5, revision, projects: [], media }), 'utf8');
 }
 
 function availableBytes(bytes: number): Readonly<{ bavail: bigint; bsize: bigint }> {

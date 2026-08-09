@@ -11,6 +11,8 @@ import { DatabaseSync } from 'node:sqlite';
 import test, { type TestContext } from 'node:test';
 
 import {
+	DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+	DESKTOP_LIBRARY_SCHEMA_VERSION,
 	createDesktopLibraryProjectMetadataFile,
 	createDesktopProjectLibraryPaths,
 } from '../desktop/project-library-contract.ts';
@@ -62,14 +64,14 @@ test('project commits publish a verified immutable document before its catalog e
 		metadataFile: createDesktopLibraryProjectMetadataFile(ENTRY_ID, 1, sha256),
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 10_001,
-		projectSchemaVersion: 12,
+		projectSchemaVersion: DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 		projectRevision: 1,
 		byteLength: Buffer.byteLength(documentJson, 'utf8'),
 		sha256,
 	});
 	assert.deepEqual(committed.project, project);
 	assert.deepEqual(observer.readMetadata(), {
-		schemaVersion: 4,
+		schemaVersion: DESKTOP_LIBRARY_SCHEMA_VERSION,
 		revision: 1,
 		projects: [committed.catalog],
 		media: [],
@@ -91,7 +93,7 @@ test('project persistence admission is current-schema, bounded, and mutation-fre
 	const valid = currentProject(1);
 	const attempts: readonly unknown[] = [
 		{ ...valid, schemaVersion: 8 },
-		{ ...valid, schemaVersion: 13 },
+		{ ...valid, schemaVersion: 14 },
 		{ ...valid, id: '' },
 		{ ...valid, revision: -1 },
 		{ ...valid, title: 'x'.repeat(4_096) },
@@ -181,7 +183,7 @@ test('catalog publication preserves other entries and media and rejects divergen
 	await library.publishMetadata({
 		lease,
 		metadata: {
-			schemaVersion: 4,
+			schemaVersion: DESKTOP_LIBRARY_SCHEMA_VERSION,
 			revision: 1,
 			projects: [],
 			media: [{
@@ -212,7 +214,7 @@ test('catalog publication preserves other entries and media and rejects divergen
 		/divergent project revision/u,
 	);
 	assert.deepEqual(library.readMetadata(), {
-		schemaVersion: 4,
+		schemaVersion: DESKTOP_LIBRARY_SCHEMA_VERSION,
 		revision: 2,
 		projects: [first.catalog],
 		media: [{

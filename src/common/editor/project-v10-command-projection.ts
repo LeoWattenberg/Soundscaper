@@ -6,8 +6,8 @@ import {
 	resolveRuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
 import {
-	AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION,
 	isTimelineAnnotationProjectSchema,
+	isTrackFolderProjectSchema,
 } from './project-schema-version.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
@@ -142,7 +142,7 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 	draft.projectBin = bin;
 	conformLabels(draft, persistedBase, tempoMap, sampleRate);
 	reconcileSequenceTracks(draft, sequences, primarySequenceId);
-	if (draft.schemaVersion === AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION) {
+	if (isTrackFolderProjectSchema(draft.schemaVersion)) {
 		reconcileV12TrackHierarchy(draft, persistedBase, sequences);
 	}
 	if (isTimelineAnnotationProjectSchema(draft.schemaVersion)) reconcileTimelineAnnotations(draft);

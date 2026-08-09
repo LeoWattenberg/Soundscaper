@@ -20,14 +20,17 @@ import {
 	parseDesktopProjectLibraryHandoffOutput,
 	validateDesktopProjectLibraryHandoffResults,
 } from '../scripts/lib/desktop-project-library-handoff-smoke.mjs';
-import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
 } from '../src/common/editor/scape-project-document.ts';
 import { parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 
-test('packaged handoff fixtures are canonical source-free exact-schema-12 revisions', () => {
+test('packaged handoff fixtures are canonical source-free exact-schema-13 revisions', () => {
 	const stages = createDesktopProjectLibraryHandoffStages();
 	assert.deepEqual(stages.map(({ stage, productId, profileId, target }) => ({
 		stage,
@@ -63,7 +66,7 @@ test('packaged handoff fixtures are canonical source-free exact-schema-12 revisi
 		const project = parseScapeProjectDocument(fixture.target.document);
 		assert.equal(validateCurrentAudioEditorProject(project), true);
 		assert.equal(serializeScapeProjectDocument(project), fixture.target.document);
-		assert.equal(project.schemaVersion, 12);
+		assert.equal(project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 		assert.equal(project.id, DESKTOP_PROJECT_LIBRARY_HANDOFF_PROJECT_ID);
 		assert.equal(project.title, fixture.target.title);
 		assert.equal(project.revision, index + 1);

@@ -14,6 +14,7 @@ import {
 	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
 } from '../desktop/direct-wav-smoke.js';
+import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from '../desktop/project-library-smoke-project.js';
 import {
 	DIRECT_WAV_TARGET_PATHS,
 	validDesktopDirectWavNativeEvidence,
@@ -398,7 +399,7 @@ function handoffPlan({
 
 function projectDocument(revision, title, overrides = {}) {
 	return canonicalJson({
-		schemaVersion: 12,
+		schemaVersion: DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION,
 		id: PROJECT_ID,
 		title,
 		revision,

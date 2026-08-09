@@ -12,7 +12,10 @@ import {
 	ZipReader,
 } from '@zip.js/zip.js';
 
-import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	DESKTOP_SCAPE_OPEN_ARCHIVE_MAXIMUM_BYTES,
 	DESKTOP_SCAPE_OPEN_ARCHIVE_MINIMUM_BYTES,
@@ -35,7 +38,7 @@ const TOKEN = '0123456789abcdef0123456789abcdef';
 const ARCHIVE_BYTES = 70_000;
 const EXPORTED_FIXTURE_BYTES = 70_051;
 
-test('Scape-open fixture is a production-exported exact V12 mono project with bounded range geometry', async (t) => {
+test('Scape-open fixture is a production-exported exact V13 mono project with bounded range geometry', async (t) => {
 	const profile = await mkdtemp(join(tmpdir(), 'scape-open-fixture-test-'));
 	t.after(() => rm(profile, { recursive: true, force: true }));
 	const fixture = await createDesktopScapeOpenFixture(profile);
@@ -63,7 +66,7 @@ test('Scape-open fixture is a production-exported exact V12 mono project with bo
 		assert.ok(projectEntry);
 		const project = JSON.parse(await projectEntry.getData(new TextWriter()));
 		assert.equal(validateCurrentAudioEditorProject(project), true);
-		assert.equal(project.schemaVersion, 12);
+		assert.equal(project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 		assert.equal(project.createdAt, DESKTOP_SCAPE_OPEN_FIXTURE.project.createdAt);
 		assert.equal(project.updatedAt, DESKTOP_SCAPE_OPEN_FIXTURE.project.updatedAt);
 		assert.equal(project.sampleRate, 48_000);

@@ -41,8 +41,7 @@ export interface AudioEditorProjectSequenceV12 extends Readonly<Record<string, u
 	readonly trackNodes: readonly TrackNodeV12[];
 }
 
-export interface AudioEditorProjectV12 extends Record<string, unknown> {
-	readonly schemaVersion: 12;
+export interface AudioEditorFolderHierarchyDocument extends Record<string, unknown> {
 	readonly id: string;
 	readonly title: string;
 	readonly revision: number;
@@ -69,6 +68,10 @@ export interface AudioEditorProjectV12 extends Record<string, unknown> {
 	readonly timelineAnnotations: readonly TimelineAnnotationV11[];
 }
 
+export interface AudioEditorProjectV12 extends AudioEditorFolderHierarchyDocument {
+	readonly schemaVersion: 12;
+}
+
 /** Validate the exact V12 persistence document and its authoritative folder hierarchy. */
 export function validateAudioEditorProjectV12(
 	project: unknown,
@@ -80,10 +83,27 @@ export function validateAudioEditorProjectV12(
 	for (const name of Object.keys(options)) if (name !== 'limits') {
 		throw new TypeError(`Unsupported audio editor project V12 validation option: ${name}.`);
 	}
+	return validateAudioEditorFolderHierarchyDocument(
+		project,
+		AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION,
+		options,
+	);
+}
+
+/**
+ * Shared exact-document body for every schema revision built on the V12 folder
+ * hierarchy. The caller supplies the exact version it accepts, so each revision
+ * keeps its own exact-version gate without duplicating the document contract.
+ */
+export function validateAudioEditorFolderHierarchyDocument(
+	project: unknown,
+	expectedSchemaVersion: number,
+	options: AudioEditorProjectV12ValidationOptions = {},
+): project is AudioEditorProjectV12 {
 	const limits = resolveAudioEditorProjectV9ValidationLimits(options.limits ?? {});
 	admitAudioEditorProjectV9ValidationStructure(project, limits);
 	const candidate = projectRecord(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION) {
+	if (candidate.schemaVersion !== expectedSchemaVersion) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
 	if (Object.hasOwn(candidate, 'runtimeProjectionVersion')

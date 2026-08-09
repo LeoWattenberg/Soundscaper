@@ -5,6 +5,7 @@ import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 
+import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from '../desktop/project-library-smoke-project.js';
 import {
 	DESKTOP_SCAPE_OPEN_FIXTURE,
 	decodeDesktopScapeOpenSmokePlan,
@@ -292,7 +293,7 @@ function validReopenResult(plan) {
 		token: plan.token,
 		project: plan.project,
 		sharedProject: {
-			schemaVersion: 12,
+			schemaVersion: DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION,
 			revision: plan.project.revision,
 			sourceCount: 1,
 			trackCount: 1,

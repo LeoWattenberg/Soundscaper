@@ -58,7 +58,7 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 
 	assert.match(
 		control.summary,
-		/exact schema 12.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*video-clip-render-v1.*exact registered videoEffects.*unavailable.*narrow final video delivery.*canonical manifest.*requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/exact schema 13.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*video-clip-render-v1.*exact registered videoEffects.*unavailable.*narrow final video delivery.*canonical manifest.*requirement ID.*feature ID.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		control.summary,
@@ -101,7 +101,7 @@ test('role-defined whole-project and first-party clip-local video fallback expor
 	const documentation = threatModel.slice(sectionStart, sectionEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/final video rendered-fallback delivery.*exact schema 12.*`project-video-render-v1`.*canonical namespaced feature ID.*unavailable or unknown.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*`video-clip-render-v1`.*exact registered `videoEffects`.*unavailable.*declared and effective `rendered-fallback`.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/final video rendered-fallback delivery.*exact schema 13.*`project-video-render-v1`.*canonical namespaced feature ID.*unavailable or unknown.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*`video-clip-render-v1`.*exact registered `videoEffects`.*unavailable.*declared and effective `rendered-fallback`.*relationship role.*target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		documentation,

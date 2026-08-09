@@ -184,7 +184,7 @@ test('editor service requires a bounded exact-current root envelope without publ
 	});
 	for (const candidate of [
 		{ ...current, schemaVersion: 8 },
-		{ ...current, schemaVersion: 13 },
+		{ ...current, schemaVersion: 14 },
 		{ ...current, id: '' },
 		{ ...current, id: 'x'.repeat(4 * 1024 + 1) },
 		{ ...current, title: 'x'.repeat(256) },

@@ -10,6 +10,7 @@ import test, { type TestContext } from 'node:test';
 
 import { DesktopSharedProjectLibraryService } from '../desktop/project-library-editor-service.ts';
 import {
+	DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 	type DesktopLibraryOwner,
 } from '../desktop/project-library-contract.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
@@ -330,7 +331,7 @@ function exactProject(value: unknown): ExactProjectCurrent {
 }
 
 function assertSourceFree(project: ExactProjectCurrent): void {
-	assert.equal(project.schemaVersion, 12);
+	assert.equal(project.schemaVersion, DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION);
 	assert.deepEqual(project.sources, []);
 	assert.deepEqual(project.clips, []);
 	assert.deepEqual(project.projectBin.clips, []);

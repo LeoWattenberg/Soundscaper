@@ -4,7 +4,10 @@ import {
 	deriveTrackFolderStateProjectionV12,
 	type TrackFolderStateNodeV12,
 } from './track-folder-state-projection.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION,
+} from './project-schema-version.ts';
 import { TRACK_FOLDER_V12_LIMITS } from './track-folder-v12.ts';
 import { TRACK_HIERARCHY_V12_LIMITS } from './track-hierarchy-v12.ts';
 
@@ -13,7 +16,9 @@ export const TRACK_FOLDER_STATE_PROJECTION_MARKER = 'trackFolderStateProjectionV
 
 type DataRecord = Record<PropertyKey, unknown>;
 
-const EXACT_TRACK_FOLDER_SCHEMA_VERSION = 12;
+// Pinned to the exact current revision so a schema bump fails closed here
+// instead of projecting a document this derivation was never reviewed against.
+const EXACT_TRACK_FOLDER_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION;
 const TRUSTED_MEDIA_PROJECTIONS = new WeakMap<object, string>();
 
 /**

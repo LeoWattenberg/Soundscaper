@@ -7,7 +7,7 @@ import { pruneMissingProjectSelections } from './commands/shared-runtime.js';
 import { isFoundationProjectSchema, projectForCommandConsumers } from './project-current-runtime.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION,
+	isTrackFolderProjectSchema,
 } from './project-schema-version.ts';
 import { brandRuntimeProjectProjection } from './runtime-clip-projection.ts';
 import {
@@ -89,6 +89,7 @@ export {
  *   | import('./project-v10.ts').AudioEditorProjectV10
  *   | import('./project-v11.ts').AudioEditorProjectV11
  *   | import('./project-v12.ts').AudioEditorProjectV12
+ *   | import('./project-v13.ts').AudioEditorProjectV13
  * } CurrentAudioEditorProject
  */
 
@@ -123,7 +124,7 @@ export function applyEditorCommand(project, command, options = {}) {
 const editorCommandHandlers = createEditorCommandRuntime(mutateCommand);
 
 function mutateCommand(project, command) {
-	if (project.schemaVersion === AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION
+	if (isTrackFolderProjectSchema(project.schemaVersion)
 		&& (command.type === 'track/add' || command.type === 'track/remove' || command.type === 'track/reorder')) {
 		project[LEGACY_TRACK_STRUCTURE_EDIT] = true;
 	}

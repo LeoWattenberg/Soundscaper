@@ -65,7 +65,7 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 	assert.match(control.summary, /durable IndexedDB.*skips read-only, failed, save-triggered, memory, and degraded activation.*lifecycle.*latest-project-mutation.*revalidates.*active project.*write-lock identity.*collects.*roots inside.*serialized ownership/isu);
 	assert.match(control.summary, /direct saves without authoritative roots.*skip destructive source-level cleanup/isu);
 	assert.match(control.summary, /same textual source ID.*kind-distinct.*wrong-kind.*does not retain.*protectedLinkedVideoSourceIds.*compatibility facade/isu);
-	assert.match(control.summary, /exact-schema-12 current project and at most 64 retained revisions.*timeline clips, Project Bin clips, and all feature-fallback declarations.*future, invalid, missing-current-revision, duplicate, or over-bound.*suppress(?:es)? cleanup/isu);
+	assert.match(control.summary, /exact-schema-13 current project and at most 64 retained revisions.*timeline clips, Project Bin clips, and all feature-fallback declarations.*future, invalid, missing-current-revision, duplicate, or over-bound.*suppress(?:es)? cleanup/isu);
 	assert.match(control.summary, /100,000 aggregate roots.*100,000 closed binding rows.*128 unique exact locator\/revision pairs/isu);
 	assert.match(control.summary, /after project publication and revision pruning or terminal activation.*Desktop.*exact remote acknowledgement.*serialized activation.*per-project latest-mutation lock.*one atomic local binding transaction/isu);
 	assert.match(control.summary, /maintained binding, replacement, and alias publication.*closed scalar provisional root.*exact.*binding token.*same compensated memory batch or IndexedDB readwrite transaction.*exact unlink or (?:determinate )?rollback.*pair/isu);
@@ -86,7 +86,7 @@ test('the threat model records the same maintained save boundary and residuals',
 	assert.match(documentation, /controller.*queued autosaves, flushes, inactive-tab saves, and project-switch or analysis explicit saves.*successful writable activation.*live Undo\/Redo.*clipboard.*recording.*render-cache.*direct unqualified save.*skip/isu);
 	assert.match(documentation, /durable IndexedDB.*read-only, failed, save-triggered, memory, or degraded activation.*lifecycle.*latest-project-mutation.*active project.*write-lock identity.*roots.*serialized/isu);
 	assert.match(documentation, /same textual source ID.*kind-distinct.*wrong-kind.*does not retain.*protectedLinkedVideoSourceIds.*compatibility facade/isu);
-	assert.match(documentation, /current exact schema 12 project.*64 retained revisions.*timeline.*Project Bin.*all feature-fallback declarations/isu);
+	assert.match(documentation, /current exact schema 13 project.*64 retained revisions.*timeline.*Project Bin.*all feature-fallback declarations/isu);
 	assert.match(documentation, /100,000 aggregate roots.*100,000 (?:closed )?binding rows.*128.*locator/isu);
 	assert.match(documentation, /Desktop.*remote acknowledgement.*successful activation.*latest-mutation lock.*atomic local binding.*provisional root/isu);
 	assert.match(documentation, /closed scalar.*project.*kind.*source.*binding token.*same compensated memory batch or IndexedDB.*exact unlink.*pair/isu);

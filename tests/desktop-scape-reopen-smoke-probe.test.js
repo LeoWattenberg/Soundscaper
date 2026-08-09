@@ -17,6 +17,7 @@ import {
 	createDesktopSmokeProbe,
 	parseDesktopSmokeConfiguration,
 } from '../desktop/desktop-smoke.js';
+import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from '../desktop/project-library-smoke-project.js';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const PLAN = Object.freeze({
@@ -236,7 +237,7 @@ function smokeArgv(encoded = encodeScapeReopenSmokePlan(PLAN)) {
 function rendererResult() {
 	return {
 		sharedProject: {
-			schemaVersion: 12,
+			schemaVersion: DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION,
 			revision: PLAN.project.revision,
 			sourceCount: 1,
 			trackCount: 1,
@@ -271,7 +272,7 @@ function smokeResult() {
 
 function sharedProjectDocument(plan, overrides = {}) {
 	return JSON.stringify({
-		schemaVersion: 12,
+		schemaVersion: DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION,
 		id: plan.project.id,
 		title: plan.project.title,
 		revision: plan.project.revision,

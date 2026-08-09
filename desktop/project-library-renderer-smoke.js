@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export async function runProjectLibraryRendererSmoke(scope, plan) {
-	const currentProjectSchemaVersion = 12;
+	const currentProjectSchemaVersion = 13;
 	const api = scope?.scapeDesktop?.v1;
 	if (!api || typeof api.readSharedProject !== 'function'
 		|| typeof api.commitSharedProject !== 'function'
