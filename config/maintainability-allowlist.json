@@ -23,7 +23,6 @@
 		"src/common/editor/nyquist/plugins/catalog.js": { "maxLines": 630, "reason": "Reviewed bundled Nyquist plug-in catalog." },
 		"src/common/editor/project.js": { "maxLines": 696, "reason": "Legacy shared project model helpers under schema migration." },
 		"src/common/editor/recording.js": { "maxLines": 676, "reason": "Legacy recording graph and device lifecycle implementation." },
-		"src/common/editor/session.js": { "maxLines": 622, "reason": "Legacy cross-tab session, locking, and clipboard coordination." },
 		"src/common/editor/ui/ParametricEqEditor.jsx": { "maxLines": 604, "reason": "Legacy graph editor just above the limit; extract controls before extending it." },
 		"src/common/editor/ui/video-preview-compositor.js": { "maxLines": 653, "reason": "Legacy WebGL compositor with deterministic fallback paths." },
 		"src/common/editor/video-ffmpeg.js": { "maxLines": 640, "reason": "Legacy FFmpeg video composition and validation boundary." },

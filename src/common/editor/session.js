@@ -1,19 +1,24 @@
-import { createClipboardDescriptor } from './commands.js';
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
 import { freezeProjectFeatureReportMetadata } from './project-feature-report-metadata.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { collectHistorySourceIds } from './retention.js';
 import { createProjectActivationReservations, projectHistoryChangedError } from './session-activation.js';
 import {
+	AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION,
+	collectAudioEditorClipboardSourceIds,
+	createAudioEditorSessionClipboard,
+	normalizeAudioEditorSessionClipboard,
+} from './session-clipboard-codec.ts';
+import {
 	clone,
 	createHistory,
 	nonEmptyString,
-	nonNegativeInteger,
 	normalizeProject,
-	positiveInteger,
 	validateProject,
 } from './session-history.js';
 export const AUDIO_EDITOR_SESSION_SCHEMA_VERSION = 1;
-export const AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION = 1;
+export { AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION, createAudioEditorSessionClipboard };
 
 /**
  * @typedef {Object} AudioEditorSessionTab
@@ -48,153 +53,6 @@ export const AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION = 1;
  * @property {object} token
  */
 
-function sourceIdsFromDescriptor(descriptor) {
-	const ids = new Set();
-	for (const track of descriptor?.tracks || []) {
-		for (const clip of track?.clips || []) {
-			if (typeof clip?.sourceId === 'string' && clip.sourceId) ids.add(clip.sourceId);
-		}
-	}
-	return [...ids].sort();
-}
-
-function validateClipboardDescriptor(descriptor) {
-	if (!descriptor || typeof descriptor !== 'object') throw new TypeError('An audio editor clipboard descriptor is required.');
-	if (![1, 2].includes(descriptor.schemaVersion)) {
-		throw new RangeError(`Unsupported clipboard schema version: ${descriptor.schemaVersion}.`);
-	}
-	positiveInteger(descriptor.sampleRate, 'clipboard.sampleRate');
-	positiveInteger(descriptor.durationFrames, 'clipboard.durationFrames');
-	if (!Array.isArray(descriptor.tracks)) throw new TypeError('clipboard.tracks must be an array.');
-	const laneGroups = new Map();
-	const avLinks = new Map();
-	for (const [trackIndex, track] of descriptor.tracks.entries()) {
-		nonEmptyString(track?.sourceTrackId, `clipboard.tracks[${trackIndex}].sourceTrackId`);
-		if (!Array.isArray(track.clips)) throw new TypeError(`clipboard.tracks[${trackIndex}].clips must be an array.`);
-		const sourceTrackType = descriptor.schemaVersion === 2 ? track.sourceTrackType : 'audio';
-		if (!['audio', 'video'].includes(sourceTrackType)) {
-			throw new RangeError(`clipboard.tracks[${trackIndex}].sourceTrackType must be audio or video.`);
-		}
-		if (descriptor.schemaVersion === 2 && track.sourceLaneGroupId != null) {
-			const laneGroupId = nonEmptyString(track.sourceLaneGroupId, `clipboard.tracks[${trackIndex}].sourceLaneGroupId`);
-			const entries = laneGroups.get(laneGroupId) || [];
-			entries.push({ index: trackIndex, type: sourceTrackType });
-			laneGroups.set(laneGroupId, entries);
-		}
-		for (const [clipIndex, clip] of track.clips.entries()) {
-			nonEmptyString(clip?.key, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].key`);
-			nonEmptyString(clip?.sourceId, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].sourceId`);
-			nonNegativeInteger(clip.offsetFrame, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].offsetFrame`);
-			nonNegativeInteger(clip.sourceStartFrame, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].sourceStartFrame`);
-			positiveInteger(clip.durationFrames, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].durationFrames`);
-			if (descriptor.schemaVersion === 2) {
-				if (!['audio', 'video'].includes(clip.kind)) {
-					throw new RangeError(`clipboard.tracks[${trackIndex}].clips[${clipIndex}].kind must be audio or video.`);
-				}
-				if (clip.kind !== sourceTrackType) {
-					throw new RangeError(`clipboard.tracks[${trackIndex}] cannot contain a ${clip.kind} clip.`);
-				}
-				if (clip.groupId != null) {
-					nonEmptyString(clip.groupId, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].groupId`);
-				}
-				if (clip.avLinkId != null) {
-					const avLinkId = nonEmptyString(clip.avLinkId, `clipboard.tracks[${trackIndex}].clips[${clipIndex}].avLinkId`);
-					const linked = avLinks.get(avLinkId) || [];
-					linked.push({
-						kind: clip.kind,
-						offsetFrame: clip.offsetFrame,
-						durationFrames: clip.durationFrames,
-						laneGroupId: track.sourceLaneGroupId || null,
-					});
-					avLinks.set(avLinkId, linked);
-				}
-			}
-		}
-	}
-	for (const [laneGroupId, tracks] of laneGroups) {
-		if (
-			tracks.length !== 2
-			|| tracks[0].type !== 'video'
-			|| tracks[1].type !== 'audio'
-			|| tracks[1].index !== tracks[0].index + 1
-		) {
-			throw new RangeError(`Clipboard media lane group ${laneGroupId} must contain one adjacent video/audio track pair.`);
-		}
-	}
-	for (const [avLinkId, linked] of avLinks) {
-		if (
-			linked.length !== 2
-			|| linked[0].kind !== 'video'
-			|| linked[1].kind !== 'audio'
-			|| linked[0].offsetFrame !== linked[1].offsetFrame
-			|| linked[0].durationFrames !== linked[1].durationFrames
-			|| !linked[0].laneGroupId
-			|| linked[0].laneGroupId !== linked[1].laneGroupId
-		) {
-			throw new RangeError(`Clipboard A/V link ${avLinkId} must contain one aligned video/audio pair.`);
-		}
-	}
-	return clone(descriptor);
-}
-
-/**
- * Attach immutable source metadata to a normal clipboard descriptor so it can
- * be materialized by a different project without depending on the origin tab.
- */
-export function createAudioEditorSessionClipboard(project, options = {}) {
-	const normalizedProject = normalizeProject(project);
-	const audioTrackIds = normalizedProject.tracks
-		.filter((track) => track.type !== 'label' && Array.isArray(track.clipIds))
-		.map((track) => track.id);
-	const descriptor = validateClipboardDescriptor(options.descriptor || createClipboardDescriptor(normalizedProject, {
-		startFrame: options.startFrame,
-		endFrame: options.endFrame,
-		trackIds: options.trackIds || audioTrackIds,
-	}));
-	const sourceIds = sourceIdsFromDescriptor(descriptor);
-	const sourceById = new Map(normalizedProject.sources.map((source) => [source.id, source]));
-	const sources = sourceIds.map((sourceId) => {
-		const source = sourceById.get(sourceId);
-		if (!source) throw new ReferenceError(`Clipboard source ${sourceId} is missing from project ${project.id}.`);
-		return clone(source);
-	});
-	return {
-		schemaVersion: AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION,
-		originProjectId: normalizedProject.id,
-		descriptor,
-		sources,
-	};
-}
-
-function normalizeSessionClipboard(value) {
-	if (!value || typeof value !== 'object') throw new TypeError('A session clipboard is required.');
-	if (value.schemaVersion !== AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION) {
-		throw new RangeError(`Unsupported session clipboard schema version: ${value.schemaVersion}.`);
-	}
-	nonEmptyString(value.originProjectId, 'session clipboard originProjectId');
-	const descriptor = validateClipboardDescriptor(value.descriptor);
-	if (!Array.isArray(value.sources)) throw new TypeError('Session clipboard sources must be an array.');
-	const sourceIds = sourceIdsFromDescriptor(descriptor);
-	const sourceById = new Map();
-	for (const source of value.sources) {
-		if (!source || typeof source !== 'object') throw new TypeError('Session clipboard source metadata is required.');
-		const sourceId = nonEmptyString(source.id, 'session clipboard source ID');
-		if (sourceById.has(sourceId)) throw new RangeError(`Duplicate session clipboard source ID: ${sourceId}.`);
-		sourceById.set(sourceId, clone(source));
-	}
-	const sources = sourceIds.map((sourceId) => {
-		const source = sourceById.get(sourceId);
-		if (!source) throw new ReferenceError(`Session clipboard source metadata is missing for ${sourceId}.`);
-		return source;
-	});
-	return {
-		schemaVersion: AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION,
-		originProjectId: value.originProjectId,
-		descriptor,
-		sources,
-	};
-}
-
 function normalizeTab(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A project tab is required.');
 	const project = validateProject(value.history?.present || value.project, 'tab project');
@@ -223,7 +81,7 @@ function countsFor(tabs, clipboard) {
 	for (const tab of tabs) {
 		for (const sourceId of tab.sourceIds || collectHistorySourceIds(tab.history)) add(sourceId);
 	}
-	for (const sourceId of sourceIdsFromDescriptor(clipboard?.descriptor)) add(sourceId);
+	for (const sourceId of collectAudioEditorClipboardSourceIds(clipboard?.descriptor)) add(sourceId);
 	return counts;
 }
 
@@ -458,7 +316,7 @@ export function createAudioEditorSessionController(options = {}) {
 		const beforeCounts = countsFor(tabs, clipboard);
 		let next;
 		if (value?.descriptor && value?.sources) {
-			next = normalizeSessionClipboard(value);
+			next = normalizeAudioEditorSessionClipboard(value);
 		} else {
 			const originProjectId = clipboardOptions.originProjectId || activeProjectId;
 			const tab = requireTab(originProjectId);
@@ -576,7 +434,7 @@ export function createAudioEditorSessionController(options = {}) {
 		}
 		tabs = restoredTabs;
 		activeProjectId = snapshot.activeProjectId || restoredTabs[0]?.projectId || null;
-		clipboard = snapshot.clipboard ? normalizeSessionClipboard(snapshot.clipboard) : null;
+		clipboard = snapshot.clipboard ? normalizeAudioEditorSessionClipboard(snapshot.clipboard) : null;
 		disposed = Boolean(snapshot.disposed);
 		invalidate();
 	}
