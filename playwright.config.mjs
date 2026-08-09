@@ -30,19 +30,7 @@ export default defineConfig({
 	},
 	projects: [
 		{ name: 'chromium', use: { ...devices['Desktop Chrome'], browserName: 'chromium' } },
-		{
-			name: 'firefox',
-			use: {
-				...devices['Desktop Firefox'],
-				browserName: 'firefox',
-				launchOptions: {
-					firefoxUserPrefs: {
-						'webgl.force-enabled': true,
-						'webgl.disable-fail-if-major-performance-caveat': true,
-					},
-				},
-			},
-		},
+		{ name: 'firefox', use: { ...devices['Desktop Firefox'], browserName: 'firefox' } },
 		{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit' } },
 	],
 });
