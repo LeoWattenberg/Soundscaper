@@ -268,12 +268,16 @@ by `docs/project-compatibility.md`. Do not duplicate those narratives here.
 
 ### Frozen closure scope
 
-Revision 1 of [the milestone-2 closure inventory](config/milestone-2-closure.json)
+Revision 2 of [the milestone-2 closure inventory](config/milestone-2-closure.json)
 is the sole completion inventory for this milestone. Its gate IDs, item IDs,
 routes, roles, platforms, workflows, and fault classes are finite. Unnamed work
 cannot block closure. Changing that scope requires explicit user approval and a
 `scopeRevision` increase; newly proposed capabilities belong to milestone 3 or
-later.
+later. Revision 2 (2026-08-09, user-approved) defers WebKit and ARM64
+validation because no launchable WebKit runtime and no ARM64 hardware are
+accessible, and retires the deprecated `macos-x64` desktop target. The
+qualified platform set is Chromium and Firefox plus the `windows-x64` and
+`linux-x64` desktop targets.
 
 Implementation details and evidence belong in each item's `ownerRefs`. Agents
 update an item's status only after its listed acceptance conditions pass.

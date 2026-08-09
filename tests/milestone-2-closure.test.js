@@ -39,9 +39,10 @@ test('milestone 2 has one frozen finite closure inventory', async () => {
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.equal(inventory.scopeRevision, 1);
+	assert.equal(inventory.scopeRevision, 2);
 	assert.equal(inventory.milestone, '2');
 	assert.equal(inventory.frozenAt, '2026-08-08');
+	assert.equal(inventory.revisedAt, '2026-08-09');
 	assert.equal(inventory.expansionPolicy.newCapabilitiesDisposition, 'milestone-3-or-later');
 	assert.equal(
 		inventory.expansionPolicy.scopeChangeRequires,

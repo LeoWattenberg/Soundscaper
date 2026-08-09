@@ -1086,8 +1086,10 @@ child termination at prepared and committed journal checkpoints. A closed
 packaged smoke runner and six-target CI matrix now encode the exact eight
 workflow IDs in both product orderings and require the winning document digest
 plus no losing managed-media descriptor. The control remains partial because no
-accepted result from all six packaged CI targets is checked in;
-m2-electron-lease-matrix and its gate therefore remain partial.
+accepted packaged result for the qualified Windows x64 and Linux x64 targets is
+checked in; closure scope revision 2 defers ARM64 validation and retires the
+deprecated macOS x64 target; m2-electron-lease-matrix and its gate therefore
+remain partial.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 
 <!-- policy-narrative:desktop-packaged-source-bearing-handoff -->

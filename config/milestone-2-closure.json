@@ -1,8 +1,10 @@
 {
 	"schemaVersion": 1,
-	"scopeRevision": 1,
+	"scopeRevision": 2,
 	"milestone": "2",
 	"frozenAt": "2026-08-08",
+	"revisedAt": "2026-08-09",
+	"revisionReason": "User-approved revision 2: WebKit and ARM64 validation are deferred for lack of a launchable runtime and hardware access; the deprecated macos-x64 target is retired.",
 	"completionRule": "Milestone 2 closes when every item in this revision is implemented. Work not named here cannot block closure.",
 	"expansionPolicy": {
 		"newCapabilitiesDisposition": "milestone-3-or-later",
@@ -10,15 +12,11 @@
 		"clarificationsMayNotAddRoutesRolesPlatformsOrFaultClasses": true
 	},
 	"platformSet": {
-		"browserProjects": ["chromium", "firefox", "webkit"],
-		"desktopTargets": [
-			"windows-x64",
-			"windows-arm64",
-			"macos-x64",
-			"macos-arm64",
-			"linux-x64",
-			"linux-arm64"
-		]
+		"browserProjects": ["chromium", "firefox"],
+		"deferredBrowserProjects": ["webkit"],
+		"desktopTargets": ["windows-x64", "linux-x64"],
+		"deferredDesktopTargets": ["windows-arm64", "macos-arm64", "linux-arm64"],
+		"retiredDesktopTargets": ["macos-x64"]
 	},
 	"gates": [
 		{
@@ -186,7 +184,7 @@
 			"qualifiedBrowserProjects": ["chromium", "firefox"],
 			"unqualifiedBrowserProjects": ["webkit"],
 			"acceptance": [
-				"Each workflow ID passes in Chromium, Firefox and WebKit or records a truthful unsupported outcome with the Web Core fallback passing.",
+				"Each workflow ID passes in each qualified browserProject or records a truthful unsupported outcome with the Web Core fallback passing; WebKit qualification is deferred by scope revision 2.",
 				"A failed workflow leaves the last committed project and installed application shell usable."
 			],
 			"ownerRefs": ["docs/quality-budgets.md", "docs/production-threat-model.md"]
@@ -289,7 +287,7 @@
 				"crash-restart-recovery"
 			],
 			"acceptance": [
-				"Every workflow ID passes for Soundscaper and Framescaper packages on each of the six desktopTargets.",
+				"Every workflow ID passes for Soundscaper and Framescaper packages on each qualified desktopTarget; scope revision 2 defers deferredDesktopTargets validation and retires macos-x64.",
 				"Fencing tokens increase monotonically and no losing writer publishes a project or managed-media descriptor."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "docs/production-threat-model.md"]
@@ -388,7 +386,7 @@
 			"packagedProductPairQualified": true,
 			"acceptance": [
 				"Each workflow ID opens on the less-capable product, uses its admitted fallback, saves or exports without canonical mutation and returns to the originating product with editable and opaque state preserved.",
-				"The web workflows pass Chromium, Firefox and WebKit; the Electron workflows pass the packaged product pair."
+				"The web workflows pass each qualified browserProject, with WebKit deferred by scope revision 2; the Electron workflows pass the packaged product pair."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
 		}
