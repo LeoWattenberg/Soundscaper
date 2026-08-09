@@ -21,7 +21,6 @@
 		"src/common/editor/chunk-stream-client.js": { "maxLines": 629, "reason": "Legacy bounded-stream worker client and lifecycle coordination." },
 		"src/common/editor/clip-time-pitch-cache.js": { "maxLines": 895, "reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery." },
 		"src/common/editor/nyquist/plugins/catalog.js": { "maxLines": 630, "reason": "Reviewed bundled Nyquist plug-in catalog." },
-		"src/common/editor/preferences.js": { "maxLines": 643, "reason": "Legacy preferences schema and migration compatibility." },
 		"src/common/editor/project.js": { "maxLines": 696, "reason": "Legacy shared project model helpers under schema migration." },
 		"src/common/editor/recording.js": { "maxLines": 676, "reason": "Legacy recording graph and device lifecycle implementation." },
 		"src/common/editor/session.js": { "maxLines": 622, "reason": "Legacy cross-tab session, locking, and clipboard coordination." },

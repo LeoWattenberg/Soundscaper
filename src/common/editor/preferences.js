@@ -3,10 +3,22 @@ import {
 	AUDACITY_ACTION_STATUS,
 	resolveAudacityActionId,
 } from './audacity-action-parity.js';
+import {
+	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
+	AUDIO_EDITOR_WORKSPACE_PRESETS,
+	DEFAULT_FLOATING_PANEL_GEOMETRY,
+	DEFAULT_PANELS,
+	DEFAULT_TOOLBAR_BUTTONS,
+	DEFAULT_TOOLBARS,
+} from './workspace-layout-defaults.ts';
+
+export {
+	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
+	AUDIO_EDITOR_WORKSPACE_PRESETS,
+};
 
 export const AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION = 1;
 
-export const AUDIO_EDITOR_BUILT_IN_WORKSPACES = Object.freeze(['classic', 'music', 'modern', 'video-editor']);
 export const AUDIO_EDITOR_THEMES = Object.freeze([
 	'system',
 	'light',
@@ -58,132 +70,6 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
 	'telemetry',
 	'updates',
 ]);
-
-const DEFAULT_TOOLBARS = Object.freeze({
-	transport: Object.freeze({ visible: true, order: 0 }),
-	tools: Object.freeze({ visible: true, order: 1 }),
-	edit: Object.freeze({ visible: true, order: 2 }),
-	meter: Object.freeze({ visible: true, order: 3 }),
-});
-
-const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
-	play: true,
-	'play-at-speed': true,
-	stop: true,
-	record: true,
-	'jump-start': true,
-	'jump-end': true,
-	loop: true,
-	'split-tool': true,
-	'waveform-view': true,
-	'spectrogram-view': true,
-	'spectral-box-select': true,
-	'spectral-brush': true,
-	'zoom-in': true,
-	'zoom-out': true,
-	'zoom-fit': true,
-	undo: true,
-	redo: true,
-	cutPerTrackRipple: true,
-	cutLeaveGap: false,
-	cutAllTracksRipple: false,
-	copy: true,
-	paste: true,
-	split: true,
-	deletePerTrackRipple: true,
-	deleteLeaveGap: false,
-	deleteAllTracksRipple: false,
-	'time-display': true,
-	monitor: true,
-	'playback-volume': true,
-});
-
-const MODERN_TOOLBAR_BUTTONS = Object.freeze({
-	...DEFAULT_TOOLBAR_BUTTONS,
-	cutPerTrackRipple: false,
-	copy: false,
-	paste: false,
-	split: false,
-	deletePerTrackRipple: false,
-});
-
-const DEFAULT_PANELS = Object.freeze({
-	'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
-	'video-preview': Object.freeze({ visible: true, dock: 'floating', order: 0, size: 560 }),
-	history: Object.freeze({ visible: false, dock: 'right', order: 0, size: 320 }),
-	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
-	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
-	effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
-	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
-	analysis: Object.freeze({ visible: false, dock: 'right', order: 6, size: 380 }),
-	spectrum: Object.freeze({ visible: false, dock: 'right', order: 7, size: 380 }),
-	clipping: Object.freeze({ visible: false, dock: 'right', order: 8, size: 380 }),
-	contrast: Object.freeze({ visible: false, dock: 'right', order: 9, size: 380 }),
-	'ebu-r128': Object.freeze({ visible: false, dock: 'right', order: 10, size: 380 }),
-});
-
-const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
-	'project-bin': Object.freeze({ x: 24, y: 24, width: 380, height: 520 }),
-	'video-preview': Object.freeze({ x: 72, y: 40, width: 560, height: 390 }),
-	history: Object.freeze({ x: 24, y: 24, width: 360, height: 320 }),
-	labels: Object.freeze({ x: 48, y: 48, width: 360, height: 360 }),
-	metadata: Object.freeze({ x: 72, y: 72, width: 380, height: 360 }),
-	effects: Object.freeze({ x: 96, y: 40, width: 400, height: 440 }),
-	mixer: Object.freeze({ x: 40, y: 96, width: 560, height: 360 }),
-	analysis: Object.freeze({ x: 144, y: 88, width: 520, height: 600 }),
-	spectrum: Object.freeze({ x: 168, y: 112, width: 520, height: 600 }),
-	clipping: Object.freeze({ x: 192, y: 136, width: 520, height: 600 }),
-	contrast: Object.freeze({ x: 216, y: 160, width: 520, height: 600 }),
-	'ebu-r128': Object.freeze({ x: 240, y: 184, width: 440, height: 460 }),
-});
-
-export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
-	classic: Object.freeze({
-		toolbars: Object.freeze({
-			transport: Object.freeze({ visible: true, order: 0 }),
-			tools: Object.freeze({ visible: true, order: 1 }),
-			edit: Object.freeze({ visible: true, order: 2 }),
-			meter: Object.freeze({ visible: true, order: 3 }),
-		}),
-		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
-		panels: Object.freeze({
-			'project-bin': Object.freeze({ visible: false, dock: 'left', order: 0, size: 380 }),
-			history: Object.freeze({ visible: false, dock: 'left', order: 0, size: 300 }),
-			labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
-			metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
-			effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
-			mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
-		}),
-	}),
-	music: Object.freeze({
-		toolbars: Object.freeze({
-			transport: Object.freeze({ visible: true, order: 0 }),
-			tools: Object.freeze({ visible: true, order: 1 }),
-			edit: Object.freeze({ visible: true, order: 2 }),
-			meter: Object.freeze({ visible: true, order: 3 }),
-		}),
-		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
-		panels: Object.freeze({
-			...DEFAULT_PANELS,
-			effects: Object.freeze({ visible: true, dock: 'right', order: 0, size: 360 }),
-			mixer: Object.freeze({ visible: true, dock: 'bottom', order: 0, size: 460 }),
-		}),
-	}),
-	modern: Object.freeze({
-		toolbars: DEFAULT_TOOLBARS,
-		toolbarButtons: MODERN_TOOLBAR_BUTTONS,
-		panels: DEFAULT_PANELS,
-	}),
-	'video-editor': Object.freeze({
-		toolbars: DEFAULT_TOOLBARS,
-		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
-		panels: Object.freeze({
-			...DEFAULT_PANELS,
-			'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
-			'video-preview': Object.freeze({ visible: true, dock: 'right', order: 0, size: 560 }),
-		}),
-	}),
-});
 
 /**
  * @typedef {Object} AudioEditorPreferencesV1
