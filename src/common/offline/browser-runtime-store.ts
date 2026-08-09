@@ -254,18 +254,19 @@ export function createBrowserFfmpegRuntimeStore(
 
 async function probeStreamBackedCachePut(cache: RuntimeCache, key: string): Promise<boolean> {
 	let emitted = false;
+	let completed = false;
 	const response = new Response(new ReadableStream<Uint8Array>({
 		pull: async (controller) => {
 			await Promise.resolve();
 			if (emitted) {
+				completed = true;
 				controller.close();
 				return;
 			}
 			emitted = true;
 			controller.enqueue(new Uint8Array([0]));
-			controller.close();
 		},
-	}), {
+	}, { highWaterMark: 0 }), {
 		status: 200,
 		headers: {
 			'content-length': '1',
@@ -274,7 +275,18 @@ async function probeStreamBackedCachePut(cache: RuntimeCache, key: string): Prom
 	});
 	try {
 		await cache.put(key, response);
-		return true;
+		if (!completed) {
+			await response.body?.cancel().catch(() => undefined);
+			return false;
+		}
+		const cached = await cache.match(key);
+		if (!cached || !cached.ok || cached.status !== 200
+			|| cached.headers.get('content-length') !== '1'
+			|| cached.headers.get('content-type')?.toLowerCase() !== 'application/octet-stream') {
+			return false;
+		}
+		const bytes = new Uint8Array(await cached.arrayBuffer());
+		return bytes.byteLength === 1 && bytes[0] === 0;
 	} catch (error) {
 		await response.body?.cancel(error).catch(() => undefined);
 		throw error;

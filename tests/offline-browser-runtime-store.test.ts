@@ -31,7 +31,36 @@ test('browser runtime probes stream-backed Cache.put once and keeps it as the pr
 	await install(store, release('f'));
 
 	assert.equal(probeAttempts, 1);
+	assert.equal(cacheStorage.probeMatchCount, 1);
 	assert.equal((await store.readActive())?.releaseId, release('f').releaseId);
+});
+
+test('browser runtime falls back when Cache.put settles at the declared length before stream completion', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	let runtimeStreamCompleted = false;
+	let runtimeWasCompleteWhenStaging = false;
+	cacheStorage.settlePutAfterFirstChunk = (_cacheName, key) => key.endsWith(STREAM_CACHE_PROBE_SUFFIX);
+	cacheStorage.beforePut = (_cacheName, key) => {
+		if (key.endsWith('/ffmpeg-core.js')) runtimeWasCompleteWhenStaging = runtimeStreamCompleted;
+	};
+	const store = createBrowserFfmpegRuntimeStore({
+		cacheStorage,
+		lockManager: new MemoryLockManager(),
+		origin: 'https://soundscaper.org',
+		randomUUID: () => 'early-cache-put-settlement',
+	});
+	const installed = release('f');
+	const transaction = await store.begin(installed);
+	await transaction.put(installed.files[0]!, completionTrackedRuntimeResponse(
+		installed.files[0]!,
+		() => { runtimeStreamCompleted = true; },
+	));
+	await transaction.put(installed.files[1]!, runtimeResponse(installed.files[1]!));
+	await transaction.commit();
+
+	assert.equal(cacheStorage.probeMatchCount, 0);
+	assert.equal(runtimeWasCompleteWhenStaging, true);
+	assert.equal((await store.readActive())?.releaseId, installed.releaseId);
 });
 
 test('browser runtime falls back to bounded byte-backed staging when stream Cache.put is unsupported', async () => {
@@ -396,6 +425,31 @@ function runtimeResponse(
 	});
 }
 
+function completionTrackedRuntimeResponse(
+	fileValue: VerifiedRuntimeFile,
+	onComplete: () => void,
+): Response {
+	const body = runtimeBodyForFile(fileValue);
+	let emitted = false;
+	return new Response(new ReadableStream<Uint8Array>({
+		pull: (controller) => {
+			if (emitted) {
+				onComplete();
+				controller.close();
+				return;
+			}
+			emitted = true;
+			controller.enqueue(body);
+		},
+	}, { highWaterMark: 0 }), {
+		status: 200,
+		headers: {
+			'content-length': String(fileValue.byteLength),
+			'content-type': fileValue.contentType,
+		},
+	});
+}
+
 function runtimeBody(seed: string, name: string): Uint8Array {
 	return new TextEncoder().encode(`${name}:${seed}:verified-runtime-body`);
 }
@@ -414,8 +468,11 @@ function sequence(...values: string[]): () => string {
 class MemoryCacheStorage {
 	readonly caches = new Map<string, MemoryCache>();
 	readonly events: string[] = [];
+	probeMatchCount = 0;
+	beforePut: (cacheName: string, key: string) => void = () => undefined;
 	failPut: (cacheName: string, key: string) => Error | null = () => null;
 	failKeys: () => Error | null = () => null;
+	settlePutAfterFirstChunk: (cacheName: string, key: string) => boolean = () => false;
 
 	async open(name: string): Promise<MemoryCache> {
 		let cache = this.caches.get(name);
@@ -464,14 +521,30 @@ class MemoryCache {
 
 	async match(input: RequestInfo | URL): Promise<Response | undefined> {
 		if (this.#deleted) return undefined;
-		return this.entries.get(cacheKey(input))?.clone();
+		const key = cacheKey(input);
+		if (key.endsWith(STREAM_CACHE_PROBE_SUFFIX)) this.#storage.probeMatchCount += 1;
+		return this.entries.get(key)?.clone();
 	}
 
 	async put(input: RequestInfo | URL, response: Response): Promise<void> {
 		if (this.#deleted) throw new Error(`Cache ${this.#name} was deleted.`);
 		const key = cacheKey(input);
+		this.#storage.beforePut(this.#name, key);
 		const failure = this.#storage.failPut(this.#name, key);
 		if (failure) throw failure;
+		if (this.#storage.settlePutAfterFirstChunk(this.#name, key)) {
+			if (!response.body) throw new Error('Test response has no body.');
+			const reader = response.body.getReader();
+			const { value } = await reader.read();
+			reader.releaseLock();
+			if (!value) throw new Error('Test response did not emit a body chunk.');
+			this.entries.set(key, new Response(value.slice(), {
+				status: response.status,
+				headers: response.headers,
+			}));
+			this.#storage.events.push(`put:${this.#name}:${key}`);
+			return;
+		}
 		const bytes = await response.arrayBuffer();
 		this.entries.set(key, new Response(bytes, {
 			status: response.status,
