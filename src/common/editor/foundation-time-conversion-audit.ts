@@ -84,6 +84,15 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'clipboard-annotation-authority',
+		file: 'src/common/editor/commands/timeline-annotation-clipboard.ts',
+		behavior: 'Clipboard annotation copy and paste exactly preserve musical offsets while sample offsets use the shared nearest-point sample-rate policy.',
+		conversions: [
+			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
+			{ helper: 'scaleSampleFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'split-video-conformance',
 		file: 'src/common/editor/commands/clip-link-runtime.js',
 		behavior: 'Linked and video-only splits conform one absolute sample boundary to a nearest sequence frame and resolve it back once.',

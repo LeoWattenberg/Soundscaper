@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
+import { clipboardRequiresTimelineAnnotationCapability } from '../commands/clipboard-codec.ts';
 
 export interface EditorCommandCapabilities {
 	readonly audioEffects: boolean;
@@ -36,6 +37,10 @@ export function assertEditorCommandCapabilities(
 	}
 	if (!capabilities.timelineAnnotations && command.type === 'selection/set'
 		&& Object.hasOwn(command, 'annotationIds')) {
+		unsupported(productName, 'timelineAnnotations');
+	}
+	if (!capabilities.timelineAnnotations && command.type === 'clipboard/paste'
+		&& clipboardRequiresTimelineAnnotationCapability(command.clipboard)) {
 		unsupported(productName, 'timelineAnnotations');
 	}
 	if (!capabilities.audioEffects && command.type.startsWith('effect/')) {

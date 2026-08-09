@@ -14,6 +14,14 @@ import {
 	collectRelatedClipIds,
 } from './clip-basic-runtime.js';
 import {
+	assertPasteSequenceMaps,
+	createAnnotationPasteGeometry,
+	preparePasteAnnotationMaps,
+} from './clipboard-annotation-command.ts';
+import {
+	normalizeAudioEditorClipboardDescriptor,
+} from './clipboard-codec.ts';
+import {
 	clipboardContainsVideo,
 	conformClipboardVideoPlacement,
 	conformedPasteAnchors,
@@ -22,6 +30,10 @@ import {
 	pasteTrackGroups,
 	sequenceForTrack,
 } from './clipboard-time-runtime.js';
+import {
+	createTimelineAnnotationClipboardDescriptors,
+	stageTimelineAnnotationClipboardPaste,
+} from './timeline-annotation-clipboard.ts';
 import {
 	collectAvLinkedClipIds,
 	collectLinkedTrackRippleTargets,
@@ -78,8 +90,12 @@ export function createClipboardDescriptor(project, options = {}) {
 			&& tracks[1].type === 'audio'
 		) pairedLaneGroupIds.add(laneGroupId);
 	}
-	return {
-		schemaVersion: 2,
+	const currentClipboard = project.schemaVersion === 11;
+	const sourceSequenceIds = currentClipboard
+		? [...new Set(trackIds.map((trackId) => sequenceForTrack(project, trackId).id))]
+		: [];
+	const descriptor = {
+		schemaVersion: currentClipboard ? 3 : 2,
 		sampleRate: project.sampleRate,
 		durationFrames: range.durationFrames,
 		tracks: trackIds.map((trackId) => {
@@ -143,24 +159,34 @@ export function createClipboardDescriptor(project, options = {}) {
 				sourceTrackId: track.id,
 				sourceTrackName: track.name,
 				sourceTrackType: track.type || 'audio',
+				...(currentClipboard ? { sourceSequenceId: sequenceForTrack(project, track.id).id } : {}),
 				sourceLaneGroupId: track.laneGroupId && pairedLaneGroupIds.has(track.laneGroupId)
 					? track.laneGroupId
 					: null,
 				clips,
 			};
 		}),
+		...(currentClipboard ? {
+			annotations: createTimelineAnnotationClipboardDescriptors(project, {
+				startFrame: range.startFrame,
+				endFrame: range.endFrame,
+				sourceSequenceIds,
+				annotationIds: options.annotationIds,
+			}),
+		} : {}),
 	};
+	return normalizeAudioEditorClipboardDescriptor(descriptor);
 }
 
 export function preparePasteCommand(clipboard, options = {}, idFactory = createStableId) {
-	if (!isCompatibleClipboard(clipboard)) throw new TypeError('A compatible editor clipboard is required.');
+	const normalizedClipboard = normalizeAudioEditorClipboardDescriptor(clipboard);
 	const mode = options.mode || 'reject';
 	if (!['reject', 'overlap', 'insert-track', 'insert-all'].includes(mode)) throw new RangeError(`Unsupported paste mode: ${mode}.`);
 	const clipIds = {};
 	const groupIds = {};
 	const avLinkIds = {};
 	const videoEffectIds = {};
-	for (const track of clipboard.tracks || []) {
+	for (const track of normalizedClipboard.tracks || []) {
 		for (const clip of track.clips || []) {
 			clipIds[clip.key] = idFactory('clip');
 			if (clip.groupId && !groupIds[clip.groupId]) groupIds[clip.groupId] = idFactory('clip-group');
@@ -172,7 +198,7 @@ export function preparePasteCommand(clipboard, options = {}, idFactory = createS
 	}
 	const command = {
 		type: 'clipboard/paste',
-		clipboard,
+		clipboard: normalizedClipboard,
 		atFrame: assertFrame(options.atFrame ?? 0, 'paste.atFrame'),
 		trackMap: { ...(options.trackMap || {}) },
 		clipIds,
@@ -183,6 +209,7 @@ export function preparePasteCommand(clipboard, options = {}, idFactory = createS
 		splitClipIds: {},
 		splitAvLinkIds: {},
 	};
+	preparePasteAnnotationMaps(normalizedClipboard, options, command, idFactory);
 	if (options.project) preparePasteCollisionIds(options.project, command, idFactory);
 	return command;
 }
@@ -195,10 +222,7 @@ export function prepareCut(project, options = {}, idFactory = createStableId) {
 }
 
 export function pasteClipboard(project, command) {
-	const clipboard = command.clipboard;
-	if (!isCompatibleClipboard(clipboard)) {
-		throw new RangeError('The clipboard is incompatible with this project.');
-	}
+	const clipboard = normalizeAudioEditorClipboardDescriptor(command.clipboard);
 	const atFrame = assertFrame(command.atFrame, 'paste.atFrame');
 	const scale = project.sampleRate / clipboard.sampleRate;
 	if (!Number.isFinite(scale) || scale <= 0) throw new RangeError('The clipboard sample rate is invalid.');
@@ -212,6 +236,9 @@ export function pasteClipboard(project, command) {
 		pastedDurationFrames,
 	);
 	const mode = command.mode || 'reject';
+	if (!['reject', 'overlap', 'insert-track', 'insert-all'].includes(mode)) {
+		throw new RangeError(`Unsupported paste mode: ${mode}.`);
+	}
 	const targetTracks = new Set();
 	for (const clipboardTrack of clipboard.tracks || []) {
 		const targetTrack = requireTrack(project, command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId);
@@ -221,6 +248,20 @@ export function pasteClipboard(project, command) {
 		}
 		targetTracks.add(targetTrack);
 	}
+	assertPasteSequenceMaps(project, clipboard, command);
+	const commitAnnotationPaste = stageTimelineAnnotationClipboardPaste(
+		project,
+		clipboard,
+		command,
+		mode,
+		createAnnotationPasteGeometry(
+			project,
+			atFrame,
+			pastedDurationFrames,
+			conformsToVideoGrid,
+			conformedAnchorBySequenceId,
+		),
+	);
 	if (mode === 'overlap' && project.schemaVersion < 2) {
 		const range = normalizeFrameRange(atFrame, atFrame + pastedDurationFrames, 'paste overlap range');
 		for (const track of targetTracks) processTrackRange(
@@ -319,6 +360,7 @@ export function pasteClipboard(project, command) {
 		track.clipIds.push(clip.id);
 	}
 	for (const track of new Set(additions.map((addition) => addition.track))) sortTrack(project, track);
+	commitAnnotationPaste();
 }
 
 function preparePasteCollisionIds(project, command, idFactory) {
@@ -490,10 +532,6 @@ function scaleClipboardClip(
 			})).filter((point, index, values) => !index || point.frame > values[index - 1].frame),
 		} : {}),
 	};
-}
-
-function isCompatibleClipboard(clipboard) {
-	return Boolean(clipboard && (clipboard.schemaVersion === 1 || clipboard.schemaVersion === 2));
 }
 
 function cloneRational(value) {

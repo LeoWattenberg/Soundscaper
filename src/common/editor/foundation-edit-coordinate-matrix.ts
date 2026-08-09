@@ -112,7 +112,7 @@ export const FOUNDATION_EDIT_COORDINATE_MATRIX: Readonly<
 		videoExtent: 'Convert clipboard absolute endpoints and subtract in sequence-frame space.',
 		videoSourceRange: 'Preserve integer source-frame/PTS ranges.',
 		operationConformance: 'One destination anchor owns the paste; linked audio is recomputed from the pasted video endpoints.',
-		implementation: ['commands/clipboard-runtime.js'],
+		implementation: ['commands/clipboard-runtime.js', 'commands/timeline-annotation-clipboard.ts'],
 	},
 	duplicate: {
 		primitive: 'duplicate',
@@ -123,7 +123,7 @@ export const FOUNDATION_EDIT_COORDINATE_MATRIX: Readonly<
 		videoExtent: 'Identical to paste.',
 		videoSourceRange: 'Identical to paste.',
 		operationConformance: 'Duplicate is descriptor creation plus the paste rule; it has no second delta path.',
-		implementation: ['controller/edit-service.ts', 'commands/clipboard-runtime.js'],
+		implementation: ['controller/edit-service.ts', 'commands/clipboard-runtime.js', 'commands/timeline-annotation-clipboard.ts'],
 	},
 	'range-delete': {
 		primitive: 'range-delete',

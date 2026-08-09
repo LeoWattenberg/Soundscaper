@@ -149,14 +149,49 @@ export interface AudioEditorClipboardTrack {
 	readonly sourceTrackName: string;
 	readonly sourceTrackType?: 'audio' | 'video';
 	readonly sourceLaneGroupId?: string | null;
+	readonly sourceSequenceId?: string;
 	readonly clips: readonly CommandObject[];
 }
 
+export interface AudioEditorClipboardAnnotationCommon {
+	readonly key: string;
+	readonly sourceSequenceId: string;
+	readonly name: string;
+	readonly color: TimelineAnnotationColor;
+	readonly batchId: string | null;
+	readonly opaqueExtensions: CommandObject;
+}
+
+export type AudioEditorClipboardAnnotation =
+	| Readonly<AudioEditorClipboardAnnotationCommon & {
+		readonly kind: 'marker';
+		readonly anchor: 'sample';
+		readonly positionOffsetFrame: number;
+	}>
+	| Readonly<AudioEditorClipboardAnnotationCommon & {
+		readonly kind: 'marker';
+		readonly anchor: 'musical';
+		readonly positionOffsetBeat: ExactRationalCommandValue;
+	}>
+	| Readonly<AudioEditorClipboardAnnotationCommon & {
+		readonly kind: 'region';
+		readonly anchor: 'sample';
+		readonly startOffsetFrame: number;
+		readonly endOffsetFrame: number;
+	}>
+	| Readonly<AudioEditorClipboardAnnotationCommon & {
+		readonly kind: 'region';
+		readonly anchor: 'musical';
+		readonly startOffsetBeat: ExactRationalCommandValue;
+		readonly endOffsetBeat: ExactRationalCommandValue;
+	}>;
+
 export interface AudioEditorClipboard {
-	readonly schemaVersion: 1 | 2;
+	readonly schemaVersion: 1 | 2 | 3;
 	readonly sampleRate: number;
 	readonly durationFrames: number;
 	readonly tracks: readonly AudioEditorClipboardTrack[];
+	readonly annotations?: readonly AudioEditorClipboardAnnotation[];
 }
 
 export interface CommandRangePayload {
@@ -342,6 +377,9 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly splitClipIds?: StableIdMap;
 		readonly splitAvLinkIds?: StableIdMap;
 		readonly videoEffectIds?: Readonly<Record<string, readonly string[]>>;
+		readonly sequenceMap?: StableIdMap;
+		readonly annotationIds?: StableIdMap;
+		readonly annotationBatchIds?: StableIdMap;
 	};
 	readonly 'punch/replace': CommandRangePayload & {
 		readonly trackId: string;
