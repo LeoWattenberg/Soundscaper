@@ -349,19 +349,23 @@ acceptance checks pass.
 ### 3.0 Shared time and schema foundation (serialized, first)
 
 - **Shared — Planned:** a single exact rational time module owning every
-  frames/seconds/beats/frame-rate conversion, with one documented rounding
-  rule, reduced-rational overflow guards, and absolute-origin evaluation,
+  frames/seconds/beats/frame-rate conversion, with named rounding policies,
+  reduced-rational overflow guards, and absolute-origin evaluation,
   replacing today's duplicated conversion and beat-math sites.
-- **Shared — Planned:** one schema revision introducing every milestone-3
-  document type together: rational-rate sequences with drop-frame and start
+- **Shared — Planned:** a foundation schema revision establishing the
+  time-model core: rational-rate sequences with drop-frame and start
   timecode, frame-anchored video clip placement, source-domain in/out points
-  with preserved probed and VFR timing, a musically anchored tempo and
-  signature map, per-object time anchors, and unified warp/retime breakpoint
-  maps. Derived time fields validate against their authoritative anchor and
-  are rejected on mismatch, never silently repaired.
-- **Shared — Planned:** compatibility registration lands with the schema, so
-  no milestone-3 feature can evaluate as unknown and silently force projects
-  read-only.
+  with externally stored probed and VFR timing, a musically anchored tempo
+  and signature map, per-coordinate time anchors, and unified warp/retime
+  breakpoint maps. Derived time fields validate against their authoritative
+  anchor and are rejected on mismatch, never silently repaired. Later
+  product-track document types land as bounded, serialized follow-up
+  revisions under the plan's pre-release schema policy (no retained
+  migrations before the first release).
+- **Shared — Planned:** compatibility registration and a state-to-manifest
+  completeness gate land with the schema, so no milestone-3 feature can
+  evaluate as unknown and silently force projects read-only, and no
+  undeclared structure can persist without its feature requirement.
 - **Shared — Planned:** the parallel-work headroom refactors named in the
   plan.
 
@@ -403,8 +407,10 @@ acceptance checks pass.
 
 ### Shared exit gate
 
-- Every new document type has validation, migration, clone, undo/redo,
-  clipboard, `.scape`, future-schema, and cross-product preservation coverage.
+- Every new document type has validation, clone, undo/redo, clipboard,
+  `.scape`, future-schema, and cross-product preservation coverage, and
+  older-schema documents fail with a typed re-import error under the
+  pre-release schema policy.
 - Audio remains sample-accurate through tempo changes and repeated save/reopen.
 - Video remains frame-accurate across integer, NTSC, VFR, nested, proxy, and
   source-timecode fixtures without cumulative A/V drift.
@@ -412,9 +418,9 @@ acceptance checks pass.
   no operation leaves a video cut off the frame grid.
 - Signature changes stay on barlines through tempo edits; musically anchored
   material re-flows and absolutely anchored material does not move.
-- Every rate conversion routes through the shared time module's single
-  rounding rule and remains exact under composed nested-sequence and retime
-  mappings.
+- Every rate conversion routes through the shared time module's named
+  rounding policies and remains exact under composed nested-sequence and
+  retime mappings.
 - Every milestone-3 feature is registered in the capability and compatibility
   registers before it ships.
 - Long-form sessions meet milestone-1 transport, seeking, scrolling, memory,
