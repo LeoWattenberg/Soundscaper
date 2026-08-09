@@ -60,6 +60,7 @@ export interface EditorDocumentSnapshotState {
 	readonly preferencesReadOnly: boolean;
 	readonly selectedTrackId: string | null;
 	readonly selectedClipId: string | null;
+	readonly selectedAnnotationId: string | null;
 	readonly transportState: string;
 	readonly projectBinPreview: Readonly<Record<string, unknown>> | null;
 	readonly playAtSpeedRate: number;
@@ -192,6 +193,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		preferencesReadOnly: state.preferencesReadOnly,
 		selectedTrackId: state.selectedTrackId,
 		selectedClipId: state.selectedClipId,
+		selectedAnnotationId: state.selectedAnnotationId,
 		selection,
 		transportState: state.transportState,
 		projectBinPreview: state.projectBinPreview

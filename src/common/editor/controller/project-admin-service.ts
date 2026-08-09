@@ -131,6 +131,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		setProject(null);
 		state.selectedTrackId = null;
 		state.selectedClipId = null;
+		state.selectedAnnotationId = null;
 		state.missingSourceIds.clear();
 		const nextTab = result.activeProjectId ? sessionTab(result.activeProjectId) : null;
 		if (nextTab) await switchProject(nextTab.history.present, { skipFlush: true });
@@ -180,6 +181,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		sessionController.closeProject(id, { force: true });
 		state.history = null;
 		setProject(null);
+		state.selectedAnnotationId = null;
 		state.missingSourceIds.clear();
 		evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
 		await garbageCollectSources();
@@ -247,6 +249,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		}
 		state.history = null;
 		setProject(null);
+		state.selectedAnnotationId = null;
 		await newProject({ skipFlush: true });
 		state.projects = Object.freeze(store.preservesProjectsOnClear?.() ? await store.listProjects() : []);
 		publishDocumentSnapshot();

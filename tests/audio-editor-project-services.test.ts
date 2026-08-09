@@ -238,11 +238,17 @@ test('preferences service recovers invalid storage and preserves the read-only s
 
 test('project session service deduplicates legacy recents and persists active UI metadata', async () => {
 	interface SessionProject {
+		readonly schemaVersion?: unknown;
+		readonly timelineAnnotations?: unknown;
 		readonly tracks: readonly Readonly<{ id: string; type: string }>[];
 		readonly clips: readonly Readonly<{ id: string }>[];
 	}
 	let recent: string[] = [];
-	const selectionState = { selectedTrackId: 'track' as string | null, selectedClipId: 'clip' as string | null };
+	const selectionState = {
+		selectedTrackId: 'track' as string | null,
+		selectedClipId: 'clip' as string | null,
+		selectedAnnotationId: 'annotation' as string | null,
+	};
 	const persisted: Array<[string, unknown]> = [];
 	const metadata: Array<[string, Record<string, unknown>]> = [];
 	const settings = new Map<string, unknown>([
@@ -270,12 +276,26 @@ test('project session service deduplicates legacy recents and persists active UI
 	assert.equal(lastProjectId, 'second');
 	assert.deepEqual(recent, ['first', 'second']);
 	service.persistActiveSessionUiState();
-	assert.deepEqual(metadata, [['first', { selectedTrackId: 'track', selectedClipId: 'clip' }]]);
+	assert.deepEqual(metadata, [['first', {
+		selectedTrackId: 'track',
+		selectedClipId: 'clip',
+		selectedAnnotationId: 'annotation',
+	}]]);
 	service.restoreProjectSelection({
+		schemaVersion: 11,
+		timelineAnnotations: [{ id: 'restored-annotation' }],
 		tracks: [{ id: 'labels', type: 'label' }, { id: 'audio', type: 'audio' }],
 		clips: [{ id: 'restored-clip' }],
-	}, { selectedTrackId: 'labels', selectedClipId: 'restored-clip' });
-	assert.deepEqual(selectionState, { selectedTrackId: 'labels', selectedClipId: 'restored-clip' });
+	}, {
+		selectedTrackId: 'labels',
+		selectedClipId: 'restored-clip',
+		selectedAnnotationId: 'restored-annotation',
+	});
+	assert.deepEqual(selectionState, {
+		selectedTrackId: 'labels',
+		selectedClipId: 'restored-clip',
+		selectedAnnotationId: 'restored-annotation',
+	});
 	await service.recordOpenedProject('third', async (value) => value);
 	assert.deepEqual(recent, ['third', 'first', 'second']);
 	assert.deepEqual(persisted.map(([key]) => key), [

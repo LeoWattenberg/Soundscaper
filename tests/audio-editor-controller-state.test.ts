@@ -30,6 +30,7 @@ test('controller state initializes deterministic composition-root defaults', () 
 	assert.deepEqual(state.status, { message: 'Ready', state: 'info' });
 	assert.equal(state.recordingInputGain, 1);
 	assert.equal(state.preferredInputDeviceId, 'default');
+	assert.equal(state.selectedAnnotationId, null);
 });
 
 test('controller instances never share mutable collections', () => {

@@ -246,6 +246,7 @@ export interface EditorSnapshot {
 	readonly project: EditorProject | null;
 	readonly selectedTrackId: EditorId | null;
 	readonly selectedClipId: EditorId | null;
+	readonly selectedAnnotationId: EditorId | null;
 	readonly readOnly: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;

@@ -17,6 +17,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	const state = stateFixture({
 		projects: [{ id: 'older' }, { id: 'project' }],
 		recentProjectIds: ['project', 'missing'],
+		selectedAnnotationId: 'annotation',
 		timedRecording: { startTimeMs: 1_700_000_000_000, options: { trackId: 'track' } },
 		recordingPreviews: [null, { frames: 4 }],
 		history: { undoStack: ['old', 'new'], redoStack: ['redo'] },
@@ -83,6 +84,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	});
 
 	assert.equal(snapshot.selection, project.selection);
+	assert.equal(snapshot.selectedAnnotationId, 'annotation');
 	assert.deepEqual(snapshot.recentProjects, [{ id: 'project' }]);
 	assert.deepEqual(snapshot.projectTabs, [{
 		id: 'project', title: 'Project', dirty: true, readOnly: false,
@@ -184,6 +186,7 @@ function stateFixture(
 		phase: 'ready', projects: [], recentProjectIds: [],
 		preferences: { playback: { playAtSpeedMode: 'naive' }, recording: { retainInputs: false } },
 		preferencesReadOnly: false, selectedTrackId: null, selectedClipId: null,
+		selectedAnnotationId: null,
 		transportState: 'stopped', projectBinPreview: null, playAtSpeedRate: 1,
 		playAtSpeedAbort: null, readOnly: false, projectLock: null, importing: false,
 		recordingStarting: false, timedRecordingPreparing: false, timedRecording: null,

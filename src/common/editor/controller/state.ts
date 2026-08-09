@@ -41,6 +41,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		preferencesReadOnly: false,
 		selectedTrackId: null,
 		selectedClipId: null,
+		selectedAnnotationId: null,
 		clipboard: null,
 		effectClipboard: null,
 		pixelsPerSecond: defaultPixelsPerSecond,

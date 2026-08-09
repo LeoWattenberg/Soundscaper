@@ -84,6 +84,7 @@ function createFixture() {
 		projects: [] as readonly Project[],
 		selectedTrackId: 'track',
 		selectedClipId: 'clip',
+		selectedAnnotationId: 'annotation',
 	};
 	const projectSaveService = {
 		cancelScheduled: () => { calls.push('cancel-save'); },
@@ -268,6 +269,7 @@ test('closing the active tab saves it and selects the next session project', asy
 	assert.equal(fixture.calls.includes('cancel-save'), true);
 	assert.equal(fixture.calls.includes('switch:project-b'), true);
 	assert.equal(fixture.project(), null);
+	assert.equal(fixture.state.selectedAnnotationId, null);
 });
 
 test('close validation and refusal leave project state untouched', async () => {
@@ -292,6 +294,7 @@ test('project deletion validates ownership and then clears project-specific stat
 	assert.equal(fixture.calls.includes('delete:project-a'), true);
 	assert.equal(fixture.calls.includes('persist:routing:project-a:null'), true);
 	assert.equal(fixture.project(), null);
+	assert.equal(fixture.state.selectedAnnotationId, null);
 
 	const readOnly = createFixture();
 	readOnly.state.readOnly = true;
@@ -554,6 +557,7 @@ test('local reset clears all runtime data', async () => {
 	assert.equal(fixture.sourcePeaks.size, 0);
 	assert.equal(fixture.calls.includes('clear-store'), true);
 	assert.equal(fixture.calls.includes('clear-clipboard'), true);
+	assert.equal(fixture.state.selectedAnnotationId, null);
 	assert.equal(Object.isFrozen(fixture.state.projects), true);
 	assert.deepEqual(fixture.state.projects, []);
 });

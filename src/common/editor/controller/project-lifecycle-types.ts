@@ -33,6 +33,7 @@ export interface ProjectLifecycleLock {
 export interface ProjectLifecycleTabMetadata {
 	readonly selectedTrackId?: string | null;
 	readonly selectedClipId?: string | null;
+	readonly selectedAnnotationId?: string | null;
 	readonly declaredReadOnly?: boolean;
 	readonly declaredReadOnlyReason?: string | null;
 	readonly intrinsicReadOnly?: boolean;

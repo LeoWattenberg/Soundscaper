@@ -1,8 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+
 export interface ProjectSessionSelectionState {
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
+	selectedAnnotationId: string | null;
 }
 
 export interface ProjectSessionSelectionTrack {
@@ -11,17 +14,21 @@ export interface ProjectSessionSelectionTrack {
 }
 
 export interface ProjectSessionSelectionProject {
+	readonly schemaVersion?: unknown;
+	readonly timelineAnnotations?: unknown;
 	readonly tracks: readonly ProjectSessionSelectionTrack[];
 }
 
 export interface ProjectSessionSelectionMetadata {
 	readonly selectedTrackId?: string | null;
 	readonly selectedClipId?: string | null;
+	readonly selectedAnnotationId?: string | null;
 }
 
 export interface CapturedProjectSessionSelection {
 	readonly selectedTrackId: string | null;
 	readonly selectedClipId: string | null;
+	readonly selectedAnnotationId: string | null;
 }
 
 export interface ProjectSessionSelectionServiceDependencies<
@@ -47,6 +54,7 @@ export function createProjectSessionSelectionService<
 		return Object.freeze({
 			selectedTrackId: dependencies.state.selectedTrackId,
 			selectedClipId: dependencies.state.selectedClipId,
+			selectedAnnotationId: dependencies.state.selectedAnnotationId,
 		});
 	}
 
@@ -59,5 +67,29 @@ export function createProjectSessionSelectionService<
 			?? project.tracks[0]?.id
 			?? null;
 		dependencies.state.selectedClipId = dependencies.findClip(project, metadata.selectedClipId)?.id ?? null;
+		dependencies.state.selectedAnnotationId = existingCurrentAnnotationId(project, metadata.selectedAnnotationId);
+	}
+}
+
+function existingCurrentAnnotationId(
+	project: ProjectSessionSelectionProject,
+	requestedAnnotationId: unknown,
+): string | null {
+	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		|| typeof requestedAnnotationId !== 'string'
+		|| !requestedAnnotationId) return null;
+	try {
+		const annotations = project.timelineAnnotations;
+		if (!Array.isArray(annotations)) return null;
+		let found = false;
+		for (const annotation of annotations) {
+			if (annotation === null || typeof annotation !== 'object' || Array.isArray(annotation)) return null;
+			const id = Object.getOwnPropertyDescriptor(annotation, 'id');
+			if (!id || !('value' in id) || typeof id.value !== 'string' || !id.value) return null;
+			if (id.value === requestedAnnotationId) found = true;
+		}
+		return found ? requestedAnnotationId : null;
+	} catch {
+		return null;
 	}
 }

@@ -3,9 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createProjectSessionSelectionService } from '../src/common/editor/controller/project-session-selection-service.ts';
+import {
+	createProjectSessionSelectionService,
+	type ProjectSessionSelectionMetadata,
+} from '../src/common/editor/controller/project-session-selection-service.ts';
 
 interface TestProject {
+	readonly schemaVersion?: unknown;
+	readonly timelineAnnotations?: unknown;
 	readonly tracks: readonly Readonly<{ id: string; type: string }>[];
 	readonly clips: readonly Readonly<{ id: string }>[];
 }
@@ -14,8 +19,9 @@ function createFixture(
 	project: TestProject,
 	selectedTrackId: string | null = null,
 	selectedClipId: string | null = null,
+	selectedAnnotationId: string | null = null,
 ) {
-	const state = { selectedTrackId, selectedClipId };
+	const state = { selectedTrackId, selectedClipId, selectedAnnotationId };
 	const service = createProjectSessionSelectionService<TestProject>({
 		state,
 		findTrack: (candidate, trackId) => (
@@ -33,7 +39,11 @@ test('project session selection capture retains explicit null metadata', () => {
 
 	const captured = fixture.service.capture();
 
-	assert.deepEqual(captured, { selectedTrackId: null, selectedClipId: null });
+	assert.deepEqual(captured, {
+		selectedTrackId: null,
+		selectedClipId: null,
+		selectedAnnotationId: null,
+	});
 	assert.equal(Object.isFrozen(captured), true);
 });
 
@@ -54,6 +64,7 @@ test('project session selection restores valid label and clip focus independentl
 	assert.deepEqual(fixture.state, {
 		selectedTrackId: 'labels',
 		selectedClipId: 'clip',
+		selectedAnnotationId: null,
 	});
 });
 
@@ -75,6 +86,7 @@ test('project session selection falls back to the first non-label track and clea
 	assert.deepEqual(fixture.state, {
 		selectedTrackId: 'audio',
 		selectedClipId: null,
+		selectedAnnotationId: null,
 	});
 });
 
@@ -88,5 +100,74 @@ test('project session selection falls back to the first label and then null when
 
 	const empty = createFixture({ tracks: [], clips: [] }, 'previous', 'previous');
 	empty.service.restore(empty.project, {});
-	assert.deepEqual(empty.state, { selectedTrackId: null, selectedClipId: null });
+	assert.deepEqual(empty.state, {
+		selectedTrackId: null,
+		selectedClipId: null,
+		selectedAnnotationId: null,
+	});
+});
+
+test('project session selection restores an existing annotation only for exact current V11', () => {
+	const fixture = createFixture({
+		schemaVersion: 11,
+		timelineAnnotations: [{ id: 'annotation' }, { id: 'other' }],
+		tracks: [],
+		clips: [],
+	});
+
+	fixture.service.restore(fixture.project, { selectedAnnotationId: 'annotation' });
+
+	assert.equal(fixture.state.selectedAnnotationId, 'annotation');
+	fixture.service.restore(fixture.project, { selectedAnnotationId: 'stale' });
+	assert.equal(fixture.state.selectedAnnotationId, null);
+});
+
+test('project session selection clears malformed annotation focus', () => {
+	const malformed = createFixture({
+		schemaVersion: 11,
+		timelineAnnotations: [{ id: 'annotation' }, null],
+		tracks: [],
+		clips: [],
+	}, null, null, 'previous');
+
+	malformed.service.restore(malformed.project, { selectedAnnotationId: 'annotation' });
+
+	assert.equal(malformed.state.selectedAnnotationId, null);
+	const malformedMetadata = createFixture({
+		schemaVersion: 11,
+		timelineAnnotations: [{ id: 'annotation' }],
+		tracks: [],
+		clips: [],
+	}, null, null, 'previous');
+	malformedMetadata.service.restore(malformedMetadata.project, {
+		selectedAnnotationId: 42,
+	} as unknown as ProjectSessionSelectionMetadata);
+	assert.equal(malformedMetadata.state.selectedAnnotationId, null);
+	const older = createFixture({
+		schemaVersion: 10,
+		timelineAnnotations: [{ id: 'annotation' }],
+		tracks: [],
+		clips: [],
+	}, null, null, 'previous');
+	older.service.restore(older.project, { selectedAnnotationId: 'annotation' });
+	assert.equal(older.state.selectedAnnotationId, null);
+});
+
+test('project session selection does not traverse future annotation storage', () => {
+	let annotationReads = 0;
+	const futureProject: TestProject = {
+		schemaVersion: 12,
+		get timelineAnnotations(): never {
+			annotationReads += 1;
+			throw new Error('future timelineAnnotations was traversed');
+		},
+		tracks: [],
+		clips: [],
+	};
+	const fixture = createFixture(futureProject, null, null, 'previous');
+
+	fixture.service.restore(futureProject, { selectedAnnotationId: 'annotation' });
+
+	assert.equal(fixture.state.selectedAnnotationId, null);
+	assert.equal(annotationReads, 0);
 });
