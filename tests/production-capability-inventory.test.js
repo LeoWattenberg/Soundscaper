@@ -12,7 +12,6 @@ const DESKTOP_TARGETS = [
 	['linux', 'arm64'],
 	['linux', 'x64'],
 	['macos', 'arm64'],
-	['macos', 'x64'],
 	['windows', 'arm64'],
 	['windows', 'x64'],
 ];

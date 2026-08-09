@@ -17,7 +17,6 @@ const EXPECTED_RUNTIME_MANIFESTS = Object.freeze([
 	'runtime-manifest-soundscaper-linux-arm64.json',
 	'runtime-manifest-soundscaper-linux-x64.json',
 	'runtime-manifest-soundscaper-mac-arm64.json',
-	'runtime-manifest-soundscaper-mac-x64.json',
 	'runtime-manifest-soundscaper-win-arm64.json',
 	'runtime-manifest-soundscaper-win-x64.json',
 ]);
@@ -34,7 +33,7 @@ export async function main() {
 		.filter((name) => /^runtime-manifest-.+\.json$/u.test(name))
 		.sort();
 	assert(JSON.stringify(manifestNames) === JSON.stringify(EXPECTED_RUNTIME_MANIFESTS),
-		`Expected runtime manifests for all six native builds; received: ${manifestNames.join(', ') || '<none>'}.`);
+		`Expected runtime manifests for all five native builds; received: ${manifestNames.join(', ') || '<none>'}.`);
 	const manifests = await Promise.all(manifestNames.map(async (name) => ({
 		name,
 		value: parseJson(await readFile(resolve(ASSET_ROOT, name)), name),
@@ -97,7 +96,6 @@ export function validateDesktopReleasePackageInventory(packageFiles, application
 		['Linux x64 Debian package', new RegExp(`^Soundscaper-${version}-linux-(?:x64|amd64)\\.deb$`, 'u')],
 		['Linux ARM64 AppImage', new RegExp(`^Soundscaper-${version}-linux-arm64\\.AppImage$`, 'u')],
 		['Linux ARM64 Debian package', new RegExp(`^Soundscaper-${version}-linux-arm64\\.deb$`, 'u')],
-		['macOS Intel DMG', new RegExp(`^Soundscaper-${version}-mac-x64\\.dmg$`, 'u')],
 		['macOS Apple silicon DMG', new RegExp(`^Soundscaper-${version}-mac-arm64\\.dmg$`, 'u')],
 		['Windows x64 installer', new RegExp(`^Soundscaper-${version}-win-x64\\.exe$`, 'u')],
 		['Windows x64 ZIP', new RegExp(`^Soundscaper-${version}-win-x64\\.zip$`, 'u')],

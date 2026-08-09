@@ -16,7 +16,6 @@ const PACKAGES = [
 	`Soundscaper-${VERSION}-linux-amd64.deb`,
 	`Soundscaper-${VERSION}-linux-arm64.AppImage`,
 	`Soundscaper-${VERSION}-linux-arm64.deb`,
-	`Soundscaper-${VERSION}-mac-x64.dmg`,
 	`Soundscaper-${VERSION}-mac-arm64.dmg`,
 	`Soundscaper-${VERSION}-win-x64.exe`,
 	`Soundscaper-${VERSION}-win-x64.zip`,

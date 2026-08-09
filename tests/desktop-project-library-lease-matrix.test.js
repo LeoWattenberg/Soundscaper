@@ -48,14 +48,14 @@ test('packaged lease qualification freezes all eight workflows and closed smoke 
 	})).toString('base64url')), /closed object/iu);
 });
 
-test('desktop preview CI runs both packages on all six required targets and uploads JSON', async () => {
+test('desktop preview CI runs both packages on all five qualified-or-deferred targets and uploads JSON', async () => {
 	const [workflow, runner] = await Promise.all([
 		readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8'),
 		readFile(new URL('../scripts/lib/desktop-project-library-lease-matrix.mjs', import.meta.url), 'utf8'),
 	]);
 	for (const target of [
 		['win', 'x64'], ['win', 'arm64'],
-		['mac', 'x64'], ['mac', 'arm64'],
+		['mac', 'arm64'],
 		['linux', 'x64'], ['linux', 'arm64'],
 	]) {
 		assert.match(workflow, new RegExp(`platform: ${target[0]}[\\s\\S]{0,80}arch: ${target[1]}`, 'u'));

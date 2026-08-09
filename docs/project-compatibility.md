@@ -1083,7 +1083,7 @@ concurrent observer starts, same- and cross-product serialization, transfer,
 stale takeover, monotonic fencing, renewal loss, expected-base conflicts,
 renderer loss during publication, disposal fencing, reload recovery, and real
 child termination at prepared and committed journal checkpoints. A closed
-packaged smoke runner and six-target CI matrix now encode the exact eight
+packaged smoke runner and five-target CI matrix now encode the exact eight
 workflow IDs in both product orderings and require the winning document digest
 plus no losing managed-media descriptor. The control remains partial because no
 accepted packaged result for the qualified Windows x64 and Linux x64 targets is

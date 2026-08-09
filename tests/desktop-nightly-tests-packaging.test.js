@@ -113,11 +113,10 @@ test('desktop CI exposes one opt-in six-target nightly-with-tests artifact matri
 	assert.match(normalJob, /if: github\.event_name != 'workflow_dispatch' \|\| inputs\.artifact_variant == 'nightly'/u);
 	assert.match(testJob, /if: github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly-with-tests'/u);
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);
-	assert.equal(testJob.match(/- runner:/gu)?.length, 6);
+	assert.equal(testJob.match(/- runner:/gu)?.length, 5);
 	for (const target of [
 		['windows-2025', 'win', 'x64'],
 		['windows-11-arm', 'win', 'arm64'],
-		['macos-15-intel', 'mac', 'x64'],
 		['macos-15', 'mac', 'arm64'],
 		['ubuntu-22.04', 'linux', 'x64'],
 		['ubuntu-24.04-arm', 'linux', 'arm64'],

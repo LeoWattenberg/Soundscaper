@@ -51,12 +51,6 @@
 		},
 		{
 			"os": "macos",
-			"architecture": "x64",
-			"packageGate": "smoke-tested",
-			"evidence": [".github/workflows/desktop-preview.yml"]
-		},
-		{
-			"os": "macos",
 			"architecture": "arm64",
 			"packageGate": "smoke-tested",
 			"evidence": [".github/workflows/desktop-preview.yml"]
