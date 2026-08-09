@@ -17,11 +17,6 @@ test.describe('editor storage schema migration', () => {
 		await page.goto('/__soundscaper-test/storage-migration-setup');
 		await page.evaluate(async (databaseName) => {
 			await new Promise((resolve, reject) => {
-				const deletion = indexedDB.deleteDatabase(databaseName);
-				deletion.onsuccess = () => resolve();
-				deletion.onerror = () => reject(deletion.error);
-			});
-			await new Promise((resolve, reject) => {
 				const openRequest = indexedDB.open(databaseName, 2);
 				openRequest.onupgradeneeded = () => {
 					openRequest.result.createObjectStore('projects', { keyPath: 'id' }).put({

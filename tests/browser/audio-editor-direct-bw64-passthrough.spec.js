@@ -18,6 +18,7 @@ const SAMPLE_RATE = 48_000;
 const BYTES_PER_SAMPLE = 2;
 const DATA_BYTES = FRAME_COUNT * CHANNEL_COUNT * BYTES_PER_SAMPLE;
 const FLOAT_PLAN_BYTES = FRAME_COUNT * CHANNEL_COUNT * 4;
+const PASSTHROUGH_COMPLETION_TIMEOUT_MS = Math.ceil(FRAME_COUNT / SAMPLE_RATE * 2_000);
 const PREFIX_BYTES = 2 * 1024;
 const SUFFIX_BYTES = 4 * 1024;
 const UINT32_SENTINEL = 0xffff_ffff;
@@ -87,7 +88,7 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 		)).toBeVisible();
 		await expect(exportDialog.locator('[data-export-progress]')).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
-			timeout: 90_000,
+			timeout: PASSTHROUGH_COMPLETION_TIMEOUT_MS,
 		}).toBe(1);
 		await expect(exportDialog.getByRole('button', { name: 'Start export' })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
