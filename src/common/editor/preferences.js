@@ -11,6 +11,10 @@ import {
 	DEFAULT_TOOLBAR_BUTTONS,
 	DEFAULT_TOOLBARS,
 } from './workspace-layout-defaults.ts';
+import {
+	DEFAULT_SOUND_ACTIVATION_PREFERENCES,
+	normalizeSoundActivationPreferences,
+} from './sound-activation-preferences.ts';
 
 export {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
@@ -81,7 +85,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, Object>}} workspace
  * @property {Object} spectrogram
  * @property {{detectTempo: boolean}} import
- * @property {{retainInputs: boolean}} recording
+ * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
  */
 
@@ -152,6 +156,18 @@ function mergePreferences(preferences, patch = {}) {
 		recording: { ...preferences.recording, ...patch.recording },
 		playback: { ...preferences.playback, ...patch.playback },
 	};
+}
+
+function normalizeRecordingSoundActivation(recording) {
+	if (!recording || (typeof recording !== 'object' && typeof recording !== 'function')
+		|| !Object.hasOwn(recording, 'soundActivation')) {
+		return DEFAULT_SOUND_ACTIVATION_PREFERENCES;
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(recording, 'soundActivation');
+	if (!descriptor?.enumerable || !('value' in descriptor)) {
+		throw new TypeError('recording.soundActivation must be an enumerable data field.');
+	}
+	return normalizeSoundActivationPreferences(descriptor.value);
 }
 
 function workspaceLayout(activeId, custom) {
@@ -301,6 +317,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		},
 		recording: {
 			retainInputs: options.recording?.retainInputs !== false,
+			soundActivation: normalizeRecordingSoundActivation(options.recording),
 		},
 		playback: {
 			playAtSpeedMode: oneOf(
