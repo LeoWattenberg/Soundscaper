@@ -18,6 +18,7 @@ import {
 	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
 } from './project-v10-foundation-validation.ts';
 import {
+	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
 	validateAudioEditorProjectV10,
 	type AudioEditorProjectV10,
 } from './project-v10-validation.ts';
@@ -26,7 +27,6 @@ import {
 	normalizeProjectFeatureRequirements,
 } from './project-feature-requirements.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { createStableId } from './stable-id.js';
 import {
 	beatToSampleFrame,
@@ -56,7 +56,11 @@ export {
 	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 } from './project-schema-version.ts';
 export { AUDIO_EDITOR_MEDIA_KINDS, AUDIO_EDITOR_TRACK_TYPES } from './project-v9.ts';
-export { validateAudioEditorProjectV10, type AudioEditorProjectV10 } from './project-v10-validation.ts';
+export {
+	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
+	validateAudioEditorProjectV10,
+	type AudioEditorProjectV10,
+} from './project-v10-validation.ts';
 
 export interface AudioEditorProjectV10Options extends AudioEditorProjectV9Options {
 	readonly sequences?: readonly Readonly<Record<string, unknown>>[];
@@ -305,11 +309,11 @@ export function createAudioEditorProjectV10(options: AudioEditorProjectV10Option
 	const graph = { sources, clips, tracks };
 	const featureRequirements = normalizeProjectFeatureRequirements(
 		input.featureRequirements ?? base.featureRequirements,
-		{ ...graph, schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, sampleRate, sequences, primarySequenceId },
+		{ ...graph, schemaVersion: AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION, sampleRate, sequences, primarySequenceId },
 	);
 	const project = {
 		...base,
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaVersion: AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
 		sampleRate,
 		sources,
 		clips,
@@ -340,7 +344,7 @@ export function loadAudioEditorProjectV10(value: unknown): {
 } {
 	const candidate = object(value, 'saved project');
 	const schemaVersion = Number(candidate.schemaVersion);
-	if (schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+	if (schemaVersion > AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION) {
 		return { project: clone(candidate), readOnly: true, reason: 'newer-schema' };
 	}
 	validateAudioEditorProjectV10(candidate);

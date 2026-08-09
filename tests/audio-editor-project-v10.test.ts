@@ -14,6 +14,7 @@ import {
 	createVideoClipV10,
 	createVideoSourceV10,
 	createVideoTrackV10,
+	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
 	loadAudioEditorProjectV10,
 	validateAudioEditorProjectV10,
 } from '../src/common/editor/project-v10.ts';
@@ -21,6 +22,20 @@ import { resolveRuntimeClipProjection } from '../src/common/editor/runtime-clip-
 import { sampleFrameToBeat } from '../src/common/editor/timeline-tempo-inverse.ts';
 
 const NOW = '2026-08-09T12:00:00.000Z';
+
+test('the historical V10 contract owns its exact schema boundary', () => {
+	const project = createAudioEditorProjectV10({ id: 'v10-boundary', now: NOW });
+	const future = { ...project, schemaVersion: 11 };
+
+	assert.equal(AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION, 10);
+	assert.equal(project.schemaVersion, AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION);
+	assert.deepEqual(loadAudioEditorProjectV10(future), {
+		project: future,
+		readOnly: true,
+		reason: 'newer-schema',
+	});
+	assert.throws(() => validateAudioEditorProjectV10(future), /schema version/iu);
+});
 
 test('foundation projects close sequence, tempo, signature, and sample-rate wire contracts', () => {
 	const project = createAudioEditorProjectV10({ id: 'foundation', now: NOW });

@@ -3,7 +3,10 @@
 import { normalizeProjectFeatureRequirements } from './project-feature-requirements.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
-import { reconcileProjectV10CommandResult } from './project-v10-command-projection.ts';
+import {
+	projectV10ForCommand,
+	reconcileProjectV10CommandResult,
+} from './project-v10-command-projection.ts';
 import { validateAudioEditorProjectV10 } from './project-v10-validation.ts';
 import {
 	isRuntimeProjectProjection,
@@ -18,6 +21,13 @@ export function projectForRuntimeConsumers(project: RuntimeClipProject): Runtime
 	return isRuntimeProjectProjection(project)
 		? project
 		: resolveRuntimeProjectProjection(project);
+}
+
+/** Project the active authoring generation into the transient shape command consumers expect. */
+export function projectForCommandConsumers<Project extends DataRecord | null | undefined>(project: Project): Project {
+	return project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		? projectV10ForCommand(project) as Project
+		: project;
 }
 
 /** Restore authoritative coordinates and owned capability declarations after a command mutation. */

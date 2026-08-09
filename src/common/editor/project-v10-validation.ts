@@ -7,7 +7,6 @@ import { validateProjectBextMetadata } from './project-bext-metadata.ts';
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import { validateProjectV10Foundation } from './project-v10-foundation-validation.ts';
 import { normalizeProjectFeatureRequirements, type ProjectFeatureRequirementsManifest } from './project-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { validateProjectV9Document } from './project-v9-document-validation.ts';
 import { projectRecord } from './project-v9-validation-primitives.ts';
 import {
@@ -16,6 +15,8 @@ import {
 	type AudioEditorProjectV9ValidationLimits,
 } from './project-v9-validation-budget.ts';
 import type { HoldTempoMap } from './timeline-time.ts';
+
+export const AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION = 10 as const;
 
 export interface AudioEditorProjectV10ValidationOptions {
 	readonly limits?: Partial<AudioEditorProjectV9ValidationLimits>;
@@ -57,7 +58,7 @@ export function validateAudioEditorProjectV10(
 	const limits = resolveAudioEditorProjectV9ValidationLimits(options.limits ?? {});
 	admitAudioEditorProjectV9ValidationStructure(project, limits);
 	const candidate = projectRecord(project, 'project');
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
 	if (Object.hasOwn(candidate, 'runtimeProjectionVersion')) {

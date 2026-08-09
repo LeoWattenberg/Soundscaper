@@ -4,7 +4,7 @@ import { commitProject } from './project.js';
 import { dispatchEditorCommand } from './commands/registry.ts';
 import { createEditorCommandRuntime } from './commands/runtime-registry.ts';
 import { pruneMissingProjectSelections } from './commands/shared-runtime.js';
-import { projectV10ForCommand } from './project-v10-command-projection.ts';
+import { projectForCommandConsumers } from './project-current-runtime.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { brandRuntimeProjectProjection } from './runtime-clip-projection.ts';
 import { FOUNDATION_EDIT_OPERATION } from './commands/command-projection-transients.ts';
@@ -95,9 +95,7 @@ export function applyEditorCommand(project, command, options = {}) {
 	if (!command || typeof command.type !== 'string') {
 		throw new TypeError('A serializable editor command is required.');
 	}
-	const commandProject = project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		? projectV10ForCommand(project)
-		: project;
+	const commandProject = projectForCommandConsumers(project);
 	return /** @type {Project} */ (commitProject(commandProject, (draft) => {
 		if (project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 			brandRuntimeProjectProjection(draft);

@@ -6,7 +6,10 @@ import test from 'node:test';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import { projectForRuntimeConsumers } from '../src/common/editor/project-current-runtime.ts';
+import {
+	projectForCommandConsumers,
+	projectForRuntimeConsumers,
+} from '../src/common/editor/project-current-runtime.ts';
 import {
 	createAudioEditorProjectV10,
 	createLabelTrackV10,
@@ -31,6 +34,18 @@ import {
 } from '../src/common/editor/video-timeline.js';
 
 const NOW = '2026-08-09T12:00:00.000Z';
+
+test('the current-project facade projects command consumers without rewriting legacy generations', () => {
+	const project = videoProject();
+	const commandProject = projectForCommandConsumers(project);
+
+	assert.notStrictEqual(commandProject, project);
+	assert.equal(isRuntimeProjectProjection(commandProject), true);
+	assert.equal(commandProject.clips[0]?.timelineStartFrame, 3_675);
+	assert.equal(commandProject.sources[0]?.frameCount, project.sources[0]?.sampleFrameCount);
+	const legacy = { schemaVersion: 9 };
+	assert.strictEqual(projectForCommandConsumers(legacy), legacy);
+});
 
 test('persisted runtime markers cannot bypass any runtime projection boundary', () => {
 	const project = videoProject();
