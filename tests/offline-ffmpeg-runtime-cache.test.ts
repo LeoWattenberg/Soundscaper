@@ -61,12 +61,81 @@ test('encoded pointer, manifest, and runtime wire lengths do not replace decoded
 		['ffmpeg-core.js', {
 			contentEncoding: null,
 			contentLength: String(fixture.release.files[0]?.byteLength),
+			contentType: 'text/javascript; charset=utf-8',
 		}],
 		['ffmpeg-core.wasm', {
 			contentEncoding: null,
 			contentLength: String(fixture.release.files[1]?.byteLength),
+			contentType: 'application/wasm',
 		}],
 	]));
+});
+
+test('JavaScript runtime responses accept an absent or UTF-8 charset and stage the manifest type', async () => {
+	for (const contentType of [
+		'text/javascript',
+		'text/javascript; charset=utf-8',
+		'Text/JavaScript; charset="UTF-8"',
+	]) {
+		const fixture = runtimeFixture({
+			runtimeContentType: (name) => name.endsWith('.js') ? contentType : 'application/wasm',
+		});
+		const store = new MemoryRuntimeStore();
+
+		const result = await installLatestFfmpegRuntime({
+			pointerUrl: `${RUNTIME_ROOT}latest.json`,
+			fetchImpl: fixture.fetch,
+			store,
+		});
+
+		assert.equal(result.status, 'installed');
+		assert.equal(
+			store.cachedResponseHeaders.get('ffmpeg-core.js')?.contentType,
+			'text/javascript; charset=utf-8',
+		);
+	}
+});
+
+test('JavaScript runtime responses reject non-UTF-8 charsets and extra MIME parameters', async () => {
+	for (const contentType of [
+		'text/javascript; charset=iso-8859-1',
+		'text/javascript; charset=utf-8; version=1',
+		'text/javascript; version=1',
+	]) {
+		const fixture = runtimeFixture({
+			runtimeContentType: (name) => name.endsWith('.js') ? contentType : 'application/wasm',
+		});
+		const store = new MemoryRuntimeStore(previousRelease());
+
+		await assert.rejects(
+			() => installLatestFfmpegRuntime({
+				pointerUrl: `${RUNTIME_ROOT}latest.json`,
+				fetchImpl: fixture.fetch,
+				store,
+			}),
+			/ffmpeg-core\.js Content-Type does not match/u,
+		);
+		assert.equal(store.active?.releaseId, '0'.repeat(64));
+	}
+});
+
+test('WebAssembly runtime responses retain their exact parameter-free MIME requirement', async () => {
+	const fixture = runtimeFixture({
+		runtimeContentType: (name) => name.endsWith('.wasm')
+			? 'application/wasm; charset=utf-8'
+			: 'text/javascript',
+	});
+	const store = new MemoryRuntimeStore(previousRelease());
+
+	await assert.rejects(
+		() => installLatestFfmpegRuntime({
+			pointerUrl: `${RUNTIME_ROOT}latest.json`,
+			fetchImpl: fixture.fetch,
+			store,
+		}),
+		/ffmpeg-core\.wasm Content-Type does not match/u,
+	);
+	assert.equal(store.active?.releaseId, '0'.repeat(64));
 });
 
 test('encoded wire lengths do not weaken decoded manifest and runtime verification', async () => {
@@ -277,6 +346,7 @@ class MemoryRuntimeStore implements VerifiedRuntimeStore {
 	readonly cachedResponseHeaders = new Map<string, Readonly<{
 		contentEncoding: string | null;
 		contentLength: string | null;
+		contentType: string | null;
 	}>>();
 	readonly events: string[] = [];
 
@@ -297,6 +367,7 @@ class MemoryRuntimeStore implements VerifiedRuntimeStore {
 				this.cachedResponseHeaders.set(file.name, Object.freeze({
 					contentEncoding: response.headers.get('content-encoding'),
 					contentLength: response.headers.get('content-length'),
+					contentType: response.headers.get('content-type'),
 				}));
 				staged.set(file.name, new Uint8Array(await response.arrayBuffer()));
 			},
@@ -318,6 +389,7 @@ function runtimeFixture(options: {
 	readonly alterFile?: string;
 	readonly alterManifest?: boolean;
 	readonly overrideJsPath?: (releaseId: string) => string;
+	readonly runtimeContentType?: (name: string) => string;
 	readonly truncateFile?: string;
 } = {}) {
 	const runtime = new Map([
@@ -380,7 +452,11 @@ function runtimeFixture(options: {
 			bytes = source.slice();
 			bytes[0] ^= 0xff;
 		}
-		return byteResponse(bytes, name.endsWith('.wasm') ? 'application/wasm' : 'text/javascript; charset=utf-8');
+		return byteResponse(
+			bytes,
+			options.runtimeContentType?.(name)
+				?? (name.endsWith('.wasm') ? 'application/wasm' : 'text/javascript; charset=utf-8'),
+		);
 	};
 	const release = Object.freeze({
 		schemaVersion: 1 as const,

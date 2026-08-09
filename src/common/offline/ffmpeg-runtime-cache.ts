@@ -272,9 +272,17 @@ function validateRuntimeResponseHeaders(response: Response, file: VerifiedRuntim
 		}
 	}
 	const contentType = response.headers.get('content-type')?.trim().toLowerCase() ?? '';
-	if (contentType !== file.contentType.toLowerCase()) {
+	if (!runtimeContentTypeMatches(contentType, file.contentType)) {
 		throw new Error(`${file.name} Content-Type does not match its verified descriptor.`);
 	}
+}
+
+function runtimeContentTypeMatches(contentType: string, expectedContentType: string): boolean {
+	if (expectedContentType !== 'text/javascript; charset=utf-8') {
+		return contentType === expectedContentType.toLowerCase();
+	}
+	return contentType === 'text/javascript'
+		|| /^text\/javascript\s*;\s*charset\s*=\s*(?:utf-8|"utf-8")$/u.test(contentType);
 }
 
 async function readBoundedResponse(response: Response, options: Readonly<{
