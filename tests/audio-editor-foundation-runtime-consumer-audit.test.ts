@@ -231,6 +231,26 @@ test('audio export admission receives resolved musical clip timing from its entr
 	assert.equal(plan.render.offlineRenderAdmission?.preRollFrames, 80_000);
 });
 
+test('clip selection navigation owns its projected timing boundary', () => {
+	const consumer = FOUNDATION_RUNTIME_CONSUMER_SURFACES.find(({ id }) => (
+		id === 'clip-selection-navigation'
+	));
+	assert.deepEqual(consumer, {
+		id: 'clip-selection-navigation',
+		surface: 'navigation',
+		file: 'src/common/editor/controller/clip-selection-navigation-service.ts',
+		entryPoint: 'projectedAudioClips',
+		inputIdentifier: 'project',
+		projectedIdentifier: 'projection',
+		boundary: 'resolveRuntimeProjectProjection',
+		evidence: 'Clip-boundary and adjacent-clip navigation collect audio candidates only after resolving musical and sequence-backed clip timing at the owned service boundary.',
+	});
+	assert.deepEqual(
+		FOUNDATION_RUNTIME_SHIELDED_OWNERS.find(({ file }) => file === consumer?.file),
+		{ file: consumer?.file, surfaces: ['navigation'] },
+	);
+});
+
 test('the runtime consumer audit is immutable and uniquely identifies each surface', () => {
 	assert.equal(
 		new Set(FOUNDATION_RUNTIME_CONSUMER_SURFACES.map(({ id }) => id)).size,

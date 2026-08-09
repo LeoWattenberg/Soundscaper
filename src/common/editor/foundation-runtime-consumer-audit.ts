@@ -102,6 +102,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/video-export.js', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
+	{ file: 'src/common/editor/controller/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/controller/project-visual-service.ts', surfaces: ['waveform'] },
 ]);
@@ -339,6 +340,16 @@ export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeCon
 		projectedIdentifier: null,
 		boundary: 'projectDurationFrames',
 		evidence: 'Editor navigation delegates document duration to the projection-backed project duration boundary before applying viewport headroom.',
+	},
+	{
+		id: 'clip-selection-navigation',
+		surface: 'navigation',
+		file: 'src/common/editor/controller/clip-selection-navigation-service.ts',
+		entryPoint: 'projectedAudioClips',
+		inputIdentifier: 'project',
+		projectedIdentifier: 'projection',
+		boundary: 'resolveRuntimeProjectProjection',
+		evidence: 'Clip-boundary and adjacent-clip navigation collect audio candidates only after resolving musical and sequence-backed clip timing at the owned service boundary.',
 	},
 	{
 		id: 'timeline-viewport',
