@@ -422,8 +422,9 @@ retires the prior cache, and reloads both products offline. A partial FFmpeg
 runtime update retains the previous complete verified release. The eviction
 workflow exports a current `.scape`, removes the origin's IndexedDB database,
 reopens the usable empty editor, and restores the same project identity from
-the archive. WebKit remains unqualified because the pinned runtime cannot
-launch on this host. These small functional workflows do not qualify real
+the archive. WebKit qualification is deferred by milestone-2 closure scope
+revision 2 because the pinned runtime cannot launch on this host. These
+small functional workflows do not qualify real
 quota exhaustion thresholds, storage reservation, browser eviction policy,
 abrupt process death, power loss, reference-scale capacity, heap, or RSS.
 

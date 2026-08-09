@@ -1271,8 +1271,9 @@ current cache before retiring it, and keeps both products available offline.
 Runtime rollback fails the second release during body acquisition and preserves
 the exact first complete verified release. Storage-eviction recovery exports a
 `.scape`, deletes the product-local IndexedDB database, proves the empty editor
-still starts, and reimports the same project identity. WebKit remains
-unqualified because the pinned runtime cannot launch on this host. The quota
+still starts, and reimports the same project identity. WebKit qualification
+is deferred by milestone-2 closure scope revision 2 because the pinned
+runtime cannot launch on this host. The quota
 failures are deterministic boundary injection rather than physical disk
 exhaustion; the eviction workflow proves archive recovery rather than browser
 retention. Actual eviction scheduling, quota accuracy, storage reservation,

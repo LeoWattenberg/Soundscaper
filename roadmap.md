@@ -299,11 +299,11 @@ read-only and reported; milestone 2 does not require an invented bypass.
 
 #### 2.3 Durability and qualification closeout
 
-- `m2-browser-durability-matrix`
 - `m2-electron-lease-matrix`
 
-All seven browser durability workflows are qualified in Chromium and Firefox;
-WebKit remains unqualified.
+All seven `m2-browser-durability-matrix` workflows are qualified in Chromium
+and Firefox; WebKit qualification is deferred by scope revision 2, so that
+item is implemented.
 
 Run the exact publication-path/fault combinations, browser workflows, packaged
 desktop workflows, and platform sets named in the inventory.
@@ -325,7 +325,7 @@ desktop workflows, and platform sets named in the inventory.
 | `m2-gate-mixed-media-handoff` | **Implemented** | `m2-handoff-packaged-roundtrip`, `m2-media-relationship-roundtrip`, `m2-linked-media-lifecycle`, `m2-managed-capacity-admission` |
 | `m2-gate-bounded-pipelines` | **Implemented** | `m2-pipeline-route-qualification`, `m2-pipeline-resource-qualification`, `m2-opfs-worker-boundary` |
 | `m2-gate-feature-compatibility` | **Partial** | `m2-compatibility-affected-objects`, `m2-compatibility-bypass`, `m2-compatibility-fallback-roles`, `m2-compatibility-future-archive`, `m2-compatibility-less-capable-roundtrip` |
-| `m2-gate-crash-safe-publication` | **Partial** | `m2-publication-fault-matrix`, `m2-browser-durability-matrix` |
+| `m2-gate-crash-safe-publication` | **Implemented** | `m2-publication-fault-matrix`, `m2-browser-durability-matrix` |
 | `m2-gate-electron-concurrency` | **Partial** | `m2-electron-lease-matrix` |
 | `m2-gate-cache-cleanup` | **Implemented** | `m2-cache-root-safety` |
 

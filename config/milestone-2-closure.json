@@ -30,7 +30,7 @@
 		},
 		{
 			"id": "m2-gate-crash-safe-publication",
-			"status": "partial",
+			"status": "implemented",
 			"itemIds": [
 				"m2-publication-fault-matrix",
 				"m2-browser-durability-matrix"
@@ -171,7 +171,7 @@
 		{
 			"id": "m2-browser-durability-matrix",
 			"gateId": "m2-gate-crash-safe-publication",
-			"status": "partial",
+			"status": "implemented",
 			"workflowIds": [
 				"indexeddb-quota-refusal",
 				"opfs-quota-refusal",
@@ -182,7 +182,7 @@
 				"storage-eviction-recovery"
 			],
 			"qualifiedBrowserProjects": ["chromium", "firefox"],
-			"unqualifiedBrowserProjects": ["webkit"],
+			"deferredBrowserProjects": ["webkit"],
 			"acceptance": [
 				"Each workflow ID passes in each qualified browserProject or records a truthful unsupported outcome with the Web Core fallback passing; WebKit qualification is deferred by scope revision 2.",
 				"A failed workflow leaves the last committed project and installed application shell usable."

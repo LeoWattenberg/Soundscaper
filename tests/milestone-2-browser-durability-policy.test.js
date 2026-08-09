@@ -30,14 +30,14 @@ test('milestone 2 records the exact Chromium and Firefox durability matrix', asy
 	]);
 	const item = inventory.items.find(({ id }) => id === 'm2-browser-durability-matrix');
 	assert.ok(item);
-	assert.equal(item.status, 'partial');
+	assert.equal(item.status, 'implemented');
 	assert.deepEqual(item.workflowIds, workflowIds);
 	assert.deepEqual(item.qualifiedBrowserProjects, ['chromium', 'firefox']);
-	assert.deepEqual(item.unqualifiedBrowserProjects, ['webkit']);
+	assert.deepEqual(item.deferredBrowserProjects, ['webkit']);
 	for (const id of workflowIds) assert.match(browserEvidence, new RegExp(`\\b${id}\\b`, 'u'), id);
 	for (const document of [qualityBudgets, threatModel]) {
 		assert.match(document, /indexeddb-quota-refusal.*opfs-quota-refusal.*indexeddb-multitab-writer.*opfs-multitab-writer.*offline-shell-upgrade.*offline-runtime-rollback.*storage-eviction-recovery/isu);
-		assert.match(document, /Chromium and Firefox.*WebKit.*unqualified/isu);
+		assert.match(document, /Chromium and Firefox.*WebKit qualification\s+is deferred by milestone-2 closure scope\s+revision 2/isu);
 	}
 });
 
