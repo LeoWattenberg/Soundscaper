@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
@@ -253,10 +254,12 @@ test.describe('audio editor video composition workflow', () => {
 		const canvas = preview.locator('[data-video-preview-canvas]');
 		await expect(preview).toHaveAttribute('data-active-video-effect-count', '3');
 		await expect(canvas).toHaveCount(1);
-		await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready');
-		await expect(canvas).toHaveAttribute('data-renderer-state', 'ready');
+		const composesOnWebGl = await page.evaluate(hasWebGl2Capability);
+		const composedState = composesOnWebGl ? 'ready' : 'fallback';
+		await expect(preview).toHaveAttribute('data-video-preview-renderer', composedState);
+		await expect(canvas).toHaveAttribute('data-renderer-state', composedState);
 
-		if (await preview.getAttribute('data-video-preview-renderer') === 'ready') {
+		if (composesOnWebGl) {
 			const canLoseContext = await canvas.evaluate((element) => {
 				const context = element.getContext('webgl2');
 				const extension = context?.getExtension('WEBGL_lose_context');
@@ -272,6 +275,8 @@ test.describe('audio editor video composition workflow', () => {
 				await canvas.evaluate(() => globalThis.__soundscaperVideoPreviewContext.restoreContext());
 				await expect.poll(() => preview.getAttribute('data-video-preview-renderer')).toMatch(/^(webgl|ready)$/);
 			}
+		} else {
+			await expect(preview.locator('[data-video-preview-renderer-warning]')).toContainText(/export still applies/i);
 		}
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
