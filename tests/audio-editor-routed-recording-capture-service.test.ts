@@ -194,6 +194,57 @@ test('routed display capture supports ranges, channel fallback, meters, and time
 	assert.equal(fixture.stopCalls(), 1);
 });
 
+test('routed count-in matches the authoritative tempo and compound-signature maps', async () => {
+	const fixture = createRecordingCaptureFixture({ selection: { startFrame: 144_000, endFrame: 192_000 } });
+	fixture.state.leadInRecording = true;
+	fixture.state.recordingRouting = {
+		routes: {
+			'track-1': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 },
+		},
+		offsets: {},
+	};
+	(fixture.project as { tempoMap: unknown }).tempoMap = {
+		mode: 'musical',
+		events: [
+			{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
+			{ id: 'tempo-2', beat: { num: 2, den: 1 }, bpm: { num: 60, den: 1 } },
+		],
+	};
+	(fixture.project as { signatureMap: unknown }).signatureMap = {
+		events: [{ id: 'signature-1', bar: 0, numerator: 6, denominator: 8 }],
+	};
+	await createRoutedRecordingCaptureService(fixture.runtime).capture(
+		{ trackId: 'track-1' },
+		createScope(() => true),
+	);
+
+	assert.deepEqual(fixture.seekCalls, [24_000]);
+	assert.equal(fixture.playAtCalls[0]?.[1], 24_000);
+});
+
+test('routed count-in preserves singleton timing for a map-absent project', async () => {
+	const fixture = createRecordingCaptureFixture({ selection: { startFrame: 144_000, endFrame: 192_000 } });
+	fixture.state.leadInRecording = true;
+	fixture.state.recordingRouting = {
+		routes: {
+			'track-1': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 },
+		},
+		offsets: {},
+	};
+	delete (fixture.project as { tempoMap?: unknown }).tempoMap;
+	delete (fixture.project as { signatureMap?: unknown }).signatureMap;
+	(fixture.project as { tempo: unknown }).tempo = {
+		bpm: 60,
+		timeSignature: { numerator: 3, denominator: 4 },
+	};
+	await createRoutedRecordingCaptureService(fixture.runtime).capture(
+		{ trackId: 'track-1' },
+		createScope(() => true),
+	);
+
+	assert.deepEqual(fixture.seekCalls, [0]);
+});
+
 test('routed capture classifies permission, channel, and live-stream failures', async () => {
 	const permission = createRecordingCaptureFixture({
 		acquireHardware: async () => { throw new Error('permission denied'); },

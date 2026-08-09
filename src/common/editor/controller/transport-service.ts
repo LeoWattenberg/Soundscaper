@@ -226,7 +226,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 
 	async function scheduleMetronomeClick() {
 		if (!state.metronomeEnabled || !['playing', 'recording'].includes(state.transportState) || state.disposed) return;
-		const bpm = Math.max(1, Number(getProject()?.tempo?.bpm) || 120);
+		const project = getProject();
 		const sampleRate = projectSampleRate();
 		const position = Math.max(0, engine.getPositionFrames());
 		const playbackRate = state.transportState === 'playing'
@@ -236,15 +236,27 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 			beatIndex,
 			delaySeconds,
 			beatDurationSeconds,
-		} = calculateAudioEditorMetronomeSchedule({ bpm, sampleRate, positionFrame: position, playbackRate });
+			accent,
+		} = calculateAudioEditorMetronomeSchedule({
+			bpm: project?.tempo?.bpm,
+			tempoMap: project?.tempoMap,
+			signatureMap: project?.signatureMap,
+			timeSignature: project?.tempo?.timeSignature,
+			sampleRate,
+			positionFrame: position,
+			playbackRate,
+		});
 		try {
 			const context = await engine.getAudioContext?.({ resume: false });
 			if (context?.createOscillator && context?.createGain && context.destination) {
 				const oscillator = context.createOscillator();
 				const gain = context.createGain();
-				const numerator = Math.max(1, Number(getProject()?.tempo?.timeSignature?.numerator) || 4);
 				const when = context.currentTime + delaySeconds;
-				oscillator.frequency.setValueAtTime(beatIndex % numerator === 0 ? 1320 : 880, when);
+				const normalizedAccent = accent ?? (beatIndex % 4 === 0 ? 'bar' : 'beat');
+				oscillator.frequency.setValueAtTime(
+					normalizedAccent === 'bar' ? 1320 : normalizedAccent === 'group' ? 1100 : 880,
+					when,
+				);
 				gain.gain.setValueAtTime(0.0001, when);
 				gain.gain.exponentialRampToValueAtTime(0.12, when + 0.002);
 				gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);

@@ -83,25 +83,6 @@ function setSnap(project, command) {
 	project.snap = normalizeAudioEditorSnapSettings(next);
 }
 
-function setTempo(project, command) {
-	if (project.schemaVersion < 2) throw new RangeError('Tempo settings require an AudioEditorProjectV2 or newer project.');
-	const bpm = command.bpm == null ? project.tempo.bpm : Number(command.bpm);
-	if (!Number.isFinite(bpm) || bpm < 1 || bpm > 1_000) throw new RangeError('tempo.bpm must be between 1 and 1000.');
-	const numerator = command.numerator == null
-		? project.tempo.timeSignature.numerator
-		: Number(command.numerator);
-	const denominator = command.denominator == null
-		? project.tempo.timeSignature.denominator
-		: Number(command.denominator);
-	if (!Number.isSafeInteger(numerator) || numerator < 1 || numerator > 32) {
-		throw new RangeError('tempo.timeSignature.numerator must be between 1 and 32.');
-	}
-	if (!Number.isSafeInteger(denominator) || denominator < 1 || denominator > 32 || (denominator & (denominator - 1)) !== 0) {
-		throw new RangeError('tempo.timeSignature.denominator must be a power of two up to 32.');
-	}
-	project.tempo = { bpm, timeSignature: { numerator, denominator }, detected: false };
-}
-
 function addSource(project, value) {
 	const source = normalizeSourceForProject(project, value);
 	assertUnusedId(project.sources, source.id, 'source');
@@ -511,7 +492,6 @@ export function createProjectSourceBinRuntimeHandlers(dispatchChild) {
 		'selection/set': setSelection,
 		'loop/set': setLoop,
 		'snap/set': setSnap,
-		'tempo/set': setTempo,
 		'time-display/set': setTimeDisplay,
 		'metadata/update': (project, command) => updateMetadata(project, command.changes),
 		'source/add': (project, command) => addSource(project, command.source),

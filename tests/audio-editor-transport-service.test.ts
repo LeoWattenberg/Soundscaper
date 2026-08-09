@@ -56,6 +56,11 @@ function createTransportFixture() {
 		selection: { startFrame: number; endFrame: number; trackIds: string[]; clipIds: string[] } | null;
 		loop: { enabled: boolean; startFrame: number; endFrame: number } | null;
 		tempo: { bpm: number; timeSignature: { numerator: number } };
+		tempoMap: {
+			mode: 'musical';
+			events: Array<{ beat: { num: number; den: number }; bpm: { num: number; den: number } }>;
+		};
+		signatureMap: { events: Array<{ bar: number; numerator: number; denominator: number }> };
 	};
 	type PlaybackState = { state: string; playbackMode: string; playbackRate: number };
 	let project: TestProject = {
@@ -64,7 +69,12 @@ function createTransportFixture() {
 		sampleRate: 48_000,
 		selection: { startFrame: 10, endFrame: 30, trackIds: ['track'], clipIds: [] },
 		loop: { enabled: false, startFrame: 0, endFrame: 0 },
-		tempo: { bpm: 120, timeSignature: { numerator: 4 } },
+		tempo: { bpm: 30, timeSignature: { numerator: 7 } },
+		tempoMap: {
+			mode: 'musical',
+			events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+		signatureMap: { events: [{ bar: 0, numerator: 6, denominator: 8 }] },
 	};
 	let playbackState: PlaybackState = { state: 'stopped', playbackMode: 'normal', playbackRate: 1 };
 	let missingSources = false;
@@ -106,6 +116,7 @@ function createTransportFixture() {
 		timedCancellations: 0,
 		persisted: [] as unknown[][],
 		loops: [] as unknown[],
+		metronomeSchedules: [] as unknown[],
 	};
 	const engine = {
 		getState: () => playbackState,
@@ -129,7 +140,13 @@ function createTransportFixture() {
 			calls.begins.push(snapshot);
 			await beginPreparation(snapshot, options);
 		},
-		calculateAudioEditorMetronomeSchedule: () => ({ beatIndex: 4, delaySeconds: 0.01, beatDurationSeconds: 0.02 }),
+		calculateAudioEditorMetronomeSchedule: (options: unknown) => {
+			calls.metronomeSchedules.push(options);
+			return {
+				beatIndex: 3, delaySeconds: 0.01, beatDurationSeconds: 0.02,
+				barIndex: 0, pulseIndex: 3, accent: 'group',
+			};
+		},
 		cancelPlaybackCachePreparation: () => {
 			calls.cacheCancellations += 1;
 			state.playbackCacheAbort?.abort();
@@ -354,6 +371,12 @@ test('metronome scheduling drives and cleans up a Web Audio click without owning
 	fixture.state.transportState = 'playing';
 	await fixture.service.scheduleMetronomeClick();
 	assert.ok(oscillatorCalls.some(([name]) => name === 'start'));
+	assert.deepEqual(oscillatorCalls.find(([name]) => name === 'frequency'), ['frequency', 1100, 1.01]);
+	const scheduleOptions = fixture.calls.metronomeSchedules.at(-1) as Record<string, unknown>;
+	assert.strictEqual(scheduleOptions.tempoMap, fixture.project().tempoMap);
+	assert.strictEqual(scheduleOptions.signatureMap, fixture.project().signatureMap);
+	assert.equal(scheduleOptions.bpm, 30, 'the legacy singleton remains available only as a map-absent fallback');
+	assert.strictEqual(scheduleOptions.timeSignature, fixture.project().tempo.timeSignature);
 	const invokeEnded = ended as (() => void) | null;
 	invokeEnded?.();
 	fixture.service.stopMetronome();

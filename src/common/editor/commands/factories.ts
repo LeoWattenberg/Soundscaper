@@ -21,7 +21,16 @@ import {
 } from '../project-v5.js';
 import { createVideoEffect } from '../video-effects.js';
 import { createMediaClipV8 } from '../project-v8.ts';
-import type { AudioEditorCommand, AudioEditorCommandType, CommandObject } from './protocol.ts';
+import type {
+	AudioEditorCommand,
+	AudioEditorCommandType,
+	CommandObject,
+	SignatureEventCommandChanges,
+	SignatureEventCommandValue,
+	TempoEventCommandChanges,
+	TempoEventCommandValue,
+	TempoMapMode,
+} from './protocol.ts';
 
 type CommandFor<Type extends AudioEditorCommandType> = Extract<AudioEditorCommand, { readonly type: Type }>;
 
@@ -131,6 +140,53 @@ export function createAddLabelCommand(
 	options: CommandFactoryValue = {},
 ): CommandFor<'label/add'> {
 	return { type: 'label/add', trackId, label: createLabelV2(options) as CommandObject };
+}
+
+export function createSetTempoMapModeCommand(mode: TempoMapMode): CommandFor<'tempo-map/mode-set'> {
+	if (mode !== 'musical' && mode !== 'sampleLocked') throw new RangeError('tempoMap.mode is unsupported.');
+	return { type: 'tempo-map/mode-set', mode };
+}
+
+export function createAddTempoEventCommand(event: TempoEventCommandValue): CommandFor<'tempo-event/add'> {
+	requireStableCommandId(event?.id, 'tempo event');
+	return { type: 'tempo-event/add', event: structuredClone(event) };
+}
+
+export function createUpdateTempoEventCommand(
+	eventId: string,
+	changes: TempoEventCommandChanges,
+): CommandFor<'tempo-event/update'> {
+	return {
+		type: 'tempo-event/update',
+		eventId: requireStableCommandId(eventId, 'tempo event'),
+		changes: structuredClone(changes),
+	};
+}
+
+export function createRemoveTempoEventCommand(eventId: string): CommandFor<'tempo-event/remove'> {
+	return { type: 'tempo-event/remove', eventId: requireStableCommandId(eventId, 'tempo event') };
+}
+
+export function createAddSignatureEventCommand(
+	event: SignatureEventCommandValue,
+): CommandFor<'signature-event/add'> {
+	requireStableCommandId(event?.id, 'signature event');
+	return { type: 'signature-event/add', event: structuredClone(event) };
+}
+
+export function createUpdateSignatureEventCommand(
+	eventId: string,
+	changes: SignatureEventCommandChanges,
+): CommandFor<'signature-event/update'> {
+	return {
+		type: 'signature-event/update',
+		eventId: requireStableCommandId(eventId, 'signature event'),
+		changes: structuredClone(changes),
+	};
+}
+
+export function createRemoveSignatureEventCommand(eventId: string): CommandFor<'signature-event/remove'> {
+	return { type: 'signature-event/remove', eventId: requireStableCommandId(eventId, 'signature event') };
 }
 
 function normalizeSourceValue(value: CommandFactoryValue): CommandObject {

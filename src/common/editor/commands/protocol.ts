@@ -11,6 +11,13 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'loop/set',
 	'snap/set',
 	'tempo/set',
+	'tempo-map/mode-set',
+	'tempo-event/add',
+	'tempo-event/update',
+	'tempo-event/remove',
+	'signature-event/add',
+	'signature-event/update',
+	'signature-event/remove',
 	'time-display/set',
 	'metadata/update',
 	'source/add',
@@ -75,6 +82,34 @@ export type StableIdListMap = Readonly<Record<string, readonly string[]>>;
 export type MixerBusType = 'group' | 'send';
 export type ClipRippleMode = 'none' | 'clip' | 'track';
 export type ClipboardPasteMode = 'reject' | 'overlap' | 'insert-track' | 'insert-all';
+export type TempoMapMode = 'musical' | 'sampleLocked';
+
+export interface ExactRationalCommandValue {
+	readonly num: number;
+	readonly den: number;
+}
+
+export interface TempoEventCommandValue {
+	readonly id: string;
+	readonly bpm: ExactRationalCommandValue;
+	readonly beat?: ExactRationalCommandValue;
+	readonly samplePosition?: number;
+}
+
+export interface TempoEventCommandChanges {
+	readonly bpm?: ExactRationalCommandValue;
+	readonly beat?: ExactRationalCommandValue;
+	readonly samplePosition?: number;
+}
+
+export interface SignatureEventCommandValue {
+	readonly id: string;
+	readonly bar: number;
+	readonly numerator: number;
+	readonly denominator: number;
+}
+
+export type SignatureEventCommandChanges = Readonly<Partial<Omit<SignatureEventCommandValue, 'id'>>>;
 
 export interface AudioEditorClipboardTrack {
 	readonly sourceTrackId: string;
@@ -121,6 +156,13 @@ type NonBatchAudioEditorCommandPayloads = {
 	readonly 'loop/set': { readonly enabled: boolean; readonly startFrame?: number; readonly endFrame?: number };
 	readonly 'snap/set': { readonly settings: CommandObject };
 	readonly 'tempo/set': { readonly bpm?: number; readonly numerator?: number; readonly denominator?: number };
+	readonly 'tempo-map/mode-set': { readonly mode: TempoMapMode };
+	readonly 'tempo-event/add': { readonly event: TempoEventCommandValue };
+	readonly 'tempo-event/update': { readonly eventId: string; readonly changes: TempoEventCommandChanges };
+	readonly 'tempo-event/remove': { readonly eventId: string };
+	readonly 'signature-event/add': { readonly event: SignatureEventCommandValue };
+	readonly 'signature-event/update': { readonly eventId: string; readonly changes: SignatureEventCommandChanges };
+	readonly 'signature-event/remove': { readonly eventId: string };
 	readonly 'time-display/set': { readonly format: string };
 	readonly 'metadata/update': { readonly changes: CommandObject };
 	readonly 'source/add': { readonly source: CommandObject };

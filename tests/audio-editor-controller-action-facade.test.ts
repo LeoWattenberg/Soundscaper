@@ -67,6 +67,47 @@ test('controller action facade exposes stable frozen responsibility groups', () 
 	for (const group of Object.values(actions)) assert.equal(Object.isFrozen(group), true);
 });
 
+test('project actions dispatch stable-ID musical map commands', () => {
+	const commands: unknown[] = [];
+	const base = createRuntime();
+	let stableId = 0;
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'commit') return (command: unknown) => { commands.push(command); return command; };
+			if (name === 'createStableId') return (prefix: unknown) => `${String(prefix)}-${String(++stableId)}`;
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime).project;
+	const invoke = (name: string, ...args: unknown[]) => {
+		const action = actions[name];
+		if (typeof action !== 'function') throw new TypeError(`Missing project action: ${name}.`);
+		return action(...args);
+	};
+	invoke('setTempoMapMode', 'sampleLocked');
+	invoke('addTempoEvent', { samplePosition: 96_000, bpm: { num: 90, den: 1 } });
+	invoke('updateTempoEvent', 'tempo-1', { bpm: { num: 60, den: 1 } });
+	invoke('removeTempoEvent', 'tempo-2');
+	invoke('addSignatureEvent', { bar: 4, numerator: 7, denominator: 8 });
+	invoke('updateSignatureEvent', 'signature-1', { numerator: 6 });
+	invoke('removeSignatureEvent', 'signature-2');
+	assert.deepEqual(commands, [
+		{ type: 'tempo-map/mode-set', mode: 'sampleLocked' },
+		{
+			type: 'tempo-event/add',
+			event: { id: 'tempo-1', samplePosition: 96_000, bpm: { num: 90, den: 1 } },
+		},
+		{ type: 'tempo-event/update', eventId: 'tempo-1', changes: { bpm: { num: 60, den: 1 } } },
+		{ type: 'tempo-event/remove', eventId: 'tempo-2' },
+		{
+			type: 'signature-event/add',
+			event: { id: 'signature-2', bar: 4, numerator: 7, denominator: 8 },
+		},
+		{ type: 'signature-event/update', eventId: 'signature-1', changes: { numerator: 6 } },
+		{ type: 'signature-event/remove', eventId: 'signature-2' },
+	]);
+});
+
 test('controller action facade enforces product capabilities at invocation', () => {
 	const actions = createGroupedEditorActions(createRuntime(false));
 	const addEffect = actions.effects.add;

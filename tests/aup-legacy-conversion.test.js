@@ -47,3 +47,17 @@ test('legacy AUP conversion materializes audio and labels without a dry mix', ()
 	assert.equal(converted.sources[0].channels.length, 2);
 	assert.equal(validateAudioEditorProjectV10(converted.project), true);
 });
+
+test('legacy AUP conversion canonicalizes its floating tempo into a bounded rational root', () => {
+	const converted = convertLegacyAupToProject({
+		sampleRate: 48_000,
+		tempo: { bpm: 33.333333333333336, timeSignature: { numerator: 4, denominator: 4 } },
+		tracks: [],
+	}, {
+		idFactory: (prefix) => prefix,
+		now: '2026-08-09T00:00:00.000Z',
+	});
+	assert.deepEqual(converted.project.tempoMap.events[0].bpm, { num: 100, den: 3 });
+	assert.equal(converted.project.tempo.bpm, 100 / 3);
+	assert.equal(validateAudioEditorProjectV10(converted.project), true);
+});

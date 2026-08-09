@@ -7,6 +7,7 @@ import {
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 	EFFECTS_VIDEO_COMMAND_TYPES,
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
+	TEMPO_SIGNATURE_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
 	defineEditorCommandHandlerRegistry,
 	dispatchEditorCommand,
@@ -25,11 +26,12 @@ const NOW = '2026-07-26T12:00:00.000Z';
 test('command domains partition the authoritative protocol exactly once', () => {
 	const domainTypes = [
 		...PROJECT_SOURCE_BIN_COMMAND_TYPES,
+		...TEMPO_SIGNATURE_COMMAND_TYPES,
 		...TRACK_MIXER_LABEL_COMMAND_TYPES,
 		...CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 		...EFFECTS_VIDEO_COMMAND_TYPES,
 	];
-	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 61);
+	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 68);
 	assert.equal(new Set(domainTypes).size, domainTypes.length, 'a command type belongs to only one domain');
 	assert.deepEqual([...domainTypes].sort(), [...AUDIO_EDITOR_COMMAND_TYPES].sort());
 });
@@ -48,14 +50,21 @@ test('the compatibility facade keeps its established public command surface', ()
 		'createAddClipCommand',
 		'createAddLabelCommand',
 		'createAddLabelTrackCommand',
+		'createAddSignatureEventCommand',
 		'createAddSourceCommand',
+		'createAddTempoEventCommand',
 		'createAddTrackCommand',
 		'createAddVideoEffectCommand',
 		'createBypassVideoEffectCommand',
 		'createClipboardDescriptor',
 		'createRemoveVideoEffectCommand',
+		'createRemoveSignatureEventCommand',
+		'createRemoveTempoEventCommand',
 		'createReorderVideoEffectCommand',
 		'createReplaceClipSourceCommand',
+		'createSetTempoMapModeCommand',
+		'createUpdateSignatureEventCommand',
+		'createUpdateTempoEventCommand',
 		'createUpdateVideoEffectCommand',
 		'prepareCut',
 		'prepareDisjointRangeDeleteCommand',
@@ -153,6 +162,7 @@ test('a failing child leaves an atomic batch input untouched', () => {
 function domainHandlers(handlers: Record<string, unknown>): EditorCommandHandlerDomains {
 	return {
 		projectSourceBin: pick(handlers, PROJECT_SOURCE_BIN_COMMAND_TYPES),
+		tempoSignature: pick(handlers, TEMPO_SIGNATURE_COMMAND_TYPES),
 		trackMixerLabel: pick(handlers, TRACK_MIXER_LABEL_COMMAND_TYPES),
 		clipRangeClipboard: pick(handlers, CLIP_RANGE_CLIPBOARD_COMMAND_TYPES),
 		effectsVideo: pick(handlers, EFFECTS_VIDEO_COMMAND_TYPES),

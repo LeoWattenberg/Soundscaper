@@ -1,9 +1,12 @@
 import {
+	beatToSampleFrame,
 	divideRationals,
 	multiplyRationals,
 	normalizeRational,
 	roundRational,
 } from './timeline-time.ts';
+import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
+import { barStartBeat, surroundingBarBoundaries } from './musical-grid.ts';
 
 const MUSICAL_DENOMINATORS = Object.freeze([2, 4, 8, 16, 32, 64, 128]);
 const MODE_ALIASES = Object.freeze(new Map([
@@ -148,6 +151,10 @@ function audioEditorSnapStepRational(gridValue, context = {}) {
 export function snapAudioEditorProjectFrame(frame, gridValue, context = {}) {
 	const inputFrame = safeInteger(frame, 'frame');
 	const mode = normalizeMode(context.mode || (typeof gridValue === 'object' ? gridValue.mode : null) || 'nearest');
+	const grid = audioEditorSnapGrid(gridValue);
+	if (grid.category === 'musical' && projectTempoMap(context) && inputFrame >= 0) {
+		return boundedFrame(snapMusicalFrame(inputFrame, gridValue, context, grid, mode), context);
+	}
 	const step = audioEditorSnapStepRational(gridValue, context);
 	const gridIndex = roundRational(
 		BigInt(inputFrame) * BigInt(step.den),
@@ -157,12 +164,7 @@ export function snapAudioEditorProjectFrame(frame, gridValue, context = {}) {
 	);
 	const result = roundRational(BigInt(gridIndex) * BigInt(step.num), BigInt(step.den), 'point');
 	if (!Number.isSafeInteger(result)) throw new RangeError('The snapped frame is outside the safe integer range.');
-	const minimumFrame = context.minimumFrame === null ? null : safeInteger(context.minimumFrame ?? 0, 'minimumFrame');
-	const maximumFrame = context.maximumFrame == null ? null : safeInteger(context.maximumFrame, 'maximumFrame');
-	if (minimumFrame != null && maximumFrame != null && maximumFrame < minimumFrame) {
-		throw new RangeError('maximumFrame cannot precede minimumFrame.');
-	}
-	return Math.min(maximumFrame ?? Number.MAX_SAFE_INTEGER, Math.max(minimumFrame ?? Number.MIN_SAFE_INTEGER, result));
+	return boundedFrame(result, context);
 }
 
 /** Apply a project's enabled snap setting; disabled projects retain the frame. */
@@ -185,8 +187,12 @@ export function stepAudioEditorSnappedFrame(frame, direction, gridValue, context
 		: direction === 'right' || direction === 'next' || direction === 1 ? 1
 			: 0;
 	if (!sign) throw new RangeError(`Unsupported snap direction: ${direction}.`);
-	const step = audioEditorSnapStepRational(gridValue, context);
 	const inputFrame = safeInteger(frame, 'frame');
+	const grid = audioEditorSnapGrid(gridValue);
+	if (grid.category === 'musical' && projectTempoMap(context) && inputFrame >= 0) {
+		return boundedFrame(stepMusicalFrame(inputFrame, sign, gridValue, context, grid), context);
+	}
+	const step = audioEditorSnapStepRational(gridValue, context);
 	const gridIndex = roundRational(
 		BigInt(inputFrame) * BigInt(step.den),
 		BigInt(step.num),
@@ -194,6 +200,72 @@ export function stepAudioEditorSnappedFrame(frame, direction, gridValue, context
 	) + sign;
 	const result = roundRational(BigInt(gridIndex) * BigInt(step.num), BigInt(step.den), 'point');
 	if (!Number.isSafeInteger(result)) throw new RangeError('The stepped frame is outside the safe integer range.');
+	return boundedFrame(result, context);
+}
+
+function snapMusicalFrame(frame, gridValue, context, grid, mode) {
+	const sampleRate = projectSampleRate(context);
+	const tempoMap = projectTempoMap(context);
+	const beat = sampleFrameToBeat(frame, tempoMap, sampleRate);
+	if (!grid.bar) {
+		const unit = musicalDivision(gridValue, context, grid);
+		const index = roundRational(
+			BigInt(beat.num) * BigInt(unit.den),
+			BigInt(beat.den) * BigInt(unit.num),
+			mode === 'nearest' ? 'point' : 'directional',
+			mode === 'nearest' ? undefined : mode,
+		);
+		return beatToSampleFrame(multiplyRationals(unit, index), tempoMap, sampleRate, 'point');
+	}
+	const boundaries = surroundingBarBoundaries(beat, projectSignatureMap(context));
+	const lowerFrame = beatToSampleFrame(boundaries.lowerBeat, tempoMap, sampleRate, 'point');
+	if (mode === 'previous' || (mode === 'next' && lowerFrame === frame)) return lowerFrame;
+	const upperFrame = beatToSampleFrame(boundaries.upperBeat, tempoMap, sampleRate, 'point');
+	if (mode === 'next') return upperFrame;
+	return frame - lowerFrame < upperFrame - frame ? lowerFrame : upperFrame;
+}
+
+function stepMusicalFrame(frame, sign, gridValue, context, grid) {
+	const sampleRate = projectSampleRate(context);
+	const tempoMap = projectTempoMap(context);
+	const beat = sampleFrameToBeat(frame, tempoMap, sampleRate);
+	let targetBeat;
+	if (grid.bar) {
+		const boundaries = surroundingBarBoundaries(beat, projectSignatureMap(context));
+		const lowerFrame = beatToSampleFrame(boundaries.lowerBeat, tempoMap, sampleRate, 'point');
+		const upperFrame = beatToSampleFrame(boundaries.upperBeat, tempoMap, sampleRate, 'point');
+		const nearestBar = frame - lowerFrame < upperFrame - frame ? boundaries.lowerBar : boundaries.upperBar;
+		targetBeat = barStartBeat(nearestBar + sign, projectSignatureMap(context));
+	} else {
+		const unit = musicalDivision(gridValue, context, grid);
+		const index = roundRational(
+			BigInt(beat.num) * BigInt(unit.den),
+			BigInt(beat.den) * BigInt(unit.num),
+			'point',
+		) + sign;
+		targetBeat = multiplyRationals(unit, index);
+	}
+	return beatToSampleFrame(targetBeat, tempoMap, sampleRate, 'point');
+}
+
+function musicalDivision(gridValue, context, grid) {
+	const triplets = requestedTriplets(gridValue, context, grid);
+	const division = triplets ? 3 * (grid.denominator / 2) : grid.denominator;
+	return normalizeRational({ num: 4, den: division });
+}
+
+function projectTempoMap(context) {
+	return context.tempoMap || context.project?.tempoMap || null;
+}
+
+function projectSignatureMap(context) {
+	const map = context.signatureMap || context.project?.signatureMap;
+	if (map) return map;
+	const { numerator, denominator } = projectTempo(context);
+	return { events: [{ bar: 0, numerator, denominator }] };
+}
+
+function boundedFrame(result, context) {
 	const minimumFrame = context.minimumFrame === null ? null : safeInteger(context.minimumFrame ?? 0, 'minimumFrame');
 	const maximumFrame = context.maximumFrame == null ? null : safeInteger(context.maximumFrame, 'maximumFrame');
 	if (minimumFrame != null && maximumFrame != null && maximumFrame < minimumFrame) {
@@ -219,8 +291,12 @@ function projectSampleRate(context) {
 
 function projectTempo(context) {
 	const tempo = context.tempo || context.project?.tempo || {};
-	const signature = context.timeSignature || tempo.timeSignature || {};
-	const bpm = positiveFinite(context.bpm ?? tempo.bpm ?? tempo.tempo ?? 120, 'tempo.bpm');
+	const tempoEvent = projectTempoMap(context)?.events?.[0];
+	const signatureEvent = (context.signatureMap || context.project?.signatureMap)?.events?.[0];
+	const signature = context.timeSignature || signatureEvent || tempo.timeSignature || {};
+	const bpm = context.bpm == null && tempoEvent?.bpm
+		? normalizeRational(tempoEvent.bpm)
+		: positiveFinite(context.bpm ?? tempo.bpm ?? tempo.tempo ?? 120, 'tempo.bpm');
 	const numerator = positiveSafeInteger(signature.numerator ?? signature.upper ?? 4, 'timeSignature.numerator');
 	const denominator = positiveSafeInteger(signature.denominator ?? signature.lower ?? 4, 'timeSignature.denominator');
 	if ((denominator & (denominator - 1)) !== 0) throw new RangeError('timeSignature.denominator must be a power of two.');

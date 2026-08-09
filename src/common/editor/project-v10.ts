@@ -31,6 +31,7 @@ import { createStableId } from './stable-id.js';
 import {
 	beatToSampleFrame,
 	addRationals,
+	compareRationals,
 	normalizeRational,
 	sampleFrameToVideoFrame,
 	type BreakpointMap,
@@ -41,7 +42,11 @@ import {
 	validateBreakpointMap,
 	videoFrameRangeToSampleRange,
 } from './timeline-time.ts';
-import { validateTempoInverseRationalClosure } from './timeline-tempo-inverse.ts';
+import {
+	validateSampleLockedTempoBeatAuthority,
+	validateTempoInverseRationalClosure,
+} from './timeline-tempo-inverse.ts';
+import { assertHoldTempoMapWireKeys } from './musical-map-contract.ts';
 import {
 	normalizeVideoTimingAssetReference,
 } from './video-timing-asset-reference.ts';
@@ -271,6 +276,13 @@ export function createAudioEditorProjectV10(options: AudioEditorProjectV10Option
 	const sequences = normalizeSequences(input.sequences, primarySequenceId, tracks.map(({ id }) => String(id)));
 	const tempoMap = normalizeTempoMap(input.tempoMap, base, sampleRate);
 	const signatureMap = normalizeSignatureMap(input.signatureMap, base);
+	const firstTempo = tempoMap.events[0];
+	const firstSignature = (signatureMap.events as readonly Record<string, unknown>[])[0];
+	const tempo = {
+		...object(base.tempo, 'project.tempo'),
+		bpm: firstTempo.bpm.num / firstTempo.bpm.den,
+		timeSignature: { numerator: firstSignature.numerator, denominator: firstSignature.denominator },
+	};
 	const sourceById = new Map(sources.map((source) => [String(source.id), source]));
 	const sequenceById = new Map(sequences.map((sequence) => [String(sequence.id), sequence]));
 	const contextFor = (clip: Record<string, unknown>) => clipContext(
@@ -305,6 +317,7 @@ export function createAudioEditorProjectV10(options: AudioEditorProjectV10Option
 		projectBin: { ...clone(projectBinInput), clips: binClips },
 		sequences,
 		primarySequenceId,
+		tempo,
 		tempoMap,
 		signatureMap,
 		featureRequirements,
@@ -365,23 +378,29 @@ function normalizeTempoMap(
 ): HoldTempoMap & Record<string, unknown> {
 	const legacyTempo = object(base.tempo, 'project.tempo');
 	const map = value == null ? {} : object(value, 'project.tempoMap');
+	assertHoldTempoMapWireKeys(map);
 	const mode = map.mode === 'sampleLocked' ? 'sampleLocked' : 'musical';
 	const rawEvents = Array.isArray(map.events) && map.events.length
 		? map.events
 		: [{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: legacyTempo.bpm }];
 	const events = rawEvents.map((item, index) => {
 		const event = object(item, `tempoMap.events[${String(index)}]`);
+		const bpm = positiveRational(event.bpm ?? legacyTempo.bpm, 'tempo event bpm');
+		if (index === 0 && compareRationals(bpm, 1) < 0) {
+			throw new RangeError('The root tempo event cannot be below 1 BPM.');
+		}
 		const normalized: Record<string, unknown> = {
 			...clone(event),
 			id: nonEmptyString(event.id ?? `tempo-${String(index + 1)}`, 'tempo event ID'),
 			beat: coordinateRational(event.beat ?? 0, 'tempo event beat'),
-			bpm: positiveRational(event.bpm ?? legacyTempo.bpm, 'tempo event bpm'),
+			bpm,
 		};
 		if (mode === 'sampleLocked') normalized.samplePosition = nonNegativeSafeInteger(event.samplePosition ?? 0, 'tempo event samplePosition');
 		else delete normalized.samplePosition;
 		return normalized;
 	});
 	const result = { ...clone(map), mode, events } as unknown as HoldTempoMap & Record<string, unknown>;
+	if (mode === 'sampleLocked') validateSampleLockedTempoBeatAuthority(result, sampleRate);
 	validateTempoInverseRationalClosure(result, sampleRate);
 	return result;
 }

@@ -7,12 +7,18 @@ import {
 	divideRationals,
 	multiplyRationals,
 	normalizeRational,
+	roundRational,
 	type HoldTempoEvent,
 	type HoldTempoMap,
 	type Rational,
 } from './timeline-time.ts';
 
 const MAXIMUM_SAFE_RATIONAL_COMPONENT = BigInt(Number.MAX_SAFE_INTEGER);
+
+interface SampleLockedTempoEvent {
+	readonly bpm: Rational;
+	readonly samplePosition?: number;
+}
 
 /** Prove that each tempo segment can add exact sample quanta inside the JSON-safe rational domain. */
 export function validateTempoInverseRationalClosure(tempoMap: HoldTempoMap, sampleRate: number): true {
@@ -48,6 +54,47 @@ export function validateTempoInverseRationalClosure(tempoMap: HoldTempoMap, samp
 	return true;
 }
 
+/** Derive every beat from authoritative integer sample positions and preceding held tempos. */
+export function deriveSampleLockedTempoEventBeats(
+	events: readonly SampleLockedTempoEvent[],
+	sampleRate: number,
+): readonly Rational[] {
+	if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0) throw new RangeError('sampleRate must be positive.');
+	if (!Array.isArray(events) || !events.length) throw new TypeError('Sample-locked tempo events are required.');
+	const beats: Rational[] = [];
+	let beat = normalizeRational(0);
+	let previousSample = -1;
+	for (const [index, event] of events.entries()) {
+		const sample = Number(event.samplePosition);
+		if (!Number.isSafeInteger(sample) || sample < 0 || (index === 0 && sample !== 0) || sample <= previousSample) {
+			throw new RangeError('Sample-locked tempo positions must increase from sample zero.');
+		}
+		const bpm = normalizeRational(event.bpm, { maximumDenominator: Number.MAX_SAFE_INTEGER });
+		if (bpm.num <= 0) throw new RangeError('Sample-locked tempo values must be positive.');
+		if (index > 0) {
+			const previousBpm = events[index - 1].bpm;
+			beat = addRationals(beat, multiplyRationals(
+				sample - previousSample,
+				divideRationals(previousBpm, 60 * sampleRate),
+			));
+		}
+		beats.push(beat);
+		previousSample = sample;
+	}
+	return Object.freeze(beats);
+}
+
+/** Require persisted derived beats to agree exactly with sample-locked authority. */
+export function validateSampleLockedTempoBeatAuthority(tempoMap: HoldTempoMap, sampleRate: number): true {
+	const beats = deriveSampleLockedTempoEventBeats(tempoMap.events, sampleRate);
+	for (const [index, event] of tempoMap.events.entries()) {
+		if (compareRationals(event.beat, beats[index]) !== 0) {
+			throw new RangeError(`tempoMap.events[${String(index)}].beat must equal its exact sample authority.`);
+		}
+	}
+	return true;
+}
+
 /** Invert a hold-only tempo map at one integer sample position without accumulating rounded segments. */
 export function sampleFrameToBeat(
 	frame: number,
@@ -58,27 +105,51 @@ export function sampleFrameToBeat(
 	if (!Number.isSafeInteger(sampleRate) || sampleRate <= 0) throw new RangeError('sampleRate must be positive.');
 	if (!Array.isArray(tempoMap?.events) || !tempoMap.events.length) throw new TypeError('A hold tempo map is required.');
 	const events = tempoMap.events;
-	let active = events[0];
-	let activeFrame = eventFrame(active, tempoMap, sampleRate);
+	const eventFrames = tempoEventFrames(events, tempoMap, sampleRate);
+	let activeIndex = 0;
 	for (let index = 1; index < events.length; index += 1) {
-		const candidateFrame = eventFrame(events[index], tempoMap, sampleRate);
+		const candidateFrame = eventFrames[index];
 		if (frame < candidateFrame) break;
-		active = events[index];
-		activeFrame = candidateFrame;
+		activeIndex = index;
 	}
+	const active = events[activeIndex];
+	const activeFrame = eventFrames[activeIndex];
 	const sampleOffset = normalizeRational(frame - activeFrame);
 	const beatsPerSample = divideRationals(active.bpm, 60 * sampleRate);
 	return addRationals(active.beat, multiplyRationals(sampleOffset, beatsPerSample));
 }
 
-function eventFrame(event: HoldTempoEvent, map: HoldTempoMap, sampleRate: number): number {
+function tempoEventFrames(
+	events: readonly HoldTempoEvent[],
+	map: HoldTempoMap,
+	sampleRate: number,
+): readonly number[] {
+	beatToSampleFrame(events[0].beat, map, sampleRate, 'point');
 	if (map.mode === 'sampleLocked') {
-		if (!Number.isSafeInteger(event.samplePosition) || Number(event.samplePosition) < 0) {
-			throw new RangeError('Sample-locked tempo events require non-negative sample positions.');
-		}
-		return Number(event.samplePosition);
+		return events.map((event) => {
+			if (!Number.isSafeInteger(event.samplePosition) || Number(event.samplePosition) < 0) {
+				throw new RangeError('Sample-locked tempo events require non-negative sample positions.');
+			}
+			return Number(event.samplePosition);
+		});
 	}
-	return beatToSampleFrame(event.beat, map, sampleRate, 'point');
+	const frames = [0];
+	let position = reduceBigRational(0n, 1n);
+	let previousBeat = bigRational(events[0].beat);
+	let previousBpm = bigRational(events[0].bpm);
+	for (let index = 1; index < events.length; index += 1) {
+		const beat = bigRational(events[index].beat);
+		const span = subtractBigRational(beat, previousBeat);
+		const segment = reduceBigRational(
+			span.numerator * 60n * BigInt(sampleRate) * previousBpm.denominator,
+			span.denominator * previousBpm.numerator,
+		);
+		position = addBigRational(position, segment);
+		frames.push(roundRational(position.numerator, position.denominator, 'point'));
+		previousBeat = beat;
+		previousBpm = bigRational(events[index].bpm);
+	}
+	return frames;
 }
 
 export function orderedBeatRange(start: Rational, end: Rational): true {
@@ -98,6 +169,26 @@ function reduceBigRational(
 	if (denominator <= 0n) throw new RangeError('A positive rational denominator is required.');
 	const divisor = greatestCommonDivisor(absoluteBigInt(numerator), denominator);
 	return Object.freeze({ numerator: numerator / divisor, denominator: denominator / divisor });
+}
+
+function addBigRational(
+	left: Readonly<{ numerator: bigint; denominator: bigint }>,
+	right: Readonly<{ numerator: bigint; denominator: bigint }>,
+): Readonly<{ numerator: bigint; denominator: bigint }> {
+	return reduceBigRational(
+		left.numerator * right.denominator + right.numerator * left.denominator,
+		left.denominator * right.denominator,
+	);
+}
+
+function subtractBigRational(
+	left: Readonly<{ numerator: bigint; denominator: bigint }>,
+	right: Readonly<{ numerator: bigint; denominator: bigint }>,
+): Readonly<{ numerator: bigint; denominator: bigint }> {
+	return reduceBigRational(
+		left.numerator * right.denominator - right.numerator * left.denominator,
+		left.denominator * right.denominator,
+	);
 }
 
 function greatestCommonDivisor(left: bigint, right: bigint): bigint {

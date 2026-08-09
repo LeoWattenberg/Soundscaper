@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
+import { calculateAudioEditorCountInFrames } from './transport-model.ts';
 import { countInSampleFrames } from '../timeline-time.ts';
 import type {
 	RecordingMediaStream,
@@ -419,13 +420,20 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				? context.currentTime + (remainingSeconds || 0)
 				: context.currentTime + 0.08;
 			const leadInFrames = !timedStart && state.leadInRecording
-				? countInSampleFrames(1, {
-					bpm: Math.max(1, Number(project.tempo?.bpm) || 120),
-					timeSignature: {
-						numerator: Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4),
-						denominator: Math.max(1, Number(project.tempo?.timeSignature?.denominator) || 4),
-					},
-				}, sampleRate)
+				? project.tempoMap != null || project.signatureMap != null
+					? calculateAudioEditorCountInFrames({
+						tempoMap: project.tempoMap,
+						signatureMap: project.signatureMap,
+						sampleRate,
+						positionFrame: requestedStartFrame,
+					})
+					: countInSampleFrames(1, {
+						bpm: Math.max(1, Number(project.tempo?.bpm) || 120),
+						timeSignature: {
+							numerator: Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4),
+							denominator: Math.max(1, Number(project.tempo?.timeSignature?.denominator) || 4),
+						},
+					}, sampleRate)
 				: 0;
 			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
 			const currentContextFrame = Math.ceil(

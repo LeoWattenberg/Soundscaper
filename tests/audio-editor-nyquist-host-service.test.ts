@@ -145,6 +145,56 @@ test('Nyquist host properties expose Audacity-compatible project, selection, and
 	assert.deepEqual(properties.TRACK.CLIPS, [[0.1, 0.5]]);
 });
 
+test('Nyquist host properties project musical clips and expose the tempo active at the evaluation frame', () => {
+	const harness = createHarness();
+	harness.updateProject({
+		schemaVersion: 10,
+		tempo: { bpm: 120 },
+		tempoMap: {
+			mode: 'musical',
+			events: [
+				{ id: 'tempo-0', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
+				{ id: 'tempo-1', beat: { num: 4, den: 1 }, bpm: { num: 60, den: 1 } },
+			],
+		},
+		clips: [{
+			id: 'clip-a', kind: 'audio', sourceId: 'source-a', title: 'Clip',
+			timelineStartFrame: 100, durationFrames: 400,
+			sourceStartFrame: 0, sourceDurationFrames: 400,
+			anchor: 'musical', musicalStartBeat: { num: 5, den: 1 },
+			musicalExtent: 'fixedSamples',
+		}],
+	});
+	const target = { ...harness.target, startFrame: 3_000, endFrame: 3_400, durationFrames: 400 };
+	const properties = harness.service.nyquistHostProperties(
+		target, [target], 0, [new Float32Array([0.5])], { name: 'Prompt' },
+	);
+
+	assert.equal(properties.PROJECT.TEMPO, 60);
+	assert.deepEqual(properties.TRACK.CLIPS, [[3, 3.4]]);
+});
+
+test('Nyquist resolves the active event in a maximum-size tempo map without origin rescans', () => {
+	const harness = createHarness();
+	harness.updateProject({
+		tempoMap: {
+			mode: 'musical',
+			events: Array.from({ length: 4_096 }, (_, index) => ({
+				id: `tempo-${String(index)}`, beat: { num: index * 4, den: 1 },
+				bpm: { num: index % 2 ? 90 : 120, den: 1 },
+			})),
+		},
+	});
+	const target = { ...harness.target, startFrame: 9_000_000, endFrame: 9_000_400 };
+	const startedAt = performance.now();
+	const properties = harness.service.nyquistHostProperties(
+		target, [target], 0, [new Float32Array([0.5])], { name: 'Prompt' },
+	);
+	const elapsed = performance.now() - startedAt;
+	assert.ok(properties.PROJECT.TEMPO > 0);
+	assert.ok(elapsed < 750, `Nyquist tempo lookup took ${String(Math.round(elapsed))} ms`);
+});
+
 test('Nyquist host properties fall back to the cursor and request for an untargeted stereo result', () => {
 	const harness = createHarness();
 	harness.updateProject({ title: '', tempo: 0, selection: null });

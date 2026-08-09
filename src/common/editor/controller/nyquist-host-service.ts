@@ -2,6 +2,9 @@
 
 import { createAddLabelCommand, createAddLabelTrackCommand } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
+import { sampleFrameToBeat } from '../timeline-tempo-inverse.ts';
+import { compareRationals, type HoldTempoEvent, type HoldTempoMap } from '../timeline-time.ts';
 import { nyquistChannelStats } from './nyquist-audio.ts';
 import type { EditorProjectToken } from './lifecycle.ts';
 import type {
@@ -10,8 +13,13 @@ import type {
 	EffectTarget,
 } from './effect-selection-service.ts';
 
+interface NyquistTempoMap extends Omit<HoldTempoMap, 'events'> {
+	readonly events: readonly (HoldTempoEvent & { readonly id?: string })[];
+}
+
 export interface NyquistHostProject extends EffectSelectionProject {
 	readonly tempo?: number | Readonly<{ readonly bpm?: number }>;
+	readonly tempoMap?: NyquistTempoMap;
 }
 
 export interface NyquistPreviewSource {
@@ -129,7 +137,8 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 		channels: readonly Float32Array[],
 		request: NyquistHostRequest,
 	): NyquistHostProperties {
-		const project = runtime.getProject();
+		const persistedProject = runtime.getProject();
+		const project = projectForRuntimeConsumers(persistedProject) as NyquistHostProject;
 		const sampleRate = runtime.projectSampleRate();
 		const selection = runtime.activeSelection();
 		const frequencyRange = selection?.frequencyRange;
@@ -175,7 +184,7 @@ export function createNyquistHostService(runtime: NyquistHostServiceRuntime) {
 			PROJECT: {
 				NAME: project.title || '',
 				RATE: sampleRate,
-				TEMPO: projectTempo(project),
+				TEMPO: projectTempo(project, startFrame, sampleRate),
 				TRACKS: project.tracks.length,
 				WAVETRACKS: project.tracks.filter((candidate) => candidate.type === 'audio').length,
 				LABELTRACKS: project.tracks.filter((candidate) => candidate.type === 'label').length,
@@ -272,7 +281,18 @@ function throwIfAborted(signal: AbortSignal | null): void {
 	throw signal.reason instanceof Error ? signal.reason : new DOMException('The operation was cancelled.', 'AbortError');
 }
 
-function projectTempo(project: NyquistHostProject): number {
+function projectTempo(project: NyquistHostProject, frame: number, sampleRate: number): number {
+	if (project.tempoMap?.events.length) {
+		const evaluationBeat = sampleFrameToBeat(frame, project.tempoMap, sampleRate);
+		let active = project.tempoMap.events[0];
+		for (let index = 1; index < project.tempoMap.events.length; index += 1) {
+			const candidate = project.tempoMap.events[index];
+			if (compareRationals(candidate.beat, evaluationBeat) > 0) break;
+			active = candidate;
+		}
+		const mappedTempo = active.bpm.num / active.bpm.den;
+		if (Number.isFinite(mappedTempo) && mappedTempo > 0) return mappedTempo;
+	}
 	const tempo = typeof project.tempo === 'object' ? project.tempo?.bpm : project.tempo;
 	return Number(tempo) || 120;
 }

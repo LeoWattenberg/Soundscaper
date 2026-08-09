@@ -22,6 +22,7 @@ import {
 	createLabelTrackV10,
 } from './project-v10.ts';
 import { createStableId } from './project.js';
+import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import { normalizeAudioEditorSnapSettings } from './snap-grid.js';
 import {
@@ -293,18 +294,16 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 	const masterEffects = readEffectsWithReport(masterEffectsNode, state, {
 		kind: 'master',
 	}, idFactory, (active) => { masterEffectsActive = active; });
+	const importedTempoBpm = finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 1000, 120);
 	const project = createAudioEditorProjectV10({
 		id: options.projectId || idFactory('project'),
 		title,
 		sampleRate: projectRate,
 		masterChannels: 2,
-		tempo: {
-			bpm: finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 1000, 120),
-			timeSignature: {
-				numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4), 1, 0x7fff_ffff, 4),
-				denominator: powerOfTwo(audacityXmlAttribute(root, 'time_signature_lower', 4), 4),
-			},
-		},
+		...canonicalAudacityMusicalRoot(importedTempoBpm, {
+			numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4), 1, 0x7fff_ffff, 4),
+			denominator: powerOfTwo(audacityXmlAttribute(root, 'time_signature_lower', 4), 4),
+		}),
 		snap: readSnap(root),
 		timeDisplay: { format: String(audacityXmlAttribute(root, 'selectionformat', 'seconds')) || 'seconds' },
 		metadata,

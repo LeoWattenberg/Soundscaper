@@ -5,13 +5,16 @@ import {
 	beatToSampleFrame,
 	compareRationals,
 	normalizeRational,
-	subtractRationals,
 	type BreakpointMap,
 	type HoldTempoMap,
 	type Rational,
 	validateBreakpointMap,
 } from './timeline-time.ts';
-import { validateTempoInverseRationalClosure } from './timeline-tempo-inverse.ts';
+import {
+	validateSampleLockedTempoBeatAuthority,
+	validateTempoInverseRationalClosure,
+} from './timeline-tempo-inverse.ts';
+import { assertHoldTempoMapWireKeys } from './musical-map-contract.ts';
 import { normalizeVideoTimingAssetReference } from './video-timing-asset-reference.ts';
 import { validateVideoTrackComposition } from './video-timeline.js';
 import {
@@ -58,6 +61,7 @@ export function validateProjectV10Foundation(
 	const sequences = validateSequences(project, media.tracks, sampleRate);
 	validateTempoMap(project.tempoMap, sampleRate);
 	validateSignatureMap(project.signatureMap);
+	validateLegacyMusicalProjection(project);
 	const sourceById = new Map(media.sources.map((source) => [String(source.id), source]));
 	const sequenceById = new Map(sequences.map((sequence) => [String(sequence.id), sequence]));
 	const sequenceIdByTrackId = new Map<string, string>();
@@ -93,6 +97,22 @@ export function validateProjectV10Foundation(
 	return true;
 }
 
+function validateLegacyMusicalProjection(project: ProjectDataRecord): void {
+	const legacy = projectRecord(project.tempo, 'project.tempo');
+	const legacySignature = projectRecord(legacy.timeSignature, 'project.tempo.timeSignature');
+	const tempoMap = projectRecord(project.tempoMap, 'project.tempoMap');
+	const tempoEvent = projectRecord(projectArray(tempoMap.events, 'tempoMap.events')[0], 'tempoMap.events[0]');
+	const bpm = projectRecord(tempoEvent.bpm, 'tempoMap.events[0].bpm');
+	if (legacy.bpm !== Number(bpm.num) / Number(bpm.den)) {
+		throw new RangeError('The legacy tempo projection must agree with the authoritative tempo map.');
+	}
+	const signatureMap = projectRecord(project.signatureMap, 'project.signatureMap');
+	const signature = projectRecord(projectArray(signatureMap.events, 'signatureMap.events')[0], 'signatureMap.events[0]');
+	if (legacySignature.numerator !== signature.numerator || legacySignature.denominator !== signature.denominator) {
+		throw new RangeError('The legacy signature projection must agree with the authoritative signature map.');
+	}
+}
+
 function validateFoundationBinItems(project: ProjectDataRecord, clips: readonly ProjectDataRecord[]): void {
 	const byItem = new Map<string, ProjectDataRecord[]>();
 	for (const clip of clips) {
@@ -105,6 +125,9 @@ function validateFoundationBinItems(project: ProjectDataRecord, clips: readonly 
 		const audio = entries.find(({ kind }) => kind === 'audio');
 		const video = entries.find(({ kind }) => kind === 'video');
 		if (!audio || !video) continue;
+		if (audio.musicalExtent !== 'fixedSamples') {
+			throw new RangeError(`Project Bin item ${id} audio must use a fixed-sample extent to retain video duration.`);
+		}
 		const audioRange = resolveRuntimeClipProjection(project, audio);
 		const videoRange = resolveRuntimeClipProjection(project, video);
 		if (audioRange.durationFrames !== videoRange.durationFrames) {
@@ -159,11 +182,11 @@ function validateStartTimecode(value: unknown, rate: { num: number; den: number 
 
 function validateTempoMap(value: unknown, sampleRate: number): void {
 	const map = projectRecord(value, 'project.tempoMap');
+	assertHoldTempoMapWireKeys(map);
 	if (map.mode !== 'musical' && map.mode !== 'sampleLocked') throw new RangeError('tempoMap.mode is unsupported.');
 	const events = boundedEvents(map.events, 'tempoMap.events');
 	projectUniqueIds(events, 'tempoMap.events');
 	let previousBeat: { num: number; den: number } | null = null;
-	let previousBpm: Rational | null = null;
 	let previousSample = -1;
 	for (const [index, event] of events.entries()) {
 		projectString(event.id, `tempoMap.events[${String(index)}].id`);
@@ -176,24 +199,13 @@ function validateTempoMap(value: unknown, sampleRate: number): void {
 			const sample = projectSafeInteger(event.samplePosition, 0, `tempoMap.events[${String(index)}].samplePosition`);
 			if (sample <= previousSample && index > 0) throw new RangeError('Sample-locked tempo positions must increase.');
 			if (index === 0 && sample !== 0) throw new RangeError('The first sample-locked tempo position must begin at sample zero.');
-			if (previousBeat && previousBpm) {
-				const span = subtractRationals(beat, previousBeat);
-				const segmentFrames = beatToSampleFrame(span, {
-					mode: 'musical',
-					events: [{ beat: { num: 0, den: 1 }, bpm: previousBpm }],
-				}, sampleRate);
-				const expected = safeAdd(previousSample, segmentFrames, 'sample-locked tempo segment');
-				if (sample !== expected) {
-					throw new RangeError('Sample-locked tempo positions must form one continuous hold-tempo map.');
-				}
-			}
 			previousSample = sample;
 		} else if (Object.hasOwn(event, 'samplePosition')) {
 			throw new RangeError('Musical tempo events cannot persist derived sample positions.');
 		}
 		previousBeat = beat;
-		previousBpm = bpm;
 	}
+	if (map.mode === 'sampleLocked') validateSampleLockedTempoBeatAuthority(map as unknown as HoldTempoMap, sampleRate);
 	if (map.mode === 'musical') {
 		const tempoMap = map as unknown as HoldTempoMap;
 		beatToSampleFrame(events.at(-1)!.beat as Rational, tempoMap, sampleRate);
@@ -357,6 +369,9 @@ function validateDerivedAvLinks(
 		const audio = entries.find(({ kind }) => kind === 'audio');
 		const video = entries.find(({ kind }) => kind === 'video');
 		if (entries.length !== 2 || !audio || !video) throw new RangeError(`A/V link ${id} must contain one audio and one video clip.`);
+		if (audio.anchor !== 'sample') {
+			throw new RangeError(`A/V link ${id} audio clips must use a sample anchor to remain frame-locked.`);
+		}
 		const a = resolveRuntimeClipProjection(project, audio);
 		const v = resolveRuntimeClipProjection(project, video);
 		if (a.timelineStartFrame !== v.timelineStartFrame || a.timelineEndFrame !== v.timelineEndFrame) {
@@ -442,12 +457,6 @@ function isPowerOfTwo(value: number): boolean {
 	if (!Number.isSafeInteger(value) || value <= 0) return false;
 	const integer = BigInt(value);
 	return (integer & (integer - 1n)) === 0n;
-}
-
-function safeAdd(left: number, right: number, name: string): number {
-	const result = left + right;
-	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
-	return result;
 }
 
 function boundedEvents(value: unknown, name: string): readonly ProjectDataRecord[] {

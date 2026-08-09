@@ -1,0 +1,118 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-flyout {
+	width: min(760px, calc(100vw - 24px));
+	max-height: min(620px, calc(100vh - 32px));
+	overflow: auto;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor {
+	display: grid;
+	gap: 12px;
+	min-width: min(680px, calc(100vw - 48px));
+	padding: 12px;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-panel);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor header,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-heading,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-event,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-event-actions,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-rational {
+	display: flex;
+	align-items: end;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor header,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-heading {
+	justify-content: space-between;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor header label,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-event label {
+	display: grid;
+	gap: 3px;
+	min-width: 88px;
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor section,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-list {
+	display: grid;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor h3,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-rational,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-rational legend {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 11px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-event {
+	flex-wrap: wrap;
+	padding: 8px;
+	background: var(--kw-editor-bg);
+	border: 1px solid var(--kw-editor-border);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-event-id {
+	align-self: center;
+	max-width: 132px;
+	overflow: hidden;
+	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	font: 10px ui-monospace, monospace;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-rational {
+	align-items: end;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-rational legend {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-event input,
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor select {
+	min-width: 0;
+	width: 96px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__musical-map-event-actions {
+	margin-inline-start: auto;
+}
+
+@media (max-width: 720px) {
+	#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor {
+		min-width: 0;
+	}
+
+	#kw-audio-editor-design-system .kw-audio-editor__musical-map-editor header,
+	#kw-audio-editor-design-system .kw-audio-editor__musical-map-heading,
+	#kw-audio-editor-design-system .kw-audio-editor__musical-map-event {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	#kw-audio-editor-design-system .kw-audio-editor__musical-map-event-actions {
+		margin-inline-start: 0;
+	}
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system .kw-audio-editor__musical-map-event {
+		border-color: CanvasText;
+	}
+}

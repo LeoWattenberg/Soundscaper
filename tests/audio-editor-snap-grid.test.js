@@ -100,6 +100,33 @@ test('musical divisions through 1/128 and triplets use project tempo and signatu
 	assert.equal(audioEditorSnapStepFrames({ unit: 'bar', triplets: true }, sevenEight), 84_000);
 });
 
+test('musical snapping follows authoritative tempo and signature event maps', () => {
+	const project = {
+		sampleRate: 48_000,
+		tempo: { bpm: 120, timeSignature: { numerator: 4, denominator: 4 } },
+		tempoMap: {
+			mode: 'musical',
+			events: [
+				{ id: 'fast', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
+				{ id: 'slow', beat: { num: 4, den: 1 }, bpm: { num: 60, den: 1 } },
+			],
+		},
+		signatureMap: {
+			events: [
+				{ id: 'four-four', bar: 0, numerator: 4, denominator: 4 },
+				{ id: 'three-four', bar: 2, numerator: 3, denominator: 4 },
+			],
+		},
+	};
+	assert.equal(snapAudioEditorProjectFrame(130_000, '1/4', project), 144_000);
+	assert.equal(snapAudioEditorProjectFrame(130_000, '1/4', { ...project, mode: 'previous' }), 96_000);
+	assert.equal(snapAudioEditorProjectFrame(130_000, '1/4', { ...project, mode: 'next' }), 144_000);
+	assert.equal(stepAudioEditorSnappedFrame(130_000, 'right', '1/4', project), 192_000);
+	assert.equal(stepAudioEditorSnappedFrame(130_000, 'left', '1/4', project), 96_000);
+	assert.equal(snapAudioEditorProjectFrame(230_000, 'bar', { ...project, mode: 'previous' }), 96_000);
+	assert.equal(snapAudioEditorProjectFrame(230_000, 'bar', { ...project, mode: 'next' }), 288_000);
+});
+
 test('video and CDDA grids use rational rates without incremental drift', () => {
 	const context = { sampleRate: 44_100 };
 	assert.equal(audioEditorSnapStepFrames('video-24', context), 1_837.5);

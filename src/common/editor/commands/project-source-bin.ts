@@ -12,7 +12,6 @@ export const PROJECT_SOURCE_BIN_COMMAND_TYPES = [
 	'selection/set',
 	'loop/set',
 	'snap/set',
-	'tempo/set',
 	'time-display/set',
 	'metadata/update',
 	'source/add',

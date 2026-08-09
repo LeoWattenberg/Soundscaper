@@ -114,7 +114,7 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 			clip.timelineStartFrame = linked.timelineStartFrame;
 			clip.durationFrames = linked.durationFrames;
 		}
-		conformAudioClip(clip, baseClips.get(String(clip.id)), tempoMap, sampleRate);
+		conformAudioClip(clip, baseClips.get(String(clip.id)), persistedBase, tempoMap, sampleRate);
 	}
 	draft.clips = clips;
 	const baseBinClips = new Map(projectBinClips(persistedBase).map((clip) => [String(clip.id), clip]));
@@ -130,7 +130,7 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 			primarySequenceId,
 			sampleRate,
 		);
-		else conformAudioClip(clip, baseBinClips.get(String(clip.id)), tempoMap, sampleRate);
+		else conformAudioClip(clip, baseBinClips.get(String(clip.id)), persistedBase, tempoMap, sampleRate);
 	}
 	bin.clips = binClips;
 	draft.projectBin = bin;
@@ -331,13 +331,14 @@ function sequenceIdsByClip(project: DataRecord, sequences: readonly DataRecord[]
 function conformAudioClip(
 	clip: DataRecord,
 	base: DataRecord | undefined,
+	persistedBase: DataRecord,
 	tempoMap: HoldTempoMap,
 	sampleRate: number,
 ): void {
 	if (clip.anchor === 'musical') {
 		const runtimeStart = nonNegativeSafeInteger(clip.timelineStartFrame, 'clip.timelineStartFrame');
 		const runtimeDuration = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');
-		const baseProjection = base ? resolveRuntimeClipProjection({ sampleRate, tempoMap }, base) : null;
+		const baseProjection = base ? resolveRuntimeClipProjection(persistedBase, base) : null;
 		if (!baseProjection || runtimeStart !== baseProjection.timelineStartFrame) {
 			clip.musicalStartBeat = sampleFrameToBeat(runtimeStart, tempoMap, sampleRate);
 		}
@@ -357,6 +358,7 @@ function conformAudioClip(
 }
 
 function conformLabels(draft: DataRecord, persistedBase: DataRecord, tempoMap: HoldTempoMap, sampleRate: number): void {
+	const persistedTempoMap = persistedBase.tempoMap as HoldTempoMap;
 	const baseLabels = new Map<string, DataRecord>();
 	for (const track of recordArray(persistedBase.tracks, 'project.tracks')) {
 		for (const label of track.type === 'label' ? recordArray(track.labels, 'track.labels') : []) {
@@ -371,10 +373,10 @@ function conformLabels(draft: DataRecord, persistedBase: DataRecord, tempoMap: H
 			const end = nonNegativeSafeInteger(label.endFrame, 'label.endFrame');
 			const base = baseLabels.get(String(label.id));
 			const baseStart = base?.anchor === 'musical'
-				? beatToSampleFrame(base.startBeat as { num: number; den: number }, tempoMap, sampleRate)
+				? beatToSampleFrame(base.startBeat as { num: number; den: number }, persistedTempoMap, sampleRate)
 				: null;
 			const baseEnd = base?.anchor === 'musical'
-				? beatToSampleFrame(base.endBeat as { num: number; den: number }, tempoMap, sampleRate)
+				? beatToSampleFrame(base.endBeat as { num: number; den: number }, persistedTempoMap, sampleRate)
 				: null;
 			if (baseStart === null || start !== baseStart) label.startBeat = sampleFrameToBeat(start, tempoMap, sampleRate);
 			if (baseEnd === null || end !== baseEnd) label.endBeat = sampleFrameToBeat(end, tempoMap, sampleRate);

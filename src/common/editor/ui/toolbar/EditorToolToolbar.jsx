@@ -30,6 +30,7 @@ import {
 	PlaySpeedFlyout,
 	RecordFlyout,
 } from './AudioEditorTransportControls.jsx';
+import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { WORKSPACE_TOOLBAR_IDS } from '../workspace/workspace-panel-model.ts';
 import {
 	handleEditorToolbarBlur,
@@ -296,45 +297,13 @@ export default function EditorToolToolbar({
 						onChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate: project?.sampleRate })))}
 					/>
 				</div>}
-				{showMusicalTiming && <label className="kw-audio-editor__tempo-control" data-action-id="playback-bpm">
-					<span>{copy.projectTempo}</span>
-					<input
-						type="number"
-						min="1"
-						max="1000"
-						step="0.01"
-						value={project?.tempo?.bpm || 120}
-						disabled={snapshot.readOnly || snapshot.recording}
-						onChange={(event) => {
-							const bpm = Number(event.currentTarget.value);
-							if (Number.isFinite(bpm) && bpm >= 1) run(() => controller.actions.project.setTempo(bpm));
-						}}
-					/>
-				</label>}
-				{showMusicalTiming && <label className="kw-audio-editor__signature-control" data-action-id="playback-time-signature">
-					<span>{copy.timeSignature}</span>
-					<span className="kw-audio-editor__signature-fields">
-						<input
-							type="number"
-							min="1"
-							max="32"
-							aria-label={`${copy.timeSignature}: ${copy.numerator}`}
-							value={project?.tempo?.timeSignature?.numerator || 4}
-							disabled={snapshot.readOnly || snapshot.recording}
-							onChange={(event) => run(() => controller.actions.project.setTimeSignature(Number(event.currentTarget.value), project?.tempo?.timeSignature?.denominator || 4))}
-						/>
-						<span aria-hidden="true">/</span>
-						<input
-							type="number"
-							min="1"
-							max="32"
-							aria-label={`${copy.timeSignature}: ${copy.denominator}`}
-							value={project?.tempo?.timeSignature?.denominator || 4}
-							disabled={snapshot.readOnly || snapshot.recording}
-							onChange={(event) => run(() => controller.actions.project.setTimeSignature(project?.tempo?.timeSignature?.numerator || 4, Number(event.currentTarget.value)))}
-						/>
-					</span>
-				</label>}
+				{showMusicalTiming && <MusicalTimelineControls
+					project={project}
+					snapshot={snapshot}
+					controller={controller}
+					copy={copy}
+					run={run}
+				/>}
 
 				{capabilities.audioRecording && isToolbarButtonVisible('monitor') && recordingMeterSettings.position !== 'side' && <RecordingMeterToolbarGroup
 					copy={copy}

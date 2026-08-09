@@ -1,13 +1,14 @@
 import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
+import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js';
-
 // Canonical bundled catalogs. Audacity-sourced overrides are merged at runtime.
 // User-visible copy intentionally omits ellipsis punctuation.
 export const COPY_BY_LOCALE = deepFreeze({
 	de: {
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.de,
+		...MUSICAL_TIMELINE_COPY_BY_LOCALE.de,
 		framescaperEyebrow: 'Video lokal bearbeiten',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.',
@@ -1046,6 +1047,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 	},
 	en: {
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.en,
+		...MUSICAL_TIMELINE_COPY_BY_LOCALE.en,
 		framescaperEyebrow: 'Local video editing',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.',
@@ -2086,11 +2088,9 @@ export const COPY_BY_LOCALE = deepFreeze({
 
 export const ENGLISH_COPY = COPY_BY_LOCALE.en;
 export const GERMAN_COPY = COPY_BY_LOCALE.de;
-
 export function bundledCopyForLocale(locale = 'en') {
 	return localeLanguage(locale) === 'de' ? GERMAN_COPY : ENGLISH_COPY;
 }
-
 function deepFreeze(value) {
 	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
 	for (const child of Object.values(value)) deepFreeze(child);

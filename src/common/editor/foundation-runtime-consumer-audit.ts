@@ -7,6 +7,7 @@ export type FoundationRuntimeConsumerSurface =
 	| 'transition'
 	| 'audio-export'
 	| 'video-export'
+	| 'interchange'
 	| 'navigation'
 	| 'timeline'
 	| 'waveform';
@@ -96,6 +97,8 @@ export const FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES: readonly FoundationRuntim
 export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShieldedOwner[] = deepFreeze([
 	{ file: 'src/common/editor/engine/lifecycle.ts', surfaces: ['playback'] },
 	{ file: 'src/common/editor/export.js', surfaces: ['audio-export'] },
+	{ file: 'src/common/editor/aup4-export.js', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/controller/nyquist-host-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/video-export.js', surfaces: ['video-export'] },
 	{ file: 'src/common/editor/video-timeline.js', surfaces: ['preview', 'composition', 'transition', 'navigation'] },
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
@@ -169,6 +172,26 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
  * boundary before reading any persisted/resolved clip timing field.
  */
 export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeConsumerEvidence[] = deepFreeze([
+	{
+		id: 'aup4-export-plan',
+		surface: 'interchange',
+		file: 'src/common/editor/aup4-export.js',
+		entryPoint: 'createAup4ExportPlan',
+		inputIdentifier: 'project',
+		projectedIdentifier: 'project',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'AUP4 planning projects current documents before overlap, clip placement, label serialization, and tempo-map flattening read resolved timing.',
+	},
+	{
+		id: 'nyquist-host-properties',
+		surface: 'interchange',
+		file: 'src/common/editor/controller/nyquist-host-service.ts',
+		entryPoint: 'nyquistHostProperties',
+		inputIdentifier: 'persistedProject',
+		projectedIdentifier: 'project',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Nyquist host properties project the current document before exposing clip ranges and resolve PROJECT TEMPO from the map event active at evaluation start.',
+	},
 	{
 		id: 'engine-project-load',
 		surface: 'playback',

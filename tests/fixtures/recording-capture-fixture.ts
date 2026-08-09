@@ -108,7 +108,7 @@ interface RuntimeOptions {
 		options: RecordingControllerFactoryOptions,
 	) => Promise<RecordingCaptureControllerLike>;
 	readonly selection?: RecordingSelection | null;
-	readonly playAt?: () => Promise<unknown>;
+	readonly playAt?: (scheduledTime: number, startFrame: number) => Promise<unknown>;
 	readonly streamIsLive?: () => boolean;
 }
 
@@ -121,6 +121,13 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 			{ id: 'track-2', type: 'audio', armed: true },
 		],
 		tempo: { bpm: 120, timeSignature: { numerator: 4 } },
+		tempoMap: {
+			mode: 'musical',
+			events: [{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+		signatureMap: {
+			events: [{ id: 'signature-1', bar: 0, numerator: 4, denominator: 4 }],
+		},
 	};
 	const stream = createStream();
 	const writer: RecordingSourceWriter = {
@@ -139,6 +146,8 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 	let finalizeCalls = 0;
 	let previewPublishes = 0;
 	let startCalls = 0;
+	const seekCalls: number[] = [];
+	const playAtCalls: number[][] = [];
 	const errors: unknown[] = [];
 	let loudnessMeter: ReturnType<RoutedRecordingCaptureRuntime['createLoudnessMeter']> | null = null;
 	let loudnessMeterKey: string | null = null;
@@ -163,8 +172,11 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 			}),
 			getPositionFrames: () => 100,
 			setLoop: () => {},
-			seek: () => {},
-			playAt: options.playAt || (async () => {}),
+			seek: (frame) => { seekCalls.push(frame); },
+			playAt: async (scheduledTime, startFrame) => {
+				playAtCalls.push([scheduledTime, startFrame]);
+				return options.playAt?.(scheduledTime, startFrame);
+			},
 			pause: () => {},
 		},
 		capturePool: {
@@ -257,6 +269,8 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		finalizeCalls: () => finalizeCalls,
 		previewPublishes: () => previewPublishes,
 		startCalls: () => startCalls,
+		seekCalls,
+		playAtCalls,
 		errors,
 	};
 }

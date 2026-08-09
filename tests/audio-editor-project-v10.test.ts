@@ -40,6 +40,12 @@ test('foundation projects close sequence, tempo, signature, and sample-rate wire
 	assert.deepEqual(project.signatureMap, {
 		events: [{ id: 'signature-1', bar: 0, numerator: 4, denominator: 4 }],
 	});
+	assert.throws(() => createAudioEditorProjectV10({
+		now: NOW,
+		tempoMap: { mode: 'musical', events: [
+			{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 1, den: 2 } },
+		] },
+	}), /root tempo event.*1 BPM/iu);
 	assert.equal(validateAudioEditorProjectV10(project), true);
 	assert.throws(() => createAudioEditorProjectV10({ now: NOW, sampleRate: 7_999 }), /sampleRate/iu);
 	assert.throws(() => validateAudioEditorProjectV10(createAudioEditorProjectV10({
@@ -47,6 +53,68 @@ test('foundation projects close sequence, tempo, signature, and sample-rate wire
 		sequences: [{ id: 'main', rate: { num: 24, den: 1 }, dropFrame: true }],
 		primarySequenceId: 'main',
 	})), /drop.frame/iu);
+});
+
+test('legacy tempo is an exact derived projection of authoritative musical maps', () => {
+	const project = createAudioEditorProjectV10({
+		now: NOW,
+		tempo: { bpm: 111, timeSignature: { numerator: 3, denominator: 4 }, detected: true },
+		tempoMap: {
+			mode: 'musical',
+			events: [{ id: 'tempo-main', beat: { num: 0, den: 1 }, bpm: { num: 275, den: 2 } }],
+		},
+		signatureMap: {
+			events: [{ id: 'signature-main', bar: 0, numerator: 7, denominator: 8 }],
+		},
+	});
+	assert.deepEqual(project.tempo, {
+		bpm: 137.5,
+		timeSignature: { numerator: 7, denominator: 8 },
+		detected: true,
+	});
+	assert.equal(validateAudioEditorProjectV10(project), true);
+	assert.throws(
+		() => validateAudioEditorProjectV10({
+			...project,
+			tempo: { ...project.tempo as Record<string, unknown>, bpm: 111 },
+		}),
+		/legacy tempo.*authoritative tempo map/iu,
+	);
+	assert.throws(
+		() => validateAudioEditorProjectV10({
+			...project,
+			tempo: {
+				...project.tempo as Record<string, unknown>,
+				timeSignature: { numerator: 3, denominator: 4 },
+			},
+		}),
+		/legacy signature.*authoritative signature map/iu,
+	);
+});
+
+test('foundation tempo maps reject hidden ramp semantics at factory and validation boundaries', () => {
+	assert.throws(() => createAudioEditorProjectV10({
+		now: NOW,
+		tempoMap: {
+			mode: 'musical',
+			interpolation: 'ramp',
+			events: [{
+				id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 }, curve: 'linear',
+			}],
+		},
+	} as never), /tempoMap.*unsupported field|tempo event.*unsupported field/iu);
+	const project = createAudioEditorProjectV10({ now: NOW });
+	assert.throws(() => validateAudioEditorProjectV10({
+		...project,
+		tempoMap: { ...project.tempoMap, interpolation: 'ramp' },
+	}), /tempoMap.*unsupported field.*interpolation/iu);
+	assert.throws(() => validateAudioEditorProjectV10({
+		...project,
+		tempoMap: {
+			...project.tempoMap,
+			events: project.tempoMap.events.map((event) => ({ ...event, curve: 'linear' })),
+		},
+	}), /tempoMap event.*unsupported field.*curve/iu);
 });
 
 test('tempo maps admit only exact sample-inverse rationals inside the safe wire domain', () => {
@@ -178,6 +246,69 @@ test('derived A/V equality and frame-grid caches are validator invariants', () =
 	}), /derived|cache/iu);
 });
 
+test('A/V links reject musical audio authority that cannot remain frame-locked to video', () => {
+	const sampleRate = 48_000;
+	const sequence = { id: 'main', rate: { num: 24, den: 1 } };
+	const videoSource = createVideoSourceV10({
+		id: 'video-source', frameCount: sampleRate, sampleRate, width: 16, height: 16,
+		frameRate: { num: 24, den: 1 }, sourceFrameCount: 24,
+		timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 24, den: 1 } },
+	});
+	const audioSource = createAudioSourceV10({ id: 'audio-source', frameCount: sampleRate, sampleRate, channelCount: 1 });
+	const video = createVideoClipV10({
+		id: 'video', sourceId: videoSource.id, sequenceId: sequence.id,
+		sequenceStartFrame: 1, sequenceFrameCount: 1, sourceInFrame: 0, sourceFrameCount: 1,
+		avLinkId: 'link',
+	}, { projectSampleRate: sampleRate, sequence, source: videoSource });
+	const audio = createAudioClipV10({
+		id: 'audio', sourceId: audioSource.id, anchor: 'musical', musicalStartBeat: { num: 1, den: 12 },
+		musicalExtent: 'fixedSamples', durationFrames: 2_000, sourceDurationFrames: 2_000, avLinkId: 'link',
+	}, { projectSampleRate: sampleRate, tempoMap: {
+		mode: 'musical', events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+	} });
+	const project = createAudioEditorProjectV10({
+		id: 'linked-musical', now: NOW, sampleRate,
+		sequences: [sequence], primarySequenceId: sequence.id,
+		sources: [videoSource, audioSource], clips: [video, audio],
+		tracks: [
+			createVideoTrackV10({ id: 'video-track', laneGroupId: 'lane', clipIds: [video.id] }),
+			createAudioTrackV10({ id: 'audio-track', laneGroupId: 'lane', clipIds: [audio.id] }),
+		],
+	});
+	assert.throws(() => validateAudioEditorProjectV10(project), /A\/V link.*sample anchor|musical.*A\/V link/iu);
+});
+
+test('paired Project Bin media rejects beat-extent audio that cannot retain video duration', () => {
+	const sampleRate = 48_000;
+	const sequence = { id: 'main', rate: { num: 24, den: 1 } };
+	const videoSource = createVideoSourceV10({
+		id: 'bin-video-source', frameCount: sampleRate, sampleRate, width: 16, height: 16,
+		frameRate: { num: 24, den: 1 }, sourceFrameCount: 24,
+		timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 24, den: 1 } },
+	});
+	const audioSource = createAudioSourceV10({ id: 'bin-audio-source', frameCount: sampleRate, sampleRate, channelCount: 1 });
+	const video = createVideoClipV10({
+		id: 'bin-video', sourceId: videoSource.id, sequenceId: sequence.id,
+		sequenceStartFrame: 0, sequenceFrameCount: 1, sourceInFrame: 0, sourceFrameCount: 1,
+	}, { projectSampleRate: sampleRate, sequence, source: videoSource });
+	const audio = createAudioClipV10({
+		id: 'bin-audio', sourceId: audioSource.id, anchor: 'musical', musicalStartBeat: { num: 0, den: 1 },
+		musicalExtent: 'beat', musicalDurationBeats: { num: 1, den: 12 }, sourceDurationFrames: 2_000,
+	}, { projectSampleRate: sampleRate, tempoMap: {
+		mode: 'musical', events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+	} });
+	const project = createAudioEditorProjectV10({
+		id: 'paired-bin-musical', now: NOW, sampleRate,
+		sequences: [sequence], primarySequenceId: sequence.id,
+		sources: [videoSource, audioSource],
+		projectBin: { clips: [
+			{ ...video, binItemId: 'item' },
+			{ ...audio, binItemId: 'item' },
+		] },
+	});
+	assert.throws(() => validateAudioEditorProjectV10(project), /Project Bin item.*fixed-sample|beat-extent.*Project Bin/iu);
+});
+
 test('sample-locked tempo anchors must form one continuous positive runtime map', () => {
 	const project = createAudioEditorProjectV10({
 		now: NOW,
@@ -198,7 +329,7 @@ test('sample-locked tempo anchors must form one continuous positive runtime map'
 				{ id: 'tempo-2', beat: { num: 4, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 100 },
 			],
 		},
-	}), /continuous|sample.*position/iu);
+	}), /continuous|sample.*position|exact sample authority/iu);
 	assert.throws(() => validateAudioEditorProjectV10({
 		...project,
 		tempoMap: {
@@ -208,6 +339,21 @@ test('sample-locked tempo anchors must form one continuous positive runtime map'
 			)),
 		},
 	}), /first.*sample|sample zero/iu);
+	const nonCanonicalBeat = {
+		mode: 'sampleLocked' as const,
+		events: [
+			{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 0 },
+			{ id: 'tempo-2', beat: { num: 1, den: 48_000 }, bpm: { num: 90, den: 1 }, samplePosition: 1 },
+		],
+	};
+	assert.throws(
+		() => createAudioEditorProjectV10({ now: NOW, sampleRate: 48_000, tempoMap: nonCanonicalBeat }),
+		/exact.*beat|derived.*beat|sample.*authority/iu,
+	);
+	assert.throws(
+		() => validateAudioEditorProjectV10({ ...project, tempoMap: nonCanonicalBeat }),
+		/exact.*beat|derived.*beat|sample.*authority/iu,
+	);
 
 	const source = createAudioSourceV10({ id: 'source', frameCount: 1_000, channelCount: 1 });
 	const clip = createAudioClipV10({
@@ -219,6 +365,7 @@ test('sample-locked tempo anchors must form one continuous positive runtime map'
 	const musical = createAudioEditorProjectV10({ now: NOW, sources: [source], clips: [clip], tracks: [track] });
 	assert.throws(() => validateAudioEditorProjectV10({
 		...musical,
+		tempo: { ...musical.tempo as Record<string, unknown>, bpm: 1_000 },
 		clips: musical.clips.map((value) => value.id === clip.id ? {
 			...value,
 			musicalDurationBeats: { num: 1, den: 1_000_000 },

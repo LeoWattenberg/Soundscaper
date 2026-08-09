@@ -53,7 +53,7 @@ const EDITOR_ROOT = new URL('../src/common/editor/', import.meta.url);
 test('every shielded consumer surface crosses a registered runtime projection boundary before timing reads', async () => {
 	assert.deepEqual(
 		[...new Set(FOUNDATION_RUNTIME_CONSUMER_SURFACES.map(({ surface }) => surface))].sort(),
-		['audio-export', 'composition', 'navigation', 'playback', 'preview', 'timeline', 'transition', 'video-export', 'waveform'],
+		['audio-export', 'composition', 'interchange', 'navigation', 'playback', 'preview', 'timeline', 'transition', 'video-export', 'waveform'],
 	);
 	const registeredBoundaries = new Set(FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES.map(({ boundary }) => boundary));
 	for (const consumer of FOUNDATION_RUNTIME_CONSUMER_SURFACES) {

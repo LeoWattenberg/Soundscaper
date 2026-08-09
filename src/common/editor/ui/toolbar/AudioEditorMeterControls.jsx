@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button, Flyout, Separator, ToolbarButtonGroup } from '@dilsonspickles/components';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
@@ -18,6 +19,7 @@ export function AudacityToolbarFlyoutButton({
 	icon,
 	ariaLabel,
 	flyoutClassName,
+	overlayPortal = false,
 	children,
 }) {
 	const triggerRef = useRef(null);
@@ -45,6 +47,28 @@ export function AudacityToolbarFlyoutButton({
 		triggerRef.current?.setAttribute('aria-expanded', String(Boolean(position)));
 	}, [position]);
 
+	const flyout = (
+		<Flyout
+			isOpen={Boolean(position)}
+			onClose={close}
+			x={position?.x || 0}
+			y={position?.y || 0}
+			direction={position?.direction || 'down'}
+			autoFocus={Boolean(position?.autoFocus)}
+			triggerRef={triggerRef}
+			showArrow
+			closeOnOutsideClick
+			closeOnEscape
+			ariaLabel={ariaLabel}
+			role="dialog"
+			className={`kw-audio-editor__audacity-level-flyout ${flyoutClassName}`}
+		>
+			{children}
+		</Flyout>
+	);
+	const overlayTarget = overlayPortal
+		? triggerRef.current?.closest('#kw-audio-editor-design-system')?.querySelector('[data-editor-overlay-layer]')
+		: null;
 	return (
 		<>
 			<span ref={setTrigger} className="kw-audio-editor__audacity-level-trigger">
@@ -58,23 +82,7 @@ export function AudacityToolbarFlyoutButton({
 					<span className="musescore-icon tool-button__icon" aria-hidden="true">{icon}</span>
 				</button>
 			</span>
-			<Flyout
-				isOpen={Boolean(position)}
-				onClose={close}
-				x={position?.x || 0}
-				y={position?.y || 0}
-				direction={position?.direction || 'down'}
-				autoFocus={Boolean(position?.autoFocus)}
-				triggerRef={triggerRef}
-				showArrow
-				closeOnOutsideClick
-				closeOnEscape
-				ariaLabel={ariaLabel}
-				role="dialog"
-				className={`kw-audio-editor__audacity-level-flyout ${flyoutClassName}`}
-			>
-				{children}
-			</Flyout>
+			{overlayTarget ? createPortal(flyout, overlayTarget) : flyout}
 		</>
 	);
 }

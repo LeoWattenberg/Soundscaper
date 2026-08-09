@@ -8,10 +8,12 @@ import {
 	type RationalRate,
 	videoFrameToSampleFrame,
 } from './timeline-time.ts';
+import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
 
 export const RUNTIME_CLIP_PROJECTION_VERSION = 1;
 
 const RUNTIME_PROJECT_PROJECTIONS = new WeakSet<object>();
+const RUNTIME_PROJECTION_CONTEXTS = new WeakSet<object>();
 
 export interface RuntimeClipProject extends Readonly<Record<string, unknown>> {
 	readonly schemaVersion?: number;
@@ -63,6 +65,16 @@ export type RuntimeProjectProjection<Project extends RuntimeClipProject> = Omit<
 	runtimeProjectionVersion: typeof RUNTIME_CLIP_PROJECTION_VERSION;
 }>;
 
+type BeatFrameResolver = (
+	beat: RationalInput,
+	tempoMap: HoldTempoMap,
+	sampleRate: number,
+) => number;
+
+interface RuntimeProjectionContext {
+	readonly resolveBeatFrame: BeatFrameResolver;
+}
+
 /**
  * Return whether a project was produced or explicitly derived from this
  * module's runtime projection. The private WeakSet makes the marker impossible
@@ -94,13 +106,17 @@ export function brandRuntimeProjectProjection<Project extends RuntimeClipProject
 export function resolveRuntimeClipProjection(
 	project: RuntimeClipProject,
 	clip: RuntimePersistedClip,
+	context?: RuntimeProjectionContext,
 ): RuntimeClipProjection {
+	const resolveBeatFrame = context === undefined
+		? directBeatFrameResolver
+		: internalProjectionContext(context).resolveBeatFrame;
 	if (!project || typeof project !== 'object') throw new TypeError('A project is required for clip projection.');
 	if (!clip || typeof clip !== 'object') throw new TypeError('A persisted clip is required for projection.');
 	const sampleRate = positiveSafeInteger(project.sampleRate, 'project.sampleRate');
 	const resolved = clip.kind === 'video' && usesFoundationCoordinates(project, clip)
 		? resolveVideoCoordinates(project, clip, sampleRate)
-		: resolveAudioOrLegacyCoordinates(project, clip, sampleRate);
+		: resolveAudioOrLegacyCoordinates(project, clip, sampleRate, resolveBeatFrame);
 	return Object.freeze({
 		...clip,
 		...resolved,
@@ -114,16 +130,17 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 ): RuntimeProjectProjection<Project> {
 	if (!project || typeof project !== 'object') throw new TypeError('A project is required for runtime projection.');
 	if (!Array.isArray(project.clips)) throw new TypeError('project.clips must be an array.');
+	const context = createRuntimeProjectionContext();
 	const projection = Object.freeze({
 		...project,
-		clips: Object.freeze(project.clips.map((clip) => resolveRuntimeClipProjection(project, clip))),
+		clips: Object.freeze(project.clips.map((clip) => resolveRuntimeClipProjection(project, clip, context))),
 		tracks: Object.freeze((Array.isArray(project.tracks) ? project.tracks : []).map((track) => (
-			resolveRuntimeTrackProjection(project, track)
+			resolveRuntimeTrackProjection(project, track, context.resolveBeatFrame)
 		))),
 		projectBin: Object.freeze({
 			...(project.projectBin ?? {}),
 			clips: Object.freeze((Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [])
-				.map((clip) => resolveRuntimeClipProjection(project, clip))),
+				.map((clip) => resolveRuntimeClipProjection(project, clip, context))),
 		}),
 		runtimeProjectionVersion: RUNTIME_CLIP_PROJECTION_VERSION,
 	}) as RuntimeProjectProjection<Project>;
@@ -180,6 +197,7 @@ function isResolvedRuntimeClip(value: RuntimePersistedClip): boolean {
 function resolveRuntimeTrackProjection(
 	project: RuntimeClipProject,
 	value: object,
+	resolveBeatFrame: BeatFrameResolver,
 ): Readonly<Record<string, unknown>> {
 	const track = value as Readonly<Record<string, unknown>>;
 	if (track.type !== 'label' || !Array.isArray(track.labels)) return track;
@@ -193,8 +211,8 @@ function resolveRuntimeTrackProjection(
 			if (!project.tempoMap) throw new TypeError('A musical label requires project.tempoMap.');
 			return Object.freeze({
 				...label,
-				startFrame: beatToSampleFrame(rationalInput(label.startBeat, 'label.startBeat'), project.tempoMap, sampleRate),
-				endFrame: beatToSampleFrame(rationalInput(label.endBeat, 'label.endBeat'), project.tempoMap, sampleRate),
+				startFrame: resolveBeatFrame(rationalInput(label.startBeat, 'label.startBeat'), project.tempoMap, sampleRate),
+				endFrame: resolveBeatFrame(rationalInput(label.endBeat, 'label.endBeat'), project.tempoMap, sampleRate),
 				coordinateDomain: 'resolved-samples',
 			});
 		})),
@@ -211,16 +229,17 @@ function resolveAudioOrLegacyCoordinates(
 	project: RuntimeClipProject,
 	clip: RuntimePersistedClip,
 	sampleRate: number,
+	resolveBeatFrame: BeatFrameResolver,
 ): Omit<RuntimeClipProjection, 'coordinateDomain'> {
 	let timelineStartFrame: number;
 	let timelineEndFrame: number;
 	if (clip.anchor === 'musical') {
 		if (!project.tempoMap) throw new TypeError('A musical clip requires project.tempoMap.');
 		const startBeat = rationalInput(clip.musicalStartBeat, 'clip.musicalStartBeat');
-		timelineStartFrame = beatToSampleFrame(startBeat, project.tempoMap, sampleRate);
+		timelineStartFrame = resolveBeatFrame(startBeat, project.tempoMap, sampleRate);
 		if (clip.musicalExtent === 'beat') {
 			const durationBeat = rationalInput(clip.musicalDurationBeats, 'clip.musicalDurationBeats');
-			timelineEndFrame = beatToSampleFrame(addRationals(startBeat, durationBeat), project.tempoMap, sampleRate);
+			timelineEndFrame = resolveBeatFrame(addRationals(startBeat, durationBeat), project.tempoMap, sampleRate);
 		} else if (clip.musicalExtent === 'fixedSamples') {
 			timelineEndFrame = safeAdd(
 				timelineStartFrame,
@@ -253,6 +272,33 @@ function resolveAudioOrLegacyCoordinates(
 		sequenceStartFrame: null,
 		sequenceEndFrame: null,
 	});
+}
+
+function directBeatFrameResolver(
+	beat: RationalInput,
+	tempoMap: HoldTempoMap,
+	sampleRate: number,
+): number {
+	return beatToSampleFrame(beat, tempoMap, sampleRate, 'point');
+}
+
+function createRuntimeProjectionContext(): RuntimeProjectionContext {
+	let indexed: ((beat: RationalInput) => number) | null = null;
+	const context = Object.freeze({
+		resolveBeatFrame: (beat: RationalInput, tempoMap: HoldTempoMap, sampleRate: number): number => {
+			indexed ??= createIndexedBeatFrameProjector(tempoMap, sampleRate);
+			return indexed(beat);
+		},
+	});
+	RUNTIME_PROJECTION_CONTEXTS.add(context);
+	return context;
+}
+
+function internalProjectionContext(context: RuntimeProjectionContext): RuntimeProjectionContext {
+	if (!RUNTIME_PROJECTION_CONTEXTS.has(context)) {
+		throw new TypeError('A runtime projection context must be created by this module.');
+	}
+	return context;
 }
 
 function resolveVideoCoordinates(

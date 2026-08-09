@@ -111,15 +111,27 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'tempo-command-map-authority',
+		file: 'src/common/editor/commands/tempo-signature-runtime.ts',
+		behavior: 'Tempo mode conversion resolves exact musical event beats once to nearest authoritative sample positions before re-deriving continuous exact beats.',
+		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'legacy-recording-count-in',
 		file: 'src/common/editor/controller/legacy-recording-capture-service.ts',
-		behavior: 'Legacy recording resolves the whole musical count-in once to a nearest sample boundary, including compound meters.',
+		behavior: 'Legacy capture delegates current projects to the authoritative map schedule and retains one point-rounded default-map fallback for map-absent callers.',
 		conversions: [{ helper: 'countInSampleFrames', policies: ['point'] }],
+	},
+	{
+		id: 'nyquist-active-map-tempo',
+		file: 'src/common/editor/controller/nyquist-host-service.ts',
+		behavior: 'Nyquist interchange exactly inverts the evaluation-start sample once, then selects the last authoritative event at or before that beat.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
 		id: 'routed-recording-count-in',
 		file: 'src/common/editor/controller/routed-recording-capture-service.ts',
-		behavior: 'Routed recording shares the same origin-based nearest-sample count-in conversion as the legacy capture route.',
+		behavior: 'Routed capture shares the authoritative map schedule and retains the same point-rounded default-map fallback for map-absent callers.',
 		conversions: [{ helper: 'countInSampleFrames', policies: ['point'] }],
 	},
 	{
@@ -131,10 +143,11 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'transport-metronome-schedule',
 		file: 'src/common/editor/controller/transport-model.ts',
-		behavior: 'Transport selects the next enclosing beat and then resolves that beat from the absolute tempo-map origin to a point sample.',
+		behavior: 'Transport inverts the absolute sample through the tempo map, selects the next signature-denominator pulse directionally, and point-resolves count-in and click endpoints from the map origin.',
 		conversions: [
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
-			{ helper: 'roundRational', policies: ['enclosingEnd'] },
+			{ helper: 'roundRational', policies: ['directional', 'point'] },
+			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
 		],
 	},
 	{
@@ -145,6 +158,36 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 			{ helper: 'sampleFrameToSeconds', policies: ['exact'] },
 			{ helper: 'secondsToSampleFrame', policies: ['point'] },
 		],
+	},
+	{
+		id: 'indexed-tempo-projection',
+		file: 'src/common/editor/indexed-tempo-projector.ts',
+		behavior: 'One validated held tempo map is preindexed at exact event positions, then arbitrary beat coordinates binary-search that index and point-round only their absolute result.',
+		conversions: [
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'roundRational', policies: ['point'] },
+		],
+	},
+	{
+		id: 'monotonic-tempo-projection',
+		file: 'src/common/editor/monotonic-tempo-projector.ts',
+		behavior: 'A nondecreasing beat stream validates the held map once, accumulates exact segment positions, and point-rounds each absolute result without rescanning prior events.',
+		conversions: [
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'roundRational', policies: ['point'] },
+		],
+	},
+	{
+		id: 'musical-signature-grid',
+		file: 'src/common/editor/musical-grid.ts',
+		behavior: 'Signature-map lookup floors an exact beat to its preceding bar while preserving every bar boundary as a rational beat.',
+		conversions: [{ helper: 'roundRational', policies: ['directional'] }],
+	},
+	{
+		id: 'musical-timeline-ruler',
+		file: 'src/common/editor/ui/timeline/musical-ruler-model.ts',
+		behavior: 'The viewport ruler exactly inverts sample bounds to beats and delegates its monotonic tick projection to the owned origin-exact projector.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
 		id: 'rendered-fallback-video-extent',
@@ -181,7 +224,7 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'runtime-clip-projection',
 		file: 'src/common/editor/runtime-clip-projection.ts',
-		behavior: 'The consumer-facing projection resolves musical and sequence-frame absolute boundaries as nearest sample points.',
+		behavior: 'Single clips resolve musical points directly, while whole-project musical coordinates share the same exact point semantics through one indexed map; sequence-frame boundaries remain nearest sample points.',
 		conversions: [
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
 			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
@@ -190,14 +233,21 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'timeline-snap-grid',
 		file: 'src/common/editor/snap-grid.js',
-		behavior: 'Grid selection uses explicit previous or next directional intent while materialized snapped positions use point rounding.',
-		conversions: [{ helper: 'roundRational', policies: ['directional', 'point'] }],
+		behavior: 'Grid selection inverts the absolute sample to an exact beat, uses explicit previous/next intent, then resolves the chosen boundary once as a point sample.',
+		conversions: [
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'roundRational', policies: ['directional', 'point'] },
+			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
+		],
 	},
 	{
 		id: 'tempo-map-sample-inverse',
 		file: 'src/common/editor/timeline-tempo-inverse.ts',
-		behavior: 'Tempo inversion finds point-rounded event boundaries and returns the edited sample position as an exact rational beat.',
-		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+		behavior: 'Tempo inversion accumulates exact event spans, point-rounds each event boundary, and returns the edited sample position as an exact rational beat.',
+		conversions: [
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'roundRational', policies: ['point'] },
+		],
 	},
 ]);
 

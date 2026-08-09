@@ -6,6 +6,8 @@ import { AudioTrackRow } from './AudioTrackRow.jsx';
 import { EMPTY_TIMELINE_CLIPS } from './constants.ts';
 import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT, normalizeWaveformRulerState } from './geometry.ts';
 import { LabelTrackRow } from './LabelTrackRow.jsx';
+import { MusicalTimelineRuler } from './MusicalTimelineRuler.jsx';
+import { usesMusicalMapRuler } from './musical-ruler-model.ts';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
 	PinnedPlayheadScroller,
@@ -108,6 +110,11 @@ export function TimelineWorkspaceView({
 		onOpenEffects,
 	} = actions;
 	const { displayedLoop } = menuModel;
+	const tempoEvents = project.tempoMap?.events || [];
+	const signatureEvents = project.signatureMap?.events || [];
+	const mappedTempo = rationalValue(tempoEvents[0]?.bpm, project.tempo?.bpm || 120);
+	const mappedSignature = signatureEvents[0] || project.tempo?.timeSignature || { numerator: 4, denominator: 4 };
+	const useMusicalMapRuler = usesMusicalMapRuler(project);
 
 	return (
 		<section
@@ -190,7 +197,20 @@ export function TimelineWorkspaceView({
 								}
 							}}
 						>
-							<TimelineRuler
+							{useMusicalMapRuler ? <MusicalTimelineRuler
+								pixelsPerSecond={pixelsPerSecond}
+								scrollX={scrollX}
+								width={timelineWidth}
+								viewportWidth={viewportWidth}
+								timeSelection={timeSelection}
+								sampleRate={sampleRate}
+								tempoMap={project.tempoMap}
+								signatureMap={project.signatureMap}
+								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
+								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
+								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
+								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
+							/> : <TimelineRuler
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
 								totalDuration={durationSeconds}
@@ -199,13 +219,13 @@ export function TimelineWorkspaceView({
 								timeSelection={timeSelection}
 								sampleRate={sampleRate}
 								timeFormat={project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
-								bpm={project.tempo?.bpm || 120}
-								beatsPerMeasure={project.tempo?.timeSignature?.numerator || 4}
+								bpm={mappedTempo}
+								beatsPerMeasure={mappedSignature.numerator || 4}
 								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
 								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
-							/>
+							/>}
 							<TelemetryRulerPlayhead
 								controller={controller}
 								pixelsPerSecond={pixelsPerSecond}
@@ -442,4 +462,12 @@ export function TimelineWorkspaceView({
 			/>
 		</section>
 	);
+}
+
+function rationalValue(value, fallback) {
+	const numerator = Number(value?.num);
+	const denominator = Number(value?.den);
+	return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0
+		? numerator / denominator
+		: fallback;
 }

@@ -119,6 +119,23 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			importFiles,
 			setTempo: (bpm: RuntimeValue) => commit({ type: 'tempo/set', bpm }),
 			setTimeSignature: (numerator: RuntimeValue, denominator: RuntimeValue) => commit({ type: 'tempo/set', numerator, denominator }),
+			setTempoMapMode: (mode: RuntimeValue) => commit({ type: 'tempo-map/mode-set', mode }),
+			addTempoEvent: (event: RuntimeValue) => commit({
+				type: 'tempo-event/add',
+				event: { ...structuredClone(event), id: event?.id || createStableId('tempo') },
+			}),
+			updateTempoEvent: (eventId: RuntimeValue, changes: RuntimeValue) => commit({
+				type: 'tempo-event/update', eventId, changes: structuredClone(changes),
+			}),
+			removeTempoEvent: (eventId: RuntimeValue) => commit({ type: 'tempo-event/remove', eventId }),
+			addSignatureEvent: (event: RuntimeValue) => commit({
+				type: 'signature-event/add',
+				event: { ...structuredClone(event), id: event?.id || createStableId('signature') },
+			}),
+			updateSignatureEvent: (eventId: RuntimeValue, changes: RuntimeValue) => commit({
+				type: 'signature-event/update', eventId, changes: structuredClone(changes),
+			}),
+			removeSignatureEvent: (eventId: RuntimeValue) => commit({ type: 'signature-event/remove', eventId }),
 			setTimeDisplay: (format: RuntimeValue) => commit({ type: 'time-display/set', format }),
 		}),
 		projectBin: Object.freeze({

@@ -65,6 +65,15 @@ const chunkGroups = [
 		maxSize: 400_000,
 	},
 ];
+/** @type {import('rolldown').CodeSplittingGroup[]} */
+const workerChunkGroups = [
+	{
+		name: 'vendor-sqlite-worker',
+		test: /node_modules[\\/]@sqlite\.org[\\/]sqlite-wasm[\\/]/,
+		priority: 100,
+		maxSize: 400_000,
+	},
+];
 
 export default defineConfig({
 	appType: 'spa',
@@ -76,6 +85,15 @@ export default defineConfig({
 	worker: {
 		format: 'es',
 		plugins: () => [createPffftNodeModuleBrowserShim()],
+		rolldownOptions: {
+			output: {
+				codeSplitting: {
+					groups: workerChunkGroups,
+					minSize: 20_000,
+				},
+				strictExecutionOrder: true,
+			},
+		},
 	},
 	build: {
 		assetsInlineLimit: 0,

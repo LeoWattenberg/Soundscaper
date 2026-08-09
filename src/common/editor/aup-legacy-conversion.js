@@ -9,6 +9,7 @@ import {
 	createLabelTrackV10,
 } from './project-v10.ts';
 import { createStableId } from './project.js';
+import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
 import {
 	divideRationals,
 	normalizeRational,
@@ -114,12 +115,13 @@ export function convertLegacyAupToProject(structure, options = {}) {
 		title: String(options.title || structure.metadata?.title || '').replace(/\.aup$/i, ''),
 		artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {},
 	};
+	const importedTempoBpm = finiteInRange(structure.tempo?.bpm, 1, 1_000, 120);
 	const project = createAudioEditorProjectV10({
 		id: options.projectId || idFactory('project'),
 		title: metadata.title || 'Audacity project',
 		now: options.now,
 		sampleRate,
-		tempo: structure.tempo,
+		...canonicalAudacityMusicalRoot(importedTempoBpm, structure.tempo?.timeSignature),
 		selection: {
 			startFrame: secondsToSampleFrame(nonNegative(structure.selection?.startSeconds), sampleRate),
 			endFrame: secondsToSampleFrame(nonNegative(Math.max(structure.selection?.startSeconds || 0, structure.selection?.endSeconds || 0)), sampleRate),

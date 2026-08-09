@@ -132,6 +132,39 @@ test('legacy capture covers blocked actions, armed-track lookup, and range recor
 	);
 });
 
+test('legacy count-in follows authoritative tempo and compound-signature maps', async () => {
+	const fixture = createRecordingCaptureFixture({ selection: { startFrame: 144_000, endFrame: 192_000 } });
+	fixture.state.leadInRecording = true;
+	(fixture.project as { tempoMap: unknown }).tempoMap = {
+		mode: 'musical',
+		events: [
+			{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
+			{ id: 'tempo-2', beat: { num: 2, den: 1 }, bpm: { num: 60, den: 1 } },
+		],
+	};
+	(fixture.project as { signatureMap: unknown }).signatureMap = {
+		events: [{ id: 'signature-1', bar: 0, numerator: 6, denominator: 8 }],
+	};
+	await createLegacyRecordingCaptureService(fixture.runtime).capture({}, createScope(() => true));
+
+	assert.deepEqual(fixture.seekCalls, [24_000]);
+	assert.equal(fixture.playAtCalls[0]?.[1], 24_000);
+});
+
+test('legacy count-in preserves singleton timing for a map-absent project', async () => {
+	const fixture = createRecordingCaptureFixture({ selection: { startFrame: 144_000, endFrame: 192_000 } });
+	fixture.state.leadInRecording = true;
+	delete (fixture.project as { tempoMap?: unknown }).tempoMap;
+	delete (fixture.project as { signatureMap?: unknown }).signatureMap;
+	(fixture.project as { tempo: unknown }).tempo = {
+		bpm: 60,
+		timeSignature: { numerator: 3, denominator: 4 },
+	};
+	await createLegacyRecordingCaptureService(fixture.runtime).capture({}, createScope(() => true));
+
+	assert.deepEqual(fixture.seekCalls, [0]);
+});
+
 test('legacy capture rolls back timed-past and playback-start failures after handoff', async () => {
 	const past = createRecordingCaptureFixture();
 	await assert.rejects(
