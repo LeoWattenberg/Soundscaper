@@ -16,17 +16,29 @@ test.describe('editor storage schema migration', () => {
 		}));
 		await page.goto('/__soundscaper-test/storage-migration-setup');
 		await page.evaluate(async (databaseName) => {
-			await new Promise((resolve, reject) => {
+			const database = await new Promise((resolve, reject) => {
 				const openRequest = indexedDB.open(databaseName, 2);
 				openRequest.onupgradeneeded = () => {
-					openRequest.result.createObjectStore('projects', { keyPath: 'id' }).put({
+					openRequest.result.createObjectStore('projects', { keyPath: 'id' });
+					const derivatives = openRequest.result.createObjectStore('videoDerivatives', { keyPath: 'key' });
+					derivatives.createIndex('sourceId', 'sourceId', { unique: false });
+					openRequest.result.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+				};
+				openRequest.onsuccess = () => resolve(openRequest.result);
+				openRequest.onerror = () => reject(openRequest.error);
+			});
+			try {
+				await new Promise((resolve, reject) => {
+					const transaction = database.transaction(
+						['projects', 'videoDerivatives', 'mediaAssets'],
+						'readwrite',
+					);
+					transaction.objectStore('projects').put({
 						id: 'legacy-project',
 						sources: [{ id: 'legacy-source' }],
 						clips: [{ id: 'legacy-clip', sourceId: 'legacy-source' }],
 					});
-					const derivatives = openRequest.result.createObjectStore('videoDerivatives', { keyPath: 'key' });
-					derivatives.createIndex('sourceId', 'sourceId', { unique: false });
-					derivatives.put({
+					transaction.objectStore('videoDerivatives').put({
 						key: 'legacy-cache',
 						sourceId: 'legacy-source',
 						timestamp: 3,
@@ -39,7 +51,7 @@ test.describe('editor storage schema migration', () => {
 						nestedPayload: { blob: new Blob(['hidden']) },
 						width: 320,
 					});
-					openRequest.result.createObjectStore('mediaAssets', { keyPath: 'sourceId' }).put({
+					transaction.objectStore('mediaAssets').put({
 						sourceId: 'legacy-source',
 						storage: 'indexeddb-blob',
 						blob: new Blob(['legacy-container'], { type: 'video/mp4' }),
@@ -48,13 +60,13 @@ test.describe('editor storage schema migration', () => {
 						mediaContentDigestVersion: 1,
 						mediaContentToken: 'media-content-caller-controlled-token-0001',
 					});
-				};
-				openRequest.onsuccess = () => {
-					openRequest.result.close();
-					resolve();
-				};
-				openRequest.onerror = () => reject(openRequest.error);
-			});
+					transaction.oncomplete = () => resolve();
+					transaction.onabort = () => reject(transaction.error);
+					transaction.onerror = () => reject(transaction.error);
+				});
+			} finally {
+				database.close();
+			}
 		}, DATABASE_NAME);
 
 		await page.goto('/embed/en/');
