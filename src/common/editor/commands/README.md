@@ -19,20 +19,26 @@ pulling in unrelated editor modules.
    tests reject missing and duplicate ownership.
 3. Implement it in the matching `*-runtime.js` module and register it in that
    domain's runtime handler map. `runtime-registry.ts` composes and validates
-   the four maps exhaustively.
+   every map exhaustively.
 4. Add a semantic test for success and failure. If the command can participate
    in `batch`, verify that a failing child leaves the input project unchanged.
 
 Commands must remain JSON-safe. Any identifier created while preparing a
 command belongs in its payload so replay does not depend on random state.
+Public factories for nested annotation payloads reject values that cannot make
+an exact JSON round trip; a successful factory result is detached from its
+inputs.
 Handlers mutate only the draft they receive; `applyEditorCommand` owns the
 single project commit and validation boundary. The `batch` handler recursively
 dispatches children into that same draft, so it must never call
 `applyEditorCommand` itself.
 
 Runtime responsibilities are intentionally narrow: project/source/Project Bin,
-track/mixer/label, effects/video, and clip/range/clipboard each have explicit
-handler maps. The larger clip domain is further divided into basic edits,
-transforms, links/groups, ranges, and clipboard preparation. Shared validation
-and stable-ID helpers live in `shared-runtime.js`; keep dependencies directed
-toward that leaf to avoid cycles.
+tempo/signature, track/mixer/label, effects/video, clip/range/clipboard, and
+timeline annotation commands each have explicit handler maps. Timeline
+annotation mutation is exact-V11 and requires a branded runtime projection;
+product capability policy remains a separate controller boundary. The larger
+clip domain is further divided into basic edits, transforms, links/groups,
+ranges, and clipboard preparation. Shared validation and stable-ID helpers live
+in `shared-runtime.js`; keep dependencies directed toward that leaf to avoid
+cycles.

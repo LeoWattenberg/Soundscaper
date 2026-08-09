@@ -24,6 +24,13 @@ test('public editor facade exposes intentional controller, model, protocol, and 
 		'createEditorProjectStore',
 		'createAudioEditorProjectV5',
 		'applyEditorCommand',
+		'createAddTimelineAnnotationCommand',
+		'createBatchSetTimelineAnnotationsCommand',
+		'createConvertTimelineAnnotationCommand',
+		'createMoveTimelineAnnotationsCommand',
+		'createRemoveTimelineAnnotationsCommand',
+		'createResizeTimelineAnnotationCommand',
+		'createUpdateTimelineAnnotationsCommand',
 		'createAudioEditorEngine',
 		'WorkerRequestBroker',
 		'EDITOR_WORKER_PROTOCOL_VERSION',
@@ -82,5 +89,9 @@ test('public facade exports the authoritative command union and payload map', ()
 		title: 'Typed facade',
 	} satisfies AudioEditorCommand;
 	const payload: AudioEditorCommandPayloads['project/rename'] = { title: rename.title };
+	const annotationPayload: AudioEditorCommandPayloads['timeline-annotation/remove-many'] = {
+		annotationIds: ['annotation'],
+	};
 	assert.deepEqual(payload, { title: 'Typed facade' });
+	assert.deepEqual(annotationPayload, { annotationIds: ['annotation'] });
 });

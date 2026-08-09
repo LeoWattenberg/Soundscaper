@@ -102,9 +102,16 @@ capability sets, and publisher-authored audio or video rendered fallback for it
 rejects. Current V11 create, clone, update, and validation paths, a
 current-format exact-schema-11 `.scape` semantic export/import with persistence,
 and the maintained desktop library handoff preserve canonical timeline
-annotation state. This rule claims no annotation editing UI, activation
-projection, audio or video rendered fallback, playback, export rendering, or
-preservation beyond those tested current-schema paths.
+annotation state. An exact-V11 low-level command protocol, branded runtime
+projection, seven defensive factories, and atomic global runtime implement add,
+update-many, move-many, resize, convert, remove-many, and batch-set while
+reconciliation removes only derived annotation timing fields, preserves document
+order and authoritative coordinates, prunes deleted annotation selections, and
+updates the owned requirement. The controller command-capability guard rejects
+those commands and explicit annotation selection for both unavailable product
+profiles, including in nested batches. This rule claims no product-activated
+annotation editing UI, audio or video rendered fallback, playback, export
+rendering, or preservation beyond those tested current-schema paths.
 <!-- /policy-narrative:timeline-annotation-capability -->
 
 ## Pre-release schema breaks

@@ -3,7 +3,9 @@
 import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
 import {
 	AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS,
+	createTimelineAnnotationsV11,
 	type TimelineAnnotationV11,
+	validateTimelineAnnotationsV11,
 } from './timeline-annotation.ts';
 import {
 	compareRationals,
@@ -40,6 +42,18 @@ export function resolveRuntimeTimelineAnnotationProjection(
 export function resolveRuntimeTimelineAnnotationsProjection(
 	project: RuntimeTimelineAnnotationProject,
 ): readonly RuntimeTimelineAnnotationProjection[] {
+	const projected = resolveRuntimeTimelineAnnotationsInDocumentOrder(project);
+	const sequenceOrder = projectSequenceOrder(project);
+	return Object.freeze([...projected].sort((left, right) => (
+		sequenceIndex(sequenceOrder, left.sequenceId) - sequenceIndex(sequenceOrder, right.sequenceId)
+			|| compareRuntimeTimelineAnnotations(left, right)
+	)));
+}
+
+/** Resolve the command-facing annotation view without changing persisted document order. */
+export function resolveRuntimeTimelineAnnotationsInDocumentOrder(
+	project: RuntimeTimelineAnnotationProject,
+): readonly RuntimeTimelineAnnotationProjection[] {
 	if (!project || typeof project !== 'object') throw new TypeError('An annotation project is required.');
 	if (!Array.isArray(project.timelineAnnotations)) {
 		throw new TypeError('project.timelineAnnotations must be an array.');
@@ -49,14 +63,51 @@ export function resolveRuntimeTimelineAnnotationsProjection(
 			`project.timelineAnnotations cannot exceed ${String(AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumAnnotations)} annotations.`,
 		);
 	}
-	const context = projectionContext(project);
 	const sequenceOrder = projectSequenceOrder(project);
-	return Object.freeze(project.timelineAnnotations
-		.map((annotation) => resolveAnnotation(annotation, context.resolveBeatFrame))
-		.sort((left, right) => (
-			sequenceIndex(sequenceOrder, left.sequenceId) - sequenceIndex(sequenceOrder, right.sequenceId)
-				|| compareRuntimeTimelineAnnotations(left, right)
-		)));
+	for (const annotation of project.timelineAnnotations) sequenceIndex(sequenceOrder, annotation.sequenceId);
+	const context = projectionContext(project);
+	return Object.freeze(project.timelineAnnotations.map((annotation) => (
+		resolveAnnotation(annotation, context.resolveBeatFrame)
+	)));
+}
+
+/**
+ * Restore the authoritative wire collection only from a complete resolved
+ * projection. The four transient fields are the only properties removed.
+ */
+export function restoreTimelineAnnotationsFromRuntimeProjection(
+	project: RuntimeTimelineAnnotationProject,
+): readonly TimelineAnnotationV11[] {
+	if (!Array.isArray(project.timelineAnnotations)) {
+		throw new TypeError('project.timelineAnnotations must be an array.');
+	}
+	const candidates = persistedCandidates(project.timelineAnnotations);
+	const context = collectionContext(project);
+	validateTimelineAnnotationsV11(candidates, context);
+	return createTimelineAnnotationsV11(candidates, context);
+}
+
+/** Validate the complete derived timing shape without re-running linear tempo scans. */
+export function assertRuntimeTimelineAnnotationsProjectionShape(
+	project: RuntimeTimelineAnnotationProject,
+): void {
+	if (!Array.isArray(project.timelineAnnotations)) {
+		throw new TypeError('project.timelineAnnotations must be an array.');
+	}
+	const candidates = persistedCandidates(project.timelineAnnotations);
+	const resolved = resolveRuntimeTimelineAnnotationsInDocumentOrder({
+		...project,
+		timelineAnnotations: candidates as unknown as readonly TimelineAnnotationV11[],
+	});
+	for (const [index, expected] of resolved.entries()) {
+		const actual = project.timelineAnnotations[index] as Readonly<Record<string, unknown>>;
+		if (actual.coordinateDomain !== expected.coordinateDomain
+			|| actual.timelineStartFrame !== expected.timelineStartFrame
+			|| actual.timelineEndFrame !== expected.timelineEndFrame
+			|| actual.durationFrames !== expected.durationFrames) {
+			throw new TypeError('A resolved runtime projection requires resolved timeline annotations.');
+		}
+	}
 }
 
 /**
@@ -114,6 +165,27 @@ function projectionContext(project: RuntimeTimelineAnnotationProject): Readonly<
 	}
 	return Object.freeze({
 		resolveBeatFrame: createIndexedBeatFrameProjector(project.tempoMap, sampleRate),
+	});
+}
+
+function collectionContext(project: RuntimeTimelineAnnotationProject) {
+	return {
+		tempoMap: project.tempoMap,
+		sampleRate: project.sampleRate,
+		sequenceIds: [...projectSequenceOrder(project).keys()],
+	};
+}
+
+function persistedCandidates(
+	annotations: readonly object[],
+): readonly Record<string, unknown>[] {
+	return annotations.map((annotation) => {
+		const candidate = { ...annotation } as Record<string, unknown>;
+		delete candidate.timelineStartFrame;
+		delete candidate.timelineEndFrame;
+		delete candidate.durationFrames;
+		delete candidate.coordinateDomain;
+		return candidate;
 	});
 }
 

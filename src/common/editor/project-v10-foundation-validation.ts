@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
+import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 import {
 	beatToSampleFrame,
 	compareRationals,
@@ -32,7 +33,7 @@ import {
 export const AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE = 8_000;
 export const AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE = 768_000;
 export const AUDIO_EDITOR_RATIONAL_MAXIMUM_DENOMINATOR = 1_000_000;
-export const AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR = Number.MAX_SAFE_INTEGER;
+export { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 export const AUDIO_EDITOR_FOUNDATION_MAXIMUM_EVENTS = 4_096;
 
 const SHA256 = /^[a-f0-9]{64}$/u;

@@ -5,6 +5,7 @@ import {
 	resolveRuntimeClipProjection,
 	resolveRuntimeProjectProjection,
 } from './runtime-clip-projection.ts';
+import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
 	beatToSampleFrame,
@@ -136,7 +137,22 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 	draft.projectBin = bin;
 	conformLabels(draft, persistedBase, tempoMap, sampleRate);
 	reconcileSequenceTracks(draft, sequences, primarySequenceId);
+	if (draft.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) reconcileTimelineAnnotations(draft);
 	delete draft.runtimeProjectionVersion;
+}
+
+function reconcileTimelineAnnotations(draft: DataRecord): void {
+	draft.timelineAnnotations = recordArray(
+		draft.timelineAnnotations,
+		'project.timelineAnnotations',
+	).map((annotation) => {
+		const persisted = { ...annotation };
+		delete persisted.timelineStartFrame;
+		delete persisted.timelineEndFrame;
+		delete persisted.durationFrames;
+		delete persisted.coordinateDomain;
+		return persisted;
+	});
 }
 
 function conformVideoClip(

@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type {
+	TimelineAnnotationColor,
+	TimelineAnnotationV11,
+} from '../timeline-annotation.ts';
+import type { Rational } from '../timeline-time.ts';
+
 /**
  * Authoritative command discriminants. Adding a command starts here, then the
  * payload map and exactly one domain registry must be updated.
@@ -18,6 +24,13 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'signature-event/add',
 	'signature-event/update',
 	'signature-event/remove',
+	'timeline-annotation/add',
+	'timeline-annotation/update-many',
+	'timeline-annotation/move-many',
+	'timeline-annotation/resize',
+	'timeline-annotation/convert',
+	'timeline-annotation/remove-many',
+	'timeline-annotation/batch-set',
 	'time-display/set',
 	'metadata/update',
 	'source/add',
@@ -111,6 +124,26 @@ export interface SignatureEventCommandValue {
 
 export type SignatureEventCommandChanges = Readonly<Partial<Omit<SignatureEventCommandValue, 'id'>>>;
 
+export interface TimelineAnnotationUpdateChanges {
+	readonly name?: string;
+	readonly color?: TimelineAnnotationColor;
+}
+
+export interface TimelineAnnotationMoveDelta {
+	readonly sampleFrames: number;
+	readonly beats: Rational;
+}
+
+export type TimelineAnnotationResizeCoordinate =
+	| Readonly<{ anchor: 'sample'; frame: number }>
+	| Readonly<{ anchor: 'musical'; beat: Rational }>;
+
+export type TimelineAnnotationConversionCoordinates =
+	| Readonly<{ kind: 'marker'; anchor: 'sample'; positionFrame: number }>
+	| Readonly<{ kind: 'marker'; anchor: 'musical'; positionBeat: Rational }>
+	| Readonly<{ kind: 'region'; anchor: 'sample'; startFrame: number; endFrame: number }>
+	| Readonly<{ kind: 'region'; anchor: 'musical'; startBeat: Rational; endBeat: Rational }>;
+
 export interface AudioEditorClipboardTrack {
 	readonly sourceTrackId: string;
 	readonly sourceTrackName: string;
@@ -164,6 +197,29 @@ type NonBatchAudioEditorCommandPayloads = {
 	readonly 'signature-event/add': { readonly event: SignatureEventCommandValue };
 	readonly 'signature-event/update': { readonly eventId: string; readonly changes: SignatureEventCommandChanges };
 	readonly 'signature-event/remove': { readonly eventId: string };
+	readonly 'timeline-annotation/add': { readonly annotation: TimelineAnnotationV11 };
+	readonly 'timeline-annotation/update-many': {
+		readonly annotationIds: readonly string[];
+		readonly changes: TimelineAnnotationUpdateChanges;
+	};
+	readonly 'timeline-annotation/move-many': {
+		readonly annotationIds: readonly string[];
+		readonly delta: TimelineAnnotationMoveDelta;
+	};
+	readonly 'timeline-annotation/resize': {
+		readonly annotationId: string;
+		readonly edge: 'start' | 'end';
+		readonly coordinate: TimelineAnnotationResizeCoordinate;
+	};
+	readonly 'timeline-annotation/convert': {
+		readonly annotationId: string;
+		readonly coordinates: TimelineAnnotationConversionCoordinates;
+	};
+	readonly 'timeline-annotation/remove-many': { readonly annotationIds: readonly string[] };
+	readonly 'timeline-annotation/batch-set': {
+		readonly annotationIds: readonly string[];
+		readonly batchId: string | null;
+	};
 	readonly 'time-display/set': { readonly format: string };
 	readonly 'metadata/update': { readonly changes: CommandObject };
 	readonly 'source/add': { readonly source: CommandObject };

@@ -35,13 +35,18 @@ test('the compatibility register binds exact V11 editing to current implementati
 	]);
 	assert.match(
 		timelineAnnotations.currentBehavior,
-		/non-empty schema 11 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper and Framescaper.*known but unavailable.*unavailable\/bypassed.*excluded from both audio and video rendered-fallback.*V11.*`?\.scape`? semantic.*desktop library handoff.*preserve canonical timeline annotation state.*no annotation editing UI.*playback.*export rendering/iu,
+		/non-empty schema 11 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper and Framescaper.*known but unavailable.*unavailable\/bypassed.*excluded from both audio and video rendered-fallback.*V11.*`?\.scape`? semantic.*desktop library handoff.*preserve canonical timeline annotation state.*exact-V11 low-level command protocol.*branded runtime projection.*seven defensive factories.*atomic global runtime.*add.*update-many.*move-many.*resize.*convert.*remove-many.*batch-set.*derived annotation timing fields.*document order.*authoritative coordinates.*prunes deleted annotation selections.*owned requirement.*command-capability guard.*explicit annotation selection.*both unavailable product profiles.*nested batches.*no product-activated annotation editing UI.*playback.*export rendering/iu,
 	);
 	assert.deepEqual(timelineAnnotations.evidence, [
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/common/editor/timeline-annotation.ts',
+		'src/common/editor/commands/protocol.ts',
+		'src/common/editor/commands/timeline-annotation-runtime.ts',
+		'src/common/editor/runtime-clip-projection.ts',
+		'src/common/editor/controller/command-capability-policy.ts',
 		'src/common/products.js',
+		'tests/audio-editor-timeline-annotation-command-integration.test.ts',
 		'tests/audio-editor-timeline-annotation-feature-registration.test.ts',
 		'tests/audio-editor-project-v11.test.ts',
 		'tests/audio-editor-scape-project.test.js',

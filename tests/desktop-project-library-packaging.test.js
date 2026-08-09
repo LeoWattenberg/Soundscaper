@@ -75,11 +75,13 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-v9-validation-primitives.js',
 		'src/common/editor/retention.js',
 		'src/common/editor/runtime-clip-projection.js',
+		'src/common/editor/runtime-timeline-annotation-projection.js',
 		'src/common/editor/scape-project-document.js',
 		'src/common/editor/scape-project-json-preflight.js',
 		'src/common/editor/stable-id.js',
 		'src/common/editor/terminal-channel-widths.js',
 		'src/common/editor/timeline-annotation.js',
+		'src/common/editor/timeline-coordinate-limits.js',
 		'src/common/editor/timeline-tempo-inverse.js',
 		'src/common/editor/timeline-time.js',
 		'src/common/editor/video-effects.js',
@@ -217,6 +219,8 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v11-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/timeline-annotation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/runtime-timeline-annotation-projection.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/timeline-coordinate-limits.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation-budget.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/retention.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));

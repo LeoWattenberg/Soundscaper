@@ -9,8 +9,15 @@ import {
 	videoFrameToSampleFrame,
 } from './timeline-time.ts';
 import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
+import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	resolveRuntimeTimelineAnnotationsInDocumentOrder,
+	assertRuntimeTimelineAnnotationsProjectionShape,
+	type RuntimeTimelineAnnotationProject,
+	type RuntimeTimelineAnnotationProjection,
+} from './runtime-timeline-annotation-projection.ts';
 
-export const RUNTIME_CLIP_PROJECTION_VERSION = 1;
+export const RUNTIME_CLIP_PROJECTION_VERSION = 2;
 
 const RUNTIME_PROJECT_PROJECTIONS = new WeakSet<object>();
 const RUNTIME_PROJECTION_CONTEXTS = new WeakSet<object>();
@@ -21,6 +28,7 @@ export interface RuntimeClipProject extends Readonly<Record<string, unknown>> {
 	readonly primarySequenceId?: string;
 	readonly sequences?: readonly Readonly<Record<string, unknown>>[];
 	readonly tempoMap?: HoldTempoMap;
+	readonly timelineAnnotations?: readonly object[];
 	readonly clips?: readonly RuntimePersistedClip[];
 	readonly tracks?: readonly object[];
 	readonly projectBin?: Readonly<Record<string, unknown>> & {
@@ -58,10 +66,14 @@ export interface RuntimeClipProjection extends Readonly<Record<string, unknown>>
 	readonly coordinateDomain: 'resolved-samples';
 }
 
-export type RuntimeProjectProjection<Project extends RuntimeClipProject> = Omit<Project, 'clips' | 'tracks' | 'projectBin'> & Readonly<{
+export type RuntimeProjectProjection<Project extends RuntimeClipProject> = Omit<
+	Project,
+	'clips' | 'tracks' | 'projectBin' | 'timelineAnnotations'
+> & Readonly<{
 	clips: readonly RuntimeClipProjection[];
 	tracks: readonly Readonly<Record<string, unknown>>[];
 	projectBin: Readonly<Record<string, unknown>> & { readonly clips: readonly RuntimeClipProjection[] };
+	timelineAnnotations?: readonly RuntimeTimelineAnnotationProjection[];
 	runtimeProjectionVersion: typeof RUNTIME_CLIP_PROJECTION_VERSION;
 }>;
 
@@ -142,6 +154,11 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 			clips: Object.freeze((Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [])
 				.map((clip) => resolveRuntimeClipProjection(project, clip, context))),
 		}),
+		...(project.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION ? {
+			timelineAnnotations: resolveRuntimeTimelineAnnotationsInDocumentOrder(
+				project as unknown as RuntimeTimelineAnnotationProject,
+			),
+		} : {}),
 		runtimeProjectionVersion: RUNTIME_CLIP_PROJECTION_VERSION,
 	}) as RuntimeProjectProjection<Project>;
 	return brandRuntimeProjectProjection(projection);
@@ -178,6 +195,13 @@ function assertRuntimeProjectProjectionShape(project: RuntimeClipProject): void 
 				throw new TypeError('A resolved runtime projection requires resolved musical labels.');
 			}
 		}
+	}
+	if (project.schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
+		assertRuntimeTimelineAnnotationsProjectionShape(
+			project as unknown as RuntimeTimelineAnnotationProject,
+		);
+	} else if (project.timelineAnnotations !== undefined) {
+		throw new TypeError('Only an exact-schema-11 runtime projection can contain timeline annotations.');
 	}
 }
 

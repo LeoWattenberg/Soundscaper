@@ -6,6 +6,7 @@ export interface EditorCommandCapabilities {
 	readonly audioEffects: boolean;
 	readonly audioRecording: boolean;
 	readonly audioSpectralEditing: boolean;
+	readonly timelineAnnotations: boolean;
 	readonly videoEffects: boolean;
 }
 
@@ -29,6 +30,13 @@ export function assertEditorCommandCapabilities(
 
 	if (!capabilities.videoEffects && command.type.startsWith('video-effect/')) {
 		unsupported(productName, 'videoEffects');
+	}
+	if (!capabilities.timelineAnnotations && command.type.startsWith('timeline-annotation/')) {
+		unsupported(productName, 'timelineAnnotations');
+	}
+	if (!capabilities.timelineAnnotations && command.type === 'selection/set'
+		&& Object.hasOwn(command, 'annotationIds')) {
+		unsupported(productName, 'timelineAnnotations');
 	}
 	if (!capabilities.audioEffects && command.type.startsWith('effect/')) {
 		unsupported(productName, 'audioEffects');

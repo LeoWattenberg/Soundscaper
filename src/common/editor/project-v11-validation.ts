@@ -11,6 +11,7 @@ import {
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
 import { validateProjectV9Document } from './project-v9-document-validation.ts';
+import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
 import { projectRecord, projectUniqueStrings } from './project-v9-validation-primitives.ts';
 import {
 	admitAudioEditorProjectV9ValidationStructure,
@@ -23,7 +24,7 @@ import {
 } from './timeline-annotation.ts';
 import type { HoldTempoMap } from './timeline-time.ts';
 
-export const AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION = 11 as const;
+export { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from './project-schema-version.ts';
 
 export interface AudioEditorProjectV11ValidationOptions {
 	readonly limits?: Partial<AudioEditorProjectV9ValidationLimits>;

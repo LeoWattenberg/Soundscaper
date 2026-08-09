@@ -4,9 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	brandRuntimeProjectProjection,
+	isRuntimeProjectProjection,
 	resolveRuntimeClipProjection,
 	resolveRuntimeProjectProjection,
 } from '../src/common/editor/runtime-clip-projection.ts';
+import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
 
 const tempoMap = {
 	mode: 'musical' as const,
@@ -77,7 +80,7 @@ test('project projection replaces every consumer-facing clip while retaining per
 	const projected = resolveRuntimeProjectProjection(project);
 	assert.notStrictEqual(projected, project);
 	assert.notStrictEqual(projected.clips, project.clips);
-	assert.equal(projected.runtimeProjectionVersion, 1);
+	assert.equal(projected.runtimeProjectionVersion, 2);
 	assert.equal(projected.clips[0].timelineEndFrame, 12);
 	assert.deepEqual(project, { schemaVersion: 9, sampleRate: 48_000, clips: [clip], tracks: [] });
 });
@@ -91,4 +94,41 @@ test('projection rejects incomplete authority instead of falling back to persist
 		{ schemaVersion: 10, sampleRate: 48_000, primarySequenceId: 'missing', sequences: [] },
 		{ id: 'bad', kind: 'video', sequenceStartFrame: 0, sequenceFrameCount: 1 },
 	), /sequence/iu);
+});
+
+test('shared V11 projection resolves annotations in document order and brands their complete shape', () => {
+	const project = createAudioEditorProjectV11({
+		now: '2026-08-09T18:00:00.000Z',
+		timelineAnnotations: [{
+			id: 'later', sequenceId: 'main-sequence', name: 'Later', color: 'auto', batchId: null,
+			opaqueExtensions: {}, kind: 'marker', anchor: 'sample', positionFrame: 48_000,
+		}, {
+			id: 'earlier', sequenceId: 'main-sequence', name: 'Earlier', color: 'auto', batchId: null,
+			opaqueExtensions: {}, kind: 'marker', anchor: 'musical', positionBeat: { num: 1, den: 1 },
+		}],
+	});
+	const projected = resolveRuntimeProjectProjection(project);
+
+	assert.equal(projected.runtimeProjectionVersion, 2);
+	assert.equal(isRuntimeProjectProjection(projected), true);
+	assert.deepEqual(projected.timelineAnnotations?.map(({ id }) => id), ['later', 'earlier']);
+	assert.deepEqual(projected.timelineAnnotations?.map((annotation) => ({
+		start: annotation.timelineStartFrame,
+		end: annotation.timelineEndFrame,
+		duration: annotation.durationFrames,
+		domain: annotation.coordinateDomain,
+	})), [{
+		start: 48_000, end: 48_000, duration: 0, domain: 'resolved-samples',
+	}, {
+		start: 24_000, end: 24_000, duration: 0, domain: 'resolved-samples',
+	}]);
+	assert.equal(Object.hasOwn(project.timelineAnnotations[0]!, 'timelineStartFrame'), false);
+
+	const derived = structuredClone(projected);
+	const poisoned = derived.timelineAnnotations?.[0] as unknown as Record<string, unknown>;
+	poisoned.durationFrames = 1;
+	assert.throws(
+		() => brandRuntimeProjectProjection(derived),
+		/resolved timeline annotations/iu,
+	);
 });

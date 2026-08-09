@@ -1,11 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from '../project-v10-foundation-validation.ts';
+import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from '../timeline-coordinate-limits.ts';
+import { AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION } from '../project-schema-version.ts';
 import {
 	createTimelineAnnotationsV11,
 	type TimelineAnnotationCollectionContext,
 	type TimelineAnnotationV11,
 } from '../timeline-annotation.ts';
+import {
+	resolveRuntimeTimelineAnnotationsInDocumentOrder,
+	restoreTimelineAnnotationsFromRuntimeProjection,
+	type RuntimeTimelineAnnotationProject,
+	type RuntimeTimelineAnnotationProjection,
+} from '../runtime-timeline-annotation-projection.ts';
+import { isRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import {
 	addRationals,
 	normalizeRational,
@@ -21,6 +29,7 @@ import {
 	type TimelineAnnotationResizeCoordinate,
 	type TimelineAnnotationUpdateChanges,
 } from './timeline-annotation.ts';
+import type { EditorCommandProject } from './protocol.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -31,20 +40,58 @@ export interface MutableTimelineAnnotationProject extends Record<string, unknown
 	timelineAnnotations: TimelineAnnotationV11[];
 }
 
-const RUNTIME_HANDLERS = defineTimelineAnnotationCommandHandlers<MutableTimelineAnnotationProject>({
-	'timeline-annotation/add': (project, command, context) => applyTimelineAnnotationCommand(project, command, context),
-	'timeline-annotation/update-many': (project, command, context) => applyTimelineAnnotationCommand(project, command, context),
-	'timeline-annotation/move-many': (project, command, context) => applyTimelineAnnotationCommand(project, command, context),
-	'timeline-annotation/resize': (project, command, context) => applyTimelineAnnotationCommand(project, command, context),
-	'timeline-annotation/convert': (project, command, context) => applyTimelineAnnotationCommand(project, command, context),
-	'timeline-annotation/remove-many': (project, command, context) => applyTimelineAnnotationCommand(project, command, context),
-	'timeline-annotation/batch-set': (project, command, context) => applyTimelineAnnotationCommand(project, command, context),
+interface MutableProjectedTimelineAnnotationProject extends Record<string, unknown> {
+	schemaVersion: number;
+	sampleRate: number;
+	tempoMap: HoldTempoMap;
+	sequences: readonly Readonly<{ readonly id: unknown }>[];
+	timelineAnnotations: RuntimeTimelineAnnotationProjection[];
+}
+
+const RUNTIME_HANDLERS = defineTimelineAnnotationCommandHandlers({
+	'timeline-annotation/add': (project, command) => applyProjectedTimelineAnnotationCommand(project, command),
+	'timeline-annotation/update-many': (project, command) => applyProjectedTimelineAnnotationCommand(project, command),
+	'timeline-annotation/move-many': (project, command) => applyProjectedTimelineAnnotationCommand(project, command),
+	'timeline-annotation/resize': (project, command) => applyProjectedTimelineAnnotationCommand(project, command),
+	'timeline-annotation/convert': (project, command) => applyProjectedTimelineAnnotationCommand(project, command),
+	'timeline-annotation/remove-many': (project, command) => applyProjectedTimelineAnnotationCommand(project, command),
+	'timeline-annotation/batch-set': (project, command) => applyProjectedTimelineAnnotationCommand(project, command),
 });
 
-export function createTimelineAnnotationRuntimeHandlers(): Readonly<
-	TimelineAnnotationCommandHandlers<MutableTimelineAnnotationProject>
-> {
+export function createTimelineAnnotationRuntimeHandlers(): Readonly<TimelineAnnotationCommandHandlers> {
 	return RUNTIME_HANDLERS;
+}
+
+/** Apply a global command through an exact-V11, branded runtime projection. */
+export function applyProjectedTimelineAnnotationCommand(
+	project: EditorCommandProject,
+	command: TimelineAnnotationCommand,
+): void {
+	const candidate = project as MutableProjectedTimelineAnnotationProject;
+	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION) {
+		throw new RangeError('Timeline annotation commands require exact schema V11.');
+	}
+	if (!isRuntimeProjectProjection(candidate)) {
+		throw new TypeError('Timeline annotation commands require a trusted runtime projection.');
+	}
+	const authoritative = restoreTimelineAnnotationsFromRuntimeProjection(
+		candidate as unknown as RuntimeTimelineAnnotationProject,
+	);
+	const staged: MutableTimelineAnnotationProject = {
+		...candidate,
+		timelineAnnotations: Array.from(authoritative),
+	};
+	const context = mutationContext(staged, undefined);
+	applyTimelineAnnotationCommand(staged, command, context);
+	const projected = resolveRuntimeTimelineAnnotationsInDocumentOrder({
+		...candidate,
+		timelineAnnotations: staged.timelineAnnotations,
+	});
+	candidate.timelineAnnotations.splice(
+		0,
+		candidate.timelineAnnotations.length,
+		...projected,
+	);
 }
 
 /** Apply one command only after its complete candidate collection validates. */
@@ -53,56 +100,91 @@ export function applyTimelineAnnotationCommand(
 	command: TimelineAnnotationCommand,
 	context?: TimelineAnnotationCollectionContext,
 ): void {
-	const candidate = commandRecord(command, 'timeline annotation command');
+	const candidate = assertOnlyKeys(
+		commandRecord(command, 'timeline annotation command'),
+		[
+			'type', 'annotation', 'annotationIds', 'changes', 'delta',
+			'annotationId', 'edge', 'coordinate', 'coordinates', 'batchId',
+		],
+		'timeline annotation command',
+	);
 	switch (candidate.type) {
-		case 'timeline-annotation/add':
-			assertOnlyKeys(candidate, ['type', 'annotation'], 'timeline annotation add command');
-			addAnnotation(project, candidate.annotation as TimelineAnnotationV11, mutationContext(project, context));
+		case 'timeline-annotation/add': {
+			const exact = assertOnlyKeys(candidate, ['type', 'annotation'], 'timeline annotation add command');
+			addAnnotation(project, exact.annotation as TimelineAnnotationV11, mutationContext(project, context));
 			return;
-		case 'timeline-annotation/update-many':
-			assertOnlyKeys(candidate, ['type', 'annotationIds', 'changes'], 'timeline annotation update-many command');
-			updateMany(project, candidate.annotationIds, candidate.changes as TimelineAnnotationUpdateChanges, mutationContext(project, context));
+		}
+		case 'timeline-annotation/update-many': {
+			const exact = assertOnlyKeys(
+				candidate,
+				['type', 'annotationIds', 'changes'],
+				'timeline annotation update-many command',
+			);
+			updateMany(
+				project,
+				exact.annotationIds,
+				exact.changes as TimelineAnnotationUpdateChanges,
+				mutationContext(project, context),
+			);
 			return;
-		case 'timeline-annotation/move-many':
-			assertOnlyKeys(
+		}
+		case 'timeline-annotation/move-many': {
+			const exact = assertOnlyKeys(
 				candidate,
 				['type', 'annotationIds', 'delta'],
 				'timeline annotation move-many command',
 			);
 			moveMany(
 				project,
-				candidate.annotationIds,
-				candidate.delta as TimelineAnnotationMoveDelta,
+				exact.annotationIds,
+				exact.delta as TimelineAnnotationMoveDelta,
 				mutationContext(project, context),
 			);
 			return;
-		case 'timeline-annotation/resize':
-			assertOnlyKeys(candidate, ['type', 'annotationId', 'edge', 'coordinate'], 'timeline annotation resize command');
+		}
+		case 'timeline-annotation/resize': {
+			const exact = assertOnlyKeys(
+				candidate,
+				['type', 'annotationId', 'edge', 'coordinate'],
+				'timeline annotation resize command',
+			);
 			resizeAnnotation(
 				project,
-				candidate.annotationId,
-				candidate.edge,
-				candidate.coordinate as TimelineAnnotationResizeCoordinate,
+				exact.annotationId,
+				exact.edge,
+				exact.coordinate as TimelineAnnotationResizeCoordinate,
 				mutationContext(project, context),
 			);
 			return;
-		case 'timeline-annotation/convert':
-			assertOnlyKeys(candidate, ['type', 'annotationId', 'coordinates'], 'timeline annotation convert command');
+		}
+		case 'timeline-annotation/convert': {
+			const exact = assertOnlyKeys(
+				candidate,
+				['type', 'annotationId', 'coordinates'],
+				'timeline annotation convert command',
+			);
 			convertAnnotation(
 				project,
-				candidate.annotationId,
-				candidate.coordinates as TimelineAnnotationConversionCoordinates,
+				exact.annotationId,
+				exact.coordinates as TimelineAnnotationConversionCoordinates,
 				mutationContext(project, context),
 			);
 			return;
-		case 'timeline-annotation/remove-many':
-			assertOnlyKeys(candidate, ['type', 'annotationIds'], 'timeline annotation remove-many command');
-			removeMany(project, candidate.annotationIds, mutationContext(project, context));
+		}
+		case 'timeline-annotation/remove-many': {
+			const exact = assertOnlyKeys(candidate, ['type', 'annotationIds'], 'timeline annotation remove-many command');
+			removeMany(project, exact.annotationIds, mutationContext(project, context));
 			return;
-		case 'timeline-annotation/batch-set':
-			assertOnlyKeys(candidate, ['type', 'annotationIds', 'batchId'], 'timeline annotation batch-set command');
-			setBatch(project, candidate.annotationIds, candidate.batchId, mutationContext(project, context));
+		}
+		case 'timeline-annotation/batch-set': {
+			const exact = assertOnlyKeys(
+				candidate,
+				['type', 'annotationIds', 'batchId'],
+				'timeline annotation batch-set command',
+			);
+			setBatch(project, exact.annotationIds, exact.batchId, mutationContext(project, context));
 			return;
+		}
 		default:
 			throw new RangeError(`Unsupported timeline annotation command: ${String(candidate.type)}.`);
 	}
@@ -123,8 +205,11 @@ function updateMany(
 	context: TimelineAnnotationCollectionContext,
 ): void {
 	const ids = targetIds(project, annotationIds);
-	const changes = commandRecord(changesValue, 'timeline annotation update changes');
-	assertOnlyKeys(changes, ['name', 'color'], 'timeline annotation update changes');
+	const changes = assertOnlyKeys(
+		commandRecord(changesValue, 'timeline annotation update changes'),
+		['name', 'color'],
+		'timeline annotation update changes',
+	);
 	if (!Object.keys(changes).length) throw new TypeError('Timeline annotation update changes cannot be empty.');
 	commitCandidate(project, annotationCollection(project).map((annotation) => (
 		ids.has(annotation.id) ? { ...annotation, ...changes } as TimelineAnnotationV11 : annotation
@@ -138,8 +223,11 @@ function moveMany(
 	context: TimelineAnnotationCollectionContext,
 ): void {
 	const ids = targetIds(project, annotationIds);
-	const delta = commandRecord(deltaValue, 'timeline annotation move delta');
-	assertOnlyKeys(delta, ['sampleFrames', 'beats'], 'timeline annotation move delta');
+	const delta = assertOnlyKeys(
+		commandRecord(deltaValue, 'timeline annotation move delta'),
+		['sampleFrames', 'beats'],
+		'timeline annotation move delta',
+	);
 	const sampleDelta = safeInteger(delta.sampleFrames, 'timeline annotation sample delta');
 	const musicalDelta = canonicalDelta(delta.beats, 'timeline annotation musical delta');
 	commitCandidate(project, annotationCollection(project).map((annotation) => (
@@ -307,7 +395,11 @@ function annotationCommon(annotation: TimelineAnnotationV11) {
 }
 
 function resizeCoordinate(value: unknown): TimelineAnnotationResizeCoordinate {
-	const candidate = commandRecord(value, 'timeline annotation resize coordinate');
+	const candidate = assertOnlyKeys(
+		commandRecord(value, 'timeline annotation resize coordinate'),
+		['anchor', 'frame', 'beat'],
+		'timeline annotation resize coordinate',
+	);
 	if (candidate.anchor === 'sample') {
 		assertOnlyKeys(candidate, ['anchor', 'frame'], 'timeline annotation resize coordinate');
 		return { anchor: 'sample', frame: nonNegativeSafeInteger(candidate.frame, 'annotation resize frame') };
@@ -320,7 +412,11 @@ function resizeCoordinate(value: unknown): TimelineAnnotationResizeCoordinate {
 }
 
 function conversionCoordinates(value: unknown): TimelineAnnotationConversionCoordinates {
-	const candidate = commandRecord(value, 'timeline annotation conversion coordinates');
+	const candidate = assertOnlyKeys(
+		commandRecord(value, 'timeline annotation conversion coordinates'),
+		['kind', 'anchor', 'positionFrame', 'positionBeat', 'startFrame', 'endFrame', 'startBeat', 'endBeat'],
+		'timeline annotation conversion coordinates',
+	);
 	if (candidate.kind === 'marker' && candidate.anchor === 'sample') {
 		assertOnlyKeys(candidate, ['kind', 'anchor', 'positionFrame'], 'timeline annotation conversion coordinates');
 		return {
@@ -336,7 +432,11 @@ function conversionCoordinates(value: unknown): TimelineAnnotationConversionCoor
 		};
 	}
 	if (candidate.kind === 'region' && candidate.anchor === 'sample') {
-		assertOnlyKeys(candidate, ['kind', 'anchor', 'startFrame', 'endFrame'], 'timeline annotation conversion coordinates');
+		assertOnlyKeys(
+			candidate,
+			['kind', 'anchor', 'startFrame', 'endFrame'],
+			'timeline annotation conversion coordinates',
+		);
 		return {
 			kind: 'region', anchor: 'sample',
 			startFrame: nonNegativeSafeInteger(candidate.startFrame, 'annotation conversion startFrame'),
@@ -344,7 +444,11 @@ function conversionCoordinates(value: unknown): TimelineAnnotationConversionCoor
 		};
 	}
 	if (candidate.kind === 'region' && candidate.anchor === 'musical') {
-		assertOnlyKeys(candidate, ['kind', 'anchor', 'startBeat', 'endBeat'], 'timeline annotation conversion coordinates');
+		assertOnlyKeys(
+			candidate,
+			['kind', 'anchor', 'startBeat', 'endBeat'],
+			'timeline annotation conversion coordinates',
+		);
 		return {
 			kind: 'region', anchor: 'musical',
 			startBeat: canonicalCoordinate(candidate.startBeat, 'annotation conversion startBeat'),
@@ -355,16 +459,14 @@ function conversionCoordinates(value: unknown): TimelineAnnotationConversionCoor
 }
 
 function canonicalCoordinate(value: unknown, name: string): Rational {
-	const candidate = commandRecord(value, name);
-	assertOnlyKeys(candidate, ['num', 'den'], name);
+	const candidate = assertOnlyKeys(commandRecord(value, name), ['num', 'den'], name);
 	const num = nonNegativeSafeInteger(candidate.num, `${name}.num`);
 	const den = positiveSafeInteger(candidate.den, `${name}.den`);
 	return exactNormalizedRational(num, den, name);
 }
 
 function canonicalDelta(value: unknown, name: string): Rational {
-	const candidate = commandRecord(value, name);
-	assertOnlyKeys(candidate, ['num', 'den'], name);
+	const candidate = assertOnlyKeys(commandRecord(value, name), ['num', 'den'], name);
 	const num = safeInteger(candidate.num, `${name}.num`);
 	const den = positiveSafeInteger(candidate.den, `${name}.den`);
 	return exactNormalizedRational(num, den, name);
@@ -400,10 +502,20 @@ function commandRecord(value: unknown, name: string): DataRecord {
 	return value as DataRecord;
 }
 
-function assertOnlyKeys(value: DataRecord, keys: readonly string[], name: string): void {
+function assertOnlyKeys(value: DataRecord, keys: readonly string[], name: string): DataRecord {
 	const allowed = new Set(keys);
-	const unsupported = Object.keys(value).find((key) => !allowed.has(key));
-	if (unsupported) throw new TypeError(`${name} contains an unsupported field: ${unsupported}.`);
+	const snapshot: DataRecord = Object.create(null) as DataRecord;
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== 'string' || !allowed.has(key)) {
+			throw new TypeError(`${name} contains an unsupported field: ${String(key)}.`);
+		}
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name}.${key} must be an own enumerable data property.`);
+		}
+		snapshot[key] = descriptor.value;
+	}
+	return snapshot;
 }
 
 function safeInteger(value: unknown, name: string): number {

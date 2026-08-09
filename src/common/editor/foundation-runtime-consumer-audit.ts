@@ -149,6 +149,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'Shared command helpers resolve individual clips while converting command results between runtime and wire domains.',
 	},
 	{
+		file: 'src/common/editor/commands/timeline-annotation-runtime.ts',
+		reason: 'Timeline annotation command reconciliation restores authoritative wire coordinates from a branded command projection; it is an edit adapter rather than a runtime consumer.',
+	},
+	{
 		file: 'src/common/editor/project-feature-requirements.ts',
 		reason: 'Owned feature-declaration reconciliation resolves a fallback target duration while validating persisted requirements.',
 	},

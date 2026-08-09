@@ -8,7 +8,8 @@ import {
 	type Rational,
 	type RationalInput,
 } from './timeline-time.ts';
-import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './project-v10-foundation-validation.ts';
+import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
+import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 import {
 	admitAudioEditorProjectV9ValidationStructure,
 	resolveAudioEditorProjectV9ValidationLimits,
@@ -86,6 +87,7 @@ export interface TimelineAnnotationCollectionContext extends TimelineAnnotationT
 }
 
 type DataRecord = Record<string, unknown>;
+type BeatFrameResolver = (beat: RationalInput) => number;
 
 const COMMON_KEYS = ['id', 'sequenceId', 'name', 'color', 'batchId', 'opaqueExtensions', 'kind', 'anchor'] as const;
 const SAMPLE_MARKER_KEYS = new Set([...COMMON_KEYS, 'positionFrame']);
@@ -111,12 +113,14 @@ export function createTimelineAnnotationsV11(
 	context: TimelineAnnotationCollectionContext,
 ): readonly TimelineAnnotationV11[] {
 	const candidates = annotationArray(value, 'project.timelineAnnotations');
+	const resolveBeatFrame = indexedBeatFrameResolver(context);
 	const annotations = candidates.map((candidate, index) => createAnnotation(
 		candidate,
 		context,
 		`project.timelineAnnotations[${String(index)}]`,
+		resolveBeatFrame,
 	));
-	validateAnnotationCollection(annotations, context, 'project.timelineAnnotations');
+	validateAnnotationCollection(annotations, context, 'project.timelineAnnotations', resolveBeatFrame);
 	return annotations;
 }
 
@@ -135,7 +139,12 @@ export function validateTimelineAnnotationsV11(
 	context: TimelineAnnotationCollectionContext,
 ): value is readonly TimelineAnnotationV11[] {
 	const annotations = annotationArray(value, 'project.timelineAnnotations');
-	validateAnnotationCollection(annotations, context, 'project.timelineAnnotations');
+	validateAnnotationCollection(
+		annotations,
+		context,
+		'project.timelineAnnotations',
+		indexedBeatFrameResolver(context),
+	);
 	return true;
 }
 
@@ -143,6 +152,7 @@ function createAnnotation(
 	value: unknown,
 	context: TimelineAnnotationTemporalContext,
 	name: string,
+	resolveBeatFrame?: BeatFrameResolver,
 ): TimelineAnnotationV11 {
 	const candidate = annotationRecord(value, name);
 	const kind = annotationKind(candidate.kind, `${name}.kind`);
@@ -183,7 +193,7 @@ function createAnnotation(
 			endBeat: normalizeCoordinate(candidate.endBeat, `${name}.endBeat`),
 		};
 	}
-	validateAnnotation(result, context, name);
+	validateAnnotation(result, context, name, resolveBeatFrame);
 	return result;
 }
 
@@ -191,6 +201,7 @@ function validateAnnotation(
 	value: unknown,
 	context: TimelineAnnotationTemporalContext,
 	name: string,
+	resolveBeatFrame?: BeatFrameResolver,
 ): asserts value is TimelineAnnotationV11 {
 	const candidate = annotationRecord(value, name);
 	const kind = annotationKind(candidate.kind, `${name}.kind`);
@@ -209,7 +220,7 @@ function validateAnnotation(
 	}
 	if (kind === 'marker') {
 		const beat = canonicalCoordinate(candidate.positionBeat, `${name}.positionBeat`);
-		assertResolvedPoint(beat, context.tempoMap, sampleRate, name);
+		assertResolvedPoint(beat, context.tempoMap, sampleRate, name, resolveBeatFrame);
 		return;
 	}
 	if (anchor === 'sample') {
@@ -221,8 +232,10 @@ function validateAnnotation(
 	const start = canonicalCoordinate(candidate.startBeat, `${name}.startBeat`);
 	const end = canonicalCoordinate(candidate.endBeat, `${name}.endBeat`);
 	if (compareRationals(start, end) >= 0) throw new RangeError(`${name} must have a positive musical region.`);
-	const resolvedStart = beatToSampleFrame(start, context.tempoMap, sampleRate, 'point');
-	const resolvedEnd = beatToSampleFrame(end, context.tempoMap, sampleRate, 'point');
+	const resolvedStart = resolveBeatFrame?.(start)
+		?? beatToSampleFrame(start, context.tempoMap, sampleRate, 'point');
+	const resolvedEnd = resolveBeatFrame?.(end)
+		?? beatToSampleFrame(end, context.tempoMap, sampleRate, 'point');
 	if (resolvedStart < 0 || resolvedEnd <= resolvedStart) {
 		throw new RangeError(`${name} must resolve to a positive sample region.`);
 	}
@@ -232,13 +245,14 @@ function validateAnnotationCollection(
 	annotations: readonly unknown[],
 	context: TimelineAnnotationCollectionContext,
 	name: string,
+	resolveBeatFrame: BeatFrameResolver,
 ): asserts annotations is readonly TimelineAnnotationV11[] {
 	const sequenceIds = sequenceIdSet(context?.sequenceIds);
 	const annotationIds = new Set<string>();
 	const batchSequences = new Map<string, string>();
 	for (const [index, annotation] of annotations.entries()) {
 		const itemName = `${name}[${String(index)}]`;
-		validateAnnotation(annotation, context, itemName);
+		validateAnnotation(annotation, context, itemName, resolveBeatFrame);
 		if (annotationIds.has(annotation.id)) {
 			throw new RangeError(`${name} cannot contain duplicate annotation ID: ${annotation.id}.`);
 		}
@@ -372,9 +386,20 @@ function assertClosedOwnDataRecord(value: DataRecord, allowed: ReadonlySet<strin
 	}
 }
 
-function assertResolvedPoint(beat: Rational, tempoMap: HoldTempoMap, sampleRate: number, name: string): void {
-	const resolved = beatToSampleFrame(beat, tempoMap, sampleRate, 'point');
+function assertResolvedPoint(
+	beat: Rational,
+	tempoMap: HoldTempoMap,
+	sampleRate: number,
+	name: string,
+	resolveBeatFrame?: BeatFrameResolver,
+): void {
+	const resolved = resolveBeatFrame?.(beat) ?? beatToSampleFrame(beat, tempoMap, sampleRate, 'point');
 	if (resolved < 0) throw new RangeError(`${name} must resolve to a non-negative sample position.`);
+}
+
+function indexedBeatFrameResolver(context: TimelineAnnotationTemporalContext): BeatFrameResolver {
+	const sampleRate = positiveSafeInteger(context?.sampleRate, 'annotation context sampleRate');
+	return createIndexedBeatFrameProjector(context.tempoMap, sampleRate);
 }
 
 function sequenceIdSet(value: Iterable<string> | undefined): ReadonlySet<string> {

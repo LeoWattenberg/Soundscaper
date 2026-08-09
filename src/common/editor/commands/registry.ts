@@ -39,6 +39,12 @@ import {
 	type TempoSignatureCommandHandlers,
 	type TempoSignatureCommandType,
 } from './tempo-signature.ts';
+import {
+	defineTimelineAnnotationCommandHandlers,
+	TIMELINE_ANNOTATION_COMMAND_TYPES,
+	type TimelineAnnotationCommandHandlers,
+	type TimelineAnnotationCommandType,
+} from './timeline-annotation.ts';
 
 export {
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
@@ -46,10 +52,12 @@ export {
 	defineEffectsVideoCommandHandlers,
 	defineProjectSourceBinCommandHandlers,
 	defineTempoSignatureCommandHandlers,
+	defineTimelineAnnotationCommandHandlers,
 	defineTrackMixerLabelCommandHandlers,
 	EFFECTS_VIDEO_COMMAND_TYPES,
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
+	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
 };
 
@@ -59,6 +67,7 @@ export interface EditorCommandHandlerDomains {
 	readonly trackMixerLabel: TrackMixerLabelCommandHandlers;
 	readonly clipRangeClipboard: ClipRangeClipboardCommandHandlers;
 	readonly effectsVideo: EffectsVideoCommandHandlers;
+	readonly timelineAnnotation: TimelineAnnotationCommandHandlers;
 }
 
 type RegisteredDomainCommandType =
@@ -66,7 +75,8 @@ type RegisteredDomainCommandType =
 	| TempoSignatureCommandType
 	| TrackMixerLabelCommandType
 	| ClipRangeClipboardCommandType
-	| EffectsVideoCommandType;
+	| EffectsVideoCommandType
+	| TimelineAnnotationCommandType;
 
 type DomainsAreExhaustive = [
 	Exclude<AudioEditorCommandType, RegisteredDomainCommandType>,
@@ -89,6 +99,7 @@ export function defineEditorCommandHandlerRegistry(
 		defineTrackMixerLabelCommandHandlers(domains.trackMixerLabel),
 		defineClipRangeClipboardCommandHandlers(domains.clipRangeClipboard),
 		defineEffectsVideoCommandHandlers(domains.effectsVideo),
+		defineTimelineAnnotationCommandHandlers(domains.timelineAnnotation),
 	] as const;
 	const combined: Partial<Record<AudioEditorCommandType, EditorCommandHandler>> = {};
 	for (const domain of domainRegistries) {

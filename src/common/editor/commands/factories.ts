@@ -21,6 +21,7 @@ import {
 } from '../project-v5.js';
 import { createVideoEffect } from '../video-effects.js';
 import { createMediaClipV8 } from '../project-v8.ts';
+import type { TimelineAnnotationV11 } from '../timeline-annotation.ts';
 import type {
 	AudioEditorCommand,
 	AudioEditorCommandType,
@@ -30,6 +31,10 @@ import type {
 	TempoEventCommandChanges,
 	TempoEventCommandValue,
 	TempoMapMode,
+	TimelineAnnotationConversionCoordinates,
+	TimelineAnnotationMoveDelta,
+	TimelineAnnotationResizeCoordinate,
+	TimelineAnnotationUpdateChanges,
 } from './protocol.ts';
 
 type CommandFor<Type extends AudioEditorCommandType> = Extract<AudioEditorCommand, { readonly type: Type }>;
@@ -189,6 +194,86 @@ export function createRemoveSignatureEventCommand(eventId: string): CommandFor<'
 	return { type: 'signature-event/remove', eventId: requireStableCommandId(eventId, 'signature event') };
 }
 
+export function createAddTimelineAnnotationCommand(
+	annotation: TimelineAnnotationV11,
+): CommandFor<'timeline-annotation/add'> {
+	if (!annotation || typeof annotation !== 'object' || Array.isArray(annotation)) {
+		throw new TypeError('Timeline annotation must be an object.');
+	}
+	requireCanonicalCommandId(annotation.id, 'timeline annotation');
+	return {
+		type: 'timeline-annotation/add',
+		annotation: cloneJsonSafeCommandValue(annotation, 'Timeline annotation'),
+	};
+}
+
+export function createUpdateTimelineAnnotationsCommand(
+	annotationIds: readonly string[],
+	changes: TimelineAnnotationUpdateChanges,
+): CommandFor<'timeline-annotation/update-many'> {
+	return {
+		type: 'timeline-annotation/update-many',
+		annotationIds: requireTimelineAnnotationIds(annotationIds),
+		changes: cloneJsonSafeCommandValue(changes, 'Timeline annotation changes'),
+	};
+}
+
+export function createMoveTimelineAnnotationsCommand(
+	annotationIds: readonly string[],
+	delta: TimelineAnnotationMoveDelta,
+): CommandFor<'timeline-annotation/move-many'> {
+	return {
+		type: 'timeline-annotation/move-many',
+		annotationIds: requireTimelineAnnotationIds(annotationIds),
+		delta: cloneJsonSafeCommandValue(delta, 'Timeline annotation move delta'),
+	};
+}
+
+export function createResizeTimelineAnnotationCommand(
+	annotationId: string,
+	edge: 'start' | 'end',
+	coordinate: TimelineAnnotationResizeCoordinate,
+): CommandFor<'timeline-annotation/resize'> {
+	if (edge !== 'start' && edge !== 'end') throw new RangeError('Timeline annotation edge must be start or end.');
+	return {
+		type: 'timeline-annotation/resize',
+		annotationId: requireCanonicalCommandId(annotationId, 'timeline annotation'),
+		edge,
+		coordinate: cloneJsonSafeCommandValue(coordinate, 'Timeline annotation resize coordinate'),
+	};
+}
+
+export function createConvertTimelineAnnotationCommand(
+	annotationId: string,
+	coordinates: TimelineAnnotationConversionCoordinates,
+): CommandFor<'timeline-annotation/convert'> {
+	return {
+		type: 'timeline-annotation/convert',
+		annotationId: requireCanonicalCommandId(annotationId, 'timeline annotation'),
+		coordinates: cloneJsonSafeCommandValue(coordinates, 'Timeline annotation conversion coordinates'),
+	};
+}
+
+export function createRemoveTimelineAnnotationsCommand(
+	annotationIds: readonly string[],
+): CommandFor<'timeline-annotation/remove-many'> {
+	return {
+		type: 'timeline-annotation/remove-many',
+		annotationIds: requireTimelineAnnotationIds(annotationIds),
+	};
+}
+
+export function createBatchSetTimelineAnnotationsCommand(
+	annotationIds: readonly string[],
+	batchId: string | null,
+): CommandFor<'timeline-annotation/batch-set'> {
+	return {
+		type: 'timeline-annotation/batch-set',
+		annotationIds: requireTimelineAnnotationIds(annotationIds),
+		batchId: batchId === null ? null : requireCanonicalCommandId(batchId, 'timeline annotation batch'),
+	};
+}
+
 function normalizeSourceValue(value: CommandFactoryValue): CommandObject {
 	if (value.sampleFrameCount != null || value.timingDecision != null) return structuredClone(value) as CommandObject;
 	if ((value.schemaVersion ?? 0) >= 5) return createMediaSourceV5(value) as CommandObject;
@@ -217,4 +302,73 @@ function normalizeClipValue(value: CommandFactoryValue): CommandObject {
 function requireStableCommandId(value: string, name: string): string {
 	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${name} ID must be a non-empty string.`);
 	return value;
+}
+
+function requireTimelineAnnotationIds(value: readonly string[]): readonly string[] {
+	if (!Array.isArray(value) || !value.length) {
+		throw new TypeError('Timeline annotation IDs must be a non-empty array.');
+	}
+	const ids = value.map((id) => requireCanonicalCommandId(id, 'timeline annotation'));
+	if (new Set(ids).size !== ids.length) throw new RangeError('Timeline annotation IDs cannot contain duplicates.');
+	return ids;
+}
+
+function requireCanonicalCommandId(value: string, name: string): string {
+	if (typeof value !== 'string' || !value.length || value !== value.trim()) {
+		throw new TypeError(`${name} ID must be a canonical non-empty string.`);
+	}
+	return value;
+}
+
+function cloneJsonSafeCommandValue<Value>(value: Value, name: string): Value {
+	assertJsonSafeCommandValue(value, name, new Set<object>());
+	const serialized = JSON.stringify(value);
+	if (serialized === undefined) throw new TypeError(`${name} must be JSON-safe.`);
+	return JSON.parse(serialized) as Value;
+}
+
+function assertJsonSafeCommandValue(value: unknown, name: string, ancestors: Set<object>): void {
+	if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
+	if (typeof value === 'number') {
+		if (!Number.isFinite(value) || Object.is(value, -0)) {
+			throw new TypeError(`${name} must contain only exact finite JSON numbers.`);
+		}
+		return;
+	}
+	if (typeof value !== 'object') throw new TypeError(`${name} must be JSON-safe.`);
+	if (ancestors.has(value)) throw new TypeError(`${name} cannot contain a cyclic value.`);
+	ancestors.add(value);
+	if (Array.isArray(value)) {
+		for (let index = 0; index < value.length; index += 1) {
+			if (!Object.hasOwn(value, index)) throw new TypeError(`${name} cannot contain a sparse array.`);
+			assertJsonSafeCommandValue(value[index], `${name}[${String(index)}]`, ancestors);
+		}
+		for (const key of Reflect.ownKeys(value)) {
+			if (key === 'length') continue;
+			if (typeof key !== 'string') throw new TypeError(`${name} cannot contain symbol fields.`);
+			const index = Number(key);
+			if (!Number.isSafeInteger(index) || index < 0 || index >= value.length || String(index) !== key) {
+				throw new TypeError(`${name} contains a non-JSON array field: ${key}.`);
+			}
+			const descriptor = Object.getOwnPropertyDescriptor(value, key);
+			if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+				throw new TypeError(`${name}[${key}] must be an own enumerable data property.`);
+			}
+		}
+		ancestors.delete(value);
+		return;
+	}
+	const prototype = Object.getPrototypeOf(value);
+	if (prototype !== Object.prototype && prototype !== null) {
+		throw new TypeError(`${name} must contain only plain JSON objects.`);
+	}
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== 'string') throw new TypeError(`${name} cannot contain symbol fields.`);
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name}.${key} must be an own enumerable data property.`);
+		}
+		assertJsonSafeCommandValue(descriptor.value, `${name}.${key}`, ancestors);
+	}
+	ancestors.delete(value);
 }

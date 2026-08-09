@@ -13,6 +13,7 @@ const enabled: EditorCommandCapabilities = {
 	audioEffects: true,
 	audioRecording: true,
 	audioSpectralEditing: true,
+	timelineAnnotations: true,
 	videoEffects: true,
 };
 
@@ -34,6 +35,21 @@ test('command capability policy accepts unrestricted commands and recursively va
 		() => assertEditorCommandCapabilities(nested, { ...enabled, videoEffects: false }, 'Audio only'),
 		/Audio only does not support videoEffects\./u,
 	);
+	const nestedAnnotation: AudioEditorCommand = {
+		type: 'batch',
+		commands: [{
+			type: 'batch',
+			commands: [{ type: 'timeline-annotation/remove-many', annotationIds: ['annotation'] }],
+		}],
+	};
+	assert.throws(
+		() => assertEditorCommandCapabilities(
+			nestedAnnotation,
+			{ ...enabled, timelineAnnotations: false },
+			'Framescaper',
+		),
+		/Framescaper does not support timelineAnnotations\./u,
+	);
 });
 
 test('command capability policy covers every product-sensitive payload path', () => {
@@ -54,6 +70,8 @@ test('command capability policy covers every product-sensitive payload path', ()
 		{ capability: 'audioEffects', command: { type: 'mixer/bus-update', busType: 'send', busId: 'send', changes: { effects: [] } } },
 		{ capability: 'audioSpectralEditing', command: { type: 'track/update', trackId: 'track', changes: { displayMode: 'spectrogram' } } },
 		{ capability: 'audioRecording', command: { type: 'track/update', trackId: 'track', changes: { armed: true } } },
+		{ capability: 'timelineAnnotations', command: { type: 'timeline-annotation/remove-many', annotationIds: ['annotation'] } },
+		{ capability: 'timelineAnnotations', command: { type: 'selection/set', startFrame: 0, endFrame: 0, annotationIds: [] } },
 	];
 
 	for (const { capability, command } of cases) {
