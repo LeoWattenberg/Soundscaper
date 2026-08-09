@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	SCAPE_FORMAT,
 	SCAPE_FORMAT_VERSION,
@@ -82,7 +82,7 @@ function syntheticTimingArchive(options: Readonly<{
 	timingBytes: Uint8Array;
 	emittedOriginalBytes?: Uint8Array;
 }>) {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'scape-timing-integrity',
 		sources: [{
 			id: 'video-source',

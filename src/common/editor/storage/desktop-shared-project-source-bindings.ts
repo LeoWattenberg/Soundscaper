@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../project-v10-validation.ts';
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../project-current.ts';
 import { collectProjectSourceIds } from '../retention.js';
 
 export type CapturedSource = CapturedAudioSource | CapturedVideoSource;
@@ -58,7 +58,7 @@ export class DesktopSharedProjectSourceUnavailableError extends Error {
 	}
 }
 
-export function captureReachableSources(project: AudioEditorProjectV10): readonly CapturedSource[] {
+export function captureReachableSources(project: AudioEditorProjectCurrent): readonly CapturedSource[] {
 	const sourceById = new Map(project.sources.map((source) => [String(source.id), source]));
 	const captured: CapturedSource[] = [];
 	for (const sourceId of collectProjectSourceIds(project)) {
@@ -146,11 +146,11 @@ export function assertPriorBindings(
 	if (!untrusted.length) return;
 	if (priorLocalProject == null) unavailable(untrusted[0] as CapturedSource);
 	try {
-		validateAudioEditorProjectV10(priorLocalProject);
+		validateCurrentAudioEditorProject(priorLocalProject);
 	} catch (cause) {
 		unavailable(untrusted[0] as CapturedSource, cause);
 	}
-	const prior = priorLocalProject as AudioEditorProjectV10;
+	const prior = priorLocalProject as AudioEditorProjectCurrent;
 	if (prior.id !== projectId) unavailable(untrusted[0] as CapturedSource);
 	const priorById = new Map(prior.sources.map((source) => [String(source.id), captureSource(source)]));
 	for (const source of untrusted) {

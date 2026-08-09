@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
@@ -133,7 +133,7 @@ test('editor service rejects generated entry ids that cannot form portable proje
 	assert.deepEqual(host.readCatalog().projects, []);
 });
 
-test('editor service requires a bounded exact-V10 root envelope without publishing rejected input', async (context) => {
+test('editor service requires a bounded exact-current root envelope without publishing rejected input', async (context) => {
 	const fixture = await createFixture(context);
 	const host = await startHost(fixture.appDataRoot, OWNER);
 	context.after(() => host.close());
@@ -160,7 +160,7 @@ test('editor service requires a bounded exact-V10 root envelope without publishi
 		channelCount: 2,
 		sampleRate: 48_000,
 	});
-	const withSource = createAudioEditorProjectV10({
+	const withSource = createCurrentAudioEditorProject({
 		id: 'domain-project-1',
 		title: 'Domain project',
 		revision: 1,
@@ -173,7 +173,7 @@ test('editor service requires a bounded exact-V10 root envelope without publishi
 		durationFrames: 48_000,
 	});
 	const track = createAudioTrackV9({ id: 'domain-track-1', clipIds: [clip.id] });
-	const withGraph = createAudioEditorProjectV10({
+	const withGraph = createCurrentAudioEditorProject({
 		id: 'domain-graph-project-1',
 		title: 'Domain graph project',
 		revision: 1,
@@ -184,7 +184,7 @@ test('editor service requires a bounded exact-V10 root envelope without publishi
 	});
 	for (const candidate of [
 		{ ...current, schemaVersion: 8 },
-		{ ...current, schemaVersion: 11 },
+		{ ...current, schemaVersion: 12 },
 		{ ...current, id: '' },
 		{ ...current, id: 'x'.repeat(4 * 1024 + 1) },
 		{ ...current, title: 'x'.repeat(256) },
@@ -397,7 +397,7 @@ test('canonical source references remain metadata-only and do not claim managed 
 		channelCount: 2,
 		sampleRate: 48_000,
 	});
-	const document = serializeScapeProjectDocument(createAudioEditorProjectV10({
+	const document = serializeScapeProjectDocument(createCurrentAudioEditorProject({
 		id: 'source-metadata-project',
 		title: 'Source metadata project',
 		revision: 1,
@@ -515,7 +515,7 @@ function startHost(appDataPath: string, owner: DesktopLibraryOwner) {
 }
 
 function currentDocument(revision: number): string {
-	return serializeScapeProjectDocument(createAudioEditorProjectV10({
+	return serializeScapeProjectDocument(createCurrentAudioEditorProject({
 		id: 'editor-project-1',
 		title: 'Editor project',
 		revision,

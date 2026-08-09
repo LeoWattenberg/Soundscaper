@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -75,7 +75,7 @@ test('a managed-media stage write that runs out of space refuses with a typed te
 	const root = await mkdtemp(join(tmpdir(), 'scape-media-space-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const state = {
-		metadata: validateDesktopLibraryMetadata({ schemaVersion: 2, revision: 0, projects: [], media: [] }),
+		metadata: validateDesktopLibraryMetadata({ schemaVersion: 3, revision: 0, projects: [], media: [] }),
 	};
 	const catalog: DesktopLibraryMediaCatalogPort = {
 		readMetadata: () => state.metadata,
@@ -138,7 +138,7 @@ function failingStageOpen(exhaustion: Readonly<{ active: boolean }>, code: strin
 }
 
 function currentProject(revision: number) {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'project / identity',
 		title: 'Shared project',
 		revision,

@@ -5,6 +5,7 @@ import {
 	audacityXmlChildren,
 } from './audacity-binary-xml.js';
 import { readAup4EffectsNode } from './aup4-effects.js';
+import { cloneAup4OpaqueProjectValue as cloneOpaqueValue } from './aup4-opaque-persistence.ts';
 import {
 	addAup4CompatibilityItem,
 	createAup4CompatibilityReport,
@@ -14,9 +15,9 @@ import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
 import {
 	createLabelV2,
 } from './project-v2.js';
+import { createCurrentAudioEditorProject } from './project-current.ts';
 import {
 	createAudioClipV10,
-	createAudioEditorProjectV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
 	createLabelTrackV10,
@@ -295,7 +296,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 		kind: 'master',
 	}, idFactory, (active) => { masterEffectsActive = active; });
 	const importedTempoBpm = finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 1000, 120);
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: options.projectId || idFactory('project'),
 		title,
 		sampleRate: projectRate,
@@ -330,7 +331,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 			effects: masterEffects,
 		},
 		opaqueExtensions: {
-			aup4RootAttributes: audacityXmlAttributes(root).map((entry) => ({ ...entry })),
+			aup4RootAttributes: audacityXmlAttributes(root).map(cloneOpaqueValue),
 			aup4RootTemplate: opaqueRootTemplate(root, masterEffectsNode),
 			aup4MasterEffectsContentIndex: masterEffectsContentIndex,
 			aup4UnknownNodes: root.content.filter((entry) => entry.kind === 'node' && !knownRootChildren.has(entry.node.name)).map((entry) => opaqueNode(entry.node)),
@@ -666,7 +667,7 @@ function countWaveBlocks(root) {
 	return count;
 }
 
-function opaqueNode(node) { return node ? { kind: 'node', node } : null; }
+function opaqueNode(node) { return node ? { kind: 'node', node: cloneOpaqueValue(node) } : null; }
 function opaqueWaveTrackNode(node) {
 	if (!node) return null;
 	return {
@@ -717,10 +718,6 @@ function findNodeContentIndex(parent, node) {
 	return (parent.content || [])
 		.filter((entry) => entry.kind !== 'attribute')
 		.findIndex((entry) => entry.kind === 'node' && entry.node === node);
-}
-function cloneOpaqueValue(value) {
-	if (typeof structuredClone === 'function') return structuredClone(value);
-	return JSON.parse(JSON.stringify(value));
 }
 function cloneOpaqueEntryWithoutWaveClips(entry) {
 	if (entry?.kind !== 'node') return cloneOpaqueValue(entry);

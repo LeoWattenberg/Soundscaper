@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../project-v10-validation.ts';
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../project-current.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../scape-archive-envelope.ts';
 import {
@@ -76,8 +76,8 @@ export async function prepareDesktopSharedProjectMediaHandoff(
 	store: DesktopSharedMediaSenderStore,
 	options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<readonly DesktopSharedManagedSourceDescriptor[]> {
-	validateAudioEditorProjectV10(projectValue);
-	const project = projectValue as AudioEditorProjectV10;
+	validateCurrentAudioEditorProject(projectValue);
+	const project = projectValue as AudioEditorProjectCurrent;
 	const sources = await preflightSenderSources(project, store, options.signal);
 	if (!sources.length) return Object.freeze([]);
 	const bridge = transferBridge(bridgeValue);
@@ -105,8 +105,8 @@ export async function prepareDesktopSharedProjectAudioHandoff(
 	store: Pick<DesktopSharedSourceTransferStore, 'readSourceChunks'>,
 	options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<readonly DesktopSharedManagedSourceDescriptor[]> {
-	validateAudioEditorProjectV10(projectValue);
-	const project = projectValue as AudioEditorProjectV10;
+	validateCurrentAudioEditorProject(projectValue);
+	const project = projectValue as AudioEditorProjectCurrent;
 	for (const source of reachableProjectSources(project)) {
 		if (source.kind === 'video') {
 			throw new Error(`PCM-only desktop shared handoff does not support reachable video source ${source.id}.`);
@@ -116,7 +116,7 @@ export async function prepareDesktopSharedProjectAudioHandoff(
 }
 
 async function preflightSenderSources(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	store: DesktopSharedMediaSenderStore,
 	signal?: AbortSignal,
 ): Promise<readonly PreparedSource[]> {
@@ -177,7 +177,7 @@ function uniquePhysicalSources(sources: readonly ManagedSource[]): readonly Mana
 }
 
 async function publishAudioSource(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	source: ManagedAudioSource,
 	bridge: DesktopSharedSourceTransferBridge,
 	store: Pick<DesktopSharedSourceTransferStore, 'readSourceChunks'>,
@@ -229,7 +229,7 @@ async function publishAudioSource(
 }
 
 async function publishVideoSource(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	prepared: Extract<PreparedSource, { readonly kind: 'video' }>,
 	bridge: DesktopSharedSourceTransferBridge,
 	store: Required<Pick<DesktopSharedSourceTransferStore, 'getMediaAssetMetadata' | 'loadMediaAsset'>>,

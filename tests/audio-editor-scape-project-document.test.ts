@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { preflightScapeProjectJsonStructure } from '../src/common/editor/scape-project-json-preflight.ts';
 
 interface ScapeProjectBinaryLimits {
@@ -117,7 +118,7 @@ test('the Scape project binary codec exposes frozen lower-only production limits
 	}
 });
 
-test('schema 10 serializes canonical tags and restores explicit binary types byte-exactly', () => {
+test('the exact current schema serializes canonical tags and restores explicit binary types byte-exactly', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
 	const storage = Uint8Array.from([99, 0, 1, 2, 253, 254, 255, 88]);
@@ -166,10 +167,10 @@ test('schema 10 serializes canonical tags and restores explicit binary types byt
 	assert.equal(decoded.opaqueExtensions.empty.byteLength, 0);
 });
 
-test('only exact schema 10 receives binary tag traversal', () => {
+test('only the exact current schema receives binary tag traversal', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
-	for (const schemaVersion of [8, 11, '9']) {
+	for (const schemaVersion of [8, 10, 12, '11']) {
 		const value = {
 			schemaVersion,
 			opaqueExtensions: {
@@ -188,12 +189,12 @@ test('non-current schemas retain ordinary values but receive structural JSON adm
 	const { parse } = codecFunctions();
 	if (!parse) return;
 	const future = {
-		schemaVersion: 11,
+		schemaVersion: 12,
 		opaqueExtensions: { candidate: binaryTag() },
 	};
 	assert.deepEqual(parse(JSON.stringify(future)), future);
 	const overBudget = JSON.stringify({
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		items: Array.from({ length: 12 }, (_, index) => index),
 	});
 	assert.throws(() => parse(overBudget, { limits: {
@@ -358,7 +359,7 @@ test('current-schema serialization rejects reserved collisions without activatin
 	assert.throws(() => serialize(currentProject({ unsupported: new DataView(new ArrayBuffer(1)) })), /only Uint8Array/iu);
 });
 
-test('schema 10 preserves non-callable toJSON data while rejecting hooks and accessors', () => {
+test('the exact current schema preserves non-callable toJSON data while rejecting hooks and accessors', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
 	const text = serialize(currentProject({ toJSON: 'ordinary opaque data' }));
@@ -369,7 +370,7 @@ test('schema 10 preserves non-callable toJSON data while rejecting hooks and acc
 		enumerable: true,
 		get() {
 			activations += 1;
-			return 10;
+			return AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
 		},
 	});
 	assert.throws(() => serialize(root), /schemaVersion.*accessor/iu);
@@ -382,7 +383,7 @@ test('schema 10 preserves non-callable toJSON data while rejecting hooks and acc
 	assert.throws(() => serialize(currentProject(hookedArray)), /toJSON hooks/iu);
 	assert.equal(activations, 0);
 	class ProjectRoot {
-		readonly schemaVersion = 10;
+		readonly schemaVersion = AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
 		readonly opaqueExtensions = {};
 	}
 	assert.throws(() => serialize(new ProjectRoot()), /plain object/iu);
@@ -421,11 +422,11 @@ test('lowered traversal limits remain round-trip closed for encoded binary descr
 		maximumTraversalDepth: 1,
 	};
 	const document = serialize({
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		bytes: new Uint8Array([1]),
 	}, { limits });
 	assert.deepEqual(parse(document, { limits }), {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		bytes: new Uint8Array([1]),
 	});
 });
@@ -480,7 +481,7 @@ test('JSON structural preflight counts valid lexical forms and duplicate members
 	}), /node limit/iu);
 });
 
-test('schema 10 serialization rejects cycles before JSON serialization', () => {
+test('exact-current serialization rejects cycles before JSON serialization', () => {
 	const { serialize } = codecFunctions();
 	if (!serialize) return;
 	const opaqueExtensions: Record<string, unknown> = {};
@@ -524,7 +525,7 @@ function codecFunctions(): Readonly<{
 }
 
 function currentProject(opaqueExtensions: unknown): Record<string, unknown> {
-	return { schemaVersion: 10, opaqueExtensions };
+	return { schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, opaqueExtensions };
 }
 
 function binaryTag(overrides: Partial<BinaryDescriptor> = {}): Record<string, BinaryDescriptor> {

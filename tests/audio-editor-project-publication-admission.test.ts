@@ -9,11 +9,12 @@ import {
 	estimateProjectRevisionPublication,
 	projectRevisionPublicationCapacityRequirement,
 } from '../src/common/editor/project-publication-admission.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 test('project revision publication counts exact canonical UTF-8 payloads twice', () => {
 	const project = {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		id: 'project-non-ascii',
 		title: 'Grüße 🎛️',
 		opaqueExtensions: {

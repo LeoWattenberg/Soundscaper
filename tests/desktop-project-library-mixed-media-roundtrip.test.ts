@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -249,7 +249,7 @@ function mixedProjectFixture() {
 		id: 'roundtrip-bin-video', binItemId: 'roundtrip-bin-item', sourceId: video.id,
 		title: 'Original picture master', durationFrames: 48_000, sourceDurationFrames: 48_000,
 	});
-	const project = exactProject(createAudioEditorProjectV10({
+	const project = exactProject(createCurrentAudioEditorProject({
 		id: 'mixed-media-roundtrip-project', title: 'Mixed media roundtrip', revision: 3,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: 48_000,
 		sources: [audio, video], clips: [audioClip, videoClip],
@@ -489,13 +489,13 @@ async function assertManagedBodiesReused(
 	}
 }
 
-async function projectHistory(store: AudioEditorProjectStore, projectId: string): Promise<AudioEditorProjectV10[]> {
+async function projectHistory(store: AudioEditorProjectStore, projectId: string): Promise<AudioEditorProjectCurrent[]> {
 	return (await store.listProjectRevisions(projectId)).map(({ project }) => exactProject(project));
 }
 
-function exactProject(value: unknown): AudioEditorProjectV10 {
+function exactProject(value: unknown): AudioEditorProjectCurrent {
 	const project = typeof value === 'string' ? parseScapeProjectDocument(value) : value;
-	if (!validateAudioEditorProjectV10(project)) throw new TypeError('Expected an exact-V10 project.');
+	if (!validateCurrentAudioEditorProject(project)) throw new TypeError('Expected an exact-current project.');
 	if (typeof value === 'string') assert.equal(serializeScapeProjectDocument(project), value);
 	return project;
 }

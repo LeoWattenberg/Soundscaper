@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -118,7 +118,7 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 		name: 'Linked portable audio',
 		clipIds: [clip.id],
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'linked-scape-portable-project',
 		title: 'Linked Scape portability',
 		now: '2026-08-02T10:00:00.000Z',
@@ -172,7 +172,7 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 	}));
 	await recipient.ready();
 	const imported = await importScapeProject(exported.blob, recipient) as {
-		readonly project: AudioEditorProjectV10;
+		readonly project: AudioEditorProjectCurrent;
 	};
 	const importedSource = imported.project.sources.find(({ kind }) => kind === 'audio');
 	assert.ok(importedSource);
@@ -195,7 +195,7 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 	await reopened.ready();
 	const reopenedValue = await reopened.loadProject(imported.project.id);
 	assert.ok(reopenedValue);
-	const reopenedProject = reopenedValue as unknown as AudioEditorProjectV10;
+	const reopenedProject = reopenedValue as unknown as AudioEditorProjectCurrent;
 	const reopenedSource = reopenedProject.sources.find(({ kind }) => kind === 'audio');
 	assert.ok(reopenedSource);
 	assert.equal(reopenedSource.storageKey, SOURCE_ID);

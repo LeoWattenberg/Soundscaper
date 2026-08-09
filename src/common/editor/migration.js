@@ -3,8 +3,8 @@
 import { normalizeEffect } from './effects.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	loadAudioEditorProjectV10,
-} from './project-v10.ts';
+	loadCurrentAudioEditorProject,
+} from './project-current.ts';
 
 function clone(value) {
 	if (value === undefined || value === null) return value;
@@ -32,7 +32,7 @@ export class AudioEditorProjectReimportRequiredError extends RangeError {
  */
 export function migrateAudioEditorProject(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A saved project is required.');
-	const schemaVersion = Number(value.schemaVersion);
+	const schemaVersion = value.schemaVersion;
 	if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(value.schemaVersion)}.`);
 	}
@@ -48,7 +48,7 @@ export function migrateAudioEditorProject(value) {
 	if (schemaVersion < AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new AudioEditorProjectReimportRequiredError(schemaVersion);
 	}
-	const loaded = loadAudioEditorProjectV10(value);
+	const loaded = loadCurrentAudioEditorProject(value);
 	const normalized = (value.tracks || []).some((track) => track?.type !== 'label' && (
 		Object.hasOwn(track, 'channelCount')
 		|| Object.hasOwn(track, 'channelLayout')

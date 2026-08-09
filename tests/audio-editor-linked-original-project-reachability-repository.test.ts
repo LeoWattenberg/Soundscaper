@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -227,14 +227,14 @@ function rootedProject(
 	revision: number,
 	audio?: TestSource,
 	video?: TestSource,
-): AudioEditorProjectV10 {
+): AudioEditorProjectCurrent {
 	const audioClip = audio ? createAudioClipV9({
 		id: 'audio-clip', sourceId: audio.id, durationFrames: 120, sourceDurationFrames: 120,
 	}) : null;
 	const videoClip = video ? createVideoClipV9({
 		id: 'video-clip', sourceId: video.id, durationFrames: 120, sourceDurationFrames: 120,
 	}) : null;
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: PROJECT_ID,
 		title: 'Linked original reachability',
 		revision,

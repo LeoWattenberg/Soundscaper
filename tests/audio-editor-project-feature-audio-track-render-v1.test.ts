@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -64,7 +64,7 @@ function fixture(requirements: unknown = manifest()) {
 	const dryClip = createAudioClipV9({
 		id: 'dry-clip', sourceId: drySource.id, timelineStartFrame: 0, durationFrames: 300,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'track-fallback-project', now: '2026-08-08T10:00:00.000Z', sampleRate: 48_000,
 		sources: [laneSource, drySource, fallbackSource],
 		clips: [laneClipA, dryClip, laneClipB],

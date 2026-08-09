@@ -22,6 +22,21 @@ function apply(project, command) {
 	return applyEditorCommand(project, command, { now: '2026-07-13T00:00:00.000Z' });
 }
 
+test('historical projects cannot opt into V11 annotation selection through opaque fields', () => {
+	const project = {
+		...createAudioEditorProjectV2({ now: '2026-07-12T00:00:00.000Z' }),
+		timelineAnnotations: [{ id: 'opaque-annotation' }],
+	};
+
+	assert.equal(validateAudioEditorProject(project), true);
+	assert.throws(() => apply(project, {
+		type: 'selection/set',
+		startFrame: 0,
+		endFrame: 0,
+		annotationIds: ['opaque-annotation'],
+	}), /annotation selection.*V11|V11.*annotation selection/iu);
+});
+
 test('V2 commands preserve arbitrary rates and nondestructive clip properties', () => {
 	let project = createAudioEditorProjectV2({
 		id: 'v2-project',

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -42,7 +42,7 @@ test('managed acquisition rolls back when the local shadow save fails', async ()
 test('managed acquisition rolls back every shadow result that is not the exact authoritative snapshot', async (context) => {
 	const cases: readonly Readonly<{
 		label: string;
-		mutate(project: AudioEditorProjectV10): ProjectDocument;
+		mutate(project: AudioEditorProjectCurrent): ProjectDocument;
 		pattern: RegExp;
 	}>[] = [
 		{
@@ -102,7 +102,7 @@ test('an accepted shadow commits managed acquisition before observing late cance
 });
 
 function managedLoadScenario(
-	save: (project: AudioEditorProjectV10) => Promise<ProjectDocument>,
+	save: (project: AudioEditorProjectCurrent) => Promise<ProjectDocument>,
 ) {
 	const source = createAudioSourceV9({
 		id: 'managed-load-source',
@@ -122,7 +122,7 @@ function managedLoadScenario(
 		durationFrames: 1,
 		sourceDurationFrames: 1,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'managed-load-project',
 		title: 'Managed load project',
 		revision: 4,
@@ -159,7 +159,7 @@ function managedLoadScenario(
 }
 
 function managedBridge(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	descriptor: DesktopSharedManagedSourceDescriptor,
 	body: Uint8Array,
 ): DesktopSharedProjectBridge {
@@ -264,10 +264,10 @@ function availableAudio(
 }
 
 function shadowRepository(
-	save: (project: AudioEditorProjectV10) => Promise<ProjectDocument>,
+	save: (project: AudioEditorProjectCurrent) => Promise<ProjectDocument>,
 ): ProjectRepositoryPort {
 	return {
-		save: (project) => save(project as AudioEditorProjectV10),
+		save: (project) => save(project as AudioEditorProjectCurrent),
 		load: async () => null,
 		list: async () => [],
 		listRevisions: async () => [],

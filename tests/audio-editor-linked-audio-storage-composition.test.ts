@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -160,7 +160,7 @@ test('generic lifecycle retires audio and legacy-video locators through one kind
 		frameCount: 2, sampleRate: 48_000, width: 16, height: 9, frameRate: 30,
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'mixed-linked-project',
 		sources: [audio, video],
 		clips: [
@@ -169,6 +169,7 @@ test('generic lifecycle retires audio and legacy-video locators through one kind
 				durationFrames: 2, sourceDurationFrames: 2,
 			}),
 		],
+		tracks: [createAudioTrackV9({ id: 'linked-audio-track', clipIds: ['linked-audio-clip'] })],
 	});
 
 	await store.bindLinkedAudioOriginal(project.id, audio, LOCATOR_ID, {
@@ -284,7 +285,7 @@ function audioProject(id: string, source: ReturnType<typeof audioSource>) {
 		id: `${id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id,
 		sources: [source],
 		clips: [clip],

@@ -4,8 +4,8 @@ import test from 'node:test';
 import { convertLegacyAupToProject } from '../src/common/editor/aup-legacy-conversion.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	validateAudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 test('legacy AUP conversion materializes audio and labels without a dry mix', () => {
 	const ids = ['project', 'track', 'source', 'clip', 'labels', 'label'];
@@ -45,7 +45,7 @@ test('legacy AUP conversion materializes audio and labels without a dry mix', ()
 	assert.equal(converted.project.clips[0].pitchCents, 200);
 	assert.equal(converted.project.tracks[1].labels[0].startFrame, 88_200);
 	assert.equal(converted.sources[0].channels.length, 2);
-	assert.equal(validateAudioEditorProjectV10(converted.project), true);
+	assert.equal(validateCurrentAudioEditorProject(converted.project), true);
 });
 
 test('legacy AUP conversion canonicalizes its floating tempo into a bounded rational root', () => {
@@ -59,5 +59,5 @@ test('legacy AUP conversion canonicalizes its floating tempo into a bounded rati
 	});
 	assert.deepEqual(converted.project.tempoMap.events[0].bpm, { num: 100, den: 3 });
 	assert.equal(converted.project.tempo.bpm, 100 / 3);
-	assert.equal(validateAudioEditorProjectV10(converted.project), true);
+	assert.equal(validateCurrentAudioEditorProject(converted.project), true);
 });

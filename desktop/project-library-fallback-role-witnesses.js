@@ -3,7 +3,7 @@
 import {
 	DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
 	createDesktopSmokeProjectFoundation,
-} from './project-library-smoke-project-v10.js';
+} from './project-library-smoke-project.js';
 
 export const DESKTOP_PROJECT_LIBRARY_FALLBACK_ROLE_IDS = Object.freeze([
 	'project-audio-mix-v1',
@@ -135,7 +135,14 @@ function createDocument({
 		metadata: {
 			title, artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {}, bext: null, adm: null,
 		},
-		selection: { startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], frequencyRange: null },
+		selection: {
+			startFrame: 0,
+			endFrame: 0,
+			trackIds: [],
+			clipIds: [],
+			annotationIds: [],
+			frequencyRange: null,
+		},
 		loop: { enabled: false, startFrame: 0, endFrame: 0 },
 		view: {
 			scrollFrame: 0, pixelsPerSecond: 100, playheadFrame: 0, zoom: 100,

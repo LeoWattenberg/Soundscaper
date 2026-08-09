@@ -11,8 +11,8 @@ import {
 	videoClipPlaybackRate,
 } from '../src/common/editor/video-source-time.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
-	createAudioEditorProjectV10,
 	createVideoClipV10,
 	createVideoSourceV10,
 	createVideoTrackV10,
@@ -91,7 +91,7 @@ test('VFR preview mapping and export use one exact PTS span', () => {
 		sequenceStartFrame: 0, sequenceFrameCount: 3,
 		sourceInFrame: 0, sourceFrameCount: 3,
 	}, { projectSampleRate: 10_000, sequence, source });
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'vfr-export', sampleRate: 10_000,
 		sequences: [sequence], primarySequenceId: sequence.id,
 		sources: [source], clips: [clip],

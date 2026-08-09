@@ -61,6 +61,13 @@ export function validateAudioEditorProjectV10(
 	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${String(candidate.schemaVersion)}.`);
 	}
+	if (Object.hasOwn(candidate, 'timelineAnnotations')) {
+		throw new RangeError('project.timelineAnnotations belongs to schema V11 and cannot appear in V10.');
+	}
+	const selection = projectRecord(candidate.selection, 'project.selection');
+	if (Object.hasOwn(selection, 'annotationIds')) {
+		throw new RangeError('project.selection.annotationIds belongs to schema V11 and cannot appear in V10.');
+	}
 	if (Object.hasOwn(candidate, 'runtimeProjectionVersion')) {
 		throw new RangeError('A persisted project cannot contain a runtime projection marker.');
 	}

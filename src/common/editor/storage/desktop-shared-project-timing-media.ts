@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorProjectV10 } from '../project-v10-validation.ts';
+import type { AudioEditorProjectCurrent } from '../project-current.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../scape-archive-envelope.ts';
 import { createScapeDigest, scapeHex } from '../scape-archive-media.ts';
@@ -56,7 +56,7 @@ export async function preflightDesktopSharedTimingAsset(
 }
 
 export async function publishDesktopSharedTimingAsset(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	prepared: PreparedDesktopSharedTimingAsset,
 	bridge: DesktopSharedSourceTransferBridge,
 	store: TimingStore,

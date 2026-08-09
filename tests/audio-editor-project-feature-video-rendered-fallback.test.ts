@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -75,7 +78,7 @@ function project(featureId: string = VIDEO_EFFECTS) {
 	const audioTrack = createAudioTrackV9({ id: 'audio-track', clipIds: [audioClip.id] });
 	const videoTrack = createVideoTrackV9({ id: 'video-track', clipIds: [videoClip.id], mute: true });
 	const labelTrack = createLabelTrackV9({ id: 'label-track', labels: [] });
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'project-a', now: '2026-08-01T12:00:00.000Z', sampleRate: 48_000,
 		sources: [audioSource, originalVideo, fallbackVideo],
 		clips: [audioClip, videoClip], tracks: [audioTrack, videoTrack, labelTrack],
@@ -185,16 +188,11 @@ test('an unknown feature can bind the closed whole-project video role', () => {
 	assert.deepEqual(input, before, 'the canonical project must remain unchanged');
 });
 
-test('a known non-video feature can bind the closed whole-project video role', () => {
-	const featureId = PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis;
-	const input = project(featureId);
-	const before = structuredClone(input);
-	const projected = projectFeatureVideoRenderedFallbackPlayback(input, report({ featureId }));
-
-	assert.equal(projected.metadata?.role, 'project-video-render-v1');
-	assert.equal(projected.metadata?.featureId, featureId);
-	assert.equal((projected.project as typeof input).clips[1]?.sourceId, 'fallback-video');
-	assert.deepEqual(input, before, 'the canonical project must remain unchanged');
+test('a known non-video feature cannot bind the closed whole-project video role', () => {
+	assert.throws(
+		() => project(PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis),
+		/not eligible for a video rendered fallback/iu,
+	);
 });
 
 test('the video fallback projector ignores unrelated reports and never traverses future projects', () => {
@@ -215,7 +213,7 @@ test('the video fallback projector ignores unrelated reports and never traverses
 
 	const future = {
 		...input,
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get featureRequirements(): never { throw new Error('future manifest was traversed'); },
 		get clips(): never { throw new Error('future clips were traversed'); },
 	};

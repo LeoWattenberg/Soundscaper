@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { createVideoClipV9, createVideoSourceV9 } from '../src/common/editor/project-v9.ts';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import {
 	DESKTOP_SHARED_VIDEO_ENCODING,
@@ -71,7 +71,7 @@ function aliasFixture() {
 	const clips = videos.map((video, index) => createVideoClipV9({
 		id: `${video.id}-clip`, sourceId: video.id, durationFrames: 1_600, binItemId: `item-${index}`,
 	}));
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'timing-alias-project', revision: 1, now: '2026-08-01T12:00:00.000Z', sampleRate: 48_000,
 		sources: videos,
 		projectBin: { clips },

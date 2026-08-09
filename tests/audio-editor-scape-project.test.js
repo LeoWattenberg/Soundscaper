@@ -16,7 +16,11 @@ import {
 	createAup4EffectsNode,
 	readAup4EffectsNode,
 } from '../src/common/editor/aup4-effects.js';
-import { migrateAudioEditorProject } from '../src/common/editor/migration.js';
+import {
+	AudioEditorProjectReimportRequiredError,
+	migrateAudioEditorProject,
+} from '../src/common/editor/migration.js';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import {
 	SCAPE_FORMAT,
@@ -96,14 +100,78 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	}
 });
 
-test('a future-schema scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
+test('V11 timeline annotations survive a current-format scape semantic round trip', async () => {
+	const sourceStore = memoryStore('scape-v11-annotation-source');
+	const targetStore = memoryStore('scape-v11-annotation-target');
+	const timelineAnnotations = [{
+		id: 'marker-opening', sequenceId: 'main-sequence', name: 'Opening cue', color: 'violet',
+		batchId: null, opaqueExtensions: { cue: { id: 7 } }, kind: 'marker', anchor: 'sample',
+		positionFrame: 24_000,
+	}, {
+		id: 'region-chorus', sequenceId: 'main-sequence', name: 'Chorus', color: 'teal',
+		batchId: 'batch-song-form', opaqueExtensions: {}, kind: 'region', anchor: 'musical',
+		startBeat: { num: 17, den: 4 }, endBeat: { num: 33, den: 4 },
+	}];
+	const project = createCurrentAudioEditorProject({
+		id: 'scape-v11-annotation-project',
+		title: 'Timeline annotation round trip',
+		now: '2026-08-09T18:00:00.000Z',
+		sources: [], clips: [], tracks: [], timelineAnnotations,
+	});
+
+	const exported = await exportScapeProject(project, sourceStore);
+	assert.equal(exported.manifest.project.schemaVersion, 11);
+	const imported = await importScapeProject(exported.blob, targetStore);
+	assert.equal(imported.readOnly, false);
+	assert.equal(imported.project.schemaVersion, 11);
+	assert.deepEqual(imported.project.timelineAnnotations, timelineAnnotations);
+	assert.deepEqual((await targetStore.loadProject(project.id)).timelineAnnotations, timelineAnnotations);
+});
+
+test('an explicit historical V10 scape fails with typed re-import before persistence', async () => {
+	const sourceStore = memoryStore('scape-v10-reimport-source');
+	const backingStore = memoryStore('scape-v10-reimport-target');
+	const historical = createAudioEditorProjectV10({
+		id: 'scape-v10-reimport-project',
+		title: 'Historical V10 project',
+		now: '2026-08-09T18:05:00.000Z',
+		sources: [], clips: [], tracks: [],
+	});
+	const exported = await exportScapeProject(historical, sourceStore);
+	let persistenceCalls = 0;
+	const targetStore = new Proxy(backingStore, {
+		get(target, property) {
+			if (['saveProject', 'beginSourceWrite', 'beginMediaAssetWrite'].includes(String(property))) {
+				return (...args) => {
+					persistenceCalls += 1;
+					return target[property](...args);
+				};
+			}
+			const value = target[property];
+			return typeof value === 'function' ? value.bind(target) : value;
+		},
+	});
+
+	await assert.rejects(
+		() => importScapeProject(exported.blob, targetStore),
+		(error) => error instanceof AudioEditorProjectReimportRequiredError
+			&& error.schemaVersion === 10
+			&& error.currentSchemaVersion === 11,
+	);
+	assert.equal(persistenceCalls, 0);
+	assert.deepEqual(await backingStore.listProjects(), []);
+	assert.deepEqual(await backingStore.listSources(), []);
+});
+
+test('a future V12 scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
 	const sourceStore = memoryStore('scape-future-preview-source');
 	const targetStore = memoryStore('scape-future-preview-target');
 	const project = mixedProject();
 	await persistAssets(sourceStore);
 	const exported = await exportScapeProject(project, sourceStore);
 	const future = await rewriteScapeProjectDocument(exported.blob, (document) => {
-		document.schemaVersion = 11;
+		document.schemaVersion = 12;
+		document.timelineAnnotations = { futureShape: { retained: true } };
 		const videoSource = document.sources.find((source) => source.kind === 'video');
 		videoSource.posterStorageKey = 'future-poster-locator';
 		videoSource.thumbnailStorageKey = 'future-thumbnail-locator';
@@ -115,6 +183,7 @@ test('a future-schema scape opens read-only without interpreting, rewriting, or 
 	assert.equal(imported.reason, 'newer-schema');
 	assert.equal(imported.collision, null);
 	assert.equal(imported.project.id, project.id, 'a future project keeps its exact identity');
+	assert.deepEqual(imported.project.timelineAnnotations, { futureShape: { retained: true } });
 	assert.equal(importedVideoSource.posterStorageKey, 'future-poster-locator');
 	assert.equal(importedVideoSource.thumbnailStorageKey, 'future-thumbnail-locator');
 	assert.equal(await targetStore.loadProject(imported.project.id), null,
@@ -354,7 +423,7 @@ async function persistAssets(store) {
 }
 
 function mixedProject() {
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'mixed-scape-project',
 		title: 'Mixed project',
 		metadata: {

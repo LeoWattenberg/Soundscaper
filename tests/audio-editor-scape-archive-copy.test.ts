@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -22,12 +22,12 @@ import {
 
 const SOURCE_ID = 'copy-audio-source';
 
-test('a future-schema archive copies byte-for-byte from Blob and byte-source inputs', async (context) => {
+test('a future V12 archive copies byte-for-byte from Blob and byte-source inputs', async (context) => {
 	const future = await futureArchive(context);
 	const original = new Uint8Array(await future.arrayBuffer());
 
 	const fromBlob = await collectCopy(future);
-	assert.equal(fromBlob.result.schemaVersion, 11);
+	assert.equal(fromBlob.result.schemaVersion, 12);
 	assert.equal(fromBlob.result.byteLength, original.byteLength);
 	assert.deepEqual(fromBlob.bytes, original, 'the Blob copy must be the exact original bytes');
 	assert.equal(digestScapeBytes(fromBlob.bytes), digestScapeBytes(original));
@@ -46,7 +46,7 @@ test('current-schema and mismatched or unknown-format archives refuse the unchan
 
 	const mismatched = await rewriteScapeManifest(
 		await futureArchive(context),
-		(manifest: { project: { schemaVersion: number } }) => { manifest.project.schemaVersion = 12; },
+		(manifest: { project: { schemaVersion: number } }) => { manifest.project.schemaVersion = 13; },
 	);
 	await assert.rejects(collectCopy(mismatched), /does not match its project document/u);
 
@@ -84,7 +84,7 @@ test('cancellation stops the unchanged copy with the abort reason', async (conte
 async function futureArchive(context: TestContext): Promise<Blob> {
 	return rewriteScapeProjectDocument(
 		await currentArchive(context),
-		(document: { schemaVersion: number }) => { document.schemaVersion = 11; },
+		(document: { schemaVersion: number }) => { document.schemaVersion = 12; },
 	);
 }
 
@@ -103,7 +103,7 @@ async function currentArchive(context: TestContext): Promise<Blob> {
 	const clip = createAudioClipV9({
 		id: 'copy-clip', sourceId: SOURCE_ID, timelineStartFrame: 0, durationFrames: 4,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'scape-archive-copy-project',
 		title: 'Unchanged copy fixture',
 		now: '2026-08-08T17:00:00.000Z',

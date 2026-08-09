@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -62,7 +62,7 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 		durationFrames: 48,
 		binItemId: 'bound-video-bin-item',
 	});
-	const project = (revision: number, now: string) => createAudioEditorProjectV10({
+	const project = (revision: number, now: string) => createCurrentAudioEditorProject({
 		id: 'bound-mixed-project',
 		title: 'Bound mixed project',
 		revision,
@@ -151,7 +151,7 @@ test('digestless recipient video rejects before body read without changing the p
 		durationFrames: 1,
 		binItemId: 'digestless-video-bin-item',
 	});
-	const project = (revision: number) => createAudioEditorProjectV10({
+	const project = (revision: number) => createCurrentAudioEditorProject({
 		id: 'digestless-shared-project',
 		title: 'Digestless shared project',
 		revision,
@@ -211,7 +211,7 @@ test('repository cancellation abandons stalled PCM cleanup without changing the 
 		chunkFrames: 1,
 	});
 	const clip = createAudioClipV9({ id: 'cancelled-clip', sourceId: source.id, durationFrames: 1 });
-	const project = (revision: number) => createAudioEditorProjectV10({
+	const project = (revision: number) => createCurrentAudioEditorProject({
 		id: 'cancelled-shared-project',
 		title: 'Cancelled shared project',
 		revision,

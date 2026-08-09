@@ -1,9 +1,6 @@
-import {
-	audacityXmlAttribute,
-	audacityXmlChildren,
-	createAudacityXmlNode,
-} from './audacity-binary-xml.js';
+import { audacityXmlAttribute, audacityXmlChildren, createAudacityXmlNode } from './audacity-binary-xml.js';
 import { createAup4EffectsNode } from './aup4-effects.js';
+import { rehydrateAup4OpaqueInt64Attribute } from './aup4-opaque-persistence.ts';
 import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
 import {
 	AUDIO_EDITOR_SNAP_UPSTREAM_MAX,
@@ -745,6 +742,8 @@ function opaqueChildren(node) {
 }
 
 function cloneXmlEntry(entry) {
+	const int64 = rehydrateAup4OpaqueInt64Attribute(entry);
+	if (int64) return int64;
 	if (typeof structuredClone === 'function') return structuredClone(entry);
 	if (entry?.value instanceof Uint8Array) return { ...entry, value: entry.value.slice() };
 	if (entry?.kind === 'node') return { kind: 'node', node: createAudacityXmlNode(entry.node.name, [], (entry.node.content || []).map(cloneXmlEntry)) };

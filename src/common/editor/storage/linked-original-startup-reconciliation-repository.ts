@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../project-v10-validation.ts';
+import { validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../project-current.ts';
 import { collectProjectSourceIds } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
 import type { LinkedOriginalBinding, LinkedOriginalKind } from './linked-original-binding.ts';
@@ -55,7 +55,7 @@ interface StoredProjectRevision {
 	readonly key: string;
 	readonly projectId: string;
 	readonly revision: number;
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 }
 
 const REVISION_RECORD_FIELDS = new Set(['key', 'projectId', 'revision', 'project', 'creationFence']);
@@ -257,11 +257,11 @@ async function exactProjectRoots(
 	maximumRetainedRevisions: number,
 	maximumRoots: number,
 ): Promise<ProjectRoots> {
-	let current: AudioEditorProjectV10;
+	let current: AudioEditorProjectCurrent;
 	const roots = new Set<string>();
 	try {
 		const value = await request(projects.get(projectId));
-		if (!validateAudioEditorProjectV10(value) || value.id !== projectId
+		if (!validateCurrentAudioEditorProject(value) || value.id !== projectId
 			|| value.revision !== catalogRevision) return null;
 		current = value;
 		collectRoots(current, roots, maximumRoots);
@@ -341,7 +341,7 @@ function storedProjectRevision(
 		&& typeof dataField(value, 'creationFence', 'project revision') !== 'string') {
 		throw new TypeError('A startup project revision creation fence must be a string.');
 	}
-	if (!validateAudioEditorProjectV10(project) || project.id !== projectId
+	if (!validateCurrentAudioEditorProject(project) || project.id !== projectId
 		|| project.revision !== revisionValue) {
 		throw new Error('A startup project revision document does not match its identity.');
 	}
@@ -349,7 +349,7 @@ function storedProjectRevision(
 }
 
 function collectRoots(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	roots: Set<string>,
 	maximumRoots: number,
 ): void {

@@ -35,7 +35,7 @@ const OWNER_B = Object.freeze({
 const ENTRY_ID = 'inventory-entry-a';
 const DIGEST = 'a'.repeat(64);
 
-test('schema 4 reserves and lease-fences immutable project materialization', async (context) => {
+test('schema 5 reserves and lease-fences immutable project materialization', async (context) => {
 	const fixture = await createFixture(context);
 	const library = await SharedDesktopProjectLibrary.open(fixture.paths, { now: fixture.now });
 	context.after(() => library.close());
@@ -59,7 +59,7 @@ test('schema 4 reserves and lease-fences immutable project materialization', asy
 	assert.equal((await stat(finalPath)).isFile(), true);
 	await assert.rejects(() => stat(stagePath), /ENOENT/u);
 	assert.equal(readInventoryRow(fixture.paths.databasePath, metadataFile)?.state, 'materialized');
-	assert.equal(readUserVersion(fixture.paths.databasePath), 4);
+	assert.equal(readUserVersion(fixture.paths.databasePath), 5);
 });
 
 test('a stale reservation cannot rename its stage after lease takeover', async (context) => {
@@ -144,7 +144,7 @@ test('catalog publication requires a materialized project inventory row', async 
 	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 1_000 });
 	const metadataFile = createDesktopLibraryProjectMetadataFile(ENTRY_ID, 3, DIGEST);
 	const metadata = {
-		schemaVersion: 2 as const,
+		schemaVersion: 3 as const,
 		revision: 1,
 		projects: [{
 			id: ENTRY_ID,
@@ -153,7 +153,7 @@ test('catalog publication requires a materialized project inventory row', async 
 			metadataFile,
 			preferredProduct: 'soundscaper' as const,
 			updatedAtMs: fixture.clock.value,
-			projectSchemaVersion: 10 as const,
+			projectSchemaVersion: 11 as const,
 			projectRevision: 3,
 			byteLength: 23,
 			sha256: DIGEST,
@@ -177,8 +177,8 @@ test('catalog publication requires a materialized project inventory row', async 
 	assert.deepEqual(await library.publishMetadata({ lease, metadata }), metadata);
 });
 
-test('database schemas 1 through 3 are rejected without an implicit inventory migration', async (context) => {
-	for (const version of [1, 2, 3]) {
+test('database schemas 1 through 4 are rejected without an implicit inventory migration', async (context) => {
+	for (const version of [1, 2, 3, 4]) {
 		const fixture = await createFixture(context);
 		await mkdir(fixture.paths.projectsRoot, { recursive: true });
 		await mkdir(fixture.paths.managedMediaRoot, { recursive: true });

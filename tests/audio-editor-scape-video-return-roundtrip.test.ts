@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -32,7 +32,7 @@ const CLIP_VIDEO_EFFECTS = [{
 type ProjectStore = ReturnType<typeof createProjectStore>;
 
 interface ScapeImportResult {
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly readOnly: boolean;
 	readonly collision: 'copy' | 'replace' | null;
 }
@@ -84,7 +84,7 @@ test('a portable Scape roundtrip returns the clip-render fallback to a natively 
 
 	const reopenedValue = await recipient.loadProject(PROJECT_ID);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
+	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
 	assert.deepEqual(reopened.featureRequirements, project.featureRequirements);
 	assert.deepEqual(reopened.clips[0]?.videoEffects, [...CLIP_VIDEO_EFFECTS]);
 
@@ -130,7 +130,7 @@ test('a portable Scape roundtrip returns the clip-render fallback to a natively 
 
 	const homeValue = await home.loadProject(PROJECT_ID);
 	assert.ok(homeValue);
-	const reopenedHome = homeValue as unknown as AudioEditorProjectV10;
+	const reopenedHome = homeValue as unknown as AudioEditorProjectCurrent;
 	assert.deepEqual(reopenedHome.featureRequirements, project.featureRequirements);
 	assert.deepEqual(reopenedHome.clips[0]?.videoEffects, [...CLIP_VIDEO_EFFECTS]);
 	assert.deepEqual(
@@ -164,7 +164,7 @@ test('a whole-project video render fallback survives the same Scape return round
 
 	const reopenedValue = await recipient.loadProject(PROJECT_ID);
 	assert.ok(reopenedValue);
-	const returning = await exportScapeProject(reopenedValue as unknown as AudioEditorProjectV10, recipient);
+	const returning = await exportScapeProject(reopenedValue as unknown as AudioEditorProjectCurrent, recipient);
 	assert.deepEqual(assetDigests(returning), assetDigests(outbound),
 		'the read-only recipient must return the exact portable bodies it received');
 
@@ -182,8 +182,8 @@ test('a whole-project video render fallback survives the same Scape return round
 });
 
 function fallbackProject(
-	fallback: AudioEditorProjectV10['featureRequirements']['requirements'][number]['fallback'],
-): AudioEditorProjectV10 {
+	fallback: AudioEditorProjectCurrent['featureRequirements']['requirements'][number]['fallback'],
+): AudioEditorProjectCurrent {
 	const canonicalSource = createVideoSourceV9({
 		id: CANONICAL_SOURCE_ID,
 		storageKey: CANONICAL_SOURCE_ID,
@@ -223,7 +223,7 @@ function fallbackProject(
 		speedRatio: 2,
 		videoEffects: [...CLIP_VIDEO_EFFECTS],
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: PROJECT_ID,
 		title: 'Portable video return roundtrip',
 		now: NOW,
@@ -262,13 +262,13 @@ function productAvailability(productId: 'soundscaper' | 'framescaper'): Readonly
 	};
 }
 
-function projectStructures(project: AudioEditorProjectV10): Readonly<{
-	sources: AudioEditorProjectV10['sources'];
-	clips: AudioEditorProjectV10['clips'];
-	tracks: AudioEditorProjectV10['tracks'];
+function projectStructures(project: AudioEditorProjectCurrent): Readonly<{
+	sources: AudioEditorProjectCurrent['sources'];
+	clips: AudioEditorProjectCurrent['clips'];
+	tracks: AudioEditorProjectCurrent['tracks'];
 	schemaVersion: number;
 	sampleRate: number;
-	sequences: AudioEditorProjectV10['sequences'];
+	sequences: AudioEditorProjectCurrent['sequences'];
 	primarySequenceId: string;
 }> {
 	return {

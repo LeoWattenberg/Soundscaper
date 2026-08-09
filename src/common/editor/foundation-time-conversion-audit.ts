@@ -241,6 +241,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'timeline-annotation-validation',
+		file: 'src/common/editor/timeline-annotation.ts',
+		behavior: 'Annotation validation resolves persisted musical marker points and region endpoints against the authoritative tempo map as point samples to enforce non-negative positions and positive spans.',
+		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'tempo-map-sample-inverse',
 		file: 'src/common/editor/timeline-tempo-inverse.ts',
 		behavior: 'Tempo inversion accumulates exact event spans, point-rounds each event boundary, and returns the edited sample position as an exact rational beat.',

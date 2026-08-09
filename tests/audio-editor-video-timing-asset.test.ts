@@ -23,7 +23,7 @@ import {
 } from '../src/common/editor/scape-export-plan.ts';
 import { indexScapeProjectTimingAssets } from '../src/common/editor/scape-project-assets.ts';
 import { exportScapeProject } from '../src/common/editor/scape-project.js';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 
 const SOURCE_SHA256 = '1'.repeat(64);
@@ -145,7 +145,7 @@ test('.scape export plans and admission preserve the exact timing-asset binding'
 		presentationTicks: [0n, 40n, 81n],
 		finalFrameDurationTicks: 39n,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [{
 			id: 'video-source',
 			kind: 'video',
@@ -203,7 +203,7 @@ test('.scape export deduplicates shared timing content and binds completed body 
 		sourceFrameCount: reference.frameCount, contentSha256: sourceSha256,
 		timingAsset: { ...reference, sourceSha256 },
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [
 			videoSource('video-a', 'video-original-a', SOURCE_SHA256),
 			videoSource('video-b', 'video-original-b', OTHER_SOURCE_SHA256),
@@ -242,7 +242,7 @@ test('.scape export rejects digest-consistent malformed timing before archive pu
 		timescale: 1_000,
 		finalFrameDurationTicks: '40',
 	} as const;
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [{
 			id: 'video-source', kind: 'video', storageKey: 'video-original', mimeType: 'video/mp4',
 			frameCount: 4_800, sampleRate: 48_000, width: 16, height: 16,

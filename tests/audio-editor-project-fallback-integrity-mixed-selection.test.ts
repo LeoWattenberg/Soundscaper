@@ -10,6 +10,7 @@ import {
 	type ProjectAudioFallbackIntegritySelector,
 	type ProjectVideoFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_CHUNK = Object.freeze({
 	index: 0,
@@ -230,7 +231,7 @@ interface MutableProject {
 
 function project(): MutableProject {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],

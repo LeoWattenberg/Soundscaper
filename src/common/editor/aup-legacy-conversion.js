@@ -1,9 +1,9 @@
 import {
 	createLabelV2,
 } from './project-v2.js';
+import { createCurrentAudioEditorProject } from './project-current.ts';
 import {
 	createAudioClipV10,
-	createAudioEditorProjectV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
 	createLabelTrackV10,
@@ -116,7 +116,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 		artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {},
 	};
 	const importedTempoBpm = finiteInRange(structure.tempo?.bpm, 1, 1_000, 120);
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: options.projectId || idFactory('project'),
 		title: metadata.title || 'Audacity project',
 		now: options.now,

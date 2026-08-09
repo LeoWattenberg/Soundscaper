@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -359,7 +359,7 @@ async function commitRevision(
 	lease: DesktopLibraryLease,
 	revision: number,
 ): Promise<DesktopLibraryProject> {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'managed-media-reclamation-project',
 		title: 'Managed media reclamation project',
 		revision,

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from './project-library-smoke-project.js';
+
 export const DESKTOP_SCAPE_REOPEN_SMOKE_MODE = 'scape-persistent-reopen-v1';
 export const DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_SCAPE_REOPEN_SMOKE';
 
@@ -19,7 +21,7 @@ const PLAYBACK_FIELDS = Object.freeze([
 	'meterAboveFloor', 'playheadAdvanced', 'transportEntered', 'transportStopped',
 ]);
 const RESULT_FIELDS = Object.freeze([...PLAN_FIELDS, ...EXECUTION_FIELDS]);
-const CURRENT_PROJECT_SCHEMA_VERSION = 10;
+const CURRENT_PROJECT_SCHEMA_VERSION = DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION;
 
 export function validateScapeReopenSmokePlan(value) {
 	assertClosedRecord(value, PLAN_FIELDS, 'Scape persisted-reopen smoke plan');
@@ -188,7 +190,7 @@ export function validateScapeReopenSmokeResult(value, expectedPlan = null) {
 }
 
 export async function runScapeReopenRendererSmoke(scope, plan) {
-	const currentProjectSchemaVersion = 10;
+	const currentProjectSchemaVersion = 11;
 	const document = scope?.document;
 	const api = scope?.scapeDesktop?.v1;
 	if (!document || typeof document.querySelectorAll !== 'function'
@@ -220,7 +222,8 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 	}
 	if (!project || typeof project !== 'object' || Array.isArray(project)
 		|| project.schemaVersion !== currentProjectSchemaVersion || project.id !== plan.project.id
-		|| project.title !== plan.project.title || project.revision !== plan.project.revision) {
+		|| project.title !== plan.project.title || project.revision !== plan.project.revision
+		|| !Array.isArray(project.timelineAnnotations)) {
 		throw new Error('Persisted shared project identity does not match its descriptor');
 	}
 	if (!Array.isArray(project.sources) || project.sources.length !== 1) {

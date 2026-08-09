@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
+import {
+	isProjectFeatureAudioCapabilityId,
+	isProjectFeatureCapabilityId,
+	isProjectFeatureVideoCapabilityId,
+	PROJECT_FEATURE_CAPABILITY_IDS,
+} from './project-feature-capabilities.ts';
 import type {
 	EvaluateProjectFeatureRequirementsOptions,
 	NormalizeProjectFeatureRequirementsOptions,
@@ -136,6 +141,14 @@ function normalizeFallback(
 	}
 	const role = normalizeFallbackRole(candidate, manifestSchemaVersion);
 	const audioRole = role === 'project-audio-mix-v1' || role === 'audio-track-render-v1';
+	if (isProjectFeatureCapabilityId(featureId)) {
+		if (audioRole && !isProjectFeatureAudioCapabilityId(featureId)) {
+			throw new RangeError(`Feature ${featureId} is not eligible for an audio rendered fallback.`);
+		}
+		if (!audioRole && !isProjectFeatureVideoCapabilityId(featureId)) {
+			throw new RangeError(`Feature ${featureId} is not eligible for a video rendered fallback.`);
+		}
+	}
 	if ((audioRole && candidate.kind !== 'audio') || (!audioRole && candidate.kind !== 'video')) {
 		throw new RangeError(`requirement.fallback role ${role} does not match its kind.`);
 	}

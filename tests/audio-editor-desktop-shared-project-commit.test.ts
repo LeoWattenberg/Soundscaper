@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -93,7 +93,7 @@ test('a catalog summary does not authorize overwriting a document that was never
 });
 
 function project(id: string, revision: number): ProjectDocument {
-	return createAudioEditorProjectV10({ id, title: id, revision, now: NOW }) as unknown as ProjectDocument;
+	return createCurrentAudioEditorProject({ id, title: id, revision, now: NOW }) as unknown as ProjectDocument;
 }
 
 function memoryShadow() {

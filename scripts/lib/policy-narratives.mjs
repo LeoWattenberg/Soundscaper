@@ -48,6 +48,15 @@ const QUALIFICATION_ID_TOKENS = Object.freeze([
 
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 	Object.freeze({
+		marker: 'timeline-annotation-capability',
+		register: 'config/project-compatibility.json',
+		ruleId: 'current-timeline-annotation-capability',
+		field: 'currentBehavior',
+		document: 'docs/project-compatibility.md',
+		intro: null,
+		wrap: 80,
+	}),
+	Object.freeze({
 		marker: 'desktop-electron-lease-protections',
 		register: 'config/project-compatibility.json',
 		ruleId: 'current-desktop-electron-lease-protections',

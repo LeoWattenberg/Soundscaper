@@ -30,9 +30,9 @@ import {
 	createVideoSourceV9,
 } from '../src/common/editor/project-v9.ts';
 import {
-	createAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 
 const PROJECT_DIGEST = '0'.repeat(64);
@@ -66,7 +66,7 @@ test('project bundles and present admission carry the video timing sidecar indep
 		presentationTicks: [0n],
 		finalFrameDurationTicks: 40n,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		...fixture.project,
 		sources: fixture.project.sources.map((source) => source.id === fixture.source.id ? {
 			...source,
@@ -255,7 +255,7 @@ interface TestVideoSource extends Readonly<Record<string, unknown>> {
 }
 
 interface VideoFixture {
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly source: TestVideoSource;
 }
 
@@ -313,7 +313,7 @@ function videoFixture(): VideoFixture {
 		durationFrames: source.frameCount,
 		binItemId: 'managed-video-bin-item',
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'managed-video-project',
 		title: 'Managed video project',
 		revision: 8,
@@ -341,13 +341,13 @@ function videoDeclaration(
 }
 
 function bundle(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	media: readonly DesktopLibraryMedia[] = [],
 ): DesktopLibraryLoadedProjectBundle {
 	return Object.freeze({ catalog: catalogProject(project), project, media: Object.freeze([...media]) });
 }
 
-function catalogProject(project: AudioEditorProjectV10): DesktopLibraryProject {
+function catalogProject(project: AudioEditorProjectCurrent): DesktopLibraryProject {
 	return Object.freeze({
 		id: 'managed-video-entry',
 		projectId: project.id,
@@ -355,7 +355,7 @@ function catalogProject(project: AudioEditorProjectV10): DesktopLibraryProject {
 		metadataFile: 'projects/managed-video-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 10,
+		projectSchemaVersion: 11,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: PROJECT_DIGEST,
@@ -363,7 +363,7 @@ function catalogProject(project: AudioEditorProjectV10): DesktopLibraryProject {
 }
 
 function mediaForVideo(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	source: TestVideoSource,
 	byteLength: number,
 	sha256: string,

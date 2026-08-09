@@ -236,7 +236,7 @@ function smokeArgv(encoded = encodeScapeReopenSmokePlan(PLAN)) {
 function rendererResult() {
 	return {
 		sharedProject: {
-			schemaVersion: 10,
+			schemaVersion: 11,
 			revision: PLAN.project.revision,
 			sourceCount: 1,
 			trackCount: 1,
@@ -271,13 +271,14 @@ function smokeResult() {
 
 function sharedProjectDocument(plan, overrides = {}) {
 	return JSON.stringify({
-		schemaVersion: 10,
+		schemaVersion: 11,
 		id: plan.project.id,
 		title: plan.project.title,
 		revision: plan.project.revision,
 		sources: [{ id: plan.project.sourceId, kind: 'audio' }],
 		tracks: [{ id: plan.project.trackId, type: 'audio', clipIds: [plan.project.clipId] }],
 		clips: [{ id: plan.project.clipId, kind: 'audio', sourceId: plan.project.sourceId }],
+		timelineAnnotations: [],
 		...overrides,
 	});
 }

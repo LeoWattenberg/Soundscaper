@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -62,14 +62,14 @@ test('project commits publish a verified immutable document before its catalog e
 		metadataFile: createDesktopLibraryProjectMetadataFile(ENTRY_ID, 1, sha256),
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 10_001,
-		projectSchemaVersion: 10,
+		projectSchemaVersion: 11,
 		projectRevision: 1,
 		byteLength: Buffer.byteLength(documentJson, 'utf8'),
 		sha256,
 	});
 	assert.deepEqual(committed.project, project);
 	assert.deepEqual(observer.readMetadata(), {
-		schemaVersion: 2,
+		schemaVersion: 3,
 		revision: 1,
 		projects: [committed.catalog],
 		media: [],
@@ -91,7 +91,7 @@ test('project persistence admission is current-schema, bounded, and mutation-fre
 	const valid = currentProject(1);
 	const attempts: readonly unknown[] = [
 		{ ...valid, schemaVersion: 8 },
-		{ ...valid, schemaVersion: 11 },
+		{ ...valid, schemaVersion: 12 },
 		{ ...valid, id: '' },
 		{ ...valid, revision: -1 },
 		{ ...valid, title: 'x'.repeat(4_096) },
@@ -181,7 +181,7 @@ test('catalog publication preserves other entries and media and rejects divergen
 	await library.publishMetadata({
 		lease,
 		metadata: {
-			schemaVersion: 2,
+			schemaVersion: 3,
 			revision: 1,
 			projects: [],
 			media: [{
@@ -212,7 +212,7 @@ test('catalog publication preserves other entries and media and rejects divergen
 		/divergent project revision/u,
 	);
 	assert.deepEqual(library.readMetadata(), {
-		schemaVersion: 2,
+		schemaVersion: 3,
 		revision: 2,
 		projects: [first.catalog],
 		media: [{
@@ -324,7 +324,7 @@ async function createFixture(context: TestContext) {
 }
 
 function currentProject(revision: number) {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'project / identity',
 		title: 'Shared project',
 		revision,

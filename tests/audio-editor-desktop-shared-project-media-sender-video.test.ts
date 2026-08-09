@@ -12,9 +12,9 @@ import {
 	createVideoSourceV9,
 } from '../src/common/editor/project-v9.ts';
 import {
-	createAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import {
 	DESKTOP_SHARED_AUDIO_ENCODING,
@@ -85,7 +85,7 @@ test('managed sender carries digest-bound video timing and rejects corrupt timin
 		presentationTicks: [0n],
 		finalFrameDurationTicks: 40n,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		...fixture.project,
 		sources: fixture.project.sources.map((source) => source.id === fixture.video.id ? {
 			...source,
@@ -159,7 +159,7 @@ test('managed sender rejects self-consistent malformed timing before publishing 
 		timescale: 1_000,
 		finalFrameDurationTicks: '40',
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		...fixture.project,
 		sources: fixture.project.sources.map((source) => source.id === fixture.video.id ? {
 			...source,
@@ -216,7 +216,7 @@ test('managed sender excludes disposable preview locators while retaining fallba
 		sources: fixture.project.sources.map((source) => source.id === fixture.video.id
 			? { ...source, posterStorageKey: posterLocator, thumbnailStorageKey: thumbnailLocator }
 			: source),
-	} as AudioEditorProjectV10;
+	} as AudioEditorProjectCurrent;
 	const declarations: Array<Parameters<DesktopSharedSourceTransferBridge['beginSharedSourceWrite']>[0]> = [];
 	const bridge = senderBridge({
 		async begin(declaration) {
@@ -347,7 +347,7 @@ test('mixed sender refuses aggregate video and PCM bytes before body or bridge I
 interface MixedFixture {
 	readonly audio: ReturnType<typeof createAudioSourceV9> | null;
 	readonly audioBytes: Uint8Array;
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly video: ReturnType<typeof createVideoSourceV9>;
 	readonly videoBytes: Uint8Array;
 	readonly videoSha256: string;
@@ -373,7 +373,7 @@ function mixedFixture(options: Readonly<{ audio?: boolean; audioFallbackOnly?: b
 	const videoClip = createVideoClipV9({
 		id: 'mixed-video-clip', sourceId: video.id, durationFrames: 30, binItemId: 'mixed-video-item',
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: includeAudio ? 'mixed-media-project' : 'video-project', title: 'Managed mixed media', revision: 7,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: audio ? [audio, video] : [video],

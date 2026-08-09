@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -68,7 +68,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-owned-feature-requirements.js',
 		'src/common/editor/project-schema-version.js',
 		'src/common/editor/project-v10-foundation-validation.js',
-		'src/common/editor/project-v10-validation.js',
+		'src/common/editor/project-v11-validation.js',
 		'src/common/editor/project-v9-document-validation.js',
 		'src/common/editor/project-v9-media-validation.js',
 		'src/common/editor/project-v9-validation-budget.js',
@@ -79,6 +79,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/scape-project-json-preflight.js',
 		'src/common/editor/stable-id.js',
 		'src/common/editor/terminal-channel-widths.js',
+		'src/common/editor/timeline-annotation.js',
 		'src/common/editor/timeline-tempo-inverse.js',
 		'src/common/editor/timeline-time.js',
 		'src/common/editor/video-effects.js',
@@ -91,6 +92,11 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		const source = await readFile(join(outputRoot, name), 'utf8');
 		assert.doesNotMatch(source, /from ['"].*\.ts['"]/u);
 	}
+	assert.ok(result.files.includes('src/common/editor/project-v11-validation.js'));
+	assert.ok(result.files.includes('src/common/editor/timeline-annotation.js'));
+	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
+	assert.equal(result.files.includes('src/common/editor/project-v11.js'), false);
+	assert.equal(result.files.includes('src/common/editor/pffft.js'), false);
 	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);
 	const linkedVideoRegistry = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-registry.js')).href}?test=${Date.now()}`);
 	const linkedVideoStore = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-store.js')).href}?test=${Date.now()}`);
@@ -123,7 +129,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		createEntryId: () => 'packaging-entry-0001',
 		now: () => 10_000,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'packaging-project',
 		title: 'Packaging project',
 		now: '2026-07-30T12:00:00.000Z',
@@ -182,6 +188,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
 	await access(join(applicationDesktopRoot, 'direct-wav-smoke.js'));
 	await access(join(applicationDesktopRoot, 'project-library-smoke-evidence.js'));
+	await access(join(applicationDesktopRoot, 'project-library-smoke-project.js'));
 	await access(join(applicationDesktopRoot, 'project-library-source-bearing-renderer-smoke.js'));
 	await access(join(applicationDesktopRoot, 'project-library-source-bearing-smoke-session.js'));
 	await access(join(applicationDesktopRoot, 'project-library-source-bearing-smoke.js'));
@@ -208,11 +215,13 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-sequential-upload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
-	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v10-validation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v11-validation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/timeline-annotation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation-budget.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/retention.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-json-preflight.js'));
+	await assert.rejects(() => access(join(applicationDesktopRoot, 'project-library-smoke-project-v10.js')), /ENOENT/u);
 	const stagedMain = await readFile(join(applicationDesktopRoot, 'main.mjs'), 'utf8');
 	const runtimeImports = [...stagedMain.matchAll(/from ['"]\.\/project-library-runtime\/([^'"]+)['"]/gu)];
 	assert.ok(runtimeImports.length > 0, 'desktop main must import its compiled runtime');

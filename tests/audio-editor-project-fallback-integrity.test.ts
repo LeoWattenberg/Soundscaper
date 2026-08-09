@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import { verifyProjectFallbackIntegrity } from '../src/common/editor/project-fallback-integrity.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
 const AUDIO_ID = 'rendered-audio';
@@ -352,7 +353,7 @@ test('empty and future manifests perform no storage reads or future-field traver
 	};
 	await verifyProjectFallbackIntegrity(project([], []), store);
 	const future = {
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get sources(): never { throw new Error('future sources traversed'); },
 		get featureRequirements(): never { throw new Error('future requirements traversed'); },
 	};
@@ -365,7 +366,7 @@ function project(
 	requirements: readonly Readonly<Record<string, unknown>>[],
 ): Readonly<Record<string, unknown>> {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],

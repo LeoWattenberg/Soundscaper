@@ -22,7 +22,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative.*exact schema 10.*exactly one.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1.*canonical manifest/iu,
+		/authoritative.*exact schema 11.*exactly one.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1.*canonical manifest/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -134,7 +134,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 
 	const documentation = await readFile(new URL('../docs/project-compatibility.md', import.meta.url), 'utf8');
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
-	assert.match(normalizedDocumentation, /exact schema 10.*canonical namespaced feature ID.*unavailable or unknown.*closed `project-audio-mix-v1` role.*whole-mix.*frame zero.*editor playback/isu);
+	assert.match(normalizedDocumentation, /exact schema 11.*canonical namespaced feature ID.*unavailable or unknown.*closed `project-audio-mix-v1` role.*whole-mix.*frame zero.*editor playback/isu);
 	assert.match(normalizedDocumentation, /closed role supplies.*media semantics.*feature ID.*opaque identity.*does not discover, load, or execute.*feature code/isu);
 	assert.match(documentation, /initial activation.*required fallback source.*decoded buffer or stream-provider candidate.*privately.*before.*activation reservation.*without changing.*shared buffer.*provider.*engine.*chunk-source state.*currentness.*reservation.*fails.*discarded.*prior buffer.*provider.*identities.*active project.*tab.*lock.*unchanged/isu);
 	assert.match(documentation, /ordinary-source loading.*excludes.*required fallback.*private source-buffer.*chunk-source snapshots.*staged required representation.*wins.*engine.*engine callback.*succeeds.*lifetime signal.*active.*synchronous project-identity or.*activation-admission assertion.*immediately\s+before shared publication.*no.*intervening await.*shared\s+source maps/isu);

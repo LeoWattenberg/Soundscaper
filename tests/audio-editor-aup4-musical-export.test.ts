@@ -7,12 +7,12 @@ import { audacityXmlAttribute, audacityXmlChildren } from '../src/common/editor/
 import { decodeAudacityProjectTree } from '../src/common/editor/aup4-conversion.js';
 import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
 import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 const xmlChildren = audacityXmlChildren as unknown as (node: unknown, name: string) => unknown[];
 
 test('AUP4 export projects musical clips and labels and reports the exact flattened map heads', () => {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'musical-aup4-export', title: 'Musical AUP4 export', now: '2026-08-09T00:00:00.000Z',
 		sampleRate: 48_000,
 		tempoMap: { mode: 'musical', events: [
@@ -77,7 +77,7 @@ test('AUP4 export projects musical clips and labels and reports the exact flatte
 });
 
 test('AUP4 round-trip recovers a bounded rational tempo from its native floating-point field', async () => {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'rational-aup4-export', now: '2026-08-09T00:00:00.000Z',
 		tempoMap: { mode: 'musical', events: [
 			{ id: 'tempo-0', beat: { num: 0, den: 1 }, bpm: { num: 100, den: 3 } },
@@ -92,7 +92,7 @@ test('AUP4 round-trip recovers a bounded rational tempo from its native floating
 });
 
 test('AUP4 export explicitly accounts for a root signature denominator outside its native range', () => {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'signature-aup4-export', now: '2026-08-09T00:00:00.000Z',
 		signatureMap: { events: [
 			{ id: 'signature-0', bar: 0, numerator: 4, denominator: 2 ** 31 },

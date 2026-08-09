@@ -25,7 +25,7 @@ boundaries.
 - A raw project object whose `schemaVersion` is newer than the maintained
   version is structured-cloned and returned read-only with reason
   `newer-schema`. It is not normalized through the current schema.
-- A format-1 archive carrying a project schema greater than 10 opens read-only
+- A format-1 archive carrying a project schema greater than 11 opens read-only
   without graph interpretation: the importer returns the unmutated document
   before collision or source-identity rewriting, asset extraction, or store
   publication, and the retained original archive saves as an exact byte copy
@@ -34,7 +34,7 @@ boundaries.
   refused.
 - A future `.scape` `formatVersion` is rejected before project persistence.
   Container-version support is never inferred from the inner project version.
-- Current-format exact schema 10 `.scape` round trips promise JSON-semantic
+- Current-format exact schema 11 `.scape` round trips promise JSON-semantic
   equality plus byte-exact preservation for the supported bounded tagged binary
   types described below. They do not promise byte-for-byte `project.json`
   equality, ZIP entry ordering, timestamps, or JSON formatting.
@@ -45,7 +45,7 @@ only through a path proven not to normalize it. “Save a copy” may not silent
 turn an unknown schema into the current schema.
 
 One narrow linked-PCM portable-archive exception applies only to the
-current-format exact schema 10 path. Under the 512 MiB linked-original ceiling,
+current-format exact schema 11 path. Under the 512 MiB linked-original ceiling,
 a sender may be backed by a maintained RIFF/RF64 PCM or IEEE-float WAV, a
 first-party BW64 integer-PCM `.wav`, or classic FORM/AIFF signed big-endian
 integer PCM at 8, 16, 24, or 32 bits, or canonical first-party FORM/AIFC v1
@@ -89,10 +89,28 @@ post-bind Electron linked-PCM source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
 
+## Timeline annotation compatibility
+
+<!-- policy-narrative:timeline-annotation-capability -->
+Non-empty schema 11 timelineAnnotations state reconciles one reserved
+soundscaper.timeline-annotations requirement for
+org.soundscaper.capability.timeline-annotations with disposition bypass and no
+fallback. Soundscaper and Framescaper register that capability as known but
+unavailable, so compatibility evaluation reports unavailable/bypassed rather
+than unknown; it is excluded from both audio and video rendered-fallback
+capability sets, and publisher-authored audio or video rendered fallback for it
+rejects. Current V11 create, clone, update, and validation paths, a
+current-format exact-schema-11 `.scape` semantic export/import with persistence,
+and the maintained desktop library handoff preserve canonical timeline
+annotation state. This rule claims no annotation editing UI, activation
+projection, audio or video rendered fallback, playback, export rendering, or
+preservation beyond those tested current-schema paths.
+<!-- /policy-narrative:timeline-annotation-capability -->
+
 ## Pre-release schema breaks
 
-Schema 10 is the only writable and readable raw-project schema before the first
-shipped release. Inputs from schemas 1 through 9 fail at the core boundary with
+Schema 11 is the only writable and readable raw-project schema before the first
+shipped release. Inputs from schemas 1 through 10 fail at the core boundary with
 the typed `REIMPORT_REQUIRED` error. They are never partially loaded, silently
 normalized, or published. Development projects are recreated from their source
 media.
@@ -106,12 +124,14 @@ release and are governed by a separate versioned policy change.
 ## Shared desktop current-schema persistence
 
 The desktop editor has one implemented current-schema shared persistence
-envelope. A fresh filesystem library scope `v2`
-(`kw.media/scape-project-library/v2`) ignores rather than migrates the prior
-shared `v1` scope. At the `v2` path, SQLite database schema 4 rejects schemas 1
-through 3 instead of implicitly migrating, adopting, or backfilling them. Metadata
-schema 2 binds a separate opaque library entry ID to the project identity,
-exact schema 10, project revision,
+envelope. A fresh filesystem library scope `v3`
+(`kw.media/scape-project-library/v3`) uses SQLite `user_version` 5 and ignores
+rather than migrates the prior shared `v2` scope, preserving its metadata schema
+2 and exact schema 10 catalog in place. A copied `v2` database with
+`user_version` 4 placed at the `v3` path is rejected without mutation instead of
+being migrated, adopted, or backfilled. Metadata schema 3 binds a separate
+opaque library entry ID to the project identity,
+exact schema 11, project revision,
 byte length, SHA-256 digest, and a derived immutable revision-and-digest path.
 No filesystem path, catalog entry ID, project-document digest, product
 preference, timestamp source, or lease capability is exposed to a renderer.
@@ -120,12 +140,12 @@ Before publication, the main process canonicalizes the document with the
 bounded tagged-binary Scape codec and applies the non-raiseable 256 MiB document
 ceiling. The low-level store validates the persistence root schema, identity,
 title, and revision. The main-owned identity service applies the shared strict
-exact-V10 maintained-persistence-domain validator to the decoded document before
+exact-V11 maintained-persistence-domain validator to the decoded document before
 permitting host staging or catalog publication of a renderer commit. The same
 service validates the loaded commit result and a stored project again before
 returning either canonical document. Every serialized project first receives a
 raw-JSON structural preflight capped at 101,536 JSON values and depth 130 before
-`JSON.parse`; each exact-V10 decoded codec traversal and maintained-domain
+`JSON.parse`; each exact-V11 decoded codec traversal and maintained-domain
 validation phase is independently capped at 100,000 nodes and depth 128. The
 service threads these lower-only caps through renderer input, loaded commit
 results, stored reads, and response serialization. Renderer input refusal
@@ -210,7 +230,7 @@ across the bridge service. Upload capacity remains charged until publication or
 abort settles, and service disposal waits for finishing publications. Neither
 layer exposes a path or fencing value.
 
-The renderer repository repeats the same maintained-persistence-domain exact-V10
+The renderer repository repeats the same maintained-persistence-domain exact-V11
 validation as defense in depth and canonically reserializes the document before
 local mutation. The shared catalog is authoritative for latest loads and
 summary lists, while
@@ -224,7 +244,7 @@ saves publish only the canonical document; they do not copy source bytes into
 the shared library.
 
 An explicit managed-handoff path covers canonical PCM and retained original
-video. After flushing the current exact-schema-10 project, the
+video. After flushing the current exact-schema-11 project, the
 sender enumerates at most 4,094 logical sources, deduplicates compatible
 same-kind physical bindings, rejects conflicting geometry, and preflights one
 aggregate 64 GiB expanded-byte budget across canonical audio archive bytes and
@@ -328,7 +348,7 @@ write-time capacity remain unqualified. Structural inventory validation is
 performed for exact references and bounded batches; it is deliberately not an
 unbounded eager scan of arbitrary third-party database corruption.
 
-Before local shadow save or activation, a latest exact-schema-10 source-bearing
+Before local shadow save or activation, a latest exact-schema-11 source-bearing
 shared load performs bounded sequential recipient-local admission. It collects
 at most 4,094 unique logical sources reachable from timeline clips, Project Bin
 clips, and rendered-fallback references. It deduplicates compatible same-kind
@@ -349,7 +369,7 @@ bindings roll back in reverse order only the exact acquisition-owned audio
 record or video publication and its source token, path, or media-chunk payload;
 a concurrent replacement is preserved. Each source not acquired this
 way still requires the pre-existing latest
-recipient-local exact-schema-10 snapshot of the same project to bind its logical
+recipient-local exact-schema-11 snapshot of the same project to bind its logical
 ID, kind, physical storage key, MIME type, frame/sample geometry, and
 kind-specific descriptor; names and opaque extensions are not provenance.
 Compatible same-kind aliases of one physical key are read once, while
@@ -627,7 +647,7 @@ offending managed row belongs to a project absent from the catalog.
 
 Every binding whose project is absent from the catalog is unreachable. For a
 catalog-live project, source-level pruning runs only when the product-local
-current document is exact schema 10 at the catalog revision and at most 64 exact
+current document is exact schema 11 at the catalog revision and at most 64 exact
 retained revisions include that current revision. The pass conservatively
 unions kindful timeline, Project Bin, and every feature-fallback source across
 the current and retained graphs without publisher gating. Missing, older,
@@ -701,8 +721,8 @@ pruned on that save.
 
 After an opted-in save has published the current project and compacted its
 retained revision set, or during serialized maintenance after a successful
-activation, the reachability repository validates the current exact-schema-10
-project plus every retained exact-schema-10 revision. Each revision must have its
+activation, the reachability repository validates the current exact-schema-11
+project plus every retained exact-schema-11 revision. Each revision must have its
 canonical key, project identity, and revision identity, and the set must contain
 an exact revision matching the current project. Current and retained graphs are
 conservatively unioned even if two validated documents at the same revision
@@ -857,7 +877,7 @@ only later. If binding deletion commits before IPC or main rejects, the binding
 deletion remains committed; a later startup retry can prune the now-unreferenced
 locator. Catalog absence remains an authoritative deletion root regardless of a
 product-local shadow. Catalog presence admits source-level pruning only through
-the bounded product-local exact-schema-10 current and retained graphs whose
+the bounded product-local exact-schema-11 current and retained graphs whose
 current revision equals the catalog summary. Missing, stale, structurally
 invalid, incomplete, or over-bound graph state retains the project's bindings.
 The summary revision is not a document-content digest, so this is a cooperative
@@ -950,7 +970,7 @@ media. This headless evidence does not qualify executable/UI launch coordination
 or browser video-element codec playback.
 
 A narrower composed Soundscaper-to-fresh-Framescaper fixture roots an exact
-schema 10 role-defined audio whole-mix fallback for the unknown canonical
+schema 11 role-defined audio whole-mix fallback for the unknown canonical
 `org.example.future-mixer` feature solely through its requirement. The sender is
 intrinsically read-only only because of that feature-requirement report and
 still owns the current writable project lock, so explicit handoff publishes the
@@ -964,7 +984,7 @@ digest declared by the project manifest remains controller-owned after shadow
 publication and before activation.
 
 A parallel composed headless Framescaper-to-fresh-Soundscaper fixture carries
-an exact schema 10 editable retained original alongside a manifest-only
+an exact schema 11 editable retained original alongside a manifest-only
 `project-video-render-v1` fallback for the unknown canonical
 `org.example.future-video-pipeline` feature. Explicit managed whole-`Blob`
 transfer moves the two exact video bodies into the empty recipient. It publishes
@@ -999,9 +1019,9 @@ save is not abort-atomic once begun; and separate repository instances and
 processes are not serialized. Source-bearing saves and explicit local revision
 loads bypass this admission. Explicit managed handoff supplies automatic
 fresh-recipient acquisition for canonical PCM—including the maintained exact
-schema 10 role-defined unavailable-or-unknown audio whole-mix fallback—and
+schema 11 role-defined unavailable-or-unknown audio whole-mix fallback—and
 retained original video. The
-qualified video slice also covers the maintained exact schema 10 manifest-only
+qualified video slice also covers the maintained exact schema 11 manifest-only
 unknown-feature whole-project video fallback when handed off alongside its
 editable retained original from Framescaper to a fresh Soundscaper store as
 described above.
@@ -1044,7 +1064,7 @@ and runs them sequentially as Soundscaper → Framescaper → Soundscaper. The
 processes share only one isolated appData root, use separate product profiles,
 and the final process reuses the original Soundscaper profile. After the
 renderer-ready signal, each packaged executable drives the bounded pathless
-preload IPC, exact-SHA-256 verifies its expected canonical source-free schema 10
+preload IPC, exact-SHA-256 verifies its expected canonical source-free schema 11
 document, commits revisions 1, 2, and 3, and checks both the renderer summary
 and the main-only catalog row. Each stage requires clean recovery, no stale
 takeover, a strictly higher fencing token, an increasing catalog revision, and
@@ -1094,7 +1114,7 @@ A second maintained Linux x64 CI job runs the two frozen Electron workflows as
 six sequential packaged executable processes: Soundscaper → Framescaper →
 Soundscaper and Framescaper → Soundscaper → Framescaper. Each workflow owns
 isolated shared appData and separate product profiles, then returns to its
-origin profile. Its fixed exact schema 10 project contains one canonical PCM
+origin profile. Its fixed exact schema 11 project contains one canonical PCM
 audio track and clip plus one retained-original VP8 WebM video track and clip
 that is also represented in the Project Bin. The origin publishes both exact
 managed bodies. A fresh recipient follows the normal project route into editor
@@ -1103,7 +1123,7 @@ the audio track name through native input, waits for the shared revision 2 save,
 and invokes the visible Edit in the other product action. The origin return
 reactivates the exact edited revision and both media bindings. Before the
 editable recipient project, each fresh recipient also activates two additional
-exact-schema-10 role witnesses from the same shared library. The
+exact-schema-11 role witnesses from the same shared library. The
 Soundscaper-to-Framescaper workflow witnesses `project-audio-mix-v1` and
 `audio-track-render-v1`; the reverse workflow witnesses
 `project-video-render-v1` and `video-clip-render-v1`. Each witness carries one
@@ -1182,14 +1202,15 @@ per-platform parent- and database-path identity, power-loss durability, and
 interrupted foreign collisions at registered random stage paths.
 Unregistered or legacy pre-inventory stage-looking files are deliberately
 foreign content and are not adopted or deleted.
-Pre-release schemas 1 through 9 require source-media re-import and have no raw-
-project migration path. Migration from the prior shared `v1` scope or product-
-private Soundscaper libraries also remains unsupported by this contract. AUP,
+Pre-release schemas 1 through 10 require source-media re-import and have no raw-
+project migration path. Migration from the prior shared `v2` scope, the older
+`v1` scope, or product-private Soundscaper libraries also remains unsupported by
+this contract. AUP,
 legacy XML AUP, and AUP4 remain separate maintained interchange boundaries.
 
 ## Project feature requirements
 
-Schema 10 establishes the raw-project declaration and evaluation foundation. Its
+Schema 11 establishes the raw-project declaration and evaluation foundation. Its
 root-level `featureRequirements` value is a bounded, normalized manifest. The
 current nested manifest schema 2 has canonical namespaced feature identifiers,
 unique requirement IDs, closed bypass or rendered-fallback dispositions, and
@@ -1211,8 +1232,8 @@ audio and video descriptors to the corresponding whole-project roles. It cannot
 declare the clip or track relationship. These checks validate descriptor
 syntax and source identity; they do not hash or authenticate the referenced media bytes.
 
-Schemas 1 through 9 are rejected at the raw-project boundary before feature-
-requirement reconciliation. Maintained exact-schema-10 create, load, clone, and
+Schemas 1 through 10 are rejected at the raw-project boundary before feature-
+requirement reconciliation. Maintained exact-schema-11 create, load, clone, and
 commit paths reconcile the editor-owned
 `soundscaper.audio-effects` bypass requirement when a maintained first-party
 processor exists in a non-label or non-video track, mixer group, mixer send, or
@@ -1237,7 +1258,7 @@ At the controller boundary, explicit stable broad capability IDs map one-to-one
 to the maintained keys in each selected product profile. The controller snapshots that
 profile at construction: only a strict `true` value makes a registered feature
 available, a registered non-true value is unavailable, and an unregistered ID
-is unknown. It evaluates exact schema 10 from the actual project history that
+is unknown. It evaluates exact schema 11 from the actual project history that
 will be activated, before activation side effects. A report containing an
 unavailable or unknown requirement makes the project intrinsically read-only.
 When an existing same-ID tab wins, its stored read-only declaration also wins
@@ -1248,7 +1269,7 @@ feature report, and their `featureRequirements` value is not traversed.
 
 For the maintained first-party audio-effect slice, the controller derives a
 transient playback projection from that authoritative activation project and
-report before activation side effects. Projection requires exact schema 10 and a
+report before activation side effects. Projection requires exact schema 11 and a
 registered audio-effects item that is unavailable, declares bypass, and has the
 effective bypassed disposition. Active, enabled, not-already-bypassed maintained
 processors in non-label and non-video track, mixer-group, mixer-send, and master
@@ -1264,7 +1285,7 @@ document snapshot identify each affected scope, owner ID, effect ID, and effect
 type without reading or retaining effect params, context, state, or other
 payloads.
 
-The maintained exact schema 10 audio whole-mix fallback is defined by the closed
+The maintained exact schema 11 audio whole-mix fallback is defined by the closed
 `project-audio-mix-v1` role rather than a producer allowlist. It activates only
 when exactly one report item has a canonical namespaced feature ID, is
 unavailable or unknown with declared and effective `rendered-fallback`
@@ -1455,7 +1476,7 @@ workflow qualifies source/component UI activation and transport playback for
 both frozen audio roles. The separate maintained video slice below does not
 broaden that boundary.
 
-The maintained exact schema 10 video rendered-fallback projection has two closed
+The maintained exact schema 11 video rendered-fallback projection has two closed
 relationships. `project-video-render-v1` accepts any canonical namespaced feature
 ID reported unavailable or unknown. `video-clip-render-v1` remains restricted to
 exact `videoEffects` reported unavailable. Exactly one item may qualify, and it
@@ -1574,7 +1595,7 @@ normalization. Whole-handoff atomicity and a durable storage or cross-process
 byte lease remain unqualified.
 
 For the maintained first-party video-effect slice, the controller likewise
-derives a transient activation projection only for exact schema 10 when the
+derives a transient activation projection only for exact schema 11 when the
 registered video-effects item is unavailable, declares bypass, and has the
 effective bypassed disposition. Enabled maintained effects on timeline and
 Project Bin video clips become minimal disabled copies; disabled effects and
@@ -1591,7 +1612,7 @@ offline-render paths do not receive the projection. Each placeholder entry in
 the deeply frozen per-tab session metadata and document snapshot identifies
 only location, clip ID, effect ID, and effect type without reading or retaining
 params, context, state, or other opaque payloads.
-This exact-schema-10 bypass slice does not attempt compatibility with earlier
+This exact-schema-11 bypass slice does not attempt compatibility with earlier
 Soundscaper project schemas. Its separate rendered-fallback rule above does not
 broaden that boundary.
 
@@ -1619,7 +1640,7 @@ workspace never traverses future-schema `featureRequirements` state.
 A separate read-only affected-object pass names the canonical objects behind
 each unavailable or unknown requirement, including publisher feature identities
 the maintained first-party inventories cannot name, and says plainly when it can
-name none. It runs only for exact schema 10 with a `soundscaper-project` report
+name none. It runs only for exact schema 11 with a `soundscaper-project` report
 whose `compatible` value is exactly `false`, and it returns one entry per report
 item reported unavailable or unknown, or no index at all when no item qualifies.
 A compatible report, an available-only report, an absent, item-less, or
@@ -1674,7 +1695,7 @@ an effect whose `enabled` is `false` or whose `bypassed` is `true`, and the
 video channel skips an effect whose `enabled` is `false`, which is its whole
 gate because a persisted video effect carries no bypass flag. The two channels
 are not equally reachable. Persisted audio-effect validation admits any
-non-empty type string, so an unregistered rack processor is an ordinary schema-10
+non-empty type string, so an unregistered rack processor is an ordinary schema-11
 occurrence; video effect stacks are normalized against the maintained video
 registry when the project opens, so a foreign video effect type cannot exist in
 a project that opens at all, and the video-effect channel is reachable in
@@ -1693,7 +1714,7 @@ not. The notice renders an unattributable requirement as one explicit line
 stating that its affected objects cannot be identified, instead of an empty list
 or nothing at all.
 
-Stable IDs are bounded to 256 characters and object types to 128 while schema-10
+Stable IDs are bounded to 256 characters and object types to 128 while schema-11
 validation bounds neither, so a valid document can carry an identity longer than
 either bound. Exceeding a bound does not reject: this pass runs on the
 document-snapshot path, where a throw would blank the editor, so a missing,
@@ -1719,7 +1740,7 @@ must degrade this list rather than fail its open to produce one. The ceiling
 bounds the retained list, not the traversal: enumeration continues after
 exhaustion, every remaining rack, clip, and effect stack is still walked, and
 the whole index is recomputed on every document snapshot for as long as an
-incompatible schema-10 document is active, so an oversized project pays that walk
+incompatible schema-11 document is active, so an oversized project pays that walk
 each time. Raising the ceiling, or supplying a negative or non-integer seam,
 rejects with a `RangeError`, and that rejection is the pass's only one;
 everything else about it is total.
@@ -1736,7 +1757,7 @@ requirement with a listed object or a nonzero omitted count. Each row shows the
 object ID, the object type, and one of two localized labels—replaced during
 editor playback on the rendered-fallback channel, otherwise a type this editor
 does not recognize—and is keyed by channel, location, scope, owner, and object
-ID, because schema 10 enforces ID uniqueness only within a collection and a track
+ID, because schema 11 enforces ID uniqueness only within a collection and a track
 and a clip may legitimately share one. The section shows only newly visible
 state, namely the canonical objects a declared rendered fallback names and
 effects whose type is outside the maintained registry; because the effect
@@ -1759,7 +1780,7 @@ feature code, and is not a claim about what the unavailable feature would have
 done to a named object.
 
 Raw and stored-project controller activation has a separate integrity admission
-step for exact schema 10. The maintained role-defined audio and closed
+step for exact schema 11. The maintained role-defined audio and closed
 video delivery slices invoke the same body verifier at export-operation time,
 independently of activation admission; standalone audio delivery invokes it with
 only its audio selector, while composed final-video delivery makes one joint
@@ -1832,7 +1853,7 @@ storage binding. Calling `store.loadProject()` directly does not verify fallback
 bytes, and admission does not prevent later low-level or cross-process
 replacement of that storage binding, verify a nonselected fallback body, or
 establish publisher authenticity. Admission itself does not
-substitute fallback media at runtime; the separate exact-schema-10 role-defined
+substitute fallback media at runtime; the separate exact-schema-11 role-defined
 audio whole-mix, audioEffects-only track-target,
 role-defined whole-project video, and videoEffects-only
 clip-target projections described above perform their narrow editor-playback and
@@ -1873,7 +1894,7 @@ body verification or activate rendered fallbacks, and it is not a third-party
 activation gate.
 
 The maintained normal no-collision open workflow now turns an incompatible
-exact-schema-10 report into an explicit choice: **Open read-only** or **Cancel**.
+exact-schema-11 report into an explicit choice: **Open read-only** or **Cancel**.
 If the imported ID also collides, the dialog presents the compatibility report
 and the collision together with **Open as read-only copy** or **Cancel** as a
 single decision. Compatible collisions offer the safe **Open as copy** or
@@ -1935,7 +1956,7 @@ otherwise legal but noncanonical aggregate local-extra expansion are not a
 compatibility target. The transport seam does not yet raise the desktop 512 MiB
 selected-file materialization ceiling.
 
-This archive evidence is deliberately limited to schema 10 and `.scape` format
+This archive evidence is deliberately limited to schema 11 and `.scape` format
 1. It does not establish arbitrary future-schema archive preservation,
 generic affected-object unavailable-feature placeholders or per-feature bypass
 controls beyond the maintained first-party audio- and video-effect slices, or
@@ -1944,7 +1965,7 @@ described above is not archive evidence either: it names objects from the
 activated project and its report, and it adds no bypass control, no runtime
 substitution, and no activation route. After archive acceptance and import, the
 separate maintained controller admission described above verifies the local
-bytes referenced by the authoritative exact-schema-10 activation project. That
+bytes referenced by the authoritative exact-schema-11 activation project. That
 does not make metadata-only inspection a body-verification route and does not
 cover direct store loads. Runtime use belongs only to the separate role-defined
 audio whole-mix, audioEffects-only track-target, role-defined whole-project
@@ -1967,9 +1988,9 @@ Binary opaque state and JSON-compatible opaque preservation are type-specific.
 - Before `JSON.parse`, every project schema receives an iterative raw-JSON
   structural preflight bounded to 101,536 values and depth 130 in production.
   The extra 1,536 values and two levels are the maximum tagged-descriptor
-  allowance needed to keep the bounded exact-schema-10 binary representation
+  allowance needed to keep the bounded exact-schema-11 binary representation
   round-trip closed; tests may only lower the underlying limits.
-- Exact schema 10, format 1 `.scape` export preserves `Uint8Array` values,
+- Exact schema 11, format 1 `.scape` export preserves `Uint8Array` values,
   including only the addressed bytes of an offset view, and `ArrayBuffer`
   values through the reserved `$soundscaperOpaqueBinary` tag. Its descriptor is
   closed and versioned, identifies the restored type, declares an exact byte
@@ -2043,7 +2064,7 @@ Unavailable capabilities follow this order once their owning milestones land:
 
 The maintained first-party audio- and video-effect bypass slices now implement
 the first two steps for active known effects during editor playback only. The
-exact-schema-10 mono/stereo role-defined audio whole-mix, role-defined video
+exact-schema-11 mono/stereo role-defined audio whole-mix, role-defined video
 whole-project, one first-party audio-effects track-target, and
 one first-party video-effects clip-target slice implement
 narrow forms of step 3 during editor playback and maintained delivery after

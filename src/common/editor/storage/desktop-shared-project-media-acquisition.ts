@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../project-v10-validation.ts';
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../project-current.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import { SCAPE_ARCHIVE_LIMITS, type ScapeArchiveEntry } from '../scape-archive-envelope.ts';
 import {
@@ -86,8 +86,8 @@ export async function acquireDesktopSharedProjectMedia(
 		signal?: AbortSignal;
 	}> = {},
 ): Promise<DesktopSharedMediaAcquisition> {
-	validateAudioEditorProjectV10(projectValue);
-	const project = projectValue as AudioEditorProjectV10;
+	validateCurrentAudioEditorProject(projectValue);
+	const project = projectValue as AudioEditorProjectCurrent;
 	const groups = preflightGroups(project, descriptorValues);
 	const expandedByteBudget = preflightAudioBudgets(groups);
 	const prior = validPriorProject(priorProjectValue, project.id);
@@ -187,7 +187,7 @@ export function acquireDesktopSharedProjectAudio(
 }
 
 function preflightGroups(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	descriptorValues: readonly unknown[],
 ): readonly SourceGroup[] {
 	if (!Array.isArray(descriptorValues)) throw new TypeError('Desktop shared-source descriptors must be an array.');
@@ -279,7 +279,7 @@ function preflightAudioBudgets(groups: readonly SourceGroup[]): ScapeExpandedByt
 
 async function planMissingGroups(
 	groups: readonly SourceGroup[],
-	prior: AudioEditorProjectV10 | null,
+	prior: AudioEditorProjectCurrent | null,
 	store: Pick<DesktopSharedSourceTransferStore, 'getMediaAssetMetadata' | 'getSourceMetadata'>,
 	expandedByteBudget: ScapeExpandedByteBudget,
 	linkedVideoOriginals?: DesktopSharedLinkedVideoOriginalSession | null,
@@ -472,18 +472,18 @@ function requiredGroupDescriptor(group: SourceGroup): DesktopSharedManagedSource
 	return group.descriptor;
 }
 
-function validPriorProject(value: unknown, projectId: string): AudioEditorProjectV10 | null {
+function validPriorProject(value: unknown, projectId: string): AudioEditorProjectCurrent | null {
 	if (value == null) return null;
 	try {
-		validateAudioEditorProjectV10(value);
+		validateCurrentAudioEditorProject(value);
 	} catch {
 		return null;
 	}
-	const project = value as AudioEditorProjectV10;
+	const project = value as AudioEditorProjectCurrent;
 	return project.id === projectId ? project : null;
 }
 
-function priorGroupMatches(prior: AudioEditorProjectV10 | null, group: SourceGroup): boolean {
+function priorGroupMatches(prior: AudioEditorProjectCurrent | null, group: SourceGroup): boolean {
 	return Boolean(prior && group.sources.every((source) => {
 		const projectSource = prior.sources.find(({ id }) => id === source.id) as ManagedSource | undefined;
 		const candidate = source.kind === 'video-timing' && projectSource

@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, validateAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -32,7 +36,7 @@ function source(id: string) {
 }
 
 function fallbackProject(projectId: string, fallbackSourceId: string) {
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: projectId,
 		title: projectId,
 		now: NOW,
@@ -70,7 +74,7 @@ test('project retention roots a rendered fallback source without a clip referenc
 
 test('project retention does not traverse opaque future-schema feature requirements', () => {
 	const futureProject = {
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		clips: [],
 		projectBin: { clips: [] },
 		featureRequirements: {
@@ -92,7 +96,7 @@ test('source metadata compaction keeps fallback-only metadata and removes unrela
 	assert.notStrictEqual(compacted, project);
 	assert.deepEqual(sourceIds(compacted), ['fallback-render']);
 	assert.deepEqual(compacted.featureRequirements, project.featureRequirements);
-	assert.equal(validateAudioEditorProjectV10(compacted), true);
+	assert.equal(validateCurrentAudioEditorProject(compacted), true);
 });
 
 test('present, undo, and redo feature fallbacks remain independent history roots', () => {
@@ -126,6 +130,6 @@ test('present, undo, and redo feature fallbacks remain independent history roots
 		compacted.undoStack[0]?.project,
 		compacted.redoStack[0]?.project,
 	]) {
-		assert.equal(validateAudioEditorProjectV10(snapshot), true);
+		assert.equal(validateCurrentAudioEditorProject(snapshot), true);
 	}
 });

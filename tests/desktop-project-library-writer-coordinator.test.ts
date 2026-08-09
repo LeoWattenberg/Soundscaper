@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -124,7 +124,7 @@ test('an aborted prepared publication recovers and reclaims its own lease invent
 		expectedRevision: null,
 		name: 'Prepared abort',
 		preferredProduct: 'soundscaper',
-		project: createAudioEditorProjectV10({
+		project: createCurrentAudioEditorProject({
 			id: 'prepared-abort-project', title: 'Prepared abort', revision: 1,
 		}),
 		signal: controller.signal,

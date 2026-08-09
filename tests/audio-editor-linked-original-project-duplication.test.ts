@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -8,8 +8,10 @@ import test from 'node:test';
 import {
 	createAudioClipV9,
 	createAudioSourceV9,
+	createAudioTrackV9,
 	createVideoClipV9,
 	createVideoSourceV9,
+	createVideoTrackV9,
 } from '../src/common/editor/project-v9.ts';
 import {
 	duplicateProjectWithLinkedOriginals,
@@ -90,18 +92,21 @@ function mixedProject() {
 		frameCount: 120, sampleRate: 48_000, width: 1_920, height: 1_080,
 		frameRate: 30, videoCodec: 'h264', audioCodec: 'aac', hasAudio: true,
 	});
-	return createAudioEditorProjectV10({
+	const audioClip = createAudioClipV9({
+		id: 'audio-clip', sourceId: audio.id, durationFrames: 120, sourceDurationFrames: 120,
+	});
+	const videoClip = createVideoClipV9({
+		id: 'video-clip', sourceId: video.id, durationFrames: 120, sourceDurationFrames: 120,
+	});
+	return createCurrentAudioEditorProject({
 		id: SOURCE_PROJECT_ID,
 		title: 'Mixed linked originals',
 		now: NOW,
 		sources: [audio, video],
-		clips: [
-			createAudioClipV9({
-				id: 'audio-clip', sourceId: audio.id, durationFrames: 120, sourceDurationFrames: 120,
-			}),
-			createVideoClipV9({
-				id: 'video-clip', sourceId: video.id, durationFrames: 120, sourceDurationFrames: 120,
-			}),
+		clips: [audioClip, videoClip],
+		tracks: [
+			createAudioTrackV9({ id: 'audio-track', clipIds: [audioClip.id] }),
+			createVideoTrackV9({ id: 'video-track', clipIds: [videoClip.id] }),
 		],
 	});
 }

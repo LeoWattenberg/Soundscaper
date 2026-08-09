@@ -16,11 +16,10 @@ import {
 } from '../../desktop/scape-open-smoke.js';
 import {
 	createAudioClipV10,
-	createAudioEditorProjectV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
 } from '../../src/common/editor/project-v10.ts';
-import { validateAudioEditorProjectV10 } from '../../src/common/editor/project-v10-validation.ts';
+import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject } from '../../src/common/editor/project-current.ts';
 import { exportScapeProject } from '../../src/common/editor/scape-project.js';
 import {
 	packagedExecutableCandidates,
@@ -63,7 +62,7 @@ export const DESKTOP_SCAPE_OPEN_FIXTURE = deepFreeze({
 export async function createDesktopScapeOpenFixture(profileRoot) {
 	const profile = absolutePath(profileRoot, 'fixture profile root');
 	const project = createFixtureProject();
-	validateAudioEditorProjectV10(project);
+	validateCurrentAudioEditorProject(project);
 	const samples = createFixtureSamples();
 	const store = {
 		async loadMediaAsset() { return null; },
@@ -455,7 +454,7 @@ function createFixtureProject() {
 		name: 'Packaged track',
 		clipIds: [fixture.project.clipId],
 	}, fixture.audio.sampleRate);
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: fixture.project.id,
 		title: fixture.project.title,
 		revision: fixture.project.revision,

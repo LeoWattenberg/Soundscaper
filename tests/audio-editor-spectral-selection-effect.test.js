@@ -18,7 +18,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { ENGLISH_COPY } = await import('../src/common/i18n/catalogs.js');
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
-const { createAudioEditorProjectV10 } = await import('../src/common/editor/project-v10.ts');
+const { createCurrentAudioEditorProject } = await import('../src/common/editor/project-current.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 test('selection effects process only spectral-box bins and preserve the box after replacement', async () => {
@@ -41,7 +41,7 @@ test('selection effects process only spectral-box bins and preserve the box afte
 	});
 	await writer.write([input]);
 	await writer.commit({ sampleRate, channelCount: 1 });
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'spectral-effect-project',
 		title: 'Spectral effect project',
 		now: '2026-07-15T00:00:00.000Z',

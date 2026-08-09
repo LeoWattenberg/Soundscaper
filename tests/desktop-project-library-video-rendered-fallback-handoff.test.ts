@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -40,7 +40,7 @@ interface BridgeProbe {
 
 interface HeadlessEngineProbe {
 	readonly engine: Readonly<Record<string, unknown>>;
-	readonly project: () => AudioEditorProjectV10 | null;
+	readonly project: () => AudioEditorProjectCurrent | null;
 	readonly state: () => 'paused' | 'playing' | 'stopped';
 }
 
@@ -253,7 +253,7 @@ function fallbackProjectFixture() {
 		videoEffects: [createVideoEffect('pixelate', { id: 'video-fallback-handoff-pixelate' })],
 	});
 	const fallbackSha256 = digest(FALLBACK_BYTES);
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'video-rendered-fallback-handoff', title: 'Video rendered fallback handoff', revision: 4,
 		now: '2026-08-02T12:00:00.000Z', sampleRate: 48_000,
 		sources: [original, fallback], clips: [clip],
@@ -333,12 +333,12 @@ async function readVideo(store: AudioEditorProjectStore, storageKey: string): Pr
 }
 
 function createHeadlessEngine(): HeadlessEngineProbe {
-	let appliedProject: AudioEditorProjectV10 | null = null;
+	let appliedProject: AudioEditorProjectCurrent | null = null;
 	let state: 'paused' | 'playing' | 'stopped' = 'stopped';
 	const engine = Object.freeze({
 		setSourceResolver() { return this; },
-		loadProject(project: unknown) { appliedProject = project as AudioEditorProjectV10; },
-		async applyProject(project: unknown) { appliedProject = project as AudioEditorProjectV10; },
+		loadProject(project: unknown) { appliedProject = project as AudioEditorProjectCurrent; },
+		async applyProject(project: unknown) { appliedProject = project as AudioEditorProjectCurrent; },
 		async getAudioContext() {
 			return Object.freeze({
 				createBuffer: (channelCount: number, frameCount: number, sampleRate: number) => (

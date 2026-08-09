@@ -8,6 +8,7 @@ import {
 	verifyProjectFallbackIntegrity,
 	type ProjectAudioFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_CHUNKS = Object.freeze([
 	chunk(0, [Float32Array.of(0.25, -0.5), Float32Array.of(0.75, -1)]),
@@ -89,8 +90,10 @@ test('selected audio rejects selector mismatch, ambiguity, and future schemas be
 		/duplicate project source ID/iu,
 	);
 	await assert.rejects(
-		() => verifyProjectFallbackIntegrity({ schemaVersion: 11 }, store, { audioFallback: AUDIO_SELECTOR }),
-		/selected audio rendered fallback.*schema 10/iu,
+		() => verifyProjectFallbackIntegrity({
+			schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
+		}, store, { audioFallback: AUDIO_SELECTOR }),
+		/selected audio rendered fallback.*current project schema/iu,
 	);
 	assert.equal(reads, 0);
 });
@@ -208,7 +211,7 @@ function fallbackProject(includeVideo = true): {
 	featureRequirements: { schemaVersion: number; requirements: Array<Record<string, unknown>> };
 } {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],

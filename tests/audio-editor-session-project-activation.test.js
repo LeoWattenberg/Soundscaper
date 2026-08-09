@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioEditorSessionController } from '../src/common/editor/session.js';
 
 const NOW = '2026-07-29T10:00:00.000Z';
@@ -197,7 +197,7 @@ test('a blocked re-entrant subscriber cannot abort authorized activation publica
 });
 
 function project(id) {
-	return createAudioEditorProjectV10({ id, title: id, now: NOW });
+	return createCurrentAudioEditorProject({ id, title: id, now: NOW });
 }
 
 function assertStale(operation) {

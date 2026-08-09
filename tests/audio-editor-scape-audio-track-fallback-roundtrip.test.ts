@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -29,7 +29,7 @@ const FALLBACK_DIGEST = audioAssetDigest(FALLBACK_SAMPLES);
 type ProjectStore = ReturnType<typeof createProjectStore>;
 
 interface ScapeImportResult {
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly collision: 'copy' | 'replace' | null;
 }
 
@@ -52,7 +52,7 @@ test('portable Scape preserves a track-local audio fallback in a fresh recipient
 
 	const reopenedValue = await recipient.loadProject(PROJECT_ID);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
+	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
 	assertTrackFallbackRelationship(reopened, FALLBACK_SOURCE_ID);
 	await assertStoredPcm(recipient, reopened, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 });
@@ -64,7 +64,7 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 	await persistProjectAudio(sender);
 	const exported = await exportScapeProject(project, sender);
 
-	await recipient.saveProject(createAudioEditorProjectV10({
+	await recipient.saveProject(createCurrentAudioEditorProject({
 		id: PROJECT_ID,
 		title: 'Existing recipient project',
 		now: NOW,
@@ -85,12 +85,12 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 
 	const reopenedValue = await recipient.loadProject(copied.project.id);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
+	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
 	assertTrackFallbackRelationship(reopened, copiedFallback.sourceId);
 	assert.equal(trackFallback(reopened).targetTrackId, TARGET_TRACK_ID);
 });
 
-function trackFallbackProject(): AudioEditorProjectV10 {
+function trackFallbackProject(): AudioEditorProjectCurrent {
 	const laneSource = createAudioSourceV9({
 		id: LANE_SOURCE_ID,
 		storageKey: LANE_SOURCE_ID,
@@ -113,7 +113,7 @@ function trackFallbackProject(): AudioEditorProjectV10 {
 		timelineStartFrame: 0,
 		durationFrames: LANE_SAMPLES.length,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: PROJECT_ID,
 		title: 'Portable audio track fallback',
 		now: NOW,
@@ -145,7 +145,7 @@ function trackFallbackProject(): AudioEditorProjectV10 {
 	});
 }
 
-function assertTrackFallbackRelationship(project: AudioEditorProjectV10, fallbackSourceId: string): void {
+function assertTrackFallbackRelationship(project: AudioEditorProjectCurrent, fallbackSourceId: string): void {
 	const fallback = trackFallback(project);
 	assert.deepEqual(fallback, {
 		role: 'audio-track-render-v1',
@@ -160,7 +160,7 @@ function assertTrackFallbackRelationship(project: AudioEditorProjectV10, fallbac
 	assert.ok(project.sources.some((source) => source.id === fallbackSourceId));
 }
 
-function trackFallback(project: AudioEditorProjectV10): ProjectFeatureAudioTrackRenderFallback {
+function trackFallback(project: AudioEditorProjectCurrent): ProjectFeatureAudioTrackRenderFallback {
 	const fallback = project.featureRequirements.requirements.find(
 		({ id }) => id === 'publisher-track-render',
 	)?.fallback;
@@ -172,7 +172,7 @@ function trackFallback(project: AudioEditorProjectV10): ProjectFeatureAudioTrack
 
 async function assertStoredPcm(
 	store: ProjectStore,
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	fallbackSourceId: string,
 	expectedSamples: readonly number[],
 ): Promise<void> {

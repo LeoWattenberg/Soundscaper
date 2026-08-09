@@ -5,7 +5,8 @@ import test from 'node:test';
 
 import type { ScapeAssetDescriptor } from '../src/common/editor/scape-archive-envelope.ts';
 import { indexScapeProjectAssets } from '../src/common/editor/scape-project-assets.ts';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 test('scape project assets are indexed by exact migrated source identity', () => {
 	const audio = descriptor('audio-source', 'audio');
@@ -25,7 +26,7 @@ test('scape project assets are indexed by exact migrated source identity', () =>
 
 test('current Scape video assets bind archive bytes to source.contentSha256', () => {
 	const sourceSha256 = '1'.repeat(64);
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [{
 			id: 'video-source', kind: 'video', storageKey: 'video-original', name: 'video.mp4',
 			mimeType: 'video/mp4', frameCount: 4_800, sampleRate: 48_000, width: 16, height: 16,
@@ -78,7 +79,7 @@ test('current Scape projects bind every rendered fallback digest to its canonica
 test('future Scape projects leave feature requirements opaque while indexing sources', () => {
 	const audio = descriptor('audio-source', 'audio');
 	const project = {
-		schemaVersion: 11,
+		schemaVersion: 12,
 		sources: [{ id: audio.sourceId, kind: audio.kind }],
 	};
 	Object.defineProperty(project, 'featureRequirements', {
@@ -187,7 +188,7 @@ function featureProject(
 	sources: readonly Readonly<Record<string, unknown>>[] = [{ id: 'audio-source', kind: 'audio' }],
 ): Readonly<Record<string, unknown>> {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		sources,
 		featureRequirements: { schemaVersion: 1, requirements },
 	};

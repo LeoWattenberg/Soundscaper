@@ -2,9 +2,10 @@
 
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -42,7 +43,7 @@ test('shared desktop library paths stay in one fixed appData scope', async (cont
 	const paths = createDesktopProjectLibraryPaths(appDataRoot);
 
 	assert.equal(isAbsolute(paths.libraryRoot), true);
-	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v2'));
+	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v3'));
 	assert.equal(relative(paths.libraryRoot, paths.databasePath), 'library.sqlite3');
 	assert.equal(relative(paths.libraryRoot, paths.projectsRoot), 'projects');
 	assert.equal(relative(paths.libraryRoot, paths.managedMediaRoot), 'media');
@@ -50,6 +51,54 @@ test('shared desktop library paths stay in one fixed appData scope', async (cont
 	assert.equal(Object.values(paths).some((path) => /indexeddb|chromium|profile/iu.test(path)), false);
 	assert.throws(() => createDesktopProjectLibraryPaths('relative/app-data'), /absolute appData path/u);
 	assert.throws(() => createDesktopProjectLibraryPaths(`${appDataRoot}\0escape`), /NUL/u);
+});
+
+test('the V11 library ignores an existing V2 catalog and leaves it recoverable in place', async (context) => {
+	const appDataRoot = await mkdtemp(join(tmpdir(), 'scape-library-clean-break-'));
+	context.after(() => rm(appDataRoot, { recursive: true, force: true }));
+	const legacyRoot = join(appDataRoot, 'kw.media', 'scape-project-library', 'v2');
+	const legacyDatabasePath = join(legacyRoot, 'library.sqlite3');
+	await mkdir(legacyRoot, { recursive: true });
+	createLegacyV2Database(legacyDatabasePath);
+	const legacyBytes = await readFile(legacyDatabasePath);
+
+	const paths = createDesktopProjectLibraryPaths(appDataRoot);
+	assert.notEqual(paths.libraryRoot, legacyRoot);
+	const library = await SharedDesktopProjectLibrary.open(paths);
+	assert.deepEqual(library.readMetadata(), emptyMetadata());
+	library.close();
+
+	assert.deepEqual(await readFile(legacyDatabasePath), legacyBytes);
+	const legacy = new DatabaseSync(legacyDatabasePath, { readOnly: true });
+	try {
+		assert.equal(Number(legacy.prepare('PRAGMA user_version').get()?.user_version), 4);
+		const row = legacy.prepare('SELECT revision, json FROM library_metadata WHERE singleton = 1').get();
+		assert.equal(Number(row?.revision), 7);
+		const metadata = JSON.parse(String(row?.json));
+		assert.equal(metadata.schemaVersion, 2);
+		assert.equal(metadata.projects[0]?.projectSchemaVersion, 10);
+	} finally {
+		legacy.close();
+	}
+});
+
+test('a copied V2 database is rejected from the V11 library scope without mutation', async (context) => {
+	const appDataRoot = await mkdtemp(join(tmpdir(), 'scape-library-copied-v2-'));
+	context.after(() => rm(appDataRoot, { recursive: true, force: true }));
+	const legacyRoot = join(appDataRoot, 'kw.media', 'scape-project-library', 'v2');
+	const legacyDatabasePath = join(legacyRoot, 'library.sqlite3');
+	await mkdir(legacyRoot, { recursive: true });
+	createLegacyV2Database(legacyDatabasePath);
+	const paths = createDesktopProjectLibraryPaths(appDataRoot);
+	await mkdir(paths.libraryRoot, { recursive: true });
+	await copyFile(legacyDatabasePath, paths.databasePath);
+	const copiedBytes = await readFile(paths.databasePath);
+
+	await assert.rejects(
+		() => SharedDesktopProjectLibrary.open(paths),
+		/unsupported desktop project library database version/iu,
+	);
+	assert.deepEqual(await readFile(paths.databasePath), copiedBytes);
 });
 
 test('metadata publication is atomic, scoped, and strictly validated', async (context) => {
@@ -383,12 +432,12 @@ async function createFixture(context: TestContext) {
 }
 
 function emptyMetadata(): DesktopLibraryMetadata {
-	return { schemaVersion: 2, revision: 0, projects: [], media: [] };
+	return { schemaVersion: 3, revision: 0, projects: [], media: [] };
 }
 
 function populatedMetadata(revision: number): DesktopLibraryMetadata {
 	return {
-		schemaVersion: 2,
+		schemaVersion: 3,
 		revision,
 		projects: [{
 			id: 'shared-project-1',
@@ -397,7 +446,7 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 			metadataFile: createDesktopLibraryProjectMetadataFile('shared-project-1', 1, 'a'.repeat(64)),
 			preferredProduct: 'soundscaper',
 			updatedAtMs: 9_000 + revision,
-			projectSchemaVersion: 10,
+			projectSchemaVersion: 11,
 			projectRevision: 1,
 			byteLength: 48_000,
 			sha256: 'a'.repeat(64),
@@ -409,6 +458,44 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 			sha256: 'a'.repeat(64),
 		}],
 	};
+}
+
+function createLegacyV2Database(databasePath: string): void {
+	const database = new DatabaseSync(databasePath);
+	try {
+		const json = JSON.stringify({
+			schemaVersion: 2,
+			revision: 7,
+			projects: [{
+				id: 'legacy-entry-01',
+				projectId: 'legacy-v10-project',
+				name: 'Recoverable V10 project',
+				metadataFile: `legacy-entry-01/4-${'b'.repeat(64)}.json`,
+				preferredProduct: 'soundscaper',
+				updatedAtMs: 10_000,
+				projectSchemaVersion: 10,
+				projectRevision: 4,
+				byteLength: 1_024,
+				sha256: 'b'.repeat(64),
+			}],
+			media: [],
+		});
+		database.exec(`
+			CREATE TABLE library_metadata (
+				singleton INTEGER PRIMARY KEY,
+				revision INTEGER NOT NULL,
+				json TEXT NOT NULL,
+				digest TEXT NOT NULL,
+				published_at_ms INTEGER NOT NULL
+			);
+			PRAGMA application_id = 1396916560;
+			PRAGMA user_version = 4;
+		`);
+		database.prepare('INSERT INTO library_metadata VALUES (1, 7, ?, ?, 10000)')
+			.run(json, createHash('sha256').update(json).digest('hex'));
+	} finally {
+		database.close();
+	}
 }
 
 async function materializePopulatedProject(

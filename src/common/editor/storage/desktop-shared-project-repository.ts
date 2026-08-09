@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../project-v10-validation.ts';
+import { validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../project-current.ts';
 import { compactProjectSourceMetadata } from '../retention.js';
 import {
 	parseScapeProjectDocument,
@@ -41,7 +41,7 @@ import {
 	DesktopSharedProjectRevisionWitness,
 } from './desktop-shared-project-commit.ts';
 
-type CurrentProjectDocument = AudioEditorProjectV10 & ProjectDocument & Readonly<{
+type CurrentProjectDocument = AudioEditorProjectCurrent & ProjectDocument & Readonly<{
 	id: string;
 	title: string;
 	revision: number;
@@ -415,7 +415,7 @@ function admitCurrentProject(value: unknown, maximumBytes: number): CurrentProje
 }
 
 function assertCurrentProject(value: unknown): asserts value is CurrentProjectDocument {
-	validateAudioEditorProjectV10(value);
+	validateCurrentAudioEditorProject(value);
 }
 
 function serializeBoundedProject(project: CurrentProjectDocument, maximumBytes: number): string {

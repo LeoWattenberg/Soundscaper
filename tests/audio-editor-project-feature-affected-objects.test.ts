@@ -12,6 +12,7 @@ import type {
 	ProjectFeatureFallback,
 	ProjectFeatureRequirementsReport,
 } from '../src/common/editor/project-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 const VIDEO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.videoEffects;
@@ -47,7 +48,7 @@ function effect(
 
 function project(): Record<string, unknown> {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		id: 'project',
 		tracks: [
 			{
@@ -304,7 +305,7 @@ test('the pass never mutates or reprojects the canonical project', () => {
 	assert.strictEqual(source.tracks, tracks, 'no container may be replaced');
 });
 
-test('compatible, non-schema-10, and available-only reports produce no index', () => {
+test('compatible, non-current-schema, and available-only reports produce no index', () => {
 	assert.equal(projectFeatureAffectedObjects(project(), null), null);
 	assert.equal(projectFeatureAffectedObjects(project(), report({}) && {
 		...report(),

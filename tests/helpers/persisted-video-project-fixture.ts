@@ -7,9 +7,9 @@ import {
 	createVideoSourceV4,
 } from '../../src/common/editor/project-v4.js';
 import {
-	createAudioEditorProjectV10,
-	validateAudioEditorProjectV10,
-} from '../../src/common/editor/project-v10.ts';
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../../src/common/editor/project-current.ts';
 
 export function createPersistedVideoProject(
 	{ projectBin = false, timeline = false }: Readonly<{ projectBin?: boolean; timeline?: boolean }> = {},
@@ -107,7 +107,7 @@ export function createPersistedVideoProject(
 		laneGroupId,
 		opaqueExtensions: {},
 	}] : [];
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: `persisted-video-project-${projectBin ? 'bin' : 'timeline'}`,
 		title: 'Persisted video project',
 		now: '2026-07-18T12:00:00.000Z',
@@ -116,7 +116,7 @@ export function createPersistedVideoProject(
 		tracks,
 		projectBin: { clips: binClips },
 	});
-	validateAudioEditorProjectV10(project);
+	validateCurrentAudioEditorProject(project);
 	return {
 		project,
 		videoSource: project.sources.find(({ id }) => id === videoSource.id),

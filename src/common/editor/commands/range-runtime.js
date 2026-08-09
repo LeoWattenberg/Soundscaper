@@ -15,8 +15,7 @@ import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
-import { projectV10ForCommand } from '../project-v10-command-projection.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isFoundationProjectSchema, projectForCommandConsumers } from '../project-current-runtime.ts';
 import {
 	brandRuntimeProjectProjection,
 	isRuntimeProjectProjection,
@@ -252,11 +251,11 @@ export function prepareDisjointRangeDeleteCommand(project, options = {}, idFacto
 			rippleMode: options.rippleMode,
 		}, idFactory);
 		commands.push(command);
-		const commandProject = working.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-			? isRuntimeProjectProjection(working) ? working : projectV10ForCommand(working)
-			: working;
+		const commandProject = isRuntimeProjectProjection(working)
+			? working
+			: projectForCommandConsumers(working);
 		working = cloneProject(commandProject);
-		if (working.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+		if (isFoundationProjectSchema(working.schemaVersion)) {
 			brandRuntimeProjectProjection(working);
 		}
 		deleteRange(working, command, rangeDeleteRippleMode(command.type));

@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/project-feature-audio-effect-bypass.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 
@@ -49,7 +50,7 @@ function effect(
 
 function project() {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		id: 'project',
 		tracks: [{
 			id: 'track-a',
@@ -118,7 +119,7 @@ test('the projector ignores unsupported dispositions, unknown IDs, future schema
 
 	const future = {
 		...input,
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get tracks(): never { throw new Error('future tracks were traversed'); },
 	};
 	const result = projectFeatureAudioEffectPlaybackBypass(future, report());

@@ -145,7 +145,7 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	);
 	assert.match(
 		fallback.summary,
-		/exact schema 10.*relationship role.*target clip ID.*canonical native Blob.*sole video input.*project-video-render-v1.*selected target input.*video-clip-render-v1.*direct MP4\/WebM route.*legacy final-Blob route.*does not add codec qualification/isu,
+		/exact schema 11.*relationship role.*target clip ID.*canonical native Blob.*sole video input.*project-video-render-v1.*selected target input.*video-clip-render-v1.*direct MP4\/WebM route.*legacy final-Blob route.*does not add codec qualification/isu,
 	);
 });
 

@@ -398,13 +398,14 @@ function handoffPlan({
 
 function projectDocument(revision, title, overrides = {}) {
 	return canonicalJson({
-		schemaVersion: 10,
+		schemaVersion: 11,
 		id: PROJECT_ID,
 		title,
 		revision,
 		sources: [],
 		clips: [],
 		projectBin: { clips: [] },
+		timelineAnnotations: [],
 		...overrides,
 	});
 }

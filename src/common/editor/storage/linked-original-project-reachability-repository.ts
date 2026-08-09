@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../project-v10-validation.ts';
+import { validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../project-current.ts';
 import { collectProjectSourceIds } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
 import type { LinkedOriginalKind } from './linked-original-binding.ts';
@@ -72,7 +72,7 @@ interface StoredProjectRevision {
 	readonly key: string;
 	readonly projectId: string;
 	readonly revision: number;
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 }
 
 const REVISION_RECORD_FIELDS = new Set(['key', 'projectId', 'revision', 'project', 'creationFence']);
@@ -227,7 +227,7 @@ function currentProjectRootState(
 	managedKindsValue?: ReadonlySet<LinkedOriginalKind>,
 ): CurrentProjectRootState | null {
 	try {
-		if (!validateAudioEditorProjectV10(value)) throw new TypeError('Current project is not the exact current schema.');
+		if (!validateCurrentAudioEditorProject(value)) throw new TypeError('Current project is not the exact current schema.');
 		if (value.id !== projectId) throw new Error('Current project identity does not match its key.');
 		const accumulator: RootAccumulator = {
 			durable: new Map(),
@@ -317,7 +317,7 @@ function storedProjectRevision(
 		throw new TypeError('Stored project revision number must be a non-negative safe integer.');
 	}
 	const project = record.project;
-	if (!validateAudioEditorProjectV10(project)) throw new TypeError('Stored project revision is not the exact current schema.');
+	if (!validateCurrentAudioEditorProject(project)) throw new TypeError('Stored project revision is not the exact current schema.');
 	if (project.id !== projectId || project.revision !== record.revision) {
 		throw new Error('Stored project revision document does not match its authoritative identity.');
 	}
@@ -356,7 +356,7 @@ function closedRevisionRecord(value: unknown): Record<string, unknown> {
 }
 
 function collectOriginalRoots(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	projectId: string,
 	accumulator: RootAccumulator,
 ): void {

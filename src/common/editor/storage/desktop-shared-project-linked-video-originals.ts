@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../project-v10-validation.ts';
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../project-current.ts';
 import { throwIfScapeAborted } from '../scape-abort.ts';
 import {
 	managedSourceBinding,
@@ -76,9 +76,9 @@ export async function resolveDesktopSharedProjectLinkedVideoOriginals(
 	resolver: LinkedVideoResolver,
 	options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<DesktopSharedLinkedVideoOriginalSession> {
-	validateAudioEditorProjectV10(projectValue);
+	validateCurrentAudioEditorProject(projectValue);
 	assertResolver(resolver);
-	const project = projectValue as AudioEditorProjectV10;
+	const project = projectValue as AudioEditorProjectCurrent;
 	const groups = linkedVideoGroups(project);
 	const byStorageKey = new Map<string, LinkedVideoEntry>();
 	const sourceBindings = new Map<string, string>();
@@ -196,7 +196,7 @@ export function desktopSharedLinkedVideoGroupMatches(
 		&& ownDataValue(candidate, 'sha256') === entry.metadata.sha256;
 }
 
-function linkedVideoGroups(project: AudioEditorProjectV10): ReadonlyMap<string, readonly ManagedVideoSource[]> {
+function linkedVideoGroups(project: AudioEditorProjectCurrent): ReadonlyMap<string, readonly ManagedVideoSource[]> {
 	const groups = new Map<string, ManagedVideoSource[]>();
 	const bindings = new Map<string, string>();
 	for (const source of reachableProjectSources(project)) {

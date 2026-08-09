@@ -12,7 +12,7 @@ import {
 	type ScapeArchiveEntry,
 	type ScapeManifest,
 } from '../src/common/editor/scape-archive-envelope.ts';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { importScapeProject, inspectScapeProject } from '../src/common/editor/scape-project.js';
 
 const DIGEST = '0'.repeat(64);
@@ -393,7 +393,7 @@ function envelopeFixture(
 }
 
 async function archiveWithUnreferencedEntry(): Promise<Blob> {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'scape-envelope-project',
 		title: 'Envelope project',
 		sources: [],
@@ -434,7 +434,7 @@ interface PortableArchiveAsset {
 }
 
 function portableProject(sources: readonly Record<string, unknown>[]) {
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'scape-source-bijection-project',
 		title: 'Source bijection project',
 		sources,
@@ -454,7 +454,7 @@ function archiveAsset(sourceId: string, kind: 'audio' | 'video'): PortableArchiv
 }
 
 async function archiveWithProjectAssets(
-	project: ReturnType<typeof createAudioEditorProjectV10>,
+	project: ReturnType<typeof createCurrentAudioEditorProject>,
 	assets: readonly PortableArchiveAsset[],
 ): Promise<Blob> {
 	const projectText = JSON.stringify(project);

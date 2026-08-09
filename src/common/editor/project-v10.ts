@@ -51,10 +51,8 @@ import {
 	normalizeVideoTimingAssetReference,
 } from './video-timing-asset-reference.ts';
 
-export {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
-} from './project-schema-version.ts';
+export { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+export const AUDIO_EDITOR_PROJECT_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION;
 export { AUDIO_EDITOR_MEDIA_KINDS, AUDIO_EDITOR_TRACK_TYPES } from './project-v9.ts';
 export {
 	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
@@ -343,12 +341,17 @@ export function loadAudioEditorProjectV10(value: unknown): {
 	reason: 'newer-schema' | null;
 } {
 	const candidate = object(value, 'saved project');
-	const schemaVersion = Number(candidate.schemaVersion);
+	const schemaVersion = projectSchemaVersion(candidate.schemaVersion);
 	if (schemaVersion > AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION) {
 		return { project: clone(candidate), readOnly: true, reason: 'newer-schema' };
 	}
 	validateAudioEditorProjectV10(candidate);
 	return { project: clone(candidate) as AudioEditorProjectV10, readOnly: false, reason: null };
+}
+
+function projectSchemaVersion(value: unknown): number {
+	if (!Number.isSafeInteger(value)) throw new RangeError('Saved project schema version must be a safe integer.');
+	return Number(value);
 }
 
 function normalizeSequences(

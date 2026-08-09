@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -41,13 +41,13 @@ const FALLBACK_FEATURE_ID = 'org.soundscaper.native.linear-phase-eq';
 type ProjectStore = ReturnType<typeof createProjectStore>;
 
 interface ScapeImportResult {
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly readOnly: boolean;
 	readonly reason: string | null;
 	readonly collision: 'copy' | 'replace' | null;
 }
 
-test('schema-V10 feature requirements retain their compatibility semantics through a Scape round trip', async () => {
+test('the current V11 feature requirements retain their compatibility semantics through a Scape round trip', async () => {
 	const sourceStore = memoryStore('scape-feature-roundtrip-source');
 	const targetStore = memoryStore('scape-feature-roundtrip-target');
 	const project = featureProject('scape-feature-roundtrip');
@@ -62,7 +62,7 @@ test('schema-V10 feature requirements retain their compatibility semantics throu
 
 	assert.equal(imported.readOnly, false);
 	assert.equal(imported.reason, null);
-	assert.equal(imported.project.schemaVersion, 10);
+	assert.equal(imported.project.schemaVersion, 11);
 	assert.deepEqual(imported.project.featureRequirements, project.featureRequirements);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements), true);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements.requirements), true);
@@ -70,21 +70,21 @@ test('schema-V10 feature requirements retain their compatibility semantics throu
 		evaluateProjectFeatureRequirements(imported.project.featureRequirements, availability),
 		evaluateProjectFeatureRequirements(project.featureRequirements, availability),
 	);
-	assert.equal(validateAudioEditorProjectV10(imported.project), true);
+	assert.equal(validateCurrentAudioEditorProject(imported.project), true);
 	const reopenedValue = await targetStore.loadProject(project.id);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
+	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
 	assert.deepEqual(reopened.featureRequirements, project.featureRequirements);
 	const reopenedSources = reopened.sources as readonly Readonly<Record<string, unknown>>[];
 	assert.equal(String(reopenedSources[0]?.id), FALLBACK_SOURCE_ID);
-	assert.equal(validateAudioEditorProjectV10(reopened), true);
+	assert.equal(validateCurrentAudioEditorProject(reopened), true);
 });
 
 test('pre-open Scape inspection reports selected-product feature compatibility', async () => {
 	const sourceStore = memoryStore('scape-feature-inspection-source');
 	const project = featureProject('scape-feature-inspection', FALLBACK_SOURCE_ID, {
 		native: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-		fallback: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		fallback: PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
 	});
 	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 	const exported = await exportScapeProject(project, sourceStore);
@@ -150,7 +150,7 @@ test('Scape copy import rejects a fallback digest mismatch before transactional 
 	assert.ok(exported.blob instanceof Blob);
 	const mismatched = await rewriteFallbackDigest(exported.blob, 'f'.repeat(64));
 	const backingStore = memoryStore('scape-feature-import-mismatch-target');
-	await backingStore.saveProject(createAudioEditorProjectV10({
+	await backingStore.saveProject(createCurrentAudioEditorProject({
 		id: project.id,
 		title: 'Existing mismatch target',
 		now: NOW,
@@ -205,7 +205,7 @@ test('pre-open Scape inspection leaves future project feature requirements opaqu
 
 	const inspected = await service.inspectScape(archive);
 
-	assert.equal(inspected.schemaVersion, 11);
+	assert.equal(inspected.schemaVersion, 12);
 	assert.equal(inspected.readOnly, true);
 	assert.equal(inspected.featureRequirementsCompatibility, null);
 });
@@ -215,7 +215,7 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	const targetStore = memoryStore('scape-feature-copy-target');
 	const project = featureProject('scape-feature-collision', FALLBACK_STORAGE_KEY);
 	await persistFallbackSource(sourceStore, FALLBACK_STORAGE_KEY, FALLBACK_SAMPLES);
-	await targetStore.saveProject(createAudioEditorProjectV10({
+	await targetStore.saveProject(createCurrentAudioEditorProject({
 		id: project.id,
 		title: 'Existing project',
 		now: NOW,
@@ -246,12 +246,12 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	assert.ok(await targetStore.getSourceMetadata(copiedSourceId));
 	assert.deepEqual(await storedSamples(targetStore, FALLBACK_SOURCE_ID), [1, 1, 1, 1]);
 	assert.deepEqual(await storedSamples(targetStore, copiedSourceId), [0.25, -0.5, 0.75, 0]);
-	assert.equal(validateAudioEditorProjectV10(copied.project), true);
+	assert.equal(validateCurrentAudioEditorProject(copied.project), true);
 	const reopenedValue = await targetStore.loadProject(copied.project.id);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectV10;
+	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
 	assert.equal(reopened.featureRequirements.requirements[1]?.fallback?.sourceId, copiedSourceId);
-	assert.equal(validateAudioEditorProjectV10(reopened), true);
+	assert.equal(validateCurrentAudioEditorProject(reopened), true);
 });
 
 function featureProject(
@@ -259,7 +259,7 @@ function featureProject(
 	storageKey = FALLBACK_SOURCE_ID,
 	featureIds = { native: NATIVE_FEATURE_ID, fallback: FALLBACK_FEATURE_ID },
 	fallbackDigest = FALLBACK_DIGEST,
-): AudioEditorProjectV10 {
+): AudioEditorProjectCurrent {
 	const source = createAudioSourceV9({
 		id: FALLBACK_SOURCE_ID,
 		storageKey,
@@ -270,7 +270,7 @@ function featureProject(
 		sampleRate: 48_000,
 		originalSampleRate: 48_000,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id,
 		title: 'Feature requirements project',
 		now: NOW,
@@ -330,7 +330,7 @@ async function storedSamples(store: ProjectStore, sourceId: string): Promise<num
 
 async function futureProjectArchive(): Promise<Blob> {
 	const projectText = JSON.stringify({
-		schemaVersion: 11,
+		schemaVersion: 12,
 		id: 'future-feature-project',
 		title: 'Future feature project',
 		sources: [],
@@ -349,7 +349,7 @@ async function futureProjectArchive(): Promise<Blob> {
 		project: {
 			entry: 'project.json',
 			mimeType: 'application/json',
-			schemaVersion: 11,
+			schemaVersion: 12,
 			size: projectBytes.byteLength,
 			sha256: createHash('sha256').update(projectBytes).digest('hex'),
 		},
@@ -382,7 +382,7 @@ async function rewriteFallbackDigest(blob: Blob, sha256: string): Promise<Blob> 
 		const manifestEntry = entries.find(({ filename }) => filename === 'manifest.json');
 		assert.ok(projectEntry);
 		assert.ok(manifestEntry);
-		const project = JSON.parse(await projectEntry.getData(new TextWriter())) as AudioEditorProjectV10;
+		const project = JSON.parse(await projectEntry.getData(new TextWriter())) as AudioEditorProjectCurrent;
 		const fallback = project.featureRequirements.requirements.find(
 			(requirement) => requirement.disposition === 'rendered-fallback',
 		)?.fallback;

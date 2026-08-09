@@ -35,7 +35,7 @@
 		"desktop/project-library-stage-inventory.ts",
 		"desktop/project-library.ts",
 		"src/common/editor/project-schema-version.ts",
-		"src/common/editor/project-v10-validation.ts",
+		"src/common/editor/project-v11-validation.ts",
 		"src/common/editor/scape-project-document.ts"
 	],
 	"exclude": ["dist", "node_modules", "test-results"]

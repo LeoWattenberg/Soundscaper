@@ -12,6 +12,7 @@ import { createScapeInspectionQuiescence } from '../src/common/editor/controller
 import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/scape-open-request-service.ts';
 import { SourceChunkProviderRegistry } from '../src/common/editor/controller/source-chunk-provider-registry.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined; const promise = new Promise<Value>((complete) => { resolve = complete; });
@@ -32,7 +33,7 @@ interface TestLock extends ProjectLifecycleLock { releases: number; }
 
 function project(id: string, tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }]): TestProject {
 	return {
-		id, title: id, sampleRate: 48_000, tracks, clips: [], schemaVersion: 10,
+		id, title: id, sampleRate: 48_000, tracks, clips: [], schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: [] },
 	};
 }
@@ -543,7 +544,7 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 	assert.deepEqual(fixture.assignedTracks, ['prepared-track']);
 
 	fixture.setMigrationReadOnly(true);
-	const future = { ...project('future-project'), schemaVersion: 11,
+	const future = { ...project('future-project'), schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get featureRequirements(): never { throw new Error('future feature metadata was traversed'); } };
 	await fixture.service.openProject(future);
 	assert.equal(fixture.getProject(), future);
@@ -558,7 +559,7 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 test('feature compatibility transiently bypasses affected audio effects before engine activation', async () => {
 	const fixture = createFixture({ audioEffects: false, videoEffects: false });
 	const effect = { id: 'compressor-a', type: 'compressor', enabled: true, bypassed: false, params: { threshold: -24 } };
-	const next = { ...project('feature-project', [{ id: 'audio-a', type: 'audio', effectsActive: true, effects: [effect] }]), schemaVersion: 10,
+	const next = { ...project('feature-project', [{ id: 'audio-a', type: 'audio', effectsActive: true, effects: [effect] }]), schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'audio-effects', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, displayName: 'Audio effects', disposition: 'bypass', fallback: null,
 		}],
@@ -587,11 +588,10 @@ test('feature compatibility transiently bypasses affected audio effects before e
 	assert.deepEqual(fixture.getProject(), historyProject);
 	assert.equal(fixture.state.readOnly, true);
 });
-
 test('malformed current feature metadata rejects before project activation side effects', async () => {
 	const fixture = createFixture();
 	const malformed = {
-		...project('malformed-feature-project'), schemaVersion: 10,
+		...project('malformed-feature-project'), schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: {} },
 	};
 	await assert.rejects(fixture.service.switchProject(malformed), /requirements must be an array/iu);

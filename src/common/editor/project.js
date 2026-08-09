@@ -285,6 +285,7 @@ export function validateAudioEditorProject(project) {
 	if (project.schemaVersion === 7) return validateProjectV5Shape(project, VIDEO_EFFECT_V5_TYPES) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion === 8) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project);
 	if (project.schemaVersion === 9) return validateProjectV5Shape(project) && validateProjectBextMetadata(project.metadata) && validateAdmProjectMetadata(project.metadata) && validateAdmProjectChannelCount(project) && validateLegacyProjectFeatureRequirements(project);
+	if (project.schemaVersion === 10) return validateLegacyProjectFeatureRequirements(project);
 	if (project.schemaVersion !== AUDIO_EDITOR_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor schema version: ${project.schemaVersion}.`);
 	}
@@ -336,7 +337,6 @@ export function validateAudioEditorProject(project) {
 	validateMixerV2Shape(project);
 	return true;
 }
-
 function validateMixerV2Shape(project) {
 	if (project.mixer == null) return;
 	if (typeof project.mixer !== 'object' || Array.isArray(project.mixer)) throw new TypeError('project.mixer must be an object.');

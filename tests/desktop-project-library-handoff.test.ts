@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -27,7 +30,7 @@ const FRAMESCAPER_OWNER = Object.freeze({
 });
 const ENTRY_ID = 'handoff-entry-1';
 
-test('desktop hosts open concurrently as observers and serialize cross-product writers', async (context) => {
+test('desktop hosts serialize cross-product writers while preserving V11 annotations', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-library-handoff-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
 	const soundscaper = await startHost(appDataPath, SOUNDSCAPER_OWNER);
@@ -36,12 +39,14 @@ test('desktop hosts open concurrently as observers and serialize cross-product w
 	assert.equal(soundscaper.snapshot().activeWriter, null);
 	assert.equal(soundscaper.snapshot().lastWriter?.fencingToken, 1);
 	const first = await soundscaper.commitProject(commitOptions(1, 'soundscaper', 10_001));
+	assertHandoffAnnotations(first.project, 1);
 	const framescaper = await startHost(appDataPath, FRAMESCAPER_OWNER);
 	context.after(() => framescaper.close());
 	assert.equal(framescaper.snapshot().closed, false);
 	assert.equal(framescaper.snapshot().activeWriter, null);
 	assert.deepEqual(await framescaper.readProject(ENTRY_ID), first);
 	const second = await framescaper.commitProject(commitOptions(2, 'framescaper', 10_002));
+	assertHandoffAnnotations(second.project, 2);
 	assert.ok((framescaper.snapshot().lastWriter?.fencingToken ?? 0)
 		> (soundscaper.snapshot().lastWriter?.fencingToken ?? 0));
 	assert.equal(framescaper.readCatalog().revision, 2);
@@ -49,6 +54,7 @@ test('desktop hosts open concurrently as observers and serialize cross-product w
 
 	assert.deepEqual(await soundscaper.readProject(ENTRY_ID), second);
 	const third = await soundscaper.commitProject(commitOptions(3, 'soundscaper', 10_003));
+	assertHandoffAnnotations(third.project, 3);
 	assert.ok((soundscaper.snapshot().lastWriter?.fencingToken ?? 0)
 		> (framescaper.snapshot().lastWriter?.fencingToken ?? 0));
 	assert.deepEqual(await framescaper.readProject(ENTRY_ID), third);
@@ -133,15 +139,64 @@ function commitOptions(
 		entryId: ENTRY_ID,
 		name: 'Shared handoff project',
 		project: {
-			...createAudioEditorProjectV10({
+			...createCurrentAudioEditorProject({
 				id: 'shared handoff project identity',
 				title: 'Shared handoff project',
 				revision,
 				now: '2026-07-29T12:00:00.000Z',
+				timelineAnnotations: [{
+					id: 'handoff-marker',
+					sequenceId: 'main-sequence',
+					name: 'Cross-product marker',
+					color: 'teal',
+					batchId: 'handoff-annotation-batch',
+					opaqueExtensions: {},
+					kind: 'marker',
+					anchor: 'sample',
+					positionFrame: revision * 24_000,
+				}, {
+					id: 'handoff-region',
+					sequenceId: 'main-sequence',
+					name: 'Cross-product region',
+					color: 'teal',
+					batchId: 'handoff-annotation-batch',
+					opaqueExtensions: {},
+					kind: 'region',
+					anchor: 'musical',
+					startBeat: { num: 2, den: 1 },
+					endBeat: { num: 4, den: 1 },
+				}],
 			}),
 			handoffState: new Uint8Array([2, 4, 6, revision]),
 		},
 		preferredProduct,
 		updatedAtMs,
 	};
+}
+
+function assertHandoffAnnotations(value: unknown, revision: number): void {
+	assert.equal(validateCurrentAudioEditorProject(value), true);
+	const project = value as Readonly<Record<string, unknown>>;
+	assert.deepEqual(project.timelineAnnotations, [{
+		id: 'handoff-marker',
+		sequenceId: 'main-sequence',
+		name: 'Cross-product marker',
+		color: 'teal',
+		batchId: 'handoff-annotation-batch',
+		opaqueExtensions: {},
+		kind: 'marker',
+		anchor: 'sample',
+		positionFrame: revision * 24_000,
+	}, {
+		id: 'handoff-region',
+		sequenceId: 'main-sequence',
+		name: 'Cross-product region',
+		color: 'teal',
+		batchId: 'handoff-annotation-batch',
+		opaqueExtensions: {},
+		kind: 'region',
+		anchor: 'musical',
+		startBeat: { num: 2, den: 1 },
+		endBeat: { num: 4, den: 1 },
+	}]);
 }

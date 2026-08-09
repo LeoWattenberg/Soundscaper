@@ -38,7 +38,7 @@ test('V9 projects require a normalized feature-requirements manifest', () => {
 		featureRequirements: input,
 	});
 
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 10);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 11);
 	assert.strictEqual(validateAudioEditorProjectV9, validateAudioEditorProjectV9Direct);
 	assert.equal(project.schemaVersion, 9);
 	assert.deepEqual(project.featureRequirements, { ...input, schemaVersion: 2 });
@@ -99,9 +99,10 @@ test('V9 projects remain editable while commands retain requirement state', () =
 
 test('V9 loading and the migration boundary preserve future projects opaquely read-only', () => {
 	const current = createAudioEditorProjectV9({ now: NOW });
+	const futureSchemaVersion = AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1;
 	const future = {
 		...current,
-		schemaVersion: 11,
+		schemaVersion: futureSchemaVersion,
 		featureRequirements: {
 			schemaVersion: 99,
 			unknownFutureManifestState: { retained: true },
@@ -119,7 +120,7 @@ test('V9 loading and the migration boundary preserve future projects opaquely re
 
 	const routed = migrateAudioEditorProject(future);
 	assert.equal(routed.migrated, false);
-	assert.equal(routed.fromVersion, 11);
+	assert.equal(routed.fromVersion, futureSchemaVersion);
 	assert.equal(routed.readOnly, true);
 	assert.equal(routed.reason, 'newer-schema');
 	assert.deepEqual(routed.project, future);

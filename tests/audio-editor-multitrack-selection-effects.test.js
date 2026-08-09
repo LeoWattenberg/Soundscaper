@@ -18,7 +18,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { ENGLISH_COPY } = await import('../src/common/i18n/catalogs.js');
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
-const { createAudioEditorProjectV10 } = await import('../src/common/editor/project-v10.ts');
+const { createCurrentAudioEditorProject } = await import('../src/common/editor/project-current.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 
 test('selection effects replace every selected audio track in one atomic history entry', async () => {
@@ -229,7 +229,7 @@ test('destructive selection renders exclude track automation and downstream mixe
 		sends: [],
 		routes: { 'effect-track-a': { groupId: 'effect-group', sends: {} } },
 	};
-	await store.saveProject(createAudioEditorProjectV10(project));
+	await store.saveProject(createCurrentAudioEditorProject(project));
 	let drySnapshot;
 	const controller = createController(store, async (snapshot, range) => {
 		drySnapshot = structuredClone(snapshot);
@@ -473,7 +473,7 @@ async function createTwoTrackFixture(prefix, inputs, sampleRate, spectrogram = f
 		await writer.write([input]);
 		await writer.commit({ sampleRate, channelCount: 1 });
 	}
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: `${prefix}-project`,
 		title: 'Multitrack effect project',
 		now: '2026-07-15T00:00:00.000Z',

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -129,7 +129,7 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 		name: 'Managed handoff audio',
 		clipIds: [clip.id],
 	});
-	const project = exactProject(createAudioEditorProjectV10({
+	const project = exactProject(createCurrentAudioEditorProject({
 		id: 'managed-handoff-project',
 		title: 'Managed audio handoff',
 		revision: 3,
@@ -331,9 +331,9 @@ function serviceBridge(service: DesktopSharedProjectLibraryService): DesktopShar
 	return Object.freeze(bridge);
 }
 
-function exactProject(value: unknown): AudioEditorProjectV10 {
+function exactProject(value: unknown): AudioEditorProjectCurrent {
 	const project = typeof value === 'string' ? parseScapeProjectDocument(value) : value;
-	if (!validateAudioEditorProjectV10(project)) throw new TypeError('Expected an exact-V10 project.');
+	if (!validateCurrentAudioEditorProject(project)) throw new TypeError('Expected an exact-current project.');
 	if (typeof value === 'string') assert.equal(serializeScapeProjectDocument(project), value);
 	return project;
 }

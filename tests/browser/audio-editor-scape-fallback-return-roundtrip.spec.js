@@ -10,7 +10,7 @@ import {
 } from '@zip.js/zip.js';
 
 import { resolveRuntimeClipProjection } from '../../src/common/editor/runtime-clip-projection.ts';
-import { validateAudioEditorProjectV10 } from '../../src/common/editor/project-v10-validation.ts';
+import { validateCurrentAudioEditorProject } from '../../src/common/editor/project-current.ts';
 
 import {
 	asymmetricStereoTone,
@@ -286,7 +286,7 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				},
 			}],
 		};
-		validateAudioEditorProjectV10(project);
+		validateCurrentAudioEditorProject(project);
 	});
 }
 

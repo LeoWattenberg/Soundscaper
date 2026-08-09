@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -542,7 +542,7 @@ function videoSource(
 function projectWithSources(
 	id: string,
 	sources: readonly Readonly<Record<string, unknown>>[],
-): AudioEditorProjectV10 {
+): AudioEditorProjectCurrent {
 	const timelineClips: Readonly<Record<string, unknown>>[] = [];
 	const tracks: Readonly<Record<string, unknown>>[] = [];
 	const binClips: Readonly<Record<string, unknown>>[] = [];
@@ -568,7 +568,7 @@ function projectWithSources(
 			? createVideoClipV9(clipOptions)
 			: createAudioClipV9(clipOptions));
 	}
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id,
 		title: `Project ${id}`,
 		revision: 2,
@@ -581,10 +581,10 @@ function projectWithSources(
 }
 
 function priorProject(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	sources: readonly Readonly<Record<string, unknown>>[] = project.sources,
-): AudioEditorProjectV10 {
-	return createAudioEditorProjectV10({
+): AudioEditorProjectCurrent {
+	return createCurrentAudioEditorProject({
 		...project,
 		revision: 1,
 		createdAt: PRIOR_NOW,

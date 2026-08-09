@@ -11,6 +11,7 @@ import type {
 	ProjectFeatureFallback,
 	ProjectFeatureRequirementsReport,
 } from '../src/common/editor/project-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import ProjectFeatureCompatibilityNotice from '../src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 
@@ -38,7 +39,7 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 
 function project(): Record<string, unknown> {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		id: 'project',
 		tracks: [{
 			id: 'track-a',

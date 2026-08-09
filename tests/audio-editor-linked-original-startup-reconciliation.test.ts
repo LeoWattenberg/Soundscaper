@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -354,13 +354,13 @@ function bindingInput(projectId: string, source: TestSource, locatorId: string):
 	};
 }
 
-function project(id: string, revision: number, source?: TestSource): AudioEditorProjectV10 {
+function project(id: string, revision: number, source?: TestSource): AudioEditorProjectCurrent {
 	const clip = source?.kind === 'audio'
 		? createAudioClipV9({ id: `${id}-clip`, sourceId: source.id, durationFrames: 120, sourceDurationFrames: 120 })
 		: source?.kind === 'video'
 			? createVideoClipV9({ id: `${id}-clip`, sourceId: source.id, durationFrames: 120, sourceDurationFrames: 120 })
 			: null;
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id, title: id, revision, now: NOW,
 		sources: source ? [source] : [],
 		clips: clip ? [clip] : [],
@@ -375,12 +375,12 @@ function projectWithBinAndFallback(
 	revision: number,
 	bin: TestSource,
 	fallback: TestSource,
-): AudioEditorProjectV10 {
+): AudioEditorProjectCurrent {
 	const binClip = createVideoClipV9({
 		id: `${id}-bin-clip`, binItemId: `${id}-bin-item`, sourceId: bin.id,
 		durationFrames: 120, sourceDurationFrames: 120,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id, title: id, revision, now: NOW,
 		sources: [bin, fallback],
 		projectBin: { clips: [binClip] },
@@ -439,7 +439,7 @@ async function deleteRevision(database: IDBDatabase, projectId: string, revision
 	));
 }
 
-async function putCurrentProject(database: IDBDatabase, value: AudioEditorProjectV10): Promise<void> {
+async function putCurrentProject(database: IDBDatabase, value: AudioEditorProjectCurrent): Promise<void> {
 	await transact(database, 'projects', 'readwrite', ({ projects }) => request(projects.put(value)));
 }
 

@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -114,8 +117,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 	const sourceBuffers = new Map<string, unknown>([[AUDIO_SOURCE_ID, Object.freeze({ owner: 'canonical-audio' })]]);
 	const loadedStorageKeys: string[] = [];
 	const errors: unknown[] = [];
-	let plannedProject: AudioEditorProjectV10 | null = null;
-	let renderedProject: AudioEditorProjectV10 | null = null;
+	let plannedProject: AudioEditorProjectCurrent | null = null;
+	let renderedProject: AudioEditorProjectCurrent | null = null;
 	let renderedRange: RenderRange | null = null;
 	let renderedSourceMap: ReadonlyMap<string, unknown> | null = null;
 	let renderedChunkSources: ReadonlyMap<string, EngineChunkSource> | null = null;
@@ -173,14 +176,14 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 	const runtime = {
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		audioBufferChannels: (buffer: Readonly<{ channels: readonly Float32Array[] }>) => buffer.channels,
-		cloneProject: (project: AudioEditorProjectV10) => structuredClone(project),
+		cloneProject: (project: AudioEditorProjectCurrent) => structuredClone(project),
 		copy: {
 			localSourcesMissing: 'Local sources missing',
 			rendering: 'Rendering',
 			encoding: 'Encoding',
 			done: 'Done',
 		},
-		createVideoExportPlan(project: AudioEditorProjectV10, options: Readonly<Record<string, unknown>>) {
+		createVideoExportPlan(project: AudioEditorProjectCurrent, options: Readonly<Record<string, unknown>>) {
 			plannedProject = project;
 			return createVideoExportPlan(project, options) as unknown as VideoPlan;
 		},
@@ -210,8 +213,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 				});
 			},
 		},
-		findClip: (project: AudioEditorProjectV10, id: string) => project.clips.find((clip) => clip.id === id),
-		findSource: (project: AudioEditorProjectV10, id: string) => project.sources.find((source) => source.id === id),
+		findClip: (project: AudioEditorProjectCurrent, id: string) => project.clips.find((clip) => clip.id === id),
+		findSource: (project: AudioEditorProjectCurrent, id: string) => project.sources.find((source) => source.id === id),
 		getProject: () => canonical,
 		handleError(error: unknown) { errors.push(error); },
 		hasMissingTimelineSources(
@@ -268,7 +271,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		},
 	};
 	const renderSnapshot = async (
-		project: AudioEditorProjectV10,
+		project: AudioEditorProjectCurrent,
 		range: RenderRange,
 		buffers: ReadonlyMap<string, unknown>,
 		_signal?: AbortSignal,
@@ -297,8 +300,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		method: 'object-url',
 	});
 	assert.deepEqual(canonical, before, 'ordinary export must not mutate the canonical project');
-	const exportedProject = capturedValue<AudioEditorProjectV10>(plannedProject, 'planned project');
-	const audioRenderProject = capturedValue<AudioEditorProjectV10>(renderedProject, 'audio render project');
+	const exportedProject = capturedValue<AudioEditorProjectCurrent>(plannedProject, 'planned project');
+	const audioRenderProject = capturedValue<AudioEditorProjectCurrent>(renderedProject, 'audio render project');
 	const plan = capturedValue<VideoPlan>(encodedPlan, 'encoded plan');
 	const videoBlobs = capturedValue<ReadonlyMap<string, Blob>>(encodedVideoBlobs, 'encoded video blobs');
 	const audioMix = capturedValue<Blob>(encodedAudioMix, 'encoded audio mix');
@@ -444,7 +447,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 	assert.deepEqual(new Uint8Array(await publication.arrayBuffer()), encodedBytes);
 });
 
-function clipFallbackProject(): AudioEditorProjectV10 {
+function clipFallbackProject(): AudioEditorProjectCurrent {
 	const targetSource = createVideoSourceV9({
 		id: CANONICAL_TARGET_SOURCE_ID,
 		storageKey: 'canonical-target-video-storage',
@@ -524,7 +527,7 @@ function clipFallbackProject(): AudioEditorProjectV10 {
 		groupId: 'scene-group',
 		avLinkId: 'target-av-link',
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'clip-fallback-export',
 		title: 'Clip fallback export',
 		now: '2026-08-03T12:00:00.000Z',

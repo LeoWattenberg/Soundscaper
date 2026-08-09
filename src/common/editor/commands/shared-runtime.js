@@ -41,11 +41,21 @@ import {
 export function pruneMissingProjectSelections(project) {
 	const trackIds = new Set(project.tracks.map((track) => track.id));
 	const timelineClipIds = new Set(project.clips.map((clip) => clip.id));
+	const timelineAnnotationIds = new Set(
+		Array.isArray(project.timelineAnnotations)
+			? project.timelineAnnotations.map((annotation) => annotation.id)
+			: [],
+	);
 	if (Array.isArray(project.selection?.trackIds)) {
 		project.selection.trackIds = project.selection.trackIds.filter((trackId) => trackIds.has(trackId));
 	}
 	if (Array.isArray(project.selection?.clipIds)) {
 		project.selection.clipIds = project.selection.clipIds.filter((clipId) => timelineClipIds.has(clipId));
+	}
+	if (Array.isArray(project.selection?.annotationIds)) {
+		project.selection.annotationIds = project.selection.annotationIds.filter(
+			(annotationId) => timelineAnnotationIds.has(annotationId),
+		);
 	}
 	if (Array.isArray(project.view?.selectedTrackIds)) {
 		project.view.selectedTrackIds = project.view.selectedTrackIds.filter((trackId) => trackIds.has(trackId));

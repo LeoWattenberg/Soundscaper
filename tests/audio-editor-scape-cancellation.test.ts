@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	extractScapeVideo,
 	SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES,
@@ -444,7 +444,7 @@ async function seedPreviousProject(store: ReturnType<typeof memoryStore>, id: st
 }
 
 function audioProject(id = 'scape-cancel-project') {
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id,
 		title: 'Incoming audio',
 		sources: [{
@@ -474,7 +474,7 @@ function audioProject(id = 'scape-cancel-project') {
 }
 
 function videoProject(id = 'scape-cancel-project') {
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id,
 		title: 'Incoming video',
 		sources: [{
@@ -507,7 +507,7 @@ function videoProject(id = 'scape-cancel-project') {
 }
 
 function projectOnly(id: string, title: string) {
-	return createAudioEditorProjectV10({ id, title, sources: [], clips: [], tracks: [] });
+	return createCurrentAudioEditorProject({ id, title, sources: [], clips: [], tracks: [] });
 }
 
 async function inventory(store: ReturnType<typeof memoryStore>) {

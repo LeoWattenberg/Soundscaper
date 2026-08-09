@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -83,7 +86,7 @@ function project(featureId: string = AUDIO_EFFECTS) {
 		gain: 0.5,
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'project-a',
 		now: '2026-07-30T12:00:00.000Z',
 		masterChannels: 2,
@@ -292,7 +295,7 @@ test('available, bypass, wrong-role, and future requirements never activate fall
 
 	const future = {
 		...input,
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get sources(): never { throw new Error('future sources were traversed'); },
 	};
 	const projected = projectFeatureAudioRenderedFallbackPlayback(future, report());

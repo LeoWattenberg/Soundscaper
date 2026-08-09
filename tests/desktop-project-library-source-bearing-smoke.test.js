@@ -13,7 +13,7 @@ import {
 	encodeDesktopProjectLibrarySourceBearingPlan,
 	validateDesktopProjectLibrarySourceBearingResult,
 } from '../desktop/project-library-source-bearing-smoke.js';
-import { validateAudioEditorProjectV10 } from '../src/common/editor/project-v10-validation.ts';
+import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -49,9 +49,9 @@ test('source-bearing packaged handoff owns the two frozen Electron roundtrips', 
 		assert.equal(workflow.stages[0].profileId, workflow.stages[2].profileId);
 		assert.notEqual(workflow.stages[0].profileId, workflow.stages[1].profileId);
 		const project = parseScapeProjectDocument(workflow.seed.document);
-		assert.equal(validateAudioEditorProjectV10(project), true);
+		assert.equal(validateCurrentAudioEditorProject(project), true);
 		assert.equal(serializeScapeProjectDocument(project), workflow.seed.document);
-		assert.equal(project.schemaVersion, 10);
+		assert.equal(project.schemaVersion, 11);
 		assert.equal(project.id, workflow.seed.projectId);
 		assert.equal(project.revision, 1);
 		assert.equal(project.sources.length, 2);
@@ -70,7 +70,7 @@ test('source-bearing packaged handoff owns the two frozen Electron roundtrips', 
 		);
 		for (const witness of workflow.seed.roleWitnesses) {
 			const witnessProject = parseScapeProjectDocument(witness.document);
-			assert.equal(validateAudioEditorProjectV10(witnessProject), true);
+			assert.equal(validateCurrentAudioEditorProject(witnessProject), true);
 			assert.equal(serializeScapeProjectDocument(witnessProject), witness.document);
 			assert.equal(witnessProject.id, witness.projectId);
 			assert.deepEqual(

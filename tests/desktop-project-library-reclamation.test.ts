@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -527,7 +527,7 @@ async function createFixture(context: TestContext) {
 }
 
 function currentProject(id: string, revision: number) {
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id,
 		title: 'Reclamation project',
 		revision,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -22,7 +22,7 @@ const DIGEST = '9a'.repeat(32);
 
 function fixture() {
 	const audioSource = createAudioSourceV9({
-		id: 'audio-source', storageKey: 'audio-source', frameCount: 200,
+		id: 'audio-source', storageKey: 'audio-source', frameCount: 1_600,
 		channelCount: 2, sampleRate: 48_000,
 	});
 	const canonicalVideo = createVideoSourceV9({
@@ -39,8 +39,9 @@ function fixture() {
 		hasAudio: false,
 	});
 	const linkedAudio = createAudioClipV9({
-		id: 'linked-audio-clip', sourceId: audioSource.id, durationFrames: 20,
-		timelineStartFrame: 120, avLinkId: 'av-link-a', title: 'Linked production sound',
+		id: 'linked-audio-clip', sourceId: audioSource.id, durationFrames: 1_600,
+		sourceDurationFrames: 1_600, timelineStartFrame: 0,
+		avLinkId: 'av-link-a', title: 'Linked production sound',
 	});
 	const target = createVideoClipV9({
 		id: 'target-video-clip', sourceId: canonicalVideo.id, title: 'Hero shot',
@@ -57,7 +58,7 @@ function fixture() {
 		timelineStartFrame: 4, sourceStartFrame: 2, sourceDurationFrames: 10,
 		durationFrames: 10, color: '#abcdef', opaqueExtensions: { titleCard: true },
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'clip-fallback-project', now: '2026-08-03T10:00:00.000Z', sampleRate: 48_000,
 		sources: [audioSource, canonicalVideo, unaffectedVideo, fallbackVideo],
 		clips: [unaffected, linkedAudio, target],
@@ -65,10 +66,12 @@ function fixture() {
 			createVideoTrackV9({
 				id: 'title-track', clipIds: [unaffected.id], name: 'Titles', hidden: true,
 			}),
-			createAudioTrackV9({ id: 'production-sound', clipIds: [linkedAudio.id] }),
 			createVideoTrackV9({
 				id: 'hero-track', clipIds: [target.id], name: 'Hero', mute: true,
 				laneGroupId: 'scene-lane', opaqueExtensions: { compositorTrack: 'hero-track-node' },
+			}),
+			createAudioTrackV9({
+				id: 'production-sound', clipIds: [linkedAudio.id], laneGroupId: 'scene-lane',
 			}),
 		],
 		projectBin: {

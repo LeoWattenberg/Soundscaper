@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, validateAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -30,7 +30,7 @@ import {
 } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import type { EditorController } from '../src/common/editor/types.ts';
 
-type ExactProjectV10 = AudioEditorProjectV10 & Readonly<{
+type ExactProjectCurrent = AudioEditorProjectCurrent & Readonly<{
 	id: string;
 	title: string;
 	revision: number;
@@ -58,7 +58,7 @@ const FRAME_OWNER = Object.freeze({
 	instanceId: 'editor-handoff-framescaper',
 });
 
-test('source-bearing exact-V10 handoff refuses activation without recipient-local PCM', async (context) => {
+test('source-bearing exact-current handoff refuses activation without recipient-local PCM', async (context) => {
 	const fixture = await createFixture();
 	const resources = trackResources(context, fixture);
 	const soundHost = await resources.startHost(SOUND_OWNER);
@@ -91,7 +91,7 @@ test('source-bearing exact-V10 handoff refuses activation without recipient-loca
 		name: 'Soundscaper audio',
 		clipIds: [clip.id],
 	});
-	const project = exactV9(createAudioEditorProjectV10({
+	const project = exactProject(createCurrentAudioEditorProject({
 		id: 'handoff-project-with-audio',
 		title: 'Source-bearing handoff',
 		revision: 3,
@@ -125,7 +125,7 @@ test('source-bearing exact-V10 handoff refuses activation without recipient-loca
 	});
 	assert.equal(sharedResult.status, 'committed');
 	const sharedDocument = sharedResult.status === 'committed' ? sharedResult.document : '';
-	assert.deepEqual(exactV9(sharedDocument), project);
+	assert.deepEqual(exactProject(sharedDocument), project);
 	const sharedCatalog = soundHost.readCatalog();
 	const soundToken = soundHost.snapshot().lastWriter!.fencingToken;
 	await soundLocalStore.close();
@@ -187,7 +187,7 @@ test('source-bearing exact-V10 handoff refuses activation without recipient-loca
 	assert.ok(failed.status.message.includes(sourceId));
 });
 
-test('source-free exact-V10 composed editor autosave hands off from Soundscaper to Framescaper', async (context) => {
+test('source-free exact-current composed editor autosave hands off from Soundscaper to Framescaper', async (context) => {
 	const fixture = await createFixture();
 	const resources = trackResources(context, fixture);
 	const soundHost = await resources.startHost(SOUND_OWNER);
@@ -209,16 +209,16 @@ test('source-free exact-V10 composed editor autosave hands off from Soundscaper 
 	const soundProjectActions = soundscaper.actions.project as unknown as HandoffProjectActions;
 
 	await soundscaper.ready;
-	const created = exactV9(soundscaper.getSnapshot().project);
+	const created = exactProject(soundscaper.getSnapshot().project);
 	assertSourceFree(created);
 	assert.ok(created.revision > 0);
 	assert.ok(soundCommits.length > 0, 'controller creation must save through the shared repository');
 	assert.equal(soundHost.readCatalog().revision, 1);
-	assert.equal(exactV9(await soundService.readSharedProject(created.id)).revision, created.revision);
+	assert.equal(exactProject(await soundService.readSharedProject(created.id)).revision, created.revision);
 
 	soundClock.value = 11_000;
 	soundProjectActions.rename('Soundscaper autosave');
-	const dirty = exactV9(soundscaper.getSnapshot().project);
+	const dirty = exactProject(soundscaper.getSnapshot().project);
 	assert.equal(dirty.revision, created.revision + 1);
 	assert.equal(soundTimers.run(500), 1, 'rename must schedule one controller autosave');
 	const autosaved = await waitForProject(soundService, created.id, (project) => (
@@ -263,7 +263,7 @@ test('source-free exact-V10 composed editor autosave hands off from Soundscaper 
 	const frameProjectActions = framescaper.actions.project as unknown as HandoffProjectActions;
 
 	await framescaper.ready;
-	const reopened = exactV9(framescaper.getSnapshot().project);
+	const reopened = exactProject(framescaper.getSnapshot().project);
 	assert.equal(framescaper.getSnapshot().productId, 'framescaper');
 	assert.equal(reopened.id, created.id);
 	assert.equal(reopened.title, autosaved.title);
@@ -273,10 +273,10 @@ test('source-free exact-V10 composed editor autosave hands off from Soundscaper 
 
 	frameClock.value = 21_000;
 	frameProjectActions.rename('Finished in Framescaper');
-	const frameEdit = exactV9(framescaper.getSnapshot().project);
+	const frameEdit = exactProject(framescaper.getSnapshot().project);
 	assert.equal(frameEdit.revision, reopened.revision + 1);
 	await frameProjectActions.flush();
-	const handedOff = exactV9(await frameService.readSharedProject(created.id));
+	const handedOff = exactProject(await frameService.readSharedProject(created.id));
 	assert.equal(handedOff.title, 'Finished in Framescaper');
 	assert.equal(handedOff.revision, frameEdit.revision);
 	assertSourceFree(handedOff);
@@ -322,15 +322,15 @@ function serviceBridge(
 	});
 }
 
-function exactV9(value: unknown): ExactProjectV10 {
+function exactProject(value: unknown): ExactProjectCurrent {
 	const project = typeof value === 'string' ? parseScapeProjectDocument(value) : value;
-	if (!validateAudioEditorProjectV10(project)) throw new TypeError('Expected an exact-V10 project.');
+	if (!validateCurrentAudioEditorProject(project)) throw new TypeError('Expected an exact-current project.');
 	if (typeof value === 'string') assert.equal(serializeScapeProjectDocument(project), value);
-	return project as ExactProjectV10;
+	return project as ExactProjectCurrent;
 }
 
-function assertSourceFree(project: ExactProjectV10): void {
-	assert.equal(project.schemaVersion, 10);
+function assertSourceFree(project: ExactProjectCurrent): void {
+	assert.equal(project.schemaVersion, 11);
 	assert.deepEqual(project.sources, []);
 	assert.deepEqual(project.clips, []);
 	assert.deepEqual(project.projectBin.clips, []);
@@ -361,12 +361,12 @@ function manualTimers() {
 async function waitForProject(
 	service: DesktopSharedProjectLibraryService,
 	projectId: string,
-	accept: (project: ExactProjectV10) => boolean,
-): Promise<ExactProjectV10> {
+	accept: (project: ExactProjectCurrent) => boolean,
+): Promise<ExactProjectCurrent> {
 	for (let attempt = 0; attempt < 100; attempt += 1) {
 		const document = await service.readSharedProject(projectId);
 		if (document) {
-			const project = exactV9(document);
+			const project = exactProject(document);
 			if (accept(project)) return project;
 		}
 		await new Promise<void>((resolve) => { setImmediate(resolve); });

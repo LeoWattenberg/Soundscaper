@@ -12,9 +12,9 @@ import {
 	createVideoSourceV9,
 } from '../src/common/editor/project-v9.ts';
 import {
-	createAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
@@ -297,7 +297,7 @@ test('prior-local video bytes join the aggregate budget before a missing body is
 		id: `${source.id}-clip`, sourceId: source.id, durationFrames: source.frameCount,
 		binItemId: `${source.id}-item`,
 	}));
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'prior-video-aggregate-budget', title: 'Prior video aggregate budget', revision: 2,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [first, second], projectBin: { clips },
@@ -345,7 +345,7 @@ interface MixedFixture {
 	readonly audioDescriptor: DesktopSharedManagedSourceDescriptor;
 	readonly bodyByBinding: ReadonlyMap<string, Uint8Array>;
 	readonly descriptors: readonly DesktopSharedManagedSourceDescriptor[];
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly video: ReturnType<typeof createVideoSourceV9>;
 	readonly videoBytes: Uint8Array;
 	readonly videoDescriptor: DesktopSharedManagedSourceDescriptor;
@@ -362,7 +362,7 @@ interface LinkedAcquisitionFixture {
 		managedMediaWrites: number;
 	};
 	readonly descriptor: DesktopSharedManagedSourceDescriptor;
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly session: DesktopSharedLinkedVideoOriginalSession;
 	readonly store: DesktopSharedSourceTransferStore;
 	readonly video: ReturnType<typeof createVideoSourceV9>;
@@ -386,7 +386,7 @@ function mixedFixture(): MixedFixture {
 		id: 'recipient-video-clip', sourceId: video.id, durationFrames: 30,
 		binItemId: 'recipient-video-item',
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'recipient-mixed-project', title: 'Recipient mixed project', revision: 4,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [audio, video], clips: [audioClip],
@@ -494,12 +494,12 @@ async function linkedAcquisitionFixture(): Promise<LinkedAcquisitionFixture> {
 	};
 }
 
-function linkedVideoProject(video: ReturnType<typeof createVideoSourceV9>): AudioEditorProjectV10 {
+function linkedVideoProject(video: ReturnType<typeof createVideoSourceV9>): AudioEditorProjectCurrent {
 	const clip = createVideoClipV9({
 		id: 'linked-acquisition-video-clip', sourceId: video.id,
 		durationFrames: video.frameCount, binItemId: 'linked-acquisition-video-bin-item',
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'linked-acquisition-project', title: 'Linked acquisition project', revision: 1,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [video], projectBin: { clips: [clip] },

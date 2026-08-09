@@ -97,6 +97,16 @@ test('timeline annotations expose all four closed authoritative wire variants', 
 		() => validateTimelineAnnotationV11({ ...COMMON, kind: 'marker', anchor: 'time', positionFrame: 0 }, TEMPORAL_CONTEXT),
 		/anchor/iu,
 	);
+	const hidden = sampleMarker();
+	Object.defineProperty(hidden, 'caption', { value: 'hidden field', enumerable: false });
+	const symbolic = sampleMarker() as Record<PropertyKey, unknown>;
+	symbolic[Symbol('caption')] = 'symbol field';
+	for (const value of [hidden, symbolic]) {
+		assert.throws(
+			() => validateTimelineAnnotationV11(value, TEMPORAL_CONTEXT),
+			/unsupported field|own enumerable data/iu,
+		);
+	}
 });
 
 test('annotation collection factories retain document order and clone opaque extensions', () => {
@@ -188,6 +198,19 @@ test('annotation text, IDs, colors, and extensions use bounded canonical wire va
 			/opaqueExtensions.*object/iu,
 		);
 	}
+	for (const opaqueExtensions of [
+		{ nested: { value: 1n } },
+		{ nested: new Map([['lossy', true]]) },
+	]) {
+		assert.throws(
+			() => createTimelineAnnotationV11(sampleMarker({ opaqueExtensions }), TEMPORAL_CONTEXT),
+			/opaqueExtensions|JSON.serializable|plain object|scalar/iu,
+		);
+		assert.throws(
+			() => validateTimelineAnnotationV11(sampleMarker({ opaqueExtensions }), TEMPORAL_CONTEXT),
+			/opaqueExtensions|JSON.serializable|plain object|scalar/iu,
+		);
+	}
 });
 
 test('musical factories canonicalize rational inputs while wire validation requires canonical nonnegative rationals', () => {
@@ -210,6 +233,7 @@ test('musical factories canonicalize rational inputs while wire validation requi
 		musicalRegion(),
 	);
 	for (const positionBeat of [
+		{ num: -0, den: 1 },
 		{ num: -1, den: 1 },
 		{ num: 1, den: 0 },
 		{ num: 1.5, den: 1 },
@@ -222,6 +246,10 @@ test('musical factories canonicalize rational inputs while wire validation requi
 			/rational|canonical|safe integer|unsupported|non-negative|denominator/iu,
 		);
 	}
+	assert.throws(
+		() => validateTimelineAnnotationV11(sampleMarker({ positionFrame: -0 }), TEMPORAL_CONTEXT),
+		/non-negative safe integer|negative zero/iu,
+	);
 });
 
 test('regions require positive authoritative and projected spans', () => {

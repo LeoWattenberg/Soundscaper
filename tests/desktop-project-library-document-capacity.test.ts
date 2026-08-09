@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
@@ -86,7 +86,7 @@ async function capacityFixture(
 		await rm(appDataPath, { recursive: true, force: true });
 	});
 	const store = new DesktopLibraryProjectStore(library, { statfsImpl });
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'document-capacity-project',
 		title: 'Document capacity project',
 		revision: 1,

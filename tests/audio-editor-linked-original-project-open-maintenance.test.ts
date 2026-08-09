@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -8,6 +8,7 @@ import test, { type TestContext } from 'node:test';
 import {
 	createAudioClipV9,
 	createAudioSourceV9,
+	createAudioTrackV9,
 } from '../src/common/editor/project-v9.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
@@ -376,16 +377,18 @@ function project(
 	revision: number,
 	source?: ReturnType<typeof audioSource>,
 ) {
-	return createAudioEditorProjectV10({
+	const clips = source ? [createAudioClipV9({
+		id: `${id}-clip`, sourceId: source.id,
+		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
+	})] : [];
+	return createCurrentAudioEditorProject({
 		id,
 		title: id,
 		revision,
 		now: NOW,
 		sources: source ? [source] : [],
-		clips: source ? [createAudioClipV9({
-			id: `${id}-clip`, sourceId: source.id,
-			durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
-		})] : [],
+		clips,
+		tracks: clips.length === 0 ? [] : [createAudioTrackV9({ id: `${id}-track`, clipIds: [clips[0].id] })],
 	});
 }
 

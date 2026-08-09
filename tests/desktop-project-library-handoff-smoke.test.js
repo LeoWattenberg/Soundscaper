@@ -20,14 +20,14 @@ import {
 	parseDesktopProjectLibraryHandoffOutput,
 	validateDesktopProjectLibraryHandoffResults,
 } from '../scripts/lib/desktop-project-library-handoff-smoke.mjs';
-import { validateAudioEditorProjectV10 } from '../src/common/editor/project-v10-validation.ts';
+import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
 } from '../src/common/editor/scape-project-document.ts';
 import { parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 
-test('packaged handoff fixtures are canonical source-free exact-schema-10 revisions', () => {
+test('packaged handoff fixtures are canonical source-free exact-schema-11 revisions', () => {
 	const stages = createDesktopProjectLibraryHandoffStages();
 	assert.deepEqual(stages.map(({ stage, productId, profileId, target }) => ({
 		stage,
@@ -61,9 +61,9 @@ test('packaged handoff fixtures are canonical source-free exact-schema-10 revisi
 
 	for (const [index, fixture] of stages.entries()) {
 		const project = parseScapeProjectDocument(fixture.target.document);
-		assert.equal(validateAudioEditorProjectV10(project), true);
+		assert.equal(validateCurrentAudioEditorProject(project), true);
 		assert.equal(serializeScapeProjectDocument(project), fixture.target.document);
-		assert.equal(project.schemaVersion, 10);
+		assert.equal(project.schemaVersion, 11);
 		assert.equal(project.id, DESKTOP_PROJECT_LIBRARY_HANDOFF_PROJECT_ID);
 		assert.equal(project.title, fixture.target.title);
 		assert.equal(project.revision, index + 1);
@@ -72,8 +72,39 @@ test('packaged handoff fixtures are canonical source-free exact-schema-10 revisi
 		assert.deepEqual(project.sources, []);
 		assert.deepEqual(project.clips, []);
 		assert.deepEqual(project.tracks, []);
+		assert.deepEqual(project.timelineAnnotations, [
+			{
+				id: 'packaged-handoff-marker',
+				sequenceId: 'main-sequence',
+				name: 'Shared marker',
+				color: 'violet',
+				batchId: 'packaged-handoff-batch',
+				opaqueExtensions: {},
+				kind: 'marker',
+				anchor: 'sample',
+				positionFrame: 24_000,
+			},
+			{
+				id: 'packaged-handoff-region',
+				sequenceId: 'main-sequence',
+				name: 'Shared region',
+				color: 'violet',
+				batchId: 'packaged-handoff-batch',
+				opaqueExtensions: {},
+				kind: 'region',
+				anchor: 'musical',
+				startBeat: { num: 2, den: 1 },
+				endBeat: { num: 4, den: 1 },
+			},
+		]);
 		assert.deepEqual(project.projectBin.clips, []);
-		assert.deepEqual(project.featureRequirements, { schemaVersion: 2, requirements: [] });
+		assert.deepEqual(project.featureRequirements, { schemaVersion: 2, requirements: [{
+			id: 'soundscaper.timeline-annotations',
+			featureId: 'org.soundscaper.capability.timeline-annotations',
+			displayName: 'Timeline markers and regions',
+			disposition: 'bypass',
+			fallback: null,
+		}] });
 		assert.equal(
 			createHash('sha256').update(fixture.target.document).digest('hex'),
 			fixture.target.sha256,

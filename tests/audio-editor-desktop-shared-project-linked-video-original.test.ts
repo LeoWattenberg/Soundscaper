@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -160,7 +160,7 @@ function videoSource(): VideoSource {
 	});
 }
 
-function videoProject(source: VideoSource): AudioEditorProjectV10 {
+function videoProject(source: VideoSource): AudioEditorProjectCurrent {
 	const clip = createVideoClipV9({
 		id: 'linked-workflow-clip',
 		sourceId: source.id,
@@ -168,7 +168,7 @@ function videoProject(source: VideoSource): AudioEditorProjectV10 {
 		sourceDurationFrames: source.frameCount,
 		binItemId: 'linked-workflow-bin-item',
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'linked-workflow-project',
 		title: 'Linked workflow project',
 		revision: 3,
@@ -178,7 +178,7 @@ function videoProject(source: VideoSource): AudioEditorProjectV10 {
 	});
 }
 
-async function linkedOriginalFixture(project: AudioEditorProjectV10, source: VideoSource) {
+async function linkedOriginalFixture(project: AudioEditorProjectCurrent, source: VideoSource) {
 	const body = new Blob([VIDEO_TEXT], { type: source.mimeType });
 	let locatorRevision = LOCATOR_REVISION;
 	const platformReads: Array<Readonly<{
@@ -212,7 +212,7 @@ async function linkedOriginalFixture(project: AudioEditorProjectV10, source: Vid
 	};
 }
 
-function documentOnlyBridge(project: AudioEditorProjectV10): DesktopSharedProjectBridge {
+function documentOnlyBridge(project: AudioEditorProjectCurrent): DesktopSharedProjectBridge {
 	return {
 		listSharedProjects: async () => [],
 		async readSharedProject(projectId) {
@@ -248,7 +248,7 @@ function guardedOwnedMediaStore(): Readonly<{
 }
 
 function linkedVideoPublicationBridge(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	source: VideoSource,
 	binding: Awaited<ReturnType<LinkedVideoOriginalRepository['get']>>,
 ) {

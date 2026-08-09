@@ -9,6 +9,7 @@ import {
 	type ProjectAudioFallbackIntegritySelector,
 	type ProjectVideoFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const VIDEO_BYTES = Uint8Array.of(0x72, 0x65, 0x6e, 0x64, 0x65, 0x72);
 const VIDEO_DIGEST = createHash('sha256').update(VIDEO_BYTES).digest('hex');
@@ -214,7 +215,7 @@ interface MutableProject {
 
 function project(fallback: Record<string, unknown>): MutableProject {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
@@ -248,7 +249,7 @@ function project(fallback: Record<string, unknown>): MutableProject {
 
 function audioProject(): Record<string, unknown> {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],

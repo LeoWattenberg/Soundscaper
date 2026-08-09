@@ -76,7 +76,7 @@ import {
 } from './project.js';
 import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCountV2 } from './project-v2.js';
 import { verifyProjectFallbackIntegrity } from './project-fallback-integrity.ts';
-import { createAudioEditorProjectV10 } from './project-v10.ts';
+import { createCurrentAudioEditorProject } from './project-current.ts';
 import { projectForCommandConsumers } from './project-current-runtime.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import {
@@ -778,7 +778,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 		getProject: () => project,
 		setProject: (nextProject) => { project = nextProject; },
-		createProject: createAudioEditorProjectV10,
+		createProject: createCurrentAudioEditorProject,
 		normalizeProjectSampleRate,
 		createInitialAudioTrackCommand: createAddTrackCommand,
 		createHistory: createEditorHistory,

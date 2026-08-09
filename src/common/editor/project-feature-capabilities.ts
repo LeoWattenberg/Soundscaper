@@ -21,6 +21,7 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	videoEffects: 'org.soundscaper.capability.video-effects',
 	videoCompositing: 'org.soundscaper.capability.video-compositing',
 	musicalTimeline: 'org.soundscaper.capability.musical-timeline',
+	timelineAnnotations: 'org.soundscaper.capability.timeline-annotations',
 	audioWarp: 'org.soundscaper.capability.audio-warp',
 	sequenceTiming: 'org.soundscaper.capability.sequence-timing',
 	videoRetime: 'org.soundscaper.capability.video-retime',
@@ -28,6 +29,14 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 } as const);
 
 export type ProjectFeatureCapabilityKey = keyof typeof PROJECT_FEATURE_CAPABILITY_IDS;
+
+const PROJECT_FEATURE_CAPABILITY_ID_SET = new Set<string>(Object.values(PROJECT_FEATURE_CAPABILITY_IDS));
+
+export function isProjectFeatureCapabilityId(
+	value: unknown,
+): value is typeof PROJECT_FEATURE_CAPABILITY_IDS[ProjectFeatureCapabilityKey] {
+	return typeof value === 'string' && PROJECT_FEATURE_CAPABILITY_ID_SET.has(value);
+}
 
 /** Registered first-party audio capabilities eligible for one whole-mix PCM fallback. */
 export const PROJECT_FEATURE_AUDIO_CAPABILITY_IDS = Object.freeze([

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -93,7 +93,7 @@ function mediaFixture() {
 		sourceId: source.id,
 		durationFrames: source.frameCount,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'reuse-fallback-project',
 		title: 'Reuse fallback',
 		revision: 8,
@@ -120,7 +120,7 @@ function mediaFixture() {
 		metadataFile: 'projects/reuse-fallback-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 10,
+		projectSchemaVersion: 11,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: PROJECT_SHA256,

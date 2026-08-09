@@ -6,7 +6,7 @@ import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { createDesktopSmokeProjectFoundation } from '../../desktop/project-library-smoke-project-v10.js';
+import { createDesktopSmokeProjectFoundation } from '../../desktop/project-library-smoke-project.js';
 import {
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
@@ -22,6 +22,31 @@ const MAXIMUM_CHILD_OUTPUT_BYTES = 1024 * 1024;
 const MAXIMUM_AGGREGATE_BYTES = 64 * 1024;
 const CHILD_TIMEOUT_MS = 30_000;
 const CREATED_AT = '2026-07-30T12:00:01.000Z';
+const HANDOFF_TIMELINE_ANNOTATIONS = Object.freeze([
+	Object.freeze({
+		id: 'packaged-handoff-marker',
+		sequenceId: 'main-sequence',
+		name: 'Shared marker',
+		color: 'violet',
+		batchId: 'packaged-handoff-batch',
+		opaqueExtensions: Object.freeze({}),
+		kind: 'marker',
+		anchor: 'sample',
+		positionFrame: 24_000,
+	}),
+	Object.freeze({
+		id: 'packaged-handoff-region',
+		sequenceId: 'main-sequence',
+		name: 'Shared region',
+		color: 'violet',
+		batchId: 'packaged-handoff-batch',
+		opaqueExtensions: Object.freeze({}),
+		kind: 'region',
+		anchor: 'musical',
+		startBeat: Object.freeze({ num: 2, den: 1 }),
+		endBeat: Object.freeze({ num: 4, den: 1 }),
+	}),
+]);
 const STAGE_DEFINITIONS = Object.freeze([
 	Object.freeze({
 		stage: 'publish',
@@ -260,6 +285,7 @@ function createSourceFreeProjectDocument({ revision, title }) {
 	const updatedAt = `2026-07-30T12:00:0${String(revision)}.000Z`;
 	return JSON.stringify({
 		...createDesktopSmokeProjectFoundation([]),
+		timelineAnnotations: HANDOFF_TIMELINE_ANNOTATIONS,
 		id: DESKTOP_PROJECT_LIBRARY_HANDOFF_PROJECT_ID,
 		title,
 		revision,
@@ -271,7 +297,14 @@ function createSourceFreeProjectDocument({ revision, title }) {
 		snap: { enabled: false, unit: 'seconds', mode: 'nearest', triplets: false, division: 'seconds', opaqueType: 0 },
 		timeDisplay: { format: 'hh:mm:ss+milliseconds' },
 		metadata: { title, artist: '', album: '', trackNumber: '', year: '', comments: '', tags: {}, bext: null, adm: null },
-		selection: { startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], frequencyRange: null },
+		selection: {
+			startFrame: 0,
+			endFrame: 0,
+			trackIds: [],
+			clipIds: [],
+			annotationIds: [],
+			frequencyRange: null,
+		},
 		loop: { enabled: false, startFrame: 0, endFrame: 0 },
 		view: {
 			scrollFrame: 0,
@@ -290,7 +323,13 @@ function createSourceFreeProjectDocument({ revision, title }) {
 		mixer: { groups: [], sends: [], routes: {} },
 		opaqueExtensions: {},
 		projectBin: { clips: [] },
-		featureRequirements: { schemaVersion: 2, requirements: [] },
+		featureRequirements: { schemaVersion: 2, requirements: [{
+			id: 'soundscaper.timeline-annotations',
+			featureId: 'org.soundscaper.capability.timeline-annotations',
+			displayName: 'Timeline markers and regions',
+			disposition: 'bypass',
+			fallback: null,
+		}] },
 	});
 }
 

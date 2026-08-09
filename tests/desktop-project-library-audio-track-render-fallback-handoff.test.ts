@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -273,7 +273,7 @@ function fallbackProjectFixture() {
 		sourceDurationFrames: native.frameCount,
 	});
 	const renderSha256 = digest(canonicalPcmBytes(RENDER_CHANNELS));
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'audio-track-render-fallback-handoff', title: 'Track render fallback handoff', revision: 3,
 		now: '2026-08-03T12:00:00.000Z', sampleRate: 48_000, masterChannels: 2,
 		sources: [target, native, render], clips: [targetClip, nativeClip],
@@ -331,7 +331,7 @@ function createAudioExportProbe(fixture: Readonly<{
 		downloads,
 		renders,
 		async renderSnapshot(
-			project: AudioEditorProjectV10,
+			project: AudioEditorProjectCurrent,
 			_range: unknown,
 			buffers: ReadonlyMap<string, unknown>,
 			signal: AbortSignal,

@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -69,24 +72,26 @@ test('audio delivery leaves available and bypass-only requirements unprojected',
 	assert.equal(available.audioRenderedFallback, null);
 	assert.deepEqual(available.requiredAudioSourceIds, []);
 
-	for (const candidate of [
-		audioRequirementProject({
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-			disposition: 'bypass',
-			fallback: null,
-		}),
-		audioRequirementProject({
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
-			disposition: 'rendered-fallback',
-			fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
-		}),
-	]) {
+	for (const candidate of [audioRequirementProject({
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		disposition: 'bypass',
+		fallback: null,
+	})]) {
 		const delivery = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
 			.projectForAudioRenderedFallbackDelivery(candidate);
 		assert.strictEqual(delivery.project, candidate);
 		assert.equal(delivery.audioRenderedFallback, null);
 		assert.deepEqual(delivery.requiredAudioSourceIds, []);
 	}
+
+	assert.throws(
+		() => audioRequirementProject({
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			disposition: 'rendered-fallback',
+			fallback: { kind: 'audio', sourceId: 'fallback-audio', sha256: DIGEST },
+		}),
+		/not eligible for an audio rendered fallback/iu,
+	);
 });
 
 test('audio delivery projects an unknown feature through the closed whole-mix role', () => {
@@ -123,7 +128,7 @@ test('audio delivery identifies the actual registered unavailable feature', () =
 
 test('audio delivery does not traverse future project feature or media state', () => {
 	const future = {
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get featureRequirements(): never { throw new Error('future feature requirements were traversed'); },
 		get sources(): never { throw new Error('future sources were traversed'); },
 		get clips(): never { throw new Error('future clips were traversed'); },
@@ -162,7 +167,7 @@ function combinedFallbackProject() {
 		id: 'canonical-video-clip', sourceId: canonicalVideo.id, durationFrames: 8,
 		videoEffects: [{ id: 'video-effect', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'combined-fallback-project', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonicalAudio, fallbackAudio, canonicalVideo, fallbackVideo],
 		clips: [audioClip, videoClip],
@@ -206,7 +211,7 @@ function audioRequirementProject(requirement: Readonly<{
 	const clip = createAudioClipV9({
 		id: 'canonical-audio-clip', sourceId: canonical.id, durationFrames: 8,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: `audio-requirement-${requirement.disposition}`,
 		now: '2026-08-02T12:00:00.000Z', sources: [canonical, fallback], clips: [clip],
 		tracks: [createAudioTrackV9({ id: 'canonical-audio-track', clipIds: [clip.id] })],

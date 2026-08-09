@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	createAudioEditorProjectV10,
 	createVideoSourceV10,
-	validateAudioEditorProjectV10,
-	type AudioEditorProjectV10,
 } from '../src/common/editor/project-v10.ts';
+import {
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -107,7 +109,7 @@ test('fresh recipient activates an exact clip-render fallback after managed hand
 		revision: fixture.project.revision,
 	});
 	assert.ok(reopened);
-	if (!validateAudioEditorProjectV10(reopened)) throw new Error('Recipient did not reopen an exact V9 project.');
+	if (!validateCurrentAudioEditorProject(reopened)) throw new Error('Recipient did not reopen an exact V9 project.');
 	assert.notStrictEqual(reopened, fixture.project);
 	assertCanonicalRelationship(reopened, fixture, canonicalDocument);
 
@@ -160,7 +162,7 @@ interface ClipFallbackFixture {
 	readonly bodyBySourceId: ReadonlyMap<string, Uint8Array>;
 	readonly fallbackDigest: string;
 	readonly fallbackSourceId: string;
-	readonly project: AudioEditorProjectV10;
+	readonly project: AudioEditorProjectCurrent;
 	readonly sources: readonly FixtureVideoSource[];
 	readonly targetClipId: string;
 	readonly targetSourceId: string;
@@ -217,7 +219,7 @@ function clipFallbackFixture(): ClipFallbackFixture {
 		sourceInFrame: 2, sourceFrameCount: 12, groupId: 'scene-b',
 	};
 	const fallbackBody = Uint8Array.of(0x66, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63, 0x6b);
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'managed-clip-fallback-project', title: 'Managed clip fallback', revision: 3,
 		now: '2026-08-03T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [targetSource, unaffectedSource, fallbackSource],
@@ -258,7 +260,7 @@ function clipFallbackFixture(): ClipFallbackFixture {
 
 function assertProjectedClipFallback(
 	projection: Readonly<{
-		project: AudioEditorProjectV10;
+		project: AudioEditorProjectCurrent;
 		videoRenderedFallback: Readonly<{
 			role: string;
 			sourceId: string;
@@ -267,7 +269,7 @@ function assertProjectedClipFallback(
 		requiredVideoSourceIds: readonly string[];
 	}>,
 	fixture: ClipFallbackFixture,
-	canonicalProject: AudioEditorProjectV10,
+	canonicalProject: AudioEditorProjectCurrent,
 ): void {
 	assert.deepEqual(projection.videoRenderedFallback, {
 		schemaVersion: 1,
@@ -298,7 +300,7 @@ function assertProjectedClipFallback(
 }
 
 function assertCanonicalRelationship(
-	project: AudioEditorProjectV10,
+	project: AudioEditorProjectCurrent,
 	fixture: ClipFallbackFixture,
 	expectedDocument: string,
 ): void {
@@ -312,7 +314,7 @@ function assertCanonicalRelationship(
 	});
 }
 
-function handoffTransport(project: AudioEditorProjectV10, sources: readonly FixtureVideoSource[]): {
+function handoffTransport(project: AudioEditorProjectCurrent, sources: readonly FixtureVideoSource[]): {
 	readonly bodyByBinding: ReadonlyMap<string, Uint8Array>;
 	readonly bridge: DesktopSharedSourceTransferBridge;
 	readonly declaredSourceIds: readonly string[];
@@ -408,7 +410,7 @@ function joinBytes(chunks: readonly Uint8Array[]): Uint8Array {
 	return output;
 }
 
-function videoBinding(project: AudioEditorProjectV10, source: FixtureVideoSource): string {
+function videoBinding(project: AudioEditorProjectCurrent, source: FixtureVideoSource): string {
 	const projectDigest = createHash('sha256')
 		.update(serializeScapeProjectDocument(project), 'utf8')
 		.digest('hex');

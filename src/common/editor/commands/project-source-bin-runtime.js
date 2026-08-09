@@ -9,6 +9,7 @@ import {
 } from '../snap-grid.js';
 import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
 import { authoredAdmChannelCount, normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -41,18 +42,35 @@ function setSelection(project, command) {
 	const range = startFrame <= endFrame
 		? { startFrame, endFrame }
 		: { startFrame: endFrame, endFrame: startFrame };
-	if (!['trackIds', 'clipIds', 'frequencyRange'].some((key) => Object.hasOwn(command, key))) {
-		project.selection = range;
+	const supportsAnnotations = project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		&& Array.isArray(project.timelineAnnotations);
+	if (Object.hasOwn(command, 'annotationIds') && !supportsAnnotations) {
+		throw new RangeError('Timeline annotation selection requires an AudioEditorProjectV11 project.');
+	}
+	if (!['trackIds', 'clipIds', 'annotationIds', 'frequencyRange'].some((key) => Object.hasOwn(command, key))) {
+		project.selection = supportsAnnotations ? { ...range, annotationIds: [] } : range;
 		return;
 	}
 	const trackIds = normalizeSelectionIds(command.trackIds ?? project.selection?.trackIds ?? [], 'selection.trackIds');
 	const clipIds = normalizeSelectionIds(command.clipIds ?? project.selection?.clipIds ?? [], 'selection.clipIds');
+	const annotationIds = supportsAnnotations
+		? normalizeSelectionIds(command.annotationIds ?? project.selection?.annotationIds ?? [], 'selection.annotationIds')
+		: [];
 	for (const trackId of trackIds) requireTrack(project, trackId);
 	for (const clipId of clipIds) requireClip(project, clipId);
+	if (supportsAnnotations) {
+		const availableAnnotationIds = new Set(project.timelineAnnotations.map(({ id }) => id));
+		for (const annotationId of annotationIds) {
+			if (!availableAnnotationIds.has(annotationId)) {
+				throw new ReferenceError(`Selection references missing annotation ${annotationId}.`);
+			}
+		}
+	}
 	project.selection = {
 		...range,
 		trackIds,
 		clipIds,
+		...(supportsAnnotations ? { annotationIds } : {}),
 		frequencyRange: normalizeFrequencyRange(command.frequencyRange, project.sampleRate),
 	};
 }

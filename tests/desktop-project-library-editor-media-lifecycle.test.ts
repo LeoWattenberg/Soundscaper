@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -44,7 +44,7 @@ class StalledPublicationHost {
 	readonly gates: Deferred<void>[] = [];
 	readonly #bundle: DesktopLibraryLoadedProjectBundle;
 
-	constructor(project: AudioEditorProjectV10) {
+	constructor(project: AudioEditorProjectCurrent) {
 		this.#bundle = Object.freeze({
 			catalog: catalogProject(project),
 			media: Object.freeze([]),
@@ -216,7 +216,7 @@ function readyId(admission: DesktopSharedSourceWriteAdmission): string {
 	return admission.writeId;
 }
 
-function projectFixture(): AudioEditorProjectV10 {
+function projectFixture(): AudioEditorProjectCurrent {
 	const source = createAudioSourceV9({
 		id: 'lifecycle-audio-source',
 		storageKey: 'lifecycle-audio-storage',
@@ -234,7 +234,7 @@ function projectFixture(): AudioEditorProjectV10 {
 		sourceId: source.id,
 		durationFrames: 1,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'managed-upload-lifecycle-project',
 		title: 'Managed upload lifecycle',
 		revision: 2,
@@ -246,7 +246,7 @@ function projectFixture(): AudioEditorProjectV10 {
 	});
 }
 
-function catalogProject(project: AudioEditorProjectV10): DesktopLibraryProject {
+function catalogProject(project: AudioEditorProjectCurrent): DesktopLibraryProject {
 	return Object.freeze({
 		id: 'managed-upload-lifecycle-entry',
 		projectId: project.id,
@@ -254,7 +254,7 @@ function catalogProject(project: AudioEditorProjectV10): DesktopLibraryProject {
 		metadataFile: 'projects/managed-upload-lifecycle-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 10,
+		projectSchemaVersion: 11,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: PROJECT_SHA256,

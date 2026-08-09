@@ -9,6 +9,10 @@ import {
 	type RationalInput,
 } from './timeline-time.ts';
 import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './project-v10-foundation-validation.ts';
+import {
+	admitAudioEditorProjectV9ValidationStructure,
+	resolveAudioEditorProjectV9ValidationLimits,
+} from './project-v9-validation-budget.ts';
 
 export const AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS = Object.freeze([
 	'auto',
@@ -88,8 +92,10 @@ const SAMPLE_MARKER_KEYS = new Set([...COMMON_KEYS, 'positionFrame']);
 const MUSICAL_MARKER_KEYS = new Set([...COMMON_KEYS, 'positionBeat']);
 const SAMPLE_REGION_KEYS = new Set([...COMMON_KEYS, 'startFrame', 'endFrame']);
 const MUSICAL_REGION_KEYS = new Set([...COMMON_KEYS, 'startBeat', 'endBeat']);
+const RATIONAL_KEYS = new Set(['num', 'den']);
 const COLOR_SET: ReadonlySet<string> = new Set(AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS);
 const INVALID_CANONICAL_TEXT = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const EXTENSION_VALIDATION_LIMITS = resolveAudioEditorProjectV9ValidationLimits();
 
 /** Create one canonical persisted V11 annotation without adding derived coordinates. */
 export function createTimelineAnnotationV11(
@@ -258,8 +264,7 @@ function assertClosedAnnotation(
 	const allowed = kind === 'marker'
 		? anchor === 'sample' ? SAMPLE_MARKER_KEYS : MUSICAL_MARKER_KEYS
 		: anchor === 'sample' ? SAMPLE_REGION_KEYS : MUSICAL_REGION_KEYS;
-	const unsupported = Object.keys(value).find((key) => !allowed.has(key));
-	if (unsupported) throw new TypeError(`${name} contains an unsupported field: ${unsupported}.`);
+	assertClosedOwnDataRecord(value, allowed, name);
 }
 
 function annotationArray(value: unknown, name: string): readonly unknown[] {
@@ -276,6 +281,7 @@ function annotationRecord(value: unknown, name: string): DataRecord {
 }
 
 function extensionRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
+	admitAudioEditorProjectV9ValidationStructure(value, EXTENSION_VALIDATION_LIMITS);
 	if (!isPlainRecord(value)) throw new TypeError(`${name} must be an object.`);
 	return value;
 }
@@ -351,8 +357,19 @@ function canonicalCoordinate(value: unknown, name: string): Rational {
 
 function assertClosedRational(value: unknown, name: string): void {
 	if (!isPlainRecord(value)) throw new TypeError(`${name} must be rational.`);
-	const unsupported = Object.keys(value).find((key) => key !== 'num' && key !== 'den');
-	if (unsupported) throw new TypeError(`${name} contains an unsupported field: ${unsupported}.`);
+	assertClosedOwnDataRecord(value, RATIONAL_KEYS, name);
+}
+
+function assertClosedOwnDataRecord(value: DataRecord, allowed: ReadonlySet<string>, name: string): void {
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== 'string' || !allowed.has(key)) {
+			throw new TypeError(`${name} contains an unsupported field: ${String(key)}.`);
+		}
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name}.${key} must be an own enumerable data property.`);
+		}
+	}
 }
 
 function assertResolvedPoint(beat: Rational, tempoMap: HoldTempoMap, sampleRate: number, name: string): void {
@@ -370,7 +387,7 @@ function sequenceIdSet(value: Iterable<string> | undefined): ReadonlySet<string>
 }
 
 function nonNegativeSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
+	if (!Number.isSafeInteger(value) || Object.is(value, -0) || Number(value) < 0) {
 		throw new RangeError(`${name} must be a non-negative safe integer.`);
 	}
 	return Number(value);

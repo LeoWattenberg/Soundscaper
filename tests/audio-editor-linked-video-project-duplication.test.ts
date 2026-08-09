@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -551,7 +551,7 @@ function mutatingCreateFactory(): StorageRepositoryFactory {
 	};
 }
 
-function linkedProject(id: string, title: string, revision = 3): AudioEditorProjectV10 {
+function linkedProject(id: string, title: string, revision = 3): AudioEditorProjectCurrent {
 	const source = linkedSource();
 	const clip = createVideoClipV9({
 		id: `${id}-bin-clip`,
@@ -560,7 +560,7 @@ function linkedProject(id: string, title: string, revision = 3): AudioEditorProj
 		durationFrames: source.frameCount,
 		sourceDurationFrames: source.frameCount,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id, title, revision, now: NOW,
 		sources: [source],
 		projectBin: { clips: [clip] },

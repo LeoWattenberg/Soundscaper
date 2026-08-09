@@ -8,7 +8,7 @@ import {
 	migrateAudioEditorProject,
 } from '../src/common/editor/migration.js';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 test('pre-release older raw schemas fail with a typed re-import requirement', () => {
 	for (let schemaVersion = 1; schemaVersion < AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION; schemaVersion += 1) {
@@ -23,7 +23,7 @@ test('pre-release older raw schemas fail with a typed re-import requirement', ()
 });
 
 test('the current raw schema remains editable and a future schema remains opaque read-only', () => {
-	const current = createAudioEditorProjectV10({
+	const current = createCurrentAudioEditorProject({
 		id: 'current',
 		title: 'Current',
 		now: '2026-08-09T00:00:00.000Z',

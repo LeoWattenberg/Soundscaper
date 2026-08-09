@@ -108,7 +108,7 @@ export interface ProjectFallbackIntegrityAdmission {
 }
 
 /**
- * Verifies exact-schema-10 rendered fallbacks against their canonical stored
+ * Verifies exact-current rendered fallbacks against their canonical stored
  * bytes before controller activation. Future schemas are intentionally opaque.
  */
 export async function verifyProjectFallbackIntegrity(
@@ -129,10 +129,10 @@ export async function verifyProjectFallbackIntegrity(
 	}
 	const captured = captureProjectFallbackIntegrity(project);
 	if (audioSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new Error('A selected audio rendered fallback requires exact project schema 10.');
+		throw new Error('A selected audio rendered fallback requires the exact current project schema.');
 	}
 	if (videoSelector && captured.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new Error('A selected video rendered fallback requires exact project schema 10.');
+		throw new Error('A selected video rendered fallback requires the exact current project schema.');
 	}
 	const admissionState = snapshotAdmissionState(captured);
 	if (!captured.claims.length && !audioSelector && !videoSelector) return createAdmission(admissionState);

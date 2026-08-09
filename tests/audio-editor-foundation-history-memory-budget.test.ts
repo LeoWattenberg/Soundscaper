@@ -11,7 +11,7 @@ import {
 	createEditorHistory,
 	executeEditorCommand,
 } from '../src/common/editor/history.js';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 const WORKLOAD_ID = 'm3-longform-editorial-2h-v1';
 const METRIC_ID = 'editorial.retainedHeapDeltaBytes';
@@ -21,7 +21,7 @@ if (process.env[CHILD_FLAG] === '1') {
 	const result = measureFoundationHistory();
 	process.stdout.write(`FOUNDATION_HISTORY_MEASUREMENT=${JSON.stringify(result)}\n`);
 } else {
-	test('schema 10 snapshot history stays within the milestone-3 long-form retained-heap budget', async () => {
+	test('current-schema snapshot history stays within the milestone-3 long-form retained-heap budget', async () => {
 		const budget = JSON.parse(await readFile(new URL('../config/quality-budgets.json', import.meta.url), 'utf8'));
 		const fixture = budget.fixtures.find(({ id }: { id: string }) => id === WORKLOAD_ID);
 		const workload = budget.workloads.find(({ id }: { id: string }) => id === 'm3-longform-editorial');
@@ -119,7 +119,7 @@ function createLongFormFoundationProject(revision: number) {
 		});
 		tracks.push({ type: 'video', id: `long-video-track-${String(index)}`, clipIds: [clipId] });
 	}
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'm3-longform-editorial-foundation',
 		title: 'Long-form editorial foundation',
 		now: '2026-08-09T12:00:00.000Z',

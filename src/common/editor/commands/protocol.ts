@@ -148,6 +148,7 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly endFrame: number;
 		readonly trackIds?: readonly string[];
 		readonly clipIds?: readonly string[];
+		readonly annotationIds?: readonly string[];
 		readonly frequencyRange?: Readonly<{
 			minimumFrequency: number;
 			maximumFrequency: number;

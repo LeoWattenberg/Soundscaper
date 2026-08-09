@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import {
 	PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS,
 	projectFeatureVideoEffectPlaybackBypass,
@@ -49,7 +50,7 @@ function effect(
 
 function project() {
 	return {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		id: 'project',
 		clips: [{
 			id: 'video-clip',
@@ -120,7 +121,7 @@ test('the video projector ignores unsupported reports and returns before future-
 
 	const future = {
 		...input,
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get clips(): never { throw new Error('future clips were traversed'); },
 		get projectBin(): never { throw new Error('future Project Bin was traversed'); },
 	};
@@ -143,7 +144,7 @@ test('video placeholder inventory never reads effect payload state or silently t
 		});
 	}
 	const input = {
-		schemaVersion: 10,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		id: 'project',
 		clips: [{ id: 'video-clip', kind: 'video', videoEffects: [guardedEffect] }],
 		projectBin: { clips: [] },

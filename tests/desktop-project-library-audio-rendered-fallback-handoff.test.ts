@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -55,7 +55,7 @@ interface BridgeProbe {
 
 interface HeadlessEngineProbe {
 	readonly engine: Readonly<Record<string, unknown>>;
-	readonly project: () => AudioEditorProjectV10 | null;
+	readonly project: () => AudioEditorProjectCurrent | null;
 	readonly samplesFor: (sourceId: string) => readonly (readonly number[])[] | null;
 	readonly state: () => 'paused' | 'playing' | 'stopped';
 }
@@ -257,7 +257,7 @@ function fallbackProjectFixture() {
 		sourceDurationFrames: original.frameCount,
 	});
 	const fallbackSha256 = digest(canonicalPcmBytes(FALLBACK_CHANNELS));
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'audio-rendered-fallback-handoff', title: 'Audio rendered fallback handoff', revision: 3,
 		now: '2026-08-02T12:00:00.000Z', sampleRate: 48_000, masterChannels: 2,
 		sources: [original, fallback], clips: [clip],
@@ -354,10 +354,10 @@ async function readPcm(store: AudioEditorProjectStore, storageKey: string): Prom
 
 function createHeadlessEngine(): HeadlessEngineProbe {
 	const appliedSources = new Map<string, readonly (readonly number[])[]>();
-	let appliedProject: AudioEditorProjectV10 | null = null;
+	let appliedProject: AudioEditorProjectCurrent | null = null;
 	let state: 'paused' | 'playing' | 'stopped' = 'stopped';
 	const capture = (project: unknown, buffers: unknown): void => {
-		appliedProject = project as AudioEditorProjectV10;
+		appliedProject = project as AudioEditorProjectCurrent;
 		appliedSources.clear();
 		if (!(buffers instanceof Map)) return;
 		for (const [sourceId, buffer] of buffers) {
@@ -403,7 +403,7 @@ function createAudioExportProbe(fallbackSourceId: string) {
 		downloads,
 		renders,
 		async renderSnapshot(
-			project: AudioEditorProjectV10,
+			project: AudioEditorProjectCurrent,
 			_range: unknown,
 			buffers: ReadonlyMap<string, unknown>,
 			signal: AbortSignal,

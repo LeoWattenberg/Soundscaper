@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10, type AudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClipV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
+} from '../src/common/editor/project-v10.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import {
 	scapeAudioSourceLayout,
@@ -125,8 +125,8 @@ function metadataAudioProject(
 		channelCount?: number;
 		chunkFrames?: number;
 	}>[],
-): AudioEditorProjectV10 {
-	const sources = specifications.map((value) => createAudioSourceV9({
+): AudioEditorProjectCurrent {
+	const sources = specifications.map((value) => createAudioSourceV10({
 		...value,
 		name: `${value.id}.wav`,
 		mimeType: 'audio/wav',
@@ -136,18 +136,25 @@ function metadataAudioProject(
 		channelCount: value.channelCount ?? 1,
 		chunkFrames: value.chunkFrames ?? 65_536,
 	}));
-	const clips = sources.map((source) => createAudioClipV9({
+	const clips = sources.map((source) => createAudioClipV10({
 		id: `${source.id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	}));
-	return createAudioEditorProjectV10({
+	const foundation = createCurrentAudioEditorProject({
 		id, title: 'Recipient metadata-only preflight', revision: 1,
-		now: '2026-08-01T12:00:00.000Z', sources, clips,
-		tracks: [createAudioTrackV9({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) })],
+		now: '2026-08-01T12:00:00.000Z',
 	});
+	const track = createAudioTrackV10({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) });
+	return {
+		...foundation,
+		sources,
+		clips,
+		tracks: [track],
+		sequences: foundation.sequences.map((sequence) => ({ ...sequence, trackIds: [track.id] })),
+	};
 }
 
-function managedDescriptors(project: AudioEditorProjectV10): readonly DesktopSharedManagedSourceDescriptor[] {
+function managedDescriptors(project: AudioEditorProjectCurrent): readonly DesktopSharedManagedSourceDescriptor[] {
 	return project.sources.map((source, index) => {
 		const audio = source as unknown as ScapeAudioSource & Readonly<{ storageKey: string }>;
 		return Object.freeze({

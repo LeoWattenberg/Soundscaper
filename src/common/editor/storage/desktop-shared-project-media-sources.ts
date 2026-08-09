@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorProjectV10 } from '../project-v10-validation.ts';
+import type { AudioEditorProjectCurrent } from '../project-current.ts';
 import { collectProjectSourceIds } from '../retention.js';
 import { SCAPE_ARCHIVE_LIMITS } from '../scape-archive-envelope.ts';
 import { scapeAudioSourceLayout, type ScapeAudioSource } from '../scape-archive-media.ts';
@@ -62,7 +62,7 @@ export interface ManagedTimingAsset extends Readonly<Record<string, unknown>> {
 
 export type ManagedTransfer = ManagedSource | ManagedTimingAsset;
 
-export function reachableProjectSources(project: AudioEditorProjectV10): readonly ManagedSource[] {
+export function reachableProjectSources(project: AudioEditorProjectCurrent): readonly ManagedSource[] {
 	const sourceIds = collectProjectSourceIds(project);
 	if (sourceIds.size > MAXIMUM_REACHABLE_SOURCE_COUNT) {
 		throw new RangeError('Desktop shared project source references exceed the managed handoff limit.');
@@ -75,7 +75,7 @@ export function reachableProjectSources(project: AudioEditorProjectV10): readonl
 	}));
 }
 
-export function reachableAudioSources(project: AudioEditorProjectV10): readonly ManagedAudioSource[] {
+export function reachableAudioSources(project: AudioEditorProjectCurrent): readonly ManagedAudioSource[] {
 	return Object.freeze(reachableProjectSources(project).filter(
 		(source): source is ManagedAudioSource => source.kind === 'audio',
 	));

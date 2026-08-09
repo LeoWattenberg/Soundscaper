@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -89,27 +92,29 @@ test('video delivery supports audio-only and no-fallback projections', () => {
 	}
 });
 
-test('video delivery projects the closed whole-project role across feature identities', () => {
-	for (const [featureId, availability] of [
-		[PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis, 'unavailable'],
-		['org.example.future-video-pipeline', 'unknown'],
-	] as const) {
-		const canonical = videoRequirementProject({
-			featureId,
-			disposition: 'rendered-fallback',
-			fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
-		});
-		const delivery = createPlaybackProjectService({ audioAnalysis: false })
-			.projectForVideoRenderedFallbackDelivery(canonical);
+test('video delivery projects an unknown whole-project role and rejects known non-video capabilities', () => {
+	assert.throws(() => videoRequirementProject({
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis,
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
+	}), /not eligible for a video rendered fallback/iu);
 
-		assert.equal(delivery.featureRequirementsReport?.items[0]?.availability, availability);
-		assert.equal(delivery.audioRenderedFallback, null);
-		assert.equal(delivery.videoRenderedFallback?.role, 'project-video-render-v1');
-		assert.equal(delivery.videoRenderedFallback?.featureId, featureId);
-		assert.deepEqual(delivery.requiredAudioSourceIds, []);
-		assert.deepEqual(delivery.requiredVideoSourceIds, ['fallback-video']);
-		assert.equal(delivery.project.clips[0]?.sourceId, 'fallback-video');
-	}
+	const featureId = 'org.example.future-video-pipeline';
+	const canonical = videoRequirementProject({
+		featureId,
+		disposition: 'rendered-fallback',
+		fallback: { kind: 'video', sourceId: 'fallback-video', sha256: DIGEST },
+	});
+	const delivery = createPlaybackProjectService({ audioAnalysis: false })
+		.projectForVideoRenderedFallbackDelivery(canonical);
+
+	assert.equal(delivery.featureRequirementsReport?.items[0]?.availability, 'unknown');
+	assert.equal(delivery.audioRenderedFallback, null);
+	assert.equal(delivery.videoRenderedFallback?.role, 'project-video-render-v1');
+	assert.equal(delivery.videoRenderedFallback?.featureId, featureId);
+	assert.deepEqual(delivery.requiredAudioSourceIds, []);
+	assert.deepEqual(delivery.requiredVideoSourceIds, ['fallback-video']);
+	assert.equal(delivery.project.clips[0]?.sourceId, 'fallback-video');
 });
 
 test('video delivery replaces only the clip-render target and keeps the unaffected video', () => {
@@ -121,8 +126,10 @@ test('video delivery replaces only the clip-render target and keeps the unaffect
 		id: 'clip-render-target', sourceId: canonical.id, durationFrames: 8,
 		videoEffects: [{ id: 'clip-fx', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	const other = createVideoClipV9({ id: 'unaffected-clip', sourceId: unaffected.id, durationFrames: 8 });
-	const project = createAudioEditorProjectV10({
+	const other = createVideoClipV9({
+		id: 'unaffected-clip', sourceId: unaffected.id, timelineStartFrame: 1_600, durationFrames: 8,
+	});
+	const project = createCurrentAudioEditorProject({
 		id: 'clip-render-delivery', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, unaffected, fallback],
 		clips: [target, other],
@@ -190,7 +197,7 @@ test('video delivery identifies the actual registered unavailable feature', () =
 
 test('video delivery does not traverse future project feature or media state', () => {
 	const future = {
-		schemaVersion: 11,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		get featureRequirements(): never { throw new Error('future feature requirements were traversed'); },
 		get sources(): never { throw new Error('future sources were traversed'); },
 		get clips(): never { throw new Error('future clips were traversed'); },
@@ -231,7 +238,7 @@ function combinedFallbackProject() {
 		id: 'canonical-video-clip', sourceId: canonicalVideo.id, durationFrames: 8,
 		videoEffects: [{ id: 'video-effect', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'combined-fallback-project', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonicalAudio, fallbackAudio, canonicalVideo, fallbackVideo],
 		clips: [audioClip, videoClip],
@@ -270,7 +277,7 @@ function videoRequirementProject(requirement: Readonly<{
 	const clip = createVideoClipV9({
 		id: 'canonical-video-clip', sourceId: canonical.id, durationFrames: 8,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: `video-requirement-${requirement.disposition}`,
 		now: '2026-08-02T12:00:00.000Z', sources: [canonical, fallback], clips: [clip],
 		tracks: [createVideoTrackV9({ id: 'canonical-video-track', clipIds: [clip.id] })],

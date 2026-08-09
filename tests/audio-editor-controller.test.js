@@ -25,9 +25,9 @@ const {
 	createVideoClipV4,
 } = await import('../src/common/editor/project-v4.js');
 const {
-	createAudioEditorProjectV10,
-	validateAudioEditorProjectV10,
-} = await import('../src/common/editor/project-v10.ts');
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} = await import('../src/common/editor/project-current.ts');
 const { resolveRuntimeProjectProjection } = await import('../src/common/editor/runtime-clip-projection.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 const { createPersistedVideoProject } = await import('./helpers/persisted-video-project-fixture.ts');
@@ -175,8 +175,8 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	});
 
 	controller.actions.timeline.setSelection(48_000, 96_000);
-	assert.deepEqual(controller.getSnapshot().selection, { startFrame: 48_000, endFrame: 96_000 });
-	assert.deepEqual(controller.getSnapshot().project.selection, { startFrame: 48_000, endFrame: 96_000 });
+	assert.deepEqual(controller.getSnapshot().selection, { startFrame: 48_000, endFrame: 96_000, annotationIds: [] });
+	assert.deepEqual(controller.getSnapshot().project.selection, { startFrame: 48_000, endFrame: 96_000, annotationIds: [] });
 
 	const addedTrackId = controller.actions.track.add({ name: 'Dialogue', armed: false });
 	controller.actions.track.update(addedTrackId, { name: 'Voice', gain: 0.5, pan: -0.25 });
@@ -216,7 +216,7 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 		startFrame: 0,
 		endFrame: 0,
 		trackIds: [originalTrackId, addedTrackId],
-		clipIds: ['clip-controller-test', 'clip-controller-second'],
+		clipIds: ['clip-controller-test', 'clip-controller-second'], annotationIds: [],
 		frequencyRange: null,
 	});
 	controller.actions.clip.trim('clip-controller-second', { durationFrames: 47_900 });
@@ -241,10 +241,7 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(stretchedClip.renderCacheRevision, 2);
 	controller.actions.timeline.setSelection(48_000, 96_000);
 	assert.equal(controller.getSnapshot().selectedClipId, null);
-	assert.deepEqual(controller.getSnapshot().project.selection, {
-		startFrame: 48_000,
-		endFrame: 96_000,
-	});
+	assert.deepEqual(controller.getSnapshot().project.selection, { startFrame: 48_000, endFrame: 96_000, annotationIds: [] });
 	controller.actions.timeline.clearSelection();
 	assert.deepEqual(controller.getSnapshot().project.selection.clipIds, []);
 
@@ -670,7 +667,7 @@ test('linked video moves create crossfades with aligned audio and reject a third
 		projectInput.tracks[0].clipIds.push(videoClip.id);
 		projectInput.tracks[1].clipIds.push(audioClip.id);
 	}
-	const project = createAudioEditorProjectV10(projectInput);
+	const project = createCurrentAudioEditorProject(projectInput);
 	store.projects.set(project.id, project);
 	store.settings.set('last-project-id', project.id);
 	store.mediaAssets.set(fixture.videoSource.id, new Blob(['persisted-video'], { type: 'video/mp4' }));
@@ -763,8 +760,8 @@ test('track move actions reorder paired video and audio lanes as one layer block
 		opaqueExtensions: {},
 	});
 	projectInput.sequences[0].trackIds.push('background-video-track', 'background-audio-track');
-	const project = createAudioEditorProjectV10(projectInput);
-	validateAudioEditorProjectV10(project);
+	const project = createCurrentAudioEditorProject(projectInput);
+	validateCurrentAudioEditorProject(project);
 	store.projects.set(project.id, project);
 	store.settings.set('last-project-id', project.id);
 	const controller = createAudioEditorController(null, {
@@ -2003,7 +2000,7 @@ test('controller renders a macro as an ordered isolated rack and persists one de
 	});
 	await writer.write([input]);
 	await writer.commit({ sampleRate: 48_000, channelCount: 1 });
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'controller-macro-project',
 		title: 'Macro project',
 		now: '2026-07-15T00:00:00.000Z',
@@ -2295,7 +2292,7 @@ test('controller gates sample tools by zoom and commits pencil and smoothing as 
 	await writer.write([input.subarray(0, 65_536)]);
 	await writer.write([input.subarray(65_536)]);
 	await writer.commit({ chunkFrames: 65_536 });
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'controller-sample-project',
 		title: 'Sample project',
 		now: '2026-07-13T00:00:00.000Z',
@@ -2430,7 +2427,7 @@ test('controller imports and exports label formats and applies the project snap 
 	});
 	assert.equal(controller.actions.timeline.snapFrame(13_000), 24_000);
 	controller.actions.timeline.setSelection(10_000, 40_000);
-	assert.deepEqual(controller.getSnapshot().selection, { startFrame: 0, endFrame: 48_000 });
+	assert.deepEqual(controller.getSnapshot().selection, { startFrame: 0, endFrame: 48_000, annotationIds: [] });
 	const snappedLabelId = controller.actions.labels.add(labelTrack.id, { title: 'Snapped', startFrame: 25_000 });
 	assert.equal(controller.getSnapshot().project.tracks.find((track) => track.id === labelTrack.id)
 		.labels.find((label) => label.id === snappedLabelId).startFrame, 24_000);
@@ -2499,7 +2496,7 @@ test('controller rewrites stereo channels with immutable sources and round-trips
 	});
 	await writer.write([left, right]);
 	await writer.commit({ sampleRate: 48_000, channelCount: 2 });
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'controller-channel-project',
 		title: 'Channel project',
 		now: '2026-07-13T00:00:00.000Z',
@@ -2652,7 +2649,7 @@ test('controller runs specialized analysis reports and snaps selections to zero 
 	renderMode = 'zero';
 	controller.actions.timeline.setSelection(10_000, 11_000);
 	await controller.actions.timeline.zeroCross();
-	assert.deepEqual(controller.getSnapshot().selection, { startFrame: 10_002, endFrame: 10_998 });
+	assert.deepEqual(controller.getSnapshot().selection, { startFrame: 10_002, endFrame: 10_998, annotationIds: [] });
 	await controller.dispose();
 });
 

@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 
 import { createVideoClipV9, createVideoSourceV9 } from '../src/common/editor/project-v9.ts';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import {
 	acquireDesktopSharedProjectMedia,
@@ -37,7 +37,7 @@ test('video timing handoff publishes exact bytes and rolls back the original whe
 		id: 'timed-video-clip', sourceId: video.id, durationFrames: video.frameCount,
 		binItemId: 'timed-video-item',
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'timed-video-project', title: 'Timed video', revision: 2,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [{
@@ -99,7 +99,7 @@ test('video timing handoff publishes exact bytes and rolls back the original whe
 		storageKey: `video-timing-sha256:${malformedSha256}`,
 		sha256: malformedSha256,
 	});
-	const malformedProject = createAudioEditorProjectV10({
+	const malformedProject = createCurrentAudioEditorProject({
 		...project,
 		sources: project.sources.map((source) => source.id === video.id
 			? { ...source, timingAsset: malformedReference }
