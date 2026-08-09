@@ -143,7 +143,8 @@ test.describe('audio editor video composition workflow', () => {
 		expect(outgoingOpacity + incomingOpacity).toBeCloseTo(1, 6);
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		// Chunk-backed companion audio can take longer to prime against a headless mock output device.
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible({ timeout: 20_000 });
 		await expect.poll(() => preview.locator('[data-video-preview-clip]').evaluateAll(
 			(videos) => videos.some((video) => !video.paused),
 		)).toBe(true);
