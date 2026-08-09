@@ -69,17 +69,121 @@ jobs:
       - name: Run canonical quality checks
         run: npm run check
 
-      - name: Install browser-engine matrix
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Upload the verified website build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-site-build
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: Run browser workflows
-        run: npm run test:browser:built
+  browser:
+    name: Browser / ${{ matrix.project }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, webkit]
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48
+      options: --user 1001
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: |
+          npm install --global --prefix "$HOME/.local" npm@12.0.1
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
+
+      - name: Download the verified website build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-site-build
+          path: dist
+
+      - name: Run browser workflows against the existing build
+        run: npm run test:browser:built -- --project=${{ matrix.project }}
 
       - name: Upload browser diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: desktop-browser-diagnostics
+          name: browser-diagnostics-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  firefox:
+    name: Browser / firefox
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
+
+      - name: Install Playwright Firefox
+        run: npx playwright install --with-deps firefox
+
+      - name: Install PulseAudio
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes pulseaudio pulseaudio-utils
+
+      - name: Configure the Firefox PulseAudio null sink and source
+        run: bash scripts/ci-firefox-pulseaudio.sh
+
+      - name: Require a live Firefox AudioContext clock
+        run: node scripts/ci-firefox-audio-clock.mjs
+
+      - name: Download the verified website build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-site-build
+          path: dist
+
+      - name: Run Firefox workflows against the existing build
+        run: npm run test:browser:built -- --project=firefox
+
+      - name: Upload Firefox diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-diagnostics-firefox
           path: |
             playwright-report/
             test-results/
@@ -89,7 +193,7 @@ jobs:
   package:
     name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
-    needs: quality
+    needs: [quality, browser, firefox]
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -226,7 +330,7 @@ jobs:
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly-with-tests'
-    needs: quality
+    needs: [quality, browser, firefox]
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -314,7 +418,7 @@ jobs:
   project-library-handoff:
     name: Packaged project-library handoff / linux / x64
     if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
-    needs: quality
+    needs: [quality, browser, firefox]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -410,7 +514,7 @@ jobs:
   project-library-lease-matrix:
     name: Packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
-    needs: quality
+    needs: [quality, browser, firefox]
     runs-on: ${{ matrix.target.runner }}
     timeout-minutes: 90
     strategy:

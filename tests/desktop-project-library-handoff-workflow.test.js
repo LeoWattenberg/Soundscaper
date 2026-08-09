@@ -30,7 +30,7 @@ test('desktop CI builds and runs both unpacked products in one Linux x64 handoff
 	assert.ok(jobStart >= 0, 'missing packaged project-library handoff job');
 	const job = workflow.slice(jobStart);
 
-	assert.match(job, /needs: quality/u);
+	assert.match(job, /needs: \[quality, browser, firefox\]/u);
 	assert.match(job, /runs-on: ubuntu-24\.04/u);
 	assert.match(job, /timeout-minutes: 45/u);
 	assert.match(job, /name: Stage Soundscaper\s+run: node scripts\/desktop-prepare\.mjs\s+env:\s+SCAPE_PRODUCT: soundscaper/u);

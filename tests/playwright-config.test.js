@@ -23,30 +23,81 @@ test('Playwright runs the maintained evergreen browser-engine matrix', async () 
 		assert.equal(project.use.viewport.height, 720);
 	}
 	const firefox = config.projects.find(({ name }) => name === 'firefox');
-	assert.deepEqual(firefox.use.launchOptions.firefoxUserPrefs, {
-		'media.cubeb.force_mock_context': true,
-	});
-	for (const project of config.projects.filter(({ name }) => name !== 'firefox')) {
+	assert.equal(firefox.use.launchOptions?.firefoxUserPrefs, undefined);
+	for (const project of config.projects) {
 		assert.equal(project.use.launchOptions?.firefoxUserPrefs, undefined);
 	}
 	assert.equal(config.use.serviceWorkers, 'block', 'ordinary browser tests must not install the offline shell');
 });
 
-test('desktop verification installs every configured browser engine', async () => {
+test('desktop verification isolates browser engines and qualifies packages with every engine', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
-	assert.match(workflow, /playwright install --with-deps chromium firefox webkit/u);
+	assertBrowserQualification(workflow, 'desktop');
+	for (const jobName of ['package', 'package-with-tests', 'project-library-handoff', 'project-library-lease-matrix']) {
+		assert.match(extractJob(workflow, jobName), /needs: \[quality, browser, firefox\]/u);
+	}
 });
 
-test('quality verification isolates each browser engine in a supported Playwright container', async () => {
+test('quality verification keeps Chromium and WebKit in the pinned container and gives Firefox real audio', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/quality.yml', import.meta.url), 'utf8');
-	const browserJob = workflow.slice(workflow.indexOf('\n  browser:\n'));
+	assertBrowserQualification(workflow, 'quality');
+});
 
-	assert.ok(browserJob.startsWith('\n  browser:\n'), 'quality workflow must retain its browser job');
+test('Firefox CI audio helpers configure a null sink/source and reject a stalled clock', async () => {
+	const [pulseSetup, clockProbe] = await Promise.all([
+		readFile(new URL('../scripts/ci-firefox-pulseaudio.sh', import.meta.url), 'utf8'),
+		readFile(new URL('../scripts/ci-firefox-audio-clock.mjs', import.meta.url), 'utf8'),
+	]);
+
+	assert.match(pulseSetup, /module-null-sink/u);
+	assert.match(pulseSetup, /set-default-sink/u);
+	assert.match(pulseSetup, /set-default-source[^\n]+\.monitor/u);
+	assert.match(pulseSetup, /GITHUB_ENV/u);
+	assert.match(clockProbe, /firefox\.launch/u);
+	assert.match(clockProbe, /new AudioContext/u);
+	assert.match(clockProbe, /currentTime/u);
+	assert.match(clockProbe, /withTimeout/u);
+	assert.match(clockProbe, /did not advance/u);
+});
+
+function assertBrowserQualification(workflow, label) {
+	const qualityJob = extractJob(workflow, 'quality');
+	const browserJob = extractJob(workflow, 'browser');
+	const firefoxJob = extractJob(workflow, 'firefox');
+
+	assert.doesNotMatch(qualityJob, /test:browser|playwright install/u, `${label} quality must not share a browser budget`);
 	assert.ok(browserJob.includes('name: Browser / ${{ matrix.project }}'));
-	assert.match(browserJob, /strategy:\n\s+fail-fast: false\n\s+matrix:\n\s+project: \[chromium, firefox, webkit\]/u);
-	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:[^\n]+\n\s+options: --user 1001/u);
+	assert.match(browserJob, /needs: quality/u);
+	assert.match(browserJob, /strategy:\n\s+fail-fast: false\n\s+matrix:\n\s+project: \[chromium, webkit\]/u);
+	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:v1\.61\.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48\n\s+options: --user 1001/u);
 	assert.match(browserJob, /npm install --global --prefix "\$HOME\/\.local" npm@12\.0\.1/u);
-	assert.match(browserJob, /echo "\$HOME\/\.local\/bin" >> "\$GITHUB_PATH"/u);
+	assert.match(browserJob, /name: verified-site-build/u);
 	assert.ok(browserJob.includes('npm run test:browser:built -- --project=${{ matrix.project }}'));
 	assert.ok(browserJob.includes('name: browser-diagnostics-${{ matrix.project }}'));
-});
+
+	assert.match(firefoxJob, /name: Browser \/ firefox/u);
+	assert.match(firefoxJob, /needs: quality/u);
+	assert.match(firefoxJob, /runs-on: ubuntu-24\.04/u);
+	assert.doesNotMatch(firefoxJob, /^\s+container:/mu);
+	assert.match(firefoxJob, /playwright install --with-deps firefox/u);
+	assert.match(firefoxJob, /apt-get install --yes pulseaudio pulseaudio-utils/u);
+	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
+	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);
+	assert.match(firefoxJob, /name: verified-site-build/u);
+	assert.match(firefoxJob, /npm run test:browser:built -- --project=firefox/u);
+	assert.match(firefoxJob, /name: browser-diagnostics-firefox/u);
+	assert.ok(
+		firefoxJob.indexOf('ci-firefox-audio-clock.mjs')
+			< firefoxJob.indexOf('test:browser:built -- --project=firefox'),
+		`${label} must probe the real audio clock before Firefox qualification`,
+	);
+}
+
+function extractJob(workflow, jobName) {
+	const marker = `\n  ${jobName}:\n`;
+	const start = workflow.indexOf(marker);
+	assert.notEqual(start, -1, `missing ${jobName} workflow job`);
+	const remainder = workflow.slice(start + marker.length);
+	const nextJob = remainder.search(/^ {2}[a-z][a-z0-9-]*:\s*$/mu);
+	return nextJob === -1 ? remainder : remainder.slice(0, nextJob);
+}
