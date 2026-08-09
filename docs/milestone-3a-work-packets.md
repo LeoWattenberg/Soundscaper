@@ -110,26 +110,41 @@ tree, through the Soundscaper capability flip — is decomposed in
 - **Outcome:** Add a bounded folder tree with stable identities and one
   authoritative parent relation. Implement deterministic subtree creation,
   rename, move, reorder, expand/collapse, delete/promote, visibility, mute/solo,
-  height, and routing derivation across sequence-owned tracks. Folder UI and
-  keyboard tree navigation expose the same ordering.
+  height, and routing derivation across sequence-owned tracks. A top-level
+  timeline folder that contains audio owns a group bus, so a folder is the
+  arrangement view of a mix channel. Folder UI and keyboard tree navigation
+  expose the same ordering.
 - **Invariants:** The hierarchy is acyclic, depth-bounded, single-parented, and
   deterministically ordered. A folder never crosses a sequence boundary.
   Effective hidden/mute/solo state is derived without overwriting child-local
   state. Moving or sorting preserves whole structural blocks, including folder
   subtrees and adjacent linked A/V lane pairs. `laneGroupId` remains reserved
-  for the existing A/V media-lane contract; mixer buses are not folders.
+  for the existing A/V media-lane contract. Exactly one bus layer exists: a
+  depth-1 timeline folder with an audio descendant owns a group bus, deeper
+  folders own none and their audio routes to that same bus, and project-bin
+  folders never own one. The folder owns identity, name, order, collapse,
+  height, hidden, mute, and solo; the bus owns color, gain, pan, envelope, and
+  effects. Mirrored bus fields are validated as exact mirrors and rejected on
+  mismatch, never repaired. Folder mute and solo stay authoritative in the
+  derived state projection, and the owned bus is pinned neutral so audibility
+  is never resolved twice.
 - **Acceptance:** The revision rejects cycles, excessive depth, missing parents,
   duplicate ownership, split A/V pairs, and cross-sequence parenting. Every
   tree mutation is one undoable command and survives clone, clipboard,
   save/reopen, `.scape`, desktop, and unavailable Framescaper round trips.
   Routing, visibility, mute/solo, collapse, and height matrices are deterministic
-  under nested combinations. Pointer drag/drop and keyboard tree operations
+  under nested combinations. Creating, moving, promoting, and deleting folders
+  keeps bus ownership and `mixer.routes` exactly consistent within one undo
+  transaction, and a folder holding no audio descendant owns no bus and
+  authors no route. Pointer drag/drop and keyboard tree operations
   produce identical projects and announce structure/state to assistive tech.
-- **Non-goals:** No groups-as-buses, sends, VCAs, automation, generalized mixer
-  graph, or folder clips.
-- **Stop condition:** Stop if two structures claim authoritative ordering, if
-  hierarchy would overload lane groups or mixer buses, or if deletion can leave
-  an unreachable track.
+- **Non-goals:** No nested folder buses, sends, VCAs, automation, generalized
+  mixer graph, or folder clips. Bus nesting for folders deeper than level 1 is
+  milestone-4 work and is not approximated here.
+- **Stop condition:** Stop if two structures claim authoritative ordering, if a
+  folder bus is required to make mute or solo behave, if more than one bus layer
+  appears between a track and the master, or if deletion can leave an
+  unreachable track or an orphaned route.
 
 ## 3A-4 — Punch, count-in, and approved Audacity gaps
 

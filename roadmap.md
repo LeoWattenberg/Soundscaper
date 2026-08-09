@@ -378,7 +378,9 @@ acceptance checks pass.
 - **Shared / Web Core — Planned:** first-class markers and named regions distinct
   from captions, including navigation, batch identity, and ripple behavior.
 - **Shared / Web Core — Planned:** nested track folders with deterministic,
-  undoable edit, visibility, mute/solo, height, and routing behavior.
+  undoable edit, visibility, mute/solo, height, and routing behavior, where a
+  top-level timeline folder holding audio owns a group bus and deeper folders
+  route to it.
 - **Shared / Web Core — Planned:** take lanes, cycle-recorded takes, audition,
   promotion, comp regions, flattening, and interrupted-take recovery.
 - **Shared / Web Enhanced — Planned:** transient analysis, warp markers,
@@ -445,7 +447,10 @@ finishing over the stable editorial models.
   playback ownership and deterministic history commits.
 - **Shared / Web Core — Planned:** nested buses, multiple assignments,
   pre/post-fader sends, VCAs, cue/control-room mixes, output placeholders,
-  sidechains, channel mapping, and cycle validation.
+  sidechains, channel mapping, and cycle validation. Nested buses lift the
+  milestone-3 single-layer folder rule so a track folder at any depth can own a
+  bus, which also requires per-path plugin delay compensation instead of the
+  present single-stage compensation.
 - **Web Core — Planned:** plug-in delay compensation across playback,
   monitoring, automation, buses, sidechains, render, and freeze.
 - **Shared / Web Core — Planned:** freeze, unfreeze, commit, and rendered
