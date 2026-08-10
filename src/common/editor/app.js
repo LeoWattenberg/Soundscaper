@@ -221,6 +221,7 @@ import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
 import { createSequenceTimingService } from './controller/sequence-timing-service.ts';
 import { createVideoSourceReprobeService } from './controller/video-source-reprobe-service.ts';
+import { createSourceMonitorService } from './controller/source-monitor-service.ts';
 import { createVideoEditService } from './controller/video-edit-service.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
@@ -950,6 +951,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		prepareThreePointEditCommand: (commandProject, options) => (
 			prepareThreePointEditCommand(commandProject, options, createStableId)
 		),
+	});
+	const sourceMonitorService = createSourceMonitorService({
+		lifetime, getProject: getCommandProject, publishProjectState,
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
 		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,
@@ -1784,7 +1788,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		videoEditService, videoSourceReprobeService,
+		sourceMonitorService, videoEditService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;

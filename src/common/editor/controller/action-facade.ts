@@ -71,7 +71,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
-	timelineAnnotationService, trackFolderService, videoEditService, videoSourceReprobeService,
+	sourceMonitorService, timelineAnnotationService, trackFolderService, videoEditService,
+	videoSourceReprobeService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -194,6 +195,20 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			clearTargets: () => videoEditService.clearTargets(),
 			insert: (request: RuntimeValue) => videoEditService.insert(request),
 			overwrite: (request: RuntimeValue) => videoEditService.overwrite(request),
+			// One video source open on its own frame grid: the marks an edit reads
+			// come from here, and nothing about it is persisted.
+			sourceMonitor: Object.freeze({
+				view: () => sourceMonitorService.view(),
+				open: (binItemId: RuntimeValue, options: RuntimeValue) => (
+					sourceMonitorService.open(binItemId, options)
+				),
+				close: () => sourceMonitorService.close(),
+				seek: (frame: RuntimeValue) => sourceMonitorService.seek(frame),
+				step: (frameDelta: RuntimeValue) => sourceMonitorService.step(frameDelta),
+				markIn: (frame: RuntimeValue) => sourceMonitorService.markIn(frame),
+				markOut: (frame: RuntimeValue) => sourceMonitorService.markOut(frame),
+				clearMarks: () => sourceMonitorService.clearMarks(),
+			}),
 			// Re-read an already-imported source: the same bytes, probed again by
 			// the current build, with every edit cut against the old grid conformed.
 			reprobeSource: (sourceId: RuntimeValue, options: RuntimeValue) => (

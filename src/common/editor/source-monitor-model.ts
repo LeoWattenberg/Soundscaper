@@ -81,7 +81,7 @@ export function markSourceIn(
 	sourceFrameCount: number,
 ): SourceMonitorMarks {
 	const markIn = clampSourceFrame(frame, sourceFrameCount);
-	const markOut = normalizedMarks(marks, sourceFrameCount).markOut;
+	const markOut = normalizeSourceMonitorMarks(marks, sourceFrameCount).markOut;
 	return Object.freeze({ markIn, markOut: markOut != null && markOut > markIn ? markOut : null });
 }
 
@@ -95,7 +95,7 @@ export function markSourceOut(
 	sourceFrameCount: number,
 ): SourceMonitorMarks {
 	const markOut = clampSourceFrame(frame, sourceFrameCount) + 1;
-	const markIn = normalizedMarks(marks, sourceFrameCount).markIn;
+	const markIn = normalizeSourceMonitorMarks(marks, sourceFrameCount).markIn;
 	return Object.freeze({ markIn: markIn != null && markIn < markOut ? markIn : null, markOut });
 }
 
@@ -116,7 +116,7 @@ export function resolveSourceMonitorPoints(
 	const bound = positiveSafeInteger(sourceFrameCount, 'sourceFrameCount');
 	const stated = safeInteger(sequencePointCount, 'sequencePointCount');
 	if (stated < 1 || stated > 2) throw new RangeError('A sequence states one or two points.');
-	const { markIn, markOut } = normalizedMarks(marks, bound);
+	const { markIn, markOut } = normalizeSourceMonitorMarks(marks, bound);
 	let sourceIn = markIn;
 	let sourceOut = markOut;
 	const needed = 3 - stated;
@@ -222,8 +222,15 @@ export function resolveProgramFrame(
 	});
 }
 
-/** Drop a mark the media can no longer hold, and an out that lost its order. */
-function normalizedMarks(marks: SourceMonitorMarks, sourceFrameCount: number): SourceMonitorMarks {
+/**
+ * Drop a mark the media can no longer hold, and an out that lost its order. A
+ * re-read that shortened a source leaves marks past its end; dropping them asks
+ * the user to mark again rather than quietly moving the point they set.
+ */
+export function normalizeSourceMonitorMarks(
+	marks: SourceMonitorMarks,
+	sourceFrameCount: number,
+): SourceMonitorMarks {
 	const inside = (value: number | null, bound: number): number | null => (
 		value != null && Number.isSafeInteger(value) && value >= 0 && value <= bound ? value : null
 	);
