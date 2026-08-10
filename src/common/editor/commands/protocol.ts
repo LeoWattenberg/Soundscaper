@@ -37,6 +37,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'source/add',
 	'source/remove',
 	'source/update',
+	'source/reprobe',
 	'project-bin/add',
 	'project-bin/move-from-timeline',
 	'project-bin/place',
@@ -301,6 +302,15 @@ type NonBatchAudioEditorCommandPayloads = {
 	readonly 'source/add': { readonly source: CommandObject };
 	readonly 'source/remove': { readonly sourceId: string };
 	readonly 'source/update': { readonly sourceId: string; readonly changes: CommandObject };
+	readonly 'source/reprobe': {
+		readonly sourceId: string;
+		readonly changes: CommandObject;
+		readonly clips?: readonly Readonly<{
+			readonly clipId: string;
+			readonly sourceInFrame: number;
+			readonly sourceFrameCount: number;
+		}>[];
+	};
 	readonly 'project-bin/add': { readonly clip: CommandObject };
 	readonly 'project-bin/move-from-timeline': { readonly clipIds: readonly string[] };
 	readonly 'project-bin/place': {
