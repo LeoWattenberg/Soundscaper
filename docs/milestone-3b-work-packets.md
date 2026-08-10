@@ -98,6 +98,11 @@ catalog rows cannot poison startup. There are no pre-release migrations.
 
 ## 3B-2 — Probed source timing and preserved characteristics
 
+The pickup decomposition for its first half is maintained in
+[`docs/milestone-3b-probed-source-characteristics.md`](milestone-3b-probed-source-characteristics.md),
+which owns the slice boundary between the probed characteristics themselves and
+the re-import upgrade path that follows them.
+
 - **Outcome:** Replace fabricated ingest metadata with probed source truth:
   exact rational frame rate, frame count, VFR timing published as the
   digest-bound timing asset the foundation contract already defines, plus
