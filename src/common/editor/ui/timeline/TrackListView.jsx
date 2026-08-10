@@ -1,7 +1,15 @@
+import { useMemo, useState } from 'react';
+
 import { AudioTrackRow } from './AudioTrackRow.jsx';
 import { EMPTY_TIMELINE_CLIPS } from './constants.ts';
 import { normalizeWaveformRulerState } from './geometry.ts';
 import { LabelTrackRow } from './LabelTrackRow.jsx';
+import { TrackFolderRow } from './TrackFolderRow.jsx';
+import {
+	planTrackListRows,
+	resolveTrackFolderTreeKey,
+	trackFolderRowDomId,
+} from './track-folder-ui-model.ts';
 import { VideoTrackRow } from './VideoTrackRow.jsx';
 
 /**
@@ -51,9 +59,39 @@ export function TrackListView({
 	showArmControls,
 	displayAudioSupported,
 }) {
-	return (
-		<div className="audio-editor-track-list" data-track-list>
-			{project.tracks.map((track, trackIndex) => track.type === 'label' ? (
+	const [activeFolderId, setActiveFolderId] = useState(null);
+	const plan = useMemo(
+		() => planTrackListRows(snapshot.trackFolders, project.tracks, project.trackFolders || []),
+		[snapshot.trackFolders, project.tracks, project.trackFolders],
+	);
+	const trackIndexById = useMemo(
+		() => new Map(project.tracks.map((track, index) => [track.id, index])),
+		[project.tracks],
+	);
+	const trackFolderActions = controller.actions.trackFolders;
+	const selectFolder = (folderId) => {
+		setActiveFolderId(folderId);
+		run(() => trackFolderActions.select(folderId));
+	};
+	const toggleFolderCollapsed = (folderId) => !mutationsBlocked
+		&& run(() => trackFolderActions.toggleCollapsed(folderId));
+	const setFolderFlag = (folderId, flag, value) => !mutationsBlocked
+		&& run(() => trackFolderActions.update(folderId, { [flag]: value }));
+	const focusFolderRow = (folderId) => {
+		setActiveFolderId(folderId);
+		const row = document.getElementById(trackFolderRowDomId(folderId));
+		if (row) row.focus();
+	};
+	const onFolderKeyDown = (event, folderId) => {
+		const intent = resolveTrackFolderTreeKey(event.key, folderId, plan);
+		if (intent === null) return;
+		event.preventDefault();
+		event.stopPropagation();
+		if (intent.kind === 'focus') focusFolderRow(intent.folderId);
+		else if (intent.kind === 'expand' || intent.kind === 'collapse') toggleFolderCollapsed(intent.folderId);
+		else if (intent.kind === 'activate') selectFolder(intent.folderId);
+	};
+	const renderTrack = (track, trackIndex) => track.type === 'label' ? (
 				<LabelTrackRow
 					key={track.id}
 					controller={controller}
@@ -163,7 +201,42 @@ export function TrackListView({
 					onFocusTrackRuler={focusTrackRuler}
 					onFocusSelectionToolbar={focusSelectionToolbar}
 				/>
-			))}
+			);
+	return (
+		<div className="audio-editor-track-list" data-track-list>
+			{plan.hasFolders && (
+				<div
+					className="audio-editor-track-folder-tree-anchor"
+					role="tree"
+					aria-label={copy.trackFolderTree}
+					aria-owns={plan.treeOwnedIds}
+				/>
+			)}
+			{plan.entries.map((entry) => {
+				if (entry.kind === 'folder') {
+					return entry.row.rowHidden ? null : (
+						<TrackFolderRow
+							key={`folder:${entry.row.id}`}
+							row={entry.row}
+							plan={plan}
+							copy={copy}
+							blocked={mutationsBlocked}
+							selected={activeFolderId === entry.row.id}
+							activeFolderId={activeFolderId}
+							panelWidth={panelWidth}
+							onSelect={selectFolder}
+							onKeyDown={onFolderKeyDown}
+							onToggleCollapsed={toggleFolderCollapsed}
+							onSetFlag={setFolderFlag}
+							onMenu={(folderId, anchor) => setTrackMenu({ folderId, anchor })}
+						/>
+					);
+				}
+				if (entry.rowHidden) return null;
+				const trackIndex = trackIndexById.get(entry.trackId);
+				const track = trackIndex === undefined ? undefined : project.tracks[trackIndex];
+				return track === undefined ? null : renderTrack(track, trackIndex);
+			})}
 			{(clipDragPreview?.createTrack || projectBinDragPreview?.createTrack) && (
 				<div className="audio-editor-new-track-drop-preview" aria-live="polite">
 					<span>{projectBinDragPreview?.clip?.title || copy.audioTrack}</span>
