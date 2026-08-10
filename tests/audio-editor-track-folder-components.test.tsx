@@ -55,6 +55,9 @@ function renderRow(rowId: string, overrides: Record<string, unknown> = {}) {
 		onToggleCollapsed={() => undefined}
 		onSetFlag={() => undefined}
 		onMenu={() => undefined}
+		editing={false}
+		onRename={() => undefined}
+		onDropNode={() => undefined}
 		{...overrides}
 	/>);
 }
@@ -91,4 +94,12 @@ test('folder audibility toggles expose pressed state and accessible names', () =
 test('the German catalog carries the folder tree copy', () => {
 	assert.equal(typeof ENGLISH_COPY.trackFolderTree, 'string');
 	assert.match(renderRow('band'), /Band/u);
+});
+
+test('an editing row swaps the name for a labelled rename input', () => {
+	const markup = renderRow('band', { editing: true });
+	assert.match(markup, /aria-label="Rename folder"/u);
+	assert.match(markup, /value="Band"/u);
+	assert.doesNotMatch(markup, /<span class="audio-editor-track-folder-row__name">/u);
+	assert.match(markup, /draggable="false"/u);
 });

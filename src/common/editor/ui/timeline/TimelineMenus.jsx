@@ -58,6 +58,8 @@ export function TimelineMenus({
 		colorMenuTrack,
 		menuClip,
 		menuTrack,
+		menuFolder,
+		folderMenuItems,
 		rulerFlyoutTrack,
 		activeWaveformRuler,
 		contextLocale,
@@ -158,6 +160,27 @@ export function TimelineMenus({
 				className="audio-editor-track-menu"
 				items={trackMenuItems}
 			/>
+
+			<ContextMenu
+				isOpen={Boolean(trackMenu?.folderId && menuFolder)}
+				x={trackMenu?.anchor?.x || 0}
+				y={trackMenu?.anchor?.y || 0}
+				autoFocus
+				onClose={() => setTrackMenu(null)}
+				className="audio-editor-track-folder-menu"
+			>
+				{folderMenuItems.map((item, index) => item.divider ? (
+					<ContextMenuItem key={`divider-${index}`} isDivider />
+				) : (
+					<ContextMenuItem
+						key={item.label}
+						label={item.label}
+						disabled={item.disabled}
+						onClick={item.onClick}
+						onClose={() => setTrackMenu(null)}
+					/>
+				))}
+			</ContextMenu>
 
 			<ContextMenu
 				isOpen={Boolean(outputMenu && outputMenuTarget)}

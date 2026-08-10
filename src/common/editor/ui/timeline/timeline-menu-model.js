@@ -34,6 +34,10 @@ export function createTimelineMenuModel({
 	const { run } = menuActions;
 
 	const menuTrack = trackMenu ? project.tracks.find((track) => track.id === trackMenu.trackId) : null;
+	const menuFolder = trackMenu?.folderId
+		? (project.trackFolders || []).find((folder) => folder.id === trackMenu.folderId)
+		: null;
+	const trackFoldersAvailable = Boolean(snapshot.capabilities?.trackFolders);
 	const menuTrackBlock = menuTrack ? mediaTrackBlockBounds(project.tracks, menuTrack.id) : null;
 	const colorMenuTrack = trackColorMenu ? project.tracks.find((track) => track.id === trackColorMenu.trackId) : null;
 	const menuClip = clipMenu ? project.clips.find((clip) => clip.id === clipMenu.clipId) : null;
@@ -74,6 +78,14 @@ export function createTimelineMenuModel({
 			maximumFrequency: Math.round(nextMinimum + span),
 		});
 	};
+	const trackFolderMenuItems = trackFoldersAvailable && menuTrack ? [
+		{ divider: true, label: '' },
+		{
+			label: copy.wrapTracksInFolder,
+			disabled: mutationsBlocked,
+			onClick: () => run(() => controller.actions.trackFolders.wrapSelection([menuTrack.id])),
+		},
+	] : [];
 	const trackMenuItems = menuTrack ? [
 		...(menuTrack.type === 'audio' ? [
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {
@@ -165,11 +177,37 @@ export function createTimelineMenuModel({
 				onClick: () => run(() => controller.actions.mixer.removeBus(outputMenu.scope, outputMenuTarget.id)),
 			},
 		]),
+		...trackFolderMenuItems,
+	] : [];
+	const folderMenuItems = menuFolder ? [
+		{
+			label: menuFolder.collapsed ? copy.expandTrackFolder : copy.collapseTrackFolder,
+			disabled: mutationsBlocked,
+			onClick: () => run(() => controller.actions.trackFolders.toggleCollapsed(menuFolder.id)),
+		},
+		{
+			label: copy.newTrackFolder,
+			disabled: mutationsBlocked,
+			onClick: () => run(() => controller.actions.trackFolders.create(undefined, { parentFolderId: menuFolder.id })),
+		},
+		{ divider: true, label: '' },
+		{
+			label: copy.deleteTrackFolderKeepTracks,
+			disabled: mutationsBlocked,
+			onClick: () => run(() => controller.actions.trackFolders.remove(menuFolder.id, 'promote')),
+		},
+		{
+			label: copy.deleteTrackFolderAndTracks,
+			disabled: mutationsBlocked,
+			onClick: () => run(() => controller.actions.trackFolders.remove(menuFolder.id, 'delete-contents')),
+		},
 	] : [];
 	const displayedLoop = loopPreview || project.loop || {};
 
 	return {
 		menuTrack,
+		menuFolder,
+		folderMenuItems,
 		colorMenuTrack,
 		menuClip,
 		rulerFlyoutTrack,

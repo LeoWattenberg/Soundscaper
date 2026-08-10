@@ -7,6 +7,7 @@ import { LabelTrackRow } from './LabelTrackRow.jsx';
 import { TrackFolderRow } from './TrackFolderRow.jsx';
 import {
 	planTrackListRows,
+	resolveTrackFolderMoveKey,
 	resolveTrackFolderTreeKey,
 	trackFolderRowDomId,
 } from './track-folder-ui-model.ts';
@@ -60,6 +61,7 @@ export function TrackListView({
 	displayAudioSupported,
 }) {
 	const [activeFolderId, setActiveFolderId] = useState(null);
+	const [editingFolderId, setEditingFolderId] = useState(null);
 	const plan = useMemo(
 		() => planTrackListRows(snapshot.trackFolders, project.tracks, project.trackFolders || []),
 		[snapshot.trackFolders, project.tracks, project.trackFolders],
@@ -82,14 +84,35 @@ export function TrackListView({
 		const row = document.getElementById(trackFolderRowDomId(folderId));
 		if (row) row.focus();
 	};
+	const moveNode = (sequenceId, nodeId, parentFolderId, index) => !mutationsBlocked
+		&& run(() => trackFolderActions.moveNode(sequenceId, nodeId, parentFolderId, index));
+	const renameFolder = (folderId, name) => {
+		setEditingFolderId(null);
+		const trimmed = typeof name === 'string' ? name.trim() : '';
+		const current = plan.folderRows.find((candidate) => candidate.id === folderId);
+		if (!trimmed || trimmed === current?.name || mutationsBlocked) return;
+		run(() => trackFolderActions.rename(folderId, trimmed));
+	};
 	const onFolderKeyDown = (event, folderId) => {
+		if (editingFolderId !== null) return;
+		if (event.altKey) {
+			const move = resolveTrackFolderMoveKey(event.key, folderId, plan);
+			if (move === null) return;
+			event.preventDefault();
+			event.stopPropagation();
+			moveNode(move.sequenceId, move.nodeId, move.parentFolderId, move.index);
+			return;
+		}
 		const intent = resolveTrackFolderTreeKey(event.key, folderId, plan);
 		if (intent === null) return;
 		event.preventDefault();
 		event.stopPropagation();
 		if (intent.kind === 'focus') focusFolderRow(intent.folderId);
 		else if (intent.kind === 'expand' || intent.kind === 'collapse') toggleFolderCollapsed(intent.folderId);
-		else if (intent.kind === 'activate') selectFolder(intent.folderId);
+		else if (intent.kind === 'activate') {
+			selectFolder(intent.folderId);
+			if (!mutationsBlocked) setEditingFolderId(intent.folderId);
+		}
 	};
 	const renderTrack = (track, trackIndex) => track.type === 'label' ? (
 				<LabelTrackRow
@@ -224,11 +247,19 @@ export function TrackListView({
 							selected={activeFolderId === entry.row.id}
 							activeFolderId={activeFolderId}
 							panelWidth={panelWidth}
+							editing={editingFolderId === entry.row.id}
 							onSelect={selectFolder}
 							onKeyDown={onFolderKeyDown}
 							onToggleCollapsed={toggleFolderCollapsed}
 							onSetFlag={setFolderFlag}
 							onMenu={(folderId, anchor) => setTrackMenu({ folderId, anchor })}
+							onRename={renameFolder}
+							onDropNode={(nodeId, target) => moveNode(
+								target.sequenceId,
+								nodeId,
+								target.id,
+								Number.MAX_SAFE_INTEGER,
+							)}
 						/>
 					);
 				}

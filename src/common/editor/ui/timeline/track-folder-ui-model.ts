@@ -33,7 +33,7 @@ export interface TrackFolderRowUiModel {
 
 export type TrackListRowPlanEntry =
 	| Readonly<{ kind: 'folder'; row: TrackFolderRowUiModel }>
-	| Readonly<{ kind: 'track'; trackId: string; rowHidden: boolean }>;
+	| Readonly<{ kind: 'track'; trackId: string; rowHidden: boolean; sequenceId: string; parentFolderId: string | null }>;
 
 export interface TrackListRowPlan {
 	readonly hasFolders: boolean;
@@ -58,7 +58,9 @@ export function planTrackListRows(
 		return Object.freeze({
 			hasFolders: false,
 			entries: tracks.length === 0 ? EMPTY_PLAN_ENTRIES : Object.freeze(
-				tracks.map(({ id }) => Object.freeze({ kind: 'track' as const, trackId: id, rowHidden: false })),
+				tracks.map(({ id }) => Object.freeze({
+					kind: 'track' as const, trackId: id, rowHidden: false, sequenceId: '', parentFolderId: null,
+				})),
 			),
 			folderRows: Object.freeze([]),
 			treeOwnedIds: '',
@@ -72,7 +74,13 @@ export function planTrackListRows(
 		const siblingCursor = new Map<string, number>();
 		for (const row of sequence.rows) {
 			if (row.kind !== 'folder') {
-				entries.push(Object.freeze({ kind: 'track' as const, trackId: row.id, rowHidden: row.rowHidden }));
+				entries.push(Object.freeze({
+					kind: 'track' as const,
+					trackId: row.id,
+					rowHidden: row.rowHidden,
+					sequenceId: sequence.sequenceId,
+					parentFolderId: row.parentFolderId,
+				}));
 				continue;
 			}
 			const siblingKey = row.parentFolderId ?? '';
@@ -166,6 +174,79 @@ export function trackFolderRowTabIndex(
 	if (activeFolderId !== null) return row.id === activeFolderId ? 0 : -1;
 	const first = plan.folderRows.find((candidate) => !candidate.rowHidden);
 	return first?.id === row.id ? 0 : -1;
+}
+
+export type TrackFolderMoveIntent = Readonly<{
+	kind: 'move';
+	sequenceId: string;
+	nodeId: string;
+	parentFolderId: string | null;
+	index: number;
+}> | null;
+
+/** Child-relative index of a node among every child of its parent, tracks included. */
+function childIndexOf(plan: TrackListRowPlan, sequenceId: string, parentFolderId: string | null, nodeId: string): number {
+	let index = 0;
+	for (const entry of plan.entries) {
+		const entrySequenceId = entry.kind === 'folder' ? entry.row.sequenceId : entry.sequenceId;
+		const entryParent = entry.kind === 'folder' ? entry.row.parentFolderId : entry.parentFolderId;
+		const entryId = entry.kind === 'folder' ? entry.row.id : entry.trackId;
+		if (entrySequenceId !== sequenceId || entryParent !== parentFolderId) continue;
+		if (entryId === nodeId) return index;
+		index += 1;
+	}
+	return -1;
+}
+
+/**
+ * Resolve one Alt-modified tree keystroke into a structural move. The payload
+ * is exactly the folder-aware move command, so a keyboard move and a pointer
+ * drop that target the same place produce identical projects by construction.
+ */
+export function resolveTrackFolderMoveKey(
+	key: string,
+	folderId: string,
+	plan: TrackListRowPlan,
+): TrackFolderMoveIntent {
+	const row = plan.folderRows.find((candidate) => candidate.id === folderId);
+	if (!row) return null;
+	const childIndex = childIndexOf(plan, row.sequenceId, row.parentFolderId, row.id);
+	if (childIndex < 0) return null;
+	switch (key) {
+		case 'ArrowUp':
+			return childIndex === 0 ? null : {
+				kind: 'move', sequenceId: row.sequenceId, nodeId: row.id,
+				parentFolderId: row.parentFolderId, index: childIndex - 1,
+			};
+		case 'ArrowDown':
+			return {
+				kind: 'move', sequenceId: row.sequenceId, nodeId: row.id,
+				parentFolderId: row.parentFolderId, index: childIndex + 1,
+			};
+		case 'ArrowLeft': {
+			if (row.parentFolderId === null) return null;
+			const parent = plan.folderRows.find((candidate) => candidate.id === row.parentFolderId);
+			if (!parent) return null;
+			const parentIndex = childIndexOf(plan, parent.sequenceId, parent.parentFolderId, parent.id);
+			return {
+				kind: 'move', sequenceId: row.sequenceId, nodeId: row.id,
+				parentFolderId: parent.parentFolderId, index: parentIndex + 1,
+			};
+		}
+		case 'ArrowRight': {
+			const siblings = plan.folderRows.filter((candidate) => (
+				candidate.sequenceId === row.sequenceId && candidate.parentFolderId === row.parentFolderId
+			));
+			const position = siblings.findIndex((candidate) => candidate.id === row.id);
+			const target = siblings[position - 1];
+			return target === undefined ? null : {
+				kind: 'move', sequenceId: row.sequenceId, nodeId: row.id,
+				parentFolderId: target.id, index: Number.MAX_SAFE_INTEGER,
+			};
+		}
+		default:
+			return null;
+	}
 }
 
 function countFolderSiblings(rows: readonly TrackFolderStateNodeV12[]): ReadonlyMap<string, number> {

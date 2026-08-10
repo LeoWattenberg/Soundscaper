@@ -8,6 +8,7 @@ import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import { createAudioEditorProjectV13 } from '../src/common/editor/project-v13.ts';
 import {
 	planTrackListRows,
+	resolveTrackFolderMoveKey,
 	resolveTrackFolderTreeKey,
 	trackFolderRowTabIndex,
 } from '../src/common/editor/ui/timeline/track-folder-ui-model.ts';
@@ -101,7 +102,9 @@ test('a folder-free project plans plain track rows with no tree', () => {
 	});
 	const rows = plan(document);
 	assert.equal(rows.hasFolders, false);
-	assert.deepEqual(rows.entries, [{ kind: 'track', trackId: 'only', rowHidden: false }]);
+	assert.deepEqual(rows.entries, [
+		{ kind: 'track', trackId: 'only', rowHidden: false, sequenceId: '', parentFolderId: null },
+	]);
 });
 
 test('tree keys walk visible rows, expand, collapse, and exit to the parent', () => {
@@ -147,4 +150,35 @@ test('the roving tab index rests on the first visible row until a row is active'
 	assert.equal(trackFolderRowTabIndex(voices, 'voices', rows), 0);
 	assert.equal(trackFolderRowTabIndex(band, 'voices', rows), -1);
 	assert.equal(trackFolderRowTabIndex(drums, 'drums', rows), 0);
+});
+
+test('alt-modified keys resolve structural moves identical to a pointer drop', () => {
+	const expanded = project();
+	const opened = {
+		...expanded,
+		trackFolders: expanded.trackFolders.map((folder) => (
+			folder.id === 'band' ? { ...folder, collapsed: false } : folder
+		)),
+	};
+	const rows = plan(opened as ReturnType<typeof project>);
+
+	// voices is the second root child (band first): up moves before band.
+	assert.deepEqual(resolveTrackFolderMoveKey('ArrowUp', 'voices', rows), {
+		kind: 'move', sequenceId: 'main', nodeId: 'voices', parentFolderId: null, index: 0,
+	});
+	assert.equal(resolveTrackFolderMoveKey('ArrowUp', 'band', rows), null);
+	assert.deepEqual(resolveTrackFolderMoveKey('ArrowDown', 'band', rows), {
+		kind: 'move', sequenceId: 'main', nodeId: 'band', parentFolderId: null, index: 1,
+	});
+	// drums unnests to sit right after band at the root.
+	assert.deepEqual(resolveTrackFolderMoveKey('ArrowLeft', 'drums', rows), {
+		kind: 'move', sequenceId: 'main', nodeId: 'drums', parentFolderId: null, index: 1,
+	});
+	assert.equal(resolveTrackFolderMoveKey('ArrowLeft', 'band', rows), null);
+	// voices nests into its previous root sibling, band.
+	assert.deepEqual(resolveTrackFolderMoveKey('ArrowRight', 'voices', rows), {
+		kind: 'move', sequenceId: 'main', nodeId: 'voices', parentFolderId: 'band', index: Number.MAX_SAFE_INTEGER,
+	});
+	assert.equal(resolveTrackFolderMoveKey('ArrowRight', 'band', rows), null);
+	assert.equal(resolveTrackFolderMoveKey('ArrowUp', 'ghost', rows), null);
 });
