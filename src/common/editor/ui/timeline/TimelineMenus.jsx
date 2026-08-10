@@ -20,7 +20,7 @@ import {
 	TimelineOverlayPortal,
 } from './TimelineOverlayComponents.jsx';
 import { TrackColorPicker } from './TimelineFlyouts.jsx';
-import { viewportMenuAnchor } from './interaction-helpers.js';
+import { viewportMenuPlacement } from './interaction-helpers.js';
 
 export function TimelineMenus({
 	controller,
@@ -71,6 +71,9 @@ export function TimelineMenus({
 		outputMenuTarget,
 		outputMenuItems,
 	} = menuModel;
+	const trackMenuPlacement = trackMenu && menuTrack
+		? viewportMenuPlacement(trackMenu.anchor, trackMenuItems)
+		: null;
 
 	return (
 			<TimelineOverlayPortal target={overlayTarget}>
@@ -153,13 +156,20 @@ export function TimelineMenus({
 				}}
 			/>
 
-			<Menu
-				isOpen={Boolean(trackMenu && menuTrack)}
-				anchorEl={viewportMenuAnchor(trackMenu?.anchor, trackMenuItems)}
-				onClose={() => setTrackMenu(null)}
-				className="audio-editor-track-menu"
-				items={trackMenuItems}
-			/>
+			<div
+				className="audio-editor-track-menu-layer"
+				style={trackMenuPlacement
+					? { '--audio-editor-track-menu-max-height': `${trackMenuPlacement.maxHeight}px` }
+					: undefined}
+			>
+				<Menu
+					isOpen={Boolean(trackMenu && menuTrack)}
+					anchorEl={trackMenuPlacement?.anchorEl || null}
+					onClose={() => setTrackMenu(null)}
+					className="audio-editor-track-menu"
+					items={trackMenuItems}
+				/>
+			</div>
 
 			<ContextMenu
 				isOpen={Boolean(trackMenu?.folderId && menuFolder)}

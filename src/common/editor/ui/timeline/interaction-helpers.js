@@ -5,27 +5,41 @@ import {
 } from '../../project-bin-dnd.js';
 
 const VIEWPORT_MENU_MARGIN = 8;
+const VIEWPORT_MENU_WIDTH = 220;
+// Mirrors the packaged menu metrics: 4px padding plus 1px border per edge,
+// 32px per item, and a 1px rule inside 4px margins per divider.
+const VIEWPORT_MENU_FRAME = 10;
+const VIEWPORT_MENU_ITEM_HEIGHT = 32;
+const VIEWPORT_MENU_DIVIDER_HEIGHT = 9;
 
 export function dataTransferHasType(dataTransfer, type) {
 	return Array.from(dataTransfer?.types || []).includes(type);
 }
 
-export function viewportMenuAnchor(anchor, items) {
-	if (!anchor?.getBoundingClientRect) return null;
+export function viewportMenuPlacement(anchor, items) {
+	const rect = anchor?.getBoundingClientRect?.();
+	if (!rect) return null;
+	const menuHeight = VIEWPORT_MENU_FRAME + (items || []).reduce(
+		(height, item) => height + (item.divider ? VIEWPORT_MENU_DIVIDER_HEIGHT : VIEWPORT_MENU_ITEM_HEIGHT),
+		0,
+	);
+	const spaceBelow = globalThis.innerHeight - rect.bottom - VIEWPORT_MENU_MARGIN;
+	const spaceAbove = rect.top - VIEWPORT_MENU_MARGIN;
+	// Keep the menu under the control that opened it whenever that side has the most
+	// room; a menu too tall for either side scrolls instead of covering its trigger.
+	const opensDown = menuHeight <= spaceBelow || spaceBelow >= spaceAbove;
+	const top = opensDown ? rect.bottom : Math.max(VIEWPORT_MENU_MARGIN, rect.top - menuHeight);
+	const left = Math.max(
+		VIEWPORT_MENU_MARGIN,
+		Math.min(rect.left, globalThis.innerWidth - VIEWPORT_MENU_WIDTH - VIEWPORT_MENU_MARGIN),
+	);
+	const placed = { ...rect, top, bottom: top, left, right: left + rect.width };
 	return {
-		getBoundingClientRect() {
-			const rect = anchor.getBoundingClientRect();
-			const menuHeight = 10 + (items || []).reduce((height, item) => height + (item.divider ? 9 : 32), 0);
-			const menuWidth = 220;
-			const top = rect.bottom + menuHeight <= globalThis.innerHeight - VIEWPORT_MENU_MARGIN
-				? rect.bottom
-				: Math.max(VIEWPORT_MENU_MARGIN, rect.top - menuHeight);
-			const left = Math.max(
-				VIEWPORT_MENU_MARGIN,
-				Math.min(rect.left, globalThis.innerWidth - menuWidth - VIEWPORT_MENU_MARGIN),
-			);
-			return { ...rect, top, bottom: top, left, right: left + rect.width };
-		},
+		maxHeight: Math.max(
+			VIEWPORT_MENU_FRAME + VIEWPORT_MENU_ITEM_HEIGHT,
+			globalThis.innerHeight - top - VIEWPORT_MENU_MARGIN,
+		),
+		anchorEl: { getBoundingClientRect: () => placed },
 	};
 }
 

@@ -143,9 +143,15 @@
 	z-index: var(--kw-editor-flyout-z);
 }
 
+#kw-audio-editor-design-system .audio-editor-track-menu-layer {
+	display: contents;
+}
+
 #kw-audio-editor-design-system .audio-editor-track-menu.menu {
 	position: fixed !important;
 	z-index: var(--kw-editor-flyout-z) !important;
+	max-height: var(--audio-editor-track-menu-max-height, none);
+	overflow-y: auto;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-color-picker.context-menu {

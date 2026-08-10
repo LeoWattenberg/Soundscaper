@@ -12,6 +12,7 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import { asymmetricStereoTone, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
@@ -469,7 +470,11 @@ async function audioEffectsRenderedFallbackArchive(input, {
 	fallbackFrameCount = null,
 }) {
 	return rewriteArchive(input, ({ project, manifest, payloads }) => {
-		if (project.schemaVersion !== 12) throw new Error('Rendered fallback fixture requires schema 12.');
+		if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+			throw new Error(
+				`Rendered fallback fixture requires schema ${AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION}.`,
+			);
+		}
 		project.id = id;
 		project.title = title;
 		const source = project.sources.find((candidate) => (
