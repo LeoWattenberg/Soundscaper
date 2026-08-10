@@ -231,7 +231,9 @@ and its review share one contract.
    `framescaper.sequence-timing` owned requirement, whose predicate already
    fires on a non-default rate, a drop-frame flag, or a non-zero start timecode.
    Making that state editable is what turns the existing registration into a
-   reachable one.
+   reachable one. It needs no compatibility rule either: both products register
+   the capability available, so no degradation path changes and the existing
+   current-schema editing rule already covers the state this packet edits.
 
 ## Global fences
 

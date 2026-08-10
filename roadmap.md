@@ -392,9 +392,14 @@ acceptance checks pass.
 
 ### Framescaper track (3B, parallel after 3.0)
 
-- **Shared / Web Core — Planned:** rational sequence rates independent of audio
+Packet boundaries, dependencies, and acceptance are owned by
+[the 3B work packets](docs/milestone-3b-work-packets.md).
+
+- **Shared / Web Core — In progress:** rational sequence rates independent of audio
   sample rate, including integer/NTSC rates, drop/non-drop SMPTE, source
-  timecode, frame stepping/snapping, and explicit rounding.
+  timecode, frame stepping/snapping, and explicit rounding. The probed source
+  timecode origin arrives with the ingest bullet below; until then a source
+  position is labelled at the source's own rate from a zero origin.
 - **Shared / Web Core — Planned:** probe and preserve exact frame/VFR timing,
   rotation, aspect, fields, alpha, codec, color, audio streams, and timecode.
 - **Web Core — Planned:** source/program monitors, source in/out, track targeting,
