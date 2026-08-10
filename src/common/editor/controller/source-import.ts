@@ -12,6 +12,7 @@ import type {
 	OwnedMediaAssetWriter,
 } from '../storage/media-asset-write-contract.ts';
 import { createFfmpegVideoTimingProbe, probeVideoTiming } from '../video-timing-probe.ts';
+import { createUnreportedVideoSourceCharacteristics } from '../video-source-characteristics.ts';
 import { publishVideoTimingAsset } from '../video-timing-storage.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -62,6 +63,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 					rate: Object.freeze({ num: 30, den: 1 }),
 					reason: 'timing-probe-unavailable' as const,
 					failures: Object.freeze([]),
+					characteristics: createUnreportedVideoSourceCharacteristics(),
 				});
 			let conformedAtIngest = false;
 			if (timingProbe.decision === 'conform-cfr-at-ingest'

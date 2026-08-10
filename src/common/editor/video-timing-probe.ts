@@ -7,9 +7,16 @@ import {
 	type VideoTimingAssetInput,
 	type VideoTimingIndex,
 } from './video-timing-asset.ts';
+import {
+	createUnreportedVideoSourceCharacteristics,
+	normalizeVideoSourceCharacteristics,
+	type VideoSourceCharacteristics,
+} from './video-source-characteristics.ts';
 
 export interface VideoTimingProbeResult extends VideoTimingAssetInput {
 	readonly nominalRate: RationalRate;
+	/** What this backend observed about the source beside its timing. */
+	readonly characteristics?: unknown;
 }
 
 export interface VideoTimingProbePort {
@@ -23,12 +30,14 @@ export type ResolvedVideoTimingProbe =
 		backend: string;
 		nominalRate: RationalRate;
 		timing: VideoTimingIndex;
+		characteristics: VideoSourceCharacteristics;
 	}>
 	| Readonly<{
 		decision: 'conform-cfr-at-ingest';
 		rate: RationalRate;
 		reason: 'timing-probe-unavailable';
 		failures: readonly Readonly<{ backend: string; message: string }>[];
+		characteristics: VideoSourceCharacteristics;
 	}>;
 
 export interface VideoTimingProbeOptions {
@@ -54,7 +63,16 @@ export async function probeVideoTiming(
 			throwIfAborted(options.signal);
 			const nominalRate = normalizeRate(candidate.nominalRate);
 			const timing = decodeVideoTimingAsset(encodeVideoTimingAsset(candidate));
-			return Object.freeze({ decision: 'timing-asset', backend: probe.id, nominalRate, timing });
+			return Object.freeze({
+				decision: 'timing-asset',
+				backend: probe.id,
+				nominalRate,
+				timing,
+				characteristics: normalizeVideoSourceCharacteristics(
+					candidate.characteristics ?? null,
+					{ rate: nominalRate },
+				),
+			});
 		} catch (error) {
 			throwIfAborted(options.signal);
 			failures.push(Object.freeze({
@@ -68,6 +86,7 @@ export async function probeVideoTiming(
 		rate: normalizeRate(options.fallbackRate ?? { num: 30, den: 1 }),
 		reason: 'timing-probe-unavailable',
 		failures: Object.freeze(failures),
+		characteristics: createUnreportedVideoSourceCharacteristics(),
 	});
 }
 

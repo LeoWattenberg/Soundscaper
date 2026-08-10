@@ -25,6 +25,10 @@ import {
 	buildFfmpegVideoTimingProbeArgs,
 	parseFfmpegVideoTimingLogs,
 } from './ffmpeg-video-timing-probe.ts';
+import {
+	isFfmpegSourceCharacteristicsLog,
+	parseFfmpegVideoSourceCharacteristics,
+} from './ffmpeg-video-source-characteristics.ts';
 import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
@@ -440,7 +444,11 @@ export function createEditorFfmpeg(options = {}) {
 			let mounted = false;
 			const logs = [];
 			const handleLog = ({ message = '' }) => {
-				if (typeof message === 'string' && (message.includes('showinfo') || message.includes('config in time_base:'))) {
+				if (typeof message !== 'string') return;
+				// The banner states the characteristics no filter reports, and it
+				// arrives in the run the timing probe already pays for.
+				if (message.includes('showinfo') || message.includes('config in time_base:')
+					|| isFfmpegSourceCharacteristicsLog(message)) {
 					logs.push(message);
 				}
 			};
@@ -461,7 +469,11 @@ export function createEditorFfmpeg(options = {}) {
 				}
 				const code = await instance.exec(buildFfmpegVideoTimingProbeArgs(input), -1, { signal });
 				if (code !== 0) throw new Error(`FFmpeg timing probe exited with code ${code}.`);
-				return parseFfmpegVideoTimingLogs(logs);
+				const timing = parseFfmpegVideoTimingLogs(logs);
+				return {
+					...timing,
+					characteristics: parseFfmpegVideoSourceCharacteristics(logs, { rate: timing.nominalRate }),
+				};
 			} finally {
 				signal?.removeEventListener('abort', onAbort);
 				try { instance.off('log', handleLog); } catch {}

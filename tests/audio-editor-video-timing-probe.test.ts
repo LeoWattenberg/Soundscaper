@@ -7,6 +7,9 @@ import {
 	probeVideoTiming,
 	type VideoTimingProbePort,
 } from '../src/common/editor/video-timing-probe.ts';
+import {
+	createUnreportedVideoSourceCharacteristics,
+} from '../src/common/editor/video-source-characteristics.ts';
 
 const cfr: VideoTimingProbePort = {
 	id: 'webcodecs',
@@ -57,5 +60,41 @@ test('unavailable probing records a deterministic conform-at-ingest decision', a
 		rate: { num: 25, den: 1 },
 		reason: 'timing-probe-unavailable',
 		failures: [{ backend: 'webcodecs', message: 'unsupported container' }],
+		characteristics: createUnreportedVideoSourceCharacteristics(),
 	});
+});
+
+test('a backend reporting characteristics carries them beside its timing', async () => {
+	const result = await probeVideoTiming(new Blob(['cfr']), { probes: [{
+		id: 'ffmpeg',
+		async probe() {
+			return {
+				timescale: 90_000,
+				presentationTicks: [0n, 3_003n],
+				finalFrameDurationTicks: 3_003n,
+				nominalRate: { num: 30_000, den: 1_001 },
+				characteristics: {
+					backend: 'ffmpeg',
+					codedWidth: 1_920,
+					codedHeight: 1_080,
+					rotationDegrees: 90,
+					startTimecode: {
+						negative: false, hours: 10, minutes: 0, seconds: 0, frames: 0, dropFrame: true,
+					},
+				},
+			};
+		},
+	}] });
+	assert.equal(result.decision, 'timing-asset');
+	if (result.decision !== 'timing-asset') return;
+	assert.equal(result.characteristics.rotationDegrees, 90);
+	assert.equal(result.characteristics.startTimecode?.hours, 10);
+	assert.equal(result.characteristics.fieldOrder, null);
+});
+
+test('characteristics an unreported backend omits stay unreported', async () => {
+	const result = await probeVideoTiming(new Blob(['cfr']), { probes: [cfr] });
+	assert.equal(result.decision, 'timing-asset');
+	if (result.decision !== 'timing-asset') return;
+	assert.deepEqual(result.characteristics, createUnreportedVideoSourceCharacteristics());
 });
