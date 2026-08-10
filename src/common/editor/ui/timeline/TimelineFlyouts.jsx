@@ -10,6 +10,9 @@ export function ContainerAddTrackFlyout({
 	mutationsBlocked,
 	showMasterTrack,
 	onToggleMasterTrack,
+	markersAvailable,
+	showMarkers,
+	onToggleMarkers,
 	onClose,
 	x,
 	y,
@@ -119,6 +122,17 @@ export function ContainerAddTrackFlyout({
 						<span>{copy.masterTrack}</span>
 					</label>
 				</div>
+				{markersAvailable && <div className="add-track-flyout__row">
+					<label className="add-track-flyout__checkbox-control">
+						<input
+							type="checkbox"
+							data-show-markers-toggle
+							checked={showMarkers}
+							onChange={onToggleMarkers}
+						/>
+						<span>{copy.showMarkers}</span>
+					</label>
+				</div>}
 			</div>
 		</div>
 	);

@@ -70,6 +70,7 @@ export function TimelineWorkspaceView({
 		visualTrackHeight,
 		totalTrackHeight,
 		showTimelineAnnotations,
+		showMarkers,
 	} = geometry;
 	const { documentSelection, timeSelection, selectedClipIdSet } = selection;
 	const {
@@ -111,6 +112,7 @@ export function TimelineWorkspaceView({
 		openAddTrackFlyout,
 		addTrackFromFlyout,
 		toggleMasterTrack,
+		toggleMarkers,
 		closeAddTrackFlyout,
 		openClipMenu,
 		openTimelineRulerMenu,
@@ -201,7 +203,7 @@ export function TimelineWorkspaceView({
 							>
 								{copy.addTrack}
 							</Button>
-							{showTimelineAnnotations && <TimelineAnnotationLaneActions
+							{showTimelineAnnotations && showMarkers && <TimelineAnnotationLaneActions
 								controller={controller}
 								project={project}
 								annotations={snapshot.timelineAnnotations || []}
@@ -335,6 +337,9 @@ export function TimelineWorkspaceView({
 						mutationsBlocked={mutationsBlocked}
 						showMasterTrack={showMasterTrack}
 						onToggleMasterTrack={toggleMasterTrack}
+						markersAvailable={showTimelineAnnotations}
+						showMarkers={showMarkers}
+						onToggleMarkers={toggleMarkers}
 						onSelectTrackType={addTrackFromFlyout}
 						onClose={closeAddTrackFlyout}
 					/>

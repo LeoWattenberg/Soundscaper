@@ -144,6 +144,9 @@ export function createWorkspaceApplicationMenus({
 				toggleLeadIn: () => run(() => controller.actions.recording.toggleLeadIn()),
 				toggleMetronome: () => run(() => controller.actions.transport.toggleMetronome()),
 				toggleArmControls: () => setShowArmControls((current) => !current),
+				toggleMarkers: () => run(() => controller.actions.preferences.update({
+					view: { showMarkers: !snapshot.preferences?.view?.showMarkers },
+				})),
 				stop: () => run(() => controller.actions.transport.stop()),
 				playPause: () => run(() => controller.actions.transport.playPause()),
 				playAtSpeed: () => run(() => controller.actions.transport.playAtSpeed()),

@@ -45,8 +45,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const showMaster = flyout.getByRole('checkbox', { name: 'Show master track', exact: true });
 		await expect(flyout.getByRole('menuitem', { name: 'Send track', exact: true })).toBeVisible();
 		await expect(showMaster).not.toBeChecked();
-		await expect(flyout.locator('.add-track-flyout__row')).toHaveCount(1);
+		await expect(flyout.locator('.add-track-flyout__row')).toHaveCount(2);
 		await expect(flyout.locator('.add-track-flyout__row').getByRole('checkbox', { name: 'Show master track', exact: true })).toHaveCount(1);
+		await expect(flyout.locator('.add-track-flyout__row').getByRole('checkbox', { name: 'Show markers', exact: true })).toHaveCount(1);
 		await showMaster.click();
 		await expect(flyout).toBeVisible();
 		await expect(showMaster).toBeChecked();

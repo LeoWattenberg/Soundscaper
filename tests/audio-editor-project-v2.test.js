@@ -301,6 +301,16 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	);
 	assert.equal(updateAudioEditorPreferencesV1(preferences, { recording: { retainInputs: false } }).recording.retainInputs, false);
 	assert.equal(updateAudioEditorPreferencesV1(preferences, { view: { showMasterTrack: true } }).view.showMasterTrack, true);
+	assert.equal(preferences.view.showMarkers, false);
+	assert.equal(updateAudioEditorPreferencesV1(preferences, { view: { showMarkers: true } }).view.showMarkers, true);
+	// Preferences stored before the marker toggle keep loading; only a stored
+	// value of the wrong type is rejected.
+	const withoutMarkerToggle = { ...preferences, view: { showMasterTrack: true } };
+	assert.equal(validateAudioEditorPreferencesV1(withoutMarkerToggle), true);
+	assert.equal(loadAudioEditorPreferencesV1(withoutMarkerToggle).preferences.view.showMarkers, false);
+	assert.throws(() => validateAudioEditorPreferencesV1({
+		...preferences, view: { showMasterTrack: true, showMarkers: 'yes' },
+	}), /view\.showMarkers must be boolean/);
 	assert.throws(() => validateAudioEditorPreferencesV1({
 		...preferences, view: { showMasterTrack: 'yes' },
 	}), /view\.showMasterTrack must be boolean/);

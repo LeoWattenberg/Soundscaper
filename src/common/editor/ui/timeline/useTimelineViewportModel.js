@@ -76,6 +76,7 @@ export function useTimelineViewportModel({
 		capabilities: snapshot.capabilities,
 		project,
 	});
+	const showMarkers = Boolean(snapshot.preferences?.view?.showMarkers);
 	const rulerRowHeight = showTimelineAnnotations
 		? TIMELINE_RULER_ROW_HEIGHT_WITH_ANNOTATIONS
 		: TIMELINE_RULER_ROW_HEIGHT;
@@ -199,5 +200,6 @@ export function useTimelineViewportModel({
 		visualTrackHeight,
 		totalTrackHeight,
 		showTimelineAnnotations,
+		showMarkers,
 	};
 }

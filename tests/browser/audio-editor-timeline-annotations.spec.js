@@ -11,6 +11,7 @@ import {
 import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
+	chooseCommandAction,
 	chooseFileAction,
 	chooseNestedCommandAction,
 	collectClientErrors,
@@ -120,7 +121,20 @@ test.describe('native timeline annotations', () => {
 		await marker.click({ modifiers: ['Shift'] });
 		await expect(marker).toHaveAttribute('aria-selected', 'true');
 		await expect(region).toHaveAttribute('aria-selected', 'true');
+		// The ruler-corner actions stay hidden until Show markers is enabled, from
+		// either the Add Track flyout or the View menu.
 		const laneActions = editor.locator('[data-timeline-annotation-create-actions]');
+		await expect(laneActions).toHaveCount(0);
+		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+		const markerToggle = editor.locator('[data-show-markers-toggle]');
+		await expect(markerToggle).not.toBeChecked();
+		await markerToggle.check();
+		await expect(laneActions).toBeVisible();
+		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await expect(laneActions).toHaveCount(0);
+		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await expect(laneActions).toBeVisible();
+
 		const laneStatus = editor.locator('[data-timeline-annotation-create-actions] + [role="status"]');
 		await laneActions.getByRole('button', { name: 'Batch selected annotations', exact: true }).click();
 		await expect(laneStatus).toHaveText('Batched 2 annotation(s)');

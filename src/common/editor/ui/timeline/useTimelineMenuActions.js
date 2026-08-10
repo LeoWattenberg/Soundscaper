@@ -7,7 +7,7 @@ export function useTimelineMenuActions({
 	state,
 	model,
 }) {
-	const { project, showMasterTrack } = model;
+	const { project, showMasterTrack, showMarkers } = model;
 	const {
 		addTrackFlyout,
 		setAddTrackFlyout,
@@ -54,6 +54,10 @@ export function useTimelineMenuActions({
 	const toggleMasterTrack = useCallback(() => run(() => controller.actions.preferences.update({
 		view: { showMasterTrack: !showMasterTrack },
 	})), [controller, run, showMasterTrack]);
+
+	const toggleMarkers = useCallback(() => run(() => controller.actions.preferences.update({
+		view: { showMarkers: !showMarkers },
+	})), [controller, run, showMarkers]);
 
 	const openClipMenu = useCallback((clipId, x, y, openedViaKeyboard = false) => {
 		const clip = project?.clips.find((item) => String(item.id) === String(clipId));
@@ -116,6 +120,7 @@ export function useTimelineMenuActions({
 		openAddTrackFlyout,
 		addTrackFromFlyout,
 		toggleMasterTrack,
+		toggleMarkers,
 		openClipMenu,
 		openTimelineRulerMenu,
 		openTrackRulerFlyout,

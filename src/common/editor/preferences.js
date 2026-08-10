@@ -81,7 +81,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean}} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {{theme: string, clipStyle: 'classic'|'colorful'}} appearance
- * @property {{showMasterTrack: boolean}} view
+ * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, Object>}} workspace
  * @property {Object} spectrogram
  * @property {{detectTempo: boolean}} import
@@ -281,6 +281,8 @@ export function createAudioEditorPreferencesV1(options = {}) {
 	if ((windowSize & (windowSize - 1)) !== 0) throw new RangeError('spectrogram.windowSize must be a power of two.');
 	const showMasterTrack = options.view?.showMasterTrack ?? false;
 	if (typeof showMasterTrack !== 'boolean') throw new TypeError('view.showMasterTrack must be boolean.');
+	const showMarkers = options.view?.showMarkers ?? false;
+	if (typeof showMarkers !== 'boolean') throw new TypeError('view.showMarkers must be boolean.');
 	return {
 		schemaVersion: AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION,
 		editing: {
@@ -295,6 +297,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		},
 		view: {
 			showMasterTrack,
+			showMarkers,
 		},
 		workspace: {
 			activeId,
@@ -504,6 +507,12 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		}
 		if (typeof preferences.view.showMasterTrack !== 'boolean') {
 			throw new TypeError('view.showMasterTrack must be boolean.');
+		}
+		// Preferences saved before the marker toggle existed carry a view section
+		// without it; normalization supplies the default, so only a stored value
+		// of the wrong type is a fault.
+		if (preferences.view.showMarkers !== undefined && typeof preferences.view.showMarkers !== 'boolean') {
+			throw new TypeError('view.showMarkers must be boolean.');
 		}
 	}
 	if (preferences.recording !== undefined) {

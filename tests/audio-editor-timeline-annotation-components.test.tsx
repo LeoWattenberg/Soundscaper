@@ -384,6 +384,31 @@ test('the marker panel stays out of the dock until the project and product carry
 	}), false);
 });
 
+test('the ruler-corner marker actions stay hidden until Show markers is enabled', () => {
+	const workspace = readFileSync(new URL(
+		'../src/common/editor/ui/timeline/TimelineWorkspaceView.jsx', import.meta.url,
+	), 'utf8');
+
+	assert.match(workspace, /\{showTimelineAnnotations && showMarkers && <TimelineAnnotationLaneActions/u);
+	assert.equal(workspace.match(/<TimelineAnnotationLaneActions/gu)?.length, 1);
+});
+
+test('the Add Track flyout offers Show markers only where the project carries annotations', () => {
+	const flyouts = readFileSync(new URL(
+		'../src/common/editor/ui/timeline/TimelineFlyouts.jsx', import.meta.url,
+	), 'utf8');
+	const row = flyouts.match(/\{markersAvailable && <div className="add-track-flyout__row">[\S\s]*?<\/div>\}/u)?.[0];
+
+	assert.ok(row, 'the marker toggle is gated on annotation availability');
+	assert.match(row, /checked=\{showMarkers\}/u);
+	assert.match(row, /onChange=\{onToggleMarkers\}/u);
+	assert.match(row, /\{copy\.showMarkers\}/u);
+	// The marker toggle is a view preference, not an edit, so it stays usable
+	// while mutations are blocked — unlike the track-type options above it.
+	assert.doesNotMatch(row, /disabled=/u);
+	assert.equal(ENGLISH_COPY.showMarkers, 'Show markers');
+});
+
 function annotationSnapshotFixture() {
 	return {
 		capabilities: { timelineAnnotations: true },

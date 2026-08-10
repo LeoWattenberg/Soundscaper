@@ -337,6 +337,12 @@ export default function createApplicationMenus({
 				{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
 				{ id: 'toggle-clipping-in-waveform', label: copy.showClipping, checked: uiFlags.clipping },
 				{ id: 'show-master-track', label: copy.masterTrack, checked: Boolean(snapshot.preferences?.view?.showMasterTrack) },
+				...(timelineAnnotationsAvailable(snapshot) ? [{
+					id: 'show-markers',
+					label: copy.showMarkers,
+					checked: Boolean(snapshot.preferences?.view?.showMarkers),
+					onClick: actions.toggleMarkers,
+				}] : []),
 				{ id: 'toggle-statusbar', label: copy.statusBar, checked: uiFlags.statusbar },
 				divider(),
 				createSnapMenu(copy, project, editBlocked, actions.setSnap),
