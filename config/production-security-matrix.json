@@ -533,7 +533,7 @@
 						{ "kind": "test", "path": "tests/audio-editor-linked-original-startup-reconciliation.test.ts" }
 					] },
 					"restart-after-commit": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-storage-publication.spec.js" },
 						{ "kind": "test", "path": "tests/audio-editor-linked-audio-scape-roundtrip.test.ts" }
 					] }
 				}
@@ -2732,7 +2732,7 @@
 						{ "kind": "test", "path": "tests/audio-editor-project-save-options.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-project-services.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-session.test.js" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-storage-publication.spec.js" },
 						{ "kind": "test", "path": "tests/production-security-linked-video-save-cleanup.test.js" }
 					]
 				},
@@ -3162,8 +3162,8 @@
 						{ "kind": "test", "path": "tests/audio-editor-cross-context-media-lifecycle.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-media-asset-disposal.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-streaming-media-storage.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-schema.test.ts" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" }
+						{ "kind": "test", "path": "tests/audio-editor-storage-schema.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-storage-publication.spec.js" }
 					]
 				},
 				{
@@ -3181,7 +3181,7 @@
 				},
 				{
 					"id": "lazy-legacy-media-digest-backfill",
-					"summary": "IndexedDB schema v6 atomically removes spoofable provenance fields from pre-cutover media rows; markerless rows expose no inherited hash, acquire one retryable version-zero Web-Crypto content claim, hash stored bytes in bounded four-MiB reads, and publish version-one SHA-256 only through a token-checked compare-and-set that rejects stale delete or replacement races.",
+					"summary": "IndexedDB version-8 opens wipe pre-current databases outright, so no pre-cutover media row or spoofable provenance field survives into the current schema; markerless rows expose no inherited hash, acquire one retryable version-zero Web-Crypto content claim, hash stored bytes in bounded four-MiB reads, and publish version-one SHA-256 only through a token-checked compare-and-set that rejects stale delete or replacement races.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/storage/indexeddb-backend.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/storage/media-content-provenance.ts" },
@@ -3189,8 +3189,8 @@
 						{ "kind": "implementation", "path": "src/common/editor/storage/media-content-digest.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/storage/media-records.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-media-digest-backfill.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-derivative-cache-schema.test.ts" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-storage-migration.spec.js" }
+						{ "kind": "test", "path": "tests/audio-editor-storage-schema.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-storage-publication.spec.js" }
 					]
 				},
 				{

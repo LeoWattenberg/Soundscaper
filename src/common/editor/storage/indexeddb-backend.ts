@@ -3,7 +3,6 @@
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 	DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-	projectDerivativeCacheInventoryRecord,
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from './derivative-cache-entry.ts';
 import {
@@ -28,10 +27,8 @@ import {
 	LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
 	LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 } from './linked-original-provisional-root-schema.ts';
-import { MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION } from './media-content-provenance.ts';
 import { EditorStoreBlockedError } from './status.ts';
 
-const DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION = 3;
 export const EDITOR_STORAGE_DATABASE_VERSION = 8;
 const DATABASE_VERSION = EDITOR_STORAGE_DATABASE_VERSION;
 const SOURCE_CHUNK_CURSOR_PAGE_SIZE = 8;
@@ -76,170 +73,76 @@ export function openDatabase(
 		openRequest.onupgradeneeded = (event) => {
 			try {
 				const database = openRequest.result;
-				const transaction = openRequest.transaction;
-				if (!database.objectStoreNames.contains('projects')) database.createObjectStore('projects', { keyPath: 'id' });
-				if (!database.objectStoreNames.contains('revisions')) {
-					const store = database.createObjectStore('revisions', { keyPath: 'key' });
-					store.createIndex('projectId', 'projectId', { unique: false });
+				// Pre-current databases are disposable, not migrated: no released
+				// build carries data guarantees, so their stores are dropped and the
+				// current schema is created from scratch — the storage counterpart of
+				// migration.js refusing pre-current project archives.
+				if ((event?.oldVersion ?? 0) > 0) {
+					for (const storeName of Array.from(database.objectStoreNames)) {
+						database.deleteObjectStore(storeName);
+					}
 				}
-				if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
-				if (!database.objectStoreNames.contains('analysis')) database.createObjectStore('analysis', { keyPath: 'key' });
-				let sources: IDBObjectStore;
-				if (!database.objectStoreNames.contains('sources')) {
-					sources = database.createObjectStore('sources', { keyPath: 'id' });
-				} else {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					sources = transaction.objectStore('sources');
-				}
-				if (!sources.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME)) {
-					sources.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
-				}
-				if (!database.objectStoreNames.contains('sourceChunks')) {
-					const store = database.createObjectStore('sourceChunks', { keyPath: 'key' });
-					store.createIndex('sourceToken', 'sourceToken', { unique: false });
-				}
-				let mediaAssets: IDBObjectStore;
-				if (!database.objectStoreNames.contains('mediaAssets')) {
-					mediaAssets = database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
-				} else {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					mediaAssets = transaction.objectStore('mediaAssets');
-				}
+				database.createObjectStore('projects', { keyPath: 'id' });
+				const revisions = database.createObjectStore('revisions', { keyPath: 'key' });
+				revisions.createIndex('projectId', 'projectId', { unique: false });
+				database.createObjectStore('settings', { keyPath: 'key' });
+				database.createObjectStore('analysis', { keyPath: 'key' });
+				const sources = database.createObjectStore('sources', { keyPath: 'id' });
+				sources.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
+				const sourceChunks = database.createObjectStore('sourceChunks', { keyPath: 'key' });
+				sourceChunks.createIndex('sourceToken', 'sourceToken', { unique: false });
+				const mediaAssets = database.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
 				for (const indexName of [
 					MEDIA_ASSET_TOKEN_REFERENCE_INDEX_NAME,
 					BINARY_PATH_REFERENCE_INDEX_NAME,
 				]) {
-					if (!mediaAssets.indexNames.contains(indexName)) {
-						mediaAssets.createIndex(indexName, indexName, { unique: false });
-					}
+					mediaAssets.createIndex(indexName, indexName, { unique: false });
 				}
-				if (!database.objectStoreNames.contains(MEDIA_ASSET_CHUNK_STORE_NAME)) {
-					const store = database.createObjectStore(MEDIA_ASSET_CHUNK_STORE_NAME, { keyPath: 'key' });
-					store.createIndex(
-						MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
-						MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
-						{ unique: false },
-					);
-				} else {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					const store = transaction.objectStore(MEDIA_ASSET_CHUNK_STORE_NAME);
-					if (!store.indexNames.contains(MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME)) {
-						store.createIndex(
-							MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
-							MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
-							{ unique: false },
-						);
-					}
-				}
-				if (!database.objectStoreNames.contains(MEDIA_ASSET_STAGING_STORE_NAME)) {
-					const store = database.createObjectStore(MEDIA_ASSET_STAGING_STORE_NAME, { keyPath: 'key' });
-					store.createIndex(MEDIA_ASSET_STAGING_KIND_INDEX_NAME, MEDIA_ASSET_STAGING_KIND_INDEX_NAME, { unique: false });
-					store.createIndex(MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME, MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME, { unique: true });
-					store.createIndex(MEDIA_ASSET_STAGING_PATH_INDEX_NAME, MEDIA_ASSET_STAGING_PATH_INDEX_NAME, { unique: true });
-					store.createIndex(MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME, MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME, { unique: false });
-					const stateRequest = store.put({
-						key: MEDIA_ASSET_STAGING_STATE_KEY,
-						kind: 'state',
-						generation: 'initial',
-					});
-					stateRequest.onerror = () => abortUpgrade(
-						stateRequest.error || new Error('Could not initialize media staging maintenance state.'),
-					);
-				}
-				let linkedVideoOriginals: IDBObjectStore;
-				if (!database.objectStoreNames.contains(LINKED_ORIGINAL_STORE_NAME)) {
-					linkedVideoOriginals = database.createObjectStore(
-						LINKED_ORIGINAL_STORE_NAME,
-						{ keyPath: 'key' },
-					);
-				} else {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					linkedVideoOriginals = transaction.objectStore(LINKED_ORIGINAL_STORE_NAME);
-				}
-				if (!linkedVideoOriginals.indexNames.contains(LINKED_ORIGINAL_PROJECT_INDEX_NAME)) {
-					linkedVideoOriginals.createIndex(
-						LINKED_ORIGINAL_PROJECT_INDEX_NAME,
-						LINKED_ORIGINAL_PROJECT_INDEX_NAME,
-						{ unique: false },
-					);
-				}
-				let linkedOriginalProvisionalRoots: IDBObjectStore;
-				if (!database.objectStoreNames.contains(LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME)) {
-					linkedOriginalProvisionalRoots = database.createObjectStore(
-						LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
-						{ keyPath: 'key' },
-					);
-				} else {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					linkedOriginalProvisionalRoots = transaction.objectStore(
-						LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
-					);
-				}
-				if (!linkedOriginalProvisionalRoots.indexNames.contains(
+				const mediaChunks = database.createObjectStore(MEDIA_ASSET_CHUNK_STORE_NAME, { keyPath: 'key' });
+				mediaChunks.createIndex(
+					MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+					MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME,
+					{ unique: false },
+				);
+				const staging = database.createObjectStore(MEDIA_ASSET_STAGING_STORE_NAME, { keyPath: 'key' });
+				staging.createIndex(MEDIA_ASSET_STAGING_KIND_INDEX_NAME, MEDIA_ASSET_STAGING_KIND_INDEX_NAME, { unique: false });
+				staging.createIndex(MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME, MEDIA_ASSET_STAGING_TOKEN_INDEX_NAME, { unique: true });
+				staging.createIndex(MEDIA_ASSET_STAGING_PATH_INDEX_NAME, MEDIA_ASSET_STAGING_PATH_INDEX_NAME, { unique: true });
+				staging.createIndex(MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME, MEDIA_ASSET_STAGING_EXPIRY_INDEX_NAME, { unique: false });
+				const stateRequest = staging.put({
+					key: MEDIA_ASSET_STAGING_STATE_KEY,
+					kind: 'state',
+					generation: 'initial',
+				});
+				stateRequest.onerror = () => abortUpgrade(
+					stateRequest.error || new Error('Could not initialize media staging maintenance state.'),
+				);
+				const linkedVideoOriginals = database.createObjectStore(
+					LINKED_ORIGINAL_STORE_NAME,
+					{ keyPath: 'key' },
+				);
+				linkedVideoOriginals.createIndex(
+					LINKED_ORIGINAL_PROJECT_INDEX_NAME,
+					LINKED_ORIGINAL_PROJECT_INDEX_NAME,
+					{ unique: false },
+				);
+				const linkedOriginalProvisionalRoots = database.createObjectStore(
+					LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
+					{ keyPath: 'key' },
+				);
+				linkedOriginalProvisionalRoots.createIndex(
 					LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
-				)) {
-					linkedOriginalProvisionalRoots.createIndex(
-						LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
-						LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
-						{ unique: false },
-					);
-				}
-				if (!database.objectStoreNames.contains(VIDEO_DERIVATIVE_STORE_NAME)) {
-					const store = database.createObjectStore(VIDEO_DERIVATIVE_STORE_NAME, { keyPath: 'key' });
+					LINKED_ORIGINAL_PROVISIONAL_ROOT_PROJECT_INDEX_NAME,
+					{ unique: false },
+				);
+				for (const storeName of [VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME]) {
+					const store = database.createObjectStore(storeName, { keyPath: 'key' });
 					store.createIndex(
 						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
 						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
 						{ unique: false },
 					);
 					store.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
-				} else {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					const store = transaction.objectStore(VIDEO_DERIVATIVE_STORE_NAME);
-					if (!store.indexNames.contains(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME)) {
-						store.createIndex(
-							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-							{ unique: false },
-						);
-					}
-					if (!store.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME)) {
-						store.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
-					}
-				}
-				let cacheEntryStore: IDBObjectStore;
-				if (!database.objectStoreNames.contains(DERIVATIVE_CACHE_ENTRY_STORE_NAME)) {
-					cacheEntryStore = database.createObjectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME, { keyPath: 'key' });
-					cacheEntryStore.createIndex(
-						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-						DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-						{ unique: false },
-					);
-					cacheEntryStore.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
-				} else {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					cacheEntryStore = transaction.objectStore(DERIVATIVE_CACHE_ENTRY_STORE_NAME);
-					if (!cacheEntryStore.indexNames.contains(DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME)) {
-						cacheEntryStore.createIndex(
-							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-							DERIVATIVE_CACHE_SOURCE_ID_INDEX_NAME,
-							{ unique: false },
-						);
-					}
-					if (!cacheEntryStore.indexNames.contains(BINARY_PATH_REFERENCE_INDEX_NAME)) {
-						cacheEntryStore.createIndex(BINARY_PATH_REFERENCE_INDEX_NAME, BINARY_PATH_REFERENCE_INDEX_NAME, { unique: false });
-					}
-				}
-				const oldVersion = event?.oldVersion ?? 0;
-				if (oldVersion > 0 && oldVersion < DERIVATIVE_CACHE_ENTRY_SCHEMA_VERSION) {
-					if (!transaction) throw new Error('The editor storage upgrade transaction is unavailable.');
-					backfillDerivativeCacheEntries(
-						transaction.objectStore(VIDEO_DERIVATIVE_STORE_NAME),
-						cacheEntryStore,
-						abortUpgrade,
-					);
-				}
-				if (oldVersion > 0 && oldVersion < MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION) {
-					sanitizeLegacyMediaContentProvenance(mediaAssets, abortUpgrade);
 				}
 			} catch (error) {
 				abortUpgrade(error);
@@ -273,102 +176,6 @@ export function openDatabase(
 			reject(new EditorStoreBlockedError());
 		};
 	});
-}
-
-function sanitizeLegacyMediaContentProvenance(
-	mediaAssets: IDBObjectStore,
-	onError: (error: unknown) => void,
-): void {
-	let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
-	try {
-		cursorRequest = mediaAssets.openCursor();
-	} catch (error) {
-		onError(error);
-		return;
-	}
-	cursorRequest.onerror = () => {
-		onError(cursorRequest.error || new Error('Could not enumerate legacy retained-media records.'));
-	};
-	cursorRequest.onsuccess = () => {
-		const cursor = cursorRequest.result;
-		if (!cursor) return;
-		const record = cursor.value;
-		if (!record
-			|| typeof record !== 'object'
-			|| typeof record.sourceId !== 'string'
-			|| record.sourceId !== cursor.primaryKey) {
-			onError(new Error('A legacy retained-media record does not match its authoritative key.'));
-			return;
-		}
-		if (!Object.hasOwn(record, 'mediaContentDigestVersion')
-			&& !Object.hasOwn(record, 'mediaContentToken')) {
-			try {
-				cursor.continue();
-			} catch (error) {
-				onError(error);
-			}
-			return;
-		}
-		const sanitized = { ...record };
-		delete sanitized.mediaContentDigestVersion;
-		delete sanitized.mediaContentToken;
-		let putRequest: IDBRequest<IDBValidKey>;
-		try {
-			putRequest = mediaAssets.put(sanitized);
-		} catch (error) {
-			onError(error);
-			return;
-		}
-		putRequest.onerror = () => {
-			onError(putRequest.error || new Error('Could not sanitize legacy retained-media provenance.'));
-		};
-		putRequest.onsuccess = () => {
-			try {
-				cursor.continue();
-			} catch (error) {
-				onError(error);
-			}
-		};
-	};
-}
-
-function backfillDerivativeCacheEntries(
-	source: IDBObjectStore,
-	destination: IDBObjectStore,
-	onError: (error: unknown) => void,
-): void {
-	let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
-	try {
-		cursorRequest = source.openCursor();
-	} catch (error) {
-		onError(error);
-		return;
-	}
-	cursorRequest.onerror = () => {
-		onError(cursorRequest.error || new Error('Could not enumerate legacy derivative cache records.'));
-	};
-	cursorRequest.onsuccess = () => {
-		const cursor = cursorRequest.result;
-		if (!cursor) return;
-		let putRequest: IDBRequest<IDBValidKey>;
-		try {
-			const cacheEntry = projectDerivativeCacheInventoryRecord(cursor.value, cursor.primaryKey);
-			putRequest = destination.put(cacheEntry);
-		} catch (error) {
-			onError(error);
-			return;
-		}
-		putRequest.onerror = () => {
-			onError(putRequest.error || new Error('Could not backfill derivative cache metadata.'));
-		};
-		putRequest.onsuccess = () => {
-			try {
-				cursor.continue();
-			} catch (error) {
-				onError(error);
-			}
-		};
-	};
 }
 
 export async function transact<Result>(

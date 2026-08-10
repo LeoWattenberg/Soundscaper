@@ -25,9 +25,12 @@ change can be reviewed without loading the complete storage implementation:
 ## Compatibility invariants
 
 - Change the IndexedDB version, store names, indexes, or keys only in
-  `indexeddb-backend.ts`, with migration tests.
-- Preserve project snapshots and source/media record shapes. These records are
-  durable user data, not implementation details.
+  `indexeddb-backend.ts`, with schema tests.
+- Pre-current databases are not migrated: a version bump wipes the stores and
+  recreates the current schema. Nobody relies on stored data surviving an
+  upgrade until a release promises otherwise.
+- Preserve project snapshots and source/media record shapes within a database
+  version. These records are durable user data, not implementation details.
 - Preserve the OPFS directory and path formats. Existing projects refer to those
   paths from IndexedDB metadata.
 - Do not bypass `AudioEditorProjectStore` for application calls. Its database

@@ -141,6 +141,41 @@ test('a failed readwrite request aborts and rolls back earlier writes in the tra
 	assert.deepEqual(indexedDB.records(databaseName, 'payloads'), [{ id: 'asset', bytes: 42 }]);
 });
 
+test('deleting stores during an upgrade is enumerable, transactional, and upgrade-only', async () => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = 'deleted-store-upgrade';
+	const initial = await openVersion(indexedDB, databaseName, 1, ({ database }) => {
+		database.createObjectStore('legacy', { keyPath: 'id' });
+		database.createObjectStore('retired', { keyPath: 'id' });
+	});
+	initial.close();
+	indexedDB.seedRecord(databaseName, 'legacy', { id: 'keep', label: 'original' });
+
+	await assert.rejects(
+		openVersion(indexedDB, databaseName, 2, ({ database, transaction }) => {
+			for (const name of [...database.objectStoreNames]) database.deleteObjectStore(name);
+			assert.deepEqual([...database.objectStoreNames], []);
+			transaction.abort();
+		}),
+		(error) => error?.name === 'AbortError',
+	);
+	const restored = await openVersion(indexedDB, databaseName, 1);
+	assert.deepEqual([...restored.objectStoreNames], ['legacy', 'retired']);
+	assert.deepEqual(indexedDB.records(databaseName, 'legacy'), [{ id: 'keep', label: 'original' }]);
+	restored.close();
+
+	const upgraded = await openVersion(indexedDB, databaseName, 2, ({ database }) => {
+		assert.throws(() => database.deleteObjectStore('missing'), { name: 'NotFoundError' });
+		for (const name of [...database.objectStoreNames]) database.deleteObjectStore(name);
+		database.createObjectStore('current', { keyPath: 'id' });
+	});
+	assert.deepEqual([...upgraded.objectStoreNames], ['current']);
+	assert.equal(upgraded.objectStoreNames.contains('legacy'), false);
+	assert.equal(indexedDB.recordCount(databaseName, 'legacy'), 0);
+	assert.throws(() => upgraded.deleteObjectStore('current'), { name: 'InvalidStateError' });
+	upgraded.close();
+});
+
 function openVersion(indexedDB, databaseName, version, onUpgrade, onSuccess) {
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(databaseName, version);

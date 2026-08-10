@@ -454,7 +454,7 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'src/common/editor/storage/retention-repository.ts',
 		'tests/audio-editor-cross-context-media-lifecycle.test.ts',
 		'tests/audio-editor-media-asset-disposal.test.ts',
-		'tests/browser/audio-editor-storage-migration.spec.js',
+		'tests/browser/audio-editor-storage-publication.spec.js',
 	]) assert.ok(stagingLeases.evidence.some((item) => item.path === path));
 	const digestBackfill = cancellation.currentControls.find(
 		({ id }) => id === 'lazy-legacy-media-digest-backfill',
@@ -467,12 +467,12 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage/media-records.ts',
 		'tests/audio-editor-media-digest-backfill.test.ts',
-		'tests/audio-editor-derivative-cache-schema.test.ts',
-		'tests/browser/audio-editor-storage-migration.spec.js',
+		'tests/audio-editor-storage-schema.test.ts',
+		'tests/browser/audio-editor-storage-publication.spec.js',
 	]) assert.ok(digestBackfill.evidence.some((item) => item.path === path));
 	assert.match(
 		digestBackfill.summary,
-		/schema v6.*spoofable provenance.*no inherited hash.*version-zero Web-Crypto content claim.*bounded four-MiB reads.*token-checked compare-and-set.*stale delete or replacement/iu,
+		/version-8 opens wipe pre-current databases.*spoofable provenance.*no inherited hash.*version-zero Web-Crypto content claim.*bounded four-MiB reads.*token-checked compare-and-set.*stale delete or replacement/iu,
 	);
 	const digestMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'retained-media-load-maintenance-quiescence',

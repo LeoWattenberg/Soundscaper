@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { blobPayloadStats, blobReadStats } from './instrumented-indexeddb-blob-stats.js';
 import { createRequestFailurePlan } from './instrumented-indexeddb-failures.js';
 
 export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true } = {}) {
@@ -109,7 +110,10 @@ class FakeDatabase {
 		this.version = 0;
 		this.stores = new Map();
 		this.upgradeTransaction = null;
-		this.objectStoreNames = { contains: (name) => this.stores.has(name) };
+		this.objectStoreNames = {
+			contains: (name) => this.stores.has(name),
+			[Symbol.iterator]: () => [...this.stores.keys()][Symbol.iterator](),
+		};
 	}
 	createObjectStore(name, { keyPath }) {
 		if (!this.upgradeTransaction || this.upgradeTransaction.finished) {
@@ -120,6 +124,13 @@ class FakeDatabase {
 		this.stores.set(name, data);
 		this.upgradeTransaction.addObjectStore(name);
 		return new FakeObjectStore(this.upgradeTransaction, data);
+	}
+	deleteObjectStore(name) {
+		if (!this.upgradeTransaction || this.upgradeTransaction.finished) {
+			throw new DOMException('Object stores can only be deleted during a version upgrade.', 'InvalidStateError');
+		}
+		if (!this.stores.has(name)) throw new DOMException(`Store ${name} does not exist.`, 'NotFoundError');
+		this.stores.delete(name);
 	}
 	transaction(storeNames, mode = 'readonly') {
 		return new FakeTransaction(this, Array.isArray(storeNames) ? storeNames : [storeNames], mode);
@@ -559,40 +570,6 @@ function cancelableErrorEvent(target) {
 function compareKeys(left, right) {
 	if (left === right) return 0;
 	return String(left) < String(right) ? -1 : 1;
-}
-
-function blobReadStats(values) {
-	let blobValuesReturned = 0;
-	let blobBytesReturned = 0;
-	for (const value of values) {
-		const payload = blobPayloadStats(value);
-		if (payload.count) blobValuesReturned += 1;
-		blobBytesReturned += payload.bytes;
-	}
-	return {
-		returned: values.length,
-		blobValuesReturned,
-		blobBytesReturned,
-	};
-}
-
-function blobPayloadStats(value, seen = new WeakSet()) {
-	if (!value || typeof value !== 'object') return { count: 0, bytes: 0 };
-	if (typeof Blob === 'function' && value instanceof Blob) return { count: 1, bytes: value.size };
-	if (seen.has(value)) return { count: 0, bytes: 0 };
-	seen.add(value);
-	if (value instanceof ArrayBuffer || ArrayBuffer.isView(value) || value instanceof Date) {
-		return { count: 0, bytes: 0 };
-	}
-	const nested = value instanceof Map
-		? [...value.entries()].flat()
-		: value instanceof Set
-			? [...value.values()]
-			: Object.values(value);
-	return nested.reduce((total, child) => {
-		const payload = blobPayloadStats(child, seen);
-		return { count: total.count + payload.count, bytes: total.bytes + payload.bytes };
-	}, { count: 0, bytes: 0 });
 }
 
 function clone(value) {

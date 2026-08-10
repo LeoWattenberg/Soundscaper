@@ -57,7 +57,7 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 		'tests/audio-editor-project-save-options.test.ts',
 		'tests/audio-editor-project-services.test.ts',
 		'tests/audio-editor-session.test.js',
-		'tests/browser/audio-editor-storage-migration.spec.js',
+		'tests/browser/audio-editor-storage-publication.spec.js',
 		'tests/production-security-linked-video-save-cleanup.test.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 

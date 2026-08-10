@@ -4,7 +4,6 @@ import type { StorageRecord } from './media-records.ts';
 
 export const MEDIA_CONTENT_DIGEST_CLAIM_VERSION = 0;
 export const MEDIA_CONTENT_DIGEST_VERIFIED_VERSION = 1;
-export const MEDIA_CONTENT_PROVENANCE_SCHEMA_VERSION = 6;
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const TOKEN_PATTERN = /^media-content-[a-z0-9][a-z0-9-]{15,127}$/u;
