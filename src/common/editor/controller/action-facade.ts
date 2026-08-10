@@ -71,7 +71,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
-	timelineAnnotationService, trackFolderService,
+	timelineAnnotationService, trackFolderService, videoSourceReprobeService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -186,6 +186,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 				commit: restricted('videoEffects', commitVideoEffectGesture),
 				cancel: restricted('videoEffects', cancelVideoEffectGesture),
 			}),
+			// Re-read an already-imported source: the same bytes, probed again by
+			// the current build, with every edit cut against the old grid conformed.
+			reprobeSource: (sourceId: RuntimeValue, options: RuntimeValue) => (
+				videoSourceReprobeService.reprobe(sourceId, options)
+			),
 			link: (videoClipId: RuntimeValue, audioClipId: RuntimeValue) => commit({
 				type: 'clip/link-av',
 				videoClipId,

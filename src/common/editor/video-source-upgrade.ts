@@ -26,6 +26,10 @@ import type { ResolvedVideoTimingProbe } from './video-timing-probe.ts';
  */
 
 export type VideoSourceUpgradeRefusal =
+	/** The source's own bytes could not be read back to be probed again. */
+	| 'media-unavailable'
+	/** The bytes read back are not the bytes this document describes. */
+	| 'content-changed'
 	/** Nothing exact was read, and the source has no exact timing to keep. */
 	| 'probe-unavailable'
 	/** The source carries exact timing this probe could not reproduce. */

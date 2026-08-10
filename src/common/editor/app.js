@@ -220,6 +220,7 @@ import { createNativeProjectService } from './controller/native-project-service.
 import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
 import { createSequenceTimingService } from './controller/sequence-timing-service.ts';
+import { createVideoSourceReprobeService } from './controller/video-source-reprobe-service.ts';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
@@ -940,6 +941,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		lifetime, getProject: () => project, editingBlocked, commit, publishProjectState,
 		getPositionFrames: () => engine.getPositionFrames(),
 		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
+	});
+	const videoSourceReprobeService = createVideoSourceReprobeService({
+		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,
+		captureProject: (projectId) => projectGeneration.capture(projectId),
+		assertProject: (token) => projectGeneration.assertCurrent(token),
+		createAudioEditorVideoFrameExtractor,
+		activateVideoSource: (source, options) => activateVideoSource(source, options),
 	});
 	const viewStateService = createViewStateService({
 		MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS, commit, copy, editingBlocked,
@@ -1767,6 +1775,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
+		videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;
