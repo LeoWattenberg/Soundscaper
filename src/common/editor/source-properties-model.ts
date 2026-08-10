@@ -202,7 +202,9 @@ function sourceNotes(
 	if (characteristics.fieldOrder && characteristics.fieldOrder !== 'progressive') {
 		notes.push('interlaced-presented-as-coded');
 	}
-	if (geometry.reconciliation === 'residual') notes.push('rotation-not-applied');
+	// A residual stretch is applied by the surfaces that present this source; a
+	// residual rotation is not, so it stays disclosed instead.
+	if (geometry.residualRotationDegrees !== 0) notes.push('rotation-not-applied');
 	if (geometry.reconciliation === 'disagreed') notes.push('geometry-disagrees');
 	if ((characteristics.audioStreams?.length ?? 0) > 1) notes.push('additional-audio-programs');
 	if (decision.mode === 'conform-cfr-at-ingest') {

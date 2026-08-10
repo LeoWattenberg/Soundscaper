@@ -77,6 +77,22 @@ test('a rotation the decoder did not apply is disclosed rather than hidden', () 
 	assert.deepEqual(view.notes, ['rotation-not-applied']);
 });
 
+test('a stretch the surfaces do apply is not disclosed as an unapplied one', () => {
+	const view = resolveVideoSourcePropertiesView(videoSource({
+		characteristics: {
+			backend: 'ffmpeg',
+			codedWidth: 720,
+			codedHeight: 576,
+			pixelAspectRatio: { num: 64, den: 45 },
+		},
+		width: 720,
+		height: 576,
+	}));
+	assert.equal(view.geometry.reconciliation, 'residual');
+	assert.deepEqual(view.notes, [], 'the preview and the export both close a pixel-aspect residual');
+	assert.equal(view.geometry.displayWidth, 1_024);
+});
+
 test('a conformed ingest names the backend that produced its timing', () => {
 	const view = resolveVideoSourcePropertiesView(videoSource({
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: PAL, backend: 'ffmpeg' },

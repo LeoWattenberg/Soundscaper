@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { videoSourceGeometryMedia } from './browser/fixtures/video-source-geometry-media.js';
 import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-media.js';
 
 const matrix = await json('config/milestone-3-timing-probe-matrix.json');
@@ -30,19 +31,40 @@ test('WP-0.3 matrix pins the supported browser engines and keeps WebKit explicit
 	}
 });
 
-test('WP-0.3 CFR and VFR media are repository-generated, digest-pinned, and both assigned to every automated browser row', () => {
+test('WP-0.3 timing and geometry media are repository-generated, digest-pinned, and all assigned to every automated browser row', () => {
 	const configured = new Map(matrix.fixtures.map((fixture) => [fixture.id, fixture]));
-	assert.deepEqual([...configured.values()].map(({ kind }) => kind).sort(), ['cfr', 'vfr']);
-	for (const fixture of videoTimingProbeMedia) {
+	assert.deepEqual(
+		[...new Set([...configured.values()].map(({ kind }) => kind))].sort(),
+		['cfr', 'geometry', 'vfr'],
+	);
+	for (const fixture of [...videoTimingProbeMedia, ...videoSourceGeometryMedia]) {
 		const entry = configured.get(fixture.id);
-		assert.ok(entry);
+		assert.ok(entry, `${fixture.id} must be configured`);
 		assert.match(entry.provenance, /^Generated in-repository/u);
 		assert.equal(entry.sourceSha256, fixture.sourceSha256);
 		assert.equal(createHash('sha256').update(fixture.file.buffer).digest('hex'), fixture.sourceSha256);
 	}
-	const fixtureIds = videoTimingProbeMedia.map(({ id }) => id);
+	const fixtureIds = [...videoTimingProbeMedia, ...videoSourceGeometryMedia].map(({ id }) => id);
 	for (const row of matrix.browserRows.filter(({ status }) => status === 'automated')) {
 		assert.deepEqual(row.fixtureIds, fixtureIds);
+	}
+});
+
+test('WP-0.3 geometry fixtures state one picture under three declarations', () => {
+	const codedSizes = new Set(videoSourceGeometryMedia.map(({ coded }) => `${coded.width}x${coded.height}`));
+	assert.equal(codedSizes.size, 1, 'the coded picture is the constant the declarations vary against');
+	for (const fixture of videoSourceGeometryMedia) {
+		const turned = fixture.rotationDegrees === 90 || fixture.rotationDegrees === 270;
+		const stretched = Math.round(
+			(fixture.coded.width * fixture.pixelAspectRatio.num) / fixture.pixelAspectRatio.den,
+		);
+		assert.deepEqual(fixture.display, turned
+			? { width: fixture.coded.height, height: stretched }
+			: { width: stretched, height: fixture.coded.height });
+		// Every engine presents some part of that geometry, never more than it.
+		for (const presented of Object.values(fixture.presentedByEngine)) {
+			assert.ok(presented.width <= fixture.display.width && presented.height <= fixture.display.height);
+		}
 	}
 });
 

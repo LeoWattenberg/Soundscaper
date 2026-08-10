@@ -33,6 +33,7 @@ export function SourcePropertiesPanel({ source, copy }) {
 		[copy.sourceVideoCodec, view.videoCodec],
 		[copy.sourceAudioCodec, view.audioCodec],
 		[copy.sourcePresentedSize, `${String(view.presentedWidth)} × ${String(view.presentedHeight)}`],
+		[copy.sourceDisplaySize, `${String(geometry.displayWidth)} × ${String(geometry.displayHeight)}`],
 		[copy.sourceCodedSize, reported.codedWidth != null && reported.codedHeight != null
 			? `${String(reported.codedWidth)} × ${String(reported.codedHeight)}`
 			: null],
