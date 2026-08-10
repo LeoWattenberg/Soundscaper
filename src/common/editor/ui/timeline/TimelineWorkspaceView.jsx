@@ -3,10 +3,8 @@ import { useCallback, useRef } from 'react';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
-import { AudioTrackRow } from './AudioTrackRow.jsx';
-import { EMPTY_TIMELINE_CLIPS } from './constants.ts';
-import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT, normalizeWaveformRulerState } from './geometry.ts';
-import { LabelTrackRow } from './LabelTrackRow.jsx';
+import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT } from './geometry.ts';
+import { TrackListView } from './TrackListView.jsx';
 import { MusicalTimelineRuler } from './MusicalTimelineRuler.jsx';
 import { TimelineAnnotationLayer } from './TimelineAnnotationLayer.jsx';
 import { TimelineAnnotationLaneActions } from './TimelineAnnotationLaneActions.jsx';
@@ -25,7 +23,6 @@ import {
 } from './TimelineOverlayComponents.jsx';
 import { ContainerAddTrackFlyout } from './TimelineFlyouts.jsx';
 import { TimelineMenus } from './TimelineMenus.jsx';
-import { VideoTrackRow } from './VideoTrackRow.jsx';
 
 const TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS = 33;
 
@@ -325,124 +322,47 @@ export function TimelineWorkspaceView({
 						onClose={closeAddTrackFlyout}
 					/>
 
-					<div className="audio-editor-track-list" data-track-list>
-						{project.tracks.map((track, trackIndex) => track.type === 'label' ? (
-							<LabelTrackRow
-								key={track.id}
-								controller={controller}
-								track={track}
-								visualHeight={visualTrackHeight(track)}
-								trackIndex={trackIndex}
-								panelWidth={panelWidth}
-								timelineWidth={timelineWidth}
-								verticalRulerWidth={verticalRulerWidth}
-								pixelsPerSecond={pixelsPerSecond}
-								sampleRate={sampleRate}
-								selection={documentSelection}
-								selected={snapshot.selectedTrackId === track.id}
-								blocked={mutationsBlocked}
-								copy={copy}
-								run={run}
-								onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
-							/>
-						) : track.type === 'video' ? (
-							<VideoTrackRow
-								key={track.id}
-								controller={controller}
-								track={track}
-								visualHeight={visualTrackHeight(track)}
-								trackClips={projectIndex.clipsByTrackId.get(track.id) || EMPTY_TIMELINE_CLIPS}
-								clipLookup={projectIndex.clipById}
-								sourceLookup={projectIndex.sourceById}
-								trackIndex={trackIndex}
-								trackCount={project.tracks.length}
-								isFlatNavigation={isFlatNavigation}
-								trackBaseTabIndex={trackBaseTabIndex}
-								panelWidth={panelWidth}
-								viewportStartFrame={viewportStartFrame}
-								viewportDurationFrames={viewportDurationFrames}
-								pixelsPerSecond={pixelsPerSecond}
-								sampleRate={sampleRate}
-								timelineWidth={timelineWidth}
-								verticalRulerWidth={verticalRulerWidth}
-								selectedTrackId={snapshot.selectedTrackId}
-								selectedClipId={snapshot.selectedClipId}
-								selectedClipIdSet={selectedClipIdSet}
-								draggingClipIds={draggingClipIds}
-								clipDragPreview={clipDragPreview}
-								projectBinDragPreview={projectBinDragPreview}
-								blocked={mutationsBlocked}
-								copy={copy}
-								run={run}
-								onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
-								onOpenClipMenu={openClipMenu}
-								onFocusTimelineRuler={focusTimelineRuler}
-								onFocusTrackContainer={focusTrackContainer}
-								onFocusTrackPanelControl={focusTrackPanelControl}
-								onFocusTrackClip={focusTrackClip}
-								onFocusSelectionToolbar={focusSelectionToolbar}
-							/>
-						) : (
-							<AudioTrackRow
-								key={track.id}
-								controller={controller}
-								project={project}
-								track={track}
-								visualHeight={visualTrackHeight(track)}
-								trackClips={projectIndex.clipsByTrackId.get(track.id) || EMPTY_TIMELINE_CLIPS}
-								clipLookup={projectIndex.clipById}
-								sourceLookup={projectIndex.sourceById}
-								trackIndex={trackIndex}
-								trackCount={project.tracks.length}
-								isFlatNavigation={isFlatNavigation}
-								trackBaseTabIndex={trackBaseTabIndex}
-								panelWidth={panelWidth}
-								viewportStartFrame={viewportStartFrame}
-								viewportDurationFrames={viewportDurationFrames}
-								pixelsPerSecond={pixelsPerSecond}
-								sampleRate={sampleRate}
-								timelineWidth={timelineWidth}
-								verticalRulerWidth={verticalRulerWidth}
-								selection={timeSelection}
-								spectralSelection={documentSelection?.frequencyRange ? documentSelection : null}
-								selectedTrackId={snapshot.selectedTrackId}
-								selectedClipId={snapshot.selectedClipId}
-								selectedClipIdSet={selectedClipIdSet}
-								timelineView={snapshot.timeline?.view}
-								showRms={Boolean(snapshot.timeline?.showRms)}
-								waveformRulerFormat={normalizeWaveformRulerState(waveformRulerState[track.id]).format}
-								waveformZoom={normalizeWaveformRulerState(waveformRulerState[track.id]).zoom}
-								clipStyle={snapshot.preferences?.appearance?.clipStyle}
-								recordingPreview={recordingPreviews.find((preview) => preview.trackId === track.id) || null}
-								draggingClipIds={draggingClipIds}
-								clipDragPreview={clipDragPreview}
-								projectBinDragPreview={projectBinDragPreview}
-								waveformCache={waveformCacheRef.current}
-								automationToolEnabled={automationToolEnabled}
-								blocked={mutationsBlocked}
-								showArmControls={showArmControls}
-								displayAudioSupported={displayAudioSupported}
-								recordingInputs={snapshot.recordingInputs}
-								copy={copy}
-								run={run}
-								onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
-								onOpenEffects={onOpenEffects}
-								onOpenClipMenu={openClipMenu}
-								onOpenRulerFlyout={(displayMode, event) => openTrackRulerFlyout(track, displayMode, event)}
-								onFocusTimelineRuler={focusTimelineRuler}
-								onFocusTrackContainer={focusTrackContainer}
-								onFocusTrackPanelControl={focusTrackPanelControl}
-								onFocusTrackClip={focusTrackClip}
-								onFocusTrackRuler={focusTrackRuler}
-								onFocusSelectionToolbar={focusSelectionToolbar}
-							/>
-						))}
-						{(clipDragPreview?.createTrack || projectBinDragPreview?.createTrack) && (
-							<div className="audio-editor-new-track-drop-preview" aria-live="polite">
-								<span>{projectBinDragPreview?.clip?.title || copy.audioTrack}</span>
-							</div>
-						)}
-					</div>
+					<TrackListView
+						project={project}
+						controller={controller}
+						projectIndex={projectIndex}
+						visualTrackHeight={visualTrackHeight}
+						documentSelection={documentSelection}
+						timeSelection={timeSelection}
+						snapshot={snapshot}
+						selectedClipIdSet={selectedClipIdSet}
+						draggingClipIds={draggingClipIds}
+						clipDragPreview={clipDragPreview}
+						projectBinDragPreview={projectBinDragPreview}
+						mutationsBlocked={mutationsBlocked}
+						copy={copy}
+						run={run}
+						setTrackMenu={setTrackMenu}
+						openClipMenu={openClipMenu}
+						openTrackRulerFlyout={openTrackRulerFlyout}
+						onOpenEffects={onOpenEffects}
+						focusTimelineRuler={focusTimelineRuler}
+						focusTrackContainer={focusTrackContainer}
+						focusTrackPanelControl={focusTrackPanelControl}
+						focusTrackClip={focusTrackClip}
+						focusTrackRuler={focusTrackRuler}
+						focusSelectionToolbar={focusSelectionToolbar}
+						isFlatNavigation={isFlatNavigation}
+						trackBaseTabIndex={trackBaseTabIndex}
+						panelWidth={panelWidth}
+						timelineWidth={timelineWidth}
+						verticalRulerWidth={verticalRulerWidth}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
+						viewportStartFrame={viewportStartFrame}
+						viewportDurationFrames={viewportDurationFrames}
+						waveformRulerState={waveformRulerState}
+						recordingPreviews={recordingPreviews}
+						waveformCache={waveformCacheRef.current}
+						automationToolEnabled={automationToolEnabled}
+						showArmControls={showArmControls}
+						displayAudioSupported={displayAudioSupported}
+					/>
 
 					<TimeSelectionOverlay
 						selection={timeSelection}
