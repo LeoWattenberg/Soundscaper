@@ -68,6 +68,7 @@ test('the compatibility register binds exact V13 editing to current implementati
 		'tests/audio-editor-track-folder-commands.test.ts',
 		'tests/audio-editor-track-folder-legacy-commands.test.ts',
 		'tests/audio-editor-clipboard-edit-service.test.ts',
+		'tests/audio-editor-track-folder-roundtrip.test.ts',
 		'tests/audio-editor-track-folder-state-projection.test.ts',
 		'tests/audio-editor-track-folder-media-runtime.test.ts',
 		'tests/desktop-project-library-v12-folder-roundtrip.test.ts',
