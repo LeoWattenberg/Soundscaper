@@ -164,6 +164,16 @@ test('the command rejects illegal rates, drop-frame pairings, and requested labe
 	);
 });
 
+test('a rate change cannot silently share one batch with a clip edit it conformed', () => {
+	assert.throws(() => applyEditorCommand(project(), {
+		type: 'batch',
+		commands: [
+			createUpdateSequenceTimingCommand('main', { rate: RATE_25 }),
+			{ type: 'clip/move', clipId: 'video', trackId: 'video-track', timelineStartFrame: 19_200 },
+		],
+	}, { now: NOW }), /inconsistent conformed sequence placement/);
+});
+
 test('a requested rate is stored in canonical reduced form', () => {
 	const edited = applyEditorCommand(project(), createUpdateSequenceTimingCommand('main', {
 		rate: { num: 60_000, den: 2_002 },

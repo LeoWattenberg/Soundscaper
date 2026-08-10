@@ -62,6 +62,14 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 	const sampleRate = positiveSafeInteger(draft.sampleRate, 'project.sampleRate');
 	const tempoMap = draft.tempoMap as HoldTempoMap;
 	const sequences = recordArray(draft.sequences, 'project.sequences');
+	// A command may have changed a sequence rate, so an already conformed
+	// placement is verified against the draft's own grid, never the base grid.
+	const draftSequenceProject: DataRecord = {
+		schemaVersion: draft.schemaVersion,
+		sampleRate,
+		sequences,
+		primarySequenceId: draft.primarySequenceId,
+	};
 	const sequenceById = new Map(sequences.map((sequence) => [String(sequence.id), sequence]));
 	const primarySequenceId = String(draft.primarySequenceId);
 	const baseSources = new Map(recordArray(persistedBase.sources, 'project.sources').map((source) => [String(source.id), source]));
@@ -89,6 +97,7 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 			clip,
 			baseClips.get(String(clip.id)),
 			persistedBase,
+			draftSequenceProject,
 			sequenceById,
 			sourceById,
 			primarySequenceId,
@@ -134,6 +143,7 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 			clip,
 			baseBinClips.get(String(clip.id)),
 			persistedBase,
+			draftSequenceProject,
 			sequenceById,
 			sourceById,
 			primarySequenceId,
@@ -172,6 +182,7 @@ function conformVideoClip(
 	clip: DataRecord,
 	base: DataRecord | undefined,
 	persistedBase: DataRecord,
+	draftSequenceProject: DataRecord,
 	sequenceById: ReadonlyMap<string, DataRecord>,
 	sourceById: ReadonlyMap<string, DataRecord>,
 	primarySequenceId: string,
@@ -194,7 +205,21 @@ function conformVideoClip(
 	if (Number.isSafeInteger(clip.timelineStartFrame) && Number.isSafeInteger(clip.durationFrames)) {
 		const timelineStart = Number(clip.timelineStartFrame);
 		const timelineEnd = safeAdd(timelineStart, Number(clip.durationFrames), 'clip timeline range');
-		if (base?.kind === 'video' && String(base.sequenceId) === sequenceId) {
+		if (clip[CONFORMED_SEQUENCE_PLACEMENT] === true) {
+			// The command already conformed this placement onto the draft's grid,
+			// so verify its self-consistency instead of re-deriving a delta.
+			const sequenceStart = nonNegativeSafeInteger(clip.sequenceStartFrame, 'clip.sequenceStartFrame');
+			const sequenceCount = positiveSafeInteger(clip.sequenceFrameCount, 'clip.sequenceFrameCount');
+			const resolved = resolveRuntimeClipProjection(draftSequenceProject, {
+				...clip,
+				sequenceId,
+				sequenceStartFrame: sequenceStart,
+				sequenceFrameCount: sequenceCount,
+			});
+			if (resolved.timelineStartFrame !== timelineStart || resolved.timelineEndFrame !== timelineEnd) {
+				throw new RangeError(`Video clip ${String(clip.id)} has inconsistent conformed sequence placement.`);
+			}
+		} else if (base?.kind === 'video' && String(base.sequenceId) === sequenceId) {
 			const baseProjection = resolveRuntimeClipProjection(persistedBase, base);
 			const baseStart = nonNegativeSafeInteger(base.sequenceStartFrame, 'clip.sequenceStartFrame');
 			const baseCount = positiveSafeInteger(base.sequenceFrameCount, 'clip.sequenceFrameCount');
@@ -260,18 +285,6 @@ function conformVideoClip(
 					},
 				],
 			};
-		} else if (clip[CONFORMED_SEQUENCE_PLACEMENT] === true) {
-			const sequenceStart = nonNegativeSafeInteger(clip.sequenceStartFrame, 'clip.sequenceStartFrame');
-			const sequenceCount = positiveSafeInteger(clip.sequenceFrameCount, 'clip.sequenceFrameCount');
-			const resolved = resolveRuntimeClipProjection(persistedBase, {
-				...clip,
-				sequenceId,
-				sequenceStartFrame: sequenceStart,
-				sequenceFrameCount: sequenceCount,
-			});
-			if (resolved.timelineStartFrame !== timelineStart || resolved.timelineEndFrame !== timelineEnd) {
-				throw new RangeError(`Video clip ${String(clip.id)} has inconsistent conformed sequence placement.`);
-			}
 		} else {
 			const start = sampleFrameToVideoFrame(timelineStart, rate, sampleRate, 'point');
 			const end = sampleFrameToVideoFrame(timelineEnd, rate, sampleRate, 'point');

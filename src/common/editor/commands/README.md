@@ -38,8 +38,10 @@ tempo/signature, sequence timing, track/mixer/label, effects/video,
 clip/range/clipboard, and timeline annotation commands each have explicit
 handler maps. Sequence timing owns the rational rate, drop-frame flag, and
 start timecode; a rate change conforms the sequence's video placements from
-their resolved boundaries and hands the sequence-frame authority back directly,
-so the reconciliation boundary verifies rather than re-derives it. Timeline
+their resolved boundaries and marks them conformed, so the reconciliation
+boundary verifies that placement against the new grid rather than re-deriving
+it as a delta against the old one. A conformed placement that a later command
+in the same batch moves therefore fails loudly instead of mixing grids. Timeline
 annotation mutation accepts schemas 11 and 12 and requires a branded runtime projection;
 product capability policy remains a separate controller boundary. The larger
 clip domain is further divided into basic edits, transforms, links/groups,

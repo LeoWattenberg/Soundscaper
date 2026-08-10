@@ -12,12 +12,13 @@ import {
 	videoFrameToSampleFrame,
 	type RationalRate,
 } from '../timeline-time.ts';
+import { CONFORMED_SEQUENCE_PLACEMENT } from './command-projection-transients.ts';
 import { defineSequenceTimingCommandHandlers } from './sequence-timing.ts';
 import type { SequenceTimingCommandChanges } from './protocol.ts';
 
 const MAXIMUM_RATE_DENOMINATOR = 1_000_000;
 
-type DataRecord = Record<string, unknown>;
+type DataRecord = Record<string, unknown> & { [CONFORMED_SEQUENCE_PLACEMENT]?: true };
 
 export function createSequenceTimingRuntimeHandlers() {
 	return defineSequenceTimingCommandHandlers({
@@ -60,10 +61,9 @@ function updateSequenceTiming(
  * A rate change preserves wall-clock placement rather than frame indices, so
  * every video clip in the sequence conforms both of its resolved absolute
  * boundaries once onto the new grid and takes their difference as its extent.
- * Writing the sequence-frame authority directly — and dropping the resolved
- * projection fields with it — is what tells the command reconciliation boundary
- * that this placement is already conformed and must not be re-derived from a
- * delta against the previous grid.
+ * Each conformed clip carries the conformed-placement marker, so the command
+ * reconciliation boundary verifies this placement against the draft's new grid
+ * instead of re-deriving it as a delta against the previous one.
  */
 function conformSequenceMedia(
 	project: DataRecord,
@@ -97,12 +97,14 @@ function conformVideoPlacement(clip: DataRecord, rate: RationalRate, sampleRate:
 	const sequenceEndFrame = sampleFrameToVideoFrame(safeSum(start, duration), rate, sampleRate, 'point');
 	if (sequenceStartFrame < 0) throw new RangeError(`Video clip ${String(clip.id)} conforms before the sequence origin.`);
 	const sequenceFrameCount = Math.max(1, sequenceEndFrame - sequenceStartFrame);
+	const resolvedStart = videoFrameToSampleFrame(sequenceStartFrame, rate, sampleRate, 'point');
+	const resolvedEnd = videoFrameToSampleFrame(sequenceStartFrame + sequenceFrameCount, rate, sampleRate, 'point');
 	clip.sequenceStartFrame = sequenceStartFrame;
 	clip.sequenceFrameCount = sequenceFrameCount;
-	delete clip.timelineStartFrame;
-	delete clip.durationFrames;
-	return videoFrameToSampleFrame(sequenceStartFrame + sequenceFrameCount, rate, sampleRate, 'point')
-		- videoFrameToSampleFrame(sequenceStartFrame, rate, sampleRate, 'point');
+	clip.timelineStartFrame = resolvedStart;
+	clip.durationFrames = resolvedEnd - resolvedStart;
+	clip[CONFORMED_SEQUENCE_PLACEMENT] = true;
+	return resolvedEnd - resolvedStart;
 }
 
 function ownsClip(clip: DataRecord, sequenceId: string, primarySequenceId: string): boolean {
