@@ -305,3 +305,70 @@ test('disjoin reports audio with no bounded silence', async () => {
 	assert.equal(fixture.commits.length, 0);
 	assert.deepEqual(fixture.statuses, [{ message: 'No silences found.', state: 'info' }]);
 });
+
+test('paste-created tracks join the folder of the selected track on a foldered project', () => {
+	const foldered = project({
+		schemaVersion: 13,
+		trackFolders: [{ id: 'band' }],
+		primarySequenceId: 'main',
+		sequences: [{
+			id: 'main',
+			trackNodes: [
+				{ kind: 'folder', id: 'band', parentFolderId: null },
+				{ kind: 'track', id: 'track-a', parentFolderId: 'band' },
+			],
+		}],
+	});
+	const fixture = createFixture(foldered);
+	// Two clipboard tracks against one selected target: the second cannot be
+	// matched and must be synthesized beside the selected track's folder.
+	fixture.state.clipboard = {
+		schemaVersion: 2,
+		sampleRate: 1_000,
+		durationFrames: 20,
+		tracks: [
+			{ sourceTrackId: 'origin-a', sourceTrackName: 'One', sourceTrackType: 'audio', clips: [{ key: 'a', kind: 'audio', sourceId: 'source-a', offsetFrame: 0, sourceStartFrame: 0, durationFrames: 20 }] },
+			{ sourceTrackId: 'origin-b', sourceTrackName: 'Two', sourceTrackType: 'audio', clips: [{ key: 'b', kind: 'audio', sourceId: 'source-a', offsetFrame: 0, sourceStartFrame: 0, durationFrames: 20 }] },
+		],
+	};
+	const service = createClipboardEditService(fixture.dependencies);
+	const command = service.prepareControllerPaste('overlap', 40);
+
+	assert.equal(command.type, 'batch');
+	if (command.type !== 'batch') return;
+	const added = command.commands.find((entry) => entry.type === 'track/add');
+	assert.equal(added?.type, 'track/add');
+	if (added?.type === 'track/add') {
+		assert.equal(added.sequenceId, 'main');
+		assert.equal(added.parentFolderId, 'band');
+	}
+});
+
+test('paste-created tracks fall back to the sequence root without an anchored folder', () => {
+	const foldered = project({
+		schemaVersion: 13,
+		tracks: [],
+		clips: [],
+		selection: null,
+		trackFolders: [{ id: 'band' }],
+		primarySequenceId: 'main',
+		sequences: [{
+			id: 'main',
+			trackNodes: [{ kind: 'folder', id: 'band', parentFolderId: null }],
+		}],
+	});
+	const fixture = createFixture(foldered);
+	fixture.state.selectedTrackId = null;
+	fixture.state.selectedClipId = null;
+	const service = createClipboardEditService(fixture.dependencies);
+	const command = service.prepareControllerPaste('overlap', 0);
+
+	assert.equal(command.type, 'batch');
+	if (command.type !== 'batch') return;
+	const added = command.commands.find((entry) => entry.type === 'track/add');
+	assert.equal(added?.type, 'track/add');
+	if (added?.type === 'track/add') {
+		assert.equal(added.sequenceId, 'main');
+		assert.equal(added.parentFolderId, null);
+	}
+});

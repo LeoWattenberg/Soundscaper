@@ -58,6 +58,16 @@ export interface ClipboardEditProject {
 	readonly sources: readonly ClipboardEditSource[];
 	readonly tracks: readonly ClipboardEditTrack[];
 	readonly clips: readonly ClipboardEditClip[];
+	readonly trackFolders?: readonly Readonly<{ readonly id: string }>[];
+	readonly primarySequenceId?: string;
+	readonly sequences?: readonly Readonly<{
+		readonly id: string;
+		readonly trackNodes: readonly Readonly<{
+			readonly kind: 'folder' | 'track';
+			readonly id: string;
+			readonly parentFolderId: string | null;
+		}>[];
+	}>[];
 	readonly selection?: Readonly<{
 		readonly startFrame: number;
 		readonly endFrame: number;
@@ -228,6 +238,26 @@ export function createClipboardEditService(
 			) return null;
 			return [grouped[0], grouped[1]];
 		};
+		/**
+		 * A synthesized paste track joins the folder of the track the paste is
+		 * anchored to: the selected track's parent, else the surviving source
+		 * track's parent, else the sequence root.
+		 */
+		const resolveFolderPlacement = (
+			clipboardTrack: AudioEditorClipboardTrack,
+		): Readonly<{ sequenceId: string; parentFolderId: string | null }> | null => {
+			if (!project.trackFolders?.length || !project.sequences?.length) return null;
+			for (const anchorId of [selected?.id, clipboardTrack.sourceTrackId]) {
+				if (!anchorId) continue;
+				for (const sequence of project.sequences) {
+					const node = sequence.trackNodes.find((candidate) => candidate.id === anchorId);
+					if (node) return { sequenceId: sequence.id, parentFolderId: node.parentFolderId };
+				}
+			}
+			const fallback = project.sequences.find(({ id }) => id === project.primarySequenceId)
+				?? project.sequences[0];
+			return { sequenceId: fallback.id, parentFolderId: null };
+		};
 		const createTargetTrack = (
 			clipboardTrack: AudioEditorClipboardTrack,
 			laneGroupId: string | null = null,
@@ -238,14 +268,18 @@ export function createClipboardEditService(
 			}
 			const trackId = dependencies.createId(type === 'video' ? 'video-track' : 'track');
 			addedTrackCount += 1;
-			commands.push(createAddTrackCommand({
-				schemaVersion: project.schemaVersion,
-				type,
-				id: trackId,
-				name: clipboardTrack.sourceTrackName
-					|| `${dependencies.copy.track} ${project.tracks.length + addedTrackCount}`,
-				laneGroupId,
-			}));
+			const placement = resolveFolderPlacement(clipboardTrack);
+			commands.push({
+				...createAddTrackCommand({
+					schemaVersion: project.schemaVersion,
+					type,
+					id: trackId,
+					name: clipboardTrack.sourceTrackName
+						|| `${dependencies.copy.track} ${project.tracks.length + addedTrackCount}`,
+					laneGroupId,
+				}),
+				...(placement === null ? {} : placement),
+			});
 			return { id: trackId, type, name: clipboardTrack.sourceTrackName, laneGroupId, clipIds: [] };
 		};
 

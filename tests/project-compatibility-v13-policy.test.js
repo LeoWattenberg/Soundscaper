@@ -36,7 +36,7 @@ test('the compatibility register binds exact V13 editing to current implementati
 	]);
 	assert.match(
 		trackFolders.currentBehavior,
-		/schema 13.*trackFolders.*trackNodes.*trackIds.*exact hierarchy preorder.*soundscaper\.track-folders.*org\.soundscaper\.capability\.track-folders.*Nested track folders.*bypass.*no fallback.*Soundscaper and Framescaper.*known but unavailable.*unavailable\/bypassed.*excluded from both rendered-fallback.*audio or video fallback.*rejects.*mandatory root trackNodes.*add, remove, and within-sequence reorder.*nonempty hierarchy.*delegate to the folder-aware path.*adopts the parent folder.*lane partner.*whole structural blocks.*cross-sequence reorder.*reject.*before playback, audio render, video preview, or video export.*transient projection.*inherited folder mute, solo, and hidden.*leaf track flags.*before rendered-fallback.*private trust.*forged projection marker.*before hierarchy traversal.*canonical folder state.*leaf-local state.*routing.*history.*persistence unchanged.*collapsed and height.*UI-only.*clone.*undo\/redo.*local storage.*\.scape.*desktop-library V5.*track-folder\/add.*track-folder\/update.*track-folder\/remove.*promote or delete-contents.*track-node\/move.*reject in both products.*hierarchy preorder.*folder bus ownership.*mirrored bus identity.*one undoable command.*direct mixer edits.*reject.*no folder clipboard behavior.*no native UI/iu,
+		/schema 13.*trackFolders.*trackNodes.*trackIds.*exact hierarchy preorder.*soundscaper\.track-folders.*org\.soundscaper\.capability\.track-folders.*Nested track folders.*bypass.*no fallback.*Soundscaper and Framescaper.*known but unavailable.*unavailable\/bypassed.*excluded from both rendered-fallback.*audio or video fallback.*rejects.*mandatory root trackNodes.*add, remove, and within-sequence reorder.*nonempty hierarchy.*delegate to the folder-aware path.*adopts the parent folder.*lane partner.*whole structural blocks.*cross-sequence reorder.*reject.*before playback, audio render, video preview, or video export.*transient projection.*inherited folder mute, solo, and hidden.*leaf track flags.*before rendered-fallback.*private trust.*forged projection marker.*before hierarchy traversal.*canonical folder state.*leaf-local state.*routing.*history.*persistence unchanged.*collapsed and height.*UI-only.*clone.*undo\/redo.*local storage.*\.scape.*desktop-library V5.*track-folder\/add.*track-folder\/update.*track-folder\/remove.*promote or delete-contents.*track-node\/move.*reject in both products.*hierarchy preorder.*folder bus ownership.*mirrored bus identity.*one undoable command.*direct mixer edits.*reject.*clipboard wire format is unchanged.*paste-created tracks join the folder of the paste anchor.*lane pair lands in one folder.*no native UI/iu,
 	);
 	assert.deepEqual(trackFolders.evidence, [
 		'src/common/editor/project-v12.ts',
@@ -50,6 +50,8 @@ test('the compatibility register binds exact V13 editing to current implementati
 		'src/common/editor/track-hierarchy-mutation-v12.ts',
 		'src/common/editor/folder-bus-v13.ts',
 		'src/common/editor/commands/track-folder-runtime.ts',
+		'src/common/editor/commands/track-structure-folder-adapter.ts',
+		'src/common/editor/controller/clipboard-edit-service.ts',
 		'src/common/editor/controller/command-capability-policy.ts',
 		'src/common/editor/controller/playback-project-service.ts',
 		'src/common/editor/controller/video-export-service.ts',
@@ -64,6 +66,8 @@ test('the compatibility register binds exact V13 editing to current implementati
 		'tests/audio-editor-track-hierarchy-mutation-v12.test.ts',
 		'tests/audio-editor-folder-bus-v13.test.ts',
 		'tests/audio-editor-track-folder-commands.test.ts',
+		'tests/audio-editor-track-folder-legacy-commands.test.ts',
+		'tests/audio-editor-clipboard-edit-service.test.ts',
 		'tests/audio-editor-track-folder-state-projection.test.ts',
 		'tests/audio-editor-track-folder-media-runtime.test.ts',
 		'tests/desktop-project-library-v12-folder-roundtrip.test.ts',
