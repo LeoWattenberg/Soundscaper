@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
+import {
+	SEQUENCE_DROP_FRAME_RATES,
+	sequenceTimecodeFrameRate,
+} from './sequence-timecode.ts';
 import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 import {
 	beatToSampleFrame,
@@ -37,7 +41,7 @@ export { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordina
 export const AUDIO_EDITOR_FOUNDATION_MAXIMUM_EVENTS = 4_096;
 
 const SHA256 = /^[a-f0-9]{64}$/u;
-const DROP_FRAME_RATES = new Set(['30000/1001', '60000/1001']);
+const DROP_FRAME_RATES = new Set(SEQUENCE_DROP_FRAME_RATES);
 
 export interface ProjectV10FoundationCollections {
 	readonly sources: readonly ProjectDataRecord[];
@@ -176,7 +180,7 @@ function validateStartTimecode(value: unknown, rate: { num: number; den: number 
 	const minutes = projectSafeInteger(timecode.minutes, 0, `${prefix}.startTimecode.minutes`);
 	const seconds = projectSafeInteger(timecode.seconds, 0, `${prefix}.startTimecode.seconds`);
 	const frames = projectSafeInteger(timecode.frames, 0, `${prefix}.startTimecode.frames`);
-	if (minutes >= 60 || seconds >= 60 || frames >= Math.ceil(rate.num / rate.den)) {
+	if (minutes >= 60 || seconds >= 60 || frames >= sequenceTimecodeFrameRate(rate)) {
 		throw new RangeError(`${prefix}.startTimecode is outside the sequence rate.`);
 	}
 }

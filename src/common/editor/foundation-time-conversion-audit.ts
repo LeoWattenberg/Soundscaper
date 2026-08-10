@@ -270,6 +270,15 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'sequence-frame-navigation',
+		file: 'src/common/editor/sequence-frame-navigation.ts',
+		behavior: 'Sequence-frame navigation floors a sample onto its containing frame, then resolves every boundary it reports from the absolute origin as a nearest sample point, so snapping and stepping cannot accumulate error.',
+		conversions: [
+			{ helper: 'sampleFrameToVideoFrame', policies: ['enclosingStart'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'timeline-snap-grid',
 		file: 'src/common/editor/snap-grid.js',
 		behavior: 'Grid selection inverts the absolute sample to an exact beat, uses explicit previous/next intent, then resolves the chosen boundary once as a point sample.',
