@@ -60,16 +60,23 @@ export function resolveVideoDisplayGeometry(
 			const orientedHeight = rotationApplied ? expectedWidth : expectedHeight;
 			if (orientedWidth * height !== orientedHeight * width) continue;
 			const residualRotation = rotationApplied || !quarterTurn ? 0 : Number(rotation);
-			const residualScaleX = aspectApplied || !anamorphic ? IDENTITY_SCALE : aspectNum / aspectDen;
+			const stretch = aspectApplied || !anamorphic ? IDENTITY_SCALE : aspectNum / aspectDen;
+			// The pixel aspect ratio stretches the coded width. A decoder that has
+			// already turned the frame a quarter turn moved that axis to the
+			// presented vertical, so the residual stretch goes with it.
+			const turned = rotationApplied && quarterTurn;
+			const residualScaleX = turned ? IDENTITY_SCALE : stretch;
+			const residualScaleY = turned ? stretch : IDENTITY_SCALE;
 			const scaledWidth = Math.max(1, Math.round(width * residualScaleX));
-			const applied = residualRotation === 0 && residualScaleX === IDENTITY_SCALE;
+			const scaledHeight = Math.max(1, Math.round(height * residualScaleY));
+			const applied = residualRotation === 0 && stretch === IDENTITY_SCALE;
 			return Object.freeze({
 				reconciliation: applied ? 'applied' : 'residual',
-				displayWidth: residualRotation === 0 ? scaledWidth : height,
-				displayHeight: residualRotation === 0 ? height : scaledWidth,
+				displayWidth: residualRotation === 0 ? scaledWidth : scaledHeight,
+				displayHeight: residualRotation === 0 ? scaledHeight : scaledWidth,
 				residualRotationDegrees: residualRotation,
 				residualScaleX,
-				residualScaleY: IDENTITY_SCALE,
+				residualScaleY,
 			});
 		}
 	}

@@ -98,6 +98,27 @@ test('a rotated anamorphic source resolves both residuals together', () => {
 	assert.equal(geometry.displayHeight, 1_024);
 });
 
+test('a decoder that turned the frame moves the residual stretch with it', () => {
+	// Firefox applies a display matrix but ignores the pixel aspect ratio, so a
+	// rotated anamorphic source arrives turned and unstretched: the coded width
+	// is now the presented height, and that is the axis still owed the stretch.
+	const geometry = resolveVideoDisplayGeometry(
+		characteristics({
+			codedWidth: 32,
+			codedHeight: 24,
+			rotationDegrees: 270,
+			pixelAspectRatio: { num: 2, den: 1 },
+		}),
+		{ width: 24, height: 32 },
+	);
+	assert.equal(geometry.reconciliation, 'residual');
+	assert.equal(geometry.residualRotationDegrees, 0);
+	assert.equal(geometry.residualScaleX, 1);
+	assert.equal(geometry.residualScaleY, 2);
+	assert.equal(geometry.displayWidth, 24);
+	assert.equal(geometry.displayHeight, 64);
+});
+
 test('geometry that no rotation or stretch explains is reported as disagreement', () => {
 	const geometry = resolveVideoDisplayGeometry(
 		characteristics({ codedWidth: 1_920, codedHeight: 1_080 }),
