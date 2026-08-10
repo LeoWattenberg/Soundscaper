@@ -11,7 +11,7 @@ import {
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
 import { ParametricEqEditor } from '../ParametricEqEditor.jsx';
-import { CommitField, DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
+import { CommitField, DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
 import {
 	audacityCurvePolyline,
 	audacityParameterPresentation,
@@ -438,38 +438,6 @@ function ParameterNumber({
 				visuallyHiddenLabel
 				onCommit={(_name, raw) => commit(raw)}
 			/>
-		</div>
-	);
-}
-
-// v0.9.0's Slider parses values as integers and does not expose a step prop.
-// Preserve its DOM/CSS contract while keeping Audacity's fractional parameters.
-function SteppedSlider({ value, min, max, step, ariaLabel, disabled, onChange }) {
-	const clampedValue = Math.max(min, Math.min(max, Number(value) || 0));
-	const percentage = max === min ? 0 : (clampedValue - min) / (max - min) * 100;
-	return (
-		<div
-			className={`slider audio-editor-stepped-slider${disabled ? ' slider--disabled' : ''}`}
-			style={{
-				'--slider-track-bg': 'var(--kw-editor-line)',
-				'--slider-fill-bg': 'var(--kw-editor-accent)',
-				'--slider-handle-bg': 'var(--kw-editor-panel)',
-				'--slider-handle-border': 'var(--kw-editor-accent-strong)',
-			}}
-		>
-			<input
-				type="range"
-				className="slider__input"
-				value={clampedValue}
-				min={min}
-				max={max}
-				step={step}
-				aria-label={ariaLabel}
-				disabled={disabled}
-				onChange={(event) => onChange(Number(event.currentTarget.value))}
-			/>
-			<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
-			<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />
 		</div>
 	);
 }

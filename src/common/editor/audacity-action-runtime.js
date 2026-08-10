@@ -15,6 +15,8 @@ const UI_FLAG_DEFAULTS = Object.freeze({
 	selectionToolbar: true,
 	splitTool: false,
 	statusbar: true,
+	// Storage capacity is a diagnostic surface, not everyday chrome; Help opts in.
+	storagePanel: false,
 	tracksPanel: true,
 });
 
@@ -560,6 +562,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			openManual: () => ui.openExternal('https://support.audacityteam.org/au4'),
 			openSupport: () => ui.openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
 			revertFactorySettings: () => ui.issue('revert-factory'),
+			toggleStoragePanel: () => ui.toggleFlag('storagePanel'),
 			openAbout: () => ui.issue('open-about'),
 		},
 	};

@@ -8,16 +8,23 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
-import { CommitField } from './inspector-controls.jsx';
+import { SteppedSlider } from './inspector-controls.jsx';
 import {
 	effectHasEditableSettings,
 	effectPresetChoices,
 	resolveSupportedEffectType,
 	safeEffectLabel,
 } from './effect-helpers.ts';
-import { dbToLinear, downloadTextFile, linearToDb, macroFileName } from './inspector-helpers.ts';
+import { downloadTextFile, formatDb, linearToDb, macroFileName } from './inspector-helpers.ts';
 
 const EMPTY_EFFECTS = Object.freeze([]);
+// The master fader spans silence to the +12 dB ceiling the master gain accepts.
+const MASTER_GAIN_MIN_DB = -60;
+const MASTER_GAIN_MAX_DB = 12;
+
+function masterGainFromDb(db) {
+	return db <= MASTER_GAIN_MIN_DB ? 0 : 10 ** (db / 20);
+}
 
 export function AudioEditorEffectsOverlay({
 	isOpen,
@@ -48,6 +55,10 @@ export function AudioEditorEffectsOverlay({
 	const targetId = scope === 'master' ? null : channel?.id || null;
 	const masterEffects = project?.master?.effects || EMPTY_EFFECTS;
 	const blocked = !snapshot.ready || !project || selectAudioEditorEditBlock(snapshot).blocked;
+	// Snap to the fader's own step so the range input and its readout never
+	// disagree after a gain set elsewhere round-trips through the linear value.
+	const masterGainDb = project ? Math.round(linearToDb(project.master.gain) * 10) / 10 : 0;
+	const masterGainText = masterGainDb <= MASTER_GAIN_MIN_DB ? '−∞ dB' : formatDb(masterGainDb, 'dB');
 	const [picker, setPicker] = useState(null);
 	const [internalSelectedEffect, setInternalSelectedEffect] = useState(null);
 	const selectedEffect = controlledSelectedEffect === undefined
@@ -273,14 +284,18 @@ export function AudioEditorEffectsOverlay({
 						)}
 						{message && <p className="audio-editor-field-error" role="alert">{message}</p>}
 						<div className="audio-editor-master-gain" data-master-gain>
-							<CommitField
-								label={`${copy.masterGain} (dB)`}
-								name="masterGain"
-								type="number"
-								value={project ? linearToDb(project.master.gain).toFixed(2) : '0.00'}
+							<span>{copy.masterGain}</span>
+							<SteppedSlider
+								value={masterGainDb}
+								min={MASTER_GAIN_MIN_DB}
+								max={MASTER_GAIN_MAX_DB}
+								step={0.1}
+								ariaLabel={copy.masterGain}
+								valueText={masterGainText}
 								disabled={blocked || !project}
-								onCommit={(_name, value) => controller.actions.effects.setMasterGain(dbToLinear(value, 4, copy))}
+								onChange={(db) => controller.actions.effects.setMasterGain(masterGainFromDb(db))}
 							/>
+							<output data-master-gain-value>{masterGainText}</output>
 						</div>
 					</div>
 				)}

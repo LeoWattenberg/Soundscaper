@@ -247,7 +247,9 @@ export default function AudioEditorWorkspaceView({ model }) {
 					{copy.storageEphemeralWarning}
 				</div>
 			)}
-			<StorageCapacityPanel snapshot={snapshot} locale={locale} controller={controller} run={run} />
+			{uiFlags.storagePanel && (
+				<StorageCapacityPanel snapshot={snapshot} locale={locale} controller={controller} run={run} />
+			)}
 			<ProjectFeatureCompatibilityNotice
 				key={project?.id || 'no-project'}
 				project={project}

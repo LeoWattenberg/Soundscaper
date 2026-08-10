@@ -19,6 +19,7 @@ import {
 	assertNoSeriousAxeViolations,
 	addRackEffect,
 	bootEditor,
+	chooseCommandAction,
 	chooseFileAction,
 	clipByName,
 	closeEffectsPanel,
@@ -82,6 +83,7 @@ test.describe('Scape open feature decisions', () => {
 		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-project-id', incomingId);
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
+		await chooseCommandAction(page, editor, 'Help', 'Debug storage');
 		const capacity = editor.locator('[data-storage-capacity]');
 		await capacity.locator('summary').click();
 		await expect(capacity).toContainText(/(?:Import|Project saving): .+ requested · .+ required free · Ready/u);

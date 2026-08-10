@@ -420,16 +420,10 @@ test.describe('audio editor React/design-system workflows', () => {
 			'The canonical visual baselines are maintained by the Ubuntu CI Chromium run.',
 		);
 		test.setTimeout(60_000);
-		await page.addInitScript(() => {
-			const gibibyte = 1024 ** 3;
-			Object.defineProperty(navigator.storage, 'estimate', {
-				configurable: true,
-				value: () => Promise.resolve({ usage: gibibyte, quota: 10 * gibibyte }),
-			});
-		});
 		const editor = await bootEditor(page, '/embed/en/');
-		await expect(editor.locator('[data-storage-capacity] > summary'))
-			.toHaveText('Storage: 9.0 GB free · Normal pressure');
+		// The storage bar is a Help > Debug storage opt-in, so the maintained
+		// baselines show the default chrome without it.
+		await expect(editor.locator('[data-storage-capacity]')).toHaveCount(0);
 		await editor.locator('[data-import-input]').setInputFiles([toneA]);
 		await expect(editor.locator('[data-project-bin-item]')).toHaveCount(1);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });

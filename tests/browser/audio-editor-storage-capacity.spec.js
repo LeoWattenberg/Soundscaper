@@ -1,6 +1,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseCommandAction,
 	collectClientErrors,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -12,6 +13,8 @@ test.describe('Web Core storage visibility', () => {
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const panel = editor.locator('[data-storage-capacity]');
+		await expect(panel).toHaveCount(0);
+		await chooseCommandAction(page, editor, 'Help', 'Debug storage');
 		await expect(panel).toBeVisible();
 		await expect(panel.locator('summary')).toContainText('Storage:');
 		await editor.getByRole('button', { name: 'Play options', exact: true }).click();
@@ -28,6 +31,9 @@ test.describe('Web Core storage visibility', () => {
 		await panel.getByRole('button', { name: 'Refresh estimate', exact: true }).click();
 		await expect(panel.getByText('Storage backend', { exact: true })).toBeVisible();
 		await expect(panel).toContainText('IndexedDB');
+
+		await chooseCommandAction(page, editor, 'Help', 'Debug storage');
+		await expect(panel).toHaveCount(0);
 		expect(clientErrors).toEqual([]);
 	});
 });

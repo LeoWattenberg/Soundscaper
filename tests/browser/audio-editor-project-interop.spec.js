@@ -94,8 +94,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('button[aria-label^="Arm for recording:"][aria-pressed="true"]')).toHaveCount(2);
 
 		const effectsPanel = await openEffectsForTrack(editor, 2);
-		await commitInput(effectsPanel.locator('[data-master-gain] input'), '-3');
-		await expect(effectsPanel.locator('[data-master-gain] input')).toHaveValue('-3.00');
+		await effectsPanel.locator('[data-master-gain] input[type="range"]').fill('-3');
+		await expect(effectsPanel.locator('[data-master-gain-value]')).toHaveText('-3.0 dB');
 		await closeEffectsPanel(effectsPanel);
 
 		const analysisPanel = await openAnalysisPanel(page, editor);

@@ -544,6 +544,8 @@ export default function createApplicationMenus({
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.support, label: copy.support, onClick: actions.support },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.revertFactory, label: copy.revertFactorySettings, onClick: actions.revertFactorySettings },
 				divider(),
+				{ id: 'debug-storage', label: copy.debugStorage, checked: uiFlags.storagePanel, onClick: actions.toggleStoragePanel },
+				divider(),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.aboutAudacity, label: aboutLabel, preserveLabel: true, onClick: actions.about },
 			],
 		},

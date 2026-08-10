@@ -511,8 +511,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		// A lone track fills the lane area left by the sticky ruler row, capped at
 		// the auto-fit ceiling. The lane area shrinks whenever the timeline shares
 		// the panel with docks, so derive it instead of pinning a viewport height.
+		// The viewport model rounds its observed height before taking the ruler
+		// off, so derive the same way or a half-pixel lane reads one pixel short.
 		const laneHeight = await timeline.evaluate((element) => Math.floor(
-			element.getBoundingClientRect().height
+			Math.round(element.getBoundingClientRect().height)
 			- element.querySelector('.audio-editor-ruler-row').getBoundingClientRect().height,
 		));
 		expect((await trackRows.first().boundingBox())?.height).toBe(Math.min(300, laneHeight));

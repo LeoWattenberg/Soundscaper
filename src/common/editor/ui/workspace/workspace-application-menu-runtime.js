@@ -228,6 +228,7 @@ export function createWorkspaceApplicationMenus({
 					tutorials: () => openExternal('https://support.audacityteam.org/au4'),
 					support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
+					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),
 					about: () => setDialog('about'),
 				},
 		});
