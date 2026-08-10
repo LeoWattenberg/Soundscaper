@@ -11,7 +11,6 @@ import {
 } from '../wavpack/index.js';
 import { normalizeChannels, type StorageRecord } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
-import type { PcmMigrationRepository } from './pcm-migration-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import type { SourceChunkRecord, SourceRecordRepository } from './source-record-repository.ts';
 
@@ -47,7 +46,6 @@ export interface SourceWriteRepositoryOptions {
 	readonly records: SourceRecordRepository;
 	readonly pcm: PcmRepository;
 	readonly opfs: OpfsRepository;
-	readonly migrations: PcmMigrationRepository;
 	readonly database: () => Promise<IDBDatabase | null>;
 	readonly deleteStoredSource: (source: StorageRecord) => Promise<void>;
 }
@@ -184,7 +182,6 @@ export class SourceWriteRepository {
 				let previous: StorageRecord | null;
 				let writerStatistics: Record<string, unknown> | null;
 				try {
-					if (!ifAbsent) await options.migrations.cancel(sourceId);
 					throwIfAborted(signal);
 					previous = ifAbsent ? null : await options.records.getMetadata(sourceId);
 					throwIfAborted(signal);

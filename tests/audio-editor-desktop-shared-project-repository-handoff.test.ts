@@ -251,9 +251,8 @@ function availableAudio(
 				chunkCount: 1,
 			};
 		},
-		readSourceChunks(sourceId, options) {
+		readSourceChunks(sourceId) {
 			assert.equal(sourceId, source.storageKey);
-			assert.equal(options?.migrateLegacyPcmOnAccess, false);
 			return (async function* chunks() {
 				yield { index: 0, frames: 1, channels: [Float32Array.of(SAMPLE)] };
 			})();

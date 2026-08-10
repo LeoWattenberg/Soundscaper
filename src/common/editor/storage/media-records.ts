@@ -256,13 +256,6 @@ export function isOpfsPcmStorage(storage: unknown): boolean {
 	return storage === 'opfs' || storage === PCM_CONTAINER_STORAGE_TYPE;
 }
 
-export function sourceNeedsLegacyPcmMigration(source: StorageRecord | null | undefined): boolean {
-	if (!source) return false;
-	if (source.storage === 'opfs') return true;
-	return (source.storage === 'indexeddb-chunks' || source.storage === 'copy-on-write')
-		&& source.pcmEncodingVersion !== 1;
-}
-
 export function sameStoredSourceIdentity(
 	left: StorageRecord | null | undefined,
 	right: StorageRecord | null | undefined,

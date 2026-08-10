@@ -41,16 +41,14 @@ test('mixed selection preflights both targets then verifies audio before video a
 	const events: string[] = [];
 	const videoBlob = new Blob([VIDEO_BYTES]);
 	const admission = await verifyProjectFallbackIntegrity(project(), {
-		async *readSourceChunks(sourceId, options) {
+		async *readSourceChunks(sourceId) {
 			assert.equal(sourceId, 'audio-storage');
-			assert.equal(options?.migrateLegacyPcmOnAccess, false);
 			events.push('audio-body');
 			yield cloneAudioChunk();
 		},
-		readSourceChunk(sourceId, chunkIndex, options) {
+		readSourceChunk(sourceId, chunkIndex) {
 			assert.equal(sourceId, 'audio-storage');
 			assert.equal(chunkIndex, 0);
-			assert.equal(options?.migrateLegacyPcmOnAccess, false);
 			return cloneAudioChunk();
 		},
 		getMediaAssetMetadata(sourceId) {

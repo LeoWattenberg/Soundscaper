@@ -51,10 +51,10 @@ test('discard-if-current deletes only the exact owned OPFS path payload', async 
 		records,
 		writer: {} as never,
 		reader: {} as never,
-		migrations: {} as never,
 		media: {} as never,
 		analysis: {} as never,
 		opfs: { deletePath: async (path: string) => { deletedPaths.push(path); } } as never,
+		pcm: { closeOwnedCodec() {} } as never,
 	});
 	const acquired: StorageRecord = {
 		id: 'owned-opfs-source',

@@ -21,7 +21,7 @@ test.describe('adaptive WavPack PCM persistence', () => {
 		}));
 	});
 
-	test('persists, reloads, edits, and first-access migrates PCM', async ({ page }) => {
+	test('persists, reloads, edits, and reads legacy PCM', async ({ page }) => {
 		test.setTimeout(60_000);
 		let editor = await bootEditor(page);
 		await importAudio(editor, fixture);
@@ -70,17 +70,11 @@ test.describe('adaptive WavPack PCM persistence', () => {
 		editor = await waitForEditor(page);
 		await expect(clipByName(editor, fixture.name)).toBeVisible();
 		await seekAndPlay(editor);
-		await expect.poll(
-			() => legacySourceState(page, seeded.sourceId),
-			{ timeout: 20_000 },
-		).toMatchObject({
-			pcmEncodingVersion: 1,
-			legacyChunkCount: 0,
-			encodedChunkCount: seeded.chunkCount,
+		expect(await legacySourceState(page, seeded.sourceId)).toMatchObject({
+			pcmEncodingVersion: null,
+			legacyChunkCount: seeded.chunkCount,
+			encodedChunkCount: 0,
 		});
-		const migrated = await legacySourceState(page, seeded.sourceId);
-		expect(migrated.wavpackChunkCount).toBeGreaterThan(0);
-		expect(migrated.storedBytes).toBeLessThan(migrated.uncompressedBytes);
 	});
 });
 
@@ -336,7 +330,6 @@ async function seedLegacyIndexedDbSource(page, name) {
 			delete legacy.wavpackChunkCount;
 			delete legacy.rawChunkCount;
 			delete legacy.compressionRatio;
-			delete legacy.migratedAt;
 			transaction.objectStore('sources').put(legacy);
 			transaction.objectStore('analysis').delete(`audio-editor-peaks-v1:${source.id}`);
 			transaction.objectStore('analysis').delete(`audio-editor-peaks-v2:${source.id}`);

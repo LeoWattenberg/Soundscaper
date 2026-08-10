@@ -52,7 +52,6 @@ export interface ProjectAudioFallbackStore {
 		sourceId: string,
 		options?: Readonly<{
 			signal?: AbortSignal;
-			migrateLegacyPcmOnAccess?: boolean;
 		}>,
 	): AsyncIterable<readonly Float32Array[] | StoredSourceChunk>;
 	readSourceChunk?(
@@ -60,7 +59,6 @@ export interface ProjectAudioFallbackStore {
 		chunkIndex: number,
 		options?: Readonly<{
 			signal?: AbortSignal;
-			migrateLegacyPcmOnAccess?: boolean;
 		}>,
 	): PromiseLike<unknown> | unknown;
 }
@@ -343,10 +341,7 @@ function createVerifiedAudioChunkProvider(
 			let value: unknown;
 			try {
 				value = await awaitScapeReadOperation(
-					() => store.readSourceChunk?.(storageKey, chunkIndex, {
-						signal,
-						migrateLegacyPcmOnAccess: false,
-					}),
+					() => store.readSourceChunk?.(storageKey, chunkIndex, { signal }),
 					signal,
 				);
 			} catch (error) {
@@ -384,10 +379,7 @@ function selectedAudioIterator(
 	source: ProjectAudioFallbackSource,
 	signal?: AbortSignal,
 ): AsyncIterator<readonly Float32Array[] | StoredSourceChunk> {
-	const iterable = store.readSourceChunks(sourceStorageKey(source), {
-		signal,
-		migrateLegacyPcmOnAccess: false,
-	});
+	const iterable = store.readSourceChunks(sourceStorageKey(source), { signal });
 	if (!iterable || typeof iterable[Symbol.asyncIterator] !== 'function') {
 		throw new TypeError('Stored audio fallback verification did not return an async iterable.');
 	}
@@ -493,10 +485,7 @@ function cleanupPreservingAudioStore(
 ): Required<Pick<ProjectAudioFallbackStore, 'readSourceChunks'>> {
 	return {
 		readSourceChunks(sourceId, options) {
-			const iterable = store.readSourceChunks(sourceId, {
-				...options,
-				migrateLegacyPcmOnAccess: false,
-			});
+			const iterable = store.readSourceChunks(sourceId, { ...options });
 			const iterator = iterable[Symbol.asyncIterator]();
 			const wrapped: AsyncIterableIterator<readonly Float32Array[] | StoredSourceChunk> = {
 				next: () => iterator.next(),

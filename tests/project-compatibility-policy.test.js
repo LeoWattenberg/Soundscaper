@@ -366,7 +366,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		controllerFallbackIntegrity.currentBehavior,
 		/audio-f32le-chunks-v1.*65,536-chunk.*video.*immutable.*Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
 	);
-	assert.match(controllerFallbackIntegrity.currentBehavior, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(controllerFallbackIntegrity.currentBehavior, /disable on-access retained-media digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(controllerFallbackIntegrity.currentBehavior, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
 	assert.match(controllerFallbackIntegrity.currentBehavior, /deduplicates identical source claims.*conflicting digests.*conflicting relationship roles.*target clip or track IDs.*before storage reads/iu);
 		assert.match(controllerFallbackIntegrity.currentBehavior, /joint.*selector.*audio.*video.*active requirement ID.*feature ID.*relationship role.*target clip ID.*kind.*source ID.*SHA-256.*admission snapshot.*canonical source.*duration.*maintained video effects.*role, target, or context drift.*cumulative.*before.*body reads.*private.*provider.*whole-project plan.*sole video input.*clip-local plan.*selected target input.*without a second fallback storage read/iu);

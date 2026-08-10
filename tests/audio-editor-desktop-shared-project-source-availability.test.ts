@@ -93,7 +93,7 @@ test('mixed recipient availability uses bound storage keys and disables read mai
 	assert.deepEqual(mediaMetadataReads, ['recipient-media-video', 'recipient-media-video']);
 	assert.deepEqual(audioBodyReads, ['recipient-pcm-audio']);
 	assert.deepEqual(videoBodyReads, ['recipient-media-video']);
-	assert.deepEqual(audioOptions, [{ signal: undefined, migrateLegacyPcmOnAccess: false }]);
+	assert.deepEqual(audioOptions, [{ signal: undefined }]);
 	assert.deepEqual(videoOptions, [{ signal: undefined, backfillDigest: false }]);
 });
 
@@ -423,7 +423,6 @@ test('active cancellation returns the PCM iterator and preserves the exact reaso
 	}
 	assert.deepEqual(readOptions, {
 		signal: controller.signal,
-		migrateLegacyPcmOnAccess: false,
 	});
 	assert.equal(returned, 1);
 });

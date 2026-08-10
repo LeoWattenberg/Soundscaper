@@ -89,7 +89,7 @@ export interface DesktopSharedSourceTransferStore {
 	): Promise<OwnedMediaAssetWriter>;
 	readSourceChunks(
 		sourceId: string,
-		options?: Readonly<{ signal?: AbortSignal; migrateLegacyPcmOnAccess?: boolean }>,
+		options?: Readonly<{ signal?: AbortSignal }>,
 	): AsyncIterable<readonly Float32Array[] | Readonly<{ channels?: readonly Float32Array[] }>>;
 	beginSourceWrite(sourceId: string, metadata?: Record<string, unknown>): Promise<AudioSourceWriter>;
 	discardSourceIfCurrent(source: StorageRecord): PromiseLike<boolean> | boolean;

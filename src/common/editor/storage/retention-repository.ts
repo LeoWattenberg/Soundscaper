@@ -214,8 +214,7 @@ export class RetentionRepository {
 		minimumAgeMs = 60_000,
 		now = Date.now(),
 	}: PruneOptions): Promise<PruneResult> {
-		const migrationsToResume = this.#options.sources.pendingMigrationSourceIds();
-		await this.#options.sources.stopBackgroundWork({ clearFailures: false });
+		await this.#options.sources.stopBackgroundWork();
 		const protectedIds = new Set(protectedSourceIds || []);
 		for (const project of protectedProjects || []) collectProjectStorageKeys(project, protectedIds);
 		const maximumAge = Math.max(0, Number(minimumAgeMs) || 0);
@@ -273,13 +272,6 @@ export class RetentionRepository {
 			if (disposable) disposableBinaryRecords.push(disposable);
 		}
 		await this.#options.opfs.deleteBinaryRecords(disposableBinaryRecords);
-		const deletedSourceIdSet = new Set(deletedSourceIds);
-		this.#options.sources.forgetMigrationFailures(deletedSourceIdSet);
-		for (const sourceId of migrationsToResume) {
-			if (deletedSourceIdSet.has(sourceId)) continue;
-			const source = await this.#options.sources.getMetadata(sourceId);
-			if (source) this.#options.sources.queueMigration(source);
-		}
 		return { deletedSourceIds, deferredSourceIds, retainedSourceIds: [...protectedIds], nextEligibleAt };
 	}
 

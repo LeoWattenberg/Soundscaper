@@ -39,7 +39,6 @@ test('stored fallback verification hashes canonical audio and actual video bytes
 });
 
 test('stored fallback verification disables storage maintenance for admission reads', async () => {
-	let audioMigrationEnabled: boolean | undefined;
 	let videoBackfillEnabled: boolean | undefined;
 	await verifyProjectFallbackIntegrity(project([
 		source(AUDIO_ID, 'audio', 'audio-storage'),
@@ -48,8 +47,7 @@ test('stored fallback verification disables storage maintenance for admission re
 		claim('audio-fallback', AUDIO_ID, 'audio', audioDigest(AUDIO_SAMPLES)),
 		claim('video-fallback', VIDEO_ID, 'video', digest(VIDEO_BYTES)),
 	]), {
-		async *readSourceChunks(_sourceId, options) {
-			audioMigrationEnabled = options?.migrateLegacyPcmOnAccess;
+		async *readSourceChunks() {
 			yield [Float32Array.from(AUDIO_SAMPLES)];
 		},
 		getMediaAssetMetadata() { return { size: VIDEO_BYTES.byteLength }; },
@@ -59,7 +57,6 @@ test('stored fallback verification disables storage maintenance for admission re
 		},
 	});
 
-	assert.equal(audioMigrationEnabled, false);
 	assert.equal(videoBackfillEnabled, false);
 });
 

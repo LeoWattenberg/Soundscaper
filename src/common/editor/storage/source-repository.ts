@@ -4,7 +4,7 @@ import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import type { KeyValueRepository } from './key-value-repository.ts';
 import type { MediaRepository } from './media-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
-import type { PcmMigrationRepository } from './pcm-migration-repository.ts';
+import type { PcmRepository } from './pcm-repository.ts';
 import type { SourceReadOptions, SourceReadRepository } from './source-read-repository.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { AudioSourceWriter, SourceWriteRepository } from './source-write-repository.ts';
@@ -15,13 +15,13 @@ export interface SourceRepositoryOptions {
 	readonly records: SourceRecordRepository;
 	readonly writer: SourceWriteRepository;
 	readonly reader: SourceReadRepository;
-	readonly migrations: PcmMigrationRepository;
 	readonly media: MediaRepository;
 	readonly analysis: KeyValueRepository;
 	readonly opfs: OpfsRepository;
+	readonly pcm: PcmRepository;
 }
 
-/** Public source domain assembled from bounded write, read, and migration ports. */
+/** Public source domain assembled from bounded write and read ports. */
 export class SourceRepository {
 	readonly #options: SourceRepositoryOptions;
 
@@ -80,7 +80,6 @@ export class SourceRepository {
 	}
 
 	async delete(sourceId: string): Promise<void> {
-		await this.#options.migrations.cancel(sourceId);
 		const source = await this.#options.records.getMetadata(sourceId);
 		if (source) {
 			const dependent = (await this.list()).find((candidate) => candidate.baseSourceId === sourceId);
@@ -108,29 +107,12 @@ export class SourceRepository {
 		if (source.sourceToken) await this.#options.records.deleteChunks(source.sourceToken);
 	}
 
-	queueMigration(source: StorageRecord): void {
-		this.#options.migrations.queue(source);
-	}
-
-	pendingMigrationSourceIds(): string[] {
-		return this.#options.migrations.pendingSourceIds();
-	}
-
-	forgetMigrationFailures(sourceIds: Iterable<string>): void {
-		this.#options.migrations.forgetFailures(sourceIds);
-	}
-
-	async stopBackgroundWork(options: { readonly closeCodec?: boolean; readonly clearFailures?: boolean } = {}): Promise<void> {
-		const results = await Promise.allSettled([
-			this.#options.migrations.stop(options),
-			this.#options.reader.releaseSessions(),
-		]);
-		const failures = results
-			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-			.map((result) => result.reason as unknown);
-		if (failures.length === 1) throw failures[0];
-		if (failures.length > 1) {
-			throw new AggregateError(failures, 'Source background-work cleanup failed.');
+	async stopBackgroundWork({ closeCodec = false }: { readonly closeCodec?: boolean } = {}): Promise<void> {
+		try {
+			await this.#options.reader.releaseSessions();
+		} finally {
+			this.#options.opfs.clearCache();
+			if (closeCodec) this.#options.pcm.closeOwnedCodec();
 		}
 	}
 }

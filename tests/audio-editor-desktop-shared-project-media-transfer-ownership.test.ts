@@ -140,7 +140,7 @@ async function writeReplacement(
 }
 
 async function readOnlySample(store: AudioEditorProjectStore, storageKey: string): Promise<number> {
-	for await (const chunk of store.readSourceChunks(storageKey, { migrateLegacyPcmOnAccess: false })) {
+	for await (const chunk of store.readSourceChunks(storageKey)) {
 		return chunk.channels[0][0] as number;
 	}
 	throw new Error('Expected one PCM sample.');

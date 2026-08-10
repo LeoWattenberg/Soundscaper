@@ -6,9 +6,9 @@ change can be reviewed without loading the complete storage implementation:
 
 - `project-repository.ts` stores current projects and bounded revisions.
 - `key-value-repository.ts` backs the separate settings and analysis domains.
-- `source-repository.ts` is the source-domain facade. Its read, write, durable
-  record, and background migration workflows live in the corresponding
-  `source-*-repository.ts` and `pcm-migration-repository.ts` modules.
+- `source-repository.ts` is the source-domain facade. Its read, write, and
+  durable record workflows live in the corresponding `source-*-repository.ts`
+  modules.
 - `media-repository.ts` owns original media and video-derivative records.
 - `media-asset-lifecycle-coordinator.ts` fences admitted retained-media loads
   and streamed writes while clear or close drains their terminal settlement.

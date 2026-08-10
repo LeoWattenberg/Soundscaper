@@ -373,7 +373,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		fallbackAdmission.summary,
 		/authoritative exact-schema-14.*same-ID tab history.*session-owned history token.*local bytes.*before activation side effects.*exclusive session activation reservation.*history replacement.*competing active-project publication.*session publication.*released in finally.*audio-f32le-chunks-v1.*65,536-chunk.*video.*immutable original-media Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
 	);
-	assert.match(fallbackAdmission.summary, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(fallbackAdmission.summary, /disable on-access retained-media digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(fallbackAdmission.summary, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
 	assert.match(fallbackAdmission.summary, /deduplicates.*conflicting digests.*relationship roles.*target clip or track IDs.*before storage reads/iu);
 	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
@@ -458,7 +458,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /current-format.*exact schema 14.*fallback.*claim.*asset descriptor.*before.*collision.*storage/iu);
 	assert.match(documentation, /export.*project root.*source records.*same sources.*accessors.*`toJSON` hooks.*without invocation.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*publication/iu);
 	assert.match(documentation, /inspection.*does not hash.*asset bodies.*maintained exact-schema-14 controller activation.*referenced local audio and video fallback bytes/iu);
-	assert.match(documentation, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(documentation, /disable on-access retained-media digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(documentation, /read-only video-metadata preflight.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*fallback body read.*delay cancellation settlement/iu);
 	assert.match(documentation, /direct `store\.loadProject\(\)` calls.*durable integrity after admission.*runtime fallback use by activation admission itself.*future-schema.*outside.*runtime selection.*playback controls.*operation-time-verified final-delivery controls/iu);
 	assert.match(documentation, /point-in-time admission.*complete third-party activation gating/iu);
