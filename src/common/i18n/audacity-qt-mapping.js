@@ -39,7 +39,10 @@ export const AUDACITY_QT_MAPPING = deepFreeze([
 	entry('panelHistory', 'appshell', 'History'),
 	entry('paste', 'action', 'Paste'),
 	entry('pause', 'action', 'Pause'),
-	entry('play', 'action', 'Play'),
+	// Audacity 4 replaced the bare `action`/`Play` command with `Play/Pause` and
+	// `Play/Stop`; the transport label survives only as the Play menu title, which
+	// carries the same reviewed translations and a Turkish mnemonic to strip.
+	entry('play', 'appshell-menu-play', 'Play', '', ['stripMnemonic']),
 	entry('preferences', 'preferences', 'Preferences'),
 	entry('project', 'appshell', 'Project'),
 	entry('projectSaving', 'project-file-io', 'Saving project'),
