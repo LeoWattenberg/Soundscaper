@@ -80,7 +80,7 @@ export interface DesktopSharedSourceTransferStore {
 	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown> | unknown;
 	loadMediaAsset(
 		sourceId: string,
-		options?: Readonly<{ signal?: AbortSignal; backfillDigest?: boolean }>,
+		options?: Readonly<{ signal?: AbortSignal }>,
 	): PromiseLike<BlobLike | null> | BlobLike | null;
 	beginMediaAssetWrite(
 		sourceId: string,

@@ -29,7 +29,6 @@ export interface ScapeImportStore {
 	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown>;
 	loadMediaAsset?(sourceId: string, options?: Readonly<{
 		signal?: AbortSignal;
-		backfillDigest?: boolean;
 	}>): PromiseLike<Blob | null>;
 	beginSourceWrite(sourceId: string, metadata: Readonly<Record<string, unknown>>): PromiseLike<unknown>;
 	beginMediaAssetWrite(

@@ -342,7 +342,7 @@ async function writeVideo(store: AudioEditorProjectStore, source: Record<string,
 
 async function assertExactLocalMedia(store: AudioEditorProjectStore, fixture: ReturnType<typeof mixedProjectFixture>) {
 	assert.deepEqual(await readMonoPcm(store, fixture.audio.storageKey), PCM_SAMPLES);
-	const video = await store.loadMediaAsset(fixture.video.storageKey, { backfillDigest: false });
+	const video = await store.loadMediaAsset(fixture.video.storageKey);
 	assert.ok(video);
 	assert.deepEqual(new Uint8Array(await video.arrayBuffer()), VIDEO_BYTES);
 	assert.equal((await store.getMediaAssetMetadata(fixture.video.storageKey))?.sha256, digest(VIDEO_BYTES));

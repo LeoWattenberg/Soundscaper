@@ -226,7 +226,7 @@ export async function importScapeProject(input, store, options = {}) {
 					}
 					const loadedTiming = await awaitScapeOperation(store.loadMediaAsset(
 						storageKey,
-						{ signal, backfillDigest: false },
+						{ signal },
 					), signal);
 					if (!loadedTiming) throw new Error(`Timing asset ${storageKey} body is unavailable.`);
 					const canonicalTiming = canonicalMediaContentBlob(loadedTiming);

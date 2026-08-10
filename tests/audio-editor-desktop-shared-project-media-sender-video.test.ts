@@ -112,8 +112,8 @@ test('managed sender carries digest-bound video timing and rejects corrupt timin
 				? timingMetadata
 				: baseStore.getMediaAssetMetadata(storageKey);
 		},
-		loadMediaAsset(storageKey: string, options?: Readonly<{ backfillDigest?: boolean }>) {
-			if (storageKey !== timing.reference.storageKey) return baseStore.loadMediaAsset(storageKey, options);
+		loadMediaAsset(storageKey: string) {
+			if (storageKey !== timing.reference.storageKey) return baseStore.loadMediaAsset(storageKey);
 			const bytes = timing.bytes.slice();
 			if (corrupt) bytes[bytes.byteLength - 1] ^= 1;
 			return Promise.resolve(mediaBlob(bytes, VIDEO_TIMING_ASSET_MIME_TYPE));
@@ -179,10 +179,10 @@ test('managed sender rejects self-consistent malformed timing before publishing 
 				size: malformedBytes.byteLength, sha256: malformedSha256,
 			};
 		},
-		loadMediaAsset(storageKey: string, options?: Readonly<{ backfillDigest?: boolean }>) {
+		loadMediaAsset(storageKey: string) {
 			return storageKey === reference.storageKey
 				? Promise.resolve(mediaBlob(malformedBytes, VIDEO_TIMING_ASSET_MIME_TYPE))
-				: baseStore.loadMediaAsset(storageKey, options);
+				: baseStore.loadMediaAsset(storageKey);
 		},
 	};
 	let timingAdmissions = 0;
@@ -288,9 +288,8 @@ test('second video pass mutation aborts the admitted upload without finishing', 
 	const baseStore = senderStore(fixture, []);
 	const store = {
 		...baseStore,
-		loadMediaAsset(sourceId: string, options?: Readonly<{ backfillDigest?: boolean }>) {
+		loadMediaAsset(sourceId: string) {
 			assert.equal(sourceId, fixture.video.storageKey);
-			assert.equal(options?.backfillDigest, false);
 			loads += 1;
 			const bytes = loads === 1 ? fixture.videoBytes : Uint8Array.of(2, 4, 6, 8, 10, 12, 14);
 			return Promise.resolve(mediaBlob(bytes, fixture.video.mimeType));
@@ -406,9 +405,8 @@ function senderStore(
 			events.push(`metadata:${sourceId}`);
 			return mediaMetadata(fixture, options.videoSize);
 		},
-		loadMediaAsset(sourceId: string, loadOptions?: Readonly<{ backfillDigest?: boolean }>) {
+		loadMediaAsset(sourceId: string) {
 			assert.equal(sourceId, fixture.video.storageKey);
-			assert.equal(loadOptions?.backfillDigest, false);
 			options.onBody?.();
 			events.push(`load:${sourceId}`);
 			return Promise.resolve(mediaBlob(fixture.videoBytes, fixture.video.mimeType));

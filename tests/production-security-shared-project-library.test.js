@@ -424,7 +424,7 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'src/common/editor/storage/desktop-shared-project-media-transfer.ts',
 		'src/common/editor/storage/desktop-shared-project-repository.ts',
 		'src/common/editor/storage/desktop-shared-project-source-availability.ts',
-		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-asset-load-repository.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage/media-asset-write-contract.ts',
 		'src/common/editor/storage/media-asset-owned-publication.ts',
@@ -463,11 +463,11 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 	);
 	assert.match(
 		mediaAdmissionControl.summary,
-		/loses the absence race.*only its staging.*pre-shadow failure.*exact acquisition-owned audio records or owned video publications.*source-token, path, or media-chunk payloads.*preserving concurrent replacements.*unacquired sources.*pre-existing recipient-local exact-schema-14 binding.*compatible same-kind aliases.*verified once.*audio.*ordered Float32Array geometry.*video.*trusted local digest.*SHA-256.*4 MiB windows.*migration and digest backfill disabled.*pre-shadow failures preserve the prior local shadow.*prevent activation.*after the exact shadow is durable.*retains.*acquired audio and video.*source-free loads.*no media I\/O/iu,
+		/loses the absence race.*only its staging.*pre-shadow failure.*exact acquisition-owned audio records or owned video publications.*source-token, path, or media-chunk payloads.*preserving concurrent replacements.*unacquired sources.*pre-existing recipient-local exact-schema-14 binding.*compatible same-kind aliases.*verified once.*audio.*ordered Float32Array geometry.*video.*trusted local digest.*SHA-256.*4 MiB windows.*without on-access storage maintenance.*pre-shadow failures preserve the prior local shadow.*prevent activation.*after the exact shadow is durable.*retains.*acquired audio and video.*source-free loads.*no media I\/O/iu,
 	);
 	assert.match(
 		mediaAdmissionControl.summary,
-		/demand-loaded playback.*owned canonical-PCM provider.*admitted source metadata.*lazy session open.*4,094.*cycle-free records.*root-to-base copy-on-write ancestry.*captured source token or path.*serializes chunk reads.*every observed generation.*before and after each chunk.*terminal.*per-request cancellation.*local.*on-access migration.*suppressed.*cleanup.*aggregates.*generation observed at open.*not.*intended base generation.*complete metadata.*content.*storage retention or a byte lease.*cross-store or cross-process.*headless composed fixture.*exact managed mixed-media acquisition.*playback-controller access.*edit\/save\/return.*original-profile reopen.*without bridge or shared-library body transfer.*packaged Electron UI.*browser video-codec behavior/iu,
+		/demand-loaded playback.*owned canonical-PCM provider.*admitted source metadata.*lazy session open.*4,094.*cycle-free records.*root-to-base copy-on-write ancestry.*captured source token or path.*serializes chunk reads.*every observed generation.*before and after each chunk.*terminal.*per-request cancellation.*local.*cleanup.*aggregates.*generation observed at open.*not.*intended base generation.*complete metadata.*content.*storage retention or a byte lease.*cross-store or cross-process.*headless composed fixture.*exact managed mixed-media acquisition.*playback-controller access.*edit\/save\/return.*original-profile reopen.*without bridge or shared-library body transfer.*packaged Electron UI.*browser video-codec behavior/iu,
 	);
 	assert.match(
 		mediaAdmissionControl.summary,

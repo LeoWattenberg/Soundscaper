@@ -21,7 +21,7 @@ interface LinkedVideoReadStore {
 	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown> | unknown;
 	loadMediaAsset(
 		sourceId: string,
-		options?: Readonly<{ signal?: AbortSignal; backfillDigest?: boolean }>,
+		options?: Readonly<{ signal?: AbortSignal }>,
 	): PromiseLike<unknown> | unknown;
 }
 
@@ -34,7 +34,7 @@ type LinkedVideoOverlayStore<Store extends LinkedVideoReadStore> = Omit<
 	): Promise<Awaited<ReturnType<Store['getMediaAssetMetadata']>> | ResolvedLinkedVideoOriginal['metadata']>;
 	loadMediaAsset(
 		sourceId: string,
-		options?: Readonly<{ signal?: AbortSignal; backfillDigest?: boolean }>,
+		options?: Readonly<{ signal?: AbortSignal }>,
 	): Promise<Awaited<ReturnType<Store['loadMediaAsset']>> | Blob>;
 }>;
 
@@ -150,7 +150,7 @@ export function overlayDesktopSharedLinkedVideoOriginals<Store extends LinkedVid
 	};
 	const loadMediaAsset = async (
 		storageKey: string,
-		options?: Readonly<{ signal?: AbortSignal; backfillDigest?: boolean }>,
+		options?: Readonly<{ signal?: AbortSignal }>,
 	) => {
 		const entry = state.byStorageKey.get(storageKey);
 		if (!entry) return await fallback.loadMediaAsset.call(fallback, storageKey, options);

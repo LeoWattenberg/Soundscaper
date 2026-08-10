@@ -62,7 +62,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 	);
 	assert.match(
 		control.summary,
-		/private provider.*each requested stored chunk.*migration disabled.*copies.*Float32Array.*index.*frame.*channel.*geometry.*digest.*currentness.*before.*after.*return/iu,
+		/private provider.*each requested stored chunk.*copies.*Float32Array.*index.*frame.*channel.*geometry.*digest.*currentness.*before.*after.*return/iu,
 	);
 	assert.match(
 		control.summary,
@@ -114,7 +114,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 	);
 	assert.match(
 		documentation,
-		/private provider.*requested stored chunk.*migration.*cop(?:y|ies).*Float32Array.*index.*frame.*channel.*geometry.*digest.*currentness.*before.*after.*return/iu,
+		/private provider.*requested stored chunk.*cop(?:y|ies).*Float32Array.*index.*frame.*channel.*geometry.*digest.*currentness.*before.*after.*return/iu,
 	);
 	assert.match(
 		documentation,

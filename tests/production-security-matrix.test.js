@@ -456,40 +456,25 @@ test('planned native and plug-in surfaces stay disabled and portable archive con
 		'tests/audio-editor-media-asset-disposal.test.ts',
 		'tests/browser/audio-editor-storage-publication.spec.js',
 	]) assert.ok(stagingLeases.evidence.some((item) => item.path === path));
-	const digestBackfill = cancellation.currentControls.find(
+	assert.equal(cancellation.currentControls.some(
 		({ id }) => id === 'lazy-legacy-media-digest-backfill',
-	);
-	assert.ok(digestBackfill);
-	for (const path of [
-		'src/common/editor/storage/indexeddb-backend.ts',
-		'src/common/editor/storage/media-content-provenance.ts',
-		'src/common/editor/storage/media-asset-digest-backfill.ts',
-		'src/common/editor/storage/media-content-digest.ts',
-		'src/common/editor/storage/media-records.ts',
-		'tests/audio-editor-media-digest-backfill.test.ts',
-		'tests/audio-editor-storage-schema.test.ts',
-		'tests/browser/audio-editor-storage-publication.spec.js',
-	]) assert.ok(digestBackfill.evidence.some((item) => item.path === path));
-	assert.match(
-		digestBackfill.summary,
-		/version-8 opens wipe pre-current databases.*spoofable provenance.*no inherited hash.*version-zero Web-Crypto content claim.*bounded four-MiB reads.*token-checked compare-and-set.*stale delete or replacement/iu,
-	);
+	), false);
 	const digestMaintenance = cancellation.currentControls.find(
 		({ id }) => id === 'retained-media-load-maintenance-quiescence',
 	);
 	assert.ok(digestMaintenance);
 	for (const path of [
 		'src/common/editor/storage/media-asset-lifecycle-coordinator.ts',
-		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-asset-load-repository.ts',
 		'src/common/editor/storage/media-repository.ts',
 		'src/common/editor/storage/retention-repository.ts',
 		'src/common/editor/storage.js',
 		'tests/audio-editor-media-digest-lifecycle.test.ts',
-		'tests/audio-editor-media-digest-backfill.test.ts',
+		'tests/audio-editor-media-asset-load.test.ts',
 	]) assert.ok(digestMaintenance.evidence.some((item) => item.path === path));
 	assert.match(
 		digestMaintenance.summary,
-		/registers synchronously.*same per-store lifecycle.*before its first await.*clear.*temporary admission fence.*close.*permanent fence.*signal captured loads.*await terminal settlement.*data deletion or database close.*multi-chunk.*observes the maintenance abort.*cannot publish version-one provenance.*return a payload.*standalone clear.*reopens admission.*close remains terminal/iu,
+		/registers synchronously.*same per-store lifecycle.*before its first await.*clear.*temporary admission fence.*close.*permanent fence.*signal captured loads.*await terminal settlement.*data deletion or database close.*multi-chunk.*observes the maintenance abort.*cannot return a payload.*standalone clear.*reopens admission.*close remains terminal/iu,
 	);
 	assert.equal(cancellation.residualRisks.some(
 		({ id }) => id === 'legacy-media-digest-lifecycle-quiescence',

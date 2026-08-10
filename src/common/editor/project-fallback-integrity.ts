@@ -77,7 +77,6 @@ export interface ProjectFallbackIntegrityStore {
 		sourceId: string,
 		options?: Readonly<{
 			signal?: AbortSignal;
-			backfillDigest?: boolean;
 		}>,
 	): PromiseLike<unknown> | unknown;
 	getMediaAssetMetadata?(sourceId: string): PromiseLike<unknown> | unknown;
@@ -258,10 +257,7 @@ async function verifyVideoFallback(
 	signal?: AbortSignal,
 ): Promise<Blob> {
 	const storageKey = sourceStorageKey(target.source);
-	const loaded = await awaitScapeOperation(store.loadMediaAsset?.(storageKey, {
-		signal,
-		backfillDigest: false,
-	}), signal);
+	const loaded = await awaitScapeOperation(store.loadMediaAsset?.(storageKey, { signal }), signal);
 	if (loaded == null) {
 		throw new Error(`Rendered fallback source ${target.claim.sourceId} is unavailable.`);
 	}

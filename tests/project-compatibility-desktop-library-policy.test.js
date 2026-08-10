@@ -395,7 +395,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'src/common/editor/storage/media-asset-owned-publication.ts',
 		'src/common/editor/storage/media-asset-write-contract.ts',
 		'src/common/editor/storage/media-asset-write-repository.ts',
-		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-asset-load-repository.ts',
 		'src/common/editor/storage/media-content-digest.ts',
 		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/storage/retention-repository.ts',
@@ -438,7 +438,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/unmanaged audio.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*video.*trusted recipient-local SHA-256.*full exact-size Blob.*4 MiB windows.*migration and media-digest backfill.*disabled.*pre-shadow source integrity, availability, binding, geometry, budget, body, and digest failures.*preserve.*prior local shadow and history.*prevent activation.*source-free loads.*no media I\/O.*serializes latest load, save, and delete.*demand-loaded playback.*owned canonical-PCM provider.*admitted source metadata.*lazy session open.*4,094.*cycle-free records.*root.*copy-on-write ancestry.*captured source tokens or paths.*serializes chunk reads.*every ancestry generation.*before and after each chunk.*terminal.*per-request cancellation.*local.*migration.*suppressed.*cleanup.*aggregates/iu,
+		/unmanaged audio.*ordered Float32Array PCM.*exact chunk, channel, and frame geometry.*video.*trusted recipient-local SHA-256.*full exact-size Blob.*4 MiB windows.*no on-access storage maintenance.*pre-shadow source integrity, availability, binding, geometry, budget, body, and digest failures.*preserve.*prior local shadow and history.*prevent activation.*source-free loads.*no media I\/O.*serializes latest load, save, and delete.*demand-loaded playback.*owned canonical-PCM provider.*admitted source metadata.*lazy session open.*4,094.*cycle-free records.*root.*copy-on-write ancestry.*captured source tokens or paths.*serializes chunk reads.*every ancestry generation.*before and after each chunk.*terminal.*per-request cancellation.*local.*cleanup.*aggregates/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -510,7 +510,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/snapshots metadata before and\s+after.*ordered\s+`Float32Array` channel\/frame geometry.*trusted recipient-local\s+SHA-256.*genuine exact-size\s+video `Blob`.*SHA-256.*4 MiB windows.*body digest\s+must match.*legacy PCM-on-read migration and media-digest backfill are\s+disabled.*failure\s+detected before shadow publication.*latest local shadow\s+and revision history unchanged.*prevents bootstrap activation.*cancellation\s+first observed after the exact shadow is durable.*retains that shadow.*acquired managed media/isu,
+		/snapshots metadata before and\s+after.*ordered\s+`Float32Array` channel\/frame geometry.*trusted recipient-local\s+SHA-256.*genuine exact-size\s+video `Blob`.*SHA-256.*4 MiB windows.*body digest\s+must match.*no on-access storage maintenance.*failure\s+detected before shadow publication.*latest local shadow\s+and revision history unchanged.*prevents bootstrap activation.*cancellation\s+first observed after the exact shadow is durable.*retains that shadow.*acquired managed media/isu,
 	);
 	assert.match(
 		documentation,

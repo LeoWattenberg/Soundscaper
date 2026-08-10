@@ -11,8 +11,8 @@ import {
 } from '../src/common/editor/storage/media-asset-write-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
-test('media reads can skip legacy digest claim and backfill writes', async () => {
-	const store = memoryStore('media-read-without-backfill');
+test('markerless media rows load intact and never gain digest provenance', async () => {
+	const store = memoryStore('media-read-markerless');
 	const sourceId = 'legacy-video';
 	const blob = new Blob(['legacy-video'], { type: 'video/webm' });
 	const legacyRecord = {
@@ -24,18 +24,80 @@ test('media reads can skip legacy digest claim and backfill writes', async () =>
 	};
 	store.memory.mediaAssets.set(sourceId, legacyRecord);
 
-	const unmaintained = await store.loadMediaAsset(sourceId, { backfillDigest: false });
-	assert.ok(unmaintained);
-	assert.equal(new TextDecoder().decode(await unmaintained.arrayBuffer()), 'legacy-video');
+	const loaded = await store.loadMediaAsset(sourceId);
+	assert.ok(loaded);
+	assert.equal(new TextDecoder().decode(await loaded.arrayBuffer()), 'legacy-video');
 	assert.equal(store.memory.mediaAssets.get(sourceId), legacyRecord);
 	assert.equal(Object.hasOwn(legacyRecord, 'mediaContentToken'), false);
+	assert.equal(Object.hasOwn(legacyRecord, 'mediaContentDigestVersion'), false);
+	assert.equal(Object.hasOwn(legacyRecord, 'sha256'), false);
+});
 
-	const maintained = await store.loadMediaAsset(sourceId);
-	assert.ok(maintained);
-	assert.equal(new TextDecoder().decode(await maintained.arrayBuffer()), 'legacy-video');
-	const verified = store.memory.mediaAssets.get(sourceId) as Record<string, unknown>;
-	assert.notEqual(verified, legacyRecord);
-	assert.equal(verified.sha256, digest(new Uint8Array(await blob.arrayBuffer())));
+test('complete version-zero claim rows load unchanged and never upgrade to verified provenance', async () => {
+	const store = memoryStore('media-read-claim-row');
+	const sourceId = 'claimed-video';
+	const blob = new Blob(['claimed-video'], { type: 'video/webm' });
+	const claimRecord = Object.freeze({
+		sourceId,
+		storage: 'indexeddb-blob',
+		blob,
+		size: blob.size,
+		mimeType: blob.type,
+		mediaContentDigestVersion: 0,
+		mediaContentToken: 'media-content-version-zero-claim-fixture-0001',
+	});
+	store.memory.mediaAssets.set(sourceId, claimRecord);
+
+	const loaded = await store.loadMediaAsset(sourceId);
+	assert.ok(loaded);
+	assert.equal(new TextDecoder().decode(await loaded.arrayBuffer()), 'claimed-video');
+	assert.equal(store.memory.mediaAssets.get(sourceId), claimRecord);
+	assert.equal(claimRecord.mediaContentDigestVersion, 0);
+	assert.equal(Object.hasOwn(claimRecord, 'sha256'), false);
+});
+
+test('loads fail closed for malformed provenance and size drift and return null for missing rows', async () => {
+	const store = memoryStore('media-load-validation');
+	assert.equal(await store.loadMediaAsset('absent-row'), null);
+
+	const validToken = 'media-content-version-zero-claim-fixture-0001';
+	const malformedCases: readonly Readonly<Record<string, unknown>>[] = [
+		{ mediaContentToken: validToken },
+		{ mediaContentDigestVersion: 0 },
+		{ mediaContentDigestVersion: 0, mediaContentToken: 'invalid' },
+		{ mediaContentDigestVersion: 2, mediaContentToken: validToken },
+		{ mediaContentDigestVersion: 1, mediaContentToken: validToken, sha256: 'A'.repeat(64) },
+	];
+	for (const [index, provenance] of malformedCases.entries()) {
+		const sourceId = `malformed-provenance-${index}`;
+		const blob = new Blob([Uint8Array.of(index)], { type: 'video/mp4' });
+		const record = Object.freeze({
+			sourceId,
+			storage: 'indexeddb-blob',
+			blob,
+			size: blob.size,
+			mimeType: blob.type,
+			...provenance,
+		});
+		store.memory.mediaAssets.set(sourceId, record);
+		await assert.rejects(
+			store.loadMediaAsset(sourceId),
+			/media asset is missing/iu,
+			`malformed provenance case ${index}`,
+		);
+		assert.equal(store.memory.mediaAssets.get(sourceId), record);
+	}
+
+	const driftId = 'declared-size-drift';
+	const driftBlob = new Blob([Uint8Array.of(1, 2, 3)], { type: 'video/mp4' });
+	store.memory.mediaAssets.set(driftId, Object.freeze({
+		sourceId: driftId,
+		storage: 'indexeddb-blob',
+		blob: driftBlob,
+		size: driftBlob.size + 1,
+		mimeType: driftBlob.type,
+	}));
+	await assert.rejects(store.loadMediaAsset(driftId), /media asset is missing/iu);
 });
 
 test('fallback media persists canonical source-owned native Blob chunks', async () => {

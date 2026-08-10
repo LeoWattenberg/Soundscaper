@@ -327,7 +327,7 @@ async function writeVideo(
 }
 
 async function readVideo(store: AudioEditorProjectStore, storageKey: string): Promise<Uint8Array> {
-	const blob = await store.loadMediaAsset(storageKey, { backfillDigest: false });
+	const blob = await store.loadMediaAsset(storageKey);
 	if (!blob) throw new Error(`Video ${storageKey} is missing`);
 	return new Uint8Array(await blob.arrayBuffer());
 }

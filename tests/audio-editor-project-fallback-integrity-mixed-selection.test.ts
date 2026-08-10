@@ -56,9 +56,8 @@ test('mixed selection preflights both targets then verifies audio before video a
 			events.push('video-preflight');
 			return { size: VIDEO_BYTES.byteLength };
 		},
-		loadMediaAsset(sourceId, options) {
+		loadMediaAsset(sourceId) {
 			assert.equal(sourceId, 'video-storage');
-			assert.equal(options?.backfillDigest, false);
 			events.push('video-body');
 			return videoBlob;
 		},
