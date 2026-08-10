@@ -526,8 +526,8 @@
 				"tests/audio-editor-project-bin-service.test.ts",
 				"tests/audio-editor-project-lock-service.test.ts",
 				"tests/audio-editor-project-switch-service.test.ts",
-				"tests/audio-editor-derivative-cache-schema.test.ts",
-				"tests/browser/audio-editor-storage-migration.spec.js",
+				"tests/audio-editor-storage-schema.test.ts",
+				"tests/browser/audio-editor-storage-publication.spec.js",
 				"tests/audio-editor-desktop-shared-project-linked-video-original-session.test.ts",
 				"tests/audio-editor-desktop-shared-project-linked-video-original.test.ts",
 				"tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts",
@@ -580,7 +580,7 @@
 				"tests/audio-editor-project-switch-service.test.ts",
 				"tests/audio-editor-project-save-options.test.ts",
 				"tests/audio-editor-project-services.test.ts",
-				"tests/browser/audio-editor-storage-migration.spec.js",
+				"tests/browser/audio-editor-storage-publication.spec.js",
 				"tests/project-compatibility-linked-video-source-reachability-policy.test.js"
 			]
 		},

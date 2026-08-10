@@ -129,7 +129,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 		'tests/audio-editor-linked-video-project-save-reconciliation.test.ts',
 		'tests/audio-editor-project-save-options.test.ts',
 		'tests/audio-editor-project-services.test.ts',
-		'tests/browser/audio-editor-storage-migration.spec.js',
+		'tests/browser/audio-editor-storage-publication.spec.js',
 	]) assert.ok(rule.evidence.includes(evidence), `missing compatibility evidence: ${evidence}`);
 
 	const documentation = (await readFile(documentationUrl, 'utf8')).replace(/\s+/gu, ' ');
