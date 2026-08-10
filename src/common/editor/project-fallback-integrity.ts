@@ -64,7 +64,6 @@ export interface ProjectFallbackIntegrityStore {
 		sourceId: string,
 		options?: Readonly<{
 			signal?: AbortSignal;
-			migrateLegacyPcmOnAccess?: boolean;
 		}>,
 	): AsyncIterable<readonly Float32Array[] | StoredSourceChunk>;
 	readSourceChunk?(
@@ -72,7 +71,6 @@ export interface ProjectFallbackIntegrityStore {
 		chunkIndex: number,
 		options?: Readonly<{
 			signal?: AbortSignal;
-			migrateLegacyPcmOnAccess?: boolean;
 		}>,
 	): PromiseLike<unknown> | unknown;
 	loadMediaAsset?(

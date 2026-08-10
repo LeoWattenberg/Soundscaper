@@ -116,7 +116,7 @@ test('a rejected first publication removes metadata before deleting its payload'
 	assert.deepEqual(fixture.chunkTokens(), []);
 });
 
-test('if-absent commit preserves a winner, skips its migration, and deletes loser staging', async () => {
+test('if-absent commit preserves a winner and deletes loser staging', async () => {
 	const fixture = sourceWriterFixture({});
 	fixture.seedPrevious();
 	const writer = await fixture.repository.begin('source-a', sourceMetadata());
@@ -125,7 +125,6 @@ test('if-absent commit preserves a winner, skips its migration, and deletes lose
 	await assert.rejects(writer.commit({}, { ifAbsent: true }), /already exists|if-absent/iu);
 	assert.deepEqual(fixture.metadata.get('source-a'), fixture.previous);
 	assert.deepEqual(fixture.chunkTokens(), ['old-token']);
-	assert.equal(fixture.migrationCancellations(), 0);
 });
 
 test('abort cannot race a commit owner into publishing metadata for deleted staging', async () => {
@@ -168,7 +167,6 @@ test('failure to collect an overwritten payload does not turn a published source
 function sourceWriterFixture(hooks: FixtureHooks) {
 	const metadata = new Map<string, StorageRecord>();
 	const chunks = new Map<string, Record<string, unknown>>();
-	let migrationCancellations = 0;
 	const previous: StorageRecord = {
 		id: 'source-a',
 		storage: 'indexeddb-chunks',
@@ -222,7 +220,6 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 		records: records as never,
 		pcm: {} as never,
 		opfs: { createPcmWriter: async () => null } as never,
-		migrations: { cancel: async () => { migrationCancellations += 1; } } as never,
 		database: async () => null,
 		deleteStoredSource: async (source) => {
 			await hooks.onDeleteStored?.(source);
@@ -232,7 +229,6 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 	return {
 		chunkTokens: () => [...new Set([...chunks.values()].map((record) => String(record.sourceToken)))].sort(),
 		metadata,
-		migrationCancellations: () => migrationCancellations,
 		previous,
 		repository,
 		seedPrevious() {

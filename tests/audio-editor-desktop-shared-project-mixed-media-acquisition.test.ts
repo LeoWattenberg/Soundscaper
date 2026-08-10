@@ -518,7 +518,7 @@ function memoryStore(context: TestContext, label: string): AudioEditorProjectSto
 
 async function readMonoPcm(store: AudioEditorProjectStore, sourceId: string): Promise<number[]> {
 	const samples: number[] = [];
-	for await (const stored of store.readSourceChunks(sourceId, { migrateLegacyPcmOnAccess: false })) {
+	for await (const stored of store.readSourceChunks(sourceId)) {
 		const channels = Array.isArray(stored) ? stored : stored.channels;
 		samples.push(...channels[0]);
 	}

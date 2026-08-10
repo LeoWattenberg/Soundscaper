@@ -26,17 +26,15 @@ const SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 	targetTrackId: null,
 });
 
-test('verified provider re-reads only one requested chunk, disables maintenance, and returns tight copies', async () => {
+test('verified provider re-reads only one requested chunk and returns tight copies', async () => {
 	const randomReads: number[] = [];
-	let randomMigrationEnabled: boolean | undefined;
 	const body = SOURCE_CHUNKS.map(cloneChunk);
 	const candidate = project();
 	const admission = await verifyProjectFallbackIntegrity(candidate, {
 		async *readSourceChunks() { for (const value of body) yield cloneChunk(value); },
-		readSourceChunk(sourceId, chunkIndex, options) {
+		readSourceChunk(sourceId, chunkIndex) {
 			assert.equal(sourceId, 'audio-storage');
 			randomReads.push(chunkIndex);
-			randomMigrationEnabled = options?.migrateLegacyPcmOnAccess;
 			return body[chunkIndex];
 		},
 	}, { audioFallback: SELECTOR });
@@ -44,7 +42,6 @@ test('verified provider re-reads only one requested chunk, disables maintenance,
 
 	const channels = await provider.readStorageChunk(1);
 	assert.deepEqual(randomReads, [1]);
-	assert.equal(randomMigrationEnabled, false);
 	assert.deepEqual(channels.map((channel) => [...channel]), [[0.125], [-0.25]]);
 	assert.equal(Object.getPrototypeOf(channels), Array.prototype);
 	assert.equal(Object.isFrozen(channels), true);

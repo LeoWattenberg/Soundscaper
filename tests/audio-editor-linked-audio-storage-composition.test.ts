@@ -31,7 +31,6 @@ test('storage composition exposes verified linked WAV PCM through canonical sour
 		preferOpfs: false,
 		storageManager: null,
 		opfsRoot: null,
-		migrateLegacyPcmOnAccess: false,
 		linkedOriginalPort: {
 			load(kind, locatorId, { expectedRevision }) {
 				loads += 1;
@@ -40,8 +39,6 @@ test('storage composition exposes verified linked WAV PCM through canonical sour
 				return { blob: body, locatorRevision: expectedRevision ?? LOCATOR_REVISION };
 			},
 		},
-		estimateStorage: async () => ({ usage: null, quota: null }),
-		isMemoryBackend: () => true,
 	});
 	assert.ok(repositories.linkedOriginals);
 	const source = Object.freeze({

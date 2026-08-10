@@ -13,7 +13,6 @@ import {
 } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
-import { PcmMigrationRepository } from '../src/common/editor/storage/pcm-migration-repository.ts';
 import { PcmRepository } from '../src/common/editor/storage/pcm-repository.ts';
 import { ProjectRepository } from '../src/common/editor/storage/project-repository.ts';
 
@@ -235,55 +234,6 @@ test('PCM repository rejects invalid geometry and keeps its circuit breaker dete
 	controller.abort();
 	await assert.rejects(pcm.decodeRecord({}, {}, controller.signal), { name: 'AbortError' });
 	pcm.closeOwnedCodec();
-});
-
-test('PCM migration cancellation and failed copy-on-write migration clear pending work', async () => {
-	const source = {
-		id: 'copy-source',
-		storage: 'copy-on-write',
-		sourceToken: 'copy-token',
-		baseSourceId: 'base',
-		channelCount: 1,
-		overrideChunkCount: 0,
-		pcmEncodingVersion: 0,
-	};
-	let currentSource = source;
-	const migration = new PcmMigrationRepository({
-		records: {
-			async getMetadata(_sourceId: string) { return currentSource; },
-			async *chunks(_token: string) { /* Empty migration fixture. */ },
-			async compareAndSwapMetadata() { return true; },
-			async replaceChunkIfCurrent() { return true; },
-		},
-		pcm: {
-			async encode() { throw new Error('encode should not run'); },
-			async decodeRecord() { throw new Error('decode should not run'); },
-			closeOwnedCodec() {},
-		},
-		opfs: {
-			clearCache() {},
-		},
-		database: async () => null,
-		estimateStorage: async () => ({ usage: null, quota: null }),
-		isMemoryBackend: () => false,
-		migrateOnAccess: true,
-	} as unknown as ConstructorParameters<typeof PcmMigrationRepository>[0]);
-
-	migration.queue(source);
-	assert.deepEqual(migration.pendingSourceIds(), ['copy-source']);
-	await migration.cancel('copy-source');
-	assert.deepEqual(migration.pendingSourceIds(), []);
-
-	currentSource = { ...source };
-	migration.queue(source);
-	for (let attempt = 0; attempt < 20 && migration.pendingSourceIds().length; attempt += 1) {
-		await new Promise<void>((resolve) => { setTimeout(resolve, 5); });
-	}
-	assert.deepEqual(migration.pendingSourceIds(), []);
-	migration.queue(source);
-	assert.deepEqual(migration.pendingSourceIds(), [], 'a failed source remains suppressed');
-	migration.forgetFailures(['copy-source']);
-	await migration.stop({ closeCodec: true, clearFailures: false });
 });
 
 test('project repository rejects unstable IDs and prunes malformed memory revisions', async () => {

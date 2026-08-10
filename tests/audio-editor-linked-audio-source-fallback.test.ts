@@ -132,16 +132,15 @@ function sourceFixture(body: Blob, onLoad: () => void) {
 			}),
 		} as never,
 		opfs: {} as never,
-		migrations: { queue: () => undefined } as never,
 	});
 	const sources = new SourceRepository({
 		records,
 		reader,
 		writer: {} as never,
-		migrations: { cancel: async () => undefined } as never,
 		media: { deleteAsset: async () => undefined } as never,
 		analysis: { delete: async () => undefined } as never,
 		opfs: { deletePath: async () => undefined } as never,
+		pcm: { closeOwnedCodec() {} } as never,
 	});
 	return {
 		bindings,

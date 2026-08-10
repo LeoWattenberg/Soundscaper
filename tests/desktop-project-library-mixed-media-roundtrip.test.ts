@@ -448,7 +448,7 @@ class HeadlessAudioBuffer {
 
 async function readMonoPcm(store: AudioEditorProjectStore, storageKey: string): Promise<number[]> {
 	const samples: number[] = [];
-	for await (const stored of store.readSourceChunks(storageKey, { migrateLegacyPcmOnAccess: false })) {
+	for await (const stored of store.readSourceChunks(storageKey)) {
 		const channels = Array.isArray(stored) ? stored : stored.channels;
 		assert.equal(channels.length, 1);
 		samples.push(...channels[0]);

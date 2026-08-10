@@ -56,7 +56,6 @@ test('owned PCM sessions keep one exact root generation across random reads', as
 	assert.deepEqual([...((await session.chunk(1)).channels[0])], [0.75]);
 	assert.deepEqual([...((await session.chunk(0)).channels[0])], [0.25]);
 	assert.deepEqual(fixture.decoded, ['owned-token:1', 'owned-token:0']);
-	assert.deepEqual(fixture.migrations, [], 'a stable session must not schedule self-invalidating migration');
 
 	await session.release();
 	await session.release();
@@ -508,7 +507,6 @@ function sourceFixture(
 	const metadata = new Map(sources.map((source) => [String(source.id), clone(source)]));
 	const storedChunks = new Map(chunks.map((chunk) => [String(chunk.key), clone(chunk)]));
 	const decoded: string[] = [];
-	const migrations: string[] = [];
 	const records = {
 		async getMetadata(sourceId: string) {
 			const value = metadata.get(sourceId);
@@ -540,10 +538,9 @@ function sourceFixture(
 			readPcmContainerChunk: async () => { throw new Error('Unexpected OPFS PCM-container read.'); },
 			readLegacyChunk: async () => { throw new Error('Unexpected legacy OPFS read.'); },
 		} as never,
-		migrations: { queue: (source: StorageRecord) => { migrations.push(String(source.id)); } } as never,
 		fallback: options.fallback,
 	});
-	return { decoded, metadata, migrations, reader, records };
+	return { decoded, metadata, reader, records };
 }
 
 function sourceRecord(

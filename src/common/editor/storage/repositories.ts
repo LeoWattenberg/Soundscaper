@@ -21,7 +21,6 @@ import {
 import { MediaRepository } from './media-repository.ts';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import { OpfsRepository } from './opfs-repository.ts';
-import { PcmMigrationRepository } from './pcm-migration-repository.ts';
 import { PcmRepository, type PcmRepositoryOptions } from './pcm-repository.ts';
 import { ProjectRepository, type ProjectRepositoryPort } from './project-repository.ts';
 import { RetentionRepository } from './retention-repository.ts';
@@ -58,7 +57,6 @@ export interface StorageRepositoryOptions {
 	readonly opfsRoot?: FileSystemDirectoryHandle | null;
 	readonly pcmCodec?: PcmRepositoryOptions['codec'];
 	readonly pcmCodecFactory?: PcmRepositoryOptions['codecFactory'];
-	readonly migrateLegacyPcmOnAccess: boolean;
 	readonly derivativeCacheLimits?: Readonly<Pick<
 		DerivativeCacheLimits,
 		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
@@ -66,8 +64,6 @@ export interface StorageRepositoryOptions {
 	readonly derivativeCacheNow?: () => number;
 	readonly linkedOriginalPort?: LinkedOriginalPort | null;
 	readonly linkedVideoOriginalPort?: LinkedVideoOriginalPort | null;
-	readonly estimateStorage: () => Promise<{ usage: number | null; quota: number | null }>;
-	readonly isMemoryBackend: () => boolean;
 }
 
 export type StorageRepositoryFactory = (
@@ -90,15 +86,6 @@ export function createStorageRepositories(
 		codecFactory: options.pcmCodecFactory,
 	});
 	const sourceRecords = new SourceRecordRepository(port);
-	const migrations = new PcmMigrationRepository({
-		records: sourceRecords,
-		pcm,
-		opfs,
-		database: port.database,
-		estimateStorage: options.estimateStorage,
-		isMemoryBackend: options.isMemoryBackend,
-		migrateOnAccess: options.migrateLegacyPcmOnAccess,
-	});
 	const analysis = new KeyValueRepository(port, 'analysis');
 	const media = new MediaRepository(port, opfs, {
 		cacheLimits: options.derivativeCacheLimits,
@@ -125,7 +112,6 @@ export function createStorageRepositories(
 		records: sourceRecords,
 		pcm,
 		opfs,
-		migrations,
 		database: port.database,
 		deleteStoredSource,
 	});
@@ -136,17 +122,16 @@ export function createStorageRepositories(
 		records: sourceRecords,
 		pcm,
 		opfs,
-		migrations,
 		fallback: linkedAudio,
 	});
 	const sources = new SourceRepository({
 		records: sourceRecords,
 		writer,
 		reader,
-		migrations,
 		media,
 		analysis,
 		opfs,
+		pcm,
 	});
 	return Object.freeze({
 		projects: new ProjectRepository(port, options.revisionLimit),

@@ -226,9 +226,8 @@ test('operation-time integrity verifies the track claim and refuses target drift
 	const canonical = trackFallbackProject();
 	let scans = 0;
 	const store = {
-		async *readSourceChunks(sourceId: string, options?: Readonly<{ migrateLegacyPcmOnAccess?: boolean }>) {
+		async *readSourceChunks(sourceId: string) {
 			assert.equal(sourceId, FALLBACK_SOURCE_ID);
-			assert.equal(options?.migrateLegacyPcmOnAccess, false);
 			scans += 1;
 			for (const value of FALLBACK_CHUNKS) yield cloneTrackChunk(value);
 		},

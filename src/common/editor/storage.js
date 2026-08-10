@@ -36,7 +36,6 @@ export class AudioEditorProjectStore {
 		maximumProjectDocumentBytes = undefined,
 		pcmCodec = null,
 		pcmCodecFactory = null,
-		migrateLegacyPcmOnAccess = true,
 		derivativeCacheLimits = undefined,
 		derivativeCacheNow = undefined,
 		linkedOriginalPort = null,
@@ -74,13 +73,10 @@ export class AudioEditorProjectStore {
 			opfsRoot,
 			pcmCodec,
 			pcmCodecFactory,
-			migrateLegacyPcmOnAccess: Boolean(migrateLegacyPcmOnAccess),
 			derivativeCacheLimits,
 			derivativeCacheNow,
 			linkedOriginalPort,
 			linkedVideoOriginalPort,
-			estimateStorage: () => this.estimateStorage(),
-			isMemoryBackend: () => this.backend === 'memory',
 		});
 		this.projectRepository = desktopProjectBridge
 			? new DesktopSharedProjectRepository({

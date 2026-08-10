@@ -41,7 +41,6 @@ export interface DesktopSharedProjectSourceAvailabilityStore {
 		sourceId: string,
 		options?: Readonly<{
 			signal?: AbortSignal;
-			migrateLegacyPcmOnAccess?: boolean;
 		}>,
 	): AsyncIterable<readonly Float32Array[] | StoredSourceChunk>;
 	getMediaAssetMetadata(sourceId: string): PromiseLike<unknown> | unknown;
@@ -265,10 +264,7 @@ async function verifyAudio(
 	signal?: AbortSignal,
 ): Promise<void> {
 	await sourceRead(plan.source, projectId, signal, async () => {
-		const iterable = store.readSourceChunks(plan.source.storageKey, {
-			signal,
-			migrateLegacyPcmOnAccess: false,
-		});
+		const iterable = store.readSourceChunks(plan.source.storageKey, { signal });
 		if (!iterable || typeof iterable[Symbol.asyncIterator] !== 'function') {
 			throw new TypeError('Recipient-local PCM must be an async iterable.');
 		}

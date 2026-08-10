@@ -275,7 +275,6 @@ test('desktop shared latest load leaves prior local history untouched when recip
 		tracks: [track],
 	}) as unknown as CurrentProject;
 	await local.save(stale);
-	let readOptions: Readonly<{ signal?: AbortSignal; migrateLegacyPcmOnAccess?: boolean }> | undefined;
 	const sourceAvailability: DesktopSharedProjectSourceAvailability = {
 		async getSourceMetadata(sourceId: string) {
 			assert.equal(sourceId, source.storageKey);
@@ -291,12 +290,8 @@ test('desktop shared latest load leaves prior local history untouched when recip
 				committedAt: NOW,
 			};
 		},
-		readSourceChunks(sourceId: string, options: Readonly<{
-			signal?: AbortSignal;
-			migrateLegacyPcmOnAccess?: boolean;
-		}> = {}) {
+		readSourceChunks(sourceId: string) {
 			assert.equal(sourceId, source.storageKey);
-			readOptions = options;
 			return emptyAsyncIterable();
 		},
 		async getMediaAssetMetadata() {
@@ -314,7 +309,6 @@ test('desktop shared latest load leaves prior local history untouched when recip
 	});
 
 	await assert.rejects(repository.load(latest.id), /audio|frame|PCM|source/iu);
-	assert.equal(readOptions?.migrateLegacyPcmOnAccess, false);
 	assert.deepEqual(await local.load(stale.id), stale);
 	assert.deepEqual(
 		(await local.listRevisions(stale.id)).map(({ revision }) => revision),
@@ -349,8 +343,7 @@ test('concurrent shared latest loads cannot let a slow older admission replace a
 					chunkFrames: 1, chunkCount: 1, committedAt: NOW,
 				};
 			},
-			async *readSourceChunks(_sourceId, options) {
-				assert.equal(options?.migrateLegacyPcmOnAccess, false);
+			async *readSourceChunks(_sourceId) {
 				bodyReads += 1;
 				if (bodyReads === 1) {
 					firstBodyStarted.resolve();

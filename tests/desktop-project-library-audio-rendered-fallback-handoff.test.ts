@@ -342,7 +342,7 @@ async function writePcm(
 
 async function readPcm(store: AudioEditorProjectStore, storageKey: string): Promise<number[][]> {
 	const channels: number[][] = [];
-	for await (const stored of store.readSourceChunks(storageKey, { migrateLegacyPcmOnAccess: false })) {
+	for await (const stored of store.readSourceChunks(storageKey)) {
 		const chunkChannels = Array.isArray(stored) ? stored : stored.channels;
 		for (const [index, channel] of chunkChannels.entries()) {
 			channels[index] ??= [];

@@ -300,9 +300,6 @@ test('storage composition exposes project binding reachability with production l
 	const repositories = createStorageRepositories(fixture.port, {
 		revisionLimit: 20,
 		preferOpfs: false,
-		migrateLegacyPcmOnAccess: false,
-		estimateStorage: async () => ({ usage: null, quota: null }),
-		isMemoryBackend: () => true,
 	});
 	assert.ok(
 		repositories.linkedVideoOriginalProjectReachability

@@ -52,7 +52,7 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 		fallbackAdmission.summary,
 		/exact-schema-14.*same-ID tab history.*session-owned history token.*local bytes.*before activation side effects.*exclusive session activation reservation.*history replacement.*competing active-project publication.*session publication.*released in finally.*audio-f32le-chunks-v1.*65,536-chunk.*original-media Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
 	);
-	assert.match(fallbackAdmission.summary, /disable.*PCM migration scheduling.*digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(fallbackAdmission.summary, /disable on-access retained-media digest claim.backfill.*does not publish storage maintenance/iu);
 	assert.match(fallbackAdmission.summary, /read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
 	assert.match(fallbackAdmission.summary, /conflicting digests.*relationship roles.*target clip or track IDs.*before storage reads/iu);
 	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);

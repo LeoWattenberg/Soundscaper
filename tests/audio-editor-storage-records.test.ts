@@ -6,7 +6,6 @@ import {
 	binaryMetadata,
 	candidateEligibleAt,
 	protectSourceDependencies,
-	sourceNeedsLegacyPcmMigration,
 	sourceStorageCandidates,
 } from '../src/common/editor/storage/media-records.ts';
 import {
@@ -47,6 +46,5 @@ test('storage collection candidates retain dependencies and the latest eligibili
 	const derivatives = [{ sourceId: 'derived', committedAt: '2026-01-02T00:00:00.000Z' }];
 	const candidates = sourceStorageCandidates(sources, media, derivatives);
 	assert.deepEqual([...protectSourceDependencies(new Set(['derived']), sources)].sort(), ['base', 'derived']);
-	assert.equal(sourceNeedsLegacyPcmMigration(sources[1]), true);
 	assert.equal(candidateEligibleAt(candidates.get('derived'), 86_400_000), Date.parse('2026-01-03T00:00:00.000Z'));
 });

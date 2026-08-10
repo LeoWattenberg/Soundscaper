@@ -28,12 +28,10 @@ const AUDIO_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 test('selected audio verifies only its exact canonical body and exposes a private provider', async () => {
 	let audioScans = 0;
 	let videoReads = 0;
-	let migrationEnabled: boolean | undefined;
 	const admission = await verifyProjectFallbackIntegrity(fallbackProject(), {
-		async *readSourceChunks(sourceId, options) {
+		async *readSourceChunks(sourceId) {
 			assert.equal(sourceId, 'audio-storage');
 			audioScans += 1;
-			migrationEnabled = options?.migrateLegacyPcmOnAccess;
 			for (const value of AUDIO_CHUNKS) yield cloneChunk(value);
 		},
 		readSourceChunk(_sourceId, chunkIndex) { return cloneChunk(AUDIO_CHUNKS[chunkIndex]!); },
@@ -43,7 +41,6 @@ test('selected audio verifies only its exact canonical body and exposes a privat
 
 	assert.equal(audioScans, 1);
 	assert.equal(videoReads, 0);
-	assert.equal(migrationEnabled, false);
 	const provider = admission.getVerifiedAudioChunkProvider(AUDIO_SELECTOR);
 	assert.equal(Object.isFrozen(provider), true);
 	assert.deepEqual({
