@@ -70,8 +70,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 	trimClips, updatePreferences, updateRackEffect,
-	updateVideoClipEffect, updateWorkspacePreference, updateZoom, timelineAnnotationService,
-	trackFolderService,
+	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
+	timelineAnnotationService, trackFolderService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -326,6 +326,21 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			remove: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.removeAnnotations(...args)),
 			previous: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigatePreviousAnnotation(...args)),
 			next: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigateNextAnnotation(...args)),
+		}),
+		sequences: Object.freeze({
+			view: (sequenceId: RuntimeValue) => sequenceTimingService.view(sequenceId),
+			update: restricted('sequenceTiming', (sequenceId: RuntimeValue, changes: RuntimeValue) => (
+				sequenceTimingService.update(sequenceId, structuredClone(changes))
+			)),
+			label: (sample: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.label(sample, sequenceId),
+			playheadLabel: (sequenceId: RuntimeValue) => sequenceTimingService.playheadLabel(sequenceId),
+			snapSample: (sample: RuntimeValue, mode: RuntimeValue, sequenceId: RuntimeValue) => (
+				sequenceTimingService.snapSample(sample, mode, sequenceId)
+			),
+			stepPlayhead: (frameDelta: RuntimeValue, sequenceId: RuntimeValue) => (
+				sequenceTimingService.stepPlayhead(frameDelta, sequenceId)
+			),
+			seekLabel: (label: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.seekLabel(label, sequenceId),
 		}),
 		trackFolders: Object.freeze({
 			create: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.createFolder(...args)),

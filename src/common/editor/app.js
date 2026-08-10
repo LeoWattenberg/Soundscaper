@@ -219,6 +219,7 @@ import { createMixRenderService } from './controller/mix-render-service.ts';
 import { createNativeProjectService } from './controller/native-project-service.ts';
 import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
+import { createSequenceTimingService } from './controller/sequence-timing-service.ts';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
@@ -934,6 +935,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		productSettingKey, getProject: () => project, projectDurationFrames, publishDocumentSnapshot,
 		setSelection, setStatus, startRecording, state,
 		stopProjectBinPreview, stopRecording, throwIfAborted,
+	});
+	const sequenceTimingService = createSequenceTimingService({
+		lifetime, getProject: () => project, editingBlocked, commit, publishProjectState,
+		getPositionFrames: () => engine.getPositionFrames(),
+		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
 	});
 	const viewStateService = createViewStateService({
 		MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS, commit, copy, editingBlocked,
@@ -1760,7 +1766,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-		timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
+		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;
