@@ -12,7 +12,10 @@ import type {
 	OwnedMediaAssetWriter,
 } from '../storage/media-asset-write-contract.ts';
 import { createFfmpegVideoTimingProbe, probeVideoTiming } from '../video-timing-probe.ts';
-import { createUnreportedVideoSourceCharacteristics } from '../video-source-characteristics.ts';
+import {
+	createUnreportedVideoSourceCharacteristics,
+	normalizeVideoSourceCharacteristics,
+} from '../video-source-characteristics.ts';
 import { publishVideoTimingAsset } from '../video-timing-storage.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -273,6 +276,15 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			const sourceFrameCount = timingProbe.decision === 'timing-asset'
 				? timingProbe.timing.frameCount
 				: Math.max(1, sampleFrameToVideoFrame(durationFrames, sourceRate, sampleRate, 'enclosingEnd'));
+			// Ingest decodes one audio program. Naming it is only honest when the
+			// inventory reports exactly one, so a multi-stream master records the
+			// streams it did not import instead of guessing which one it did.
+			const reportedStreams = timingProbe.characteristics.audioStreams;
+			const extractedStream = canonicalAudio && reportedStreams?.length === 1 ? reportedStreams[0] : null;
+			const characteristics = normalizeVideoSourceCharacteristics({
+				...timingProbe.characteristics,
+				extractedAudioStreamIndex: extractedStream ? extractedStream.index : null,
+			}, { rate: sourceRate });
 			const videoSource = {
 				kind: 'video',
 				id: videoSourceId,
@@ -294,8 +306,11 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 						backend: timingProbe.backend,
 					}
 					: { mode: 'conform-cfr-at-ingest', rate: sourceRate, reason: timingProbe.reason, failures: timingProbe.failures },
-				videoCodec: conformedAtIngest ? 'h264' : 'unknown',
-				audioCodec: canonicalAudio ? (conformedAtIngest ? 'aac' : 'unknown') : null,
+				characteristics,
+				videoCodec: characteristics.videoCodec ?? (conformedAtIngest ? 'h264' : 'unknown'),
+				audioCodec: canonicalAudio
+					? extractedStream?.codec ?? (conformedAtIngest ? 'aac' : 'unknown')
+					: null,
 				hasAudio: Boolean(canonicalAudio),
 				posterStorageKey: null,
 				thumbnailStorageKey: null,

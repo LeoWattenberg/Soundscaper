@@ -173,3 +173,103 @@ test('probe fallback fails closed when CFR conformance is unavailable', async ()
 	assert.equal(fixture.addedSources.length, 0);
 	assert.equal(fixture.calls.some((call) => call.startsWith('write-media:')), false);
 });
+
+test('ingest persists probed characteristics instead of guessing codecs', async () => {
+	const fixture = createFixture();
+	const runtime = fixture.runtime as MutableImportVideoRuntime;
+	const originalStore = runtime.store as Record<string, unknown>;
+	runtime.store = {
+		...originalStore,
+		async getMediaAssetMetadata() { return null; },
+		async loadMediaAsset() { return null; },
+	};
+	runtime.ffmpeg = {
+		...(runtime.ffmpeg as Readonly<Record<string, unknown>>),
+		async probeVideoTiming() {
+			return {
+				timescale: 1_000,
+				presentationTicks: [0n, 40n, 80n],
+				finalFrameDurationTicks: 40n,
+				nominalRate: { num: 25, den: 1 },
+				characteristics: {
+					backend: 'ffmpeg',
+					codedWidth: 1_920,
+					codedHeight: 1_080,
+					rotationDegrees: 270,
+					videoCodec: 'prores',
+					fieldOrder: 'top-field-first',
+					audioStreams: [{ index: 1, codec: 'pcm_s24le', channelCount: 2, sampleRate: 48_000, language: 'eng' }],
+					startTimecode: { negative: false, hours: 10, minutes: 0, seconds: 0, frames: 0, dropFrame: false },
+				},
+			};
+		},
+	};
+	await createImportVideoFile(runtime)(new File([Uint8Array.of(1, 2, 3)], 'take.mp4', { type: 'video/mp4' }));
+	const source = fixture.addedSources.find(({ kind }) => kind === 'video');
+	assert.ok(source);
+	const characteristics = source.characteristics as Record<string, unknown>;
+	assert.equal(characteristics.backend, 'ffmpeg');
+	assert.equal(characteristics.rotationDegrees, 270);
+	assert.equal(characteristics.fieldOrder, 'top-field-first');
+	assert.deepEqual(characteristics.startTimecode, {
+		negative: false, hours: 10, minutes: 0, seconds: 0, frames: 0, dropFrame: false,
+	});
+	assert.equal(characteristics.extractedAudioStreamIndex, 1, 'a single reported program is the one ingest extracted');
+	assert.equal(source.videoCodec, 'prores', 'the probed codec replaces the ingest guess');
+	assert.equal(source.audioCodec, 'pcm_s24le');
+});
+
+test('a multi-stream master records the programs ingest did not import', async () => {
+	const fixture = createFixture();
+	const runtime = fixture.runtime as MutableImportVideoRuntime;
+	const originalStore = runtime.store as Record<string, unknown>;
+	runtime.store = {
+		...originalStore,
+		async getMediaAssetMetadata() { return null; },
+		async loadMediaAsset() { return null; },
+	};
+	runtime.ffmpeg = {
+		...(runtime.ffmpeg as Readonly<Record<string, unknown>>),
+		async probeVideoTiming() {
+			return {
+				timescale: 1_000,
+				presentationTicks: [0n, 40n],
+				finalFrameDurationTicks: 40n,
+				nominalRate: { num: 25, den: 1 },
+				characteristics: {
+					backend: 'ffmpeg',
+					videoCodec: 'h264',
+					audioStreams: [
+						{ index: 1, codec: 'aac', channelCount: 2, sampleRate: 48_000, language: 'eng' },
+						{ index: 2, codec: 'ac3', channelCount: 6, sampleRate: 48_000, language: 'deu' },
+					],
+				},
+			};
+		},
+	};
+	await createImportVideoFile(runtime)(new File([Uint8Array.of(4, 5, 6)], 'master.mp4', { type: 'video/mp4' }));
+	const source = fixture.addedSources.find(({ kind }) => kind === 'video');
+	assert.ok(source);
+	const characteristics = source.characteristics as Record<string, unknown>;
+	assert.equal((characteristics.audioStreams as readonly unknown[]).length, 2);
+	assert.equal(
+		characteristics.extractedAudioStreamIndex,
+		null,
+		'ingest does not claim which program it decoded when the inventory is ambiguous',
+	);
+	assert.equal(source.audioCodec, 'unknown');
+});
+
+test('an unreported probe leaves the characteristics record explicitly empty', async () => {
+	const fixture = createFixture();
+	const source = await createImportVideoFile(fixture.runtime)(videoFile())
+		.then(() => fixture.addedSources.find(({ kind }) => kind === 'video'));
+	assert.ok(source);
+	assert.deepEqual(source.characteristics, {
+		backend: null, codedWidth: null, codedHeight: null, rotationDegrees: null,
+		pixelAspectRatio: null, fieldOrder: null, hasAlpha: null, videoCodec: null,
+		colour: { primaries: null, transfer: null, matrix: null, range: null },
+		audioStreams: null, extractedAudioStreamIndex: null, startTimecode: null,
+	});
+	assert.equal(source.videoCodec, 'unknown', 'a runtime that cannot probe records nothing rather than a guess');
+});
