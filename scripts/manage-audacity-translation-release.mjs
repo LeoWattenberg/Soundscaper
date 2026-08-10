@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash, createHmac } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { appendFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -11,6 +11,7 @@ import {
 } from '../src/common/i18n/audacity-qt-mapping.js';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { COMMITTED_LOCALE_TAGS, LOCALE_BY_TAG } from '../src/common/i18n/locales.js';
+import { R2Client, rfc3986, safeRelativePath, strongEntityTag } from './lib/r2-client.mjs';
 
 const AUDACITY = Object.freeze({
 	repository: 'audacity/audacity',
@@ -80,10 +81,6 @@ function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
-function hmac(key, value, encoding) {
-	return createHmac('sha256', key).update(value).digest(encoding);
-}
-
 function canonicalJson(value) {
 	const serialize = (entry) => {
 		if (entry === null || typeof entry !== 'object') return JSON.stringify(entry);
@@ -100,15 +97,6 @@ function parseJson(bytes, label) {
 	} catch (error) {
 		fail(`${label} is not valid JSON: ${error.message}`);
 	}
-}
-
-function safeRelativePath(value, label = 'path') {
-	assert(typeof value === 'string' && value.length > 0, `${label} must be a non-empty string`);
-	assert(!value.startsWith('/') && !value.startsWith('\\'), `${label} must be relative`);
-	assert(!value.includes('\\') && !value.includes('\0'), `${label} contains unsafe characters`);
-	const segments = value.split('/');
-	assert(segments.every((segment) => segment && segment !== '.' && segment !== '..'), `${label} is not normalized`);
-	return value;
 }
 
 function canonicalLocale(value, label = 'locale') {
@@ -873,111 +861,6 @@ async function snapshot(options) {
 	console.log(`Verified current release ${latest.releaseId} for regression retention`);
 }
 
-function rfc3986(value) {
-	return encodeURIComponent(value).replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
-}
-
-function normalizeHeader(value) {
-	return String(value).trim().replace(/\s+/g, ' ');
-}
-
-class R2Client {
-	constructor() {
-		const accessKeyId = process.env.R2_TRANSLATIONS_ACCESS_KEY_ID;
-		const secretAccessKey = process.env.R2_TRANSLATIONS_SECRET_ACCESS_KEY;
-		const endpointValue = process.env.R2_TRANSLATIONS_ENDPOINT;
-		const bucket = process.env.R2_TRANSLATIONS_BUCKET ?? 'soundscaper-translations';
-		assert(accessKeyId && secretAccessKey && endpointValue, 'R2 translation S3 credentials and endpoint are required');
-		assert(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket), 'R2 translation bucket name is invalid');
-		const endpoint = new URL(endpointValue);
-		assert(endpoint.protocol === 'https:' && !endpoint.username && !endpoint.password && !endpoint.search && !endpoint.hash,
-			'R2 endpoint must be a bare HTTPS URL');
-		assert(endpoint.pathname === '/' || endpoint.pathname === '', 'R2 endpoint must not contain a path');
-		assert(endpoint.hostname.endsWith('.r2.cloudflarestorage.com'), 'R2 endpoint is not a Cloudflare S3 endpoint');
-		this.accessKeyId = accessKeyId;
-		this.secretAccessKey = secretAccessKey;
-		this.sessionToken = process.env.R2_TRANSLATIONS_SESSION_TOKEN;
-		this.endpoint = endpoint;
-		this.bucket = bucket;
-	}
-
-	async request(method, key, { body = Buffer.alloc(0), headers = {}, acceptedStatuses = [200] } = {}) {
-		key = safeRelativePath(key, 'R2 object key');
-		const now = new Date();
-		const dateStamp = now.toISOString().slice(0, 10).replaceAll('-', '');
-		const amzDate = `${dateStamp}T${now.toISOString().slice(11, 19).replaceAll(':', '')}Z`;
-		const payload = Buffer.isBuffer(body) ? body : Buffer.from(body);
-		const payloadHash = sha256(payload);
-		const canonicalUri = `/${rfc3986(this.bucket)}/${key.split('/').map(rfc3986).join('/')}`;
-		const signedHeaders = {
-			host: this.endpoint.host,
-			'x-amz-content-sha256': payloadHash,
-			'x-amz-date': amzDate,
-		};
-		if (this.sessionToken) signedHeaders['x-amz-security-token'] = this.sessionToken;
-		for (const [name, value] of Object.entries(headers)) signedHeaders[name.toLowerCase()] = normalizeHeader(value);
-		const names = Object.keys(signedHeaders).sort();
-		const canonicalHeaders = `${names.map((name) => `${name}:${normalizeHeader(signedHeaders[name])}`).join('\n')}\n`;
-		const canonicalRequest = [method, canonicalUri, '', canonicalHeaders, names.join(';'), payloadHash].join('\n');
-		const scope = `${dateStamp}/auto/s3/aws4_request`;
-		const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, sha256(canonicalRequest)].join('\n');
-		const dateKey = hmac(`AWS4${this.secretAccessKey}`, dateStamp);
-		const regionKey = hmac(dateKey, 'auto');
-		const serviceKey = hmac(regionKey, 's3');
-		const signingKey = hmac(serviceKey, 'aws4_request');
-		const signature = hmac(signingKey, stringToSign, 'hex');
-		const requestHeaders = new Headers(headers);
-		requestHeaders.set('x-amz-content-sha256', payloadHash);
-		requestHeaders.set('x-amz-date', amzDate);
-		if (this.sessionToken) requestHeaders.set('x-amz-security-token', this.sessionToken);
-		requestHeaders.set('Authorization', `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${scope}, SignedHeaders=${names.join(';')}, Signature=${signature}`);
-		const controller = new AbortController();
-		const timer = setTimeout(() => controller.abort(), 120_000);
-		let response;
-		try {
-				response = await fetch(`${this.endpoint.origin}${canonicalUri}`, {
-					method,
-					headers: requestHeaders,
-					body: method === 'GET' || method === 'HEAD' || method === 'DELETE' ? undefined : payload,
-					signal: controller.signal,
-				});
-		} catch (error) {
-			fail(`R2 ${method} ${key} failed: ${error.message}`);
-		} finally {
-			clearTimeout(timer);
-		}
-		if (!acceptedStatuses.includes(response.status)) {
-			const errorBody = (await response.text()).slice(0, 2_000);
-			fail(`R2 ${method} ${key} returned HTTP ${response.status}: ${errorBody}`);
-		}
-		return response;
-	}
-
-	async get(key, maximum, acceptedStatuses = [200]) {
-		const response = await this.request('GET', key, { acceptedStatuses });
-		if (response.status !== 200) return { response, bytes: Buffer.alloc(0) };
-		const declaredLength = Number(response.headers.get('content-length'));
-		if (Number.isFinite(declaredLength)) assert(declaredLength <= maximum, `R2 ${key} exceeds ${maximum} bytes`);
-		const bytes = Buffer.from(await response.arrayBuffer());
-		assert(bytes.byteLength <= maximum, `R2 ${key} exceeds ${maximum} bytes`);
-		return { response, bytes };
-	}
-
-	async put(key, bytes, { contentType, cacheControl, ifMatch, ifNoneMatch } = {}) {
-		const headers = {
-			'Cache-Control': cacheControl,
-			'Content-Type': contentType,
-		};
-		if (ifMatch) headers['If-Match'] = ifMatch;
-		if (ifNoneMatch) headers['If-None-Match'] = ifNoneMatch;
-		return this.request('PUT', key, { body: bytes, headers, acceptedStatuses: [200, 412] });
-	}
-
-	async delete(key) {
-		return this.request('DELETE', key, { acceptedStatuses: [204] });
-	}
-}
-
 function normalizedPublicRoot(value) {
 	const url = new URL(value);
 	assert(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash,
@@ -1040,8 +923,7 @@ async function existingPointer(client) {
 	const result = await client.get(key, MAX_POINTER_BYTES, [200, 404]);
 	if (result.response.status === 404) return { key, pointer: null, bytes: null, etag: null };
 	const pointer = validateLatest(parseJson(result.bytes, 'stored latest.json'));
-	const etag = result.response.headers.get('etag');
-	assert(etag, 'Stored latest.json has no ETag');
+	const etag = strongEntityTag(result.response.headers.get('etag'), 'Stored latest.json');
 	return { key, pointer, bytes: result.bytes, etag };
 }
 
@@ -1106,14 +988,14 @@ async function publicSmokePointer(baseUrl, expectedBytes) {
 export async function promotePointer(client, current, pointer, publicBaseUrl, smokePointer = publicSmokePointer) {
 	const bytes = Buffer.from(canonicalJson(pointer));
 	assert(bytes.byteLength <= MAX_POINTER_BYTES, `latest.json exceeds ${MAX_POINTER_BYTES} bytes`);
+	if (current.etag) strongEntityTag(current.etag, 'Stored latest.json');
 	const response = await client.put(current.key, bytes, {
 		contentType: 'application/json; charset=utf-8',
 		cacheControl: 'no-store',
 		...(current.etag ? { ifMatch: current.etag } : { ifNoneMatch: '*' }),
 	});
 	assert(response.status === 200, 'latest.json changed concurrently; refusing to overwrite it');
-	const promotedEtag = response.headers.get('etag');
-	assert(promotedEtag, 'Promoted latest.json has no ETag');
+	const promotedEtag = strongEntityTag(response.headers.get('etag'), 'Promoted latest.json');
 	const stored = await client.get(current.key, bytes.byteLength);
 	assert(sha256(stored.bytes) === sha256(bytes), 'Stored latest.json does not match the promoted pointer');
 	try {

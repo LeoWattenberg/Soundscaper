@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { R2Client } from '../scripts/lib/r2-client.mjs';
 import {
 	promotePointer,
 	validateAudacityArtifactResult,
@@ -113,6 +114,73 @@ test('a failed first-pointer smoke test removes the guarded pointer', async () =
 	assert.equal(deleted, true);
 	assert.equal(stored, null);
 });
+
+// Cloudflare weakens an ETag whenever it compresses a response, and Node's fetch
+// asks for compression by default. A weak validator can never satisfy If-Match,
+// so every conditional pointer swap would fail closed as a phantom conflict.
+test('R2 requests refuse transport compression so ETags stay strong validators', async () => {
+	const seen = [];
+	await withR2Environment(async () => {
+		const client = new R2Client();
+		await withFetch((url, init) => {
+			seen.push(new Headers(init.headers));
+			return new Response('{}', { status: 200, headers: { etag: '"strong"' } });
+		}, () => client.get('runtime/translations/audacity/4/latest.json', 1024));
+	});
+	assert.equal(seen.length, 1);
+	assert.equal(seen[0].get('accept-encoding'), 'identity');
+});
+
+test('a weak stored validator fails closed instead of attempting a doomed conditional swap', async () => {
+	let attempted = false;
+	const client = {
+		async put() {
+			attempted = true;
+			return response(200, '"promoted"');
+		},
+		async get() {
+			return { response: response(200, 'W/"weak"'), bytes: Buffer.from('{}') };
+		},
+	};
+	await assert.rejects(
+		promotePointer(
+			client,
+			{ key: 'runtime/translations/audacity/4/latest.json', pointer: { releaseId: '1' }, bytes: Buffer.from('{}'), etag: 'W/"weak"' },
+			{ schemaVersion: 1, releaseId: '123' },
+			'https://translations.example.test/runtime/translations/audacity/4',
+			async () => {},
+		),
+		/weak validator/u,
+	);
+	assert.equal(attempted, false);
+});
+
+async function withR2Environment(run) {
+	const previous = { ...process.env };
+	Object.assign(process.env, {
+		R2_TRANSLATIONS_ACCESS_KEY_ID: 'test-access-key',
+		R2_TRANSLATIONS_SECRET_ACCESS_KEY: 'test-secret-key',
+		R2_TRANSLATIONS_ENDPOINT: 'https://example.eu.r2.cloudflarestorage.com/',
+		R2_TRANSLATIONS_BUCKET: 'soundscaper-translations',
+	});
+	delete process.env.R2_TRANSLATIONS_SESSION_TOKEN;
+	try {
+		await run();
+	} finally {
+		for (const key of Object.keys(process.env)) if (!(key in previous)) delete process.env[key];
+		Object.assign(process.env, previous);
+	}
+}
+
+async function withFetch(stub, run) {
+	const previous = globalThis.fetch;
+	globalThis.fetch = stub;
+	try {
+		return await run();
+	} finally {
+		globalThis.fetch = previous;
+	}
+}
 
 function response(status, etag) {
 	return { status, headers: new Headers(etag ? { etag } : {}) };
