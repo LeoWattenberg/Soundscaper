@@ -451,9 +451,11 @@ export class VideoPreviewCompositor {
 					effectRenderFailed = true;
 					continue;
 				}
+				// An entry presents its display geometry, which is what this browser
+				// decoded plus whatever of the pixel aspect ratio it left undone.
 				const viewports = videoPreviewViewports(
-					video.videoWidth,
-					video.videoHeight,
+					entry.displayWidth || video.videoWidth,
+					entry.displayHeight || video.videoHeight,
 					this.canvas.width,
 					this.canvas.height,
 					referenceWidth,

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { resolveVideoExportCanvas } from '../../video-export.js';
+
 import { resolveActiveVideoLayers, resolveVideoCompositionIntervals } from '../../video-timeline.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { createVideoPreviewCompositor } from '../video-preview-compositor.js';
+import { applyVideoPreviewDisplaySize } from './video-preview-display-size.ts';
 import { createVideoPreviewEffectBypass } from './video-preview-effect-bypass.ts';
 import { resolveVideoPreviewVisual } from './video-preview-visual.ts';
 
@@ -15,6 +17,8 @@ function createVideoPreviewCompositorEntry() {
 		video: null,
 		effects: EMPTY_VIDEO_EFFECT_STACK,
 		opacity: 0,
+		displayWidth: 0,
+		displayHeight: 0,
 	};
 }
 
@@ -23,6 +27,8 @@ function clearVideoPreviewCompositorEntry(entry) {
 	entry.video = null;
 	entry.effects = EMPTY_VIDEO_EFFECT_STACK;
 	entry.opacity = 0;
+	entry.displayWidth = 0;
+	entry.displayHeight = 0;
 }
 
 function clearVideoPreviewCompositorLayer(layer) {
@@ -95,6 +101,7 @@ function synchronizeVideoPreviewCompositorLayers(
 	timelineFrame,
 	videoElements,
 	videoEffectBypass,
+	displaySizes,
 ) {
 	const interval = findVideoPreviewTimelineInterval(timeline.intervals, timelineFrame);
 	if (!interval || interval.kind !== 'composition') {
@@ -136,6 +143,7 @@ function synchronizeVideoPreviewCompositorLayers(
 			targetLayer.entries[targetEntryCount] = targetEntry;
 			targetEntry.clipId = clip.clipId;
 			targetEntry.video = videoElements.get(clip.clipId) || null;
+			applyVideoPreviewDisplaySize(displaySizes, clip.source, targetEntry, targetEntry.video);
 			targetEntry.effects = videoEffectBypass.effectsFor(
 				clip.clipId,
 				clip.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK,
@@ -172,6 +180,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const compositorTimelineRef = useRef({ intervals: [], clipStateById: new Map(), maxLayerCount: 0 });
 	const renderOptionsRef = useRef({ referenceWidth: 1_280, referenceHeight: 720 });
 	const retiredVideoElementsRef = useRef([]);
+	const displaySizesRef = useRef(new Map());
 	const failedVideoSourcesRef = useRef(new Map());
 	const previewPositionSelectionRef = useRef({
 		gpuPlaying: false,
@@ -318,6 +327,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			timelineFrame,
 			videoElementsRef.current,
 			videoEffectBypass,
+			displaySizesRef.current,
 		);
 		if (layersSynchronized) {
 			releaseRetiredVideoPreviewElements(compositor, retiredVideoElementsRef.current);
