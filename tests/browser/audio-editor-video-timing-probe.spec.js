@@ -60,6 +60,20 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 				finalFrameDurationTicks: fixture.finalFrameDurationTicks.toString(),
 			});
 
+			// The same probe run reports what the source is, not only when its
+			// frames are; an unreported characteristic stays null rather than
+			// arriving as a plausible default.
+			expect(source.characteristics.backend).toBe('ffmpeg');
+			expect(source.characteristics.codedWidth).toBe(32);
+			expect(source.characteristics.codedHeight).toBe(24);
+			expect(source.characteristics.fieldOrder).toBe('progressive');
+			expect(source.characteristics.hasAlpha).toBe(false);
+			expect(source.characteristics.videoCodec).toMatch(/^(?:h264|vp8|vp9|av1)$/u);
+			expect(source.videoCodec).toBe(source.characteristics.videoCodec);
+			expect(source.characteristics.audioStreams).toBeNull();
+			expect(source.characteristics.extractedAudioStreamIndex).toBeNull();
+			expect(source.characteristics.startTimecode).toBeNull();
+
 			const timing = validateVideoTimingAssetBytes(
 				source.timingAsset,
 				Uint8Array.from(timingBytes),
@@ -76,6 +90,22 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 				expect(deltas.some((delta) => delta !== fixture.finalFrameDurationTicks)).toBe(true);
 			}
 		}
+
+		// The probed truth is legible in the product, not only in storage: place
+		// the imported picture on the timeline and read it under the playhead.
+		await editor.getByRole('button', { name: /^Add to timeline: /u }).first().click();
+		await expect(editor.locator('[data-source-timecode]')).not.toHaveAttribute('data-source-timecode', '');
+		await expect(editor.locator('[data-source-timecode]')).toHaveAttribute('data-source-origin', 'unknown');
+		await editor.getByRole('button', { name: 'Source properties', exact: true }).focus();
+		await page.keyboard.press('Enter');
+		const properties = page.getByRole('dialog', { name: 'Source properties', exact: true });
+		await expect(properties).toBeVisible();
+		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('32 × 24');
+		await expect(properties.locator('[data-source-property="Field order"] dd')).toHaveText('progressive');
+		await expect(properties.locator('[data-source-property="Source start timecode"] dd'))
+			.toHaveAttribute('data-reported', 'false');
+		await expect(properties.locator('[data-source-property="Video codec"] dd'))
+			.toHaveAttribute('data-reported', 'true');
 	});
 });
 

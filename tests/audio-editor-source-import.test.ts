@@ -84,8 +84,9 @@ export function createFixture() {
 	};
 	const extractor = {
 		metadata: { durationSeconds: 2, width: 1_920, height: 1_080 },
-		async capture(timestamp: number, captureOptions?: unknown) {
-			calls.push(`capture:${timestamp}:${captureOptions ? 'poster' : 'thumbnail'}`);
+		async capture(timestamp: number, captureOptions?: { maximumWidth?: number }) {
+			// The poster is the capture that carries its own geometry bound.
+			calls.push(`capture:${timestamp}:${captureOptions?.maximumWidth ? 'poster' : 'thumbnail'}`);
 			if (timestamp === 0 && options.posterSourceAdmissionFails) {
 				throw new VideoPreviewSourceGeometryTooLargeError(16_385, 1, 'exceeds the maximum width');
 			}

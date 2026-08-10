@@ -97,15 +97,6 @@ export function sampleAtSequenceTimecodeLabel(
 	return sequenceFrameBoundarySample(Math.max(0, count), view.rate, sampleRate);
 }
 
-/**
- * Label a clip's source position at the source's own rate. Until probing lands,
- * a source's timecode origin is zero rather than a fabricated reel start.
- */
-export function sourceFrameTimecodeLabel(sourceFrame: number, sourceRate: SequenceRationalRate): string {
-	const rate = rationalRate(sourceRate);
-	return formatSequenceTimecode(sequenceTimecodeFromFrameCount(sourceFrame, rate, false), rate, false);
-}
-
 function rationalRate(value: unknown): SequenceRationalRate {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('A sequence rate must be rational.');
 	const candidate = value as Record<string, unknown>;

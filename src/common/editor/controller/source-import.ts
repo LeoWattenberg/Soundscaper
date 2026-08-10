@@ -172,8 +172,13 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			}
 			const thumbnailTimes = audioEditorVideoThumbnailTimes(extractor.metadata.durationSeconds);
 			let sourcePreviewUnavailable = false;
+			const reportsAlpha = timingProbe.characteristics.hasAlpha === true;
 			try {
-				const poster = await extractor.capture(0, { maximumWidth: 640, maximumHeight: 360 });
+				const poster = await extractor.capture(0, {
+					maximumWidth: 640,
+					maximumHeight: 360,
+					alpha: reportsAlpha,
+				});
 				await savePreviewDerivative({
 					timestamp: 0,
 					type: 'poster',
@@ -190,7 +195,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			}
 			for (const timestamp of sourcePreviewUnavailable ? [] : thumbnailTimes) {
 				try {
-					const thumbnail = await extractor.capture(timestamp);
+					const thumbnail = await extractor.capture(timestamp, { alpha: reportsAlpha });
 					await savePreviewDerivative({
 						timestamp: thumbnail.timestampSeconds,
 						type: 'thumbnail',

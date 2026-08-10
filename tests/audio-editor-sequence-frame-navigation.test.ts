@@ -13,7 +13,6 @@ import {
 	resolveSequenceTimingView,
 	sampleAtSequenceTimecodeLabel,
 	sequenceTimecodeLabelAtSample,
-	sourceFrameTimecodeLabel,
 } from '../src/common/editor/sequence-timing-model.ts';
 
 const NTSC = { num: 30_000, den: 1_001 };
@@ -120,10 +119,4 @@ test('a start timecode offsets labels without moving a sample', () => {
 	}));
 	assert.equal(sequenceTimecodeLabelAtSample(view, 0, 48_000), '00:00:10:00');
 	assert.equal(sampleAtSequenceTimecodeLabel(view, '00:00:11:00', 48_000), 48_000);
-});
-
-test('source positions label at the source rate from a zero origin', () => {
-	assert.equal(sourceFrameTimecodeLabel(0, FILM), '00:00:00:00');
-	assert.equal(sourceFrameTimecodeLabel(49, FILM), '00:00:02:01');
-	assert.equal(sourceFrameTimecodeLabel(30, NTSC), '00:00:01:00');
 });

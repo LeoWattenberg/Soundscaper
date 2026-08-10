@@ -100,6 +100,9 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 		]);
 		const request = Object.freeze({
 			capturePlan,
+			// A source that reports an alpha channel keeps it; without that
+			// report the canvas stays opaque rather than assuming transparency.
+			alpha: captureOptions.alpha === true,
 			mimeType: String(captureOptions.mimeType || 'image/webp'),
 			quality: Math.max(0, Math.min(1, Number(captureOptions.quality ?? 0.78))),
 			signal: abortScope.signal,
@@ -122,7 +125,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 	async function captureFrame(request) {
 		throwIfCaptureAborted(request.signal);
 		if (disposed) throw new Error('The video frame extractor is closed.');
-		const { capturePlan, mimeType, quality, signal, timeoutMs, timestamp } = request;
+		const { alpha, capturePlan, mimeType, quality, signal, timeoutMs, timestamp } = request;
 		// `loadedmetadata` can fire before the decoder has presented the first
 		// frame. Seeking to a nearby time forces the browser to populate the
 		// video frame before canvas capture, including for the timestamp-zero
@@ -143,7 +146,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 		const canvas = document.createElement('canvas');
 		canvas.width = capturePlan.outputWidth;
 		canvas.height = capturePlan.outputHeight;
-		const context = canvas.getContext?.('2d', { alpha: false });
+		const context = canvas.getContext?.('2d', { alpha });
 		if (!context?.drawImage) throw new Error('Canvas video-frame capture is unavailable.');
 		context.drawImage(video, 0, 0, capturePlan.outputWidth, capturePlan.outputHeight);
 		const blob = await canvasToBlob(canvas, mimeType, quality);

@@ -12,7 +12,12 @@ import {
 	resolveSequenceTimingView,
 	sequenceTimecodeLabelAtSample,
 } from '../../sequence-timing-model.ts';
+import {
+	resolveInspectedVideoSource,
+	resolveSourceTimecodeAtSample,
+} from '../../source-properties-model.ts';
 import { AudacityToolbarFlyoutButton } from './AudioEditorMeterControls.jsx';
+import { SourcePropertiesPanel } from './SourcePropertiesPanel.jsx';
 
 const RATE_PRESETS = Object.freeze([
 	{ id: '24000/1001', label: '23.976', rate: { num: 24_000, den: 1_001 } },
@@ -33,6 +38,14 @@ export function SequenceTimingControls({ project, snapshot, telemetry, controlle
 	const positionFrame = Math.max(0, telemetry.positionFrame || 0);
 	const disabled = snapshot.readOnly || snapshot.recording;
 	const label = sequenceTimecodeLabelAtSample(view, positionFrame, sampleRate);
+	const sourceReading = useMemo(
+		() => resolveSourceTimecodeAtSample(project, positionFrame, view.id),
+		[project, positionFrame, view.id],
+	);
+	const inspectedSource = useMemo(
+		() => resolveInspectedVideoSource(project, positionFrame, view.id),
+		[project, positionFrame, view.id],
+	);
 	const [invalid, setInvalid] = useState(false);
 	const inputRef = useRef(null);
 	// The field is uncontrolled so a playhead or project update cannot clobber
@@ -102,6 +115,24 @@ export function SequenceTimingControls({ project, snapshot, telemetry, controlle
 				role="alert"
 			>{copy.sequenceTimecodeInvalid}</p>}
 		</div>
+		<div
+			className="kw-audio-editor__source-timecode"
+			data-source-timecode={sourceReading ? sourceReading.label : ''}
+			data-source-origin={sourceReading && sourceReading.originReported ? 'probed' : 'unknown'}
+		>
+			<span className="kw-audio-editor__visually-hidden">{copy.sequenceSourceTimecode}</span>
+			<output aria-label={copy.sequenceSourceTimecode}>{sourceReading ? sourceReading.label : '—'}</output>
+			{sourceReading && !sourceReading.originReported
+				&& <span className="kw-audio-editor__source-timecode-note">{copy.sourceOriginUnknown}</span>}
+		</div>
+		<AudacityToolbarFlyoutButton
+			icon={iconNameToChar('INFO')}
+			ariaLabel={copy.sourceProperties}
+			flyoutClassName="kw-audio-editor__source-properties-flyout"
+			overlayPortal
+		>
+			<SourcePropertiesPanel source={inspectedSource} copy={copy} />
+		</AudacityToolbarFlyoutButton>
 		<AudacityToolbarFlyoutButton
 			icon={iconNameToChar('VIDEO')}
 			ariaLabel={copy.sequenceTiming}
