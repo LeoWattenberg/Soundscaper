@@ -90,7 +90,9 @@ test.describe('3B-2b source display geometry qualification', () => {
 		page,
 	}) => {
 		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
-		test.setTimeout(180_000);
+		// The export runs the production FFmpeg core, which competes for CPU with
+		// every other worker when the whole suite runs.
+		test.setTimeout(300_000);
 
 		const editor = await openFramescaper(page);
 		await editor.locator('[data-import-input]').setInputFiles([ROTATED_ANAMORPHIC.file]);
@@ -99,14 +101,20 @@ test.describe('3B-2b source display geometry qualification', () => {
 		}).toBe(1);
 		await addToTimeline(editor, ROTATED_ANAMORPHIC);
 
+		// The direct route writes the finished file straight to its target and
+		// publishes no download, so the target is where the exported bytes are.
+		await installVideoSaveTarget(page);
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
 		await exportDialog.locator('[data-export-action="start"]').getByRole('button').click();
-		const download = exportDialog.locator('[data-export-download]');
-		await expect(download).toBeVisible({ timeout: 120_000 });
+		await expect.poll(
+			() => page.evaluate(() => globalThis.__videoSaveTarget.closes),
+			{ timeout: 240_000 },
+		).toBe(1);
 
-		const rendered = await download.evaluate(async (link) => {
-			const url = URL.createObjectURL(await (await fetch(link.href)).blob());
+		const rendered = await page.evaluate(async () => {
+			const state = globalThis.__videoSaveTarget;
+			const url = URL.createObjectURL(new Blob(state.chunks, { type: 'video/mp4' }));
 			const video = document.createElement('video');
 			video.muted = true;
 			video.playsInline = true;
@@ -147,6 +155,8 @@ test.describe('3B-2b source display geometry qualification', () => {
 				const insetX = Math.round(canvas.width / 4);
 				const insetY = Math.round(canvas.height / 4);
 				return {
+					fileName: state.fileName,
+					byteLength: state.chunks.reduce((total, chunk) => total + chunk.byteLength, 0),
 					width: video.videoWidth,
 					height: video.videoHeight,
 					topLeft: quadrant(insetX, insetY),
@@ -166,6 +176,8 @@ test.describe('3B-2b source display geometry qualification', () => {
 		// A quarter turn counter-clockwise carries the source's top right corner
 		// to the top left. The export declares no rotation of its own, so this is
 		// what a player shows without turning the picture a second time.
+		expect(rendered.fileName).toMatch(/\.mp4$/u);
+		expect(rendered.byteLength).toBeGreaterThan(0);
 		expect(rendered).toMatchObject({
 			topLeft: 'green',
 			topRight: 'white',
@@ -174,6 +186,31 @@ test.describe('3B-2b source display geometry qualification', () => {
 		});
 	});
 });
+
+/** Collect the bytes the direct export route writes to its prepared target. */
+async function installVideoSaveTarget(page) {
+	await page.evaluate(() => {
+		const state = { chunks: [], closes: 0, fileName: null };
+		globalThis.__videoSaveTarget = state;
+		Object.defineProperty(globalThis, 'showSaveFilePicker', {
+			configurable: true,
+			value: async (options) => {
+				state.fileName = options?.suggestedName ?? null;
+				return {
+					name: state.fileName,
+					createWritable: async () => ({
+						async write(chunk) {
+							const bytes = chunk instanceof Uint8Array ? chunk : new Uint8Array(await new Blob([chunk]).arrayBuffer());
+							state.chunks.push(bytes.slice());
+						},
+						async close() { state.closes += 1; },
+						async abort() {},
+					}),
+				};
+			},
+		});
+	});
+}
 
 async function addToTimeline(editor, fixture) {
 	const name = fixture.file.name.replace(/\.[^.]+$/u, '');
