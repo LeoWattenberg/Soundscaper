@@ -291,6 +291,9 @@ export function VideoTrackControls({
 	const controlsRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
 	const controlTabIndex = isFlatNavigation ? 0 : -1;
+	// Targeting is controller session state, so it is read through on each
+	// render; toggling it republishes and this reads the new answer.
+	const targeted = controller.actions.video.targets().videoTrackId === track.id;
 	const handleKeyDown = (event) => {
 		if (event.key === 'Tab') {
 			const controls = [...controlsRef.current.querySelectorAll('button:not([disabled]), input:not([disabled])')];
@@ -348,6 +351,20 @@ export function VideoTrackControls({
 				/>
 			</div>
 			<div className="audio-editor-video-track-controls__actions">
+				<button
+					type="button"
+					className="audio-editor-video-track-control"
+					data-track-action="target"
+					aria-pressed={targeted}
+					disabled={blocked}
+					tabIndex={controlTabIndex}
+					onClick={(event) => {
+						event.stopPropagation();
+						run(() => controller.actions.video.toggleTarget(track.id));
+					}}
+				>
+					{copy.editTarget}
+				</button>
 				<button
 					type="button"
 					className="audio-editor-video-track-control"

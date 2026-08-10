@@ -147,9 +147,12 @@ when the bin item is missing, or when the resolved range does not fit.
 
 ### S6 — The surfaces
 
-A targeting toggle on the track head beside the existing arm control
-(`ui/timeline/TrackControls.jsx:121-131`), and the insert and overwrite actions
-reachable by pointer and keyboard.
+A targeting toggle on the video track head, and insert and overwrite on the
+Project Bin card where the source is chosen. Both are focusable buttons, so
+both are reachable by pointer and by keyboard. Explicit targeting is offered on
+video lanes only: an audio lane is targeted through its lane group, and the
+service already supports toggling one directly for when the monitors add the
+affordance.
 
 ### S7 — Browser proof
 
@@ -179,6 +182,9 @@ schema, no capability register, and no compatibility rule.
 - No second implementation of lift or extract.
 - No trim tools, shuttle, or edit-point navigation (3B-4).
 - No multi-target editing: one video and one audio target per sequence.
+- No global edit shortcuts or application-menu entries; the affordances are
+  focusable controls beside the material they act on, and keyboard completeness
+  across the menu surface belongs with 3B-3b.
 - No audio-only three-point editing. The edit is driven by a bin item's video
   member, so the two domains are always source frames and sequence frames; an
   audio-only item would introduce a third rate pair and belongs with whatever

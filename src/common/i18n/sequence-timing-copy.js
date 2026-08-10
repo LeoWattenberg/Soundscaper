@@ -48,6 +48,9 @@ export const SEQUENCE_TIMING_COPY_BY_LOCALE = Object.freeze({
 		reprobeRefusedProbeUnavailable: 'Auch jetzt konnte keine exakte Zeitermittlung gelesen werden.',
 		reprobeRefusedTimingRegressed: 'Die exakte Zeitermittlung dieser Quelle wurde nicht reproduziert; nichts wurde ersetzt.',
 		reprobeFailed: 'Die Quelle konnte nicht neu eingelesen werden.',
+		editTarget: 'Ziel',
+		editInsert: 'Einfügen',
+		editOverwrite: 'Überschreiben',
 	}),
 	en: Object.freeze({
 		sequenceTiming: 'Sequence timing',
@@ -95,5 +98,8 @@ export const SEQUENCE_TIMING_COPY_BY_LOCALE = Object.freeze({
 		reprobeRefusedProbeUnavailable: 'No exact timing could be read this time either.',
 		reprobeRefusedTimingRegressed: 'This source\'s exact timing was not reproduced, so nothing was replaced.',
 		reprobeFailed: 'The source could not be re-read.',
+		editTarget: 'Target',
+		editInsert: 'Insert',
+		editOverwrite: 'Overwrite',
 	}),
 });

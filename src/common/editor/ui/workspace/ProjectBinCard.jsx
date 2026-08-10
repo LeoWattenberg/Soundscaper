@@ -193,6 +193,28 @@ export default function ProjectBinCard({
 					>
 						<Icon name="plus" size={15} />
 					</button>
+					{clip.kind === 'video' && <button
+						type="button"
+						className="kw-audio-editor__project-bin-icon-button"
+						data-bin-action="insert"
+						disabled={disabled}
+						aria-label={`${copy.editInsert}: ${name}`}
+						title={copy.editInsert}
+						onClick={() => run(() => controller.actions.video.insert({ binItemId: clip.binItemId || clip.id }))}
+					>
+						<Icon name="chevron-right" size={15} />
+					</button>}
+					{clip.kind === 'video' && <button
+						type="button"
+						className="kw-audio-editor__project-bin-icon-button"
+						data-bin-action="overwrite"
+						disabled={disabled}
+						aria-label={`${copy.editOverwrite}: ${name}`}
+						title={copy.editOverwrite}
+						onClick={() => run(() => controller.actions.video.overwrite({ binItemId: clip.binItemId || clip.id }))}
+					>
+						<Icon name="chevron-down" size={15} />
+					</button>}
 					<button
 						type="button"
 						className="kw-audio-editor__project-bin-icon-button"
