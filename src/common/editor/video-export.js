@@ -13,6 +13,10 @@ import {
 	isTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from './track-folder-media-runtime.ts';
+import {
+	resolveVideoSourceDisplaySize,
+	resolveVideoSourcePresentation,
+} from './video-source-presentation.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -68,6 +72,10 @@ export function getVideoExportFormat(format = 'mp4') {
  * Derive safe automatic canvas settings from the earliest visible timeline
  * video. Dimensions retain aspect ratio, never upscale, remain encoder-safe
  * even numbers, and fit within 1280x720 unless the caller narrows the limits.
+ *
+ * The reference is the source's display geometry rather than the size a
+ * particular decoder presented, so the same project renders the same canvas on
+ * every engine even where one of them ignores a pixel aspect ratio.
  */
 export function resolveVideoExportCanvas(project, options = {}) {
 	const runtimeProject = ensureRuntimeProject(project);
@@ -78,11 +86,12 @@ export function resolveVideoExportCanvas(project, options = {}) {
 		'maximumFrameRate',
 	);
 	const reference = firstVisibleTimelineVideo(runtimeProject, options);
+	const display = reference ? resolveVideoSourceDisplaySize(reference.source) : null;
 	const sourceWidth = optionalPositiveInteger(options.width, 'width')
-		?? optionalPositiveInteger(reference?.source.width, 'source.width')
+		?? optionalPositiveInteger(display?.width, 'source.width')
 		?? maximumWidth;
 	const sourceHeight = optionalPositiveInteger(options.height, 'height')
-		?? optionalPositiveInteger(reference?.source.height, 'source.height')
+		?? optionalPositiveInteger(display?.height, 'source.height')
 		?? maximumHeight;
 	const scale = Math.min(1, maximumWidth / sourceWidth, maximumHeight / sourceHeight);
 	const width = evenFloor(sourceWidth * scale);
@@ -139,6 +148,9 @@ export function createVideoExportPlan(project, options = {}) {
 					sourceId: clip.sourceId,
 					storageKey: clip.source.storageKey,
 					mimeType: clip.source.mimeType,
+					// Null states that this source is presented as it decodes, which
+					// is a different claim from having nothing to say about it.
+					presentation: resolveVideoSourcePresentation(clip.source),
 				}));
 			}
 		}
@@ -197,7 +209,7 @@ export function createVideoExportPlan(project, options = {}) {
 	const durationSeconds = range.durationFrames / projectSampleRate;
 
 	return deepFreeze({
-		version: 4,
+		version: 5,
 		format: format.id,
 		container: format.container,
 		extension: format.extension,

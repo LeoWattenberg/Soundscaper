@@ -28,6 +28,13 @@ probe matrix already qualifies.
 | M4 | Which way is a matrix printed as `rotation of 90.00 degrees` applied? | A quarter turn counter-clockwise, by FFmpeg's own autorotation and by Firefox alike — the 270° clockwise value 3B-2a persists, reproduced by `transpose=2`. |
 | M5 | Do browsers apply the pixel aspect ratio to `videoWidth`/`videoHeight`? | Chromium does; **Firefox does not**. The same anamorphic source presents 64x24 in one engine and 32x24 in the other. |
 | M6 | What does today's export graph do with a pixel aspect ratio? | Discards it: `scale=…:force_original_aspect_ratio=decrease` fits the coded frame and `setsar=1` drops the ratio, so an anamorphic source exports squeezed and letterboxed. |
+| M7 | What does an export decoded with `-noautorotate` write? | The input's display matrix, copied onto the encoded output stream — the rotation the graph just baked in is declared again, so every player turns the picture a second time. `-metadata:s:v:0 rotate=0` does not clear it; leaving autorotation on does. |
+
+M7 was found by running the product's own argument builder against the rotated
+anamorphic fixture and decoding what came out. It settles the shape of the fix:
+a render may not ask this build for coded frames, so it decodes the way FFmpeg
+decodes and applies what is left over. `-autorotate 1` parses, so the graph can
+state that decode rather than inherit it.
 
 M2 is a defect in what 3B-2a shipped, not a gap: a rotated phone clip persists a
 coded size that is really its presented size, so `resolveVideoDisplayGeometry`
@@ -70,10 +77,14 @@ Two things stay outside it:
    the same source differently are two different residuals against one geometry,
    not two geometries.
 3. **Each surface applies its own residual, and only its own.** The preview
-   applies what its browser did not; the export graph decodes the source itself,
-   so it disables autorotation and applies the whole coded→display transform.
-   Neither surface re-applies what its decoder already did, which is 3B-2a's
-   third contract carried forward rather than replaced.
+   applies what its browser did not. The export graph states the decode it was
+   planned against — autorotation on, which is how FFmpeg reads a display matrix
+   — and applies what that decode left: the pixel aspect ratio, stretched along
+   whichever axis the coded width landed on. It is a stretch and never a turn,
+   because a graph that turns frames itself must first ask for coded frames, and
+   this build then declares the rotation it baked in (M7). Neither surface
+   re-applies what its decoder already did, which is 3B-2a's third contract
+   carried forward rather than replaced.
 4. **The export canvas comes from display geometry, not from a decoder.** The
    canvas that both the export and the preview reference is derived from the
    source's display geometry, so the same project renders the same frames on
@@ -116,10 +127,11 @@ coverage uses the captured log text of a rotated source.
 
 ### S3 — The presentation a graph must apply
 
-`video-source-presentation.ts`: from characteristics and a presented size,
-derive the ordered operations that carry coded frames to display geometry — the
-pixel-aspect scale, then the rotation — plus the display size they produce and
-the residual a browser decoder still owes. Pure module, table-driven tests.
+`video-source-presentation.ts`: from characteristics and the size the decoder
+presented, derive what a render that decodes the container itself still owes,
+and correct the residual axis in `video-display-geometry.ts` — a decoder that
+turned the frame moved the coded width to the vertical, so the stretch goes with
+it. Pure modules, table-driven tests.
 
 ### S4 — The canvas and the plan
 
@@ -128,9 +140,9 @@ carries a per-input presentation at version 5.
 
 ### S5 — The graph applies it
 
-`buildVideoFfmpegArgs` emits `-noautorotate` for every input that carries a
-presentation and inserts the presentation chain ahead of the branch allocator,
-so both the sequential and layered graphs inherit it once per input.
+`buildVideoFfmpegArgs` states `-autorotate 1` for every version-5 video input
+and inserts the presentation chain ahead of the branch allocator, so both the
+sequential and layered graphs inherit it once per input.
 
 ### S6 — The preview closes its own gap
 

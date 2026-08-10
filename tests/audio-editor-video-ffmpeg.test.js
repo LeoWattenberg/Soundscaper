@@ -508,6 +508,75 @@ async function waitFor(predicate) {
 	throw new Error('Timed out waiting for the video FFmpeg runtime fixture.');
 }
 
+test('a presented input states its decode and closes the residual once', () => {
+	const plan = presentedMp4Plan();
+	const args = buildVideoFfmpegArgs(plan, {
+		videoInputPaths: { shared: '/stage/rotated.mp4' },
+	}, 'output.mp4');
+
+	assert.deepEqual(args.slice(0, 4), ['-autorotate', '1', '-i', '/stage/rotated.mp4']);
+	const graph = args[args.indexOf('-filter_complex') + 1];
+	assert.ok(graph.startsWith(
+		'[0:v:0]scale=w=24:h=64,setsar=1[video_input_0_presented];'
+		+ '[video_input_0_presented]split=3',
+	), graph);
+	assert.equal(graph.includes('[0:v:0]trim'), false, 'no clip may read the unpresented input');
+});
+
+test('a version-5 input without a residual still states the decode it was planned against', () => {
+	const plan = presentedMp4Plan();
+	plan.inputs[0].presentation = null;
+	const args = buildVideoFfmpegArgs(plan, {
+		videoInputPaths: { shared: '/stage/rotated.mp4' },
+	}, 'output.mp4');
+	assert.deepEqual(args.slice(0, 4), ['-autorotate', '1', '-i', '/stage/rotated.mp4']);
+	assert.ok(args[args.indexOf('-filter_complex') + 1].startsWith('[0:v:0]split=3'));
+});
+
+test('an older plan version is presented exactly as its decoder decodes it', () => {
+	const plan = presentedMp4Plan();
+	plan.version = 2;
+	const args = buildVideoFfmpegArgs(plan, {
+		videoInputPaths: { shared: '/stage/rotated.mp4' },
+	}, 'output.mp4');
+	assert.deepEqual(args.slice(0, 2), ['-i', '/stage/rotated.mp4']);
+	assert.equal(args[args.indexOf('-filter_complex') + 1].includes('_presented'), false);
+});
+
+test('a presentation that would double-apply or apply nothing is rejected', () => {
+	const withPresentation = (presentation) => {
+		const plan = presentedMp4Plan();
+		plan.inputs[0].presentation = presentation;
+		return () => buildVideoFfmpegArgs(plan, { videoInputPaths: { shared: '/stage/a.mp4' } }, 'out.mp4');
+	};
+	const base = {
+		autorotate: true,
+		sampleAspect: { num: 2, den: 1 },
+		decodedWidth: 24,
+		decodedHeight: 32,
+		scaledWidth: 24,
+		scaledHeight: 64,
+	};
+	assert.throws(withPresentation({ ...base, autorotate: false }), /autorotate must be true/);
+	assert.throws(withPresentation({ ...base, scaledHeight: 32 }), /must state a stretch/);
+	assert.throws(withPresentation({ ...base, sampleAspect: null }), /sampleAspect\.num/);
+	assert.throws(withPresentation({ ...base, scaledWidth: 0 }), /scaledWidth must be a positive safe integer/);
+});
+
+function presentedMp4Plan() {
+	const plan = reusedSourceMp4Plan();
+	plan.version = 5;
+	plan.inputs[0].presentation = {
+		autorotate: true,
+		sampleAspect: { num: 2, den: 1 },
+		decodedWidth: 24,
+		decodedHeight: 32,
+		scaledWidth: 24,
+		scaledHeight: 64,
+	};
+	return plan;
+}
+
 function webmPlan() {
 	return {
 		version: 1,

@@ -11,14 +11,14 @@ import {
 } from './video-source-characteristics.ts';
 
 /**
- * What a renderer that decodes the source itself must apply to reach the
- * source's display geometry.
+ * What an FFmpeg render still owes a source after FFmpeg's own decode.
  *
- * A browser hands a surface frames it has already turned and stretched, so that
- * surface owes only the residual `resolveVideoDisplayGeometry` reports. A
- * renderer holding the container instead decodes coded frames — with
- * autorotation disabled, so that stays true — and owes the whole transform: the
- * pixel aspect ratio along the coded width, then the rotation.
+ * FFmpeg is a decoder like any other, so it closes part of the distance to the
+ * source's display geometry by itself: it applies the container display matrix
+ * and it ignores the pixel aspect ratio. The residual is therefore a stretch
+ * and never a turn, which is the only shape a render may apply — asking FFmpeg
+ * for unrotated frames instead makes it copy the input's display matrix onto
+ * the encoded output, so every player would turn the baked-in rotation again.
  *
  * Nothing is applied to geometry the probe and the decoder could not reconcile.
  * A probe that contradicts the decoder is disclosed, never promoted to truth.
@@ -30,56 +30,54 @@ export interface VideoSourceSampleAspect {
 }
 
 export interface VideoSourcePresentation {
-	/** Coded frames are the contract: the caller must disable decoder autorotation. */
-	readonly autorotate: false;
-	readonly codedWidth: number;
-	readonly codedHeight: number;
-	readonly sampleAspect: VideoSourceSampleAspect | null;
+	/** The decode applies the display matrix, so the render must not turn frames again. */
+	readonly autorotate: true;
+	readonly decodedWidth: number;
+	readonly decodedHeight: number;
+	readonly sampleAspect: VideoSourceSampleAspect;
 	readonly scaledWidth: number;
 	readonly scaledHeight: number;
-	readonly rotationDegrees: number;
-	readonly displayWidth: number;
-	readonly displayHeight: number;
 }
 
 const QUARTER_TURNS = new Set([90, 270]);
 
 /**
- * Resolve the presentation a persisted video source needs, or null when a
- * decoder may simply present what it decodes.
+ * Resolve the presentation a persisted video source needs from a render that
+ * decodes the container itself, or null when the decode already presents the
+ * source's display geometry.
  */
 export function resolveVideoSourcePresentation(source: unknown): VideoSourcePresentation | null {
 	const presented = videoSourcePresentedSize(source);
 	if (!presented) return null;
 	const characteristics = readCharacteristics(source);
 	if (!characteristics) return null;
-	const geometry = resolveVideoDisplayGeometry(characteristics, presented);
-	if (geometry.reconciliation !== 'applied' && geometry.reconciliation !== 'residual') return null;
+	// The decoder that produced the persisted size stays the authority: geometry
+	// it contradicts is disclosed by the properties surface, never re-applied.
+	const reconciled = resolveVideoDisplayGeometry(characteristics, presented).reconciliation;
+	if (reconciled !== 'applied' && reconciled !== 'residual') return null;
 	const codedWidth = characteristics.codedWidth;
 	const codedHeight = characteristics.codedHeight;
 	if (codedWidth == null || codedHeight == null) return null;
-	const ratio = characteristics.pixelAspectRatio;
-	const aspect = ratio && ratio.num !== ratio.den ? ratio : null;
-	const rotationDegrees = characteristics.rotationDegrees ?? 0;
-	if (!aspect && rotationDegrees === 0) return null;
-	// Scaling one axis keeps the frame small; the ratios FFmpeg reports are
-	// already reduced, so the rounded width is exact for every ratio that
-	// divides the coded width, and within a pixel otherwise.
-	const scaledWidth = aspect
-		? Math.max(1, Math.round((codedWidth * aspect.num) / aspect.den))
-		: codedWidth;
+	const turned = QUARTER_TURNS.has(characteristics.rotationDegrees ?? 0);
+	const decodedWidth = turned ? codedHeight : codedWidth;
+	const decodedHeight = turned ? codedWidth : codedHeight;
+	const geometry = resolveVideoDisplayGeometry(characteristics, {
+		width: decodedWidth,
+		height: decodedHeight,
+	});
+	const aspect = characteristics.pixelAspectRatio;
+	if (geometry.reconciliation !== 'residual' || !aspect) return null;
+	const scaledWidth = Math.max(1, Math.round(decodedWidth * geometry.residualScaleX));
+	const scaledHeight = Math.max(1, Math.round(decodedHeight * geometry.residualScaleY));
 	if (scaledWidth > VIDEO_SOURCE_MAXIMUM_CODED_DIMENSION) return null;
-	const turned = QUARTER_TURNS.has(rotationDegrees);
+	if (scaledHeight > VIDEO_SOURCE_MAXIMUM_CODED_DIMENSION) return null;
 	return Object.freeze({
-		autorotate: false as const,
-		codedWidth,
-		codedHeight,
-		sampleAspect: aspect ? Object.freeze({ num: aspect.num, den: aspect.den }) : null,
+		autorotate: true as const,
+		decodedWidth,
+		decodedHeight,
+		sampleAspect: Object.freeze({ num: aspect.num, den: aspect.den }),
 		scaledWidth,
-		scaledHeight: codedHeight,
-		rotationDegrees,
-		displayWidth: turned ? codedHeight : scaledWidth,
-		displayHeight: turned ? scaledWidth : codedHeight,
+		scaledHeight,
 	});
 }
 

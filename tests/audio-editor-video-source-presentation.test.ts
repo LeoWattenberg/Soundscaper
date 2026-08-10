@@ -27,52 +27,55 @@ function source(width: number, height: number, characteristics: Record<string, u
 	};
 }
 
-test('a square-pixel unrotated source needs no presentation at all', () => {
+test('a decode that already presents the display geometry is owed nothing', () => {
 	assert.equal(resolveVideoSourcePresentation(source(1_920, 1_080, {
 		codedWidth: 1_920,
 		codedHeight: 1_080,
 		rotationDegrees: 0,
 		pixelAspectRatio: { num: 1, den: 1 },
 	})), null);
+	assert.equal(resolveVideoSourcePresentation(source(1_080, 1_920, {
+		codedWidth: 1_920,
+		codedHeight: 1_080,
+		rotationDegrees: 90,
+	})), null, 'the decode applies the display matrix itself');
 	assert.equal(resolveVideoSourcePresentation(source(1_920, 1_080, null)), null);
 });
 
-test('an anamorphic source stretches its coded width and stays unturned', () => {
-	const presentation = resolveVideoSourcePresentation(source(1_024, 576, {
+test('an anamorphic source is owed the stretch its decode ignored', () => {
+	assert.deepEqual(resolveVideoSourcePresentation(source(1_024, 576, {
 		codedWidth: 720,
 		codedHeight: 576,
 		pixelAspectRatio: { num: 64, den: 45 },
-	}));
-	assert.deepEqual(presentation, {
-		autorotate: false,
-		codedWidth: 720,
-		codedHeight: 576,
+	})), {
+		autorotate: true,
+		decodedWidth: 720,
+		decodedHeight: 576,
 		sampleAspect: { num: 64, den: 45 },
 		scaledWidth: 1_024,
 		scaledHeight: 576,
-		rotationDegrees: 0,
-		displayWidth: 1_024,
-		displayHeight: 576,
 	});
 });
 
-test('a quarter turn swaps the display axes after the stretch, not before', () => {
-	const presentation = resolveVideoSourcePresentation(source(24, 64, {
+test('a turned decode carries the stretch to the axis the coded width landed on', () => {
+	assert.deepEqual(resolveVideoSourcePresentation(source(24, 64, {
 		codedWidth: 32,
 		codedHeight: 24,
 		rotationDegrees: 270,
 		pixelAspectRatio: { num: 2, den: 1 },
-	}));
-	assert.equal(presentation?.scaledWidth, 64);
-	assert.equal(presentation?.scaledHeight, 24);
-	assert.equal(presentation?.displayWidth, 24);
-	assert.equal(presentation?.displayHeight, 64);
-	assert.equal(presentation?.rotationDegrees, 270);
+	})), {
+		autorotate: true,
+		decodedWidth: 24,
+		decodedHeight: 32,
+		sampleAspect: { num: 2, den: 1 },
+		scaledWidth: 24,
+		scaledHeight: 64,
+	});
 });
 
-test('a presentation is resolved from the same probe even where a decoder ignored it', () => {
-	// Chromium presents 24x64 and Firefox 24x32 for one rotated anamorphic
-	// source. The renderer that decodes the container owes the same transform.
+test('the residual is the same wherever the browser stopped', () => {
+	// Chromium presents 24x64 for this source and Firefox 24x32, but the render
+	// that decodes the container is owed the same stretch either way.
 	const characteristics = {
 		codedWidth: 32,
 		codedHeight: 24,
@@ -87,13 +90,13 @@ test('a presentation is resolved from the same probe even where a decoder ignore
 
 test('geometry the decoder contradicts is never applied by a second renderer', () => {
 	assert.equal(resolveVideoSourcePresentation(source(640, 640, {
-		codedWidth: 1_920,
-		codedHeight: 1_080,
-		rotationDegrees: 90,
+		codedWidth: 720,
+		codedHeight: 576,
+		pixelAspectRatio: { num: 64, den: 45 },
 	})), null);
 	assert.equal(resolveVideoSourcePresentation(source(1_920, 1_080, {
-		rotationDegrees: 90,
-	})), null, 'an unreported coded size cannot anchor a rotation');
+		pixelAspectRatio: { num: 64, den: 45 },
+	})), null, 'an unreported coded size cannot anchor a stretch');
 });
 
 test('a stretch beyond the coded dimension bound is refused rather than emitted', () => {

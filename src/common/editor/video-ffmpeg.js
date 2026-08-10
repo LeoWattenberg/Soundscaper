@@ -38,6 +38,10 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output, options = {}) {
 			path = mappedValue(videoInputPaths, input.sourceId);
 			if (path == null) throw new ReferenceError(`Missing staged video input for source ${input.sourceId}.`);
 			path = nonEmptyString(path, `video input ${input.sourceId}`);
+			// State the decode this graph was planned against instead of inheriting
+			// a build default: every presentation is the residual left after FFmpeg
+			// has applied the container display matrix itself.
+			if (normalized.version >= 5) inputArgs.push('-autorotate', '1');
 		} else {
 			if (audioInputPath == null) throw new ReferenceError('Missing staged audio mix input.');
 			path = nonEmptyString(audioInputPath, 'audio input');
@@ -291,9 +295,21 @@ function createVideoInputBranchAllocator(plan, filters, inputIndexes) {
 	}
 
 	const branchLabels = new Map();
+	const sourceLabels = new Map();
 	for (const input of plan.inputs) {
 		if (input.kind !== 'video-source') continue;
 		const useCount = useCounts.get(input.inputIndex) || 0;
+		let sourceLabel = `${input.inputIndex}:v:0`;
+		// The presentation carries coded frames to display geometry once per
+		// input, ahead of any branch, so every clip of a source shares it.
+		if (input.presentation && useCount > 0) {
+			const presentedLabel = `video_input_${input.inputIndex}_presented`;
+			filters.push(
+				`[${sourceLabel}]${videoPresentationFilters(input.presentation).join(',')}[${presentedLabel}]`,
+			);
+			sourceLabel = presentedLabel;
+			sourceLabels.set(input.inputIndex, sourceLabel);
+		}
 		if (useCount <= 1) continue;
 		const labels = Array.from(
 			{ length: useCount },
@@ -301,7 +317,7 @@ function createVideoInputBranchAllocator(plan, filters, inputIndexes) {
 		);
 		branchLabels.set(input.inputIndex, labels);
 		filters.push(
-			`[${input.inputIndex}:v:0]split=${useCount}`
+			`[${sourceLabel}]split=${useCount}`
 			+ labels.map((label) => `[${label}]`).join(''),
 		);
 	}
@@ -309,13 +325,48 @@ function createVideoInputBranchAllocator(plan, filters, inputIndexes) {
 	const nextBranchIndexes = new Map();
 	return (inputIndex) => {
 		const labels = branchLabels.get(inputIndex);
-		if (!labels) return `${inputIndex}:v:0`;
+		if (!labels) return sourceLabels.get(inputIndex) ?? `${inputIndex}:v:0`;
 		const branchIndex = nextBranchIndexes.get(inputIndex) || 0;
 		const label = labels[branchIndex];
 		if (!label) throw new RangeError(`Video input ${inputIndex} has too many filter branches.`);
 		nextBranchIndexes.set(inputIndex, branchIndex + 1);
 		return label;
 	};
+}
+
+/**
+ * The chain that closes the distance FFmpeg's own decode left: the pixel aspect
+ * ratio the decoder ignored, stretched along whichever axis carries the coded
+ * width once the display matrix has been applied.
+ */
+function videoPresentationFilters(presentation) {
+	return [`scale=w=${presentation.scaledWidth}:h=${presentation.scaledHeight}`, 'setsar=1'];
+}
+
+function normalizeVideoInputPresentation(value, name) {
+	if (value == null) return null;
+	if (typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
+	if (value.autorotate !== true) {
+		throw new TypeError(`${name}.autorotate must be true: the decode applies the display matrix.`);
+	}
+	const decodedWidth = positiveSafeInteger(value.decodedWidth, `${name}.decodedWidth`);
+	const decodedHeight = positiveSafeInteger(value.decodedHeight, `${name}.decodedHeight`);
+	const scaledWidth = positiveSafeInteger(value.scaledWidth, `${name}.scaledWidth`);
+	const scaledHeight = positiveSafeInteger(value.scaledHeight, `${name}.scaledHeight`);
+	if (scaledWidth === decodedWidth && scaledHeight === decodedHeight) {
+		throw new RangeError(`${name} must state a stretch the decode did not already apply.`);
+	}
+	return Object.freeze({
+		autorotate: true,
+		decodedWidth,
+		decodedHeight,
+		sampleAspect: Object.freeze({
+			num: positiveSafeInteger(value.sampleAspect?.num, `${name}.sampleAspect.num`),
+			den: positiveSafeInteger(value.sampleAspect?.den, `${name}.sampleAspect.den`),
+		}),
+		scaledWidth,
+		scaledHeight,
+	});
 }
 
 function opacityExpression(start, end, durationSeconds) {
@@ -333,7 +384,7 @@ function normalizeVideoExportPlan(plan) {
 	if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
 		throw new TypeError('Expected a video export plan.');
 	}
-	if (plan.version !== 1 && plan.version !== 2 && plan.version !== 3 && plan.version !== 4) {
+	if (![1, 2, 3, 4, 5].includes(plan.version)) {
 		throw new RangeError(`Unsupported video export plan version: ${plan.version}.`);
 	}
 	const descriptor = getVideoExportFormat(plan.format);
@@ -353,7 +404,18 @@ function normalizeVideoExportPlan(plan) {
 	}
 
 	if (!Array.isArray(plan.inputs)) throw new TypeError('Video export plan inputs must be an array.');
-	const inputs = [...plan.inputs].sort((left, right) => left.inputIndex - right.inputIndex);
+	const inputs = [...plan.inputs]
+		.sort((left, right) => left.inputIndex - right.inputIndex)
+		.map((input, index) => (input?.kind === 'video-source'
+			? {
+				...input,
+				// Only version 5 states a presentation; an older plan is presented
+				// exactly as its decoder decodes it.
+				presentation: plan.version >= 5
+					? normalizeVideoInputPresentation(input.presentation, `plan.inputs[${index}].presentation`)
+					: null,
+			}
+			: input));
 	const sourceInputIndexes = new Map();
 	let audioInput = null;
 	for (const [expectedIndex, input] of inputs.entries()) {
@@ -607,6 +669,14 @@ function nonNegativeInteger(value, name) {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number < 0) {
 		throw new RangeError(`${name} must be a non-negative safe integer.`);
+	}
+	return number;
+}
+
+function positiveSafeInteger(value, name) {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < 1) {
+		throw new RangeError(`${name} must be a positive safe integer.`);
 	}
 	return number;
 }
