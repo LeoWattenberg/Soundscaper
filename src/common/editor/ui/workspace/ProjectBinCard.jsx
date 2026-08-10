@@ -196,6 +196,17 @@ export default function ProjectBinCard({
 					{clip.kind === 'video' && <button
 						type="button"
 						className="kw-audio-editor__project-bin-icon-button"
+						data-bin-action="source-monitor"
+						disabled={unavailable}
+						aria-label={`${copy.sourceMonitorOpen}: ${name}`}
+						title={copy.sourceMonitorOpen}
+						onClick={() => run(() => controller.actions.video.sourceMonitor.open(clip.binItemId || clip.id))}
+					>
+						<Icon name="eye" size={15} />
+					</button>}
+					{clip.kind === 'video' && <button
+						type="button"
+						className="kw-audio-editor__project-bin-icon-button"
 						data-bin-action="insert"
 						disabled={disabled}
 						aria-label={`${copy.editInsert}: ${name}`}

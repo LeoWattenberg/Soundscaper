@@ -50,7 +50,7 @@ export default function WorkspacePanelDock({
 			&& (id !== 'markers' || timelineAnnotationsAvailable(snapshot))
 			&& panel.dock === dock
 			&& !(snapshot.preferences?.workspace?.activeId === 'video-editor'
-				&& (id === 'project-bin' || id === 'video-preview'))
+				&& (id === 'project-bin' || id === 'video-preview' || id === 'source-monitor'))
 			&& (id !== 'project-bin' || projectBinEffectivelyOpen)
 			&& (id !== 'video-preview' || snapshot.project?.tracks?.some((track) => (
 				track.type === 'video' && track.clipIds?.length

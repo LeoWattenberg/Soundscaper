@@ -17,7 +17,7 @@ export default function VideoEditorWorkspacePanels({
 	onTogglePanel,
 	blocked,
 }) {
-	const panelIds = ['project-bin', 'video-preview'].filter((panelId) => (
+	const panelIds = ['project-bin', 'video-preview', 'source-monitor'].filter((panelId) => (
 		snapshot.preferences?.workspace?.panels?.[panelId]?.visible
 	));
 	if (!panelIds.length) return null;

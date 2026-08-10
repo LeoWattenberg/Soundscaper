@@ -58,6 +58,9 @@ const MODERN_TOOLBAR_BUTTONS = Object.freeze({
 export const DEFAULT_PANELS = Object.freeze({
 	'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
 	'video-preview': Object.freeze({ visible: true, dock: 'floating', order: 0, size: 560 }),
+	// The source monitor belongs to editing from a bin, so it is offered where
+	// that is the work and stays available but hidden everywhere else.
+	'source-monitor': Object.freeze({ visible: false, dock: 'floating', order: 1, size: 460 }),
 	history: Object.freeze({ visible: false, dock: 'right', order: 0, size: 320 }),
 	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
@@ -74,6 +77,7 @@ export const DEFAULT_PANELS = Object.freeze({
 export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
 	'project-bin': Object.freeze({ x: 24, y: 24, width: 380, height: 520 }),
 	'video-preview': Object.freeze({ x: 72, y: 40, width: 560, height: 390 }),
+	'source-monitor': Object.freeze({ x: 96, y: 72, width: 460, height: 420 }),
 	history: Object.freeze({ x: 24, y: 24, width: 360, height: 320 }),
 	labels: Object.freeze({ x: 48, y: 48, width: 360, height: 360 }),
 	metadata: Object.freeze({ x: 72, y: 72, width: 380, height: 360 }),
@@ -132,6 +136,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			...DEFAULT_PANELS,
 			'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
 			'video-preview': Object.freeze({ visible: true, dock: 'right', order: 0, size: 560 }),
+			'source-monitor': Object.freeze({ visible: true, dock: 'right', order: 1, size: 460 }),
 		}),
 	}),
 });

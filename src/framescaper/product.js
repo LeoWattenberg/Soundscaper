@@ -7,7 +7,7 @@ export const FRAMESCAPER_PROFILE = {
 	basePath: '/framescaper',
 	defaultWorkspace: 'video-editor',
 	enabledCommands: ['project', 'timeline', 'transport', 'audio-mix', 'video-basic', 'video-effects', 'video-compositing', 'export-audio', 'export-video'],
-	panels: ['project-bin', 'track-list', 'mixer', 'video-preview', 'video-effects', 'playback-meter'],
+	panels: ['project-bin', 'track-list', 'mixer', 'video-preview', 'source-monitor', 'video-effects', 'playback-meter'],
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
 	exportChoices: ['scape', 'audio', 'video', 'labels'],
 	shortcuts: { disabledCommandIds: ['record', 'generate', 'selection-effect', 'spectral-edit', 'analyze', 'manage-macros', 'nyquist-prompt'] },

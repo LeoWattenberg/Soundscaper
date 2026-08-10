@@ -13,6 +13,7 @@ export const ANALYZER_PANEL_ID_SET = new Set(ANALYZER_PANEL_IDS);
 export const WORKSPACE_PANEL_IDS = Object.freeze([
 	'project-bin',
 	'video-preview',
+	'source-monitor',
 	'history',
 	'labels',
 	'markers',
@@ -82,6 +83,7 @@ export function workspacePanelLabel(copy: EditorCopy, panelId: string): string {
 	const analyzerLabels: Record<string, string | undefined> = {
 		'project-bin': copy.panelProjectBin,
 		'video-preview': copy.panelVideoPreview,
+		'source-monitor': copy.panelSourceMonitor,
 		analysis: copy.analysisCommand,
 		spectrum: copy.plotSpectrum,
 		clipping: copy.findClipping,

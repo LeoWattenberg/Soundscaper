@@ -6,6 +6,7 @@ import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
 import { LabelManagerRow } from './LabelManagerRows.jsx';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
 import ProjectMetadataPanel from './ProjectMetadataPanel.tsx';
+import SourceMonitorPanel from './SourceMonitorPanel.jsx';
 import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
 import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
@@ -49,6 +50,17 @@ export default function WorkspacePanelContent({
 	}
 	if (panelId === 'video-preview') {
 		return <VideoPreviewPanel controller={controller} snapshot={snapshot} copy={copy} run={run} />;
+	}
+	if (panelId === 'source-monitor') {
+		return (
+			<SourceMonitorPanel
+				controller={controller}
+				snapshot={snapshot}
+				copy={copy}
+				run={run}
+				blocked={blocked}
+			/>
+		);
 	}
 	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
 		.find(([, candidatePanelId]) => candidatePanelId === panelId)?.[0];
