@@ -179,6 +179,10 @@ schema, no capability register, and no compatibility rule.
 - No second implementation of lift or extract.
 - No trim tools, shuttle, or edit-point navigation (3B-4).
 - No multi-target editing: one video and one audio target per sequence.
+- No audio-only three-point editing. The edit is driven by a bin item's video
+  member, so the two domains are always source frames and sequence frames; an
+  audio-only item would introduce a third rate pair and belongs with whatever
+  packet needs it.
 - No retiming; an inserted range plays at its own rate.
 
 ## Stop conditions
