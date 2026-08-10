@@ -261,6 +261,29 @@ test('nightly test staging admits only the exact optional registry-bound winldd 
 	assert.deepEqual(await readJson(join(fixture.outputRoot, 'stage-manifest.json')), withoutWinldd.manifest);
 });
 
+test('nightly test staging drops browser links that packaging cannot materialize', async (context) => {
+	const fixture = await createFixture(context);
+	await stageDesktopNightlyTests({
+		repositoryRoot: fixture.repositoryRoot,
+		outputRoot: fixture.outputRoot,
+		browserSourceRoot: fixture.browserSourceRoot,
+	});
+
+	const framework = join(fixture.outputRoot, '.local-browsers/webkit-103/WebKit.framework');
+	for (const kept of ['WebKit', 'Resources', 'Versions/Current']) {
+		assert.equal((await lstat(join(framework, kept))).isSymbolicLink(), true, kept);
+	}
+	assert.equal(
+		(await lstat(join(fixture.outputRoot, '.local-browsers/webkit-103/libalias'))).isSymbolicLink(),
+		true,
+	);
+	for (const dropped of ['Frameworks', 'Modules']) {
+		await assert.rejects(() => lstat(join(framework, dropped)), /ENOENT/u, dropped);
+	}
+	assert.equal((await lstat(join(framework, 'Versions/A/Frameworks'))).isDirectory(), true);
+	assert.equal((await lstat(join(framework, 'Versions/A/Modules/nested'))).isDirectory(), true);
+});
+
 test('nightly test staging refuses destructive or self-referential paths', async (context) => {
 	const fixture = await createFixture(context);
 	for (const [outputRoot, browserSourceRoot] of [
@@ -360,6 +383,16 @@ async function createFixture(context) {
 		await writeFixtureFile(browserSourceRoot, `${directory}/bin/runtime`, directory);
 	}
 	await symlink('bin/runtime', join(browserSourceRoot, 'webkit-103/libalias'));
+	const framework = join(browserSourceRoot, 'webkit-103/WebKit.framework');
+	await writeFixtureFile(framework, 'Versions/A/WebKit', 'fixture');
+	await writeFixtureFile(framework, 'Versions/A/Resources/Info.plist', 'fixture');
+	for (const hollow of ['Versions/A/Frameworks', 'Versions/A/Modules/nested']) {
+		await mkdir(join(framework, hollow), { recursive: true });
+	}
+	await symlink('A', join(framework, 'Versions/Current'));
+	for (const name of ['WebKit', 'Resources', 'Frameworks', 'Modules']) {
+		await symlink(`Versions/Current/${name}`, join(framework, name));
+	}
 	return { temporaryRoot, repositoryRoot, outputRoot, browserSourceRoot };
 }
 
