@@ -30,7 +30,11 @@ export type ThreePointEditRefusal =
 	/** A resolved range keeps no frames. */
 	| 'empty-range'
 	/** A resolved source range asks for media the source does not contain. */
-	| 'source-out-of-bounds';
+	| 'source-out-of-bounds'
+	/** Nothing was chosen to edit from. */
+	| 'no-source'
+	/** No lane was targeted to receive the edit. */
+	| 'no-target';
 
 export class ThreePointEditError extends Error {
 	readonly reason: ThreePointEditRefusal;

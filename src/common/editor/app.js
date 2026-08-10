@@ -221,6 +221,8 @@ import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
 import { createSequenceTimingService } from './controller/sequence-timing-service.ts';
 import { createVideoSourceReprobeService } from './controller/video-source-reprobe-service.ts';
+import { createVideoEditService } from './controller/video-edit-service.ts';
+import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
@@ -941,6 +943,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		lifetime, getProject: () => project, editingBlocked, commit, publishProjectState,
 		getPositionFrames: () => engine.getPositionFrames(),
 		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
+	});
+	const videoEditService = createVideoEditService({
+		lifetime, getProject: getCommandProject, editingBlocked, commit, publishProjectState,
+		getSelectedTrackId: () => state.selectedTrackId,
+		prepareThreePointEditCommand: (commandProject, options) => (
+			prepareThreePointEditCommand(commandProject, options, createStableId)
+		),
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
 		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,
@@ -1775,7 +1784,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		videoSourceReprobeService,
+		videoEditService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;

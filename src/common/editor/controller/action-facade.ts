@@ -71,7 +71,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
-	timelineAnnotationService, trackFolderService, videoSourceReprobeService,
+	timelineAnnotationService, trackFolderService, videoEditService, videoSourceReprobeService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -186,6 +186,14 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 				commit: restricted('videoEffects', commitVideoEffectGesture),
 				cancel: restricted('videoEffects', cancelVideoEffectGesture),
 			}),
+			// Three-point editing from the Project Bin into the targeted lanes.
+			targets: (sequenceId: RuntimeValue) => videoEditService.targets(sequenceId),
+			toggleTarget: (trackId: RuntimeValue, sequenceId: RuntimeValue) => (
+				videoEditService.toggleTarget(trackId, sequenceId)
+			),
+			clearTargets: () => videoEditService.clearTargets(),
+			insert: (request: RuntimeValue) => videoEditService.insert(request),
+			overwrite: (request: RuntimeValue) => videoEditService.overwrite(request),
 			// Re-read an already-imported source: the same bytes, probed again by
 			// the current build, with every edit cut against the old grid conformed.
 			reprobeSource: (sourceId: RuntimeValue, options: RuntimeValue) => (
