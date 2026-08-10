@@ -304,6 +304,24 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'three-point-edit-resolution',
+		file: 'src/common/editor/three-point-edit.ts',
+		behavior: 'Three-point editing converts the duration of the fully specified pair once as an exact integer change of basis, point-rounded, then resolves the sequence range to absolute samples from the sequence origin.',
+		conversions: [
+			{ helper: 'roundRational', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
+		id: 'video-edit-service-points',
+		file: 'src/common/editor/controller/video-edit-service.ts',
+		behavior: 'The edit service resolves the time selection onto the sequence grid as point coordinates and maps the resolved source range once into source samples for the linked audio member.',
+		conversions: [
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'video-source-upgrade-conform',
 		file: 'src/common/editor/video-source-upgrade.ts',
 		behavior: 'Re-reading a source conforms each persisted clip boundary onto the corrected nominal grid as an exact integer change of basis, point-rounded, so both endpoints move independently rather than a duration being scaled.',

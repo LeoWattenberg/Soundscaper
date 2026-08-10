@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-01. Milestones are ordered by
+> Grounded against the repository on 2026-08-10. Milestones are ordered by
 > dependency and close only when their exit gates pass. They are not release-date
 > promises.
 
@@ -157,7 +157,6 @@ The following baseline exists and should not be re-planned:
 
 Known architectural constraints that drive later work:
 
-- video still lacks a rational sequence timebase and exact probed source timing;
 - browser video decode and automatic export remain limited in resolution,
   frame rate, codec coverage, and long-form scale;
 - browser storage remains quota- and eviction-bound;
@@ -174,7 +173,7 @@ Known architectural constraints that drive later work:
 | --- | --- | --- |
 | 1. Baseline contracts | **In progress — external qualification** | Close reproducible quality qualification. |
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
-| 3. Editorial foundations | **Planned** | Add professional time, arrangement, and editorial models. |
+| 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **Planned** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **Planned** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Planned** | Add professional masters, queues, exchange, and archives. |
@@ -207,8 +206,9 @@ evidence lives in the owning policies linked above.
    for the Web Core release guarantee.
 
 These are qualification-environment tasks, not a reason for an agent without
-that environment to keep expanding milestone-1 policy. In that case, proceed to
-the actionable milestone-2 priorities while leaving these gates provisional.
+that environment to keep expanding milestone-1 policy. In that case, proceed
+to the actionable milestone-2 and milestone-3 priorities while leaving these
+gates provisional.
 
 Do not add new milestone-1 documentation frameworks. Extend the existing
 machine-readable inventories only when a later milestone introduces a genuinely
@@ -245,8 +245,9 @@ products before adding new editorial models or native engines.
   bounded archive validation; transactional import; and desktop range-based
   `.scape` opening without a final renderer-sized archive `Blob`.
 - **Web Core — Implemented (provisional):** installable verified application
-  shells and an explicit verified FFmpeg runtime cache with rollback.
-  Browser/device qualification is tracked by `m2-browser-durability-matrix`.
+  shells and an explicit verified FFmpeg runtime cache with rollback. Safari
+  qualification stays with the milestone-1 release gates; scope revision 2
+  defers WebKit.
 - **Shared — Implemented for current surfaces:** bounded retained-media writes,
   content digests, derivative-cache policy, cleanup fencing, storage-capacity UI,
   and safe project-publication admission.
@@ -284,29 +285,21 @@ update an item's status only after its listed acceptance conditions pass.
 
 ### Open closure items, in priority order
 
-#### 2.2 Compatibility completion
-
-The exact `m2-compatibility-less-capable-roundtrip` web workflow set is
-qualified in Chromium and Firefox, and its packaged product-pair workflow is
-qualified. WebKit qualification is deferred by scope revision 2, so that item
-and the feature-compatibility gate are implemented.
-
-`m2-compatibility-affected-objects` and `m2-compatibility-bypass` are already
-implemented. The implemented fallback role set is exactly
-`project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`, and
-`video-clip-render-v1`. Unknown features without one of those roles stay
-read-only and reported; milestone 2 does not require an invented bypass.
-
-#### 2.3 Durability and qualification closeout
-
 - `m2-electron-lease-matrix`
 
-All seven `m2-browser-durability-matrix` workflows are qualified in Chromium
-and Firefox; WebKit qualification is deferred by scope revision 2, so that
-item is implemented.
+Its eight lease workflows must pass for Soundscaper and Framescaper packages
+on the qualified `windows-x64` and `linux-x64` desktop targets with
+monotonically increasing fencing tokens and no losing writer publishing a
+project or managed-media descriptor; the exact workflow IDs and acceptance
+conditions are named in the inventory.
 
-Run the exact publication-path/fault combinations, browser workflows, packaged
-desktop workflows, and platform sets named in the inventory.
+The closed compatibility items fix the fallback role set at exactly
+`project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`,
+and `video-clip-render-v1`. Unknown features without one of those roles stay
+read-only and reported; milestone 2 does not require an invented bypass. The
+`m2-compatibility-less-capable-roundtrip` and `m2-browser-durability-matrix`
+workflow sets are qualified in Chromium and Firefox, with WebKit deferred by
+scope revision 2.
 
 ### Explicitly deferred or outside milestone 2
 
@@ -336,7 +329,13 @@ priority, dependency, or status changes.
 
 ## 3. Parallel editorial foundations
 
-**Depends on:** milestone 2 and a green canonical quality gate.
+**Builds on:** milestone 2 and a green canonical quality gate. Implementation
+proceeds while milestone 2's last lease-matrix evidence stays open, but
+milestone 3 cannot close first.
+
+**Status:** **In progress.** The serialized 3.0 foundation is complete and is
+the implementation baseline; the 3A and 3B product tracks run in parallel over
+it.
 
 **Goal:** establish professional time, arrangement, and editorial models before
 adding broader production surfaces.
@@ -349,38 +348,50 @@ acceptance checks pass.
 
 ### 3.0 Shared time and schema foundation (serialized, first)
 
-- **Shared — Planned:** a single exact rational time module owning every
+- **Shared — Implemented:** a single exact rational time module owning every
   frames/seconds/beats/frame-rate conversion, with named rounding policies,
-  reduced-rational overflow guards, and absolute-origin evaluation,
-  replacing today's duplicated conversion and beat-math sites.
-- **Shared — Planned:** a foundation schema revision establishing the
-  time-model core: rational-rate sequences with drop-frame and start
-  timecode, frame-anchored video clip placement, source-domain in/out points
-  with externally stored probed and VFR timing, a musically anchored tempo
-  and signature map, per-coordinate time anchors, and unified warp/retime
-  breakpoint maps. Derived time fields validate against their authoritative
-  anchor and are rejected on mismatch, never silently repaired. Later
-  product-track document types land as bounded, serialized follow-up
+  reduced-rational overflow guards, and absolute-origin evaluation, which
+  replaced the previously duplicated conversion and beat-math sites.
+- **Shared — Implemented (provisional):** the foundation schema revision
+  establishing the time-model core: rational-rate sequences with drop-frame
+  and start timecode, frame-anchored video clip placement, source-domain
+  in/out points with externally stored probed and VFR timing, a musically
+  anchored tempo and signature map, per-coordinate time anchors, and unified
+  warp/retime breakpoint maps. Derived time fields validate against their
+  authoritative anchor and are rejected on mismatch, never silently repaired.
+  Later product-track document types land as bounded, serialized follow-up
   revisions under the plan's pre-release schema policy (no retained
   migrations before the first release).
-- **Shared — Planned:** compatibility registration and a state-to-manifest
-  completeness gate land with the schema, so no milestone-3 feature can
+- **Shared — Implemented:** compatibility registration and a state-to-manifest
+  completeness gate landed with the schema, so no milestone-3 feature can
   evaluate as unknown and silently force projects read-only, and no
   undeclared structure can persist without its feature requirement.
-- **Shared — Planned:** the parallel-work headroom refactors named in the
+- **Shared — Implemented:** the parallel-work headroom refactors named in the
   plan.
+
+The foundation's browser and Node acceptance gates are green. The provisional
+mark names the four packaged Electron rows in
+`config/milestone-3-timing-probe-matrix.json`, which await the Linux and
+Windows package runners and are not treated as passing evidence.
 
 ### Soundscaper track (3A, parallel after 3.0)
 
-- **Shared / Web Core — Planned:** musically anchored ordered tempo and
+Packet boundaries, dependencies, and acceptance are owned by
+[the 3A work packets](docs/milestone-3a-work-packets.md).
+
+- **Shared / Web Core — Implemented:** musically anchored ordered tempo and
   signature maps resolved sample-accurately across snapping, metronome,
-  rulers, stretch, selection, import, export, and migration.
-- **Shared / Web Core — Planned:** first-class markers and named regions distinct
-  from captions, including navigation, batch identity, and ripple behavior.
-- **Shared / Web Core — Planned:** nested track folders with deterministic,
+  rulers, stretch, selection, import, and export. Soundscaper edits the maps
+  natively; Framescaper keeps the capability known but unavailable, so a
+  musical document opens there read-only instead of degrading silently.
+- **Shared / Web Core — Implemented:** first-class markers and named regions
+  distinct from captions, including navigation, batch identity, and ripple
+  behavior, under the same split availability.
+- **Shared / Web Core — Implemented:** nested track folders with deterministic,
   undoable edit, visibility, mute/solo, height, and routing behavior, where a
   top-level timeline folder holding audio owns a group bus and deeper folders
-  route to it.
+  route to it. Bus nesting below that single layer stays milestone-4 work and
+  is not approximated here.
 - **Shared / Web Core — Planned:** take lanes, cycle-recorded takes, audition,
   promotion, comp regions, flattening, and interrupted-take recovery.
 - **Shared / Web Enhanced — Planned:** transient analysis, warp markers,
@@ -395,8 +406,8 @@ acceptance checks pass.
 Packet boundaries, dependencies, and acceptance are owned by
 [the 3B work packets](docs/milestone-3b-work-packets.md).
 
-- **Shared / Web Core — In progress:** rational sequence rates independent of audio
-  sample rate, including integer/NTSC rates, drop/non-drop SMPTE, source
+- **Shared / Web Core — Implemented:** rational sequence rates independent of
+  audio sample rate, including integer/NTSC rates, drop/non-drop SMPTE, source
   timecode, frame stepping/snapping, and explicit rounding.
 - **Shared / Web Core — In progress:** probe and preserve exact frame/VFR timing,
   rotation, aspect, fields, alpha, codec, color, audio streams, and timecode.
@@ -408,8 +419,12 @@ Packet boundaries, dependencies, and acceptance are owned by
   from the bytes it already names: one undoable command replaces what an older
   or probe-less ingest concluded and conforms every edit cut against the frame
   grid it replaces. The packaged Electron probe-matrix rows remain.
-- **Web Core — Planned:** source/program monitors, source in/out, track targeting,
-  insert, overwrite, replace, lift, extract, match-frame, and three-point edits.
+- **Web Core — In progress:** source/program monitors, source in/out, track
+  targeting, insert, overwrite, replace, lift, extract, match-frame, and
+  three-point edits. Three of the four points now determine the fourth once, a
+  lane can be targeted explicitly or inherited from the selection, and a Project
+  Bin item inserts or overwrites into that lane as one undoable edit. The
+  monitors and the marking, replace, and match-frame they make reachable remain.
 - **Web Core — Planned:** J/K/L shuttle, edit-point navigation,
   roll/ripple/slip/slide/rate-stretch tools, track lock, visibility, linked-audio
   controls, and keyboard-complete trim feedback.
