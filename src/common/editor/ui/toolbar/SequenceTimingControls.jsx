@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import {
@@ -33,16 +33,24 @@ export function SequenceTimingControls({ project, snapshot, telemetry, controlle
 	const positionFrame = Math.max(0, telemetry.positionFrame || 0);
 	const disabled = snapshot.readOnly || snapshot.recording;
 	const label = sequenceTimecodeLabelAtSample(view, positionFrame, sampleRate);
-	const [draft, setDraft] = useState(null);
 	const [invalid, setInvalid] = useState(false);
+	const inputRef = useRef(null);
+	// The field is uncontrolled so a playhead or project update cannot clobber
+	// typing mid-edit; it re-adopts the authoritative label whenever it is idle.
+	useEffect(() => {
+		const input = inputRef.current;
+		if (input && !invalid && document.activeElement !== input) input.value = label;
+	}, [invalid, label]);
 	const commitDraft = (value) => {
-		setDraft(null);
-		if (value === null || value === label) return setInvalid(false);
+		if (value === label) return setInvalid(false);
 		if (!parsesAt(value, view)) return setInvalid(true);
 		setInvalid(false);
 		run(() => controller.actions.sequences.seekLabel(value));
 	};
-	const step = (frameDelta) => run(() => controller.actions.sequences.stepPlayhead(frameDelta));
+	const step = (frameDelta) => {
+		setInvalid(false);
+		run(() => controller.actions.sequences.stepPlayhead(frameDelta));
+	};
 
 	return <>
 		<div className="kw-audio-editor__sequence-timecode" data-sequence-timecode={label}>
@@ -57,27 +65,25 @@ export function SequenceTimingControls({ project, snapshot, telemetry, controlle
 			<label className="kw-audio-editor__sequence-timecode-field">
 				<span className="kw-audio-editor__visually-hidden">{copy.sequenceTimecode}</span>
 				<input
+					ref={inputRef}
 					type="text"
 					inputMode="numeric"
 					spellCheck="false"
-					value={draft ?? label}
+					defaultValue={label}
 					aria-label={copy.sequenceTimecode}
 					aria-invalid={invalid ? 'true' : 'false'}
 					aria-describedby={invalid ? 'audio-editor-sequence-timecode-error' : undefined}
 					disabled={snapshot.recording}
-					onChange={(event) => setDraft(event.currentTarget.value)}
 					onBlur={(event) => commitDraft(event.currentTarget.value)}
 					onKeyDown={(event) => {
+						// Arrow keys stay with the toolbar's roving focus; the two
+						// step buttons beside this field own frame stepping.
 						if (event.key === 'Enter') {
 							event.preventDefault();
 							commitDraft(event.currentTarget.value);
 						} else if (event.key === 'Escape') {
-							setDraft(null);
+							event.currentTarget.value = label;
 							setInvalid(false);
-						} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-							event.preventDefault();
-							setDraft(null);
-							step(event.key === 'ArrowUp' ? 1 : -1);
 						}
 					}}
 				/>
