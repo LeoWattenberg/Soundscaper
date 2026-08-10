@@ -518,7 +518,7 @@ noncanonical delivery. A desktop prepared target has a 900,000-millisecond
 TTL, so long offline packaged elapsed-time behavior is specifically not
 qualified.
 
-The direct MP4 and WebM final-video slice admits only a canonical version 4
+The direct MP4 and WebM final-video slice admits only a canonical version 5
 descriptor-bound plan and unchanged full-plan fingerprint. MP4 binds `mp4`,
 `.mp4`, `video/mp4`, `libx264`, optional `aac`, `yuv420p`, and `+faststart`;
 WebM binds `webm`, `.webm`, `video/webm`, `libvpx-vp9`, optional `libopus`, and

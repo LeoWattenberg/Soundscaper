@@ -92,7 +92,7 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 
 	assert.match(
 		publication.summary,
-		/exact direct.*MP4.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`.*purpose `video`.*safe.*version-4.*descriptor.*fingerprint.*pre-commit admission/isu,
+		/exact direct.*MP4.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`.*purpose `video`.*safe.*version-5.*descriptor.*fingerprint.*pre-commit admission/isu,
 	);
 	assert.match(
 		publication.summary,
@@ -238,7 +238,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 
 	assert.match(
 		threatDocumentation,
-		/direct MP4 and WebM.*version 4.*browser.*before.*preflight.*desktop.*after.*stat.*900,000.*WORKERFS.*worker MEMFS.*one.*stat.*one[- ]MiB.*close.*commit.*no.*final.*`Blob`.*legacy/isu,
+		/direct MP4 and WebM.*version 5.*browser.*before.*preflight.*desktop.*after.*stat.*900,000.*WORKERFS.*worker MEMFS.*one.*stat.*one[- ]MiB.*close.*commit.*no.*final.*`Blob`.*legacy/isu,
 	);
 	assert.match(
 		threatDocumentation,

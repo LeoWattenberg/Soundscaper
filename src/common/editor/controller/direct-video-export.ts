@@ -312,7 +312,7 @@ function captureContract(
 	fileName: string,
 ): DirectVideoContract | null {
 	try {
-		if (!isRecord(plan) || plan.version !== 4 || !Array.isArray(plan.inputs)) return null;
+		if (!isRecord(plan) || plan.version !== 5 || !Array.isArray(plan.inputs)) return null;
 		const descriptor = getVideoExportFormat(String(plan.format || '')) as VideoFormatDescriptor;
 		if ((descriptor.id !== 'mp4' && descriptor.id !== 'webm')
 			|| plan.format !== descriptor.id

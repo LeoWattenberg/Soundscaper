@@ -363,7 +363,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		FALLBACK_AUDIO_SOURCE_ID,
 	);
 
-	assert.equal(plan.version, 4);
+	assert.equal(plan.version, 5);
 	assert.deepEqual(plan.range, {
 		startFrame: 0,
 		endFrame: PROJECT_END,

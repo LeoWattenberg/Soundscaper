@@ -386,7 +386,7 @@ function preparedStream(events: string[], options: FixtureOptions) {
 function videoPlan(format: Format, sourceId = 'original-video') {
 	const mp4 = format === 'mp4';
 	return {
-		version: 4,
+		version: 5,
 		format,
 		container: format,
 		extension: format,
