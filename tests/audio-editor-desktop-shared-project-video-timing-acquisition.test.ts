@@ -136,7 +136,7 @@ function memoryStore(context: TestContext, label: string): AudioEditorProjectSto
 }
 
 async function readMediaBytes(store: AudioEditorProjectStore, sourceId: string): Promise<Uint8Array | null> {
-	const blob = await store.loadMediaAsset(sourceId, { backfillDigest: false });
+	const blob = await store.loadMediaAsset(sourceId);
 	return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
 }
 

@@ -94,7 +94,7 @@ test('mixed recipient availability uses bound storage keys and disables read mai
 	assert.deepEqual(audioBodyReads, ['recipient-pcm-audio']);
 	assert.deepEqual(videoBodyReads, ['recipient-media-video']);
 	assert.deepEqual(audioOptions, [{ signal: undefined }]);
-	assert.deepEqual(videoOptions, [{ signal: undefined, backfillDigest: false }]);
+	assert.deepEqual(videoOptions, [{ signal: undefined }]);
 });
 
 test('a missing same-project local binding fails before every recipient store read', async () => {
@@ -292,7 +292,7 @@ test('missing recipient video body fails as source-unavailable', async () => {
 		},
 		loadMediaAsset(sourceId, options) {
 			assert.equal(sourceId, source.storageKey);
-			assert.deepEqual(options, { signal: undefined, backfillDigest: false });
+			assert.deepEqual(options, { signal: undefined });
 			return null;
 		},
 	});

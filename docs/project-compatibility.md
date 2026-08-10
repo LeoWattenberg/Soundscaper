@@ -454,8 +454,7 @@ observed metadata records, reads only their captured source token or path, and
 serializes chunk requests. Before and after each chunk it checks every observed
 generation by the stored identity tuple of source ID, storage kind, source
 token or path, base-source ID, and PCM encoding version. Root or ancestry drift
-is terminal for the session; per-request cancellation remains local,
-on-access migration is suppressed, and store cleanup releases owned and
+is terminal for the session; per-request cancellation remains local, and store cleanup releases owned and
 fallback sessions while aggregating failures.
 
 This is a fence over the provider's expected root and the ancestry generations
@@ -1002,10 +1001,7 @@ after it, consumes the exact sequential PCM chunk count and ordered
 frame count to match, and requires a syntactically valid trusted recipient-local
 SHA-256 before any video body read. It then fully reads each genuine exact-size
 video `Blob`, hashes it with SHA-256 through 4 MiB windows, and its body digest
-must match. Legacy PCM-on-read migration and media-digest backfill are
-disabled during shared admission. Digestless legacy video therefore fails
-closed before body read, local shadow save, or activation; it must first use
-ordinary local loading to complete trusted digest backfill before retry.
+must match. Shared admission performs no on-access storage maintenance. Digestless legacy video therefore fails closed before body read, local shadow save, or activation; with no lazy digest backfill, such sources require re-import.
 Every source binding, budget, metadata, geometry, body, or digest failure
 detected before shadow publication leaves the recipient's latest local shadow
 and revision history unchanged and prevents bootstrap activation. Cancellation
@@ -1856,9 +1852,7 @@ invocation carrying both selectors. Activation
 verifies the authoritative project that would be activated, including existing
 same-ID tab history, before project-generation invalidation, recording or engine
 shutdown, lock changes, session publication, ordinary engine-source loading, or
-normal activation persistence. Admission reads explicitly disable on-access PCM
-migration scheduling and retained-media digest claim/backfill, so verification
-itself does not publish storage maintenance. Audio fallbacks are read from their
+normal activation persistence. Admission reads publish no storage maintenance. Audio fallbacks are read from their
 local `storageKey` and hashed as the canonical
 `audio-f32le-chunks-v1` sequence: a four-byte little-endian frame count followed
 by planar little-endian Float32 channel bytes for each checked project chunk.

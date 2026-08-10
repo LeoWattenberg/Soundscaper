@@ -146,7 +146,7 @@ async function loadTimingBlob(
 	signal?: AbortSignal,
 ): Promise<Blob> {
 	throwIfScapeAborted(signal);
-	const value = await store.loadMediaAsset(asset.storageKey, { signal, backfillDigest: false });
+	const value = await store.loadMediaAsset(asset.storageKey, { signal });
 	throwIfScapeAborted(signal);
 	const blob = canonicalMediaContentBlob(value);
 	if (blob.size !== metadata.size) {

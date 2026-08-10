@@ -9,7 +9,7 @@ import {
 	type DerivativeCacheCleanupReport,
 	type DerivativeCacheLimits,
 } from './derivative-cache-policy.ts';
-import { MediaAssetDigestBackfill, type MediaAssetDigestLoadOptions } from './media-asset-digest-backfill.ts';
+import { MediaAssetLoadRepository, type MediaAssetLoadOptions } from './media-asset-load-repository.ts';
 import { MediaAssetLifecycleCoordinator, type MediaAssetMaintenance } from './media-asset-lifecycle-coordinator.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
@@ -52,14 +52,14 @@ export class MediaRepository {
 	readonly #opfs: OpfsRepository;
 	readonly #assetLifecycle = new MediaAssetLifecycleCoordinator();
 	readonly #assetWrites: MediaAssetWriteRepository;
-	readonly #assetDigests: MediaAssetDigestBackfill;
+	readonly #assetLoads: MediaAssetLoadRepository;
 	readonly #derivatives: VideoDerivativeRepository;
 
 	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
 		this.#port = port;
 		this.#opfs = opfs;
 		this.#assetWrites = new MediaAssetWriteRepository(port, opfs, this.#assetLifecycle);
-		this.#assetDigests = new MediaAssetDigestBackfill(port, this.#assetWrites, this.#assetLifecycle);
+		this.#assetLoads = new MediaAssetLoadRepository(port, this.#assetWrites, this.#assetLifecycle);
 		this.#derivatives = new VideoDerivativeRepository(port, opfs, options);
 	}
 
@@ -116,8 +116,8 @@ export class MediaRepository {
 		return mediaAssetMetadata(record);
 	}
 
-	loadAsset(sourceId: string, options: MediaAssetDigestLoadOptions = {}): Promise<BlobLike | null> {
-		return this.#assetDigests.load(sourceId, options);
+	loadAsset(sourceId: string, options: MediaAssetLoadOptions = {}): Promise<BlobLike | null> {
+		return this.#assetLoads.load(sourceId, options);
 	}
 
 	async getAssetMetadata(sourceId: string): Promise<Record<string, unknown> | null> {

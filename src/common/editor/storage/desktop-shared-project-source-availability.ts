@@ -48,7 +48,6 @@ export interface DesktopSharedProjectSourceAvailabilityStore {
 		sourceId: string,
 		options?: Readonly<{
 			signal?: AbortSignal;
-			backfillDigest?: boolean;
 		}>,
 	): PromiseLike<unknown> | unknown;
 }
@@ -371,7 +370,6 @@ async function verifyVideo(
 	await sourceRead(plan.source, projectId, signal, async () => {
 		const loaded = await awaitScapeReadOperation(() => store.loadMediaAsset(plan.source.storageKey, {
 			signal,
-			backfillDigest: false,
 		}), signal);
 		if (loaded == null) throw new Error(`Recipient-local video source ${plan.source.id} body is missing.`);
 		const blob = canonicalMediaContentBlob(loaded);

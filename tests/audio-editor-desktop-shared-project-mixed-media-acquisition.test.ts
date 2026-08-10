@@ -526,7 +526,7 @@ async function readMonoPcm(store: AudioEditorProjectStore, sourceId: string): Pr
 }
 
 async function readMediaBytes(store: AudioEditorProjectStore, sourceId: string): Promise<Uint8Array | null> {
-	const blob = await store.loadMediaAsset(sourceId, { backfillDigest: false });
+	const blob = await store.loadMediaAsset(sourceId);
 	return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
 }
 

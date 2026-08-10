@@ -157,7 +157,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/latest authoritative exact-schema-14 source-bearing load.*4,094 reachable timeline, Project Bin, and fallback sources.*before source bodies are read.*same-kind physical bindings.*rejects conflicts.*aggregate 64 GiB audio-and-video byte ceiling.*audio-only 65,536-chunk ceiling.*fresh recipient first acquires.*managed canonical-PCM and retained-original-video descriptors.*bounded reads.*staged product-local audio-source or media-asset writers.*descriptor identity, kind and storage key.*exact byte length.*SHA-256.*atomic if-absent publication.*canonical audio byte geometry.*opaque exact bytes.*not decoded or probed for media geometry.*loses the absence race.*only its own staging.*preserves the winner.*partial transfers.*pre-shadow failures.*acquisition-owned audio records or owned video publications.*source-token, path, or media-chunk payloads.*concurrent replacement.*preserved.*not acquired.*pre-existing latest recipient-local exact-schema-14 snapshot.*logical identity, kind, storage key, MIME type.*kind-specific media geometry.*ordered Float32Array PCM.*trusted recipient-local SHA-256.*video body read.*genuine exact-size Blob.*SHA-256.*4 MiB windows.*legacy PCM-on-read migration and media-digest backfill.*disabled.*failures detected before shadow publication.*preserve.*prior local shadow.*prevent activation.*cancellation.*after the exact shadow is durable.*retains the exact shadow and acquired audio and video.*source-free.*zero source or media I\/O/isu,
+		/latest authoritative exact-schema-14 source-bearing load.*4,094 reachable timeline, Project Bin, and fallback sources.*before source bodies are read.*same-kind physical bindings.*rejects conflicts.*aggregate 64 GiB audio-and-video byte ceiling.*audio-only 65,536-chunk ceiling.*fresh recipient first acquires.*managed canonical-PCM and retained-original-video descriptors.*bounded reads.*staged product-local audio-source or media-asset writers.*descriptor identity, kind and storage key.*exact byte length.*SHA-256.*atomic if-absent publication.*canonical audio byte geometry.*opaque exact bytes.*not decoded or probed for media geometry.*loses the absence race.*only its own staging.*preserves the winner.*partial transfers.*pre-shadow failures.*acquisition-owned audio records or owned video publications.*source-token, path, or media-chunk payloads.*concurrent replacement.*preserved.*not acquired.*pre-existing latest recipient-local exact-schema-14 snapshot.*logical identity, kind, storage key, MIME type.*kind-specific media geometry.*ordered Float32Array PCM.*trusted recipient-local SHA-256.*video body read.*genuine exact-size Blob.*SHA-256.*4 MiB windows.*no on-access storage maintenance.*failures detected before shadow publication.*preserve.*prior local shadow.*prevent activation.*cancellation.*after the exact shadow is durable.*retains the exact shadow and acquired audio and video.*source-free.*zero source or media I\/O/isu,
 	);
 	assert.match(
 		documentation,
@@ -357,7 +357,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		'src/common/editor/storage.js',
 		'src/common/editor/storage/source-read-repository.ts',
 		'src/common/editor/storage/source-repository.ts',
-		'src/common/editor/storage/media-asset-digest-backfill.ts',
+		'src/common/editor/storage/media-asset-load-repository.ts',
 		'src/common/editor/storage/media-repository.ts',
 			'src/common/editor/controller/project-switch-service.ts', 'src/common/editor/controller/audio-rendered-fallback-export.ts', 'src/common/editor/controller/video-rendered-fallback-export.ts',
 		'src/common/editor/session-activation.js',
@@ -373,7 +373,7 @@ test('project feature requirements are bounded and fail closed at activation and
 		fallbackAdmission.summary,
 		/authoritative exact-schema-14.*same-ID tab history.*session-owned history token.*local bytes.*before activation side effects.*exclusive session activation reservation.*history replacement.*competing active-project publication.*session publication.*released in finally.*audio-f32le-chunks-v1.*65,536-chunk.*video.*immutable original-media Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
 	);
-	assert.match(fallbackAdmission.summary, /disable on-access retained-media digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(fallbackAdmission.summary, /Admission reads publish no storage maintenance/iu);
 	assert.match(fallbackAdmission.summary, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
 	assert.match(fallbackAdmission.summary, /deduplicates.*conflicting digests.*relationship roles.*target clip or track IDs.*before storage reads/iu);
 	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
@@ -458,7 +458,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.match(documentation, /current-format.*exact schema 14.*fallback.*claim.*asset descriptor.*before.*collision.*storage/iu);
 	assert.match(documentation, /export.*project root.*source records.*same sources.*accessors.*`toJSON` hooks.*without invocation.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*publication/iu);
 	assert.match(documentation, /inspection.*does not hash.*asset bodies.*maintained exact-schema-14 controller activation.*referenced local audio and video fallback bytes/iu);
-	assert.match(documentation, /disable on-access retained-media digest claim.backfill.*does not publish storage maintenance/iu);
+	assert.match(documentation, /Admission reads publish no storage maintenance/iu);
 	assert.match(documentation, /read-only video-metadata preflight.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*fallback body read.*delay cancellation settlement/iu);
 	assert.match(documentation, /direct `store\.loadProject\(\)` calls.*durable integrity after admission.*runtime fallback use by activation admission itself.*future-schema.*outside.*runtime selection.*playback controls.*operation-time-verified final-delivery controls/iu);
 	assert.match(documentation, /point-in-time admission.*complete third-party activation gating/iu);

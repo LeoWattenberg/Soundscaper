@@ -8,11 +8,6 @@ export const MEDIA_CONTENT_DIGEST_VERIFIED_VERSION = 1;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const TOKEN_PATTERN = /^media-content-[a-z0-9][a-z0-9-]{15,127}$/u;
 
-export interface MediaContentDigestClaim {
-	readonly mediaContentDigestVersion: typeof MEDIA_CONTENT_DIGEST_CLAIM_VERSION;
-	readonly mediaContentToken: string;
-}
-
 export interface VerifiedMediaContentDigest {
 	readonly mediaContentDigestVersion: typeof MEDIA_CONTENT_DIGEST_VERIFIED_VERSION;
 	readonly mediaContentToken: string;
@@ -51,14 +46,6 @@ export function hasMalformedMediaContentProvenance(record: StorageRecord): boole
 	return hasInternalField
 		&& !claimedMediaContentToken(record)
 		&& !trustedMediaContentSha256(record);
-}
-
-/** Reuses a valid in-progress claim; all other rows receive a fresh fence. */
-export function mediaContentDigestClaim(record: StorageRecord): MediaContentDigestClaim {
-	return {
-		mediaContentDigestVersion: MEDIA_CONTENT_DIGEST_CLAIM_VERSION,
-		mediaContentToken: claimedMediaContentToken(record) ?? createMediaContentToken(),
-	};
 }
 
 /** Verified fields for a digest produced while holding an existing claim. */

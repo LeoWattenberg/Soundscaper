@@ -38,28 +38,6 @@ test('stored fallback verification hashes canonical audio and actual video bytes
 	);
 });
 
-test('stored fallback verification disables storage maintenance for admission reads', async () => {
-	let videoBackfillEnabled: boolean | undefined;
-	await verifyProjectFallbackIntegrity(project([
-		source(AUDIO_ID, 'audio', 'audio-storage'),
-		source(VIDEO_ID, 'video', 'video-storage'),
-	], [
-		claim('audio-fallback', AUDIO_ID, 'audio', audioDigest(AUDIO_SAMPLES)),
-		claim('video-fallback', VIDEO_ID, 'video', digest(VIDEO_BYTES)),
-	]), {
-		async *readSourceChunks() {
-			yield [Float32Array.from(AUDIO_SAMPLES)];
-		},
-		getMediaAssetMetadata() { return { size: VIDEO_BYTES.byteLength }; },
-		loadMediaAsset(_sourceId, options) {
-			videoBackfillEnabled = options?.backfillDigest;
-			return new Blob([VIDEO_BYTES]);
-		},
-	});
-
-	assert.equal(videoBackfillEnabled, false);
-});
-
 test('stored fallback verification rejects digest drift, missing assets, and malformed PCM geometry', async () => {
 	const store = memoryStore('fallback-integrity-rejection');
 	await persistAudio(store, 'audio-storage', AUDIO_SAMPLES);

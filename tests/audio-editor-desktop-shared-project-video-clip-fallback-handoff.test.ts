@@ -392,7 +392,7 @@ function requiredSession<Value>(sessions: ReadonlyMap<string, Value>, writeId: s
 }
 
 async function readMediaBytes(store: AudioEditorProjectStore, storageKey: string): Promise<Uint8Array | null> {
-	const blob = await store.loadMediaAsset(storageKey, { backfillDigest: false });
+	const blob = await store.loadMediaAsset(storageKey);
 	return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
 }
 

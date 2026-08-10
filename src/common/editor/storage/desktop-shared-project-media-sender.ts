@@ -312,7 +312,7 @@ async function loadVideoBlob(
 	signal?: AbortSignal,
 ): Promise<Blob> {
 	throwIfScapeAborted(signal);
-	const value = await store.loadMediaAsset(source.storageKey, { signal, backfillDigest: false });
+	const value = await store.loadMediaAsset(source.storageKey, { signal });
 	throwIfScapeAborted(signal);
 	const blob = canonicalMediaContentBlob(value);
 	if (blob.size !== metadata.size) {
