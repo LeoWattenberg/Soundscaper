@@ -5,6 +5,7 @@ import type { ProjectFeatureRequirementsReport } from '../project-feature-requir
 import type { EditorStoreStatus } from '../storage/status.ts';
 import type { StorageCapacitySnapshot } from './storage-capacity-service.ts';
 import { createDocumentTimelineAnnotationSnapshot } from './document-timeline-annotation-snapshot.ts';
+import { createDocumentTrackFolderSnapshot } from './document-track-folder-snapshot.ts';
 import { createDocumentRecordingInputSnapshot } from './document-recording-input-snapshot.ts';
 import type { SoundActivationPolicySnapshot } from './sound-activation-policy-service.ts';
 
@@ -199,6 +200,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		selectedClipId: state.selectedClipId,
 		selectedAnnotationId: state.selectedAnnotationId,
 		timelineAnnotations: createDocumentTimelineAnnotationSnapshot(currentProject),
+		trackFolders: createDocumentTrackFolderSnapshot(currentProject),
 		selection,
 		transportState: state.transportState,
 		projectBinPreview: state.projectBinPreview

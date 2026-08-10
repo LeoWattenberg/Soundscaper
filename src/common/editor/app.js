@@ -219,6 +219,7 @@ import { createMixRenderService } from './controller/mix-render-service.ts';
 import { createNativeProjectService } from './controller/native-project-service.ts';
 import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
+import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
@@ -660,6 +661,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const timelineAnnotationService = createTimelineAnnotationService({
 		lifetime, state, getProject: () => project, editingBlocked, createId: createStableId,
 		getPositionFrames: () => engine.getPositionFrames(), commit, updateSelection, publishProjectState,
+	});
+	const trackFolderService = createTrackFolderService({
+		lifetime, getProject: () => project, editingBlocked, createId: createStableId,
+		commit, publishProjectState,
 	});
 	const projectMutationService = createProjectMutationService({
 		lifetime,
@@ -1755,7 +1760,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-		timelineAnnotationService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
+		timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;

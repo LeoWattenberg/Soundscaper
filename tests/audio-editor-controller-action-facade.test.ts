@@ -32,6 +32,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'timeline',
 	'timelineAnnotations',
 	'track',
+	'trackFolders',
 	'transport',
 	'video',
 ]);

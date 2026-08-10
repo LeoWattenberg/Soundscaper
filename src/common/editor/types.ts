@@ -256,6 +256,7 @@ export interface EditorActions extends EditorActionTree {
 	readonly storage: EditorActionTree;
 	readonly timeline: EditorActionTree;
 	readonly timelineAnnotations: EditorActionTree;
+	readonly trackFolders: EditorActionTree;
 	readonly sampleEdit: EditorActionTree;
 	readonly spectral: EditorActionTree;
 	readonly track: EditorActionTree;

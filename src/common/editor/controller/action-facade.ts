@@ -71,6 +71,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, timelineAnnotationService,
+	trackFolderService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -325,6 +326,17 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			remove: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.removeAnnotations(...args)),
 			previous: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigatePreviousAnnotation(...args)),
 			next: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigateNextAnnotation(...args)),
+		}),
+		trackFolders: Object.freeze({
+			create: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.createFolder(...args)),
+			rename: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.renameFolder(...args)),
+			update: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.updateFolder(...args)),
+			toggleCollapsed: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.toggleCollapsed(...args)),
+			remove: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.removeFolder(...args)),
+			moveNode: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.moveNode(...args)),
+			wrapSelection: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.wrapTracksIntoFolder(...args)),
+			select: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.selectFolder(...args)),
+			selectedFolderId: (...args: RuntimeValue) => trackFolderService.selectedFolderId(...args),
 		}),
 		sampleEdit: Object.freeze({
 			setMode: restricted('audioSampleEditing', setSampleEditMode),
