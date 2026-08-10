@@ -84,6 +84,8 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'range/replace',
 	'clipboard/paste',
 	'punch/replace',
+	'edit/insert',
+	'edit/overwrite',
 	'effect/add',
 	'effect/update',
 	'effect/remove',
@@ -236,6 +238,29 @@ export interface TimelineAnnotationRippleOperation {
 		readonly startBeat: Rational;
 		readonly endBeat: Rational;
 	}>;
+}
+
+export interface ThreePointEditPlacement {
+	readonly trackId: string;
+	readonly clipId: string;
+	readonly sourceId: string;
+	readonly kind: 'audio' | 'video';
+	/** In the source's own domain: video frames for video, samples for audio. */
+	readonly sourceIn: number;
+	readonly sourceCount?: number;
+	readonly title?: string;
+}
+
+export interface ThreePointEditCommandPayload {
+	readonly startFrame: number;
+	readonly endFrame: number;
+	/** Every lane the operation touches, which for an insert is the whole sequence. */
+	readonly trackIds: readonly string[];
+	readonly placements: readonly ThreePointEditPlacement[];
+	readonly avLinkId?: string;
+	readonly splitClipIds?: StableIdMap;
+	readonly splitAvLinkIds?: StableIdMap;
+	readonly videoEffectIds?: StableIdListMap;
 }
 
 export interface CommandRippleRangePayload extends CommandRangePayload {
@@ -439,6 +464,8 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly annotationIds?: StableIdMap;
 		readonly annotationBatchIds?: StableIdMap;
 	};
+	readonly 'edit/insert': ThreePointEditCommandPayload;
+	readonly 'edit/overwrite': ThreePointEditCommandPayload;
 	readonly 'punch/replace': CommandRangePayload & {
 		readonly trackId: string;
 		readonly sourceId: string;

@@ -24,6 +24,10 @@ import {
 } from './clip-transform-runtime.js';
 import { pasteClipboard } from './clipboard-runtime.js';
 import {
+	insertThreePointEdit,
+	overwriteThreePointEdit,
+} from './three-point-edit-runtime.js';
+import {
 	deleteRange,
 	keepRange,
 	punchReplace,
@@ -55,5 +59,7 @@ export function createClipRangeClipboardRuntimeHandlers() {
 		'range/replace': replaceRange,
 		'clipboard/paste': pasteClipboard,
 		'punch/replace': punchReplace,
+		'edit/insert': insertThreePointEdit,
+		'edit/overwrite': overwriteThreePointEdit,
 	};
 }

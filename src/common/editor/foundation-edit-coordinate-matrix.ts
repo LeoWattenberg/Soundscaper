@@ -10,6 +10,8 @@ export const FOUNDATION_EDIT_PRIMITIVES = Object.freeze([
 	'paste',
 	'duplicate',
 	'range-delete',
+	'insert',
+	'overwrite',
 ] as const);
 
 export type FoundationEditPrimitive = typeof FOUNDATION_EDIT_PRIMITIVES[number];
@@ -135,6 +137,28 @@ export const FOUNDATION_EDIT_COORDINATE_MATRIX: Readonly<
 		videoSourceRange: 'Map cut boundaries once into integer source frames.',
 		operationConformance: 'The selected range is conformed once per participating sequence; linked audio follows video endpoints.',
 		implementation: ['commands/range-runtime.js'],
+	},
+	insert: {
+		primitive: 'insert',
+		audioPlacement: 'Shift audio at or after the insert point by the resolved sample span; a clip the point falls inside is split and its tail moves with the rest.',
+		audioExtent: 'Survivors keep their extents; the placed clip takes the resolved span, and linked audio is recomputed from the conformed video endpoints.',
+		audioSourceRange: 'The placed clip carries the resolved source range; split survivors map their new boundary once.',
+		videoPlacement: 'Shift video at or after the insert point by one conformed sequence-frame span, on every media lane in the sequence.',
+		videoExtent: 'The placed clip takes the conformed sequence-frame span; survivors retain their integer counts.',
+		videoSourceRange: 'The placed clip carries the resolved integer source-frame range; split survivors retain integer boundaries.',
+		operationConformance: 'The span is conformed once per sequence and every lane opens by exactly that span, because shifting only the targeted lanes would desynchronise the rest.',
+		implementation: ['commands/three-point-edit-runtime.js'],
+	},
+	overwrite: {
+		primitive: 'overwrite',
+		audioPlacement: 'Unchanged for every lane; the targeted lane keeps absolute placement and receives the new clip at the resolved start.',
+		audioExtent: 'The lifted range yields surviving extents from its absolute boundaries; the placed clip takes the resolved span.',
+		audioSourceRange: 'Lifted survivors map their cut boundaries once; the placed clip carries the resolved source range.',
+		videoPlacement: 'The targeted lane keeps frame placement; the placed clip starts at the conformed sequence frame.',
+		videoExtent: 'Surviving integer sequence-frame counts derive from the conformed range; the placed clip takes its span.',
+		videoSourceRange: 'The placed clip carries the resolved integer source-frame range.',
+		operationConformance: 'The range is conformed once per sequence and only the lanes that receive material are disturbed.',
+		implementation: ['commands/three-point-edit-runtime.js'],
 	},
 });
 

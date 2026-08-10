@@ -30,6 +30,8 @@ export const CLIP_RANGE_CLIPBOARD_COMMAND_TYPES = [
 	'range/replace',
 	'clipboard/paste',
 	'punch/replace',
+	'edit/insert',
+	'edit/overwrite',
 ] as const satisfies readonly AudioEditorCommandType[];
 
 export type ClipRangeClipboardCommandType = typeof CLIP_RANGE_CLIPBOARD_COMMAND_TYPES[number];
