@@ -195,6 +195,24 @@ which it appends to.
   undo entry; a sweep can be built on it once the single case is proven.
 - No relabelling of the four packaged Electron probe rows.
 
+## What landing it established
+
+Two things the decomposition did not anticipate came out of building it, and
+both are recorded here rather than left for a later reader.
+
+- **A document with no reading is a document with no ownership.** Degrading a
+  saved project into the never-probed shape is not enough to make it open: a
+  feature manifest that claims `framescaper.source-characteristics` and
+  `framescaper.video-timing-assets` while the state carries neither is a
+  document that contradicts itself, and the validator refuses it. The browser
+  fixture therefore drops both requirements, which is exactly what an ingest
+  that reported nothing would have written.
+- **Both boundaries conform independently, so an extent can lose a frame.** A
+  ten-second range conformed from 24 to 23.976 comes back 239 frames, not 240.
+  That is the intended consequence of contract 5 — conforming boundaries rather
+  than durations is what keeps a clip on the media it was cut against — and it
+  is pinned by a test so a future reader does not "fix" it.
+
 ## Stop conditions
 
 - Stop if an upgrade would have to write media bytes to succeed.

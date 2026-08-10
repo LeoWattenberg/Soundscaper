@@ -304,6 +304,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'video-source-upgrade-conform',
+		file: 'src/common/editor/video-source-upgrade.ts',
+		behavior: 'Re-reading a source conforms each persisted clip boundary onto the corrected nominal grid as an exact integer change of basis, point-rounded, so both endpoints move independently rather than a duration being scaled.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
 		id: 'tempo-map-sample-inverse',
 		file: 'src/common/editor/timeline-tempo-inverse.ts',
 		behavior: 'Tempo inversion accumulates exact event spans, point-rounds each event boundary, and returns the edited sample position as an exact rational beat.',

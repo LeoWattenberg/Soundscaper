@@ -9,6 +9,9 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
+	createAudioClipV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
 	createVideoClipV10,
 	createVideoSourceV10,
 	createVideoTrackV10,
@@ -199,6 +202,52 @@ test('a range the command is handed that the new media cannot hold is rejected',
 		...command,
 		clips: [{ clipId: 'timeline-clip', sourceInFrame: 0, sourceFrameCount: 300 }],
 	} as unknown as AudioEditorCommand, { now: NOW }), /source bounds/);
+});
+
+test('linked audio does not move, because the video clip it mirrors did not', () => {
+	const project = unprobedProject();
+	const audioSource = createAudioSourceV10({
+		kind: 'audio',
+		id: 'audio-source',
+		storageKey: 'audio-source',
+		name: 'phone Audio',
+		mimeType: 'audio/x-soundscaper-extracted',
+		frameCount: SAMPLE_RATE * 10,
+		channelCount: 2,
+		sampleRate: SAMPLE_RATE,
+	});
+	const audioClip = createAudioClipV10({
+		id: 'audio-clip',
+		sourceId: 'audio-source',
+		timelineStartFrame: 0,
+		durationFrames: SAMPLE_RATE * 10,
+		sourceStartFrame: 0,
+		sourceDurationFrames: SAMPLE_RATE * 10,
+		avLinkId: 'av-link',
+	});
+	const linked = createCurrentAudioEditorProject({
+		...project,
+		// Re-derive the hierarchy so the added audio track belongs to the sequence.
+		sequences: [{ id: SEQUENCE.id, rate: SEQUENCE.rate }],
+		sources: [...project.sources, audioSource],
+		clips: [{ ...project.clips[0], avLinkId: 'av-link' }, audioClip],
+		tracks: [
+			createVideoTrackV10({ id: 'video-track', clipIds: ['timeline-clip'], laneGroupId: 'media-lane' }),
+			createAudioTrackV10({ id: 'audio-track', clipIds: ['audio-clip'], laneGroupId: 'media-lane' }, SAMPLE_RATE),
+		],
+	}) as ProjectRecord;
+	const before = linked.clips.find((clip) => clip.id === 'audio-clip');
+
+	const upgraded = applyEditorCommand(
+		linked,
+		reprobeCommand(linked, 240),
+		{ now: NOW },
+	) as ProjectRecord;
+
+	// The source rate is source metadata, never a sequence rate: the video clip
+	// keeps its placement, so the audio derived from it keeps its own.
+	assert.deepEqual(upgraded.clips.find((clip) => clip.id === 'audio-clip'), before);
+	assert.equal(validateCurrentAudioEditorProject(upgraded), true);
 });
 
 test('the upgrade is one undo entry, and undoing it restores the old grid', () => {

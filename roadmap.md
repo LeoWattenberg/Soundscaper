@@ -404,8 +404,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   unreported value, the workspace reads the source timecode and discloses what
   it records without acting on, and the preview and the export both present the
   source's display geometry — engine-independently, so a project exports the
-  same frames wherever it was made. Re-import upgrade of an already-imported
-  source and the packaged Electron probe-matrix rows remain.
+  same frames wherever it was made. An already-imported source can be re-read
+  from the bytes it already names: one undoable command replaces what an older
+  or probe-less ingest concluded and conforms every edit cut against the frame
+  grid it replaces. The packaged Electron probe-matrix rows remain.
 - **Web Core — Planned:** source/program monitors, source in/out, track targeting,
   insert, overwrite, replace, lift, extract, match-frame, and three-point edits.
 - **Web Core — Planned:** J/K/L shuttle, edit-point navigation,
