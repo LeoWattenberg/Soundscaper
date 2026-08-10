@@ -617,6 +617,9 @@ with its atomic capability registration.
 
 ### 3B packets (Framescaper track, parallel after 3.0)
 
+The pickup decomposition and execution contract is maintained in
+[`docs/milestone-3b-work-packets.md`](milestone-3b-work-packets.md).
+
 Sequence surfaces (rational rates, drop/non-drop SMPTE display, source
 timecode, frame stepping and snapping); probed exact source timing at
 ingest; source/program monitors and three-point editing; trim tools with
