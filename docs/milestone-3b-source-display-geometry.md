@@ -13,7 +13,7 @@
 3B-2a's slice boundary named one blocking question: does our pinned FFmpeg build
 apply the container display matrix inside a `filter_complex` graph? Guessing was
 forbidden, so the question was deferred to this slice's probe matrix. It is now
-answered, together with four neighbouring facts that change the design.
+answered, together with six neighbouring facts that change the design.
 
 The runtime under test is `@ffmpeg/core` 0.12.10, which reports itself as
 **FFmpeg 5.1.4**, driven through the same `exec` entry point the product uses.
@@ -178,6 +178,10 @@ document change.
   own output, so whatever it bakes stays described by the characteristics that
   describe the stored bytes.
 - No relabelling of the four packaged Electron probe rows.
+- No geometry correction in the unaccelerated preview fallback. It draws the
+  decoded element straight into the panel and already mirrors neither the export
+  canvas nor the display geometry; making it exact is a change to that renderer
+  rather than to this contract.
 
 ## Stop conditions
 
