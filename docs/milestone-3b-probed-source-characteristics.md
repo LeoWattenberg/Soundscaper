@@ -33,17 +33,28 @@ a square-pixel export are indistinguishable in the document.
 
 ## Slice boundary
 
-This slice delivers the **probe → persist → honour** spine for source
+This slice delivers the **probe → persist → disclose** spine for source
 characteristics, and it closes 3B-1's deferred source-timecode origin.
 
-It does **not** deliver **re-import upgrade** of an already-imported source,
-which 3B-2b owns together with the probe-matrix evidence rows for representative
-CFR and VFR fixtures. Upgrade is a separate editing surface — a command that
-re-probes an existing source, replaces its characteristics and timing, and
-proves which edits survive — and it can only be designed once the characteristics
-it upgrades exist and are validated. The roadmap ingest bullet therefore moves to
-**In progress** with the upgrade path named, exactly as the sequence-timing
-bullet named this slice's origin deferral.
+Three things stay with **3B-2b**, and the roadmap ingest bullet moves to
+**In progress** naming them rather than claiming them:
+
+1. **Re-import upgrade** of an already-imported source. It is a separate editing
+   surface — a command that re-probes an existing source, replaces its
+   characteristics and timing, and proves which edits survive — and it can only
+   be designed once the characteristics it upgrades exist and are validated.
+2. **Export orientation.** Video export decodes the source with FFmpeg through a
+   `filter_complex` graph and ends each clip chain with `setsar=1`, so a rotated
+   or anamorphic source exports as its coded frames. Fixing that means deciding
+   whether our pinned FFmpeg build applies the container display matrix in that
+   graph, then either applying the probed rotation and sample aspect or
+   explicitly disabling autorotation per input. Guessing that answer is exactly
+   the double-application this slice's third contract forbids, and the probe
+   matrix 3B-2b runs is what answers it. Until then the preview shows what the
+   decoder presents and the properties surface discloses any rotation it did not
+   apply.
+3. **Probe-matrix evidence rows** for representative CFR and VFR fixtures across
+   the packaged Electron runners.
 
 3B-1 claimed "the sequence's source timecode reading for a clip's current source
 frame" in its outcome and shipped only the labelling helper
@@ -168,10 +179,13 @@ existing rollback discipline intact.
 
 ### S7 — Consumers honour what was probed
 
-Preview and export consume resolved display geometry; the compositor applies a
-residual quarter-turn or anamorphic stretch when — and only when — the resolver
-says the decoder did not; alpha survives poster and thumbnail capture instead of
-being flattened onto opaque black.
+A reported alpha channel survives poster and thumbnail capture instead of being
+flattened onto opaque black. Rotation and pixel aspect are reconciled against
+the decoder's presented size, which in every supported browser has already
+applied both: the resolver therefore reports no residual, and the surfaces
+present what the decoder gave them. A residual that a browser did produce is
+disclosed rather than silently re-applied, and export orientation moves to
+3B-2b for the reason recorded in the slice boundary.
 
 ### S8 — Source timecode and the properties surface
 
@@ -199,6 +213,7 @@ needs them, and the V14 slot is released for the next revision when S5 lands.
 ## Non-goals
 
 - No re-import upgrade of an existing source (3B-2b).
+- No export-side orientation or sample-aspect correction (3B-2b).
 - No transcoding, proxy generation, retiming, or deinterlacing.
 - No colour management or display transform.
 - No multi-stream audio import; the inventory discloses, it does not import.

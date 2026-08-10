@@ -397,11 +397,14 @@ Packet boundaries, dependencies, and acceptance are owned by
 
 - **Shared / Web Core — In progress:** rational sequence rates independent of audio
   sample rate, including integer/NTSC rates, drop/non-drop SMPTE, source
-  timecode, frame stepping/snapping, and explicit rounding. The probed source
-  timecode origin arrives with the ingest bullet below; until then a source
-  position is labelled at the source's own rate from a zero origin.
-- **Shared / Web Core — Planned:** probe and preserve exact frame/VFR timing,
+  timecode, frame stepping/snapping, and explicit rounding.
+- **Shared / Web Core — In progress:** probe and preserve exact frame/VFR timing,
   rotation, aspect, fields, alpha, codec, color, audio streams, and timecode.
+  Ingest now persists every one of them as probed truth or as an explicitly
+  unreported value, and the workspace reads the source timecode and discloses
+  what it records without acting on. Re-import upgrade of an already-imported
+  source, export-side orientation and sample-aspect correction, and the packaged
+  probe-matrix evidence rows remain.
 - **Web Core — Planned:** source/program monitors, source in/out, track targeting,
   insert, overwrite, replace, lift, extract, match-frame, and three-point edits.
 - **Web Core — Planned:** J/K/L shuttle, edit-point navigation,
