@@ -397,3 +397,33 @@ function legacyVideoProject() {
 		projectBin: { clips: [] },
 	};
 }
+
+test('re-projecting the same canonical project returns the cached projection', () => {
+	const project = audioFolderProject();
+	const first = projectTrackFolderMediaStateV12(project);
+	const second = projectTrackFolderMediaStateV12(project);
+	assert.strictEqual(second, first, 'a cache hit must return the identical projection');
+	assert.equal(isTrackFolderMediaStateProjectionV12(second), true);
+});
+
+test('mutating folder or leaf state on the same identity is never served from the cache', () => {
+	const project = audioFolderProject() as unknown as Record<string, unknown> & {
+		trackFolders: readonly Record<string, unknown>[];
+		tracks: readonly Record<string, unknown>[];
+	};
+	const first = projectTrackFolderMediaStateV12(project);
+
+	// Canonical folder records are frozen, so a same-identity edit replaces
+	// records rather than mutating them - exactly what the fingerprint covers.
+	project.trackFolders = project.trackFolders.map((folder, index) => (
+		index === 0 ? { ...folder, mute: folder.mute !== true } : folder
+	));
+	const afterFolderEdit = projectTrackFolderMediaStateV12(project);
+	assert.notStrictEqual(afterFolderEdit, first, 'a folder change must re-derive');
+
+	project.tracks = project.tracks.map((track) => (
+		track.type === 'audio' ? { ...track, solo: track.solo !== true } : track
+	));
+	const afterLeafEdit = projectTrackFolderMediaStateV12(project);
+	assert.notStrictEqual(afterLeafEdit, afterFolderEdit, 'a leaf flag change must re-derive');
+});

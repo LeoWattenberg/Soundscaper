@@ -20,6 +20,13 @@ type DataRecord = Record<PropertyKey, unknown>;
 // instead of projecting a document this derivation was never reviewed against.
 const EXACT_TRACK_FOLDER_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION;
 const TRUSTED_MEDIA_PROJECTIONS = new WeakMap<object, string>();
+// Re-projection cache per canonical input identity. The fingerprint is the
+// folder lineage PLUS leaf audibility flags, so a hit skips hierarchy
+// validation and the full state derivation while any input change - folder,
+// node, or leaf flag - forces a fresh derivation. This is one bounded walk
+// instead of validation plus projection, not O(1), and it never weakens the
+// trust WeakMap or widens what mediaProjectionLineage itself covers.
+const MEDIA_PROJECTION_CACHE = new WeakMap<object, { fingerprint: string; projected: object }>();
 
 /**
  * Flatten exact V12 folder media state into a transient leaf projection.
@@ -49,6 +56,12 @@ export function projectTrackFolderMediaStateV12<Project extends object>(project:
 		'track folder media project.tracks',
 		TRACK_HIERARCHY_V12_LIMITS.maximumNodes,
 	);
+	const lineage = mediaProjectionLineage(candidate);
+	const fingerprint = `${lineage}|${trackAudibilityFingerprint(tracks)}`;
+	const cached = MEDIA_PROJECTION_CACHE.get(project);
+	if (cached !== undefined && cached.fingerprint === fingerprint) {
+		return cached.projected as Project;
+	}
 	const sequences = canonicalArray(
 		requiredOwnData(candidate, 'sequences', 'track folder media project'),
 		'track folder media project.sequences',
@@ -95,7 +108,8 @@ export function projectTrackFolderMediaStateV12<Project extends object>(project:
 		tracks: Object.freeze(projectedTracks),
 		[TRACK_FOLDER_STATE_PROJECTION_MARKER]: TRACK_FOLDER_STATE_PROJECTION_VERSION,
 	}) as unknown as Project;
-	TRUSTED_MEDIA_PROJECTIONS.set(projected, mediaProjectionLineage(candidate));
+	TRUSTED_MEDIA_PROJECTIONS.set(projected, lineage);
+	MEDIA_PROJECTION_CACHE.set(project, { fingerprint, projected });
 	return projected;
 }
 
@@ -191,6 +205,19 @@ function mediaProjectionLineage(project: DataRecord): string {
 		folders,
 		sequences,
 	]);
+}
+
+function trackAudibilityFingerprint(tracks: readonly unknown[]): string {
+	return JSON.stringify(tracks.map((value, index) => {
+		const track = dataRecord(value, `track folder media cache.tracks[${String(index)}]`);
+		return ['id', 'type', 'mute', 'solo', 'hidden', 'laneGroupId'].map((key) => {
+			const entry = optionalOwnData(track, key, `track folder media cache.tracks[${String(index)}]`);
+			return entry === undefined || entry === null || typeof entry === 'string'
+				|| typeof entry === 'boolean' || typeof entry === 'number'
+				? entry ?? null
+				: String(entry);
+		});
+	}));
 }
 
 function lineagePrimitive(value: unknown, name: string): string | number | boolean | null {
