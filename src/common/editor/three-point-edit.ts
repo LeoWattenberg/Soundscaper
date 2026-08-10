@@ -34,7 +34,9 @@ export type ThreePointEditRefusal =
 	/** Nothing was chosen to edit from. */
 	| 'no-source'
 	/** No lane was targeted to receive the edit. */
-	| 'no-target';
+	| 'no-target'
+	/** Nothing under the program playhead to match or replace. */
+	| 'no-program-clip';
 
 export class ThreePointEditError extends Error {
 	readonly reason: ThreePointEditRefusal;

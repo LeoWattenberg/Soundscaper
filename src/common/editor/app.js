@@ -954,9 +954,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		prepareThreePointEditCommand: (commandProject, options) => (
 			prepareThreePointEditCommand(commandProject, options, createStableId)
 		),
-		sourceMonitorPoints: (binItemId, sequencePointCount) => (
-			sourceMonitorService.points(binItemId, sequencePointCount)
-		),
+		getPositionFrames: () => engine.getPositionFrames(),
+		sourceMonitor: sourceMonitorService,
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
 		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,

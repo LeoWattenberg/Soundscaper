@@ -21,6 +21,7 @@ import {
 
 // foundation-edit-matrix: insert
 // foundation-edit-matrix: overwrite
+// foundation-edit-matrix: replace
 
 /**
  * Insert and overwrite are two directions of one conformance rule. Both resolve
@@ -30,6 +31,10 @@ import {
  * Overwrite disturbs only the lanes it lands on. Insert ripples every media lane
  * in the sequence, because shifting only the targeted lanes would silently pull
  * everything else out of sync.
+ *
+ * Replace runs through the overwrite path unchanged: the controller derives its
+ * range from the clip being replaced instead of from a selection, which is the
+ * only difference between them and is why replace needs no rule of its own here.
  */
 
 /** Which lanes an operation touches: its targets, or the whole sequence when it ripples. */

@@ -21,6 +21,9 @@ presentation endpoints; they do not persist duplicated cross-domain timing.
 | Paste | One destination anchor | Endpoint conversion in frame space | Recompute pasted linked pair |
 | Duplicate | Paste at selection end | Same as paste | Same as paste |
 | Range delete | Selected absolute range | One conformed span per sequence | Follow conformed video survivors |
+| Insert | Resolved edit span | One conformed span opens every media lane | Placed pair shares the video endpoints |
+| Overwrite | Resolved edit span | One conformed span on the lanes that receive | Placed pair shares the video endpoints |
+| Replace | The replaced clip's own range | Placement and extent unchanged; source in from the monitor | Follow the replacing video endpoints |
 
 The source artifact contains the full placement, extent, and source-range rule
 for audio and video plus the implementation files that cite each matrix row.

@@ -4,9 +4,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
-import { resolveSourceMonitorPoints } from '../src/common/editor/source-monitor-model.ts';
+import {
+	SOURCE_MONITOR_NO_MARKS,
+	resolveSourceMonitorPoints,
+} from '../src/common/editor/source-monitor-model.ts';
 import { ThreePointEditError } from '../src/common/editor/three-point-edit.ts';
-import { createVideoEditService } from '../src/common/editor/controller/video-edit-service.ts';
+import {
+	createVideoEditService,
+	type VideoEditServiceDependencies,
+} from '../src/common/editor/controller/video-edit-service.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
 const SAMPLE_RATE = 48_000;
@@ -43,8 +49,22 @@ function projection(overrides: Record<string, unknown> = {}) {
 	};
 }
 
+const EMPTY_MONITOR = Object.freeze({
+	binItemId: null,
+	sourceId: null,
+	sourceName: null,
+	frameRate: null,
+	sourceFrameCount: 0,
+	positionFrame: 0,
+	markIn: null,
+	markOut: null,
+	timecodeLabel: null,
+	mediaSeconds: 0,
+});
+
 function harness(overrides: Record<string, unknown> = {}) {
 	const commands: AudioEditorCommand[] = [];
+	const opened: Record<string, unknown>[] = [];
 	const project = projection(overrides.project as Record<string, unknown> ?? {});
 	let clipIndex = 0;
 	const service = createVideoEditService({
@@ -57,15 +77,26 @@ function harness(overrides: Record<string, unknown> = {}) {
 			return command;
 		},
 		publishProjectState: () => undefined,
-		sourceMonitorPoints: (binItemId: string | null, sequencePointCount: number) => {
-			const monitor = overrides.monitor as Record<string, unknown> | undefined;
-			if (!monitor || monitor.binItemId !== binItemId) return null;
-			return resolveSourceMonitorPoints(
-				monitor.marks as { markIn: number | null; markOut: number | null },
-				250,
-				sequencePointCount,
-			);
-		},
+		getPositionFrames: () => (overrides.positionFrame as number | undefined) ?? 0,
+		sourceMonitor: {
+			view: () => ({
+				...EMPTY_MONITOR,
+				...(overrides.monitor as Record<string, unknown> | undefined ?? {}),
+			}),
+			openSource: (sourceId: string, options: Record<string, unknown>) => {
+				opened.push({ sourceId, ...options });
+				return { ...EMPTY_MONITOR, sourceId, positionFrame: options.positionFrame };
+			},
+			points: (binItemId: string | null, sequencePointCount: number) => {
+				const monitor = overrides.monitor as Record<string, unknown> | undefined;
+				if (!monitor || monitor.binItemId !== binItemId) return null;
+				return resolveSourceMonitorPoints(
+					(monitor.marks ?? SOURCE_MONITOR_NO_MARKS) as { markIn: number | null; markOut: number | null },
+					250,
+					sequencePointCount,
+				);
+			},
+		} as unknown as VideoEditServiceDependencies['sourceMonitor'],
 		// The real preparer is exercised by the command tests; here the service's
 		// own arithmetic and refusals are what is under test.
 		prepareThreePointEditCommand: (_project, options) => ({
@@ -79,7 +110,7 @@ function harness(overrides: Record<string, unknown> = {}) {
 			})),
 		}) as unknown as AudioEditorCommand,
 	});
-	return { commands, project, service };
+	return { commands, opened, project, service };
 }
 
 function placements(command: AudioEditorCommand) {
@@ -267,6 +298,130 @@ test('marks set on another item are not borrowed by this one', () => {
 	const result = service.overwrite();
 	assert.equal(result.edit.sourceIn, 0);
 	assert.equal(result.edit.sourceFrameCount, 250, 'the whole source, as before marking existed');
+});
+
+/** A programme with one clip on air, sourced from something else entirely. */
+function onAir(overrides: Record<string, unknown> = {}) {
+	return {
+		project: {
+			tracks: [
+				{ id: 'video-track', type: 'video', laneGroupId: 'lane', clipIds: ['on-air'] },
+				{ id: 'audio-track', type: 'audio', laneGroupId: 'lane', clipIds: [] },
+			],
+			clips: [{
+				id: 'on-air',
+				kind: 'video',
+				sourceId: 'on-air-source',
+				sequenceId: 'main',
+				sequenceStartFrame: 25,
+				sequenceFrameCount: 50,
+				sourceInFrame: 100,
+				sourceFrameCount: 50,
+			}],
+			sources: [
+				{ id: 'bin-video-source', kind: 'video', frameRate: RATE, sourceFrameCount: 250 },
+				{ id: 'bin-audio-source', kind: 'audio', frameCount: SECOND * 10, sampleRate: SAMPLE_RATE },
+				{ id: 'on-air-source', kind: 'video', frameRate: RATE, sourceFrameCount: 500 },
+			],
+		},
+		// Sequence frame 37, which is the thirteenth frame of the clip on air.
+		positionFrame: SECOND * 37 / 25,
+		...overrides,
+	};
+}
+
+test('replace keeps the placement and extent and changes only the media', () => {
+	const { commands, service } = harness(onAir({
+		monitor: { binItemId: 'item', sourceId: 'bin-video-source', positionFrame: 100 },
+	}));
+	const result = service.replace();
+
+	assert.equal(result.replacedClipId, 'on-air');
+	assert.equal(result.mode, 'overwrite');
+	// The clip's own range became the edit's range, so nothing moved and nothing
+	// changed length; the selection was never consulted.
+	const command = commands[0] as unknown as Record<string, unknown>;
+	assert.equal(command.startFrame, SECOND * 25 / 25);
+	assert.equal(command.endFrame, SECOND * 75 / 25);
+	assert.equal(result.edit.sequenceFrameCount, 50);
+	// The source range starts at the monitor's playhead and takes that extent
+	// converted once, rather than the marks an edit would have used.
+	assert.equal(result.edit.sourceIn, 100);
+	assert.equal(result.edit.sourceFrameCount, 50);
+	assert.deepEqual(placements(commands[0])[0].sourceId, 'bin-video-source');
+});
+
+test('replace ignores the marks it would otherwise read', () => {
+	const { service } = harness(onAir({
+		monitor: {
+			binItemId: 'item',
+			sourceId: 'bin-video-source',
+			positionFrame: 10,
+			marks: { markIn: 200, markOut: 210 },
+		},
+	}));
+	assert.equal(service.replace().edit.sourceIn, 10);
+});
+
+test('replace refuses when the source cannot supply the clip extent', () => {
+	const { commands, service } = harness(onAir({
+		monitor: { binItemId: 'item', sourceId: 'bin-video-source', positionFrame: 240 },
+	}));
+	assert.throws(() => service.replace(), (error: unknown) => {
+		assert.ok(error instanceof ThreePointEditError);
+		assert.equal(error.reason, 'source-out-of-bounds');
+		return true;
+	});
+	assert.equal(commands.length, 0);
+});
+
+test('replace refuses without a clip under the playhead or a monitor to take from', () => {
+	const empty = harness(onAir({
+		monitor: { binItemId: 'item', sourceId: 'bin-video-source', positionFrame: 0 },
+		positionFrame: 0,
+	}));
+	assert.throws(() => empty.service.replace(), (error: unknown) => {
+		assert.ok(error instanceof ThreePointEditError);
+		assert.equal(error.reason, 'no-program-clip');
+		return true;
+	});
+
+	const unopened = harness(onAir());
+	assert.throws(() => unopened.service.replace(), (error: unknown) => {
+		assert.ok(error instanceof ThreePointEditError);
+		assert.equal(error.reason, 'no-source');
+		return true;
+	});
+	assert.equal(unopened.commands.length, 0);
+});
+
+test('match-frame opens the matched source at that frame holding the clip range', () => {
+	const { opened, service } = harness(onAir());
+	const matched = service.matchFrame();
+
+	assert.equal(matched.clipId, 'on-air');
+	assert.equal(matched.trackId, 'video-track');
+	assert.equal(matched.sourceId, 'on-air-source');
+	assert.equal(matched.sourceFrame, 112, 'the thirteenth frame of a clip that starts at source frame 100');
+	// The monitor is left holding exactly the material the clip uses, so the
+	// answer is usable for re-editing rather than only informative.
+	assert.deepEqual(opened, [{
+		sourceId: 'on-air-source',
+		positionFrame: 112,
+		markIn: 100,
+		markOut: 150,
+	}]);
+	assert.equal(matched.monitor.positionFrame, 112);
+});
+
+test('match-frame answers nothing rather than the nearest clip', () => {
+	const { opened, service } = harness(onAir({ positionFrame: 0 }));
+	assert.throws(() => service.matchFrame(), (error: unknown) => {
+		assert.ok(error instanceof ThreePointEditError);
+		assert.equal(error.reason, 'no-program-clip');
+		return true;
+	});
+	assert.deepEqual(opened, []);
 });
 
 test('an untargeted audio lane keeps the edit off it', () => {

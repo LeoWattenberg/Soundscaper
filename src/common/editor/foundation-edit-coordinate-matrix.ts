@@ -12,6 +12,7 @@ export const FOUNDATION_EDIT_PRIMITIVES = Object.freeze([
 	'range-delete',
 	'insert',
 	'overwrite',
+	'replace',
 ] as const);
 
 export type FoundationEditPrimitive = typeof FOUNDATION_EDIT_PRIMITIVES[number];
@@ -159,6 +160,17 @@ export const FOUNDATION_EDIT_COORDINATE_MATRIX: Readonly<
 		videoSourceRange: 'The placed clip carries the resolved integer source-frame range.',
 		operationConformance: 'The range is conformed once per sequence and only the lanes that receive material are disturbed.',
 		implementation: ['commands/three-point-edit-runtime.js'],
+	},
+	replace: {
+		primitive: 'replace',
+		audioPlacement: 'Unchanged: the replaced clip keeps the absolute placement it already had.',
+		audioExtent: 'Unchanged; the replacement takes the extent of the clip it stands in for.',
+		audioSourceRange: 'The replacement carries the source range that extent implies from the monitor position.',
+		videoPlacement: 'Unchanged: the replaced clip keeps its sequence frame.',
+		videoExtent: 'Unchanged in sequence frames; only the media behind those frames changes.',
+		videoSourceRange: 'The source in is the source monitor playhead, and the count is the clip extent converted once as a change of basis.',
+		operationConformance: 'Replace is overwrite whose range is the replaced clip own resolved range rather than a selection, so it adds no second conforming rule; a source too short to supply that range refuses instead of clamping.',
+		implementation: ['controller/video-edit-service.ts', 'commands/three-point-edit-runtime.js'],
 	},
 });
 

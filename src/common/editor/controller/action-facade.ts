@@ -195,6 +195,10 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			clearTargets: () => videoEditService.clearTargets(),
 			insert: (request: RuntimeValue) => videoEditService.insert(request),
 			overwrite: (request: RuntimeValue) => videoEditService.overwrite(request),
+			// Replace and match-frame are both defined against the frame under the
+			// program playhead.
+			replace: (request: RuntimeValue) => videoEditService.replace(request),
+			matchFrame: (request: RuntimeValue) => videoEditService.matchFrame(request),
 			// One video source open on its own frame grid: the marks an edit reads
 			// come from here, and nothing about it is persisted.
 			sourceMonitor: Object.freeze({

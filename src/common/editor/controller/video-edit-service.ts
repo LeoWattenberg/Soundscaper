@@ -13,8 +13,9 @@ import {
 } from '../video-edit-targeting.ts';
 import {
 	SOURCE_MONITOR_NO_MARKS,
+	resolveProgramFrame,
 	resolveSourceMonitorPoints,
-	type SourceMonitorPoints,
+	type ProgramFrame,
 } from '../source-monitor-model.ts';
 import {
 	sampleFrameToVideoFrame,
@@ -22,7 +23,10 @@ import {
 	type RationalRate,
 } from '../timeline-time.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import type { SourceMonitorService, SourceMonitorView } from './source-monitor-service.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
+
+// foundation-edit-matrix: replace
 
 /**
  * Editing from the Project Bin into a targeted sequence.
@@ -31,6 +35,10 @@ import type { EditorControllerLifetime } from './lifecycle.ts';
  * through the shared arithmetic, and commits one command. It holds exactly one
  * piece of state — which lanes are targeted — because that is a working choice
  * and not a fact the document owes anyone after a reload.
+ *
+ * Replace is not a second primitive here: it is an overwrite whose range is the
+ * clip it replaces rather than a selection, so placement and extent survive
+ * untouched and only the media changes.
  */
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -44,8 +52,9 @@ export interface VideoEditServiceDependencies {
 	commit(command: AudioEditorCommand): unknown;
 	publishProjectState(): void;
 	prepareThreePointEditCommand(project: DataRecord, options: DataRecord): AudioEditorCommand;
-	/** The source monitor's marks, or null when it is holding another item. */
-	sourceMonitorPoints(binItemId: string | null, sequencePointCount: number): SourceMonitorPoints | null;
+	/** The program playhead, in project samples. */
+	getPositionFrames(): number;
+	readonly sourceMonitor: Pick<SourceMonitorService, 'view' | 'openSource' | 'points'>;
 }
 
 export interface VideoEditRequest {
@@ -53,6 +62,8 @@ export interface VideoEditRequest {
 	readonly sequenceInFrame?: number | null;
 	readonly sequenceOutFrame?: number | null;
 	readonly sequenceId?: string | null;
+	/** Stated by replace; it overrides the monitor's marks with its playhead. */
+	readonly sourceInFrame?: number | null;
 }
 
 export interface VideoEditResult {
@@ -62,6 +73,16 @@ export interface VideoEditResult {
 	readonly audioClipId: string | null;
 	/** True when the item carried audio no targeted lane could receive. */
 	readonly audioDropped: boolean;
+	/** The clip a replace stood in for, or null for an ordinary edit. */
+	readonly replacedClipId: string | null;
+}
+
+export interface VideoMatchFrame {
+	readonly clipId: string;
+	readonly trackId: string;
+	readonly sourceId: string;
+	readonly sourceFrame: number;
+	readonly monitor: SourceMonitorView;
 }
 
 export interface VideoEditService {
@@ -70,6 +91,8 @@ export interface VideoEditService {
 	clearTargets(): VideoEditTargets;
 	insert(request?: VideoEditRequest): VideoEditResult;
 	overwrite(request?: VideoEditRequest): VideoEditResult;
+	replace(request?: VideoEditRequest): VideoEditResult;
+	matchFrame(request?: VideoEditRequest): VideoMatchFrame;
 }
 
 export function createVideoEditService(
@@ -86,7 +109,11 @@ export function createVideoEditService(
 		});
 	}
 
-	function edit(mode: 'insert' | 'overwrite', request: VideoEditRequest): VideoEditResult {
+	function edit(
+		mode: 'insert' | 'overwrite',
+		request: VideoEditRequest,
+		replacedClipId: string | null = null,
+	): VideoEditResult {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
 		const project = dependencies.getProject();
@@ -105,9 +132,13 @@ export function createVideoEditService(
 		const sequencePointCount = points.sequenceOut == null ? 1 : 2;
 		// The monitor's marks decide the source range. An unmarked monitor — or one
 		// holding a different item — states nothing, and the media's own boundaries
-		// fill in, which is the whole-source edit this service began with.
-		const marked = dependencies.sourceMonitorPoints(item.id, sequencePointCount)
-			?? resolveSourceMonitorPoints(SOURCE_MONITOR_NO_MARKS, sourceFrameCount, sequencePointCount);
+		// fill in, which is the whole-source edit this service began with. A stated
+		// source in comes from replace, which is defined against the monitor's
+		// playhead rather than its marks and lets the clip supply the duration.
+		const marked = request.sourceInFrame != null
+			? { sourceIn: nonNegativeSafeInteger(request.sourceInFrame, 'edit.sourceInFrame'), sourceOut: null }
+			: dependencies.sourceMonitor.points(item.id, sequencePointCount)
+				?? resolveSourceMonitorPoints(SOURCE_MONITOR_NO_MARKS, sourceFrameCount, sequencePointCount);
 		const resolved = resolveThreePointEdit({
 			sourceIn: marked.sourceIn,
 			sourceOut: marked.sourceOut,
@@ -155,7 +186,28 @@ export function createVideoEditService(
 			videoClipId: placed[0]?.clipId ?? null,
 			audioClipId: placements.length > 1 ? placed[1]?.clipId ?? null : null,
 			audioDropped: Boolean(item.audio) && !audioTargetId,
+			replacedClipId,
 		});
+	}
+
+	/**
+	 * What the program playhead is pointing at, preferring the targeted lane.
+	 * Match-frame only reads it; replace also has to place onto the lane it
+	 * lifts, so it requires the two to be the same lane.
+	 */
+	function programFrame(resolvedTargets: VideoEditTargets): ProgramFrame {
+		const frame = resolveProgramFrame(dependencies.getProject(), {
+			sample: Math.max(0, Math.trunc(dependencies.getPositionFrames())),
+			sequenceId: resolvedTargets.sequenceId,
+			videoTrackId: resolvedTargets.videoTrackId,
+		});
+		if (!frame) {
+			throw new ThreePointEditError(
+				'no-program-clip',
+				'No video clip is under the playhead to match or replace.',
+			);
+		}
+		return frame;
 	}
 
 	return Object.freeze({
@@ -177,6 +229,63 @@ export function createVideoEditService(
 		},
 		insert: (request: VideoEditRequest = {}) => edit('insert', request),
 		overwrite: (request: VideoEditRequest = {}) => edit('overwrite', request),
+
+		/**
+		 * Replace the clip under the playhead with the monitor's material,
+		 * starting at the monitor's playhead. The clip's own range becomes the
+		 * edit's sequence range, so its placement and extent survive exactly and
+		 * the source range is that extent converted once.
+		 */
+		replace(request: VideoEditRequest = {}): VideoEditResult {
+			dependencies.lifetime.assertActive();
+			if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
+			const resolvedTargets = targets(request.sequenceId);
+			if (!resolvedTargets.videoTrackId) {
+				throw new ThreePointEditError('no-target', 'No video lane is targeted to receive this edit.');
+			}
+			const monitor = dependencies.sourceMonitor.view();
+			if (!monitor.binItemId) {
+				throw new ThreePointEditError(
+					'no-source',
+					'Open a Project Bin video item in the source monitor to replace with.',
+				);
+			}
+			const frame = programFrame(resolvedTargets);
+			if (frame.trackId !== resolvedTargets.videoTrackId) {
+				throw new ThreePointEditError(
+					'no-program-clip',
+					'The clip under the playhead is not on the targeted lane.',
+				);
+			}
+			return edit('overwrite', {
+				binItemId: monitor.binItemId,
+				sequenceId: resolvedTargets.sequenceId,
+				sequenceInFrame: frame.startFrame,
+				sequenceOutFrame: frame.endFrame,
+				sourceInFrame: monitor.positionFrame,
+			}, frame.clipId);
+		},
+
+		/**
+		 * Open the source behind the frame under the playhead, at that frame,
+		 * holding exactly the range the matched clip uses — so the answer is
+		 * usable for re-editing rather than only informative.
+		 */
+		matchFrame(request: VideoEditRequest = {}): VideoMatchFrame {
+			dependencies.lifetime.assertActive();
+			const frame = programFrame(targets(request.sequenceId));
+			return Object.freeze({
+				clipId: frame.clipId,
+				trackId: frame.trackId,
+				sourceId: frame.sourceId,
+				sourceFrame: frame.sourceFrame,
+				monitor: dependencies.sourceMonitor.openSource(frame.sourceId, {
+					positionFrame: frame.sourceFrame,
+					markIn: frame.sourceIn,
+					markOut: frame.sourceIn + frame.sourceFrameCount,
+				}),
+			});
+		},
 	});
 }
 
