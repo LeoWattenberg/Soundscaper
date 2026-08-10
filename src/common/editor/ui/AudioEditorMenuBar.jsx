@@ -66,7 +66,14 @@ export default function AudioEditorMenuBar({
 			// Restore before an activated command can mount a modal. Its layout
 			// effect then captures the stable menu trigger instead of document.body.
 			trigger?.focus?.({ preventScroll: true });
-			requestAnimationFrame(() => trigger?.focus?.({ preventScroll: true }));
+			// A late frame must not reclaim focus from wherever a command, a dialog,
+			// or the operator moved it; restore only while the document owns nothing.
+			requestAnimationFrame(() => {
+				const owner = trigger?.ownerDocument;
+				const active = owner?.activeElement;
+				if (!owner || (active && active !== owner.body && active !== owner.documentElement)) return;
+				trigger?.focus?.({ preventScroll: true });
+			});
 		}
 		openMenuRef.current = null;
 		setOpenMenu(null);

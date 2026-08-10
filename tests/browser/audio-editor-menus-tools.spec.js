@@ -145,6 +145,35 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(arm).toHaveAttribute('aria-pressed', 'true');
 	});
 
+	test('keeps focus where it moved after a command when the closing frame lands late', async ({ page }) => {
+		// A loaded runner can defer the frame that follows a menu command well past
+		// the next control the operator reaches for, so pin that ordering here.
+		await page.addInitScript(() => {
+			const nativeFrame = globalThis.requestAnimationFrame.bind(globalThis);
+			globalThis.requestAnimationFrame = (callback) => (globalThis.__delayEditorFrames
+				? setTimeout(() => nativeFrame(callback), 150)
+				: nativeFrame(callback));
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		const view = editor.getByRole('menubar', { name: 'Application menu' })
+			.getByRole('menuitem', { name: 'View', exact: true });
+		const play = editor.locator('[data-editor-tool-toolbar]').getByRole('toolbar')
+			.getByRole('button', { name: 'Play', exact: true });
+
+		await page.evaluate(() => { globalThis.__delayEditorFrames = true; });
+		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
+		await play.focus();
+		await expect(play).toBeFocused();
+		await page.waitForTimeout(300);
+		await expect(play).toBeFocused();
+
+		// A command the operator does not follow up on still returns focus to its menu.
+		await chooseCommandAction(page, editor, 'View', 'Enable multi-track recording');
+		await expect(view).toBeFocused();
+		await page.waitForTimeout(300);
+		await expect(view).toBeFocused();
+	});
+
 	test('omits unavailable project, view, track, and tool commands', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
