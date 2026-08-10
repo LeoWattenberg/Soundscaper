@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          exposed_locales="$(node --input-type=module -e "import { COMMITTED_LOCALE_TAGS } from './src/i18n/locales.js'; process.stdout.write(COMMITTED_LOCALE_TAGS.join(','));")"
+          exposed_locales="$(node --input-type=module -e "import { COMMITTED_LOCALE_TAGS } from './src/common/i18n/locales.js'; process.stdout.write(COMMITTED_LOCALE_TAGS.join(','));")"
           tool_revision="$(git rev-parse HEAD)"
           previous=()
           if [[ -f "$RUNNER_TEMP/previous-release/latest.json" ]]; then
