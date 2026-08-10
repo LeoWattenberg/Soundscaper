@@ -304,6 +304,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'source-monitor-program-frame',
+		file: 'src/common/editor/source-monitor-model.ts',
+		behavior: 'The frame under the program playhead resolves the matched clip\'s sequence range to absolute samples from the sequence origin as point coordinates; the monitor\'s own playhead stays in source frames and is never converted.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'three-point-edit-resolution',
 		file: 'src/common/editor/three-point-edit.ts',
 		behavior: 'Three-point editing converts the duration of the fully specified pair once as an exact integer change of basis, point-rounded, then resolves the sequence range to absolute samples from the sequence origin.',

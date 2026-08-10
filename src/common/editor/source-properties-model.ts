@@ -9,6 +9,7 @@ import {
 	normalizeVideoSourceCharacteristics,
 	type VideoSourceAudioStream,
 	type VideoSourceCharacteristics,
+	type VideoSourceStartTimecode,
 } from './video-source-characteristics.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import {
@@ -103,6 +104,25 @@ export function resolveVideoSourcePropertiesView(sourceValue: unknown): SourcePr
 }
 
 /**
+ * The SMPTE label a source's own recorded origin gives one of its frames. Every
+ * surface that names a source frame reads it from here, so a readout and a
+ * monitor cannot drift into two labels for the same frame.
+ */
+export function sourceFrameTimecodeLabel(
+	rate: SequenceRationalRate,
+	origin: VideoSourceStartTimecode | null,
+	sourceFrame: number,
+): string {
+	const dropFrame = origin?.dropFrame ?? false;
+	const originFrames = origin ? sequenceTimecodeToFrameCount(origin, rate, dropFrame) : 0;
+	return formatSequenceTimecode(
+		sequenceTimecodeFromFrameCount(originFrames + sourceFrame, rate, dropFrame),
+		rate,
+		dropFrame,
+	);
+}
+
+/**
  * Read the source timecode under the playhead. The reading belongs to the first
  * video clip in document order whose sequence range contains the position, so a
  * stack of layers resolves the same way on every surface.
@@ -146,17 +166,12 @@ export function resolveSourceTimecodeAtSample(
 		const origin = characteristics.startTimecode;
 		const sourceIn = Number(value.sourceInFrame ?? value.sourceStartFrame ?? 0);
 		const sourceFrame = (Number.isSafeInteger(sourceIn) ? sourceIn : 0) + (frame - start);
-		const originFrames = origin ? sequenceTimecodeToFrameCount(origin, rate, origin.dropFrame) : 0;
 		return Object.freeze({
 			sourceId: String(source.id ?? ''),
 			sourceName: String(source.name ?? ''),
 			clipId: String(value.id ?? ''),
 			sourceFrame,
-			label: formatSequenceTimecode(
-				sequenceTimecodeFromFrameCount(originFrames + sourceFrame, rate, origin?.dropFrame ?? false),
-				rate,
-				origin?.dropFrame ?? false,
-			),
+			label: sourceFrameTimecodeLabel(rate, origin, sourceFrame),
 			originReported: origin !== null,
 		});
 	}
