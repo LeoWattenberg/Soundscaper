@@ -105,7 +105,11 @@ the re-import upgrade path that follows them. Its second half is
 [`docs/milestone-3b-source-display-geometry.md`](milestone-3b-source-display-geometry.md),
 which measures what the pinned FFmpeg build and the qualified browsers do with a
 display matrix and a pixel aspect ratio, makes every surface present the source's
-display geometry, and leaves the re-import upgrade to 3B-2c.
+display geometry, and leaves the re-import upgrade to 3B-2c. That upgrade is
+decomposed in
+[`docs/milestone-3b-source-reimport-upgrade.md`](milestone-3b-source-reimport-upgrade.md),
+which owns the one undoable command that re-probes an already-imported source
+and conforms the edits cut against its old frame grid.
 
 - **Outcome:** Replace fabricated ingest metadata with probed source truth:
   exact rational frame rate, frame count, VFR timing published as the
