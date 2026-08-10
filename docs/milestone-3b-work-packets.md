@@ -101,7 +101,11 @@ catalog rows cannot poison startup. There are no pre-release migrations.
 The pickup decomposition for its first half is maintained in
 [`docs/milestone-3b-probed-source-characteristics.md`](milestone-3b-probed-source-characteristics.md),
 which owns the slice boundary between the probed characteristics themselves and
-the re-import upgrade path that follows them.
+the re-import upgrade path that follows them. Its second half is
+[`docs/milestone-3b-source-display-geometry.md`](milestone-3b-source-display-geometry.md),
+which measures what the pinned FFmpeg build and the qualified browsers do with a
+display matrix and a pixel aspect ratio, makes every surface present the source's
+display geometry, and leaves the re-import upgrade to 3B-2c.
 
 - **Outcome:** Replace fabricated ingest metadata with probed source truth:
   exact rational frame rate, frame count, VFR timing published as the
