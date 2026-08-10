@@ -62,6 +62,23 @@ test('a display matrix becomes the clockwise rotation a surface would apply', ()
 	assert.equal(rotation('-33.00'), null, 'an arbitrary angle is not rounded into a quarter turn');
 });
 
+test('an unrotated probe run states coded size, sample aspect, and rotation separately', () => {
+	// Captured verbatim from the pinned @ffmpeg/core 0.12.10 runtime probing the
+	// rotated anamorphic geometry fixture with the product's own probe arguments.
+	const characteristics = parseFfmpegVideoSourceCharacteristics([
+		'  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), '
+			+ '32x24 [SAR 1:1 DAR 4:3], 22 kb/s, SAR 2:1 DAR 8:3, 25 fps, 25 tbr, 12800 tbn (default)',
+		'      displaymatrix: rotation of 90.00 degrees',
+		'[Parsed_showinfo_0 @ 0xecc5c0] config in time_base: 1/12800, frame_rate: 25/1',
+		'[Parsed_showinfo_0 @ 0xecc5c0] n:   0 pts:      0 pts_time:0       pos:       48 '
+			+ 'fmt:yuv420p sar:2/1 s:32x24 i:P iskey:1 type:I checksum:4E1037DE',
+	], { rate: PAL });
+	assert.equal(characteristics.codedWidth, 32, 'autorotation is disabled, so this is the coded width');
+	assert.equal(characteristics.codedHeight, 24);
+	assert.deepEqual(characteristics.pixelAspectRatio, { num: 2, den: 1 });
+	assert.equal(characteristics.rotationDegrees, 270);
+});
+
 test('the output section and stream mappings are never mistaken for source truth', () => {
 	const characteristics = parseFfmpegVideoSourceCharacteristics([
 		'  Stream #0:0(und): Video: prores (apch / 0x68637061), yuv422p10le(tv, bt709), 1920x1080',

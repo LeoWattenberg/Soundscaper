@@ -15,11 +15,19 @@ const CONFIG = /config in time_base:\s*(\d+)\s*\/\s*(\d+),\s*frame_rate:\s*(\d+)
 const FRAME = /\bn:\s*(\d+)\s+pts:\s*(-?\d+)/iu;
 const DURATION = /\bduration:\s*(-?\d+)/iu;
 
-/** Ask for one sentinel frame beyond the persisted ceiling so oversized media cannot be silently truncated. */
+/**
+ * Ask for one sentinel frame beyond the persisted ceiling so oversized media
+ * cannot be silently truncated.
+ *
+ * Autorotation is disabled because the probe reports facts about coded frames:
+ * FFmpeg otherwise rotates the frame before `showinfo` sees it, and the size it
+ * then prints is the presented size rather than the coded size the banner's
+ * display matrix is relative to.
+ */
 export function buildFfmpegVideoTimingProbeArgs(input: string): readonly string[] {
 	if (typeof input !== 'string' || !input) throw new TypeError('An FFmpeg timing-probe input path is required.');
 	return Object.freeze([
-		'-hide_banner', '-nostdin', '-i', input,
+		'-hide_banner', '-nostdin', '-noautorotate', '-i', input,
 		'-map', '0:v:0', '-an', '-sn', '-dn',
 		'-vf', 'showinfo', '-fps_mode', 'passthrough',
 		'-frames:v', String(VIDEO_TIMING_ASSET_MAXIMUM_FRAMES + 1),

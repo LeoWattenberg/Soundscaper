@@ -16,6 +16,14 @@ test('FFmpeg probes one frame beyond the timing-asset ceiling to reject truncati
 	assert.equal(args[limitIndex + 1], String(VIDEO_TIMING_ASSET_MAXIMUM_FRAMES + 1));
 });
 
+test('the probe disables autorotation so showinfo describes coded frames', () => {
+	const args = buildFfmpegVideoTimingProbeArgs('input.mp4');
+	const rotationIndex = args.indexOf('-noautorotate');
+	assert.notEqual(rotationIndex, -1);
+	// An input option only applies to the input it precedes.
+	assert.ok(rotationIndex < args.indexOf('-i'));
+});
+
 test('FFmpeg showinfo parsing preserves exact CFR time bases and rational rates', () => {
 	const result = parseFfmpegVideoTimingLogs([
 		'[Parsed_showinfo_0] config in time_base: 1/90000, frame_rate: 30000/1001',
