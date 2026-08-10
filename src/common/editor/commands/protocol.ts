@@ -24,6 +24,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'signature-event/add',
 	'signature-event/update',
 	'signature-event/remove',
+	'sequence/update',
 	'timeline-annotation/add',
 	'timeline-annotation/update-many',
 	'timeline-annotation/move-many',
@@ -128,6 +129,21 @@ export interface SignatureEventCommandValue {
 }
 
 export type SignatureEventCommandChanges = Readonly<Partial<Omit<SignatureEventCommandValue, 'id'>>>;
+
+export interface SequenceTimecodeCommandValue {
+	readonly negative: boolean;
+	readonly hours: number;
+	readonly minutes: number;
+	readonly seconds: number;
+	readonly frames: number;
+}
+
+export interface SequenceTimingCommandChanges {
+	readonly name?: string;
+	readonly rate?: ExactRationalCommandValue;
+	readonly dropFrame?: boolean;
+	readonly startTimecode?: SequenceTimecodeCommandValue;
+}
 
 export interface TimelineAnnotationUpdateChanges {
 	readonly name?: string;
@@ -253,6 +269,10 @@ type NonBatchAudioEditorCommandPayloads = {
 	readonly 'signature-event/add': { readonly event: SignatureEventCommandValue };
 	readonly 'signature-event/update': { readonly eventId: string; readonly changes: SignatureEventCommandChanges };
 	readonly 'signature-event/remove': { readonly eventId: string };
+	readonly 'sequence/update': {
+		readonly sequenceId: string;
+		readonly changes: SequenceTimingCommandChanges;
+	};
 	readonly 'timeline-annotation/add': { readonly annotation: TimelineAnnotationV11 };
 	readonly 'timeline-annotation/update-many': {
 		readonly annotationIds: readonly string[];

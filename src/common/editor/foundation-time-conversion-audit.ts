@@ -126,6 +126,15 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'sequence-timing-rate-change',
+		file: 'src/common/editor/commands/sequence-timing-runtime.ts',
+		behavior: 'A sequence rate change conforms each video placement by point-rounding both of its resolved absolute boundaries onto the new grid, then reports the resolved duration those conformed boundaries carry.',
+		conversions: [
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'timeline-annotation-ripple-authority',
 		file: 'src/common/editor/commands/timeline-annotation-ripple.ts',
 		behavior: 'A whole-sequence ripple exactly inverts its single conformed sample span to one musical span before applying both authoritative-domain deltas.',

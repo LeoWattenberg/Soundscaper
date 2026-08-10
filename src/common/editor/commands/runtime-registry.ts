@@ -3,6 +3,7 @@
 import { createClipRangeClipboardRuntimeHandlers } from './clip-range-clipboard-runtime.js';
 import { createEffectsVideoRuntimeHandlers } from './effects-video-runtime.js';
 import { createProjectSourceBinRuntimeHandlers } from './project-source-bin-runtime.js';
+import { createSequenceTimingRuntimeHandlers } from './sequence-timing-runtime.ts';
 import { createTempoSignatureRuntimeHandlers } from './tempo-signature-runtime.ts';
 import { createTimelineAnnotationRuntimeHandlers } from './timeline-annotation-runtime.ts';
 import {
@@ -27,6 +28,7 @@ export function createEditorCommandRuntime(
 	return defineEditorCommandHandlerRegistry({
 		projectSourceBin: createProjectSourceBinRuntimeHandlers(dispatchChild),
 		tempoSignature: createTempoSignatureRuntimeHandlers(),
+		sequenceTiming: createSequenceTimingRuntimeHandlers(),
 		trackMixerLabel: createTrackMixerLabelRuntimeHandlers(),
 		trackFolder: createTrackFolderRuntimeHandlers(),
 		clipRangeClipboard: createClipRangeClipboardRuntimeHandlers(),

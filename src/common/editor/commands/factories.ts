@@ -27,6 +27,7 @@ import type {
 	AudioEditorCommand,
 	AudioEditorCommandType,
 	CommandObject,
+	SequenceTimingCommandChanges,
 	SignatureEventCommandChanges,
 	SignatureEventCommandValue,
 	TempoEventCommandChanges,
@@ -241,6 +242,17 @@ export function createUpdateSignatureEventCommand(
 
 export function createRemoveSignatureEventCommand(eventId: string): CommandFor<'signature-event/remove'> {
 	return { type: 'signature-event/remove', eventId: requireStableCommandId(eventId, 'signature event') };
+}
+
+export function createUpdateSequenceTimingCommand(
+	sequenceId: string,
+	changes: SequenceTimingCommandChanges,
+): CommandFor<'sequence/update'> {
+	return {
+		type: 'sequence/update',
+		sequenceId: requireStableCommandId(sequenceId, 'sequence'),
+		changes: structuredClone(changes),
+	};
 }
 
 export function createAddTimelineAnnotationCommand(

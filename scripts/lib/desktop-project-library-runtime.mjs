@@ -62,6 +62,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/runtime-timeline-annotation-projection.js',
 	'src/common/editor/scape-project-document.js',
 	'src/common/editor/scape-project-json-preflight.js',
+	'src/common/editor/sequence-timecode.js',
 	'src/common/editor/stable-id.js',
 	'src/common/editor/terminal-channel-widths.js',
 	'src/common/editor/timeline-annotation.js',

@@ -40,6 +40,12 @@ import {
 	type TrackMixerLabelCommandType,
 } from './track-mixer-label.ts';
 import {
+	defineSequenceTimingCommandHandlers,
+	SEQUENCE_TIMING_COMMAND_TYPES,
+	type SequenceTimingCommandHandlers,
+	type SequenceTimingCommandType,
+} from './sequence-timing.ts';
+import {
 	defineTempoSignatureCommandHandlers,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
 	type TempoSignatureCommandHandlers,
@@ -57,12 +63,14 @@ export {
 	defineClipRangeClipboardCommandHandlers,
 	defineEffectsVideoCommandHandlers,
 	defineProjectSourceBinCommandHandlers,
+	defineSequenceTimingCommandHandlers,
 	defineTempoSignatureCommandHandlers,
 	defineTimelineAnnotationCommandHandlers,
 	defineTrackFolderCommandHandlers,
 	defineTrackMixerLabelCommandHandlers,
 	EFFECTS_VIDEO_COMMAND_TYPES,
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
+	SEQUENCE_TIMING_COMMAND_TYPES,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	TRACK_FOLDER_COMMAND_TYPES,
@@ -72,6 +80,7 @@ export {
 export interface EditorCommandHandlerDomains {
 	readonly projectSourceBin: ProjectSourceBinCommandHandlers;
 	readonly tempoSignature: TempoSignatureCommandHandlers;
+	readonly sequenceTiming: SequenceTimingCommandHandlers;
 	readonly trackMixerLabel: TrackMixerLabelCommandHandlers;
 	readonly trackFolder: TrackFolderCommandHandlers;
 	readonly clipRangeClipboard: ClipRangeClipboardCommandHandlers;
@@ -82,6 +91,7 @@ export interface EditorCommandHandlerDomains {
 type RegisteredDomainCommandType =
 	| ProjectSourceBinCommandType
 	| TempoSignatureCommandType
+	| SequenceTimingCommandType
 	| TrackMixerLabelCommandType
 	| TrackFolderCommandType
 	| ClipRangeClipboardCommandType
@@ -106,6 +116,7 @@ export function defineEditorCommandHandlerRegistry(
 	const domainRegistries = [
 		defineProjectSourceBinCommandHandlers(domains.projectSourceBin),
 		defineTempoSignatureCommandHandlers(domains.tempoSignature),
+		defineSequenceTimingCommandHandlers(domains.sequenceTiming),
 		defineTrackMixerLabelCommandHandlers(domains.trackMixerLabel),
 		defineTrackFolderCommandHandlers(domains.trackFolder),
 		defineClipRangeClipboardCommandHandlers(domains.clipRangeClipboard),

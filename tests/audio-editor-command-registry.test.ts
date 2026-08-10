@@ -7,6 +7,7 @@ import {
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 	EFFECTS_VIDEO_COMMAND_TYPES,
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
+	SEQUENCE_TIMING_COMMAND_TYPES,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	TRACK_FOLDER_COMMAND_TYPES,
@@ -29,13 +30,14 @@ test('command domains partition the authoritative protocol exactly once', () => 
 	const domainTypes = [
 		...PROJECT_SOURCE_BIN_COMMAND_TYPES,
 		...TEMPO_SIGNATURE_COMMAND_TYPES,
+		...SEQUENCE_TIMING_COMMAND_TYPES,
 		...TRACK_MIXER_LABEL_COMMAND_TYPES,
 		...TRACK_FOLDER_COMMAND_TYPES,
 		...CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 		...EFFECTS_VIDEO_COMMAND_TYPES,
 		...TIMELINE_ANNOTATION_COMMAND_TYPES,
 	];
-	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 79);
+	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 80);
 	assert.equal(new Set(domainTypes).size, domainTypes.length, 'a command type belongs to only one domain');
 	assert.deepEqual([...domainTypes].sort(), [...AUDIO_EDITOR_COMMAND_TYPES].sort());
 });
@@ -76,6 +78,7 @@ test('the compatibility facade keeps its established public command surface', ()
 		'createReplaceClipSourceCommand',
 		'createResizeTimelineAnnotationCommand',
 		'createSetTempoMapModeCommand',
+		'createUpdateSequenceTimingCommand',
 		'createUpdateSignatureEventCommand',
 		'createUpdateTempoEventCommand',
 		'createUpdateTimelineAnnotationsCommand',
@@ -178,6 +181,7 @@ function domainHandlers(handlers: Record<string, unknown>): EditorCommandHandler
 	return {
 		projectSourceBin: pick(handlers, PROJECT_SOURCE_BIN_COMMAND_TYPES),
 		tempoSignature: pick(handlers, TEMPO_SIGNATURE_COMMAND_TYPES),
+		sequenceTiming: pick(handlers, SEQUENCE_TIMING_COMMAND_TYPES),
 		trackMixerLabel: pick(handlers, TRACK_MIXER_LABEL_COMMAND_TYPES),
 		trackFolder: pick(handlers, TRACK_FOLDER_COMMAND_TYPES),
 		clipRangeClipboard: pick(handlers, CLIP_RANGE_CLIPBOARD_COMMAND_TYPES),

@@ -80,6 +80,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/runtime-timeline-annotation-projection.js',
 		'src/common/editor/scape-project-document.js',
 		'src/common/editor/scape-project-json-preflight.js',
+		'src/common/editor/sequence-timecode.js',
 		'src/common/editor/stable-id.js',
 		'src/common/editor/terminal-channel-widths.js',
 		'src/common/editor/timeline-annotation.js',
