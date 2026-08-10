@@ -200,7 +200,8 @@ test('annotation visuals occupy a dedicated lane below the unblocked ruler surfa
 	assert.ok(cornerIndex >= 0 && cornerIndex < actionsIndex && actionsIndex < viewportIndex);
 	assert.equal(
 		workspace.match(/height=\{showTimelineAnnotations \? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined\}/gu)?.length,
-		2,
+		3,
+		'every ruler variant reserves the annotation lane',
 	);
 });
 

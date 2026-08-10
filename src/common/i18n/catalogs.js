@@ -2,6 +2,7 @@ import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
+import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js';
 import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js';
 import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js';
@@ -11,6 +12,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 	de: {
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.de,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.de,
+		...SEQUENCE_TIMING_COPY_BY_LOCALE.de,
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.de,
 		...TRACK_FOLDER_COPY_BY_LOCALE.de,
 		framescaperEyebrow: 'Video lokal bearbeiten',
@@ -1046,6 +1048,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 	en: {
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.en,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.en,
+		...SEQUENCE_TIMING_COPY_BY_LOCALE.en,
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.en,
 		...TRACK_FOLDER_COPY_BY_LOCALE.en,
 		framescaperEyebrow: 'Local video editing',

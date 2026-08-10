@@ -31,6 +31,7 @@ import {
 	RecordFlyout,
 } from './AudioEditorTransportControls.jsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
+import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import { WORKSPACE_TOOLBAR_IDS } from '../workspace/workspace-panel-model.ts';
 import {
 	handleEditorToolbarBlur,
@@ -98,6 +99,9 @@ export default function EditorToolToolbar({
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
 	const showMusicalTiming = snapshot.preferences?.workspace?.activeId === 'music';
+	const showSequenceTiming = Boolean(capabilities.sequenceTiming)
+		&& snapshot.preferences?.workspace?.activeId === 'video-editor'
+		&& Boolean(project?.sequences?.length);
 	const transportButtonsVisible = ['play', 'stop', ...(capabilities.audioRecording ? ['record'] : []), 'jump-start', 'jump-end', 'loop']
 		.some(isToolbarButtonVisible);
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
@@ -301,6 +305,14 @@ export default function EditorToolToolbar({
 				{showMusicalTiming && <MusicalTimelineControls
 					project={project}
 					snapshot={snapshot}
+					controller={controller}
+					copy={copy}
+					run={run}
+				/>}
+				{showSequenceTiming && <SequenceTimingControls
+					project={project}
+					snapshot={snapshot}
+					telemetry={telemetry}
 					controller={controller}
 					copy={copy}
 					run={run}

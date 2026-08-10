@@ -6,6 +6,7 @@ import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
 import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT } from './geometry.ts';
 import { TrackListView } from './TrackListView.jsx';
 import { MusicalTimelineRuler } from './MusicalTimelineRuler.jsx';
+import { SequenceTimecodeRuler } from './SequenceTimecodeRuler.jsx';
 import { TimelineAnnotationLayer } from './TimelineAnnotationLayer.jsx';
 import { TimelineAnnotationLaneActions } from './TimelineAnnotationLaneActions.jsx';
 import { TimelineAnnotationPanel } from './TimelineAnnotationPanel.jsx';
@@ -14,6 +15,8 @@ import {
 	useTimelineAnnotationCreateFeedback,
 } from './useTimelineAnnotationCreateFeedback.js';
 import { usesMusicalMapRuler } from './musical-ruler-model.ts';
+import { usesSequenceTimecodeDisplay } from './sequence-ruler-model.ts';
+import { resolveSequenceTimingView } from '../../sequence-timing-model.ts';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
 	PinnedPlayheadScroller,
@@ -125,6 +128,7 @@ export function TimelineWorkspaceView({
 	const mappedTempo = rationalValue(tempoEvents[0]?.bpm, project.tempo?.bpm || 120);
 	const mappedSignature = signatureEvents[0] || project.tempo?.timeSignature || { numerator: 4, denominator: 4 };
 	const useMusicalMapRuler = usesMusicalMapRuler(project);
+	const sequenceTimecodeView = usesSequenceTimecodeDisplay(project) ? resolveSequenceTimingView(project) : null;
 	const timelinePanelRef = useRef(null);
 	const setTimelinePanelNode = useCallback((node) => {
 		timelinePanelRef.current = node;
@@ -214,7 +218,8 @@ export function TimelineWorkspaceView({
 							data-ruler
 							data-ruler-focus
 							data-ruler-interaction
-							data-time-format={project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
+							data-time-format={sequenceTimecodeView ? 'timecode'
+								: project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
 							data-track-lane
 							data-track-id={snapshot.selectedTrackId || project.tracks[0]?.id || ''}
 							role="region"
@@ -246,7 +251,20 @@ export function TimelineWorkspaceView({
 								}
 							}}
 						>
-							{useMusicalMapRuler ? <MusicalTimelineRuler
+							{sequenceTimecodeView ? <SequenceTimecodeRuler
+								height={showTimelineAnnotations ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
+								pixelsPerSecond={pixelsPerSecond}
+								scrollX={scrollX}
+								width={timelineWidth}
+								viewportWidth={viewportWidth}
+								timeSelection={timeSelection}
+								sampleRate={sampleRate}
+								view={sequenceTimecodeView}
+								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
+								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
+								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
+								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
+							/> : useMusicalMapRuler ? <MusicalTimelineRuler
 								height={showTimelineAnnotations ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
