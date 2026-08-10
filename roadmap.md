@@ -419,12 +419,17 @@ Packet boundaries, dependencies, and acceptance are owned by
   from the bytes it already names: one undoable command replaces what an older
   or probe-less ingest concluded and conforms every edit cut against the frame
   grid it replaces. The packaged Electron probe-matrix rows remain.
-- **Web Core — In progress:** source/program monitors, source in/out, track
+- **Web Core — Implemented:** source/program monitors, source in/out, track
   targeting, insert, overwrite, replace, lift, extract, match-frame, and
-  three-point edits. Three of the four points now determine the fourth once, a
-  lane can be targeted explicitly or inherited from the selection, and a Project
-  Bin item inserts or overwrites into that lane as one undoable edit. The
-  monitors and the marking, replace, and match-frame they make reachable remain.
+  three-point edits. Three of the four points determine the fourth once, a lane
+  can be targeted explicitly or inherited from the selection, and a Project Bin
+  item inserts or overwrites into that lane as one undoable edit. A source now
+  opens in its own monitor on its own frame grid, where marking a range decides
+  what the next edit uses; match-frame answers which frame of which source is
+  under the playhead and leaves the monitor holding that clip's material; and
+  replace stands new media in for what is on air without moving it or changing
+  its length. Four points that disagree are refused rather than fitted, because
+  fitting one to the other is a speed change and retiming is not in this packet.
 - **Web Core — Planned:** J/K/L shuttle, edit-point navigation,
   roll/ripple/slip/slide/rate-stretch tools, track lock, visibility, linked-audio
   controls, and keyboard-complete trim feedback.

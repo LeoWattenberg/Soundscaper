@@ -133,11 +133,14 @@ and conforms the edits cut against its old frame grid.
 
 ## 3B-3 — Monitors and three-point editing
 
-The pickup decomposition for its first half is maintained in
+Delivered in two slices. The first is
 [`docs/milestone-3b-three-point-editing.md`](milestone-3b-three-point-editing.md),
 which owns the three-point arithmetic, track targeting, and the insert and
-overwrite primitives, and leaves the monitors, source marking, replace, and
-match-frame to 3B-3b.
+overwrite primitives. The second is
+[`docs/milestone-3b-source-monitor.md`](milestone-3b-source-monitor.md), which
+owns the source monitor, source in/out marking, replace, and match-frame, and
+records that the program monitor is the existing preview surface rather than a
+second compositor.
 
 - **Outcome:** Source and program monitors with source in/out marking, track
   targeting, and the insert, overwrite, replace, lift, extract, match-frame, and
