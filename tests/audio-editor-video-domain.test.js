@@ -173,13 +173,44 @@ test('automatic video canvas preserves aspect ratio and caps dimensions and fram
 	assert.equal(portrait.height % 2, 0);
 });
 
+test('an anamorphic source sets the canvas and the graph from its display geometry', () => {
+	const project = layeredProject();
+	const reference = project.sources.find((source) => source.id === 'lower-source');
+	reference.width = 720;
+	reference.height = 576;
+	reference.characteristics = {
+		backend: 'ffmpeg',
+		codedWidth: 720,
+		codedHeight: 576,
+		pixelAspectRatio: { num: 64, den: 45 },
+	};
+	const canvas = resolveVideoExportCanvas(project);
+	assert.deepEqual({ width: canvas.width, height: canvas.height }, { width: 1_024, height: 576 });
+
+	const plan = createVideoExportPlan(project, { range: { startFrame: 0, endFrame: 25_000 } });
+	const presented = plan.inputs.find((input) => input.sourceId === 'lower-source');
+	assert.deepEqual(presented.presentation, {
+		autorotate: true,
+		decodedWidth: 720,
+		decodedHeight: 576,
+		sampleAspect: { num: 64, den: 45 },
+		scaledWidth: 1_024,
+		scaledHeight: 576,
+	});
+	assert.equal(
+		plan.inputs.find((input) => input.sourceId === 'top-source').presentation,
+		null,
+		'a source presented as it decodes states that it needs nothing',
+	);
+});
+
 test('video export plan describes layered composition, codecs, transparent fitting, and staged audio', () => {
 	const project = layeredProject();
 	const plan = createVideoExportPlan(project, {
 		format: 'webm',
 		range: { startFrame: 0, endFrame: 25_000 },
 	});
-	assert.equal(plan.version, 4);
+	assert.equal(plan.version, 5);
 	assert.equal(plan.format, 'webm');
 	assert.equal(plan.mimeType, 'video/webm');
 	assert.deepEqual(plan.codecs, {
@@ -283,7 +314,7 @@ test('video export plan carries ordered normalized effects and omits bypassed op
 		range: { startFrame: 0, endFrame: 1_000 },
 	});
 	const clip = plan.intervals[0].layers[0].clips[0];
-	assert.equal(plan.version, 4);
+	assert.equal(plan.version, 5);
 	assert.deepEqual(clip.videoEffects, [
 		{
 			id: 'pixelate-enabled',
