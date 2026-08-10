@@ -13,6 +13,7 @@ import {
 	focusCreatedTimelineAnnotation,
 	useTimelineAnnotationCreateFeedback,
 } from './useTimelineAnnotationCreateFeedback.js';
+import { timelineAnnotationCreateKind } from './timeline-annotation-ui-model.ts';
 import { usesMusicalMapRuler } from './musical-ruler-model.ts';
 import { usesSequenceTimecodeDisplay } from './sequence-ruler-model.ts';
 import { resolveSequenceTimingView } from '../../sequence-timing-model.ts';
@@ -229,19 +230,12 @@ export function TimelineWorkspaceView({
 							style={{ left: panelWidth, width: viewportWidth }}
 							onContextMenu={openTimelineRulerMenu}
 							onKeyDown={(event) => {
-								const annotationShortcut = showTimelineAnnotations
-									&& event.target === event.currentTarget
-									&& !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
-									&& (event.key.toLowerCase() === 'm' || event.key.toLowerCase() === 'r');
-								if (annotationShortcut) {
+								const createKind = showTimelineAnnotations && event.target === event.currentTarget
+									? timelineAnnotationCreateKind(event, project.selection)
+									: null;
+								if (createKind) {
 									event.preventDefault();
-								if (!mutationsBlocked && (event.key.toLowerCase() === 'm'
-									|| project.selection?.endFrame > project.selection?.startFrame)) {
-										createAnnotation(
-											event.key.toLowerCase() === 'm' ? 'marker' : 'region',
-											focusCreatedInLayer,
-										);
-								}
+									if (!mutationsBlocked) createAnnotation(createKind, focusCreatedInLayer);
 								} else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
 									openTimelineRulerMenu(event);
 								} else if (event.key === 'Tab' && !event.shiftKey && project.tracks.length) {

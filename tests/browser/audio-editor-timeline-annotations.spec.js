@@ -39,7 +39,7 @@ test.describe('native timeline annotations', () => {
 		await expect(editor.locator('[data-workspace-panel="markers"]')).toBeVisible();
 		const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await expect(panel).toBeVisible();
-		await expect(panel).toContainText('M: marker · R: region');
+		await expect(panel).toContainText('Shift+M: marker, or region when time is selected');
 		await expect(panel.getByText('The primary sequence has no markers or regions yet.', { exact: true })).toBeVisible();
 
 		await importFiles(editor, [toneA]);
@@ -87,7 +87,9 @@ test.describe('native timeline annotations', () => {
 		await expect(panel.getByRole('button', { name: 'Add region from selection', exact: true })).toBeEnabled();
 
 		await ruler.focus();
-		await ruler.press('r');
+		// The same chord makes a region here because the drag above left a time
+		// selection; without one it would write a point marker.
+		await ruler.press('Shift+M');
 		options = layer.getByRole('option');
 		await expect(options).toHaveCount(2);
 		const region = options.nth(1);

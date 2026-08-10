@@ -34,6 +34,25 @@ export function timelineAnnotationsAvailable(
 		&& Array.isArray(snapshot?.project?.timelineAnnotations);
 }
 
+export interface TimelineAnnotationSelectionSpan {
+	readonly startFrame?: number;
+	readonly endFrame?: number;
+}
+
+/**
+ * One creation shortcut covers both kinds: Shift+M writes a region when the
+ * time selection spans frames and a point marker otherwise. Bare M stays free
+ * for track mute, and R keeps starting a recording.
+ */
+export function timelineAnnotationCreateKind(
+	event: TimelineAnnotationKeyInput,
+	selection: TimelineAnnotationSelectionSpan | null | undefined,
+): 'marker' | 'region' | null {
+	if (event.key.toLowerCase() !== 'm') return null;
+	if (!event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return null;
+	return Number(selection?.endFrame) > Number(selection?.startFrame) ? 'region' : 'marker';
+}
+
 export interface TimelineAnnotationUiModelInput {
 	readonly annotations: readonly RuntimeTimelineAnnotationProjection[];
 	readonly primarySequenceId: string;

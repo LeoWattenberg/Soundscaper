@@ -9,6 +9,7 @@ import {
 	resolveTimelineAnnotationFrameBlur,
 	resolveTimelineAnnotationKeyboardIntent,
 	timelineAnnotationConversionRequest,
+	timelineAnnotationCreateKind,
 	timelineAnnotationEditBounds,
 	timelineAnnotationEditIds,
 	timelineAnnotationPointerSelectionIds,
@@ -159,18 +160,11 @@ export function TimelineAnnotationPanel({
 			if (!blocked) batchSelected(!event.shiftKey);
 			return;
 		}
-		if (event.key.toLowerCase() === 'm' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+		const createKind = timelineAnnotationCreateKind(event, project.selection);
+		if (createKind) {
 			event.preventDefault();
 			event.stopPropagation();
-			if (!blocked) createAnnotation('marker', focusCreated);
-			return;
-		}
-		if (event.key.toLowerCase() === 'r' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-			event.preventDefault();
-			event.stopPropagation();
-			if (!blocked && project.selection?.endFrame > project.selection?.startFrame) {
-				createAnnotation('region', focusCreated);
-			}
+			if (!blocked) createAnnotation(createKind, focusCreated);
 			return;
 		}
 		const bounds = timelineAnnotationEditBounds(annotation.id, model.selectedIds, projected);

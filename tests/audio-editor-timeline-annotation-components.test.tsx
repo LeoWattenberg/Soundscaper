@@ -16,7 +16,10 @@ import {
 	completeTimelineAnnotationNavigation,
 	TimelineAnnotationPanel,
 } from '../src/common/editor/ui/timeline/TimelineAnnotationPanel.jsx';
-import { timelineAnnotationsAvailable } from '../src/common/editor/ui/timeline/timeline-annotation-ui-model.ts';
+import {
+	timelineAnnotationCreateKind,
+	timelineAnnotationsAvailable,
+} from '../src/common/editor/ui/timeline/timeline-annotation-ui-model.ts';
 import WorkspacePanelContent from '../src/common/editor/ui/workspace/WorkspacePanelContent.jsx';
 import {
 	WORKSPACE_PANEL_IDS,
@@ -152,8 +155,8 @@ test('corner, panel, layer, and ruler creation entries share the accessible comp
 	const directory = new URL('../src/common/editor/ui/timeline/', import.meta.url);
 	const entries = [
 		['TimelineAnnotationLaneActions.jsx', 2],
-		['TimelineAnnotationPanel.jsx', 4],
-		['TimelineAnnotationLayer.jsx', 2],
+		['TimelineAnnotationPanel.jsx', 3],
+		['TimelineAnnotationLayer.jsx', 1],
 		['TimelineWorkspaceView.jsx', 1],
 	] as const;
 	for (const [file, expected] of entries) {
@@ -337,6 +340,29 @@ test('cap-scale selection renders one editor and keeps visual-lane controls line
 	assert.equal(panelMarkup.match(/audio-editor-timeline-annotation-list__editor"/gu)?.length, 1);
 	assert.ok((panelMarkup.match(/<(?:button|input|select)\b/gu)?.length || 0) <= 4_110);
 	assert.ok((layerMarkup.match(/role="option"/gu)?.length || 0) <= 3);
+});
+
+test('one creation shortcut picks its kind from the time selection and leaves M and R alone', () => {
+	const empty = { startFrame: 24_000, endFrame: 24_000 };
+	const spanning = { startFrame: 24_000, endFrame: 48_000 };
+	const shiftM = { key: 'M', shiftKey: true };
+
+	assert.equal(timelineAnnotationCreateKind(shiftM, empty), 'marker');
+	assert.equal(timelineAnnotationCreateKind(shiftM, null), 'marker');
+	assert.equal(timelineAnnotationCreateKind(shiftM, spanning), 'region');
+	assert.equal(timelineAnnotationCreateKind({ key: 'm', shiftKey: true }, spanning), 'region');
+	// Bare M stays available for track mute and R for recording, and modified
+	// Shift+M chords belong to the host rather than to annotations.
+	assert.equal(timelineAnnotationCreateKind({ key: 'm', shiftKey: false }, spanning), null);
+	assert.equal(timelineAnnotationCreateKind({ key: 'r', shiftKey: false }, spanning), null);
+	assert.equal(timelineAnnotationCreateKind({ key: 'r', shiftKey: true }, spanning), null);
+	for (const modifier of ['altKey', 'ctrlKey', 'metaKey']) {
+		assert.equal(timelineAnnotationCreateKind({ ...shiftM, [modifier]: true }, spanning), null, modifier);
+	}
+	assert.equal(
+		ENGLISH_COPY.timelineAnnotationKeyboardHelp.startsWith('Shift+M: marker, or region when time is selected'),
+		true,
+	);
 });
 
 test('the marker list is a dockable workspace panel that stays closed until it is opened', () => {

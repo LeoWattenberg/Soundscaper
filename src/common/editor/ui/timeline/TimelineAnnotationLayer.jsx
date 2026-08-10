@@ -15,6 +15,7 @@ import {
 	timelineAnnotationIsVisible,
 	timelineAnnotationPointerDelta,
 	timelineAnnotationPointerEdge,
+	timelineAnnotationCreateKind,
 	timelineAnnotationPointerSelectionIds,
 	timelineAnnotationRegionWidth,
 } from './timeline-annotation-ui-model.ts';
@@ -146,18 +147,11 @@ export function TimelineAnnotationLayer({
 			});
 			return;
 		}
-		if (event.key.toLowerCase() === 'm' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+		const createKind = timelineAnnotationCreateKind(event, project.selection);
+		if (createKind) {
 			event.preventDefault();
 			event.stopPropagation();
-			if (blocked) return;
-			createAnnotation('marker', focusCreated);
-			return;
-		}
-		if (event.key.toLowerCase() === 'r' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-			event.preventDefault();
-			event.stopPropagation();
-			if (blocked || !(project.selection?.endFrame > project.selection?.startFrame)) return;
-			createAnnotation('region', focusCreated);
+			if (!blocked) createAnnotation(createKind, focusCreated);
 			return;
 		}
 		const bounds = timelineAnnotationEditBounds(annotation.id, model.selectedIds, projected);
