@@ -15,6 +15,7 @@ export const WORKSPACE_PANEL_IDS = Object.freeze([
 	'video-preview',
 	'history',
 	'labels',
+	'markers',
 	'metadata',
 	'effects',
 	'mixer',

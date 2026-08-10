@@ -9,7 +9,6 @@ import { MusicalTimelineRuler } from './MusicalTimelineRuler.jsx';
 import { SequenceTimecodeRuler } from './SequenceTimecodeRuler.jsx';
 import { TimelineAnnotationLayer } from './TimelineAnnotationLayer.jsx';
 import { TimelineAnnotationLaneActions } from './TimelineAnnotationLaneActions.jsx';
-import { TimelineAnnotationPanel } from './TimelineAnnotationPanel.jsx';
 import {
 	focusCreatedTimelineAnnotation,
 	useTimelineAnnotationCreateFeedback,
@@ -422,18 +421,6 @@ export function TimelineWorkspaceView({
 					/>
 				</div>
 			</div>
-			{showTimelineAnnotations && <TimelineAnnotationPanel
-				controller={controller}
-				project={project}
-				annotations={snapshot.timelineAnnotations || []}
-				selectedAnnotationId={snapshot.selectedAnnotationId}
-				copy={copy}
-				locale={locale}
-				sampleRate={sampleRate}
-				blocked={mutationsBlocked}
-				run={run}
-				createAnnotation={createAnnotation}
-			/>}
 			{showTimelineAnnotations && <span
 				className="kw-audio-editor-sr-only"
 				data-timeline-annotation-create-status

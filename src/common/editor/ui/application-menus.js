@@ -11,6 +11,7 @@ import {
 	trackSourceChannelCount,
 	trackSources,
 } from './application-menu-model.js';
+import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
 import {
 	ANALYZER_PANEL_ID_SET,
 	WORKSPACE_PANEL_IDS,
@@ -300,7 +301,8 @@ export default function createApplicationMenus({
 						...WORKSPACE_PANEL_IDS
 							.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId)
 								&& (capabilities.audioEffects || panelId !== 'effects')
-								&& (capabilities.audioAnalysis || panelId !== 'ebu-r128'))
+								&& (capabilities.audioAnalysis || panelId !== 'ebu-r128')
+								&& (panelId !== 'markers' || timelineAnnotationsAvailable(snapshot)))
 							.map((panelId) => panelId === 'effects'
 							? {
 								id: 'show-effects',

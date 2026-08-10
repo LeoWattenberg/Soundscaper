@@ -16,6 +16,14 @@ import {
 	completeTimelineAnnotationNavigation,
 	TimelineAnnotationPanel,
 } from '../src/common/editor/ui/timeline/TimelineAnnotationPanel.jsx';
+import { timelineAnnotationsAvailable } from '../src/common/editor/ui/timeline/timeline-annotation-ui-model.ts';
+import WorkspacePanelContent from '../src/common/editor/ui/workspace/WorkspacePanelContent.jsx';
+import {
+	WORKSPACE_PANEL_IDS,
+	workspacePanelLabel,
+} from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
+import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import type { RuntimeTimelineAnnotationProjection } from '../src/common/editor/runtime-timeline-annotation-projection.ts';
 
@@ -330,6 +338,65 @@ test('cap-scale selection renders one editor and keeps visual-lane controls line
 	assert.ok((panelMarkup.match(/<(?:button|input|select)\b/gu)?.length || 0) <= 4_110);
 	assert.ok((layerMarkup.match(/role="option"/gu)?.length || 0) <= 3);
 });
+
+test('the marker list is a dockable workspace panel that stays closed until it is opened', () => {
+	assert.ok(WORKSPACE_PANEL_IDS.includes('markers'));
+	assert.deepEqual(DEFAULT_PANELS.markers, { visible: false, dock: 'right', order: 5, size: 360 });
+	assert.equal(workspacePanelLabel(ENGLISH_COPY, 'markers'), 'Markers');
+
+	const markup = render(<WorkspacePanelContent
+		{...{
+			panelId: 'markers',
+			controller: controllerFixture(),
+			snapshot: annotationSnapshotFixture(),
+			copy: ENGLISH_COPY,
+			locale: 'en',
+			run: (action: () => unknown) => action(),
+			fileService: null,
+			playbackMeterSettings: null,
+			showArmControls: false,
+			displayAudioSupported: false,
+			onOpenEffects: () => undefined,
+			effectsPanelTarget: null,
+			onEffectWindowChange: () => undefined,
+			blocked: false,
+		}}
+	/>);
+
+	assert.match(markup, /class="kw-audio-editor__markers-panel"/u);
+	assert.match(markup, /data-timeline-annotation-panel="true"/u);
+	assert.match(markup, />Verse</u);
+	assert.match(markup, /data-timeline-annotation-panel-create-status="true"/u);
+});
+
+test('the marker panel stays out of the dock until the project and product carry annotations', () => {
+	const snapshot = annotationSnapshotFixture();
+	assert.equal(timelineAnnotationsAvailable(snapshot), true);
+	assert.equal(timelineAnnotationsAvailable(null), false);
+	assert.equal(timelineAnnotationsAvailable({ ...snapshot, capabilities: { timelineAnnotations: false } }), false);
+	assert.equal(timelineAnnotationsAvailable({
+		...snapshot,
+		project: { ...snapshot.project, schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION - 1 },
+	}), false);
+	assert.equal(timelineAnnotationsAvailable({
+		...snapshot,
+		project: { ...snapshot.project, timelineAnnotations: undefined },
+	}), false);
+});
+
+function annotationSnapshotFixture() {
+	return {
+		capabilities: { timelineAnnotations: true },
+		project: {
+			...projectFixture(),
+			sampleRate: 48_000,
+			schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+			timelineAnnotations: [REGION],
+		},
+		timelineAnnotations: [REGION],
+		selectedAnnotationId: 'verse',
+	};
+}
 
 function render(node: ReactNode): string {
 	return renderToStaticMarkup(React.createElement(React.Fragment, null, node));

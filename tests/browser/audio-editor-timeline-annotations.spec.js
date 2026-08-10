@@ -12,6 +12,7 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseFileAction,
+	chooseNestedCommandAction,
 	collectClientErrors,
 	importFiles,
 	registerAudioEditorHooks,
@@ -32,6 +33,9 @@ test.describe('native timeline annotations', () => {
 		let editor = await bootEditor(page, '/embed/en/');
 		await expect(editor).toHaveAttribute('data-product', 'soundscaper');
 		await expect(editor.locator('.audio-editor-timeline-panel')).toHaveAttribute('data-has-annotations', 'true');
+		await expect(editor.getByRole('region', { name: 'Markers and named regions' })).toHaveCount(0);
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await expect(editor.locator('[data-workspace-panel="markers"]')).toBeVisible();
 		const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await expect(panel).toBeVisible();
 		await expect(panel).toContainText('M: marker · R: region');
@@ -51,11 +55,16 @@ test.describe('native timeline annotations', () => {
 		await expect(marker).toHaveAttribute('aria-setsize', '1');
 		await expect(panel.locator('[data-timeline-annotation]').first()).toBeFocused();
 
+		// The docked panel announces its own creations; the ruler lane keeps the
+		// announcement region that its keyboard shortcuts feed.
+		const panelCreationStatus = editor.locator('[data-timeline-annotation-panel-create-status]');
 		const creationStatus = editor.locator('[data-timeline-annotation-create-status]');
-		await expect(creationStatus).toHaveAttribute('role', 'status');
-		await expect(creationStatus).toHaveAttribute('aria-live', 'polite');
-		await expect(creationStatus).toHaveAttribute('aria-atomic', 'true');
-		await expect(creationStatus).toHaveText(/Created Marker: Unnamed annotation, \d+\.\d{3} s/u);
+		for (const status of [panelCreationStatus, creationStatus]) {
+			await expect(status).toHaveAttribute('role', 'status');
+			await expect(status).toHaveAttribute('aria-live', 'polite');
+			await expect(status).toHaveAttribute('aria-atomic', 'true');
+		}
+		await expect(panelCreationStatus).toHaveText(/Created Marker: Unnamed annotation, \d+\.\d{3} s/u);
 
 		await marker.focus();
 		await marker.press('Enter');
@@ -148,6 +157,7 @@ test.describe('native timeline annotations', () => {
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, '/embed/en/');
 		await importFiles(origin, [toneA]);
+		await chooseNestedCommandAction(page, origin, 'View', ['Panels', 'Markers']);
 		const originPanel = origin.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await originPanel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
 		const originMarker = origin.getByRole('listbox', { name: 'Markers and named regions', exact: true })

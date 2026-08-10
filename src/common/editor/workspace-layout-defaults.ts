@@ -63,6 +63,7 @@ export const DEFAULT_PANELS = Object.freeze({
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
 	effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
 	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
+	markers: Object.freeze({ visible: false, dock: 'right', order: 5, size: 360 }),
 	analysis: Object.freeze({ visible: false, dock: 'right', order: 6, size: 380 }),
 	spectrum: Object.freeze({ visible: false, dock: 'right', order: 7, size: 380 }),
 	clipping: Object.freeze({ visible: false, dock: 'right', order: 8, size: 380 }),
@@ -78,6 +79,7 @@ export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
 	metadata: Object.freeze({ x: 72, y: 72, width: 380, height: 360 }),
 	effects: Object.freeze({ x: 96, y: 40, width: 400, height: 440 }),
 	mixer: Object.freeze({ x: 40, y: 96, width: 560, height: 360 }),
+	markers: Object.freeze({ x: 120, y: 64, width: 520, height: 380 }),
 	analysis: Object.freeze({ x: 144, y: 88, width: 520, height: 600 }),
 	spectrum: Object.freeze({ x: 168, y: 112, width: 520, height: 600 }),
 	clipping: Object.freeze({ x: 192, y: 136, width: 520, height: 600 }),
@@ -101,6 +103,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
 			effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
 			mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
+			markers: Object.freeze({ visible: false, dock: 'right', order: 5, size: 360 }),
 		}),
 	}),
 	music: Object.freeze({

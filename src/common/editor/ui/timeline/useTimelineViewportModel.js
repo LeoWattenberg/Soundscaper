@@ -7,7 +7,6 @@ import {
 	secondsToFrames,
 } from '../../design-system-adapters.js';
 import { editorTimelineDurationFrames } from '../../project.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../project-schema-version.ts';
 import { resolveRuntimeProjectProjection } from '../../runtime-clip-projection.ts';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
@@ -25,6 +24,7 @@ import {
 	TIMELINE_RULER_ROW_HEIGHT_WITH_ANNOTATIONS,
 	VERTICAL_RULER_WIDTH,
 } from './constants.ts';
+import { timelineAnnotationsAvailable } from './timeline-annotation-ui-model.ts';
 
 export function useTimelineViewportModel({
 	controller,
@@ -72,9 +72,10 @@ export function useTimelineViewportModel({
 		Math.floor((timelineSize.height || COLLAPSED_TRACK_HEIGHT * 3) / 3),
 	);
 	const outputDockHeight = Math.min(outputDockContentHeight, outputDockMaximumHeight);
-	const showTimelineAnnotations = snapshot.capabilities?.timelineAnnotations === true
-		&& project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		&& Array.isArray(project?.timelineAnnotations);
+	const showTimelineAnnotations = timelineAnnotationsAvailable({
+		capabilities: snapshot.capabilities,
+		project,
+	});
 	const rulerRowHeight = showTimelineAnnotations
 		? TIMELINE_RULER_ROW_HEIGHT_WITH_ANNOTATIONS
 		: TIMELINE_RULER_ROW_HEIGHT;

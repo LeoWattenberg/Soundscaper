@@ -6,6 +6,7 @@ import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
 import { LabelManagerRow } from './LabelManagerRows.jsx';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
 import ProjectMetadataPanel from './ProjectMetadataPanel.tsx';
+import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
 import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
 
@@ -128,6 +129,17 @@ export default function WorkspacePanelContent({
 					</ul>
 				) : <p className="kw-audio-editor__panel-empty">{copy.labelsEmpty}</p>}
 			</>
+		);
+	}
+	if (panelId === 'markers') {
+		return (
+			<TimelineAnnotationWorkspacePanel
+				controller={controller}
+				snapshot={snapshot}
+				copy={copy}
+				locale={locale}
+				run={run}
+			/>
 		);
 	}
 	if (panelId === 'metadata') {

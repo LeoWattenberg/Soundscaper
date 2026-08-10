@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../project-schema-version.ts';
 import {
 	compareRuntimeTimelineAnnotations,
 	type RuntimeTimelineAnnotationProjection,
@@ -10,6 +11,28 @@ import {
 } from '../../timeline-annotation.ts';
 
 const COLOR_SET: ReadonlySet<string> = new Set(AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS);
+
+export interface TimelineAnnotationAvailabilitySnapshot {
+	readonly capabilities?: { readonly timelineAnnotations?: boolean } | null;
+	readonly project?: {
+		readonly schemaVersion?: number;
+		readonly timelineAnnotations?: unknown;
+	} | null;
+}
+
+/**
+ * Marker surfaces only exist when the product declares the capability and the
+ * open project carries the annotation array at the current schema version. The
+ * ruler lane, the lane actions, and the docked panel all have to agree, so the
+ * predicate lives here instead of being restated at each mounting site.
+ */
+export function timelineAnnotationsAvailable(
+	snapshot: TimelineAnnotationAvailabilitySnapshot | null | undefined,
+): boolean {
+	return snapshot?.capabilities?.timelineAnnotations === true
+		&& snapshot?.project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		&& Array.isArray(snapshot?.project?.timelineAnnotations);
+}
 
 export interface TimelineAnnotationUiModelInput {
 	readonly annotations: readonly RuntimeTimelineAnnotationProjection[];

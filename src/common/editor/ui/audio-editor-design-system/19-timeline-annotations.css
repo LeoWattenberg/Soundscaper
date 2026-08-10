@@ -192,6 +192,41 @@
 	border-top: 1px solid var(--kw-editor-stage-line);
 }
 
+#kw-audio-editor-design-system [data-workspace-panel='markers'] .kw-audio-editor__workspace-panel-content {
+	display: flex;
+	padding: 0;
+	overflow: hidden;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__markers-panel {
+	display: flex;
+	min-width: 0;
+	min-height: 0;
+	flex: 1 1 auto;
+	flex-direction: column;
+}
+
+/*
+ * Docked, the list fills the panel body rather than capping itself against the
+ * timeline it used to sit beneath, and the row and editor grids drop their
+ * content minimums so a narrow dock scrolls vertically instead of sideways.
+ */
+#kw-audio-editor-design-system .kw-audio-editor__markers-panel .audio-editor-timeline-annotation-panel {
+	max-height: none;
+	min-height: 0;
+	flex: 1 1 auto;
+	background: transparent;
+	border-top: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__markers-panel .audio-editor-timeline-annotation-list__item {
+	grid-template-columns: 12px minmax(0, 1fr) auto auto auto;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__markers-panel .audio-editor-timeline-annotation-list__editor {
+	grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
 #kw-audio-editor-design-system .audio-editor-timeline-annotation-panel__header {
 	display: flex;
 	align-items: center;
