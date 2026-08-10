@@ -440,7 +440,7 @@ function reconcileV12TrackHierarchy(
 		if (draft[LEGACY_TRACK_STRUCTURE_EDIT]) {
 			throw new RangeError('A batch cannot mix folder-aware and legacy structural track commands.');
 		}
-		reconcileFolderAwareTrackHierarchy(draft, sequences);
+		reconcileFolderAwareTrackHierarchy(draft, sequences, persistedBase);
 		return;
 	}
 	const folders = recordArray(draft.trackFolders, 'project.trackFolders');
