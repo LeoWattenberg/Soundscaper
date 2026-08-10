@@ -2,6 +2,12 @@
 
 import { deriveFolderBusOwnershipV13 } from '../folder-bus-v13.ts';
 import {
+	folderAwareInsertTrackNode,
+	folderAwareRemoveTrackNodes,
+	folderAwareReorderTrack,
+	hasNonemptyFolderHierarchy,
+} from './track-structure-folder-adapter.ts';
+import {
 	normalizeEffect,
 	updateEffect,
 } from '../effects.js';
@@ -32,7 +38,7 @@ import {
 	requireTrack,
 } from './shared-runtime.js';
 
-function addTrack(project, value, requestedIndex) {
+function addTrack(project, value, requestedIndex, placement = {}) {
 	if (value?.type === 'label') {
 		if (project.schemaVersion < 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 or newer project.');
 		const labelTrack = project.schemaVersion >= 10
@@ -40,6 +46,9 @@ function addTrack(project, value, requestedIndex) {
 			: project.schemaVersion >= 4 ? createLabelTrackV4(value) : createLabelTrackV2(value);
 		assertUnusedId(project.tracks, labelTrack.id, 'track');
 		const labelIndex = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
+		if (hasNonemptyFolderHierarchy(project)) {
+			folderAwareInsertTrackNode(project, labelTrack.id, requestedIndex, placement);
+		}
 		project.tracks.splice(labelIndex, 0, labelTrack);
 		return;
 	}
@@ -49,6 +58,9 @@ function addTrack(project, value, requestedIndex) {
 		assertUnusedId(project.tracks, track.id, 'track');
 		if (track.clipIds.length) throw new RangeError('Add clips after adding a track.');
 		const index = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
+		if (hasNonemptyFolderHierarchy(project)) {
+			folderAwareInsertTrackNode(project, track.id, requestedIndex, placement);
+		}
 		project.tracks.splice(index, 0, track);
 		return;
 	}
@@ -62,6 +74,9 @@ function addTrack(project, value, requestedIndex) {
 		effectIds.add(effect.id);
 	}
 	const index = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
+	if (hasNonemptyFolderHierarchy(project)) {
+		folderAwareInsertTrackNode(project, track.id, requestedIndex, placement);
+	}
 	project.tracks.splice(index, 0, track);
 }
 
@@ -73,6 +88,9 @@ function removeTrack(project, trackId) {
 	const removedTracks = laneGroupId
 		? project.tracks.filter((track) => track.laneGroupId === laneGroupId)
 		: [requestedTrack];
+	if (hasNonemptyFolderHierarchy(project)) {
+		folderAwareRemoveTrackNodes(project, removedTracks.map((track) => String(track.id)));
+	}
 	removeTracksAndDependents(project, removedTracks.map((track) => track.id));
 }
 
@@ -155,6 +173,10 @@ function reorderTrack(project, trackId, requestedIndex) {
 		throw new RangeError('Track destination is out of bounds.');
 	}
 	if (index === fromIndex) return;
+	if (hasNonemptyFolderHierarchy(project)) {
+		folderAwareReorderTrack(project, trackId, index);
+		return;
+	}
 	if (project.schemaVersion >= 4 && project.tracks.some((track) => track.laneGroupId)) {
 		const blocks = [];
 		const consumedLaneGroups = new Set();
@@ -298,7 +320,7 @@ function updateMixerRoute(project, command) {
 }
 export function createTrackMixerLabelRuntimeHandlers() {
 	return {
-		'track/add': (project, command) => addTrack(project, command.track, command.index),
+		'track/add': (project, command) => addTrack(project, command.track, command.index, command),
 		'track/remove': (project, command) => removeTrack(project, command.trackId),
 		'track/update': (project, command) => updateTrack(project, command.trackId, command.changes),
 		'track/reorder': (project, command) => reorderTrack(project, command.trackId, command.index),

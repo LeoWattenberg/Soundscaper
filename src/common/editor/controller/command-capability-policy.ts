@@ -40,6 +40,11 @@ export function assertEditorCommandCapabilities(
 		&& (command.type.startsWith('track-folder/') || command.type.startsWith('track-node/'))) {
 		unsupported(productName, 'trackFolders');
 	}
+	if (!capabilities.trackFolders && command.type === 'track/add'
+		&& (Object.hasOwn(command, 'sequenceId') || Object.hasOwn(command, 'parentFolderId')
+			|| Object.hasOwn(command, 'parentIndex'))) {
+		unsupported(productName, 'trackFolders');
+	}
 	if (!capabilities.timelineAnnotations && command.type === 'selection/set'
 		&& Object.hasOwn(command, 'annotationIds')) {
 		unsupported(productName, 'timelineAnnotations');

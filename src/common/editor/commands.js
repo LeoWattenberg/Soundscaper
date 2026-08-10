@@ -129,7 +129,8 @@ const editorCommandHandlers = createEditorCommandRuntime(mutateCommand);
 
 function mutateCommand(project, command) {
 	if (isTrackFolderProjectSchema(project.schemaVersion)
-		&& (command.type === 'track/add' || command.type === 'track/remove' || command.type === 'track/reorder')) {
+		&& (command.type === 'track/add' || command.type === 'track/remove' || command.type === 'track/reorder')
+		&& !(Array.isArray(project.trackFolders) && project.trackFolders.length > 0)) {
 		project[LEGACY_TRACK_STRUCTURE_EDIT] = true;
 	}
 	if (isFoundationProjectSchema(project.schemaVersion) && command.type !== 'batch') {

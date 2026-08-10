@@ -122,8 +122,15 @@ export function reconcileFolderBusesV13(project: Record<string, unknown>): void 
 	for (const [trackId, value] of Object.entries(routes)) {
 		const route = value as Record<string, unknown>;
 		const owner = ownership.busFolderIdByAudioTrackId.get(trackId);
-		if (owner !== undefined) route.groupId = owner;
-		else if (route.groupId != null && !groupIds.has(String(route.groupId))) route.groupId = null;
+		if (owner !== undefined) {
+			route.groupId = owner;
+			continue;
+		}
+		if (route.groupId == null) continue;
+		const groupId = String(route.groupId);
+		// A track outside every folder may keep an ordinary bus, but never a
+		// folder bus it does not belong to — leaving a folder detaches it.
+		if (!groupIds.has(groupId) || busFolderIds.has(groupId)) route.groupId = null;
 	}
 	for (const [trackId, owner] of ownership.busFolderIdByAudioTrackId) {
 		if (Object.hasOwn(routes, trackId)) continue;

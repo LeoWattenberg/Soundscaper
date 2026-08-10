@@ -343,25 +343,39 @@ test('legacy root track edits preserve multi-sequence blocks and reject cross-se
 	assert.deepEqual(project, snapshot);
 });
 
-test('legacy structural track commands reject nonempty V13 hierarchy without mutating it', () => {
+test('legacy structural track commands delegate to the folder-aware path on nonempty hierarchy', () => {
 	const project = folderProject();
 	const snapshot = structuredClone(project);
-	assert.throws(() => applyEditorCommand(project, {
+	const appended = applyEditorCommand(project, {
 		type: 'track/add', track: { id: 'track-c', name: 'Track C' },
-	}, { now: NOW }), /track folder hierarchy.*folder-aware|folder-aware.*track/iu);
+	}, { now: NOW });
 	assert.deepEqual(project, snapshot);
-	assert.throws(() => applyEditorCommand(project, {
+	const appendedNodes = appended.sequences[0].trackNodes;
+	assert.deepEqual(appendedNodes[appendedNodes.length - 1], {
+		kind: 'track', id: 'track-c', parentFolderId: null,
+	});
+	assert.equal(validateAudioEditorProjectV13(appended), true);
+
+	// A flat insertion position adopts the parent of the track it lands beside.
+	const replaced = applyEditorCommand(project, {
 		type: 'batch',
 		commands: [
 			{ type: 'track/remove', trackId: 'track-a' },
 			{
 				type: 'track/add',
 				index: 0,
-				track: { ...project.tracks[0], name: 'Replacement track' },
+				track: { id: 'replacement', name: 'Replacement track' },
 			},
 		],
-	}, { now: NOW }), /track folder hierarchy.*folder-aware|folder-aware.*track/iu);
+	}, { now: NOW });
 	assert.deepEqual(project, snapshot);
+	assert.deepEqual(replaced.sequences[0].trackNodes.map(({ id, parentFolderId }) => ({ id, parentFolderId })), [
+		{ id: 'folder-a', parentFolderId: null },
+		{ id: 'folder-b', parentFolderId: 'folder-a' },
+		{ id: 'replacement', parentFolderId: 'folder-b' },
+		{ id: 'track-b', parentFolderId: 'folder-b' },
+	]);
+	assert.equal(validateAudioEditorProjectV13(replaced), true);
 });
 
 test('schemas 1 through 12 require typed re-import and future V14 stays opaque read-only', () => {

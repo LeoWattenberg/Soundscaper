@@ -300,7 +300,13 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly templates?: readonly CommandObject[];
 		readonly shortfallMode: 'keep-spacing' | 'contract-gaps';
 	};
-	readonly 'track/add': { readonly track: CommandObject; readonly index?: number };
+	readonly 'track/add': {
+		readonly track: CommandObject;
+		readonly index?: number;
+		readonly sequenceId?: string;
+		readonly parentFolderId?: string | null;
+		readonly parentIndex?: number;
+	};
 	readonly 'track/remove': { readonly trackId: string };
 	readonly 'track/update': { readonly trackId: string; readonly changes: CommandObject };
 	readonly 'track/reorder': { readonly trackId: string; readonly index: number };

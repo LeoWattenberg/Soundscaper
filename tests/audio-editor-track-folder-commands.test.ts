@@ -244,14 +244,31 @@ test('direct mixer edits cannot break a folder bus mirror or ownership', () => {
 	);
 });
 
-test('a batch cannot mix folder-aware and legacy structural track commands', () => {
+test('legacy structural commands compose with folder-aware ones on a foldered document', () => {
 	const project = folderedProject();
+	const combined = applyEditorCommand(project, {
+		type: 'batch',
+		commands: [
+			createMoveTrackNodeCommand('main', 'vocals', 'band', 0),
+			{ type: 'track/remove', trackId: 'vocals' },
+		],
+	}, { now: NOW });
+	assert.deepEqual(nodeIds(combined), ['band', 'drums', 'kick', 'bass']);
+	assert.equal(validateAudioEditorProjectV13(combined), true);
+});
+
+test('a folder created mid-batch cannot follow a root-hierarchy structural edit', () => {
+	const rootOnly = createAudioEditorProjectV13({
+		id: 'root-only', title: 'Root only', now: NOW, primarySequenceId: 'main',
+		tracks: [createAudioTrackV10({ id: 'vocals', name: 'Vocals' })],
+		sequences: [{ id: 'main', trackNodes: [{ kind: 'track', id: 'vocals', parentFolderId: null }] }],
+	});
 	assert.throws(
-		() => applyEditorCommand(project, {
+		() => applyEditorCommand(rootOnly, {
 			type: 'batch',
 			commands: [
-				createMoveTrackNodeCommand('main', 'vocals', 'band', 0),
 				{ type: 'track/remove', trackId: 'vocals' },
+				createAddTrackFolderCommand('main', { id: 'late', name: 'Late' }),
 			],
 		}, { now: NOW }),
 		/cannot mix folder-aware and legacy structural track commands/u,
