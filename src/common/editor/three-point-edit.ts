@@ -217,7 +217,7 @@ function admitFullySpecified(
 	if (convertFrameCount(sourceOut - sourceIn, sourceRate, sequenceRate) !== sequenceOut - sequenceIn) {
 		throw new ThreePointEditError(
 			'over-specified',
-			'All four points were given and their durations disagree.',
+			'All four points were given and their durations disagree; fitting one to the other would change speed.',
 		);
 	}
 	return { sourceIn, sourceOut, sequenceIn, sequenceOut, point: 'sequenceOut' };

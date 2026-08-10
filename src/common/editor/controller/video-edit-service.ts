@@ -12,6 +12,11 @@ import {
 	type VideoEditTargets,
 } from '../video-edit-targeting.ts';
 import {
+	SOURCE_MONITOR_NO_MARKS,
+	resolveSourceMonitorPoints,
+	type SourceMonitorPoints,
+} from '../source-monitor-model.ts';
+import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 	type RationalRate,
@@ -39,6 +44,8 @@ export interface VideoEditServiceDependencies {
 	commit(command: AudioEditorCommand): unknown;
 	publishProjectState(): void;
 	prepareThreePointEditCommand(project: DataRecord, options: DataRecord): AudioEditorCommand;
+	/** The source monitor's marks, or null when it is holding another item. */
+	sourceMonitorPoints(binItemId: string | null, sequencePointCount: number): SourceMonitorPoints | null;
 }
 
 export interface VideoEditRequest {
@@ -93,19 +100,24 @@ export function createVideoEditService(
 		}
 		const source = requireSource(project, item.video.sourceId);
 		const sourceRate = rationalRate(source.frameRate, 'source.frameRate');
+		const sourceFrameCount = positiveSafeInteger(source.sourceFrameCount, 'source.sourceFrameCount');
 		const points = sequencePoints(project, request, sequenceRate, sampleRate);
+		const sequencePointCount = points.sequenceOut == null ? 1 : 2;
+		// The monitor's marks decide the source range. An unmarked monitor — or one
+		// holding a different item — states nothing, and the media's own boundaries
+		// fill in, which is the whole-source edit this service began with.
+		const marked = dependencies.sourceMonitorPoints(item.id, sequencePointCount)
+			?? resolveSourceMonitorPoints(SOURCE_MONITOR_NO_MARKS, sourceFrameCount, sequencePointCount);
 		const resolved = resolveThreePointEdit({
-			sourceIn: 0,
-			// A whole-source edit is the degenerate three-point case; a marked
-			// range replaces this pair once the source monitor can set one.
-			sourceOut: points.sequenceOut == null ? positiveSafeInteger(source.sourceFrameCount, 'source.sourceFrameCount') : null,
+			sourceIn: marked.sourceIn,
+			sourceOut: marked.sourceOut,
 			sequenceIn: points.sequenceIn,
 			sequenceOut: points.sequenceOut,
 		}, {
 			sourceRate,
 			sequenceRate,
 			sampleRate,
-			sourceFrameCount: positiveSafeInteger(source.sourceFrameCount, 'source.sourceFrameCount'),
+			sourceFrameCount,
 		});
 		const placements = [{
 			trackId: resolvedTargets.videoTrackId,
@@ -195,6 +207,7 @@ function sequencePoints(
 }
 
 interface BinItem {
+	readonly id: string;
 	readonly video: DataRecord;
 	readonly audio: DataRecord | null;
 }
@@ -221,6 +234,7 @@ function requireBinItem(project: DataRecord, binItemId: string | null): BinItem 
 	}
 	const itemId = itemIdOf(video);
 	return {
+		id: itemId,
 		video,
 		audio: bin.find((clip) => clip.kind !== 'video' && itemIdOf(clip) === itemId) ?? null,
 	};

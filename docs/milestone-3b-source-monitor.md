@@ -66,7 +66,9 @@ navigation — was never in this packet and belongs to 3B-4.
    invent a range the user did not mark, or refusing, which would make the
    newest mark the one that loses. With neither mark set the monitor offers the
    whole source, which is exactly what 3B-3a already edits with, so marking
-   changes what an edit uses without changing how it resolves.
+   changes what an edit uses without changing how it resolves. Marks belong to
+   the item they were set on: editing a different item reads no marks at all
+   rather than borrowing somebody else's range.
 3. **Monitor state is a working choice, like targeting.** It is held in the
    controller and never persisted: reopening a project restores no playhead and
    no marks, because the document does not owe anyone a scrub position. It

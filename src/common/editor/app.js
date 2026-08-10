@@ -945,15 +945,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getPositionFrames: () => engine.getPositionFrames(),
 		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
 	});
+	const sourceMonitorService = createSourceMonitorService({
+		lifetime, getProject: getCommandProject, publishProjectState,
+	});
 	const videoEditService = createVideoEditService({
 		lifetime, getProject: getCommandProject, editingBlocked, commit, publishProjectState,
 		getSelectedTrackId: () => state.selectedTrackId,
 		prepareThreePointEditCommand: (commandProject, options) => (
 			prepareThreePointEditCommand(commandProject, options, createStableId)
 		),
-	});
-	const sourceMonitorService = createSourceMonitorService({
-		lifetime, getProject: getCommandProject, publishProjectState,
+		sourceMonitorPoints: (binItemId, sequencePointCount) => (
+			sourceMonitorService.points(binItemId, sequencePointCount)
+		),
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
 		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,

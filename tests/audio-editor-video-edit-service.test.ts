@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { resolveSourceMonitorPoints } from '../src/common/editor/source-monitor-model.ts';
 import { ThreePointEditError } from '../src/common/editor/three-point-edit.ts';
 import { createVideoEditService } from '../src/common/editor/controller/video-edit-service.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
@@ -56,6 +57,15 @@ function harness(overrides: Record<string, unknown> = {}) {
 			return command;
 		},
 		publishProjectState: () => undefined,
+		sourceMonitorPoints: (binItemId: string | null, sequencePointCount: number) => {
+			const monitor = overrides.monitor as Record<string, unknown> | undefined;
+			if (!monitor || monitor.binItemId !== binItemId) return null;
+			return resolveSourceMonitorPoints(
+				monitor.marks as { markIn: number | null; markOut: number | null },
+				250,
+				sequencePointCount,
+			);
+		},
 		// The real preparer is exercised by the command tests; here the service's
 		// own arithmetic and refusals are what is under test.
 		prepareThreePointEditCommand: (_project, options) => ({
@@ -196,6 +206,67 @@ test('targeting is held by the service and toggles from what is resolved', () =>
 		explicit: false,
 	});
 	assert.throws(() => service.toggleTarget('missing-track'), ReferenceError);
+});
+
+test('a marked source range decides what the edit places', () => {
+	const { commands, service } = harness({
+		monitor: { binItemId: 'item', marks: { markIn: 50, markOut: 100 } },
+	});
+	const result = service.overwrite();
+
+	assert.equal(result.edit.sourceIn, 50);
+	assert.equal(result.edit.sourceFrameCount, 50);
+	assert.equal(result.edit.resolved, 'sequenceOut');
+	assert.equal(result.edit.sequenceFrameCount, 50);
+	assert.deepEqual(placements(commands[0]).map((placement) => [placement.sourceIn, placement.sourceCount]), [
+		[50, 50],
+		[SECOND * 2, SECOND * 2],
+	]);
+});
+
+test('an out mark alone backtimes the edit from the end of the selection', () => {
+	const { service } = harness({
+		monitor: { binItemId: 'item', marks: { markIn: null, markOut: 100 } },
+		project: { selection: { startFrame: SECOND, endFrame: SECOND * 2, clipIds: ['bin-video'], trackIds: [] } },
+	});
+	const result = service.overwrite();
+
+	assert.equal(result.edit.resolved, 'sourceIn');
+	assert.equal(result.edit.sourceIn, 75, 'the last 25 frames of the marked material fill the second');
+	assert.equal(result.edit.sourceOut, 100);
+});
+
+test('a marked range and a selection of another length refuse rather than change speed', () => {
+	const { commands, service } = harness({
+		monitor: { binItemId: 'item', marks: { markIn: 50, markOut: 100 } },
+		project: { selection: { startFrame: 0, endFrame: SECOND * 3, clipIds: ['bin-video'], trackIds: [] } },
+	});
+	assert.throws(() => service.insert(), (error: unknown) => {
+		assert.ok(error instanceof ThreePointEditError);
+		assert.equal(error.reason, 'over-specified');
+		assert.match(error.message, /change speed/u);
+		return true;
+	});
+	assert.equal(commands.length, 0);
+});
+
+test('four points that agree are an ordinary edit', () => {
+	const { service } = harness({
+		monitor: { binItemId: 'item', marks: { markIn: 50, markOut: 100 } },
+		project: { selection: { startFrame: 0, endFrame: SECOND * 2, clipIds: ['bin-video'], trackIds: [] } },
+	});
+	const result = service.overwrite();
+	assert.equal(result.edit.sourceIn, 50);
+	assert.equal(result.edit.sequenceFrameCount, 50);
+});
+
+test('marks set on another item are not borrowed by this one', () => {
+	const { service } = harness({
+		monitor: { binItemId: 'another-item', marks: { markIn: 50, markOut: 100 } },
+	});
+	const result = service.overwrite();
+	assert.equal(result.edit.sourceIn, 0);
+	assert.equal(result.edit.sourceFrameCount, 250, 'the whole source, as before marking existed');
 });
 
 test('an untargeted audio lane keeps the edit off it', () => {
