@@ -9,6 +9,7 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
+import { createUnreportedVideoSourceCharacteristics } from '../../src/common/editor/video-source-characteristics.ts';
 import { resolveRuntimeClipProjection } from '../../src/common/editor/runtime-clip-projection.ts';
 import { validateCurrentAudioEditorProject } from '../../src/common/editor/project-current.ts';
 
@@ -192,6 +193,9 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				mimeType: fallbackFixture.mimeType,
 				audioCodec: null,
 				hasAudio: false,
+				// A silent render is different media: nothing probed it, so it
+				// cannot inherit the canonical source's reported characteristics.
+				characteristics: createUnreportedVideoSourceCharacteristics(),
 				posterStorageKey: null,
 				thumbnailStorageKey: null,
 				timingAsset: null,
