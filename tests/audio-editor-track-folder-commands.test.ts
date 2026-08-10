@@ -74,21 +74,24 @@ function folderedProject(): AudioEditorProjectV13 {
 	});
 }
 
-test('both products reject every folder-aware command while trackFolders is unavailable', () => {
+test('Soundscaper accepts folder-aware commands while Framescaper stays gated off', () => {
 	const commands: readonly AudioEditorCommand[] = [
 		createAddTrackFolderCommand('main', { id: 'folder-x', name: 'X' }),
 		createUpdateTrackFolderCommand('band', { name: 'Renamed' }),
 		createRemoveTrackFolderCommand('band', 'promote'),
 		createMoveTrackNodeCommand('main', 'bass', null, 0),
 	];
-	for (const productId of ['soundscaper', 'framescaper'] as const) {
-		for (const command of commands) {
-			assert.throws(
-				() => assertEditorCommandCapabilities(command, PRODUCT_PROFILES[productId].capabilities, productId),
-				/does not support trackFolders/iu,
-				`${productId} must reject ${command.type}`,
-			);
-		}
+	for (const command of commands) {
+		assert.doesNotThrow(() => assertEditorCommandCapabilities(
+			command,
+			PRODUCT_PROFILES.soundscaper.capabilities,
+			'soundscaper',
+		));
+		assert.throws(
+			() => assertEditorCommandCapabilities(command, PRODUCT_PROFILES.framescaper.capabilities, 'framescaper'),
+			/does not support trackFolders/iu,
+			`framescaper must reject ${command.type}`,
+		);
 	}
 });
 

@@ -48,18 +48,23 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 
 For current schema 13, create, load, clone, and commit paths reconcile the reserved `soundscaper.audio-effects` requirement when maintained first-party effects occur in track, group, send, or master racks, including disabled effects and inactive racks. Publisher-authored audio-effects requirements take precedence, missing or foreign effects do not trigger the owned declaration, and reserved-ID conflicts reject. The same paths reconcile the reserved `soundscaper.video-effects` requirement for maintained first-party effects on timeline and Project Bin video clips, including disabled effects. Publisher-authored video-effects requirements take precedence, missing or foreign effects and stacks on non-video clips do not trigger the owned declaration, and reserved-ID conflicts reject. When exact schema 13 reports registered `audioEffects` as unavailable with declared `bypass` and effective `bypassed`, activation derives a bounded, non-persisted engine projection before activation side effects. Only active, enabled, not already bypassed maintained first-party effects in track, group, send, and master racks become minimal bypassed playback copies; the canonical project, history, source loading, and persistence remain unchanged. The lower-only 4,096-effect ceiling rejects instead of truncating, and inventory construction does not read effect `params`, `context`, or `state`. Deep-frozen per-tab and snapshot metadata drives one localized, noninteractive affected-object inventory under the first qualifying requirement. Unknown or third-party effects, rendered fallback, offline render or export behavior, and activation controls remain outside this audio slice.
 
-Schema 12 also validates nested track folders as closed top-level metadata plus
+Schema 13 also validates nested track folders as closed top-level metadata plus
 authoritative closed per-sequence nodes. Sequence `trackIds` and project-wide
-track and folder preorder must match the exact derived hierarchy. Nonempty state
-owns `soundscaper.track-folders`, with display name `Nested track folders`,
-disposition `bypass`, and no fallback. Both products register its capability
-known but unavailable, preserving nonempty state read-only. The capability is
-excluded from audio and video fallback eligibility, and either fallback kind
-rejects at manifest admission. Empty-folder legacy add, remove, and
-within-sequence reorder commands reconcile mandatory root nodes; cross-sequence
-reorder rejects rather than silently reparenting, and nonempty structural
-legacy commands reject rather than flattening trusted hierarchy. Folder-aware
-commands and native UI remain outside this control. Before playback, audio
+track and folder preorder must match the exact derived hierarchy, a top-level
+folder holding audio owns the group bus carrying its identity with mirrored
+name and neutral mute and solo, and every audio descendant routes to that bus.
+Nonempty state owns `soundscaper.track-folders`, with display name `Nested
+track folders`, disposition `bypass`, and no fallback. Soundscaper registers
+its capability available with native folder-aware commands, clipboard
+placement, and tree UI; Framescaper registers it known but unavailable,
+preserving nonempty state read-only. The capability is excluded from audio and
+video fallback eligibility, and either fallback kind rejects at manifest
+admission. Legacy add, remove, and reorder commands delegate to the
+folder-aware path on a nonempty hierarchy, adopting the parent beside their
+flat position; cross-sequence reorder rejects rather than silently
+reparenting, direct mixer edits cannot break an owned folder bus mirror, and
+an ADM authored programme refuses folder edits that would change bus
+ownership. Before playback, audio
 render, video preview, or video export, a bounded transient projection derives
 inherited folder mute, solo, and hidden state into leaf track flags. It runs
 before rendered-fallback projections, privately authenticates its enumerable

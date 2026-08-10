@@ -154,6 +154,7 @@ export function createTimelineMenuModel({
 			disabled: mutationsBlocked,
 			onClick: () => run(() => controller.actions.track.remove(menuTrack.id)),
 		}, contextLocale, unavailableReason),
+		...trackFolderMenuItems,
 	].filter(Boolean) : [];
 	const outputMenuTarget = outputMenu?.scope === 'master'
 		? project.master
@@ -177,7 +178,6 @@ export function createTimelineMenuModel({
 				onClick: () => run(() => controller.actions.mixer.removeBus(outputMenu.scope, outputMenuTarget.id)),
 			},
 		]),
-		...trackFolderMenuItems,
 	] : [];
 	const folderMenuItems = menuFolder ? [
 		{

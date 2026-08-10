@@ -186,16 +186,19 @@ test('cross-sequence legacy reorder still rejects with the pinned message', () =
 });
 
 test('explicit folder placement on track/add is capability-gated and lands under the parent', () => {
-	for (const productId of ['soundscaper', 'framescaper'] as const) {
-		assert.throws(
-			() => assertEditorCommandCapabilities(
-				{ ...createAddTrackCommand({ id: 'x', name: 'X' }), parentFolderId: 'band' },
-				PRODUCT_PROFILES[productId].capabilities,
-				productId,
-			),
-			/does not support trackFolders/iu,
-		);
-	}
+	assert.doesNotThrow(() => assertEditorCommandCapabilities(
+		{ ...createAddTrackCommand({ id: 'x', name: 'X' }), parentFolderId: 'band' },
+		PRODUCT_PROFILES.soundscaper.capabilities,
+		'soundscaper',
+	));
+	assert.throws(
+		() => assertEditorCommandCapabilities(
+			{ ...createAddTrackCommand({ id: 'x', name: 'X' }), parentFolderId: 'band' },
+			PRODUCT_PROFILES.framescaper.capabilities,
+			'framescaper',
+		),
+		/does not support trackFolders/iu,
+	);
 	const placed = applyEditorCommand(folderedProject(), {
 		...createAddTrackCommand({ id: 'shaker', name: 'Shaker' }),
 		sequenceId: 'main',

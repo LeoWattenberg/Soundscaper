@@ -415,8 +415,12 @@ test('nonempty folder state owns one bypass-only requirement in both product pro
 	assert.equal(new Set<string>(PROJECT_FEATURE_AUDIO_CAPABILITY_IDS).has(PROJECT_FEATURE_CAPABILITY_IDS.trackFolders), false);
 	assert.equal(new Set<string>(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS).has(PROJECT_FEATURE_CAPABILITY_IDS.trackFolders), false);
 
-	for (const productId of ['soundscaper', 'framescaper'] as const) {
-		assert.equal(PRODUCT_PROFILES[productId].capabilities.trackFolders, false);
+	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.trackFolders, true);
+	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.trackFolders, false);
+	for (const [productId, availability, disposition] of [
+		['soundscaper', 'available', 'native'],
+		['framescaper', 'unavailable', 'bypassed'],
+	] as const) {
 		const report = createProjectFeatureCompatibilityService(
 			PRODUCT_PROFILES[productId].capabilities,
 		).evaluate(project);
@@ -427,9 +431,9 @@ test('nonempty folder state owns one bypass-only requirement in both product pro
 			disposition: item.disposition,
 			fallback: item.fallback,
 		}, {
-			availability: 'unavailable',
+			availability,
 			declaredDisposition: 'bypass',
-			disposition: 'bypassed',
+			disposition,
 			fallback: null,
 		});
 	}
