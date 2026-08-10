@@ -1,3 +1,13 @@
+/*
+ * A third monitor joins the video strip as another column. Without this the
+ * two-column template wraps it onto a row the strip's fixed height hides, and
+ * it sits on top of the panels beside it.
+ */
+#kw-audio-editor-design-system .kw-audio-editor__video-workspace {
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 2fr);
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__source-monitor {
 	display: flex;
 	flex-direction: column;
@@ -18,6 +28,13 @@
 	height: 100%;
 	object-fit: contain;
 	width: 100%;
+}
+
+/* The video strip is short, so the picture gives its height to the controls. */
+#kw-audio-editor-design-system .kw-audio-editor__video-workspace .kw-audio-editor__source-monitor-picture {
+	aspect-ratio: auto;
+	flex: 1 1 auto;
+	min-height: 48px;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-monitor-readout {

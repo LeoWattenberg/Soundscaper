@@ -157,7 +157,18 @@ reachable by pointer and by keyboard.
 
 Open a bin item into the monitor, mark a range, overwrite with it, match-frame
 back from the programme, and replace — through the real product — proving the
-resulting document each time.
+resulting document each time, and prove that clearing the marks puts the whole
+source back in the edit.
+
+**What this could not prove in a browser, and why.** Contract 4's four-point
+refusal needs a time selection with width. Neither a ruler drag nor the Select
+menu's *Select all* left a persisted selection this spec could observe, so
+reaching that refusal through the product would have meant qualifying the
+timeline's selection surface rather than the monitor's. The refusal is proved
+against the controller instead (`a marked range and a selection of another
+length refuse rather than change speed`), and that refusals reach the user as a
+visible error is already qualified by the 3B-3a spec. A browser proof of the
+four-point path belongs with whatever packet next touches time selection.
 
 ### S8 — Status, matrix, gates
 
