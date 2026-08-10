@@ -9,6 +9,7 @@ import type {
 	ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
 import { PROJECT_FEATURE_REQUIREMENTS_LIMITS } from './project-feature-requirements.ts';
+import { projectHasReportedSourceCharacteristics } from './source-characteristics-v14.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 
 export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
@@ -21,6 +22,7 @@ export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	sequenceTiming: 'framescaper.sequence-timing',
 	videoRetime: 'framescaper.video-retime',
 	videoTimingAssets: 'framescaper.video-timing-assets',
+	sourceCharacteristics: 'framescaper.source-characteristics',
 } as const);
 
 type RecordValue = Readonly<Record<string, unknown>>;
@@ -55,6 +57,7 @@ const FOUNDATION_REQUIREMENTS = Object.freeze({
 	sequenceTiming: requirement('sequenceTiming', 'Sequence timing'),
 	videoRetime: requirement('videoRetime', 'Video retime maps'),
 	videoTimingAssets: requirement('videoTimingAssets', 'Exact video timing assets'),
+	sourceCharacteristics: requirement('sourceCharacteristics', 'Probed source characteristics'),
 });
 const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.freeze([
 	Object.freeze({
@@ -80,10 +83,15 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 	foundationOwned(FOUNDATION_REQUIREMENTS.sequenceTiming, projectHasNonDefaultSequenceTiming),
 	foundationOwned(FOUNDATION_REQUIREMENTS.videoRetime, (project) => projectHasClipField(project, 'video', 'retimeMap')),
 	foundationOwned(FOUNDATION_REQUIREMENTS.videoTimingAssets, projectHasVideoTimingAsset),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.sourceCharacteristics,
+		projectHasReportedSourceCharacteristics,
+	),
 ]);
 
 function requirement(
-	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'audioWarp' | 'sequenceTiming' | 'videoRetime' | 'videoTimingAssets',
+	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'audioWarp' | 'sequenceTiming'
+		| 'videoRetime' | 'videoTimingAssets' | 'sourceCharacteristics',
 	displayName: string,
 ): ProjectFeatureRequirement {
 	return Object.freeze({

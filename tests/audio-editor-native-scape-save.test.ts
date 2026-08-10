@@ -285,7 +285,7 @@ test('stream archive copy writes exact retained bytes and commits after ownershi
 			await write(bytes.subarray(0, 2));
 			await write(bytes.subarray(2));
 			events.push('copied');
-			return { byteLength: bytes.byteLength, schemaVersion: 13 };
+			return { byteLength: bytes.byteLength, schemaVersion: 15 };
 		},
 	};
 	const result = await publishNativeScapeArchiveCopy(runtime as never, {
@@ -294,7 +294,7 @@ test('stream archive copy writes exact retained bytes and commits after ownershi
 		fileName: 'future.scape', prepared, signal: new AbortController().signal,
 	});
 	assert.deepEqual(events, ['open:5', 'copied', 'sealed', 'ownership', 'commit']);
-	assert.deepEqual(result.copied, { byteLength: 5, schemaVersion: 13 });
+	assert.deepEqual(result.copied, { byteLength: 5, schemaVersion: 15 });
 	assert.deepEqual(result.saved, { method: 'direct', size: 5 });
 });
 
@@ -339,7 +339,7 @@ test('stream archive copy refuses byte-count disagreement before ownership', asy
 	const runtime = {
 		async copyFutureScapeArchive(_input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
 			await write(Uint8Array.of(1, 2));
-			return { byteLength: 2, schemaVersion: 13 };
+			return { byteLength: 2, schemaVersion: 15 };
 		},
 	};
 	await assert.rejects(publishNativeScapeArchiveCopy(runtime as never, {
@@ -364,7 +364,7 @@ test('stream archive copy commit failure cleans the destination and preserves it
 	const runtime = {
 		async copyFutureScapeArchive(_input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
 			await write(Uint8Array.of(7));
-			return { byteLength: 1, schemaVersion: 13 };
+			return { byteLength: 1, schemaVersion: 15 };
 		},
 	};
 	await assert.rejects(publishNativeScapeArchiveCopy(runtime as never, {

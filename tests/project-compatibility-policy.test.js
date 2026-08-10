@@ -36,7 +36,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const expectedStatuses = {
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented', 'current-timeline-annotation-capability': 'implemented',
-		'current-track-folder-capability': 'implemented',
+		'current-track-folder-capability': 'implemented', 'current-source-characteristics-capability': 'implemented',
 		'current-linked-pcm-portable-archive': 'implemented',
 		'current-desktop-project-catalog-commit': 'implemented', 'current-desktop-electron-lease-protections': 'partial',
 		'current-desktop-managed-mixed-media-handoff': 'implemented', 'current-desktop-packaged-source-bearing-handoff': 'implemented', 'current-web-scape-mixed-media-handoff': 'implemented',
@@ -107,7 +107,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		featureRequirements.currentBehavior,
-		/exact-schema-13 create, load, clone, and commit.*reserved soundscaper\.audio-effects.*non-label.*non-video.*mixer group.*mixer send.*master rack/iu,
+		/exact-schema-14 create, load, clone, and commit.*reserved soundscaper\.audio-effects.*non-label.*non-video.*mixer group.*mixer send.*master rack/iu,
 	);
 	assert.match(
 		featureRequirements.currentBehavior,
@@ -185,7 +185,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		currentControllerFeatureReport.currentBehavior,
-		/exact schema 13.*actual project history.*before activation side effects.*unavailable or unknown.*intrinsically read-only.*deeply frozen.*session metadata clones.*document snapshot/iu,
+		/exact schema 14.*actual project history.*before activation side effects.*unavailable or unknown.*intrinsically read-only.*deeply frozen.*session metadata clones.*document snapshot/iu,
 	);
 	assert.match(currentControllerFeatureReport.currentBehavior, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
 	assert.match(
@@ -253,7 +253,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		audioEffectPlaybackBypass.currentBehavior,
-		/authoritative actual project history.*exact schema 13.*soundscaper-project.*audioEffects.*unavailable.*declares bypass.*effective bypassed/iu,
+		/authoritative actual project history.*exact schema 14.*soundscaper-project.*audioEffects.*unavailable.*declares bypass.*effective bypassed/iu,
 	);
 	assert.match(
 		audioEffectPlaybackBypass.currentBehavior,
@@ -303,7 +303,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		videoEffectPlaybackBypass.currentBehavior,
-		/authoritative actual project history.*exact schema 13.*soundscaper-project.*videoEffects.*unavailable.*declares bypass.*effective bypassed/iu,
+		/authoritative actual project history.*exact schema 14.*soundscaper-project.*videoEffects.*unavailable.*declares bypass.*effective bypassed/iu,
 	);
 	assert.match(
 		videoEffectPlaybackBypass.currentBehavior,
@@ -360,7 +360,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		assert.match(controllerFallbackIntegrity.requiredOutcome, /project-video-render-v1 and videoEffects-only video-clip-render-v1 delivery.*exact active claim.*export signal.*canonical native video Blob.*directly reuse.*immutable bytes.*one.*audio whole-mix.*joint.*admission.*before.*plan.*media.*FFmpeg.*output/iu);
 	assert.match(
 		controllerFallbackIntegrity.currentBehavior,
-		/authoritative exact-schema-13.*same-ID tab history.*session-owned history token.*exclusive session activation reservation.*before project-generation invalidation.*engine shutdown.*lock changes.*source loading.*persistence.*history replacement.*close.reopen.*competing active-project publication.*session publication.*released in finally/iu,
+		/authoritative exact-schema-14.*same-ID tab history.*session-owned history token.*exclusive session activation reservation.*before project-generation invalidation.*engine shutdown.*lock changes.*source loading.*persistence.*history replacement.*close.reopen.*competing active-project publication.*session publication.*released in finally/iu,
 	);
 	assert.match(
 		controllerFallbackIntegrity.currentBehavior,
@@ -389,7 +389,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	]);
 	assert.match(
 		currentScapePreOpenFeatureReport.currentBehavior,
-		/selected product.*provider-owned.*caller.*override.*archive.*source.*validation.*exact schema 13.*before.*collision lookup.*deeply frozen/iu,
+		/selected product.*provider-owned.*caller.*override.*archive.*source.*validation.*exact schema 14.*before.*collision lookup.*deeply frozen/iu,
 	);
 	assert.match(
 		currentScapePreOpenFeatureReport.currentBehavior,
@@ -436,7 +436,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	);
 	assert.match(
 		binaryOpaqueState.currentBehavior,
-		/exact schema 13.*export.*Uint8Array.*offset-view.*ArrayBuffer.*reserved tagged descriptor.*export and post-parse decode.*independently.*100,000 traversal nodes.*depth 128.*other ArrayBuffer views reject/iu,
+		/exact schema 14.*export.*Uint8Array.*offset-view.*ArrayBuffer.*reserved tagged descriptor.*export and post-parse decode.*independently.*100,000 traversal nodes.*depth 128.*other ArrayBuffer views reject/iu,
 	);
 	assert.match(
 		binaryOpaqueState.currentBehavior,
@@ -467,7 +467,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const audioFreezeFallback = rules.get('audio-freeze-fallback');
 	assert.match(
 		audioFreezeFallback.currentBehavior,
-		/offline rendering.*narrow exact-schema-13 audio and video playback fallback relationships.*bounded operation-verified video fallback delivery exist.*audio freeze, unfreeze, commit, relink, freshness.*generic cross-platform fallback-authoring semantics.*not implemented/iu,
+		/offline rendering.*narrow exact-schema-14 audio and video playback fallback relationships.*bounded operation-verified video fallback delivery exist.*audio freeze, unfreeze, commit, relink, freshness.*generic cross-platform fallback-authoring semantics.*not implemented/iu,
 	);
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
@@ -492,7 +492,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	const documentation = await readFile(documentationUrl, 'utf8');
 	assert.match(documentation, /Core document versus `\.scape`/u);
 	assert.match(documentation, /do not promise\s+byte-for-byte/u);
-	assert.match(documentation, /exact schema 13.*JSON-semantic.*byte-exact preservation.*supported bounded tagged binary/isu);
+	assert.match(documentation, /exact schema 14.*JSON-semantic.*byte-exact preservation.*supported bounded tagged binary/isu);
 	assert.match(documentation, /binary opaque/iu);
 	assert.match(
 		documentation,
@@ -500,7 +500,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/exact schema 13.*format 1.*Uint8Array.*offset view.*ArrayBuffer.*\$soundscaperOpaqueBinary.*encoding and post-parse decoding.*independently.*100,000 traversed nodes.*depth 128.*256 payloads.*4 MiB.*8 MiB/isu,
+		/exact schema 14.*format 1.*Uint8Array.*offset view.*ArrayBuffer.*\$soundscaperOpaqueBinary.*encoding and post-parse decoding.*independently.*100,000 traversed nodes.*depth 128.*256 payloads.*4 MiB.*8 MiB/isu,
 	);
 	assert.match(
 		documentation,
@@ -514,7 +514,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	assert.match(documentation, /do not hash or authenticate the referenced media bytes/iu);
 	assert.match(
 		documentation,
-		/Schemas 1 through 12.*rejected at the raw-project boundary.*before feature-\s+requirement reconciliation.*exact-schema-13 create, load, clone, and\s+commit.*`soundscaper\.audio-effects`.*non-label.*non-video.*mixer group.*mixer send.*master rack/isu,
+		/Schemas 1 through 13.*rejected at the raw-project boundary.*before feature-\s+requirement reconciliation.*exact-schema-14 create, load, clone, and\s+commit.*`soundscaper\.audio-effects`.*non-label.*non-video.*mixer group.*mixer send.*master rack/isu,
 	);
 	assert.match(
 		documentation,
@@ -527,13 +527,13 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 		/explicit stable broad capability IDs map one-to-one\s+to the maintained keys in each selected product profile/iu,
 	);
 	assert.match(documentation, /Only a strict `true` value makes a registered feature\s+available/iu);
-	assert.match(documentation, /exact schema 13[\s\S]*before activation side effects/iu);
+	assert.match(documentation, /exact schema 14[\s\S]*before activation side effects/iu);
 	assert.match(documentation, /actual project history[\s\S]*deeply frozen across session metadata[\s\S]*document snapshot/iu);
 	assert.match(documentation, /same-ID tab[\s\S]*stored read-only declaration[\s\S]*ignored incoming[\s\S]*flags/iu);
 	assert.match(documentation, /future schemas produce no\s+feature report, and\s+their `featureRequirements` value is not traversed/iu);
 	assert.match(
 		documentation,
-		/first-party audio-effect slice.*transient playback projection.*authoritative activation project.*exact schema 13.*registered audio-effects.*unavailable.*declares bypass.*effective bypassed/isu,
+		/first-party audio-effect slice.*transient playback projection.*authoritative activation project.*exact schema 14.*registered audio-effects.*unavailable.*declares bypass.*effective bypassed/isu,
 	);
 	assert.match(
 		documentation,
@@ -545,7 +545,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/first-party video-effect slice.*transient activation projection.*exact schema 13.*registered video-effects.*unavailable.*declares bypass.*effective bypassed/isu,
+		/first-party video-effect slice.*transient activation projection.*exact schema 14.*registered video-effects.*unavailable.*declares bypass.*effective bypassed/isu,
 	);
 	assert.match(
 		documentation,
@@ -590,7 +590,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/exact-schema-13 mono\/stereo role-defined audio whole-mix.*role-defined video\s+whole-project.*one first-party video-effects clip-target slice.*narrow forms of step 3.*editor playback.*maintained delivery.*operation-time integrity admission/isu,
+		/exact-schema-14 mono\/stereo role-defined audio whole-mix.*role-defined video\s+whole-project.*one first-party video-effects clip-target slice.*narrow forms of step 3.*editor playback.*maintained delivery.*operation-time integrity admission/isu,
 	);
 	assert.match(
 		documentation,

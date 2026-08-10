@@ -212,7 +212,8 @@
 				"audioWarp": false,
 				"sequenceTiming": true,
 				"videoRetime": false,
-				"videoTimingAssets": true
+				"videoTimingAssets": true,
+				"sourceCharacteristics": true
 			}
 		},
 		"framescaper": {
@@ -348,7 +349,8 @@
 				"audioWarp": false,
 				"sequenceTiming": true,
 				"videoRetime": false,
-				"videoTimingAssets": true
+				"videoTimingAssets": true,
+				"sourceCharacteristics": true
 			}
 		}
 	}

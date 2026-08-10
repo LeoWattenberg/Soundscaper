@@ -8,7 +8,7 @@ import { initializeDesktopLibraryProjectStageInventory } from './project-library
 import type { MetadataRow } from './project-library-persistence.ts';
 
 export const DESKTOP_PROJECT_LIBRARY_APPLICATION_ID = 0x53434150;
-export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 7;
+export const DESKTOP_PROJECT_LIBRARY_DATABASE_VERSION = 8;
 
 export function initializeDesktopProjectLibraryDatabase(
 	database: DatabaseSync,

@@ -39,7 +39,7 @@ test('document annotation snapshot does not traverse older, future, or absent sc
 		},
 	});
 	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(10)), []);
-	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(14)), []);
+	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(15)), []);
 	assert.deepEqual(createDocumentTimelineAnnotationSnapshot({
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	}), []);

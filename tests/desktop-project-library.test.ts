@@ -43,7 +43,7 @@ test('shared desktop library paths stay in one fixed appData scope', async (cont
 	const paths = createDesktopProjectLibraryPaths(appDataRoot);
 
 	assert.equal(isAbsolute(paths.libraryRoot), true);
-	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v5'));
+	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v6'));
 	assert.equal(relative(paths.libraryRoot, paths.databasePath), 'library.sqlite3');
 	assert.equal(relative(paths.libraryRoot, paths.projectsRoot), 'projects');
 	assert.equal(relative(paths.libraryRoot, paths.managedMediaRoot), 'media');
@@ -432,12 +432,12 @@ async function createFixture(context: TestContext) {
 }
 
 function emptyMetadata(): DesktopLibraryMetadata {
-	return { schemaVersion: 5, revision: 0, projects: [], media: [] };
+	return { schemaVersion: 6, revision: 0, projects: [], media: [] };
 }
 
 function populatedMetadata(revision: number): DesktopLibraryMetadata {
 	return {
-		schemaVersion: 5,
+		schemaVersion: 6,
 		revision,
 		projects: [{
 			id: 'shared-project-1',
@@ -446,7 +446,7 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 			metadataFile: createDesktopLibraryProjectMetadataFile('shared-project-1', 1, 'a'.repeat(64)),
 			preferredProduct: 'soundscaper',
 			updatedAtMs: 9_000 + revision,
-			projectSchemaVersion: 13,
+			projectSchemaVersion: 14,
 			projectRevision: 1,
 			byteLength: 48_000,
 			sha256: 'a'.repeat(64),

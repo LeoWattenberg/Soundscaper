@@ -226,7 +226,11 @@ export type EditorProjectV13 = Omit<EditorProjectV11, 'schemaVersion' | 'sequenc
 	})[];
 }>;
 
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13;
+export type EditorProjectV14 = Omit<EditorProjectV13, 'schemaVersion'> & Readonly<{
+	schemaVersion: 14;
+}>;
+
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

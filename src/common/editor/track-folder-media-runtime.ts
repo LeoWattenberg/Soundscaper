@@ -6,7 +6,7 @@ import {
 } from './track-folder-state-projection.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION,
+	AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION,
 } from './project-schema-version.ts';
 import { TRACK_FOLDER_V12_LIMITS } from './track-folder-v12.ts';
 import { TRACK_HIERARCHY_V12_LIMITS } from './track-hierarchy-v12.ts';
@@ -18,7 +18,7 @@ type DataRecord = Record<PropertyKey, unknown>;
 
 // Pinned to the exact current revision so a schema bump fails closed here
 // instead of projecting a document this derivation was never reviewed against.
-const EXACT_TRACK_FOLDER_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION;
+const EXACT_TRACK_FOLDER_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION;
 const TRUSTED_MEDIA_PROJECTIONS = new WeakMap<object, string>();
 // Re-projection cache per canonical input identity. The fingerprint is the
 // folder lineage PLUS leaf audibility flags, so a hit skips hierarchy
@@ -138,7 +138,7 @@ export function inheritTrackFolderMediaStateProjectionV12<Project extends object
 	}
 	if (optionalOwnData(candidate, 'schemaVersion', 'track folder media projection target')
 		!== EXACT_TRACK_FOLDER_SCHEMA_VERSION) {
-		throw new TypeError('A derived track folder media projection must retain exact schema V12.');
+		throw new TypeError('A derived track folder media projection must retain exact current schema.');
 	}
 	if (mediaProjectionLineage(candidate) !== sourceLineage) {
 		throw new TypeError('A derived track folder media projection must retain its source folder lineage.');

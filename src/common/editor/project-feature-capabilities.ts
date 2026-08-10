@@ -27,6 +27,7 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	sequenceTiming: 'org.soundscaper.capability.sequence-timing',
 	videoRetime: 'org.soundscaper.capability.video-retime',
 	videoTimingAssets: 'org.soundscaper.capability.video-timing-assets',
+	sourceCharacteristics: 'org.soundscaper.capability.source-characteristics',
 } as const);
 
 export type ProjectFeatureCapabilityKey = keyof typeof PROJECT_FEATURE_CAPABILITY_IDS;

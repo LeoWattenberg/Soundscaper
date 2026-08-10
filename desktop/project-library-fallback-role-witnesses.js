@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	createUnreportedVideoSourceCharacteristics,
+} from '../src/common/editor/video-source-characteristics.ts';
+
+import {
 	DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
 	createDesktopSmokeProjectFoundation,
 } from './project-library-smoke-project.js';
@@ -185,6 +189,7 @@ function sourceDocument(source) {
 		frameRate: { num: source.frameRate, den: 1 }, sourceFrameCount: videoFrameCount(source), timingAsset: null,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: source.frameRate, den: 1 } },
 		videoCodec: 'vp8', audioCodec: null, hasAudio: false,
+		characteristics: createUnreportedVideoSourceCharacteristics(),
 		posterStorageKey: null, thumbnailStorageKey: null, opaqueExtensions: {},
 	};
 }

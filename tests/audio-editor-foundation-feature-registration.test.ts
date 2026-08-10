@@ -43,6 +43,11 @@ const FOUNDATION_FIXTURES = Object.freeze([
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoTimingAssets,
 		project: { sources: [{ kind: 'video', timingAsset: { storageKey: 'timing' } }] },
 	}),
+	Object.freeze({
+		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.sourceCharacteristics,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.sourceCharacteristics,
+		project: { sources: [{ kind: 'video', characteristics: { backend: 'ffmpeg', rotationDegrees: 90 } }] },
+	}),
 ]);
 
 test('every foundation document type has one owned capability predicate', () => {

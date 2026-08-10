@@ -5,6 +5,7 @@ import { reconcileProjectOwnedFeatureRequirements } from './project-owned-featur
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION,
+	isSourceCharacteristicsProjectSchema,
 } from './project-schema-version.ts';
 import {
 	projectV10ForCommand,
@@ -15,7 +16,8 @@ import {
 	validateAudioEditorProjectV10,
 } from './project-v10-validation.ts';
 import { validateAudioEditorProjectV11 } from './project-v11-validation.ts';
-import { validateAudioEditorProjectV13 } from './project-v13-validation.ts';
+import { validateAudioEditorProjectV14 } from './project-v14-validation.ts';
+import { reconcileVideoSourceCharacteristicsV14 } from './source-characteristics-v14.ts';
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
@@ -24,7 +26,7 @@ import {
 
 type DataRecord = Record<string, unknown>;
 
-/** V10 introduced the authoritative foundation retained by V11, V12, and V13. */
+/** V10 introduced the authoritative foundation retained by V11 through V14. */
 export function isFoundationProjectSchema(schemaVersion: unknown): boolean {
 	return schemaVersion === AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION
 		|| schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
@@ -49,6 +51,9 @@ export function projectForCommandConsumers<Project extends DataRecord | null | u
 export function preparePersistedProjectCommandDraft(draft: DataRecord, persistedBase: DataRecord): void {
 	if (isFoundationProject(draft)) {
 		reconcileProjectV10CommandResult(draft, persistedBase);
+	}
+	if (isSourceCharacteristicsProjectSchema(draft.schemaVersion)) {
+		reconcileVideoSourceCharacteristicsV14(draft);
 	}
 	if (Number(draft.schemaVersion) < 9) return;
 	const sources = recordArray(draft.sources, 'project.sources');
@@ -76,7 +81,7 @@ export function validateCurrentAudioEditorProject(project: unknown): boolean {
 	if (!project || typeof project !== 'object' || Array.isArray(project)) return false;
 	const candidate = project as Readonly<Record<string, unknown>>;
 	return candidate.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		? validateAudioEditorProjectV13(candidate)
+		? validateAudioEditorProjectV14(candidate)
 		: false;
 }
 

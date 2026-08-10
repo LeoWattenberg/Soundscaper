@@ -308,7 +308,7 @@ test('disjoin reports audio with no bounded silence', async () => {
 
 test('paste-created tracks join the folder of the selected track on a foldered project', () => {
 	const foldered = project({
-		schemaVersion: 13,
+		schemaVersion: 14,
 		trackFolders: [{ id: 'band' }],
 		primarySequenceId: 'main',
 		sequences: [{
@@ -346,7 +346,7 @@ test('paste-created tracks join the folder of the selected track on a foldered p
 
 test('paste-created tracks fall back to the sequence root without an anchored folder', () => {
 	const foldered = project({
-		schemaVersion: 13,
+		schemaVersion: 14,
 		tracks: [],
 		clips: [],
 		selection: null,

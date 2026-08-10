@@ -95,6 +95,7 @@ export {
  *   | import('./project-v11.ts').AudioEditorProjectV11
  *   | import('./project-v12.ts').AudioEditorProjectV12
  *   | import('./project-v13.ts').AudioEditorProjectV13
+ *   | import('./project-v14.ts').AudioEditorProjectV14
  * } CurrentAudioEditorProject
  */
 

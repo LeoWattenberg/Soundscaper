@@ -20,10 +20,10 @@ import {
 } from '../src/common/editor/history.js';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
-	createAudioEditorProjectV13,
-	validateAudioEditorProjectV13,
-	type AudioEditorProjectV13,
-} from '../src/common/editor/project-v13.ts';
+	createAudioEditorProjectV14,
+	validateAudioEditorProjectV14,
+	type AudioEditorProjectV14,
+} from '../src/common/editor/project-v14.ts';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const NOW = '2026-08-10T12:00:00.000Z';
@@ -38,7 +38,7 @@ function mixerOf(project: object): MixerShape {
 	return (project as { mixer: MixerShape }).mixer;
 }
 
-function nodeIds(project: AudioEditorProjectV13): readonly string[] {
+function nodeIds(project: AudioEditorProjectV14): readonly string[] {
 	return project.sequences[0].trackNodes.map(({ id }) => id);
 }
 
@@ -49,8 +49,8 @@ function nodeIds(project: AudioEditorProjectV13): readonly string[] {
  *   bass
  * vocals        (root audio track)
  */
-function folderedProject(): AudioEditorProjectV13 {
-	return createAudioEditorProjectV13({
+function folderedProject(): AudioEditorProjectV14 {
+	return createAudioEditorProjectV14({
 		id: 'folder-commands', title: 'Folder commands', now: NOW, primarySequenceId: 'main',
 		trackFolders: [
 			{ id: 'band', name: 'Band' },
@@ -108,7 +108,7 @@ test('adding a folder places it child-relative and mints its bus only once audio
 	project = applyEditorCommand(project, createMoveTrackNodeCommand('main', 'vocals', 'fx', 0), { now: NOW });
 	assert.deepEqual(mixerOf(project).groups.map(({ id }) => id), ['band', 'fx']);
 	assert.equal(mixerOf(project).routes.vocals.groupId, 'fx');
-	assert.equal(validateAudioEditorProjectV13(project), true);
+	assert.equal(validateAudioEditorProjectV14(project), true);
 
 	// Duplicate and bus-colliding identities reject before mutation.
 	assert.throws(
@@ -141,7 +141,7 @@ test('folder updates stay on the folder while the bus mirrors name and never mut
 	assert.equal(bus?.name, 'Ensemble');
 	assert.equal(bus?.mute, false);
 	assert.equal(bus?.solo, false);
-	assert.equal(validateAudioEditorProjectV13(project), true);
+	assert.equal(validateAudioEditorProjectV14(project), true);
 
 	assert.throws(
 		() => applyEditorCommand(project, createUpdateTrackFolderCommand('band', { id: 'other' }), { now: NOW }),
@@ -167,7 +167,7 @@ test('promote lifts children, retires the bus when audio leaves, and delete-cont
 	assert.deepEqual(mixerOf(promoted).groups.map(({ id }) => id), ['drums']);
 	assert.equal(mixerOf(promoted).routes.kick.groupId, 'drums');
 	assert.equal(mixerOf(promoted).routes.bass.groupId, null);
-	assert.equal(validateAudioEditorProjectV13(promoted), true);
+	assert.equal(validateAudioEditorProjectV14(promoted), true);
 
 	const withRouteState = applyEditorCommand(base, {
 		type: 'mixer/route-update', trackId: 'vocals', changes: { groupId: null, sends: {} },
@@ -182,7 +182,7 @@ test('promote lifts children, retires the bus when audio leaves, and delete-cont
 	assert.deepEqual(deleted.tracks.map(({ id }) => id), ['vocals']);
 	assert.deepEqual(mixerOf(deleted).groups, []);
 	assert.deepEqual(Object.keys(mixerOf(deleted).routes), ['vocals']);
-	assert.equal(validateAudioEditorProjectV13(deleted), true);
+	assert.equal(validateAudioEditorProjectV14(deleted), true);
 
 	assert.throws(
 		() => applyEditorCommand(base, {
@@ -195,21 +195,21 @@ test('promote lifts children, retires the bus when audio leaves, and delete-cont
 test('moves keep buses, routes, and preorder consistent in one undoable step', () => {
 	const history = createEditorHistory(folderedProject());
 	const moved = executeEditorCommand(history, createMoveTrackNodeCommand('main', 'drums', null, 0), { now: NOW });
-	assert.deepEqual(nodeIds(moved.present as AudioEditorProjectV13), ['drums', 'kick', 'band', 'bass', 'vocals']);
-	const mixer = mixerOf(moved.present as AudioEditorProjectV13);
+	assert.deepEqual(nodeIds(moved.present as AudioEditorProjectV14), ['drums', 'kick', 'band', 'bass', 'vocals']);
+	const mixer = mixerOf(moved.present as AudioEditorProjectV14);
 	assert.deepEqual(mixer.groups.map(({ id }) => id).sort(), ['band', 'drums']);
 	assert.equal(mixer.routes.kick.groupId, 'drums');
 	assert.equal(mixer.routes.bass.groupId, 'band');
-	assert.equal(validateAudioEditorProjectV13(moved.present), true);
+	assert.equal(validateAudioEditorProjectV14(moved.present), true);
 
 	const undone = undoEditorCommand(moved);
-	assert.deepEqual(nodeIds(undone.present as AudioEditorProjectV13), ['band', 'drums', 'kick', 'bass', 'vocals']);
-	assert.deepEqual(mixerOf(undone.present as AudioEditorProjectV13).groups.map(({ id }) => id), ['band']);
-	assert.equal(validateAudioEditorProjectV13(undone.present), true);
+	assert.deepEqual(nodeIds(undone.present as AudioEditorProjectV14), ['band', 'drums', 'kick', 'bass', 'vocals']);
+	assert.deepEqual(mixerOf(undone.present as AudioEditorProjectV14).groups.map(({ id }) => id), ['band']);
+	assert.equal(validateAudioEditorProjectV14(undone.present), true);
 
 	const redone = redoEditorCommand(undone);
-	assert.deepEqual(nodeIds(redone.present as AudioEditorProjectV13), ['drums', 'kick', 'band', 'bass', 'vocals']);
-	assert.equal(validateAudioEditorProjectV13(redone.present), true);
+	assert.deepEqual(nodeIds(redone.present as AudioEditorProjectV14), ['drums', 'kick', 'band', 'bass', 'vocals']);
+	assert.equal(validateAudioEditorProjectV14(redone.present), true);
 });
 
 test('direct mixer edits cannot break a folder bus mirror or ownership', () => {
@@ -231,7 +231,7 @@ test('direct mixer edits cannot break a folder bus mirror or ownership', () => {
 	}, { now: NOW });
 	const bus = mixerOf(regained).groups.find(({ id }) => id === 'band');
 	assert.equal(bus?.gain, 0.5);
-	assert.equal(validateAudioEditorProjectV13(regained), true);
+	assert.equal(validateAudioEditorProjectV14(regained), true);
 
 	assert.throws(
 		() => applyEditorCommand(project, {
@@ -257,11 +257,11 @@ test('legacy structural commands compose with folder-aware ones on a foldered do
 		],
 	}, { now: NOW });
 	assert.deepEqual(nodeIds(combined), ['band', 'drums', 'kick', 'bass']);
-	assert.equal(validateAudioEditorProjectV13(combined), true);
+	assert.equal(validateAudioEditorProjectV14(combined), true);
 });
 
 test('a folder created mid-batch cannot follow a root-hierarchy structural edit', () => {
-	const rootOnly = createAudioEditorProjectV13({
+	const rootOnly = createAudioEditorProjectV14({
 		id: 'root-only', title: 'Root only', now: NOW, primarySequenceId: 'main',
 		tracks: [createAudioTrackV10({ id: 'vocals', name: 'Vocals' })],
 		sequences: [{ id: 'main', trackNodes: [{ kind: 'track', id: 'vocals', parentFolderId: null }] }],

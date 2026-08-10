@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document-track-folder-snapshot.ts';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV13 } from '../src/common/editor/project-v13.ts';
+import { createAudioEditorProjectV14 } from '../src/common/editor/project-v14.ts';
 import { TrackFolderRow } from '../src/common/editor/ui/timeline/TrackFolderRow.jsx';
 import { planTrackListRows } from '../src/common/editor/ui/timeline/track-folder-ui-model.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
@@ -15,7 +15,7 @@ import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 const NOW = '2026-08-10T18:00:00.000Z';
 
 function foldersPlan() {
-	const project = createAudioEditorProjectV13({
+	const project = createAudioEditorProjectV14({
 		id: 'folder-components', title: 'Folder components', now: NOW, primarySequenceId: 'main',
 		trackFolders: [
 			{ id: 'band', name: 'Band', mute: true },

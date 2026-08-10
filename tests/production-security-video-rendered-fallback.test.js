@@ -55,7 +55,7 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 
 	assert.match(
 		control.summary,
-		/exact schema 13.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*canonical manifest/iu,
+		/exact schema 14.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*canonical manifest/iu,
 	);
 	assert.match(
 		control.summary,
@@ -106,7 +106,7 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 	const documentation = threatModel.slice(playbackStart, playbackEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/video rendered-fallback preview and playback.*exact schema 13.*`project-video-render-v1`.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/video rendered-fallback preview and playback.*exact schema 14.*`project-video-render-v1`.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		documentation,

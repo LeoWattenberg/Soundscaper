@@ -7,6 +7,9 @@ import {
 	DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,
 	createDesktopSmokeProjectFoundation,
 } from './project-library-smoke-project.js';
+import {
+	createUnreportedVideoSourceCharacteristics,
+} from '../src/common/editor/video-source-characteristics.ts';
 
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE = 'project-library-source-bearing-handoff-v1';
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING ';
@@ -238,6 +241,7 @@ function createProjectDocument({ projectId, title, audio, video, workflowId }) {
 				sourceFrameCount, timingAsset: null,
 				timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: video.frameRate, den: 1 } },
 				videoCodec: 'vp8', audioCodec: null, hasAudio: false,
+				characteristics: createUnreportedVideoSourceCharacteristics(),
 				posterStorageKey: null, thumbnailStorageKey: null, opaqueExtensions: {},
 			},
 		],

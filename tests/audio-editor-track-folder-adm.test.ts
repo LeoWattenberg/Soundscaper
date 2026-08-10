@@ -11,10 +11,10 @@ import {
 } from '../src/common/editor/commands/factories.ts';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
-	createAudioEditorProjectV13,
-	validateAudioEditorProjectV13,
-	type AudioEditorProjectV13,
-} from '../src/common/editor/project-v13.ts';
+	createAudioEditorProjectV14,
+	validateAudioEditorProjectV14,
+	type AudioEditorProjectV14,
+} from '../src/common/editor/project-v14.ts';
 
 const NOW = '2026-08-10T15:00:00.000Z';
 const PINNED = /ADM authored programme pins its terminal strips/u;
@@ -23,8 +23,8 @@ const PINNED = /ADM authored programme pins its terminal strips/u;
  * Authored 5.1 programme over a foldered document whose bed assignments
  * target the folder bus (a group terminal strip) and a root track terminal.
  */
-function authoredFolderedProject(): AudioEditorProjectV13 {
-	return createAudioEditorProjectV13({
+function authoredFolderedProject(): AudioEditorProjectV14 {
+	return createAudioEditorProjectV14({
 		id: 'adm-folders', title: 'ADM folders', now: NOW, primarySequenceId: 'main',
 		metadata: {
 			adm: {
@@ -90,7 +90,7 @@ test('ownership-neutral folder edits stay available on an authored programme', (
 	const bus = (renamed.mixer as { groups: readonly { id: string; name: string }[] })
 		.groups.find(({ id }) => id === 'music');
 	assert.equal(bus?.name, 'Score');
-	assert.equal(validateAudioEditorProjectV13(renamed), true);
+	assert.equal(validateAudioEditorProjectV14(renamed), true);
 
 	// An empty folder owns no bus, so creating one changes no ownership.
 	const grown = applyEditorCommand(
@@ -98,5 +98,5 @@ test('ownership-neutral folder edits stay available on an authored programme', (
 		createAddTrackFolderCommand('main', { id: 'ambience', name: 'Ambience' }),
 		{ now: NOW },
 	);
-	assert.equal(validateAudioEditorProjectV13(grown), true);
+	assert.equal(validateAudioEditorProjectV14(grown), true);
 });

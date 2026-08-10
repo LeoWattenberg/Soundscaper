@@ -9,10 +9,10 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import { assertEditorCommandCapabilities } from '../src/common/editor/controller/command-capability-policy.ts';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
-	createAudioEditorProjectV13,
-	validateAudioEditorProjectV13,
-	type AudioEditorProjectV13,
-} from '../src/common/editor/project-v13.ts';
+	createAudioEditorProjectV14,
+	validateAudioEditorProjectV14,
+	type AudioEditorProjectV14,
+} from '../src/common/editor/project-v14.ts';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const NOW = '2026-08-10T13:00:00.000Z';
@@ -26,7 +26,7 @@ function mixerOf(project: object): MixerShape {
 	return (project as { mixer: MixerShape }).mixer;
 }
 
-function hierarchyOf(project: AudioEditorProjectV13): readonly Readonly<{ id: string; parentFolderId: string | null }>[] {
+function hierarchyOf(project: AudioEditorProjectV14): readonly Readonly<{ id: string; parentFolderId: string | null }>[] {
 	return project.sequences[0].trackNodes.map(({ id, parentFolderId }) => ({ id, parentFolderId }));
 }
 
@@ -36,8 +36,8 @@ function hierarchyOf(project: AudioEditorProjectV13): readonly Readonly<{ id: st
  *   bass
  * vocals        (root audio track)
  */
-function folderedProject(): AudioEditorProjectV13 {
-	return createAudioEditorProjectV13({
+function folderedProject(): AudioEditorProjectV14 {
+	return createAudioEditorProjectV14({
 		id: 'legacy-folder', title: 'Legacy on folders', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band' }],
 		tracks: [
@@ -79,7 +79,7 @@ test('a stereo-split shaped batch keeps both halves inside the folder, adjacent,
 	assert.equal(mixerOf(split).routes['kick-left'].groupId, 'band');
 	assert.equal(mixerOf(split).routes['kick-right'].groupId, 'band');
 	assert.equal(Object.hasOwn(mixerOf(split).routes, 'kick'), false);
-	assert.equal(validateAudioEditorProjectV13(split), true);
+	assert.equal(validateAudioEditorProjectV14(split), true);
 });
 
 test('a mixdown-shaped batch retires the emptied folder bus and appends the render at root', () => {
@@ -99,11 +99,11 @@ test('a mixdown-shaped batch retires the emptied folder bus and appends the rend
 	]);
 	// The folder holds no audio, so its bus and routes are gone.
 	assert.deepEqual(mixerOf(mixed).groups, []);
-	assert.equal(validateAudioEditorProjectV13(mixed), true);
+	assert.equal(validateAudioEditorProjectV14(mixed), true);
 });
 
 test('legacy removal of one lane member removes the pair and their nodes together', () => {
-	const project = createAudioEditorProjectV13({
+	const project = createAudioEditorProjectV14({
 		id: 'legacy-lanes', title: 'Legacy lanes', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'picture', name: 'Picture' }],
 		tracks: [
@@ -122,11 +122,11 @@ test('legacy removal of one lane member removes the pair and their nodes togethe
 		}],
 	});
 	const removed = applyEditorCommand(project, { type: 'track/remove', trackId: 'cam-audio' }, { now: NOW });
-	assert.deepEqual(hierarchyOf(removed as AudioEditorProjectV13), [
+	assert.deepEqual(hierarchyOf(removed as AudioEditorProjectV14), [
 		{ id: 'picture', parentFolderId: null },
 		{ id: 'vocals', parentFolderId: null },
 	]);
-	assert.equal(validateAudioEditorProjectV13(removed), true);
+	assert.equal(validateAudioEditorProjectV14(removed), true);
 });
 
 test('legacy reorder moves across folder boundaries by adopting the destination parent', () => {
@@ -142,7 +142,7 @@ test('legacy reorder moves across folder boundaries by adopting the destination 
 		{ id: 'bass', parentFolderId: 'band' },
 	]);
 	assert.equal(mixerOf(adopted).routes.vocals.groupId, 'band');
-	assert.equal(validateAudioEditorProjectV13(adopted), true);
+	assert.equal(validateAudioEditorProjectV14(adopted), true);
 
 	// kick (flat 0) moves down to flat 2 -> after vocals, at root.
 	const escaped = applyEditorCommand(project, {
@@ -155,11 +155,11 @@ test('legacy reorder moves across folder boundaries by adopting the destination 
 		{ id: 'kick', parentFolderId: null },
 	]);
 	assert.equal(mixerOf(escaped).routes.kick.groupId, null);
-	assert.equal(validateAudioEditorProjectV13(escaped), true);
+	assert.equal(validateAudioEditorProjectV14(escaped), true);
 });
 
 test('cross-sequence legacy reorder still rejects with the pinned message', () => {
-	const project = createAudioEditorProjectV13({
+	const project = createAudioEditorProjectV14({
 		id: 'legacy-cross', title: 'Legacy cross', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band' }],
 		tracks: [
@@ -213,5 +213,5 @@ test('explicit folder placement on track/add is capability-gated and lands under
 		{ id: 'vocals', parentFolderId: null },
 	]);
 	assert.equal(mixerOf(placed).routes.shaker.groupId, 'band');
-	assert.equal(validateAudioEditorProjectV13(placed), true);
+	assert.equal(validateAudioEditorProjectV14(placed), true);
 });

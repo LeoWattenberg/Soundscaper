@@ -112,7 +112,7 @@ export function createFixture(overrides: Partial<NativeProjectServiceRuntime> = 
 		copyFutureScapeArchive: async (input, write) => {
 			const bytes = new Uint8Array(await input.arrayBuffer());
 			await write(bytes);
-			return { byteLength: bytes.byteLength, schemaVersion: 13 };
+			return { byteLength: bytes.byteLength, schemaVersion: 15 };
 		},
 		normalizeCompatibilityReport: (report, direction) => ({
 			...((report && typeof report === 'object') ? report : {}),

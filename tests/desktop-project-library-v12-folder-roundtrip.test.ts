@@ -23,7 +23,7 @@ import {
 
 const NOW = '2026-08-09T20:00:00.000Z';
 
-test('fresh desktop library V5 saves and reopens nonempty V13 folder hierarchy byte-exactly', async (context) => {
+test('fresh desktop library V6 saves and reopens nonempty V13 folder hierarchy byte-exactly', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-v13-folder-desktop-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
 	const paths = createDesktopProjectLibraryPaths(appDataPath);
@@ -72,7 +72,7 @@ test('fresh desktop library V5 saves and reopens nonempty V13 folder hierarchy b
 		DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 	);
 	const database = new DatabaseSync(paths.databasePath, { readOnly: true });
-	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 7);
+	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 8);
 	database.close();
 	await firstHost.close();
 
