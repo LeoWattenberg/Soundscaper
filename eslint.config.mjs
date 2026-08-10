@@ -15,6 +15,7 @@ export default tseslint.config(
 	{
 		ignores: [
 			'.astro/**',
+			'.claude/worktrees/**',
 			'.desktop-build/**',
 			'.wrangler/**',
 			'coverage/**',
