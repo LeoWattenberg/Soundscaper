@@ -131,7 +131,12 @@ export function SequenceTimingControls({ project, snapshot, telemetry, controlle
 			flyoutClassName="kw-audio-editor__source-properties-flyout"
 			overlayPortal
 		>
-			<SourcePropertiesPanel source={inspectedSource} copy={copy} />
+			<SourcePropertiesPanel
+				source={inspectedSource}
+				copy={copy}
+				disabled={disabled}
+				onReprobe={(sourceId) => controller.actions.video.reprobeSource(sourceId)}
+			/>
 		</AudacityToolbarFlyoutButton>
 		<AudacityToolbarFlyoutButton
 			icon={iconNameToChar('VIDEO')}

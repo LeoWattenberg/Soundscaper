@@ -80,6 +80,29 @@ test('a rotation the player did not apply is disclosed on the surface', () => {
 	assert.match(markup, /90°/u);
 });
 
+test('the re-read action is offered only where a controller can perform it', () => {
+	const withoutAction = render(<SourcePropertiesPanel source={source()} copy={ENGLISH_COPY} />);
+	assert.doesNotMatch(withoutAction, /data-source-reprobe/u);
+
+	const offered = render(
+		<SourcePropertiesPanel source={source()} copy={ENGLISH_COPY} onReprobe={() => Promise.resolve()} />,
+	);
+	assert.match(offered, /data-source-reprobe="video-source"/u);
+	assert.match(offered, /Re-read source/u);
+	assert.doesNotMatch(offered, /disabled/u);
+
+	const blocked = render(
+		<SourcePropertiesPanel
+			source={source()}
+			copy={GERMAN_COPY}
+			disabled
+			onReprobe={() => Promise.resolve()}
+		/>,
+	);
+	assert.match(blocked, /Quelle neu einlesen/u);
+	assert.match(blocked, /disabled/u);
+});
+
 test('no clip under the playhead renders an empty panel rather than a guess', () => {
 	const markup = render(<SourcePropertiesPanel source={null} copy={ENGLISH_COPY} />);
 	assert.match(markup, /data-source-properties="empty"/u);

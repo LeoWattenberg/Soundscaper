@@ -164,6 +164,19 @@
 	color: var(--kw-editor-text-muted, var(--kw-editor-text));
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__source-properties-reprobe {
+	border-top: 1px solid var(--kw-editor-border, currentcolor);
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-top: 6px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__source-properties-reprobe p {
+	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	margin: 0;
+}
+
 @media (forced-colors: active) {
 	#kw-audio-editor-design-system .kw-audio-editor__sequence-timecode-field input,
 	#kw-audio-editor-design-system .kw-audio-editor__sequence-frame-step:hover:not(:disabled),

@@ -3,6 +3,10 @@
 import React from 'react';
 
 import { resolveVideoSourcePropertiesView } from '../../source-properties-model.ts';
+import {
+	describeVideoSourceReprobeError,
+	describeVideoSourceReprobeResult,
+} from '../../source-reprobe-outcome.ts';
 
 const NOTE_COPY_KEYS = Object.freeze({
 	'interlaced-presented-as-coded': 'noteInterlaced',
@@ -17,12 +21,31 @@ const NOTE_COPY_KEYS = Object.freeze({
  * What a probe reported about the source under the playhead. An unreported
  * characteristic reads as unknown rather than as a plausible value, and every
  * characteristic the product records without acting on it is disclosed here.
+ *
+ * @param {{
+ *   source: unknown,
+ *   copy: Record<string, string>,
+ *   onReprobe?: ((sourceId: string) => Promise<unknown>) | null,
+ *   disabled?: boolean,
+ * }} props
  */
-export function SourcePropertiesPanel({ source, copy }) {
+export function SourcePropertiesPanel({ source, copy, onReprobe = null, disabled = false }) {
 	const view = React.useMemo(
 		() => (source ? resolveVideoSourcePropertiesView(source) : null),
 		[source],
 	);
+	const [outcome, setOutcome] = React.useState(null);
+	const inspectedId = view ? view.sourceId : null;
+	// A result describes one source; inspecting another leaves it behind.
+	React.useEffect(() => setOutcome(null), [inspectedId]);
+	const reprobe = async () => {
+		setOutcome({ state: 'busy' });
+		try {
+			setOutcome({ state: 'done', result: await onReprobe(inspectedId) });
+		} catch (error) {
+			setOutcome({ state: 'refused', error });
+		}
+	};
 	if (!view) {
 		return <div className="kw-audio-editor__source-properties" data-source-properties="empty">
 			<p>{copy.sourceNoClip}</p>
@@ -79,7 +102,32 @@ export function SourcePropertiesPanel({ source, copy }) {
 			className="kw-audio-editor__visually-hidden"
 			data-source-reconciliation={geometry.reconciliation}
 		>{geometry.reconciliation}</p>
+		{onReprobe && <div className="kw-audio-editor__source-properties-reprobe">
+			<button
+				type="button"
+				data-source-reprobe={view.sourceId}
+				disabled={disabled || outcome?.state === 'busy'}
+				onClick={reprobe}
+			>{outcome?.state === 'busy' ? copy.reprobeBusy : copy.reprobeSource}</button>
+			{outcome && outcome.state !== 'busy' && <ReprobeOutcome outcome={outcome} copy={copy} />}
+		</div>}
 	</div>;
+}
+
+/**
+ * Say what the re-read concluded, including what it could not preserve: a clip
+ * whose source range no longer fits the corrected media was clamped, and the
+ * user learns it here rather than by noticing later.
+ */
+function ReprobeOutcome({ outcome, copy }) {
+	const view = outcome.state === 'refused'
+		? describeVideoSourceReprobeError(outcome.error)
+		: describeVideoSourceReprobeResult(outcome.result);
+	return <p role="status" data-source-reprobe-outcome={view.state}>
+		{copy[view.copyKey]}
+		{view.changedFields.length > 0 && ` ${view.changedFields.join(', ')}.`}
+		{view.clampedCount > 0 && ` ${copy.reprobeClamped} ${String(view.clampedCount)}`}
+	</p>;
 }
 
 function streamLabel(stream, copy) {
