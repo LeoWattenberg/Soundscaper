@@ -47,6 +47,10 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'track/remove',
 	'track/update',
 	'track/reorder',
+	'track-folder/add',
+	'track-folder/update',
+	'track-folder/remove',
+	'track-node/move',
 	'label/add',
 	'label/update',
 	'label/remove',
@@ -95,6 +99,7 @@ export type StableIdListMap = Readonly<Record<string, readonly string[]>>;
 export type MixerBusType = 'group' | 'send';
 export type ClipRippleMode = 'none' | 'clip' | 'track';
 export type ClipboardPasteMode = 'reject' | 'overlap' | 'insert-track' | 'insert-all';
+export type TrackFolderRemovalDisposition = 'promote' | 'delete-contents';
 export type TempoMapMode = 'musical' | 'sampleLocked';
 
 export interface ExactRationalCommandValue {
@@ -299,6 +304,23 @@ type NonBatchAudioEditorCommandPayloads = {
 	readonly 'track/remove': { readonly trackId: string };
 	readonly 'track/update': { readonly trackId: string; readonly changes: CommandObject };
 	readonly 'track/reorder': { readonly trackId: string; readonly index: number };
+	readonly 'track-folder/add': {
+		readonly folder: CommandObject;
+		readonly sequenceId: string;
+		readonly parentFolderId?: string | null;
+		readonly index?: number;
+	};
+	readonly 'track-folder/update': { readonly folderId: string; readonly changes: CommandObject };
+	readonly 'track-folder/remove': {
+		readonly folderId: string;
+		readonly disposition: TrackFolderRemovalDisposition;
+	};
+	readonly 'track-node/move': {
+		readonly sequenceId: string;
+		readonly nodeId: string;
+		readonly parentFolderId?: string | null;
+		readonly index: number;
+	};
 	readonly 'label/add': { readonly trackId: string; readonly label: CommandObject };
 	readonly 'label/update': { readonly trackId: string; readonly labelId: string; readonly changes: CommandObject };
 	readonly 'label/remove': { readonly trackId: string; readonly labelId: string };

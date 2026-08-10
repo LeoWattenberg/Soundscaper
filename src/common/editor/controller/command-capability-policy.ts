@@ -8,6 +8,7 @@ export interface EditorCommandCapabilities {
 	readonly audioRecording: boolean;
 	readonly audioSpectralEditing: boolean;
 	readonly timelineAnnotations: boolean;
+	readonly trackFolders: boolean;
 	readonly videoEffects: boolean;
 }
 
@@ -34,6 +35,10 @@ export function assertEditorCommandCapabilities(
 	}
 	if (!capabilities.timelineAnnotations && command.type.startsWith('timeline-annotation/')) {
 		unsupported(productName, 'timelineAnnotations');
+	}
+	if (!capabilities.trackFolders
+		&& (command.type.startsWith('track-folder/') || command.type.startsWith('track-node/'))) {
+		unsupported(productName, 'trackFolders');
 	}
 	if (!capabilities.timelineAnnotations && command.type === 'selection/set'
 		&& Object.hasOwn(command, 'annotationIds')) {

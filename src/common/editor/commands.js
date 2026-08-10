@@ -53,12 +53,15 @@ export {
 	createAddTempoEventCommand,
 	createAddTimelineAnnotationCommand,
 	createAddTrackCommand,
+	createAddTrackFolderCommand,
 	createAddVideoEffectCommand,
 	createBypassVideoEffectCommand,
 	createBatchSetTimelineAnnotationsCommand,
 	createConvertTimelineAnnotationCommand,
 	createMoveTimelineAnnotationsCommand,
+	createMoveTrackNodeCommand,
 	createRemoveTimelineAnnotationsCommand,
+	createRemoveTrackFolderCommand,
 	createRemoveVideoEffectCommand,
 	createRemoveSignatureEventCommand,
 	createRemoveTempoEventCommand,
@@ -69,6 +72,7 @@ export {
 	createUpdateSignatureEventCommand,
 	createUpdateTempoEventCommand,
 	createUpdateTimelineAnnotationsCommand,
+	createUpdateTrackFolderCommand,
 	createUpdateVideoEffectCommand,
 } from './commands/factories.ts';
 

@@ -19,6 +19,7 @@ import {
 	createMediaSourceV5,
 	createMediaTrackV5,
 } from '../project-v5.js';
+import { createStableId } from '../stable-id.js';
 import { createVideoEffect } from '../video-effects.js';
 import { createMediaClipV8 } from '../project-v8.ts';
 import type { TimelineAnnotationV11 } from '../timeline-annotation.ts';
@@ -32,6 +33,7 @@ import type {
 	TempoEventCommandValue,
 	TempoMapMode,
 	TimelineAnnotationConversionCoordinates,
+	TrackFolderRemovalDisposition,
 	TimelineAnnotationMoveDelta,
 	TimelineAnnotationResizeCoordinate,
 	TimelineAnnotationUpdateChanges,
@@ -145,6 +147,53 @@ export function createAddLabelCommand(
 	options: CommandFactoryValue = {},
 ): CommandFor<'label/add'> {
 	return { type: 'label/add', trackId, label: createLabelV2(options) as CommandObject };
+}
+
+export interface TrackFolderPlacementOptions {
+	readonly parentFolderId?: string | null;
+	readonly index?: number;
+}
+
+export function createAddTrackFolderCommand(
+	sequenceId: string,
+	options: CommandFactoryValue = {},
+	placement: TrackFolderPlacementOptions = {},
+): CommandFor<'track-folder/add'> {
+	const { parentFolderId = null, index } = placement;
+	return {
+		type: 'track-folder/add',
+		folder: {
+			id: typeof options.id === 'string' && options.id ? options.id : createStableId('track-folder'),
+			name: typeof options.name === 'string' && options.name.trim() ? options.name : 'Folder',
+			...Object.fromEntries(Object.entries(options).filter(([key]) => key !== 'id' && key !== 'name')),
+		},
+		sequenceId,
+		parentFolderId,
+		...(index === undefined ? {} : { index }),
+	};
+}
+
+export function createUpdateTrackFolderCommand(
+	folderId: string,
+	changes: CommandObject,
+): CommandFor<'track-folder/update'> {
+	return { type: 'track-folder/update', folderId, changes };
+}
+
+export function createRemoveTrackFolderCommand(
+	folderId: string,
+	disposition: TrackFolderRemovalDisposition,
+): CommandFor<'track-folder/remove'> {
+	return { type: 'track-folder/remove', folderId, disposition };
+}
+
+export function createMoveTrackNodeCommand(
+	sequenceId: string,
+	nodeId: string,
+	parentFolderId: string | null,
+	index: number,
+): CommandFor<'track-node/move'> {
+	return { type: 'track-node/move', sequenceId, nodeId, parentFolderId, index };
 }
 
 export function createSetTempoMapModeCommand(mode: TempoMapMode): CommandFor<'tempo-map/mode-set'> {

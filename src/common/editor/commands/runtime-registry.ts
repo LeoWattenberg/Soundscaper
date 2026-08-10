@@ -8,6 +8,7 @@ import { createTimelineAnnotationRuntimeHandlers } from './timeline-annotation-r
 import {
 	defineEditorCommandHandlerRegistry,
 } from './registry.ts';
+import { createTrackFolderRuntimeHandlers } from './track-folder-runtime.ts';
 import { createTrackMixerLabelRuntimeHandlers } from './track-mixer-label-runtime.js';
 import type {
 	AudioEditorCommand,
@@ -27,6 +28,7 @@ export function createEditorCommandRuntime(
 		projectSourceBin: createProjectSourceBinRuntimeHandlers(dispatchChild),
 		tempoSignature: createTempoSignatureRuntimeHandlers(),
 		trackMixerLabel: createTrackMixerLabelRuntimeHandlers(),
+		trackFolder: createTrackFolderRuntimeHandlers(),
 		clipRangeClipboard: createClipRangeClipboardRuntimeHandlers(),
 		effectsVideo: createEffectsVideoRuntimeHandlers(),
 		timelineAnnotation: createTimelineAnnotationRuntimeHandlers(),

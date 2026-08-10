@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { deriveFolderBusOwnershipV13 } from '../folder-bus-v13.ts';
 import {
 	normalizeEffect,
 	updateEffect,
@@ -72,14 +73,34 @@ function removeTrack(project, trackId) {
 	const removedTracks = laneGroupId
 		? project.tracks.filter((track) => track.laneGroupId === laneGroupId)
 		: [requestedTrack];
-	const removedTrackIds = new Set(removedTracks.map((track) => track.id));
+	removeTracksAndDependents(project, removedTracks.map((track) => track.id));
+}
+
+/**
+ * Remove exactly the named tracks together with their dependent state: owned
+ * clips, mixer routes, and auto-duck control references. Callers own any lane
+ * or folder expansion; the folder removal path passes an already-complete
+ * structural block.
+ */
+export function removeTracksAndDependents(project, trackIds) {
+	const removedTrackIds = new Set(trackIds.map(String));
+	const removedTracks = project.tracks.filter((track) => removedTrackIds.has(String(track.id)));
 	const clipIds = new Set(removedTracks.flatMap((track) => track.clipIds || []));
 	project.clips = project.clips.filter((clip) => !clipIds.has(clip.id));
-	project.tracks = project.tracks.filter((track) => !removedTrackIds.has(track.id));
+	project.tracks = project.tracks.filter((track) => !removedTrackIds.has(String(track.id)));
 	for (const removedTrackId of removedTrackIds) {
 		if (project.mixer?.routes) delete project.mixer.routes[removedTrackId];
 		disableAutoDuckForRemovedControlTrack(project, removedTrackId);
 	}
+}
+
+/** Group buses owned by timeline folders; every set is empty on folder-free documents. */
+function folderBusGuards(project) {
+	const ownership = deriveFolderBusOwnershipV13(project.sequences || [], project.tracks || []);
+	return {
+		ownedBusIds: new Set(ownership.busFolderIds),
+		ownerByTrackId: ownership.busFolderIdByAudioTrackId,
+	};
 }
 
 function disableAutoDuckForRemovedControlTrack(project, controlTrackId) {
@@ -217,6 +238,13 @@ function addMixerBus(project, command) {
 function updateMixerBus(project, command) {
 	const bus = requireMixerBus(project, command.busType, command.busId);
 	const changes = command.changes || {};
+	if (command.busType === 'group' && folderBusGuards(project).ownedBusIds.has(command.busId)) {
+		for (const key of ['name', 'mute', 'solo']) {
+			if (Object.hasOwn(changes, key)) {
+				throw new RangeError(`A track folder bus mirrors its folder; edit the folder ${key} instead.`);
+			}
+		}
+	}
 	const allowed = new Set(['name', 'color', 'gain', 'pan', 'mute', 'solo', 'envelope', 'collapsed', 'effectsActive']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Mixer bus field cannot be updated: ${key}.`);
 	const collection = mixerBusCollection(project, command.busType);
@@ -225,6 +253,9 @@ function updateMixerBus(project, command) {
 }
 
 function removeMixerBus(project, command) {
+	if (command.busType === 'group' && folderBusGuards(project).ownedBusIds.has(command.busId)) {
+		throw new RangeError('A track folder owns this group bus; remove or empty the folder instead.');
+	}
 	const collection = mixerBusCollection(project, command.busType);
 	const index = collection.findIndex((candidate) => candidate.id === command.busId);
 	if (index < 0) throw new ReferenceError(`Unknown ${command.busType} bus: ${command.busId}.`);
@@ -246,6 +277,10 @@ function updateMixerRoute(project, command) {
 	let groupId = Object.hasOwn(changes, 'groupId') ? changes.groupId : current.groupId;
 	if (groupId === '') groupId = null;
 	if (groupId != null) requireMixerBus(project, 'group', groupId);
+	const owner = folderBusGuards(project).ownerByTrackId.get(String(track.id));
+	if (owner !== undefined && groupId !== owner) {
+		throw new RangeError('A track inside a folder routes through its folder bus; move the track out of the folder instead.');
+	}
 	const sends = { ...(current.sends || {}) };
 	if (Object.hasOwn(changes, 'sends')) {
 		if (!changes.sends || typeof changes.sends !== 'object' || Array.isArray(changes.sends)) throw new TypeError('Mixer route sends must be an object.');

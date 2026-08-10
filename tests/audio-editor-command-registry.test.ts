@@ -9,6 +9,7 @@ import {
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
+	TRACK_FOLDER_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
 	defineEditorCommandHandlerRegistry,
 	dispatchEditorCommand,
@@ -29,11 +30,12 @@ test('command domains partition the authoritative protocol exactly once', () => 
 		...PROJECT_SOURCE_BIN_COMMAND_TYPES,
 		...TEMPO_SIGNATURE_COMMAND_TYPES,
 		...TRACK_MIXER_LABEL_COMMAND_TYPES,
+		...TRACK_FOLDER_COMMAND_TYPES,
 		...CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 		...EFFECTS_VIDEO_COMMAND_TYPES,
 		...TIMELINE_ANNOTATION_COMMAND_TYPES,
 	];
-	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 75);
+	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 79);
 	assert.equal(new Set(domainTypes).size, domainTypes.length, 'a command type belongs to only one domain');
 	assert.deepEqual([...domainTypes].sort(), [...AUDIO_EDITOR_COMMAND_TYPES].sort());
 });
@@ -57,6 +59,7 @@ test('the compatibility facade keeps its established public command surface', ()
 		'createAddTempoEventCommand',
 		'createAddTimelineAnnotationCommand',
 		'createAddTrackCommand',
+		'createAddTrackFolderCommand',
 		'createAddVideoEffectCommand',
 		'createBypassVideoEffectCommand',
 		'createBatchSetTimelineAnnotationsCommand',
@@ -66,7 +69,9 @@ test('the compatibility facade keeps its established public command surface', ()
 		'createRemoveSignatureEventCommand',
 		'createRemoveTempoEventCommand',
 		'createRemoveTimelineAnnotationsCommand',
+		'createRemoveTrackFolderCommand',
 		'createMoveTimelineAnnotationsCommand',
+		'createMoveTrackNodeCommand',
 		'createReorderVideoEffectCommand',
 		'createReplaceClipSourceCommand',
 		'createResizeTimelineAnnotationCommand',
@@ -74,6 +79,7 @@ test('the compatibility facade keeps its established public command surface', ()
 		'createUpdateSignatureEventCommand',
 		'createUpdateTempoEventCommand',
 		'createUpdateTimelineAnnotationsCommand',
+		'createUpdateTrackFolderCommand',
 		'createUpdateVideoEffectCommand',
 		'prepareCut',
 		'prepareDisjointRangeDeleteCommand',
@@ -173,6 +179,7 @@ function domainHandlers(handlers: Record<string, unknown>): EditorCommandHandler
 		projectSourceBin: pick(handlers, PROJECT_SOURCE_BIN_COMMAND_TYPES),
 		tempoSignature: pick(handlers, TEMPO_SIGNATURE_COMMAND_TYPES),
 		trackMixerLabel: pick(handlers, TRACK_MIXER_LABEL_COMMAND_TYPES),
+		trackFolder: pick(handlers, TRACK_FOLDER_COMMAND_TYPES),
 		clipRangeClipboard: pick(handlers, CLIP_RANGE_CLIPBOARD_COMMAND_TYPES),
 		effectsVideo: pick(handlers, EFFECTS_VIDEO_COMMAND_TYPES),
 		timelineAnnotation: pick(handlers, TIMELINE_ANNOTATION_COMMAND_TYPES),

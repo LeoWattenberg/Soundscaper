@@ -9,6 +9,7 @@ import {
 	isTimelineAnnotationProjectSchema,
 	isTrackFolderProjectSchema,
 } from './project-schema-version.ts';
+import { reconcileFolderAwareTrackHierarchy } from './project-v13-hierarchy-reconcile.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
 	beatToSampleFrame,
@@ -19,6 +20,7 @@ import {
 } from './timeline-time.ts';
 import {
 	CONFORMED_SEQUENCE_PLACEMENT,
+	FOLDER_AWARE_TRACK_STRUCTURE_EDIT,
 	FOUNDATION_EDIT_OPERATION,
 	LEGACY_TRACK_STRUCTURE_EDIT,
 } from './commands/command-projection-transients.ts';
@@ -28,6 +30,7 @@ type DataRecord = Record<string, unknown> & {
 	[CONFORMED_SEQUENCE_PLACEMENT]?: true;
 	[FOUNDATION_EDIT_OPERATION]?: EditOperation;
 	[LEGACY_TRACK_STRUCTURE_EDIT]?: true;
+	[FOLDER_AWARE_TRACK_STRUCTURE_EDIT]?: true;
 };
 
 interface ConformedBoundaryDelta {
@@ -148,6 +151,7 @@ export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBas
 	if (isTimelineAnnotationProjectSchema(draft.schemaVersion)) reconcileTimelineAnnotations(draft);
 	delete draft.runtimeProjectionVersion;
 	delete draft[LEGACY_TRACK_STRUCTURE_EDIT];
+	delete draft[FOLDER_AWARE_TRACK_STRUCTURE_EDIT];
 }
 
 function reconcileTimelineAnnotations(draft: DataRecord): void {
@@ -432,6 +436,13 @@ function reconcileV12TrackHierarchy(
 	persistedBase: DataRecord,
 	sequences: readonly DataRecord[],
 ): void {
+	if (draft[FOLDER_AWARE_TRACK_STRUCTURE_EDIT]) {
+		if (draft[LEGACY_TRACK_STRUCTURE_EDIT]) {
+			throw new RangeError('A batch cannot mix folder-aware and legacy structural track commands.');
+		}
+		reconcileFolderAwareTrackHierarchy(draft, sequences);
+		return;
+	}
 	const folders = recordArray(draft.trackFolders, 'project.trackFolders');
 	const tracks = recordArray(draft.tracks, 'project.tracks');
 	const trackIds = tracks.map(({ id }) => String(id));

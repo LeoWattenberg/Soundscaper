@@ -8,3 +8,6 @@ export const FOUNDATION_EDIT_OPERATION: unique symbol = Symbol('foundation-edit-
 
 /** Records that a command draft received a legacy structural track mutation. */
 export const LEGACY_TRACK_STRUCTURE_EDIT: unique symbol = Symbol('legacy-track-structure-edit');
+
+/** Records that a command draft received a folder-aware structural track mutation. */
+export const FOLDER_AWARE_TRACK_STRUCTURE_EDIT: unique symbol = Symbol('folder-aware-track-structure-edit');

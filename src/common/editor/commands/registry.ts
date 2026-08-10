@@ -28,6 +28,12 @@ import {
 	type ProjectSourceBinCommandType,
 } from './project-source-bin.ts';
 import {
+	defineTrackFolderCommandHandlers,
+	TRACK_FOLDER_COMMAND_TYPES,
+	type TrackFolderCommandHandlers,
+	type TrackFolderCommandType,
+} from './track-folder.ts';
+import {
 	defineTrackMixerLabelCommandHandlers,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
 	type TrackMixerLabelCommandHandlers,
@@ -53,11 +59,13 @@ export {
 	defineProjectSourceBinCommandHandlers,
 	defineTempoSignatureCommandHandlers,
 	defineTimelineAnnotationCommandHandlers,
+	defineTrackFolderCommandHandlers,
 	defineTrackMixerLabelCommandHandlers,
 	EFFECTS_VIDEO_COMMAND_TYPES,
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
+	TRACK_FOLDER_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
 };
 
@@ -65,6 +73,7 @@ export interface EditorCommandHandlerDomains {
 	readonly projectSourceBin: ProjectSourceBinCommandHandlers;
 	readonly tempoSignature: TempoSignatureCommandHandlers;
 	readonly trackMixerLabel: TrackMixerLabelCommandHandlers;
+	readonly trackFolder: TrackFolderCommandHandlers;
 	readonly clipRangeClipboard: ClipRangeClipboardCommandHandlers;
 	readonly effectsVideo: EffectsVideoCommandHandlers;
 	readonly timelineAnnotation: TimelineAnnotationCommandHandlers;
@@ -74,6 +83,7 @@ type RegisteredDomainCommandType =
 	| ProjectSourceBinCommandType
 	| TempoSignatureCommandType
 	| TrackMixerLabelCommandType
+	| TrackFolderCommandType
 	| ClipRangeClipboardCommandType
 	| EffectsVideoCommandType
 	| TimelineAnnotationCommandType;
@@ -97,6 +107,7 @@ export function defineEditorCommandHandlerRegistry(
 		defineProjectSourceBinCommandHandlers(domains.projectSourceBin),
 		defineTempoSignatureCommandHandlers(domains.tempoSignature),
 		defineTrackMixerLabelCommandHandlers(domains.trackMixerLabel),
+		defineTrackFolderCommandHandlers(domains.trackFolder),
 		defineClipRangeClipboardCommandHandlers(domains.clipRangeClipboard),
 		defineEffectsVideoCommandHandlers(domains.effectsVideo),
 		defineTimelineAnnotationCommandHandlers(domains.timelineAnnotation),

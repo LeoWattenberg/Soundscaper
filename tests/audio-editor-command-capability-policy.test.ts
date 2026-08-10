@@ -14,6 +14,7 @@ const enabled: EditorCommandCapabilities = {
 	audioRecording: true,
 	audioSpectralEditing: true,
 	timelineAnnotations: true,
+	trackFolders: true,
 	videoEffects: true,
 };
 
@@ -72,6 +73,10 @@ test('command capability policy covers every product-sensitive payload path', ()
 		{ capability: 'audioRecording', command: { type: 'track/update', trackId: 'track', changes: { armed: true } } },
 		{ capability: 'timelineAnnotations', command: { type: 'timeline-annotation/remove-many', annotationIds: ['annotation'] } },
 		{ capability: 'timelineAnnotations', command: { type: 'selection/set', startFrame: 0, endFrame: 0, annotationIds: [] } },
+		{ capability: 'trackFolders', command: { type: 'track-folder/add', folder: { id: 'folder', name: 'Folder' }, sequenceId: 'main' } },
+		{ capability: 'trackFolders', command: { type: 'track-folder/update', folderId: 'folder', changes: { name: 'Renamed' } } },
+		{ capability: 'trackFolders', command: { type: 'track-folder/remove', folderId: 'folder', disposition: 'promote' } },
+		{ capability: 'trackFolders', command: { type: 'track-node/move', sequenceId: 'main', nodeId: 'folder', parentFolderId: null, index: 0 } },
 	];
 
 	for (const { capability, command } of cases) {
