@@ -5,90 +5,109 @@ import {
 } from './audio-editor-test-helpers.js';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
+const SEED_ATTEMPT_DEADLINE_MS = 5_000;
+const SEED_ROUNDS = 5;
 
 test.describe('editor storage schema migration', () => {
 	registerAudioEditorHooks();
 
 	test('atomically backfills v2 derivatives, creates v8 stores, and sanitizes v6 provenance', async ({ page }) => {
+		test.setTimeout(60_000);
 		await page.route('/__soundscaper-test/storage-migration-setup', (route) => route.fulfill({
 			contentType: 'text/html; charset=utf-8',
 			body: '<!doctype html><title>Storage migration setup</title>',
 		}));
 		await page.goto('/__soundscaper-test/storage-migration-setup');
-		await page.evaluate(async (databaseName) => {
-			const describe = (error) => (error ? `${error.name}: ${error.message}` : 'no reported error');
-			const openLegacyDatabase = () => new Promise((resolve, reject) => {
-				const openRequest = indexedDB.open(databaseName, 2);
-				openRequest.onupgradeneeded = () => {
-					openRequest.result.createObjectStore('projects', { keyPath: 'id' });
-					const derivatives = openRequest.result.createObjectStore('videoDerivatives', { keyPath: 'key' });
-					derivatives.createIndex('sourceId', 'sourceId', { unique: false });
-					openRequest.result.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
-				};
-				openRequest.onsuccess = () => resolve(openRequest.result);
-				openRequest.onblocked = () => reject(new Error('Opening the legacy database was blocked.'));
-				openRequest.onerror = () => reject(new Error(
-					`Opening the legacy database failed (${describe(openRequest.error)}).`,
-				));
-			});
-			const seedLegacyRecords = async (database) => {
-				try {
-					await new Promise((resolve, reject) => {
-						const transaction = database.transaction(
-							['projects', 'videoDerivatives', 'mediaAssets'],
-							'readwrite',
-						);
-						transaction.objectStore('projects').put({
-							id: 'legacy-project',
-							sources: [{ id: 'legacy-source' }],
-							clips: [{ id: 'legacy-clip', sourceId: 'legacy-source' }],
-						});
-						transaction.objectStore('videoDerivatives').put({
-							key: 'legacy-cache',
-							sourceId: 'legacy-source',
-							timestamp: 3,
-							type: 'thumbnail',
-							storage: 'indexeddb-blob',
-							path: null,
-							size: 7,
-							committedAt: '2026-07-28T00:00:00.000Z',
-							blob: new Blob(['payload']),
-							nestedPayload: { blob: new Blob(['hidden']) },
-							width: 320,
-						});
-						transaction.objectStore('mediaAssets').put({
-							sourceId: 'legacy-source',
-							storage: 'indexeddb-blob',
-							blob: new Blob(['legacy-container'], { type: 'video/mp4' }),
-							size: 16,
-							sha256: '0'.repeat(64),
-							mediaContentDigestVersion: 1,
-							mediaContentToken: 'media-content-caller-controlled-token-0001',
-						});
-						transaction.oncomplete = () => resolve();
-						transaction.onabort = () => reject(new Error(
-							`Seeding the legacy records aborted (${describe(transaction.error)}).`,
-						));
-						transaction.onerror = () => reject(new Error(
-							`Seeding the legacy records failed (${describe(transaction.error)}).`,
+		const seedFailures = [];
+		for (let round = 1; round <= SEED_ROUNDS; round += 1) {
+			// A stalled seeding attempt leaves a readwrite transaction holding the
+			// store locks, so a retry in the same page would queue behind it forever;
+			// only tearing the page down aborts it and frees the next attempt.
+			if (round > 1) await page.reload();
+			const failure = await page.evaluate(async ({ databaseName, deadlineMs }) => {
+				const describe = (error) => (error ? `${error.name}: ${error.message}` : 'no reported error');
+				let stage = 'the legacy open request';
+				let abandoned = false;
+				const attempt = (async () => {
+					const database = await new Promise((resolve, reject) => {
+						const openRequest = indexedDB.open(databaseName, 2);
+						openRequest.onupgradeneeded = () => {
+							stage = 'the legacy upgrade transaction';
+							openRequest.result.createObjectStore('projects', { keyPath: 'id' });
+							const derivatives = openRequest.result.createObjectStore('videoDerivatives', { keyPath: 'key' });
+							derivatives.createIndex('sourceId', 'sourceId', { unique: false });
+							openRequest.result.createObjectStore('mediaAssets', { keyPath: 'sourceId' });
+						};
+						openRequest.onsuccess = () => {
+							if (abandoned) openRequest.result.close();
+							else resolve(openRequest.result);
+						};
+						openRequest.onblocked = () => reject(new Error('Opening the legacy database was blocked.'));
+						openRequest.onerror = () => reject(new Error(
+							`Opening the legacy database failed (${describe(openRequest.error)}).`,
 						));
 					});
-				} finally {
-					database.close();
-				}
-			};
-			let lastFailure;
-			for (let attempt = 0; attempt < 5; attempt += 1) {
-				try {
-					await seedLegacyRecords(await openLegacyDatabase());
-					return;
-				} catch (error) {
-					lastFailure = error;
-					await new Promise((resolve) => { setTimeout(resolve, 100); });
-				}
+					stage = 'the seeding transaction';
+					try {
+						await new Promise((resolve, reject) => {
+							const transaction = database.transaction(
+								['projects', 'videoDerivatives', 'mediaAssets'],
+								'readwrite',
+							);
+							transaction.objectStore('projects').put({
+								id: 'legacy-project',
+								sources: [{ id: 'legacy-source' }],
+								clips: [{ id: 'legacy-clip', sourceId: 'legacy-source' }],
+							});
+							transaction.objectStore('videoDerivatives').put({
+								key: 'legacy-cache',
+								sourceId: 'legacy-source',
+								timestamp: 3,
+								type: 'thumbnail',
+								storage: 'indexeddb-blob',
+								path: null,
+								size: 7,
+								committedAt: '2026-07-28T00:00:00.000Z',
+								blob: new Blob(['payload']),
+								nestedPayload: { blob: new Blob(['hidden']) },
+								width: 320,
+							});
+							transaction.objectStore('mediaAssets').put({
+								sourceId: 'legacy-source',
+								storage: 'indexeddb-blob',
+								blob: new Blob(['legacy-container'], { type: 'video/mp4' }),
+								size: 16,
+								sha256: '0'.repeat(64),
+								mediaContentDigestVersion: 1,
+								mediaContentToken: 'media-content-caller-controlled-token-0001',
+							});
+							transaction.oncomplete = () => resolve();
+							transaction.onabort = () => reject(new Error(
+								`Seeding the legacy records aborted (${describe(transaction.error)}).`,
+							));
+							transaction.onerror = () => reject(new Error(
+								`Seeding the legacy records failed (${describe(transaction.error)}).`,
+							));
+						});
+					} finally {
+						database.close();
+					}
+				})();
+				const outcome = await Promise.race([
+					attempt.then(() => null, (error) => error.message),
+					new Promise((resolve) => {
+						setTimeout(() => resolve(`${stage} never settled within ${deadlineMs}ms`), deadlineMs);
+					}),
+				]);
+				abandoned = true;
+				return outcome;
+			}, { databaseName: DATABASE_NAME, deadlineMs: SEED_ATTEMPT_DEADLINE_MS });
+			if (failure === null) break;
+			seedFailures.push(`round ${round}: ${failure}`);
+			if (round === SEED_ROUNDS) {
+				throw new Error(`Seeding the legacy database never settled.\n${seedFailures.join('\n')}`);
 			}
-			throw new Error(`Seeding the legacy database never settled. ${lastFailure.message}`);
-		}, DATABASE_NAME);
+		}
 
 		await page.goto('/embed/en/');
 		await waitForEditor(page);
