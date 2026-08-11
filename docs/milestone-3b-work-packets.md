@@ -264,8 +264,11 @@ dependencies, and 1,968 maintained files; the build processed 1,180 modules
 and emitted 104 JavaScript chunks with `aup4-worker` largest at 400,686 bytes.
 The focused algebra/mapper/timing/dispatch review suite passed 31/31. No browser
 row was required because no maintained path imports the dormant dispatcher.
-Packet 3B-5 remains in progress; the immediate pickup is **3B-5f — dormant
-output cadence and preview executor**, with no partial capability flip.
+Packet 3B-5 remains in progress; the immediate pickup is
+[3B-5f — exact output cadence and dormant preview](milestone-3b-video-retime-output-preview.md),
+split into a pure cadence/generic queue and a decoder-qualified HTML adapter.
+The later export packet stays blocked until the new final-frame VFR Chromium
+oracle passes; there is no partial capability flip.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time

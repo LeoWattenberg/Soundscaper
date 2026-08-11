@@ -484,10 +484,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   algebra, [V16 persistence and preservation](docs/milestone-3b-video-retime-v16.md),
   [exact clip-bound runtime mapping](docs/milestone-3b-video-retime-runtime-mapping.md),
   and the first [native retime dispatch](docs/milestone-3b-native-video-retime-workflow.md)
-  slice are implemented. The immediate pickup is 3B-5f dormant exact output
-  cadence and isolated preview execution; maintained retime workflows, nested
-  sequences, subsequence time mapping, and deterministic flattening remain
-  later slices.
+  slice are implemented. The immediate pickup is [3B-5f dormant exact output
+  cadence and isolated preview execution](docs/milestone-3b-video-retime-output-preview.md);
+  maintained retime workflows, nested sequences, subsequence time mapping, and
+  deterministic flattening remain later slices.
 - **Web Core — Planned:** proxy attachment, adaptive preview, offline/relink, and
   synchronized multicamera groups.
 
