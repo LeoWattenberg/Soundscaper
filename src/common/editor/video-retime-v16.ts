@@ -2,6 +2,7 @@
 
 import {
 	compileVideoRetimeCurve,
+	type CompiledVideoRetimeCurve,
 	type VideoRetimeCurveRational,
 	type VideoRetimeCurveSegment,
 } from './video-retime-curve.ts';
@@ -29,6 +30,21 @@ export function normalizeVideoRetimeCurveV16(
 	value: unknown,
 	bindingValue: unknown,
 ): VideoRetimeCurveV16 | null {
+	const compiled = compileVideoRetimeCurveV16(value, bindingValue);
+	if (compiled === null) return null;
+	return Object.freeze({
+		feature: 'video-retime' as const,
+		version: 2 as const,
+		points: compiled.points,
+		segments: compiled.segments,
+	});
+}
+
+/** Validate one clip-bound V16 retime wire and retain its algebra identity. */
+export function compileVideoRetimeCurveV16(
+	value: unknown,
+	bindingValue: unknown,
+): CompiledVideoRetimeCurve | null {
 	if (value === null) return null;
 	const map = dataRecord(value, 'video retime map', ['feature', 'version', 'points', 'segments']);
 	if (map.feature !== 'video-retime') {
@@ -38,19 +54,13 @@ export function normalizeVideoRetimeCurveV16(
 	const binding = dataRecord(bindingValue, 'video retime binding', [
 		'sequenceFrameCount', 'sourceInFrame', 'sourceFrameCount',
 	]);
-	const compiled = compileVideoRetimeCurve({
+	return compileVideoRetimeCurve({
 		version: 2,
 		outerFrameCount: binding.sequenceFrameCount,
 		sourceStartFrame: binding.sourceInFrame,
 		sourceFrameCount: binding.sourceFrameCount,
 		points: map.points,
 		segments: map.segments,
-	});
-	return Object.freeze({
-		feature: 'video-retime' as const,
-		version: 2 as const,
-		points: compiled.points,
-		segments: compiled.segments,
 	});
 }
 

@@ -8,6 +8,7 @@ import {
 	evaluateVideoRetimeCurve,
 } from '../src/common/editor/video-retime-curve.ts';
 import {
+	compileVideoRetimeCurveV16,
 	normalizeVideoRetimeCurveV16,
 	type VideoRetimeCurveV16,
 } from '../src/common/editor/video-retime-v16.ts';
@@ -68,6 +69,16 @@ test('V16 retime maps snapshot the closed JSON wire and agree with the exact alg
 
 test('V16 retime maps retain null as their only unretimed default', () => {
 	assert.equal(normalizeVideoRetimeCurveV16(null, BINDING), null);
+	let bindingGetterCalls = 0;
+	const poisonedBinding = Object.defineProperty({}, 'sequenceFrameCount', {
+		enumerable: true,
+		get() {
+			bindingGetterCalls += 1;
+			return 4;
+		},
+	});
+	assert.equal(compileVideoRetimeCurveV16(null, poisonedBinding), null);
+	assert.equal(bindingGetterCalls, 0);
 	assert.throws(() => normalizeVideoRetimeCurveV16(undefined, BINDING), /retime|map|object/iu);
 });
 
