@@ -34,7 +34,7 @@ const REQUEST = Object.freeze({
 	requestedBoundarySample: 38_401,
 }) satisfies FrameCanonicalEdgeTrimRequest;
 
-test('composed Framescaper trim actions preview and commit one canonical V14 history operation', async () => {
+test('composed Framescaper trim actions preview and commit one canonical V15 history operation', async () => {
 	const fixture = createPersistedVideoProject({ timeline: true });
 	const store = createProjectStore({
 		indexedDB: null,

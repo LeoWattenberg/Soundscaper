@@ -40,6 +40,7 @@ export interface ControllerTrack extends Readonly<Record<string, unknown>> {
 	readonly name: string;
 	readonly type: 'audio' | 'video' | 'label';
 	readonly clipIds: readonly string[];
+	readonly locked?: boolean;
 	readonly laneGroupId?: string | null;
 	readonly effects?: readonly ControllerEffect[];
 	readonly effectsActive?: boolean;

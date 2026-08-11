@@ -100,7 +100,7 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	}
 });
 
-test('V14 timeline annotations survive a current-format scape semantic round trip', async () => {
+test('V15 timeline annotations survive a current-format scape semantic round trip', async () => {
 	const sourceStore = memoryStore('scape-v11-annotation-source');
 	const targetStore = memoryStore('scape-v11-annotation-target');
 	const timelineAnnotations = [{
@@ -120,10 +120,10 @@ test('V14 timeline annotations survive a current-format scape semantic round tri
 	});
 
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 14);
+	assert.equal(exported.manifest.project.schemaVersion, 15);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
-	assert.equal(imported.project.schemaVersion, 14);
+	assert.equal(imported.project.schemaVersion, 15);
 	assert.deepEqual(imported.project.timelineAnnotations, timelineAnnotations);
 	assert.deepEqual((await targetStore.loadProject(project.id)).timelineAnnotations, timelineAnnotations);
 });
@@ -156,21 +156,21 @@ test('an explicit historical V10 scape fails with typed re-import before persist
 		() => importScapeProject(exported.blob, targetStore),
 		(error) => error instanceof AudioEditorProjectReimportRequiredError
 			&& error.schemaVersion === 10
-			&& error.currentSchemaVersion === 14,
+			&& error.currentSchemaVersion === 15,
 	);
 	assert.equal(persistenceCalls, 0);
 	assert.deepEqual(await backingStore.listProjects(), []);
 	assert.deepEqual(await backingStore.listSources(), []);
 });
 
-test('a future V15 scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
+test('a future V16 scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
 	const sourceStore = memoryStore('scape-future-preview-source');
 	const targetStore = memoryStore('scape-future-preview-target');
 	const project = mixedProject();
 	await persistAssets(sourceStore);
 	const exported = await exportScapeProject(project, sourceStore);
 	const future = await rewriteScapeProjectDocument(exported.blob, (document) => {
-		document.schemaVersion = 15;
+		document.schemaVersion = 16;
 		document.timelineAnnotations = { futureShape: { retained: true } };
 		const videoSource = document.sources.find((source) => source.kind === 'video');
 		videoSource.posterStorageKey = 'future-poster-locator';

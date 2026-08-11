@@ -50,7 +50,7 @@ test('controller fallback admission keeps its byte-integrity claim narrow and ev
 	]) assert.ok(fallbackAdmission.evidence.some((item) => item.path === path), path);
 	assert.match(
 		fallbackAdmission.summary,
-		/exact-schema-14.*same-ID tab history.*session-owned history token.*local bytes.*before activation side effects.*exclusive session activation reservation.*history replacement.*competing active-project publication.*session publication.*released in finally.*audio-f32le-chunks-v1.*65,536-chunk.*original-media Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
+		/exact-schema-15.*same-ID tab history.*session-owned history token.*local bytes.*before activation side effects.*exclusive session activation reservation.*history replacement.*competing active-project publication.*session publication.*released in finally.*audio-f32le-chunks-v1.*65,536-chunk.*original-media Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
 	);
 	assert.match(fallbackAdmission.summary, /Admission reads publish no storage maintenance/iu);
 	assert.match(fallbackAdmission.summary, /read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);

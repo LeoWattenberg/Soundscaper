@@ -277,3 +277,21 @@ test('previous and next edit navigation use live targets and never mutate the do
 	assert.deepEqual(value, before);
 	assert.deepEqual(context.seeks, [0, sequenceFrameBoundarySample(20, RATE, 48_000)]);
 });
+
+test('edit navigation reads a newly persisted lock and never falls back from its explicit lane', () => {
+	const atTen = sequenceFrameBoundarySample(10, RATE, 48_000);
+	const context = harness({ positionFrame: atTen });
+	context.setTargets(target('video-a', true));
+	assert.equal(context.service.nextEditPoint(), sequenceFrameBoundarySample(20, RATE, 48_000));
+	context.setPosition(atTen);
+	const next = document();
+	context.setProject({
+		...next,
+		tracks: next.tracks.map((track) => (
+			track.id === 'video-a' ? { ...track, locked: true } : track
+		)),
+	});
+	const seekCount = context.seeks.length;
+	assert.equal(context.service.nextEditPoint(), null);
+	assert.equal(context.seeks.length, seekCount);
+});

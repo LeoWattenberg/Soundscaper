@@ -18,11 +18,15 @@ import {
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
 import { createVideoSourceV10 } from '../src/common/editor/project-v10.ts';
 import {
+	cloneAudioEditorProjectV14,
 	createAudioEditorProjectV14,
 	validateAudioEditorProjectV14,
 	type AudioEditorProjectV14,
 } from '../src/common/editor/project-v14.ts';
-import { cloneCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
@@ -75,6 +79,10 @@ function sourceProject(characteristics: unknown = REPORTED): AudioEditorProjectV
 	});
 }
 
+function currentSourceProject(characteristics: unknown = REPORTED) {
+	return createCurrentAudioEditorProject(sourceProject(characteristics));
+}
+
 function persistedCharacteristics(project: Record<string, unknown>): Record<string, unknown> {
 	const sources = project.sources as readonly Record<string, unknown>[];
 	return sources[0].characteristics as Record<string, unknown>;
@@ -96,7 +104,7 @@ test('every video source carries a stated record even when nothing was probed', 
 test('probed characteristics survive create, clone, and JSON byte-identically', () => {
 	const project = sourceProject();
 	assert.deepEqual(persistedCharacteristics(project), REPORTED);
-	const cloned = cloneCurrentAudioEditorProject(project);
+	const cloned = cloneAudioEditorProjectV14(project);
 	assert.deepEqual(persistedCharacteristics(cloned), REPORTED);
 	assert.equal(
 		JSON.stringify(JSON.parse(JSON.stringify(project))),
@@ -106,19 +114,19 @@ test('probed characteristics survive create, clone, and JSON byte-identically', 
 });
 
 test('probed characteristics survive an edit and its undo', () => {
-	const history = createEditorHistory(sourceProject());
+	const history = createEditorHistory(currentSourceProject());
 	const edited = executeEditorCommand(history, {
 		type: 'project/rename',
 		title: 'Renamed',
 	});
 	assert.deepEqual(persistedCharacteristics(edited.present), REPORTED);
-	assert.equal(validateAudioEditorProjectV14(edited.present), true);
+	assert.equal(validateCurrentAudioEditorProject(edited.present), true);
 	const undone = undoEditorCommand(edited);
 	assert.deepEqual(persistedCharacteristics(undone.present), REPORTED);
 });
 
 test('a command-added source is canonicalized rather than persisted as given', () => {
-	const project = createAudioEditorProjectV14({ id: 'empty', title: 'Empty', now: NOW, sampleRate: 48_000 });
+	const project = createCurrentAudioEditorProject({ id: 'empty', title: 'Empty', now: NOW, sampleRate: 48_000 });
 	const added = applyEditorCommand(project, createAddSourceCommand(videoSource({
 		backend: 'ffmpeg',
 		pixelAspectRatio: { num: 128, den: 90 },
@@ -128,7 +136,7 @@ test('a command-added source is canonicalized rather than persisted as given', (
 		backend: 'ffmpeg',
 		pixelAspectRatio: { num: 64, den: 45 },
 	});
-	assert.equal(validateAudioEditorProjectV14(added), true);
+	assert.equal(validateCurrentAudioEditorProject(added), true);
 });
 
 test('a non-canonical persisted record is rejected rather than repaired', () => {
@@ -187,7 +195,7 @@ test('an unreported codec leaves the legacy field to the importer that knew it',
 });
 
 test('a current .scape round trip preserves probed characteristics byte-exactly', async () => {
-	const project = sourceProject();
+	const project = currentSourceProject();
 	const sourceStore = new AudioEditorProjectStore({
 		indexedDB: null,
 		databaseName: 'v14-characteristics-scape-source',
@@ -201,7 +209,7 @@ test('a current .scape round trip preserves probed characteristics byte-exactly'
 		mimeType: 'video/mp4',
 	});
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 14);
+	assert.equal(exported.manifest.project.schemaVersion, 15);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));
@@ -211,7 +219,7 @@ test('a current .scape round trip preserves probed characteristics byte-exactly'
 });
 
 test('reported characteristics own one bypass-only requirement available in both products', () => {
-	const project = sourceProject();
+	const project = currentSourceProject();
 	assert.deepEqual(project.featureRequirements.requirements.filter(({ id }) => (
 		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.sourceCharacteristics
 	)), [{

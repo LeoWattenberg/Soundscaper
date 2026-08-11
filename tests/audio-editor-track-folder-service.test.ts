@@ -10,15 +10,15 @@ import { EditorControllerLifetime } from '../src/common/editor/controller/lifecy
 import { createTrackFolderService } from '../src/common/editor/controller/track-folder-service.ts';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
-	createAudioEditorProjectV14,
-	validateAudioEditorProjectV14,
-	type AudioEditorProjectV14,
-} from '../src/common/editor/project-v14.ts';
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 
 const NOW = '2026-08-10T16:00:00.000Z';
 
-function folderedProject(): AudioEditorProjectV14 {
-	return createAudioEditorProjectV14({
+function folderedProject(): AudioEditorProjectCurrent {
+	return createCurrentAudioEditorProject({
 		id: 'folder-service', title: 'Folder service', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band', solo: true, collapsed: true }],
 		tracks: [
@@ -73,7 +73,7 @@ test('folder creation targets the session-selected folder and publishes state', 
 	const nested = fixture.project.sequences[0].trackNodes.find(({ id }) => id === nestedId);
 	assert.equal(nested?.parentFolderId, rootFolderId);
 	assert.equal(fixture.published, 2);
-	assert.equal(validateAudioEditorProjectV14(fixture.project), true);
+	assert.equal(validateCurrentAudioEditorProject(fixture.project), true);
 });
 
 test('rename, collapse toggle, move, and removal ride the folder-aware commands', () => {
@@ -96,7 +96,7 @@ test('rename, collapse toggle, move, and removal ride the folder-aware commands'
 	fixture.service.removeFolder('band', 'promote');
 	assert.equal(fixture.service.selectedFolderId(), null);
 	assert.deepEqual(fixture.project.trackFolders, []);
-	assert.equal(validateAudioEditorProjectV14(fixture.project), true);
+	assert.equal(validateCurrentAudioEditorProject(fixture.project), true);
 
 	assert.throws(
 		() => fixture.service.removeFolder('ghost', 'promote'),
@@ -120,7 +120,7 @@ test('wrapping a selection creates the folder at the first track and moves the b
 	);
 	// One command batch, one publication.
 	assert.equal(fixture.published, 1);
-	assert.equal(validateAudioEditorProjectV14(fixture.project), true);
+	assert.equal(validateCurrentAudioEditorProject(fixture.project), true);
 });
 
 test('the document snapshot exposes per-sequence rows with structural state', () => {
@@ -144,12 +144,12 @@ test('the document snapshot exposes per-sequence rows with structural state', ()
 test('the snapshot never traverses older, future, folder-free, or hostile documents', () => {
 	assert.deepEqual(createDocumentTrackFolderSnapshot(null).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 12 }).sequences, []);
-	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 15 }).sequences, []);
+	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 16 }).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({
-		schemaVersion: 15,
+		schemaVersion: 16,
 		get trackFolders(): never { throw new Error('trackFolders was traversed'); },
 	}).sequences, []);
-	const folderFree = createAudioEditorProjectV14({
+	const folderFree = createCurrentAudioEditorProject({
 		id: 'folder-free', title: 'Folder free', now: NOW, primarySequenceId: 'main',
 		tracks: [createAudioTrackV10({ id: 'solo-track', name: 'Solo' })],
 		sequences: [{ id: 'main', trackNodes: [{ kind: 'track', id: 'solo-track', parentFolderId: null }] }],

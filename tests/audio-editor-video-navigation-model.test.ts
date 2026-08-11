@@ -197,6 +197,33 @@ test('an explicit empty or hidden target yields no edit points', () => {
 	assert.equal(resolveAdjacentVideoEditPoint(document, 0, targets('missing', false), 'next'), null);
 });
 
+test('edit navigation skips locked lanes without removing them from program geometry', () => {
+	const document = {
+		...project(),
+		tracks: project().tracks.map((track) => (
+			track.id === 'video-a' ? { ...track, locked: true } : track
+		)),
+	};
+	const atTen = sequenceFrameBoundarySample(10, PAL, 48_000);
+	assert.equal(resolveVideoProgramGeometry(document).programEndSequenceFrame, 20);
+	assert.equal(
+		resolveAdjacentVideoEditPoint(document, atTen, targets('video-a', true), 'next'),
+		null,
+	);
+	assert.equal(
+		resolveAdjacentVideoEditPoint(document, atTen, targets('video-a', false), 'previous'),
+		null,
+	);
+	assert.equal(
+		resolveAdjacentVideoEditPoint(document, atTen, targets(null, false), 'previous'),
+		sequenceFrameBoundarySample(5, PAL, 48_000),
+	);
+	assert.equal(
+		resolveAdjacentVideoEditPoint(document, atTen, targets(null, false), 'next'),
+		sequenceFrameBoundarySample(15, PAL, 48_000),
+	);
+});
+
 test('edit points are converted once through the sequence rational rate', () => {
 	const document = project(NTSC);
 	assert.equal(

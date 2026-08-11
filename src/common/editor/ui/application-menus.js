@@ -20,6 +20,7 @@ import {
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimMenuItems, createFramescaperVideoTrimMenuModel } from './framescaper-video-trim-menu-model.ts';
+import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 
 export default function createApplicationMenus({
 	productId,
@@ -100,6 +101,9 @@ export default function createApplicationMenus({
 		productId, selectedClipId: selectedClip?.id ?? null, playheadSample, editingBlocked: editBlocked,
 		copy: { trimLeftToPlayhead: copy.trimLeftToPlayhead, trimRightToPlayhead: copy.trimRightToPlayhead },
 	}, { planTrim: actions.planVideoTrim }), { commitTrim: actions.commitVideoTrim });
+	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
+		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
+	}), { setTrackLocked: actions.setTrackLocked });
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
@@ -424,6 +428,7 @@ export default function createApplicationMenus({
 				},
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
+				trackLock.toggle,
 				...(framescaperEditControls.visibility ? [framescaperEditControls.visibility] : []),
 				{
 					id: 'move-track',

@@ -30,6 +30,7 @@ import {
 	createMediaSourceV10,
 	createMediaTrackV10,
 } from '../project-v10.ts';
+import { isTrackLockProjectSchema } from '../project-schema-version.ts';
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeClipProjection,
@@ -367,14 +368,23 @@ export function normalizeSourceForProject(project, value) {
 }
 
 export function normalizeTrackForProject(project, value) {
+	let track;
 	if (project.schemaVersion >= 10) {
-		return createMediaTrackV10({ ...value, type: value?.type || 'audio' }, project.sampleRate);
+		track = createMediaTrackV10({ ...value, type: value?.type || 'audio' }, project.sampleRate);
+	} else {
+		track = project.schemaVersion >= 5
+			? createMediaTrackV5({ ...value, type: value?.type || 'audio' }, project.sampleRate)
+			: project.schemaVersion >= 4
+			? createMediaTrackV4({ ...value, type: value?.type || 'audio' }, project.sampleRate)
+			: createAudioTrackV2(value, project.sampleRate);
 	}
-	return project.schemaVersion >= 5
-		? createMediaTrackV5({ ...value, type: value?.type || 'audio' }, project.sampleRate)
-		: project.schemaVersion >= 4
-		? createMediaTrackV4({ ...value, type: value?.type || 'audio' }, project.sampleRate)
-		: createAudioTrackV2(value, project.sampleRate);
+	if (!isTrackLockProjectSchema(project.schemaVersion)) return track;
+	const descriptor = Object.getOwnPropertyDescriptor(track, 'locked');
+	if (descriptor === undefined) return { ...track, locked: false };
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'boolean') {
+		throw new TypeError('A V15 track lock must be an own enumerable boolean data property.');
+	}
+	return track;
 }
 
 export function normalizeClipForProject(project, value) {

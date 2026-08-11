@@ -145,7 +145,11 @@ function metadataAudioProject(
 		now: '2026-08-01T12:00:00.000Z',
 	});
 	const trackId = `${id}-track`;
-	const track = createAudioTrackV10({ id: trackId, clipIds: clips.map(({ id: clipId }) => clipId) });
+	const track = createAudioTrackV10({
+		id: trackId,
+		clipIds: clips.map(({ id: clipId }) => clipId),
+		locked: false,
+	});
 	return {
 		...foundation,
 		sources,

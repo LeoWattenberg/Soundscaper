@@ -28,7 +28,7 @@ import {
 	type ScapeProjectBinaryLimits,
 	serializeScapeProjectDocument,
 } from '../src/common/editor/scape-project-document.ts';
-import { validateAudioEditorProjectV14 } from '../src/common/editor/project-v14-validation.ts';
+import { validateAudioEditorProjectV15 } from '../src/common/editor/project-v15-validation.ts';
 
 const ENTRY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/u;
 
@@ -217,7 +217,7 @@ function currentProjectRoot(
 		throw new TypeError('Desktop shared project document must contain an object');
 	}
 	const project = value as Record<string, unknown>;
-	validateAudioEditorProjectV14(project, {
+	validateAudioEditorProjectV15(project, {
 		limits: {
 			maximumTraversalNodes: limits.maximumTraversalNodes,
 			maximumTraversalDepth: limits.maximumTraversalDepth,

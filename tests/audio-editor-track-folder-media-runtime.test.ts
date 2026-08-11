@@ -79,7 +79,7 @@ test('transient V12 media projection flattens folder state without mutating loca
 test('only exact V12 privately branded projections can bypass folder traversal', () => {
 	let traversals = 0;
 	const forged = {
-		schemaVersion: 14,
+		schemaVersion: 15,
 		trackFolderStateProjectionVersion: TRACK_FOLDER_STATE_PROJECTION_VERSION,
 		get tracks() {
 			traversals += 1;
@@ -90,7 +90,7 @@ test('only exact V12 privately branded projections can bypass folder traversal',
 	assert.equal(traversals, 0);
 
 	const future = {
-		schemaVersion: 15,
+		schemaVersion: 16,
 		trackFolderStateProjectionVersion: TRACK_FOLDER_STATE_PROJECTION_VERSION,
 	};
 	assert.strictEqual(projectTrackFolderMediaStateV12(future), future, 'future schemas stay opaque');
@@ -317,7 +317,7 @@ function asV12(
 	const foundationSequence = (base.sequences as readonly DataRecord[])[0] ?? { id: 'main' };
 	return {
 		...base,
-		schemaVersion: 14,
+		schemaVersion: 15,
 		trackFolders,
 		sequences: [{
 			...foundationSequence,

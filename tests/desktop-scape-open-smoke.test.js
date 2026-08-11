@@ -36,9 +36,9 @@ import {
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const ARCHIVE_BYTES = 70_000;
-const EXPORTED_FIXTURE_BYTES = 70_051;
+const EXPORTED_FIXTURE_BYTES = 70_066;
 
-test('Scape-open fixture is a production-exported exact V13 mono project with bounded range geometry', async (t) => {
+test('Scape-open fixture is a production-exported exact V15 mono project with bounded range geometry', async (t) => {
 	const profile = await mkdtemp(join(tmpdir(), 'scape-open-fixture-test-'));
 	t.after(() => rm(profile, { recursive: true, force: true }));
 	const fixture = await createDesktopScapeOpenFixture(profile);

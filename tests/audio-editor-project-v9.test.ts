@@ -38,7 +38,7 @@ test('V9 projects require a normalized feature-requirements manifest', () => {
 		featureRequirements: input,
 	});
 
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 14);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 15);
 	assert.strictEqual(validateAudioEditorProjectV9, validateAudioEditorProjectV9Direct);
 	assert.equal(project.schemaVersion, 9);
 	assert.deepEqual(project.featureRequirements, { ...input, schemaVersion: 2 });

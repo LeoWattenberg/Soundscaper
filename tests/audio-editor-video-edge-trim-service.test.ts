@@ -103,7 +103,36 @@ test('blocked editing refuses commit before planning or mutation', () => {
 	assert.equal(JSON.stringify(harness.project()), before);
 });
 
-test('one service commit persists canonical linked V14 geometry in one undoable history step', () => {
+test('preview and commit inject live persisted locks and ignore a weakening caller predicate', () => {
+	const request = Object.freeze({
+		...trimRequest('right', 38_400),
+		isTrackLocked: () => false,
+	});
+	const harness = createHarness({ lockedTrackIds: ['persisted-audio-track'] });
+	assert.throws(() => harness.service.preview(request), /track.*locked/iu);
+	assert.throws(() => harness.service.commit(request), /track.*locked/iu);
+	assert.equal(harness.commands.length, 0);
+});
+
+test('commit replans with a newly locked live participant after an unlocked preview', () => {
+	const harness = createHarness();
+	const request = trimRequest('right', 38_400);
+	assert.equal(harness.service.preview(request).kind, 'transform');
+	harness.setLockedTracks(['persisted-video-track']);
+	assert.throws(() => harness.service.commit(request), /track.*locked/iu);
+	assert.equal(harness.commands.length, 0);
+});
+
+test('a caller predicate cannot invent a lock absent from the persisted project', () => {
+	const harness = createHarness();
+	const result = harness.service.preview(Object.freeze({
+		...trimRequest('right', 38_400),
+		isTrackLocked: () => true,
+	}));
+	assert.equal(result.kind, 'transform');
+});
+
+test('one service commit persists canonical linked V15 geometry in one undoable history step', () => {
 	const { project } = createPersistedVideoProject({ timeline: true });
 	let history = createEditorHistory(project);
 	const commands: AudioEditorCommand[] = [];
@@ -152,10 +181,14 @@ test('one service commit persists canonical linked V14 geometry in one undoable 
 	assert.equal(validateCurrentAudioEditorProject(history.present as PersistedVideoProject), true);
 });
 
-function createHarness(options: Readonly<{ blocked?: boolean }> = {}) {
+function createHarness(options: Readonly<{
+	blocked?: boolean;
+	lockedTrackIds?: readonly string[];
+}> = {}) {
 	const fixture = createPersistedVideoProject({ timeline: true });
 	let persisted = fixture.project;
-	let projection = projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	let lockedTrackIds = new Set(options.lockedTrackIds ?? []);
+	let projection = lockedProjection(persisted, lockedTrackIds);
 	const commands: AudioEditorCommand[] = [];
 	const dependencies: VideoEdgeTrimServiceDependencies = {
 		lifetime: { assertActive: () => undefined },
@@ -170,9 +203,26 @@ function createHarness(options: Readonly<{ blocked?: boolean }> = {}) {
 		project: () => projection,
 		setProject(value: typeof persisted) {
 			persisted = value;
-			projection = projectV10ForCommand(value as unknown as Record<string, unknown>);
+			projection = lockedProjection(value, lockedTrackIds);
+		},
+		setLockedTracks(trackIds: readonly string[]) {
+			lockedTrackIds = new Set(trackIds);
+			projection = lockedProjection(persisted, lockedTrackIds);
 		},
 	};
+}
+
+function lockedProjection(
+	project: PersistedVideoProject,
+	lockedTrackIds: ReadonlySet<string>,
+) {
+	return projectV10ForCommand({
+		...project,
+		tracks: project.tracks.map((track) => ({
+			...track,
+			locked: lockedTrackIds.has(String(track.id)),
+		})),
+	} as unknown as Record<string, unknown>);
 }
 
 function trimRequest(

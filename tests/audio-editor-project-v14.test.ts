@@ -90,11 +90,15 @@ function folderProject(): AudioEditorProjectV14 {
 	});
 }
 
-test('V14 is exact current and retains V11 annotations with authoritative folder hierarchy', () => {
+function currentFolderProject() {
+	return createCurrentAudioEditorProject(folderProject());
+}
+
+test('V14 remains historical and retains V11 annotations with authoritative folder hierarchy', () => {
 	const project = folderProject();
 
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 14);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 14);
+	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 15);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 15);
 	assert.equal(AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION, 14);
 	assert.equal(project.schemaVersion, 14);
 	assert.deepEqual(project.trackFolders.map(({ id }) => id), ['folder-a', 'folder-b']);
@@ -108,7 +112,7 @@ test('V14 is exact current and retains V11 annotations with authoritative folder
 	assert.deepEqual(project.tracks.map(({ id }) => id), ['track-a', 'track-b']);
 	assert.deepEqual(project.selection.annotationIds, ['marker-a']);
 	assert.equal(validateAudioEditorProjectV14(project), true);
-	assert.equal(validateCurrentAudioEditorProject(project), true);
+	assert.throws(() => validateCurrentAudioEditorProject(project), /schema version/iu);
 });
 
 test('V14 derives root track nodes by default while V11 rejects every folder persistence field', () => {
@@ -187,8 +191,8 @@ test('V14 rejects hierarchy projection drift and project metadata order drift', 
 	);
 });
 
-test('current V14 is byte-idempotent across clone, JSON, and local store save/open', async () => {
-	const project = folderProject();
+test('current V15 is byte-idempotent across clone, JSON, and local store save/open', async () => {
+	const project = currentFolderProject();
 	const serialized = JSON.stringify(project);
 	const loaded = loadCurrentAudioEditorProject(JSON.parse(serialized));
 	const cloned = cloneCurrentAudioEditorProject(project);
@@ -209,7 +213,7 @@ test('current V14 is byte-idempotent across clone, JSON, and local store save/op
 });
 
 test('current .scape archive round trip preserves nonempty folder state byte-exactly', async () => {
-	const project = folderProject();
+	const project = currentFolderProject();
 	const sourceStore = new AudioEditorProjectStore({
 		indexedDB: null,
 		databaseName: 'v12-folder-scape-source',
@@ -219,7 +223,7 @@ test('current .scape archive round trip preserves nonempty folder state byte-exa
 		databaseName: 'v12-folder-scape-target',
 	});
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 14);
+	assert.equal(exported.manifest.project.schemaVersion, 15);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));
@@ -239,8 +243,8 @@ test('current .scape archive round trip preserves nonempty folder state byte-exa
 	await targetStore.close();
 });
 
-test('ordinary edits, undo, and redo preserve exact V14 folder state', () => {
-	const project = folderProject();
+test('ordinary edits, undo, and redo preserve exact current folder state', () => {
+	const project = currentFolderProject();
 	const command = {
 		type: 'metadata/update',
 		changes: { artist: 'Soundscaper' },
@@ -248,7 +252,7 @@ test('ordinary edits, undo, and redo preserve exact V14 folder state', () => {
 	const edited = applyEditorCommand(project, command, { now: '2026-08-09T18:01:00.000Z' });
 	assert.deepEqual(edited.trackFolders, project.trackFolders);
 	assert.deepEqual(edited.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
-	assert.equal(validateAudioEditorProjectV14(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 
 	const executed = executeEditorCommand(createEditorHistory(project), command, {
 		now: '2026-08-09T18:01:00.000Z',
@@ -261,11 +265,11 @@ test('ordinary edits, undo, and redo preserve exact V14 folder state', () => {
 	assert.deepEqual(redone.present.trackFolders, edited.trackFolders);
 	assert.deepEqual(redone.present.sequences[0]?.trackNodes, edited.sequences[0]?.trackNodes);
 	assert.equal(redone.present.metadata.artist, edited.metadata.artist);
-	assert.equal(validateAudioEditorProjectV14(undone.present), true);
-	assert.equal(validateAudioEditorProjectV14(redone.present), true);
+	assert.equal(validateCurrentAudioEditorProject(undone.present), true);
+	assert.equal(validateCurrentAudioEditorProject(redone.present), true);
 });
 
-test('legacy track add, reorder, and remove keep empty-folder V14 root hierarchy exact', () => {
+test('legacy track add, reorder, and remove keep empty-folder V15 root hierarchy exact', () => {
 	let project = createCurrentAudioEditorProject({
 		now: NOW,
 		tracks: [
@@ -296,7 +300,7 @@ test('legacy track add, reorder, and remove keep empty-folder V14 root hierarchy
 	}, { now: NOW });
 	assert.deepEqual(project.sequences[0]?.trackIds, ['track-b', 'track-c']);
 	assert.deepEqual(project.sequences[0]?.trackNodes.map(({ id }) => id), ['track-b', 'track-c']);
-	assert.equal(validateAudioEditorProjectV14(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 });
 
 test('legacy root track edits preserve multi-sequence blocks and reject cross-sequence reorder', () => {
@@ -344,7 +348,7 @@ test('legacy root track edits preserve multi-sequence blocks and reject cross-se
 });
 
 test('legacy structural track commands delegate to the folder-aware path on nonempty hierarchy', () => {
-	const project = folderProject();
+	const project = currentFolderProject();
 	const snapshot = structuredClone(project);
 	const appended = applyEditorCommand(project, {
 		type: 'track/add', track: { id: 'track-c', name: 'Track C' },
@@ -354,7 +358,7 @@ test('legacy structural track commands delegate to the folder-aware path on none
 	assert.deepEqual(appendedNodes[appendedNodes.length - 1], {
 		kind: 'track', id: 'track-c', parentFolderId: null,
 	});
-	assert.equal(validateAudioEditorProjectV14(appended), true);
+	assert.equal(validateCurrentAudioEditorProject(appended), true);
 
 	// A flat insertion position adopts the parent of the track it lands beside.
 	const replaced = applyEditorCommand(project, {
@@ -375,25 +379,25 @@ test('legacy structural track commands delegate to the folder-aware path on none
 		{ id: 'replacement', parentFolderId: 'folder-b' },
 		{ id: 'track-b', parentFolderId: 'folder-b' },
 	]);
-	assert.equal(validateAudioEditorProjectV14(replaced), true);
+	assert.equal(validateCurrentAudioEditorProject(replaced), true);
 });
 
-test('schemas 1 through 13 require typed re-import and future V15 stays opaque read-only', () => {
-	for (let schemaVersion = 1; schemaVersion <= 13; schemaVersion += 1) {
+test('schemas 1 through 14 require typed re-import and future V16 stays opaque read-only', () => {
+	for (let schemaVersion = 1; schemaVersion <= 14; schemaVersion += 1) {
 		assert.throws(
 			() => migrateAudioEditorProject({ schemaVersion }),
 			(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError
 				&& error.schemaVersion === schemaVersion
-				&& error.currentSchemaVersion === 14,
+				&& error.currentSchemaVersion === 15,
 		);
 	}
-	const project = folderProject();
-	const future = { ...project, schemaVersion: 15, futureFolderState: { opaque: true } };
+	const project = currentFolderProject();
+	const future = { ...project, schemaVersion: 16, futureFolderState: { opaque: true } };
 	const loaded = migrateAudioEditorProject(future);
 	assert.deepEqual(loaded, {
 		project: future,
 		migrated: false,
-		fromVersion: 15,
+		fromVersion: 16,
 		readOnly: true,
 		reason: 'newer-schema',
 	});
@@ -401,7 +405,7 @@ test('schemas 1 through 13 require typed re-import and future V15 stays opaque r
 });
 
 test('nonempty folder state owns one bypass-only requirement in both product profiles', () => {
-	const project = folderProject();
+	const project = currentFolderProject();
 	assert.deepEqual(project.featureRequirements.requirements.filter(({ id }) => (
 		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.trackFolders
 	)), [{

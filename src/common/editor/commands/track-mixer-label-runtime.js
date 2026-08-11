@@ -21,9 +21,9 @@ import {
 	createLabelTrackV4,
 } from '../project-v4.js';
 import {
-	createLabelTrackV10,
 	createLabelV10,
 } from '../project-v10.ts';
+import { isTrackLockProjectSchema } from '../project-schema-version.ts';
 import {
 	allEffects,
 } from './effects-video-runtime.js';
@@ -42,7 +42,7 @@ function addTrack(project, value, requestedIndex, placement = {}) {
 	if (value?.type === 'label') {
 		if (project.schemaVersion < 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 or newer project.');
 		const labelTrack = project.schemaVersion >= 10
-			? createLabelTrackV10(value)
+			? normalizeTrackForProject(project, value)
 			: project.schemaVersion >= 4 ? createLabelTrackV4(value) : createLabelTrackV2(value);
 		assertUnusedId(project.tracks, labelTrack.id, 'track');
 		const labelIndex = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
@@ -144,9 +144,10 @@ function updateTrack(project, trackId, changes = {}) {
 	const track = requireTrack(project, trackId);
 	if (track.type === 'label') {
 		const allowed = new Set(['name', 'collapsed', 'height']);
+		if (isTrackLockProjectSchema(project.schemaVersion)) allowed.add('locked');
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label track field cannot be updated: ${key}.`);
 		Object.assign(track, project.schemaVersion >= 10
-			? createLabelTrackV10({ ...track, ...changes, labels: track.labels })
+			? normalizeTrackForProject(project, { ...track, ...changes, labels: track.labels })
 			: project.schemaVersion >= 4
 			? createLabelTrackV4({ ...track, ...changes, labels: track.labels })
 			: createLabelTrackV2({ ...track, ...changes, labels: track.labels }));
@@ -154,12 +155,14 @@ function updateTrack(project, trackId, changes = {}) {
 	}
 	if (track.type === 'video') {
 		const allowed = new Set(['name', 'mute', 'hidden', 'collapsed', 'height']);
+		if (isTrackLockProjectSchema(project.schemaVersion)) allowed.add('locked');
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Video track field cannot be updated: ${key}.`);
 		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, clipIds: track.clipIds }));
 		return;
 	}
 	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive']);
 	for (const key of ['displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
+	if (isTrackLockProjectSchema(project.schemaVersion)) allowed.add('locked');
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
 	Object.assign(track, updated);

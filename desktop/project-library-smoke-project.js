@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION = 14;
+export const DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION = 15;
 export const DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID = 'main-sequence';
 
 export function createDesktopSmokeProjectFoundation(trackIds) {

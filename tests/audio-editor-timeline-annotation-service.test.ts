@@ -242,7 +242,7 @@ test('blocked navigation retains view focus without changing durable selection',
 test('older and future projects clear focus without traversing annotation state', () => {
 	let annotationReads = 0;
 	const future = {
-		schemaVersion: 15,
+		schemaVersion: 16,
 		get timelineAnnotations() {
 			annotationReads += 1;
 			throw new Error('future annotations must remain opaque');

@@ -11,12 +11,12 @@ import {
 } from '../src/common/editor/commands/factories.ts';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
-	cloneAudioEditorProjectV14,
-	createAudioEditorProjectV14,
-	loadAudioEditorProjectV14,
-	validateAudioEditorProjectV14,
-	type AudioEditorProjectV14,
-} from '../src/common/editor/project-v14.ts';
+	cloneCurrentAudioEditorProject,
+	createCurrentAudioEditorProject,
+	loadCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 
@@ -28,8 +28,8 @@ const NOW = '2026-08-10T14:00:00.000Z';
  * a folder is created, an audio track moves into it (minting its bus), and
  * the original folder is renamed (moving its bus mirror).
  */
-function mutatedProject(): AudioEditorProjectV14 {
-	const base = createAudioEditorProjectV14({
+function mutatedProject(): AudioEditorProjectCurrent {
+	const base = createCurrentAudioEditorProject({
 		id: 'folder-roundtrip', title: 'Folder roundtrip', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band' }],
 		tracks: [
@@ -76,18 +76,18 @@ test('a folder-aware edit batch produces the expected buses before any round tri
 	]);
 	assert.equal(mixerOf(project).routes.kick.groupId, 'band');
 	assert.equal(mixerOf(project).routes.vocals.groupId, 'voices');
-	assert.equal(validateAudioEditorProjectV14(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 });
 
 test('mutated folder and bus state is byte-exact through clone, JSON, and the local store', async () => {
 	const project = mutatedProject();
 	const serialized = JSON.stringify(project);
 
-	const cloned = cloneAudioEditorProjectV14(project);
+	const cloned = cloneCurrentAudioEditorProject(project);
 	assert.deepEqual(cloned, project);
 	assert.equal(JSON.stringify(cloned), serialized);
 
-	const loaded = loadAudioEditorProjectV14(JSON.parse(serialized));
+	const loaded = loadCurrentAudioEditorProject(JSON.parse(serialized));
 	assert.equal(loaded.readOnly, false);
 	assert.equal(JSON.stringify(loaded.project), serialized);
 
@@ -110,14 +110,14 @@ test('mutated folder and bus state survives a .scape export and import byte-exac
 	assert.equal(JSON.stringify(imported.project), serialized);
 	assert.deepEqual(mixerOf(imported.project).groups, mixerOf(project).groups);
 	assert.deepEqual(mixerOf(imported.project).routes, mixerOf(project).routes);
-	assert.equal(validateAudioEditorProjectV14(imported.project), true);
+	assert.equal(validateCurrentAudioEditorProject(imported.project), true);
 });
 
 test('a further edit after reopening keeps the reconciled contract intact', async () => {
 	const project = mutatedProject();
 	const store = new AudioEditorProjectStore({ indexedDB: null, databaseName: 'v13-folder-edit-after-reopen' });
 	await store.saveProject(project);
-	const reopened = await store.loadProject(project.id) as AudioEditorProjectV14;
+	const reopened = await store.loadProject(project.id) as AudioEditorProjectCurrent;
 	const edited = applyEditorCommand(
 		reopened,
 		createMoveTrackNodeCommand('main', 'vocals', null, 0),
@@ -125,6 +125,6 @@ test('a further edit after reopening keeps the reconciled contract intact', asyn
 	);
 	assert.deepEqual(mixerOf(edited).groups.map(({ id }) => id), ['band']);
 	assert.equal(mixerOf(edited).routes.vocals.groupId, null);
-	assert.equal(validateAudioEditorProjectV14(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 	await store.close();
 });

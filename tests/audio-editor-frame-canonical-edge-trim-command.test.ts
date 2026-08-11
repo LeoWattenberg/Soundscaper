@@ -19,7 +19,7 @@ import { createPersistedVideoProject } from './helpers/persisted-video-project-f
 
 const NOW = '2026-08-11T13:00:00.000Z';
 
-test('one current V14 transform persists canonical video fields and linked equal endpoints', () => {
+test('one current V15 transform persists canonical video fields and linked equal endpoints', () => {
 	const { project } = createPersistedVideoProject({ timeline: true });
 	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalEdgeTrim(runtime, {
@@ -74,7 +74,7 @@ test('one current V14 transform persists canonical video fields and linked equal
 	assert.equal(validateCurrentAudioEditorProject(history.present), true);
 });
 
-test('a left trim reconciles V14 sequence and source starts in one undo step', () => {
+test('a left trim reconciles V15 sequence and source starts in one undo step', () => {
 	const { project } = createPersistedVideoProject({ timeline: true });
 	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalEdgeTrim(runtime, {

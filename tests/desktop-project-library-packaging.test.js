@@ -70,7 +70,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-schema-version.js',
 		'src/common/editor/project-v10-foundation-validation.js',
 		'src/common/editor/project-v12-validation.js',
-			'src/common/editor/project-v14-validation.js',
+		'src/common/editor/project-v15-validation.js',
 		'src/common/editor/project-v9-document-validation.js',
 		'src/common/editor/project-v9-media-validation.js',
 		'src/common/editor/project-v9-validation-budget.js',

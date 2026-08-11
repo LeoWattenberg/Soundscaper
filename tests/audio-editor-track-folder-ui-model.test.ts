@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document-track-folder-snapshot.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV14 } from '../src/common/editor/project-v14.ts';
 import {
 	planTrackListRows,
 	resolveTrackFolderMoveKey,
@@ -25,7 +25,7 @@ const NOW = '2026-08-10T17:00:00.000Z';
  * outside
  */
 function project() {
-	return createAudioEditorProjectV14({
+	return createCurrentAudioEditorProject({
 		id: 'folder-ui', title: 'Folder UI', now: NOW, primarySequenceId: 'main',
 		trackFolders: [
 			{ id: 'band', name: 'Band', collapsed: true },
@@ -95,7 +95,7 @@ test('tree levels, positions, and set sizes describe the folder tree, not track 
 });
 
 test('a folder-free project plans plain track rows with no tree', () => {
-	const document = createAudioEditorProjectV14({
+	const document = createCurrentAudioEditorProject({
 		id: 'flat', title: 'Flat', now: NOW, primarySequenceId: 'main',
 		tracks: [createAudioTrackV10({ id: 'only', name: 'Only' })],
 		sequences: [{ id: 'main', trackNodes: [{ kind: 'track', id: 'only', parentFolderId: null }] }],

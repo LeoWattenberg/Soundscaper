@@ -52,7 +52,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/project-schema-version.js',
 	'src/common/editor/project-v10-foundation-validation.js',
 	'src/common/editor/project-v12-validation.js',
-	'src/common/editor/project-v14-validation.js',
+	'src/common/editor/project-v15-validation.js',
 	'src/common/editor/project-v9-document-validation.js',
 	'src/common/editor/project-v9-media-validation.js',
 	'src/common/editor/project-v9-validation-budget.js',

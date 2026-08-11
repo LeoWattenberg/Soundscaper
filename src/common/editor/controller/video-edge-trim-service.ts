@@ -45,14 +45,15 @@ export function createVideoEdgeTrimService(
 ): Readonly<VideoEdgeTrimService> {
 	function preview(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan {
 		dependencies.lifetime.assertActive();
-		return planFrameCanonicalEdgeTrim(dependencies.getProject(), request);
+		const project = dependencies.getProject();
+		return planFrameCanonicalEdgeTrim(project, persistedLockRequest(project, request));
 	}
 
 	function commit(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
 		const project = dependencies.getProject();
-		const plan = planFrameCanonicalEdgeTrim(project, request);
+		const plan = planFrameCanonicalEdgeTrim(project, persistedLockRequest(project, request));
 		if (plan.kind === 'noop') {
 			dependencies.reportResult?.(plan);
 			return plan;
@@ -63,4 +64,28 @@ export function createVideoEdgeTrimService(
 	}
 
 	return Object.freeze({ preview, commit });
+}
+
+/** Caller predicates are never authority; bind locks to the same live project as planning. */
+function persistedLockRequest(
+	project: unknown,
+	request: FrameCanonicalEdgeTrimRequest,
+): Readonly<FrameCanonicalEdgeTrimRequest> {
+	const candidate = project !== null && typeof project === 'object'
+		? project as Readonly<Record<string, unknown>>
+		: null;
+	const tracks = Array.isArray(candidate?.tracks) ? candidate.tracks : [];
+	const lockedTrackIds = new Set(tracks.flatMap((value) => {
+		if (value === null || typeof value !== 'object' || Array.isArray(value)) return [];
+		const track = value as Readonly<Record<string, unknown>>;
+		return track.locked === true && typeof track.id === 'string' && track.id.length > 0
+			? [track.id]
+			: [];
+	}));
+	return Object.freeze({
+		activeClipId: request.activeClipId,
+		edge: request.edge,
+		requestedBoundarySample: request.requestedBoundarySample,
+		isTrackLocked: (trackId: string) => lockedTrackIds.has(trackId),
+	});
 }

@@ -7,7 +7,7 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('security policy separates all-schema JSON admission from exact-V14 binary decoding', async () => {
+test('security policy separates all-schema JSON admission from exact-V15 binary decoding', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const risk = matrix.risks.find(({ id }) => id === 'scape-archive-structure-integrity');
 	const control = risk?.currentControls.find(
@@ -32,7 +32,7 @@ test('security policy separates all-schema JSON admission from exact-V14 binary 
 	);
 	assert.match(
 		control.summary,
-		/exact-schema-14.*current-format export.*copies.*Uint8Array.*offset-view.*ArrayBuffer.*independent lower-only ceilings.*256 payloads.*4 MiB.*8 MiB.*100,000 logical traversed nodes.*depth 128/iu,
+		/exact-schema-15.*current-format export.*copies.*Uint8Array.*offset-view.*ArrayBuffer.*independent lower-only ceilings.*256 payloads.*4 MiB.*8 MiB.*100,000 logical traversed nodes.*depth 128/iu,
 	);
 	assert.match(
 		control.summary,
@@ -50,7 +50,7 @@ test('security policy separates all-schema JSON admission from exact-V14 binary 
 	);
 	assert.match(
 		threatModel,
-		/exact schema 14.*opaque `Uint8Array`.*offset-view.*`ArrayBuffer`.*reserved.*versioned JSON tag.*export.*independently.*256 payloads.*4 MiB.*8 MiB.*100,000 logical traversed nodes.*depth 128.*complete decoded budget/isu,
+		/exact schema 15.*opaque `Uint8Array`.*offset-view.*`ArrayBuffer`.*reserved.*versioned JSON tag.*export.*independently.*256 payloads.*4 MiB.*8 MiB.*100,000 logical traversed nodes.*depth 128.*complete decoded budget/isu,
 	);
 	assert.match(
 		threatModel,

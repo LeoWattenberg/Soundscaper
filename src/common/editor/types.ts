@@ -230,7 +230,14 @@ export type EditorProjectV14 = Omit<EditorProjectV13, 'schemaVersion'> & Readonl
 	schemaVersion: 14;
 }>;
 
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14;
+export type EditorTrackV15 = EditorTrack & Readonly<{ locked: boolean }>;
+
+export type EditorProjectV15 = Omit<EditorProjectV14, 'schemaVersion' | 'tracks'> & Readonly<{
+	schemaVersion: 15;
+	tracks: readonly EditorTrackV15[];
+}>;
+
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14 | EditorProjectV15;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

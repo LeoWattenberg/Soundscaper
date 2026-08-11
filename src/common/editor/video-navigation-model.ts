@@ -190,11 +190,15 @@ function editPointTracks(
 	context: SequenceContext,
 	targets: Pick<VideoEditTargets, 'videoTrackId' | 'explicit'>,
 ): DataRecord[] {
-	const visible = visibleVideoTracks(context);
+	const visible = editableVideoTracks(context);
 	if (targets.videoTrackId !== null) {
 		return visible.filter((track) => String(track.id) === targets.videoTrackId);
 	}
 	return targets.explicit ? [] : visible;
+}
+
+function editableVideoTracks(context: SequenceContext): DataRecord[] {
+	return visibleVideoTracks(context).filter((track) => track.locked !== true);
 }
 
 function visibleVideoTracks(context: SequenceContext): DataRecord[] {

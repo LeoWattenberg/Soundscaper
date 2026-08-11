@@ -305,7 +305,7 @@ test('a future-schema scape saves only as an exact unchanged archive copy', asyn
 	const savedBlobs: Blob[] = [];
 	const fixture = createFixture({
 		importScapeProject: async () => ({
-			project: { ...project('future-project'), schemaVersion: 15 },
+			project: { ...project('future-project'), schemaVersion: 16 },
 			readOnly: true,
 			reason: 'newer-schema',
 			manifest: { format: 'scape-project' },

@@ -14,6 +14,7 @@ import {
 	FOUNDATION_EDIT_OPERATION,
 	LEGACY_TRACK_STRUCTURE_EDIT,
 } from './commands/command-projection-transients.ts';
+import { createTrackLockAdmission } from './commands/track-lock-admission.ts';
 
 export {
 	collectClipTransformIds,
@@ -96,6 +97,7 @@ export {
  *   | import('./project-v12.ts').AudioEditorProjectV12
  *   | import('./project-v13.ts').AudioEditorProjectV13
  *   | import('./project-v14.ts').AudioEditorProjectV14
+ *   | import('./project-v15.ts').AudioEditorProjectV15
  * } CurrentAudioEditorProject
  */
 
@@ -118,26 +120,37 @@ export function applyEditorCommand(project, command, options = {}) {
 		throw new TypeError('A serializable editor command is required.');
 	}
 	const commandProject = projectForCommandConsumers(project);
-	return /** @type {Project} */ (commitProject(commandProject, (draft) => {
+	const admission = createTrackLockAdmission(project, commandProject);
+	const mutate = createCommandMutator(admission);
+	const result = /** @type {Project} */ (commitProject(commandProject, (draft) => {
 		if (isFoundationProjectSchema(project.schemaVersion)) {
 			brandRuntimeProjectProjection(draft);
 		}
-		mutateCommand(draft, command);
+		mutate(draft, command);
 		pruneMissingProjectSelections(draft);
 	}, { ...options, persistedBase: project }));
+	admission.assertPersistedResult(result);
+	return result;
 }
 
-const editorCommandHandlers = createEditorCommandRuntime(mutateCommand);
+function createCommandMutator(admission) {
+	let handlers;
+	const mutate = (project, command) => mutateCommand(project, command, handlers, admission);
+	handlers = createEditorCommandRuntime(mutate);
+	return mutate;
+}
 
-function mutateCommand(project, command) {
+function mutateCommand(project, command, handlers, admission) {
+	const isChild = command.type !== 'batch';
+	if (isChild) admission.beforeCommand(project, command);
 	if (isTrackFolderProjectSchema(project.schemaVersion)
 		&& (command.type === 'track/add' || command.type === 'track/remove' || command.type === 'track/reorder')
 		&& !(Array.isArray(project.trackFolders) && project.trackFolders.length > 0)) {
 		project[LEGACY_TRACK_STRUCTURE_EDIT] = true;
 	}
-	if (isFoundationProjectSchema(project.schemaVersion) && command.type !== 'batch') {
+	if (isFoundationProjectSchema(project.schemaVersion) && isChild) {
 		const before = new Map(project.clips.map((clip) => [clip.id, commandTimingSignature(clip)]));
-		dispatchEditorCommand(editorCommandHandlers, project, command);
+		dispatchEditorCommand(handlers, project, command);
 		const operation = {};
 		for (const clip of project.clips) {
 			const previous = before.get(clip.id);
@@ -145,9 +158,11 @@ function mutateCommand(project, command) {
 				clip[FOUNDATION_EDIT_OPERATION] = operation;
 			}
 		}
+		admission.afterCommand(project);
 		return;
 	}
-	dispatchEditorCommand(editorCommandHandlers, project, command);
+	dispatchEditorCommand(handlers, project, command);
+	if (isChild) admission.afterCommand(project);
 }
 
 function commandTimingSignature(clip) {

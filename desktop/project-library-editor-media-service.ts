@@ -18,9 +18,9 @@ import {
 import { DesktopLibraryMediaReuseUnavailableError } from './project-library-media-reuse.ts';
 import type { DesktopProjectLibraryHost } from './project-library-host.ts';
 import {
-	validateAudioEditorProjectV14,
-	type AudioEditorProjectV14,
-} from '../src/common/editor/project-v14-validation.ts';
+	validateAudioEditorProjectV15,
+	type AudioEditorProjectV15,
+} from '../src/common/editor/project-v15-validation.ts';
 import { collectProjectSourceIds } from '../src/common/editor/retention.js';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import {
@@ -364,14 +364,14 @@ export class DesktopSharedProjectMediaService {
 	}
 }
 
-function currentProject(loaded: DesktopLibraryLoadedProjectBundle): AudioEditorProjectV14 {
-	validateAudioEditorProjectV14(loaded.project);
-	return loaded.project as AudioEditorProjectV14;
+function currentProject(loaded: DesktopLibraryLoadedProjectBundle): AudioEditorProjectV15 {
+	validateAudioEditorProjectV15(loaded.project);
+	return loaded.project as AudioEditorProjectV15;
 }
 
 function managedSources(
 	loaded: DesktopLibraryLoadedProjectBundle,
-	project: AudioEditorProjectV14,
+	project: AudioEditorProjectV15,
 ): readonly DesktopSharedManagedSourceDescriptor[] {
 	const descriptors: DesktopSharedManagedSourceDescriptor[] = [];
 	for (const sourceId of collectProjectSourceIds(project)) {
@@ -421,7 +421,7 @@ function managedSourceDescriptor(
 }
 
 function requiredReachableSource(
-	project: AudioEditorProjectV14,
+	project: AudioEditorProjectV15,
 	sourceId: string,
 	encoding?: DesktopLibraryManagedMediaEncoding,
 ): ManagedSource {

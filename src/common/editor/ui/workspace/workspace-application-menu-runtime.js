@@ -162,6 +162,7 @@ export function createWorkspaceApplicationMenus({
 				linkVideoAudio: (videoClipId, audioClipId) => run(() => controller.actions.video.link(videoClipId, audioClipId)),
 				unlinkVideoAudio: (clipId) => run(() => controller.actions.video.unlink(clipId)),
 				setVideoHidden: (trackId, hidden) => run(() => controller.actions.track.update(trackId, { hidden })),
+				setTrackLocked: (trackId, locked) => run(() => controller.actions.track.update(trackId, { locked })),
 				toggleMonitoring: () => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled)),
 				requestInputAccess: () => run(() => controller.actions.recording.requestInputAccess()),
 				refreshInputs: () => run(() => controller.actions.recording.refreshInputs()),

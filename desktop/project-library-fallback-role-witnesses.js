@@ -236,7 +236,7 @@ function audioTrack(id, clipId, effect) {
 			scale: 'mel', minimumFrequency: 0, maximumFrequency: 20_000,
 			windowSize: 2_048, windowType: 'hann', gain: 20, range: 80,
 		},
-		envelope: [], effectsActive: true, effects: effect ? [{
+		envelope: [], effectsActive: true, locked: false, effects: effect ? [{
 			id: `${id}-compressor`, type: 'compressor', enabled: true,
 			params: { threshold: -24, knee: 30, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
 		}] : [], clipIds: [clipId], collapsed: false, height: 160, opaqueExtensions: {}, laneGroupId: null,
@@ -246,7 +246,7 @@ function audioTrack(id, clipId, effect) {
 function videoTrack(id, clipId) {
 	return {
 		type: 'video', id, name: 'Packaged fallback witness', clipIds: [clipId], mute: false,
-		hidden: false, collapsed: false, height: 120, laneGroupId: null, opaqueExtensions: {},
+		hidden: false, locked: false, collapsed: false, height: 120, laneGroupId: null, opaqueExtensions: {},
 	};
 }
 

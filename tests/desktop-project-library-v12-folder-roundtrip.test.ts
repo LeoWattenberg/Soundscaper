@@ -23,7 +23,7 @@ import {
 
 const NOW = '2026-08-09T20:00:00.000Z';
 
-test('fresh desktop library V6 saves and reopens nonempty V13 folder hierarchy byte-exactly', async (context) => {
+test('fresh desktop library V7 saves and reopens current folder hierarchy byte-exactly', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-v13-folder-desktop-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
 	const paths = createDesktopProjectLibraryPaths(appDataPath);
@@ -33,7 +33,7 @@ test('fresh desktop library V6 saves and reopens nonempty V13 folder hierarchy b
 		revision: 1,
 		now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'track-a', name: 'Track A' }),
+			createAudioTrackV10({ id: 'track-a', name: 'Track A', locked: true }),
 			createAudioTrackV10({ id: 'track-b', name: 'Track B' }),
 		],
 		trackFolders: [
@@ -72,7 +72,7 @@ test('fresh desktop library V6 saves and reopens nonempty V13 folder hierarchy b
 		DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 	);
 	const database = new DatabaseSync(paths.databasePath, { readOnly: true });
-	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 8);
+	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 9);
 	database.close();
 	await firstHost.close();
 
@@ -87,6 +87,7 @@ test('fresh desktop library V6 saves and reopens nonempty V13 folder hierarchy b
 	const reopenedDocument = await secondService.readSharedProject(project.id);
 	assert.equal(reopenedDocument, document);
 	const reopened = parseScapeProjectDocument(reopenedDocument ?? '') as typeof project;
+	assert.deepEqual(reopened.tracks.map(({ locked }) => locked), [true, false]);
 	assert.deepEqual(reopened.trackFolders, project.trackFolders);
 	assert.deepEqual(reopened.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
 	assert.equal((reopened.mixer as { groups: { id: string; name: string; mute: boolean; solo: boolean }[]; routes: Record<string, { groupId: string | null }> }).groups.length, 1, 'only the top-level audio-bearing folder owns a bus');

@@ -150,6 +150,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The command transaction brands a verified transient draft and is an edit adapter rather than a runtime consumer.',
 	},
 	{
+		file: 'src/common/editor/commands/track-lock-admission.ts',
+		reason: 'The command invariant compares protected resolved timing across transient and persisted authority domains; it does not serve runtime media consumers.',
+	},
+	{
 		file: 'src/common/editor/commands/range-runtime.js',
 		reason: 'Range commands preserve and rebrand transient command projections before persisted-authority reconciliation.',
 	},

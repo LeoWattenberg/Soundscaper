@@ -190,7 +190,7 @@ export function validateScapeReopenSmokeResult(value, expectedPlan = null) {
 }
 
 export async function runScapeReopenRendererSmoke(scope, plan) {
-	const currentProjectSchemaVersion = 14;
+	const currentProjectSchemaVersion = 15;
 	const document = scope?.document;
 	const api = scope?.scapeDesktop?.v1;
 	if (!document || typeof document.querySelectorAll !== 'function'

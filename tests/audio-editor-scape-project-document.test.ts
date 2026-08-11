@@ -170,7 +170,7 @@ test('the exact current schema serializes canonical tags and restores explicit b
 test('only the exact current schema receives binary tag traversal', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
-	for (const schemaVersion of [8, 11, 15, '14']) {
+	for (const schemaVersion of [8, 14, 16, '15']) {
 		const value = {
 			schemaVersion,
 			opaqueExtensions: {

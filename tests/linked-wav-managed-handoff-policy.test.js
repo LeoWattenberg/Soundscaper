@@ -137,7 +137,7 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 	assertLinkedAudioTargetAndRecovery(handoff.summary);
 	assert.match(
 		portability.summary,
-		/current-format exact-schema-14 `.scape`.*no owned sender PCM.*canonical Float32 chunks.*`audio-f32le-chunks-v1`.*external container bytes.*locator identity.*excluded.*fresh portless import.*owned PCM.*durable reopen/iu,
+		/current-format exact-schema-15 `.scape`.*no owned sender PCM.*canonical Float32 chunks.*`audio-f32le-chunks-v1`.*external container bytes.*locator identity.*excluded.*fresh portless import.*owned PCM.*durable reopen/iu,
 	);
 	for (const control of [portability, range, handoff]) {
 		assert.match(control.summary, /not.*packaged|does not qualify.*packaged/iu);

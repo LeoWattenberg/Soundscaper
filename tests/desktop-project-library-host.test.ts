@@ -431,7 +431,7 @@ test('host startup reclaims stale planned media before admitting an exact retry'
 
 function metadata(revision: number) {
 	return {
-		schemaVersion: 6 as const,
+		schemaVersion: 7 as const,
 		revision,
 		projects: [],
 		media: [],
