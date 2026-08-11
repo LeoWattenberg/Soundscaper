@@ -70,6 +70,7 @@ export const Knob: React.FC<KnobProps> = ({
   const { theme } = useTheme();
   const knobRef = useRef<HTMLButtonElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const dragStartXRef = useRef<number>(0);
   const dragStartYRef = useRef<number>(0);
   const dragStartValueRef = useRef<number>(0);
 
@@ -130,6 +131,7 @@ export const Knob: React.FC<KnobProps> = ({
     if (disabled || !onChange) return;
     e.preventDefault();
     setIsDragging(true);
+    dragStartXRef.current = e.clientX;
     dragStartYRef.current = e.clientY;
     dragStartValueRef.current = clampedValue;
   };
@@ -140,12 +142,17 @@ export const Knob: React.FC<KnobProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!onChange) return;
 
+      // Calculate delta X (drag right increases, drag left decreases)
+      const deltaX = e.clientX - dragStartXRef.current;
+
       // Calculate delta Y (inverted - drag up increases, drag down decreases)
       const deltaY = dragStartYRef.current - e.clientY;
 
       // Sensitivity: 200 pixels = full range
       const sensitivity = (max - min) / 200;
-      const deltaValue = deltaY * sensitivity;
+
+      // Apply whichever axis has moved further
+      const deltaValue = (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) * sensitivity;
 
       // Calculate new value
       let newValue = dragStartValueRef.current + deltaValue;
