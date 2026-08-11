@@ -172,10 +172,13 @@ implemented in commit `8de72ca` on 2026-08-11. The canonical gate is green with
 5,057 tests total, 5,055 passed and 2 skipped, 89.89% statement and line
 coverage, 81.74% branch coverage, 91.43% function coverage, and a 387,422-byte
 largest production JavaScript chunk; the focused Chromium frame-trim workflow
-passed 1/1. Packet 3B-4 remains in progress. Its immediate next slice is a
-separate persisted track-lock schema revision with central command enforcement;
-roll/ripple/slip/slide, uniform rate-stretch, and the remaining
-keyboard-complete trim feedback follow it.
+passed 1/1. Packet 3B-4 remains in progress. Its immediate planned pickup is
+[3B-4b4 — persisted track locking and central enforcement](milestone-3b-track-locking.md):
+one atomic V15 revision for required audio/video/label track locks, low-level
+direct and nested command enforcement, shared Tracks-menu Lock/Unlock
+reachability, and lock-aware frame trim and edit-point navigation. Roll/ripple,
+slip/slide, uniform rate-stretch, and the remaining keyboard-complete trim
+feedback follow it.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
