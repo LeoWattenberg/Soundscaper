@@ -156,7 +156,7 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
-The delivered first four slices are
+The delivered first five slices are
 [3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
 session-only J/K/L shuttle and strict previous/next video edit-point navigation
 through the existing Transport menu and Framescaper workspace keys; and
@@ -168,17 +168,20 @@ implemented in commit `024ad9b` on 2026-08-11; and
 [3B-4b3 — frame-canonical edge-trim integration](milestone-3b-frame-canonical-edge-trim-integration.md):
 one planner authority for existing video-bearing pointer preview/commit plus
 Framescaper-only left/right-to-playhead application-menu reachability,
-implemented in commit `8de72ca` on 2026-08-11. The canonical gate is green with
-5,057 tests total, 5,055 passed and 2 skipped, 89.89% statement and line
-coverage, 81.74% branch coverage, 91.43% function coverage, and a 387,422-byte
-largest production JavaScript chunk; the focused Chromium frame-trim workflow
-passed 1/1. Packet 3B-4 remains in progress. Its immediate planned pickup is
+implemented in commit `8de72ca` on 2026-08-11; and
 [3B-4b4 — persisted track locking and central enforcement](milestone-3b-track-locking.md):
 one atomic V15 revision for required audio/video/label track locks, low-level
 direct and nested command enforcement, shared Tracks-menu Lock/Unlock
-reachability, and lock-aware frame trim and edit-point navigation. Roll/ripple,
-slip/slide, uniform rate-stretch, and the remaining keyboard-complete trim
-feedback follow it.
+reachability, and lock-aware frame trim and edit-point navigation, implemented
+in commit `86496f4` on 2026-08-11. The canonical gate is green with 5,091 tests
+total, 5,089 passed and 2 skipped, 91.34% statement and line coverage, 79.93%
+branch coverage, 90.45% function coverage, and a 388,318-byte largest production
+JavaScript chunk; focused Chromium track-lock coverage passed 2/2, and policy
+sync/repin checks were green. Packet 3B-4 remains in progress. Its immediate
+planned pickup is
+[3B-4b5 — frame-canonical roll and ripple trim](milestone-3b-roll-ripple-trim.md),
+followed by slip/slide, uniform rate-stretch, and the remaining
+keyboard-complete trim feedback.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and

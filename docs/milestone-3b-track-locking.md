@@ -1,6 +1,6 @@
 # Milestone 3B-4b4: persisted track locking and central enforcement
 
-> **Planned immediate pickup:** bounded slice after
+> **Implemented:** commit `86496f4` on 2026-08-11, after
 > [3B-4b3 — frame-canonical edge-trim integration](milestone-3b-frame-canonical-edge-trim-integration.md).
 > This slice introduces the first persisted track-lock fact, enforces it at the
 > low-level command boundary for both products, and exposes Tracks > Lock/Unlock.
@@ -149,6 +149,19 @@ rate-stretch, and the remaining keyboard-complete trim feedback.
 - Focused tests, policy sync/repin checks, typecheck, lint, architecture/file-size
   checks, canonical non-browser gate, build, and focused Chromium pass before an
   implemented status is recorded.
+
+## Recorded evidence
+
+- Commit `86496f4` landed exact-current V15 lock persistence, the central direct
+  and recursively nested command invariant, live trim/navigation lock facts,
+  shared menu reachability, and the desktop/policy clean break.
+- `npm run check` passed with 5,091 tests total, 5,089 passed and 2 skipped;
+  coverage was 91.34% statements and lines, 79.93% branches, and 90.45%
+  functions. Policy narrative sync and runtime-evidence repin checks were green.
+- The production build guard passed with the largest JavaScript chunk at
+  388,318 bytes. Focused Chromium track-lock coverage passed 2/2.
+- Packaged Electron timing, WebKit, cross-OS, crash/power-loss, and concurrent
+  process claims remain outside this focused qualification exactly as contracted.
 
 ## Implementation sequence and ownership
 

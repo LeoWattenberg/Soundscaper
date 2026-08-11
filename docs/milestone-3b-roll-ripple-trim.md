@@ -1,0 +1,241 @@
+# Milestone 3B-4b5: frame-canonical roll and ripple trim
+
+> **Planned immediate pickup:** bounded Framescaper slice after
+> [3B-4b4 — persisted track locking and central enforcement](milestone-3b-track-locking.md).
+> It adds video-bearing roll and track-ripple trim through one pure planning
+> authority, one atomic transform command, the existing application menu, and
+> the existing timeline handles. It does not add a default-visible control or
+> mark packet 3B-4 complete.
+
+## Foundation already present
+
+- 3B-4b2 owns exact rational edge mapping, one-point sequence conformance,
+  source-handle clamping, reversed-audio formulas, immutable previews, and full
+  candidate video-composition validation. 3B-4b3 replans live and commits one
+  `clip/transform-many` for ordinary video-bearing trims.
+- The foundation coordinate matrix requires roll to conform one shared edit
+  point and ripple to conform one operation span before shifting affected lanes.
+  Neighboring extents may not be conformed independently.
+- Current projects persist canonical video sequence/source frames and derive
+  linked-audio presentation from video endpoints. The command projection is the
+  only planner input that exposes both those authorities and resolved samples.
+- V15 track `locked` is persisted for every lane kind. The central command guard
+  is final authority across direct and nested commands; planners must still use
+  the same live lock facts so preview and menu state fail early and truthfully.
+- Edit > Clip boundaries, configurable menu-action shortcut resolution, existing
+  trim handles, drag previews, Escape cancellation, sequence timecode labels,
+  and status announcements already provide the required opt-in surfaces.
+
+## Slice boundary and outcome
+
+Add one strict, UI-independent planner for **roll** and **track-ripple trim**
+whose participant set contains video. Its request is
+`{ mode: 'roll' | 'ripple', activeClipId, edge: 'left' | 'right',
+requestedBoundarySample }`. The sample is an absolute point in the immutable
+pointer/menu-start projection, never a delta accumulated from previews.
+
+The planner returns a deeply frozen no-op or ordered transform plan. A focused
+controller previews it and, after a fresh live replan, commits exactly one
+`clip/transform-many`. Framescaper exposes four menu actions to the playhead and
+modifier variants of the existing handles. Soundscaper and audio-only trim keep
+their current behavior.
+
+This is lane-targeted ripple, not a sequence-global extract: only deterministic
+media-lane closure described below moves. Timeline labels and other annotations
+do not ripple in this slice.
+
+## Targeting, adjacency, and expansion
+
+1. **The active edge is explicit.** Planning begins with the selected/pointer
+   clip, its chosen edge, and the command projection used for that render or
+   commit. If a clip selection contains the active clip, selection, group, and
+   A/V relations expand transitively in stable project order. Expansion may not
+   leave one member of a relation behind.
+2. **An edge block has one clip per lane.** Every expanded edge participant must
+   expose the chosen edge at the same resolved edit point; video participants
+   expose the same sequence-frame boundary. More than one participant on a lane,
+   a selected/grouped clip at another boundary, mixed sequences/rates, missing
+   ownership, or an ambiguous A/V companion refuses instead of being guessed.
+3. **Roll requires matched touching blocks.** On every edge-block lane there is
+   exactly one distinct clip on the other side: its opposing edge equals the
+   edit point. The adjoining clips and their relation closure must partition
+   into one left and one right clip per affected lane. A gap, overlap, transition,
+   equal/nested interval, third clip, unmatched link/group peer, or closure that
+   crosses sides ambiguously refuses. The first slice never repairs or rolls a
+   transition.
+4. **Ripple moves a deterministic lane suffix.** Seed lanes are the edge-block
+   lanes. All nonparticipant clips beginning at or after the block's original
+   far-right endpoint form the shifted suffix. Repeatedly expand transformed
+   clips through group and A/V relations and add the corresponding lane suffix
+   until a finite fixed point is reached. A nonparticipant straddling the suffix
+   cut, or a relation peer on the stationary side, refuses; it is never split,
+   deleted, or silently detached.
+5. **Visibility is not targeting authority.** Hidden lanes still participate
+   when an explicit edge, group, A/V link, or suffix closure reaches them.
+   Visibility affects rendering only and cannot bypass relation or lock rules.
+6. **Locks fail closed.** The edge block, roll neighbors, every suffix clip, and
+   every lane reached during closure must be unlocked in the live V15 project.
+   One locked affected lane makes preview/menu a refusal and commit changes
+   nothing. The controller derives this predicate; callers cannot weaken it,
+   and central command admission remains final authority.
+
+## Frame, source, and clamp authority
+
+1. **Conform once.** The video authority is the active video, otherwise its
+   unique participating A/V video, otherwise the first participating video in
+   stable project order. Convert the requested absolute sample point to that
+   sequence's integer frame with the existing `point` policy. Subtract the
+   immutable original edge frame once to obtain signed frame delta `d`; every
+   video uses `d`, never a separately rounded sample delta.
+2. **Roll math is one shared boundary.** For adjacent canonical ranges
+   `[L, J]` and `[J, R]`, the resolved boundary is `B = J + d`. Results are
+   `[L, B]` and `[B, R]`; outer endpoints stay fixed. Each adjoining source
+   boundary maps once from that clip's immutable timeline/source ratio. No
+   intermediate duration is reused as an input.
+3. **Right ripple keeps the left endpoint.** For an edge participant `[S, E]`,
+   `B = E + d`; its result is `[S, B]`, and every suffix placement shifts by
+   program delta `p = d`. Shrinking therefore uses negative `d` and closes the
+   exact resolved span.
+4. **Left ripple keeps the program edit anchored.** Here `B = S + d` is the
+   source cut on the immutable original. The participant's chosen source edge
+   maps at `B`, its final placement remains `S`, its duration becomes
+   `(E - S) - d`, and its final end is `E - d`. Every suffix placement shifts by
+   `p = -d`.
+   Thus trimming head material (`d > 0`) shortens the program, without applying
+   `d` a second time to the active clip's placement.
+5. **Canonical source mapping is inherited, not forked.** Video boundaries use
+   exact integer-ratio mapping from canonical sequence frames to canonical
+   source frames and canonical `sourceFrameCount` bounds. A linked audio member
+   uses its own participating video companion's resolved endpoint, including
+   the possible one-sample NTSC phase difference. Other audio uses the operation
+   authority's resolved sample span. Existing forward/reversed mapping, trim
+   metadata, and fade clamps apply; non-null video retime maps refuse.
+6. **Suffix source ranges never move.** Ripple changes only suffix timeline
+   placement. Video suffixes shift by integer `p` sequence frames; unlinked
+   audio shifts by the one resolved sample span, while linked audio presentation
+   is recomputed from its video companion. Source start, source duration,
+   trims, fades, effects, and content remain unchanged.
+7. **One common legal delta controls all participants.** Intersect analytic
+   timeline-origin, positive-extent, source-handle, safe-integer, relation, and
+   lock bounds before candidate construction. If composition legality further
+   constrains the request, use a monotonic binary search toward zero over at
+   most the safe-integer bit width. Never walk `abs(d)` frames. The nearest
+   legal same-sign delta wins; zero is a no-op.
+8. **Validate the complete substitution.** Original and fully substituted video
+   tracks must satisfy existing composition rules after edge, neighbor, and
+   suffix transforms are applied together. Invalid originals refuse; candidates
+   may clamp toward zero but never invent overwrite, split, or transition repair.
+
+## Plan, command, and history contract
+
+- Plans include mode, edge, sequence ID/rate, requested and applied sequence
+  frames, `d`, program delta `p`, resolved source-cut sample, resulting program
+  edit sample, clamped state, stable edge/neighbor/shifted clip IDs, transforms,
+  and complete preview records. No-op plans contain empty transform/preview
+  arrays. Inputs and relation arrays remain unchanged; every result is deeply
+  frozen.
+- Transforms contain only fields accepted by `prepareTransformClipsCommand`.
+  Unchanged fields are omitted from command changes but complete previews carry
+  timeline/source bounds plus trim/fade values. Stable project order breaks all
+  ties.
+- Commit reads a fresh branded command projection, derives persisted locks from
+  that same project, replans, and prepares one `clip/transform-many`. It never
+  uses preview transforms, `range/ripple-delete`, a batch, or a second annotation
+  command. Success is one revision and one undo/redo step; no-op/refusal creates
+  none and publishes no success.
+
+## Menu, keyboard, pointer, and feedback
+
+- Framescaper adds **Roll left edge to playhead**, **Roll right edge to
+  playhead**, **Ripple left edge to playhead**, and **Ripple right edge to
+  playhead** under Edit > Clip boundaries. Live planner results own disabled
+  state. The IDs participate in the existing configurable shortcut/menu-action
+  resolver and remain keyboard reachable through the menubar; J/K/L and the
+  edit-navigation arrows stay reserved, and this slice adds no unmodified global
+  key or default-visible control.
+- An unmodified trim handle remains ordinary trim. `Alt`/`Option` starts roll;
+  `Alt`/`Option` + `Shift` starts ripple. Mode is captured at pointer-down and
+  does not change mid-drag. These trim modifiers suppress selection-toggle
+  behavior for that gesture. Touch retains ordinary trim; roll/ripple remain
+  available through the keyboard-reachable menu.
+- Pointer preview renders every returned preview, including roll neighbors and
+  ripple suffixes, plus a guide at the conformed requested cut. Preview records
+  distinguish source-changing edge/neighbor trims from placement-only suffix
+  moves, so suffixes do not trigger waveform-trim recomputation. Escape cancels.
+  Release submits the final absolute pointer point to a fresh controller replan;
+  stale previews never become commit authority.
+- Success reports localized mode/edge, actual applied frame span, resulting
+  program edit timecode, and a clamp marker. For left ripple it must distinguish
+  the requested/resolved source cut from the anchored final program edge. A
+  no-op reports localized informational feedback, never success; refusal uses
+  the existing error status. No persistent overlay or new readout is added.
+
+## Acceptance
+
+- Table-driven roll and left/right ripple shrink/extend cases cover integer and
+  NTSC rates, nonzero sequence origins, unequal source rates, exact ties,
+  one-frame extents, source-handle and timeline-origin clamps, and requests near
+  safe-integer limits without work proportional to request magnitude.
+- Fixtures cover video-only and exact linked A/V blocks, NTSC companion phase,
+  forward/reversed audio, selection/group closure, stable tie order, ripple
+  suffix fixed points, gaps, hidden lanes, and locked edge/neighbor/downstream
+  lanes. Ambiguous adjacency, relation crossing, straddling clips, mixed rates,
+  retime maps, invalid originals, and transition rolls refuse atomically.
+- Repeated preview from immutable originals has no drift. Applying one returned
+  transform command yields the previewed projected endpoints, canonical video
+  persistence, derived-equal linked audio, unchanged suffix source ranges, one
+  history entry, exact undo/redo, and an unchanged input projection.
+- Service/menu/pointer tests prove live replan, stale-preview rejection, exact
+  action requests, planner-owned enablement, modifier capture, Escape/no-op/error
+  behavior, localized actual-boundary feedback, Framescaper-only exposure, and
+  unchanged Soundscaper/audio-only ordinary trim.
+- Focused Chromium proves all four menu actions, both pointer modes, one NTSC
+  linked pair, a locked refusal, feedback, and one-step undo/redo, while showing
+  no new default-visible feature. Focused tests, typecheck, lint, architecture
+  and file-size checks, canonical non-browser gate, build, and Chromium pass
+  before implementation is recorded.
+
+## Exact first TDD seam and expected ownership
+
+1. Add `tests/audio-editor-frame-canonical-roll-ripple-trim-planner.test.ts`
+   first. Its initial red table covers one touching NTSC video/A-V roll, right
+   ripple, left-ripple anchored placement, frozen output, and locked refusal
+   against an unchanged branded command projection.
+2. Implement focused strict modules
+   `frame-canonical-roll-ripple-trim-domain.ts` and
+   `frame-canonical-roll-ripple-trim-planner.ts`. Extract narrowly reusable
+   exact mapping/index helpers from the existing edge planner instead of copying
+   rational, link-phase, composition, or validation authority. Keep each new
+   maintained file below 600 lines and register every new time-conversion site.
+3. Add a focused controller service/reporter and command/undo tests, then a
+   Framescaper menu model and extracted pointer-routing adapter. Compose through
+   narrow app/action/menu/copy changes; do not grow the action facade with
+   arithmetic or add a style/default-visible component.
+4. Add focused UI and Chromium proof, run the gates, then update packet status in
+   a separate owning change.
+
+## Non-goals
+
+- No sequence-global ripple, label/annotation ripple, clip split/delete, media
+  overwrite, transition roll/repair, or automatic target-lane guessing.
+- No audio-only replacement, slip, slide, rate-stretch, retiming curve, reverse
+  video, freeze frame, multicam, or nested-sequence behavior.
+- No schema, capability, requirement, command discriminant, persisted preview,
+  derived cache, toolbar/tool-mode/row control, styling, or Soundscaper menu.
+- No packet 3B-4 completion or packaged Electron/WebKit qualification claim.
+
+## Stop conditions
+
+- Stop if either operation needs per-clip sequence conformance, floating ratio
+  accumulation, a derived persisted cache, or video bounds from a sample alias.
+- Stop if a successful result cannot be one `clip/transform-many` and one undo
+  step, or if annotation movement is required to call the operation truthful.
+- Stop on ambiguous adjacency, non-monotonic legality, relation closure across
+  the stationary cut, or any affected locked lane; do not detach, split, repair,
+  or silently narrow targets.
+- Stop if preview and commit cannot use the same pure planner and live lock
+  facts, or if pointer integration needs a new default-visible surface or changes
+  ordinary audio trim/Soundscaper behavior.
+
+The four packaged Electron timing-probe rows remain `pending-external`, and
+WebKit remains deferred. A focused Chromium result qualifies only that workflow.

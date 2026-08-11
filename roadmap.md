@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-10. Milestones are ordered by
+> Grounded against the repository on 2026-08-11. Milestones are ordered by
 > dependency and close only when their exit gates pass. They are not release-date
 > promises.
 
@@ -441,16 +441,22 @@ Packet boundaries, dependencies, and acceptance are owned by
   (`024ad9b`) and its controller, existing-pointer, and application-menu
   integration (`8de72ca`) are implemented: video-bearing left/right trims share
   one absolute-boundary authority, keep linked audio aligned, and remain
-  one-step undoable. Packet 3B-4 stays in progress. Its immediate next slice is
-  the separate persisted track-lock schema revision with central command
-  enforcement; roll/ripple/slip/slide, uniform rate-stretch, and the remaining
-  keyboard-complete trim feedback follow. See
+  one-step undoable. Exact-current V15 track locks now persist across both
+  products and desktop storage, centrally refuse direct or nested changes to
+  protected editorial state, drive shared Tracks-menu Lock/Unlock, and make
+  trim/navigation consume live lock facts. Packet 3B-4 stays in progress. Its
+  immediate next slice is frame-canonical roll and lane-ripple trim; slip/slide,
+  uniform rate-stretch, and the remaining keyboard-complete trim feedback
+  follow. See
   [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md)
   and
   [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
   [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),
   and
-  [`docs/milestone-3b-frame-canonical-edge-trim-integration.md`](docs/milestone-3b-frame-canonical-edge-trim-integration.md).
+  [`docs/milestone-3b-frame-canonical-edge-trim-integration.md`](docs/milestone-3b-frame-canonical-edge-trim-integration.md),
+  [`docs/milestone-3b-track-locking.md`](docs/milestone-3b-track-locking.md),
+  and
+  [`docs/milestone-3b-roll-ripple-trim.md`](docs/milestone-3b-roll-ripple-trim.md).
 - **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
   shared breakpoint model, reverse/freeze frames, nested sequences,
   subsequence time mapping, and deterministic flattening.
