@@ -24,6 +24,18 @@ const RATE = Object.freeze({ num: 24, den: 1 });
 
 type PersistedProject = ReturnType<typeof createProject>;
 
+test('step requests read fresh branded authority without consulting timing evidence', () => {
+	const harness = createHarness();
+
+	assert.deepEqual(harness.service.buildStepRequest({
+		mode: 'slip', activeClipId: 'video', direction: 'earlier',
+	}), {
+		mode: 'slip', activeClipId: 'video', requestedSourceInFrame: 9,
+	});
+	assert.equal(harness.projectReads(), 1);
+	assert.equal(harness.timingReads(), 0);
+});
+
 test('every preview reads fresh branded V15 authority and timing evidence without mutation or reporting', () => {
 	const harness = createHarness();
 	const projectBefore = JSON.stringify(harness.project());
@@ -164,8 +176,13 @@ function createHarness(options: Readonly<{ blocked?: boolean }> = {}) {
 			assert.equal(isRuntimeProjectProjection(projection), true);
 			return projection;
 		},
-		getTimingViews: () => {
+		getTimingViews: (planningProject) => {
 			timingReadCount += 1;
+			assert.equal(
+				planningProject,
+				projection,
+				'timing evidence must resolve from the exact projection used by this plan',
+			);
 			return views;
 		},
 		editingBlocked: () => options.blocked === true,

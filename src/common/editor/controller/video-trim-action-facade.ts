@@ -8,6 +8,11 @@ import type {
 	FrameCanonicalRollRippleTrimPlan,
 	FrameCanonicalRollRippleTrimRequest,
 } from '../frame-canonical-roll-ripple-trim-domain.ts';
+import type {
+	FrameCanonicalSlipSlidePlan,
+	FrameCanonicalSlipSlideRequest,
+} from '../frame-canonical-slip-slide-domain.ts';
+import type { FrameCanonicalSlipSlideStep } from '../frame-canonical-slip-slide-step-request.ts';
 import type { VideoTrimServices } from './video-trim-composition.ts';
 
 export interface VideoTrimActionFacadeDependencies {
@@ -23,9 +28,14 @@ export interface VideoTrimActionFacade {
 		preview(request: FrameCanonicalRollRippleTrimRequest): FrameCanonicalRollRippleTrimPlan;
 		commit(request: FrameCanonicalRollRippleTrimRequest): FrameCanonicalRollRippleTrimPlan;
 	}>;
+	readonly slipSlide: Readonly<{
+		buildStepRequest(step: FrameCanonicalSlipSlideStep): Readonly<FrameCanonicalSlipSlideRequest>;
+		preview(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan;
+		commit(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan;
+	}>;
 }
 
-/** Preserve ordinary trim ports and capability-gate the nested roll/ripple ports identically. */
+/** Preserve ordinary trim ports and capability-gate every nested trim port identically. */
 export function createVideoTrimActionFacade(
 	dependencies: VideoTrimActionFacadeDependencies,
 ): Readonly<VideoTrimActionFacade> {
@@ -43,6 +53,11 @@ export function createVideoTrimActionFacade(
 		rollRipple: Object.freeze({
 			preview: guard(dependencies.services.rollRipple.preview),
 			commit: guard(dependencies.services.rollRipple.commit),
+		}),
+		slipSlide: Object.freeze({
+			buildStepRequest: guard(dependencies.services.slipSlide.buildStepRequest),
+			preview: guard(dependencies.services.slipSlide.preview),
+			commit: guard(dependencies.services.slipSlide.commit),
 		}),
 	});
 }

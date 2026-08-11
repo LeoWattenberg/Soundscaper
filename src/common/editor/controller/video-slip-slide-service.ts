@@ -9,6 +9,10 @@ import type {
 	VideoSourceTimingView,
 } from '../frame-canonical-slip-slide-domain.ts';
 import { planFrameCanonicalSlipSlide } from '../frame-canonical-slip-slide-planner.ts';
+import {
+	buildFrameCanonicalSlipSlideStepRequest,
+	type FrameCanonicalSlipSlideStep,
+} from '../frame-canonical-slip-slide-step-request.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 
 type TransformManyCommand = Extract<AudioEditorCommand, { readonly type: 'clip/transform-many' }>;
@@ -25,7 +29,7 @@ export interface VideoSlipSlideServiceDependencies {
 	/** A fresh branded command projection for the live persisted project. */
 	getProject(): unknown;
 	/** Fresh verified source-timing evidence for the same planning attempt. */
-	getTimingViews(): ReadonlyMap<string, VideoSourceTimingView>;
+	getTimingViews(project: unknown): ReadonlyMap<string, VideoSourceTimingView>;
 	editingBlocked(): boolean;
 	commit(command: AudioEditorCommand): unknown;
 	/** Optional existing-status adapter; previews and failed operations never call it. */
@@ -33,6 +37,8 @@ export interface VideoSlipSlideServiceDependencies {
 }
 
 export interface VideoSlipSlideService {
+	/** Build an absolute one-frame menu request from fresh immutable authority. */
+	buildStepRequest(step: FrameCanonicalSlipSlideStep): Readonly<FrameCanonicalSlipSlideRequest>;
 	/** Plan immutable presentation geometry without changing document state. */
 	preview(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan;
 	/** Replan against live project and timing authority, then commit at most one command. */
@@ -48,7 +54,7 @@ export function createVideoSlipSlideService(
 		readonly result: FrameCanonicalSlipSlidePlan;
 	}> {
 		const project = dependencies.getProject();
-		const timingViews = dependencies.getTimingViews();
+		const timingViews = dependencies.getTimingViews(project);
 		return {
 			project,
 			result: planFrameCanonicalSlipSlide(
@@ -64,6 +70,13 @@ export function createVideoSlipSlideService(
 		return plan(request).result;
 	}
 
+	function buildStepRequest(
+		step: FrameCanonicalSlipSlideStep,
+	): Readonly<FrameCanonicalSlipSlideRequest> {
+		dependencies.lifetime.assertActive();
+		return buildFrameCanonicalSlipSlideStepRequest(dependencies.getProject(), step);
+	}
+
 	function commit(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
@@ -77,7 +90,7 @@ export function createVideoSlipSlideService(
 		return result;
 	}
 
-	return Object.freeze({ preview, commit });
+	return Object.freeze({ buildStepRequest, preview, commit });
 }
 
 /** Caller predicates are never authority; bind locks to the live planning project. */
