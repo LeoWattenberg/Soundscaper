@@ -450,17 +450,22 @@ Packet boundaries, dependencies, and acceptance are owned by
   by the lazy menu and modified existing handles. Frame-canonical slip and slide
   are implemented through `c490af3b`: one verified-timing authority keeps linked
   A/V exact through lazy menu actions and modified whole-clip gestures, with
-  persisted locks and one-step undo/redo. Packet 3B-4 stays in progress. Its
-  immediate next slice is bounded **3B-4b7 — uniform rate-stretch**, followed by
-  the remaining keyboard-complete trim feedback. See
+  persisted locks and one-step undo/redo. Uniform constant rate-stretch is
+  implemented through `2bbfa06b`: one verified timing and rational duration
+  authority keeps source ranges fixed while lazy menu actions and the existing
+  video handles update linked A/V canonically and report the derived rate.
+  Packet 3B-4 stays in progress. Its immediate next slice is bounded
+  **3B-4b8 — canonical clip-focus trim keyboard parity**. See
   [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md),
   [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
   [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),
   [`docs/milestone-3b-frame-canonical-edge-trim-integration.md`](docs/milestone-3b-frame-canonical-edge-trim-integration.md),
   [`docs/milestone-3b-track-locking.md`](docs/milestone-3b-track-locking.md),
   [`docs/milestone-3b-roll-ripple-trim.md`](docs/milestone-3b-roll-ripple-trim.md),
+  [`docs/milestone-3b-slip-slide.md`](docs/milestone-3b-slip-slide.md),
+  [`docs/milestone-3b-uniform-rate-stretch.md`](docs/milestone-3b-uniform-rate-stretch.md),
   and
-  [`docs/milestone-3b-slip-slide.md`](docs/milestone-3b-slip-slide.md).
+  [`docs/milestone-3b-canonical-trim-keyboard.md`](docs/milestone-3b-canonical-trim-keyboard.md).
 - **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
   shared breakpoint model, reverse/freeze frames, nested sequences,
   subsequence time mapping, and deterministic flattening.

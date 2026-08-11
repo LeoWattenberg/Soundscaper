@@ -1,11 +1,12 @@
 # Milestone 3B-4b7: frame-canonical uniform rate-stretch
 
-> **Planned immediate pickup:** bounded Framescaper slice after
+> **Implemented:** delivered through commit `2bbfa06b` on 2026-08-11, after
 > [3B-4b6 — frame-canonical slip and slide](milestone-3b-slip-slide.md).
 > It adds constant-rate video-bearing stretch through one pure planning
 > authority, one atomic transform command, the existing Clip boundaries menu,
 > and the existing video stretch handles. It does not add retiming curves or
-> complete packet 3B-4; a narrow keyboard adapter/status-parity slice follows.
+> complete packet 3B-4; the immediate pickup is the narrow canonical
+> clip-focus keyboard adapter/status-parity slice.
 
 ## Foundation already present
 
@@ -206,6 +207,23 @@ Add `rate-stretch` to the machine-readable and rendered foundation matrix:
    reachability, Soundscaper absence, and no new default-visible control.
 6. Run focused tests while red/green, then `npm run check`, build, focused
    Chromium, and the roadmap/status checks before recording delivery.
+
+## Recorded evidence
+
+- Delivery through commit `2bbfa06b` includes the pure CFR/VFR-capable planner,
+  verified source-timing boundary, frame-canonical command persistence,
+  controller and localized feedback, lazy Framescaper menu state, existing
+  stretch-handle routing, derived-rate badge, and focused browser workflow.
+- `npm run check` passed with 5,253 tests total, 5,251 passed and 2 skipped;
+  coverage was 90.08% statements and lines, 81.95% branches, and 90.58%
+  functions.
+- The production build guard passed with the largest JavaScript chunk at
+  388,318 bytes. Focused Chromium exact-timing rate-stretch coverage passed
+  1/1, validating the persisted timing asset bytes and exact linked A/V
+  canonical/source persistence across both lazy menu actions and both existing
+  video stretch handles, PTS-derived rate feedback, undo/redo, transient
+  previews and guide, lock refusal, localized German feedback, Soundscaper
+  absence, and no default-visible control.
 
 ## Remaining 3B-4 keyboard seam
 

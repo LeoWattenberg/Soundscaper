@@ -156,7 +156,7 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
-The delivered first seven slices are
+The delivered first eight slices are
 [3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
 session-only J/K/L shuttle and strict previous/next video edit-point navigation
 through the existing Transport menu and Framescaper workspace keys; and
@@ -184,13 +184,17 @@ frame-canonical authority for exact source-domain slip and fixed-outer-edge slid
 planning, atomic command and history, verified timing, persisted-lock refusal,
 lazy Framescaper menu state, whole-clip modifier routing, complete previews and
 guides, and localized feedback, delivered through commit `c490af3b` on
-2026-08-11. The canonical gate passed with 5,220 tests total, 5,218 passed and 2
-skipped, 91.34% statement and line coverage, 79.93% branch coverage, 90.45%
-function coverage, and a 388,318-byte largest production JavaScript chunk;
-focused Chromium exact-timing slip/slide coverage passed 1/1. Packet 3B-4
-remains in progress. Its immediate planned pickup is
-[3B-4b7 — frame-canonical uniform rate-stretch](milestone-3b-uniform-rate-stretch.md),
-followed by
+2026-08-11; and
+[3B-4b7 — frame-canonical uniform rate-stretch](milestone-3b-uniform-rate-stretch.md):
+one exact rational duration authority with fixed source ranges, verified
+CFR/VFR timing, canonical linked A/V persistence, live lock refusal, lazy menu
+reachability, existing stretch-handle routing, localized feedback, and a
+derived-rate badge, delivered through commit `2bbfa06b` on 2026-08-11. The
+canonical gate passed with 5,253 tests total, 5,251 passed and 2 skipped, 90.08%
+statement and line coverage, 81.95% branch coverage, 90.58% function coverage,
+and a 388,318-byte largest production JavaScript chunk; focused Chromium
+exact-timing rate-stretch coverage passed 1/1. Packet 3B-4 remains in progress.
+Its immediate planned pickup is
 [3B-4b8 — canonical clip-focus trim keyboard parity](milestone-3b-canonical-trim-keyboard.md)
 for the remaining clip-focus trim and stretch callbacks.
 
