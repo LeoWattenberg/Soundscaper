@@ -36,4 +36,5 @@ test('video trim composition owns edge, roll/ripple, and slip/slide services', (
 		assert.equal(typeof service.commit, 'function');
 		assert.equal(Object.isFrozen(service), true);
 	}
+	assert.equal(typeof services.slipSlide.capturePointerAuthority, 'function');
 });

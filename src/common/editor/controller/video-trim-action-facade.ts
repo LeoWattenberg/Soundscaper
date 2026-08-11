@@ -12,6 +12,10 @@ import type {
 	FrameCanonicalSlipSlidePlan,
 	FrameCanonicalSlipSlideRequest,
 } from '../frame-canonical-slip-slide-domain.ts';
+import type {
+	FrameCanonicalSlipSlidePointerAuthority,
+	FrameCanonicalSlipSlidePointerCapture,
+} from '../frame-canonical-slip-slide-pointer-request.ts';
 import type { FrameCanonicalSlipSlideStep } from '../frame-canonical-slip-slide-step-request.ts';
 import type { VideoTrimServices } from './video-trim-composition.ts';
 
@@ -29,6 +33,9 @@ export interface VideoTrimActionFacade {
 		commit(request: FrameCanonicalRollRippleTrimRequest): FrameCanonicalRollRippleTrimPlan;
 	}>;
 	readonly slipSlide: Readonly<{
+		capturePointerAuthority(
+			capture: FrameCanonicalSlipSlidePointerCapture,
+		): FrameCanonicalSlipSlidePointerAuthority;
 		buildStepRequest(step: FrameCanonicalSlipSlideStep): Readonly<FrameCanonicalSlipSlideRequest>;
 		preview(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan;
 		commit(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan;
@@ -55,6 +62,7 @@ export function createVideoTrimActionFacade(
 			commit: guard(dependencies.services.rollRipple.commit),
 		}),
 		slipSlide: Object.freeze({
+			capturePointerAuthority: guard(dependencies.services.slipSlide.capturePointerAuthority),
 			buildStepRequest: guard(dependencies.services.slipSlide.buildStepRequest),
 			preview: guard(dependencies.services.slipSlide.preview),
 			commit: guard(dependencies.services.slipSlide.commit),

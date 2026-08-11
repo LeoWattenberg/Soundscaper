@@ -10,6 +10,11 @@ import type {
 } from '../frame-canonical-slip-slide-domain.ts';
 import { planFrameCanonicalSlipSlide } from '../frame-canonical-slip-slide-planner.ts';
 import {
+	captureFrameCanonicalSlipSlidePointerAuthority,
+	type FrameCanonicalSlipSlidePointerAuthority,
+	type FrameCanonicalSlipSlidePointerCapture,
+} from '../frame-canonical-slip-slide-pointer-request.ts';
+import {
 	buildFrameCanonicalSlipSlideStepRequest,
 	type FrameCanonicalSlipSlideStep,
 } from '../frame-canonical-slip-slide-step-request.ts';
@@ -37,6 +42,10 @@ export interface VideoSlipSlideServiceDependencies {
 }
 
 export interface VideoSlipSlideService {
+	/** Capture immutable whole-clip gesture authority from one fresh project/timing read. */
+	capturePointerAuthority(
+		capture: FrameCanonicalSlipSlidePointerCapture,
+	): FrameCanonicalSlipSlidePointerAuthority;
 	/** Build an absolute one-frame menu request from fresh immutable authority. */
 	buildStepRequest(step: FrameCanonicalSlipSlideStep): Readonly<FrameCanonicalSlipSlideRequest>;
 	/** Plan immutable presentation geometry without changing document state. */
@@ -77,6 +86,18 @@ export function createVideoSlipSlideService(
 		return buildFrameCanonicalSlipSlideStepRequest(dependencies.getProject(), step);
 	}
 
+	function capturePointerAuthority(
+		capture: FrameCanonicalSlipSlidePointerCapture,
+	): FrameCanonicalSlipSlidePointerAuthority {
+		dependencies.lifetime.assertActive();
+		const project = dependencies.getProject();
+		return captureFrameCanonicalSlipSlidePointerAuthority(
+			project,
+			dependencies.getTimingViews(project),
+			capture,
+		);
+	}
+
 	function commit(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
@@ -90,7 +111,7 @@ export function createVideoSlipSlideService(
 		return result;
 	}
 
-	return Object.freeze({ buildStepRequest, preview, commit });
+	return Object.freeze({ capturePointerAuthority, buildStepRequest, preview, commit });
 }
 
 /** Caller predicates are never authority; bind locks to the live planning project. */

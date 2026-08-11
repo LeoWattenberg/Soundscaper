@@ -36,6 +36,24 @@ test('step requests read fresh branded authority without consulting timing evide
 	assert.equal(harness.timingReads(), 0);
 });
 
+test('pointer authority captures one fresh project and its exact timing-view identity', () => {
+	const harness = createHarness();
+	const view = harness.timing().get('video-source');
+	const authority = harness.service.capturePointerAuthority({
+		mode: 'slip', activeClipId: 'video', pointerDownSample: 12_345,
+	});
+
+	assert.deepEqual(authority, {
+		mode: 'slip', activeClipId: 'video', pointerDownSample: 12_345,
+		sourceInFrame: 10, sourceOutFrame: 14, programDurationSamples: 8_000,
+		timingView: view,
+	});
+	assert.equal(authority.mode === 'slip' ? authority.timingView : null, view);
+	assert.equal(harness.projectReads(), 1);
+	assert.equal(harness.timingReads(), 1);
+	assert.deepEqual(harness.events, []);
+});
+
 test('every preview reads fresh branded V15 authority and timing evidence without mutation or reporting', () => {
 	const harness = createHarness();
 	const projectBefore = JSON.stringify(harness.project());

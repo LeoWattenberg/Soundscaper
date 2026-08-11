@@ -19,6 +19,7 @@ test('video trim facade exposes the exact nested slip/slide preview and commit p
 			edge: { preview: callable('edge-preview'), commit: callable('edge-commit') },
 			rollRipple: { preview: callable('roll-preview'), commit: callable('roll-commit') },
 			slipSlide: {
+				capturePointerAuthority: callable('slip-slide-pointer'),
 				buildStepRequest: callable('slip-slide-step'),
 				preview: callable('slip-slide-preview'),
 				commit: callable('slip-slide-commit'),
@@ -30,16 +31,23 @@ test('video trim facade exposes the exact nested slip/slide preview and commit p
 		activeClipId: 'video-clip',
 		direction: 'later' as const,
 	});
+	const pointer = Object.freeze({
+		mode: 'slip' as const,
+		activeClipId: 'video-clip',
+		pointerDownSample: 24_000,
+	});
 	const request = Object.freeze({
 		mode: 'slip' as const,
 		activeClipId: 'video-clip',
 		requestedSourceInFrame: 41,
 	});
 
+	assert.equal(facade.slipSlide.capturePointerAuthority(pointer), pointer);
 	assert.equal(facade.slipSlide.buildStepRequest(step), step);
 	assert.equal(facade.slipSlide.preview(request), request);
 	assert.equal(facade.slipSlide.commit(request), request);
 	assert.deepEqual(events, [
+		['slip-slide-pointer', pointer],
 		['slip-slide-step', step],
 		['slip-slide-preview', request],
 		['slip-slide-commit', request],
@@ -57,7 +65,12 @@ test('Soundscaper capability rejection reaches both slip/slide ports before serv
 		services: {
 			edge: { preview: unavailable, commit: unavailable },
 			rollRipple: { preview: unavailable, commit: unavailable },
-			slipSlide: { buildStepRequest: unavailable, preview: unavailable, commit: unavailable },
+			slipSlide: {
+				capturePointerAuthority: unavailable,
+				buildStepRequest: unavailable,
+				preview: unavailable,
+				commit: unavailable,
+			},
 		} as unknown as VideoTrimServices,
 	});
 	const step = Object.freeze({
@@ -65,12 +78,21 @@ test('Soundscaper capability rejection reaches both slip/slide ports before serv
 		activeClipId: 'video-clip',
 		direction: 'earlier' as const,
 	});
+	const pointer = Object.freeze({
+		mode: 'slide' as const,
+		activeClipId: 'video-clip',
+		pointerDownSample: 48_000,
+	});
 	const request = Object.freeze({
 		mode: 'slide' as const,
 		activeClipId: 'video-clip',
 		requestedStartSample: 48_000,
 	});
 
+	assert.throws(
+		() => facade.slipSlide.capturePointerAuthority(pointer),
+		/Soundscaper does not support videoCompositing/u,
+	);
 	assert.throws(
 		() => facade.slipSlide.buildStepRequest(step),
 		/Soundscaper does not support videoCompositing/u,
