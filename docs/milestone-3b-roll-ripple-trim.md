@@ -48,28 +48,28 @@ do not ripple in this slice.
 
 1. **The active edge is explicit.** Planning begins with the selected/pointer
    clip, its chosen edge, and the command projection used for that render or
-   commit. If a clip selection contains the active clip, selection, group, and
-   A/V relations expand transitively in stable project order. Expansion may not
-   leave one member of a relation behind.
-2. **An edge block has one clip per lane.** Every expanded edge participant must
-   expose the chosen edge at the same resolved edit point; video participants
-   expose the same sequence-frame boundary. More than one participant on a lane,
-   a selected/grouped clip at another boundary, mixed sequences/rates, missing
-   ownership, or an ambiguous A/V companion refuses instead of being guessed.
-3. **Roll requires matched touching blocks.** On every edge-block lane there is
-   exactly one distinct clip on the other side: its opposing edge equals the
-   edit point. The adjoining clips and their relation closure must partition
-   into one left and one right clip per affected lane. A gap, overlap, transition,
-   equal/nested interval, third clip, unmatched link/group peer, or closure that
-   crosses sides ambiguously refuses. The first slice never repairs or rolls a
-   transition.
+   commit. Expansion is mode-specific and stable; it may not leave one selected,
+   grouped, or A/V-linked member behind.
+2. **Ripple has one edge participant per lane.** Selection, group, and A/V
+   relations expand transitively from the active clip. Every result exposes the
+   chosen edge at the same resolved edit point, and video results expose the same
+   sequence-frame boundary. More than one participant on a lane, another edge,
+   mixed sequences/rates, missing ownership, or ambiguous A/V refuses.
+3. **Roll classifies one matched touching pair per lane.** Seed the active clip
+   and its unique same-lane exact-touch neighbor, then expand selection, group,
+   and A/V relations across both sides. Classify every result by `end == J`
+   (left) or `start == J` (right); every affected lane requires exactly one of
+   each. An unclassified or dual clip, gap, overlap, transition, equal/nested
+   interval, duplicate side, unmatched peer, or ambiguous closure refuses. The
+   first slice never repairs or rolls a transition.
 4. **Ripple moves a deterministic lane suffix.** Seed lanes are the edge-block
-   lanes. All nonparticipant clips beginning at or after the block's original
-   far-right endpoint form the shifted suffix. Repeatedly expand transformed
-   clips through group and A/V relations and add the corresponding lane suffix
-   until a finite fixed point is reached. A nonparticipant straddling the suffix
-   cut, or a relation peer on the stationary side, refuses; it is never split,
-   deleted, or silently detached.
+   lanes. Each lane's suffix cut is that lane participant's original far-right
+   endpoint, so equal chosen edges may have unequal durations. All
+   nonparticipants beginning at or after their lane cut shift. Repeatedly expand
+   transformed clips through group and A/V relations and add each reached lane's
+   suffix until a finite fixed point is reached. A nonparticipant straddling its
+   lane cut, or a relation peer on the stationary side, refuses; it is never
+   split, deleted, or silently detached.
 5. **Visibility is not targeting authority.** Hidden lanes still participate
    when an explicit edge, group, A/V link, or suffix closure reaches them.
    Visibility affects rendering only and cannot bypass relation or lock rules.
@@ -112,15 +112,19 @@ do not ripple in this slice.
    metadata, and fade clamps apply; non-null video retime maps refuse.
 6. **Suffix source ranges never move.** Ripple changes only suffix timeline
    placement. Video suffixes shift by integer `p` sequence frames; unlinked
-   audio shifts by the one resolved sample span, while linked audio presentation
-   is recomputed from its video companion. Source start, source duration,
-   trims, fades, effects, and content remain unchanged.
-7. **One common legal delta controls all participants.** Intersect analytic
-   timeline-origin, positive-extent, source-handle, safe-integer, relation, and
-   lock bounds before candidate construction. If composition legality further
-   constrains the request, use a monotonic binary search toward zero over at
-   most the safe-integer bit width. Never walk `abs(d)` frames. The nearest
-   legal same-sign delta wins; zero is a no-op.
+   audio shifts by `resolvedProgramSampleDelta`, defined as authority
+   `sample(B) - sample(E)` on the right and `sample(S) - sample(B)` on the left.
+   Linked edge and suffix audio instead derive endpoints from their own video
+   companion, preserving a possible one-sample NTSC phase difference. Every
+   transformed suffix video shares the authority sequence and rate. Source
+   start, source duration, trims, fades, effects, and content remain unchanged.
+7. **One common legal delta controls all participants.** Preflight exact-touch
+   roll or no-straddler uniform-suffix ripple structure before candidate search;
+   that structure must make legality a monotonic prefix from zero. Intersect
+   analytic timeline-origin, positive-extent, source-handle, safe-integer,
+   relation, and lock bounds, then use a binary search toward zero over at most
+   the safe-integer bit width. Never walk `abs(d)` frames or search through a
+   legality hole. The nearest legal same-sign delta wins; zero is a no-op.
 8. **Validate the complete substitution.** Original and fully substituted video
    tracks must satisfy existing composition rules after edge, neighbor, and
    suffix transforms are applied together. Invalid originals refuse; candidates
@@ -129,11 +133,11 @@ do not ripple in this slice.
 ## Plan, command, and history contract
 
 - Plans include mode, edge, sequence ID/rate, requested and applied sequence
-  frames, `d`, program delta `p`, resolved source-cut sample, resulting program
-  edit sample, clamped state, stable edge/neighbor/shifted clip IDs, transforms,
-  and complete preview records. No-op plans contain empty transform/preview
-  arrays. Inputs and relation arrays remain unchanged; every result is deeply
-  frozen.
+  frames, `d`, program delta `p`, `resolvedProgramSampleDelta`, resolved
+  source-cut sample, resulting program edit sample, clamped state, stable
+  edge/neighbor/shifted clip IDs, transforms, and complete preview records.
+  No-op plans contain empty transform/preview arrays. Inputs and relation arrays
+  remain unchanged; every result is deeply frozen.
 - Transforms contain only fields accepted by `prepareTransformClipsCommand`.
   Unchanged fields are omitted from command changes but complete previews carry
   timeline/source bounds plus trim/fade values. Stable project order breaks all
@@ -166,8 +170,9 @@ do not ripple in this slice.
   stale previews never become commit authority.
 - Success reports localized mode/edge, actual applied frame span, resulting
   program edit timecode, and a clamp marker. For left ripple it must distinguish
-  the requested/resolved source cut from the anchored final program edge. A
-  no-op reports localized informational feedback, never success; refusal uses
+  the requested/resolved source cut `B` from the unchanged placement edge `S`
+  and the resulting program join `E - d`; `programEditSample` names that join.
+  A no-op reports localized informational feedback, never success; refusal uses
   the existing error status. No persistent overlay or new readout is added.
 
 ## Acceptance
@@ -177,10 +182,13 @@ do not ripple in this slice.
   one-frame extents, source-handle and timeline-origin clamps, and requests near
   safe-integer limits without work proportional to request magnitude.
 - Fixtures cover video-only and exact linked A/V blocks, NTSC companion phase,
-  forward/reversed audio, selection/group closure, stable tie order, ripple
+  forward/reversed audio, selected touching roll pairs, same-side and cross-side
+  group closure, unequal-duration left-ripple lanes, stable tie order, ripple
   suffix fixed points, gaps, hidden lanes, and locked edge/neighbor/downstream
-  lanes. Ambiguous adjacency, relation crossing, straddling clips, mixed rates,
-  retime maps, invalid originals, and transition rolls refuse atomically.
+  lanes. Ambiguous adjacency, relation crossing, straddling clips, mixed suffix
+  sequences/rates, retime maps, invalid originals, and transition rolls refuse
+  atomically. Small exhaustive rows prove legal magnitudes cannot reappear after
+  an illegal magnitude.
 - Repeated preview from immutable originals has no drift. Applying one returned
   transform command yields the previewed projected endpoints, canonical video
   persistence, derived-equal linked audio, unchanged suffix source ranges, one
