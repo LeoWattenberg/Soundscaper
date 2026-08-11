@@ -167,6 +167,11 @@ the selected video track, using the existing undoable persisted commands. Packet
 roll/ripple/slip/slide, uniform rate-stretch, and keyboard-complete trim feedback
 remain. The immediate dependency is decomposed as
 [3B-4b2 — frame-canonical edge-trim planner](milestone-3b-frame-canonical-edge-trim-planner.md).
+After that pure planner is implemented, the next planned pickup is
+[3B-4b3 — frame-canonical edge-trim integration](milestone-3b-frame-canonical-edge-trim-integration.md):
+one planner authority for existing video-bearing pointer preview/commit plus
+Framescaper-only left/right-to-playhead application-menu reachability. It does
+not include the later track-lock schema and central-enforcement slice.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
