@@ -5,9 +5,11 @@ import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
 import { samplePointAtPointer } from './track-row-helpers.jsx';
+import { resolveTimelineTrimPointerPreview } from './trim-pointer-routing.ts';
 
 export function useTimelinePointerMove({
 	controller,
+	snapshot,
 	state,
 	model,
 	hitTesting,
@@ -205,26 +207,28 @@ export function useTimelinePointerMove({
 			};
 			session.preview = preview;
 			setClipDragPreview(preview);
-		} else if (session?.kind === 'trim-left') {
-			const deltaFrames = secondsToFrames(
-				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
-				{ sampleRate },
-			) * Math.sign(event.clientX - session.startX);
-			const preview = createClipTrimPreview(projectIndex, session, deltaFrames, 'left');
-			if (!preview) return;
-			session.preview = preview;
-			setClipDragPreview(preview);
-		} else if (session?.kind === 'trim-right') {
-			const deltaFrames = secondsToFrames(
-				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
-				{ sampleRate },
-			) * Math.sign(event.clientX - session.startX);
-			const preview = createClipTrimPreview(projectIndex, session, deltaFrames, 'right');
-			if (!preview) return;
+		} else if (session?.kind === 'trim-left' || session?.kind === 'trim-right') {
+			const edge = session.kind === 'trim-left' ? 'left' : 'right';
+			const preview = resolveTimelineTrimPointerPreview({
+				projectIndex, session, edge,
+				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
+				canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+				legacyRequestedDelta: () => secondsToFrames(
+					Math.abs(event.clientX - session.startX) / pixelsPerSecond,
+					{ sampleRate },
+				) * Math.sign(event.clientX - session.startX),
+				previewVideo: (request) => run(() => controller.actions.video.trim.preview(request)),
+				createLegacyPreview: createClipTrimPreview,
+			});
+			if (!preview) {
+				session.preview = null;
+				setClipDragPreview(null);
+				return;
+			}
 			session.preview = preview;
 			setClipDragPreview(preview);
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setProjectBinDropActive, trackAtClientY]);
+	}, [controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, trackAtClientY]);
 
 	return { onPointerMove };
 }

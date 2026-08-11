@@ -19,6 +19,7 @@ import {
 } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
+import { createFramescaperVideoTrimMenuItems, createFramescaperVideoTrimMenuModel } from './framescaper-video-trim-menu-model.ts';
 
 export default function createApplicationMenus({
 	productId,
@@ -34,6 +35,7 @@ export default function createApplicationMenus({
 	showArmControls,
 	selectionActive,
 	selectedClip,
+	playheadSample,
 	durationFrames,
 	effectsPanelOpen,
 	projectBinEffectivelyOpen,
@@ -94,6 +96,10 @@ export default function createApplicationMenus({
 		selectedTrackId: snapshot.selectedTrackId ?? null, editBlocked,
 		copy: { linkAudio: copy.linkAudio, unlinkAudio: copy.unlinkAudio, showVideo: copy.videoVisible, hideVideo: copy.videoHidden },
 	}, { link: actions.linkVideoAudio, unlink: actions.unlinkVideoAudio, setVideoHidden: actions.setVideoHidden });
+	const framescaperVideoTrim = createFramescaperVideoTrimMenuItems(createFramescaperVideoTrimMenuModel({
+		productId, selectedClipId: selectedClip?.id ?? null, playheadSample, editingBlocked: editBlocked,
+		copy: { trimLeftToPlayhead: copy.trimLeftToPlayhead, trimRightToPlayhead: copy.trimRightToPlayhead },
+	}, { planTrim: actions.planVideoTrim }), { commitTrim: actions.commitVideoTrim });
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
@@ -245,6 +251,8 @@ export default function createApplicationMenus({
 						{ id: 'disjoin', label: copy.disjoinClips, disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('disjoin') },
 						{ id: 'group-clips', label: copy.groupClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('group') },
 						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !groupedSelectedClips, onClick: () => actions.executeEdit('ungroup') },
+						...(framescaperVideoTrim.left ? [framescaperVideoTrim.left] : []),
+						...(framescaperVideoTrim.right ? [framescaperVideoTrim.right] : []),
 						...(framescaperEditControls.link ? [framescaperEditControls.link] : []),
 						{ id: 'clip-properties', label: copy.clipPropertiesCommand, disabled: !selectedClip, onClick: actions.openClipProperties },
 					],

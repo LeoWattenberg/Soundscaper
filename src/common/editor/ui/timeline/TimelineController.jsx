@@ -86,6 +86,7 @@ export default function TimelineController({
 	});
 	const pointerMove = useTimelinePointerMove({
 		controller,
+		snapshot,
 		state,
 		model,
 		hitTesting,

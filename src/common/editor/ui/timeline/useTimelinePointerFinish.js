@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
 
 export function useTimelinePointerFinish({
 	controller,
@@ -134,28 +135,16 @@ export function useTimelinePointerFinish({
 			run(() => controller.actions.clip.stretch(clip.id, {
 				durationFrames: Math.max(1, session.original.durationFrames + deltaFrames),
 			}));
-		} else if (session.kind === 'trim-left') {
-			const trimPreview = dragPreview || null;
-			const nextTimelineStartFrame = Number(trimPreview?.timelineStartFrame);
-			const nextDurationFrames = Number(trimPreview?.durationFrames);
-			const changes = {};
-			if (Number.isSafeInteger(nextTimelineStartFrame) && nextTimelineStartFrame !== session.original.timelineStartFrame) {
-				changes.timelineStartFrame = nextTimelineStartFrame;
-			}
-			if (Number.isSafeInteger(nextDurationFrames) && nextDurationFrames !== session.original.durationFrames) {
-				changes.durationFrames = nextDurationFrames;
-			}
-			if (Object.keys(changes).length) {
-				run(() => controller.actions.clip.trim(clip.id, changes));
-			}
-		} else if (session.kind === 'trim-right') {
-			const trimPreview = dragPreview || null;
-			const nextDurationFrames = Number(trimPreview?.durationFrames);
-			if (Number.isSafeInteger(nextDurationFrames) && nextDurationFrames !== session.original.durationFrames) {
-				run(() => controller.actions.clip.trim(clip.id, { durationFrames: nextDurationFrames }));
-			}
+		} else if (session.kind === 'trim-left' || session.kind === 'trim-right') {
+			commitTimelineTrimPointer({
+				session, edge: session.kind === 'trim-left' ? 'left' : 'right', dragPreview: dragPreview || null,
+				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
+				canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+				commitVideo: (request) => run(() => controller.actions.video.trim.commit(request)),
+				commitAudio: (clipId, changes) => run(() => controller.actions.clip.trim(clipId, changes)),
+			});
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
+	}, [controller, frameAtClientX, isOverOutputDock, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);

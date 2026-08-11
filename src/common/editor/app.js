@@ -224,6 +224,8 @@ import { createVideoSourceReprobeService } from './controller/video-source-repro
 import { createSourceMonitorService } from './controller/source-monitor-service.ts';
 import { createVideoEditService } from './controller/video-edit-service.ts';
 import { createVideoNavigationService } from './controller/video-navigation-service.ts';
+import { createVideoEdgeTrimResultReporter } from './controller/video-edge-trim-feedback.ts';
+import { createVideoEdgeTrimService } from './controller/video-edge-trim-service.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
@@ -977,6 +979,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)), endScrub: () => engine.endScrub?.(),
 		publish: publishDocumentSnapshot, handleError,
+	});
+	const videoEdgeTrimService = createVideoEdgeTrimService({
+		lifetime, getProject: getCommandProject, editingBlocked, commit,
+		reportResult: createVideoEdgeTrimResultReporter({ copy, label: sequenceTimingService.label, setStatus }),
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
 		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,
@@ -1811,7 +1817,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		sourceMonitorService, videoEditService, videoNavigationService, videoSourceReprobeService,
+		sourceMonitorService, videoEdgeTrimService, videoEditService, videoNavigationService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;
@@ -2525,21 +2531,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return clipPropertyService.handleClipAction(...args);
 	}
 
-	function moveClips(...args) {
-		return clipTransformService.moveClips(...args);
-	}
-
-	function moveClipsToNewTrack(...args) {
-		return clipTransformService.moveClipsToNewTrack(...args);
-	}
-
-	function trimClips(...args) {
-		return clipTransformService.trimClips(...args);
-	}
-
-	function overwriteClips(...args) {
-		return clipTransformService.overwriteClips(...args);
-	}
+	function moveClips(...args) { return clipTransformService.moveClips(...args); }
+	function moveClipsToNewTrack(...args) { return clipTransformService.moveClipsToNewTrack(...args); }
+	function trimClips(...args) { return clipTransformService.trimClips(...args); }
+	function overwriteClips(...args) { return clipTransformService.overwriteClips(...args); }
 
 	function setClipTimePitch(...args) {
 		return clipPropertyService.setClipTimePitch(...args);

@@ -72,7 +72,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
 	sourceMonitorService, timelineAnnotationService, trackFolderService, videoEditService,
-	videoNavigationService, videoSourceReprobeService,
+	videoEdgeTrimService, videoNavigationService, videoSourceReprobeService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -208,6 +208,10 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getSourceVisualData: getVideoSourceVisualData,
 			releaseSourceVisual: releaseVideoSourceVisual,
 			export: exportVideo,
+			trim: Object.freeze({
+				preview: restricted('videoCompositing', videoEdgeTrimService.preview),
+				commit: restricted('videoCompositing', videoEdgeTrimService.commit),
+			}),
 			navigation: Object.freeze({
 				view: restricted('videoCompositing', () => videoNavigationService.view()),
 				shuttleBackward: restricted('videoCompositing', () => reportVideoShuttle(videoNavigationService.shuttleReverse)),
