@@ -34,6 +34,8 @@ owning source of truth:
   [milestone-2 closure inventory](config/milestone-2-closure.json);
 - milestone-3 sequencing, time-model decisions, and work packets:
   [milestone-3 plan](docs/milestone-3-plan.md);
+- milestone-7 sequencing, runtime and model-catalog decisions, and work
+  packets: [milestone-7 plan](docs/milestone-7-plan.md);
 - performance fixtures and numeric qualification:
   [quality budgets](docs/quality-budgets.md) and
   [machine-readable budgets](config/quality-budgets.json);
@@ -665,12 +667,23 @@ hidden conversions.
 ## 7. Optional local assistance
 
 **Depends on:** milestone 2. **Optional:** never blocks milestones 8 or 9.
+The assistance helper process is milestone-7-owned scope whose protocol is
+designed to converge with the future milestone-5 helper contract; milestone 5
+remains the owning contract for the general helper architecture, and its exit
+gate owns full qualification.
 
-- **Web Enhanced / Electron Enhanced — Optional:** on-device transcription,
-  diarization, source separation, cleanup, semantic tags, shot/silence detection,
-  beat suggestions, and assistive search/edit proposals.
-- Models are opt-in, separately downloaded, digest-pinned, removable, licensed,
-  and offline after installation.
+Sequencing, the runtime and model-catalog decisions, the assistance-lifecycle
+invariants, and the bounded work packets are owned by the
+[milestone-7 plan](docs/milestone-7-plan.md).
+
+- **Electron Only — Optional:** on-device transcription, diarization, source
+  separation, cleanup, semantic tags, shot/silence detection, beat
+  suggestions, and assistive search/edit proposals. Re-tiered from Web
+  Enhanced / Electron Enhanced by user decision on 2026-08-11: inference is
+  native-only, and the web products read accepted results as ordinary
+  project state.
+- Models are opt-in, separately downloaded into a user-settable directory,
+  digest-pinned, removable, licensed, and offline after installation.
 - Before milestone 8A, assistance consumes only imported or persisted media and
   cannot create a hidden recording path.
 - Selected media and results remain on-device. Accepted results become ordinary,
