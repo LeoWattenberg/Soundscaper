@@ -1,10 +1,12 @@
 # Milestone 3B-4b8: canonical clip-focus trim keyboard parity
 
-> **Planned immediate pickup after 3B-4b7:** this bounded Framescaper slice
-> closes the remaining vendored clip-focus trim and stretch callback seam. It
-> gives an exact linked A/V pair one sequence-frame keyboard step through the
-> existing edge-trim and uniform-rate authorities. It adds no shortcut, menu,
-> control, chrome, schema, or edit primitive.
+> **Implemented:** delivered through commit `a20cbc0a` on 2026-08-11, after
+> [3B-4b7 — frame-canonical uniform rate-stretch](milestone-3b-uniform-rate-stretch.md).
+> This bounded Framescaper slice closes the remaining vendored clip-focus trim
+> and stretch callback seam. It gives an exact linked A/V pair one
+> sequence-frame keyboard step through the existing edge-trim and uniform-rate
+> authorities. It adds no shortcut, menu, control, chrome, schema, or edit
+> primitive and completes packet 3B-4.
 
 ## Foundation and seam already present
 
@@ -183,6 +185,29 @@ script. Across trim and stretch it proves all four edge/direction classes:
 The test may use Control on the qualified Linux Chromium row; the vendor's Meta
 branch remains pinned by unit characterization. WebKit and packaged Electron
 rows retain their existing qualification status.
+
+## Recorded evidence
+
+- Delivery through commit `a20cbc0a` includes the strict adjacent-frame request
+  builder, fresh-project edge-trim and rate-stretch service routes, the focused
+  clip callback adapter, capability and exact-link routing, refusal without a
+  legacy fallback, and unit characterization of all eight vendored key rows.
+- Commit `b0d33c78` fixes the application-menu access-key owner so a standalone
+  Alt press still focuses the File menu while modified Alt clip shortcuts keep
+  focus on the clip and reach its existing local callback. Its focused Chromium
+  menu regression passed 1/1.
+- Focused Chromium canonical clip-focus keyboard coverage passed 1/1. It uses
+  the real linked-audio clip focus and all eight trim/stretch combinations to
+  prove one-frame canonical boundaries, linked endpoint equality, planner-owned
+  source behavior, localized feedback, retained focus, one-step Undo/Redo,
+  no-op history, live-lock refusal without fallback, and unchanged legacy
+  Soundscaper behavior. No new menu item, global shortcut, or default-visible
+  control was added.
+- `npm run check` passed with 5,274 tests total, 5,272 passed and 2 skipped;
+  coverage was 90.08% statements and lines, 81.97% branches, and 90.6%
+  functions. The architecture gate passed across 886 modules, 2,463
+  dependencies, and 1,949 maintained files. The production build guard passed
+  with 104 JavaScript chunks and a 388,318-byte largest chunk.
 
 ## Non-goals and stop conditions
 

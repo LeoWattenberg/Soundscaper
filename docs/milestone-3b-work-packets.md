@@ -156,7 +156,7 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
-The delivered first eight slices are
+The delivered nine slices are
 [3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
 session-only J/K/L shuttle and strict previous/next video edit-point navigation
 through the existing Transport menu and Framescaper workspace keys; and
@@ -193,10 +193,19 @@ derived-rate badge, delivered through commit `2bbfa06b` on 2026-08-11. The
 canonical gate passed with 5,253 tests total, 5,251 passed and 2 skipped, 90.08%
 statement and line coverage, 81.95% branch coverage, 90.58% function coverage,
 and a 388,318-byte largest production JavaScript chunk; focused Chromium
-exact-timing rate-stretch coverage passed 1/1. Packet 3B-4 remains in progress.
-Its immediate planned pickup is
-[3B-4b8 — canonical clip-focus trim keyboard parity](milestone-3b-canonical-trim-keyboard.md)
-for the remaining clip-focus trim and stretch callbacks.
+exact-timing rate-stretch coverage passed 1/1. The closing slice is
+[3B-4b8 — canonical clip-focus trim keyboard parity](milestone-3b-canonical-trim-keyboard.md):
+one adjacent-sequence-frame authority for all eight existing focused-clip trim
+and stretch key rows, exact linked A/V persistence, live-lock refusal without
+legacy fallback, unchanged Soundscaper behavior, and retained local focus. The
+Alt access-key conflict was fixed in commit `b0d33c78`, and the complete slice
+was delivered through commit `a20cbc0a` on 2026-08-11. Focused Chromium
+canonical keyboard coverage and the focused Alt access-key regression each
+passed 1/1. The final canonical gate passed with 5,274 tests total, 5,272 passed
+and 2 skipped, 90.08% statement and line coverage, 81.97% branch coverage,
+90.6% function coverage, and a 388,318-byte largest production JavaScript
+chunk. Packet 3B-4 is complete; the immediate next packet is **3B-5 — Retiming,
+ramps, and nested sequences**.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and

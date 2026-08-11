@@ -430,7 +430,7 @@ Packet boundaries, dependencies, and acceptance are owned by
   replace stands new media in for what is on air without moving it or changing
   its length. Four points that disagree are refused rather than fitted, because
   fitting one to the other is a speed change and retiming is not in this packet.
-- **Web Core — In progress:** session-only J/K/L shuttle and strict
+- **Web Core — Implemented:** session-only J/K/L shuttle and strict
   previous/next video edit-point navigation are implemented on the program
   playhead. Both are reachable through the existing Transport menu and the
   Framescaper workspace keys, shuttle positions stay on exact sequence-frame
@@ -454,8 +454,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   implemented through `2bbfa06b`: one verified timing and rational duration
   authority keeps source ranges fixed while lazy menu actions and the existing
   video handles update linked A/V canonically and report the derived rate.
-  Packet 3B-4 stays in progress. Its immediate next slice is bounded
-  **3B-4b8 — canonical clip-focus trim keyboard parity**. See
+  Existing focused-clip trim and stretch keys now route exact linked A/V through
+  those canonical authorities one adjacent sequence frame at a time, while
+  Soundscaper retains its legacy behavior. Packet 3B-4 is complete; the
+  immediate next packet is **3B-5 — Retiming, ramps, and nested sequences**. See
   [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md),
   [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
   [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),
