@@ -471,9 +471,11 @@ Packet boundaries, dependencies, and acceptance are owned by
   and
   [`docs/milestone-3b-canonical-trim-keyboard.md`](docs/milestone-3b-canonical-trim-keyboard.md).
 - **Shared / Web Core — In progress:** the exact schema-neutral retime curve
-  algebra is implemented. The immediate next slice is V16 curve persistence and
-  preservation; maintained retime workflows, nested sequences, subsequence time
-  mapping, and deterministic flattening remain later slices.
+  algebra and [V16 persistence and preservation](docs/milestone-3b-video-retime-v16.md)
+  are implemented. The immediate pickup is the reviewed
+  [exact clip-bound runtime mapping](docs/milestone-3b-video-retime-runtime-mapping.md);
+  maintained retime workflows, nested sequences, subsequence time mapping, and
+  deterministic flattening remain later slices.
 - **Web Core — Planned:** proxy attachment, adaptive preview, offline/relink, and
   synchronized multicamera groups.
 

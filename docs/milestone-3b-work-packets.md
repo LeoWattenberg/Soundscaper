@@ -231,11 +231,21 @@ branch, and 90.64% function coverage. Architecture passed with 887 modules,
 JavaScript chunks with a 388,318-byte largest chunk. No browser row was required
 because 3B-5a exposes no maintained workflow.
 
-The immediate next slice is
+The delivered second slice is
 [3B-5b — V16 video-retime curve persistence and preservation](milestone-3b-video-retime-v16.md):
 one retime-only raw schema revision with exact preservation and read-only
-admission. Maintained retime workflows and nested sequences remain later 3B-5
-slices.
+admission, implemented in `3fe50815` on 2026-08-11. Its canonical gate passed
+with 5,314 tests total (5,312 passed, 2 skipped), 90.14% statement/line, 82.07%
+branch, and 90.69% function coverage. Architecture passed with 891 modules,
+2,481 dependencies, and 1,963 maintained files; the build emitted 104
+JavaScript chunks with `aup4-worker` largest at 400,636 bytes. Focused Chromium
+V16 retime compatibility passed 1/1. Packet 3B-5 remains in progress.
+
+The immediate reviewed follow-up is
+[3B-5c — exact clip-bound video-retime runtime mapping](milestone-3b-video-retime-runtime-mapping.md):
+one schema-neutral runtime seam for exact forward mapping, inverse occurrences,
+and breakpoint partitions before any maintained retime consumer or capability
+availability change.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time

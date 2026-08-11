@@ -1,10 +1,19 @@
 # Milestone 3B-5b: V16 video-retime curve persistence and preservation
 
-> **Planned immediate pickup after 3B-5a:** persist the exact curve algebra
-> delivered in `fcff5eab` without adding a maintained consumer. This is one
-> atomic raw project-schema revision and preservation packet. It adds no retime
-> authoring, menu, control, playback, preview, export, capability availability,
-> nested sequence shape, or fallback.
+> **Status: Implemented on 2026-08-11.** Commit `3fe50815` persists the exact
+> curve algebra delivered in `fcff5eab` without adding a maintained consumer.
+> This atomic raw project-schema revision and preservation packet adds no
+> retime authoring, menu, control, playback, preview, export, capability
+> availability, nested sequence shape, or fallback.
+
+The canonical `npm run check` gate passed with 5,314 tests total, 5,312 passed
+and 2 skipped; 90.14% statement and line coverage, 82.07% branch coverage, and
+90.69% function coverage. Architecture passed with 891 modules, 2,481
+dependencies, and 1,963 maintained files. The build emitted 104 production
+JavaScript chunks; the largest, `aup4-worker`, was 400,636 bytes. Focused
+Chromium V16 retime compatibility passed 1/1. Packet 3B-5 remains **In
+progress**; the immediate pickup is the reviewed
+[3B-5c exact clip-bound runtime mapping](milestone-3b-video-retime-runtime-mapping.md).
 
 ## Outcome boundary
 
