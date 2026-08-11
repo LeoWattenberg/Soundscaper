@@ -1,0 +1,62 @@
+.flyout {
+  position: fixed;
+  z-index: 10000;
+  background: var(--flyout-bg, #f8f8f9);
+  border: 1px solid var(--flyout-border, #d4d5d9);
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(20, 21, 26, 0.3);
+  overflow: visible;
+  animation: flyout-fade-in 0.15s ease-out;
+}
+
+@keyframes flyout-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.flyout__content {
+  position: relative;
+  border-radius: inherit;
+}
+
+.flyout__arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.flyout--down .flyout__arrow {
+  top: -8px;
+  left: calc(var(--flyout-arrow-offset) - 8px);
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--flyout-bg, #f8f8f9);
+  border-left: 8px solid transparent;
+}
+
+.flyout--up .flyout__arrow {
+  bottom: -8px;
+  left: calc(var(--flyout-arrow-offset) - 8px);
+  border-top: 8px solid var(--flyout-bg, #f8f8f9);
+  border-right: 8px solid transparent;
+  border-left: 8px solid transparent;
+}
+
+.flyout--right .flyout__arrow {
+  top: calc(var(--flyout-arrow-offset) - 8px);
+  left: -8px;
+  border-top: 8px solid transparent;
+  border-right: 8px solid var(--flyout-bg, #f8f8f9);
+  border-bottom: 8px solid transparent;
+}
+
+.flyout--left .flyout__arrow {
+  top: calc(var(--flyout-arrow-offset) - 8px);
+  right: -8px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 8px solid var(--flyout-bg, #f8f8f9);
+}
