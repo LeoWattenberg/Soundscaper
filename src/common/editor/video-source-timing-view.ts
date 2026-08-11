@@ -31,6 +31,44 @@ export interface ExactSourceTime {
 	readonly denominator: bigint;
 }
 
+export interface ExactSourcePosition {
+	readonly numerator: bigint;
+	readonly denominator: bigint;
+}
+
+export interface BoundVideoSourceTimingView {
+	readonly sourceId: string;
+	readonly frameCount: number;
+	readonly kind: 'cfr' | 'vfr';
+}
+
+type BoundVideoSourceTimingState = Readonly<{
+	readonly info: BoundVideoSourceTimingView;
+} & (
+	| {
+		readonly kind: 'cfr';
+		readonly frameDuration: InternalExact;
+	}
+	| {
+		readonly kind: 'vfr';
+		readonly timescale: bigint;
+		readonly presentationTicks: readonly bigint[];
+		readonly endTicks: bigint;
+	}
+)>;
+
+interface InternalExact {
+	readonly numerator: bigint;
+	readonly denominator: bigint;
+}
+
+const MAXIMUM_EXACT_BITS = 4_096;
+const BOUND_VIDEO_SOURCE_TIMING_VIEWS = new WeakMap<object, BoundVideoSourceTimingState>();
+const BOUND_VIDEO_SOURCE_TIMING_CACHE = new WeakMap<
+	object,
+	WeakMap<object, BoundVideoSourceTimingView>
+>();
+
 export interface VideoBoundaryPointMapping {
 	readonly boundary: number;
 	/** Inclusive lower point-cell edge; null means negative infinity. */
@@ -108,6 +146,91 @@ export function videoSourceTimingView(
 		throw new RangeError(`VFR timing view ${sourceId} disagrees with the persisted timing-asset summary.`);
 	}
 	return view;
+}
+
+export function bindVideoSourceTimingView(
+	timingViews: ReadonlyMap<string, VideoSourceTimingView>,
+	sourceValue: unknown,
+): BoundVideoSourceTimingView {
+	if (!(timingViews instanceof Map)) throw new TypeError('Video timing views must be a ReadonlyMap.');
+	if (!sourceValue || typeof sourceValue !== 'object' || Array.isArray(sourceValue)) {
+		throw new TypeError('A canonical video source is required to bind source timing.');
+	}
+	const sourceObject = sourceValue as object;
+	const cached = BOUND_VIDEO_SOURCE_TIMING_CACHE.get(timingViews)?.get(sourceObject);
+	if (cached) return cached;
+	const source = snapshotVideoSource(sourceValue);
+	const sourceId = nonEmptyString(source.id, 'video source.id');
+	const rawView = timingViews.get(sourceId);
+	if (!rawView || typeof rawView !== 'object') {
+		throw new ReferenceError(`Video source ${sourceId} has no verified timing view.`);
+	}
+	const capturedView = snapshotVideoTimingView(rawView, sourceId);
+	const view = videoSourceTimingView(new Map([[sourceId, capturedView]]), source);
+	let state: BoundVideoSourceTimingState;
+	if (view.kind === 'cfr') {
+		const rate = frameTrimRationalRate(view.rate, `timing view ${sourceId}.rate`);
+		const info = Object.freeze({
+			sourceId,
+			frameCount: positiveSafeInteger(view.frameCount, `timing view ${sourceId}.frameCount`),
+			kind: 'cfr' as const,
+		});
+		state = Object.freeze({
+			info,
+			kind: 'cfr' as const,
+			frameDuration: normalizeExact(BigInt(rate.den), BigInt(rate.num)),
+		});
+	} else {
+		const info = Object.freeze({
+			sourceId,
+			frameCount: positiveSafeInteger(view.index.frameCount, `timing view ${sourceId}.frameCount`),
+			kind: 'vfr' as const,
+		});
+		state = Object.freeze({
+			info,
+			kind: 'vfr' as const,
+			timescale: BigInt(view.index.timescale),
+			presentationTicks: view.index.presentationTicks,
+			endTicks: view.index.endTicks,
+		});
+	}
+	BOUND_VIDEO_SOURCE_TIMING_VIEWS.set(state.info, state);
+	let sourceCache = BOUND_VIDEO_SOURCE_TIMING_CACHE.get(timingViews);
+	if (!sourceCache) {
+		sourceCache = new WeakMap<object, BoundVideoSourceTimingView>();
+		BOUND_VIDEO_SOURCE_TIMING_CACHE.set(timingViews, sourceCache);
+	}
+	sourceCache.set(sourceObject, state.info);
+	return state.info;
+}
+
+export function boundVideoSourceTimingViewInfo(value: unknown): BoundVideoSourceTimingView {
+	return boundVideoSourceTimingState(value).info;
+}
+
+export function videoSourceFrameTime(
+	viewValue: BoundVideoSourceTimingView,
+	positionValue: ExactSourcePosition,
+): ExactSourceTime {
+	const state = boundVideoSourceTimingState(viewValue);
+	const position = sourceFramePosition(positionValue, state.info.frameCount);
+	if (state.kind === 'cfr') return publicExact(multiplyExact(position.value, state.frameDuration));
+
+	const startTicks = position.frameIndex === state.info.frameCount
+		? state.endTicks
+		: nonNullable(state.presentationTicks[position.frameIndex]);
+	if (position.remainder === 0n) {
+		return publicExact(normalizeExact(startTicks, state.timescale));
+	}
+	const endTicks = position.frameIndex + 1 === state.info.frameCount
+		? state.endTicks
+		: nonNullable(state.presentationTicks[position.frameIndex + 1]);
+	const offset = multiplyExact(
+		normalizeExact(position.remainder, position.value.denominator),
+		normalizeExact(endTicks - startTicks, 1n),
+	);
+	const interpolatedTicks = addExact(normalizeExact(startTicks, 1n), offset);
+	return publicExact(multiplyExact(interpolatedTicks, normalizeExact(1n, state.timescale)));
 }
 
 export function videoBoundaryTime(
@@ -255,4 +378,210 @@ function validateVfrIndex(indexValue: unknown, sourceId: string): void {
 function fraction(numerator: bigint, denominator: bigint): ExactSourceTime {
 	if (denominator <= 0n) throw new RangeError('An exact source-time denominator must be positive.');
 	return { numerator, denominator };
+}
+
+function boundVideoSourceTimingState(value: unknown): BoundVideoSourceTimingState {
+	if (!value || typeof value !== 'object') {
+		throw new TypeError('An authenticated bound video source timing token is required.');
+	}
+	const state = BOUND_VIDEO_SOURCE_TIMING_VIEWS.get(value);
+	if (!state) {
+		throw new TypeError('The video source timing token was not produced by bindVideoSourceTimingView.');
+	}
+	return state;
+}
+
+function snapshotVideoSource(value: unknown): FrameTrimDataRecord {
+	const raw = snapshotData(value, [
+		'id', 'kind', 'contentSha256', 'frameRate', 'sourceFrameCount', 'timingAsset', 'timingDecision',
+	], 'video source');
+	if (raw.kind !== 'video') throw new TypeError('Bound source timing requires a video source kind data property.');
+	const decision = snapshotData(raw.timingDecision, ['mode', 'rate'], 'video source.timingDecision');
+	return Object.freeze({
+		...raw,
+		frameRate: snapshotData(raw.frameRate, ['num', 'den'], 'video source.frameRate'),
+		timingAsset: raw.timingAsset == null ? raw.timingAsset
+			: snapshotTimingReference(raw.timingAsset, 'video source.timingAsset'),
+		timingDecision: Object.freeze({
+			...decision,
+			rate: snapshotData(decision.rate, ['num', 'den'], 'video source.timingDecision.rate'),
+		}),
+	});
+}
+
+function snapshotVideoTimingView(value: unknown, sourceId: string): VideoSourceTimingView {
+	const raw = value as Record<string, unknown>;
+	const kind = dataProperty(raw, 'kind', `timing view ${sourceId}`);
+	if (kind === 'cfr') return Object.freeze({
+		kind,
+		rate: frameTrimRationalRate(snapshotData(dataProperty(raw, 'rate', `timing view ${sourceId}`), ['num', 'den'], `timing view ${sourceId}.rate`), `timing view ${sourceId}.rate`),
+		frameCount: dataProperty(raw, 'frameCount', `timing view ${sourceId}`) as number,
+	});
+	if (kind !== 'vfr') throw new RangeError(`Video timing view ${sourceId} has an unsupported kind.`);
+	return Object.freeze({
+		kind,
+		reference: snapshotTimingReference(dataProperty(raw, 'reference', `timing view ${sourceId}`), `timing view ${sourceId}.reference`),
+		index: dataProperty(raw, 'index', `timing view ${sourceId}`) as VideoTimingIndex,
+	});
+}
+
+function snapshotTimingReference(value: unknown, name: string): Readonly<VideoTimingAssetReference> {
+	return normalizeVideoTimingAssetReference(snapshotData(value, [
+		'encoding', 'storageKey', 'sha256', 'sourceSha256', 'byteLength',
+		'frameCount', 'timescale', 'finalFrameDurationTicks',
+	], name));
+}
+
+function snapshotData(value: unknown, keys: readonly string[], name: string): Readonly<Record<string, unknown>> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
+	const result: Record<string, unknown> = {};
+	for (const key of keys) result[key] = dataProperty(value as Record<string, unknown>, key, name);
+	return Object.freeze(result);
+}
+
+function dataProperty(value: Record<string, unknown>, key: string, name: string): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(`${name}.${key} must be an own enumerable data property, not an accessor.`);
+	}
+	return descriptor.value;
+}
+
+function sourceFramePosition(
+	value: unknown,
+	frameCount: number,
+): Readonly<{
+	readonly value: InternalExact;
+	readonly frameIndex: number;
+	readonly remainder: bigint;
+}> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('An exact source-frame position record is required.');
+	}
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== 2 || !keys.includes('numerator') || !keys.includes('denominator')) {
+		throw new TypeError('An exact source-frame position requires only numerator and denominator.');
+	}
+	const numeratorDescriptor = Object.getOwnPropertyDescriptor(value, 'numerator');
+	const denominatorDescriptor = Object.getOwnPropertyDescriptor(value, 'denominator');
+	if (!numeratorDescriptor?.enumerable || !Object.hasOwn(numeratorDescriptor, 'value')
+		|| !denominatorDescriptor?.enumerable || !Object.hasOwn(denominatorDescriptor, 'value')) {
+		throw new TypeError('Exact source-frame position fields must be enumerable data properties, not accessors.');
+	}
+	const numerator = numeratorDescriptor.value;
+	const denominator = denominatorDescriptor.value;
+	if (typeof numerator !== 'bigint' || typeof denominator !== 'bigint') {
+		throw new TypeError('Exact source-frame position numerator and denominator must be BigInt.');
+	}
+	assertExactBigInt(numerator);
+	assertExactBigInt(denominator);
+	if (denominator <= 0n) {
+		throw new RangeError('Exact source-frame position denominator must be positive.');
+	}
+	if (numerator < 0n) throw new RangeError('Exact source-frame position is outside the source bound.');
+	if (greatestCommonDivisor(numerator, denominator) !== 1n) {
+		throw new RangeError('Exact source-frame position must be canonically reduced.');
+	}
+	const frameIndexBigInt = numerator / denominator;
+	const remainder = numerator % denominator;
+	const frameCountBigInt = BigInt(frameCount);
+	if (frameIndexBigInt > frameCountBigInt
+		|| (frameIndexBigInt === frameCountBigInt && remainder !== 0n)) {
+		throw new RangeError('Exact source-frame position is outside the bound timing view.');
+	}
+	return Object.freeze({
+		value: Object.freeze({ numerator, denominator }),
+		frameIndex: Number(frameIndexBigInt),
+		remainder,
+	});
+}
+
+function multiplyExact(left: InternalExact, right: InternalExact): InternalExact {
+	const leftCancellation = greatestCommonDivisor(absoluteBigInt(left.numerator), right.denominator);
+	const rightCancellation = greatestCommonDivisor(absoluteBigInt(right.numerator), left.denominator);
+	return normalizeExact(
+		checkedMultiply(left.numerator / leftCancellation, right.numerator / rightCancellation),
+		checkedMultiply(left.denominator / rightCancellation, right.denominator / leftCancellation),
+	);
+}
+
+function addExact(left: InternalExact, right: InternalExact): InternalExact {
+	const commonDenominator = greatestCommonDivisor(left.denominator, right.denominator);
+	const leftScale = right.denominator / commonDenominator;
+	const rightScale = left.denominator / commonDenominator;
+	return normalizeExact(
+		checkedAdd(
+			checkedMultiply(left.numerator, leftScale),
+			checkedMultiply(right.numerator, rightScale),
+		),
+		checkedMultiply(left.denominator, leftScale),
+	);
+}
+
+function normalizeExact(numerator: bigint, denominator: bigint): InternalExact {
+	if (denominator === 0n) throw new RangeError('An exact source-time denominator cannot be zero.');
+	if (denominator < 0n) {
+		numerator = -numerator;
+		denominator = -denominator;
+	}
+	assertExactBigInt(numerator);
+	assertExactBigInt(denominator);
+	const divisor = greatestCommonDivisor(absoluteBigInt(numerator), denominator);
+	const result = Object.freeze({
+		numerator: numerator / divisor,
+		denominator: denominator / divisor,
+	});
+	assertExactBigInt(result.numerator);
+	assertExactBigInt(result.denominator);
+	return result;
+}
+
+function checkedMultiply(left: bigint, right: bigint): bigint {
+	if (left === 0n || right === 0n) return 0n;
+	if (bitLength(left) + bitLength(right) - 1 > MAXIMUM_EXACT_BITS) {
+		throw exactComplexityError();
+	}
+	const result = left * right;
+	assertExactBigInt(result);
+	return result;
+}
+
+function checkedAdd(left: bigint, right: bigint): bigint {
+	const result = left + right;
+	assertExactBigInt(result);
+	return result;
+}
+
+function assertExactBigInt(value: bigint): void {
+	if (bitLength(value) > MAXIMUM_EXACT_BITS) throw exactComplexityError();
+}
+
+function exactComplexityError(): RangeError {
+	return new RangeError(`Exact source-time complexity exceeds ${String(MAXIMUM_EXACT_BITS)} bits.`);
+}
+
+function bitLength(value: bigint): number {
+	return absoluteBigInt(value).toString(2).length;
+}
+
+function greatestCommonDivisor(left: bigint, right: bigint): bigint {
+	while (right !== 0n) {
+		const remainder = left % right;
+		left = right;
+		right = remainder;
+	}
+	return left || 1n;
+}
+
+function absoluteBigInt(value: bigint): bigint {
+	return value < 0n ? -value : value;
+}
+
+function publicExact(value: InternalExact): ExactSourceTime {
+	return Object.freeze({ numerator: value.numerator, denominator: value.denominator });
+}
+
+function nonNullable<Value>(value: Value | null | undefined): Value {
+	if (value == null) throw new RangeError('Expected a bounded video source timing value.');
+	return value;
 }
