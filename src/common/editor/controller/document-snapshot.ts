@@ -151,6 +151,7 @@ export interface EditorDocumentSnapshotRuntime<Project extends SnapshotProject> 
 	getStorageStatus(): EditorStoreStatus;
 	getRackEffectTypes(): readonly unknown[];
 	getVideoEffectTypes(): readonly unknown[];
+	getVideoNavigationSnapshot?(): unknown;
 	getSelectionEffectTypes(): readonly unknown[];
 	getSelectionEffectParams(): unknown;
 	getSelectionEffectDefinition(): unknown;
@@ -184,6 +185,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		locale: runtime.locale,
 		project: currentProject,
 		videoPreviewProject,
+		videoNavigation: runtime.getVideoNavigationSnapshot?.() ?? null,
 		projects: state.projects,
 		recentProjects: Object.freeze(state.recentProjectIds
 			.map((projectId) => state.projects.find((candidate) => candidate.id === projectId))

@@ -223,6 +223,7 @@ import { createSequenceTimingService } from './controller/sequence-timing-servic
 import { createVideoSourceReprobeService } from './controller/video-source-reprobe-service.ts';
 import { createSourceMonitorService } from './controller/source-monitor-service.ts';
 import { createVideoEditService } from './controller/video-edit-service.ts';
+import { createVideoNavigationService } from './controller/video-navigation-service.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
@@ -446,6 +447,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 	});
 	const playbackProjectService = createPlaybackProjectService(product.capabilities);
+	let videoNavigationService = null;
 	const documentSnapshotRuntime = {
 		state, product, productId, capabilities, locale, projectForPlayback: (candidate) => playbackProjectService.projectForPlayback(candidate).project,
 		getCurrentProject: () => projectWithVideoEffectGestures(state.history?.present ?? null),
@@ -469,6 +471,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			label: audioEffectLabel(type, copy),
 		})),
 		getVideoEffectTypes: () => VIDEO_EFFECT_TYPES.map((type) => VIDEO_EFFECT_DEFINITIONS[type]),
+		getVideoNavigationSnapshot: () => !state.disposed && project && capabilities.videoCompositing && videoNavigationService ? videoNavigationService.view() : null,
 		getSelectionEffectTypes: () => audioSelectionEffectTypes().map((type) => Object.freeze({
 			type,
 			label: audioSelectionEffectLabel(type, copy),
@@ -956,6 +959,24 @@ export function createAudioEditorController(_root = null, options = {}) {
 		),
 		getPositionFrames: () => engine.getPositionFrames(),
 		sourceMonitor: sourceMonitorService,
+	});
+	videoNavigationService = createVideoNavigationService({
+		lifetime, getProject: getCommandProject, getProjectIdentity: () => project,
+		getTargets: () => videoEditService.targets(), getPositionFrames: () => engine.getPositionFrames(),
+		now: typeof options.monotonicNow === 'function' ? options.monotonicNow : () => globalThis.performance?.now?.() ?? currentTimeMs(),
+		setInterval: scheduleInterval, clearInterval: clearScheduledInterval,
+		scrub: async (frame) => {
+			cancelPlaybackCachePreparation(); cancelPlayAtSpeedPreparation(); engine.pause();
+			const previewStop = stopProjectBinPreview();
+			const target = normalizePlaybackFrame(frame);
+			const result = hasMissingTimelineSources() || typeof engine.scrub !== 'function'
+				? engine.seek(target)
+				: engine.scrub(target);
+			await previewStop;
+			return result;
+		},
+		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)), endScrub: () => engine.endScrub?.(),
+		publish: publishDocumentSnapshot, handleError,
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
 		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,
@@ -1774,7 +1795,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor,
 		selectTrackStartToEnd, sessionTab, setAllTracksView, setAudacityControlTrack,
 		setAudacityEffectParamsFromController, setAudacityEffectType, setAudioOutputDevice, setAutoFitTrackHeight,
-		setClipTimePitch, setLatencyOffset, setLoopRegion, setLoopRegionInOut,
+		setClipTimePitch, setLatencyOffset, setLoopRegion, setLoopRegionInOut, setStatus,
 		setLoopRegionToSelection, setMicrophoneMetering, setMonitoring, setPanelPreference,
 		setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 		setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
@@ -1790,7 +1811,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		sourceMonitorService, videoEditService, videoSourceReprobeService,
+		sourceMonitorService, videoEditService, videoNavigationService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;
@@ -1907,35 +1928,27 @@ export function createAudioEditorController(_root = null, options = {}) {
 			guardControllerActions(child),
 		])));
 	}
-
 	function getSnapshot() {
 		return documentChannel.get();
 	}
-
 	function getTelemetrySnapshot() {
 		return telemetryChannel.get();
 	}
-
 	function publishDocumentSnapshot({ force = false } = {}) {
 		documentChannel.publish({ force });
 	}
-
 	function publishRecordingPreview() {
 		const now = globalThis.performance?.now?.() ?? Date.now();
 		if (now - state.recordingPreviewLastPublishedAt < LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS) return;
 		state.recordingPreviewLastPublishedAt = now;
 		publishDocumentSnapshot();
 	}
-
 	function publishTelemetrySnapshot() {
 		telemetryChannel.publish();
 	}
-
 	function buildDocumentSnapshot() {
 		return createEditorDocumentSnapshot(documentSnapshotRuntime);
 	}
-
-
 	function projectWithVideoEffectGestures(currentProject) {
 		return applyVideoEffectGesturePreviews(
 			currentProject,
@@ -1943,11 +1956,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 			videoEffectGestureKey,
 		);
 	}
-
 	function buildTelemetrySnapshot() {
 		return createEditorTelemetrySnapshot(state, engine);
 	}
-
 	function audioDevicesSnapshot() {
 		return createAudioDeviceSnapshot(
 			state,
@@ -1957,47 +1968,36 @@ export function createAudioEditorController(_root = null, options = {}) {
 			RECORDING_DISPLAY_SOURCE_KEY,
 		);
 	}
-
 	function getClipVisualData(...args) {
 		return projectVisualService.getClipVisualData(...args);
 	}
-
 	function getProjectBinClipVisualData(...args) {
 		return projectVisualService.getProjectBinClipVisualData(...args);
 	}
-
 	function revokeVideoVisuals() {
 		return projectVisualService.revokeVideoVisuals();
 	}
-
 	function revokeVideoVisual(...args) {
 		return projectVisualService.revokeVideoVisual(...args);
 	}
-
 	function activateVideoSource(...args) {
 		return projectVisualService.activateVideoSource(...args);
 	}
-
 	function allProjectClips(...args) {
 		return projectVisualService.allProjectClips(...args);
 	}
-
 	function hasMissingTimelineSources(...args) {
 		return projectVisualService.hasMissingTimelineSources(...args);
 	}
-
 	function getVisibleClips(...args) {
 		return projectVisualService.getVisibleClips(...args);
 	}
-
 	async function loadPreferences(token = lifetime.capture()) {
 		return preferencesService.load((value) => lifetime.guard(value, token));
 	}
-
 	async function persistSetting(key, value, { policy = 'best-effort' } = {}) {
 		return settingPersistence.persist(key, value, { policy });
 	}
-
 	function updatePreferences(patch) {
 		return preferencesService.update(patch);
 	}

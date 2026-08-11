@@ -56,7 +56,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor,
 	selectTrackStartToEnd, sessionTab, setAllTracksView, setAudacityControlTrack,
 	setAudacityEffectParamsFromController, setAudacityEffectType, setAudioOutputDevice, setAutoFitTrackHeight,
-	setClipTimePitch, setLoopRegion, setLoopRegionInOut,
+	setClipTimePitch, setLoopRegion, setLoopRegionInOut, setStatus,
 	setLoopRegionToSelection, setPanelPreference,
 	setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 	setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
@@ -72,13 +72,46 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
 	sourceMonitorService, timelineAnnotationService, trackFolderService, videoEditService,
-	videoSourceReprobeService,
+	videoNavigationService, videoSourceReprobeService,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
 			throw new RangeError(`${product.name} does not support ${capability}.`);
 		}
 		return action(...args);
+	};
+	const videoNavigationMessage = (template: RuntimeValue, values: Readonly<Record<string, RuntimeValue>>) => (
+		Object.entries(values).reduce((message, [key, value]) => (
+			message.replace(`{${key}}`, String(value))
+		), String(template))
+	);
+	const reportVideoShuttle = (operation: RuntimeValue) => {
+		const view = operation();
+		const timecode = sequenceTimingService.label(view.positionFrame, view.sequenceId);
+		const message = view.rate === 0
+			? videoNavigationMessage(copy.shuttleStoppedStatus, { timecode })
+			: videoNavigationMessage(copy.shuttleStatus, {
+				direction: view.rate < 0 ? copy.shuttleBackward : copy.shuttleForward,
+				rate: Math.abs(view.rate), timecode,
+			});
+		setStatus(message, 'success');
+		return view;
+	};
+	const navigateVideoEdit = (direction: 'previous' | 'next') => {
+		const result = direction === 'previous'
+			? videoNavigationService.previousEditPoint()
+			: videoNavigationService.nextEditPoint();
+		const found = result !== null;
+		setStatus(found
+			? videoNavigationMessage(direction === 'previous' ? copy.previousEditStatus : copy.nextEditStatus, {
+				timecode: sequenceTimingService.playheadLabel(),
+			})
+			: direction === 'previous' ? copy.noPreviousEdit : copy.noNextEdit, found ? 'success' : 'info');
+		return result;
+	};
+	const yieldProgramPlayhead = (operation: RuntimeValue) => (...args: RuntimeValue) => {
+		if (capabilities.videoCompositing) videoNavigationService.shuttleStop();
+		return operation(...args);
 	};
 	const recordingPreferences = createRecordingPreferenceActionFacade(
 		scope as RecordingActionScope,
@@ -175,6 +208,14 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getSourceVisualData: getVideoSourceVisualData,
 			releaseSourceVisual: releaseVideoSourceVisual,
 			export: exportVideo,
+			navigation: Object.freeze({
+				view: restricted('videoCompositing', () => videoNavigationService.view()),
+				shuttleBackward: restricted('videoCompositing', () => reportVideoShuttle(videoNavigationService.shuttleReverse)),
+				shuttleStop: restricted('videoCompositing', () => reportVideoShuttle(videoNavigationService.shuttleStop)),
+				shuttleForward: restricted('videoCompositing', () => reportVideoShuttle(videoNavigationService.shuttleForward)),
+				previousEdit: restricted('videoCompositing', () => navigateVideoEdit('previous')),
+				nextEdit: restricted('videoCompositing', () => navigateVideoEdit('next')),
+			}),
 			effects: Object.freeze({
 				add: restricted('videoEffects', addVideoClipEffect),
 				update: restricted('videoEffects', updateVideoClipEffect),
@@ -259,12 +300,12 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			silenceSelection: restricted('audioGenerators', () => generateSelectionSilence()),
 		}),
 		transport: Object.freeze({
-			playPause: () => handleTransport('play'),
-			playAtSpeed: (rate: RuntimeValue = state.playAtSpeedRate) => handlePlayAtSpeed(rate),
+			playPause: yieldProgramPlayhead(() => handleTransport('play')),
+			playAtSpeed: yieldProgramPlayhead((rate: RuntimeValue = state.playAtSpeedRate) => handlePlayAtSpeed(rate)),
 			setPlayAtSpeedRate,
-			stop: () => handleTransport('stop'),
-			seek: (frame: RuntimeValue) => engine.seek(normalizePlaybackFrame(frame)),
-			scrub: (frame: RuntimeValue) => {
+			stop: yieldProgramPlayhead(() => handleTransport('stop')),
+			seek: yieldProgramPlayhead((frame: RuntimeValue) => engine.seek(normalizePlaybackFrame(frame))),
+			scrub: yieldProgramPlayhead((frame: RuntimeValue) => {
 				if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) {
 					return engine.getPositionFrames();
 				}
@@ -272,12 +313,12 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 				cancelPlaybackCachePreparation();
 				const nextFrame = normalizePlaybackFrame(frame);
 				return typeof engine.scrub === 'function' ? engine.scrub(nextFrame) : engine.seek(nextFrame);
-			},
-			endScrub: () => engine.endScrub?.(),
-			jumpStart: () => handleTransport('jump-start'),
-			jumpEnd: () => handleTransport('jump-end'),
-			rewind: () => handleTransport('rewind'),
-			forward: () => handleTransport('forward'),
+			}),
+			endScrub: yieldProgramPlayhead(() => engine.endScrub?.()),
+			jumpStart: yieldProgramPlayhead(() => handleTransport('jump-start')),
+			jumpEnd: yieldProgramPlayhead(() => handleTransport('jump-end')),
+			rewind: yieldProgramPlayhead(() => handleTransport('rewind')),
+			forward: yieldProgramPlayhead(() => handleTransport('forward')),
 			toggleLoop: () => handleTransport('loop'),
 			clearLoop: clearLoopRegion,
 			setLoopRegion,
@@ -361,18 +402,18 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		}),
 		sequences: Object.freeze({
 			view: (sequenceId: RuntimeValue) => sequenceTimingService.view(sequenceId),
-			update: restricted('sequenceTiming', (sequenceId: RuntimeValue, changes: RuntimeValue) => (
+			update: restricted('sequenceTiming', yieldProgramPlayhead((sequenceId: RuntimeValue, changes: RuntimeValue) => (
 				sequenceTimingService.update(sequenceId, structuredClone(changes))
-			)),
+			))),
 			label: (sample: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.label(sample, sequenceId),
 			playheadLabel: (sequenceId: RuntimeValue) => sequenceTimingService.playheadLabel(sequenceId),
 			snapSample: (sample: RuntimeValue, mode: RuntimeValue, sequenceId: RuntimeValue) => (
 				sequenceTimingService.snapSample(sample, mode, sequenceId)
 			),
-			stepPlayhead: (frameDelta: RuntimeValue, sequenceId: RuntimeValue) => (
+			stepPlayhead: yieldProgramPlayhead((frameDelta: RuntimeValue, sequenceId: RuntimeValue) => (
 				sequenceTimingService.stepPlayhead(frameDelta, sequenceId)
-			),
-			seekLabel: (label: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.seekLabel(label, sequenceId),
+			)),
+			seekLabel: yieldProgramPlayhead((label: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.seekLabel(label, sequenceId)),
 		}),
 		trackFolders: Object.freeze({
 			create: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.createFolder(...args)),
