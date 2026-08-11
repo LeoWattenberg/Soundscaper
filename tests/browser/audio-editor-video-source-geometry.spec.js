@@ -126,9 +126,32 @@ test.describe('3B-2b source display geometry qualification', () => {
 					video.addEventListener('error', () => reject(new Error('the exported video did not decode')), { once: true });
 					setTimeout(() => reject(new Error('the exported video timed out')), 15_000);
 				});
-				// Decoding is not painting: a headless engine presents frames only
-				// once playback is running.
+				// Decoding is not presentation. In particular, Firefox may resolve
+				// play() while drawImage still sees the pre-frame black surface, so
+				// synchronize canvas reads with the compositor's frame callback.
+				video.loop = true;
+				const nextPresentedFrame = () => new Promise((resolve, reject) => {
+					let cancel = () => {};
+					const timeout = setTimeout(() => {
+						cancel();
+						reject(new Error('the exported video did not present a frame'));
+					}, 5_000);
+					const finish = () => {
+						clearTimeout(timeout);
+						resolve();
+					};
+					if (typeof video.requestVideoFrameCallback === 'function') {
+						const callback = video.requestVideoFrameCallback(finish);
+						cancel = () => video.cancelVideoFrameCallback(callback);
+					} else {
+						const onTimeUpdate = () => requestAnimationFrame(finish);
+						video.addEventListener('timeupdate', onTimeUpdate, { once: true });
+						cancel = () => video.removeEventListener('timeupdate', onTimeUpdate);
+					}
+				});
+				const firstFrame = nextPresentedFrame();
 				await video.play();
+				await firstFrame;
 				const canvas = document.createElement('canvas');
 				canvas.width = video.videoWidth;
 				canvas.height = video.videoHeight;
@@ -140,9 +163,12 @@ test.describe('3B-2b source display geometry qualification', () => {
 					const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
 					return data.some((channel, index) => index % 4 !== 3 && channel > 40);
 				};
-				for (let attempt = 0; attempt < 60 && !painted(); attempt += 1) {
-					await new Promise((resolve) => { setTimeout(resolve, 100); });
+				let framePainted = painted();
+				for (let attempt = 0; attempt < 30 && !framePainted; attempt += 1) {
+					await nextPresentedFrame();
+					framePainted = painted();
 				}
+				if (!framePainted) throw new Error('the exported video presented only black frames');
 				video.pause();
 				const quadrant = (x, y) => {
 					const [red, green, blue] = context.getImageData(x, y, 1, 1).data;
