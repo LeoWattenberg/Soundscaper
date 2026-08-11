@@ -9,6 +9,7 @@ import {
 	CLIP_TRIM_EDGE_HIT_WIDTH,
 	TRACK_HEADER_RESIZE_HIT_HEIGHT,
 } from './constants.ts';
+import { captureTimelineRollRippleTrimPointerMode } from './roll-ripple-trim-pointer-routing.ts';
 import { isRulerLoopBand, samplePointAtPointer } from './track-row-helpers.jsx';
 
 export function useTimelinePointerStart({
@@ -212,7 +213,7 @@ export function useTimelinePointerStart({
 		const interactionClipIds = kind === 'trim-left' || kind === 'trim-right'
 			? collectClipTrimIds(project, clip.id, kind === 'trim-left' ? 'left' : 'right')
 			: transformClipIds;
-		pointerSession.current = {
+		const session = {
 			kind,
 			clipId: clip.id,
 			clipIds: interactionClipIds,
@@ -226,11 +227,21 @@ export function useTimelinePointerStart({
 			startY: event.clientY,
 			lane,
 		};
+		const rollRippleMode = kind === 'trim-left' || kind === 'trim-right'
+			? captureTimelineRollRippleTrimPointerMode({
+				session,
+				canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+				pointerType: event.pointerType,
+				altKey: event.altKey,
+				shiftKey: event.shiftKey,
+			})
+			: null;
+		pointerSession.current = { ...session, rollRippleMode };
 		setDraggingClipIds(new Set(interactionClipIds));
 		const selectedClipIds = project.selection?.clipIds || [];
-		if (event.shiftKey) {
+		if (rollRippleMode === null && event.shiftKey) {
 			run(() => controller.actions.timeline.selectClip(clip.id, { additive: true }));
-		} else if (event.metaKey || event.ctrlKey) {
+		} else if (rollRippleMode === null && (event.metaKey || event.ctrlKey)) {
 			run(() => controller.actions.timeline.selectClip(clip.id, { toggle: true }));
 		} else if (!transformClipIds.every((selectedId) => selectedClipIds.includes(selectedId))) {
 			run(() => controller.actions.timeline.selectClip(clip.id));

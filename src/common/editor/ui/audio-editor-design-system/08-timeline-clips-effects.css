@@ -381,6 +381,16 @@
 	pointer-events: none;
 }
 
+#kw-audio-editor-design-system .audio-editor-trim-preview-guide {
+	position: absolute;
+	top: 34px;
+	z-index: 55;
+	width: 2px;
+	background: var(--kw-editor-accent);
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--kw-editor-stage) 65%, transparent);
+	pointer-events: none;
+}
+
 #kw-audio-editor-design-system .audio-editor-playhead-boundary {
 	position: absolute;
 	z-index: 70;

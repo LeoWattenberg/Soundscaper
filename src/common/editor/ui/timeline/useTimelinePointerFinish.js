@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import { commitTimelineRollRippleTrimPointer } from './roll-ripple-trim-pointer-routing.ts';
 import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
 
 export function useTimelinePointerFinish({
@@ -136,12 +137,21 @@ export function useTimelinePointerFinish({
 				durationFrames: Math.max(1, session.original.durationFrames + deltaFrames),
 			}));
 		} else if (session.kind === 'trim-left' || session.kind === 'trim-right') {
-			commitTimelineTrimPointer({
-				session, edge: session.kind === 'trim-left' ? 'left' : 'right', dragPreview: dragPreview || null,
-				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
-				canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
-				commitVideo: (request) => run(() => controller.actions.video.trim.commit(request)),
-				commitAudio: (clipId, changes) => run(() => controller.actions.clip.trim(clipId, changes)),
+			const edge = session.kind === 'trim-left' ? 'left' : 'right';
+			const requestedBoundarySample = frameAtClientX(event.clientX, session.lane);
+			commitTimelineRollRippleTrimPointer({
+				session,
+				edge,
+				requestedBoundarySample,
+				commitRollRipple: (request) => run(() => (
+					controller.actions.video.trim.rollRipple.commit(request)
+				)),
+				commitOrdinary: () => commitTimelineTrimPointer({
+					session, edge, dragPreview: dragPreview || null, requestedBoundarySample,
+					canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+					commitVideo: (request) => run(() => controller.actions.video.trim.commit(request)),
+					commitAudio: (clipId, changes) => run(() => controller.actions.clip.trim(clipId, changes)),
+				}),
 			});
 		}
 	}, [controller, frameAtClientX, isOverOutputDock, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);

@@ -23,6 +23,7 @@ import {
 	TelemetryPlayhead,
 	TelemetryRulerPlayhead,
 	TimeSelectionOverlay,
+	TimelineTrimPreviewGuide,
 } from './TimelineOverlayComponents.jsx';
 import { ContainerAddTrackFlyout } from './TimelineFlyouts.jsx';
 import { TimelineMenus } from './TimelineMenus.jsx';
@@ -384,6 +385,13 @@ export function TimelineWorkspaceView({
 						selection={timeSelection}
 						panelWidth={panelWidth}
 						pixelsPerSecond={pixelsPerSecond}
+						height={totalTrackHeight}
+					/>
+					<TimelineTrimPreviewGuide
+						sample={clipDragPreview?.guideSample}
+						panelWidth={panelWidth}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
 						height={totalTrackHeight}
 					/>
 

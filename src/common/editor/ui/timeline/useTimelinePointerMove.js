@@ -4,6 +4,7 @@ import { secondsToFrames } from '../../design-system-adapters.js';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
+import { resolveTimelineRollRippleTrimPointerPreview } from './roll-ripple-trim-pointer-routing.ts';
 import { samplePointAtPointer } from './track-row-helpers.jsx';
 import { resolveTimelineTrimPointerPreview } from './trim-pointer-routing.ts';
 
@@ -21,6 +22,7 @@ export function useTimelinePointerMove({
 		pinchSession,
 		pendingPinchAnchorRef,
 		scrollRef,
+		setDraggingClipIds,
 		setClipDragPreview,
 		setTrackResizePreview,
 		setLoopPreview,
@@ -209,26 +211,39 @@ export function useTimelinePointerMove({
 			setClipDragPreview(preview);
 		} else if (session?.kind === 'trim-left' || session?.kind === 'trim-right') {
 			const edge = session.kind === 'trim-left' ? 'left' : 'right';
-			const preview = resolveTimelineTrimPointerPreview({
-				projectIndex, session, edge,
-				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
-				canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
-				legacyRequestedDelta: () => secondsToFrames(
-					Math.abs(event.clientX - session.startX) / pixelsPerSecond,
-					{ sampleRate },
-				) * Math.sign(event.clientX - session.startX),
-				previewVideo: (request) => run(() => controller.actions.video.trim.preview(request)),
-				createLegacyPreview: createClipTrimPreview,
+			const requestedBoundarySample = frameAtClientX(event.clientX, session.lane);
+			const preview = resolveTimelineRollRippleTrimPointerPreview({
+				session,
+				edge,
+				requestedBoundarySample,
+				previewRollRipple: (request) => run(() => (
+					controller.actions.video.trim.rollRipple.preview(request)
+				)),
+				clipKind: (clipId) => projectIndex.clipById.get(clipId)?.kind ?? null,
+				previewOrdinary: () => resolveTimelineTrimPointerPreview({
+					projectIndex, session, edge, requestedBoundarySample,
+					canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+					legacyRequestedDelta: () => secondsToFrames(
+						Math.abs(event.clientX - session.startX) / pixelsPerSecond,
+						{ sampleRate },
+					) * Math.sign(event.clientX - session.startX),
+					previewVideo: (request) => run(() => controller.actions.video.trim.preview(request)),
+					createLegacyPreview: createClipTrimPreview,
+				}),
 			});
 			if (!preview) {
 				session.preview = null;
 				setClipDragPreview(null);
+				setDraggingClipIds(new Set(session.clipIds));
 				return;
 			}
 			session.preview = preview;
 			setClipDragPreview(preview);
+			if (session.rollRippleMode) {
+				setDraggingClipIds(new Set(preview.previews.map(({ clipId }) => clipId)));
+			}
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, trackAtClientY]);
+	}, [controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setDraggingClipIds, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, trackAtClientY]);
 
 	return { onPointerMove };
 }

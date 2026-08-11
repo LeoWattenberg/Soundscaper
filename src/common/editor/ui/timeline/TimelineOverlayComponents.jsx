@@ -293,3 +293,34 @@ export function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, h
 		/>
 	);
 }
+
+export function TimelineTrimPreviewGuide({
+	sample,
+	panelWidth,
+	pixelsPerSecond,
+	sampleRate,
+	height,
+}) {
+	if (!Number.isSafeInteger(sample)) return null;
+	return (
+		<div
+			className="audio-editor-trim-preview-guide"
+			data-roll-ripple-trim-guide="true"
+			aria-hidden="true"
+			style={{
+				left: timelineTrimPreviewGuideLeft(
+					sample,
+					panelWidth,
+					pixelsPerSecond,
+					sampleRate,
+				),
+				height,
+			}}
+		/>
+	);
+}
+
+export function timelineTrimPreviewGuideLeft(sample, panelWidth, pixelsPerSecond, sampleRate) {
+	return panelWidth + CLIP_CONTENT_OFFSET
+		+ framesToSeconds(sample, { sampleRate }) * pixelsPerSecond;
+}

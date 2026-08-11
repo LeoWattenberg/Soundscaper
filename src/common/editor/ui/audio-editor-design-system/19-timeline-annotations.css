@@ -39,6 +39,10 @@
 	top: 67px;
 }
 
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-trim-preview-guide {
+	top: 67px;
+}
+
 #kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-playhead-boundary {
 	top: 67px;
 	height: calc(100% - 67px);
