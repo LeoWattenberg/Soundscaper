@@ -55,7 +55,7 @@
 		"desktop:smoke:project-library-lease-matrix": "node scripts/desktop-project-library-lease-matrix.mjs",
 		"desktop:smoke:project-library-source-bearing-handoff": "node scripts/desktop-project-library-source-bearing-handoff-smoke.mjs",
 		"desktop:release-assets": "node scripts/desktop-release-assets.mjs",
-		"postinstall": "node scripts/apply-component-patches.mjs && patch-package --patch-dir patches/npm",
+		"postinstall": "patch-package --patch-dir patches/npm",
 		"build:staffpad": "node scripts/build-staffpad-wasm.mjs",
 		"audit:staffpad": "node scripts/audit-staffpad-wasm.mjs",
 		"build:nyquist": "node scripts/build-nyquist-wasm.mjs",
@@ -79,7 +79,6 @@
 		"deploy:runtime": "node scripts/publish-runtime-assets.mjs"
 	},
 	"dependencies": {
-		"@dilsonspickles/components": "0.9.0",
 		"@echogarden/pffft-wasm": "0.4.2",
 		"@ffmpeg/core": "0.12.10",
 		"@ffmpeg/ffmpeg": "0.12.15",

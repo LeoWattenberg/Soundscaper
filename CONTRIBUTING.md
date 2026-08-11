@@ -1,8 +1,8 @@
 # Contributing
 
 Use Node.js 26.5.0 and npm 12.0.1 (the versions pinned by `.nvmrc`, `package.json`,
-and CI). The component package is read from GitHub Packages, so set a
-`NODE_AUTH_TOKEN` with package-read access before a fresh install.
+and CI). A fresh install needs no registry credentials; the Audacity design
+system is vendored in-tree at `vendor/audacity-design-system/`.
 
 ```sh
 npm ci

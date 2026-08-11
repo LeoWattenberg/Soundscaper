@@ -11,7 +11,6 @@ const declared = { ...packageJson.dependencies, ...packageJson.devDependencies }
 
 const trackedVersions = [
 	'@axe-core/playwright',
-	'@dilsonspickles/components',
 	'@echogarden/pffft-wasm',
 	'@electron/fuses',
 	'@ffmpeg/core',
@@ -61,8 +60,18 @@ else {
 	if (integrity !== builder.integrity) findings.push('electron-builder: notice integrity does not match package-lock.json.');
 }
 
+const upstream = readFileSync(resolve(root, 'vendor/audacity-design-system/UPSTREAM'), 'utf8');
+const upstreamTag = upstream.match(/^tag: (\S+)$/mu)?.[1];
+const upstreamCommit = upstream.match(/^commit: ([0-9a-f]{40})$/mu)?.[1];
+if (!upstreamTag || !upstreamCommit) {
+	findings.push('vendored design system: UPSTREAM is missing its tag or commit record.');
+} else {
+	if (!notices.includes(`\`${upstreamTag}\``)) findings.push(`vendored design system: THIRD_PARTY_LICENSES.md does not record upstream tag ${upstreamTag}.`);
+	if (!notices.includes(`\`${upstreamCommit}\``)) findings.push(`vendored design system: THIRD_PARTY_LICENSES.md does not record upstream commit ${upstreamCommit}.`);
+}
+
 if (findings.length) throw new Error(`Third-party notice audit failed:\n${findings.join('\n')}`);
-console.log(`Verified ${trackedVersions.length + 1} dependency notice records against package-lock.json.`);
+console.log(`Verified ${trackedVersions.length + 1} dependency notice records against package-lock.json and the vendored design-system provenance.`);
 
 function exactInstalledVersion(dependency) {
 	return packageLock.packages[`node_modules/${dependency}`]?.version || null;

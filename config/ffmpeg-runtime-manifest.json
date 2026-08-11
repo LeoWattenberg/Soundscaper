@@ -58,8 +58,8 @@
 		},
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
-			"byteLength": 22496,
-			"sha256": "66f20b4f19b2571bbb84d47b03ddbc8602ad96122db3a41c36ae0f198e610202"
+			"byteLength": 23189,
+			"sha256": "2aaae2cb0a3de445973d34469df1869a5b2e8895270035c88ac6fcef2350a6e5"
 		},
 		"releaseSeverityPolicy": {
 			"path": "config/release-severity-policy.json",
@@ -73,8 +73,8 @@
 		},
 		"licensingMatrix": {
 			"path": "config/production-licensing-matrix.json",
-			"byteLength": 14251,
-			"sha256": "d8339b669a03630ba2285d6c8045d193726b8bd7e726718d19a9ae7db8ac5902"
+			"byteLength": 13859,
+			"sha256": "f5b539b73904402d6b95b5b83dafb2908d4216175f17b7aec1b8e68538db4b1f"
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
@@ -122,6 +122,6 @@
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "2ccc3a35e393f912def69fbe434cd800cd61e5b24e29c55a53823293dcc527ed"
+		"payloadSha256": "053777e767e983eb421b0cc9ab49bc470713998fbf0bb3dbe68f22da7a6542b3"
 	}
 }

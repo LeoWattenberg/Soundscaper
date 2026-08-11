@@ -194,7 +194,8 @@ or Framescaper desktop executables.
 
 The browser tools can distribute the following pinned browser-side packages as part of the site build:
 
-- `@dilsonspickles/components` 0.9.0 — declared MIT; tag `components-v0.9.0`, commit `8cb38db62436db0783cb3a7624306ab3bce19e0b`; source: <https://github.com/DilsonsPickles/audacity-design-system/tree/components-v0.9.0/packages/components>
+- Audacity design system (vendored in-tree at `vendor/audacity-design-system/`) — `@dilsonspickles/components` 0.9.0, `@audacity-ui/core` 0.1.0, `@audacity-ui/tokens` 0.1.0 — declared MIT in each package manifest (the upstream repository ships no LICENSE file); vendored from tag `components-v0.9.0`, commit `8cb38db62436db0783cb3a7624306ab3bce19e0b`; source: <https://github.com/DilsonsPickles/audacity-design-system/tree/components-v0.9.0/packages>; local modifications are recorded in `vendor/audacity-design-system/README.md` and the pinned upstream revision in `vendor/audacity-design-system/UPSTREAM` (verified by `check:notices`)
+- Roseus colormap — MIT; Copyright © dofuuz; the 256-entry colormap table embedded in `vendor/audacity-design-system/components/src/utils/spectrogram.ts`; source: <https://github.com/dofuuz/roseus>
 - `@fontsource/inter` 5.3.0 — SIL Open Font License 1.1; self-hosted WOFF/WOFF2 distribution of Inter, Copyright 2016 The Inter Project Authors; source metadata and font files: <https://github.com/fontsource/font-files/tree/main/fonts/google/inter>; upstream font source: <https://github.com/rsms/inter>; full license text is retained in the installed package's `LICENSE` file
 - `@fontsource/ubuntu` 5.3.0 — Ubuntu Font Licence 1.0; self-hosted WOFF/WOFF2 distribution of Ubuntu, Copyright 2010-2011 Canonical Ltd.; source metadata and font files: <https://github.com/fontsource/font-files/tree/main/fonts/google/ubuntu>; upstream font source: <https://launchpad.net/ubuntu-font-family>; full license text is retained in the installed package's `LICENSE` file
 - `@ffmpeg/ffmpeg` 0.12.15 — MIT; source: <https://github.com/ffmpegwasm/ffmpeg.wasm>
@@ -210,12 +211,13 @@ The browser tools can distribute the following pinned browser-side packages as p
 - `scheduler` 0.27.0 — MIT; transitive React scheduler runtime; Copyright © Meta Platforms, Inc. and affiliates; source and license: <https://github.com/facebook/react/tree/v19.2.7/packages/scheduler>
 - `sql.js` 1.14.1 — MIT; source: <https://github.com/sql-js/sql.js> (retained for unrelated legacy tools; AUP4 uses the official SQLite WASM package)
 
-`@dilsonspickles/components` bundles `MusescoreIcon.ttf` from
-`packages/components/src/assets/fonts/MusescoreIcon.ttf` in the tagged source
-(SHA-256 `c96e13ba511bea3b12e809db0def48163a690f9e9439097d7867ae6bf04e8620`).
-Upstream does not provide separate font license metadata at that tag, so it is
-covered here by the package's declared MIT metadata under the project's chosen
-license-review policy.
+The vendored design system bundles `MusescoreIcon.ttf` at
+`vendor/audacity-design-system/components/src/assets/fonts/MusescoreIcon.ttf`
+(SHA-256 `c96e13ba511bea3b12e809db0def48163a690f9e9439097d7867ae6bf04e8620`,
+byte-identical to `packages/components/src/assets/fonts/MusescoreIcon.ttf` at
+the vendored tag). Upstream does not provide separate font license metadata at
+that tag, so it is covered here by the package's declared MIT metadata under
+the project's chosen license-review policy.
 
 The browser editor also ports the MuseScore framework icon-code inventory from
 `framework/ui/view/iconcodes.h` at MuseScore framework commit

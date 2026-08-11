@@ -54,8 +54,9 @@ npm ci
 npm run dev
 ```
 
-Use Node.js 26.5.0 and npm 12.0.1. A fresh install needs `NODE_AUTH_TOKEN` with
-read access to the GitHub Packages component dependency. Contributor workflow
+Use Node.js 26.5.0 and npm 12.0.1. A fresh install needs no registry
+credentials; the Audacity design system is vendored in-tree at
+`vendor/audacity-design-system/`. Contributor workflow
 and architecture boundaries are documented in
 [`CONTRIBUTING.md`](CONTRIBUTING.md) and
 [`docs/architecture.md`](docs/architecture.md).
@@ -285,19 +286,14 @@ both Production and Preview unless noted otherwise:
 - `PUBLIC_TRANSLATIONS_BASE_URL` =
   `https://translations.soundscaper.org/runtime/translations/audacity/4`
 - `NODE_VERSION` = `26.5.0`
-- Encrypted secret `NODE_AUTH_TOKEN` = a GitHub personal access token (classic)
-  with `read:packages` and read access to the Audacity Design System package.
 
-The last secret is currently required because the Audacity Design System React
-components are distributed as the authenticated GitHub Packages package
-`@dilsonspickles/components`. Soundscaper imports its controls, theme and
-accessibility providers, and stylesheet directly. The package name is the
-publisher scope; it is the Audacity Design System component package, not a
-different design system.
-
-GitHub Packages requires authentication even for public npm packages. To remove
-this final build secret, publish the component package to an anonymously
-readable npm registry or vendor/build it as part of this repository.
+No registry credentials are required: the Audacity Design System (formerly the
+authenticated GitHub Packages package `@dilsonspickles/components`) is vendored
+in-tree at `vendor/audacity-design-system/` and compiled by the application's
+Vite build. The org secret `PACKAGES_TOKEN` that backed the removed
+`NODE_AUTH_TOKEN` plumbing should be kept alive for one release cycle as the
+rollback path (reverting the vendoring requires re-fetching
+`@dilsonspickles/components@0.9.0` from GitHub Packages), then deleted.
 
 The optional GitHub Actions quality workflow also needs a repository secret
 named `PACKAGES_TOKEN` with the same package-read permission. It is not used for
