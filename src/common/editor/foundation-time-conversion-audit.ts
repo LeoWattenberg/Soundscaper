@@ -272,10 +272,27 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'frame-canonical-edge-trim-planning',
 		file: 'src/common/editor/frame-canonical-edge-trim-planner.ts',
-		behavior: 'A video-bearing edge trim conforms one absolute requested boundary to the sequence grid, maps every source boundary with exact point rounding, and resolves candidate video endpoints from the absolute origin.',
+		behavior: 'A video-bearing edge trim conforms one absolute requested boundary to the sequence grid and resolves its applied diagnostics from the absolute sequence origin.',
+		conversions: [
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
+		id: 'frame-canonical-roll-ripple-trim-planning',
+		file: 'src/common/editor/frame-canonical-roll-ripple-trim-planner.ts',
+		behavior: 'Roll and lane-ripple trims conform one requested edit point, then resolve every source cut, anchored program join, and shifted canonical video endpoint from absolute sequence frames.',
+		conversions: [
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
+		id: 'frame-canonical-trim-participant-planning',
+		file: 'src/common/editor/frame-canonical-trim-planning.ts',
+		behavior: 'Shared trim participants validate canonical video endpoints, map immutable timeline/source ratios once, and resolve linked companion boundaries from absolute sequence frames.',
 		conversions: [
 			{ helper: 'roundRational', policies: ['point'] },
-			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
 			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
 		],
 	},
