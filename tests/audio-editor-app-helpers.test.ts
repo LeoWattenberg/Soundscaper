@@ -5,6 +5,7 @@ import {
 	audioEditorTrackBlockBounds,
 	moveAudioEditorTrackBlock,
 } from '../src/common/editor/ui/application-menu-model.js';
+import { AUDACITY_MENU_ORDER } from '../src/common/editor/ui/application-menu-order.ts';
 import {
 	DEFAULT_PLAYBACK_METER_SETTINGS,
 	normalizeMeterSettings,
@@ -12,8 +13,10 @@ import {
 } from '../src/common/editor/ui/meter-settings.ts';
 import {
 	findShortcutMenuHandler,
+	handleWorkspaceKeyboard,
 	matchAudioEditorShortcut,
 	projectZoomShortcut,
+	videoNavigationShortcut,
 } from '../src/common/editor/ui/workspace-shortcuts.ts';
 import {
 	projectBinItems,
@@ -40,6 +43,12 @@ test('meter settings normalize persisted values at the module boundary', () => {
 		ebuLiveValue: 'short-term',
 	});
 	assert.equal(productStorageKey('soundscaper-meter-v2', 'framescaper'), 'framescaper-meter-v2');
+});
+
+test('the application menubar keeps Transport reachable in canonical order', () => {
+	assert.ok(AUDACITY_MENU_ORDER.includes('transport-menu'));
+	assert.ok(AUDACITY_MENU_ORDER.indexOf('transport-menu') > AUDACITY_MENU_ORDER.indexOf('view'));
+	assert.ok(AUDACITY_MENU_ORDER.indexOf('transport-menu') < AUDACITY_MENU_ORDER.indexOf('tracks'));
 });
 
 test('floating panels are clamped to the visible workspace', () => {
@@ -71,6 +80,54 @@ test('workspace shortcut helpers preserve canonical keyboard behavior', () => {
 		id: 'parent',
 		items: [{ id: 'split', onClick: handler }],
 	}], 'split'), { matched: true, handler });
+});
+
+test('Framescaper video navigation reserves deliberate unmodified J K L and arrow presses', () => {
+	const event = (key: string, overrides: Record<string, unknown> = {}) => ({
+		altKey: false,
+		ctrlKey: false,
+		key,
+		metaKey: false,
+		repeat: false,
+		shiftKey: false,
+		...overrides,
+	});
+	assert.equal(videoNavigationShortcut(event('j')), 'shuttleBackward');
+	assert.equal(videoNavigationShortcut(event('K')), 'shuttleStop');
+	assert.equal(videoNavigationShortcut(event('l')), 'shuttleForward');
+	assert.equal(videoNavigationShortcut(event('ArrowUp')), 'previousEdit');
+	assert.equal(videoNavigationShortcut(event('ArrowDown')), 'nextEdit');
+	assert.equal(videoNavigationShortcut(event('l', { repeat: true })), null);
+	assert.equal(videoNavigationShortcut(event('l', { shiftKey: true })), null);
+	assert.equal(videoNavigationShortcut(event('ArrowLeft')), null);
+});
+
+test('Framescaper ignores held shuttle keys without falling through to Loop', () => {
+	const calls: string[] = [];
+	let prevented = false;
+	const keyboardEvent = (repeat: boolean) => ({
+		altKey: false,
+		code: 'KeyL',
+		ctrlKey: false,
+		defaultPrevented: false,
+		key: 'l',
+		metaKey: false,
+		repeat,
+		shiftKey: false,
+		target: null,
+		preventDefault() { prevented = true; },
+	});
+	const snapshot = { preferences: { shortcuts: { loop: ['L'] } } };
+	const registry = {
+		videoNavigation: { shuttleForward: () => calls.push('shuttle') },
+		menus: [{ id: 'loop', onClick: () => calls.push('loop') }],
+	};
+	handleWorkspaceKeyboard(keyboardEvent(true), snapshot, (handler) => handler(), registry);
+	assert.deepEqual(calls, []);
+	assert.equal(prevented, false);
+	handleWorkspaceKeyboard(keyboardEvent(false), snapshot, (handler) => handler(), registry);
+	assert.deepEqual(calls, ['shuttle']);
+	assert.equal(prevented, true);
 });
 
 test('project-bin view models deduplicate items and create bounded waveform paths', () => {

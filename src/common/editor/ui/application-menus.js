@@ -83,6 +83,11 @@ export default function createApplicationMenus({
 	));
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
 	const preferences = snapshot.preferences;
+	const videoNavigation = snapshot.videoNavigation;
+	const videoNavigationBlocked = blocked || !project || !videoNavigation || videoNavigation.programEndFrame <= 0;
+	const shuttleLabel = (label, direction) => videoNavigation?.rate * direction > 0
+		? `${label} (${Math.abs(videoNavigation.rate)}×)`
+		: label;
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
@@ -278,7 +283,7 @@ export default function createApplicationMenus({
 					id: 'looping',
 					label: copy.loopRegion,
 					items: [
-						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleLoopRegion, label: copy.loop, shortcut: 'L', checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
+						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleLoopRegion, label: copy.loop, shortcut: productId === 'framescaper' ? undefined : 'L', checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
 						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.clearLoopRegion, label: copy.clearLoopRegion || copy.selectNone, disabled: !project?.loop?.enabled, onClick: actions.clearLoop },
 						{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setLoopRegionToSelection, label: copy.loopToSelection || copy.loop, disabled: !selectionActive, onClick: actions.loopToSelection },
 						{ id: 'set-selection-to-loop', label: copy.selectionToLoop, disabled: !project?.loop?.enabled, onClick: actions.selectionToLoop },
@@ -374,6 +379,18 @@ export default function createApplicationMenus({
 				{ id: 'action://playback/play', label: copy.play, shortcut: 'Space', onClick: actions.playPause },
 				{ id: 'action://playback/stop', label: copy.stop, onClick: actions.stop },
 				divider(),
+				...(productId === 'framescaper' ? [{
+					id: 'video-navigation',
+					label: copy.videoNavigation,
+					disabled: videoNavigationBlocked,
+					items: [
+						{ id: 'video-navigation-previous-edit', label: copy.previousEdit, shortcut: 'Up', onClick: actions.previousVideoEdit },
+						{ id: 'video-navigation-reverse', label: shuttleLabel(copy.shuttleBackward, -1), shortcut: 'J', checked: videoNavigation?.rate < 0, onClick: actions.shuttleBackward },
+						{ id: 'video-navigation-stop', label: copy.shuttleStop, shortcut: 'K', checked: videoNavigation?.rate === 0, onClick: actions.shuttleStop },
+						{ id: 'video-navigation-forward', label: shuttleLabel(copy.shuttleForward, 1), shortcut: 'L', checked: videoNavigation?.rate > 0, onClick: actions.shuttleForward },
+						{ id: 'video-navigation-next-edit', label: copy.nextEdit, shortcut: 'Down', onClick: actions.nextVideoEdit },
+					],
+				}, divider()] : []),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleLoopRegion, label: copy.loop, checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.metronome, label: copy.metronome, checked: Boolean(snapshot.recordingOptions?.metronome), onClick: actions.toggleMetronome },
 			],

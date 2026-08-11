@@ -111,6 +111,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			onKeyDown={(event) => handleWorkspaceKeyboard(event, snapshot, run, {
 				actionRuntime: parityRuntime.actions,
 				menus: applicationMenus,
+				videoNavigation: productId === 'framescaper' ? controller.actions.video.navigation : undefined,
 			})}
 			onContextMenu={(event) => event.preventDefault()}
 		>

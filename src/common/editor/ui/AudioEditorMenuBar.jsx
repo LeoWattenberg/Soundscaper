@@ -12,27 +12,13 @@ import '../../../../vendor/audacity-design-system/components/src/ApplicationHead
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 import { withBase } from '../../url';
 import AudioEditorSearch from './AudioEditorSearch.jsx';
+import { AUDACITY_MENU_ORDER } from './application-menu-order.ts';
 
 const applicationMarkLightSrc = withBase('/logo/logo-klein-schwarz.svg');
 const applicationMarkDarkSrc = withBase('/logo/logo-klein-weiß.svg');
 const MENU_ITEM_SELECTOR = '[role="menuitem"], [role="menuitemcheckbox"]';
 const DIRECT_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"], :scope > [role="menuitemcheckbox"]';
 const DIRECT_ENABLED_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemcheckbox"]:not([aria-disabled="true"])';
-
-export const AUDACITY_MENU_ORDER = Object.freeze([
-	'file',
-	'edit',
-	'select',
-	'view',
-	'tracks',
-	'generate',
-	'effect',
-	'analyze',
-	'tools',
-	'extra',
-	'project',
-	'help',
-]);
 
 export default function AudioEditorMenuBar({
 	appName,

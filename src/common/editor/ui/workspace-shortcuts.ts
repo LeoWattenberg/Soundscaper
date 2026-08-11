@@ -12,6 +12,7 @@ interface KeyboardEventLike {
 	defaultPrevented: boolean;
 	key: string;
 	metaKey: boolean;
+	repeat?: boolean;
 	shiftKey: boolean;
 	target: EventTarget | null;
 	preventDefault(): void;
@@ -29,7 +30,10 @@ interface ShortcutMenuItem {
 interface ShortcutRegistry {
 	actionRuntime?: unknown;
 	menus?: readonly ShortcutMenuItem[];
+	videoNavigation?: Partial<Record<VideoNavigationShortcut, ShortcutHandler>>;
 }
+
+export type VideoNavigationShortcut = 'nextEdit' | 'previousEdit' | 'shuttleBackward' | 'shuttleForward' | 'shuttleStop';
 
 interface ShortcutSnapshot {
 	preferences?: {
@@ -50,13 +54,45 @@ export function handleWorkspaceKeyboard(
 ): void {
 	if (event.defaultPrevented) return;
 	if (handleProjectZoomShortcut(event, run, registry)) return;
-	if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"], [role="menubar"], [role="toolbar"], [role="slider"], [role="spinbutton"]')) return;
+	if (typeof Element !== 'undefined' && event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"], [role="menubar"], [role="toolbar"], [role="slider"], [role="spinbutton"]')) return;
+	const reservedVideoNavigationAction = registry.videoNavigation
+		? videoNavigationShortcut({
+			altKey: event.altKey,
+			ctrlKey: event.ctrlKey,
+			key: event.key,
+			metaKey: event.metaKey,
+			repeat: false,
+			shiftKey: event.shiftKey,
+		})
+		: null;
+	if (reservedVideoNavigationAction && event.repeat) return;
+	const videoNavigationAction = videoNavigationShortcut(event);
+	const videoNavigationHandler = videoNavigationAction ? registry.videoNavigation?.[videoNavigationAction] : null;
+	if (reservedVideoNavigationAction) {
+		if (videoNavigationHandler) {
+			run(videoNavigationHandler);
+			event.preventDefault();
+		}
+		return;
+	}
 	const shortcutAction = matchAudioEditorShortcut(event, snapshot.preferences?.shortcuts || {});
 	const handler = shortcutAction ? resolveAudioEditorShortcutHandler(shortcutAction, registry) : null;
 	if (handler) {
 		run(handler);
 		event.preventDefault();
 	}
+}
+
+export function videoNavigationShortcut(
+	event: Pick<KeyboardEventLike, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'repeat' | 'shiftKey'>,
+): VideoNavigationShortcut | null {
+	if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || event.shiftKey) return null;
+	if (event.key === 'ArrowUp') return 'previousEdit';
+	if (event.key === 'ArrowDown') return 'nextEdit';
+	if (event.key.toUpperCase() === 'J') return 'shuttleBackward';
+	if (event.key.toUpperCase() === 'K') return 'shuttleStop';
+	if (event.key.toUpperCase() === 'L') return 'shuttleForward';
+	return null;
 }
 
 export function handleProjectZoomShortcut(
