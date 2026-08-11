@@ -10,6 +10,7 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
 const LABELS = Object.freeze({
 	left: 'Linke Kante bis zur Abspielposition zeitlich strecken',
 	right: 'Rechte Kante bis zur Abspielposition zeitlich strecken',
@@ -26,7 +27,8 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 		}));
 	});
 
-	test('menus and existing stretch handles uniformly retime one exact linked A/V pair', async ({ page }) => {
+	test('menus and existing stretch handles uniformly retime one exact linked A/V pair', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(240_000);
 		await page.setViewportSize({ width: 1_440, height: 1_100 });
 		const errors = collectClientErrors(page);
