@@ -5,7 +5,7 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('audio editor video composition workflow', () => {
 	test.beforeEach(async ({ page }) => {

@@ -260,7 +260,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		directPcmRollback.summary,
-		/Node.*AIFF, BWF, and BW64.*mid-stream cancellation.*one abort.*no close.*no commit.*ten Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*after PCM.*one abort.*no close, commit, or publication.*same pre-commit rollback.*current-import pristine-passthrough BW64.*visible progress.*completed publication.*without Blob fallback.*cancellation run aborts without publication.*not qualify arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file identity.*WebKit.*unqualified.*host.*injected-File-System-Access direct-WAV race.*non-cancellable close.*commit admission.*Chromium and Firefox.*Start export.*exactly one complete committed publication.*zero aborts.*no stale status or output-link mutation.*Object URL.*browser download/isu,
+		/Node.*AIFF, BWF, and BW64.*mid-stream cancellation.*one abort.*no close.*no commit.*ten Chromium and Firefox.*WAV, AIFF, BWF, and BW64.*after PCM.*one abort.*no close, commit, or publication.*same pre-commit rollback.*current-import pristine-passthrough BW64.*visible progress.*completed publication.*without Blob fallback.*cancellation run aborts without publication.*not qualify arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file identity.*WebKit.*unqualified.*scope revision 2.*injected-File-System-Access direct-WAV race.*non-cancellable close.*commit admission.*Chromium and Firefox.*Start export.*exactly one complete committed publication.*zero aborts.*no stale status or output-link mutation.*Object URL.*browser download/isu,
 	);
 	assert.match(
 		directPcmRollback.summary,

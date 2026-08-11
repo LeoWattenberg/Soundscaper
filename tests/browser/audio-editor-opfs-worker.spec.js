@@ -6,7 +6,7 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 const DATABASE_NAME = 'kw-media-audio-editor';
 const DATABASE_VERSION = 8;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('dedicated OPFS storage worker', () => {
 	test.beforeEach(async ({ context, page }) => {

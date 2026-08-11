@@ -285,10 +285,12 @@ routes, roles, platforms, workflows, and fault classes are finite. Unnamed work
 cannot block closure. Changing that scope requires explicit user approval and a
 `scopeRevision` increase; newly proposed capabilities belong to milestone 3 or
 later. Revision 2 (2026-08-09, user-approved) defers WebKit and ARM64
-validation because no launchable WebKit runtime and no ARM64 hardware are
-accessible, and retires the deprecated `macos-x64` desktop target. The
-qualified platform set is Chromium and Firefox plus the `windows-x64` and
-`linux-x64` desktop targets.
+validation and retires the deprecated `macos-x64` desktop target. WebKit
+stays deferred because the pinned Playwright WebKit build exposes no OPFS,
+no MediaRecorder, and no IndexedDB Blob storage; ARM64 stays deferred
+because no ARM64 hardware is accessible. The qualified platform set is
+Chromium and Firefox plus the `windows-x64` and `linux-x64` desktop
+targets.
 
 Implementation details and evidence belong in each item's `ownerRefs`. Agents
 update an item's status only after its listed acceptance conditions pass.

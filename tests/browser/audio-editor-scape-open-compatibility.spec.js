@@ -38,7 +38,7 @@ const OVERSIZED_FALLBACK_FRAME_COUNT = SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES
 const FALLBACK_SAMPLE_RATE = 48_000;
 const SCAPE_AUDIO_CHUNK_FRAMES = 65_536;
 const CHUNK_STREAM_PACKET_FRAMES = 1_024;
-const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('Scape open feature decisions', () => {
 	registerAudioEditorHooks();

@@ -10,7 +10,7 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
-const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 const LABELS = Object.freeze({
 	left: 'Linke Kante bis zur Abspielposition zeitlich strecken',
 	right: 'Rechte Kante bis zur Abspielposition zeitlich strecken',
