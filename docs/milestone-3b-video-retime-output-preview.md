@@ -172,8 +172,11 @@ normal results. Genuine port/currentness faults reject; do not also report
 them through a second ambiguous error channel. One centralized `onPresented`
 callback supplied at construction runs only for a still-current successful
 key, after last-presented state is installed so callback re-entry is safe.
-The port's finite `mediaTime` is decoded as an exact binary rational and must
-lie in `[exactStart, exactEnd)`; `seeked` alone cannot satisfy the executor.
+The port's finite `mediaTime` must lie in
+`[roundToBinary64(exactStart), roundToBinary64(exactEnd))`. Equality with the
+rounded inclusive start represents that exact boundary; otherwise its decoded
+binary rational must lie in `[exactStart, exactEnd)`. `seeked` alone cannot
+satisfy the executor.
 
 Any `assertCurrent` or media-port fault makes that media-bound executor
 terminal: abort and reject active plus pending with the same error, publish

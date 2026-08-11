@@ -315,20 +315,20 @@ test('makes currentness and media failures terminal for active and pending reque
 		);
 	}
 });
-test('accepts mediaTime at the lower edge but terminally rejects end, nonfinite, and out-of-range evidence', async () => {
+test('accepts rounded mediaTime at the inclusive lower edge but rejects invalid evidence', async () => {
 	for (const [name, mediaTime] of [
-		['end', 2], ['below', 0.999], ['NaN', Number.NaN], ['infinity', Number.POSITIVE_INFINITY],
+		['end', 0.3], ['below', 0.199], ['NaN', Number.NaN], ['infinity', Number.POSITIVE_INFINITY],
 	] as const) {
 		const harness = mediaHarness();
 		const executor = executorFor(harness);
-		const pending = executor.requestFrame(frameDescriptor({ start: exact(1n), end: exact(2n) }));
+		const pending = executor.requestFrame(frameDescriptor({ start: exact(1n, 5n), end: exact(3n, 10n) }));
 		presentation(harness, 0).gate.resolve({ mediaTime });
 		await assert.rejects(pending, /finite|mediaTime|interval|picture|evidence|range/iu, name);
 		assert.equal(harness.published.length, 0);
 	}
 	const accepted = mediaHarness();
-	const pending = executorFor(accepted).requestFrame(frameDescriptor({ start: exact(1n), end: exact(2n) }));
-	presentation(accepted, 0).gate.resolve({ mediaTime: 1 });
+	const pending = executorFor(accepted).requestFrame(frameDescriptor({ start: exact(3n, 10n), end: exact(2n, 5n) }));
+	presentation(accepted, 0).gate.resolve({ mediaTime: 0.3 });
 	await resultOf(pending, 'presented');
 });
 test('installs presented state before callback re-entry and terminally propagates callback throws', async () => {

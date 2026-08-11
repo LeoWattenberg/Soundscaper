@@ -473,6 +473,12 @@ function assertPresentedMediaTime(resultValue: unknown, start: ExactValue, end: 
 	if (typeof result.mediaTime !== 'number' || !Number.isFinite(result.mediaTime)) {
 		throw new RangeError('Video retime presented mediaTime must be finite.');
 	}
+	const roundedStart = exactToNumber(start);
+	const roundedEnd = exactToNumber(end);
+	if (result.mediaTime < roundedStart || result.mediaTime >= roundedEnd) {
+		throw new RangeError('The presented video picture is outside its numeric drawable interval.');
+	}
+	if (result.mediaTime === roundedStart) return;
 	const exact = exactFromNumber(result.mediaTime);
 	if (compareExact(exact, start) < 0 || compareExact(exact, end) >= 0) {
 		throw new RangeError('The presented video picture is outside its exact drawable interval.');
