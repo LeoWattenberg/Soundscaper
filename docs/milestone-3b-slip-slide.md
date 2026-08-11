@@ -102,12 +102,16 @@ move keep their current behavior.
    `trimEnd' = max(0, trimEnd - (out' - out))`. Video trim metadata stays
    non-authoritative and unchanged. Non-null video retime maps and audio warp
    maps refuse rather than rewriting a breakpoint map in this slice.
-7. **One common clamp owns the block.** Candidate authority targets are tested
-   toward `I`; each candidate recomputes `tau` and every participant's two final
-   source boundaries. Intersect positive-range, source-bound, safe-integer,
-   relation, and lock legality, then binary-search the monotonic same-sign prefix
-   over at most the safe-integer bit width. Never walk `abs(B - I)` frames. The
-   nearest legal target wins; `I` is a no-op.
+7. **One common clamp owns the block.** Intersect source-handle, safe-integer,
+   relation, and lock bounds in exact source time. VFR point mapping can create
+   non-convex positive-range legality when both shifted endpoints temporarily
+   round to one boundary. Starting at the requested authority boundary and
+   moving toward `I`, derive every current collapse's exact point-cell `tau`
+   interval and jump past the farthest blocking interval through a binary search
+   of the authority PTS index. Re-evaluate after each jump; refuse after 64
+   jumps rather than scanning a timing index or permitting unbounded pointer
+   work. Within that bound the nearest legal target wins, `I` is a no-op, and
+   no search walks `abs(B - I)` frames or assumes a monotonic legality prefix.
 
 ## Slide frame and neighbor contract
 
@@ -203,8 +207,10 @@ move keep their current behavior.
   VFR boundary-count changes, source/timeline origins, one-frame handles, safe
   integer requests, triplet fixed points, hidden lanes, ambiguous adjacency,
   role-crossing relations, transitions, maps, and invalid originals. Small
-  exhaustive rows prove legality cannot reappear beyond the first illegal
-  same-sign magnitude.
+  exhaustive slide rows prove legality cannot reappear beyond the first illegal
+  same-sign magnitude. A sparse-gap VFR slip row proves that a collapsed point
+  cell can be skipped to the nearest reappearing legal target, and a pathological
+  index proves the fixed jump limit refuses without partial output.
 - Command/history tests apply returned plans at an incommensurate sample/sequence
   rate and prove preview-equal canonical persistence, exact linked presentation,
   source-time alignment, one history entry, and exact undo/redo. Malformed or
