@@ -2,6 +2,8 @@
 
 import type { FrameCanonicalEdgeTrimRequest } from '../../frame-canonical-edge-trim-domain.ts';
 import type { FrameCanonicalRollRippleTrimRequest } from '../../frame-canonical-roll-ripple-trim-domain.ts';
+import type { FrameCanonicalSlipSlideRequest } from '../../frame-canonical-slip-slide-domain.ts';
+import type { FrameCanonicalSlipSlideStep } from '../../frame-canonical-slip-slide-step-request.ts';
 
 interface VideoTrimActionController {
 	getTelemetrySnapshot(): Readonly<{ readonly positionFrame?: unknown }>;
@@ -14,6 +16,11 @@ interface VideoTrimActionController {
 					preview(request: FrameCanonicalRollRippleTrimRequest): unknown;
 					commit(request: FrameCanonicalRollRippleTrimRequest): unknown;
 				}>;
+				readonly slipSlide: Readonly<{
+					buildStepRequest(step: FrameCanonicalSlipSlideStep): Readonly<FrameCanonicalSlipSlideRequest>;
+					preview(request: FrameCanonicalSlipSlideRequest): unknown;
+					commit(request: FrameCanonicalSlipSlideRequest): unknown;
+				}>;
 			}>;
 		}>;
 	}>;
@@ -25,6 +32,9 @@ export interface VideoTrimApplicationMenuActions {
 	commitVideoTrim(request: FrameCanonicalEdgeTrimRequest): unknown;
 	planVideoRollRippleTrim(request: FrameCanonicalRollRippleTrimRequest): unknown;
 	commitVideoRollRippleTrim(request: FrameCanonicalRollRippleTrimRequest): unknown;
+	buildVideoSlipSlideStepRequest(step: FrameCanonicalSlipSlideStep): Readonly<FrameCanonicalSlipSlideRequest>;
+	planVideoSlipSlide(request: FrameCanonicalSlipSlideRequest): unknown;
+	commitVideoSlipSlide(request: FrameCanonicalSlipSlideRequest): unknown;
 }
 
 /** Adapt both trim action branches to the application-menu runtime ports. */
@@ -48,6 +58,15 @@ export function createVideoTrimApplicationMenuActions(
 		),
 		commitVideoRollRippleTrim: (request: FrameCanonicalRollRippleTrimRequest) => run(() => (
 			controller.actions.video.trim.rollRipple.commit(request)
+		)),
+		buildVideoSlipSlideStepRequest: (step: FrameCanonicalSlipSlideStep) => (
+			controller.actions.video.trim.slipSlide.buildStepRequest(step)
+		),
+		planVideoSlipSlide: (request: FrameCanonicalSlipSlideRequest) => (
+			controller.actions.video.trim.slipSlide.preview(request)
+		),
+		commitVideoSlipSlide: (request: FrameCanonicalSlipSlideRequest) => run(() => (
+			controller.actions.video.trim.slipSlide.commit(request)
 		)),
 	});
 }

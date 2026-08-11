@@ -18,6 +18,12 @@ const TRIM_ITEM_IDS = Object.freeze([
 	'ripple-left-edge-to-playhead',
 	'ripple-right-edge-to-playhead',
 ]);
+const SLIP_SLIDE_ITEM_IDS = Object.freeze([
+	'slip-source-earlier-one-frame',
+	'slip-source-later-one-frame',
+	'slide-clip-earlier-one-frame',
+	'slide-clip-later-one-frame',
+]);
 
 test('Framescaper trim planning is lazy per menu open and activation reads the live playhead', () => {
 	const previewRequests: unknown[] = [];
@@ -142,7 +148,87 @@ test('Framescaper trim planning is lazy per menu open and activation reads the l
 	assert.equal(playheadReads, playheadReadCount);
 });
 
-test('workspace menu ports preserve ordinary and nested roll/ripple facade requests', () => {
+test('Framescaper slip/slide leaves build and plan only on menu materialization', () => {
+	const steps: unknown[] = [];
+	const built: unknown[] = [];
+	const planned: unknown[] = [];
+	const committed: unknown[] = [];
+	const actions = actionPorts({
+		buildVideoSlipSlideStepRequest: (step: Readonly<{
+			mode: 'slip' | 'slide';
+			activeClipId: string;
+			direction: 'earlier' | 'later';
+		}>) => {
+			steps.push(step);
+			const request = step.mode === 'slip'
+				? Object.freeze({
+					mode: 'slip' as const,
+					activeClipId: step.activeClipId,
+					requestedSourceInFrame: step.direction === 'earlier' ? 19 : 21,
+				})
+				: Object.freeze({
+					mode: 'slide' as const,
+					activeClipId: step.activeClipId,
+					requestedStartSample: step.direction === 'earlier' ? 36_800 : 40_000,
+				});
+			built.push(request);
+			return request;
+		},
+		planVideoSlipSlide: (request: unknown) => {
+			planned.push(request);
+			return Object.freeze({ kind: 'transform' as const });
+		},
+		commitVideoSlipSlide: (request: unknown) => {
+			committed.push(request);
+			return request;
+		},
+	});
+	const closedRenders = Array.from({ length: 20 }, () => (
+		createApplicationMenus(menuInput('framescaper', actions))
+	));
+	const framescaperMenus = closedRenders.at(-1);
+	assert.ok(framescaperMenus);
+	const closedItems = clipBoundaryItems(framescaperMenus)
+		.filter(({ id }) => SLIP_SLIDE_ITEM_IDS.includes(String(id)));
+
+	assert.deepEqual(steps, []);
+	assert.deepEqual(planned, []);
+	assert.deepEqual(closedItems.map(({ id, label, disabled, resolve }) => ({
+		id, label, disabled, deferred: typeof resolve === 'function',
+	})), [
+		{ id: SLIP_SLIDE_ITEM_IDS[0], label: 'Slip source earlier one frame', disabled: false, deferred: true },
+		{ id: SLIP_SLIDE_ITEM_IDS[1], label: 'Slip source later one frame', disabled: false, deferred: true },
+		{ id: SLIP_SLIDE_ITEM_IDS[2], label: 'Slide clip earlier one frame', disabled: false, deferred: true },
+		{ id: SLIP_SLIDE_ITEM_IDS[3], label: 'Slide clip later one frame', disabled: false, deferred: true },
+	]);
+
+	const openedEdit = materializeApplicationMenu(topLevelMenu(framescaperMenus, 'edit'));
+	const openedItems = clipBoundaryItems([openedEdit])
+		.filter(({ id }) => SLIP_SLIDE_ITEM_IDS.includes(String(id)));
+	assert.deepEqual(steps, [
+		{ mode: 'slip', activeClipId: 'video-clip', direction: 'earlier' },
+		{ mode: 'slip', activeClipId: 'video-clip', direction: 'later' },
+		{ mode: 'slide', activeClipId: 'video-clip', direction: 'earlier' },
+		{ mode: 'slide', activeClipId: 'video-clip', direction: 'later' },
+	]);
+	assert.deepEqual(planned, built);
+	assert.ok(openedItems.every(({ disabled, resolve }) => disabled === false && resolve === undefined));
+	for (const item of openedItems) item.onClick?.();
+	assert.deepEqual(committed, built);
+	for (let index = 0; index < built.length; index += 1) {
+		assert.equal(planned[index], built[index]);
+		assert.equal(committed[index], built[index]);
+	}
+
+	const callsBeforeSoundscaper = steps.length;
+	const soundscaperMenus = createApplicationMenus(menuInput('soundscaper', actions));
+	assert.deepEqual(clipBoundaryItems(soundscaperMenus)
+		.filter(({ id }) => SLIP_SLIDE_ITEM_IDS.includes(String(id))), []);
+	materializeApplicationMenu(topLevelMenu(soundscaperMenus, 'edit'));
+	assert.equal(steps.length, callsBeforeSoundscaper);
+});
+
+test('workspace menu ports preserve ordinary and both nested trim facade requests', () => {
 	const events: unknown[][] = [];
 	let positionFrame: unknown = PLAYHEAD_SAMPLE;
 	const controller = {
@@ -156,6 +242,14 @@ test('workspace menu ports preserve ordinary and nested roll/ripple facade reque
 						preview: (request: unknown) => { events.push(['rr-preview', request]); return request; },
 						commit: (request: unknown) => { events.push(['rr-commit', request]); return request; },
 					},
+					slipSlide: {
+						buildStepRequest: (step: unknown) => {
+							events.push(['ss-step', step]);
+							return slipSlide;
+						},
+						preview: (request: unknown) => { events.push(['ss-preview', request]); return request; },
+						commit: (request: unknown) => { events.push(['ss-commit', request]); return request; },
+					},
 				},
 			},
 		},
@@ -168,11 +262,20 @@ test('workspace menu ports preserve ordinary and nested roll/ripple facade reque
 		mode: 'roll' as const, activeClipId: 'video-clip', edge: 'right' as const,
 		requestedBoundarySample: PLAYHEAD_SAMPLE,
 	});
+	const step = Object.freeze({
+		mode: 'slip' as const, activeClipId: 'video-clip', direction: 'later' as const,
+	});
+	const slipSlide = Object.freeze({
+		mode: 'slip' as const, activeClipId: 'video-clip', requestedSourceInFrame: 21,
+	});
 
 	actions.planVideoTrim(ordinary);
 	actions.commitVideoTrim(ordinary);
 	actions.planVideoRollRippleTrim(rollRipple);
 	actions.commitVideoRollRippleTrim(rollRipple);
+	assert.equal(actions.buildVideoSlipSlideStepRequest(step), slipSlide);
+	actions.planVideoSlipSlide(slipSlide);
+	actions.commitVideoSlipSlide(slipSlide);
 	assert.equal(actions.currentVideoPlayheadSample(), PLAYHEAD_SAMPLE);
 	positionFrame = -1;
 	assert.equal(actions.currentVideoPlayheadSample(), null);
@@ -182,6 +285,9 @@ test('workspace menu ports preserve ordinary and nested roll/ripple facade reque
 		['commit', ordinary],
 		['rr-preview', rollRipple],
 		['rr-commit', rollRipple],
+		['ss-step', step],
+		['ss-preview', slipSlide],
+		['ss-commit', slipSlide],
 	]);
 });
 
@@ -283,6 +389,10 @@ function copyValues(): object {
 		rollRightToPlayhead: 'Roll right edge to playhead',
 		rippleLeftToPlayhead: 'Ripple left edge to playhead',
 		rippleRightToPlayhead: 'Ripple right edge to playhead',
+		slipSourceEarlierOneFrame: 'Slip source earlier one frame',
+		slipSourceLaterOneFrame: 'Slip source later one frame',
+		slideClipEarlierOneFrame: 'Slide clip earlier one frame',
+		slideClipLaterOneFrame: 'Slide clip later one frame',
 	}, {
 		get(target, property, receiver) {
 			return Reflect.has(target, property)

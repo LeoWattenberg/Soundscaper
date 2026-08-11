@@ -2,18 +2,27 @@
 
 import type { FrameCanonicalEdgeTrimRequest } from '../frame-canonical-edge-trim-domain.ts';
 import type { FrameCanonicalRollRippleTrimRequest } from '../frame-canonical-roll-ripple-trim-domain.ts';
+import type { FrameCanonicalSlipSlideRequest } from '../frame-canonical-slip-slide-domain.ts';
+import type { FrameCanonicalSlipSlideStep } from '../frame-canonical-slip-slide-step-request.ts';
 import type { ApplicationMenuResolution } from './application-menu-materialization.ts';
 import type {
 	FramescaperRollRippleTrimMenuCopy,
 	FramescaperRollRippleTrimMenuPlannerResult,
 } from './framescaper-roll-ripple-trim-menu-model.ts';
+import {
+	createFramescaperSlipSlideMenuItems,
+	createFramescaperSlipSlideMenuModel,
+	type FramescaperSlipSlideMenuCopy,
+} from './framescaper-slip-slide-menu-model.ts';
 import type {
 	FramescaperVideoTrimMenuCopy,
 	FramescaperVideoTrimMenuPlannerResult,
 } from './framescaper-video-trim-menu-model.ts';
 
 export interface FramescaperVideoTrimApplicationMenuCopy
-	extends FramescaperVideoTrimMenuCopy, FramescaperRollRippleTrimMenuCopy {}
+	extends FramescaperVideoTrimMenuCopy,
+		FramescaperRollRippleTrimMenuCopy,
+		FramescaperSlipSlideMenuCopy {}
 
 export interface FramescaperVideoTrimApplicationMenuInput {
 	readonly productId: string;
@@ -30,6 +39,13 @@ export interface FramescaperVideoTrimApplicationMenuActions {
 		request: FrameCanonicalRollRippleTrimRequest,
 	): Readonly<FramescaperRollRippleTrimMenuPlannerResult>;
 	commitVideoRollRippleTrim(request: FrameCanonicalRollRippleTrimRequest): unknown;
+	buildVideoSlipSlideStepRequest(
+		step: FrameCanonicalSlipSlideStep,
+	): Readonly<FrameCanonicalSlipSlideRequest>;
+	planVideoSlipSlide(
+		request: FrameCanonicalSlipSlideRequest,
+	): Readonly<{ readonly kind: 'noop' | 'transform' }>;
+	commitVideoSlipSlide(request: FrameCanonicalSlipSlideRequest): unknown;
 }
 
 export interface FramescaperVideoTrimApplicationMenuItem {
@@ -49,6 +65,13 @@ export function createFramescaperVideoTrimApplicationMenuItems(
 	const inert = input.editingBlocked
 		|| typeof input.selectedClipId !== 'string'
 		|| input.selectedClipId.length === 0;
+	const slipSlideItems = createFramescaperSlipSlideMenuItems(
+		createFramescaperSlipSlideMenuModel(input, {
+			buildStepRequest: actions.buildVideoSlipSlideStepRequest,
+			planSlipSlide: actions.planVideoSlipSlide,
+		}),
+		{ commitSlipSlide: actions.commitVideoSlipSlide },
+	);
 	return Object.freeze([
 		edgeItem(input, actions, inert, 'left'),
 		edgeItem(input, actions, inert, 'right'),
@@ -56,6 +79,7 @@ export function createFramescaperVideoTrimApplicationMenuItems(
 		rollRippleItem(input, actions, inert, 'roll', 'right'),
 		rollRippleItem(input, actions, inert, 'ripple', 'left'),
 		rollRippleItem(input, actions, inert, 'ripple', 'right'),
+		...slipSlideItems,
 	]);
 }
 
