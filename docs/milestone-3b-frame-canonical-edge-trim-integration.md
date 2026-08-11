@@ -1,11 +1,12 @@
 # Milestone 3B-4b3: frame-canonical edge-trim integration
 
-> **Status: Planned.** Bounded pickup contract immediately after
+> **Implemented:** commit `8de72ca` on 2026-08-11. Bounded slice immediately after
 > [3B-4b2 — frame-canonical edge-trim planner](milestone-3b-frame-canonical-edge-trim-planner.md).
 > This slice inherits that planner as its only trim authority and makes ordinary
 > video-bearing edge trim use it through the controller, existing timeline
 > handles, and Framescaper's application menu. It does not introduce track-lock
-> state or any later trim tool.
+> state or any later trim tool. Packet 3B-4 remains in progress; the immediate
+> next slice is persisted track-lock schema plus central command enforcement.
 
 ## Foundation already present
 
@@ -118,7 +119,28 @@ current path. Packet 3B-4 remains in progress.
   control appeared. It makes no WebKit or packaged Electron claim.
 - Focused planner/service/menu/controller tests, typecheck, lint, build, focused
   Chromium, architecture/file-size checks, and the canonical non-browser gate
-  pass before status changes from Planned.
+  passed before this status was recorded as implemented.
+
+## Recorded evidence
+
+- Commit `8de72ca` routed video-bearing pointer preview/release and the two
+  Framescaper application-menu actions through the live controller planner,
+  with focused service, controller, pointer-routing, feedback, menu-model, and
+  application-menu fixtures.
+- `npm run check`: **passed** with 5,057 tests total, 5,055 passed and 2 skipped;
+  coverage was 89.89% statements, 81.74% branches, 91.43% functions, and 89.89%
+  lines.
+- The production build guard passed with the largest JavaScript chunk at
+  387,422 bytes.
+- `npx playwright test tests/browser/audio-editor-video-frame-trim.spec.js
+  --project=chromium`: **1/1 passed**. The workflow exercised keyboard-reachable
+  left/right trims at the program playhead, canonical sequence-frame/timecode
+  persistence, linked-audio alignment, one-step undo/redo, an existing pointer
+  trim handle, absence of new default-visible controls, and Soundscaper menu
+  exclusion.
+- The four packaged Electron timing-probe rows remain `pending-external`, and
+  WebKit remains explicitly deferred. This Chromium result does not relabel
+  either deferred matrix.
 
 ## Implementation sequence
 

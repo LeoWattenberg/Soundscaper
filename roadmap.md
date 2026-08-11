@@ -437,12 +437,20 @@ Packet boundaries, dependencies, and acceptance are owned by
   boundaries, and reverse uses descending scrub feedback without persisting
   reversed media. Framescaper now also exposes the existing exact timeline A/V
   Link/Unlink and video Show/Hide commands through its application menus, with
-  undo/redo and reload persistence. The remaining 3B-4 work is the
-  frame-canonical trim planner, track locking, roll/ripple/slip/slide, uniform
-  rate-stretch, and keyboard-complete trim feedback. See
+  undo/redo and reload persistence. The frame-canonical edge-trim planner
+  (`024ad9b`) and its controller, existing-pointer, and application-menu
+  integration (`8de72ca`) are implemented: video-bearing left/right trims share
+  one absolute-boundary authority, keep linked audio aligned, and remain
+  one-step undoable. Packet 3B-4 stays in progress. Its immediate next slice is
+  the separate persisted track-lock schema revision with central command
+  enforcement; roll/ripple/slip/slide, uniform rate-stretch, and the remaining
+  keyboard-complete trim feedback follow. See
   [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md)
   and
-  [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md).
+  [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
+  [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),
+  and
+  [`docs/milestone-3b-frame-canonical-edge-trim-integration.md`](docs/milestone-3b-frame-canonical-edge-trim-integration.md).
 - **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
   shared breakpoint model, reverse/freeze frames, nested sequences,
   subsequence time mapping, and deterministic flattening.

@@ -5,6 +5,10 @@
 > This slice builds the pure planning authority that later trim commands,
 > previews, pointer gestures, and keyboard actions will share. It does not make
 > a new trim command or user-facing action available.
+>
+> **Implemented:** commit `024ad9b` on 2026-08-11. Packet 3B-4 remains in
+> progress; interactive integration is recorded separately in 3B-4b3, and
+> persisted track locking remains the next independent schema/enforcement work.
 
 ## Foundation already present
 
@@ -139,6 +143,19 @@ tools must still cite and satisfy their own foundation coordinate-matrix rows.
 - Focused planner and command-reconciliation tests, typecheck, lint,
   architecture/file-size checks, and the canonical non-browser gate pass. No
   browser result is claimed for this deliberately unexposed slice.
+
+## Recorded evidence
+
+- Commit `024ad9b` added the strict frame-canonical domain and planner plus
+  planner, linked-NTSC, and command-boundary fixtures.
+- The canonical `npm run check` gate after 3B-4b3 integration passed with 5,057
+  tests total, 5,055 passed and 2 skipped; coverage was 89.89% statements,
+  81.74% branches, 91.43% functions, and 89.89% lines.
+- The production build guard passed with the largest JavaScript chunk at
+  387,422 bytes. This deliberately unexposed planner slice makes no browser
+  qualification claim of its own.
+- The four packaged Electron timing-probe rows remain `pending-external`, and
+  WebKit remains explicitly deferred.
 
 ## Implementation sequence
 

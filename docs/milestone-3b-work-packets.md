@@ -156,22 +156,26 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
-The delivered first two slices are
+The delivered first four slices are
 [3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
 session-only J/K/L shuttle and strict previous/next video edit-point navigation
 through the existing Transport menu and Framescaper workspace keys; and
 [3B-4b1 — linked audio and video visibility controls](milestone-3b-linked-audio-visibility.md):
 application-menu Link/Unlink for one exact timeline A/V pair and Show/Hide for
-the selected video track, using the existing undoable persisted commands. Packet
-3B-4 remains in progress: the frame-canonical trim planner, track locking,
-roll/ripple/slip/slide, uniform rate-stretch, and keyboard-complete trim feedback
-remain. The immediate dependency is decomposed as
-[3B-4b2 — frame-canonical edge-trim planner](milestone-3b-frame-canonical-edge-trim-planner.md).
-After that pure planner is implemented, the next planned pickup is
+the selected video track, using the existing undoable persisted commands;
+[3B-4b2 — frame-canonical edge-trim planner](milestone-3b-frame-canonical-edge-trim-planner.md),
+implemented in commit `024ad9b` on 2026-08-11; and
 [3B-4b3 — frame-canonical edge-trim integration](milestone-3b-frame-canonical-edge-trim-integration.md):
 one planner authority for existing video-bearing pointer preview/commit plus
-Framescaper-only left/right-to-playhead application-menu reachability. It does
-not include the later track-lock schema and central-enforcement slice.
+Framescaper-only left/right-to-playhead application-menu reachability,
+implemented in commit `8de72ca` on 2026-08-11. The canonical gate is green with
+5,057 tests total, 5,055 passed and 2 skipped, 89.89% statement and line
+coverage, 81.74% branch coverage, 91.43% function coverage, and a 387,422-byte
+largest production JavaScript chunk; the focused Chromium frame-trim workflow
+passed 1/1. Packet 3B-4 remains in progress. Its immediate next slice is a
+separate persisted track-lock schema revision with central command enforcement;
+roll/ripple/slip/slide, uniform rate-stretch, and the remaining
+keyboard-complete trim feedback follow it.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
