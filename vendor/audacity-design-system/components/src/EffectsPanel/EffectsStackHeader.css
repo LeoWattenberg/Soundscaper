@@ -1,0 +1,79 @@
+/**
+ * Effects Stack Header Styles
+ * Header for track or master effects section
+ */
+
+.effects-stack-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 40px;
+  padding: 8px;
+  background: var(--esh-bg);
+  border-bottom: 1px solid var(--esh-border);
+}
+
+/* Master section header has border on top */
+.effects-stack-header--master {
+  border-top: 1px solid var(--esh-border);
+}
+
+.effects-stack-header__content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Toggle All Button */
+.effects-stack-header__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: var(--esh-toggle-bg);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--esh-toggle-icon-color);
+  transition: background-color 0.15s;
+  outline: none;
+}
+
+.effects-stack-header__toggle:hover {
+  background: var(--esh-toggle-hover-bg);
+}
+
+.effects-stack-header__toggle--active {
+  background: var(--esh-toggle-active-bg);
+  color: var(--esh-toggle-active-icon-color);
+}
+
+.effects-stack-header__toggle:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 1px;
+}
+
+/* Track Name */
+.effects-stack-header__name {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  color: var(--esh-text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Menu Button */
+.effects-stack-header__menu-button {
+  flex-shrink: 0;
+}

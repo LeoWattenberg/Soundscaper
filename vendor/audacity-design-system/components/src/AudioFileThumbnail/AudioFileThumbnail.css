@@ -1,0 +1,143 @@
+/**
+ * AudioFileThumbnail Styles
+ * Design tokens from Audacity Design System v2
+ */
+
+.audio-file-thumbnail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 224px;
+  font-family: 'Inter', sans-serif;
+}
+
+.audio-file-thumbnail__button {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.audio-file-thumbnail__image {
+  width: 224px;
+  height: 126px;
+  background-color: var(--background-surface-elevated, #E3E3E8);
+  border: 1px solid var(--border-default, #D4D5D9);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.audio-file-thumbnail__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.audio-file-thumbnail__title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--foreground-text-primary, #14151A);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.audio-file-thumbnail__date {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--foreground-text-primary, #14151A);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.audio-file-thumbnail__cloud-badge {
+  position: absolute;
+  bottom: 11px;
+  right: 11px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background-color: var(--blue-600, #66A3FF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0px 10px 30px 0px rgba(20, 21, 26, 0.3);
+  color: var(--foreground-icon-inverse, #F4F5F9);
+}
+
+.audio-file-thumbnail__duration {
+  position: absolute;
+  bottom: 11px;
+  left: 11px;
+  padding: 4px 8px;
+  border-radius: 2px;
+  background-color: rgba(20, 21, 26, 0.7);
+  color: var(--foreground-text-inverse, #F4F5F9);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+.audio-file-thumbnail__context-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  color: var(--foreground-icon-secondary, rgba(20, 21, 26, 0.6));
+  opacity: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.audio-file-thumbnail:hover .audio-file-thumbnail__context-btn,
+.audio-file-thumbnail__context-btn:focus,
+.audio-file-thumbnail__context-btn:active {
+  opacity: 1;
+}
+
+.audio-file-thumbnail__context-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  color: var(--foreground-icon-primary, #14151A);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.audio-file-thumbnail__context-btn:active {
+  transform: scale(0.95);
+}
+
+.audio-file-thumbnail__button:hover .audio-file-thumbnail__image {
+  opacity: 0.9;
+}
+
+.audio-file-thumbnail__button:active .audio-file-thumbnail__image {
+  opacity: 0.8;
+}

@@ -1,0 +1,103 @@
+.mixer-effect {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100px;
+  height: 24px;
+  border-radius: 3px;
+  border: 1px solid var(--me-border);
+  background: var(--me-bg);
+  box-sizing: border-box;
+  overflow: hidden;
+  cursor: default;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── Enabled state ── */
+.mixer-effect--enabled {
+  background: var(--me-active-bg);
+  border-color: var(--me-active-border);
+}
+
+/* ── Power button (left) ── */
+.mixer-effect__power {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 100%;
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border-right: 1px solid var(--me-border);
+}
+
+.mixer-effect--enabled .mixer-effect__power {
+  border-right-color: var(--me-active-border);
+}
+
+.mixer-effect:hover .mixer-effect__power {
+  display: flex;
+}
+
+/* ── Effect name label ── */
+.mixer-effect__name {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--me-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  user-select: none;
+}
+
+.mixer-effect--enabled .mixer-effect__name {
+  color: var(--me-active-text);
+}
+
+/* ── Dropdown button (right) ── */
+.mixer-effect__dropdown {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 100%;
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border-left: 1px solid var(--me-border);
+}
+
+.mixer-effect--enabled .mixer-effect__dropdown {
+  border-left-color: var(--me-active-border);
+}
+
+.mixer-effect:hover .mixer-effect__dropdown {
+  display: flex;
+}
+
+/* When hovered on an empty slot, just show the dropdown */
+.mixer-effect--empty .mixer-effect__dropdown {
+  display: none;
+}
+
+.mixer-effect--empty:hover .mixer-effect__dropdown {
+  display: flex;
+}
+
+/* Hover border color */
+.mixer-effect:hover {
+  border-color: var(--me-hover-border);
+}
+
+.mixer-effect--enabled:hover {
+  border-color: var(--me-active-border);
+}

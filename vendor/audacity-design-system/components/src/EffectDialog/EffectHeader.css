@@ -1,0 +1,95 @@
+/**
+ * Effect Header Styles
+ */
+
+.effect-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  background: var(--effect-header-bg);
+  border-bottom: 1px solid var(--effect-header-border);
+  gap: 4px;
+}
+
+/* Left side - automation toggle and preset dropdown */
+.effect-header__left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Automation toggle button */
+.effect-header__automation-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--effect-header-button-bg);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+}
+
+.effect-header__automation-toggle:hover {
+  background: var(--effect-header-button-hover-bg);
+}
+
+.effect-header__automation-toggle--active {
+  background: var(--effect-header-automation-active-bg);
+}
+
+.effect-header__automation-toggle:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 0;
+}
+
+/* Preset dropdown container */
+.effect-header__preset {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Right side - action buttons */
+.effect-header__right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Icon buttons */
+.effect-header__icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--effect-header-button-bg);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.effect-header__icon-button:hover:not(:disabled) {
+  background: var(--effect-header-button-hover-bg);
+}
+
+.effect-header__icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.effect-header__icon-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 0;
+}

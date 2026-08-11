@@ -1,0 +1,162 @@
+/**
+ * DialogHeader Styles
+ */
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  background: var(--dialog-header-bg);
+  border-bottom: 1px solid var(--dialog-header-border);
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+  font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.dialog-header__logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.dialog-header__title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--dialog-header-text);
+  white-space: nowrap;
+}
+
+/* ==================== macOS Variant ==================== */
+
+.dialog-header--macos {
+  height: 28px;
+  padding: 8px 12px;
+  gap: 10px;
+  position: relative;
+}
+
+.dialog-header__macos-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dialog-header__macos-button {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.dialog-header__macos-button:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.dialog-header__macos-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.dialog-header__macos-button:focus {
+  outline: none;
+}
+
+.dialog-header__macos-button:focus-visible {
+  outline: 2px solid var(--dialog-header-focus);
+  outline-offset: 2px;
+}
+
+/* Hide focus outline when auto-focused (programmatically focused on dialog open) */
+.dialog-header__macos-button[data-focus-method="auto"]:focus,
+.dialog-header__macos-button[data-focus-method="auto"]:focus-visible {
+  outline: none;
+}
+
+.dialog-header__macos-button--close {
+  background-color: #ec695e;
+}
+
+.dialog-header__macos-button--minimize {
+  background-color: #f3bf4f;
+}
+
+.dialog-header__macos-button--maximize {
+  background-color: #61c554;
+}
+
+.dialog-header__macos-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* ==================== Windows Variant ==================== */
+
+.dialog-header--windows {
+  height: 28px;
+  justify-content: space-between;
+  padding: 0;
+}
+
+.dialog-header__windows-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 100%;
+}
+
+.dialog-header__windows-controls {
+  display: flex;
+  height: 100%;
+}
+
+.dialog-header__windows-control {
+  width: 40px;
+  height: 28px;
+  border: none;
+  background-color: transparent;
+  font-family: 'Segoe MDL2 Assets', sans-serif;
+  font-size: 10px;
+  line-height: normal;
+  color: var(--dialog-header-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.dialog-header__windows-control:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dialog-header__windows-control--close:hover {
+  background-color: #e81123;
+  color: #ffffff;
+}
+
+.dialog-header__windows-control:focus {
+  outline: none;
+}
+
+.dialog-header__windows-control:focus-visible {
+  outline: 2px solid var(--dialog-header-focus);
+  outline-offset: -2px;
+}
+
+/* Hide focus outline when auto-focused (programmatically focused on dialog open) */
+.dialog-header__windows-control[data-focus-method="auto"]:focus,
+.dialog-header__windows-control[data-focus-method="auto"]:focus-visible {
+  outline: none;
+}

@@ -1,0 +1,66 @@
+.project-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background-color: var(--toolbar-bg);
+  border-bottom: 1px solid var(--toolbar-border);
+  padding: 0 16px 0 0;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.project-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.project-toolbar__center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.project-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.project-toolbar__menu-item {
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: var(--toolbar-text);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.project-toolbar__menu-item:hover {
+  background-color: var(--toolbar-hover);
+}
+
+.project-toolbar__menu-item--active {
+  color: var(--toolbar-active-text);
+  background-color: transparent;
+}
+
+.project-toolbar__menu-item--active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--toolbar-active-indicator);
+}

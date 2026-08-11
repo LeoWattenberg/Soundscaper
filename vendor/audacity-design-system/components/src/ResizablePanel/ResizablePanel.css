@@ -1,0 +1,19 @@
+.resizable-panel {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.resizable-panel__content {
+  position: relative;
+  user-select: none;
+}
+
+.resizable-panel__content--resize-cursor {
+  cursor: ns-resize !important;
+}
+
+/* Prevent text selection during resize */
+.resizable-panel__content * {
+  user-select: inherit;
+}

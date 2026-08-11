@@ -1,0 +1,19 @@
+.clip-context-menu {
+  min-width: 260px;
+}
+
+.clip-context-menu-header {
+  padding: 8px 16px;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--clip-context-menu-header-text);
+  border-bottom: 1px solid var(--clip-context-menu-header-border);
+}
+
+.clip-context-menu-divider {
+  height: 1px;
+  background-color: var(--clip-context-menu-divider-bg);
+  margin: 4px 0;
+}

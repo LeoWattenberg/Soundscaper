@@ -1,0 +1,103 @@
+/**
+ * SelectionToolbar Styles
+ * Matches Figma design: node-id=111-1630
+ */
+
+.selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0;
+  background-color: var(--selection-toolbar-bg);
+  border-top: 1px solid var(--selection-toolbar-border);
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.selection-toolbar__left {
+  display: flex;
+  align-items: center;
+  height: 40px;
+}
+
+.selection-toolbar__status {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  height: 40px;
+  width: 144px;
+  box-sizing: border-box;
+}
+
+.selection-toolbar__status-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--selection-toolbar-text);
+  white-space: nowrap;
+}
+
+.selection-toolbar__divider {
+  position: relative;
+  width: 28px;
+  height: 40px;
+}
+
+.selection-toolbar__divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1px;
+  height: 28px;
+  background-color: var(--selection-toolbar-divider);
+}
+
+.selection-toolbar__instruction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  height: 40px;
+}
+
+.selection-toolbar__instruction-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--selection-toolbar-text);
+  white-space: nowrap;
+}
+
+.selection-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
+}
+
+.selection-toolbar__label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--selection-toolbar-text);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.selection-toolbar__timecodes {
+  display: flex;
+  align-items: flex-start;
+  gap: 1px;
+  border-radius: var(--border-radius-borderradius-md, 3px);
+}
+
+/* Ensure timecode components fit properly */
+.selection-toolbar .timecode {
+  min-width: fit-content;
+}

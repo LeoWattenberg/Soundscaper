@@ -1,0 +1,53 @@
+/* Filter Chip - Based on Figma design node-id=6346-4444 */
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 3px 8px;
+  height: 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--font-primary-color, #14151a);
+  background-color: transparent;
+  border: 1px solid var(--slate-400, #d2d6dd);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.filter-chip:hover:not(.filter-chip--disabled) {
+  background-color: var(--slate-200, #ebedf0);
+  border-color: var(--slate-400, #d2d6dd);
+}
+
+.filter-chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-color);
+}
+
+.filter-chip:active:not(.filter-chip--disabled) {
+  transform: scale(0.98);
+}
+
+/* Selected State */
+.filter-chip--selected {
+  background-color: var(--blue-500, #84b5ff);
+  border-color: var(--blue-500, #84b5ff);
+  color: var(--font-primary-color, #14151a);
+}
+
+.filter-chip--selected:hover:not(.filter-chip--disabled) {
+  background-color: var(--blue-600, #6aa3f5);
+  border-color: var(--blue-600, #6aa3f5);
+}
+
+/* Label */
+.filter-chip__label {
+  user-select: none;
+}

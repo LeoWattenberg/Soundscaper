@@ -1,0 +1,132 @@
+/* Toolbar - Figma Design System Spec */
+
+/* CSS Variables matching Figma tokens */
+:root {
+  /* Toolbar colors */
+  --toolbar-bg: #f8f8f9;
+  --toolbar-border: #d4d5d9;
+  --toolbar-divider: #d4d5d9;
+
+  /* Spacing */
+  --toolbar-padding-x: 12px;
+  --toolbar-gap: 8px;
+}
+
+/* Main toolbar container. Vertical padding is 10px so it survives wrapping:
+   with 28px controls and a 48px single-row minHeight, 10+28+10 = 48 fills the
+   row exactly. When the toolbar wraps to a second row the same 10px stays
+   above the first row and below the last, keeping the visual padding stable
+   instead of collapsing from "10px centered" → "4px tight" the moment it
+   gains a second row. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background-color: var(--toolbar-bg);
+  border-bottom: 1px solid var(--toolbar-border);
+  padding: 10px var(--toolbar-padding-x);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Left/main content area. flex-wrap lets the toolbar grow taller instead
+   of overflowing horizontally when the window narrows. row-gap matches the
+   horizontal gap so wrapped rows breathe. */
+.toolbar__content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--toolbar-gap);
+  row-gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Anything sitting directly inside the wrapping area must keep its natural
+   width — otherwise flex would shrink items instead of triggering a wrap. */
+.toolbar__content > * {
+  flex-shrink: 0;
+}
+
+/* Right content area. `align-self: flex-end` keeps it pinned to the last
+   wrapped row of `.toolbar__content` instead of vertically centering across
+   the full (taller) toolbar when content wraps. In the single-row case the
+   toolbar is exactly tall enough for one row so this is a no-op. */
+.toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--toolbar-gap);
+  align-self: flex-end;
+}
+
+/* Divider between button groups */
+.toolbar__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.toolbar__divider-line {
+  width: 1px;
+  height: 24px;
+  background-color: var(--toolbar-divider);
+}
+
+/* Button group container. flex-shrink: 0 keeps groups intact when the toolbar
+   narrows — buttons wrap to the next row instead of compressing. */
+.toolbar__button-group {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* When a gripper is shown the toolbar sits flush with the left edge — the
+   gripper's own 24px width provides the visual padding. */
+.toolbar--has-gripper {
+  padding-left: 0;
+}
+
+/* Gripper handle (left edge). Matches Figma: 24px wide container, 14px icon,
+   primary icon color. */
+.toolbar__gripper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 100%;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--toolbar-gripper-color, var(--toolbar-divider));
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.toolbar__gripper:active,
+.toolbar__gripper--dragging {
+  cursor: grabbing;
+  color: var(--focus-color, #677ce4);
+}
+
+/* Drop-target indicator shown while the user drags the gripper. Sits at
+   the top or bottom of the viewport depending on the cursor's half. */
+.toolbar__dock-indicator {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 9999;
+  pointer-events: none;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.toolbar__dock-indicator[data-target-dock="top"] {
+  top: 0;
+}
+
+.toolbar__dock-indicator[data-target-dock="bottom"] {
+  bottom: 0;
+}

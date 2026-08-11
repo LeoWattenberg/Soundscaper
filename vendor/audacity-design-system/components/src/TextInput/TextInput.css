@@ -1,0 +1,93 @@
+/**
+ * TextInput - Text input field styles
+ */
+
+@import '../styles/focus.css';
+
+.text-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border-idle);
+  border-radius: 3px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+.text-input__field {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--input-text-color);
+  padding: 0;
+}
+
+.text-input__field::placeholder {
+  color: var(--input-placeholder-color);
+  opacity: 1;
+}
+
+/* State: Hover */
+.text-input--hover {
+  border-color: var(--input-hover-border-color);
+}
+
+/* State: Active (focused) */
+.text-input--active {
+  border-color: var(--focus-color);
+  box-shadow: 0 0 0 var(--focus-ring-size) var(--focus-color);
+}
+
+/* State: Disabled */
+.text-input--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.text-input--disabled .text-input__field {
+  cursor: not-allowed;
+}
+
+/* Type: Error states */
+.text-input--empty-error {
+  border-color: var(--input-error-border);
+}
+
+.text-input--empty-error.text-input--hover {
+  border-color: var(--input-error-border);
+}
+
+.text-input--empty-error.text-input--active {
+  border-color: var(--input-error-border);
+}
+
+.text-input--completed-error {
+  border-color: var(--input-error-border);
+}
+
+.text-input--completed-error.text-input--hover {
+  border-color: var(--input-error-border);
+}
+
+.text-input--completed-error.text-input--active {
+  border-color: var(--input-error-border);
+}
+
+/* Selection highlight */
+.text-input__field::selection {
+  background-color: rgba(112, 175, 234, 0.5);
+}
+
+/* Cursor animation */
+.text-input--active .text-input__field {
+  caret-color: var(--input-caret-color);
+}

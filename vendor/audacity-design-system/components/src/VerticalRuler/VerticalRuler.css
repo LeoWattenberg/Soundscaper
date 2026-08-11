@@ -1,0 +1,142 @@
+/**
+ * VerticalRuler styles
+ */
+
+.vertical-ruler {
+  position: relative;
+  width: var(--ruler-width);
+  height: var(--ruler-height);
+  background-color: var(--ruler-bg);
+}
+
+.vertical-ruler__ticks {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Individual tick container */
+.vertical-ruler__tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
+}
+
+/* Grid line (only for center line at 0.0) */
+.vertical-ruler__grid-line {
+  position: absolute;
+  height: 1px;
+  background-color: var(--ruler-grid-measure);
+  left: 8px;
+  right: 0;
+}
+
+/* Tick mark */
+.vertical-ruler__tick-mark {
+  position: absolute;
+  height: 1px;
+  background-color: var(--ruler-tick-primary);
+  left: 0;
+}
+
+/* Major tick (bold, 8px wide) */
+.vertical-ruler__tick--major .vertical-ruler__tick-mark {
+  width: 8px;
+  background-color: var(--ruler-tick-primary);
+}
+
+/* Minor tick (4px wide, secondary color) */
+.vertical-ruler__tick--minor .vertical-ruler__tick-mark {
+  width: 4px;
+  background-color: var(--ruler-tick-secondary);
+}
+
+/* Minor tick labels (normal weight, secondary color) */
+.vertical-ruler__tick--minor .vertical-ruler__label {
+  font-weight: 400;
+  color: var(--ruler-text-secondary);
+}
+
+/* Label */
+.vertical-ruler__label {
+  position: absolute;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 12px;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 16px;
+}
+
+/* Major tick labels (bold, primary color) */
+.vertical-ruler__tick--major .vertical-ruler__label {
+  font-weight: 700;
+  color: var(--ruler-text-primary);
+}
+
+/* First major tick label - align top of text with tick mark */
+.vertical-ruler__tick--first .vertical-ruler__label {
+  transform: translateY(0);
+  top: 0;
+}
+
+/* Last tick label - pin bottom of text to tick mark so it stays inside container */
+.vertical-ruler__tick--last .vertical-ruler__label {
+  transform: none;
+  top: auto;
+  bottom: 0;
+}
+
+/* Center tick label (0.0) */
+.vertical-ruler__tick--center .vertical-ruler__label {
+  font-weight: 700;
+  color: var(--ruler-text-primary);
+}
+
+/* Major tick mark with secondary label style (used by dB rulers) */
+.vertical-ruler__tick--secondary-label .vertical-ruler__label {
+  font-weight: 400;
+  color: var(--ruler-text-secondary);
+}
+
+/* Position variants */
+.vertical-ruler--right .vertical-ruler__label {
+  right: 4px;
+  text-align: right;
+}
+
+.vertical-ruler--left .vertical-ruler__label {
+  left: 4px;
+  text-align: left;
+}
+
+.vertical-ruler--right .vertical-ruler__tick-mark {
+  left: 0;
+}
+
+.vertical-ruler--left .vertical-ruler__tick-mark {
+  right: 0;
+  left: auto;
+}
+
+.vertical-ruler--left .vertical-ruler__grid-line {
+  right: 8px;
+  left: 0;
+}
+
+/* Header overlay */
+.vertical-ruler__header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: black;
+  opacity: 0.2;
+  pointer-events: none;
+}

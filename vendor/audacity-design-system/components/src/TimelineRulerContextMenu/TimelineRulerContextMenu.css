@@ -1,0 +1,9 @@
+.timeline-ruler-context-menu {
+  /* Inherits styles from .context-menu */
+}
+
+.timeline-ruler-context-menu-divider {
+  height: 1px;
+  background-color: var(--timeline-ruler-context-menu-divider-bg);
+  margin: 4px 0;
+}

@@ -1,0 +1,33 @@
+/**
+ * TextLink - Inline text link styles
+ */
+
+.text-link {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--text-link-color);
+  text-decoration: underline;
+  text-underline-position: from-font;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.text-link:hover {
+  color: var(--text-link-color-hover);
+}
+
+.text-link:active {
+  color: var(--text-link-color-active);
+}
+
+/* When rendered as a button (no href) */
+.text-link--button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: inline;
+  text-align: left;
+}

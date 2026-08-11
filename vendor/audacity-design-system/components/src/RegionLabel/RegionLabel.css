@@ -1,0 +1,120 @@
+/* RegionLabel - Inversible region with two stalks and banner */
+
+.region-label {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Banner - 14px height rectangle spanning between stalks */
+.region-label__banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  background: var(--label-marker-bg, #7EB1FF);
+  border-radius: 2px;
+  padding: 0 8px;
+  z-index: 1;
+}
+
+.region-label__banner-text {
+  position: relative;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 14px;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* Stalks - 1px lines extending from banner to bottom */
+.region-label__left-stalk,
+.region-label__right-stalk {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.region-label__left-stalk {
+  left: 0;
+  transform: translateX(-4px); /* Center the 9px container */
+}
+
+.region-label__right-stalk {
+  right: 0;
+  transform: translateX(4px); /* Center the 9px container */
+}
+
+.region-label__stalk-line {
+  width: 1px;
+  height: 100%;
+  background: var(--label-marker-bg, #7EB1FF);
+}
+
+/* Ears - positioned at top of stalks */
+.region-label__left-ear,
+.region-label__right-ear {
+  position: absolute;
+  top: 0;
+  width: 7px;
+  height: 14px;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.region-label__left-ear {
+  left: -7px;
+}
+
+.region-label__right-ear {
+  right: -7px;
+}
+
+/* Hover states */
+.region-label__banner:hover {
+  background: white;
+}
+
+.region-label__banner:hover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--label-marker-bg, #7EB1FF);
+  opacity: 0.7;
+  z-index: -1;
+  border-radius: 2px;
+}
+
+/* Selected state */
+.region-label--selected .region-label__banner {
+  background: white;
+}
+
+.region-label--selected .region-label__banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--label-marker-bg, #7EB1FF);
+  opacity: 0.4;
+  z-index: -1;
+  border-radius: 2px;
+}
+
+/* Focused state (keyboard focus) */
+.region-label--focused {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}

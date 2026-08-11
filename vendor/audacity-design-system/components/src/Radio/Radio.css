@@ -1,0 +1,55 @@
+/* Radio Button */
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.radio--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.radio__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio__indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--radio-border);
+  background-color: var(--radio-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.radio:hover:not(.radio--disabled) .radio__indicator {
+  border-color: var(--radio-border-hover);
+}
+
+/* Focus state */
+.radio__input:focus + .radio__indicator {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.radio__pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 12px;
+  background-color: var(--radio-pip);
+  transform: rotate(0.257deg);
+}
+
+.radio--disabled .radio__pip {
+  background-color: var(--radio-pip-disabled);
+}

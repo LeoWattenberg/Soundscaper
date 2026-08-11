@@ -1,0 +1,105 @@
+/* Button Component */
+
+@import '../styles/focus.css';
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 2px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--button-text-color);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Small size - 24px height */
+.button--small {
+  padding: 4px 12px;
+  font-size: 12px;
+  line-height: 16px;
+  height: 24px;
+  min-width: 80px;
+}
+
+/* Default size - 28px height */
+.button--default {
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 16px;
+  height: 28px;
+  min-width: 80px;
+}
+
+/* Large size - 40px height (promotional/CTA buttons) */
+.button--large {
+  padding: 6px 12px;
+  font-size: 14px;
+  line-height: 20px;
+  height: 40px;
+  min-width: 160px;
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--focus-ring-size) var(--focus-color);
+}
+
+/* Primary variant */
+.button--primary {
+  background-color: var(--button-bg-idle);
+}
+
+.button--primary:hover:not(.button--disabled) {
+  background-color: var(--button-bg-hover);
+}
+
+.button--primary:active:not(.button--disabled) {
+  background-color: var(--button-bg-active);
+}
+
+/* Secondary variant */
+.button--secondary {
+  background-color: var(--button-bg-idle);
+}
+
+.button--secondary:hover:not(.button--disabled) {
+  background-color: var(--button-bg-hover);
+}
+
+.button--secondary:active:not(.button--disabled) {
+  background-color: var(--button-bg-active);
+}
+
+/* Disabled state */
+.button--disabled {
+  background-color: var(--button-bg-disabled) !important;
+  color: var(--foreground-text-disabled, rgba(20, 21, 26, 0.38)) !important;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+/* Icon */
+.button__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 0;
+}
+
+/* Text */
+.button__text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 16px;
+}

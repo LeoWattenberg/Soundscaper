@@ -1,0 +1,176 @@
+/* Outer wrapper — positioning context only. Lets the icon-button handles
+   sit outside the clip's rounded body (the inner div clips its own
+   overflow). */
+.clip-display {
+  position: relative;
+  overflow: visible;
+}
+
+/* Inner — the visible clip body. All the styles that used to live on
+   `.clip-display` now live here so the rounded corners + border-clipping
+   behavior is unchanged. */
+.clip-display__inner {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #000;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Recording state: remove right-side border radius for "printing" effect */
+.clip-display--recording .clip-display__inner {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Selected state: add inset white border inside the black border */
+.clip-display--selected .clip-display__inner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #FFF;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 20;
+  box-sizing: border-box;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+/* Keyboard focus outline for clips */
+[data-clip-id]:focus {
+  outline: 1px solid white;
+  box-shadow: 0 0 0 2px black;
+  border-radius: 4px;
+}
+
+/* Suppress focus outline on mouse clicks — only show for keyboard navigation. */
+[data-clip-id][data-focus-mouse]:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ===========================================================================
+   Icon-button handles (selected clips only).
+
+   Layout per side, sitting just outside the clip body and vertically
+   anchored *below the clip header* (which is 20px tall):
+       header (20px)
+       ────────────────────
+       [T]   trim    (top: 24px)
+       [S]   stretch (top: 48px)
+
+   Each button has its own custom cursor PNG (in src/assets/cursors/) so
+   hover previews the action. tsup inlines the PNGs as data URLs at build
+   time — consumers don't ship them separately.
+   =========================================================================== */
+.clip-display__handle {
+  position: absolute;
+  width: 22px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  z-index: 25;
+  /* Hover/active scale uses transform — transition stays subtle so it
+     reads as a polish detail, not a chunky motion. */
+  transition: transform 0.12s ease-out, opacity 0.12s ease-out;
+}
+
+/* Trim handles — "black fill with white stroke" via text-stroke. The
+   glyph fills black, then a white outline paints on top of every stroke
+   edge (default paint-order: fill, stroke). Larger font-size + 1px stroke
+   keeps the black silhouette dominant over the white outline. */
+.clip-display__handle--trim-left .musescore-icon,
+.clip-display__handle--trim-right .musescore-icon {
+  color: #000;
+  -webkit-text-stroke: 1px #FFF;
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* Stretch handles — the clock glyph is a circle, so we just put a real
+   black circle behind it via a pseudo-element. The glyph itself is white
+   with no stroke; the disc fills the body of the clock. */
+.clip-display__handle--stretch-left,
+.clip-display__handle--stretch-right {
+  position: absolute; /* re-stated so isolation works */
+}
+
+.clip-display__handle--stretch-left::before,
+.clip-display__handle--stretch-right::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: #000;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+}
+
+.clip-display__handle--stretch-left .musescore-icon,
+.clip-display__handle--stretch-right .musescore-icon {
+  color: #FFF;
+  font-size: 14px;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.clip-display__handle:hover {
+  transform: scale(1.18);
+}
+
+.clip-display__handle:active {
+  transform: scale(1.08);
+  opacity: 0.85;
+}
+
+/* Vertical positioning — sit below the clip header (HEADER_HEIGHT = 20px)
+   with a comfortable gap between the trim and stretch rows. */
+.clip-display__handle--trim-left,
+.clip-display__handle--trim-right {
+  top: 28px;
+}
+
+.clip-display__handle--stretch-left,
+.clip-display__handle--stretch-right {
+  top: 60px;
+}
+
+/* Horizontal positioning — hug the clip edge from the outside. */
+.clip-display__handle--trim-left,
+.clip-display__handle--stretch-left {
+  left: -26px;
+}
+
+.clip-display__handle--trim-right,
+.clip-display__handle--stretch-right {
+  right: -26px;
+}
+
+/* Per-button custom cursor — the PNG appears while hovering the button.
+   `ew-resize` is the fallback if the PNG fails to load. */
+.clip-display__handle--trim-left {
+  cursor: url('../assets/cursors/ClipTrimLeft.png') 8 10, ew-resize;
+}
+.clip-display__handle--trim-right {
+  cursor: url('../assets/cursors/ClipTrimRight.png') 8 10, ew-resize;
+}
+.clip-display__handle--stretch-left {
+  cursor: url('../assets/cursors/ClipStretchLeft.png') 8 10, ew-resize;
+}
+.clip-display__handle--stretch-right {
+  cursor: url('../assets/cursors/ClipStretchRight.png') 8 10, ew-resize;
+}

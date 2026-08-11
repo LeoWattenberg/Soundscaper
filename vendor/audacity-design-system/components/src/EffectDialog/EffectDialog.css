@@ -1,0 +1,50 @@
+/**
+ * Effect Dialog Styles
+ * Base dialog for audio effects with header, content, and footer
+ */
+
+/* Backdrop — transparent click-away target, no dimming */
+.effect-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  z-index: 9999;
+}
+
+/* Dialog Container */
+.effect-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--effect-dialog-bg);
+  border: 1px solid var(--effect-dialog-border);
+  border-radius: 4px;
+  box-shadow: var(--effect-dialog-shadow);
+  display: flex;
+  flex-direction: column;
+  z-index: 10000;
+  overflow: hidden;
+  outline: none;
+}
+
+/* Content */
+.effect-dialog__content {
+  flex: 1;
+  padding: 16px;
+  background: var(--effect-dialog-content-bg);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .effect-dialog {
+    width: 90vw !important;
+    height: 80vh !important;
+    max-width: 600px;
+  }
+}

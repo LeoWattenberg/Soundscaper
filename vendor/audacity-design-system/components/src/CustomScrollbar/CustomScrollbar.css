@@ -1,0 +1,53 @@
+/**
+ * CustomScrollbar Styles
+ */
+
+.custom-scrollbar {
+  position: absolute;
+  background: transparent;
+  z-index: 1000;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.custom-scrollbar--horizontal {
+  bottom: 0;
+  left: 0;
+  right: auto;
+}
+
+.custom-scrollbar--vertical {
+  top: 0;
+  right: 0;
+  bottom: auto;
+}
+
+/* Canvas scrollbar offsets */
+.custom-scrollbar--canvas-horizontal {
+  left: 4px;
+  padding-right: 4px;
+}
+
+.custom-scrollbar--canvas-vertical {
+  top: 4px;
+  padding-bottom: 4px;
+}
+
+.custom-scrollbar__thumb {
+  background: var(--scrollbar-thumb-idle);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  border-radius: 16px;
+}
+
+.custom-scrollbar__thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.custom-scrollbar__thumb--dragging,
+.custom-scrollbar__thumb:active {
+  background: var(--scrollbar-thumb-pressed);
+  cursor: grabbing;
+}

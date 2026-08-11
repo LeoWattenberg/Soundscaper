@@ -1,0 +1,72 @@
+/* TransportButton - Figma Design System Spec */
+
+/* Button base styles */
+.transport-button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 3px;
+  background-color: var(--transport-btn-idle);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.1s ease;
+}
+
+/* Icon styles - Icon component handles font and sizing */
+.transport-button__icon {
+  line-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--transport-icon-color);
+}
+
+/* State: Idle */
+.transport-button--idle {
+  background-color: var(--transport-btn-idle);
+}
+
+/* State: Hover */
+.transport-button--hover {
+  background-color: var(--transport-btn-hover);
+  cursor: pointer;
+}
+
+/* State: Pressed */
+.transport-button--pressed {
+  background-color: var(--transport-btn-pressed);
+}
+
+/* State: Disabled */
+.transport-button--disabled {
+  background-color: var(--transport-btn-idle);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* State: Active (for toggle buttons like loop) */
+.transport-button--active {
+  background-color: var(--transport-btn-pressed);
+}
+
+/* Active state with hover */
+.transport-button--active.transport-button--hover {
+  background-color: var(--transport-btn-hover);
+  filter: brightness(1.1);
+}
+
+/* Focus visible state */
+.transport-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+/* Remove default button styles */
+.transport-button::-moz-focus-inner {
+  border: 0;
+}

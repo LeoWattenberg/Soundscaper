@@ -1,0 +1,100 @@
+/* Knob - Generic rotary knob control */
+
+.knob {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Focus state */
+.knob:focus {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* Dragging state */
+.knob--dragging {
+  cursor: ns-resize;
+}
+
+/* Gauge - 30px circle, starts at 225deg (180 + 45) with 270deg arc */
+.knob__gauge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 225deg,
+    var(--knob-gauge) 0deg,
+    var(--knob-gauge) 270deg,
+    transparent 270deg
+  );
+}
+
+/* Value sweep - shows amount in accent color */
+.knob__value-sweep {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Knob group - rotates as one unit */
+.knob__knob-group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  transition: transform 0.1s ease;
+}
+
+/* Dial border - 24px circle centered filled with border color */
+.knob__dial-border {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--knob-dial-border);
+}
+
+/* Dial - 20px circle centered filled with face color */
+.knob__dial {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--knob-dial-bg);
+}
+
+/* Indicator - 2px x 6px bar, centered horizontally, 2px from top */
+.knob__indicator {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 6px;
+  background-color: var(--knob-indicator);
+  border-radius: 1px;
+}

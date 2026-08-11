@@ -1,0 +1,72 @@
+/* Slider Component */
+
+.slider {
+  position: relative;
+  flex: 1;
+  height: 16px;
+  min-width: 0;
+}
+
+.slider--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Hidden input for accessibility and interaction */
+.slider__input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  margin: 0;
+}
+
+.slider--disabled .slider__input {
+  cursor: not-allowed;
+}
+
+/* Track (background) */
+.slider__track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  height: 4px;
+  background: var(--slider-track-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Fill (value indicator) */
+.slider__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: var(--slider-fill-bg);
+  transition: width 0.05s ease;
+}
+
+/* Handle (thumb) */
+.slider__handle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: var(--slider-handle-bg);
+  border: 1px solid var(--slider-handle-border);
+  border-radius: 9px;
+  pointer-events: none;
+  transition: left 0.05s ease, box-shadow 0.15s ease;
+}
+
+/* Focus state - show outline around handle */
+.slider__input:focus + .slider__track + .slider__handle {
+  box-shadow: 0 0 0 2px var(--focus-color);
+}

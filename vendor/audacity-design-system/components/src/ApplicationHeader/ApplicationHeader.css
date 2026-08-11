@@ -1,0 +1,163 @@
+/**
+ * ApplicationHeader Styles
+ */
+
+.application-header {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Logo (Audacity icon) */
+.application-header__logo {
+  width: 16px;
+  height: 13px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.application-header__app-name {
+  font-size: 12px;
+  line-height: 12px;
+  color: var(--header-text);
+  white-space: nowrap;
+}
+
+/* ==================== macOS Variant ==================== */
+
+.application-header--macos {
+  height: 28px;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 6px;
+  gap: 10px;
+  position: relative;
+}
+
+.application-header__macos-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.application-header__macos-button {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.application-header__macos-button:hover {
+  opacity: 0.8;
+}
+
+.application-header__macos-button--close {
+  background-color: #ec695e;
+}
+
+.application-header__macos-button--minimize {
+  background-color: #f3bf4f;
+}
+
+.application-header__macos-button--maximize {
+  background-color: #61c554;
+}
+
+.application-header__macos-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ==================== Windows Variant ==================== */
+
+.application-header--windows {
+  height: 56px;
+}
+
+.application-header__windows-titlebar {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  position: relative;
+}
+
+.application-header__windows-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  height: 100%;
+}
+
+.application-header__windows-controls {
+  display: flex;
+  height: 100%;
+}
+
+.application-header__windows-control {
+  width: 40px;
+  height: 28px;
+  border: none;
+  background-color: transparent;
+  font-family: 'Segoe MDL2 Assets', sans-serif;
+  font-size: 10px;
+  line-height: normal;
+  color: var(--header-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.application-header__windows-control:hover {
+  background-color: var(--header-menu-hover);
+}
+
+.application-header__windows-control--close:hover {
+  background-color: #e81123;
+  color: #ffffff;
+}
+
+.application-header__windows-menubar {
+  height: 28px;
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid var(--header-border);
+}
+
+.application-header__menu-item {
+  padding: 0 8px;
+  border: none;
+  background-color: transparent;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 14px;
+  color: var(--header-text);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.application-header__menu-item:hover {
+  background-color: var(--header-menu-hover);
+}
+
+.application-header__menu-item:active {
+  background-color: var(--header-menu-hover);
+}

@@ -1,0 +1,102 @@
+/**
+ * Panel Header Styles
+ */
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  background: var(--ph-bg);
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Bottom border as pseudo-element so the active tab can overlap it */
+.panel-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--ph-border);
+  pointer-events: none;
+}
+
+/* Tab group container - uses gap color as 1px separator */
+.panel-header__tab-group {
+  display: flex;
+  align-items: center;
+  background: var(--ph-border);
+  gap: 1px;
+  padding-right: 1px;
+  height: 100%;
+}
+
+/* Base tab styles */
+.panel-header__tab {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--ph-bg);
+  border: none;
+  border-bottom: 1px solid var(--ph-border);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--ph-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-header__tab:focus-visible {
+  outline: 2px solid var(--ph-focus);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+/* Active tab — overlaps the header's bottom border pseudo-element */
+.panel-header__tab--active {
+  background: var(--ph-tab-active-bg);
+  border-bottom: none;
+  padding-left: 12px;
+  padding-right: 8px;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Inactive tab */
+.panel-header__tab--inactive:hover {
+  background: var(--ph-tab-hover-bg);
+}
+
+.panel-header__tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Drag-to-reorder states */
+.panel-header__tab--dragging {
+  opacity: 0.5;
+}
+
+.panel-header__tab--drop-before {
+  box-shadow: inset 2px 0 0 var(--ph-focus);
+}
+
+.panel-header__tab--drop-after {
+  box-shadow: inset -2px 0 0 var(--ph-focus);
+}
+
+/* Close button — pushed to the far right */
+.panel-header__close {
+  margin-left: auto;
+  margin-right: 4px;
+  flex-shrink: 0;
+}

@@ -1,0 +1,49 @@
+/**
+ * Tab Component Styles
+ */
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 2px;
+  background-color: transparent;
+  cursor: default;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--tab-text);
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.tab:hover:not(.tab--active) {
+  background-color: transparent;
+  border-color: var(--stroke-high-contrast, rgba(0, 0, 0, 0));
+  border-bottom-color: transparent;
+}
+
+.tab--active {
+  background-color: var(--tab-bg-active);
+  border: 1px solid transparent;
+  border-bottom: 2px solid var(--tab-border-active);
+  border-radius: 0;
+}
+
+.tab__label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 0;
+}
+
+.tab__label p {
+  line-height: 16px;
+  white-space: pre;
+  margin: 0;
+}

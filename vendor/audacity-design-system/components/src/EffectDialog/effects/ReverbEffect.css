@@ -1,0 +1,128 @@
+/**
+ * Reverb Effect Styles
+ */
+
+.reverb-effect {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 500px;
+}
+
+/* Knobs Row */
+.reverb-effect__knobs {
+  display: flex;
+  justify-content: space-around;
+  gap: 24px;
+  padding: 20px;
+  background: var(--reverb-input-bg);
+  border: 1px solid var(--reverb-input-border);
+  border-radius: 4px;
+}
+
+.reverb-effect__knob-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.reverb-effect__knob-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--reverb-label-color);
+  text-align: center;
+}
+
+.reverb-effect__knob-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--reverb-label-color);
+  text-align: center;
+  min-width: 50px;
+}
+
+.reverb-effect__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reverb-effect__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--reverb-label-color);
+}
+
+.reverb-effect__control-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Slider */
+.reverb-effect__slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--reverb-slider-track);
+  border-radius: 2px;
+  outline: none;
+}
+
+.reverb-effect__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--reverb-slider-thumb);
+  cursor: pointer;
+}
+
+.reverb-effect__slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--reverb-slider-thumb);
+  cursor: pointer;
+  border: none;
+}
+
+/* Number Input */
+.reverb-effect__input {
+  width: 80px;
+  height: 28px;
+  padding: 4px 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--reverb-input-text);
+  background: var(--reverb-input-bg);
+  border: 1px solid var(--reverb-input-border);
+  border-radius: 2px;
+  text-align: right;
+}
+
+.reverb-effect__input:focus {
+  outline: 2px solid var(--reverb-slider-thumb);
+  outline-offset: 0;
+}
+
+/* Info Text */
+.reverb-effect__info {
+  padding: 12px;
+  background: var(--reverb-input-bg);
+  border: 1px solid var(--reverb-input-border);
+  border-radius: 4px;
+}
+
+.reverb-effect__info-text {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--reverb-label-color);
+}

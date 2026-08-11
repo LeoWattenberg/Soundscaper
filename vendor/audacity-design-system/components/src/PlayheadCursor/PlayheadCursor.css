@@ -1,0 +1,59 @@
+/* PlayheadCursor - Vertical line showing current playback position */
+
+.playhead-cursor {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* White center line (1px) */
+.playhead-cursor__line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100%;
+  background-color: #ffffff;
+  z-index: 3;
+}
+
+/* Black stroke on left side (2px) */
+.playhead-cursor__stroke-left {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background-color: #000000;
+  z-index: 1;
+}
+
+/* Black stroke on right side (2px) */
+.playhead-cursor__stroke-right {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background-color: #000000;
+  z-index: 2;
+}
+
+/* Playhead icon at top (for timeline ruler) */
+.playhead-cursor__icon {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.playhead-cursor__icon svg {
+  display: block;
+}
+
+.playhead-cursor__icon polygon {
+  fill: white !important;
+  stroke: black !important;
+  stroke-width: 1px !important;
+}

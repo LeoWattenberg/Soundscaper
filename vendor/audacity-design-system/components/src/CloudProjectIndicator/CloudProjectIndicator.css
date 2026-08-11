@@ -1,0 +1,24 @@
+/**
+ * CloudProjectIndicator Styles
+ * - 24px circular blue badge
+ * - Drop shadow (Elevation_03 from Figma)
+ * - White cloud icon centered
+ */
+
+.cloud-project-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cloud-project-indicator__icon {
+  font-family: 'MusescoreIcon', sans-serif;
+  font-size: 16px;
+  line-height: 0;
+  color: var(--foreground-icon-primary, currentColor);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}

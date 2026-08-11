@@ -1,0 +1,12 @@
+.envelope-overlay {
+  /* SVG container for envelope rendering */
+}
+
+.envelope-point {
+  /* Control point group */
+  transition: all 0.1s ease-out;
+}
+
+.envelope-point--hovered {
+  /* Hovered state is handled via different radii passed to circles */
+}

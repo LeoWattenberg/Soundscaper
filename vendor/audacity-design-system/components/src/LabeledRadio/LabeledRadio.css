@@ -1,0 +1,43 @@
+/* Labeled Radio */
+
+.labeled-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  cursor: pointer;
+}
+
+.labeled-radio--with-description {
+  align-items: flex-start;
+}
+
+.labeled-radio__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.labeled-radio__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--labeled-radio-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.labeled-radio__label--bold {
+  font-weight: 600;
+}
+
+.labeled-radio__description {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--labeled-radio-text);
+  opacity: 0.8;
+}

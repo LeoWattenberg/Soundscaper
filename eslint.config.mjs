@@ -25,6 +25,7 @@ export default tseslint.config(
 			'release/**',
 			'src/common/editor/**/native/**',
 			'test-results/**',
+			'vendor/**',
 		],
 	},
 	{

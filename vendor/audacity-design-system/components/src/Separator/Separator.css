@@ -1,0 +1,18 @@
+/* Separator Component */
+
+.separator {
+  width: 100%;
+  height: 8px;
+  position: relative;
+}
+
+.separator::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background-color: var(--separator-color);
+  transform: translateY(-50%);
+}

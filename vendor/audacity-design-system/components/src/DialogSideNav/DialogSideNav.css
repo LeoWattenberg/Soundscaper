@@ -1,0 +1,68 @@
+/* Dialog Side Navigation */
+
+.dialog-sidenav {
+  width: 220px;
+  background-color: #f8f8f9;
+  border-right: 1px solid #d4d5d9;
+  padding: 8px 0;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* Navigation Item Button */
+.dialog-sidenav__button {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  height: 36px;
+  padding: 10px 12px 10px 20px;
+  background-color: #f8f8f9;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #14151a;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dialog-sidenav__button:hover {
+  background-color: rgba(103, 124, 228, 0.1);
+}
+
+.dialog-sidenav__button:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-border-color, #677ce4);
+}
+
+.dialog-sidenav__button--selected {
+  background-color: rgba(103, 124, 228, 0.2);
+  font-weight: 600;
+}
+
+.dialog-sidenav__icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  line-height: 16px;
+  flex-shrink: 0;
+}
+
+.dialog-sidenav__label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dialog-sidenav__indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: #677ce4;
+}

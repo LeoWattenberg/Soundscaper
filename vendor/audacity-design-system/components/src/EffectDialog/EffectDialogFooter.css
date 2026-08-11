@@ -1,0 +1,34 @@
+/**
+ * Effect Dialog Footer Styles
+ */
+
+.effect-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  background: var(--effect-dialog-footer-bg);
+  border-top: 1px solid var(--effect-dialog-footer-border);
+  flex-shrink: 0;
+}
+
+.effect-dialog-footer__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.effect-dialog-footer__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.effect-dialog-footer__preview-button {
+  min-width: 80px;
+}
+
+/* Ensure all footer buttons have minimum width */
+.effect-dialog-footer button {
+  min-width: 80px;
+}

@@ -1,0 +1,54 @@
+/**
+ * Footer - Generic footer styles
+ */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--background-surface-bg-surface-primary-idle, #f8f8f9);
+  border-top: 1px solid var(--stroke-main-stroke-primary, #d4d5d9);
+  flex-shrink: 0;
+}
+
+.footer__left-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.footer__button-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Deprecated: Use .footer instead */
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--background-surface-bg-surface-primary-idle, #f8f8f9);
+  border-top: 1px solid var(--stroke-main-stroke-primary, #d4d5d9);
+  flex-shrink: 0;
+}
+
+.dialog-footer__left-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dialog-footer__button-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: auto;
+}

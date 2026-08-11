@@ -1,0 +1,9 @@
+repository: https://github.com/DilsonsPickles/audacity-design-system
+tag: components-v0.9.0
+commit: 8cb38db62436db0783cb3a7624306ab3bce19e0b
+vendored: 2026-08-11
+license: MIT (declared in each package manifest; the upstream repository ships no LICENSE file)
+packages: packages/components -> components/, packages/core -> core/, packages/tokens -> tokens/
+contents: src/ + package.json (+ upstream docs) per package; build tooling (tsup.config.ts,
+  vitest.config.ts, tsconfig.json, scripts/) deliberately not vendored - this tree is compiled
+  by the application's Vite build.

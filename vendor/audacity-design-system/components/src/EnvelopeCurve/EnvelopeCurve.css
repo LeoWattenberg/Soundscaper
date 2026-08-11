@@ -1,0 +1,18 @@
+/**
+ * EnvelopeCurve Component Styles
+ */
+
+.envelope-curve {
+  display: block;
+  box-sizing: border-box;
+}
+
+.envelope-curve--active {
+  cursor: crosshair;
+}
+
+.envelope-curve__line {
+  pointer-events: none;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}

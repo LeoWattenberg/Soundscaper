@@ -1,0 +1,180 @@
+/**
+ * VerticalRulerPanel styles
+ */
+
+.vertical-ruler-panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--panel-width);
+  height: 100%;
+  background-color: var(--panel-canvas-bg) !important;
+  border-left: 1px solid #323644;
+  flex-shrink: 0;
+  overflow: hidden; /* Hide overflow on the panel itself */
+  position: relative;
+}
+
+/* Panel header */
+.vertical-ruler-panel__header {
+  width: 100%;
+  height: var(--panel-header-height);
+  background-color: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-header-border);
+  border-left: 1px solid var(--panel-header-border);
+  flex-shrink: 0;
+}
+
+/* Tracks container */
+.vertical-ruler-panel__tracks {
+  display: flex;
+  flex-direction: column;
+  flex: none; /* Don't use flex sizing - let content determine size */
+  width: 100%;
+  overflow: visible; /* Allow all tracks to render */
+  padding-top: var(--panel-track-gap);
+  border-left: 1px solid #323644;
+  background-color: var(--panel-canvas-bg);
+}
+
+/* Individual track */
+.vertical-ruler-panel__track {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  background-color: var(--panel-track-idle);
+}
+
+/* Selected track - focus borders top and bottom only, outside the track (same as Track.css) */
+.vertical-ruler-panel__track--selected {
+  background-color: var(--panel-track-selected);
+}
+
+.vertical-ruler-panel__track--selected::before,
+.vertical-ruler-panel__track--selected::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--focus-color);
+  pointer-events: none;
+}
+
+.vertical-ruler-panel__track--selected::before {
+  top: -2px;
+}
+
+.vertical-ruler-panel__track--selected::after {
+  bottom: -2px;
+}
+
+/* Focused track - same as selected */
+.vertical-ruler-panel__track--focused {
+  background-color: var(--panel-track-selected);
+}
+
+.vertical-ruler-panel__track--focused::before,
+.vertical-ruler-panel__track--focused::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--focus-color);
+  pointer-events: none;
+}
+
+.vertical-ruler-panel__track--focused::before {
+  top: -2px;
+}
+
+.vertical-ruler-panel__track--focused::after {
+  bottom: -2px;
+}
+
+/* Container-focused: 1px white + 1px black bars */
+.vertical-ruler-panel__track--container-focused.vertical-ruler-panel__track--focused::before {
+  background: linear-gradient(to bottom, white 50%, black 50%);
+}
+
+.vertical-ruler-panel__track--container-focused.vertical-ruler-panel__track--focused::after {
+  background: linear-gradient(to bottom, black 50%, white 50%);
+}
+
+/* Focus-visible outline for keyboard-focused ruler — inset black+white double stroke.
+   Uses ::after overlay so it renders above child backgrounds (spacer, ruler). */
+.vertical-ruler-panel__track:focus-visible {
+  outline: none;
+  z-index: 1;
+}
+
+.vertical-ruler-panel__track:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px white, inset 0 0 0 2px black;
+  pointer-events: none;
+  z-index: 10;
+  /* Override --focused bottom-bar styles when both apply */
+  height: auto;
+  background: none;
+}
+
+/* Track gap */
+.vertical-ruler-panel__track-gap {
+  width: 100%;
+  height: var(--panel-track-gap);
+  flex-shrink: 0;
+  background-color: rgba(0, 0, 0, 0.1); /* 10% black to separate rulers */
+}
+
+/* Stereo track container */
+.vertical-ruler-panel__stereo {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Stereo divider line */
+.vertical-ruler-panel__stereo-divider {
+  width: 100%;
+  height: 0px;
+  border-bottom: 1px solid var(--panel-grid-border);
+  flex-shrink: 0;
+}
+
+/* Split view container */
+.vertical-ruler-panel__split {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Split view divider line */
+.vertical-ruler-panel__split-divider {
+  width: 100%;
+  height: 0px;
+  border-bottom: 1px solid var(--panel-grid-border);
+  flex-shrink: 0;
+}
+
+/* Track spacer - clip header recess alignment */
+.vertical-ruler-panel__track-spacer {
+  height: 20px;
+  width: 100%;
+  background-color: #191D29;
+  flex-shrink: 0;
+}
+
+/* Horizontal cursor line */
+.vertical-ruler-panel__cursor {
+  position: absolute;
+  left: 0;
+  height: 1px;
+  background-color: #ffffff;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 0 1px #000000;
+}

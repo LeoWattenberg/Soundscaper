@@ -1,0 +1,37 @@
+/* PluginManagerDialog - Plugin management dialog */
+
+/* Filters */
+.plugin-manager-filters {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-on-elevated);
+}
+
+.plugin-manager-filters__row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.plugin-manager-filters__left {
+  display: flex;
+  gap: 12px;
+}
+
+.plugin-manager-filters__row > .search-field {
+  width: 240px;
+}
+
+.plugin-manager-filter {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.plugin-manager-filter__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}

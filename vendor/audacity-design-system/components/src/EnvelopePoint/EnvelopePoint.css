@@ -1,0 +1,24 @@
+/**
+ * EnvelopePoint Component Styles
+ */
+
+.envelope-point {
+  display: block;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.envelope-point--hovered {
+  z-index: 10;
+}
+
+.envelope-point--dragged {
+  z-index: 20;
+  cursor: grabbing !important;
+}
+
+/* Ensure proper rendering on high-DPI displays */
+.envelope-point {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}

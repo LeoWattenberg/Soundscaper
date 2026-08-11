@@ -1,0 +1,56 @@
+.automation-curve-point {
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.1s ease-out;
+  z-index: 10;
+}
+
+/* Default color - red */
+.automation-curve-point--red {
+  background-color: #ff0000;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.automation-curve-point--red.automation-curve-point--hovered {
+  box-shadow: 0 0 4px rgba(255, 0, 0, 0.6), 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.automation-curve-point--red.automation-curve-point--dragging {
+  box-shadow: 0 0 6px rgba(255, 0, 0, 0.8), 0 0 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Selected state */
+.automation-curve-point--selected {
+  border-color: #ffaa00;
+}
+
+/* Blue color variant */
+.automation-curve-point--blue {
+  background-color: #0000ff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.automation-curve-point--blue.automation-curve-point--hovered {
+  box-shadow: 0 0 4px rgba(0, 0, 255, 0.6), 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.automation-curve-point--blue.automation-curve-point--dragging {
+  box-shadow: 0 0 6px rgba(0, 0, 255, 0.8), 0 0 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Green color variant */
+.automation-curve-point--green {
+  background-color: #00ff00;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.automation-curve-point--green.automation-curve-point--hovered {
+  box-shadow: 0 0 4px rgba(0, 255, 0, 0.6), 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.automation-curve-point--green.automation-curve-point--dragging {
+  box-shadow: 0 0 6px rgba(0, 255, 0, 0.8), 0 0 3px rgba(0, 0, 0, 0.4);
+}

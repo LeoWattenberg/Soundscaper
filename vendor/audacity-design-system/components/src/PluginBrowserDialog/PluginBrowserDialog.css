@@ -1,0 +1,138 @@
+/* Plugin Browser Dialog */
+
+.plugin-browser-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 704px;
+}
+
+/* Override Dialog default padding and layout */
+.plugin-browser-dialog .dialog__body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.plugin-browser-dialog .dialog__footer {
+  margin: 0;
+  width: 100%;
+}
+
+/* Container for sidebar + content */
+.plugin-browser-dialog__container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Sidebar Navigation */
+.plugin-browser-dialog__sidebar {
+  width: 200px;
+  background-color: #ffffff;
+  border-right: 1px solid #d4d5d9;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.plugin-browser-dialog__nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.plugin-browser-dialog__nav-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #1e1e21;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-left: 3px solid transparent;
+}
+
+.plugin-browser-dialog__nav-item:hover {
+  background-color: #f8f8f9;
+}
+
+.plugin-browser-dialog__nav-item--active {
+  font-weight: 600;
+  color: #0050E6;
+  background-color: #e8f0fe;
+  border-left-color: #0050E6;
+}
+
+/* Body */
+.plugin-browser-dialog__body {
+  flex: 1;
+  background-color: #ebedf0;
+  position: relative;
+  overflow: hidden;
+}
+
+.plugin-browser-dialog__scroll-container {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 32px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* Hide default scrollbar */
+.plugin-browser-dialog__scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Loading State */
+.plugin-browser-dialog__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+}
+
+.plugin-browser-dialog__loading-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #6c6c70;
+  margin: 0;
+}
+
+/* Plugin Grid */
+.plugin-browser-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+/* Footer */
+.plugin-browser-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  background-color: #f8f8f9;
+  border-top: 1px solid #d4d5d9;
+  flex-shrink: 0;
+}
+
+.plugin-browser-dialog__footer-left {
+  display: flex;
+  gap: 8px;
+}
+
+.plugin-browser-dialog__footer-right {
+  display: flex;
+  gap: 8px;
+}

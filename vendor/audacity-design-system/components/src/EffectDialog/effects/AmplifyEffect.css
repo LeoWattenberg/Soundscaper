@@ -1,0 +1,111 @@
+/**
+ * Amplify Effect Styles
+ */
+
+.amplify-effect {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 500px;
+}
+
+.amplify-effect__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.amplify-effect__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--amplify-label-color);
+}
+
+.amplify-effect__control-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Slider */
+.amplify-effect__slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--amplify-slider-track);
+  border-radius: 2px;
+  outline: none;
+}
+
+.amplify-effect__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--amplify-slider-thumb);
+  cursor: pointer;
+}
+
+.amplify-effect__slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--amplify-slider-thumb);
+  cursor: pointer;
+  border: none;
+}
+
+/* Number Input */
+.amplify-effect__input {
+  width: 80px;
+  height: 28px;
+  padding: 4px 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--amplify-input-text);
+  background: var(--amplify-input-bg);
+  border: 1px solid var(--amplify-input-border);
+  border-radius: 2px;
+  text-align: right;
+}
+
+.amplify-effect__input:focus {
+  outline: 2px solid var(--amplify-slider-thumb);
+  outline-offset: 0;
+}
+
+/* Checkbox */
+.amplify-effect__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--amplify-label-color);
+  cursor: pointer;
+  user-select: none;
+}
+
+.amplify-effect__checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Info Text */
+.amplify-effect__info {
+  padding: 12px;
+  background: var(--amplify-input-bg);
+  border: 1px solid var(--amplify-input-border);
+  border-radius: 4px;
+}
+
+.amplify-effect__info-text {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--amplify-label-color);
+}

@@ -1,0 +1,37 @@
+/**
+ * Effects Panel Header Styles
+ */
+
+.effects-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--eph-bg);
+  border-bottom: 1px solid var(--eph-border);
+  flex-shrink: 0;
+}
+
+.effects-panel-header__content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.effects-panel-header__title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--eph-text-color);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.effects-panel-header__close-button {
+  flex-shrink: 0;
+}

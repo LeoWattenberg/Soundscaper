@@ -1,0 +1,109 @@
+/**
+ * Label Editor Styles
+ * Based on Figma design: node-id=8997-128847
+ */
+
+/* Container - fills dialog body and handles scrolling */
+.label-editor__container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: auto;
+  background-color: #F8F8F9;
+}
+
+/* Custom scrollbar styling */
+.label-editor__container::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.label-editor__container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.label-editor__container::-webkit-scrollbar-thumb {
+  background: #C0C5CE;
+  border-radius: 6px;
+  border: 2px solid #F8F8F9;
+}
+
+.label-editor__container::-webkit-scrollbar-thumb:hover {
+  background: #A9B0BD;
+}
+
+.label-editor__container::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Table */
+.label-editor__table {
+  width: max-content;
+  min-width: 100%;
+  flex-shrink: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+/* Spacer - fills remaining space to push scrollbar to bottom */
+.label-editor__spacer {
+  flex: 1;
+  min-height: 0;
+}
+
+.label-editor__table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Table body */
+.label-editor__table-body {
+  background-color: #F8F8F9;
+}
+
+/* Table rows */
+.label-editor__table-row {
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.label-editor__table-row:hover {
+  background-color: var(--label-editor-row-hover);
+}
+
+.label-editor__table-row--selected {
+  outline: 2px solid var(--label-editor-row-selected);
+  outline-offset: -2px;
+}
+
+/* Table cells */
+.label-editor__table-cell {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--label-editor-border);
+}
+
+/* Remove input borders and padding inside cells for seamless appearance */
+.label-editor__table-cell .text-input {
+  border: none;
+  background: transparent;
+  padding: 4px 6px;
+  width: 100%;
+  min-width: 50px;
+}
+
+.label-editor__table-cell .text-input:focus {
+  outline: 1px solid var(--label-editor-row-selected);
+  outline-offset: -1px;
+  background-color: var(--label-editor-header-bg);
+}
+
+.label-editor__table-cell .dropdown {
+  width: 100%;
+}
+
+.label-editor__table-cell .timecode {
+  /* Remove width: 100% to let TimeCode use fit-content */
+}

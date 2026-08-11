@@ -1,0 +1,50 @@
+.toggle-button {
+  width: var(--toggle-btn-size, 28px);
+  height: var(--toggle-btn-size, 28px);
+  border: none;
+  border-radius: 2px;
+  background-color: var(--toggle-btn-bg);
+  color: var(--toggle-btn-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: var(--toggle-btn-size, 28px);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.1s ease;
+  outline: none;
+}
+
+.toggle-button:hover:not(.toggle-button--disabled) {
+  background-color: var(--toggle-btn-bg-hover);
+}
+
+.toggle-button:active:not(.toggle-button--disabled) {
+  background-color: var(--toggle-btn-bg-active);
+}
+
+.toggle-button--active {
+  background-color: var(--toggle-btn-bg-active);
+  color: var(--toggle-btn-text-active);
+}
+
+.toggle-button--active:hover:not(.toggle-button--disabled) {
+  background-color: var(--toggle-btn-bg-active);
+}
+
+.toggle-button--active:active:not(.toggle-button--disabled) {
+  background-color: var(--toggle-btn-bg-active);
+}
+
+.toggle-button--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toggle-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 1px;
+}

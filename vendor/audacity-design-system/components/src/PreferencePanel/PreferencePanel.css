@@ -1,0 +1,21 @@
+.preference-panel {
+  background-color: var(--preference-panel-bg);
+  border: 1px solid var(--preference-panel-border);
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.preference-panel__title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--preference-panel-title-text);
+  margin: 0 0 12px 0;
+}
+
+.preference-panel__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

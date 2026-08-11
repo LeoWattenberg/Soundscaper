@@ -1,0 +1,98 @@
+/* TrackMeter - Vertical audio level meter */
+
+.track-meter {
+  height: 100%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.track-meter--mono {
+  width: 8px;
+}
+
+.track-meter--stereo {
+  width: 7px;
+}
+
+.track-meter__bar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 1px;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* Clipping region - top 6px */
+.track-meter__clipping {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--tm-bg-meter);
+  border-radius: 1px 1px 0 0;
+}
+
+.track-meter__clipping--active {
+  background: var(--tm-fill-clipping);
+}
+
+/* Main region - background from 8px down to bottom */
+.track-meter__main {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--tm-bg-meter);
+  border-radius: 0 0 1px 1px;
+}
+
+/* Volume fill - fills from position based on volume level */
+.track-meter__volume {
+  position: absolute;
+  top: var(--tm-volume-position);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--tm-fill-volume);
+  border-radius: 0 0 1px 1px;
+}
+
+.track-meter__volume--clipping {
+  background: var(--tm-fill-clipping);
+  top: 8px; /* Override to fill from clipping region down when clipped */
+}
+
+/* RMS overlay - lighter region within volume fill */
+.track-meter__rms {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--tm-rms-position);
+  background: var(--tm-fill-rms);
+}
+
+/* Recent peak indicator - thin horizontal line */
+.track-meter__recent-peak {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--tm-fill-peak);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Max peak indicator - thin black horizontal line */
+.track-meter__max-peak {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--tm-stroke-peak);
+  pointer-events: none;
+  z-index: 3;
+}

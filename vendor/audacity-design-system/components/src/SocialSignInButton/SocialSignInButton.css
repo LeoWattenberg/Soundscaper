@@ -1,0 +1,53 @@
+/**
+ * SocialSignInButton - Social sign-in button styles
+ */
+
+.social-sign-in-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  width: 100%;
+  background-color: var(--social-btn-bg);
+  border: 1px solid var(--social-btn-border);
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--social-btn-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.social-sign-in-button:hover:not(:disabled) {
+  background-color: var(--social-btn-hover-bg);
+}
+
+.social-sign-in-button:active:not(:disabled) {
+  background-color: var(--social-btn-hover-bg);
+}
+
+.social-sign-in-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.social-sign-in-button__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.social-sign-in-button__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.social-sign-in-button__text {
+  white-space: nowrap;
+}

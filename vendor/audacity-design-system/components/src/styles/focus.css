@@ -1,0 +1,35 @@
+/**
+ * Focus State Styles
+ *
+ * Centralized focus state styling for form inputs and interactive elements
+ * Apply using the .focus-ring class or use the CSS variables directly
+ */
+
+:root {
+  /* Focus ring colors */
+  --focus-border-color: var(--focus-color, #677ce4);
+  --focus-ring-color: var(--focus-color, #677ce4);
+  --focus-ring-size: 3px;
+
+  /* Hover state for form inputs */
+  --input-hover-border-color: var(--focus-color, rgba(103, 124, 228, 0.7));
+}
+
+/**
+ * Standard focus ring
+ * Apply this class to elements that need focus indication
+ */
+.focus-ring:focus {
+  outline: none;
+  border-color: var(--focus-border-color);
+  box-shadow: 0 0 0 var(--focus-ring-size) var(--focus-ring-color);
+}
+
+/**
+ * Focus ring for elements that should maintain focus styling when active
+ */
+.focus-ring:focus-visible {
+  outline: none;
+  border-color: var(--focus-border-color);
+  box-shadow: 0 0 0 var(--focus-ring-size) var(--focus-ring-color);
+}

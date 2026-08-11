@@ -1,0 +1,143 @@
+/**
+ * ExportModal styles
+ */
+
+/* Overlay */
+.export-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Modal container */
+.export-modal {
+  width: 640px;
+  background: var(--bg-dialog-body);
+  border: 1px solid var(--stroke-primary);
+  border-radius: 8px;
+  box-shadow: 0px 10px 30px 0px rgba(20, 21, 26, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.export-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-dialog-body);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Section styles */
+.export-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-modal__section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--txt-primary);
+  margin: 0;
+}
+
+/* Field layout - same as PreferencesModal */
+.export-modal__field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.export-modal__field--radio-group {
+  align-items: flex-start;
+  padding: 4px 0;
+}
+
+/* Label styles */
+.export-modal__label {
+  display: flex;
+  align-items: center;
+  min-width: 146px;
+  width: 146px;
+  height: 28px;
+  padding: 10px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--txt-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Radio group */
+.export-modal__radio-group {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  height: 28px;
+  padding: 4px 0;
+}
+
+/* Field width classes - consistent with PreferencesModal */
+.export-modal__field--small {
+  max-width: 316px; /* 146px label + 8px gap + 162px field */
+}
+
+.export-modal__field--small > .dropdown {
+  width: 162px;
+}
+
+.export-modal__field--medium {
+  max-width: 474px; /* 146px label + 8px gap + 320px field */
+}
+
+.export-modal__field--medium > .dropdown {
+  width: 320px;
+}
+
+.export-modal__field--large {
+  /* Full width - no max-width constraint */
+}
+
+/* Input/Dropdown containers */
+.export-modal__input-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.export-modal__input-wrapper > .text-input,
+.export-modal__input-wrapper > .dropdown {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Footer styles */
+.export-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-dialog-footer);
+  border-top: 1px solid var(--stroke-primary);
+}
+
+.export-modal__button-group {
+  display: flex;
+  gap: 8px;
+}

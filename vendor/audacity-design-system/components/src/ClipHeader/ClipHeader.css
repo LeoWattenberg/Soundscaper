@@ -1,0 +1,333 @@
+.clip-header {
+  height: 20px;
+  box-sizing: border-box;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.clip-header__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  height: 100%;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.clip-header__name {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  color: var(--clip-header-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.clip-header__info {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.clip-header__badge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 2px;
+  height: 16px;
+  border-radius: 2px;
+  background-color: transparent;
+}
+
+.clip-header__badge-icon {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--clip-header-text);
+}
+
+.clip-header__badge-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  color: var(--clip-header-text);
+}
+
+.clip-header__menu-button {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  border-radius: 2px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Blue */
+.clip-header--blue {
+  background-color: var(--clip-blue-header);
+}
+.clip-header--blue:hover:not(.clip-header--selected) {
+  background-color: var(--clip-blue-header-hover);
+}
+.clip-header--blue:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #4A7FE6; /* blue-700 */
+}
+.clip-header--blue:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #305BCC; /* blue-800 */
+}
+.clip-header--blue.clip-header--selected {
+  background-color: var(--clip-blue-header-selected);
+}
+.clip-header--blue.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #C0D9FF; /* blue-300 */
+}
+.clip-header--blue.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #A2C7FF; /* blue-400 */
+}
+
+/* Violet - uses violet-500, violet-600, violet-700, violet-800, violet-200, violet-100, violet-300, violet-400 */
+.clip-header--violet {
+  background-color: var(--clip-violet-header);
+}
+.clip-header--violet:hover:not(.clip-header--selected) {
+  background-color: var(--clip-violet-header-hover);
+}
+.clip-header--violet:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #7B77EB; /* violet-700 */
+}
+.clip-header--violet:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #5E58DA; /* violet-800 */
+}
+.clip-header--violet.clip-header--selected {
+  background-color: var(--clip-violet-header-selected);
+}
+.clip-header--violet.clip-header--selected {
+  background-color: var(--clip-violet-header-selected);
+}
+.clip-header--violet.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #D5D4FE; /* violet-300 */
+}
+.clip-header--violet.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #C1C0FD; /* violet-400 */
+}
+
+/* Magenta - uses magenta-500, magenta-600, magenta-700, magenta-800, magenta-200, magenta-100, magenta-300, magenta-400 */
+.clip-header--magenta {
+  background-color: var(--clip-magenta-header);
+}
+.clip-header--magenta:hover:not(.clip-header--selected) {
+  background-color: var(--clip-magenta-header-hover);
+}
+.clip-header--magenta:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #CE6FC0; /* magenta-700 */
+}
+.clip-header--magenta:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #C251B3; /* magenta-800 */
+}
+.clip-header--magenta.clip-header--selected {
+  background-color: var(--clip-magenta-header-selected);
+}
+.clip-header--magenta.clip-header--selected {
+  background-color: var(--clip-magenta-header-selected);
+}
+.clip-header--magenta.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #F0D1EB; /* magenta-300 */
+}
+.clip-header--magenta.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #E9BAE0; /* magenta-400 */
+}
+
+/* Red - uses red-500, red-600, red-700, red-800, red-200, red-100, red-300, red-400 */
+.clip-header--red {
+  background-color: var(--clip-red-header);
+}
+.clip-header--red:hover:not(.clip-header--selected) {
+  background-color: var(--clip-red-header-hover);
+}
+.clip-header--red:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #EA5656; /* red-700 */
+}
+.clip-header--red:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #E33434; /* red-800 */
+}
+.clip-header--red.clip-header--selected {
+  background-color: var(--clip-red-header-selected);
+}
+.clip-header--red.clip-header--selected {
+  background-color: var(--clip-red-header-selected);
+}
+.clip-header--red.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #F9CCCC; /* red-300 */
+}
+.clip-header--red.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #F6B3B3; /* red-400 */
+}
+
+/* Orange - uses orange-500, orange-600, orange-700, orange-800, orange-200, orange-100, orange-300, orange-400 */
+.clip-header--orange {
+  background-color: var(--clip-orange-header);
+}
+.clip-header--orange:hover:not(.clip-header--selected) {
+  background-color: var(--clip-orange-header-hover);
+}
+.clip-header--orange:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #FF8542; /* orange-700 */
+}
+.clip-header--orange:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #FF6B1E; /* orange-800 */
+}
+.clip-header--orange.clip-header--selected {
+  background-color: var(--clip-orange-header-selected);
+}
+.clip-header--orange.clip-header--selected {
+  background-color: var(--clip-orange-header-selected);
+}
+.clip-header--orange.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #FFD8C0; /* orange-300 */
+}
+.clip-header--orange.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #FFC5A2; /* orange-400 */
+}
+
+/* Yellow - uses yellow-500, yellow-600, yellow-700, yellow-800, yellow-200, yellow-100, yellow-300, yellow-400 */
+.clip-header--yellow {
+  background-color: var(--clip-yellow-header);
+}
+.clip-header--yellow:hover:not(.clip-header--selected) {
+  background-color: var(--clip-yellow-header-hover);
+}
+.clip-header--yellow:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #E4B32A; /* yellow-700 */
+}
+.clip-header--yellow:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #DFA60D; /* yellow-800 */
+}
+.clip-header--yellow.clip-header--selected {
+  background-color: var(--clip-yellow-header-selected);
+}
+.clip-header--yellow.clip-header--selected {
+  background-color: var(--clip-yellow-header-selected);
+}
+.clip-header--yellow.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #F4E4B9; /* yellow-300 */
+}
+.clip-header--yellow.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #F0D896; /* yellow-400 */
+}
+
+/* Green - uses green-500, green-600, green-700, green-800, green-200, green-100, green-300, green-400 */
+.clip-header--green {
+  background-color: var(--clip-green-header);
+}
+.clip-header--green:hover:not(.clip-header--selected) {
+  background-color: var(--clip-green-header-hover);
+}
+.clip-header--green:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #5AB03C; /* green-700 */
+}
+.clip-header--green:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #42A224; /* green-800 */
+}
+.clip-header--green.clip-header--selected {
+  background-color: var(--clip-green-header-selected);
+}
+.clip-header--green.clip-header--selected {
+  background-color: var(--clip-green-header-selected);
+}
+.clip-header--green.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #C4E5BC; /* green-300 */
+}
+.clip-header--green.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #AAD89B; /* green-400 */
+}
+
+/* Teal - uses teal-500, teal-600, teal-700, teal-800, teal-200, teal-100, teal-300, teal-400 */
+.clip-header--teal {
+  background-color: var(--clip-teal-header);
+}
+.clip-header--teal:hover:not(.clip-header--selected) {
+  background-color: var(--clip-teal-header-hover);
+}
+.clip-header--teal:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #19A57E; /* teal-700 */
+}
+.clip-header--teal:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #079669; /* teal-800 */
+}
+.clip-header--teal.clip-header--selected {
+  background-color: var(--clip-teal-header-selected);
+}
+.clip-header--teal.clip-header--selected {
+  background-color: var(--clip-teal-header-selected);
+}
+.clip-header--teal.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #ACE3D4; /* teal-300 */
+}
+.clip-header--teal.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #84D3BF; /* teal-400 */
+}
+
+/* Classic - uses light lavender colors */
+.clip-header--classic {
+  background-color: #CDD2F5; /* Classic header default */
+}
+.clip-header--classic:hover:not(.clip-header--selected) {
+  background-color: #B8BEE8; /* Classic header hover */
+}
+.clip-header--classic:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #A3AAD9; /* Slightly darker on button hover */
+}
+.clip-header--classic:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #8D96C9; /* Even darker on button active */
+}
+.clip-header--classic.clip-header--selected {
+  background-color: #CDD2F5; /* Same when selected */
+}
+.clip-header--classic.clip-header--selected {
+  background-color: #CDD2F5; /* Same when selected + hover */
+}
+.clip-header--classic.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #B8BEE8; /* Slightly darker on button hover when selected */
+}
+.clip-header--classic.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #A3AAD9; /* Even darker on button active when selected */
+}
+
+/* Cyan */
+.clip-header--cyan {
+  background-color: var(--clip-cyan-header);
+}
+.clip-header--cyan:hover:not(.clip-header--selected) {
+  background-color: var(--clip-cyan-header-hover);
+}
+.clip-header--cyan:hover:not(.clip-header--selected) .clip-header__menu-button:hover {
+  background-color: #28B1C6; /* cyan-700 */
+}
+.clip-header--cyan:hover:not(.clip-header--selected) .clip-header__menu-button:active {
+  background-color: #12A4BD; /* cyan-800 */
+}
+.clip-header--cyan.clip-header--selected {
+  background-color: var(--clip-cyan-header-selected);
+}
+.clip-header--cyan.clip-header--selected {
+  background-color: #ECF9FA; /* cyan-100 - same when selected+hover */
+}
+.clip-header--cyan.clip-header--selected:hover .clip-header__menu-button:hover {
+  background-color: #B4E5EA; /* cyan-300 */
+}
+.clip-header--cyan.clip-header--selected:hover .clip-header__menu-button:active {
+  background-color: #90D8E1; /* cyan-400 */
+}

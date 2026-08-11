@@ -1,0 +1,71 @@
+/**
+ * Checkbox Styles
+ */
+
+@import '../styles/focus.css';
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Unchecked states */
+.checkbox--unchecked.checkbox--default {
+  background-color: var(--checkbox-bg-idle);
+}
+
+.checkbox--unchecked.checkbox--hover {
+  background-color: var(--checkbox-bg-hover);
+}
+
+.checkbox--unchecked.checkbox--pressed {
+  background-color: var(--checkbox-bg-pressed);
+}
+
+/* Checked states */
+.checkbox--checked.checkbox--default {
+  background-color: var(--checkbox-bg-idle);
+}
+
+.checkbox--checked.checkbox--hover {
+  background-color: var(--checkbox-bg-hover);
+}
+
+.checkbox--checked.checkbox--pressed {
+  background-color: var(--checkbox-bg-pressed);
+}
+
+/* Disabled state */
+.checkbox--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Checkmark icon */
+.checkbox__icon {
+  font-family: 'MusescoreIcon', sans-serif;
+  font-size: 16px;
+  line-height: 16px;
+  color: var(--checkbox-icon-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+/* Focus state - only show focus ring for keyboard navigation */
+.checkbox:focus {
+  outline: none;
+}
+
+.checkbox:focus-visible {
+  box-shadow: 0 0 0 var(--focus-ring-size) var(--focus-color);
+}

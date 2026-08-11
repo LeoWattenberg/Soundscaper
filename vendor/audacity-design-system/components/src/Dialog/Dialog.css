@@ -1,0 +1,169 @@
+/**
+ * Dialog Styles
+ * Based on Figma design: node-id=6326-22726
+ */
+
+/* Overlay */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 0;
+}
+
+/* Dialog container */
+.dialog {
+  background-color: var(--dialog-bg);
+  border: 1px solid var(--dialog-border);
+  border-radius: 8px;
+  box-shadow: var(--dialog-shadow);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 32px);
+  max-width: calc(100vw - 32px);
+  min-width: 480px;
+  /* min-height is now set via inline style prop (default: 488px) */
+  overflow: hidden;
+  transition: all 0.2s ease;
+  margin: 16px;
+  box-sizing: border-box;
+  position: relative;
+  container-type: inline-size;
+  container-name: dialog;
+}
+
+/* Resizing state */
+.dialog--resizing {
+  user-select: none;
+  transition: none;
+}
+
+/* Dragging state */
+.dialog--dragging {
+  user-select: none;
+  transition: none;
+  cursor: move;
+}
+
+/* Maximized state */
+.dialog--maximized {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Optional header content */
+.dialog__header-content {
+  display: flex;
+  align-items: center;
+  background-color: var(--dialog-bg);
+  flex-shrink: 0;
+}
+
+/* Body */
+.dialog__body {
+  padding: 16px 16px 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+}
+
+/* Body without padding - for dialogs that need custom padding */
+.dialog__body--no-padding {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Footer */
+.dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 48px;
+  padding: 8px;
+  background-color: var(--dialog-footer-bg);
+  border-top: 1px solid var(--dialog-footer-border);
+  flex-shrink: 0;
+}
+
+/* Resize handles */
+.dialog__resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+/* Edge handles */
+.dialog__resize-handle--top {
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.dialog__resize-handle--right {
+  top: 8px;
+  right: 0;
+  bottom: 8px;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+.dialog__resize-handle--bottom {
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.dialog__resize-handle--left {
+  top: 8px;
+  left: 0;
+  bottom: 8px;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+/* Corner handles */
+.dialog__resize-handle--top-left {
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nwse-resize;
+}
+
+.dialog__resize-handle--top-right {
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nesw-resize;
+}
+
+.dialog__resize-handle--bottom-left {
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nesw-resize;
+}
+
+.dialog__resize-handle--bottom-right {
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nwse-resize;
+}

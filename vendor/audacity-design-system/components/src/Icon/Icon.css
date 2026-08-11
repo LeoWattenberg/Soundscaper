@@ -1,0 +1,12 @@
+/* Icon Component */
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  line-height: 0;
+  flex-shrink: 0;
+  color: inherit; /* Inherit color from parent by default */
+}

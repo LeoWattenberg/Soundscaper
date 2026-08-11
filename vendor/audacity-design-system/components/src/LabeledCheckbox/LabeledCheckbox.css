@@ -1,0 +1,29 @@
+/**
+ * LabeledCheckbox Styles
+ */
+
+.labeled-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.labeled-checkbox__checkbox {
+  flex-shrink: 0;
+}
+
+.labeled-checkbox__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--labeled-checkbox-text);
+  user-select: none;
+  flex: 1;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}

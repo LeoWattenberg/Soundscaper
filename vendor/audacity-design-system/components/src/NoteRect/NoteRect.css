@@ -1,0 +1,38 @@
+.note-rect {
+  position: absolute;
+  border-radius: 2px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  user-select: none;
+  z-index: 1;
+  background-color: var(--note-fill);
+  border: 1px solid var(--note-border);
+  transition: background-color 0.05s ease, border-color 0.05s ease;
+}
+
+.note-rect:hover {
+  background-color: var(--note-fill-hover);
+}
+
+.note-rect--selected {
+  background-color: var(--note-fill-selected);
+  border-color: var(--note-border-selected);
+  z-index: 2;
+}
+
+.note-rect--selected:hover {
+  background-color: var(--note-fill-selected);
+}
+
+.note-rect__label {
+  font-size: 9px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  color: var(--note-label-color, #fff);
+  padding-left: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1;
+}

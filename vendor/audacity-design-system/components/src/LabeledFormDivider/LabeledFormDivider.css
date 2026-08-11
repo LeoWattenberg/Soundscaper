@@ -1,0 +1,26 @@
+/**
+ * LabeledFormDivider - Divider with label styles
+ */
+
+.labeled-form-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.labeled-form-divider__line {
+  flex: 1;
+  height: 1px;
+  background-color: var(--divider-line-color);
+}
+
+.labeled-form-divider__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--divider-label-color);
+  white-space: nowrap;
+}

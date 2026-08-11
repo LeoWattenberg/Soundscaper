@@ -1,0 +1,75 @@
+.mixer-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── Body — vertical scroll container ─────── */
+
+.mixer-panel__body {
+  flex: 1 1 0;
+  min-height: 0;
+  padding-top: 24px;
+  background: var(--mp-body-bg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+/* Inner content row — flex row, min-height fills body so content bottom-aligns */
+.mixer-panel__content {
+  display: flex;
+  min-height: 100%;
+}
+
+/* ── Row labels ────────────────────────────── */
+
+.mixer-panel__row-labels {
+  display: flex;
+  flex-direction: column;
+  width: 96px;
+  padding-right: 8px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.mixer-panel__row-labels-top,
+.mixer-panel__row-labels-bottom {
+  display: flex;
+  flex-direction: column;
+}
+
+.mixer-panel__row-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Channel strip area ────────────────────── */
+
+.mixer-panel__channels-scroll {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mixer-panel__channels {
+  display: flex;
+  height: 100%;
+}
+
+.mixer-panel__channel-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--mp-text);
+  opacity: 0.15;
+  flex-shrink: 0;
+}

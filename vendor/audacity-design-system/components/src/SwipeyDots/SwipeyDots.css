@@ -1,0 +1,36 @@
+/**
+ * SwipeyDots styles
+ */
+
+.swipey-dots {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+}
+
+.swipey-dots__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--button-transport-btn-transport-idle, rgba(194, 196, 207, 0.7));
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.swipey-dots__dot:hover {
+  transform: scale(1.1);
+}
+
+.swipey-dots__dot:focus-visible {
+  outline: 2px solid var(--stroke-focus, #70b5ff);
+  outline-offset: 2px;
+}
+
+.swipey-dots__dot--active {
+  background-color: #14151a;
+}

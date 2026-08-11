@@ -1,0 +1,80 @@
+.timecode {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 28px;
+  position: relative;
+  border-radius: 3px;
+  /* Clip the inner pieces (digits area + format dropdown button) to the
+     outer radius so the whole control reads as one rounded shape. The
+     dropdown menu itself is a ContextMenu portal so it's unaffected. */
+  overflow: hidden;
+  width: fit-content;
+  /* Fixed 28px total height so TimeCode/BpmStepper/TimeSignatureSelector all
+     line up with the 28px toolbar buttons. No border — the rounded shape
+     comes from border-radius + overflow:hidden + the inner background. */
+  box-sizing: border-box;
+  height: 28px;
+}
+
+.timecode:focus {
+  outline: 3px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.timecode__display {
+  display: inline-flex;
+  align-items: center;
+  background: var(--timecode-bg);
+  padding: 0 4px;
+  height: 28px;
+  user-select: none;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.timecode__separator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 1px;
+  color: var(--timecode-text);
+  background-color: var(--timecode-bg);
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.timecode__format-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 28px;
+  background: var(--timecode-bg);
+  border: none;
+  cursor: pointer;
+  color: var(--timecode-text);
+  padding: 0;
+  transition: background-color 0.15s ease;
+}
+
+.timecode__format-button:hover:not(:disabled) {
+  background-color: var(--timecode-hover);
+}
+
+.timecode__format-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.timecode--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

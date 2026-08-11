@@ -1,0 +1,325 @@
+/**
+ * Effects Panel Styles
+ * Left sidebar panel for managing track and master effects
+ */
+
+.effects-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--ep-bg);
+  border-right: 1px solid var(--ep-header-border);
+  height: 100%;
+  overflow: visible;
+}
+
+/* Focus outline for the entire panel when tabbed to */
+.effects-panel__focusable-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  outline: none;
+}
+
+
+/* Content container - resizable sections */
+.effects-panel__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Overlay mode styling */
+.effects-panel--overlay {
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--ep-header-border);
+  border-right: none;
+  overflow-y: auto;
+  overflow-x: visible;
+}
+
+/* Header */
+.effects-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--ep-header-bg);
+  border-bottom: 1px solid var(--ep-header-border);
+  flex-shrink: 0;
+}
+
+.effects-panel__title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--ep-text-primary);
+  margin: 0;
+}
+
+.effects-panel__close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--ep-icon-primary);
+  transition: background-color 0.15s;
+}
+
+.effects-panel__close-button:hover {
+  background: var(--ep-button-hover-bg);
+}
+
+.effects-panel__close-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 0;
+}
+
+/* Section Styles */
+.effects-panel__track-section {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.effects-panel__master-section {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+/* Vertical resize handle */
+.effects-panel__vertical-resize-handle {
+  height: 4px;
+  cursor: ns-resize;
+  background: transparent;
+  transition: background-color 0.15s;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.effects-panel__vertical-resize-handle:hover,
+.effects-panel__vertical-resize-handle--active {
+  background-color: #0066ff;
+}
+
+.effects-panel__vertical-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 8px;
+}
+
+/* Section Header */
+.effects-panel__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 40px;
+  padding: 8px;
+  background: var(--ep-section-bg);
+  border-bottom: 1px solid var(--ep-section-border);
+}
+
+/* Master section header has border on top */
+.effects-panel__master-section .effects-panel__section-header {
+  border-top: 1px solid var(--ep-section-border);
+}
+
+.effects-panel__section-header-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.effects-panel__track-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  color: var(--ep-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.effects-panel__context-menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--ep-icon-primary);
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+}
+
+.effects-panel__context-menu-button:hover {
+  background: var(--ep-button-hover-bg);
+}
+
+.effects-panel__context-menu-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 0;
+}
+
+/* Effect Stack */
+.effects-panel__effect-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 8px 4px;
+  background: var(--ep-stack-bg);
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible;
+  min-height: 0;
+  border-bottom: 1px solid var(--ep-section-border);
+}
+
+
+/* Effect Slot */
+.effects-panel__effect-slot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 8px 0;
+}
+
+.effects-panel__drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--ep-text-primary);
+}
+
+.effects-panel__drag-handle:active {
+  cursor: grabbing;
+}
+
+.effects-panel__effect-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Effect Toggle Button */
+.effects-panel__effect-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: var(--ep-button-bg);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+}
+
+.effects-panel__effect-toggle:hover {
+  background: var(--ep-button-hover-bg);
+}
+
+.effects-panel__effect-toggle--active {
+  background: var(--ep-toggle-active-bg);
+  color: var(--ep-toggle-icon-color);
+}
+
+.effects-panel__effect-toggle:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 0;
+}
+
+/* Effect Name */
+.effects-panel__effect-name {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  background: var(--ep-input-bg);
+  border: 1px solid var(--ep-input-border);
+  border-radius: 2px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--ep-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Effect Settings Dropdown */
+.effects-panel__effect-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: var(--ep-input-bg);
+  border: 1px solid var(--ep-input-border);
+  border-radius: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--ep-icon-primary);
+  transition: background-color 0.15s;
+}
+
+.effects-panel__effect-settings:hover {
+  background: var(--ep-button-hover-bg);
+}
+
+.effects-panel__effect-settings:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 0;
+}
+
+/* Add Button Container */
+.effects-panel__add-button-container {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  box-sizing: border-box;
+  min-height: 52px;
+}
+
+.effects-panel__add-button {
+  width: 100%;
+  min-width: 80px;
+}

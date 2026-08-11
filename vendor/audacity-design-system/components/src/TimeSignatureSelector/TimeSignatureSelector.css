@@ -1,0 +1,77 @@
+.time-signature-selector {
+  display: inline-flex;
+  align-items: stretch;
+  /* 1px gap shows the parent (toolbar) bg through as the separator between
+     the numerator/denominator pair and the caret button — matches the
+     TimeCode + BpmStepper pattern. 28px total (border included) lines up
+     with TimeCode and the 28px toolbar buttons. */
+  gap: 1px;
+  box-sizing: border-box;
+  height: 28px;
+  border-radius: 3px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  width: fit-content;
+  overflow: hidden;
+}
+
+.time-signature-selector:focus {
+  outline: 3px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.time-signature-selector--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.time-signature-selector__display {
+  display: inline-flex;
+  align-items: center;
+  background: var(--timecode-bg);
+  padding: 0 4px;
+  min-height: 28px;
+  gap: 1px;
+}
+
+.time-signature-selector__digit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 12px;
+  height: 28px;
+  padding: 0 2px;
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--timecode-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.time-signature-selector__caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  flex-shrink: 0;
+  background: var(--timecode-bg);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--timecode-text);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.time-signature-selector__caret:hover:not(:disabled) {
+  background-color: var(--timecode-hover);
+}
+
+.time-signature-selector__caret:active:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.time-signature-selector__caret:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

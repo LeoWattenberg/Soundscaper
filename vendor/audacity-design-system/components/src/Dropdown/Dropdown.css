@@ -1,0 +1,163 @@
+/* Dropdown Component */
+
+@import '../styles/focus.css';
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+/* Dropdown Trigger Button */
+.dropdown__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 6px 8px;
+  background-color: var(--dropdown-bg);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 3px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--dropdown-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+/* Clicks shouldn't trigger the focus ring — only keyboard nav. Use
+   :focus-visible so mouse interaction stays clean. */
+.dropdown__trigger:focus {
+  outline: none;
+}
+
+.dropdown__trigger:focus-visible {
+  outline: none;
+  border-color: var(--focus-color);
+  box-shadow: 0 0 0 var(--focus-ring-size) var(--focus-color);
+}
+
+/* Hover state */
+.dropdown__trigger:hover:not(.dropdown--disabled) {
+  border-color: var(--dropdown-border-hover);
+}
+
+/* Active state (when menu is open) */
+.dropdown__trigger.dropdown--active {
+  border-color: var(--dropdown-border-active);
+}
+
+/* Disabled state */
+.dropdown__trigger.dropdown--disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Text content */
+.dropdown__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Caret icon */
+.dropdown__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 0;
+  color: var(--dropdown-text);
+}
+
+/* Dropdown Menu */
+.dropdown__menu {
+  /* Position is set inline via portal (fixed) */
+  z-index: 10001; /* Above dialogs (10000) */
+  background-color: var(--dropdown-menu-bg);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 3px;
+  box-shadow: var(--dropdown-menu-shadow);
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.dropdown__menu:focus {
+  outline: none;
+}
+
+/* Dropdown Option */
+.dropdown__option {
+  padding: 6px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--dropdown-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+/* Hover state - also shows keyboard navigation focus */
+.dropdown__option:hover,
+.dropdown__option--hover {
+  background-color: var(--dropdown-option-hover-bg);
+  outline: 2px solid var(--dropdown-option-hover-outline);
+  outline-offset: -2px;
+}
+
+/* Selected state */
+.dropdown__option--selected {
+  font-weight: 600;
+  background-color: rgba(103, 124, 228, 0.15);
+}
+
+.dropdown__option--selected:hover {
+  background-color: rgba(103, 124, 228, 0.25);
+}
+
+/* Separator */
+.dropdown__separator {
+  height: 8px;
+  margin: 0;
+  position: relative;
+}
+
+.dropdown__separator::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1px;
+  background-color: rgba(223, 226, 231, 1);
+}
+
+/* Scrollbar styling */
+.dropdown__menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dropdown__menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dropdown__menu::-webkit-scrollbar-thumb {
+  background: rgba(20, 21, 26, 0.3);
+  border-radius: 4px;
+}
+
+.dropdown__menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 21, 26, 0.4);
+}

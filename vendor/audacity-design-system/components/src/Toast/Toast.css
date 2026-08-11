@@ -1,0 +1,159 @@
+/**
+ * Toast Component Styles
+ */
+
+.toast {
+  width: 360px;
+  background-color: var(--toast-bg);
+  border-radius: 8px;
+  box-shadow: var(--toast-shadow);
+  padding: 12px;
+  padding-right: 24px;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: toast-slide-in 0.3s ease-out;
+  overflow: hidden;
+}
+
+.toast__body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-bottom: 12px;
+}
+
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast.toast--exiting {
+  animation: toast-slide-out 0.2s ease-in forwards;
+}
+
+@keyframes toast-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Icon */
+.toast__icon {
+  font-family: 'MusescoreIcon', sans-serif;
+  font-size: 16px;
+  line-height: 16px;
+  color: var(--toast-icon-color);
+  flex-shrink: 0;
+}
+
+/* Content Container */
+.toast__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Text Container */
+.toast__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Title */
+.toast__title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--toast-title-color);
+}
+
+/* Description */
+.toast__description {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--toast-description-color);
+}
+
+/* Actions Container */
+.toast__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Action Button */
+.toast__action-button {
+  background-color: var(--toast-button-bg);
+  border: none;
+  border-radius: 2px;
+  padding: 6px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--toast-button-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.toast__action-button:hover {
+  background-color: var(--toast-button-bg-hover);
+}
+
+.toast__action-button:active {
+  background-color: var(--toast-button-bg-active);
+}
+
+/* Type-specific styling (if needed for icons or colors) */
+.toast--success {
+  /* Can add success-specific styling here */
+}
+
+.toast--error {
+  /* Can add error-specific styling here */
+}
+
+.toast--warning {
+  /* Can add warning-specific styling here */
+}
+
+.toast--info {
+  /* Can add info-specific styling here */
+}
+
+/* Progress Bar */
+.toast__progress-bar {
+  width: calc(100% + 36px);
+  margin-left: -12px;
+  margin-right: -24px;
+  height: 3px;
+  background-color: rgba(20, 21, 26, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.toast__progress-fill {
+  height: 100%;
+  background-color: var(--toast-progress-fill);
+  transition: width 16ms linear;
+}

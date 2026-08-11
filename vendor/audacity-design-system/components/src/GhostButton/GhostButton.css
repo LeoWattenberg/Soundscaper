@@ -1,0 +1,85 @@
+.ghost-button {
+  border: none;
+  background-color: var(--ghost-bg-idle);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.1s ease;
+  color: var(--ghost-icon-color);
+  /* Keep the declared dimensions — a parent flex container (e.g. ToolbarGroup)
+     would otherwise allow the button to shrink below its width. */
+  flex-shrink: 0;
+}
+
+/* Tiny size - 16px × 16px (table headers) */
+.ghost-button--tiny {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+/* Small size (default) - 20px × 20px */
+.ghost-button--small {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+}
+
+/* Medium size - 28px × 28px, matches the toolbar button footprint so
+   icon-only ghost buttons living in a toolbar (undo / redo, etc.) line up
+   with the rest of the controls. The background only paints on hover, so
+   the resting state still reads as just the icon. */
+.ghost-button--medium {
+  width: 28px;
+  height: 28px;
+  border-radius: 2px;
+}
+
+/* Large size - 48px × 48px (carousel buttons) */
+.ghost-button--large {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+}
+
+/* Ghost button with label (for project toolbar) */
+.ghost-button--with-label {
+  width: auto;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 4px;
+}
+
+.ghost-button__label {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1;
+  user-select: none;
+  color: var(--ghost-label-color);
+}
+
+.ghost-button:hover:not(.ghost-button--disabled):not(.ghost-button--active) {
+  background-color: var(--ghost-bg-hover);
+}
+
+.ghost-button:active:not(.ghost-button--disabled):not(.ghost-button--active) {
+  background-color: var(--ghost-bg-active);
+}
+
+.ghost-button--active {
+  background-color: var(--ghost-bg-active);
+}
+
+.ghost-button--disabled {
+  background-color: var(--ghost-bg-disabled) !important;
+  cursor: not-allowed;
+}
+
+.ghost-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}

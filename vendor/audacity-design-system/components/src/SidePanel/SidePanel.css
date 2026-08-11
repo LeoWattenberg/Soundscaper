@@ -1,0 +1,72 @@
+.side-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #222222;
+  border-right: 1px solid #D4D5D9;
+  overflow: hidden;
+}
+
+.side-panel--right {
+  border-right: none;
+  border-left: 1px solid #3a3a3a;
+}
+
+.side-panel__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+.side-panel__content::-webkit-scrollbar {
+  width: 12px;
+}
+
+.side-panel__content::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.side-panel__content::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 6px;
+  border: 2px solid #1a1a1a;
+}
+
+.side-panel__content::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}
+
+/* Resize handle */
+.side-panel__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+  z-index: 10;
+  transition: background-color 0.15s;
+}
+
+.side-panel__resize-handle--left {
+  right: 0;
+}
+
+.side-panel__resize-handle--right {
+  left: 0;
+}
+
+.side-panel__resize-handle:hover,
+.side-panel--resizing .side-panel__resize-handle {
+  background-color: #0066ff;
+}
+
+/* Resizing state */
+.side-panel--resizing {
+  user-select: none;
+}
+
+.side-panel--resizing * {
+  cursor: ew-resize !important;
+}

@@ -1,0 +1,156 @@
+/* MasterMeter - Horizontal stereo playback meter with volume slider */
+
+.master-meter {
+  display: flex;
+  align-items: center;
+  /* Fills its container so the meter can grow/shrink with available space.
+     The toolbar wrapper caps its max width at 360px and floors it around
+     120px, which is where the dB ticks start crowding. */
+  width: 100%;
+  user-select: none;
+}
+
+/* The meter+scale column. Sits alongside the resize grip so the grip can
+   center against the whole control's height instead of stretching the
+   bars row. */
+.master-meter__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Row containing meter bars + clip indicators */
+.master-meter__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Track area containing meter bars and slider */
+.master-meter__track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  height: 16px; /* ensure thumb is fully clickable */
+}
+
+/* Individual meter bar (left/right channel) */
+.master-meter__bar {
+  position: relative;
+  height: 6px;
+  background: var(--mm-bg);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+/* Level fill — no CSS transition. The level prop arrives at 60fps from
+   the audio engine; an interpolating transition would interrupt itself
+   every frame before completing, making the bar look frozen. Letting it
+   jump produces the smooth-looking VU motion you'd expect. */
+.master-meter__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--mm-fill);
+  border-radius: 1px;
+}
+
+/* Recent peak thin line */
+.master-meter__peak-line {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--mm-peak);
+  transform: translateX(-1px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Volume slider thumb — matches Slider component handle */
+.master-meter__thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 9px;
+  background: var(--mm-thumb-bg);
+  border: 1px solid var(--mm-thumb-border);
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  cursor: grab;
+}
+
+.master-meter__thumb:active {
+  cursor: grabbing;
+}
+
+.master-meter__thumb:focus-visible {
+  outline: 2px solid var(--mm-fill);
+  outline-offset: 1px;
+}
+
+/* Clip indicators */
+.master-meter__clip-indicators {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.master-meter__clip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--mm-bg);
+}
+
+.master-meter__clip-dot--active {
+  background: var(--mm-clip);
+}
+
+/* Resize grip icon at the right edge of the meter — vertically centered
+   against the full control (meter row + dB scale together), per Figma. */
+.master-meter__resize-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 28px;
+  flex-shrink: 0;
+  margin-left: 4px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--mm-text);
+  cursor: ew-resize;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* dB scale below the meter. margin-right reserves space for the clip
+   indicators (6px) + their flex gap (2px) so the scale exactly covers the
+   bar width above. The resize grip lives outside .master-meter__main so it
+   doesn't factor into this offset. */
+.master-meter__scale {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 8px;
+  margin-right: 8px;
+}
+
+.master-meter__tick-label {
+  font-size: 9px;
+  line-height: 8px;
+  color: var(--mm-text);
+  white-space: nowrap;
+}

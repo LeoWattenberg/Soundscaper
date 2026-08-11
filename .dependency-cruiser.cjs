@@ -32,7 +32,7 @@ module.exports = {
 	],
 	options: {
 		doNotFollow: {
-			path: 'node_modules',
+			path: 'node_modules|^vendor/',
 			dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer', 'npm-bundled', 'npm-no-pkg'],
 		},
 		tsConfig: { fileName: 'tsconfig.json' },

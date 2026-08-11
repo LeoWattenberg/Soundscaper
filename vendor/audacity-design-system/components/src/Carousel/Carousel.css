@@ -1,0 +1,28 @@
+/**
+ * Carousel styles
+ */
+
+.carousel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Navigation container (arrows + content) */
+.carousel__navigation {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Slide content area */
+.carousel__content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0; /* Allow flex item to shrink below content size */
+}

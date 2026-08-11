@@ -1,0 +1,21 @@
+/**
+ * LabeledInput - Labeled input field styles
+ */
+
+.labeled-input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.labeled-input__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--label-color);
+}
+
+.labeled-input__input {
+  /* TextInput will handle its own styling */
+}

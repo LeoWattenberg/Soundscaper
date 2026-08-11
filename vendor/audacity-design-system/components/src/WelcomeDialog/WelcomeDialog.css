@@ -1,0 +1,60 @@
+/**
+ * WelcomeDialog styles
+ */
+
+.welcome-dialog__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  font-family: Inter, sans-serif;
+  padding: 32px;
+  background-color: var(--welcome-dialog-bg);
+}
+
+.welcome-dialog__heading {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 32px;
+  color: var(--welcome-dialog-title-text);
+  margin: 0;
+  text-align: center;
+  width: 100%;
+}
+
+.welcome-dialog__description {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--welcome-dialog-desc-text);
+  margin: 0;
+  text-align: center;
+  max-width: 568px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Carousel wrapper */
+.welcome-dialog__carousel-wrapper {
+  width: 100%;
+  max-width: 704px;
+}
+
+/* Carousel image */
+.welcome-dialog__carousel-image {
+  width: 576px;
+  height: 324px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: block;
+  object-fit: cover;
+}
+
+/* CTA Button container */
+.welcome-dialog__cta {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}

@@ -1,0 +1,45 @@
+.mixer-fader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  outline: none;
+}
+
+.mixer-fader:focus-visible .mixer-fader__handle {
+  outline: 2px solid #677CE4;
+  outline-offset: 1px;
+}
+
+.mixer-fader--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.mixer-fader__track {
+  position: relative;
+  width: 16px;
+  height: 100%;
+  cursor: pointer;
+  touch-action: none;
+  overflow: visible;
+}
+
+.mixer-fader__track-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  transform: translateX(-50%);
+  background: var(--fader-track-bg);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.mixer-fader__handle {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}

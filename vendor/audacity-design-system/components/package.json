@@ -1,0 +1,76 @@
+{
+  "name": "@dilsonspickles/components",
+  "version": "0.9.0",
+  "type": "module",
+  "description": "UI component library for Audacity Design System",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./style.css": "./dist/index.css",
+    "./dist/index.css": "./dist/index.css",
+    "./dist/*.png": "./dist/*.png",
+    "./*.css": "./dist/*.css",
+    "./*": {
+      "types": "./dist/*.d.mts",
+      "import": "./dist/*.mjs",
+      "require": "./dist/*.js"
+    }
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "AGENTS.md"
+  ],
+  "scripts": {
+    "build": "NODE_OPTIONS='--max-old-space-size=8192' tsup",
+    "dev": "NODE_OPTIONS='--max-old-space-size=8192' tsup --watch",
+    "lint": "echo 'No linting configured yet'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:smoke": "node scripts/smoke-test.mjs"
+  },
+  "keywords": [
+    "audacity",
+    "design-system",
+    "components",
+    "react",
+    "ui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DilsonsPickles/audacity-design-system.git",
+    "directory": "packages/components"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "_comment": "Workspace siblings live under devDependencies so the monorepo build resolves them, but they don't appear as runtime dependencies in the published manifest \u2014 tsup bundles their compiled output into dist.",
+  "devDependencies": {
+    "@audacity-ui/core": "workspace:*",
+    "@audacity-ui/tokens": "workspace:*",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "jsdom": "^28.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

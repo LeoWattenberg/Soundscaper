@@ -1,0 +1,60 @@
+/**
+ * SignInActionBar - Sign in/out action bar styles
+ */
+
+.sign-in-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  background-color: var(--background-surface-bg-surface-primary-idle, #f8f8f9);
+  border-bottom: 1px solid var(--stroke-main-stroke-primary, #d4d5d9);
+}
+
+.sign-in-action-bar--signed-in {
+  justify-content: space-between;
+}
+
+.sign-in-action-bar__user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sign-in-action-bar__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--button-solid-on-primary-btn-solid-on-primary-idle, rgba(194, 196, 207, 0.7));
+}
+
+.sign-in-action-bar__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sign-in-action-bar__avatar--placeholder {
+  background-color: var(--button-solid-on-primary-btn-solid-on-primary-idle, rgba(194, 196, 207, 0.7));
+}
+
+.sign-in-action-bar__name {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-size: var(--font-size-body, 12px);
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--text-txt-primary, #14151a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,70 @@
+.timecode-unit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 1px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 28px;
+  color: var(--timecode-unit-text);
+  background-color: var(--timecode-unit-bg);
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.timecode-unit:hover {
+  background-color: var(--timecode-unit-hover-bg);
+  color: var(--timecode-unit-hover-text);
+}
+
+/* Specific widths for each unit type from Figma */
+.timecode-unit[data-unit="days"] {
+  width: 12px;
+}
+
+.timecode-unit[data-unit="hours"] {
+  width: 12px;
+}
+
+.timecode-unit[data-unit="minutes"] {
+  width: 16px;
+}
+
+.timecode-unit[data-unit="seconds"] {
+  width: 12px;
+}
+
+.timecode-unit[data-unit="beat"] {
+  width: 37px;
+}
+
+.timecode-unit[data-unit="bar"] {
+  width: 27px;
+}
+
+.timecode-unit[data-unit="samples"] {
+  width: 65px;
+}
+
+.timecode-unit[data-unit="frames"] {
+  width: 55px;
+}
+
+.timecode-unit[data-unit="Hz"] {
+  width: 23px;
+}
+
+.timecode-unit[data-unit="bpm"] {
+  width: 36px;
+}
+
+/* Separators remain auto width */
+.timecode-unit[data-unit="slash"],
+.timecode-unit[data-unit="comma"],
+.timecode-unit[data-unit="period"] {
+  width: auto;
+}

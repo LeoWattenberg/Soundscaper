@@ -1,0 +1,73 @@
+/* ToolButton - Figma Design System Spec */
+
+/* Button base styles */
+.tool-button {
+  border: none;
+  border-radius: 2px;
+  background-color: var(--tool-btn-idle);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.1s ease;
+}
+
+/* Size variants */
+.tool-button--default {
+  width: 28px;
+  height: 28px;
+}
+
+.tool-button--small {
+  width: 20px;
+  height: 20px;
+}
+
+/* Icon styles */
+.tool-button__icon {
+  font-size: 14px;
+  line-height: 0;
+  color: var(--tool-icon-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+/* State: Idle */
+.tool-button--idle {
+  background-color: var(--tool-btn-idle);
+}
+
+/* State: Hover */
+.tool-button--hover {
+  background-color: var(--tool-btn-hover);
+  cursor: pointer;
+}
+
+/* State: Pressed */
+.tool-button--pressed {
+  background-color: var(--tool-btn-pressed);
+}
+
+/* State: Disabled */
+.tool-button--disabled {
+  background-color: var(--tool-btn-idle);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Focus visible state */
+.tool-button:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+/* Remove default button styles */
+.tool-button::-moz-focus-inner {
+  border: 0;
+}

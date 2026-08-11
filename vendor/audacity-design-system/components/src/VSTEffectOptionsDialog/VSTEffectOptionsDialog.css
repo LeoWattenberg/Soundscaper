@@ -1,0 +1,87 @@
+/**
+ * VSTEffectOptionsDialog - Options dialog for VST/3rd party effects
+ */
+
+.vst-options-dialog__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.vst-options-dialog__section-label {
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--vst-options-text-primary);
+}
+
+.vst-options-dialog__info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--vst-options-info-bg);
+  border: 1px solid var(--vst-options-border);
+  border-radius: 4px;
+}
+
+.vst-options-dialog__info-text {
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--vst-options-text-primary);
+  width: 100%;
+}
+
+.vst-options-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.vst-options-dialog__field-label {
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--vst-options-text-primary);
+}
+
+.vst-options-dialog__input-wrapper {
+  width: 100%;
+}
+
+.vst-options-dialog__checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+}
+
+.vst-options-dialog__checkbox-label {
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--vst-options-text-primary);
+}
+
+.vst-options-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px;
+  background: var(--vst-options-footer-bg);
+  border-top: 1px solid var(--vst-options-footer-border);
+  width: 100%;
+}
+
+.vst-options-dialog__button-group {
+  display: flex;
+  gap: 8px;
+}

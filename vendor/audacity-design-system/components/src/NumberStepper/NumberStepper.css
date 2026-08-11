@@ -1,0 +1,98 @@
+.number-stepper {
+  display: flex;
+  align-items: stretch;
+  background-color: white;
+  border: 1px solid var(--number-stepper-border);
+  border-radius: 3px;
+  height: 28px;
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 100%;
+}
+
+.number-stepper:hover:not(.number-stepper--disabled) {
+  border-color: var(--number-stepper-border-focus);
+}
+
+.number-stepper--focused:not(.number-stepper--disabled) {
+  outline: 2px solid var(--focus-color);
+  outline-offset: -1px;
+  border-color: var(--number-stepper-border-focus);
+}
+
+.number-stepper--editing:not(.number-stepper--disabled) {
+  outline: 2px solid var(--focus-color);
+  outline-offset: -1px;
+  border-color: var(--focus-color);
+}
+
+.number-stepper--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.number-stepper__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--number-stepper-text);
+  padding: 0 0 0 8px;
+  min-width: 0;
+}
+
+.number-stepper__input::placeholder {
+  color: var(--number-stepper-placeholder);
+}
+
+.number-stepper__input:disabled {
+  cursor: not-allowed;
+}
+
+.number-stepper__arrows {
+  display: flex;
+  flex-direction: column;
+  width: 22px;
+  height: 100%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.number-stepper__arrow {
+  height: 13px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--number-stepper-text);
+  transition: background-color 0.15s ease;
+  position: relative;
+}
+
+.number-stepper__arrow:hover:not(:disabled) {
+  background-color: var(--number-stepper-btn-hover);
+}
+
+.number-stepper__arrow:active:not(:disabled) {
+  background-color: var(--number-stepper-btn-active);
+}
+
+.number-stepper__arrow:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.number-stepper__icon {
+  font-size: 16px;
+  line-height: 1;
+  display: block;
+}

@@ -1,0 +1,43 @@
+.track-wrapper {
+  display: block;
+  position: relative;
+}
+
+/* Focus borders - top and bottom only, outside the track (focused track indicator) */
+.track-wrapper--focused::before,
+.track-wrapper--focused::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--focus-color);
+  pointer-events: none;
+}
+
+.track-wrapper--focused::before {
+  top: -2px;
+}
+
+.track-wrapper--focused::after {
+  bottom: -2px;
+}
+
+/* Container-focused: 1px white + 1px black instead of solid color */
+.track-wrapper--container-focused.track-wrapper--focused::before {
+  background: linear-gradient(to bottom, white 50%, black 50%);
+}
+
+.track-wrapper--container-focused.track-wrapper--focused::after {
+  background: linear-gradient(to bottom, black 50%, white 50%);
+}
+
+/* Suppress browser default focus outline — wrapper bars serve as focus indicator */
+.track {
+  outline: none;
+}
+
+.track-canvas {
+  display: block;
+  cursor: text;
+}

@@ -1,0 +1,55 @@
+.preference-thumbnail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.preference-thumbnail__image-button {
+  width: 188px;
+  height: 106px;
+  padding: 0;
+  border: none;
+  background: var(--preference-thumbnail-bg);
+  cursor: pointer;
+  border-radius: 4px;
+  position: relative;
+  transition: outline-color 0.15s ease;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+}
+
+.preference-thumbnail__image-button--selected {
+  outline-color: var(--preference-thumbnail-selected-outline);
+}
+
+.preference-thumbnail__image {
+  display: block;
+  width: 188px;
+  height: 106px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.preference-thumbnail__radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.preference-thumbnail__radio {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.preference-thumbnail__label-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--preference-thumbnail-label-text);
+  user-select: none;
+}

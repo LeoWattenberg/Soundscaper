@@ -1,0 +1,75 @@
+/**
+ * ToastContainer Styles
+ */
+
+.toast-container {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+/* Position variants */
+.toast-container--bottom-right {
+  bottom: 56px; /* 16px gap + 40px toolbar height */
+  right: 16px;
+}
+
+.toast-container--bottom-left {
+  bottom: 56px; /* 16px gap + 40px toolbar height */
+  left: 16px;
+}
+
+.toast-container--top-right {
+  top: 16px;
+  right: 16px;
+}
+
+.toast-container--top-left {
+  top: 16px;
+  left: 16px;
+}
+
+/* Toast wrapper for individual animations */
+.toast-wrapper {
+  pointer-events: auto;
+  animation: toast-enter 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+  transform-origin: bottom right;
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.toast-wrapper--exiting {
+  pointer-events: none;
+  animation: toast-exit 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+  transform-origin: bottom right;
+}
+
+/* Entrance animation - extremely subtle fade in with minimal movement */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Exit animation - fade and slide up out of view */
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 200px;
+    margin-bottom: 12px;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+    max-height: 0;
+    margin-bottom: 0;
+  }
+}

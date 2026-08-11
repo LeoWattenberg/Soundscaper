@@ -1,0 +1,298 @@
+/* Preferences Modal */
+
+.preferences-modal {
+  display: flex;
+  flex-direction: column;
+  height: 704px;
+}
+
+/* Override Dialog default padding and layout */
+.preferences-modal .dialog__body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.preferences-modal .dialog__footer {
+  margin: 0;
+  width: 100%;
+}
+
+/* Content Layout */
+.preferences-modal__content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar - DialogSideNav handles its own styling, but we can apply positioning here */
+
+/* Body */
+.preferences-modal__body {
+  flex: 1;
+  background-color: #ebedf0;
+  position: relative;
+  overflow: hidden;
+}
+
+.preferences-modal__scroll-container {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 32px;
+}
+
+/* Scrollbar */
+.preferences-modal__scroll-container::-webkit-scrollbar {
+  width: 16px;
+  background-color: #ebedf0;
+  border-left: 1px solid #d4d5d9;
+}
+
+.preferences-modal__scroll-container::-webkit-scrollbar-thumb {
+  background-color: rgba(20, 21, 26, 0.3);
+  border-radius: 8px;
+  border: 5.5px solid #ebedf0;
+}
+
+.preferences-modal__scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(20, 21, 26, 0.4);
+}
+
+/* Footer */
+.preferences-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  background-color: #f8f8f9;
+  border-top: 1px solid #d4d5d9;
+  flex-shrink: 0;
+}
+
+.preferences-modal__footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Footer button wrapper - prevent field styling from affecting layout */
+.preferences-modal__footer .preferences-page__field {
+  padding: 0;
+  margin: 0;
+  display: inline-block;
+}
+
+/* Page Content - Flex Layout */
+.preferences-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Sections */
+.preferences-page__section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Shortcuts page needs full height to allow table to grow */
+.preferences-page--shortcuts {
+  height: 100%;
+}
+
+.preferences-page--shortcuts .preferences-page__section {
+  height: 100%;
+}
+
+.preferences-page__section-title {
+  /* No special layout needed */
+}
+
+/* Checkboxes and info boxes always full width */
+.preferences-page__checkboxes,
+.preferences-page__info-box {
+  width: 100%;
+  max-width: none !important;
+}
+
+.preferences-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Fields with no column class are full width by default */
+.preferences-page__field {
+  width: 100%;
+}
+
+.preferences-page__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #14151a;
+}
+
+.preferences-page__hint {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 16px;
+  color: #14151a;
+  opacity: 0.8;
+}
+
+.preferences-page__description {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #14151a;
+  opacity: 0.8;
+  margin: -8px 0 4px 0;
+}
+
+.preferences-page__value {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: #14151a;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.preferences-page__input-group {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.preferences-page__input-group > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Ensure input inside labeled input takes full width */
+.preferences-page__input-group .labeled-input {
+  width: 100%;
+  gap: 0; /* Remove gap when used in input group */
+}
+
+.preferences-page__input-group .labeled-input__label:empty {
+  display: none; /* Hide empty labels */
+}
+
+.preferences-page__input-group .labeled-input__input,
+.preferences-page__input-group .labeled-input .text-input {
+  width: 100%;
+}
+
+.preferences-page__button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preferences-page__button-group .button {
+  align-self: flex-start;
+}
+
+.preferences-page__checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preferences-page__info-box {
+  padding: 12px;
+  background-color: #e3e3e8;
+  border: 1px solid #d4d5d9;
+  border-radius: 3px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  color: #14151a;
+}
+
+.preferences-page__link {
+  color: #677ce4;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.preferences-page__link:hover {
+  color: #5568d3;
+}
+
+.preferences-page__section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 24px;
+  color: #14151a;
+  margin: 0;
+}
+
+.preferences-page__radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preferences-page__radio-group--bold {
+  gap: 16px;
+}
+
+/* Shortcuts Table */
+.shortcuts-table {
+  border: 1px solid #d4d5d9;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.shortcuts-table__body {
+  overflow-y: auto;
+  background-color: #ffffff;
+  flex: 1;
+}
+
+/* Responsive Breakpoints - Single breakpoint with fixed optimal widths */
+/* Mobile first: full width by default, fixed max-widths on larger screens */
+
+/* Default (<576px): All fields full width for mobile */
+
+/* Desktop (≥576px) - Fixed optimal widths for all screen sizes */
+@container dialog (min-width: 576px) {
+  /* Small fields: Dropdowns, short inputs */
+  .preferences-page__field--small {
+    max-width: 280px;
+  }
+
+  /* Medium fields: Standard inputs */
+  .preferences-page__field--medium {
+    max-width: 320px;
+  }
+
+  /* Large fields: File paths, longer inputs */
+  .preferences-page__field--large {
+    max-width: 480px;
+  }
+
+  /* Info boxes match large field width */
+  .preferences-page__info-box {
+    max-width: 480px !important;
+  }
+}

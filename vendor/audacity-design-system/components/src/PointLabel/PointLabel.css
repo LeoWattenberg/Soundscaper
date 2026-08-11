@@ -1,0 +1,112 @@
+/* PointLabel - Single point with flag-style label box */
+
+.point-label {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Stalk - single 1px line at center */
+.point-label__stalk {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px; /* Center the 9px container around the 1px line */
+  width: 9px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.point-label__stalk-line {
+  width: 1px;
+  height: 100%;
+  background: var(--label-marker-bg, #7EB1FF);
+}
+
+/* Ears - positioned at top of stalk */
+.point-label__left-ear,
+.point-label__right-ear {
+  position: absolute;
+  top: 0;
+  width: 7px;
+  height: 14px;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.point-label__left-ear {
+  left: -7px;
+}
+
+.point-label__right-ear {
+  right: 0;
+}
+
+/* Flag - label box positioned to the right of the stalk */
+.point-label__flag {
+  position: absolute;
+  top: 0;
+  left: 11px; /* Position to the right of the ears and stalk */
+  height: 14px;
+  min-width: 42px;
+  max-width: 100px;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  background: var(--label-marker-bg, #7EB1FF);
+  border-radius: 2px;
+  padding: 0;
+  z-index: 1;
+}
+
+.point-label__flag-text {
+  position: relative;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 14px;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+}
+
+/* Hover states */
+.point-label__flag:hover {
+  background: white;
+}
+
+.point-label__flag:hover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--label-marker-bg, #7EB1FF);
+  opacity: 0.7;
+  z-index: -1;
+  border-radius: 2px;
+}
+
+/* Selected state */
+.point-label--selected .point-label__flag {
+  background: white;
+}
+
+.point-label--selected .point-label__flag::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--label-marker-bg, #7EB1FF);
+  opacity: 0.4;
+  z-index: -1;
+  border-radius: 2px;
+}
+
+/* Focused state (keyboard focus) */
+.point-label--focused {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}

@@ -1,0 +1,45 @@
+.timecode-digit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 28px;
+  padding: 0 1px;
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--timecode-text);
+  background-color: var(--timecode-bg);
+  cursor: default;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+/* Default/Idle state */
+.timecode-digit--default {
+  background-color: var(--timecode-bg);
+}
+
+/* Hover state */
+.timecode-digit--hover {
+  background-color: var(--timecode-hover);
+  color: var(--timecode-text);
+  cursor: pointer;
+}
+
+/* Active/Editing state */
+.timecode-digit--active {
+  background-color: #677ce4;
+  color: #f4f5f9;
+  cursor: text;
+}
+
+/* Readonly state */
+.timecode-digit--readonly {
+  cursor: default;
+}
+
+.timecode-digit--readonly:hover {
+  background-color: var(--timecode-bg);
+}

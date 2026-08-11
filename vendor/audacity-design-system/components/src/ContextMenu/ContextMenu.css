@@ -1,0 +1,27 @@
+.context-menu {
+  background: var(--context-menu-bg);
+  border: 1px solid var(--context-menu-border);
+  border-radius: 6px;
+  box-shadow: var(--context-menu-shadow);
+  overflow: visible;
+  min-width: 180px;
+  padding: 4px 0;
+  animation: context-menu-fade-in 0.15s ease-out;
+}
+
+@keyframes context-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--context-menu-divider-bg);
+  margin: 4px 0;
+}
