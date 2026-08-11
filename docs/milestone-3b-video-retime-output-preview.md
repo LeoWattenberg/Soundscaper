@@ -198,8 +198,8 @@ global origin; default/integer/NTSC output rates; noncommensurate duplicate and
 dropped cells; exact count/floor; first/last/2,000,000 frames; null clip
 intersection; unsafe/accessor/noncanonical/rate/count refusals; frozen bounded
 state; balanced 4,096-bit intervals; reducible over-ceiling raw midpoint products
-whose normalized result fits; normalized over-ceiling refusal; representable-
-neighbor and collapsed refusal; every A/B/C queue permutation; coalescing; callback
+whose normalized result fits; normalized over-ceiling refusal; exact midpoint
+success and collapsed/no-interior refusal; every A/B/C queue permutation; callback
 re-entry/throw; stale success/failure; currentness; cancel-then-immediate-request
 drain, disposal, and zero late publication; nested accessors and post-call
 mutation. A source audit proves no application consumer imports either module.
