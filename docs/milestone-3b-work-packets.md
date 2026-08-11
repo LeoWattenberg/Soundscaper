@@ -253,10 +253,19 @@ build emitted 104 JavaScript chunks with `aup4-worker` largest at 400,686 bytes.
 No browser row was required because no maintained consumer uses the seam.
 Packet 3B-5 remains in progress.
 
-The immediate pickup is
-[3B-5d — native video-retime workflow decomposition](milestone-3b-native-video-retime-workflow.md):
-the dependency-ordered exact dispatch, dormant preview/export backend, and
-atomic maintained-adoption contracts, with no partial capability flip.
+The reviewed fourth slice and its first implementation are
+[3B-5d/3B-5e — native video-retime workflow decomposition and exact frame
+dispatch](milestone-3b-native-video-retime-workflow.md). The dependency-ordered
+contract landed in `17ffbae3`; exact authenticated CFR/VFR frame dispatch
+followed in `23b7fe17` on 2026-08-12. Its canonical gate passed with 5,334 tests
+total (5,332 passed, 2 skipped), 90.17% statement/line, 82.09% branch, and
+90.73% function coverage. Architecture passed with 893 modules, 2,485
+dependencies, and 1,968 maintained files; the build processed 1,180 modules
+and emitted 104 JavaScript chunks with `aup4-worker` largest at 400,686 bytes.
+The focused algebra/mapper/timing/dispatch review suite passed 31/31. No browser
+row was required because no maintained path imports the dormant dispatcher.
+Packet 3B-5 remains in progress; the immediate pickup is **3B-5f — dormant
+output cadence and preview executor**, with no partial capability flip.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time

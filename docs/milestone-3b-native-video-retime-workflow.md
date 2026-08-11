@@ -1,9 +1,22 @@
 # Milestone 3B-5d: native video-retime workflow decomposition
 
-> **Reviewed contract only.** The delivered [3B-5a algebra](milestone-3b-exact-video-retime-algebra.md),
-> [3B-5b V16 wire](milestone-3b-video-retime-v16.md), and [3B-5c clip
-> mapper](milestone-3b-video-retime-runtime-mapping.md) do not make retime state
-> drawable/writable. This docs-only decomposition changes no production or status surface.
+> **3B-5d reviewed; 3B-5e implemented on 2026-08-12.** The decomposition
+> landed in `17ffbae3`; commit `23b7fe17` delivers its first implementation
+> slice, exact authenticated frame dispatch. The delivered [3B-5a
+> algebra](milestone-3b-exact-video-retime-algebra.md), [3B-5b V16
+> wire](milestone-3b-video-retime-v16.md), [3B-5c clip
+> mapper](milestone-3b-video-retime-runtime-mapping.md), and 3B-5e dispatcher
+> still expose no maintained writable/drawable workflow or capability change.
+
+The canonical `npm run check` gate passed with 5,334 tests total, 5,332 passed
+and 2 skipped; 90.17% statement and line coverage, 82.09% branch coverage, and
+90.73% function coverage. The focused algebra/mapper/timing/dispatch review
+suite passed 31/31. Architecture passed with 893 modules, 2,485 dependencies,
+and 1,968 maintained files. The build processed 1,180 modules and emitted 104
+production JavaScript chunks; the largest, `aup4-worker`, was 400,686 bytes.
+No browser row was required because 3B-5e remains a dormant, unimported
+runtime seam. Packet 3B-5 remains **In progress**; the immediate pickup is
+**3B-5f — dormant output cadence and preview executor**.
 
 ## Dependency audit and delivery rule
 
@@ -25,6 +38,12 @@ Packets 3B-5e through 3B-5g may add modules/tests, but no maintained path import
 them. `videoRetime` stays false in both products/register until atomic 3B-5h.
 
 ## 3B-5e — exact authenticated frame dispatch
+
+**Implemented in `23b7fe17`.** `video-source-timing-view.ts` now binds one
+opaque, snapshot-safe CFR/VFR timing token per source/project view, and
+`video-retime-frame-dispatch.ts` lazily resolves all five curve modes to exact
+source timing plus one direction-owned drawable frame. The implementation has
+no maintained consumer; the contract below remains the acceptance record.
 
 Ownership is strict TypeScript under 600 lines per new module. The intended
 surface is equivalent to:
