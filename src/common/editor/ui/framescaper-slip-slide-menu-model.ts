@@ -64,6 +64,8 @@ export interface FramescaperSlipSlideApplicationMenuItem
 
 interface LazyItemState {
 	request: Readonly<FrameCanonicalSlipSlideRequest> | null;
+	resolved: boolean;
+	buildRequest(): Readonly<FrameCanonicalSlipSlideRequest>;
 }
 
 const ITEM_STATE = new WeakMap<object, LazyItemState>();
@@ -118,14 +120,19 @@ function lazyItem(
 	inert: boolean,
 	dependencies: FramescaperSlipSlideMenuDependencies,
 ): Readonly<FramescaperSlipSlideMenuItemModel> {
-	const state: LazyItemState = { request: null };
 	const step = Object.freeze({ ...stepValue });
+	const state: LazyItemState = {
+		request: null,
+		resolved: false,
+		buildRequest: () => dependencies.buildStepRequest(step),
+	};
 	const item = Object.freeze({
 		id,
 		label,
 		disabled: inert,
 		resolve: (): Readonly<ApplicationMenuResolution> => {
 			state.request = null;
+			state.resolved = true;
 			if (inert) return DISABLED_RESOLUTION;
 			try {
 				const request = dependencies.buildStepRequest(step);
@@ -153,11 +160,18 @@ function bindItem(
 		label: item.label,
 		disabled: item.disabled,
 		resolve: item.resolve,
-		onClick: () => {
-			const request = state?.request;
-			return request === null || request === undefined
-				? undefined
-				: actions.commitSlipSlide(request);
+			onClick: () => {
+			if (!state || item.disabled) return undefined;
+			let request = state.request;
+			if (request === null) {
+				if (state.resolved) return undefined;
+				try {
+					request = state.buildRequest();
+				} catch {
+					return undefined;
+				}
+			}
+			return actions.commitSlipSlide(request);
 		},
 	});
 }

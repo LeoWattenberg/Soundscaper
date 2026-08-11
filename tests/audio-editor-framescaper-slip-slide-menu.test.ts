@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { flattenAudioEditorSearchMenus } from '../src/common/editor/search.js';
 import type {
 	FrameCanonicalSlipSlideRequest,
 } from '../src/common/editor/frame-canonical-slip-slide-domain.ts';
@@ -14,6 +15,7 @@ import {
 	createFramescaperSlipSlideMenuModel,
 	type FramescaperSlipSlideMenuPlanner,
 } from '../src/common/editor/ui/framescaper-slip-slide-menu-model.ts';
+import { findShortcutMenuHandler } from '../src/common/editor/ui/workspace-shortcuts.ts';
 
 const COPY = Object.freeze({
 	slipSourceEarlierOneFrame: 'Slip source earlier one frame',
@@ -213,6 +215,43 @@ test('a later failed resolution clears an item previous stored request', () => {
 	assert.deepEqual(first.resolve(), { disabled: true });
 	assert.equal(first.onClick(), undefined);
 	assert.equal(commits, 1);
+});
+
+test('closed-menu shortcut and search activation build fresh absolute requests', () => {
+	let builds = 0;
+	let plans = 0;
+	const committed: Readonly<FrameCanonicalSlipSlideRequest>[] = [];
+	const model = createFramescaperSlipSlideMenuModel(input(), {
+		buildStepRequest: () => {
+			builds += 1;
+			return Object.freeze({
+				mode: 'slip' as const,
+				activeClipId: 'video-clip',
+				requestedSourceInFrame: 10 + builds,
+			});
+		},
+		planSlipSlide: () => {
+			plans += 1;
+			return Object.freeze({ kind: 'transform' as const });
+		},
+	});
+	const items = createFramescaperSlipSlideMenuItems(model, {
+		commitSlipSlide: (request) => committed.push(request),
+	});
+	const direct = items[0];
+	assert.ok(direct);
+	direct.onClick();
+	findShortcutMenuHandler(items, IDS[0]!).handler?.();
+	const searchEntry = flattenAudioEditorSearchMenus([{
+		id: 'edit', label: 'Edit', items,
+	}]).find(({ commandId }) => commandId === IDS[0]);
+	searchEntry?.handler?.();
+
+	assert.equal(builds, 3);
+	assert.equal(plans, 0, 'closed-menu activation relies on the commit planner');
+	assert.deepEqual(committed.map((request) => (
+		request.mode === 'slip' ? request.requestedSourceInFrame : null
+	)), [11, 12, 13]);
 });
 
 function input(overrides: Readonly<Record<string, unknown>> = {}) {
