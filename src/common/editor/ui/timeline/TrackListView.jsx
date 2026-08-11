@@ -208,6 +208,7 @@ export function TrackListView({
 					waveformCache={waveformCache}
 					automationToolEnabled={automationToolEnabled}
 					blocked={mutationsBlocked}
+					canonicalVideoTrim={snapshot.capabilities?.videoCompositing === true}
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					recordingInputs={snapshot.recordingInputs}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { secondsDeltaToFrames } from './geometry.ts';
+import { routeClipFocusTrimKeyboard } from './clip-focus-trim-keyboard-routing.ts';
 import { normalizeClipSemantics } from './timeline-navigation.js';
 
 export function useAudioTrackRowNavigation({
@@ -17,6 +18,7 @@ export function useAudioTrackRowNavigation({
 	trackBaseTabIndex,
 	sampleRate,
 	blocked,
+	canonicalVideoTrim,
 	run,
 	onFocusTimelineRuler,
 	onFocusTrackContainer,
@@ -121,7 +123,7 @@ export function useAudioTrackRowNavigation({
 			return;
 		}
 	};
-	const trimClipBySeconds = (clipId, edge, deltaSeconds) => {
+	const trimClipBySecondsLegacy = (clipId, edge, deltaSeconds) => {
 		if (blocked) return;
 		const clip = clipLookup.get(String(clipId)) || clipLookup.get(clipId);
 		const source = clip ? sourceLookup.get(clip.sourceId) : null;
@@ -156,7 +158,7 @@ export function useAudioTrackRowNavigation({
 			durationFrames: nextDuration,
 		}));
 	};
-	const stretchClipBySeconds = (clipId, edge, deltaSeconds) => {
+	const stretchClipBySecondsLegacy = (clipId, edge, deltaSeconds) => {
 		if (blocked) return;
 		const clip = clipLookup.get(String(clipId)) || clipLookup.get(clipId);
 		const deltaFrames = secondsDeltaToFrames(deltaSeconds, sampleRate);
@@ -174,6 +176,42 @@ export function useAudioTrackRowNavigation({
 		if (durationFrames === clip.durationFrames) return;
 		run(() => controller.actions.clip.stretch(clip.id, { durationFrames }));
 	};
+	const trimClipBySeconds = (clipId, edge, deltaSeconds) => routeClipFocusTrimKeyboard({
+		blocked,
+		videoCompositing: canonicalVideoTrim,
+		clipId,
+		operation: 'trim',
+		edge,
+		callbackDeltaSeconds: deltaSeconds,
+		resolveFocusedClip: (focusedClipId) => (
+			clipLookup.get(String(focusedClipId)) || clipLookup.get(focusedClipId)
+		),
+		commitCanonicalTrim: (step) => run(() => (
+			controller.actions.video.trim.commitStep(step)
+		)),
+		commitCanonicalRateStretch: (step) => run(() => (
+			controller.actions.video.trim.rateStretch.commitStep(step)
+		)),
+		commitLegacy: () => trimClipBySecondsLegacy(clipId, edge, deltaSeconds),
+	});
+	const stretchClipBySeconds = (clipId, edge, deltaSeconds) => routeClipFocusTrimKeyboard({
+		blocked,
+		videoCompositing: canonicalVideoTrim,
+		clipId,
+		operation: 'rate-stretch',
+		edge,
+		callbackDeltaSeconds: deltaSeconds,
+		resolveFocusedClip: (focusedClipId) => (
+			clipLookup.get(String(focusedClipId)) || clipLookup.get(focusedClipId)
+		),
+		commitCanonicalTrim: (step) => run(() => (
+			controller.actions.video.trim.commitStep(step)
+		)),
+		commitCanonicalRateStretch: (step) => run(() => (
+			controller.actions.video.trim.rateStretch.commitStep(step)
+		)),
+		commitLegacy: () => stretchClipBySecondsLegacy(clipId, edge, deltaSeconds),
+	});
 
 	return {
 		tabIndexFor,
