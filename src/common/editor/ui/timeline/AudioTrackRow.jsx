@@ -185,7 +185,9 @@ export function AudioTrackRow({
 			},
 			cache: waveformCache,
 			reuseCachedWaveform: Boolean(
-				draggingClipIds?.has(clip.id) && clip.waveformPreviewKind !== 'trim',
+				draggingClipIds?.has(clip.id)
+					&& clip.waveformPreviewKind !== 'trim'
+					&& clip.waveformPreviewKind !== 'rate-stretch',
 			),
 		})).map((clip) => {
 			const preview = envelopePreviewRef.current.get(String(clip.id));
@@ -203,8 +205,21 @@ export function AudioTrackRow({
 		const previews = new Map(projection.clips
 			.filter((clip) => clip.sourceSlipPreview)
 			.map((clip) => [String(clip.id), clip]));
+		const rateStretchPreviews = new Map(projection.clips
+			.filter((clip) => clip.rateStretchPreview)
+			.map((clip) => [String(clip.id), clip]));
 		for (const element of root.querySelectorAll('[data-clip-id]')) {
 			const preview = previews.get(String(element.dataset.clipId));
+			const rateStretchPreview = rateStretchPreviews.get(String(element.dataset.clipId));
+			if (rateStretchPreview) {
+				element.setAttribute('data-rate-stretch-preview', 'true');
+				if (rateStretchPreview.waveformPreviewKind === 'rate-stretch') {
+					element.setAttribute('data-rate-stretch-waveform-preview', 'true');
+				} else element.removeAttribute('data-rate-stretch-waveform-preview');
+			} else {
+				element.removeAttribute('data-rate-stretch-preview');
+				element.removeAttribute('data-rate-stretch-waveform-preview');
+			}
 			if (!preview) {
 				element.removeAttribute('data-slip-slide-source-preview');
 				element.removeAttribute('data-slip-slide-preview-source-start');

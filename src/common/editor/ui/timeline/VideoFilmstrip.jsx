@@ -3,6 +3,7 @@ import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { selectVideoThumbnailTimestamps } from '../../video-timeline.js';
+import { createVideoRateBadgeModel } from './video-rate-badge-model.ts';
 
 export function VideoFilmstripClip({
 	controller,
@@ -28,7 +29,11 @@ export function VideoFilmstripClip({
 	const width = Math.max(2, framesToSeconds(visibleEndFrame - visibleStartFrame, { sampleRate }) * pixelsPerSecond);
 	const clippedAtStart = visibleStartFrame !== clip.timelineStartFrame;
 	const clippedAtEnd = visibleEndFrame !== clipEndFrame;
-	const speedRatio = Number(clip.speedRatio) || 1;
+	const rateBadge = createVideoRateBadgeModel({
+		clip,
+		source,
+		projectSampleRate: sampleRate,
+	});
 	const visualData = useVideoClipVisualData(controller, clip);
 	const thumbnailPoints = useMemo(() => {
 		if (!source || visibleEndFrame <= visibleStartFrame) return [];
@@ -58,6 +63,7 @@ export function VideoFilmstripClip({
 			className="audio-editor-video-clip"
 			data-clip-id={clip.id}
 			data-clip-kind="video"
+			data-rate-stretch-preview={clip.rateStretchPreview ? 'true' : undefined}
 			data-slip-slide-source-preview={clip.sourceSlipPreview ? 'true' : undefined}
 			data-slip-slide-preview-source-start={clip.sourceSlipPreview
 				? clip.sourceStartFrame
@@ -105,9 +111,14 @@ export function VideoFilmstripClip({
 				</>}
 				<div className="clip-header audio-editor-video-clip__header">
 					<span className="audio-editor-video-clip__title" title={clip.title}>{clip.title}</span>
-					{speedRatio !== 1 && (
-						<span className="audio-editor-video-clip__speed" aria-label={`${speedRatio.toFixed(2)}×`}>
-							{speedRatio.toFixed(2)}×
+					{rateBadge && (
+						<span
+							className="audio-editor-video-clip__speed"
+							data-video-rate-badge="true"
+							data-video-playback-rate={rateBadge.playbackRate}
+							aria-label={rateBadge.label}
+						>
+							{rateBadge.label}
 						</span>
 					)}
 				</div>

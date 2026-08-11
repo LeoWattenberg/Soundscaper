@@ -23,6 +23,7 @@ import {
 	TelemetryPlayhead,
 	TelemetryRulerPlayhead,
 	TimeSelectionOverlay,
+	TimelineRateStretchPreviewGuide,
 	TimelineSlipSlidePreviewGuides,
 	TimelineTrimPreviewGuide,
 } from './TimelineOverlayComponents.jsx';
@@ -390,6 +391,14 @@ export function TimelineWorkspaceView({
 					/>
 					<TimelineTrimPreviewGuide
 						sample={clipDragPreview?.guideSample}
+						panelWidth={panelWidth}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
+						height={totalTrackHeight}
+					/>
+					<TimelineRateStretchPreviewGuide
+						sample={clipDragPreview?.rateStretchGuideSample}
+						edge={clipDragPreview?.rateStretchGuideEdge}
 						panelWidth={panelWidth}
 						pixelsPerSecond={pixelsPerSecond}
 						sampleRate={sampleRate}

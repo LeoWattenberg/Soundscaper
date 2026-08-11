@@ -4,6 +4,7 @@ import { secondsToFrames } from '../../design-system-adapters.js';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
+import { resolveTimelineRateStretchPointerPreview } from './rate-stretch-pointer-routing.ts';
 import { resolveTimelineRollRippleTrimPointerPreview } from './roll-ripple-trim-pointer-routing.ts';
 import { resolveTimelineSlipSlidePointerPreview } from './slip-slide-pointer-routing.ts';
 import { samplePointAtPointer } from './track-row-helpers.jsx';
@@ -215,23 +216,43 @@ export function useTimelinePointerMove({
 					: preview
 			));
 		} else if (session?.kind === 'stretch-left' || session?.kind === 'stretch-right') {
-			const deltaFrames = secondsToFrames(
-				Math.abs(event.clientX - session.startX) / pixelsPerSecond,
-				{ sampleRate },
-			) * Math.sign(event.clientX - session.startX);
-			const change = session.kind === 'stretch-left'
-				? Math.max(-session.original.timelineStartFrame, Math.min(session.original.durationFrames - 1, deltaFrames))
-				: 0;
-			const preview = {
-				clipId: session.clipId,
-				trackId: session.trackId,
-				timelineStartFrame: session.original.timelineStartFrame + change,
-				durationFrames: session.kind === 'stretch-left'
-					? session.original.durationFrames - change
-					: Math.max(1, session.original.durationFrames + deltaFrames),
-			};
+			const preview = resolveTimelineRateStretchPointerPreview({
+				session,
+				canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
+				previewRateStretch: (request) => run(() => (
+					controller.actions.video.trim.rateStretch.preview(request)
+				)),
+				clipKind: (clipId) => projectIndex.clipById.get(clipId)?.kind ?? null,
+				previewOrdinary: () => {
+					const deltaFrames = secondsToFrames(
+						Math.abs(event.clientX - session.startX) / pixelsPerSecond,
+						{ sampleRate },
+					) * Math.sign(event.clientX - session.startX);
+					const change = session.kind === 'stretch-left'
+						? Math.max(-session.original.timelineStartFrame, Math.min(session.original.durationFrames - 1, deltaFrames))
+						: 0;
+					return {
+						clipId: session.clipId,
+						trackId: session.trackId,
+						timelineStartFrame: session.original.timelineStartFrame + change,
+						durationFrames: session.kind === 'stretch-left'
+							? session.original.durationFrames - change
+							: Math.max(1, session.original.durationFrames + deltaFrames),
+					};
+				},
+			});
+			if (!preview) {
+				session.preview = null;
+				setClipDragPreview(null);
+				setDraggingClipIds(new Set(session.clipIds));
+				return;
+			}
 			session.preview = preview;
 			setClipDragPreview(preview);
+			if (preview.previews) {
+				setDraggingClipIds(new Set(preview.previews.map(({ clipId }) => clipId)));
+			}
 		} else if (session?.kind === 'trim-left' || session?.kind === 'trim-right') {
 			const edge = session.kind === 'trim-left' ? 'left' : 'right';
 			const requestedBoundarySample = frameAtClientX(event.clientX, session.lane);

@@ -1,6 +1,10 @@
 import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import {
+	commitTimelineRateStretchPointer,
+	usesFrameCanonicalTimelineRateStretch,
+} from './rate-stretch-pointer-routing.ts';
 import { commitTimelineRollRippleTrimPointer } from './roll-ripple-trim-pointer-routing.ts';
 import { commitTimelineSlipSlidePointer } from './slip-slide-pointer-routing.ts';
 import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
@@ -78,6 +82,21 @@ export function useTimelinePointerFinish({
 				currentPointerSample,
 				commitSlipSlide: (request) => run(() => (
 					controller.actions.video.trim.slipSlide.commit(request)
+				)),
+				commitOrdinary: () => null,
+			});
+			return;
+		}
+		if (usesFrameCanonicalTimelineRateStretch({
+			session,
+			canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+		})) {
+			commitTimelineRateStretchPointer({
+				session,
+				canonicalVideoTrim: true,
+				requestedBoundarySample: frameAtClientX(event.clientX, session.lane),
+				commitRateStretch: (request) => run(() => (
+					controller.actions.video.trim.rateStretch.commit(request)
 				)),
 				commitOrdinary: () => null,
 			});

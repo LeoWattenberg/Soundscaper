@@ -320,6 +320,35 @@ export function TimelineTrimPreviewGuide({
 	);
 }
 
+export function TimelineRateStretchPreviewGuide({
+	sample,
+	edge,
+	panelWidth,
+	pixelsPerSecond,
+	sampleRate,
+	height,
+}) {
+	if (!Number.isSafeInteger(sample) || (edge !== 'left' && edge !== 'right')) return null;
+	return (
+		<div
+			className="audio-editor-trim-preview-guide"
+			data-rate-stretch-guide="true"
+			data-rate-stretch-edge={edge}
+			data-rate-stretch-boundary-sample={sample}
+			aria-hidden="true"
+			style={{
+				left: timelineTrimPreviewGuideLeft(
+					sample,
+					panelWidth,
+					pixelsPerSecond,
+					sampleRate,
+				),
+				height,
+			}}
+		/>
+	);
+}
+
 export function TimelineSlipSlidePreviewGuides({
 	samples,
 	panelWidth,
