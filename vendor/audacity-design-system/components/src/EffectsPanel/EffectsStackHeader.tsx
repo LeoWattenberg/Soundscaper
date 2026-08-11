@@ -1,6 +1,7 @@
 import React from 'react';
 import { ToggleButton } from '../ToggleButton';
 import { Button } from '../Button';
+import { GhostButton } from '../GhostButton';
 import { Icon } from '../Icon';
 import { useTheme } from '../ThemeProvider';
 import './EffectsStackHeader.css';
@@ -58,7 +59,7 @@ export const EffectsStackHeader: React.FC<EffectsStackHeaderProps> = ({
   name,
   allEnabled,
   onToggleAll,
-  onContextMenu: _onContextMenu,
+  onContextMenu,
   onAddEffect,
   addButtonLabel = 'Effects',
   isMaster = false,
@@ -113,6 +114,17 @@ export const EffectsStackHeader: React.FC<EffectsStackHeaderProps> = ({
         >
           {addButtonLabel}
         </Button>
+      )}
+
+      {/* Stack options menu button */}
+      {onContextMenu && (
+        <GhostButton
+          icon="menu"
+          size="small"
+          onClick={onContextMenu}
+          ariaLabel="Effect stack options"
+          className="effects-stack-header__menu-button"
+        />
       )}
     </div>
   );

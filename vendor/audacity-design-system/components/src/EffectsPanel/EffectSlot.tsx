@@ -58,8 +58,8 @@ export interface EffectSlotProps {
   disabledPluginIds?: Set<string>;
 
   /**
-   * Called when "Change effect…" is picked from the slot context menu — the
-   * host opens the marketplace modal so the same browse/replace flow is used.
+   * Accepted for compatibility but no longer invoked from the slot context
+   * menu — the flat replace list swaps effects directly via onReplaceEffect.
    * Receives the slot's bounding rect so the modal can anchor next to it.
    */
   onChangeEffect?: (anchor: DOMRect | null) => void;
@@ -120,7 +120,7 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
   enabled = true,
   onToggle,
   onSelectEffect,
-  onChangeEffect,
+  onChangeEffect: _onChangeEffect,
   onShowSettings,
   onRemoveEffect,
   onReplaceEffect,
@@ -349,78 +349,16 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
         </button>
       </div>
 
-      {/* Context menu — category submenus pick from installed effects in one
-          click; "Get effects…" hands off to the MuseHub marketplace for
-          anything else; "Remove effect" tears the slot down. */}
+      {/* Context menu — "Remove effect" tears the slot down; below the
+          divider, a flat list of every available effect (built-in registry
+          effects first, then MuseHub purchases sorted by vendor and name)
+          swaps the slot in one click. */}
       <ContextMenu
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
         x={menuPosition.x}
         y={menuPosition.y}
       >
-        {Object.entries(EFFECT_REGISTRY).map(([category, effects]) => {
-          const enabled = effects.filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id));
-          if (enabled.length === 0) return null;
-          return (
-            <ContextMenuItem key={category} label={category} hasSubmenu>
-              {enabled.map((effect) => (
-                <ContextMenuItem
-                  key={effect.id}
-                  label={effect.name}
-                  onClick={() => {
-                    onReplaceEffect?.(effect.name);
-                    setMenuOpen(false);
-                  }}
-                />
-              ))}
-            </ContextMenuItem>
-          );
-        })}
-        {/* MuseHub purchases — grouped by vendor and rendered after the
-            built-in categories so the plugin manager is the same surface
-            wherever the user got the effect from. */}
-        {(() => {
-          if (!purchasedEffects || purchasedEffects.length === 0) return null;
-          const visible = purchasedEffects.filter(
-            (e) => !disabledPluginIds || !disabledPluginIds.has(e.id),
-          );
-          if (visible.length === 0) return null;
-          const byVendor = new Map<string, typeof visible>();
-          for (const e of visible) {
-            const list = byVendor.get(e.vendor) ?? [];
-            list.push(e);
-            byVendor.set(e.vendor, list);
-          }
-          return Array.from(byVendor.entries())
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([vendor, effects]) => (
-              <ContextMenuItem key={vendor} label={vendor} hasSubmenu>
-                {effects.map((effect) => (
-                  <ContextMenuItem
-                    key={effect.id}
-                    label={effect.name}
-                    onClick={() => {
-                      onReplaceEffect?.(effect.name);
-                      setMenuOpen(false);
-                    }}
-                  />
-                ))}
-              </ContextMenuItem>
-            ));
-        })()}
-        <ContextMenuItem isDivider />
-        <ContextMenuItem
-          label="Get effects…"
-          onClick={() => {
-            // Anchor the marketplace modal next to this slot so the user
-            // stays oriented to the row they're replacing.
-            const slotEl = (slotRef.current as HTMLElement | null);
-            const anchor = slotEl ? slotEl.getBoundingClientRect() : null;
-            onChangeEffect?.(anchor);
-            setMenuOpen(false);
-          }}
-        />
-        <ContextMenuItem isDivider />
         <ContextMenuItem
           label="Remove effect"
           onClick={() => {
@@ -428,6 +366,34 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
             setMenuOpen(false);
           }}
         />
+        <ContextMenuItem isDivider />
+        {Object.values(EFFECT_REGISTRY).flatMap((effects) =>
+          effects
+            .filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id))
+            .map((effect) => (
+              <ContextMenuItem
+                key={effect.id}
+                label={effect.name}
+                onClick={() => {
+                  onReplaceEffect?.(effect.name);
+                  setMenuOpen(false);
+                }}
+              />
+            )),
+        )}
+        {(purchasedEffects || [])
+          .filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id))
+          .sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`))
+          .map((effect) => (
+            <ContextMenuItem
+              key={effect.id}
+              label={effect.name}
+              onClick={() => {
+                onReplaceEffect?.(effect.name);
+                setMenuOpen(false);
+              }}
+            />
+          ))}
       </ContextMenu>
     </div>
   );
