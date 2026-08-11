@@ -253,8 +253,10 @@ build emitted 104 JavaScript chunks with `aup4-worker` largest at 400,686 bytes.
 No browser row was required because no maintained consumer uses the seam.
 Packet 3B-5 remains in progress.
 
-The immediate pickup is **3B-5d — native retime workflow contract and
-decomposition**.
+The immediate pickup is
+[3B-5d — native video-retime workflow decomposition](milestone-3b-native-video-retime-workflow.md):
+the dependency-ordered exact dispatch, dormant preview/export backend, and
+atomic maintained-adoption contracts, with no partial capability flip.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time
