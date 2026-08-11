@@ -219,10 +219,20 @@ ramps, and nested sequences**.
 
 ## 3B-5 — Retiming, ramps, and nested sequences
 
-The immediate planned pickup is
+**Status: In progress.** The delivered first slice is
 [3B-5a — exact video-retime curve algebra](milestone-3b-exact-video-retime-algebra.md):
 one schema-neutral pure compiler, closed-form evaluator, and discrete exact
 inverse contract before any persisted ramp revision or maintained workflow.
+Its contract landed in `b7d452a5` and its implementation in `fcff5eab` on
+2026-08-11. The focused algebra suite passed 11/11; the canonical gate passed
+5,286 tests total (5,284 passed, 2 skipped), with 90.1% statement/line, 82%
+branch, and 90.64% function coverage. Architecture passed with 887 modules,
+2,463 dependencies, and 1,952 maintained files; the build emitted 104
+JavaScript chunks with a 388,318-byte largest chunk. No browser row was required
+because 3B-5a exposes no maintained workflow.
+
+The immediate next slice is **3B-5b — V16 curve persistence and preservation**.
+Maintained retime workflows and nested sequences remain later 3B-5 slices.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time

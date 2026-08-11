@@ -1,9 +1,10 @@
 # Milestone 3B-5a: exact video-retime curve algebra
 
-> **Planned immediate pickup after 3B-4:** this bounded, schema-neutral slice
-> defines and implements the pure exact algebra needed before the persisted
-> ramp-curve revision. It adds no document field, migration, command, menu,
-> control, capability claim, playback path, or export behavior.
+> **Implemented:** the contract landed in commit `b7d452a5` and the bounded,
+> schema-neutral algebra landed in commit `fcff5eab` on 2026-08-11. It adds no
+> document field, migration, command, menu, control, capability claim, playback
+> path, or export behavior. Packet 3B-5 remains in progress; the immediate next
+> slice is **3B-5b — V16 curve persistence and preservation**.
 
 ## Outcome boundary
 
@@ -177,6 +178,18 @@ architecture, file-size, `npm test`, `npm run check`, and diff checks before
 recording this algebra as implemented. No browser row is required because no
 maintained workflow consumes it yet.
 
+## Recorded evidence
+
+- Contract commit `b7d452a5` and implementation commit `fcff5eab` record the
+  strict compiler, evaluator, inverter, and the public 4,096-bit exact-operand
+  ceiling, including raw-input and normalized-intermediate refusal coverage.
+- The focused algebra suite passed 11/11. The canonical `npm run check` gate
+  passed 5,286 tests total, with 5,284 passed and 2 skipped; coverage was 90.1%
+  for statements and lines, 82% for branches, and 90.64% for functions.
+- Architecture passed with 887 modules, 2,463 dependencies, and 1,952 maintained
+  files. The build emitted 104 JavaScript chunks; the largest was 388,318 bytes.
+- No browser row was required because this slice exposes no maintained workflow.
+
 ## Non-goals and stop conditions
 
 - No V16 schema, migration, persisted curve, validator, clone/clipboard/scape
@@ -191,6 +204,7 @@ maintained workflow consumes it yet.
   among occurrences.
 - Stop if a schema or product surface must land to make the pure tests pass.
 
-The persisted ramp-curve revision and every maintained consumer remain later
-3B-5 slices. The four packaged Electron timing-probe rows remain
-`pending-external`, and WebKit remains deferred; this algebra changes neither.
+The immediate follow-up is 3B-5b's atomic V16 curve persistence and preservation
+slice. Maintained retime consumers and nested sequences remain later 3B-5
+slices. The four packaged Electron timing-probe rows remain `pending-external`,
+and WebKit remains deferred; this algebra changes neither.

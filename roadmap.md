@@ -456,8 +456,8 @@ Packet boundaries, dependencies, and acceptance are owned by
   video handles update linked A/V canonically and report the derived rate.
   Existing focused-clip trim and stretch keys now route exact linked A/V through
   those canonical authorities one adjacent sequence frame at a time, while
-  Soundscaper retains its legacy behavior. Packet 3B-4 is complete; the
-  immediate next packet is **3B-5 — Retiming, ramps, and nested sequences**. See
+  Soundscaper retains its legacy behavior. Packet 3B-4 is complete and packet
+  **3B-5 — Retiming, ramps, and nested sequences** is in progress. See
   [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md),
   [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
   [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),
@@ -468,9 +468,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   [`docs/milestone-3b-uniform-rate-stretch.md`](docs/milestone-3b-uniform-rate-stretch.md),
   and
   [`docs/milestone-3b-canonical-trim-keyboard.md`](docs/milestone-3b-canonical-trim-keyboard.md).
-- **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
-  shared breakpoint model, reverse/freeze frames, nested sequences,
-  subsequence time mapping, and deterministic flattening.
+- **Shared / Web Core — In progress:** the exact schema-neutral retime curve
+  algebra is implemented. The immediate next slice is V16 curve persistence and
+  preservation; maintained retime workflows, nested sequences, subsequence time
+  mapping, and deterministic flattening remain later slices.
 - **Web Core — Planned:** proxy attachment, adaptive preview, offline/relink, and
   synchronized multicamera groups.
 
