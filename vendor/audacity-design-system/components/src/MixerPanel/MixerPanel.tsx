@@ -39,6 +39,8 @@ export interface MixerPanelProps {
    * Track mixer channels to display
    */
   channels?: MixerPanelChannel[];
+  /** Label for an optional channel row below the effects stack. */
+  effectFooterLabel?: string;
   /**
    * Hide the built-in PanelHeader (when managed externally, e.g. in a tabbed drawer)
    */
@@ -72,6 +74,7 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({
   onMenuClick,
   masterChannel,
   channels = [],
+  effectFooterLabel,
   hideHeader = false,
   className = '',
 }) => {
@@ -112,6 +115,11 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({
               <div className="mixer-panel__row-label" style={{ height: effectRowHeight, alignItems: 'flex-start', paddingTop: 10 }}>
                 <span>Audio FX</span>
               </div>
+              {effectFooterLabel && (
+                <div className="mixer-panel__row-label" style={{ height: 40 }}>
+                  <span>{effectFooterLabel}</span>
+                </div>
+              )}
               <div className="mixer-panel__row-label" style={{ height: 40 }}>
                 <span>Pan</span>
               </div>
@@ -135,13 +143,13 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({
               {channels.map((ch, i) => (
                 <React.Fragment key={ch.id}>
                   {i > 0 && <div className="mixer-panel__channel-divider" />}
-                  <MixerChannel {...ch.channelProps} effectSlotCount={maxEffectSlots} />
+                  <MixerChannel {...ch.channelProps} effectSlotCount={maxEffectSlots} effectFooterVisible={Boolean(effectFooterLabel)} />
                 </React.Fragment>
               ))}
               {masterChannel && (
                 <>
                   {channels.length > 0 && <div className="mixer-panel__channel-divider" />}
-                  <MixerChannel {...masterChannel} effectSlotCount={maxEffectSlots} />
+                  <MixerChannel {...masterChannel} effectSlotCount={maxEffectSlots} effectFooterVisible={Boolean(effectFooterLabel)} />
                 </>
               )}
               <div className="mixer-panel__channel-divider" />

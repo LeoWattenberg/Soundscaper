@@ -77,6 +77,10 @@ export interface MixerChannelProps {
   onMuteToggle?: () => void;
   onSoloToggle?: () => void;
   /**
+   * Optional input-routing controls rendered in a compact section above the effects.
+   */
+  inputControls?: React.ReactNode;
+  /**
    * Effects displayed in the effect stack (up to 5 slots).
    * Each entry has a name, enabled state, and callbacks.
    */
@@ -85,6 +89,10 @@ export interface MixerChannelProps {
    * Called when the empty effect slot dropdown is clicked (to add a new effect)
    */
   onAddEffect?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  /** Optional controls rendered in a row below the effects stack. */
+  effectFooter?: React.ReactNode;
+  /** Reserve the effects-footer row even when this channel has no controls. */
+  effectFooterVisible?: boolean;
   /**
    * Total number of effect slots to display (including empty ones).
    * Used to keep all channels the same height when one has more effects.
@@ -126,8 +134,11 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
   onPanChange,
   onMuteToggle,
   onSoloToggle,
+  inputControls,
   effects = [],
   onAddEffect,
+  effectFooter,
+  effectFooterVisible = false,
   effectSlotCount = 1,
   className = '',
 }) => {
@@ -157,6 +168,11 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
 
   return (
     <div className={`mixer-channel ${className}`} style={style}>
+        {/* Input-routing controls */}
+        {inputControls != null && (
+          <div className="mixer-channel__input-controls">{inputControls}</div>
+        )}
+
         {/* Effect stack */}
         <div className="mixer-channel__effect-slot">
           {effects.map((effect, i) => (
@@ -177,6 +193,11 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
             <MixerEffect key={`empty-${i}`} onDropdownClick={onAddEffect} />
           ))}
         </div>
+
+        {/* Effects footer row — reserved whenever visible so all channels stay height-aligned */}
+        {effectFooterVisible && (
+          <div className="mixer-channel__effect-footer">{effectFooter}</div>
+        )}
 
         {/* Pan control */}
         <div className="mixer-channel__pan-row">
