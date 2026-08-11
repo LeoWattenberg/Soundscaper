@@ -195,11 +195,12 @@ export function useContainerTabGroup({
       if (focusingRef.current) return;
 
       const relatedTarget = e.relatedTarget as HTMLElement | null;
-      if (containerRef.current?.contains(relatedTarget)) return;
+      const container = containerRef.current;
+      if (!container || container.contains(relatedTarget)) return;
 
       // Focus left the container — reset
       activeIndexRef.current = 0;
-      const focusables = getFocusables(containerRef.current!, selector, filter);
+      const focusables = getFocusables(container, selector, filter);
       focusables.forEach((el, index) => {
         el.tabIndex = index === 0 ? startTabIndex : -1;
       });
