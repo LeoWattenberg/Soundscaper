@@ -70,7 +70,8 @@ test.describe('persisted shared track locking', () => {
 		await expectNoVisibleLockControl(restored);
 	});
 
-	test('a locked Framescaper video lane refuses trim and is skipped by edit navigation', async ({ page }) => {
+	test('a locked Framescaper video lane refuses trim and is skipped by edit navigation', async ({ browserName, page }) => {
+		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
 		test.setTimeout(120_000);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);

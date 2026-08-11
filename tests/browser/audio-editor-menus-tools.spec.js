@@ -44,6 +44,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			'Edit',
 			'Select',
 			'View',
+			'Playback and recording',
 			'Tracks',
 			'Generate',
 			'Effect',
