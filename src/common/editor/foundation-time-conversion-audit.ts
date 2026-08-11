@@ -294,6 +294,30 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'frame-canonical-slide-planning',
+		file: 'src/common/editor/frame-canonical-slide-planning.ts',
+		behavior: 'Slide planning substitutes one sequence-frame delta, maps immutable neighbor ratios once, and resolves every changed video endpoint from its absolute sequence frame.',
+		conversions: [
+			{ helper: 'roundRational', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
+		id: 'frame-canonical-slip-slide-planning',
+		file: 'src/common/editor/frame-canonical-slip-slide-planner.ts',
+		behavior: 'Slip and slide conform an absolute source or program request once and report their applied authority from absolute frame boundaries.',
+		conversions: [
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
+		id: 'frame-canonical-slip-source-timing',
+		file: 'src/common/editor/frame-canonical-slip-slide-timing.ts',
+		behavior: 'Verified CFR and VFR source evidence maps exact absolute source times to nearest source-grid points without timeline-domain accumulation.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
 		id: 'frame-canonical-trim-participant-planning',
 		file: 'src/common/editor/frame-canonical-trim-planning.ts',
 		behavior: 'Shared trim participants validate canonical video endpoints, map immutable timeline/source ratios once, and resolve linked companion boundaries from absolute sequence frames.',

@@ -27,6 +27,7 @@ const MAGIC = Uint8Array.of(0x53, 0x43, 0x54, 0x49);
 const VERSION = 1;
 const DIGEST = /^[a-f0-9]{64}$/u;
 const STORAGE_PREFIX = 'video-timing-sha256:';
+const VERIFIED_VIDEO_TIMING_INDEX_REFERENCES = new WeakMap<object, Readonly<VideoTimingAssetReference>>();
 
 export interface VideoTimingAssetInput {
 	readonly timescale: number;
@@ -163,7 +164,25 @@ export function validateVideoTimingAssetBytes(
 		|| index.finalFrameDurationTicks.toString() !== reference.finalFrameDurationTicks) {
 		throw new Error('The timing asset bytes failed their persisted summary binding.');
 	}
+	VERIFIED_VIDEO_TIMING_INDEX_REFERENCES.set(index, reference);
 	return index;
+}
+
+/** Prove an index came from bytes validated against this exact immutable reference. */
+export function isVideoTimingIndexVerifiedForReference(
+	value: unknown,
+	referenceValue: unknown,
+): value is VideoTimingIndex {
+	if (!value || typeof value !== 'object') return false;
+	const verifiedReference = VERIFIED_VIDEO_TIMING_INDEX_REFERENCES.get(value);
+	if (!verifiedReference) return false;
+	let suppliedReference: Readonly<VideoTimingAssetReference>;
+	try {
+		suppliedReference = normalizeVideoTimingAssetReference(referenceValue);
+	} catch {
+		return false;
+	}
+	return referenceFields().every((field) => verifiedReference[field] === suppliedReference[field]);
 }
 
 /** Process-local contract implementation; durable adapters use the same immutable key/reference rules. */
@@ -276,6 +295,13 @@ function timingReference(
 		timescale: index.timescale,
 		finalFrameDurationTicks: index.finalFrameDurationTicks.toString(),
 	});
+}
+
+function referenceFields(): readonly (keyof VideoTimingAssetReference)[] {
+	return [
+		'encoding', 'storageKey', 'sha256', 'sourceSha256', 'byteLength',
+		'frameCount', 'timescale', 'finalFrameDurationTicks',
+	];
 }
 
 function timingStorageKey(value: unknown): string {
