@@ -146,6 +146,34 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(arm).toHaveAttribute('aria-pressed', 'true');
 	});
 
+	test('reserves standalone Alt for the menubar without stealing modified shortcuts', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const file = editor.getByRole('menubar', { name: 'Application menu' })
+			.getByRole('menuitem', { name: 'File', exact: true });
+		const fullscreen = editor.getByRole('button', { name: 'Fullscreen', exact: true });
+
+		await fullscreen.focus();
+		await page.keyboard.down('Alt');
+		await expect(fullscreen).toBeFocused();
+		await page.keyboard.down('Shift');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.up('Shift');
+		await page.keyboard.up('Alt');
+		await expect(fullscreen).toBeFocused();
+
+		await page.keyboard.press('Alt');
+		await expect(file).toBeFocused();
+		await fullscreen.focus();
+		await page.keyboard.press('F10');
+		await expect(file).toBeFocused();
+
+		const search = editor.getByRole('combobox', { name: 'Search commands and media', exact: true });
+		await search.focus();
+		await expect(search).toBeFocused();
+		await page.keyboard.press('Alt');
+		await expect(search).toBeFocused();
+	});
+
 	test('keeps focus where it moved after a command when the closing frame lands late', async ({ page }) => {
 		// A loaded runner can defer the frame that follows a menu command well past
 		// the next control the operator reaches for, so pin that ordering here.

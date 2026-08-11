@@ -12,6 +12,7 @@ import '../../../../vendor/audacity-design-system/components/src/ApplicationHead
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 import { withBase } from '../../url';
 import AudioEditorSearch from './AudioEditorSearch.jsx';
+import { createApplicationMenuAccessKeyController } from './application-menu-access-key.ts';
 import { materializeApplicationMenu } from './application-menu-materialization.ts';
 import { AUDACITY_MENU_ORDER } from './application-menu-order.ts';
 
@@ -104,20 +105,22 @@ export default function AudioEditorMenuBar({
 	}, [openMenu, openMenuAt, orderedMenus.length]);
 
 	useEffect(() => {
-		const focusFileMenu = (event) => {
-			const plainF10 = event.key === 'F10'
-				&& !event.shiftKey
-				&& !event.altKey
-				&& !event.ctrlKey
-				&& !event.metaKey;
-			const plainAlt = event.key === 'Alt' && !event.shiftKey && !event.ctrlKey && !event.metaKey;
-			if (!plainF10 && !plainAlt) return;
-			if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-			event.preventDefault();
-			focusMenuButton(0, { open: false });
+		const accessKeys = createApplicationMenuAccessKeyController({
+			focusFileMenu: () => focusMenuButton(0, { open: false }),
+			isExcludedTarget: (target) => (
+				target instanceof Element
+				&& Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+			),
+		});
+		document.addEventListener('keydown', accessKeys.onKeyDown, true);
+		document.addEventListener('keyup', accessKeys.onKeyUp, true);
+		window.addEventListener('blur', accessKeys.cancel);
+		return () => {
+			document.removeEventListener('keydown', accessKeys.onKeyDown, true);
+			document.removeEventListener('keyup', accessKeys.onKeyUp, true);
+			window.removeEventListener('blur', accessKeys.cancel);
+			accessKeys.cancel();
 		};
-		document.addEventListener('keydown', focusFileMenu, true);
-		return () => document.removeEventListener('keydown', focusFileMenu, true);
 	}, [focusMenuButton]);
 
 	useEffect(() => {

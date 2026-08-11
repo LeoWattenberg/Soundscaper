@@ -1,0 +1,125 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+import {
+	createApplicationMenuAccessKeyController,
+	type ApplicationMenuAccessKeyEvent,
+} from '../src/common/editor/ui/application-menu-access-key.ts';
+
+interface EventFixture {
+	event: ApplicationMenuAccessKeyEvent;
+	prevented: () => boolean;
+}
+
+function keyEvent(
+	key: string,
+	modifiers: Partial<Pick<ApplicationMenuAccessKeyEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>> = {},
+	target: object = {},
+): EventFixture {
+	let defaultPrevented = false;
+	return {
+		event: {
+			key,
+			altKey: false,
+			ctrlKey: false,
+			metaKey: false,
+			shiftKey: false,
+			target,
+			preventDefault: () => { defaultPrevented = true; },
+			...modifiers,
+		},
+		prevented: () => defaultPrevented,
+	};
+}
+
+function fixture() {
+	const focused: string[] = [];
+	const excludedTarget = {};
+	return {
+		controller: createApplicationMenuAccessKeyController({
+			focusFileMenu: () => focused.push('file'),
+			isExcludedTarget: (target) => target === excludedTarget,
+		}),
+		excludedTarget,
+		focused,
+	};
+}
+
+test('plain F10 focuses File immediately while edited controls retain it', () => {
+	const { controller, excludedTarget, focused } = fixture();
+	const f10 = keyEvent('F10');
+	controller.onKeyDown(f10.event);
+	assert.equal(f10.prevented(), true);
+	assert.deepEqual(focused, ['file']);
+
+	const modifiedF10 = keyEvent('F10', { shiftKey: true });
+	controller.onKeyDown(modifiedF10.event);
+	assert.equal(modifiedF10.prevented(), false);
+
+	const editedF10 = keyEvent('F10', {}, excludedTarget);
+	controller.onKeyDown(editedF10.event);
+	assert.equal(editedF10.prevented(), false);
+	assert.deepEqual(focused, ['file']);
+});
+
+test('standalone Alt focuses File only after its matching release', () => {
+	const { controller, focused } = fixture();
+	const down = keyEvent('Alt', { altKey: true });
+	controller.onKeyDown(down.event);
+	assert.equal(down.prevented(), true);
+	assert.deepEqual(focused, []);
+
+	const up = keyEvent('Alt');
+	controller.onKeyUp(up.event);
+	assert.equal(up.prevented(), true);
+	assert.deepEqual(focused, ['file']);
+});
+
+test('an intervening modifier or other key cancels Alt until release', () => {
+	const { controller, focused } = fixture();
+	controller.onKeyDown(keyEvent('Alt', { altKey: true }).event);
+	controller.onKeyDown(keyEvent('Shift', { altKey: true, shiftKey: true }).event);
+	controller.onKeyDown(keyEvent('ArrowLeft', { altKey: true, shiftKey: true }).event);
+	controller.onKeyUp(keyEvent('Alt').event);
+	assert.deepEqual(focused, []);
+
+	controller.onKeyDown(keyEvent('Alt', { altKey: true }).event);
+	controller.onKeyDown(keyEvent('x', { altKey: true }).event);
+	controller.onKeyUp(keyEvent('Alt').event);
+	assert.deepEqual(focused, []);
+
+	controller.onKeyDown(keyEvent('Alt', { altKey: true }).event);
+	controller.cancel();
+	controller.onKeyUp(keyEvent('Alt').event);
+	assert.deepEqual(focused, []);
+});
+
+test('Alt started or released in an edited control never moves focus', () => {
+	const { controller, excludedTarget, focused } = fixture();
+	controller.onKeyDown(keyEvent('Alt', { altKey: true }, excludedTarget).event);
+	controller.onKeyUp(keyEvent('Alt', {}, excludedTarget).event);
+
+	controller.onKeyDown(keyEvent('Alt', { altKey: true }).event);
+	controller.onKeyUp(keyEvent('Alt', {}, excludedTarget).event);
+	assert.deepEqual(focused, []);
+});
+
+test('the React menubar owns symmetric access-key listeners and the edited-control guard', async () => {
+	const source = await readFile(new URL(
+		'../src/common/editor/ui/AudioEditorMenuBar.jsx',
+		import.meta.url,
+	), 'utf8');
+
+	assert.match(source, /createApplicationMenuAccessKeyController/u);
+	assert.match(source, /closest\('input, textarea, select, \[contenteditable="true"\]'\)/u);
+	assert.match(source, /addEventListener\('keydown', accessKeys\.onKeyDown, true\)/u);
+	assert.match(source, /addEventListener\('keyup', accessKeys\.onKeyUp, true\)/u);
+	assert.match(source, /removeEventListener\('keydown', accessKeys\.onKeyDown, true\)/u);
+	assert.match(source, /removeEventListener\('keyup', accessKeys\.onKeyUp, true\)/u);
+	assert.match(source, /window\.addEventListener\('blur', accessKeys\.cancel\)/u);
+	assert.match(source, /window\.removeEventListener\('blur', accessKeys\.cancel\)/u);
+	assert.match(source, /accessKeys\.cancel\(\)/u);
+});
