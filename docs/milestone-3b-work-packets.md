@@ -165,7 +165,8 @@ application-menu Link/Unlink for one exact timeline A/V pair and Show/Hide for
 the selected video track, using the existing undoable persisted commands. Packet
 3B-4 remains in progress: the frame-canonical trim planner, track locking,
 roll/ripple/slip/slide, uniform rate-stretch, and keyboard-complete trim feedback
-remain.
+remain. The immediate dependency is decomposed as
+[3B-4b2 — frame-canonical edge-trim planner](milestone-3b-frame-canonical-edge-trim-planner.md).
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
