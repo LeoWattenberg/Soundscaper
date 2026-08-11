@@ -6,6 +6,7 @@ import {
 	createRecordingPreferenceActionFacade,
 	type RecordingActionScope,
 } from './recording-action-facade.ts';
+import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -72,7 +73,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	trimClips, updatePreferences, updateRackEffect,
 	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
 	sourceMonitorService, timelineAnnotationService, trackFolderService, videoEditService,
-	videoEdgeTrimService, videoNavigationService, videoSourceReprobeService,
+	videoNavigationService, videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -208,9 +209,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getSourceVisualData: getVideoSourceVisualData,
 			releaseSourceVisual: releaseVideoSourceVisual,
 			export: exportVideo,
-			trim: Object.freeze({
-				preview: restricted('videoCompositing', videoEdgeTrimService.preview),
-				commit: restricted('videoCompositing', videoEdgeTrimService.commit),
+			trim: createVideoTrimActionFacade({
+				videoCompositing: capabilities.videoCompositing, productName: product.name, services: videoTrimServices,
 			}),
 			navigation: Object.freeze({
 				view: restricted('videoCompositing', () => videoNavigationService.view()),

@@ -40,10 +40,15 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 
 function createRuntime(capability = true): EditorActionRuntime {
 	const callable = () => undefined;
+	const videoTrimServices = Object.freeze({
+		edge: Object.freeze({ preview: callable, commit: callable }),
+		rollRipple: Object.freeze({ preview: callable, commit: callable }),
+	});
 	const runtime = new Proxy<Record<string, unknown>>({}, {
 		get(_target, name) {
 			if (name === 'capabilities') return new Proxy({}, { get: () => capability });
 			if (name === 'product') return { name: 'Soundscaper' };
+			if (name === 'videoTrimServices') return videoTrimServices;
 			if (name === 'copy') return { projectNotFound: 'Not found', localSourcesMissing: 'Missing', audioClipNotFound: 'Missing' };
 			if (name === 'project') return { tracks: [], clips: [] };
 			if (name === 'state') return {

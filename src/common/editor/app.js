@@ -224,8 +224,7 @@ import { createVideoSourceReprobeService } from './controller/video-source-repro
 import { createSourceMonitorService } from './controller/source-monitor-service.ts';
 import { createVideoEditService } from './controller/video-edit-service.ts';
 import { createVideoNavigationService } from './controller/video-navigation-service.ts';
-import { createVideoEdgeTrimResultReporter } from './controller/video-edge-trim-feedback.ts';
-import { createVideoEdgeTrimService } from './controller/video-edge-trim-service.ts';
+import { createVideoTrimServices } from './controller/video-trim-composition.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
@@ -980,9 +979,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)), endScrub: () => engine.endScrub?.(),
 		publish: publishDocumentSnapshot, handleError,
 	});
-	const videoEdgeTrimService = createVideoEdgeTrimService({
+	const videoTrimServices = createVideoTrimServices({
 		lifetime, getProject: getCommandProject, editingBlocked, commit,
-		reportResult: createVideoEdgeTrimResultReporter({ copy, label: sequenceTimingService.label, setStatus }),
+		copy, label: sequenceTimingService.label, setStatus,
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
 		lifetime, store, ffmpeg, getProject: () => project, editingBlocked, commit, publishProjectState,
@@ -1817,7 +1816,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		sourceMonitorService, videoEdgeTrimService, videoEditService, videoNavigationService, videoSourceReprobeService,
+		sourceMonitorService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
 	let disposePromise = null;
