@@ -1,0 +1,27 @@
+/*
+ * Dark-theme palettes for design-system surfaces that portal into
+ * document.body (dropdown menus, tooltips). The package themes via
+ * ThemeProvider (JS), so body portals outside the editor root need manual
+ * dark overrides. These blocks previously lived inside
+ * scripts/postcss-audacity-design-system.mjs, appended to the design-system
+ * stylesheet at build time; they are app-owned CSS and belong here.
+ */
+
+html[data-theme="dark"] body.kw-audio-editor-design-system-mounted .dropdown__menu {
+	--dropdown-menu-bg: #202126 !important;
+	--dropdown-border: #4b4d55 !important;
+	--dropdown-menu-shadow: 0 10px 30px rgb(0 0 0 / 55%) !important;
+	--dropdown-text: #f2f2f3 !important;
+	--dropdown-option-hover-bg: #34363d !important;
+}
+
+html[data-theme="dark"] body.kw-audio-editor-design-system-mounted .tooltip__content {
+	background-color: #202126;
+	border-color: #4b4d55;
+	color: #f2f2f3;
+}
+
+html[data-theme="dark"] body.kw-audio-editor-design-system-mounted .tooltip__arrow path {
+	fill: #202126;
+	stroke: #4b4d55;
+}

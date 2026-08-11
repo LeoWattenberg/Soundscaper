@@ -21,6 +21,11 @@ imports via `scripts/node-style-asset-loader.mjs`.
 
 - **No deep subpath imports** of `@dilsonspickles/components/...` — the file-targeted alias
   does not support them and they resolve to broken paths.
+- **Unused components' CSS does not ship.** Component modules the app never imports are
+  tree-shaken along with their stylesheets. App code that renders a component's markup by
+  class name *without* mounting the component must import that component's stylesheet
+  directly by relative path (see `TimelineFlyouts.jsx` / `AudioEditorMenuBar.jsx`); the
+  scoping plugin still applies to it.
 - **Do not import** `components/src/style.css`: it is a stale upstream aggregate covering only
   ~25 of 117 components. Component modules import their own CSS; that is the delivery path.
 - The vendored `package.json` files are provenance + Node module-typing only; their
@@ -39,6 +44,10 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
 2. Ported application patches (formerly `patches/components/`, applied to the compiled dist) —
    one commit per logical change, see `git log -- vendor/audacity-design-system`.
 3. React-19 type fixes (upstream types against `@types/react` 18).
+4. `/* @__PURE__ */` on `PreferencesContext.tsx`'s `createContext` call: when the module's
+   exports are unused, rolldown otherwise keeps the bare call while dropping its import
+   binding, which throws `ReferenceError: createContext is not defined` at boot.
+   Upstream-PR candidate.
 
 ## Syncing upstream
 

@@ -281,7 +281,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.match(milestone2Fixture?.limitation ?? '', /routine.*coverage.*skip/iu);
 	assert.equal(
 		packageMetadata.scripts['test:reference:scape-8gib'],
-		'node --import tsx --test tests/desktop-scape-sparse-full-import-integration.test.ts',
+		'node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-scape-sparse-full-import-integration.test.ts',
 	);
 	assert.match(referenceScaleTest, /process\.env\.npm_lifecycle_event/u);
 	assert.match(referenceScaleTest, /SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB/u);
@@ -351,7 +351,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.match(directWavFixture?.limitation ?? '', /routine.*coverage.*skip/iu);
 	assert.equal(
 		packageMetadata.scripts['test:reference:wav-385mib'],
-		'node --import tsx --test tests/audio-editor-export-direct-wav-reference.test.ts',
+		'node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-export-direct-wav-reference.test.ts',
 	);
 	assert.match(directWavReferenceTest, /process\.env\.npm_lifecycle_event/u);
 	assert.match(directWavReferenceTest, /SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB/u);

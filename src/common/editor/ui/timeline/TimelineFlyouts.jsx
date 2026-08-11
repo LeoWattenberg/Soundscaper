@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { ContextMenu, Icon } from '@dilsonspickles/components';
+// This file renders .add-track-flyout* markup by class name without mounting
+// the AddTrackFlyout component, so its stylesheet must be imported explicitly
+// or tree-shaking drops it with the unused component module.
+import '../../../../../vendor/audacity-design-system/components/src/AddTrackFlyout/AddTrackFlyout.css';
 
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-v2.js';
 import { colorName } from './TimelineOverlayComponents.jsx';

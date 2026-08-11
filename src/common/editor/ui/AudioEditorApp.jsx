@@ -1,5 +1,4 @@
 import React from 'react';
-import '@dilsonspickles/components/style.css';
 
 import { DesignSystemProviders } from './DesignSystemRuntime.jsx';
 import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';

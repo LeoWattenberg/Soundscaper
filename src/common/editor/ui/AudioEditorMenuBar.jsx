@@ -5,6 +5,10 @@ import {
 	useAccessibilityProfile,
 	useTheme,
 } from '@dilsonspickles/components';
+// This file renders .application-header* markup by class name without
+// mounting the ApplicationHeader component, so its stylesheet must be
+// imported explicitly or tree-shaking drops it with the unused module.
+import '../../../../vendor/audacity-design-system/components/src/ApplicationHeader/ApplicationHeader.css';
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 import { withBase } from '../../url';
 import AudioEditorSearch from './AudioEditorSearch.jsx';

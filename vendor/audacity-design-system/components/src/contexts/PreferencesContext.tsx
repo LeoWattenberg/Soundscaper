@@ -129,7 +129,7 @@ interface PreferencesContextValue {
   resetPreferences: () => void;
 }
 
-const PreferencesContext = createContext<PreferencesContextValue | undefined>(undefined);
+const PreferencesContext = /* @__PURE__ */ createContext<PreferencesContextValue | undefined>(undefined);
 
 interface PreferencesProviderProps {
   children: ReactNode;

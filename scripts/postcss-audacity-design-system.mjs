@@ -1,38 +1,28 @@
-import postcss from 'postcss';
-
-const DESIGN_SYSTEM_DIST = '/node_modules/@dilsonspickles/components/dist/';
+const DESIGN_SYSTEM_PATH = '/vendor/audacity-design-system/';
 const EDITOR_ROOT = '#kw-audio-editor-design-system';
 const PORTAL_ROOT = 'body.kw-audio-editor-design-system-mounted';
 const PORTAL_SELECTOR = /\.(?:dropdown__(?:menu|option|separator)|tooltip(?:__content|__arrow)?)(?:--[\w-]+)?(?![\w-])/;
 const KEYFRAMES = /^(?:-\w+-)?keyframes$/i;
 
-const DARK_DROPDOWN_OVERRIDES = `
-html[data-theme="dark"] ${PORTAL_ROOT} .dropdown__menu {
-	--dropdown-menu-bg: #202126 !important;
-	--dropdown-border: #4b4d55 !important;
-	--dropdown-menu-shadow: 0 10px 30px rgb(0 0 0 / 55%) !important;
-	--dropdown-text: #f2f2f3 !important;
-	--dropdown-option-hover-bg: #34363d !important;
-}
-`;
+// Build-time tripwire state: vite.config.mjs asserts a minimum matched-file
+// count after each build so a path-key mismatch (this plugin fails open)
+// cannot silently ship unscoped design-system CSS.
+let scopedDesignSystemFileCount = 0;
 
-const DARK_TOOLTIP_OVERRIDES = `
-html[data-theme="dark"] ${PORTAL_ROOT} .tooltip__content {
-	background-color: #202126;
-	border-color: #4b4d55;
-	color: #f2f2f3;
+export function getScopedDesignSystemFileCount() {
+	return scopedDesignSystemFileCount;
 }
 
-html[data-theme="dark"] ${PORTAL_ROOT} .tooltip__arrow path {
-	fill: #202126;
-	stroke: #4b4d55;
+export function resetScopedDesignSystemFileCount() {
+	scopedDesignSystemFileCount = 0;
 }
-`;
 
 /**
- * Prefix the Audacity design-system package without affecting the rest of the
- * site. Dropdown and Tooltip render into document.body, so their portal-only
- * selectors use a body sentinel managed by the React island instead.
+ * Prefix the vendored Audacity design system without affecting the rest of
+ * the site. Dropdown and Tooltip render into document.body, so their
+ * portal-only selectors use a body sentinel managed by the React island
+ * instead. Dark-theme palettes for those portals are app-owned CSS in
+ * src/common/editor/ui/audio-editor-design-system/24-portal-dark-theme.css.
  */
 export default function scopeAudacityDesignSystemCss() {
 	return {
@@ -42,8 +32,7 @@ export default function scopeAudacityDesignSystemCss() {
 				return;
 			}
 
-			let hasDropdownPortal = false;
-			let hasTooltipPortal = false;
+			scopedDesignSystemFileCount += 1;
 
 			root.walkRules((rule) => {
 				if (isInsideKeyframes(rule)) {
@@ -53,8 +42,6 @@ export default function scopeAudacityDesignSystemCss() {
 				rule.selector = splitSelectorList(rule.selector)
 					.map((selector) => {
 						if (PORTAL_SELECTOR.test(selector)) {
-							hasDropdownPortal ||= selector.includes('.dropdown__');
-							hasTooltipPortal ||= selector.includes('.tooltip');
 							return prefixSelector(selector, PORTAL_ROOT);
 						}
 
@@ -65,27 +52,15 @@ export default function scopeAudacityDesignSystemCss() {
 					})
 					.join(',\n');
 			});
-
-			if (hasDropdownPortal) {
-				appendCss(root, DARK_DROPDOWN_OVERRIDES);
-			}
-			if (hasTooltipPortal) {
-				appendCss(root, DARK_TOOLTIP_OVERRIDES);
-			}
 		},
 	};
-}
-
-function appendCss(root, css) {
-	const parsed = postcss.parse(css, { from: root.source?.input?.file });
-	root.append(parsed.nodes);
 }
 
 scopeAudacityDesignSystemCss.postcss = true;
 
 function isDesignSystemCss(file) {
 	return typeof file === 'string'
-		&& file.replaceAll('\\', '/').includes(DESIGN_SYSTEM_DIST);
+		&& file.replaceAll('\\', '/').includes(DESIGN_SYSTEM_PATH);
 }
 
 function isInsideKeyframes(rule) {

@@ -130,7 +130,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	const packageMetadata = JSON.parse(await readFile(packageUrl, 'utf8'));
 	assert.equal(
 		packageMetadata.scripts?.['test:reference:scape-8gib'],
-		'node --import tsx --test tests/desktop-scape-sparse-full-import-integration.test.ts',
+		'node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-scape-sparse-full-import-integration.test.ts',
 	);
 	const referenceScaleTest = await readFile(referenceScaleTestUrl, 'utf8');
 	assert.match(referenceScaleTest, /REFERENCE_SCALE_NPM_LIFECYCLE = 'test:reference:scape-8gib'/u);

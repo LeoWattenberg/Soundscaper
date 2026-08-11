@@ -8,6 +8,7 @@
 		"moduleResolution": "NodeNext",
 		"noEmit": false,
 		"outDir": ".desktop-build/desktop-runtime",
+		"paths": {},
 		"rewriteRelativeImportExtensions": true,
 		"rootDir": ".",
 		"sourceMap": false,

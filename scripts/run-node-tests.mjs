@@ -13,7 +13,8 @@ const testFiles = readdirSync(testDirectory, { withFileTypes: true })
 
 if (testFiles.length === 0) throw new Error('No Node test files were found.');
 
-const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', ...testFiles], {
+const styleAssetLoader = resolve(root, 'scripts/node-style-asset-loader.mjs');
+const result = spawnSync(process.execPath, ['--import', 'tsx', '--import', styleAssetLoader, '--test', ...testFiles], {
 	cwd: root,
 	env: process.env,
 	stdio: 'inherit',

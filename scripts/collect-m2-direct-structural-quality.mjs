@@ -103,7 +103,7 @@ async function loadQualityConfig() {
 }
 
 async function runFocusedTests(testFiles) {
-	return execFileAsync(process.execPath, ['--import', 'tsx', '--test', ...testFiles], {
+	return execFileAsync(process.execPath, ['--import', 'tsx', '--import', new URL('./node-style-asset-loader.mjs', import.meta.url).pathname, '--test', ...testFiles], {
 		cwd: REPOSITORY_ROOT,
 		encoding: 'utf8',
 		maxBuffer: 32 * 1024 * 1024,

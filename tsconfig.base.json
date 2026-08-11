@@ -10,6 +10,11 @@
 		"module": "ESNext",
 		"moduleResolution": "Bundler",
 		"noEmit": true,
+		"paths": {
+			"@dilsonspickles/components": ["./vendor/audacity-design-system/components/src/index.ts"],
+			"@audacity-ui/core": ["./vendor/audacity-design-system/core/src/index.ts"],
+			"@audacity-ui/tokens": ["./vendor/audacity-design-system/tokens/src/index.ts"]
+		},
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"strict": true,

@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 
 import postcss from 'postcss';
 
-import scopeAudacityDesignSystemCss from '../scripts/postcss-audacity-design-system.mjs';
+import scopeAudacityDesignSystemCss, {
+	getScopedDesignSystemFileCount,
+	resetScopedDesignSystemFileCount,
+} from '../scripts/postcss-audacity-design-system.mjs';
 
-const PACKAGE_CSS = '/workspace/node_modules/@dilsonspickles/components/dist/style.css';
+const PACKAGE_CSS = '/workspace/vendor/audacity-design-system/components/src/Dropdown/Dropdown.css';
 
 test('design-system CSS is isolated to the editor and its body portals', async () => {
 	const input = `
@@ -25,7 +28,10 @@ test('design-system CSS is isolated to the editor and its body portals', async (
 	assert.match(result.css, /#kw-audio-editor-design-system :is\(\.menu, \[data-label="a,b"\]\)/);
 	assert.match(result.css, /body\.kw-audio-editor-design-system-mounted \.dropdown__menu/);
 	assert.match(result.css, /body\.kw-audio-editor-design-system-mounted \.tooltip__content/);
-	assert.match(result.css, /html\[data-theme="dark"\] body\.kw-audio-editor-design-system-mounted/);
+	// Dark-theme portal palettes are app-owned CSS now
+	// (src/common/editor/ui/audio-editor-design-system/24-portal-dark-theme.css),
+	// so the plugin must no longer append them.
+	assert.doesNotMatch(result.css, /html\[data-theme="dark"\]/);
 	assert.match(result.css, /@font-face\s*\{\s*font-family: MuseScoreIcon/);
 	assert.match(result.css, /@keyframes pulse\s*\{\s*from\s*\{/);
 	assert.doesNotMatch(result.css, /#kw-audio-editor-design-system from/);
@@ -38,4 +44,20 @@ test('the prefix transform leaves non-package CSS untouched', async () => {
 	});
 
 	assert.equal(result.css, input);
+});
+
+test('the scoped-file counter tracks only design-system stylesheets', async () => {
+	resetScopedDesignSystemFileCount();
+	const plugin = scopeAudacityDesignSystemCss();
+	await postcss([plugin]).process('.a { color: red; }', { from: PACKAGE_CSS });
+	await postcss([plugin]).process('.b { color: red; }', {
+		from: '/workspace/vendor/audacity-design-system/tokens/src/anything.css',
+	});
+	await postcss([plugin]).process('.c { color: red; }', {
+		from: '/workspace/src/styles/global.css',
+	});
+
+	assert.equal(getScopedDesignSystemFileCount(), 2);
+	resetScopedDesignSystemFileCount();
+	assert.equal(getScopedDesignSystemFileCount(), 0);
 });
