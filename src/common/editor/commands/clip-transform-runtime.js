@@ -31,6 +31,7 @@ import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
+import { applyCanonicalVideoTransformPlacement } from './canonical-video-transform-placement.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -81,6 +82,9 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 			clipId: item.clip.id,
 			trackId: item.track.id,
 			changes: { ...item.changes },
+			...(item.sequencePlacement ? {
+				sequencePlacement: { ...item.sequencePlacement },
+			} : {}),
 		})),
 		overwrite,
 		splitClipIds,
@@ -205,7 +209,7 @@ function buildClipTransformState(project, transforms) {
 		const timelineStartFrame = Object.hasOwn(changes, 'timelineStartFrame')
 			? assertFrame(changes.timelineStartFrame, 'clip transform destination')
 			: clip.timelineStartFrame;
-		const updated = normalizeClipForProject(project, {
+		let updated = normalizeClipForProject(project, {
 			...clip,
 			...changes,
 			...(Object.hasOwn(changes, 'preserveFormants') ? {
@@ -216,8 +220,17 @@ function buildClipTransformState(project, transforms) {
 			} : {}),
 			id: clip.id,
 		});
+		const sequencePlacement = transform.sequencePlacement === undefined
+			? null
+			: applyCanonicalVideoTransformPlacement(
+				project, clip, track, updated, transform.sequencePlacement,
+			);
+		if (sequencePlacement) updated = sequencePlacement.updated;
 		assertClipSourceBounds(project, updated);
-		return { clip, oldTrack, track, updated, changes: { ...changes } };
+		return {
+			clip, oldTrack, track, updated, changes: { ...changes },
+			sequencePlacement: sequencePlacement?.sequencePlacement ?? null,
+		};
 	});
 }
 

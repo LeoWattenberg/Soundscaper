@@ -106,6 +106,12 @@ export type ClipboardPasteMode = 'reject' | 'overlap' | 'insert-track' | 'insert
 export type TrackFolderRemovalDisposition = 'promote' | 'delete-contents';
 export type TempoMapMode = 'musical' | 'sampleLocked';
 
+/** Absolute sequence-frame authority carried beside resolved command aliases. */
+export interface CanonicalVideoPlacementCommandValue {
+	readonly sequenceStartFrame: number;
+	readonly sequenceFrameCount: number;
+}
+
 export interface ExactRationalCommandValue {
 	readonly num: number;
 	readonly den: number;
@@ -400,7 +406,12 @@ type NonBatchAudioEditorCommandPayloads = {
 	};
 	readonly 'clip/move': { readonly clipId: string; readonly trackId?: string; readonly timelineStartFrame: number };
 	readonly 'clip/transform-many': {
-		readonly transforms: readonly Readonly<{ clipId: string; trackId?: string; changes: CommandObject }>[];
+		readonly transforms: readonly Readonly<{
+			clipId: string;
+			trackId?: string;
+			changes: CommandObject;
+			sequencePlacement?: CanonicalVideoPlacementCommandValue;
+		}>[];
 		readonly overwrite?: boolean;
 		readonly splitClipIds?: StableIdListMap;
 		readonly splitAvLinkIds?: StableIdListMap;

@@ -68,6 +68,7 @@ test('left and right plans use one integer sequence boundary and absolute endpoi
 			sourceStartFrame: 106,
 			sourceDurationFrames: 14,
 		},
+		sequencePlacement: { sequenceStartFrame: 13, sequenceFrameCount: 7 },
 	}]);
 	assert.deepEqual(left.previews, [{
 		clipId: 'video', trackId: 'video-track',
@@ -95,6 +96,7 @@ test('left and right plans use one integer sequence boundary and absolute endpoi
 			sourceStartFrame: 100,
 			sourceDurationFrames: 24,
 		},
+		sequencePlacement: { sequenceStartFrame: 10, sequenceFrameCount: 12 },
 	}]);
 	assert.deepEqual(right.previews.map(previewRange), [[20_000, 44_000, 100, 124]]);
 });
@@ -129,6 +131,7 @@ test('NTSC conformance, nonzero origins, unequal source rates, and exact mapping
 			sourceStartFrame: 103,
 			sourceDurationFrames: 7,
 		},
+		sequencePlacement: { sequenceStartFrame: 8, sequenceFrameCount: 3 },
 	}]);
 	assert.deepEqual(plan.previews.map(previewRange), [[
 		boundary(8, NTSC), boundary(11, NTSC), 103, 110,

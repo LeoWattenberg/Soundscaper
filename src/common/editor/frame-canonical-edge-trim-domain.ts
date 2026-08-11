@@ -16,6 +16,10 @@ export interface FrameCanonicalEdgeTrimTransform {
 	readonly clipId: string;
 	readonly trackId: string;
 	readonly changes: Readonly<Record<string, unknown>>;
+	readonly sequencePlacement?: Readonly<{
+		readonly sequenceStartFrame: number;
+		readonly sequenceFrameCount: number;
+	}>;
 }
 
 export interface FrameCanonicalEdgeTrimPreview {

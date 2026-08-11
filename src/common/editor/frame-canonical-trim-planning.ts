@@ -350,7 +350,15 @@ function planVideoParticipant(
 		sourceDurationFrames: sourceEnd - sourceStart,
 	};
 	return {
-		transform: { clipId: item.clipId, trackId: item.trackId, changes },
+		transform: {
+			clipId: item.clipId,
+			trackId: item.trackId,
+			changes,
+			sequencePlacement: {
+				sequenceStartFrame: sequenceStart,
+				sequenceFrameCount: sequenceEnd - sequenceStart,
+			},
+		},
 		preview: frameCanonicalPreview(item, timelineStart, timelineEnd, sourceStart, sourceEnd),
 	};
 }

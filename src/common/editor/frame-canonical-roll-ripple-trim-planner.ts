@@ -300,7 +300,14 @@ function planLeftRippleBlock(
 		};
 		delete changes.timelineStartFrame;
 		const planned = {
-			transform: { ...sourcePlan.transform, changes },
+			transform: {
+				...sourcePlan.transform,
+				changes,
+				sequencePlacement: {
+					sequenceStartFrame: item.video!.sequenceStart,
+					sequenceFrameCount: finalEndFrame - item.video!.sequenceStart,
+				},
+			},
 			preview: {
 				...sourcePlan.preview,
 				timelineStartFrame: item.timelineStart,
@@ -366,7 +373,18 @@ function planSuffix(
 		const preview = frameCanonicalPreview(item, timelineStart, timelineEnd);
 		const changes: Record<string, unknown> = { timelineStartFrame: timelineStart };
 		if (preview.durationFrames !== item.timelineEnd - item.timelineStart) changes.durationFrames = preview.durationFrames;
-		const planned = { transform: { clipId: item.clipId, trackId: item.trackId, changes }, preview };
+		const planned = {
+			transform: {
+				clipId: item.clipId,
+				trackId: item.trackId,
+				changes,
+				sequencePlacement: {
+					sequenceStartFrame: start,
+					sequenceFrameCount: end - start,
+				},
+			},
+			preview,
+		};
 		result.set(item.clipId, planned);
 		const avLinkId = relationId(item.clip.avLinkId);
 		if (avLinkId) {

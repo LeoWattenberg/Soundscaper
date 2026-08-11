@@ -81,6 +81,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'canonical-video-transform-placement',
+		file: 'src/common/editor/commands/canonical-video-transform-placement.ts',
+		behavior: 'A frame-canonical transform verifies its absolute sequence-frame placement against the resolved sample aliases serialized beside it before command reconciliation preserves that authority.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'clipboard-video-conformance',
 		file: 'src/common/editor/commands/clipboard-time-runtime.js',
 		behavior: 'Clipboard placement, insert space, and overlap removal share destination-anchored nearest sequence-frame endpoints.',
