@@ -47,7 +47,8 @@ test.describe('musical timeline controls', () => {
 		await secondTempoBpm.fill('90');
 		await secondTempo.getByRole('spinbutton', { name: 'Tempo (BPM) denominator', exact: true }).fill('1');
 		const tempoSave = secondTempo.getByRole('button', { name: 'Save', exact: true });
-		await tempoSave.click();
+		await tempoSave.focus();
+		await page.keyboard.press('Enter');
 		await expect(tempoSave).toBeFocused();
 		await editor.getByRole('button', { name: 'Undo', exact: true }).evaluate((button) => button.click());
 		await expect(secondTempo.getByRole('spinbutton', { name: 'Beat position numerator', exact: true })).toHaveValue('4');
