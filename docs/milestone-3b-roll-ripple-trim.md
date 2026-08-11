@@ -66,10 +66,13 @@ do not ripple in this slice.
    lanes. Each lane's suffix cut is that lane participant's original far-right
    endpoint, so equal chosen edges may have unequal durations. All
    nonparticipants beginning at or after their lane cut shift. Repeatedly expand
-   transformed clips through group and A/V relations and add each reached lane's
-   suffix until a finite fixed point is reached. A nonparticipant straddling its
-   lane cut, or a relation peer on the stationary side, refuses; it is never
-   split, deleted, or silently detached.
+   transformed clips through group and A/V relations. For a reached lane without
+   an edge participant, the fallback cut is the minimum original far-right
+   endpoint across the initial edge lanes; a relation peer before that cut
+   refuses, while a peer at/after it seeds that lane and moves every clip at/after
+   the fallback cut. Refuse a straddler at any seed or fallback cut and repeat to
+   a finite fixed point. This rule is order-independent; no clip is split,
+   deleted, or silently detached.
 5. **Visibility is not targeting authority.** Hidden lanes still participate
    when an explicit edge, group, A/V link, or suffix closure reaches them.
    Visibility affects rendering only and cannot bypass relation or lock rules.
@@ -187,8 +190,10 @@ do not ripple in this slice.
   suffix fixed points, gaps, hidden lanes, and locked edge/neighbor/downstream
   lanes. Ambiguous adjacency, relation crossing, straddling clips, mixed suffix
   sequences/rates, retime maps, invalid originals, and transition rolls refuse
-  atomically. Small exhaustive rows prove legal magnitudes cannot reappear after
-  an illegal magnitude.
+  atomically. Closure fixtures include an unseeded downstream lane at the
+  fallback cut, a pre-cut peer, a straddler, and a two-hop relation. Small
+  exhaustive rows prove legal magnitudes cannot reappear after an illegal
+  magnitude.
 - Repeated preview from immutable originals has no drift. Applying one returned
   transform command yields the previewed projected endpoints, canonical video
   persistence, derived-equal linked audio, unchanged suffix source ranges, one
