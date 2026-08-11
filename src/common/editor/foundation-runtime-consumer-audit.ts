@@ -106,6 +106,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/project.js', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/controller/clip-selection-navigation-service.ts', surfaces: ['navigation'] },
 	{ file: 'src/common/editor/ui/timeline/useTimelineViewportModel.js', surfaces: ['timeline'] },
+	{ file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts', surfaces: ['timeline'] },
 	{ file: 'src/common/editor/controller/project-visual-service.ts', surfaces: ['waveform'] },
 ]);
 
@@ -381,6 +382,16 @@ export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeCon
 		projectedIdentifier: 'project',
 		boundary: 'resolveRuntimeProjectProjection',
 		evidence: 'The viewport memoizes a projection from the snapshot document before layout, hit-testing, or track rendering consumes clips.',
+	},
+	{
+		id: 'framescaper-edit-control-menus',
+		surface: 'timeline',
+		file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts',
+		entryPoint: 'createFramescaperEditControlMenuModel',
+		inputIdentifier: 'persistedProject',
+		projectedIdentifier: 'project',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Framescaper linked-audio menu admission compares clip endpoints only after the selected document crosses the shared runtime projection boundary.',
 	},
 	{
 		id: 'waveform-visible-clips',

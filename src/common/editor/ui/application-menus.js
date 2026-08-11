@@ -18,6 +18,7 @@ import {
 	workspacePanelLabel,
 } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
+import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 
 export default function createApplicationMenus({
 	productId,
@@ -88,6 +89,11 @@ export default function createApplicationMenus({
 	const shuttleLabel = (label, direction) => videoNavigation?.rate * direction > 0
 		? `${label} (${Math.abs(videoNavigation.rate)}×)`
 		: label;
+	const framescaperEditControls = createFramescaperEditControlMenuItems({
+		productId, project, selectedClipId: selectedClip?.id ?? null,
+		selectedTrackId: snapshot.selectedTrackId ?? null, editBlocked,
+		copy: { linkAudio: copy.linkAudio, unlinkAudio: copy.unlinkAudio, showVideo: copy.videoVisible, hideVideo: copy.videoHidden },
+	}, { link: actions.linkVideoAudio, unlink: actions.unlinkVideoAudio, setVideoHidden: actions.setVideoHidden });
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
@@ -239,6 +245,7 @@ export default function createApplicationMenus({
 						{ id: 'disjoin', label: copy.disjoinClips, disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('disjoin') },
 						{ id: 'group-clips', label: copy.groupClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('group') },
 						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !groupedSelectedClips, onClick: () => actions.executeEdit('ungroup') },
+						...(framescaperEditControls.link ? [framescaperEditControls.link] : []),
 						{ id: 'clip-properties', label: copy.clipPropertiesCommand, disabled: !selectedClip, onClick: actions.openClipProperties },
 					],
 				},
@@ -409,6 +416,7 @@ export default function createApplicationMenus({
 				},
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
+				...(framescaperEditControls.visibility ? [framescaperEditControls.visibility] : []),
 				{
 					id: 'move-track',
 					label: copy.moveTrack,

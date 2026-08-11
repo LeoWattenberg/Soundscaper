@@ -251,6 +251,26 @@ test('clip selection navigation owns its projected timing boundary', () => {
 	);
 });
 
+test('Framescaper edit-control menus own their projected timing boundary', () => {
+	const consumer = FOUNDATION_RUNTIME_CONSUMER_SURFACES.find(({ id }) => (
+		id === 'framescaper-edit-control-menus'
+	));
+	assert.deepEqual(consumer, {
+		id: 'framescaper-edit-control-menus',
+		surface: 'timeline',
+		file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts',
+		entryPoint: 'createFramescaperEditControlMenuModel',
+		inputIdentifier: 'persistedProject',
+		projectedIdentifier: 'project',
+		boundary: 'projectForRuntimeConsumers',
+		evidence: 'Framescaper linked-audio menu admission compares clip endpoints only after the selected document crosses the shared runtime projection boundary.',
+	});
+	assert.deepEqual(
+		FOUNDATION_RUNTIME_SHIELDED_OWNERS.find(({ file }) => file === consumer?.file),
+		{ file: consumer?.file, surfaces: ['timeline'] },
+	);
+});
+
 test('the runtime consumer audit is immutable and uniquely identifies each surface', () => {
 	assert.equal(
 		new Set(FOUNDATION_RUNTIME_CONSUMER_SURFACES.map(({ id }) => id)).size,
