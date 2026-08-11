@@ -56,12 +56,13 @@ do not ripple in this slice.
    sequence-frame boundary. More than one participant on a lane, another edge,
    mixed sequences/rates, missing ownership, or ambiguous A/V refuses.
 3. **Roll classifies one matched touching pair per lane.** Seed the active clip
-   and its unique same-lane exact-touch neighbor, then expand selection, group,
-   and A/V relations across both sides. Classify every result by `end == J`
-   (left) or `start == J` (right); every affected lane requires exactly one of
-   each. An unclassified or dual clip, gap, overlap, transition, equal/nested
-   interval, duplicate side, unmatched peer, or ambiguous closure refuses. The
-   first slice never repairs or rolls a transition.
+	and its unique same-lane exact-touch neighbor, then reach a fixed point by
+	alternating selection/group/A/V expansion across both sides with addition of
+	each newly reached lane's unique exact-touch opposite-side counterpart.
+	Classify every result by `end == J` (left) or `start == J` (right); every
+	affected lane requires exactly one of each. An unclassified or dual clip, gap,
+	overlap, transition, equal/nested interval, duplicate side, unmatched peer, or
+	ambiguous closure refuses. The first slice never repairs or rolls a transition.
 4. **Ripple moves a deterministic lane suffix.** Seed lanes are the edge-block
    lanes. Each lane's suffix cut is that lane participant's original far-right
    endpoint, so equal chosen edges may have unequal durations. All
