@@ -2,6 +2,10 @@
 
 import { prepareTransformClipsCommand as prepareLegacyTransformClipsCommand } from '../commands/clip-transform-runtime.js';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import {
+	buildFrameCanonicalClipFocusStepRequest,
+	type FrameCanonicalClipFocusStep,
+} from '../frame-canonical-clip-focus-step-request.ts';
 import type {
 	FrameCanonicalRateStretchPlan,
 	FrameCanonicalRateStretchRequest,
@@ -39,6 +43,8 @@ export interface VideoRateStretchService {
 	preview(request: FrameCanonicalRateStretchRequest): FrameCanonicalRateStretchPlan;
 	/** Replan against live project/timing authority and commit at most one command. */
 	commit(request: FrameCanonicalRateStretchRequest): FrameCanonicalRateStretchPlan;
+	/** Build and commit one adjacent-frame request from fresh linked-audio authority. */
+	commitStep(step: FrameCanonicalClipFocusStep): FrameCanonicalRateStretchPlan;
 }
 
 /** One controller boundary for video-bearing frame-canonical uniform rate stretch. */
@@ -50,15 +56,19 @@ export function createVideoRateStretchService(
 		readonly result: FrameCanonicalRateStretchPlan;
 	}> {
 		const project = dependencies.getProject();
+		return { project, result: planProject(project, request) };
+	}
+
+	function planProject(
+		project: unknown,
+		request: FrameCanonicalRateStretchRequest,
+	): FrameCanonicalRateStretchPlan {
 		const timingViews = dependencies.getTimingViews(project);
-		return {
+		return planFrameCanonicalRateStretch(
 			project,
-			result: planFrameCanonicalRateStretch(
-				project,
-				timingViews,
-				persistedLockRequest(project, request),
-			),
-		};
+			timingViews,
+			persistedLockRequest(project, request),
+		);
 	}
 
 	function preview(request: FrameCanonicalRateStretchRequest): FrameCanonicalRateStretchPlan {
@@ -70,16 +80,29 @@ export function createVideoRateStretchService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
 		const { project, result } = plan(request);
-		if (result.kind === 'noop') {
-			dependencies.reportResult?.(result);
-			return result;
+		return commitPlan(project, result);
+	}
+
+	function commitStep(step: FrameCanonicalClipFocusStep): FrameCanonicalRateStretchPlan {
+		dependencies.lifetime.assertActive();
+		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
+		const project = dependencies.getProject();
+		const request = buildFrameCanonicalClipFocusStepRequest(project, step);
+		return commitPlan(project, planProject(project, request));
+	}
+
+	function commitPlan(
+		project: unknown,
+		result: FrameCanonicalRateStretchPlan,
+	): FrameCanonicalRateStretchPlan {
+		if (result.kind !== 'noop') {
+			dependencies.commit(prepareTransformClipsCommand(project, result.transforms));
 		}
-		dependencies.commit(prepareTransformClipsCommand(project, result.transforms));
 		dependencies.reportResult?.(result);
 		return result;
 	}
 
-	return Object.freeze({ preview, commit });
+	return Object.freeze({ preview, commit, commitStep });
 }
 
 /** Caller predicates are not authority; bind locks to the same live planning project. */

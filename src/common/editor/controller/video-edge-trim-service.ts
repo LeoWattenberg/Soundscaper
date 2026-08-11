@@ -2,6 +2,10 @@
 
 import { prepareTransformClipsCommand as prepareLegacyTransformClipsCommand } from '../commands/clip-transform-runtime.js';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import {
+	buildFrameCanonicalClipFocusStepRequest,
+	type FrameCanonicalClipFocusStep,
+} from '../frame-canonical-clip-focus-step-request.ts';
 import type {
 	FrameCanonicalEdgeTrimPlan,
 	FrameCanonicalEdgeTrimRequest,
@@ -33,6 +37,8 @@ export interface VideoEdgeTrimService {
 	preview(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan;
 	/** Replan against the live document and commit at most one transform command. */
 	commit(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan;
+	/** Build and commit one adjacent-frame request from fresh linked-audio authority. */
+	commitStep(step: FrameCanonicalClipFocusStep): FrameCanonicalEdgeTrimPlan;
 }
 
 /**
@@ -46,24 +52,40 @@ export function createVideoEdgeTrimService(
 	function preview(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan {
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
-		return planFrameCanonicalEdgeTrim(project, persistedLockRequest(project, request));
+		return plan(project, request);
 	}
 
 	function commit(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
 		const project = dependencies.getProject();
-		const plan = planFrameCanonicalEdgeTrim(project, persistedLockRequest(project, request));
-		if (plan.kind === 'noop') {
-			dependencies.reportResult?.(plan);
-			return plan;
-		}
-		dependencies.commit(prepareTransformClipsCommand(project, plan.transforms));
-		dependencies.reportResult?.(plan);
-		return plan;
+		return commitPlan(project, plan(project, request));
 	}
 
-	return Object.freeze({ preview, commit });
+	function commitStep(step: FrameCanonicalClipFocusStep): FrameCanonicalEdgeTrimPlan {
+		dependencies.lifetime.assertActive();
+		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
+		const project = dependencies.getProject();
+		const request = buildFrameCanonicalClipFocusStepRequest(project, step);
+		return commitPlan(project, plan(project, request));
+	}
+
+	function plan(
+		project: unknown,
+		request: FrameCanonicalEdgeTrimRequest,
+	): FrameCanonicalEdgeTrimPlan {
+		return planFrameCanonicalEdgeTrim(project, persistedLockRequest(project, request));
+	}
+
+	function commitPlan(project: unknown, result: FrameCanonicalEdgeTrimPlan): FrameCanonicalEdgeTrimPlan {
+		if (result.kind !== 'noop') {
+			dependencies.commit(prepareTransformClipsCommand(project, result.transforms));
+		}
+		dependencies.reportResult?.(result);
+		return result;
+	}
+
+	return Object.freeze({ preview, commit, commitStep });
 }
 
 /** Caller predicates are never authority; bind locks to the same live project as planning. */

@@ -7,6 +7,9 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import { createVideoRateStretchService } from '../src/common/editor/controller/video-rate-stretch-service.ts';
 import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
 import {
+	createAudioClipV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
 	createVideoClipV10,
 	createVideoSourceV10,
 	createVideoTrackV10,
@@ -143,8 +146,44 @@ test('blocked, provider, and failed-commit errors propagate without reads or fee
 	assert.deepEqual(commitEvents, []);
 });
 
-function createHarness(options: Readonly<{ blocked?: boolean }> = {}) {
-	const persisted = createProject();
+test('a focused linked-audio step builds, times, and commits from one fresh projection', () => {
+	const harness = createHarness();
+	const result = harness.service.commitStep({
+		activeClipId: 'linked-audio', edge: 'right', direction: 'outward',
+	});
+
+	assert.equal(result.kind, 'transform');
+	assert.equal(result.activeClipId, 'linked-audio');
+	assert.equal(result.requestedSequenceFrame, 21);
+	assert.equal(result.appliedSequenceFrame, 21);
+	assert.equal(harness.projectReads(), 1);
+	assert.equal(harness.timingReads(), 1);
+	assert.deepEqual(harness.timingProjectReads(), [harness.project()]);
+	assert.equal(harness.commands.length, 1);
+	assert.deepEqual(harness.events, ['commit:clip/transform-many', 'report:transform']);
+});
+
+test('a minimum-duration rate step reports a clamped no-op and blocking prevents all reads', () => {
+	const harness = createHarness({ oneFrame: true });
+	const result = harness.service.commitStep({
+		activeClipId: 'linked-audio', edge: 'right', direction: 'inward',
+	});
+	assert.equal(result.kind, 'noop');
+	assert.equal(result.clamped, true);
+	assert.deepEqual(harness.commands, []);
+	assert.deepEqual(harness.events, ['report:noop']);
+
+	const blocked = createHarness({ blocked: true });
+	assert.throws(() => blocked.service.commitStep({
+		activeClipId: 'linked-audio', edge: 'right', direction: 'outward',
+	}), /editing.*blocked/iu);
+	assert.equal(blocked.projectReads(), 0);
+	assert.equal(blocked.timingReads(), 0);
+	assert.deepEqual(blocked.events, []);
+});
+
+function createHarness(options: Readonly<{ blocked?: boolean; oneFrame?: boolean }> = {}) {
+	const persisted = createProject({ oneFrame: options.oneFrame });
 	let projection = lockedProjection(persisted, new Set());
 	let views = cfrTimingViews();
 	let projectReadCount = 0;
@@ -193,24 +232,39 @@ function createHarness(options: Readonly<{ blocked?: boolean }> = {}) {
 	};
 }
 
-function createProject() {
+function createProject(options: Readonly<{ oneFrame?: boolean }> = {}) {
+	const sequenceCount = options.oneFrame === true ? 1 : 10;
 	const source = createVideoSourceV10({
 		id: 'video-source', sampleFrameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 1_000,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: RATE },
 	}, SAMPLE_RATE);
+	const audioSource = createAudioSourceV10({
+		id: 'audio-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE, channelCount: 1,
+	});
 	const clip = createVideoClipV10({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
-		sequenceStartFrame: 10, sequenceFrameCount: 10,
-		sourceInFrame: 100, sourceFrameCount: 10,
+		sequenceStartFrame: 10, sequenceFrameCount: sequenceCount,
+		sourceInFrame: 100, sourceFrameCount: sequenceCount, avLinkId: 'exact-link',
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE }, source });
-	const track = createVideoTrackV10({
-		id: 'video-track', clipIds: ['video'], locked: false,
+	const start = boundary(10);
+	const end = boundary(10 + sequenceCount);
+	const audioClip = createAudioClipV10({
+		id: 'linked-audio', sourceId: 'audio-source', avLinkId: 'exact-link',
+		timelineStartFrame: start, durationFrames: end - start,
+		sourceStartFrame: 1_000, sourceDurationFrames: end - start,
 	});
+	const track = createVideoTrackV10({
+		id: 'video-track', clipIds: ['video'], laneGroupId: 'av-lanes', locked: false,
+	});
+	const audioTrack = createAudioTrackV10({
+		id: 'audio-track', clipIds: ['linked-audio'], laneGroupId: 'av-lanes', locked: false,
+	}, SAMPLE_RATE);
 	return createAudioEditorProjectV15({
 		id: 'rate-stretch-service', now: NOW, sampleRate: SAMPLE_RATE,
-		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track'] }],
-		primarySequenceId: 'main', sources: [source], clips: [clip], tracks: [track],
+		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track', 'audio-track'] }],
+		primarySequenceId: 'main', sources: [source, audioSource],
+		clips: [clip, audioClip], tracks: [track, audioTrack],
 	});
 }
 

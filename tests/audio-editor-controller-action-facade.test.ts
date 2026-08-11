@@ -41,10 +41,10 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 function createRuntime(capability = true): EditorActionRuntime {
 	const callable = () => undefined;
 	const videoTrimServices = Object.freeze({
-		edge: Object.freeze({ preview: callable, commit: callable }),
+		edge: Object.freeze({ preview: callable, commit: callable, commitStep: callable }),
 		rollRipple: Object.freeze({ preview: callable, commit: callable }),
 		slipSlide: Object.freeze({ buildStepRequest: callable, preview: callable, commit: callable }),
-		rateStretch: Object.freeze({ preview: callable, commit: callable }),
+		rateStretch: Object.freeze({ preview: callable, commit: callable, commitStep: callable }),
 	});
 	const runtime = new Proxy<Record<string, unknown>>({}, {
 		get(_target, name) {

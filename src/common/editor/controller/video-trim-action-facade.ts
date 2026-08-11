@@ -4,6 +4,7 @@ import type {
 	FrameCanonicalEdgeTrimPlan,
 	FrameCanonicalEdgeTrimRequest,
 } from '../frame-canonical-edge-trim-domain.ts';
+import type { FrameCanonicalClipFocusStep } from '../frame-canonical-clip-focus-step-request.ts';
 import type {
 	FrameCanonicalRollRippleTrimPlan,
 	FrameCanonicalRollRippleTrimRequest,
@@ -32,6 +33,7 @@ export interface VideoTrimActionFacadeDependencies {
 export interface VideoTrimActionFacade {
 	preview(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan;
 	commit(request: FrameCanonicalEdgeTrimRequest): FrameCanonicalEdgeTrimPlan;
+	commitStep(step: FrameCanonicalClipFocusStep): FrameCanonicalEdgeTrimPlan;
 	readonly rollRipple: Readonly<{
 		preview(request: FrameCanonicalRollRippleTrimRequest): FrameCanonicalRollRippleTrimPlan;
 		commit(request: FrameCanonicalRollRippleTrimRequest): FrameCanonicalRollRippleTrimPlan;
@@ -47,6 +49,7 @@ export interface VideoTrimActionFacade {
 	readonly rateStretch: Readonly<{
 		preview(request: FrameCanonicalRateStretchRequest): FrameCanonicalRateStretchPlan;
 		commit(request: FrameCanonicalRateStretchRequest): FrameCanonicalRateStretchPlan;
+		commitStep(step: FrameCanonicalClipFocusStep): FrameCanonicalRateStretchPlan;
 	}>;
 }
 
@@ -65,6 +68,7 @@ export function createVideoTrimActionFacade(
 	return Object.freeze({
 		preview: guard(dependencies.services.edge.preview),
 		commit: guard(dependencies.services.edge.commit),
+		commitStep: guard(dependencies.services.edge.commitStep),
 		rollRipple: Object.freeze({
 			preview: guard(dependencies.services.rollRipple.preview),
 			commit: guard(dependencies.services.rollRipple.commit),
@@ -78,6 +82,7 @@ export function createVideoTrimActionFacade(
 		rateStretch: Object.freeze({
 			preview: guard(dependencies.services.rateStretch.preview),
 			commit: guard(dependencies.services.rateStretch.commit),
+			commitStep: guard(dependencies.services.rateStretch.commitStep),
 		}),
 	});
 }

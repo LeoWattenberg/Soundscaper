@@ -181,6 +181,45 @@ test('one service commit persists canonical linked V15 geometry in one undoable 
 	assert.equal(validateCurrentAudioEditorProject(history.present as PersistedVideoProject), true);
 });
 
+test('a focused linked-audio step builds and commits one fresh adjacent-frame plan', () => {
+	const harness = createHarness();
+	const result = harness.service.commitStep({
+		activeClipId: 'persisted-timeline-audio',
+		edge: 'right',
+		direction: 'inward',
+	});
+
+	assert.equal(result.kind, 'transform');
+	assert.equal(result.activeClipId, 'persisted-timeline-audio');
+	assert.equal(result.requestedSequenceFrame, 29);
+	assert.equal(result.appliedSequenceFrame, 29);
+	assert.equal(harness.projectReads(), 1);
+	assert.equal(harness.commands.length, 1);
+	assert.deepEqual(harness.events, ['commit:clip/transform-many', 'report:transform']);
+});
+
+test('a clamped keyboard step reports a no-op and blocking wins before its live read', () => {
+	const harness = createHarness();
+	const result = harness.service.commitStep({
+		activeClipId: 'persisted-timeline-audio',
+		edge: 'left',
+		direction: 'outward',
+	});
+	assert.equal(result.kind, 'noop');
+	assert.equal(result.clamped, true);
+	assert.deepEqual(harness.commands, []);
+	assert.deepEqual(harness.events, ['report:noop']);
+
+	const blocked = createHarness({ blocked: true });
+	assert.throws(() => blocked.service.commitStep({
+		activeClipId: 'persisted-timeline-audio',
+		edge: 'right',
+		direction: 'inward',
+	}), /editing.*blocked/iu);
+	assert.equal(blocked.projectReads(), 0);
+	assert.deepEqual(blocked.commands, []);
+});
+
 function createHarness(options: Readonly<{
 	blocked?: boolean;
 	lockedTrackIds?: readonly string[];
@@ -189,18 +228,30 @@ function createHarness(options: Readonly<{
 	let persisted = fixture.project;
 	let lockedTrackIds = new Set(options.lockedTrackIds ?? []);
 	let projection = lockedProjection(persisted, lockedTrackIds);
+	let projectReadCount = 0;
 	const commands: AudioEditorCommand[] = [];
+	const events: string[] = [];
 	const dependencies: VideoEdgeTrimServiceDependencies = {
 		lifetime: { assertActive: () => undefined },
-		getProject: () => projection,
+		getProject: () => {
+			projectReadCount += 1;
+			return projection;
+		},
 		editingBlocked: () => options.blocked === true,
-		commit: (command) => { commands.push(command); return command; },
+		commit: (command) => {
+			commands.push(command);
+			events.push(`commit:${command.type}`);
+			return command;
+		},
+		reportResult: (plan) => events.push(`report:${plan.kind}`),
 	};
 	return {
 		persisted,
 		commands,
+		events,
 		service: createVideoEdgeTrimService(dependencies),
 		project: () => projection,
+		projectReads: () => projectReadCount,
 		setProject(value: typeof persisted) {
 			persisted = value;
 			projection = lockedProjection(value, lockedTrackIds);

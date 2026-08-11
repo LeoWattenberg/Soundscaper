@@ -285,6 +285,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'frame-canonical-clip-focus-step-request',
+		file: 'src/common/editor/frame-canonical-clip-focus-step-request.ts',
+		behavior: 'A focused linked-audio callback resolves its unique video edge plus one signed sequence-frame step directly to one absolute nearest-point sample request.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'frame-canonical-roll-ripple-trim-planning',
 		file: 'src/common/editor/frame-canonical-roll-ripple-trim-planner.ts',
 		behavior: 'Roll and lane-ripple trims conform one requested edit point, then resolve every source cut, anchored program join, and shifted canonical video endpoint from absolute sequence frames.',

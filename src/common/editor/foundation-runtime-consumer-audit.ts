@@ -178,6 +178,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The edge-trim command adapter requires an already-branded projection while planning authoritative frame-grid mutations; it does not create or consume a runtime playback projection.',
 	},
 	{
+		file: 'src/common/editor/frame-canonical-clip-focus-step-request.ts',
+		reason: 'The clip-focus step command adapter requires an already-branded projection while deriving one absolute adjacent-frame request from immutable linked video authority; it does not create or consume a runtime playback projection.',
+	},
+	{
 		file: 'src/common/editor/frame-canonical-roll-ripple-trim-planner.ts',
 		reason: 'The roll/ripple command adapter requires an already-branded projection while planning authoritative frame-grid mutations; it does not create or consume a runtime playback projection.',
 	},
