@@ -5,6 +5,10 @@
 - Use Node.js 26.5.0 and npm 12.0.1. Use npm and preserve `package-lock.json`;
   never edit dependency metadata without updating the lockfile.
 - Application UI lives in `src/common/editor/ui/`.
+- Every newly added feature must be reachable through a menu. Do not surface new
+  features by default in the UI: no new always-visible toolbar buttons, panels,
+  side rails, badges, or inline controls. Add the entry point to an existing
+  menu (or a menu submenu) and let the user opt in from there.
 - Audio models, workers, storage, effects, import/export, and WASM integration
   live in `src/common/editor/`.
 - Do not commit generated `dist/`, `coverage/`, `playwright-report/`,
