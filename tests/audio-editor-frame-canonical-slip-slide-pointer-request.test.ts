@@ -138,6 +138,25 @@ test('pointer authority and request construction fail closed on forged or unsafe
 		authority,
 		Number.MAX_SAFE_INTEGER + 1,
 	), /currentPointerSample|safe integer/iu);
+
+	const vfr = pointerProject({ vfr: true });
+	const verified = captureFrameCanonicalSlipSlidePointerAuthority(
+		vfr.project,
+		vfr.timingViews,
+		{ mode: 'slip', activeClipId: 'center-video', pointerDownSample: 0 },
+	);
+	assert.equal(verified.mode, 'slip');
+	if (verified.mode !== 'slip' || verified.timingView.kind !== 'vfr') {
+		assert.fail('Expected a captured VFR slip authority.');
+	}
+	const substituted = Object.freeze({
+		...verified,
+		timingView: Object.freeze({
+			...verified.timingView,
+			index: Object.freeze({ ...verified.timingView.index }),
+		}),
+	});
+	assert.throws(() => buildFrameCanonicalSlipSlidePointerRequest(substituted, 12_000), /verified|timing/iu);
 });
 
 test('opposite safe-integer pointer extremes never overflow intermediate Number arithmetic', () => {

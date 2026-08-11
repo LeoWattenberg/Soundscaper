@@ -2,6 +2,7 @@
 
 import {
 	deepFreeze,
+	frameTrimRationalRate,
 	frameTrimRecord,
 	indexFrameTrimProject,
 	nonEmptyString,
@@ -29,6 +30,7 @@ import {
 	videoSourceTimingView,
 } from './frame-canonical-slip-slide-timing.ts';
 import { isRuntimeProjectProjection } from './runtime-clip-projection.ts';
+import { isVideoTimingIndexVerifiedForReference } from './video-timing-asset.ts';
 
 export interface FrameCanonicalSlipSlidePointerCapture {
 	readonly mode: FrameCanonicalSlipSlideMode;
@@ -188,6 +190,20 @@ function pointerAuthority(value: unknown): FrameCanonicalSlipSlidePointerAuthori
 	if (sourceOutFrame <= sourceInFrame) {
 		throw new RangeError('A slip pointer source span must be positive.');
 	}
+	const timingView = authority.timingView as VideoSourceTimingView;
+	if (timingView.kind === 'cfr') {
+		frameTrimRationalRate(timingView.rate, 'pointer authority.timingView.rate');
+		positiveSafeInteger(
+			timingView.frameCount,
+			'pointer authority.timingView.frameCount',
+		);
+	} else if (timingView.kind === 'vfr') {
+		if (!isVideoTimingIndexVerifiedForReference(timingView.index, timingView.reference)) {
+			throw new TypeError('A VFR slip pointer authority requires verified timing identity.');
+		}
+	} else {
+		throw new RangeError('A slip pointer authority has an unsupported timing view.');
+	}
 	return {
 		mode,
 		activeClipId,
@@ -198,7 +214,7 @@ function pointerAuthority(value: unknown): FrameCanonicalSlipSlidePointerAuthori
 			authority.programDurationSamples,
 			'pointer authority.programDurationSamples',
 		),
-		timingView: authority.timingView as VideoSourceTimingView,
+		timingView,
 	};
 }
 
