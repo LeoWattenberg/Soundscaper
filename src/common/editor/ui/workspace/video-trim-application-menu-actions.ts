@@ -2,6 +2,7 @@
 
 import type { FrameCanonicalEdgeTrimRequest } from '../../frame-canonical-edge-trim-domain.ts';
 import type { FrameCanonicalRollRippleTrimRequest } from '../../frame-canonical-roll-ripple-trim-domain.ts';
+import type { FrameCanonicalRateStretchRequest } from '../../frame-canonical-rate-stretch-domain.ts';
 import type { FrameCanonicalSlipSlideRequest } from '../../frame-canonical-slip-slide-domain.ts';
 import type { FrameCanonicalSlipSlideStep } from '../../frame-canonical-slip-slide-step-request.ts';
 
@@ -21,6 +22,10 @@ interface VideoTrimActionController {
 					preview(request: FrameCanonicalSlipSlideRequest): unknown;
 					commit(request: FrameCanonicalSlipSlideRequest): unknown;
 				}>;
+				readonly rateStretch: Readonly<{
+					preview(request: FrameCanonicalRateStretchRequest): unknown;
+					commit(request: FrameCanonicalRateStretchRequest): unknown;
+				}>;
 			}>;
 		}>;
 	}>;
@@ -35,6 +40,8 @@ export interface VideoTrimApplicationMenuActions {
 	buildVideoSlipSlideStepRequest(step: FrameCanonicalSlipSlideStep): Readonly<FrameCanonicalSlipSlideRequest>;
 	planVideoSlipSlide(request: FrameCanonicalSlipSlideRequest): unknown;
 	commitVideoSlipSlide(request: FrameCanonicalSlipSlideRequest): unknown;
+	planVideoRateStretch(request: FrameCanonicalRateStretchRequest): unknown;
+	commitVideoRateStretch(request: FrameCanonicalRateStretchRequest): unknown;
 }
 
 /** Adapt both trim action branches to the application-menu runtime ports. */
@@ -67,6 +74,12 @@ export function createVideoTrimApplicationMenuActions(
 		),
 		commitVideoSlipSlide: (request: FrameCanonicalSlipSlideRequest) => run(() => (
 			controller.actions.video.trim.slipSlide.commit(request)
+		)),
+		planVideoRateStretch: (request: FrameCanonicalRateStretchRequest) => (
+			controller.actions.video.trim.rateStretch.preview(request)
+		),
+		commitVideoRateStretch: (request: FrameCanonicalRateStretchRequest) => run(() => (
+			controller.actions.video.trim.rateStretch.commit(request)
 		)),
 	});
 }

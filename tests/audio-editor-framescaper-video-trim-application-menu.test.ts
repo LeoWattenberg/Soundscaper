@@ -24,6 +24,11 @@ const SLIP_SLIDE_ITEM_IDS = Object.freeze([
 	'slide-clip-earlier-one-frame',
 	'slide-clip-later-one-frame',
 ]);
+const RATE_STRETCH_ITEM_IDS = Object.freeze([
+	'rate-stretch-left-edge-to-playhead',
+	'rate-stretch-right-edge-to-playhead',
+]);
+const PLAYHEAD_ITEM_COUNT = TRIM_ITEM_IDS.length + RATE_STRETCH_ITEM_IDS.length;
 
 test('Framescaper trim planning is lazy per menu open and activation reads the live playhead', () => {
 	const previewRequests: unknown[] = [];
@@ -99,7 +104,7 @@ test('Framescaper trim planning is lazy per menu open and activation reads the l
 
 	const openedEdit = materializeApplicationMenu(topLevelMenu(framescaperMenus, 'edit'));
 	const framescaper = clipBoundaryItems([openedEdit]);
-	assert.equal(playheadReads, TRIM_ITEM_IDS.length);
+	assert.equal(playheadReads, PLAYHEAD_ITEM_COUNT);
 	assert.deepEqual(previewRequests, [{
 		activeClipId: 'video-clip', edge: 'left', requestedBoundarySample: PLAYHEAD_SAMPLE,
 	}, {
@@ -126,11 +131,11 @@ test('Framescaper trim planning is lazy per menu open and activation reads the l
 	assert.deepEqual(commitRequests, [{
 		activeClipId: 'video-clip', edge: 'left', requestedBoundarySample: PLAYHEAD_SAMPLE + 1_600,
 	}]);
-	assert.equal(playheadReads, TRIM_ITEM_IDS.length + 1);
+	assert.equal(playheadReads, PLAYHEAD_ITEM_COUNT + 1);
 
 	materializeApplicationMenu(topLevelMenu(framescaperMenus, 'edit'));
 	assert.equal(previewRequests.length, TRIM_ITEM_IDS.length * 2);
-	assert.equal(playheadReads, TRIM_ITEM_IDS.length * 2 + 1);
+	assert.equal(playheadReads, PLAYHEAD_ITEM_COUNT * 2 + 1);
 	assert.ok(previewRequests.slice(TRIM_ITEM_IDS.length).every((request) => (
 		(request as { requestedBoundarySample?: unknown }).requestedBoundarySample === currentPlayheadSample
 	)));
@@ -228,7 +233,79 @@ test('Framescaper slip/slide leaves build and plan only on menu materialization'
 	assert.equal(steps.length, callsBeforeSoundscaper);
 });
 
-test('workspace menu ports preserve ordinary and both nested trim facade requests', () => {
+test('Framescaper rate-stretch leaves plan lazily and activate from a fresh live playhead', () => {
+	const planned: unknown[] = [];
+	const committed: unknown[] = [];
+	let currentPlayheadSample = PLAYHEAD_SAMPLE;
+	let playheadReads = 0;
+	const actions = actionPorts({
+		currentVideoPlayheadSample: () => {
+			playheadReads += 1;
+			return currentPlayheadSample;
+		},
+		planVideoRateStretch: (request: unknown) => {
+			planned.push(request);
+			return Object.freeze({ kind: 'transform' as const });
+		},
+		commitVideoRateStretch: (request: unknown) => {
+			committed.push(request);
+			return request;
+		},
+	});
+	const closedRenders = Array.from({ length: 20 }, () => (
+		createApplicationMenus(menuInput('framescaper', actions))
+	));
+	const framescaperMenus = closedRenders.at(-1);
+	assert.ok(framescaperMenus);
+	const closedItems = clipBoundaryItems(framescaperMenus)
+		.filter(({ id }) => RATE_STRETCH_ITEM_IDS.includes(String(id)));
+
+	assert.equal(playheadReads, 0);
+	assert.deepEqual(planned, []);
+	assert.deepEqual(closedItems.map(({ id, label, disabled, resolve }) => ({
+		id, label, disabled, deferred: typeof resolve === 'function',
+	})), [
+		{
+			id: RATE_STRETCH_ITEM_IDS[0],
+			label: 'Rate stretch left edge to playhead',
+			disabled: false,
+			deferred: true,
+		},
+		{
+			id: RATE_STRETCH_ITEM_IDS[1],
+			label: 'Rate stretch right edge to playhead',
+			disabled: false,
+			deferred: true,
+		},
+	]);
+
+	const openedEdit = materializeApplicationMenu(topLevelMenu(framescaperMenus, 'edit'));
+	const openedItems = clipBoundaryItems([openedEdit])
+		.filter(({ id }) => RATE_STRETCH_ITEM_IDS.includes(String(id)));
+	assert.equal(playheadReads, PLAYHEAD_ITEM_COUNT);
+	assert.deepEqual(planned, [{
+		activeClipId: 'video-clip', edge: 'left', requestedBoundarySample: PLAYHEAD_SAMPLE,
+	}, {
+		activeClipId: 'video-clip', edge: 'right', requestedBoundarySample: PLAYHEAD_SAMPLE,
+	}]);
+	assert.ok(openedItems.every(({ disabled, resolve }) => disabled === false && resolve === undefined));
+
+	currentPlayheadSample = PLAYHEAD_SAMPLE + 1_600;
+	openedItems[0]?.onClick?.();
+	assert.deepEqual(committed, [{
+		activeClipId: 'video-clip', edge: 'left', requestedBoundarySample: currentPlayheadSample,
+	}]);
+	assert.equal(playheadReads, PLAYHEAD_ITEM_COUNT + 1);
+
+	const callsBeforeSoundscaper = playheadReads;
+	const soundscaperMenus = createApplicationMenus(menuInput('soundscaper', actions));
+	assert.deepEqual(clipBoundaryItems(soundscaperMenus)
+		.filter(({ id }) => RATE_STRETCH_ITEM_IDS.includes(String(id))), []);
+	materializeApplicationMenu(topLevelMenu(soundscaperMenus, 'edit'));
+	assert.equal(playheadReads, callsBeforeSoundscaper);
+});
+
+test('workspace menu ports preserve ordinary and every nested trim facade request', () => {
 	const events: unknown[][] = [];
 	let positionFrame: unknown = PLAYHEAD_SAMPLE;
 	const controller = {
@@ -250,6 +327,10 @@ test('workspace menu ports preserve ordinary and both nested trim facade request
 						preview: (request: unknown) => { events.push(['ss-preview', request]); return request; },
 						commit: (request: unknown) => { events.push(['ss-commit', request]); return request; },
 					},
+					rateStretch: {
+						preview: (request: unknown) => { events.push(['rs-preview', request]); return request; },
+						commit: (request: unknown) => { events.push(['rs-commit', request]); return request; },
+					},
 				},
 			},
 		},
@@ -268,6 +349,10 @@ test('workspace menu ports preserve ordinary and both nested trim facade request
 	const slipSlide = Object.freeze({
 		mode: 'slip' as const, activeClipId: 'video-clip', requestedSourceInFrame: 21,
 	});
+	const rateStretch = Object.freeze({
+		activeClipId: 'video-clip', edge: 'right' as const,
+		requestedBoundarySample: PLAYHEAD_SAMPLE,
+	});
 
 	actions.planVideoTrim(ordinary);
 	actions.commitVideoTrim(ordinary);
@@ -276,6 +361,8 @@ test('workspace menu ports preserve ordinary and both nested trim facade request
 	assert.equal(actions.buildVideoSlipSlideStepRequest(step), slipSlide);
 	actions.planVideoSlipSlide(slipSlide);
 	actions.commitVideoSlipSlide(slipSlide);
+	actions.planVideoRateStretch(rateStretch);
+	actions.commitVideoRateStretch(rateStretch);
 	assert.equal(actions.currentVideoPlayheadSample(), PLAYHEAD_SAMPLE);
 	positionFrame = -1;
 	assert.equal(actions.currentVideoPlayheadSample(), null);
@@ -288,6 +375,8 @@ test('workspace menu ports preserve ordinary and both nested trim facade request
 		['ss-step', step],
 		['ss-preview', slipSlide],
 		['ss-commit', slipSlide],
+		['rs-preview', rateStretch],
+		['rs-commit', rateStretch],
 	]);
 });
 
@@ -393,6 +482,8 @@ function copyValues(): object {
 		slipSourceLaterOneFrame: 'Slip source later one frame',
 		slideClipEarlierOneFrame: 'Slide clip earlier one frame',
 		slideClipLaterOneFrame: 'Slide clip later one frame',
+		rateStretchLeftToPlayhead: 'Rate stretch left edge to playhead',
+		rateStretchRightToPlayhead: 'Rate stretch right edge to playhead',
 	}, {
 		get(target, property, receiver) {
 			return Reflect.has(target, property)

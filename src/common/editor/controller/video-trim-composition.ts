@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
-import type { VideoSourceTimingView } from '../frame-canonical-slip-slide-domain.ts';
 import { sourceMonitorTimecodeLabel } from '../source-monitor-model.ts';
+import type { VideoSourceTimingView } from '../video-source-timing-view.ts';
 import { resolveVideoSourceTimingViews } from '../video-source-timing-views.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 import type { VideoEdgeTrimFeedbackCopy } from './video-edge-trim-feedback.ts';
@@ -14,12 +14,18 @@ import {
 	createVideoRollRippleTrimService,
 	type VideoRollRippleTrimService,
 } from './video-roll-ripple-trim-service.ts';
+import type { VideoRateStretchFeedbackCopy } from './video-rate-stretch-feedback.ts';
+import { createVideoRateStretchResultReporter } from './video-rate-stretch-feedback.ts';
+import { createVideoRateStretchService, type VideoRateStretchService } from './video-rate-stretch-service.ts';
 import type { VideoSlipSlideFeedbackCopy } from './video-slip-slide-feedback.ts';
 import { createVideoSlipSlideResultReporter } from './video-slip-slide-feedback.ts';
 import { createVideoSlipSlideService, type VideoSlipSlideService } from './video-slip-slide-service.ts';
 
 export interface VideoTrimCompositionCopy
-	extends VideoEdgeTrimFeedbackCopy, VideoRollRippleTrimFeedbackCopy, VideoSlipSlideFeedbackCopy {}
+	extends VideoEdgeTrimFeedbackCopy,
+		VideoRollRippleTrimFeedbackCopy,
+		VideoSlipSlideFeedbackCopy,
+		VideoRateStretchFeedbackCopy {}
 
 export interface VideoTrimCompositionDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
@@ -39,6 +45,7 @@ export interface VideoTrimServices {
 	readonly edge: Readonly<VideoEdgeTrimService>;
 	readonly rollRipple: Readonly<VideoRollRippleTrimService>;
 	readonly slipSlide: Readonly<VideoSlipSlideService>;
+	readonly rateStretch: Readonly<VideoRateStretchService>;
 }
 
 /** Compose all frame-canonical trim services without growing the application root. */
@@ -71,6 +78,11 @@ export function createVideoTrimServices(
 				programLabel: dependencies.label,
 				setStatus: dependencies.setStatus,
 			}),
+		}),
+		rateStretch: createVideoRateStretchService({
+			...common,
+			getTimingViews: dependencies.getTimingViews ?? resolveVideoSourceTimingViews,
+			reportResult: createVideoRateStretchResultReporter(dependencies),
 		}),
 	});
 }

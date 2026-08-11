@@ -9,6 +9,10 @@ import type {
 	FrameCanonicalRollRippleTrimRequest,
 } from '../frame-canonical-roll-ripple-trim-domain.ts';
 import type {
+	FrameCanonicalRateStretchPlan,
+	FrameCanonicalRateStretchRequest,
+} from '../frame-canonical-rate-stretch-domain.ts';
+import type {
 	FrameCanonicalSlipSlidePlan,
 	FrameCanonicalSlipSlideRequest,
 } from '../frame-canonical-slip-slide-domain.ts';
@@ -40,6 +44,10 @@ export interface VideoTrimActionFacade {
 		preview(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan;
 		commit(request: FrameCanonicalSlipSlideRequest): FrameCanonicalSlipSlidePlan;
 	}>;
+	readonly rateStretch: Readonly<{
+		preview(request: FrameCanonicalRateStretchRequest): FrameCanonicalRateStretchPlan;
+		commit(request: FrameCanonicalRateStretchRequest): FrameCanonicalRateStretchPlan;
+	}>;
 }
 
 /** Preserve ordinary trim ports and capability-gate every nested trim port identically. */
@@ -66,6 +74,10 @@ export function createVideoTrimActionFacade(
 			buildStepRequest: guard(dependencies.services.slipSlide.buildStepRequest),
 			preview: guard(dependencies.services.slipSlide.preview),
 			commit: guard(dependencies.services.slipSlide.commit),
+		}),
+		rateStretch: Object.freeze({
+			preview: guard(dependencies.services.rateStretch.preview),
+			commit: guard(dependencies.services.rateStretch.commit),
 		}),
 	});
 }

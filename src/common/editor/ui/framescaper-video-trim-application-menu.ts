@@ -2,9 +2,15 @@
 
 import type { FrameCanonicalEdgeTrimRequest } from '../frame-canonical-edge-trim-domain.ts';
 import type { FrameCanonicalRollRippleTrimRequest } from '../frame-canonical-roll-ripple-trim-domain.ts';
+import type { FrameCanonicalRateStretchRequest } from '../frame-canonical-rate-stretch-domain.ts';
 import type { FrameCanonicalSlipSlideRequest } from '../frame-canonical-slip-slide-domain.ts';
 import type { FrameCanonicalSlipSlideStep } from '../frame-canonical-slip-slide-step-request.ts';
 import type { ApplicationMenuResolution } from './application-menu-materialization.ts';
+import {
+	createFramescaperRateStretchMenuItems,
+	createFramescaperRateStretchMenuModel,
+	type FramescaperRateStretchMenuCopy,
+} from './framescaper-rate-stretch-menu-model.ts';
 import type {
 	FramescaperRollRippleTrimMenuCopy,
 	FramescaperRollRippleTrimMenuPlannerResult,
@@ -22,7 +28,8 @@ import type {
 export interface FramescaperVideoTrimApplicationMenuCopy
 	extends FramescaperVideoTrimMenuCopy,
 		FramescaperRollRippleTrimMenuCopy,
-		FramescaperSlipSlideMenuCopy {}
+		FramescaperSlipSlideMenuCopy,
+		FramescaperRateStretchMenuCopy {}
 
 export interface FramescaperVideoTrimApplicationMenuInput {
 	readonly productId: string;
@@ -46,6 +53,10 @@ export interface FramescaperVideoTrimApplicationMenuActions {
 		request: FrameCanonicalSlipSlideRequest,
 	): Readonly<{ readonly kind: 'noop' | 'transform' }>;
 	commitVideoSlipSlide(request: FrameCanonicalSlipSlideRequest): unknown;
+	planVideoRateStretch(
+		request: FrameCanonicalRateStretchRequest,
+	): Readonly<{ readonly kind: 'noop' | 'transform' }>;
+	commitVideoRateStretch(request: FrameCanonicalRateStretchRequest): unknown;
 }
 
 export interface FramescaperVideoTrimApplicationMenuItem {
@@ -72,6 +83,12 @@ export function createFramescaperVideoTrimApplicationMenuItems(
 		}),
 		{ commitSlipSlide: actions.commitVideoSlipSlide },
 	);
+	const rateStretchItems = createFramescaperRateStretchMenuItems(
+		createFramescaperRateStretchMenuModel(input, {
+			planRateStretch: actions.planVideoRateStretch,
+		}),
+		{ commitRateStretch: actions.commitVideoRateStretch },
+	);
 	return Object.freeze([
 		edgeItem(input, actions, inert, 'left'),
 		edgeItem(input, actions, inert, 'right'),
@@ -80,6 +97,7 @@ export function createFramescaperVideoTrimApplicationMenuItems(
 		rollRippleItem(input, actions, inert, 'ripple', 'left'),
 		rollRippleItem(input, actions, inert, 'ripple', 'right'),
 		...slipSlideItems,
+		...rateStretchItems,
 	]);
 }
 

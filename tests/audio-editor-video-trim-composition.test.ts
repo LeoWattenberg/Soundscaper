@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { createVideoTrimServices } from '../src/common/editor/controller/video-trim-composition.ts';
 
-test('video trim composition owns edge, roll/ripple, and slip/slide services', () => {
+test('video trim composition owns edge, roll/ripple, slip/slide, and rate-stretch services', () => {
 	const services = createVideoTrimServices({
 		lifetime: { assertActive: () => undefined },
 		copy: {
@@ -17,6 +17,10 @@ test('video trim composition owns edge, roll/ripple, and slip/slide services', (
 			rippleRightEdgeApplied: 'ripple right {frames} {sourceTimecode} {programTimecode}',
 			slipApplied: 'slip {frames} {sourceTimecode}',
 			slideApplied: 'slide {frames} {programStartTimecode} {programEndTimecode}',
+			rateStretchLeftEdgeApplied: 'stretch left {rate} {timecode}',
+			rateStretchRightEdgeApplied: 'stretch right {rate} {timecode}',
+			rateStretchBoundaryClamped: 'stretch clamped',
+			noRateStretchAvailable: 'no stretch',
 			trimBoundaryClamped: 'clamped',
 			noTrimAvailable: 'none',
 		},
@@ -29,7 +33,7 @@ test('video trim composition owns edge, roll/ripple, and slip/slide services', (
 		setStatus: () => undefined,
 	});
 
-	assert.deepEqual(Object.keys(services), ['edge', 'rollRipple', 'slipSlide']);
+	assert.deepEqual(Object.keys(services), ['edge', 'rollRipple', 'slipSlide', 'rateStretch']);
 	assert.equal(Object.isFrozen(services), true);
 	for (const service of Object.values(services)) {
 		assert.equal(typeof service.preview, 'function');

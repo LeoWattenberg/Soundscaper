@@ -6,7 +6,7 @@ import test from 'node:test';
 import { createVideoTrimActionFacade } from '../src/common/editor/controller/video-trim-action-facade.ts';
 import type { VideoTrimServices } from '../src/common/editor/controller/video-trim-composition.ts';
 
-test('video trim facade exposes the exact nested slip/slide preview and commit path', () => {
+test('video trim facade exposes exact nested slip/slide and rate-stretch paths', () => {
 	const events: unknown[][] = [];
 	const callable = (name: string) => (request: unknown): unknown => {
 		events.push([name, request]);
@@ -23,6 +23,10 @@ test('video trim facade exposes the exact nested slip/slide preview and commit p
 				buildStepRequest: callable('slip-slide-step'),
 				preview: callable('slip-slide-preview'),
 				commit: callable('slip-slide-commit'),
+			},
+			rateStretch: {
+				preview: callable('rate-stretch-preview'),
+				commit: callable('rate-stretch-commit'),
 			},
 		} as unknown as VideoTrimServices,
 	});
@@ -41,22 +45,32 @@ test('video trim facade exposes the exact nested slip/slide preview and commit p
 		activeClipId: 'video-clip',
 		requestedSourceInFrame: 41,
 	});
+	const rateStretchRequest = Object.freeze({
+		activeClipId: 'video-clip',
+		edge: 'right' as const,
+		requestedBoundarySample: 48_000,
+	});
 
 	assert.equal(facade.slipSlide.capturePointerAuthority(pointer), pointer);
 	assert.equal(facade.slipSlide.buildStepRequest(step), step);
 	assert.equal(facade.slipSlide.preview(request), request);
 	assert.equal(facade.slipSlide.commit(request), request);
+	assert.equal(facade.rateStretch.preview(rateStretchRequest), rateStretchRequest);
+	assert.equal(facade.rateStretch.commit(rateStretchRequest), rateStretchRequest);
 	assert.deepEqual(events, [
 		['slip-slide-pointer', pointer],
 		['slip-slide-step', step],
 		['slip-slide-preview', request],
 		['slip-slide-commit', request],
+		['rate-stretch-preview', rateStretchRequest],
+		['rate-stretch-commit', rateStretchRequest],
 	]);
 	assert.equal(Object.isFrozen(facade), true);
 	assert.equal(Object.isFrozen(facade.slipSlide), true);
+	assert.equal(Object.isFrozen(facade.rateStretch), true);
 });
 
-test('Soundscaper capability rejection reaches both slip/slide ports before service dispatch', () => {
+test('Soundscaper capability rejection reaches every nested trim port before service dispatch', () => {
 	let dispatches = 0;
 	const unavailable = () => { dispatches += 1; return undefined; };
 	const facade = createVideoTrimActionFacade({
@@ -71,6 +85,7 @@ test('Soundscaper capability rejection reaches both slip/slide ports before serv
 				preview: unavailable,
 				commit: unavailable,
 			},
+			rateStretch: { preview: unavailable, commit: unavailable },
 		} as unknown as VideoTrimServices,
 	});
 	const step = Object.freeze({
@@ -88,6 +103,9 @@ test('Soundscaper capability rejection reaches both slip/slide ports before serv
 		activeClipId: 'video-clip',
 		requestedStartSample: 48_000,
 	});
+	const rateStretchRequest = Object.freeze({
+		activeClipId: 'video-clip', edge: 'left' as const, requestedBoundarySample: 24_000,
+	});
 
 	assert.throws(
 		() => facade.slipSlide.capturePointerAuthority(pointer),
@@ -103,6 +121,14 @@ test('Soundscaper capability rejection reaches both slip/slide ports before serv
 	);
 	assert.throws(
 		() => facade.slipSlide.commit(request),
+		/Soundscaper does not support videoCompositing/u,
+	);
+	assert.throws(
+		() => facade.rateStretch.preview(rateStretchRequest),
+		/Soundscaper does not support videoCompositing/u,
+	);
+	assert.throws(
+		() => facade.rateStretch.commit(rateStretchRequest),
 		/Soundscaper does not support videoCompositing/u,
 	);
 	assert.equal(dispatches, 0);

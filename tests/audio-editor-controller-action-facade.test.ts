@@ -44,6 +44,7 @@ function createRuntime(capability = true): EditorActionRuntime {
 		edge: Object.freeze({ preview: callable, commit: callable }),
 		rollRipple: Object.freeze({ preview: callable, commit: callable }),
 		slipSlide: Object.freeze({ buildStepRequest: callable, preview: callable, commit: callable }),
+		rateStretch: Object.freeze({ preview: callable, commit: callable }),
 	});
 	const runtime = new Proxy<Record<string, unknown>>({}, {
 		get(_target, name) {
