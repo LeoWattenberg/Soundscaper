@@ -177,11 +177,12 @@ in commit `86496f4` on 2026-08-11. The canonical gate is green with 5,091 tests
 total, 5,089 passed and 2 skipped, 91.34% statement and line coverage, 79.93%
 branch coverage, 90.45% function coverage, and a 388,318-byte largest production
 JavaScript chunk; focused Chromium track-lock coverage passed 2/2, and policy
-sync/repin checks were green. Packet 3B-4 remains in progress. Its immediate
-planned pickup is
-[3B-4b5 — frame-canonical roll and ripple trim](milestone-3b-roll-ripple-trim.md),
-followed by slip/slide, uniform rate-stretch, and the remaining
-keyboard-complete trim feedback.
+sync/repin checks were green. Packet 3B-4 remains in progress. Its current
+bounded slice is
+[3B-4b5 — frame-canonical roll and ripple trim](milestone-3b-roll-ripple-trim.md).
+The immediate planned pickup after that slice closes is
+[3B-4b6 — frame-canonical slip and slide](milestone-3b-slip-slide.md), followed
+by uniform rate-stretch and the remaining keyboard-complete trim feedback.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
