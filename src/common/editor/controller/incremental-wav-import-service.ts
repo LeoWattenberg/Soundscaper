@@ -43,6 +43,7 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		descriptor: any,
 		importOptions: any,
 		wavMetadata: any,
+		activationOptions: Readonly<{ requireChunkStream?: boolean }> = {},
 	) {
 		const pcmBytes = sourcePcmBytes(descriptor);
 		await preflightStorage(pcmBytes, 'import');
@@ -114,7 +115,7 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		descriptor.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart,
 		wavMetadata.projectAdmCandidate, descriptor);
 		try {
-			await activateStoredSource(source, metadata);
+			await activateStoredSource(source, metadata, activationOptions);
 			commit(prepared.command, prepared.selection);
 		} catch (error) {
 			const cleanupErrors: unknown[] = [];

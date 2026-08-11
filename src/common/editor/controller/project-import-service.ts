@@ -46,7 +46,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		editingBlocked, engine, ffmpeg, findTrack,
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile,
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
-		isLegacyAupFile, isLegacyBlockFile, isWavFile,
+		isAudioEditorEngineSupported, isLegacyAupFile, isLegacyBlockFile, isWavFile,
 		peakCacheKey, preflightStorage, getProject, projectSampleRate,
 		publishDocumentSnapshot, retireSourceChunkProvider, setStatus, sourceBuffers,
 		sourcePcmBytes, sourcePeaks, state, store,
@@ -345,12 +345,14 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			file, isWavFile, inspectWavBlobPcm, wavSignature,
 		);
 		const wavMetadata = prepareWavImportMetadata(wavDescriptor, normalizedImportOptions);
+		const requireChunkStream = Boolean(wavDescriptor
+			&& isAudioEditorEngineSupported?.() === false);
 		if (wavSignature === 'RF64' || wavSignature === 'BW64') {
 			if (!wavDescriptor) throw new Error(`The ${wavSignature} WAV file could not be inspected incrementally.`);
-			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata);
+			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
 		}
-		if (isIncrementalWav(wavDescriptor)) {
-			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata);
+		if (requireChunkStream || isIncrementalWav(wavDescriptor)) {
+			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		const context = await engine.getAudioContext({ resume: false });

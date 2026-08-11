@@ -397,10 +397,16 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		}
 	}
 
-	async function activateStoredSource(source: any, metadata: any, { buffer = null }: any = {}) {
+	async function activateStoredSource(source: any, metadata: any, {
+		buffer = null, requireChunkStream = false,
+	}: any = {}) {
 		const provider = registerStoredChunkProvider(source, metadata);
+		if (requireChunkStream && !provider) {
+			throw new Error(`Source ${source.id} requires a playable chunk provider.`);
+		}
 		let peakBuffer = buffer;
-		if (provider && sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
+		if (provider && (requireChunkStream
+			|| sourcePcmBytes(source) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES)) {
 			sourceBuffers.delete(source.id);
 		} else {
 			peakBuffer ||= await readStoredAudioBuffer(store, source, await engine.getAudioContext?.({ resume: false }));

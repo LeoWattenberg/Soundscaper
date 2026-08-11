@@ -114,6 +114,10 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('keeps timeline context menus interactive above the Framescaper video preview', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: undefined });
+			Object.defineProperty(globalThis, 'webkitAudioContext', { configurable: true, value: undefined });
+		});
 		const errors = collectClientErrors(page);
 		await page.goto('/framescaper/en/');
 		const editor = await waitForEditor(page);

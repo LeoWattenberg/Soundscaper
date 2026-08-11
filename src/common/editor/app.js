@@ -127,7 +127,7 @@ import { initializePffft } from './pffft.js';
 import {
 	assertPlayAtSpeedStaffPadMemorySafe,
 	createAudioEditorEngine,
-	effectRackLatencyFrames,
+	effectRackLatencyFrames, isAudioEditorEngineSupported,
 } from './engine.js';
 import { loadParametricEqWasmModule } from './parametric-eq/index.js';
 import {
@@ -1463,7 +1463,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createAddTrackCommand, createStableId, decodeLegacyAupProject,
 		editingBlocked, engine, ffmpeg, findTrack,
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
-		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile,
+		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile, isAudioEditorEngineSupported,
 		isLegacyAupFile, isLegacyBlockFile, isWavFile,
 		peakCacheKey, preflightStorage, getProject: () => project, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), projectSampleRate, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider,
 		publishDocumentSnapshot, setStatus, sourceBuffers, sourceChunkProviders,
@@ -2123,8 +2123,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return sourceLifecycleService.loadProjectSources(project, options);
 	}
 
-	async function activateStoredSource(source, metadata, { buffer = null } = {}) {
-		return sourceLifecycleService.activateStoredSource(source, metadata, { buffer });
+	async function activateStoredSource(source, metadata, activationOptions = {}) {
+		return sourceLifecycleService.activateStoredSource(source, metadata, activationOptions);
 	}
 
 	async function ensureProjectSourcesAvailable(snapshot, options) {
