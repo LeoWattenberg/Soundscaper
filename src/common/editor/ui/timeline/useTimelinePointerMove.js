@@ -5,6 +5,7 @@ import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
 import { resolveTimelineRollRippleTrimPointerPreview } from './roll-ripple-trim-pointer-routing.ts';
+import { resolveTimelineSlipSlidePointerPreview } from './slip-slide-pointer-routing.ts';
 import { samplePointAtPointer } from './track-row-helpers.jsx';
 import { resolveTimelineTrimPointerPreview } from './trim-pointer-routing.ts';
 
@@ -109,6 +110,28 @@ export function useTimelinePointerMove({
 				endFrame: Math.max(session.startFrame, endFrame),
 			});
 		} else if (session?.kind === 'move') {
+			if (session.slipSlideMode) {
+				const currentPointerSample = frameAtClientX(event.clientX, session.lane);
+				const preview = resolveTimelineSlipSlidePointerPreview({
+					session,
+					currentPointerSample,
+					previewSlipSlide: (request) => run(() => (
+						controller.actions.video.trim.slipSlide.preview(request)
+					)),
+					clipKind: (clipId) => projectIndex.clipById.get(clipId)?.kind ?? null,
+					previewOrdinary: () => null,
+				});
+				if (!preview) {
+					session.preview = null;
+					setClipDragPreview(null);
+					setDraggingClipIds(new Set(session.clipIds));
+					return;
+				}
+				session.preview = preview;
+				setClipDragPreview(preview);
+				setDraggingClipIds(new Set(preview.previews.map(({ clipId }) => clipId)));
+				return;
+			}
 			if (isOverOutputDock(event.clientX, event.clientY)) {
 				session.projectBinDrop = false;
 				session.preview = null;

@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { commitTimelineRollRippleTrimPointer } from './roll-ripple-trim-pointer-routing.ts';
+import { commitTimelineSlipSlidePointer } from './slip-slide-pointer-routing.ts';
 import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
 
 export function useTimelinePointerFinish({
@@ -70,6 +71,18 @@ export function useTimelinePointerFinish({
 			return;
 		}
 		if (!session || cancelled || pinchSession.current || !project) return;
+		if (session.kind === 'move' && session.slipSlideMode) {
+			const currentPointerSample = frameAtClientX(event.clientX, session.lane);
+			commitTimelineSlipSlidePointer({
+				session,
+				currentPointerSample,
+				commitSlipSlide: (request) => run(() => (
+					controller.actions.video.trim.slipSlide.commit(request)
+				)),
+				commitOrdinary: () => null,
+			});
+			return;
+		}
 		if (session.kind === 'move' && isOverOutputDock(event.clientX, event.clientY)) return;
 		if (session.kind === 'sample-pencil') {
 			if (session.points.length) run(() => controller.actions.sampleEdit.pencil({

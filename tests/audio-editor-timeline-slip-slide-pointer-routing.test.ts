@@ -198,6 +198,20 @@ test('release rebuilds from the final absolute pointer and never commits stale p
 	assert.equal(Object.hasOwn(calls[0] ?? {}, 'transforms'), false);
 });
 
+test('captured zero-delta release still sends the immutable no-op target to a fresh commit', () => {
+	const calls: FrameCanonicalSlipSlideRequest[] = [];
+	const session = capturedSession('slip');
+	assert.equal(commitTimelineSlipSlidePointer({
+		session,
+		currentPointerSample: 1_000,
+		commitSlipSlide: (request) => { calls.push(request); return 'noop-replanned'; },
+		commitOrdinary: () => assert.fail('Captured zero-delta slip sought or moved ordinarily.'),
+	}), 'noop-replanned');
+	assert.deepEqual(calls, [{
+		mode: 'slip', activeClipId: 'active-audio', requestedSourceInFrame: 10,
+	}]);
+});
+
 function pointerSession(options: Readonly<{ kind?: string; audioOnly?: boolean }> = {}) {
 	const activeAudio = Object.freeze({ id: 'active-audio', kind: 'audio' });
 	const originals: Record<string, Readonly<{ readonly id: string; readonly kind: string }>> = {

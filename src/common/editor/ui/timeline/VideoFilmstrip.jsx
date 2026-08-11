@@ -58,6 +58,13 @@ export function VideoFilmstripClip({
 			className="audio-editor-video-clip"
 			data-clip-id={clip.id}
 			data-clip-kind="video"
+			data-slip-slide-source-preview={clip.sourceSlipPreview ? 'true' : undefined}
+			data-slip-slide-preview-source-start={clip.sourceSlipPreview
+				? clip.sourceStartFrame
+				: undefined}
+			data-slip-slide-preview-source-end={clip.sourceSlipPreview
+				? clip.sourceStartFrame + clip.sourceDurationFrames
+				: undefined}
 			data-dragging={dragging ? 'true' : 'false'}
 			data-project-bin-preview={clip.projectBinClipId ? 'true' : undefined}
 			data-invalid-overlap={invalidOverlap ? 'true' : undefined}

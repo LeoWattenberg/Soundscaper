@@ -197,6 +197,31 @@ export function AudioTrackRow({
 					: undefined,
 			} : clip;
 		});
+	useEffect(() => {
+		const root = trackWindowRef.current;
+		if (!root) return;
+		const previews = new Map(projection.clips
+			.filter((clip) => clip.sourceSlipPreview)
+			.map((clip) => [String(clip.id), clip]));
+		for (const element of root.querySelectorAll('[data-clip-id]')) {
+			const preview = previews.get(String(element.dataset.clipId));
+			if (!preview) {
+				element.removeAttribute('data-slip-slide-source-preview');
+				element.removeAttribute('data-slip-slide-preview-source-start');
+				element.removeAttribute('data-slip-slide-preview-source-end');
+				continue;
+			}
+			element.setAttribute('data-slip-slide-source-preview', 'true');
+			element.setAttribute(
+				'data-slip-slide-preview-source-start',
+				String(preview.sourceStartFrame),
+			);
+			element.setAttribute(
+				'data-slip-slide-preview-source-end',
+				String(preview.sourceStartFrame + preview.sourceDurationFrames),
+			);
+		}
+	}, [projection.clips]);
 	const crossfadeOverlays = useMemo(() => createCrossfadeOverlays(
 		projection.clips,
 		projection.overscanStartFrame,

@@ -10,6 +10,7 @@ import {
 	TRACK_HEADER_RESIZE_HIT_HEIGHT,
 } from './constants.ts';
 import { captureTimelineRollRippleTrimPointerMode } from './roll-ripple-trim-pointer-routing.ts';
+import { captureTimelineSlipSlidePointerGesture } from './slip-slide-pointer-routing.ts';
 import { isRulerLoopBand, samplePointAtPointer } from './track-row-helpers.jsx';
 
 export function useTimelinePointerStart({
@@ -194,14 +195,6 @@ export function useTimelinePointerStart({
 				edgeKind = distanceFromLeft <= distanceFromRight ? 'trim-left' : 'trim-right';
 			}
 		}
-		if (!event.target.closest('.clip-header') && !clipEditHandle && !edgeKind) {
-			run(() => controller.actions.timeline.selectClip(null));
-			const startFrame = frameAtClientX(event.clientX, lane);
-			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
-			setSelectionPreview({ startFrame, endFrame: startFrame });
-			event.currentTarget.setPointerCapture?.(event.pointerId);
-			return;
-		}
 		let kind = edgeKind || 'move';
 		if (clipEditHandle) {
 			if (clipEditHandle.classList.contains('clip-display__handle--trim-left')) kind = 'trim-left';
@@ -227,6 +220,29 @@ export function useTimelinePointerStart({
 			startY: event.clientY,
 			lane,
 		};
+		const slipSlideGesture = captureTimelineSlipSlidePointerGesture({
+			session,
+			canonicalVideoTrim: snapshot.capabilities?.videoCompositing === true,
+			pointerType: event.pointerType,
+			isPrimary: event.isPrimary,
+			altKey: event.altKey,
+			shiftKey: event.shiftKey,
+			ctrlKey: event.ctrlKey,
+			metaKey: event.metaKey,
+			pointerDownSample: frameAtClientX(event.clientX, lane),
+			capturePointerAuthority: (capture) => run(() => (
+				controller.actions.video.trim.slipSlide.capturePointerAuthority(capture)
+			)),
+		});
+		if (!event.target.closest('.clip-header') && !clipEditHandle && !edgeKind
+			&& slipSlideGesture === null) {
+			run(() => controller.actions.timeline.selectClip(null));
+			const startFrame = frameAtClientX(event.clientX, lane);
+			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
+			setSelectionPreview({ startFrame, endFrame: startFrame });
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			return;
+		}
 		const rollRippleMode = kind === 'trim-left' || kind === 'trim-right'
 			? captureTimelineRollRippleTrimPointerMode({
 				session,
@@ -236,10 +252,18 @@ export function useTimelinePointerStart({
 				shiftKey: event.shiftKey,
 			})
 			: null;
-		pointerSession.current = { ...session, rollRippleMode };
+		const slipSlideMode = slipSlideGesture?.mode ?? null;
+		pointerSession.current = {
+			...session,
+			rollRippleMode,
+			slipSlideMode,
+			slipSlidePointerAuthority: slipSlideGesture?.authority ?? null,
+		};
 		setDraggingClipIds(new Set(interactionClipIds));
 		const selectedClipIds = project.selection?.clipIds || [];
-		if (rollRippleMode === null && event.shiftKey) {
+		if (slipSlideMode !== null) {
+			// The captured whole-clip modifier owns this gesture and suppresses selection changes.
+		} else if (rollRippleMode === null && event.shiftKey) {
 			run(() => controller.actions.timeline.selectClip(clip.id, { additive: true }));
 		} else if (rollRippleMode === null && (event.metaKey || event.ctrlKey)) {
 			run(() => controller.actions.timeline.selectClip(clip.id, { toggle: true }));

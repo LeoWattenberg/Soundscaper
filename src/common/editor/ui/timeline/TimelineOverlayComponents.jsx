@@ -320,6 +320,37 @@ export function TimelineTrimPreviewGuide({
 	);
 }
 
+export function TimelineSlipSlidePreviewGuides({
+	samples,
+	panelWidth,
+	pixelsPerSecond,
+	sampleRate,
+	height,
+}) {
+	if (!Number.isSafeInteger(samples?.start) || !Number.isSafeInteger(samples?.end)) return null;
+	return <>{[
+		['start', samples.start],
+		['end', samples.end],
+	].map(([role, sample]) => (
+		<div
+			key={role}
+			className="audio-editor-trim-preview-guide"
+			data-slip-slide-trim-guide="true"
+			data-slip-slide-guide-role={role}
+			aria-hidden="true"
+			style={{
+				left: timelineTrimPreviewGuideLeft(
+					sample,
+					panelWidth,
+					pixelsPerSecond,
+					sampleRate,
+				),
+				height,
+			}}
+		/>
+	))}</>;
+}
+
 export function timelineTrimPreviewGuideLeft(sample, panelWidth, pixelsPerSecond, sampleRate) {
 	return panelWidth + CLIP_CONTENT_OFFSET
 		+ framesToSeconds(sample, { sampleRate }) * pixelsPerSecond;
