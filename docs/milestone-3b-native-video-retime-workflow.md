@@ -17,8 +17,11 @@ and 2 skipped; 90.00% statement and line coverage, 82.08% branch coverage, and
 and focused Chromium passed 4/4. Architecture passed with 896 modules, 2,486
 dependencies, and 1,975 maintained files. The build processed 1,180 modules
 and emitted 104 production JavaScript chunks; the largest, `aup4-worker`, was
-400,686 bytes. Packet 3B-5 remains **In progress**; the immediate pickup is
-**3B-5g — the contract-first deterministic FFmpeg feasibility gate**.
+400,686 bytes. Packet 3B-5 remains **In progress**. The immediate pickup is
+read-only review of the focused [3B-5g exact serialized export-intent
+contract](milestone-3b-video-retime-export-plan.md); only its backend-neutral
+3B-5g-a implementation becomes actionable after review. Exact execution in
+3B-5g-b is hard-stopped.
 
 ## Dependency audit and delivery rule
 
@@ -28,16 +31,19 @@ React position updates during GPU playback and drives one positive media
 `trim,setpts=(PTS-STARTPTS)/rate`. Neither represents reverse, freeze, or ramp;
 an FFmpeg branch/argument per safe-integer-sized output frame is unbounded.
 
-Delivery is therefore serialized as four dependency-correct packets:
+Delivery is therefore serialized as five dependency-correct packets:
 
 1. **3B-5e — exact frame dispatch:** exact CFR/VFR time plus a lazy all-mode dispatcher; no consumer.
 2. **3B-5f — dormant output/preview executor:** exact cadence and isolated imperative preview.
-3. **3B-5g — dormant deterministic export executor:** bounded plan/filter proof on pinned FFmpeg.
-4. **3B-5h — atomic native adoption:** authoring, maintained consumers, Framescaper capability/
+3. **3B-5g-a — dormant export intent:** bounded backend-neutral V6 intersection serialization.
+4. **3B-5g-b — exact executor feasibility:** hard-stopped until one backend proves the full oracle.
+5. **3B-5h — atomic native adoption:** authoring, maintained consumers, Framescaper capability/
    policy, menu-opened UI, and focused Chromium together.
 
-Packets 3B-5e through 3B-5g may add modules/tests, but no maintained path imports
-them. `videoRetime` stays false in both products/register until atomic 3B-5h.
+Packets 3B-5e through reviewed 3B-5g-a may add dormant modules/tests, but no
+maintained path imports them. 3B-5g-b adds no executor code while stopped, and
+3B-5h cannot begin partial adoption around it. `videoRetime` stays false in both
+products/register until an atomic 3B-5h can close every required consumer.
 
 ## 3B-5e — exact authenticated frame dispatch
 
@@ -174,35 +180,25 @@ for any mode. Fakes prove protocol/cancellation; an isolated focused Chromium
 fixture with real media proves CFR/VFR final-cell and reverse/freeze/ramp seeks.
 Nothing imports this executor from `VideoPreviewPanel.jsx` yet.
 
-## 3B-5g — dormant deterministic FFmpeg executor
+## 3B-5g — exact serialized intent, stopped executor
 
-This packet also starts contract-first. Plan V6 serializes 5f's canonical safe
-`outputRate: { num, den }` instead of V5's canvas Number, and adds per-clip
-`retime` with `outerFrameCount`, `sourceInFrame`, `sourceOutFrame`, and `segments`; each
-segment has `index`, `mode`, `startOuterCell`, `endOuterCell`, `sourceStart`,
-`sourceEnd`, `drawableStartTime`, `drawableEndTime`, and ramp velocities when
-applicable. Each exact value is `{ numerator, denominator }` using canonical
-signed/positive decimal strings. The closed plan contains no BigInt, function,
-NaN, raw timing index, or persisted cache.
+The focused [3B-5g contract](milestone-3b-video-retime-export-plan.md) is the
+sole authority for this split. After read-only review, 3B-5g-a may add one
+dormant `video-retime-export-intent` V6 serializer. It consumes global sample
+cadence, one captured sequence identity/rate, absolute-sample topology,
+canonical clips, and authenticated timing tokens. It emits only JSON-safe active
+mapping intersections: curve rows retain original segment coefficients, while
+persisted null uses a distinct exact wall-clock row and never the dispatcher.
+It is not project schema V17 or a complete video export plan and contains no
+format, codec, media, effect, audio, FFmpeg, filter, script, path, or argv claim.
 
-The builder stages one canonical UTF-8 `filter_complex_script` with stable
-labels/tokens. Hard ceilings are 64 video inputs, 16,384 active
-interval×clip×segment intersections, 4,194,304 script bytes, 2,000,000 output
-frames, and cumulative reverse buffering of both 131,072 decoded frames and
-536,870,912 conservative RGBA bytes. Checked admission precedes source loading
-and FFmpeg; script work/storage is O(intersections), never O(output frames).
-
-For every output `j` and active clip, the decoded pre-effect picture ordinal
-must equal `dispatchOuterCell(localCell(j)).drawableSourceFrame` from 5f.
-V6 `outputRate` owns that exact output count and `localCell(j)` calculation.
-Forward/reverse endpoint selection, freeze cloning, ramp, and `fps` ties must
-implement that equation exactly. A terminal FFmpeg `sqrt` from exact serialized
-coefficients is only a candidate: adversarial rational, zero-velocity, CFR/VFR
-final-duration fixtures must prove every ordinal on the pinned runtime for both
-MP4 and WebM. Propagate cancellation/currentness and retain transitions,
-effects, and staged audio. Stop before code if the representation cannot prove
-the oracle, cumulative reverse bounds, or needs epsilon, sampled integration,
-per-frame branches/arrays, or constant-rate fallback.
+3B-5g-b is hard-stopped. The pinned FFmpeg expression and rate/time-base paths
+cannot represent the complete admitted exact V16 domain, so the all-mode
+ordinal equation cannot presently be proved without a narrower reviewed domain,
+an exact backend, or forbidden per-output scheduling. Do not implement an
+executor or browser export oracle while that stop holds. Consequently 3B-5h's
+maintained export adoption also remains blocked; no other consumer may be
+adopted early to route around it.
 
 ## 3B-5h — one atomic maintained workflow
 

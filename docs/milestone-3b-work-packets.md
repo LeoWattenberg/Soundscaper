@@ -277,10 +277,18 @@ modules and emitted 104 JavaScript chunks with a 400,686-byte largest chunk.
 The focused Node cadence/executor suite passed 23/23 and focused Chromium
 passed 4/4, including the unequal final VFR interval. No maintained path
 imports this dormant family and there is no capability flip. Packet 3B-5
-remains in progress; the immediate pickup is **3B-5g's contract-first
-deterministic FFmpeg feasibility gate**. Export implementation must stop until
-the exact all-mode ordinal equation, cumulative bounds, and pinned MP4/WebM
-proof are closed.
+remains in progress.
+
+The drafted sixth slice is
+[3B-5g — exact serialized video-retime export intent](milestone-3b-video-retime-export-plan.md).
+It splits backend-neutral work from the failed execution assumption: 3B-5g-a
+may implement one dormant, JSON-safe, intersection-bounded V6 intent only after
+read-only contract review, while 3B-5g-b exact execution is hard-stopped because
+the pinned FFmpeg Number/rational paths cannot prove the complete admitted V16
+ordinal domain. The immediate pickup is review, then 3B-5g-a strict red; no
+FFmpeg/filter/argv/browser-export work, maintained consumer, or capability flip
+is authorized. 3B-5h export adoption remains blocked with 3B-5g-b rather than
+partially routing other consumers around it.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time

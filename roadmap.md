@@ -486,9 +486,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   [native retime dispatch](docs/milestone-3b-native-video-retime-workflow.md),
   and [dormant exact output cadence and isolated preview
   execution](docs/milestone-3b-video-retime-output-preview.md) are implemented.
-  The immediate pickup is 3B-5g's contract-first deterministic export
-  feasibility gate; maintained retime workflows, nested sequences, subsequence
-  time mapping, and deterministic flattening remain later slices.
+  The immediate pickup is review, then the dormant backend-neutral intent in
+  [3B-5g's split export contract](docs/milestone-3b-video-retime-export-plan.md).
+  Its exact executor half is hard-stopped; maintained retime workflows, nested
+  sequences, subsequence time mapping, and flattening remain later slices.
 - **Web Core — Planned:** proxy attachment, adaptive preview, offline/relink, and
   synchronized multicamera groups.
 
