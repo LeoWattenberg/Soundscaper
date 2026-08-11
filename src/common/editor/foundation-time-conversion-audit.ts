@@ -270,6 +270,16 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'frame-canonical-edge-trim-planning',
+		file: 'src/common/editor/frame-canonical-edge-trim-planner.ts',
+		behavior: 'A video-bearing edge trim conforms one absolute requested boundary to the sequence grid, maps every source boundary with exact point rounding, and resolves candidate video endpoints from the absolute origin.',
+		conversions: [
+			{ helper: 'roundRational', policies: ['point'] },
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
+	},
+	{
 		id: 'runtime-clip-projection',
 		file: 'src/common/editor/runtime-clip-projection.ts',
 		behavior: 'Single clips resolve musical points directly, while whole-project musical coordinates share the same exact point semantics through one indexed map; sequence-frame boundaries remain nearest sample points.',

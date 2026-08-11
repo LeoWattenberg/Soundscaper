@@ -170,6 +170,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'Timeline annotation clipboard copy and paste restore authoritative coordinates and stage a complete projected command result; they are edit adapters rather than runtime consumers.',
 	},
 	{
+		file: 'src/common/editor/frame-canonical-edge-trim-planner.ts',
+		reason: 'The edge-trim command adapter requires an already-branded projection while planning authoritative frame-grid mutations; it does not create or consume a runtime playback projection.',
+	},
+	{
 		file: 'src/common/editor/project-feature-requirements.ts',
 		reason: 'Owned feature-declaration reconciliation resolves a fallback target duration while validating persisted requirements.',
 	},
