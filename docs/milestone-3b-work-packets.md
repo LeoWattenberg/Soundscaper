@@ -156,7 +156,7 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
-The delivered first five slices are
+The delivered first six slices are
 [3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
 session-only J/K/L shuttle and strict previous/next video edit-point navigation
 through the existing Transport menu and Framescaper workspace keys; and
@@ -173,14 +173,16 @@ implemented in commit `8de72ca` on 2026-08-11; and
 one atomic V15 revision for required audio/video/label track locks, low-level
 direct and nested command enforcement, shared Tracks-menu Lock/Unlock
 reachability, and lock-aware frame trim and edit-point navigation, implemented
-in commit `86496f4` on 2026-08-11. The canonical gate is green with 5,091 tests
-total, 5,089 passed and 2 skipped, 91.34% statement and line coverage, 79.93%
-branch coverage, 90.45% function coverage, and a 388,318-byte largest production
-JavaScript chunk; focused Chromium track-lock coverage passed 2/2, and policy
-sync/repin checks were green. Packet 3B-4 remains in progress. Its current
-bounded slice is
-[3B-4b5 — frame-canonical roll and ripple trim](milestone-3b-roll-ripple-trim.md).
-The immediate planned pickup after that slice closes is
+in commit `86496f4` on 2026-08-11; and
+[3B-4b5 — frame-canonical roll and ripple trim](milestone-3b-roll-ripple-trim.md):
+one frame-canonical authority for roll and lane-ripple planning, atomic command
+and history, persisted-lock refusal, lazy Framescaper menu state, existing-handle
+modifier routing, complete previews, and localized feedback, delivered through
+commit `47a0be9` on 2026-08-11. The canonical gate passed with 5,146 tests total,
+5,144 passed and 2 skipped, 90.09% statement and line coverage, 81.91% branch
+coverage, 90.46% function coverage, and a 388,318-byte largest production
+JavaScript chunk; focused Chromium NTSC roll/ripple coverage passed 1/1. Packet
+3B-4 remains in progress. Its immediate planned pickup is
 [3B-4b6 — frame-canonical slip and slide](milestone-3b-slip-slide.md), followed
 by uniform rate-stretch and the remaining keyboard-complete trim feedback.
 

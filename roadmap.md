@@ -444,19 +444,20 @@ Packet boundaries, dependencies, and acceptance are owned by
   one-step undoable. Exact-current V15 track locks now persist across both
   products and desktop storage, centrally refuse direct or nested changes to
   protected editorial state, drive shared Tracks-menu Lock/Unlock, and make
-  trim/navigation consume live lock facts. Packet 3B-4 stays in progress. Its
-  immediate next slice is frame-canonical roll and lane-ripple trim; slip/slide,
-  uniform rate-stretch, and the remaining keyboard-complete trim feedback
-  follow. See
-  [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md)
-  and
+  trim/navigation consume live lock facts. Frame-canonical roll and lane-ripple
+  trim is implemented through `47a0be9`: one planner owns linked integer/NTSC
+  geometry, lock-aware clamping, complete previews, and the atomic command used
+  by the lazy menu and modified existing handles. Packet 3B-4 stays in progress.
+  Its immediate next slice is frame-canonical slip/slide, followed by uniform
+  rate-stretch and the remaining keyboard-complete trim feedback. See
+  [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md),
   [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
   [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),
-  and
   [`docs/milestone-3b-frame-canonical-edge-trim-integration.md`](docs/milestone-3b-frame-canonical-edge-trim-integration.md),
   [`docs/milestone-3b-track-locking.md`](docs/milestone-3b-track-locking.md),
+  [`docs/milestone-3b-roll-ripple-trim.md`](docs/milestone-3b-roll-ripple-trim.md),
   and
-  [`docs/milestone-3b-roll-ripple-trim.md`](docs/milestone-3b-roll-ripple-trim.md).
+  [`docs/milestone-3b-slip-slide.md`](docs/milestone-3b-slip-slide.md).
 - **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
   shared breakpoint model, reverse/freeze frames, nested sequences,
   subsequence time mapping, and deterministic flattening.

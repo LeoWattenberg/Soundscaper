@@ -1,11 +1,12 @@
 # Milestone 3B-4b5: frame-canonical roll and ripple trim
 
-> **Planned immediate pickup:** bounded Framescaper slice after
+> **Implemented:** delivered through commit `47a0be9` on 2026-08-11, after
 > [3B-4b4 — persisted track locking and central enforcement](milestone-3b-track-locking.md).
-> It adds video-bearing roll and track-ripple trim through one pure planning
-> authority, one atomic transform command, the existing application menu, and
-> the existing timeline handles. It does not add a default-visible control or
-> mark packet 3B-4 complete.
+> This slice adds video-bearing roll and track-ripple trim through one pure
+> planning authority, one atomic transform command, the existing application
+> menu, and the existing timeline handles. It does not add a default-visible
+> control or mark packet 3B-4 complete; the immediate pickup is
+> [3B-4b6 — frame-canonical slip and slide](milestone-3b-slip-slide.md).
 
 ## Foundation already present
 
@@ -209,24 +210,16 @@ do not ripple in this slice.
   and file-size checks, canonical non-browser gate, build, and Chromium pass
   before implementation is recorded.
 
-## Exact first TDD seam and expected ownership
+## Recorded evidence
 
-1. Add `tests/audio-editor-frame-canonical-roll-ripple-trim-planner.test.ts`
-   first. Its initial red table covers one touching NTSC video/A-V roll, right
-   ripple, left-ripple anchored placement, frozen output, and locked refusal
-   against an unchanged branded command projection.
-2. Implement focused strict modules
-   `frame-canonical-roll-ripple-trim-domain.ts` and
-   `frame-canonical-roll-ripple-trim-planner.ts`. Extract narrowly reusable
-   exact mapping/index helpers from the existing edge planner instead of copying
-   rational, link-phase, composition, or validation authority. Keep each new
-   maintained file below 600 lines and register every new time-conversion site.
-3. Add a focused controller service/reporter and command/undo tests, then a
-   Framescaper menu model and extracted pointer-routing adapter. Compose through
-   narrow app/action/menu/copy changes; do not grow the action facade with
-   arithmetic or add a style/default-visible component.
-4. Add focused UI and Chromium proof, run the gates, then update packet status in
-   a separate owning change.
+- Delivery through commit `47a0be9` includes the pure planner, exact canonical
+  command boundary, controller and feedback, lazy menu state, pointer preview,
+  localized status, and focused browser workflow.
+- `npm run check` passed with 5,146 tests total, 5,144 passed and 2 skipped;
+  coverage was 90.09% statements and lines, 81.91% branches, and 90.46%
+  functions.
+- The production build guard passed with the largest JavaScript chunk at
+  388,318 bytes. Focused Chromium NTSC roll/ripple coverage passed 1/1.
 
 ## Non-goals
 
