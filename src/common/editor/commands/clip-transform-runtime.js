@@ -37,6 +37,7 @@ import { applyCanonicalVideoTransformPlacement } from './canonical-video-transfo
 // foundation-edit-matrix: roll
 // foundation-edit-matrix: slip
 // foundation-edit-matrix: slide
+// foundation-edit-matrix: rate-stretch
 
 /**
  * Prepares an atomic transform for selected/grouped clips. When overwrite is

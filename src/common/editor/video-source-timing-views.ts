@@ -7,8 +7,8 @@ import {
 	positiveSafeInteger,
 	type FrameTrimDataRecord,
 } from './frame-canonical-edge-trim-domain.ts';
-import type { VideoSourceTimingView } from './frame-canonical-slip-slide-domain.ts';
 import { registeredVideoTimingIndex } from './video-source-time.ts';
+import type { VideoSourceTimingView } from './video-source-timing-view.ts';
 import {
 	isVideoTimingIndexVerifiedForReference,
 	type VideoTimingAssetReference,

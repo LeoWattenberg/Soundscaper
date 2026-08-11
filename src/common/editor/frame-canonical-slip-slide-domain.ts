@@ -5,21 +5,11 @@ import type {
 	FrameCanonicalEdgeTrimTransform,
 	FrameCanonicalTrackLockPredicate,
 } from './frame-canonical-edge-trim-domain.ts';
-import type { RationalRate } from './timeline-time.ts';
-import type { VideoTimingAssetReference, VideoTimingIndex } from './video-timing-asset.ts';
+
+export type { VideoSourceTimingView } from './video-source-timing-view.ts';
 
 export type FrameCanonicalSlipSlideMode = 'slip' | 'slide';
 export type FrameCanonicalSlipSlideRole = 'left' | 'center' | 'right';
-
-export type VideoSourceTimingView = Readonly<{
-	readonly kind: 'cfr';
-	readonly rate: RationalRate;
-	readonly frameCount: number;
-}> | Readonly<{
-	readonly kind: 'vfr';
-	readonly reference: Readonly<VideoTimingAssetReference>;
-	readonly index: VideoTimingIndex;
-}>;
 
 interface FrameCanonicalSlipSlideRequestBase {
 	readonly activeClipId: string;

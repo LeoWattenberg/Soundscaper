@@ -17,6 +17,7 @@ presentation endpoints; they do not persist duplicated cross-domain timing.
 | Roll | Shared edit point | One frame boundary | Use the same resolved boundary |
 | Slip | Source-domain delta | Integer source frame/PTS | Independent audio source samples |
 | Slide | Center-clip move | One frame delta, fixed outer edges | Recompute shared endpoints |
+| Rate stretch | Absolute moving edge | Point-scale one canonical frame count; source range stays fixed | Recompute from the companion video endpoints |
 | Split | Absolute boundary | One frame boundary | Split at resolved video boundary |
 | Paste | One destination anchor | Endpoint conversion in frame space | Recompute pasted linked pair |
 | Duplicate | Paste at selection end | Same as paste | Same as paste |

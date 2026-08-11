@@ -318,10 +318,20 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
 	},
 	{
-		id: 'frame-canonical-slip-source-timing',
-		file: 'src/common/editor/frame-canonical-slip-slide-timing.ts',
+		id: 'verified-video-source-timing',
+		file: 'src/common/editor/video-source-timing-view.ts',
 		behavior: 'Verified CFR and VFR source evidence maps exact absolute source times to nearest source-grid points without timeline-domain accumulation.',
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
+		id: 'frame-canonical-rate-stretch-planning',
+		file: 'src/common/editor/frame-canonical-rate-stretch-planner.ts',
+		behavior: 'Uniform rate stretch conforms one absolute requested sequence edge, point-scales every immutable extent once, and resolves applied program endpoints from absolute sequence frames.',
+		conversions: [
+			{ helper: 'roundRational', policies: ['point'] },
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
 	},
 	{
 		id: 'frame-canonical-trim-participant-planning',
