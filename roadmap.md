@@ -34,8 +34,16 @@ owning source of truth:
   [milestone-2 closure inventory](config/milestone-2-closure.json);
 - milestone-3 sequencing, time-model decisions, and work packets:
   [milestone-3 plan](docs/milestone-3-plan.md);
+- milestone-4 sequencing, automation/keyframe and mixer-graph decisions,
+  and work packets: [milestone-4 plan](docs/milestone-4-plan.md);
+- milestone-5 sequencing, helper-contract and plug-in/codec decisions,
+  and work packets: [milestone-5 plan](docs/milestone-5-plan.md);
+- milestone-6 sequencing, delivery-model and interchange decisions, and
+  work packets: [milestone-6 plan](docs/milestone-6-plan.md);
 - milestone-7 sequencing, runtime and model-catalog decisions, and work
   packets: [milestone-7 plan](docs/milestone-7-plan.md);
+- milestone-9 sequencing, qualification-campaign decisions, and work
+  packets: [milestone-9 plan](docs/milestone-9-plan.md);
 - performance fixtures and numeric qualification:
   [quality budgets](docs/quality-budgets.md) and
   [machine-readable budgets](config/quality-budgets.json);
@@ -471,11 +479,11 @@ Packet boundaries, dependencies, and acceptance are owned by
   and
   [`docs/milestone-3b-canonical-trim-keyboard.md`](docs/milestone-3b-canonical-trim-keyboard.md).
 - **Shared / Web Core — In progress:** the exact schema-neutral retime curve
-  algebra and [V16 persistence and preservation](docs/milestone-3b-video-retime-v16.md)
-  are implemented. The immediate pickup is the reviewed
-  [exact clip-bound runtime mapping](docs/milestone-3b-video-retime-runtime-mapping.md);
-  maintained retime workflows, nested sequences, subsequence time mapping, and
-  deterministic flattening remain later slices.
+  algebra, [V16 persistence and preservation](docs/milestone-3b-video-retime-v16.md),
+  and [exact clip-bound runtime mapping](docs/milestone-3b-video-retime-runtime-mapping.md)
+  are implemented. The immediate pickup is 3B-5d native retime workflow
+  contract and decomposition; maintained retime workflows, nested sequences,
+  subsequence time mapping, and deterministic flattening remain later slices.
 - **Web Core — Planned:** proxy attachment, adaptive preview, offline/relink, and
   synchronized multicamera groups.
 
@@ -508,6 +516,10 @@ Packet boundaries, dependencies, and acceptance are owned by
 
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
+
+Sequencing, the automation/keyframe and mixer-graph decisions, their
+invariants, and the bounded work packets are owned by the
+[milestone-4 plan](docs/milestone-4-plan.md).
 
 ### Soundscaper track
 
@@ -570,6 +582,10 @@ integration waits for the owning shared contract.
 **Goal:** make Electron materially more capable without weakening the renderer
 sandbox or creating a second editor engine.
 
+Sequencing, the helper-contract and plug-in/codec decisions, their
+invariants, and the bounded work packets are owned by the
+[milestone-5 plan](docs/milestone-5-plan.md).
+
 ### Native service architecture
 
 - **Electron Enhanced — Planned:** versioned media, audio-device, render, and
@@ -624,6 +640,10 @@ sandbox or creating a second editor engine.
 
 **Goal:** produce reproducible masters, exchanges, archives, and batches without
 hidden conversions.
+
+Sequencing, the delivery-model and interchange decisions, their
+invariants, and the bounded work packets are owned by the
+[milestone-6 plan](docs/milestone-6-plan.md).
 
 ### Soundscaper delivery
 
@@ -801,6 +821,9 @@ invent an interim Soundscaper-only design.
 **Depends on:** milestones 1–6 and both milestone-8 sub-phases.
 
 **Goal:** qualify the complete products as coherent systems.
+
+Sequencing, the qualification-campaign decisions, and the bounded work
+packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md).
 
 - **Shared — Planned:** every migration retained from the first shipped release
 	through current save/reopen, plus future-schema read-only and opaque-state
