@@ -321,7 +321,9 @@ export function ProjectToolbar({
     >
       <div className="project-toolbar__left" role="group" aria-label="Main menu">
         <Tab
-          ref={(el) => (leftGroupRef.current[0] = el)}
+          ref={(el) => {
+              leftGroupRef.current[0] = el;
+            }}
           label="Home"
           isActive={activeItem === 'home'}
           onClick={() => onMenuItemClick?.('home')}
@@ -331,7 +333,9 @@ export function ProjectToolbar({
           onBlur={homeTab.onBlur}
         />
         <Tab
-          ref={(el) => (leftGroupRef.current[1] = el)}
+          ref={(el) => {
+              leftGroupRef.current[1] = el;
+            }}
           label="Project"
           isActive={activeItem === 'project'}
           onClick={() => onMenuItemClick?.('project')}
@@ -341,7 +345,9 @@ export function ProjectToolbar({
           onBlur={projectTab.onBlur}
         />
         <Tab
-          ref={(el) => (leftGroupRef.current[2] = el)}
+          ref={(el) => {
+              leftGroupRef.current[2] = el;
+            }}
           label="Export"
           isActive={activeItem === 'export'}
           onClick={() => onMenuItemClick?.('export')}
@@ -352,7 +358,9 @@ export function ProjectToolbar({
         />
         {showDebugMenu && (
           <Tab
-            ref={(el) => (leftGroupRef.current[3] = el)}
+            ref={(el) => {
+              leftGroupRef.current[3] = el;
+            }}
             label="Debug"
             isActive={activeItem === 'debug'}
             onClick={() => onMenuItemClick?.('debug')}

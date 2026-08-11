@@ -11,7 +11,7 @@ import './CustomScrollbar.css';
 
 export interface CustomScrollbarProps {
   /** Ref to the scrollable content container */
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
   /** Width of the scrollbar track */
   width?: number;
   /** Height of the scrollbar track */

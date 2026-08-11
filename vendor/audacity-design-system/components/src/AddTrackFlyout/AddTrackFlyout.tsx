@@ -49,7 +49,7 @@ export interface AddTrackFlyoutProps {
   /**
    * Ref to the trigger button (for focus restoration)
    */
-  triggerRef?: React.RefObject<HTMLElement>;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 
   /**
    * Optional CSS class name

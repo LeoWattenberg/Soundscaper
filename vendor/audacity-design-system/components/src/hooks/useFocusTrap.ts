@@ -5,7 +5,7 @@ import { useEffect, RefObject } from 'react';
  * Ensures Tab navigation stays within the container
  */
 export function useFocusTrap(
-  containerRef: RefObject<HTMLElement>,
+  containerRef: RefObject<HTMLElement | null>,
   isActive: boolean = true
 ) {
   useEffect(() => {

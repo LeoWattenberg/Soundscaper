@@ -188,7 +188,9 @@ export const VerticalRulerPanel: React.FC<VerticalRulerPanelProps> = ({
           <React.Fragment key={track.id}>
             {/* Track ruler */}
             <div
-              ref={(el) => (trackRefs.current[index] = el)}
+              ref={(el) => {
+              trackRefs.current[index] = el;
+            }}
               className={`vertical-ruler-panel__track ${
                 track.focused ? 'vertical-ruler-panel__track--focused' : ''
               } ${track.containerFocused ? 'vertical-ruler-panel__track--container-focused' : ''}`}
