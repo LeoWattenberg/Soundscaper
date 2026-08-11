@@ -1,11 +1,20 @@
 # Milestone 3B-5c: exact clip-bound video-retime runtime mapping
 
-> **Planned bounded pickup after 3B-5b:** bind the exact V2 algebra from
-> [3B-5a](milestone-3b-exact-video-retime-algebra.md) to the persisted V16 clip
-> wire from [3B-5b](milestone-3b-video-retime-v16.md), without adopting it in a
-> maintained workflow. This slice starts only after the atomic V16 revision
-> lands. It adds no schema, capability, command, menu, UI, playback, preview,
-> export, archive, desktop-library, policy, or browser change.
+> **Status: Implemented on 2026-08-11.** Commit `e826691f` binds the exact V2
+> algebra from [3B-5a](milestone-3b-exact-video-retime-algebra.md) to the
+> persisted V16 clip wire from [3B-5b](milestone-3b-video-retime-v16.md),
+> without adopting it in a maintained workflow. It adds no schema, capability,
+> command, menu, UI, playback, preview, export, archive, desktop-library,
+> policy, or browser change.
+
+The canonical `npm run check` gate passed with 5,322 tests total, 5,320 passed
+and 2 skipped; 90.15% statement and line coverage, 82.09% branch coverage, and
+90.70% function coverage. Architecture passed with 892 modules, 2,483
+dependencies, and 1,965 maintained files. The build emitted 104 production
+JavaScript chunks; the largest, `aup4-worker`, was 400,686 bytes. No browser row
+was required because no maintained consumer uses this seam. Packet 3B-5 remains
+**In progress**; the immediate pickup is **3B-5d — native retime workflow
+contract and decomposition**.
 
 ## Outcome boundary
 

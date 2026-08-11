@@ -241,11 +241,20 @@ branch, and 90.69% function coverage. Architecture passed with 891 modules,
 JavaScript chunks with `aup4-worker` largest at 400,636 bytes. Focused Chromium
 V16 retime compatibility passed 1/1. Packet 3B-5 remains in progress.
 
-The immediate reviewed follow-up is
+The delivered third slice is
 [3B-5c — exact clip-bound video-retime runtime mapping](milestone-3b-video-retime-runtime-mapping.md):
 one schema-neutral runtime seam for exact forward mapping, inverse occurrences,
 and breakpoint partitions before any maintained retime consumer or capability
-availability change.
+availability change, implemented in `e826691f` on 2026-08-11. Its canonical
+gate passed with 5,322 tests total (5,320 passed, 2 skipped), 90.15%
+statement/line, 82.09% branch, and 90.70% function coverage. Architecture
+passed with 892 modules, 2,483 dependencies, and 1,965 maintained files; the
+build emitted 104 JavaScript chunks with `aup4-worker` largest at 400,686 bytes.
+No browser row was required because no maintained consumer uses the seam.
+Packet 3B-5 remains in progress.
+
+The immediate pickup is **3B-5d — native retime workflow contract and
+decomposition**.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time
