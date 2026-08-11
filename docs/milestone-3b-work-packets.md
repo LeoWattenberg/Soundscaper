@@ -190,8 +190,9 @@ function coverage, and a 388,318-byte largest production JavaScript chunk;
 focused Chromium exact-timing slip/slide coverage passed 1/1. Packet 3B-4
 remains in progress. Its immediate planned pickup is
 [3B-4b7 — frame-canonical uniform rate-stretch](milestone-3b-uniform-rate-stretch.md),
-followed by a narrow canonical keyboard adapter/status-parity slice for the
-remaining clip-focus trim and stretch callbacks.
+followed by
+[3B-4b8 — canonical clip-focus trim keyboard parity](milestone-3b-canonical-trim-keyboard.md)
+for the remaining clip-focus trim and stretch callbacks.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
