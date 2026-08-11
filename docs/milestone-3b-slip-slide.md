@@ -135,8 +135,11 @@ move keep their current behavior.
    possible one-sample NTSC phase difference, then maps a changed audio source
    edge from its own immutable range. Other audio centers move by the authority
    start's resolved sample delta with fixed duration; their neighbors meet those
-   lane-local endpoints. Existing audio trim accounting and fade clamps apply;
-   no global sample alias overrides a linked companion.
+   lane-local endpoints. A linked center anchors a lane with unlinked neighbors;
+   an unlinked center with any linked neighbor refuses before candidate search,
+   because unlike NTSC phases need not share one sample delta. Existing audio
+   trim accounting and fade clamps apply; no global sample alias overrides a
+   linked companion.
 5. **One common legal `d` controls every triplet.** Preflight exact touching
    structure, then intersect timeline-origin, positive-neighbor-extent,
    source-handle, safe-integer, relation, and lock bounds. Search toward zero as
