@@ -430,9 +430,15 @@ Packet boundaries, dependencies, and acceptance are owned by
   replace stands new media in for what is on air without moving it or changing
   its length. Four points that disagree are refused rather than fitted, because
   fitting one to the other is a speed change and retiming is not in this packet.
-- **Web Core — Planned:** J/K/L shuttle, edit-point navigation,
-  roll/ripple/slip/slide/rate-stretch tools, track lock, visibility, linked-audio
-  controls, and keyboard-complete trim feedback.
+- **Web Core — In progress:** session-only J/K/L shuttle and strict
+  previous/next video edit-point navigation are implemented on the program
+  playhead. Both are reachable through the existing Transport menu and the
+  Framescaper workspace keys, shuttle positions stay on exact sequence-frame
+  boundaries, and reverse uses descending scrub feedback without persisting
+  reversed media. The remaining 3B-4b work is roll/ripple/slip/slide and
+  rate-stretch tools, track lock and visibility, linked-audio controls, and
+  keyboard-complete trim feedback. See
+  [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md).
 - **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
   shared breakpoint model, reverse/freeze frames, nested sequences,
   subsequence time mapping, and deterministic flattening.

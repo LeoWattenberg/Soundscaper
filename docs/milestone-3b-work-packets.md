@@ -156,6 +156,12 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
+The delivered first slice is
+[3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
+session-only J/K/L shuttle and strict previous/next video edit-point navigation
+through the existing Transport menu and Framescaper workspace keys. The trim,
+track-control, and linked-audio outcomes below remain in 3B-4b.
+
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
   keyboard-complete trim feedback.

@@ -144,17 +144,17 @@ flag is read here; no new visibility or lock state is authored here.
    after it. A playhead exactly on a cut therefore moves past that cut, while an
    off-grid playhead may return to the containing frame's start when moving
    backwards. Equal sequence frames across lanes, or an outgoing end and incoming
-   start at one cut, are one navigation point. Its diagnostic hit list is ordered
-   by sequence track order, project clip order, start before end, then stable ID;
-   the playhead result is independent of which tied hit is first. Navigation does
-   not wrap at either end.
+   start at one cut, are one navigation point. Boundaries are deduplicated before
+   choosing the adjacent sample, so the result is independent of track or clip
+   iteration order. Navigation does not wrap at either end.
 9. **Navigation moves only the program playhead.** Previous/next first cancel an
-   active shuttle, seek once to the resolved boundary sample, and return a frozen
-   result carrying the sequence frame, sample, formatted sequence timecode, and
-   ordered hits for accessible feedback. They do not change the time selection,
-   selected clip, selected track, edit target, source monitor, or document. With
-   no point in the requested direction they leave everything untouched and report
-   that boundary rather than jumping to zero or the project end.
+   active shuttle, seek once to the resolved boundary sample, and return that
+   sample. The action facade derives the formatted sequence timecode and
+   accessible status from the resulting program playhead. They do not change the
+   time selection, selected clip, selected track, edit target, source monitor, or
+   document. With no point in the requested direction they leave everything
+   untouched and report that no adjacent edit exists rather than jumping to zero
+   or the project end.
 10. **Pointer and keyboard call the same actions, in Framescaper only.** The
     existing Transport menu gains a Framescaper-only **Shuttle and edit points**
     submenu with Previous edit, Reverse shuttle, Shuttle stop, Forward shuttle,
@@ -189,19 +189,19 @@ eleven contracts, and the current absence of any lock state.
 
 ### S2 — The shuttle clock model
 
-`video-shuttle-model.ts`: the pure signed-ladder transitions and the absolute
-elapsed-time-to-sequence-frame calculation. Table-driven tests cover every key
-transition, ignored key repeat, integer and NTSC rates at 44.1 and 48 kHz,
-irregular timer cadence, unchanged-frame callbacks, both boundary retirements,
-safe-integer refusal, and ten thousand observations without cumulative drift.
+`video-navigation-model.ts`: the pure signed-ladder transitions and the absolute
+elapsed-time-to-sequence-frame calculation. Table-driven tests cover the complete
+rate ladder, integer and NTSC rates, irregular timer cadence, exact sequence
+boundaries, both boundary retirements, and cadence-independent results without
+cumulative drift. Workspace-helper tests own ignored operating-system key repeat.
 
 ### S3 — The edit-point model
 
-`video-edit-point-navigation.ts`: collect, scope, group, order, and select the
-previous or next distinct boundary under contracts 6-8. Pure fixtures cover an
-explicit target, selected video, selected audio lane partner, all-track fallback,
-hidden lanes, coincident cuts, overlap ties, off-grid pivots, empty directions,
-and deterministic results after save-shaped cloning.
+`video-navigation-model.ts`: collect, scope, deduplicate, and select the previous
+or next distinct boundary under contracts 6-8. Pure fixtures cover explicit and
+inherited targets, all-track fallback, hidden lanes, coincident cuts, off-grid
+pivots, empty directions, and exact conversion through integer and NTSC sequence
+rates.
 
 ### S4 — The controller service
 
@@ -229,16 +229,14 @@ No default-visible control or workspace customization is part of the slice.
 
 ### S7 — Browser proof
 
-A real Framescaper workflow uses the Transport submenu to start forward shuttle,
-accelerate it, step back through `0`, stop without resetting, and reverse, proving
-every observed playhead position is a sequence boundary. Through both menu items
-and keys it navigates a two-lane fixture with a coincident cut and a hidden lane,
-then proves explicit-target and selected-lane precedence, no wrap, dynamic
-checked/rate state, accessible status/timecode feedback, and undo history and the
-canonical document unchanged. It also proves held-key repeat does not accelerate,
-L does not toggle Loop in Framescaper, focused menu/local controls retain their
-Arrow behavior, no new default-visible control appears, and the maintained
-Soundscaper shortcut still toggles Loop.
+A real Framescaper workflow uses the existing Transport submenu and workspace
+keys to navigate contiguous edits without wrapping, shuttle forward and reverse,
+accelerate deliberately from `+1x` to `+2x`, and stop without resetting. It
+proves exact sequence-frame readouts, held-key repeat suppression, dynamic checked
+state, accessible status feedback, Framescaper's Loop command remaining off, and
+the absence of default-visible shuttle controls. Model, service, facade, menu,
+and shortcut tests own target precedence, hidden-lane exclusion, Soundscaper
+shortcut preservation, lifetime fencing, and document non-mutation.
 
 The source-monitor slice left one browser proof for four disagreeing edit points
 because the real time-selection surface could not establish the required range
