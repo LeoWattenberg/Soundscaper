@@ -545,18 +545,8 @@ function drawMinutesAndSeconds(
   const midHeight = height / 2;
 
   // Determine major interval based on zoom level
-  let majorInterval = 1; // seconds
-  if (pixelsPerSecond < 20) {
-    majorInterval = 10;
-  } else if (pixelsPerSecond < 50) {
-    majorInterval = 5;
-  } else if (pixelsPerSecond < 100) {
-    majorInterval = 2;
-  } else if (pixelsPerSecond < 200) {
-    majorInterval = 1;
-  } else {
-    majorInterval = 0.5;
-  }
+  const majorInterval = getTimelineMajorInterval(pixelsPerSecond);
+  const decimalPlaces = getDecimalPlaces(majorInterval);
 
   // Minor interval is 1/5 of major interval
   const minorInterval = majorInterval / 5;
@@ -624,7 +614,7 @@ function drawMinutesAndSeconds(
 
     if (x < CLIP_CONTENT_OFFSET || x > width) continue;
 
-    const label = formatTime(roundedTime);
+    const label = formatTime(roundedTime, decimalPlaces);
     // Position label in top section, left-aligned to tick mark
     const textY = midHeight / 2 + 4; // Center in top half
     ctx.fillText(label, x + 4, textY); // 4px offset from tick for spacing
@@ -773,10 +763,27 @@ function drawBeatsAndMeasures(
   }
 }
 
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
+function getTimelineMajorInterval(pixelsPerSecond: number): number {
+  if (pixelsPerSecond < 20) return 10;
+  if (pixelsPerSecond < 50) return 5;
+  if (pixelsPerSecond < 100) return 2;
+  if (pixelsPerSecond < 200) return 1;
+  if (pixelsPerSecond < 500) return 0.5;
+  if (pixelsPerSecond < 1000) return 0.2;
+  if (pixelsPerSecond < 2000) return 0.1;
+  if (pixelsPerSecond < 5000) return 0.05;
+  if (pixelsPerSecond < 10000) return 0.02;
+  return 0.01;
+}
 
-  // Always format as m:ss
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+function getDecimalPlaces(value: number): number {
+  return Math.max(0, Math.ceil(-Math.log10(value)));
+}
+
+function formatTime(seconds: number, decimalPlaces = 0): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = (seconds % 60).toFixed(decimalPlaces);
+
+  // Format as m:ss, with fractional seconds (m:ss.f…) at sub-second intervals
+  return `${mins}:${secs.padStart(2 + (decimalPlaces > 0 ? decimalPlaces + 1 : 0), '0')}`;
 }
