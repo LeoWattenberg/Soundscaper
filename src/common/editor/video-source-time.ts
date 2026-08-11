@@ -3,7 +3,7 @@
 export const VIDEO_THUMBNAIL_BASE_INTERVAL_SECONDS = 5;
 export const VIDEO_THUMBNAIL_MINIMUM_SPACING_PIXELS = 80;
 
-interface RuntimeVideoTimingIndex {
+export interface RuntimeVideoTimingIndex {
 	readonly encoding?: string;
 	readonly timescale: number;
 	readonly frameCount: number;
@@ -88,6 +88,11 @@ export function unregisterVideoTimingIndex(sourceValue: unknown): void {
 	const key = videoTimingKey(record(sourceValue, 'source'));
 	VIDEO_TIMING_INDEXES.delete(key);
 	VIDEO_TIMING_LEASES.delete(key);
+}
+
+/** Read the exact active registry object without copying or re-validating its timing payload. */
+export function registeredVideoTimingIndex(sourceValue: unknown): RuntimeVideoTimingIndex | undefined {
+	return VIDEO_TIMING_INDEXES.get(videoTimingKey(record(sourceValue, 'source')));
 }
 
 /** Compare the active source range with the timeline range in wall-clock time. */
