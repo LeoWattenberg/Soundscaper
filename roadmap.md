@@ -435,10 +435,14 @@ Packet boundaries, dependencies, and acceptance are owned by
   playhead. Both are reachable through the existing Transport menu and the
   Framescaper workspace keys, shuttle positions stay on exact sequence-frame
   boundaries, and reverse uses descending scrub feedback without persisting
-  reversed media. The remaining 3B-4b work is roll/ripple/slip/slide and
-  rate-stretch tools, track lock and visibility, linked-audio controls, and
-  keyboard-complete trim feedback. See
-  [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md).
+  reversed media. Framescaper now also exposes the existing exact timeline A/V
+  Link/Unlink and video Show/Hide commands through its application menus, with
+  undo/redo and reload persistence. The remaining 3B-4 work is the
+  frame-canonical trim planner, track locking, roll/ripple/slip/slide, uniform
+  rate-stretch, and keyboard-complete trim feedback. See
+  [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md)
+  and
+  [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md).
 - **Shared / Web Core — Planned:** explicit retiming and speed ramps over the
   shared breakpoint model, reverse/freeze frames, nested sequences,
   subsequence time mapping, and deterministic flattening.

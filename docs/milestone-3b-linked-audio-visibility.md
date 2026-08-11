@@ -5,6 +5,10 @@
 > This slice makes two already-persisted Framescaper behaviors reachable from
 > the keyboard-accessible application menus. It does not introduce a trim tool
 > or a track-lock fact.
+>
+> **Implemented:** commit `407b8e7` on 2026-08-11. Packet 3B-4 remains in
+> progress; the frame-canonical trim planner and the remaining trim/lock work
+> stay in later bounded slices.
 
 ## Foundation already present
 
@@ -80,6 +84,23 @@ uniform rate-stretch, and keyboard-complete trim feedback.
   the slice adds no default-visible control.
 - Focused Node tests, typecheck, build, focused Chromium, and the canonical
   non-browser gate pass.
+
+## Recorded evidence
+
+- `node --import tsx --test tests/audio-editor-framescaper-edit-control-menu.test.ts
+  tests/audio-editor-foundation-runtime-consumer-audit.test.ts`: **18/18 passed**.
+- Typecheck and lint passed, and `npm run build` passed with the production
+  bundle guards intact.
+- `npx playwright test tests/browser/audio-editor-video-linked-controls.spec.js
+  --project=chromium`: **1/1 passed** in 15.0 seconds. The workflow exercised
+  accessible application-menu Link/Unlink and Show/Hide, exact pair identity,
+  undo/redo, reload persistence, preview visibility, and absence of a new
+  default-visible control.
+- `npm run check`: **passed** with 5,015 tests total, 5,013 passed and 2 skipped;
+  coverage and the production build were green.
+- The four packaged Electron timing-probe rows remain `pending-external`, and
+  WebKit remains explicitly deferred. Neither is relabelled by this Chromium
+  evidence.
 
 ## Implementation sequence
 

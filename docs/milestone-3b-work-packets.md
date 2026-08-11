@@ -156,11 +156,16 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
-The delivered first slice is
+The delivered first two slices are
 [3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
 session-only J/K/L shuttle and strict previous/next video edit-point navigation
-through the existing Transport menu and Framescaper workspace keys. The trim,
-track-control, and linked-audio outcomes below remain in 3B-4b.
+through the existing Transport menu and Framescaper workspace keys; and
+[3B-4b1 — linked audio and video visibility controls](milestone-3b-linked-audio-visibility.md):
+application-menu Link/Unlink for one exact timeline A/V pair and Show/Hide for
+the selected video track, using the existing undoable persisted commands. Packet
+3B-4 remains in progress: the frame-canonical trim planner, track locking,
+roll/ripple/slip/slide, uniform rate-stretch, and keyboard-complete trim feedback
+remain.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
