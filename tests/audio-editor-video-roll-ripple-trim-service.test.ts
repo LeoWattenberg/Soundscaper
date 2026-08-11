@@ -25,7 +25,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
@@ -52,7 +52,7 @@ test('every preview reads a fresh command projection and never commits or report
 	assert.deepEqual(harness.events, []);
 });
 
-test('commit replans with live V15 locks and ignores a weakening caller predicate', () => {
+test('commit replans with live V16 locks and ignores a weakening caller predicate', () => {
 	const harness = createHarness();
 	const request = Object.freeze({
 		...rippleRequest(22),
@@ -127,7 +127,7 @@ test('editing and upstream project-provider failures propagate without mutation 
 	assert.deepEqual(capabilityEvents, []);
 });
 
-test('one service commit persists V15 canonical geometry in one exact undo and redo step', () => {
+test('one service commit persists V16 canonical geometry in one exact undo and redo step', () => {
 	const original = createProject();
 	let history = createEditorHistory(original);
 	const commands: AudioEditorCommand[] = [];
@@ -264,7 +264,7 @@ function createProject() {
 	const track = createVideoTrackV10({
 		id: 'video-track', clipIds: clips.map(({ id }) => String(id)), locked: false,
 	});
-	return createAudioEditorProjectV15({
+	return createAudioEditorProjectV16({
 		id: 'roll-ripple-service', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips, tracks: [track],

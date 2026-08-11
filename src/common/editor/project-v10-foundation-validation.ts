@@ -22,6 +22,8 @@ import {
 import { assertHoldTempoMapWireKeys } from './musical-map-contract.ts';
 import { normalizeVideoTimingAssetReference } from './video-timing-asset-reference.ts';
 import { validateVideoTrackComposition } from './video-timeline.js';
+import { isVideoRetimeCurveProjectSchema } from './project-schema-version.ts';
+import { normalizeVideoRetimeCurveV16 } from './video-retime-v16.ts';
 import {
 	projectArray,
 	projectBoolean,
@@ -282,6 +284,9 @@ function validateFoundationClip(
 		const sourceStart = projectSafeInteger(clip.sourceStartFrame, 0, `${prefix}.sourceStartFrame`);
 		const sourceDuration = projectSafeInteger(clip.sourceDurationFrames, 1, `${prefix}.sourceDurationFrames`);
 		if (sourceStart + sourceDuration > Number(source.frameCount)) throw new RangeError(`${prefix} exceeds source bounds.`);
+		if (isVideoRetimeCurveProjectSchema(project.schemaVersion) && clip.retimeMap != null) {
+			throw new RangeError(`${prefix}.retimeMap is supported only on video clips.`);
+		}
 		validateOptionalBreakpoint(clip.warpMap, 'audio-warp', `${prefix}.warpMap`);
 		validateResolvedClipRange(resolveRuntimeClipProjection(project, clip), prefix);
 		return;
@@ -297,7 +302,15 @@ function validateFoundationClip(
 	const sourceIn = projectSafeInteger(clip.sourceInFrame, 0, `${prefix}.sourceInFrame`);
 	const sourceCount = projectSafeInteger(clip.sourceFrameCount, 1, `${prefix}.sourceFrameCount`);
 	if (sourceIn + sourceCount > Number(source.sourceFrameCount)) throw new RangeError(`${prefix} exceeds source-frame bounds.`);
-	validateOptionalBreakpoint(clip.retimeMap, 'video-retime', `${prefix}.retimeMap`);
+	if (isVideoRetimeCurveProjectSchema(project.schemaVersion)) {
+		normalizeVideoRetimeCurveV16(clip.retimeMap, {
+			sequenceFrameCount: sequenceCount,
+			sourceInFrame: sourceIn,
+			sourceFrameCount: sourceCount,
+		});
+	} else {
+		validateOptionalBreakpoint(clip.retimeMap, 'video-retime', `${prefix}.retimeMap`);
+	}
 	const resolved = resolveRuntimeClipProjection(project, clip);
 	validateResolvedClipRange(resolved, prefix);
 	if (sequenceStart + sequenceCount > Number.MAX_SAFE_INTEGER) {

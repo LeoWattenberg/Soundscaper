@@ -92,8 +92,8 @@ test('project persistence admission is current-schema, bounded, and mutation-fre
 	const lease = await library.acquireLease({ owner: OWNER_A, ttlMs: 5_000 });
 	const valid = currentProject(1);
 	const attempts: readonly unknown[] = [
-		{ ...valid, schemaVersion: 8 },
-		{ ...valid, schemaVersion: 16 },
+		{ ...valid, schemaVersion: 15 },
+		{ ...valid, schemaVersion: 17 },
 		{ ...valid, id: '' },
 		{ ...valid, revision: -1 },
 		{ ...valid, title: 'x'.repeat(4_096) },

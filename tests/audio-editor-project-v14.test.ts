@@ -97,8 +97,8 @@ function currentFolderProject() {
 test('V14 remains historical and retains V11 annotations with authoritative folder hierarchy', () => {
 	const project = folderProject();
 
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 15);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 15);
+	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 16);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 16);
 	assert.equal(AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION, 14);
 	assert.equal(project.schemaVersion, 14);
 	assert.deepEqual(project.trackFolders.map(({ id }) => id), ['folder-a', 'folder-b']);
@@ -191,7 +191,7 @@ test('V14 rejects hierarchy projection drift and project metadata order drift', 
 	);
 });
 
-test('current V15 is byte-idempotent across clone, JSON, and local store save/open', async () => {
+test('current V16 is byte-idempotent across clone, JSON, and local store save/open', async () => {
 	const project = currentFolderProject();
 	const serialized = JSON.stringify(project);
 	const loaded = loadCurrentAudioEditorProject(JSON.parse(serialized));
@@ -223,7 +223,7 @@ test('current .scape archive round trip preserves nonempty folder state byte-exa
 		databaseName: 'v12-folder-scape-target',
 	});
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 15);
+	assert.equal(exported.manifest.project.schemaVersion, 16);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));
@@ -269,7 +269,7 @@ test('ordinary edits, undo, and redo preserve exact current folder state', () =>
 	assert.equal(validateCurrentAudioEditorProject(redone.present), true);
 });
 
-test('legacy track add, reorder, and remove keep empty-folder V15 root hierarchy exact', () => {
+test('legacy track add, reorder, and remove keep empty-folder V16 root hierarchy exact', () => {
 	let project = createCurrentAudioEditorProject({
 		now: NOW,
 		tracks: [
@@ -382,22 +382,22 @@ test('legacy structural track commands delegate to the folder-aware path on none
 	assert.equal(validateCurrentAudioEditorProject(replaced), true);
 });
 
-test('schemas 1 through 14 require typed re-import and future V16 stays opaque read-only', () => {
-	for (let schemaVersion = 1; schemaVersion <= 14; schemaVersion += 1) {
+test('schemas 1 through 15 require typed re-import and future V17 stays opaque read-only', () => {
+	for (let schemaVersion = 1; schemaVersion <= 15; schemaVersion += 1) {
 		assert.throws(
 			() => migrateAudioEditorProject({ schemaVersion }),
 			(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError
 				&& error.schemaVersion === schemaVersion
-				&& error.currentSchemaVersion === 15,
+				&& error.currentSchemaVersion === 16,
 		);
 	}
 	const project = currentFolderProject();
-	const future = { ...project, schemaVersion: 16, futureFolderState: { opaque: true } };
+	const future = { ...project, schemaVersion: 17, futureFolderState: { opaque: true } };
 	const loaded = migrateAudioEditorProject(future);
 	assert.deepEqual(loaded, {
 		project: future,
 		migrated: false,
-		fromVersion: 16,
+		fromVersion: 17,
 		readOnly: true,
 		reason: 'newer-schema',
 	});

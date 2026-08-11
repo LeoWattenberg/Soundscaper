@@ -7,7 +7,10 @@ import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createTrackLockAdmission } from '../src/common/editor/commands/track-lock-admission.ts';
 import { projectForCommandConsumers } from '../src/common/editor/project-current-runtime.ts';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import {
 	createAudioClipV10,
 	createAudioEditorProjectV10,
@@ -19,7 +22,6 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import type { AudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 
 const NOW = '2026-08-11T12:00:00.000Z';
@@ -187,7 +189,7 @@ test('resolved sequence and musical timing changes refuse on locked tracks', () 
 function audioProject(options: {
 	readonly locked: boolean;
 	readonly binaryOpaque?: boolean;
-}): AudioEditorProjectV15 {
+}): AudioEditorProjectCurrent {
 	const lockedSource = createAudioSourceV10({
 		id: 'locked-source', name: 'Locked source', frameCount: 48_000, channelCount: 1, sampleRate: 48_000,
 		...(options.binaryOpaque === true ? { opaqueExtensions: {
@@ -216,7 +218,7 @@ function audioProject(options: {
 	});
 }
 
-function labelProject(): AudioEditorProjectV15 {
+function labelProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'label-lock-project', now: NOW,
 		tracks: [createLabelTrackV10({
@@ -226,7 +228,7 @@ function labelProject(): AudioEditorProjectV15 {
 	});
 }
 
-function groupedProject(): AudioEditorProjectV15 {
+function groupedProject(): AudioEditorProjectCurrent {
 	const first = createAudioSourceV10({ id: 'locked-source', frameCount: 48_000, channelCount: 1 });
 	const second = createAudioSourceV10({ id: 'peer-source', frameCount: 48_000, channelCount: 1 });
 	const locked = createAudioClipV10({
@@ -246,7 +248,7 @@ function groupedProject(): AudioEditorProjectV15 {
 	});
 }
 
-function laneProject(): AudioEditorProjectV15 {
+function laneProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'lane-lock-project', now: NOW,
 		tracks: [
@@ -256,7 +258,7 @@ function laneProject(): AudioEditorProjectV15 {
 	});
 }
 
-function folderProject(): AudioEditorProjectV15 {
+function folderProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'folder-lock-project', now: NOW, primarySequenceId: 'main',
 		tracks: [
@@ -272,7 +274,7 @@ function folderProject(): AudioEditorProjectV15 {
 	});
 }
 
-function videoProject(): AudioEditorProjectV15 {
+function videoProject(): AudioEditorProjectCurrent {
 	const source = createVideoSourceV10({
 		id: 'video-source', frameCount: 48_000, sampleRate: 48_000,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 120,
@@ -288,7 +290,7 @@ function videoProject(): AudioEditorProjectV15 {
 	});
 }
 
-function musicalProject(locked = true): AudioEditorProjectV15 {
+function musicalProject(locked = true): AudioEditorProjectCurrent {
 	const source = createAudioSourceV10({ id: 'musical-source', frameCount: 192_000, channelCount: 1 });
 	const tempoMap = {
 		mode: 'musical' as const,
@@ -305,18 +307,18 @@ function musicalProject(locked = true): AudioEditorProjectV15 {
 	});
 }
 
-function resolvedStartFrame(project: AudioEditorProjectV15): unknown {
+function resolvedStartFrame(project: AudioEditorProjectCurrent): unknown {
 	const runtime = resolveRuntimeProjectProjection(project);
 	return (runtime.clips[0] as Readonly<Record<string, unknown>> | undefined)?.timelineStartFrame;
 }
 
-function recordTrack(project: AudioEditorProjectV15, id: string): Readonly<Record<string, unknown>> {
+function recordTrack(project: AudioEditorProjectCurrent, id: string): Readonly<Record<string, unknown>> {
 	const track = project.tracks.find((candidate) => candidate.id === id);
 	if (!track) throw new Error(`Missing track ${id}.`);
 	return track;
 }
 
-function recordSource(project: AudioEditorProjectV15, id: string): Readonly<Record<string, unknown>> {
+function recordSource(project: AudioEditorProjectCurrent, id: string): Readonly<Record<string, unknown>> {
 	const source = project.sources.find((candidate) => candidate.id === id);
 	if (!source) throw new Error(`Missing source ${id}.`);
 	return source;

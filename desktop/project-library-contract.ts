@@ -2,15 +2,15 @@
 
 import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
-export const DESKTOP_LIBRARY_SCHEMA_VERSION = 7 as const;
-export const DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 15 as const;
+export const DESKTOP_LIBRARY_SCHEMA_VERSION = 8 as const;
+export const DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 16 as const;
 export const MAX_LIBRARY_METADATA_BYTES = 4 * 1024 * 1024;
 export const MAX_LIBRARY_PROJECT_DOCUMENT_BYTES = 256 * 1024 * 1024;
 export const MAX_LIBRARY_PROJECT_ID_BYTES = 4 * 1024;
 export const MAX_LIBRARY_PROJECTS = 10_000;
 export const MAX_LIBRARY_MEDIA = 50_000;
 
-const LIBRARY_SCOPE = Object.freeze(['kw.media', 'scape-project-library', 'v7']);
+const LIBRARY_SCOPE = Object.freeze(['kw.media', 'scape-project-library', 'v8']);
 const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper'] as const);
 const EXACT_PATH_KEYS = Object.freeze(['libraryRoot', 'databasePath', 'projectsRoot', 'managedMediaRoot'] as const);
 const METADATA_KEYS = Object.freeze(['schemaVersion', 'revision', 'projects', 'media']);

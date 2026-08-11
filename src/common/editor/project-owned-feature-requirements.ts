@@ -10,6 +10,7 @@ import type {
 } from './project-feature-requirements.ts';
 import { PROJECT_FEATURE_REQUIREMENTS_LIMITS } from './project-feature-requirements.ts';
 import { projectHasReportedSourceCharacteristics } from './source-characteristics-v14.ts';
+import { isVideoRetimeCurveProjectSchema } from './project-schema-version.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 
 export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
@@ -31,6 +32,7 @@ interface OwnedFeatureRequirement {
 	readonly requirement: ProjectFeatureRequirement;
 	readonly conflictMessage: string;
 	readonly projectNeedsRequirement: (project: Readonly<Record<string, unknown>>) => boolean;
+	readonly refusesPublisherSubstitution?: (project: Readonly<Record<string, unknown>>) => boolean;
 }
 
 const AUDIO_EFFECT_TYPE_SET: ReadonlySet<string> = new Set(PROJECT_FEATURE_AUDIO_EFFECT_TYPES);
@@ -81,7 +83,11 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.audioWarp, (project) => projectHasClipField(project, 'audio', 'warpMap')),
 	foundationOwned(FOUNDATION_REQUIREMENTS.sequenceTiming, projectHasNonDefaultSequenceTiming),
-	foundationOwned(FOUNDATION_REQUIREMENTS.videoRetime, (project) => projectHasClipField(project, 'video', 'retimeMap')),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.videoRetime,
+		(project) => projectHasClipField(project, 'video', 'retimeMap'),
+		(project) => isVideoRetimeCurveProjectSchema(dataProperty(project, 'schemaVersion')),
+	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.videoTimingAssets, projectHasVideoTimingAsset),
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.sourceCharacteristics,
@@ -106,17 +112,19 @@ function requirement(
 function foundationOwned(
 	requirementValue: ProjectFeatureRequirement,
 	predicate: OwnedFeatureRequirement['projectNeedsRequirement'],
+	refusesPublisherSubstitution?: OwnedFeatureRequirement['refusesPublisherSubstitution'],
 ): OwnedFeatureRequirement {
 	return Object.freeze({
 		requirement: requirementValue,
 		conflictMessage: `The reserved owned ${requirementValue.id} requirement conflicts with publisher data.`,
 		projectNeedsRequirement: predicate,
+		...(refusesPublisherSubstitution ? { refusesPublisherSubstitution } : {}),
 	});
 }
 
 /**
- * Keep editor-owned declarations aligned with maintained effect state. A
- * publisher-owned declaration for the same feature always wins.
+ * Keep editor-owned declarations aligned with maintained state. Publisher
+ * declarations normally win; exact V16 retime state refuses substitution.
  */
 export function reconcileProjectOwnedFeatureRequirements(
 	project: Readonly<Record<string, unknown>>,
@@ -145,7 +153,12 @@ function reconcileOwnedFeatureRequirement(
 		candidate.id !== requirement.id
 		&& candidate.featureId === requirement.featureId
 	));
-	const needsOwnedRequirement = !explicitRequirement && owned.projectNeedsRequirement(project);
+	const projectNeedsRequirement = owned.projectNeedsRequirement(project);
+	const refusesPublisherSubstitution = projectNeedsRequirement
+		&& (owned.refusesPublisherSubstitution?.(project) ?? false);
+	if (explicitRequirement && refusesPublisherSubstitution) throw new TypeError(owned.conflictMessage);
+	const needsOwnedRequirement = projectNeedsRequirement
+		&& (!explicitRequirement || refusesPublisherSubstitution);
 	if (needsOwnedRequirement && ownedIndex >= 0) return manifest;
 	if (!needsOwnedRequirement && ownedIndex < 0) return manifest;
 

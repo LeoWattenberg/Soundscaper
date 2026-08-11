@@ -79,7 +79,7 @@ test('current Scape projects bind every rendered fallback digest to its canonica
 test('future Scape projects leave feature requirements opaque while indexing sources', () => {
 	const audio = descriptor('audio-source', 'audio');
 	const project = {
-		schemaVersion: 16,
+		schemaVersion: 17,
 		sources: [{ id: audio.sourceId, kind: audio.kind }],
 	};
 	Object.defineProperty(project, 'featureRequirements', {

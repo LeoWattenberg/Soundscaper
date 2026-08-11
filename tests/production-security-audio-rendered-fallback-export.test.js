@@ -48,7 +48,7 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 
 	assert.match(
 		control.summary,
-		/exact schema 15.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1 role.*canonical manifest.*only.*standalone final audio mix delivery/iu,
+		/exact schema 16.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1 role.*canonical manifest.*only.*standalone final audio mix delivery/iu,
 	);
 	assert.match(control.summary, /standalone.*simultaneous rendered fallback.*reject.*separate.*final-video.*one-audio.one-video/iu);
 	assert.match(control.summary, /role supplies.*media semantics.*feature ID.*opaque identity.*does not discover, load, or execute.*feature code/iu);
@@ -95,12 +95,12 @@ test('role-defined audio rendered-fallback export stays private and narrowly qua
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
 	const sectionStart = threatModel.indexOf('Final audio rendered-fallback delivery');
-	const sectionEnd = threatModel.indexOf('\nWhen exact schema 15 reports registered `videoEffects`', sectionStart);
+	const sectionEnd = threatModel.indexOf('\nWhen exact schema 16 reports registered `videoEffects`', sectionStart);
 	assert.ok(sectionStart >= 0 && sectionEnd > sectionStart);
 	const documentation = threatModel.slice(sectionStart, sectionEnd).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/final audio rendered-fallback delivery.*exact schema 15.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed `project-audio-mix-v1` role.*only.*standalone final mix/iu,
+		/final audio rendered-fallback delivery.*exact schema 16.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed `project-audio-mix-v1` role.*only.*standalone final mix/iu,
 	);
 	assert.match(documentation, /standalone.*simultaneous rendered fallback.*reject.*separate.*final-video.*one-audio.one-video/iu);
 	assert.match(documentation, /role supplies.*media semantics.*feature ID.*opaque identity.*does not discover, load, or execute.*feature code/iu);

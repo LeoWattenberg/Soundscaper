@@ -43,7 +43,7 @@ test('shared desktop library paths stay in one fixed appData scope', async (cont
 	const paths = createDesktopProjectLibraryPaths(appDataRoot);
 
 	assert.equal(isAbsolute(paths.libraryRoot), true);
-	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v7'));
+	assert.equal(relative(appDataRoot, paths.libraryRoot), join('kw.media', 'scape-project-library', 'v8'));
 	assert.equal(relative(paths.libraryRoot, paths.databasePath), 'library.sqlite3');
 	assert.equal(relative(paths.libraryRoot, paths.projectsRoot), 'projects');
 	assert.equal(relative(paths.libraryRoot, paths.managedMediaRoot), 'media');
@@ -53,13 +53,13 @@ test('shared desktop library paths stay in one fixed appData scope', async (cont
 	assert.throws(() => createDesktopProjectLibraryPaths(`${appDataRoot}\0escape`), /NUL/u);
 });
 
-test('the V7 library ignores an existing V6 catalog and leaves it recoverable in place', async (context) => {
+test('the V8 library ignores an existing V7 catalog and leaves it recoverable in place', async (context) => {
 	const appDataRoot = await mkdtemp(join(tmpdir(), 'scape-library-clean-break-'));
 	context.after(() => rm(appDataRoot, { recursive: true, force: true }));
-	const legacyRoot = join(appDataRoot, 'kw.media', 'scape-project-library', 'v6');
+	const legacyRoot = join(appDataRoot, 'kw.media', 'scape-project-library', 'v7');
 	const legacyDatabasePath = join(legacyRoot, 'library.sqlite3');
 	await mkdir(legacyRoot, { recursive: true });
-	createLegacyV6Database(legacyDatabasePath);
+	createLegacyV7Database(legacyDatabasePath);
 	const legacyBytes = await readFile(legacyDatabasePath);
 
 	const paths = createDesktopProjectLibraryPaths(appDataRoot);
@@ -71,24 +71,24 @@ test('the V7 library ignores an existing V6 catalog and leaves it recoverable in
 	assert.deepEqual(await readFile(legacyDatabasePath), legacyBytes);
 	const legacy = new DatabaseSync(legacyDatabasePath, { readOnly: true });
 	try {
-		assert.equal(Number(legacy.prepare('PRAGMA user_version').get()?.user_version), 8);
+		assert.equal(Number(legacy.prepare('PRAGMA user_version').get()?.user_version), 9);
 		const row = legacy.prepare('SELECT revision, json FROM library_metadata WHERE singleton = 1').get();
 		assert.equal(Number(row?.revision), 7);
 		const metadata = JSON.parse(String(row?.json));
-		assert.equal(metadata.schemaVersion, 6);
-		assert.equal(metadata.projects[0]?.projectSchemaVersion, 14);
+		assert.equal(metadata.schemaVersion, 7);
+		assert.equal(metadata.projects[0]?.projectSchemaVersion, 15);
 	} finally {
 		legacy.close();
 	}
 });
 
-test('a copied V6 database is rejected from the V7 library scope without mutation', async (context) => {
-	const appDataRoot = await mkdtemp(join(tmpdir(), 'scape-library-copied-v6-'));
+test('a copied V7 database is rejected from the V8 library scope without mutation', async (context) => {
+	const appDataRoot = await mkdtemp(join(tmpdir(), 'scape-library-copied-v7-'));
 	context.after(() => rm(appDataRoot, { recursive: true, force: true }));
-	const legacyRoot = join(appDataRoot, 'kw.media', 'scape-project-library', 'v6');
+	const legacyRoot = join(appDataRoot, 'kw.media', 'scape-project-library', 'v7');
 	const legacyDatabasePath = join(legacyRoot, 'library.sqlite3');
 	await mkdir(legacyRoot, { recursive: true });
-	createLegacyV6Database(legacyDatabasePath);
+	createLegacyV7Database(legacyDatabasePath);
 	const paths = createDesktopProjectLibraryPaths(appDataRoot);
 	await mkdir(paths.libraryRoot, { recursive: true });
 	await copyFile(legacyDatabasePath, paths.databasePath);
@@ -184,7 +184,8 @@ test('project catalog entries bind exact-schema immutable document descriptors',
 		createDesktopLibraryProjectMetadataFile(project.id, project.projectRevision, project.sha256),
 	);
 	for (const replacement of [
-		{ projectSchemaVersion: 8 },
+		{ projectSchemaVersion: 15 },
+		{ projectSchemaVersion: 17 },
 		{ projectRevision: -1 },
 		{ byteLength: 0 },
 		{ sha256: 'b'.repeat(64) },
@@ -432,12 +433,12 @@ async function createFixture(context: TestContext) {
 }
 
 function emptyMetadata(): DesktopLibraryMetadata {
-	return { schemaVersion: 7, revision: 0, projects: [], media: [] };
+	return { schemaVersion: 8, revision: 0, projects: [], media: [] };
 }
 
 function populatedMetadata(revision: number): DesktopLibraryMetadata {
 	return {
-		schemaVersion: 7,
+		schemaVersion: 8,
 		revision,
 		projects: [{
 			id: 'shared-project-1',
@@ -446,7 +447,7 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 			metadataFile: createDesktopLibraryProjectMetadataFile('shared-project-1', 1, 'a'.repeat(64)),
 			preferredProduct: 'soundscaper',
 			updatedAtMs: 9_000 + revision,
-			projectSchemaVersion: 15,
+			projectSchemaVersion: 16,
 			projectRevision: 1,
 			byteLength: 48_000,
 			sha256: 'a'.repeat(64),
@@ -460,20 +461,20 @@ function populatedMetadata(revision: number): DesktopLibraryMetadata {
 	};
 }
 
-function createLegacyV6Database(databasePath: string): void {
+function createLegacyV7Database(databasePath: string): void {
 	const database = new DatabaseSync(databasePath);
 	try {
 		const json = JSON.stringify({
-			schemaVersion: 6,
+			schemaVersion: 7,
 			revision: 7,
 			projects: [{
 				id: 'legacy-entry-01',
-				projectId: 'legacy-v14-project',
-				name: 'Recoverable V14 project',
+				projectId: 'legacy-v15-project',
+				name: 'Recoverable V15 project',
 				metadataFile: `legacy-entry-01/4-${'b'.repeat(64)}.json`,
 				preferredProduct: 'soundscaper',
 				updatedAtMs: 10_000,
-				projectSchemaVersion: 14,
+				projectSchemaVersion: 15,
 				projectRevision: 4,
 				byteLength: 1_024,
 				sha256: 'b'.repeat(64),
@@ -489,7 +490,7 @@ function createLegacyV6Database(databasePath: string): void {
 				published_at_ms INTEGER NOT NULL
 			);
 			PRAGMA application_id = 1396916560;
-			PRAGMA user_version = 8;
+			PRAGMA user_version = 9;
 		`);
 		database.prepare('INSERT INTO library_metadata VALUES (1, 7, ?, ?, 10000)')
 			.run(json, createHash('sha256').update(json).digest('hex'));

@@ -144,9 +144,9 @@ test('the document snapshot exposes per-sequence rows with structural state', ()
 test('the snapshot never traverses older, future, folder-free, or hostile documents', () => {
 	assert.deepEqual(createDocumentTrackFolderSnapshot(null).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 12 }).sequences, []);
-	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 16 }).sequences, []);
+	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 17 }).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({
-		schemaVersion: 16,
+		schemaVersion: 17,
 		get trackFolders(): never { throw new Error('trackFolders was traversed'); },
 	}).sequences, []);
 	const folderFree = createCurrentAudioEditorProject({

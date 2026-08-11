@@ -15,6 +15,9 @@ import {
 	LEGACY_TRACK_STRUCTURE_EDIT,
 } from './commands/command-projection-transients.ts';
 import { createTrackLockAdmission } from './commands/track-lock-admission.ts';
+import {
+	createVideoRetimePreservationAdmission,
+} from './commands/video-retime-preservation-admission.ts';
 
 export {
 	collectClipTransformIds,
@@ -98,6 +101,7 @@ export {
  *   | import('./project-v13.ts').AudioEditorProjectV13
  *   | import('./project-v14.ts').AudioEditorProjectV14
  *   | import('./project-v15.ts').AudioEditorProjectV15
+ *   | import('./project-v16.ts').AudioEditorProjectV16
  * } CurrentAudioEditorProject
  */
 
@@ -120,7 +124,7 @@ export function applyEditorCommand(project, command, options = {}) {
 		throw new TypeError('A serializable editor command is required.');
 	}
 	const commandProject = projectForCommandConsumers(project);
-	const admission = createTrackLockAdmission(project, commandProject);
+	const admission = createCommandAdmission(project, commandProject);
 	const mutate = createCommandMutator(admission);
 	const result = /** @type {Project} */ (commitProject(commandProject, (draft) => {
 		if (isFoundationProjectSchema(project.schemaVersion)) {
@@ -131,6 +135,24 @@ export function applyEditorCommand(project, command, options = {}) {
 	}, { ...options, persistedBase: project }));
 	admission.assertPersistedResult(result);
 	return result;
+}
+
+function createCommandAdmission(persistedProject, commandProject) {
+	const admissions = [
+		createTrackLockAdmission(persistedProject, commandProject),
+		createVideoRetimePreservationAdmission(persistedProject, commandProject),
+	];
+	return Object.freeze({
+		beforeCommand: (project, command) => {
+			for (const admission of admissions) admission.beforeCommand(project, command);
+		},
+		afterCommand: (project) => {
+			for (const admission of admissions) admission.afterCommand(project);
+		},
+		assertPersistedResult: (project) => {
+			for (const admission of admissions) admission.assertPersistedResult(project);
+		},
+	});
 }
 
 function createCommandMutator(admission) {

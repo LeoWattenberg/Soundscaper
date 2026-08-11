@@ -120,7 +120,7 @@ function mediaFixture() {
 		metadataFile: 'projects/reuse-fallback-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 15,
+		projectSchemaVersion: 16,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: PROJECT_SHA256,

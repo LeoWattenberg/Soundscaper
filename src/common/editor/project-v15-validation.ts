@@ -33,11 +33,12 @@ export function validateAudioEditorProjectV15(
 	);
 	validateFolderBusesV13(project as Record<string, unknown>);
 	validateVideoSourceCharacteristicsV14(project as Record<string, unknown>);
-	validateTrackLocks(project as AudioEditorFolderHierarchyDocument);
+	validateTrackLocksV15(project as AudioEditorFolderHierarchyDocument);
 	return true;
 }
 
-function validateTrackLocks(project: AudioEditorFolderHierarchyDocument): void {
+/** Validate the V15 lock layer inherited unchanged by later schemas. */
+export function validateTrackLocksV15(project: AudioEditorFolderHierarchyDocument): void {
 	for (const [index, value] of project.tracks.entries()) {
 		const track = value as Readonly<Record<string, unknown>>;
 		const descriptor = Object.getOwnPropertyDescriptor(track, 'locked');

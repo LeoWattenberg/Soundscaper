@@ -154,6 +154,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The command invariant compares protected resolved timing across transient and persisted authority domains; it does not serve runtime media consumers.',
 	},
 	{
+		file: 'src/common/editor/commands/video-retime-preservation-admission.ts',
+		reason: 'The command invariant compares protected curve geometry across transient and persisted authority domains; it does not serve runtime media consumers.',
+	},
+	{
 		file: 'src/common/editor/commands/range-runtime.js',
 		reason: 'Range commands preserve and rebrand transient command projections before persisted-authority reconciliation.',
 	},

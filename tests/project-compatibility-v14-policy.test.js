@@ -9,7 +9,7 @@ import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/edito
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('the compatibility register binds exact V15 editing to current implementation evidence', async () => {
+test('the compatibility register binds exact V16 editing to current implementation evidence', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const threatModel = await readFile(threatModelUrl, 'utf8');
 	const rules = new Map(policy.rules.map((rule) => [rule.id, rule]));
@@ -20,22 +20,25 @@ test('the compatibility register binds exact V15 editing to current implementati
 	const trackFolders = rules.get('current-track-folder-capability');
 	const sourceCharacteristics = rules.get('current-source-characteristics-capability');
 
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 15);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 16);
 	assert.deepEqual(policy.projectSchema, {
-		currentVersion: 15,
-		minimumReadableVersion: 15,
+		currentVersion: 16,
+		minimumReadableVersion: 16,
 		retainedMigrationSources: [],
 	});
-	assert.equal(policy.schemaRetirement.currentMinimumVersion, 15);
-	assert.match(legacySchema.currentBehavior, /Schema 15.*Schemas 1 through 14.*REIMPORT_REQUIRED.*AUP4.*schema 15/iu);
+	assert.equal(policy.schemaRetirement.currentMinimumVersion, 16);
+	assert.match(legacySchema.currentBehavior, /Schema 16.*Schemas 1 through 15.*REIMPORT_REQUIRED.*AUP4.*schema 16/iu);
 	assert.ok(legacySchema.evidence.includes('tests/audio-editor-project-schema-policy.test.ts'));
-	assert.match(currentSchema.currentBehavior, /Schema 15.*maintained writable raw-project schema.*cloned/iu);
+	assert.match(currentSchema.currentBehavior, /Schema 16.*maintained writable raw-project schema.*cloned/iu);
 	assert.deepEqual(currentSchema.evidence, [
 		'src/common/editor/project-current.ts',
+		'src/common/editor/project-v16.ts',
+		'src/common/editor/project-v16-validation.ts',
 		'src/common/editor/project-v15.ts',
 		'src/common/editor/project-v15-validation.ts',
 		'src/common/editor/timeline-annotation.ts',
 		'tests/audio-editor-project-v15.test.ts',
+		'tests/audio-editor-project-v16.test.ts',
 		'tests/audio-editor-scape-project.test.js',
 	]);
 	assert.equal(trackLocking.status, 'implemented');
@@ -45,7 +48,7 @@ test('the compatibility register binds exact V15 editing to current implementati
 	);
 	assert.match(
 		trackLocking.currentBehavior,
-		/Schema 15.*own boolean locked field.*audio, video, and label track.*Soundscaper and Framescaper.*default it false.*clone.*history.*browser and desktop persistence.*Tracks-menu Lock track and Unlock track.*shared low-level command boundary.*transaction-start lock authority.*arbitrary nested batches.*direct and indirect changes.*content.*timing.*media.*grouping.*lane and folder identity.*reconciled result.*before publication.*Selection.*header, mixer, view, and track-rack controls.*remain available.*does not hide, mute, bypass, or make a project read-only.*no capability ID.*owned requirement.*rendered fallback.*optional older-schema extension.*default-visible control/iu,
+		/Schema 16.*own boolean locked field.*audio, video, and label track.*Soundscaper and Framescaper.*default it false.*clone.*history.*browser and desktop persistence.*Tracks-menu Lock track and Unlock track.*shared low-level command boundary.*transaction-start lock authority.*arbitrary nested batches.*direct and indirect changes.*content.*timing.*media.*grouping.*lane and folder identity.*reconciled result.*before publication.*Selection.*header, mixer, view, and track-rack controls.*remain available.*does not hide, mute, bypass, or make a project read-only.*no capability ID.*owned requirement.*rendered fallback.*optional older-schema extension.*default-visible control/iu,
 	);
 	assert.deepEqual(trackLocking.evidence, [
 		'src/common/editor/project-v15.ts',
@@ -63,16 +66,16 @@ test('the compatibility register binds exact V15 editing to current implementati
 	]);
 	assert.match(
 		threatModel.replace(/\s+/gu, ' '),
-		/Schema 15.*own enumerable boolean `locked` field.*audio, video, and label track.*shared command boundary.*transaction-start authority.*nested batches.*direct and indirect changes.*editorial content.*structure.*source bindings.*resolved timing.*reconciled result before publication.*locked later in the same transaction.*authority monotonically.*Selection.*header, mixer, view, and track-rack controls remain usable.*both products.*Lock track and Unlock track.*Tracks menu.*no capability, fallback, read-only compatibility state, or default-visible control.*does not imply mute, hidden, bypass, or whole-project read-only state/iu,
+		/Schema 16.*own enumerable boolean `locked` field.*audio, video, and label track.*shared command boundary.*transaction-start authority.*nested batches.*direct and indirect changes.*editorial content.*structure.*source bindings.*resolved timing.*reconciled result before publication.*locked later in the same transaction.*authority monotonically.*Selection.*header, mixer, view, and track-rack controls remain usable.*both products.*Lock track and Unlock track.*Tracks menu.*no capability, fallback, read-only compatibility state, or default-visible control.*does not imply mute, hidden, bypass, or whole-project read-only state/iu,
 	);
 	assert.match(
 		trackFolders.currentBehavior,
-		/schema 15.*trackFolders.*trackNodes.*trackIds.*exact hierarchy preorder.*soundscaper\.track-folders.*org\.soundscaper\.capability\.track-folders.*Nested track folders.*bypass.*no fallback.*Soundscaper registers the capability available.*available\/native.*Framescaper registers the capability known but unavailable.*unavailable\/bypassed.*excluded from both rendered-fallback.*audio or video fallback.*rejects.*mandatory root trackNodes.*add, remove, and within-sequence reorder.*nonempty hierarchy.*delegate to the folder-aware path.*adopts the parent folder.*lane partner.*whole structural blocks.*cross-sequence reorder.*reject.*before playback, audio render, video preview, or video export.*transient projection.*inherited folder mute, solo, and hidden.*leaf track flags.*before rendered-fallback.*private trust.*forged projection marker.*before hierarchy traversal.*canonical folder state.*leaf-local state.*routing.*history.*persistence unchanged.*collapsed and height.*UI-only.*clone.*undo\/redo.*local storage.*\.scape.*desktop-library V7.*track-folder\/add.*track-folder\/update.*track-folder\/remove.*promote or delete-contents.*track-node\/move.*execute natively in Soundscaper.*reject in Framescaper.*hierarchy preorder.*folder bus ownership.*mirrored bus identity.*one undoable command.*direct mixer edits.*reject.*ADM authored programme refuses.*change bus ownership.*at the command.*clipboard wire format is unchanged.*paste-created tracks join the folder of the paste anchor.*lane pair lands in one folder.*native tree UI ships in Soundscaper.*pointer, keyboard, and context-menu parity.*no audio or video fallback/iu,
+		/schema 16.*trackFolders.*trackNodes.*trackIds.*exact hierarchy preorder.*soundscaper\.track-folders.*org\.soundscaper\.capability\.track-folders.*Nested track folders.*bypass.*no fallback.*Soundscaper registers the capability available.*available\/native.*Framescaper registers the capability known but unavailable.*unavailable\/bypassed.*excluded from both rendered-fallback.*audio or video fallback.*rejects.*mandatory root trackNodes.*add, remove, and within-sequence reorder.*nonempty hierarchy.*delegate to the folder-aware path.*adopts the parent folder.*lane partner.*whole structural blocks.*cross-sequence reorder.*reject.*before playback, audio render, video preview, or video export.*transient projection.*inherited folder mute, solo, and hidden.*leaf track flags.*before rendered-fallback.*private trust.*forged projection marker.*before hierarchy traversal.*canonical folder state.*leaf-local state.*routing.*history.*persistence unchanged.*collapsed and height.*UI-only.*clone.*undo\/redo.*local storage.*\.scape.*desktop-library V7.*track-folder\/add.*track-folder\/update.*track-folder\/remove.*promote or delete-contents.*track-node\/move.*execute natively in Soundscaper.*reject in Framescaper.*hierarchy preorder.*folder bus ownership.*mirrored bus identity.*one undoable command.*direct mixer edits.*reject.*ADM authored programme refuses.*change bus ownership.*at the command.*clipboard wire format is unchanged.*paste-created tracks join the folder of the paste anchor.*lane pair lands in one folder.*native tree UI ships in Soundscaper.*pointer, keyboard, and context-menu parity.*no audio or video fallback/iu,
 	);
 	assert.equal(sourceCharacteristics.status, 'implemented');
 	assert.match(
 		sourceCharacteristics.currentBehavior,
-		/schema 15 video source carries a characteristics record.*reporting backend.*coded frame size.*rotation.*pixel aspect ratio.*field order.*alpha.*video codec.*colour primaries.*audio stream inventory.*source start timecode.*explicit null rather than a plausible default.*unknown rotation is not zero.*unreported audio inventory is not an empty one.*canonical normalized form.*reject rather than repair.*framescaper\.source-characteristics.*org\.soundscaper\.capability\.source-characteristics.*Probed source characteristics.*bypass.*no fallback.*both products.*register the capability available.*available\/native.*excluded from both rendered-fallback eligibility.*rejects at manifest admission.*disclosure and interchange, not conversion.*no deinterlacer.*no colour management.*no multi-stream audio import.*byte-exactly.*no re-import upgrade/iu,
+		/schema 16 video source carries a characteristics record.*reporting backend.*coded frame size.*rotation.*pixel aspect ratio.*field order.*alpha.*video codec.*colour primaries.*audio stream inventory.*source start timecode.*explicit null rather than a plausible default.*unknown rotation is not zero.*unreported audio inventory is not an empty one.*canonical normalized form.*reject rather than repair.*framescaper\.source-characteristics.*org\.soundscaper\.capability\.source-characteristics.*Probed source characteristics.*bypass.*no fallback.*both products.*register the capability available.*available\/native.*excluded from both rendered-fallback eligibility.*rejects at manifest admission.*disclosure and interchange, not conversion.*no deinterlacer.*no colour management.*no multi-stream audio import.*byte-exactly.*no re-import upgrade/iu,
 	);
 	assert.deepEqual(sourceCharacteristics.evidence, [
 		'src/common/editor/video-source-characteristics.ts',
@@ -123,7 +126,7 @@ test('the compatibility register binds exact V15 editing to current implementati
 	]);
 	assert.match(
 		timelineAnnotations.currentBehavior,
-		/non-empty schema 15 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper.*available\/native.*command.*controller.*pointer and keyboard UI.*ripple-edit.*clipboard.*AUP\/AUP4.*RIFF.*Framescaper.*known but unavailable.*unavailable\/bypassed.*read-only preservation.*excluded from both audio and video rendered-fallback.*exact-V15.*runtime projection.*atomic command reconciliation.*`?\.scape`? persistence.*desktop handoff.*authoritative annotation coordinates.*stable IDs.*batch identity.*opaque extensions.*Audacity export reports losses.*RIFF export.*stable-ID.*no Framescaper-native annotation editing.*playback rendering.*audio or video fallback/iu,
+		/non-empty schema 16 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper.*available\/native.*command.*controller.*pointer and keyboard UI.*ripple-edit.*clipboard.*AUP\/AUP4.*RIFF.*Framescaper.*known but unavailable.*unavailable\/bypassed.*read-only preservation.*excluded from both audio and video rendered-fallback.*exact-V16.*runtime projection.*atomic command reconciliation.*`?\.scape`? persistence.*desktop handoff.*authoritative annotation coordinates.*stable IDs.*batch identity.*opaque extensions.*Audacity export reports losses.*RIFF export.*stable-ID.*no Framescaper-native annotation editing.*playback rendering.*audio or video fallback/iu,
 	);
 	assert.deepEqual(timelineAnnotations.evidence, [
 		'src/common/editor/project-feature-capabilities.ts',

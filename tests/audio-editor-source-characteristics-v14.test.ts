@@ -209,7 +209,7 @@ test('a current .scape round trip preserves probed characteristics byte-exactly'
 		mimeType: 'video/mp4',
 	});
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 15);
+	assert.equal(exported.manifest.project.schemaVersion, 16);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));

@@ -23,7 +23,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
@@ -154,7 +154,7 @@ function createProject() {
 	const track = createVideoTrackV10({
 		id: 'video-track', clipIds: specifications.map(({ id }) => id), locked: false,
 	});
-	return createAudioEditorProjectV15({
+	return createAudioEditorProjectV16({
 		id: 'incommensurate-slip-slide', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: SEQUENCE_RATE, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips, tracks: [track],

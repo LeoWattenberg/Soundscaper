@@ -2,7 +2,7 @@
 
 /** Runs one phase inside the packaged renderer. Keep this function self-contained for executeJavaScript. */
 export async function runDesktopProjectLibrarySourceBearingRendererSmoke(scope, plan, phase, prior) {
-	const currentProjectSchemaVersion = 15;
+	const currentProjectSchemaVersion = 16;
 	const api = scope?.scapeDesktop?.v1;
 	const requiredMethods = [
 		'readSharedProjectBundle', 'commitSharedProject', 'beginSharedSourceWrite',

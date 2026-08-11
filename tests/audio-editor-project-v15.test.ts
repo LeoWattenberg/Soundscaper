@@ -52,12 +52,12 @@ function allTrackKindsProject(): AudioEditorProjectV15 {
 	});
 }
 
-test('V15 is exact current and defaults a required lock for every track kind', () => {
+test('V15 remains historical and defaults a required lock for every track kind', () => {
 	const project = allTrackKindsProject();
 
 	assert.equal(AUDIO_EDITOR_PROJECT_V15_SCHEMA_VERSION, 15);
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 15);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 15);
+	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 16);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 16);
 	assert.equal(project.schemaVersion, 15);
 	assert.deepEqual(project.tracks.map(({ type, locked }) => ({ type, locked })), [
 		{ type: 'audio', locked: false },
@@ -71,7 +71,7 @@ test('V15 is exact current and defaults a required lock for every track kind', (
 		assert.equal(typeof descriptor?.value, 'boolean');
 	}
 	assert.equal(validateAudioEditorProjectV15(project), true);
-	assert.equal(validateCurrentAudioEditorProject(project), true);
+	assert.throws(() => validateCurrentAudioEditorProject(project), /schema version/iu);
 });
 
 test('V15 rejects a missing, hidden, accessor-backed, or non-boolean track lock', () => {
@@ -135,12 +135,12 @@ test('V15 clone/load preserve locks, V14 remains historical, and V16 stays opaqu
 	assert.notStrictEqual(futureLoaded.project, future);
 });
 
-test('current aliases and inherited schema predicates route V15 through every owning domain', () => {
+test('current aliases route V16 while inherited lock predicates retain V15', () => {
 	const project = createCurrentAudioEditorProject({ now: NOW });
 	const clone = cloneCurrentAudioEditorProject(project);
 	const loaded = loadCurrentAudioEditorProject(project);
 
-	assert.equal(project.schemaVersion, 15);
+	assert.equal(project.schemaVersion, 16);
 	assert.deepEqual(clone, project);
 	assert.deepEqual(loaded, { project, readOnly: false, reason: null });
 	assert.equal(isTimelineAnnotationProjectSchema(15), true);
@@ -150,9 +150,9 @@ test('current aliases and inherited schema predicates route V15 through every ow
 	assert.equal(isTrackLockProjectSchema(14), false);
 });
 
-test('the exact-current folder media projection retains V15 lock state', () => {
-	const project = createAudioEditorProjectV15({
-		id: 'v15-folder-projection',
+test('the exact-current folder media projection retains V16 lock state', () => {
+	const project = createCurrentAudioEditorProject({
+		id: 'v16-folder-projection',
 		now: NOW,
 		tracks: [createAudioTrackV10({ id: 'audio', name: 'Audio', locked: true, mute: false })],
 		trackFolders: [{
@@ -175,8 +175,8 @@ test('the exact-current folder media projection retains V15 lock state', () => {
 	assert.equal(projected.tracks[0]?.locked, true);
 });
 
-test('V15 track commands default new locks and preserve or update existing lock state', () => {
-	let project = createAudioEditorProjectV15({ id: 'track-commands', now: NOW });
+test('current V16 track commands retain the V15 lock contract', () => {
+	let project = createCurrentAudioEditorProject({ id: 'track-commands', now: NOW });
 	for (const track of [
 		createAudioTrackV10({ id: 'audio', name: 'Audio' }),
 		createVideoTrackV10({ id: 'video', name: 'Video' }),
@@ -199,5 +199,5 @@ test('V15 track commands default new locks and preserve or update existing lock 
 		changes: { name: 'Renamed video' },
 	});
 	assert.equal(project.tracks.find(({ id }) => id === 'video')?.locked, true);
-	assert.equal(validateAudioEditorProjectV15(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 });

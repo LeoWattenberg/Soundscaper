@@ -10,13 +10,15 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import {
 	createAudioClipV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import type { AudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
 
 const NOW = '2026-08-11T13:00:00.000Z';
 
@@ -116,7 +118,7 @@ test('failed nested admission appends no history while standalone lock undo-redo
 	assert.equal(trackOf(redone.present).locked, true);
 });
 
-function lockProject(locked: boolean): AudioEditorProjectV15 {
+function lockProject(locked: boolean): AudioEditorProjectCurrent {
 	const source = createAudioSourceV10({ id: 'source', frameCount: 48_000, channelCount: 1 });
 	const clip = createAudioClipV10({
 		id: 'clip', sourceId: source.id, title: 'Clip', timelineStartFrame: 100,
@@ -129,13 +131,13 @@ function lockProject(locked: boolean): AudioEditorProjectV15 {
 }
 
 function trackOf(project: object): Readonly<Record<string, unknown>> {
-	const track = (project as AudioEditorProjectV15).tracks[0];
+	const track = (project as AudioEditorProjectCurrent).tracks[0];
 	if (!track) throw new Error('Missing track.');
 	return track;
 }
 
 function clipOf(project: object): Readonly<Record<string, unknown>> {
-	const clip = (project as AudioEditorProjectV15).clips[0];
+	const clip = (project as AudioEditorProjectCurrent).clips[0];
 	if (!clip) throw new Error('Missing clip.');
 	return clip;
 }

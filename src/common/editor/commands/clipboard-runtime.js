@@ -542,6 +542,21 @@ function cloneRational(value) {
 }
 
 function cloneBreakpointMap(value) {
+	if (value?.feature === 'video-retime' && value?.version === 2
+		&& Array.isArray(value.points) && Array.isArray(value.segments)) {
+		return {
+			...value,
+			points: value.points.map((point) => ({
+				...point,
+				sourceFrame: cloneRational(point.sourceFrame),
+			})),
+			segments: value.segments.map((segment) => ({
+				...segment,
+				...(segment.startVelocity ? { startVelocity: cloneRational(segment.startVelocity) } : {}),
+				...(segment.endVelocity ? { endVelocity: cloneRational(segment.endVelocity) } : {}),
+			})),
+		};
+	}
 	return value && typeof value === 'object' && Array.isArray(value.points)
 		? {
 			...value,

@@ -30,7 +30,7 @@ import {
 } from '../src/common/editor/scape-project-document.ts';
 import { parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 
-test('packaged handoff fixtures are canonical source-free exact-schema-15 revisions', () => {
+test('packaged handoff fixtures are canonical source-free exact-schema-16 revisions', () => {
 	const stages = createDesktopProjectLibraryHandoffStages();
 	assert.deepEqual(stages.map(({ stage, productId, profileId, target }) => ({
 		stage,

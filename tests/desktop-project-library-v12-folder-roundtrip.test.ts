@@ -23,7 +23,7 @@ import {
 
 const NOW = '2026-08-09T20:00:00.000Z';
 
-test('fresh desktop library V7 saves and reopens current folder hierarchy byte-exactly', async (context) => {
+test('fresh desktop library V8 saves and reopens current folder hierarchy byte-exactly', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-v13-folder-desktop-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
 	const paths = createDesktopProjectLibraryPaths(appDataPath);
@@ -66,13 +66,15 @@ test('fresh desktop library V7 saves and reopens current folder hierarchy byte-e
 		status: 'committed',
 		document,
 	});
+	assert.equal(DESKTOP_LIBRARY_SCHEMA_VERSION, 8);
+	assert.equal(DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION, 16);
 	assert.equal(firstHost.readCatalog().schemaVersion, DESKTOP_LIBRARY_SCHEMA_VERSION);
 	assert.equal(
 		firstHost.readCatalog().projects[0]?.projectSchemaVersion,
 		DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 	);
 	const database = new DatabaseSync(paths.databasePath, { readOnly: true });
-	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 9);
+	assert.equal(Number(database.prepare('PRAGMA user_version').get()?.user_version), 10);
 	database.close();
 	await firstHost.close();
 

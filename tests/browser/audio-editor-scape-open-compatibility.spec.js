@@ -407,6 +407,61 @@ test.describe('Scape open feature decisions', () => {
 		await assertAffectedPixelatePlaceholder(soundscaper, effectId);
 		expect(errors).toEqual([]);
 	});
+
+	test('preserves V16 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
+		test.setTimeout(120_000);
+		await installPinnedFfmpegRuntimeRoutes(page);
+		const errors = collectClientErrors(page);
+		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
+		await importFiles(framescaper, [createDeterministicAvFixture('retime-preservation.webm')]);
+		const exported = await captureScapeArchive(page, framescaper);
+		let expectedCurve;
+		const archive = await rewriteArchive(exported, ({ project }) => {
+			project.id = `${project.id}-retime-handoff`;
+			project.title = 'V16 retime preservation';
+			const clip = project.clips.find((candidate) => candidate.kind === 'video');
+			if (!clip) throw new Error('V16 retime fixture requires a video clip.');
+			expectedCurve = {
+				feature: 'video-retime', version: 2,
+				points: [
+					{ outerFrame: 0, sourceFrame: { num: clip.sourceInFrame, den: 1 } },
+					{ outerFrame: clip.sequenceFrameCount, sourceFrame: {
+						num: clip.sourceInFrame + clip.sourceFrameCount, den: 1,
+					} },
+				],
+				segments: [{ mode: 'constant-forward' }],
+			};
+			clip.retimeMap = expectedCurve;
+			project.featureRequirements.requirements.push({
+				id: 'framescaper.video-retime',
+				featureId: 'org.soundscaper.capability.video-retime',
+				displayName: 'Video retime maps', disposition: 'bypass', fallback: null,
+			});
+		});
+		const soundscaper = await bootEditor(page, '/embed/en/');
+		const originalId = await soundscaper.getAttribute('data-project-id');
+		const input = soundscaper.locator('[data-aup4-input]');
+		await setScapeInput(input, archive);
+		const dialog = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
+		await expect(dialog.getByText('Video retime maps', { exact: true })).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await expect(soundscaper).toHaveAttribute('data-project-id', originalId);
+		await input.setInputFiles([]);
+		await setScapeInput(input, archive);
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
+		await expect(soundscaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+		const requirement = soundscaper.locator(
+			'[data-project-feature-requirement="org.soundscaper.capability.video-retime"]',
+		);
+		await expect(requirement).toContainText('Unavailable · Bypass declared');
+		const roundTrip = await captureScapeArchive(page, soundscaper);
+		await rewriteArchive(roundTrip, ({ project }) => {
+			expect(project.clips.find(({ kind }) => kind === 'video')?.retimeMap).toEqual(expectedCurve);
+		});
+		expect(errors).toEqual([]);
+	});
 });
 
 async function captureScapeArchive(page, editor) {
