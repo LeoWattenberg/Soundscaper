@@ -29,6 +29,17 @@ test('only existing Framescaper video stretch handles use the canonical route', 
 	}
 });
 
+test('pointer sessions that carry no original are declined instead of throwing', () => {
+	// Pointer-up asks this of every live session, and ruler seeks, rubber-band
+	// selections, and pencil strokes never build an `original` record.
+	for (const kind of ['selection', 'loop', 'move', 'sample-pencil'] as const) {
+		assert.equal(usesFrameCanonicalTimelineRateStretch({
+			session: Object.freeze({ kind, clipIds: Object.freeze([]) }) as never,
+			canonicalVideoTrim: true,
+		}), false, kind);
+	}
+});
+
 test('preview sends one absolute request, projects every participant, and tags audio waveforms', () => {
 	const session = pointerSession('stretch-right', 'video');
 	const plan = transformPlan();

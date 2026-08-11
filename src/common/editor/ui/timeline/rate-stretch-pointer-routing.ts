@@ -48,9 +48,11 @@ export type TimelineRateStretchPointerPreview = Readonly<
 export function usesFrameCanonicalTimelineRateStretch(
 	input: TimelineRateStretchRouteInput,
 ): boolean {
+	// The stretch-edge gate comes first: pointer-up runs this for every session,
+	// and only stretch sessions carry `original`.
 	return input.canonicalVideoTrim === true
-		&& input.session.original.kind === 'video'
-		&& stretchEdge(input.session) !== null;
+		&& stretchEdge(input.session) !== null
+		&& input.session.original.kind === 'video';
 }
 
 /** Plan from one absolute edge point and adapt every relation participant. */
