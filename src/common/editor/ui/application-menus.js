@@ -19,7 +19,7 @@ import {
 } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
-import { createFramescaperVideoTrimMenuItems, createFramescaperVideoTrimMenuModel } from './framescaper-video-trim-menu-model.ts';
+import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 
 export default function createApplicationMenus({
@@ -36,7 +36,6 @@ export default function createApplicationMenus({
 	showArmControls,
 	selectionActive,
 	selectedClip,
-	playheadSample,
 	durationFrames,
 	effectsPanelOpen,
 	projectBinEffectivelyOpen,
@@ -97,10 +96,10 @@ export default function createApplicationMenus({
 		selectedTrackId: snapshot.selectedTrackId ?? null, editBlocked,
 		copy: { linkAudio: copy.linkAudio, unlinkAudio: copy.unlinkAudio, showVideo: copy.videoVisible, hideVideo: copy.videoHidden },
 	}, { link: actions.linkVideoAudio, unlink: actions.unlinkVideoAudio, setVideoHidden: actions.setVideoHidden });
-	const framescaperVideoTrim = createFramescaperVideoTrimMenuItems(createFramescaperVideoTrimMenuModel({
-		productId, selectedClipId: selectedClip?.id ?? null, playheadSample, editingBlocked: editBlocked,
-		copy: { trimLeftToPlayhead: copy.trimLeftToPlayhead, trimRightToPlayhead: copy.trimRightToPlayhead },
-	}, { planTrim: actions.planVideoTrim }), { commitTrim: actions.commitVideoTrim });
+	const framescaperVideoTrimItems = createFramescaperVideoTrimApplicationMenuItems({
+		productId, selectedClipId: selectedClip?.id ?? null, editingBlocked: editBlocked,
+		copy, currentPlayheadSample: actions.currentVideoPlayheadSample,
+	}, actions);
 	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
 	}), { setTrackLocked: actions.setTrackLocked });
@@ -255,8 +254,7 @@ export default function createApplicationMenus({
 						{ id: 'disjoin', label: copy.disjoinClips, disabled: editBlocked || !selectedClip, onClick: () => actions.executeEdit('disjoin') },
 						{ id: 'group-clips', label: copy.groupClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('group') },
 						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !groupedSelectedClips, onClick: () => actions.executeEdit('ungroup') },
-						...(framescaperVideoTrim.left ? [framescaperVideoTrim.left] : []),
-						...(framescaperVideoTrim.right ? [framescaperVideoTrim.right] : []),
+						...framescaperVideoTrimItems,
 						...(framescaperEditControls.link ? [framescaperEditControls.link] : []),
 						{ id: 'clip-properties', label: copy.clipPropertiesCommand, disabled: !selectedClip, onClick: actions.openClipProperties },
 					],

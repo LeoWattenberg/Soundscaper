@@ -2,6 +2,7 @@ import { otherProductId, productLocalePath } from '../../../products.js';
 
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
+import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import { ANALYSIS_MODE_PANEL_IDS } from './workspace-panel-model.ts';
 
 export function createWorkspaceApplicationMenus({
@@ -31,7 +32,6 @@ export function createWorkspaceApplicationMenus({
 		openTimedRecording,
 		openWorkspacePanel,
 		parityRuntime,
-		playheadSample,
 		productId,
 		project,
 		projectBinEffectivelyOpen,
@@ -59,7 +59,6 @@ export function createWorkspaceApplicationMenus({
 			locale,
 			copy,
 			project,
-			playheadSample,
 			snapshot,
 			blocked,
 			editBlocked,
@@ -157,8 +156,7 @@ export function createWorkspaceApplicationMenus({
 				shuttleStop: () => run(() => controller.actions.video.navigation.shuttleStop()),
 				shuttleForward: () => run(() => controller.actions.video.navigation.shuttleForward()),
 				nextVideoEdit: () => run(() => controller.actions.video.navigation.nextEdit()),
-				planVideoTrim: (request) => controller.actions.video.trim.preview(request),
-				commitVideoTrim: (request) => run(() => controller.actions.video.trim.commit(request)),
+				...createVideoTrimApplicationMenuActions(controller, run),
 				linkVideoAudio: (videoClipId, audioClipId) => run(() => controller.actions.video.link(videoClipId, audioClipId)),
 				unlinkVideoAudio: (clipId) => run(() => controller.actions.video.unlink(clipId)),
 				setVideoHidden: (trackId, hidden) => run(() => controller.actions.track.update(trackId, { hidden })),

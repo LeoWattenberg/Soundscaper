@@ -4,7 +4,7 @@ import { createAudioEditorFileService } from '../../file-service.js';
 import { productProfile } from '../../../products.js';
 import { createAudacityActionRuntime } from '../../audacity-action-runtime.js';
 import { projectDurationFrames } from '../../project.js';
-import { useAudioEditorSnapshot, useAudioEditorTelemetrySelector, useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';
+import { useAudioEditorSnapshot, useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';
 import {
 	selectAudioEditorBusyBlock,
 	selectAudioEditorEditBlock,
@@ -49,10 +49,6 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	}), [copy, fileService, locale, productId]);
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller), [controller]);
 	const snapshot = useAudioEditorSnapshot(controller);
-	const playheadSample = useAudioEditorTelemetrySelector(controller, (telemetry) => (
-		productId === 'framescaper' && Number.isSafeInteger(telemetry.positionFrame)
-			&& telemetry.positionFrame >= 0 ? telemetry.positionFrame : null
-	));
 	const [activeSurface, setActiveSurface] = useState(null);
 	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
 	const [effectWindow, setEffectWindow] = useState(null);
@@ -427,7 +423,6 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 		openTimedRecording,
 		openWorkspacePanel,
 		parityRuntime,
-		playheadSample,
 		productId,
 		project,
 		projectBinEffectivelyOpen,

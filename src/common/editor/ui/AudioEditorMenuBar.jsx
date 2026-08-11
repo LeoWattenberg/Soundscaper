@@ -12,6 +12,7 @@ import '../../../../vendor/audacity-design-system/components/src/ApplicationHead
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 import { withBase } from '../../url';
 import AudioEditorSearch from './AudioEditorSearch.jsx';
+import { materializeApplicationMenu } from './application-menu-materialization.ts';
 import { AUDACITY_MENU_ORDER } from './application-menu-order.ts';
 
 const applicationMarkLightSrc = withBase('/logo/logo-klein-schwarz.svg');
@@ -75,9 +76,11 @@ export default function AudioEditorMenuBar({
 		const rect = trigger.getBoundingClientRect();
 		setSearchOpen(false);
 		setActiveIndex(index);
+		const menu = materializeApplicationMenu(orderedMenus[index]);
 		setOpenMenu({
-			id: orderedMenus[index].id,
+			id: menu.id,
 			index,
+			menu,
 			x: rect.left,
 			y: rect.bottom,
 			autoFocus: keyboard,
@@ -145,7 +148,7 @@ export default function AudioEditorMenuBar({
 		let semanticsFrame;
 		const frame = requestAnimationFrame(() => {
 			const root = document.querySelector('#kw-audio-editor-design-system .kw-audio-editor__application-menu[role="menu"]');
-			root?.setAttribute('aria-label', orderedMenus[openMenu.index]?.label || copy.applicationMenu);
+			root?.setAttribute('aria-label', openMenu.menu.label || copy.applicationMenu);
 			const applyCheckedSemantics = () => {
 				for (const marker of root?.querySelectorAll('[data-audio-editor-menu-checked]') || []) {
 					const item = marker.closest(MENU_ITEM_SELECTOR);
@@ -177,7 +180,7 @@ export default function AudioEditorMenuBar({
 			cancelAnimationFrame(semanticsFrame);
 			observer?.disconnect();
 		};
-	}, [copy.applicationMenu, openMenu, orderedMenus]);
+	}, [copy.applicationMenu, openMenu]);
 
 	const onTopLevelKeyDown = (event, index) => {
 		if (event.key === 'ArrowRight') {
@@ -267,7 +270,7 @@ export default function AudioEditorMenuBar({
 		'--header-text': theme.foreground.text.primary,
 		'--header-menu-hover': theme.background.surface.hover,
 	};
-	const currentMenu = openMenu ? orderedMenus[openMenu.index] : null;
+	const currentMenu = openMenu?.menu || null;
 
 	return (
 		<header className="kw-audio-editor__application-header application-header application-header--windows" style={style}>
