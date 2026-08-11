@@ -1,22 +1,24 @@
 # Milestone 3B-5d: native video-retime workflow decomposition
 
-> **3B-5d reviewed; 3B-5e implemented on 2026-08-12.** The decomposition
-> landed in `17ffbae3`; commit `23b7fe17` delivers its first implementation
-> slice, exact authenticated frame dispatch. The delivered [3B-5a
+> **3B-5d reviewed; 3B-5e and 3B-5f implemented on 2026-08-12.** The
+> decomposition landed in `17ffbae3`; commit `23b7fe17` delivers exact
+> authenticated frame dispatch, `e1e833e0` delivers exact output cadence and
+> its generic queue, and `24a12c73` delivers the paused HTML adapter plus VFR
+> browser oracle. The delivered [3B-5a
 > algebra](milestone-3b-exact-video-retime-algebra.md), [3B-5b V16
 > wire](milestone-3b-video-retime-v16.md), [3B-5c clip
-> mapper](milestone-3b-video-retime-runtime-mapping.md), and 3B-5e dispatcher
-> still expose no maintained writable/drawable workflow or capability change.
+> mapper](milestone-3b-video-retime-runtime-mapping.md), dispatcher, cadence,
+> and preview family still expose no maintained writable/drawable workflow or
+> capability change.
 
-The canonical `npm run check` gate passed with 5,334 tests total, 5,332 passed
-and 2 skipped; 90.17% statement and line coverage, 82.09% branch coverage, and
-90.73% function coverage. The focused algebra/mapper/timing/dispatch review
-suite passed 31/31. Architecture passed with 893 modules, 2,485 dependencies,
-and 1,968 maintained files. The build processed 1,180 modules and emitted 104
-production JavaScript chunks; the largest, `aup4-worker`, was 400,686 bytes.
-No browser row was required because 3B-5e remains a dormant, unimported
-runtime seam. Packet 3B-5 remains **In progress**; the immediate pickup is
-**3B-5f — dormant output cadence and preview executor**.
+The canonical `npm run check` gate passed with 5,357 tests total, 5,355 passed
+and 2 skipped; 90.00% statement and line coverage, 82.08% branch coverage, and
+90.75% function coverage. The focused Node cadence/executor suite passed 23/23
+and focused Chromium passed 4/4. Architecture passed with 896 modules, 2,486
+dependencies, and 1,975 maintained files. The build processed 1,180 modules
+and emitted 104 production JavaScript chunks; the largest, `aup4-worker`, was
+400,686 bytes. Packet 3B-5 remains **In progress**; the immediate pickup is
+**3B-5g — the contract-first deterministic FFmpeg feasibility gate**.
 
 ## Dependency audit and delivery rule
 
@@ -147,7 +149,10 @@ Also prove repeat-cache identity without a public counting/test-only seam.
 
 ## 3B-5f — dormant output cadence and preview executor
 
-This packet starts contract-first. `outputRate` is a positive canonical safe
+**Implemented in `e1e833e0` and `24a12c73`.** Exact cadence, the generic
+bounded queue, the exclusive paused HTML adapter, and the decoder-qualified
+VFR oracle remain dormant and do not change capability availability.
+`outputRate` is a positive canonical safe
 `{ num, den }`, defaulting to the sequence rate; an integer UI choice normalizes
 to `{ num, den: 1 }`, while an unowned finite-Number canvas rate cannot cross
 this seam. For sample range `[A, A + D)`, output count is exactly

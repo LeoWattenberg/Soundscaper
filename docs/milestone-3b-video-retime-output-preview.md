@@ -1,14 +1,23 @@
 # Milestone 3B-5f: exact retime output cadence and dormant preview
 
-> **Planned, contract-first.** The delivered [3B-5e authenticated frame
-> dispatcher](milestone-3b-native-video-retime-workflow.md) maps one integer
-> sequence cell to one exact drawable source-frame interval. This packet owns
-> output cadence and isolated media presentation without importing either into
-> a maintained product path or changing `videoRetime` availability.
+> **Implemented on 2026-08-12.** Commit `e1e833e0` delivers 3B-5f-a's exact
+> output cadence and generic latest-presentation queue; commit `24a12c73`
+> delivers 3B-5f-b's exclusive paused HTML adapter and pinned VFR Chromium
+> oracle. Both slices remain dormant: no maintained product path imports them
+> and `videoRetime` availability is unchanged.
+
+The canonical `npm run check` gate passed with 5,357 tests total, 5,355 passed
+and 2 skipped; 90.00% statement and line coverage, 82.08% branch coverage, and
+90.75% function coverage. The focused Node cadence/executor suite passed 23/23
+and focused Chromium passed 4/4. Architecture passed with 896 modules, 2,486
+dependencies, and 1,975 maintained files. The build processed 1,180 modules
+and emitted 104 production JavaScript chunks; the largest was 400,686 bytes.
+Packet 3B-5 remains **In progress**; the immediate pickup is 3B-5g's
+contract-first deterministic FFmpeg feasibility gate.
 
 ## Delivery split and dependency rule
 
-3B-5f has two atomic implementation slices:
+3B-5f was delivered in two atomic implementation slices:
 
 1. **3B-5f-a — cadence and generic executor:** exact lazy global output cadence,
    one bounded latest-presentation queue, a balanced exact-to-Number terminal,
@@ -17,12 +26,14 @@
    `HTMLVideoElement` adapter, one new decoder-qualified VFR fixture, and an
    isolated focused Chromium oracle.
 
-Packet 3B-5f stays incomplete and serialized 3B-5g export work must not start
-until 5f-b passes. The existing irregular WebM cannot qualify the final source
-frame: its exact final interval is `[0.879, 0.928)`, while Chromium reports a
-duration of `0.879718` and presents the prior frame at `0.830` for every seek
-in the reachable tail. Truncating that source's timing view or treating
-`seeked` as picture evidence is forbidden.
+Packet 3B-5f is complete. Serialized 3B-5g may now begin only at its
+contract-first feasibility gate; export implementation remains stopped until
+its deterministic all-mode representation and bounds are proven. The existing
+irregular WebM could not qualify 5f-b's final source frame: its exact final
+interval is `[0.879, 0.928)`, while Chromium reports a duration of `0.879718`
+and presents the prior frame at `0.830` for every seek in the reachable tail.
+Truncating that source's timing view or treating `seeked` as picture evidence
+remains forbidden.
 
 ## 3B-5f-a exact global cadence
 
@@ -256,8 +267,8 @@ routes after Vite `transformWithEsbuild`; do not add a test-only application
 global or production import. Prove constant/reverse/freeze/both-ramp request
 order, final unequal VFR interval, last-wins/stale fencing, pause/currentness,
 timeout/cancel cleanup, and pixel plus rVFC oracles. Build first and run focused
-Chromium. Packet 5f is incomplete if the pinned decoder cannot prove the final
-ordinal honestly.
+Chromium. The delivered qualification proves the final ordinal honestly; loss
+of that proof invalidates 5f-b's acceptance evidence.
 
 ## Dormancy, future adoption, and stops
 

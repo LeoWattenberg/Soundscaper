@@ -264,11 +264,23 @@ dependencies, and 1,968 maintained files; the build processed 1,180 modules
 and emitted 104 JavaScript chunks with `aup4-worker` largest at 400,686 bytes.
 The focused algebra/mapper/timing/dispatch review suite passed 31/31. No browser
 row was required because no maintained path imports the dormant dispatcher.
-Packet 3B-5 remains in progress; the immediate pickup is
+Packet 3B-5 remains in progress.
+
+The delivered fifth slice is
 [3B-5f — exact output cadence and dormant preview](milestone-3b-video-retime-output-preview.md),
-split into a pure cadence/generic queue and a decoder-qualified HTML adapter.
-The later export packet stays blocked until the new final-frame VFR Chromium
-oracle passes; there is no partial capability flip.
+split into a pure cadence/generic queue in `e1e833e0` and a decoder-qualified
+HTML adapter in `24a12c73`, both on 2026-08-12. Its canonical gate passed with
+5,357 tests total (5,355 passed, 2 skipped), 90.00% statement/line, 82.08%
+branch, and 90.75% function coverage. Architecture passed with 896 modules,
+2,486 dependencies, and 1,975 maintained files; the build processed 1,180
+modules and emitted 104 JavaScript chunks with a 400,686-byte largest chunk.
+The focused Node cadence/executor suite passed 23/23 and focused Chromium
+passed 4/4, including the unequal final VFR interval. No maintained path
+imports this dormant family and there is no capability flip. Packet 3B-5
+remains in progress; the immediate pickup is **3B-5g's contract-first
+deterministic FFmpeg feasibility gate**. Export implementation must stop until
+the exact all-mode ordinal equation, cumulative bounds, and pinned MP4/WebM
+proof are closed.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time
