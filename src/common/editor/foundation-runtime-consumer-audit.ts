@@ -186,6 +186,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The slip/slide command adapter requires an already-branded projection plus verified source timing while planning authoritative frame-grid mutations; it does not create or consume a runtime playback projection.',
 	},
 	{
+		file: 'src/common/editor/frame-canonical-slip-slide-step-request.ts',
+		reason: 'The slip/slide step command adapter requires an already-branded projection while deriving one absolute planner request from immutable frame authority; it does not create or consume a runtime playback projection.',
+	},
+	{
 		file: 'src/common/editor/project-feature-requirements.ts',
 		reason: 'Owned feature-declaration reconciliation resolves a fallback target duration while validating persisted requirements.',
 	},

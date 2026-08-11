@@ -312,6 +312,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'frame-canonical-slip-slide-step-request',
+		file: 'src/common/editor/frame-canonical-slip-slide-step-request.ts',
+		behavior: 'One-frame slide actions resolve the immutable authority sequence start plus a signed frame step directly to one absolute nearest-point sample request.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'frame-canonical-slip-source-timing',
 		file: 'src/common/editor/frame-canonical-slip-slide-timing.ts',
 		behavior: 'Verified CFR and VFR source evidence maps exact absolute source times to nearest source-grid points without timeline-domain accumulation.',
