@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
-import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
 
 test.describe('audio editor video composition workflow', () => {
 	test.beforeEach(async ({ page }) => {
@@ -17,28 +18,12 @@ test.describe('audio editor video composition workflow', () => {
 		}));
 	});
 
-	test('imports generated A/V fixtures, layers tracks, crossfades, rejects a third overlap, and reorders layers', async ({ page }) => {
-		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
+	test('imports generated A/V fixtures, layers tracks, crossfades, rejects a third overlap, and reorders layers', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(60_000);
 		await page.setViewportSize({ width: 1_440, height: 1_200 });
-		const red = await createGeneratedVideoFixture(page, {
-			name: 'layer-red.webm',
-			color: '#d92f45',
-			accent: '#ffd6dc',
-			frequency: 220,
-			width: 96,
-			height: 54,
-			frameCount: 32,
-		});
-		const blue = await createGeneratedVideoFixture(page, {
-			name: 'layer-blue.webm',
-			color: '#245fce',
-			accent: '#d8e5ff',
-			frequency: 440,
-			width: 54,
-			height: 96,
-			frameCount: 32,
-		});
+		const red = createDeterministicAvFixture('layer-red.webm');
+		const blue = createDeterministicAvFixture('layer-blue.webm', { variant: 'portrait' });
 		const errors = collectClientErrors(page);
 		const editor = await bootVideoEditor(page);
 		await importTimelineFiles(editor, [
@@ -175,18 +160,11 @@ test.describe('audio editor video composition workflow', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('edits the selected video effect rack and falls back cleanly if WebGL is interrupted', async ({ page }) => {
-		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
+	test('edits the selected video effect rack and falls back cleanly if WebGL is interrupted', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1_280, height: 960 });
-		const fixture = await createGeneratedVideoFixture(page, {
-			name: 'effects-source.webm',
-			color: '#7c3aed',
-			accent: '#f5d0fe',
-			frequency: 330,
-			width: 96,
-			height: 54,
-		});
+		const fixture = createDeterministicAvFixture('effects-source.webm');
 		const errors = collectClientErrors(page);
 		const editor = await bootVideoEditor(page);
 		await importTimelineFiles(editor, [fixture]);
@@ -308,17 +286,10 @@ test.describe('audio editor video composition workflow', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps the DOM preview and warns when WebGL2 is unavailable', async ({ page }) => {
-		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
+	test('keeps the DOM preview and warns when WebGL2 is unavailable', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(60_000);
-		const fixture = await createGeneratedVideoFixture(page, {
-			name: 'effects-fallback.webm',
-			color: '#0f766e',
-			accent: '#ccfbf1',
-			frequency: 275,
-			width: 96,
-			height: 54,
-		});
+		const fixture = createDeterministicAvFixture('effects-fallback.webm');
 		await page.addInitScript(() => {
 			const originalGetContext = HTMLCanvasElement.prototype.getContext;
 			HTMLCanvasElement.prototype.getContext = function getContext(type, ...args) {
@@ -350,68 +321,6 @@ test.describe('audio editor video composition workflow', () => {
 		expect(errors).toEqual([]);
 	});
 });
-
-async function createGeneratedVideoFixture(page, options) {
-	const base64 = await page.evaluate(async (fixture) => {
-		const frameCount = Math.max(2, Number(fixture.frameCount) || 14);
-		const canvas = document.createElement('canvas');
-		canvas.width = fixture.width;
-		canvas.height = fixture.height;
-		const context = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(15);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = fixture.frequency;
-		gain.gain.value = 0.06;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-			? 'video/webm;codecs=vp8,opus'
-			: 'video/webm';
-		const recorder = new MediaRecorder(stream, {
-			mimeType,
-			videoBitsPerSecond: 120_000,
-			audioBitsPerSecond: 32_000,
-		});
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < frameCount; frame += 1) {
-			context.fillStyle = fixture.color;
-			context.fillRect(0, 0, canvas.width, canvas.height);
-			context.fillStyle = fixture.accent;
-			const markerSize = Math.max(5, Math.round(Math.min(canvas.width, canvas.height) / 5));
-			const markerX = Math.round((canvas.width - markerSize) * frame / (frameCount - 1));
-			context.fillRect(markerX, Math.round((canvas.height - markerSize) / 2), markerSize, markerSize);
-			await new Promise((resolve) => setTimeout(resolve, 65));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
-		const blob = new Blob(chunks, { type: 'video/webm' });
-		const bytes = new Uint8Array(await blob.arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	}, options);
-	return {
-		name: options.name,
-		mimeType: 'video/webm',
-		buffer: Buffer.from(base64, 'base64'),
-	};
-}
 
 async function bootVideoEditor(page) {
 	await page.goto('/framescaper/en/');

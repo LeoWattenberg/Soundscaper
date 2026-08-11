@@ -29,7 +29,8 @@ import {
 	registerAudioEditorHooks,
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
-import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
 const OVERSIZED_FALLBACK_FRAME_COUNT = SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES
@@ -37,6 +38,7 @@ const OVERSIZED_FALLBACK_FRAME_COUNT = SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES
 const FALLBACK_SAMPLE_RATE = 48_000;
 const SCAPE_AUDIO_CHUNK_FRAMES = 65_536;
 const CHUNK_STREAM_PACKET_FRAMES = 1_024;
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
 
 test.describe('Scape open feature decisions', () => {
 	registerAudioEditorHooks();
@@ -344,18 +346,11 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens Framescaper video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }) => {
-		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
+	test('opens Framescaper video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
-		const fixture = await createGeneratedVideoFixture(page, {
-			name: 'compatibility-video.webm',
-			color: '#4f46e5',
-			accent: '#fef3c7',
-			frequency: 330,
-			width: 96,
-			height: 54,
-			frameCount: 6,
-		});
+		await installPinnedFfmpegRuntimeRoutes(page);
+		const fixture = createDeterministicAvFixture('compatibility-video.webm');
 		const errors = collectClientErrors(page);
 		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
 		await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
@@ -733,66 +728,4 @@ async function assertAffectedPixelatePlaceholder(editor, effectId) {
 	await expect(placeholder).toHaveAttribute('data-effective-disposition', 'bypassed');
 	await expect(placeholder).toContainText(/Pixelate\s*Timeline · .+\s*Bypassed during editor playback/su);
 	await expect(placeholder.locator('button, input, select, textarea, a[href]')).toHaveCount(0);
-}
-
-async function createGeneratedVideoFixture(page, options) {
-	const base64 = await page.evaluate(async (fixture) => {
-		const frameCount = Math.max(2, Number(fixture.frameCount) || 6);
-		const canvas = document.createElement('canvas');
-		canvas.width = fixture.width;
-		canvas.height = fixture.height;
-		const context = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(15);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = fixture.frequency;
-		gain.gain.value = 0.04;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-			? 'video/webm;codecs=vp8,opus'
-			: 'video/webm';
-		const recorder = new MediaRecorder(stream, {
-			mimeType,
-			videoBitsPerSecond: 120_000,
-			audioBitsPerSecond: 32_000,
-		});
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < frameCount; frame += 1) {
-			context.fillStyle = fixture.color;
-			context.fillRect(0, 0, canvas.width, canvas.height);
-			context.fillStyle = fixture.accent;
-			const markerSize = Math.max(5, Math.round(Math.min(canvas.width, canvas.height) / 5));
-			const markerX = Math.round((canvas.width - markerSize) * frame / (frameCount - 1));
-			context.fillRect(markerX, Math.round((canvas.height - markerSize) / 2), markerSize, markerSize);
-			await new Promise((resolve) => setTimeout(resolve, 65));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
-		const blob = new Blob(chunks, { type: 'video/webm' });
-		const bytes = new Uint8Array(await blob.arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	}, options);
-	return {
-		name: options.name,
-		mimeType: 'video/webm',
-		buffer: Buffer.from(base64, 'base64'),
-	};
 }

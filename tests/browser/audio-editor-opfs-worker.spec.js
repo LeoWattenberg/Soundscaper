@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
-import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
 const DATABASE_VERSION = 8;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit cannot load the pinned FFmpeg runtime required to extract the fixture audio.';
 
 test.describe('dedicated OPFS storage worker', () => {
 	test.beforeEach(async ({ context, page }) => {
@@ -37,8 +38,8 @@ test.describe('dedicated OPFS storage worker', () => {
 		});
 	});
 
-	test('opfs-multitab-writer persists media and transfers one project writer', async ({ context, page }) => {
-		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
+	test('opfs-multitab-writer persists media and transfers one project writer', async ({ context, page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
 		const workerRequests = [];
 		page.on('request', (request) => {
@@ -46,7 +47,7 @@ test.describe('dedicated OPFS storage worker', () => {
 		});
 		await page.goto('/framescaper/en/');
 		let editor = await waitForVideoEditor(page);
-		const fixture = await createGeneratedVideoFixture(page);
+		const fixture = createDeterministicAvFixture('opfs-worker-video.webm');
 		await importVideo(editor, fixture);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 20_000 });
 		await expect(editor.locator('[data-video-preview-clip]')).toBeVisible();
@@ -114,62 +115,6 @@ async function importVideo(editor, fixture) {
 	}
 	await editor.locator('[data-import-input]').setInputFiles(fixture);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
-}
-
-async function createGeneratedVideoFixture(page) {
-	const base64 = await page.evaluate(async () => {
-		const canvas = document.createElement('canvas');
-		canvas.width = 96;
-		canvas.height = 54;
-		const context = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(15);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = 330;
-		gain.gain.value = 0.06;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-			? (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-				? 'video/webm;codecs=vp8,opus'
-				: 'video/webm;codecs=vp8')
-			: 'video/webm';
-		const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 120_000 });
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < 16; frame += 1) {
-			context.fillStyle = frame % 2 ? '#245fce' : '#d92f45';
-			context.fillRect(0, 0, canvas.width, canvas.height);
-			context.fillStyle = '#ffffff';
-			context.fillRect(frame * 5, 20, 12, 12);
-			await new Promise((resolve) => setTimeout(resolve, 65));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
-		const bytes = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	});
-	return {
-		name: 'opfs-worker-video.webm',
-		mimeType: 'video/webm',
-		buffer: Buffer.from(base64, 'base64'),
-	};
 }
 
 async function persistedOpfsInventory(page, sourceName) {
