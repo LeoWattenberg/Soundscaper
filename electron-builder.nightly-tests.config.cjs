@@ -18,6 +18,7 @@ module.exports = {
 		'desktop/nightly-tests-main.mjs',
 		'desktop/nightly-tests-manifest.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
+		'scripts/lib/desktop-nightly-tests-static-route.mjs',
 		'package.json',
 		'!node_modules/**/*',
 	],

@@ -128,14 +128,22 @@ test('the bundled static server serves bounded files and rejects traversal and s
 	const fixtureRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-server-'));
 	context.after(() => rm(fixtureRoot, { recursive: true, force: true }));
 	const publicRoot = join(fixtureRoot, 'dist');
-	await mkdir(join(publicRoot, 'en'), { recursive: true });
+	await Promise.all([
+		mkdir(join(publicRoot, 'en'), { recursive: true }),
+		mkdir(join(publicRoot, 'framescaper/en'), { recursive: true }),
+	]);
 	await writeFile(join(publicRoot, 'index.html'), '<h1>root</h1>', 'utf8');
 	await writeFile(join(publicRoot, 'en/index.html'), '<h1>English</h1>', 'utf8');
+	await writeFile(join(publicRoot, 'framescaper/en/index.html'), '<h1>Framescaper English</h1>', 'utf8');
 	await writeFile(join(publicRoot, 'app.js'), 'export const ready = true;', 'utf8');
 	await writeFile(join(publicRoot, 'worker.wasm'), Uint8Array.of(0, 97, 115, 109));
 	const outside = join(fixtureRoot, 'outside.txt');
 	await writeFile(outside, 'secret', 'utf8');
-	if (process.platform !== 'win32') await symlink(outside, join(publicRoot, 'escape.txt'));
+	if (process.platform !== 'win32') {
+		await symlink(outside, join(publicRoot, 'escape.txt'));
+		await mkdir(join(publicRoot, 'embed/en'), { recursive: true });
+		await symlink(outside, join(publicRoot, 'embed/en/index.html'));
+	}
 
 	const server = await startDesktopNightlyTestsStaticServer({ root: publicRoot });
 	context.after(() => server.close());
@@ -146,6 +154,28 @@ test('the bundled static server serves bounded files and rejects traversal and s
 	assert.equal(await root.text(), '<h1>root</h1>');
 	const localized = await fetch(`${server.baseURL}/en/`);
 	assert.equal(await localized.text(), '<h1>English</h1>');
+	const embedded = await fetch(`${server.baseURL}/embed/en/`, {
+		headers: { Accept: 'text/html' },
+	});
+	assert.equal(embedded.status, 200);
+	assert.equal(await embedded.text(), '<h1>English</h1>');
+	const embeddedWithQuery = await fetch(`${server.baseURL}/embed/en/?project=fixture`, {
+		headers: { Accept: 'text/html' },
+	});
+	assert.equal(embeddedWithQuery.status, 200);
+	assert.equal(await embeddedWithQuery.text(), '<h1>English</h1>');
+	const framescaperEmbedded = await fetch(`${server.baseURL}/framescaper/embed/en/`, {
+		headers: { Accept: 'text/html' },
+	});
+	assert.equal(framescaperEmbedded.status, 200);
+	assert.equal(await framescaperEmbedded.text(), '<h1>Framescaper English</h1>');
+	const framescaperHead = await fetch(`${server.baseURL}/framescaper/embed/en/`, {
+		method: 'HEAD',
+		headers: { Accept: 'text/html' },
+	});
+	assert.equal(framescaperHead.status, 200);
+	assert.equal(framescaperHead.headers.get('content-length'), String(Buffer.byteLength('<h1>Framescaper English</h1>')));
+	assert.equal(await framescaperHead.text(), '');
 	const script = await fetch(`${server.baseURL}/app.js`);
 	assert.equal(script.headers.get('content-type'), 'text/javascript; charset=utf-8');
 	const wasm = await fetch(`${server.baseURL}/worker.wasm`);
@@ -163,6 +193,22 @@ test('the bundled static server serves bounded files and rejects traversal and s
 	assert.equal((await rawRequest(server.baseURL, '/%ZZ')).statusCode, 400);
 	if (process.platform !== 'win32') assert.equal((await fetch(`${server.baseURL}/escape.txt`)).status, 404);
 	assert.equal((await fetch(`${server.baseURL}/missing.txt`)).status, 404);
+	assert.equal((await fetch(`${server.baseURL}/embed/en/missing.js`, {
+		headers: { Accept: 'text/html' },
+	})).status, 404);
+	assert.equal((await fetch(`${server.baseURL}/embed/unknown/`, {
+		headers: { Accept: 'text/html' },
+	})).status, 404);
+	assert.equal((await fetch(`${server.baseURL}/embed/en/`, {
+		headers: { Accept: 'application/json, text/html;q=0' },
+	})).status, 404);
+	assert.equal((await rawRequest(server.baseURL, '/embed/en/')).statusCode, 404);
+	assert.equal((await fetch(`${server.baseURL}/embed/en/`, {
+		headers: { Accept: '*/*' },
+	})).status, 404);
+	assert.equal((await fetch(`${server.baseURL}/embed/en/`, {
+		headers: { Accept: 'application/json' },
+	})).status, 404);
 });
 
 test('the Playwright plan is closed over the packaged payload and sibling run root', () => {

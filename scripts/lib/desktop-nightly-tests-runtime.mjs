@@ -17,11 +17,13 @@ import {
 	isAbsolute,
 	join,
 	posix,
-	relative,
-	resolve,
-	sep,
 	win32,
 } from 'node:path';
+
+import {
+	resolveDesktopNightlyTestsStaticRequestFile,
+	StaticRequestError,
+} from './desktop-nightly-tests-static-route.mjs';
 
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
@@ -312,7 +314,11 @@ async function serveStaticRequest({ request, response, staticRoot }) {
 			response.end('Method not allowed');
 			return;
 		}
-		const file = await resolveStaticRequestFile(staticRoot, request.url);
+		const file = await resolveDesktopNightlyTestsStaticRequestFile(
+			staticRoot,
+			request.url,
+			request.headers.accept,
+		);
 		const extension = extname(file.path).toLowerCase();
 		const headers = {
 			'Cache-Control': cacheControlFor(file.relativePath),
@@ -337,41 +343,6 @@ async function serveStaticRequest({ request, response, staticRoot }) {
 		} else {
 			response.destroy();
 		}
-	}
-}
-
-async function resolveStaticRequestFile(staticRoot, requestUrl) {
-	const rawPath = String(requestUrl ?? '/').split('?', 1)[0];
-	let decoded;
-	try {
-		decoded = decodeURIComponent(rawPath);
-	} catch {
-		throw new StaticRequestError(400, 'Malformed URL path');
-	}
-	if (!decoded.startsWith('/') || decoded.includes('\0') || decoded.includes('\\')) {
-		throw new StaticRequestError(400, 'Invalid URL path');
-	}
-	const segments = decoded.split('/');
-	if (segments.some((segment) => segment === '.' || segment === '..')) {
-		throw new StaticRequestError(400, 'Invalid URL path');
-	}
-	let relativePath = segments.filter(Boolean).join('/');
-	if (!relativePath || decoded.endsWith('/')) relativePath = `${relativePath}${relativePath ? '/' : ''}index.html`;
-	const candidate = resolve(staticRoot, relativePath);
-	assertContained(staticRoot, candidate, 400);
-	const candidateRealPath = await realpath(candidate).catch(() => {
-		throw new StaticRequestError(404, 'File not found');
-	});
-	assertContained(staticRoot, candidateRealPath, 404);
-	const details = await stat(candidateRealPath);
-	if (!details.isFile()) throw new StaticRequestError(404, 'File not found');
-	return { path: candidateRealPath, relativePath, size: details.size };
-}
-
-function assertContained(root, candidate, statusCode) {
-	const remainder = relative(root, candidate);
-	if (remainder === '..' || remainder.startsWith(`..${sep}`) || isAbsolute(remainder)) {
-		throw new StaticRequestError(statusCode, statusCode === 400 ? 'Invalid URL path' : 'File not found');
 	}
 }
 
@@ -588,12 +559,4 @@ function combineFailures(first, second) {
 
 function message(error) {
 	return error instanceof Error ? error.message : String(error);
-}
-
-class StaticRequestError extends Error {
-	constructor(statusCode, errorMessage) {
-		super(errorMessage);
-		this.name = 'StaticRequestError';
-		this.statusCode = statusCode;
-	}
 }

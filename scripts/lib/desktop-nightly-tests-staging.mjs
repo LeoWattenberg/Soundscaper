@@ -33,6 +33,7 @@ const REQUIRED_INPUTS = Object.freeze([
 	{ source: 'desktop/nightly-tests-main.mjs', destination: 'desktop/nightly-tests-main.mjs', kind: 'file', label: 'nightly test launcher' },
 	{ source: 'desktop/nightly-tests-manifest.mjs', destination: 'desktop/nightly-tests-manifest.mjs', kind: 'file', label: 'nightly test manifest reader' },
 	{ source: 'scripts/lib/desktop-nightly-tests-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-runtime.mjs', kind: 'file', label: 'nightly test runtime' },
+	{ source: 'scripts/lib/desktop-nightly-tests-static-route.mjs', destination: 'scripts/lib/desktop-nightly-tests-static-route.mjs', kind: 'file', label: 'nightly test static route resolver' },
 	{ source: 'playwright.nightly-tests.config.mjs', destination: 'playwright.nightly-tests.config.mjs', kind: 'file', label: 'nightly test Playwright config' },
 	{ source: 'dist', destination: 'dist', kind: 'directory', label: 'production web build' },
 	{ source: 'src', destination: 'src', kind: 'directory', label: 'browser-test source tree' },
