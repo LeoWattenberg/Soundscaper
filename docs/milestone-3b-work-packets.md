@@ -219,6 +219,11 @@ ramps, and nested sequences**.
 
 ## 3B-5 — Retiming, ramps, and nested sequences
 
+The immediate planned pickup is
+[3B-5a — exact video-retime curve algebra](milestone-3b-exact-video-retime-algebra.md):
+one schema-neutral pure compiler, closed-form evaluator, and discrete exact
+inverse contract before any persisted ramp revision or maintained workflow.
+
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time
   mapping, and deterministic flattening. The persisted ramp-curve revision lands
