@@ -447,9 +447,12 @@ Packet boundaries, dependencies, and acceptance are owned by
   trim/navigation consume live lock facts. Frame-canonical roll and lane-ripple
   trim is implemented through `47a0be9`: one planner owns linked integer/NTSC
   geometry, lock-aware clamping, complete previews, and the atomic command used
-  by the lazy menu and modified existing handles. Packet 3B-4 stays in progress.
-  Its immediate next slice is frame-canonical slip/slide, followed by uniform
-  rate-stretch and the remaining keyboard-complete trim feedback. See
+  by the lazy menu and modified existing handles. Frame-canonical slip and slide
+  are implemented through `c490af3b`: one verified-timing authority keeps linked
+  A/V exact through lazy menu actions and modified whole-clip gestures, with
+  persisted locks and one-step undo/redo. Packet 3B-4 stays in progress. Its
+  immediate next slice is bounded **3B-4b7 — uniform rate-stretch**, followed by
+  the remaining keyboard-complete trim feedback. See
   [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md),
   [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
   [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),

@@ -1,10 +1,12 @@
 # Milestone 3B-4b6: frame-canonical slip and slide
 
-> **Planned immediate pickup:** bounded Framescaper slice after
+> **Implemented:** delivered through commit `c490af3b` on 2026-08-11, after
 > [3B-4b5 — frame-canonical roll and ripple trim](milestone-3b-roll-ripple-trim.md).
-> It adds video-bearing slip and slide through one pure planning authority, one
-> atomic transform command, the existing menu, and whole-clip pointer gestures,
-> without a default-visible control or packet 3B-4 completion claim.
+> This slice adds video-bearing slip and slide through one pure planning
+> authority, one atomic transform command, the existing menu, and whole-clip
+> pointer gestures, without a default-visible control. It does not complete
+> packet 3B-4; the immediate pickup is bounded **3B-4b7 — uniform rate-stretch**,
+> followed by the remaining keyboard-complete trim feedback.
 
 ## Foundation already present
 
@@ -221,11 +223,11 @@ move keep their current behavior.
 - Service/menu/pointer tests prove planner-owned absolute step targets, immutable
   pointer origins, live replan, modifier conflict behavior, localized feedback,
   Framescaper-only exposure, and unchanged Soundscaper/ordinary move.
-- Focused Chromium exercises all four menu actions, both pointer modes, one VFR
-  linked pair, one locked refusal, feedback, and one-step undo/redo while showing
-  no new default-visible control. Focused tests, typecheck, lint, architecture,
-  file-size, canonical non-browser, build, and Chromium gates pass before status
-  is recorded.
+- Focused Chromium exercises all four menu actions, both pointer modes, one
+  exact-timed linked pair with validated persisted timing-asset bytes, one locked
+  refusal, feedback, and one-step undo/redo while showing no new default-visible
+  control. Focused tests, typecheck, lint, architecture, file-size, canonical
+  non-browser, build, and Chromium gates pass before status is recorded.
 
 Expected strict modules are `frame-canonical-slip-slide-domain.ts`,
 `frame-canonical-slip-slide-planner.ts`, `controller/video-slip-slide-service.ts`,
@@ -233,6 +235,22 @@ Expected strict modules are `frame-canonical-slip-slide-domain.ts`,
 and `ui/timeline/slip-slide-pointer-routing.ts`. Compose them through
 `video.trim.slipSlide.preview/commit` and a narrow request-builder port; keep
 each maintained file below 600 lines and register new conversions.
+
+## Recorded evidence
+
+- Delivery through commit `c490af3b` includes the pure CFR/VFR-capable planner,
+  verified source-timing boundary, exact canonical command persistence,
+  controller and localized feedback, lazy Framescaper menu state, whole-clip
+  pointer previews and guides, and focused browser workflow.
+- `npm run check` passed with 5,220 tests total, 5,218 passed and 2 skipped;
+  coverage was 91.34% statements and lines, 79.93% branches, and 90.45%
+  functions.
+- The production build guard passed with the largest JavaScript chunk at
+  388,318 bytes. Focused Chromium exact-timing slip/slide coverage passed 1/1,
+  validating the persisted timing asset and exact linked A/V canonical/source
+  persistence across all four menu actions, both modified body gestures,
+  undo/redo, transient previews/guides, lock refusal, localized feedback,
+  Soundscaper absence, and no default-visible control.
 
 ## Non-goals and stop conditions
 
@@ -247,3 +265,7 @@ each maintained file below 600 lines and register new conversions.
 - Stop if either operation cannot preview and commit through the same pure live
   plan, one `clip/transform-many`, and one undo step, or if reachability requires
   a default-visible surface or changes ordinary move/Soundscaper behavior.
+
+The four packaged Electron timing-probe rows remain `pending-external`, and
+WebKit remains deferred. This focused Chromium result qualifies only that
+workflow.

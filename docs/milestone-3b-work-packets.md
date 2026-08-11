@@ -156,7 +156,7 @@ second compositor.
 
 ## 3B-4 — Trim tools and shuttle navigation
 
-The delivered first six slices are
+The delivered first seven slices are
 [3B-4a — shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md):
 session-only J/K/L shuttle and strict previous/next video edit-point navigation
 through the existing Transport menu and Framescaper workspace keys; and
@@ -178,13 +178,18 @@ in commit `86496f4` on 2026-08-11; and
 one frame-canonical authority for roll and lane-ripple planning, atomic command
 and history, persisted-lock refusal, lazy Framescaper menu state, existing-handle
 modifier routing, complete previews, and localized feedback, delivered through
-commit `47a0be9` on 2026-08-11. The canonical gate passed with 5,146 tests total,
-5,144 passed and 2 skipped, 90.09% statement and line coverage, 81.91% branch
-coverage, 90.46% function coverage, and a 388,318-byte largest production
-JavaScript chunk; focused Chromium NTSC roll/ripple coverage passed 1/1. Packet
-3B-4 remains in progress. Its immediate planned pickup is
-[3B-4b6 — frame-canonical slip and slide](milestone-3b-slip-slide.md), followed
-by uniform rate-stretch and the remaining keyboard-complete trim feedback.
+commit `47a0be9` on 2026-08-11; and
+[3B-4b6 — frame-canonical slip and slide](milestone-3b-slip-slide.md): one
+frame-canonical authority for exact source-domain slip and fixed-outer-edge slide
+planning, atomic command and history, verified timing, persisted-lock refusal,
+lazy Framescaper menu state, whole-clip modifier routing, complete previews and
+guides, and localized feedback, delivered through commit `c490af3b` on
+2026-08-11. The canonical gate passed with 5,220 tests total, 5,218 passed and 2
+skipped, 91.34% statement and line coverage, 79.93% branch coverage, 90.45%
+function coverage, and a 388,318-byte largest production JavaScript chunk;
+focused Chromium exact-timing slip/slide coverage passed 1/1. Packet 3B-4
+remains in progress. Its immediate planned pickup is bounded **3B-4b7 — uniform
+rate-stretch**, followed by the remaining keyboard-complete trim feedback.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
