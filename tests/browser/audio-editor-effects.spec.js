@@ -463,6 +463,17 @@ import {
 		await commitInput(echoSettings.locator('[data-effect-param="delaySeconds"] input'), '0.75');
 		await closeDialog(echoSettings);
 
+		// The blur commit reaches the stored macro asynchronously and Export
+		// serialises that stored macro, so read the delay back out of the slot
+		// before downloading. Polling the finished file cannot recover from an
+		// export that raced the commit.
+		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+		await manager.getByRole('group', { name: 'Echo', exact: true })
+			.getByRole('button', { name: 'Select effect', exact: true }).click();
+		const echoCommitted = page.getByRole('dialog', { name: 'Echo', exact: true });
+		await expect(echoCommitted.locator('[data-effect-param="delaySeconds"] input')).toHaveValue('0.75');
+		await closeDialog(echoCommitted);
+
 		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
 		await manager.getByLabel('Macro name', { exact: true }).fill('Browser chain');
 		const [download] = await Promise.all([
