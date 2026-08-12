@@ -29,6 +29,7 @@ test('recording cycle actions enforce takeComp capability before controller muta
 	});
 	assert.throws(() => actions.cycle.start(), /unsupported takeComp/u);
 	assert.throws(() => actions.cycle.recover({}), /unsupported takeComp/u);
+	assert.throws(() => actions.cycle.discard({}), /unsupported takeComp/u);
 	assert.deepEqual(calls, []);
 });
 
