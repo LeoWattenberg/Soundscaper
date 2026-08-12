@@ -178,7 +178,9 @@ export function createTakeCycleRecordingService(
 		const base = Object.freeze({ ownership, laneIndex: lane.laneIndex, plan: lane.plan });
 		const project = await callOwned(
 			ownership,
-			() => dependencies.prepareProjectPublication(base),
+			() => dependencies.prepareProjectPublication(Object.freeze({
+				...base, publications: lane.publications,
+			})),
 		);
 		if (project.projectFence.projectId !== ownership.projectToken.projectId) {
 			throw new Error('Take cycle project fence does not own the active editor project.');

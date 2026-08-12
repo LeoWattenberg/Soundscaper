@@ -67,7 +67,9 @@ export interface TakeCycleLaneOperation {
 	readonly plan: ExactTakeCycleCapturePlan;
 }
 
-export type TakeCycleProjectPreparationOperation = TakeCycleLaneOperation;
+export interface TakeCycleProjectPreparationOperation extends TakeCycleLaneOperation {
+	readonly publications: readonly TakeCyclePublicationDescriptor[];
+}
 
 export interface PreparedTakeCycleProjectPublication {
 	readonly projectFence: TakeCycleProjectPublicationFence;
