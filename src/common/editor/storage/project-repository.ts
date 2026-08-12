@@ -54,6 +54,7 @@ export type ProjectPostCommitMaintenance = () => PromiseLike<void> | void;
 export interface ProjectRepositoryPort {
 	createIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
 	save(project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument>;
+	saveIfCurrent?(expected: ProjectDocument, project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument | null>;
 	maintainCurrentProject?(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void>;
 	load(projectId: string, options?: ProjectLoadOptions): Promise<ProjectDocument | null>;
 	list(): Promise<ProjectDocument[]>;

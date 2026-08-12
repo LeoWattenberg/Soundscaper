@@ -23,6 +23,7 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	musicalTimeline: 'org.soundscaper.capability.musical-timeline',
 	timelineAnnotations: 'org.soundscaper.capability.timeline-annotations',
 	trackFolders: 'org.soundscaper.capability.track-folders',
+	takeComp: 'org.soundscaper.capability.take-comp',
 	audioWarp: 'org.soundscaper.capability.audio-warp',
 	sequenceTiming: 'org.soundscaper.capability.sequence-timing',
 	videoRetime: 'org.soundscaper.capability.video-retime',
@@ -54,7 +55,6 @@ export const PROJECT_FEATURE_AUDIO_CAPABILITY_IDS = Object.freeze([
 	PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
 	PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
 	PROJECT_FEATURE_CAPABILITY_IDS.musicalTimeline,
-	PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
 ] as const);
 
 export type ProjectFeatureAudioCapabilityId = typeof PROJECT_FEATURE_AUDIO_CAPABILITY_IDS[number];

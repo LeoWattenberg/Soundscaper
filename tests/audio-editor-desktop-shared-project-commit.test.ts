@@ -92,6 +92,52 @@ test('a catalog summary does not authorize overwriting a document that was never
 	assert.equal(expectedRevision, null);
 });
 
+test('desktop shared compare-and-swap leaves its shadow unchanged after a remote race', async () => {
+	const expected = project('raced-project', 4);
+	const target = project('raced-project', 5);
+	const competing = createCurrentAudioEditorProject({
+		id: expected.id,
+		title: 'Competing revision',
+		revision: 5,
+		now: NOW,
+	}) as unknown as ProjectDocument;
+	const shadow = memoryShadow();
+	let remote = serializeScapeProjectDocument(expected);
+	const commitStarted = deferred<void>();
+	const releaseCommit = deferred<void>();
+	let maintenanceCalls = 0;
+	const repository = new DesktopSharedProjectRepository({
+		shadow,
+		sourceAvailability: unavailableSources(),
+		onLocalCleanupError: () => {},
+		bridge: {
+			listSharedProjects: async () => [],
+			readSharedProject: async () => remote,
+			async commitSharedProject(request) {
+				commitStarted.resolve();
+				await releaseCommit.promise;
+				const current = JSON.parse(remote) as ProjectDocument;
+				if (request.expectedRevision !== current.revision) {
+					return { status: 'conflict' as const, currentRevision: Number(current.revision) };
+				}
+				remote = request.document;
+				return { status: 'committed' as const, document: request.document };
+			},
+			deleteSharedProject: async () => true,
+		},
+	});
+
+	await repository.load(expected.id);
+	const publishing = repository.saveIfCurrent(expected, target, async () => { maintenanceCalls += 1; });
+	await commitStarted.promise;
+	remote = serializeScapeProjectDocument(competing);
+	releaseCommit.resolve();
+
+	assert.equal(await publishing, null);
+	assert.deepEqual(await shadow.load(), expected);
+	assert.equal(maintenanceCalls, 0);
+});
+
 function project(id: string, revision: number): ProjectDocument {
 	return createCurrentAudioEditorProject({ id, title: id, revision, now: NOW }) as unknown as ProjectDocument;
 }
@@ -105,6 +151,11 @@ function memoryShadow() {
 			return candidate;
 		},
 		async save(candidate: ProjectDocument) { local = candidate; return candidate; },
+		async saveIfCurrent(expected: ProjectDocument, candidate: ProjectDocument) {
+			if (!local || serializeScapeProjectDocument(local) !== serializeScapeProjectDocument(expected)) return null;
+			local = candidate;
+			return candidate;
+		},
 		async load() { return local; },
 		async list() { return local ? [local] : []; },
 		async listRevisions() { return []; },
@@ -128,4 +179,10 @@ function unavailableSources() {
 		getMediaAssetMetadata: unexpected,
 		loadMediaAsset: unexpected,
 	};
+}
+
+function deferred<Value>() {
+	let resolve = (_value: Value | PromiseLike<Value>): void => undefined;
+	const promise = new Promise<Value>((done) => { resolve = done; });
+	return { promise, resolve };
 }

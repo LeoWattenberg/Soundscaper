@@ -107,6 +107,7 @@ export function TimelineWorkspaceView({
 		onTimelineDragOver,
 		onTimelineDragLeave,
 		onTimelineDrop,
+		spectralBrushEnabled,
 	} = navigation;
 	const {
 		editBlock,
@@ -379,6 +380,7 @@ export function TimelineWorkspaceView({
 						recordingPreviews={recordingPreviews}
 						waveformCache={waveformCacheRef.current}
 						automationToolEnabled={automationToolEnabled}
+						spectralBrushEnabled={spectralBrushEnabled}
 						showArmControls={showArmControls}
 						displayAudioSupported={displayAudioSupported}
 					/>

@@ -2,7 +2,6 @@ import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
 import {
 	AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS,
-	createUnavailableApplicationMenuItem,
 } from './application-menu-registry.ts';
 import {
 	EFFECT_MENU_GROUPS,
@@ -21,7 +20,11 @@ import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
-
+import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
+import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
+import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
+import { createTakeCompApplicationMenuItems } from './take-comp-application-menu.ts';
+import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
 export default function createApplicationMenus({
 	productId,
 	aboutLabel,
@@ -44,7 +47,6 @@ export default function createApplicationMenus({
 	actions,
 }) {
 	const divider = () => ({ divider: true });
-	const unavailable = createUnavailableApplicationMenuItem;
 	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
 		project.clips.some((clip) => clip.id === clipId)
 	)));
@@ -103,7 +105,13 @@ export default function createApplicationMenus({
 	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
 	}), { setTrackLocked: actions.setTrackLocked });
+	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy }, actions);
+	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
+		hasTracks: Boolean(project?.tracks.length),
+		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
+	});
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
+	const importAnalysisMenuContext = { productId, copy, snapshot, editBlocked, blocked, analyzerBlocked, actionRuntime };
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
 		id: labelKey,
@@ -131,7 +139,6 @@ export default function createApplicationMenus({
 	const nyquistItems = (category) => nyquistPlugins
 		.filter((plugin) => plugin.category === category)
 		.map((plugin) => nyquistItem(plugin, nyquistDisabled(plugin)));
-
 	const menus = applyAudacityParityToMenus([
 		{
 			id: 'file',
@@ -173,7 +180,11 @@ export default function createApplicationMenus({
 				{ id: 'file-close', label: copy.closeProject, shortcut: 'Ctrl+W', disabled: blocked, onClick: actions.closeProject },
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: editBlocked, onClick: actions.saveProject },
-				{ id: 'save-scape', label: copy.saveScape, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveScape },
+				{
+					id: 'save-scape', label: copy.saveScape, shortcut: 'Ctrl+Shift+S',
+					resolve: () => ({ disabled: blocked && !snapshot.readOnly }),
+					onClick: actions.saveScape,
+				},
 				{ id: 'switch-product', label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper, disabled: handoffBlocked, onClick: actions.switchProduct },
 				divider(),
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
@@ -192,6 +203,7 @@ export default function createApplicationMenus({
 					],
 				},
 					divider(),
+				{ id: 'project-properties', label: copy.metadata, disabled: blocked, onClick: actions.openMetadata },
 				{ id: 'rename-project', label: copy.renameProject, disabled: editBlocked, onClick: actions.renameProject },
 				{ id: 'duplicate-project', label: copy.duplicateProject, disabled: blocked, onClick: actions.duplicateProject },
 				{ id: 'delete-project', label: copy.deleteProject, disabled: editBlocked, onClick: actions.deleteProject },
@@ -231,7 +243,7 @@ export default function createApplicationMenus({
 					label: copy.paste,
 					items: [
 						{ id: 'action://paste', label: copy.paste, shortcut: 'Ctrl+V', disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('paste') },
-						{ id: 'action://trackedit/paste-insert', label: copy.pasteInsert, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteInsert') },
+						{ id: 'insert', label: copy.pasteInsert, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteInsert') },
 						{ id: 'action://trackedit/paste-insert-all-tracks-ripple', label: copy.pasteSync, disabled: editBlocked || !snapshot.history?.hasClipboard, onClick: () => actions.executeEdit('pasteAllTracksRipple') },
 					],
 				},
@@ -274,16 +286,12 @@ export default function createApplicationMenus({
 				divider(),
 				{ id: 'select-tracks', label: copy.selectTracks, items: [
 					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectAllTracks, label: copy.allTracks, disabled: !project?.tracks.length, onClick: actions.selectAllTracks },
-					unavailable('select-no-tracks', copy.noTracks),
+					clipSelectionNavigationMenus.selectNoTracks,
 				] },
-				{ id: 'menu-selection-audio-clips', label: copy.selectAudioClips, items: [
-					unavailable('select-previous-clip-boundary-to-cursor', copy.previousClipBoundaryToCursor),
-					unavailable('select-cursor-to-next-clip-boundary', copy.cursorToNextClipBoundary),
-					unavailable('select-previous-clip', copy.previousClip),
-					unavailable('select-next-clip', copy.nextClip),
-				] },
+				clipSelectionNavigationMenus.audioClips,
 				{ id: 'menu-selection-spectral', label: copy.selectSpectral, items: [
-					unavailable('toggle-spectral-selection', copy.toggleSpectralSelection),
+					{ id: 'toggle-spectral-selection', label: copy.toggleSpectralSelection, disabled: editBlocked || !spectralTrackSelected },
+					{ id: 'spectral-brush', label: copy.spectralBrush, checked: Boolean(uiFlags.spectralBrush), disabled: editBlocked || !spectralTrackSelected },
 				] },
 				{
 					id: 'select-region',
@@ -385,6 +393,7 @@ export default function createApplicationMenus({
 						{ id: 'increase-all-track-heights', label: copy.increaseAllTrackHeights, shortcut: 'Ctrl+Shift+Up', disabled: !project?.tracks.length, onClick: actions.increaseAllTrackHeights },
 					],
 				},
+				clipSelectionNavigationMenus.skip,
 				divider(),
 				{ id: 'fullscreen', label: copy.fullscreen, shortcut: 'F11', onClick: actions.fullscreen },
 			],
@@ -424,6 +433,7 @@ export default function createApplicationMenus({
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },
 					],
 				},
+				...createTakeCompApplicationMenuItems({ productId, capability: Boolean(capabilities.takeComp), project, copy, open: actions.openTakeComp }),
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
 				trackLock.toggle,
@@ -488,8 +498,7 @@ export default function createApplicationMenus({
 				},
 				divider(),
 				{ id: 'mute-track', label: selectedAudioTrack?.mute ? copy.unmuteTrack : copy.muteTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.toggleTrackMute },
-				unavailable('mute-all', copy.muteAllTracks),
-				unavailable('unmute-all', copy.unmuteAllTracks),
+				...structuralMenus.muteItems,
 				{ id: 'mix', label: copy.mixMenu, items: [{
 					id: 'mixdown-to',
 					label: copy.mixdownTo,
@@ -497,21 +506,15 @@ export default function createApplicationMenus({
 					onClick: actions.mixAndRender,
 				}] },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.trackResample, label: copy.resample, disabled: editBlocked || !selectedAudioTrack, onClick: actions.openResample },
-				{ id: 'menu-align', label: copy.alignTracks, items: [
-					unavailable('align-end-to-end', copy.alignEndToEnd),
-					unavailable('align-together', copy.alignTogether),
-				] },
-				{ id: 'menu-sort', label: copy.sortTracks, items: [
-					unavailable('sort-by-time', copy.sortByTime),
-					unavailable('sort-by-name', copy.sortByName),
-				] },
+				structuralMenus.alignMenu,
+				structuralMenus.sortMenu,
 			],
 		},
 		{
 			id: 'generate',
 			label: copy.generateMenu,
 			items: [
-				unavailable('repeat-generator', copy.repeatLastGenerator),
+				createRepeatGeneratorMenuItem(importAnalysisMenuContext),
 				divider(),
 				{ id: 'silence-generator', label: copy.silenceGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('silence') },
 				{ id: 'tone-generator', label: copy.toneGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('tone') },
@@ -529,18 +532,10 @@ export default function createApplicationMenus({
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.repeatLastEffect, label: copy.repeatLastEffect, disabled: editBlocked || !editSelectionActive || !snapshot.effects?.canRepeatLast, onClick: actions.repeatLastEffect },
 				divider(),
 				...effectGroups,
-				{ id: 'pitch-tempo', label: copy.pitchTempo, items: [
-					{ id: 'change-pitch', label: copy.changePitch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-pitch') },
-					{ id: 'change-tempo', label: copy.changeTempo, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-tempo') },
-					{ id: 'effect://builtin/change-speed-pitch', label: copy.changeSpeedPitch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-speed-pitch') },
-					{ id: 'effect://builtin/sliding-stretch', label: copy.slidingStretch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-sliding-stretch') },
-					...(effectLabels.has('audacity-paulstretch') ? [{
-						id: 'audacity-paulstretch',
-						label: effectLabels.get('audacity-paulstretch') || 'Paulstretch',
-						disabled: editBlocked || !selectedAudioTrack,
-						onClick: () => actions.openSelectionEffect('audacity-paulstretch'),
-					}] : []),
-				] },
+				{ id: 'pitch-tempo', label: copy.pitchTempo, items: createPitchAndTempoApplicationMenuItems({
+					productId, capabilities, project, selectedClipId: selectedClip?.id ?? null,
+					selectedAudioTrack, editingBlocked: editBlocked, copy, effectLabels, actions,
+				}) },
 				{
 					id: 'nyquist-effects',
 					label: copy.nyquist,
@@ -561,7 +556,7 @@ export default function createApplicationMenus({
 			id: 'analyze',
 			label: copy.analyzeMenu,
 			items: [
-				unavailable('repeat-analyzer', copy.repeatLastAnalyzer),
+				createRepeatAnalyzerMenuItem(importAnalysisMenuContext),
 				divider(),
 				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
@@ -575,6 +570,7 @@ export default function createApplicationMenus({
 			id: 'tools',
 			label: copy.toolsMenu,
 			items: [
+				...createImportAnalysisToolMenuItems(importAnalysisMenuContext),
 				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
 				{ id: 'nyquist-prompt', label: copy.nyquistPrompt, disabled: !project, onClick: () => actions.openNyquist() },
 			],

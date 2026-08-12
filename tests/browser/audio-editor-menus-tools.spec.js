@@ -10,9 +10,9 @@ import {
 	closeEffectsPanel,
 	collectClientErrors,
 	effectSourceMetadata,
-	escapeRegex,
 	getMenuItem,
 	importFiles,
+	openAnalysisPanel,
 	openExportDialog,
 	registerAudioEditorHooks,
 	setDocumentTheme,
@@ -203,7 +203,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(view).toBeFocused();
 	});
 
-	test('omits unavailable project, view, track, and tool commands', async ({ page }) => {
+	test('omits unavailable commands and opens project properties from File', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		for (const [menuName, labels] of [
@@ -217,7 +217,6 @@ test.describe('audio editor React/design-system workflows', () => {
 				'Plugin manager',
 				'Screenshot tools',
 				'Run benchmark',
-				'Import raw data',
 				'Reset configuration',
 				'Sample data import',
 				'Sample data export',
@@ -234,8 +233,55 @@ test.describe('audio editor React/design-system workflows', () => {
 		await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
 		const projectProperties = getMenuItem(fileMenu, 'Project properties');
-		await expect(projectProperties).toHaveAttribute('aria-disabled', 'true');
-		await expect(projectProperties.locator('[data-disabled-reason]')).toHaveAttribute('title', /does not provide a usable handler/);
+		await expect(projectProperties).not.toHaveAttribute('aria-disabled', 'true');
+		await projectProperties.click();
+		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeVisible();
+	});
+
+	test('imports configured raw PCM and composes regular annotations from Tools', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Tools', 'Import raw data');
+		const rawDialog = page.getByRole('dialog', { name: 'Import raw data', exact: true });
+		await expect(rawDialog).toBeVisible();
+		await rawDialog.getByLabel('Raw PCM file').setInputFiles({
+			name: 'pulse.raw', mimeType: 'application/octet-stream', buffer: Buffer.alloc(160),
+		});
+		await rawDialog.getByLabel('Sample rate').fill('8000');
+		await rawDialog.getByRole('button', { name: 'Import', exact: true }).click();
+		await expect(rawDialog).toBeHidden();
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 15_000 });
+
+		await chooseCommandAction(page, editor, 'Tools', 'Regular interval labels');
+		const regularDialog = page.getByRole('dialog', { name: 'Regular interval labels', exact: true });
+		await regularDialog.getByLabel('Start frame').fill('0');
+		await regularDialog.getByLabel('End frame').fill('10');
+		await regularDialog.getByLabel('Interval in frames').fill('2');
+		await regularDialog.getByRole('button', { name: 'Create annotations', exact: true }).click();
+		await expect(regularDialog).toBeHidden();
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await expect(editor.getByRole('listbox', { name: 'Markers and named regions', exact: true }).getByRole('option')).toHaveCount(5);
+		expect(errors).toEqual([]);
+	});
+
+	test('repeats the last generator and analyzer from their menus', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Generate', 'Tone');
+		const generator = page.getByRole('dialog', { name: 'Tone', exact: true });
+		await generator.locator('[data-generator-field="durationSeconds"] input').fill('0.01');
+		await generator.getByRole('button', { name: 'Generate', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 15_000 });
+		await chooseCommandAction(page, editor, 'Generate', 'Repeat last generator');
+		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 15_000 });
+
+		const analysis = await openAnalysisPanel(page, editor);
+		await analysis.getByRole('button', { name: 'Analyze master', exact: true }).click();
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
+		await analysis.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
+		await chooseCommandAction(page, editor, 'Analyze', 'Repeat last analyzer');
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
+		expect(errors).toEqual([]);
 	});
 
 	test('reverts editor preferences from Help after confirmation without deleting the project', async ({ page }) => {
@@ -567,30 +613,38 @@ test.describe('audio editor React/design-system workflows', () => {
 	for (const locale of [
 		{
 			path: '/embed/en/',
+			selectMenu: 'Select',
+			spectralMenu: 'Spectral',
 			label: 'Spectral brush',
 			optionsLabel: 'Spectrogram options',
-			reason: /does not provide a usable handler yet/,
 		},
 		{
 			path: '/embed/de/',
+			selectMenu: 'Auswählen',
+			spectralMenu: 'Spektral',
 			label: 'Spektralpinsel',
 			optionsLabel: 'Optionen für Spektrogramm',
-			reason: /noch keine nutzbare Aktion bereit/,
 		},
 	]) {
-		test(`${locale.path} keeps the upstream spectral brush visible and inert`, async ({ page }) => {
+		test(`${locale.path} opts into the spectral brush from its menu`, async ({ page }) => {
 			const editor = await bootEditor(page, locale.path);
+			const spectrogram = editor.getByRole('button', { name: /^(Spectrogram|Spektrogramm)$/ });
+			await spectrogram.click();
+			await expect(spectrogram).toHaveAttribute('aria-pressed', 'true');
 			await editor.getByRole('button', { name: locale.optionsLabel, exact: true }).click();
-			const entry = editor.locator('[data-action-id="spectral-brush"]');
-			await expect(entry).toBeVisible();
-			await expect(entry).toHaveAttribute('aria-disabled', 'true');
-			await expect(entry).toHaveAttribute('title', locale.reason);
-			await expect(entry).toHaveAttribute('data-disabled-reason', locale.reason);
-			await expect(entry.getByRole('menuitem', { name: new RegExp(`^${escapeRegex(locale.label)}:`) })).toBeDisabled();
+			await expect(editor.locator('[data-action-id="spectral-brush"]')).toHaveCount(0);
+			await page.keyboard.press('Escape');
+			await chooseNestedCommandAction(page, editor, locale.selectMenu, [locale.spectralMenu, locale.label]);
+			const brush = editor.locator('[data-spectral-brush]');
+			await expect(brush).toBeVisible();
+			await expect(brush).toHaveAccessibleName(locale.label);
+			await brush.focus();
+			await page.keyboard.press('Enter');
+			await expect(editor.locator('[data-spectral-selection]')).toBeVisible();
 		});
 	}
 
-	test('builds the shortcut command inventory from manifest actions and keeps disabled commands inert', async ({ page }) => {
+	test('builds the shortcut command inventory from implemented manifest actions', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
@@ -598,14 +652,13 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await search.fill('Insert');
 		const insert = preferences.locator('[data-shortcut-action="insert"]');
-		const reason = /does not provide a usable handler yet/;
 		await expect(insert).toBeVisible();
-		await expect(insert).toHaveAttribute('aria-disabled', 'true');
-		await expect(insert).toHaveAttribute('title', reason);
-		await expect(insert).toHaveAttribute('data-disabled-reason', reason);
-		await expect(insert.locator('input')).toBeDisabled();
-		await expect(insert.getByRole('button', { name: 'Assign', exact: true })).toBeDisabled();
-		await expect(insert.locator('[data-shortcut-disabled-reason]')).toHaveText(reason);
+		await expect(insert).not.toHaveAttribute('aria-disabled', 'true');
+		const insertShortcut = insert.locator('input');
+		await expect(insertShortcut).toBeEnabled();
+		await insertShortcut.fill('Alt+I');
+		await expect(insert.getByRole('button', { name: 'Assign', exact: true })).toBeEnabled();
+		await expect(insert.locator('[data-shortcut-disabled-reason]')).toHaveCount(0);
 
 		await search.fill('Zoom normal');
 		await expect(preferences.locator('[data-shortcut-action="zoom-default"]')).toBeVisible();

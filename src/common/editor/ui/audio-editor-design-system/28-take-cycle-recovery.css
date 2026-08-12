@@ -1,0 +1,38 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system .audio-editor-take-cycle-recovery {
+	display: grid;
+	gap: 16px;
+}
+
+#kw-audio-editor-design-system .audio-editor-take-cycle-recovery p {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-take-cycle-recovery__summary {
+	padding: 12px;
+	border: 1px solid var(--kw-border-color, currentColor);
+	border-radius: 4px;
+	background: var(--kw-surface-raised, transparent);
+}
+
+#kw-audio-editor-design-system .audio-editor-take-cycle-recovery__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system .audio-editor-take-cycle-recovery__summary,
+	#kw-audio-editor-design-system .audio-editor-take-cycle-recovery__actions button {
+		forced-color-adjust: none;
+		border-color: ButtonText;
+		background: Canvas;
+		color: CanvasText;
+	}
+
+	#kw-audio-editor-design-system .audio-editor-take-cycle-recovery__actions button:focus-visible {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
+}

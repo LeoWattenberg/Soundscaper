@@ -2,19 +2,19 @@
 
 import { DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION } from './project-library-contract.ts';
 import {
-	validateAudioEditorProjectV16,
-	type AudioEditorProjectV16,
-	type AudioEditorProjectV16ValidationOptions,
-} from '../src/common/editor/project-v16-validation.ts';
+	validateAudioEditorProjectV17,
+	type AudioEditorProjectV17,
+	type AudioEditorProjectV17ValidationOptions,
+} from '../src/common/editor/project-v17-validation.ts';
 
-export type DesktopCurrentProject = AudioEditorProjectV16;
+export type DesktopCurrentProject = AudioEditorProjectV17;
 
 /** Apply the one exact maintained-domain validator admitted by the fresh desktop namespace. */
 export function validateDesktopCurrentProject(
 	value: unknown,
-	options: AudioEditorProjectV16ValidationOptions = {},
+	options: AudioEditorProjectV17ValidationOptions = {},
 ): DesktopCurrentProject {
-	if (!validateAudioEditorProjectV16(value, options)) {
+	if (!validateAudioEditorProjectV17(value, options)) {
 		throw new TypeError('Desktop shared project failed current-schema validation');
 	}
 	if (value.schemaVersion !== DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION) {

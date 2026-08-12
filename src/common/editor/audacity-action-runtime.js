@@ -1,25 +1,24 @@
 import { projectDurationFrames } from './project.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
-
+import { createAudacitySpectralActionRuntime } from './controller/audacity-spectral-action-runtime.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
 	changeSpeedPitch: 'audacity-change-speed-pitch',
 	slidingStretch: 'audacity-sliding-stretch',
 });
-
 const UI_FLAG_DEFAULTS = Object.freeze({
 	clipping: true,
 	halfWave: false,
 	masterTrack: false,
 	selectionToolbar: true,
+	spectralBrush: false,
 	splitTool: false,
 	statusbar: true,
 	// Storage capacity is a diagnostic surface, not everyday chrome; Help opts in.
 	storagePanel: false,
 	tracksPanel: true,
 });
-
 /**
  * Small, framework-neutral UI command target used by manifest actions which
  * open a dialog, focus a panel, or toggle browser-only chrome. React consumes
@@ -32,16 +31,13 @@ export function createAudioEditorUiActionController(options = {}) {
 	let disposed = false;
 	let snapshot = null;
 	const listeners = new Set();
-
 	function ensureUsable() {
 		if (disposed) throw new Error('The audio editor UI action controller is disposed.');
 	}
-
 	function publish() {
 		snapshot = null;
 		for (const listener of [...listeners]) listener();
 	}
-
 	function issue(type, payload = {}) {
 		ensureUsable();
 		if (typeof type !== 'string' || !type.trim()) throw new TypeError('A UI action type is required.');
@@ -173,6 +169,14 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		return panel;
 	};
 	const setSelection = (startFrame, endFrame, details = {}) => controllerActions.timeline.setSelection(startFrame, endFrame, details);
+	const spectralTools = createAudacitySpectralActionRuntime({
+		getProject: project,
+		setSelection,
+		spectralActions: controllerActions.spectral,
+		openSurface,
+		getUiFlags: () => uiController.getSnapshot().flags,
+		setUiFlag: ui.setFlag,
+	});
 	const selectEntireProject = () => setSelection(0, projectDurationFrames(project()));
 	const nudgeFrames = () => 1;
 	let alternateZoom = 240;
@@ -331,6 +335,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		},
 		io: {
 			importAudio: (files = null) => files ? controllerActions.project.importFiles(files) : ui.issue('choose-audio-files'),
+			importRawData: () => openSurface('raw-pcm-import'),
 			exportAudio: (settings = null) => settings ? controllerActions.export.start(settings) : openSurface('export'),
 			exportClip: (clipId = snapshot().selectedClipId) => {
 				const clip = project()?.clips.find((candidate) => candidate.id === clipId);
@@ -339,6 +344,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames, { clipIds: [clip.id] });
 				return openSurface('export', { range: 'selection', clipId: clip.id });
 			},
+		},
+		timelineAnnotations: {
+			...controllerActions.timelineAnnotations,
+			openRegularInterval: () => openSurface('regular-interval-annotations'),
 		},
 		session: {
 			closeProject: (projectId = project()?.id, closeOptions) => (
@@ -391,6 +400,13 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			all: selectEntireProject,
 			clear: controllerActions.timeline.clearSelection,
 			allTracks: controllerActions.timeline.selectAllTracks,
+			selectNoTracks: controllerActions.timeline.selectNoTracks,
+			selectPreviousClipBoundaryToCursor: controllerActions.timeline.selectPreviousClipBoundaryToCursor,
+			selectCursorToNextClipBoundary: controllerActions.timeline.selectCursorToNextClipBoundary,
+			selectPreviousClip: controllerActions.timeline.selectPreviousClip,
+			selectNextClip: controllerActions.timeline.selectNextClip,
+			skipToSelectionStart: controllerActions.timeline.skipToSelectionStart,
+			skipToSelectionEnd: controllerActions.timeline.skipToSelectionEnd,
 			leftAtPlayback: controllerActions.timeline.selectLeftOfPlayback,
 			rightAtPlayback: controllerActions.timeline.selectRightOfPlayback,
 			trackStartToCursor: controllerActions.timeline.selectTrackStartToCursor,
@@ -489,7 +505,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				const track = selectedAudioTrack();
 				return track ? controllerActions.track.setDisplayMode(track.id, 'half-wave') : null;
 			},
-			setColor: (color = 'auto') => updateSelectedTrack({ color }),
+			setColor: (color = 'auto') => updateSelectedTrack({ color }), openAlignMenu: () => ui.issue('open-menu', { menuId: 'tracks', itemId: 'menu-align' }), openSortMenu: () => ui.issue('open-menu', { menuId: 'tracks', itemId: 'menu-sort' }),
 		},
 		navigation: {
 			moveItemLeft: () => moveSelectedClip(-nudgeFrames()),
@@ -519,6 +535,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			}),
 		},
 		tools: {
+			...spectralTools,
 			toggleSplitTool: () => ui.toggleFlag('splitTool'),
 		},
 		nyquist: {

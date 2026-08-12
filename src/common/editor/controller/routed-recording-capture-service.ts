@@ -483,21 +483,23 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 					}, sampleRate)
 				: 0;
 			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
-			const currentContextFrame = Math.ceil(
-				(scheduledTime + availableLeadInFrames / sampleRate) * context.sampleRate,
-			);
-			for (const session of sourceSessions) {
-				const selectionProjectFrames = selection
-					? selection.endFrame - selection.startFrame + (session.sourceOffsetProjectFrames || 0)
-					: 0;
-				session.startFrame = currentContextFrame;
-				session.stopFrame = selection
-					? currentContextFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
-					: undefined;
-				for (const entry of session.entries) {
-					state.recordingRouteHealth[entry.trackId] = timedStart ? 'open' : 'recording';
+			const setRecorderSchedule = (contextStartTime: number) => {
+				const startFrame = Math.ceil(
+					(contextStartTime + availableLeadInFrames / sampleRate) * context.sampleRate,
+				);
+				for (const session of sourceSessions) {
+					const selectionProjectFrames = selection
+						? selection.endFrame - selection.startFrame + (session.sourceOffsetProjectFrames || 0)
+						: 0;
+					session.startFrame = startFrame;
+					session.stopFrame = selection
+						? startFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
+						: undefined;
+					for (const entry of session.entries) {
+						state.recordingRouteHealth[entry.trackId] = timedStart ? 'open' : 'recording';
+					}
 				}
-			}
+			};
 			const contextStateChange = () => {
 				if (context.state === 'suspended' && isCurrent() && state.recorder) {
 					void runtime.stopRecording().catch(runtime.handleError);
@@ -511,14 +513,23 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			runtime.engine.setLoop(false);
 			runtime.engine.seek(requestedStartFrame - availableLeadInFrames);
 			if (timedStart) {
+				setRecorderSchedule(scheduledTime);
 				routedRecorder.start();
 				scope.assertCurrent();
 			} else {
-				await runtime.engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
+				const playbackStartTime = await runtime.engine.playAt(
+					scheduledTime,
+					requestedStartFrame - availableLeadInFrames,
+				);
 				scope.assertCurrent();
 				await dropFailedSourceSessions();
 				scope.assertCurrent();
 				if (!sourceSessions.length) throw new Error(runtime.messages.noInputsAvailable);
+				setRecorderSchedule(
+					typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
+						? playbackStartTime
+						: scheduledTime,
+				);
 				state.recordingEntries = Object.freeze([...entries]);
 				state.recordingPreviews = entries.map((entry) => entry.preview);
 				state.recordingPreview = state.recordingPreviews[0] || null;

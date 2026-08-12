@@ -14,7 +14,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
 import type { VideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
@@ -260,7 +260,7 @@ function createProject(options: Readonly<{ oneFrame?: boolean }> = {}) {
 	const audioTrack = createAudioTrackV10({
 		id: 'audio-track', clipIds: ['linked-audio'], laneGroupId: 'av-lanes', locked: false,
 	}, SAMPLE_RATE);
-	return createAudioEditorProjectV16({
+	return createCurrentAudioEditorProject({
 		id: 'rate-stretch-service', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track', 'audio-track'] }],
 		primarySequenceId: 'main', sources: [source, audioSource],

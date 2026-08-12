@@ -25,7 +25,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
@@ -264,7 +264,7 @@ function createProject() {
 	const track = createVideoTrackV10({
 		id: 'video-track', clipIds: clips.map(({ id }) => String(id)), locked: false,
 	});
-	return createAudioEditorProjectV16({
+	return createCurrentAudioEditorProject({
 		id: 'roll-ripple-service', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips, tracks: [track],

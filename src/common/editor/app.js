@@ -160,19 +160,17 @@ import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { NyquistEvaluationClient } from './nyquist/client.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
-import {
-	EditorControllerLifetime,
-	EditorProjectGeneration,
-	isEditorDisposedError,
-} from './controller/lifecycle.ts';
+import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
+import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
 import { createScapeProjectFileService } from './controller/scape-project-file-service.ts';
 import { createEditorEditService } from './controller/edit-service.ts';
 import { createLabelService } from './controller/label-service.ts';
 import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
 import { createAudioGeneratorService } from './controller/generator-service.ts';
+import { createRegularIntervalAnnotationController } from './controller/regular-interval-annotation-controller.ts';
 import { createSelectionEffectResultService } from './controller/effect-result-service.ts';
 import { createSelectionEffectExecutionService } from './controller/effect-execution-service.ts';
 import { createEffectControlsService } from './controller/effect-controls-service.ts';
@@ -227,6 +225,11 @@ import { createVideoNavigationService } from './controller/video-navigation-serv
 import { createVideoTrimServices } from './controller/video-trim-composition.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
+import { createTakeCompControllerComposition } from './controller/take-comp-composition.ts';
+import { createTakeCycleAppComposition } from './controller/take-cycle-app-composition.ts';
+import { createTakeCycleRecordingAppSession } from './controller/take-cycle-recording-app-session.ts';
+import { createTakeCycleOpenRecoveryAppPort, createTakeCycleOpenRecoveryCoordinator } from './controller/take-cycle-open-recovery-app-port.ts';
+import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
@@ -433,6 +436,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		preferredInputDeviceId: RECORDING_DEFAULT_DEVICE_ID,
 	});
+	const takeCycleOpenRecoveryBinding = createTakeCycleOpenRecoveryAppPort(), takeCycleOpenRecovery = takeCycleOpenRecoveryBinding.port;
 	const soundActivationPolicyService = createControllerSoundActivationPolicy(state, updatePreferences, publishDocumentSnapshot);
 	const storageCapacityService = createControllerStorageCapacityService({
 		store, state,
@@ -625,7 +629,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state,
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history),
-		isReadOnly: () => state.readOnly,
+		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
 		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
@@ -671,6 +675,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		lifetime, state, getProject: () => project, editingBlocked, createId: createStableId,
 		getPositionFrames: () => engine.getPositionFrames(), commit, updateSelection, publishProjectState,
 	});
+	const regularIntervalAnnotationController = createRegularIntervalAnnotationController({ getProject: () => project, editingBlocked, createId: createStableId, commit });
 	const trackFolderService = createTrackFolderService({
 		lifetime, getProject: () => project, editingBlocked, createId: createStableId,
 		commit, publishProjectState,
@@ -736,8 +741,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		switchProject,
 	});
 	const analysisService = createAudioAnalysisService({
-		lifetime,
-		copy,
+		lifetime, copy, state,
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		getProject: () => project,
@@ -763,7 +767,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		run: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.run(...args)),
 		plotSpectrum: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.plotSpectrum(...args)),
 		findClipping: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.findClipping(...args)),
-		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)),
+		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)), repeatLast: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.repeatLast(...args)),
 	});
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
@@ -777,6 +781,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishProjectState,
 		setStatus,
 		handleError,
+		invalidateRecordingAuthority: invalidateTakeCycleRecording,
 		copy,
 		retryMaximumMs: PROJECT_LOCK_RETRY_MAX_MS,
 		currentTimeMs: Date.now,
@@ -824,7 +829,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourceBuffers, sourcePeaks, projectRetentionService.liveSessionSourceIds(),
 		),
 		loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
-				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }),
+				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }), openRecovery: takeCycleOpenRecovery,
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard), maintainOpenedProject: (projectId, isCurrentWritable) => store.maintainOpenedProject?.(projectId, () => isCurrentWritable() ? projectRetentionService.liveSessionLinkedOriginalSourceReferences() : null),
 		saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedOriginalSourceReferences: projectRetentionService.liveSessionLinkedOriginalSourceReferences() }),
 		listProjects: () => store.listProjects(),
@@ -851,7 +856,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setRemoveDeviceChangeListener: (remove) => { removeDeviceChangeListener = remove; },
 		loadRecentProjectState: (guard) => projectSessionService.loadRecentProjectState(guard),
 		openProject: (savedProject) => projectSwitchService.openProject(savedProject),
-		newProject: () => projectSwitchService.newProject(),
+		newProject: () => projectSwitchService.newProject(), openRecovery: takeCycleOpenRecovery,
 		publishProjectState,
 		saveNow,
 		refreshStorageUsage,
@@ -1167,6 +1172,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	});
+	const takeCompService = createTakeCompControllerComposition({
+		lifetime, sourceBuffers, sourceChunkProviders, sourceResolver: clipTimePitchSourceResolver,
+		derivedSources: derivedSourceService, getProject: () => project, editingBlocked, commit,
+		createId: createStableId, captureProject: () => projectGeneration.capture(project?.id ?? null),
+		assertProject: (token) => projectGeneration.assertCurrent(token),
+		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),
+		stopPlayback: () => engine.stop(), renderSnapshot, setStatus,
+	});
+	const audioWarpService = createAudioWarpControllerComposition({ lifetime, store, getProject: () => project, getSelectedClipId: () => state.selectedClipId, editingBlocked, commit, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), getRenderStatus: () => engine.getAudioWarpRenderStatus(), setAnalysisProcessing: (processing) => { state.analysisProcessing = processing; }, publish: publishDocumentSnapshot });
 	const mixRenderService = createMixRenderService({
 		lifetime, copy, derivedSources: derivedSourceService,
 		store, sourceBuffers, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
@@ -1638,6 +1652,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 			store.deleteAnalysis?.(peakCacheKey(sourceId)),
 		),
 	});
+	const takeCycleRecording = createTakeCycleAppComposition({ lifetime, store, session: sessionController, projectGeneration, state, recording: recordingCaptureRuntime, getProject: () => project, setProject: (value) => { project = value; }, activeSelection,
+		findAudioSource: (value, mediaId) => findSource(value, mediaId), trackName: (value, trackId) => findTrack(value, trackId)?.name || copy.recordingLabel, getRoutes: () => state.recordingRouting.routes,
+		soundActivationEnabled: () => soundActivationPolicyService.getSnapshot().preferences.enabled, recordingRouteSourceKey, createId: createStableId, createRecordingName: (name) => `${name} ${new Date().toLocaleTimeString(locale)}`,
+		preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs, activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }),
+		publishProject: () => { projectRetentionService.retainLiveClipIds(); publishProjectState(); }, synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); }, now: () => new Date(currentTimeMs()) });
+	takeCycleOpenRecoveryBinding.bind(createTakeCycleOpenRecoveryCoordinator({ state, inspect: takeCycleRecording.inspectOpenRecovery, recover: takeCycleRecording.recoverOnOpen, getCurrentProjectId: () => project?.id ?? null, isDisposed: () => state.disposed, isCurrentProjectWritable: () => Boolean(project && state.projectLock && !state.readOnly && !state.projectLock.readOnly), publish: publishDocumentSnapshot }));
+	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({ cycle: takeCycleRecording, prepareCurrentProject: flushProject, recordingMessage: copy.recording, setTransportState: updateTransportState, setStatus });
 	let timedRecordingService;
 	const recordingSessionService = createRecordingSessionService({
 		state,
@@ -1660,6 +1681,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				? legacyRecordingCapture.capture(recordingOptions, scope)
 				: routedRecordingCapture.capture(recordingOptions, scope);
 		},
+		beginTakeCycleRecording: takeCycleRecordingSession.begin,
 		performLegacyFinalization: legacyRecordingFinalization.finalize,
 		performRoutedFinalization: routedRecordingFinalization.finalize,
 		releaseUnretainedRecordingInputs,
@@ -1762,7 +1784,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setRecordingTrackRoute,
 		streamAudioChannelCount,
 	});
-	const actions = guardControllerActions(createGroupedEditorActions({
+	const actions = guardEditorControllerActions(createGroupedEditorActions({
 		AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
 		addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
 		adjustTrackHeight, analysisService: progressAnalysisService, applyAudacityEffectFromController, applyEffectPreset,
@@ -1778,7 +1800,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 		duplicateProject, duplicateTrack, engine, exportEffectPreset,
 		exportLabels, exportVideo, findClip, findTrack,
-		flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
+		flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 		getProjectBinClipVisualData, getVideoSourceVisualData: projectVisualService.getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
 		importEffectPresets, importFiles, importLabelFile, inspectScape,
@@ -1805,20 +1827,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 		setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
 		setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
-		setSnapSettings, setSpectralBoxSelection, setTimelineView, setTimelineViewportWidth,
+		setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
-		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording,
+		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording, startTakeCycleRecording: () => recordingSessionService.startTakeCycleRecording(),
 		startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage: storageCapacityService.cleanupDisposableStorage, cleanupDerivativeCache: storageCapacityService.cleanupDerivativeCache,
 		store, stretchClip, swapTrackChannels, switchProject,
 		toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
+		recoverTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'recover'), discardTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'discard'),
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-		sequenceTimingService, timelineAnnotationService, trackFolderService, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		sourceMonitorService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
+		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
+		audioWarpService, sourceMonitorService, takeCompService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
-	}));
+	}), () => lifetime.assertActive());
 	let disposePromise = null;
 
 	return {
@@ -1860,7 +1883,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			try { await operation(); } catch (error) { disposalError ||= error; if (fencesSourceRetirement) sourceRetirementError ||= error; }
 		};
 		try {
-			projectGeneration.invalidate();
+			takeCycleOpenRecovery.dispose(); projectGeneration.invalidate();
 			const visualDisposal = projectVisualService.dispose(), scapeInspectionDrain = scapeInspectionQuiescence.drain();
 			removeDeviceChangeListener();
 			removeDeviceChangeListener = () => {};
@@ -1896,6 +1919,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await cleanup(() => Promise.resolve(state.outputCleanup?.()));
 			await cleanup(() => projectBinService.dispose(), true);
+			audioWarpService.dispose(); await cleanup(() => takeCompService.dispose(), true);
 			await cleanup(() => clipTimePitchCacheService.disposeRenderEngines(), true);
 			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
 			await cleanup(() => nativeProjectService.dispose());
@@ -1920,19 +1944,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (disposalError) throw disposalError;
 	}
 
-	function guardControllerActions(value) {
-		if (typeof value === 'function') {
-			return (...args) => {
-				lifetime.assertActive();
-				return value(...args);
-			};
-		}
-		if (!value || typeof value !== 'object') return value;
-		return Object.freeze(Object.fromEntries(Object.entries(value).map(([key, child]) => [
-			key,
-			guardControllerActions(child),
-		])));
-	}
 	function getSnapshot() {
 		return documentChannel.get();
 	}
@@ -2006,63 +2017,48 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function updatePreferences(patch) {
 		return preferencesService.update(patch);
 	}
-
 	function revertFactorySettings() {
 		return preferencesService.revertFactorySettings();
 	}
-
 	function setWorkspacePreference(workspaceId) {
 		return preferencesService.setWorkspace(workspaceId);
 	}
-
 	function toggleToolbarPreference(toolbarId) {
 		return preferencesService.toggleToolbar(toolbarId);
 	}
-
 	function moveToolbarPreference(toolbarId, requestedIndex) {
 		return preferencesService.moveToolbar(toolbarId, requestedIndex);
 	}
-
 	function setToolbarButtonPreference(buttonId, visible) {
 		return preferencesService.setToolbarButton(buttonId, visible);
 	}
-
 	function togglePanelPreference(panelId) {
 		return preferencesService.togglePanel(panelId);
 	}
-
 	function setPanelPreference(panelId, changes = {}) {
 		return preferencesService.setPanel(panelId, changes);
 	}
-
 	function movePanelPreference(panelId, dock, requestedIndex) {
 		return preferencesService.movePanel(panelId, dock, requestedIndex);
 	}
-
 	function setShortcutPreference(actionId, bindings) {
 		return preferencesService.setShortcut(actionId, bindings);
 	}
-
 	function createWorkspacePreference(name, workspaceId = createStableId('workspace')) {
 		return preferencesService.createWorkspace(name, workspaceId);
 	}
-
 	function updateWorkspacePreference(workspaceId, changes = {}) {
 		return preferencesService.updateWorkspace(workspaceId, changes);
 	}
-
 	function deleteWorkspacePreference(workspaceId) {
 		return preferencesService.deleteWorkspace(workspaceId);
 	}
-
 	function sessionTab(projectId) {
 		return projectSessionService.sessionTab(projectId);
 	}
-
 	function persistActiveSessionUiState() {
 		return projectSessionService.persistActiveSessionUiState();
 	}
-
 	async function bootstrap(token) {
 		return projectBootstrapService.bootstrap(token);
 	}
@@ -2237,12 +2233,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function addLabel(trackId, labelOptions = {}) {
 		return trackService.addLabel(trackId, labelOptions);
 	}
-
-
 	async function importLabelFile(...args) {
 		return labelService.importLabelFile(...args);
 	}
-
 	async function exportLabels(...args) {
 		return labelService.exportLabels(...args);
 	}
@@ -2262,6 +2255,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function generateSignal(...args) {
 		return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateSignal(...args));
 	}
+
+	async function repeatLastGenerator(...args) { return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.repeatLast(...args)); }
 
 	function selectTrack(trackId) {
 		return selectionViewService.selectTrack(trackId);
@@ -2747,10 +2742,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return effectSelectionService.audacitySpectralEffectContext(...args);
 	}
 
-	function setSpectralBoxSelection(...args) {
-		return effectSelectionService.setSpectralBoxSelection(...args);
-	}
-
 	function applySpectralSelection(...args) {
 		return taskProgress.run('effect', copy.spectralProcessing || copy.audacityProcessing, () => effectAudioService.applySpectralSelection(...args));
 	}
@@ -2859,6 +2850,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function startRecording(options = {}) {
 		return recordingSessionService.startRecording(options);
 	}
+	async function invalidateTakeCycleRecording(reason) { state.recordingStartGeneration += 1; takeCycleRecording.cancel(reason); await stopRecording().catch(handleError); }
 
 	async function stopRecording() {
 		return recordingSessionService.stopRecording();

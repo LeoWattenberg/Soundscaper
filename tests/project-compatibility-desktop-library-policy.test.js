@@ -78,9 +78,9 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 		'tests/desktop-project-library-handoff-workflow.test.js',
 		'.github/workflows/desktop-preview.yml',
 		'desktop/project-library-current-project.ts',
-		'src/common/editor/project-v16-validation.ts',
+		'src/common/editor/project-v17-validation.ts',
 		'src/common/editor/video-retime-v16.ts',
-		'tests/audio-editor-project-v16.test.ts',
+		'tests/audio-editor-project-v17.test.ts',
 		'tests/desktop-project-library-v16-video-retime-roundtrip.test.ts',
 	]);
 	assert.match(
@@ -93,7 +93,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/fresh filesystem library scope v8.*SQLite user_version 10.*ignores rather than migrates.*prior shared v7 scope.*preserv.*metadata schema 7.*exact schema 15.*user_version 9.*in place.*older v6.*schema-14.*user-version-8.*historical.*untouched.*copied v7.*user_version 9.*v8 path.*reject.*without mutation.*migrat.*adopt.*backfill.*metadata schema 8.*separate opaque library entry ID.*project identity.*exact schema 16.*project revision.*byte length.*SHA-256.*immutable revision-and-digest path/iu,
+		/fresh filesystem library scope v9.*SQLite user_version 11.*ignores rather than migrates.*prior shared v8 scope.*preserv.*metadata schema 8.*exact schema 16.*user_version 10.*in place.*older v7.*schema-15.*user-version-9.*historical.*untouched.*copied v8.*user_version 10.*v9 path.*reject.*without mutation.*migrat.*adopt.*backfill.*metadata schema 9.*separate opaque library entry ID.*project identity.*exact schema 17.*project revision.*byte length.*SHA-256.*immutable revision-and-digest path/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -101,7 +101,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/main-owned identity service.*shared strict exact-V16 maintained-persistence-domain validator.*before permitting host staging.*catalog publication.*renderer commit.*validates.*loaded commit result.*stored project again.*before returning.*canonical document.*strictly checks core project, document, media, and graph structures.*without loading legacy migrations.*executable effect and worker runtimes.*all audio effects.*cloneable.*generic effect identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated/iu,
+		/main-owned identity service.*shared strict exact-V17 maintained-persistence-domain validator.*before permitting host staging.*catalog publication.*renderer commit.*validates.*loaded commit result.*stored project again.*before returning.*canonical document.*strictly checks core project, document, media, and graph structures.*without loading legacy migrations.*executable effect and worker runtimes.*all audio effects.*cloneable.*generic effect identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -109,7 +109,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/each exact-V16 decoded codec traversal and maintained-domain validation phase.*independently capped.*100,000 nodes.*depth 128/iu,
+		/each exact-V17 decoded codec traversal and maintained-domain validation phase.*independently capped.*100,000 nodes.*depth 128/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -133,7 +133,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/renderer repository.*repeats.*maintained-persistence-domain exact-V16 validation.*defense in depth.*before local mutation.*product-local shadow.*shared latest document.*authoritative.*fails closed.*incomplete desktop bridge/iu,
+		/renderer repository.*repeats.*maintained-persistence-domain exact-V17 validation.*defense in depth.*before local mutation.*product-local shadow.*shared latest document.*authoritative.*fails closed.*incomplete desktop bridge/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -141,7 +141,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		rule.currentBehavior,
-		/dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*share(?:d)? only.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer.*ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 16.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*strictly higher fencing tokens.*increasing catalog revisions.*preferred product.*process exit.*lease release/iu,
+		/dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*share(?:d)? only.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer.*ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 17.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*strictly higher fencing tokens.*increasing catalog revisions.*preferred product.*process exit.*lease release/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -152,23 +152,23 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(documentation, /Shared desktop current-schema persistence/u);
 	assert.match(
 		documentation,
-		/fresh filesystem library scope `v8`/iu,
+		/fresh filesystem library scope `v9`/iu,
 	);
 	assert.match(
 		documentation,
-		/fresh filesystem library scope `v8`.*SQLite `user_version` 10.*prior shared `v7` scope.*metadata schema\s+7, exact schema 15 catalog.*SQLite `user_version` 9 in place/isu,
+		/fresh filesystem library scope `v9`.*SQLite `user_version` 11.*prior shared `v8` scope.*metadata schema\s+8, exact schema 16 catalog.*SQLite `user_version` 10 in place/isu,
 	);
 	assert.match(
 		documentation,
-		/older\s+`v6`\/schema-14\/user-version-8 and earlier scopes remain historical and untouched.*copied `v7` database.*`user_version` 9.*`v8` path.*rejected\s+without mutation instead of being migrated, adopted, or backfilled/isu,
+		/older\s+`v7`\/schema-15\/user-version-9 and earlier scopes remain historical and untouched.*copied `v8` database.*`user_version` 10.*`v9` path.*rejected\s+without mutation instead of being migrated, adopted, or backfilled/isu,
 	);
 	assert.match(
 		documentation,
-		/metadata\s+schema\s+8.*separate\s+opaque\s+library\s+entry\s+ID.*exact\s+schema\s+16.*project\s+revision.*byte\s+length.*SHA-256.*immutable\s+revision-and-digest\s+path/isu,
+		/metadata\s+schema\s+9.*separate\s+opaque\s+library\s+entry\s+ID.*exact\s+schema\s+17.*project\s+revision.*byte\s+length.*SHA-256.*immutable\s+revision-and-digest\s+path/isu,
 	);
 	assert.match(
 		documentation,
-		/main process.*bounded tagged-binary Scape codec.*256 MiB.*low-level store.*root schema, identity,\s+title, and revision.*main-owned identity service.*strict\s+exact-V16 maintained-persistence-domain validator.*before\s+permitting host staging.*catalog publication.*renderer commit.*validates the loaded commit result.*stored project again.*before\s+returning.*canonical document/isu,
+		/main process.*bounded tagged-binary Scape codec.*256 MiB.*low-level store.*root schema, identity,\s+title, and revision.*main-owned identity service.*strict\s+exact-V17 maintained-persistence-domain validator.*before\s+permitting host staging.*catalog publication.*renderer commit.*validates the loaded commit result.*stored project again.*before\s+returning.*canonical document/isu,
 	);
 	assert.match(
 		documentation,
@@ -184,7 +184,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/each exact-V16 decoded codec traversal and maintained-domain\s+validation phase.*independently capped.*100,000 nodes.*depth 128/isu,
+		/each exact-V17 decoded codec traversal and maintained-domain\s+validation phase.*independently capped.*100,000 nodes.*depth 128/isu,
 	);
 	assert.match(
 		documentation,
@@ -220,7 +220,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/renderer repository.*repeats.*maintained-persistence-domain exact-V16\s+validation.*defense in depth.*before\s+local mutation.*shared catalog is authoritative.*product-local IndexedDB.*remote commit failure.*retryable local shadow.*incomplete shared-project bridge.*fails closed/isu,
+		/renderer repository.*repeats.*maintained-persistence-domain exact-V17\s+validation.*defense in depth.*before\s+local mutation.*shared catalog is authoritative.*product-local IndexedDB.*remote commit failure.*retryable local shadow.*incomplete shared-project bridge.*fails closed/isu,
 	);
 	assert.match(
 		documentation,
@@ -252,7 +252,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation,
-		/dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer[- ]ready.*pathless\s+preload IPC.*exact[- ]SHA-256.*source-free.*schema 16.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale\s+takeover.*higher fencing tokens?.*increasing catalog revisions?.*preferred product.*process exit.*lease\s+release/isu,
+		/dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer[- ]ready.*pathless\s+preload IPC.*exact[- ]SHA-256.*source-free.*schema 17.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale\s+takeover.*higher fencing tokens?.*increasing catalog revisions?.*preferred product.*process exit.*lease\s+release/isu,
 	);
 	assert.match(
 		documentation,
@@ -262,7 +262,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.match(documentation, PACKAGED_HANDOFF_CLAIMS.compatibilityDocQualification);
 	assert.match(
 		documentation,
-		/pre-release schemas 1 through 15.*source-media re-import.*no raw-\s*project migration path.*prior shared\s+`?v7`?.*older\s+`?v6`?.*`?v5`?.*`?v4`?.*`?v3`?.*`?v2`?.*`?v1`?.*product-\s*private Soundscaper libraries.*unsupported.*AUP.*legacy XML AUP.*AUP4.*separate maintained interchange/isu,
+		/pre-release schemas 1 through 16.*source-media re-import.*no raw-\s*project migration path.*prior shared\s+`?v8`?.*older\s+`?v7`?.*`?v6`?.*`?v5`?.*`?v4`?.*`?v3`?.*`?v2`?.*`?v1`?.*product-\s*private Soundscaper libraries.*unsupported.*AUP.*legacy XML AUP.*AUP4.*separate maintained interchange/isu,
 	);
 	assert.doesNotMatch(documentation, /guaranteed continuation after an incomplete|incomplete 100,000-entry inventory/iu);
 	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? (?:open|outside)/iu);
@@ -367,11 +367,11 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/narrower composed fixture.*canonical original PCM.*exact-schema-16 role-defined unknown-feature audio whole-mix fallback.*only by its feature requirement.*feature-requirement-only read-only sender.*current writable lock.*without flush.*fresh Framescaper.*both absent bodies.*exact canonical shadow.*read-only controller.*transient fallback.*exact samples.*transfer acquisition.*managed descriptor and body SHA-256.*feature-manifest fallback digest.*controller-owned.*after shadow publication.*before activation/isu,
+		/narrower composed fixture.*canonical original PCM.*exact-schema-17 role-defined unknown-feature audio whole-mix fallback.*only by its feature requirement.*feature-requirement-only read-only sender.*current writable lock.*without flush.*fresh Framescaper.*both absent bodies.*exact canonical shadow.*read-only controller.*transient fallback.*exact samples.*transfer acquisition.*managed descriptor and body SHA-256.*feature-manifest fallback digest.*controller-owned.*after shadow publication.*before activation/isu,
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
-		/parallel composed fixture.*Framescaper.*fresh Soundscaper.*exact-schema-16 project-video-render-v1 fallback.*unknown canonical org\.example\.future-video-pipeline feature.*editable retained original.*two exact whole-Blob video bodies.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation.*corrupt same-shaped bytes.*stale activation-time admission.*video export rejects.*before FFmpeg.*output.*restoring.*exact body.*fresh selector-bound operation-time verification.*exact size- and digest-verified native Blob.*directly reuses.*same immutable Blob.*only video input.*without a second fallback storage read.*canonical project.*unprojected.*embedded fallback-video audio.*not used.*distinct video-clip-render-v1 fixture.*canonical target.*unaffected video.*manifest-only fallback.*fresh recipient.*three exact whole-Blob video bodies.*exact canonical shadow.*reopens.*target clip ID.*fallback body digest.*relationship-bound integrity admission.*playback and delivery projections.*replace only the target.*unaffected video.*canonical.*headless.*whole-Blob.*codec.*browser.*packaged.*range.*reference-scale.*fallback authoring.*other-role.*simultaneous.*third-party feature-code activation.*linked-only.*unmanaged.*durable storage-record or byte lease.*broad.*parity.*whole-handoff atomicity/isu,
+		/parallel composed fixture.*Framescaper.*fresh Soundscaper.*exact-schema-17 project-video-render-v1 fallback.*unknown canonical org\.example\.future-video-pipeline feature.*editable retained original.*two exact whole-Blob video bodies.*exact canonical shadow.*intrinsically read-only.*controller separately verifies.*manifest fallback digest.*after shadow publication.*before transient activation.*corrupt same-shaped bytes.*stale activation-time admission.*video export rejects.*before FFmpeg.*output.*restoring.*exact body.*fresh selector-bound operation-time verification.*exact size- and digest-verified native Blob.*directly reuses.*same immutable Blob.*only video input.*without a second fallback storage read.*canonical project.*unprojected.*embedded fallback-video audio.*not used.*distinct video-clip-render-v1 fixture.*canonical target.*unaffected video.*manifest-only fallback.*fresh recipient.*three exact whole-Blob video bodies.*exact canonical shadow.*reopens.*target clip ID.*fallback body digest.*relationship-bound integrity admission.*playback and delivery projections.*replace only the target.*unaffected video.*canonical.*headless.*whole-Blob.*codec.*browser.*packaged.*range.*reference-scale.*fallback authoring.*other-role.*simultaneous.*third-party feature-code activation.*linked-only.*unmanaged.*durable storage-record or byte lease.*broad.*parity.*whole-handoff atomicity/isu,
 	);
 	assert.match(
 		managedHandoff.currentBehavior,
@@ -435,7 +435,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	]);
 	assert.match(
 		mediaAdmission.requiredOutcome,
-		/authoritative latest exact-schema-16 desktop shared-project load.*reachable source references.*preflight.*complete logical-source, canonical-byte, and PCM-chunk budgets.*before.*source-body read.*shared body transfer.*recipient write.*managed canonical PCM and retained original video.*fresh recipient.*digest-verified atomic if-absent publication.*remaining source.*bounded recipient-local admission.*fail before activation.*without deleting a concurrent local replacement.*demand-loaded provider.*owned canonical PCM.*generation observed at session open.*bounded copy-on-write ancestry/iu,
+		/authoritative latest exact-schema-17 desktop shared-project load.*reachable source references.*preflight.*complete logical-source, canonical-byte, and PCM-chunk budgets.*before.*source-body read.*shared body transfer.*recipient write.*managed canonical PCM and retained original video.*fresh recipient.*digest-verified atomic if-absent publication.*remaining source.*bounded recipient-local admission.*fail before activation.*without deleting a concurrent local replacement.*demand-loaded provider.*owned canonical PCM.*generation observed at session open.*bounded copy-on-write ancestry/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -443,7 +443,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/losing absence race.*only.*staging.*preserves the winner.*partial transfer.*pre-shadow failure.*reverse order.*exact acquisition-owned audio record or owned video publication.*source-token, path, or media-chunk payload.*concurrent replacement remains current and intact.*exact authoritative shadow is durable.*late cancellation.*retains.*managed PCM and original video.*not trusted through managed acquisition.*pre-existing latest recipient-local exact-schema-16 snapshot.*logical source identity, kind, storage key, MIME type.*frame and sample geometry.*compatible aliases.*verified once.*conflicting bindings reject/iu,
+		/losing absence race.*only.*staging.*preserves the winner.*partial transfer.*pre-shadow failure.*reverse order.*exact acquisition-owned audio record or owned video publication.*source-token, path, or media-chunk payload.*concurrent replacement remains current and intact.*exact authoritative shadow is durable.*late cancellation.*retains.*managed PCM and original video.*not trusted through managed acquisition.*pre-existing latest recipient-local exact-schema-17 snapshot.*logical source identity, kind, storage key, MIME type.*frame and sample geometry.*compatible aliases.*verified once.*conflicting bindings reject/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -451,7 +451,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/role-defined unknown-feature audio whole-mix fallback.*only by its exact-schema-16 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*generation observed at open.*not a durable proof.*intended copy-on-write base generation.*complete metadata.*payload.*content.*byte lease.*retention.*cross-store or cross-process.*injected-port linked retained-video slice.*qualified separately.*linked audio.*every other linked or unmanaged original.*authored proxies or rendered-fallback authoring and transfer semantics beyond.*closed audio whole-mix.*maintained video roles.*product chooser.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity beyond.*owned canonical PCM.*linked PCM.*retained video.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
+		/role-defined unknown-feature audio whole-mix fallback.*only by its exact-schema-17 manifest.*fresh recipient.*separate controller digest verification and activation.*managed transfer verifies its descriptor and body digest.*not the project fallback declaration.*generation observed at open.*not a durable proof.*intended copy-on-write base generation.*complete metadata.*payload.*content.*byte lease.*retention.*cross-store or cross-process.*injected-port linked retained-video slice.*qualified separately.*linked audio.*every other linked or unmanaged original.*authored proxies or rendered-fallback authoring and transfer semantics beyond.*closed audio whole-mix.*maintained video roles.*product chooser.*relink.*watch behavior.*copy or consolidation.*shared managed-media runtime cleanup beyond the startup-bounded tracked inventory.*recipient-local or whole-handoff capacity reservation.*stable playback identity beyond.*owned canonical PCM.*linked PCM.*retained video.*packaged.*UI.*browser codec playback.*portable hard-link qualification.*shared cross-product revision and undo history remain unqualified/iu,
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
@@ -459,15 +459,15 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		mediaAdmission.currentBehavior,
-		/pre-release schemas 1 through 15.*source-media re-import.*no raw-project migration path.*prior shared-v7.*older shared-v6.*shared-v5.*shared-v4.*shared-v3.*shared-v2.*v1.*product-private-library migration.*unsupported.*Audacity AUP.*legacy XML AUP.*AUP4.*maintained interchange.*first- and third-party effect semantics.*not gated/iu,
+		/pre-release schemas 1 through 16.*source-media re-import.*no raw-project migration path.*prior shared-v8.*older shared-v7.*shared-v6.*shared-v5.*shared-v4.*shared-v3.*shared-v2.*v1.*product-private-library migration.*unsupported.*Audacity AUP.*legacy XML AUP.*AUP4.*maintained interchange.*first- and third-party effect semantics.*not gated/iu,
 	);
 	assert.match(
 		documentation,
-		/latest exact-schema-16 source-bearing\s+shared load.*4,094.*deduplicates compatible same-kind\s+physical bindings.*aggregate 64 GiB.*canonical audio archive bytes.*original-video bodies.*65,536-PCM-chunk.*before.*body read.*shared body transfer.*recipient\s+write.*fresh recipient.*managed canonical-PCM and\s+original-video descriptors.*4 MiB reads.*four\s+main-process reads active.*staged product-local audio source.*owned\s+video-media writer/isu,
+		/latest exact-schema-17 source-bearing\s+shared load.*4,094.*deduplicates compatible same-kind\s+physical bindings.*aggregate 64 GiB.*canonical audio archive bytes.*original-video bodies.*65,536-PCM-chunk.*before.*body read.*shared body transfer.*recipient\s+write.*fresh recipient.*managed canonical-PCM and\s+original-video descriptors.*4 MiB reads.*four\s+main-process reads active.*staged product-local audio source.*owned\s+video-media writer/isu,
 	);
 	assert.match(
 		documentation,
-		/transfer must match descriptor identity, kind and\s+storage key, exact byte length, SHA-256, and canonical audio byte geometry.*atomic if-absent publication.*retained original video.*opaque.*not decoded or probed for media geometry.*loses that absence race.*only its own staging.*preserves the winner.*partial acquisition, later admission failure.*roll back in reverse order.*exact\s+acquisition-owned audio\s+record or video publication.*source token, path, or media-chunk payload.*concurrent replacement is preserved.*source not acquired.*pre-existing latest\s+recipient-local exact-schema-16 snapshot.*same project/isu,
+		/transfer must match descriptor identity, kind and\s+storage key, exact byte length, SHA-256, and canonical audio byte geometry.*atomic if-absent publication.*retained original video.*opaque.*not decoded or probed for media geometry.*loses that absence race.*only its own staging.*preserves the winner.*partial acquisition, later admission failure.*roll back in reverse order.*exact\s+acquisition-owned audio\s+record or video publication.*source token, path, or media-chunk payload.*concurrent replacement is preserved.*source not acquired.*pre-existing latest\s+recipient-local exact-schema-17 snapshot.*same project/isu,
 	);
 	assert.match(
 		documentation,
@@ -507,7 +507,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation.replace(/\s+/gu, ' '),
-		/One readwrite transaction over local current projects, retained revisions, and\s+linked-original bindings.*100,000 closed binding rows.*generic mixed-kind pass.*128 unique exact locator\/revision pairs.*full inventory.*malformed row.*conflicting revision or\s+storage alias.*exceeded applicable bound.*deletion failure.*rolls the transaction back before IPC.*project absent.*Every binding whose project is absent.*unreachable.*catalog-live project.*source-level pruning.*product-local current document.*exact schema 16 at the catalog revision.*64 exact retained revisions.*current revision.*timeline, Project Bin, and every feature-fallback source.*without publisher gating.*Missing, older, newer, malformed, incomplete, or over-bound.*retains all bindings.*100,000 aggregate roots.*suppress.*source-level pruning.*catalog-absent deletion eligible.*complete scan.*apply.*binding deletions.*surviving same-store alias.*shared locator live/isu,
+		/One readwrite transaction over local current projects, retained revisions, and\s+linked-original bindings.*100,000 closed binding rows.*generic mixed-kind pass.*128 unique exact locator\/revision pairs.*full inventory.*malformed row.*conflicting revision or\s+storage alias.*exceeded applicable bound.*deletion failure.*rolls the transaction back before IPC.*project absent.*Every binding whose project is absent.*unreachable.*catalog-live project.*source-level pruning.*product-local current document.*exact schema 17 at the catalog revision.*64 exact retained revisions.*current revision.*timeline, Project Bin, and every feature-fallback source.*without publisher gating.*Missing, older, newer, malformed, incomplete, or over-bound.*retains all bindings.*100,000 aggregate roots.*suppress.*source-level pruning.*catalog-absent deletion eligible.*complete scan.*apply.*binding deletions.*surviving same-store alias.*shared locator live/isu,
 	);
 	assert.match(
 		documentation,
@@ -515,7 +515,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	);
 	assert.match(
 		documentation.replace(/\s+/gu, ' '),
-		/startup-loaded chooser metadata.*durable binding.*binding rows.*project-absent or source-unreachable.*catalog-revision fence.*one live.*AudioEditorProjectStore.*one renderer process.*serializes binding publication, exact unlink, unused\s+locator release, startup reconciliation, project deletion, and whole-store clear.*complete before\/after binding inventory.*100,000 closed rows.*128 unique exact locator\/revision pairs.*pending cleanup set.*128.*committed.*local project and binding removal.*rescan.*no surviving same-store alias.*local-commit signal.*memory or IndexedDB.*before fallible OPFS cleanup.*failure before.*preserves the bindings.*physical-cleanup failure.*does not undo.*platform-release failures.*committed cleanup errors.*later serialized retry.*fulfilled.*true.*or.*false.*settles.*never stats, writes, or deletes the external video file.*project-catalog snapshot, local binding transaction, and main reconciliation.*separate, not atomic.*catalog mutation.*observed only later.*binding deletion commits before IPC or main rejects.*remains committed.*later startup retry.*catalog absence.*authoritative deletion root.*catalog presence.*source-level pruning only.*bounded product-local exact-schema-16 current and retained graphs.*current revision equals the catalog summary.*Missing, stale, structurally invalid, incomplete, or over-bound.*retains.*summary revision.*not a document-content digest.*cooperative revision fence.*Current-process records abandoned outside.*startup, binding, save, successful writable activation, delete, and clear lifecycle.*cannot authenticate inventory or local-graph completeness.*compromised renderer.*omit live references.*delete startup locator metadata.*cooperative availability maintenance.*not a compromised-renderer integrity control.*Cleanup beyond one live store's bounded startup and maintained save\/successful-writable-activation\/delete\/clear lifecycle.*cross-store, cross-profile, or cross-process mutation serialization.*abrupt-crash or power-loss durability.*hostile IndexedDB row.*not implemented.*Packaged executable\/UI and operating-system behavior remain unqualified/isu,
+		/startup-loaded chooser metadata.*durable binding.*binding rows.*project-absent or source-unreachable.*catalog-revision fence.*one live.*AudioEditorProjectStore.*one renderer process.*serializes binding publication, exact unlink, unused\s+locator release, startup reconciliation, project deletion, and whole-store clear.*complete before\/after binding inventory.*100,000 closed rows.*128 unique exact locator\/revision pairs.*pending cleanup set.*128.*committed.*local project and binding removal.*rescan.*no surviving same-store alias.*local-commit signal.*memory or IndexedDB.*before fallible OPFS cleanup.*failure before.*preserves the bindings.*physical-cleanup failure.*does not undo.*platform-release failures.*committed cleanup errors.*later serialized retry.*fulfilled.*true.*or.*false.*settles.*never stats, writes, or deletes the external video file.*project-catalog snapshot, local binding transaction, and main reconciliation.*separate, not atomic.*catalog mutation.*observed only later.*binding deletion commits before IPC or main rejects.*remains committed.*later startup retry.*catalog absence.*authoritative deletion root.*catalog presence.*source-level pruning only.*bounded product-local exact-schema-17 current and retained graphs.*current revision equals the catalog summary.*Missing, stale, structurally invalid, incomplete, or over-bound.*retains.*summary revision.*not a document-content digest.*cooperative revision fence.*Current-process records abandoned outside.*startup, binding, save, successful writable activation, delete, and clear lifecycle.*cannot authenticate inventory or local-graph completeness.*compromised renderer.*omit live references.*delete startup locator metadata.*cooperative availability maintenance.*not a compromised-renderer integrity control.*Cleanup beyond one live store's bounded startup and maintained save\/successful-writable-activation\/delete\/clear lifecycle.*cross-store, cross-profile, or cross-process mutation serialization.*abrupt-crash or power-loss durability.*hostile IndexedDB row.*not implemented.*Packaged executable\/UI and operating-system behavior remain unqualified/isu,
 	);
 	assert.match(
 		documentation,

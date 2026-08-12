@@ -5,6 +5,7 @@
  */
 
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
 
 export function collectProjectSourceIds(project, target = new Set()) {
 	const clips = [
@@ -15,6 +16,7 @@ export function collectProjectSourceIds(project, target = new Set()) {
 		if (typeof clip?.sourceId === 'string' && clip.sourceId) target.add(clip.sourceId);
 	}
 	if (project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+		collectTakeGroupSourceIds(project, target);
 		const requirements = project.featureRequirements?.requirements;
 		if (Array.isArray(requirements)) {
 			for (const requirement of requirements) {

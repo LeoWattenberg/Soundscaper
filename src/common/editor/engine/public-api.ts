@@ -2,6 +2,7 @@
 
 import type { NormalizedLoop, PlanarPcm } from './buffer-math.ts';
 import type { EffectSpectrumMetadata } from './effect-rack.ts';
+import type { AudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import type {
 	EngineChunkSource,
 	EngineLoop,
@@ -39,7 +40,7 @@ export interface EngineStateSnapshot {
 	readonly durationFrames: number;
 	readonly loop: NormalizedLoop;
 	readonly playbackRate: number;
-	readonly playbackMode: 'normal' | 'naive' | 'staffpad';
+	readonly playbackMode: 'normal' | 'naive' | 'staffpad' | 'audio-warp-exact';
 }
 
 export interface EngineLoudnessMeasurementState {
@@ -165,9 +166,11 @@ export interface EnginePublicApi {
 	getAudioContext(options?: Readonly<{ resume?: boolean }>): Promise<EngineAudioContext>;
 	setOutputDevice(deviceId?: string): Promise<EngineOutputDeviceState>;
 	getOutputDeviceState(): EngineOutputDeviceState;
+	getAudioWarpRenderStatus(): Readonly<AudioWarpRenderPathStatus>;
 	play(): Promise<void>;
 	playAtSpeed(rate: number, options?: EnginePlayAtSpeedOptions): Promise<void>;
-	playAt(contextTime: number, fromFrame?: number): Promise<void>;
+	/** Resolves to the actual context start after asynchronous playback priming. */
+	playAt(contextTime: number, fromFrame?: number): Promise<number>;
 	pause(): void;
 	stop(): void;
 	seek(frame: number): number;

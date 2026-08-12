@@ -28,9 +28,11 @@ import {
 } from './media-records.ts';
 import type { MediaRepository } from './media-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
+import type { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceRepository } from './source-repository.ts';
+import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 
@@ -54,6 +56,8 @@ export interface RetentionRepositoryOptions {
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
 	readonly opfs: OpfsRepository;
+	readonly rawPcmSpools: Pick<RawPcmSpoolRepository, 'listAll'>;
+	readonly transientAnalysisCache: Pick<TransientAnalysisCacheRepository, 'purge'>;
 }
 
 /** Cross-domain reachability, temporary cleanup, and whole-store clearing. */
@@ -76,6 +80,7 @@ export class RetentionRepository {
 		const activeStaging = await this.#options.media.activeAssetStaging();
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
+		for (const spool of await this.#options.rawPcmSpools.listAll()) tokens.add(spool.spoolToken);
 		const mediaAssets = await this.#options.media.assetRecords();
 		const binaryRecords = [
 			...mediaAssets,
@@ -261,6 +266,11 @@ export class RetentionRepository {
 			deletedSources.push(...result.removedSources);
 			deletedBinaryRecords.push(...result.removedBinaryRecords);
 			deletedSourceIds.push(...result.removedSourceIds);
+		}
+		if (deletedSourceIds.length > 0) {
+			// Reproducible analyses are availability-only. A failed bounded purge
+			// remains retryable and cannot change authoritative reachability truth.
+			await this.#options.transientAnalysisCache.purge().catch(() => undefined);
 		}
 
 		for (const source of deletedSources) {

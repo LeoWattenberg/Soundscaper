@@ -53,6 +53,13 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'track-folder/update',
 	'track-folder/remove',
 	'track-node/move',
+	'take-comp/group-add',
+	'take-comp/group-update',
+	'take-comp/group-remove',
+	'take-comp/flatten',
+	'audio-warp/set',
+	'audio-warp/clear',
+	'audio-warp/quantize',
 	'label/add',
 	'label/update',
 	'label/remove',
@@ -217,11 +224,12 @@ export type AudioEditorClipboardAnnotation =
 	}>;
 
 export interface AudioEditorClipboard {
-	readonly schemaVersion: 1 | 2 | 3;
+	readonly schemaVersion: 1 | 2 | 3 | 4;
 	readonly sampleRate: number;
 	readonly durationFrames: number;
 	readonly tracks: readonly AudioEditorClipboardTrack[];
 	readonly annotations?: readonly AudioEditorClipboardAnnotation[];
+	readonly takeGroups?: readonly CommandObject[];
 }
 
 export interface CommandRangePayload {
@@ -388,6 +396,35 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly parentFolderId?: string | null;
 		readonly index: number;
 	};
+	readonly 'take-comp/group-add': { readonly group: CommandObject };
+	readonly 'take-comp/group-update': {
+		readonly groupId: string;
+		readonly group: CommandObject;
+	};
+	readonly 'take-comp/group-remove': { readonly groupId: string };
+	readonly 'take-comp/flatten': {
+		readonly groupId: string;
+		readonly operationId: string;
+		readonly outputId: string;
+		readonly preFlattenSnapshot: CommandObject;
+		readonly source: CommandObject;
+		readonly clip: CommandObject;
+	};
+	readonly 'audio-warp/set': {
+		readonly clipId: string;
+		readonly expectedClipAuthority: CommandObject;
+		readonly warpMap: CommandObject;
+	};
+	readonly 'audio-warp/clear': {
+		readonly clipId: string;
+		readonly expectedClipAuthority: CommandObject;
+	};
+	readonly 'audio-warp/quantize': {
+		readonly clipId: string;
+		readonly expectedClipAuthority: CommandObject;
+		readonly transientSources: readonly ExactRationalCommandValue[];
+		readonly options: CommandObject;
+	};
 	readonly 'label/add': { readonly trackId: string; readonly label: CommandObject };
 	readonly 'label/update': { readonly trackId: string; readonly labelId: string; readonly changes: CommandObject };
 	readonly 'label/remove': { readonly trackId: string; readonly labelId: string };
@@ -474,6 +511,10 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly sequenceMap?: StableIdMap;
 		readonly annotationIds?: StableIdMap;
 		readonly annotationBatchIds?: StableIdMap;
+		readonly takeGroupIds?: StableIdMap;
+		readonly takeLaneIds?: StableIdMap;
+		readonly takeIds?: StableIdMap;
+		readonly compRegionIds?: StableIdMap;
 	};
 	readonly 'edit/insert': ThreePointEditCommandPayload;
 	readonly 'edit/overwrite': ThreePointEditCommandPayload;

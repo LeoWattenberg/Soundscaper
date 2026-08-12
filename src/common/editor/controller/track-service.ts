@@ -8,6 +8,10 @@ import {
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 import {
+	createTrackStructuralOperationService,
+	type TrackStructuralOperationService,
+} from './track-structural-operation-service.ts';
+import {
 	findControllerClip,
 	findControllerTrack,
 	type ControllerProject,
@@ -119,6 +123,7 @@ export interface EditorTrackServiceDependencies {
 }
 
 export interface EditorTrackService {
+	readonly structuralOperations: Readonly<TrackStructuralOperationService>;
 	addTrack(options?: TrackCreateOptions): string | undefined;
 	addVideoTrackPair(options?: VideoTrackPairOptions): string | null;
 	assignPreferredInputToTrack(trackId: string): boolean;
@@ -135,6 +140,7 @@ export function createEditorTrackService(
 	dependencies: EditorTrackServiceDependencies,
 ): Readonly<EditorTrackService> {
 	return Object.freeze({
+		structuralOperations: createTrackStructuralOperationService(dependencies),
 		addTrack,
 		addVideoTrackPair,
 		assignPreferredInputToTrack,

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createRegularIntervalAnnotationCommand } from '../src/common/editor/controller/regular-interval-annotation-service.ts';
+import { createRegularIntervalAnnotationController } from '../src/common/editor/controller/regular-interval-annotation-controller.ts';
 import { createEditorHistory, executeEditorCommand, redoEditorCommand, undoEditorCommand } from '../src/common/editor/history.js';
 import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
@@ -99,6 +100,23 @@ test('one command creates, undoes, and redoes the complete interval batch', () =
 	assert.deepEqual(history.present.timelineAnnotations, []);
 	history = redoEditorCommand(history, { now: NOW });
 	assert.deepEqual(history.present.timelineAnnotations, edited);
+});
+
+test('controller composes the planner into exactly one project commit', () => {
+	const project = createAudioEditorProjectV11({ id: 'regular-controller', now: NOW });
+	const commands: unknown[] = [];
+	const controller = createRegularIntervalAnnotationController({
+		getProject: () => project,
+		editingBlocked: () => false,
+		createId: sequentialIds(),
+		commit: (command) => { commands.push(command); },
+	});
+	assert.deepEqual(controller.create({
+		kind: 'marker', anchor: 'sample', sequenceId: project.primarySequenceId,
+		startFrame: 0, endFrame: 5, intervalFrames: 2, namePrefix: 'Cue', color: 'auto',
+	}), ['timeline-annotation-1', 'timeline-annotation-2', 'timeline-annotation-3']);
+	assert.equal(commands.length, 1);
+	assert.equal((commands[0] as { readonly type: string }).type, 'batch');
 });
 
 test('rejects unsafe ranges, capacity overflow, schema mismatches, and unstable identities before mutation', () => {

@@ -15,6 +15,7 @@ import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from '../application-menu-registry.ts';
 import { formatPlaybackSpeed } from '../meter-settings.ts';
+import { createTakeCycleRecordingMenuItems } from '../take-cycle-recording-menu.ts';
 import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 
@@ -63,18 +64,27 @@ export function RecordFlyout({
 	run,
 	onOpenRecordingOffset,
 	onOpenTimedRecording,
+	onOpenTakeCycleRecovery = () => undefined,
 	onClose,
 }) {
-	const recordingInputBlocked = snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording;
+	const recoveryBlocked = Boolean(snapshot.takeCycleRecovery);
+	const ordinaryRecording = snapshot.recordingKind !== 'take-cycle';
+	const recordingInputBlocked = recoveryBlocked || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording;
 	const soundActivation = snapshot.recordingInputs?.soundActivation;
 	const soundActivationMutationBlocked = snapshot.readOnly
 		|| !soundActivation
 		|| soundActivation.preferenceMutationBlocked;
+	const takeCycleItems = createTakeCycleRecordingMenuItems({
+		snapshot,
+		copy,
+		start: () => run(() => controller.actions.recording.cycle.start()),
+		openRecovery: onOpenTakeCycleRecovery,
+	});
 	const items = [
 		{
 			label: snapshot.recording ? copy.stopRecording : recordLabel,
 			shortcut: 'R',
-			disabled: snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording,
+			disabled: recoveryBlocked || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording,
 			onClick: toggleRecording,
 		},
 		{
@@ -88,11 +98,13 @@ export function RecordFlyout({
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.pauseRecording,
 			label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording,
-			disabled: !snapshot.recording,
+			disabled: !snapshot.recording || !ordinaryRecording,
 			checked: Boolean(snapshot.recordingOptions?.paused),
 			onClick: () => run(() => controller.actions.recording.pause()),
 		},
 		{ divider: true },
+		...takeCycleItems,
+		...(takeCycleItems.length ? [{ divider: true }] : []),
 		{
 			label: snapshot.recordingInputs?.hasOpenInputs ? copy.audioDeviceRefresh : copy.recordingAllowInputs,
 			disabled: recordingInputBlocked,
@@ -109,10 +121,10 @@ export function RecordFlyout({
 		{
 			label: copy.monitor,
 			checked: Boolean(snapshot.monitor?.enabled),
-			disabled: snapshot.recordingStarting,
+			disabled: recoveryBlocked || snapshot.recordingStarting,
 			onClick: () => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled)),
 		},
-		{ label: copy.recordingOffset, onClick: onOpenRecordingOffset },
+		{ label: copy.recordingOffset, disabled: recoveryBlocked, onClick: onOpenRecordingOffset },
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.leadInRecording,
 			label: copy.leadInTime,
@@ -123,19 +135,19 @@ export function RecordFlyout({
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setUpTimedRecording,
 			label: copy.timedRecording,
-			disabled: snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling,
+			disabled: recoveryBlocked || snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling,
 			onClick: onOpenTimedRecording,
 		},
 		...(snapshot.productId === 'soundscaper' ? [{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleSoundActivatedRecording,
 			label: copy.soundActivatedRecording,
 			checked: Boolean(soundActivation?.preferences.enabled),
-			disabled: soundActivationMutationBlocked,
+			disabled: recoveryBlocked || soundActivationMutationBlocked,
 			onClick: () => run(() => actionRuntime.recording.toggleSoundActivation()),
 		}, {
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setSoundActivationLevel,
 			label: copy.soundActivationLevel,
-			disabled: !soundActivation,
+			disabled: recoveryBlocked || !soundActivation,
 			onClick: () => actionRuntime.recording.openSoundActivation(),
 		}] : []),
 	];

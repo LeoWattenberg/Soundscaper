@@ -16,6 +16,7 @@ import {
 } from '../i18n/action-parity.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { createAudacityActionDefinition as actionDefinition } from './audacity-action-roadmap.ts';
+import { audacitySpectrogramTrackSelected } from './audacity-action-enablement.ts';
 import { audioTrackChannelCountV2 } from './project-v2.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 
@@ -112,8 +113,8 @@ const definitions = [
 	implemented('export-labels', 'Export labels', ['File > Export other'], 'labels.export', { enableWhen: 'label-track-present' }),
 	implemented('file-close', 'Close project', ['File'], 'session.closeProject', { shortcut: 'Ctrl+W', enableWhen: 'project-opened' }),
 	disabled('export-midi', 'Export MIDI', ['File > Export other'], DISABLED_REASONS.midi, { source: UPSTREAM.menu, menuVisible: false }),
-	disabled('insert', 'Insert', ['Command inventory'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
-	disabled('project-properties', 'Project properties', ['File'], DISABLED_REASONS.todo, { source: UPSTREAM.project }),
+	implemented('insert', 'Insert', ['Edit > Paste', 'Command inventory'], 'edit.pasteInsert', { enableWhen: 'clipboard-and-project-writable', source: UPSTREAM.project }),
+	implemented('project-properties', 'Project properties', ['File'], 'panels.metadata', { enableWhen: 'project-opened', source: UPSTREAM.project }),
 	implemented('revert-factory', 'Revert to factory settings', ['Help'], 'help.revertFactorySettings', { source: UPSTREAM.application }),
 	implemented('toggle-transport', 'Playback controls', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: UPSTREAM.application }),
 	implemented('toggle-tracks', 'Tracks panel', ['View > Panels'], 'workspace.toggleTracksPanel', { source: UPSTREAM.application, enableWhen: 'project-opened' }),
@@ -171,13 +172,12 @@ const definitions = [
 	implemented('set-loop-region-in-out', 'Set loop in/out', ['Select > Looping'], 'transport.setLoopInOut', { enableWhen: 'project-opened', source: UPSTREAM.playback }),
 	implemented('toggle-selection-follows-loop-region', 'Creating a loop also selects audio', ['Select > Looping'], 'transport.toggleSelectionFollowsLoop', { enableWhen: 'project-opened', source: UPSTREAM.playback }),
 	implemented('zero-cross', 'At zero crossings', ['Select'], 'selection.zeroCross', { shortcut: 'Z', enableWhen: 'time-selection' }),
-	disabled('menu-selection-audio-clips', 'Audio clips', ['Select'], DISABLED_REASONS.menu),
-	disabled('select-previous-clip-boundary-to-cursor', 'Previous clip boundary to cursor', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('select-cursor-to-next-clip-boundary', 'Cursor to next clip boundary', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('select-previous-clip', 'Previous clip', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('select-next-clip', 'Next clip', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('menu-selection-spectral', 'Spectral', ['Select'], DISABLED_REASONS.menu),
-	disabled('toggle-spectral-selection', 'Spectral selection', ['Select > Spectral'], DISABLED_REASONS.menu),
+	implemented('select-previous-clip-boundary-to-cursor', 'Previous clip boundary to cursor', ['Select > Audio clips'], 'selection.selectPreviousClipBoundaryToCursor', { enableWhen: 'project-has-audio' }),
+	implemented('select-cursor-to-next-clip-boundary', 'Cursor to next clip boundary', ['Select > Audio clips'], 'selection.selectCursorToNextClipBoundary', { enableWhen: 'project-has-audio' }),
+	implemented('select-previous-clip', 'Previous clip', ['Select > Audio clips'], 'selection.selectPreviousClip', { enableWhen: 'project-has-audio' }),
+	implemented('select-next-clip', 'Next clip', ['Select > Audio clips'], 'selection.selectNextClip', { enableWhen: 'project-has-audio' }),
+	implemented('menu-selection-spectral', 'Spectral', ['Select'], 'tools.openSpectralSelection', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.menu }),
+	implemented('toggle-spectral-selection', 'Spectral selection', ['Select > Spectral'], 'tools.toggleSpectralSelection', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.menu }),
 
 	// View, rulers, and panels.
 	implemented('zoom-in', 'Zoom in', ['View > Zoom'], 'timeline.zoomIn', { shortcut: 'Ctrl+1', enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
@@ -205,9 +205,8 @@ const definitions = [
 	implemented('toggle-update-display-while-playing', 'Update display while playing', ['View'], 'timeline.toggleUpdateWhilePlaying', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-pinned-play-head', 'Pinned playhead', ['View'], 'timeline.togglePinnedPlayhead', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-playback-on-ruler-click-enabled', 'Click ruler to start playback', ['Timeline ruler'], 'timeline.toggleRulerPlayback', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	disabled('menu-skip', 'Skip to', ['View'], DISABLED_REASONS.menu),
-	disabled('skip-to-selection-start', 'Selection start', ['View > Skip to'], DISABLED_REASONS.menu),
-	disabled('skip-to-selection-end', 'Selection end', ['View > Skip to'], DISABLED_REASONS.menu),
+	implemented('skip-to-selection-start', 'Selection start', ['View > Skip to'], 'selection.skipToSelectionStart', { enableWhen: 'project-opened' }),
+	implemented('skip-to-selection-end', 'Selection end', ['View > Skip to'], 'selection.skipToSelectionEnd', { enableWhen: 'project-opened' }),
 
 	// Recording and transport. Browser implementations use the default permitted microphone.
 	implemented('record-on-current-track', 'Record on current track', ['Record', 'Transport'], 'recording.startCurrentTrack', { shortcut: 'R', enableWhen: 'project-writable-and-not-recording', source: UPSTREAM.record }),
@@ -282,17 +281,17 @@ const definitions = [
 	implemented('track-view-extend-track-selection-next', 'Extend track selection down', ['Keyboard navigation'], 'navigation.extendTrackSelectionDown', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('track-view-item-context-menu', 'Open item context menu', ['Keyboard navigation'], 'navigation.openContextMenu', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('mixdown-to', 'Mix-down to', ['Tracks > Mix'], 'track.mixAndRender', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.project }),
-	disabled('menu-align', 'Align content', ['Tracks'], DISABLED_REASONS.menu),
-	disabled('align-end-to-end', 'Align end to end', ['Tracks > Align content'], DISABLED_REASONS.menu),
-	disabled('align-together', 'Align together', ['Tracks > Align content'], DISABLED_REASONS.menu),
-	disabled('align-start-to-zero', 'Align start to zero', ['Tracks > Align content'], DISABLED_REASONS.menu),
-	disabled('align-start-to-playhead', 'Align start to playhead', ['Tracks > Align content'], DISABLED_REASONS.menu),
-	disabled('align-start-to-selection-end', 'Align start to selection end', ['Tracks > Align content'], DISABLED_REASONS.menu),
-	disabled('align-end-to-playhead', 'Align end to playhead', ['Tracks > Align content'], DISABLED_REASONS.menu),
-	disabled('align-end-to-selection-end', 'Align end to selection end', ['Tracks > Align content'], DISABLED_REASONS.menu),
-	disabled('menu-sort', 'Sort tracks', ['Tracks'], DISABLED_REASONS.menu),
-	disabled('sort-by-time', 'Sort by time', ['Tracks > Sort tracks'], DISABLED_REASONS.menu),
-	disabled('sort-by-name', 'Sort by name', ['Tracks > Sort tracks'], DISABLED_REASONS.menu),
+	implemented('menu-align', 'Align content', ['Tracks'], 'track.openAlignMenu', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
+	implemented('align-end-to-end', 'Align end to end', ['Tracks > Align content'], 'track.alignEndToEnd', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
+	implemented('align-together', 'Align together', ['Tracks > Align content'], 'track.alignTogether', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
+	implemented('align-start-to-zero', 'Align start to zero', ['Tracks > Align content'], 'track.alignStartToZero', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
+	implemented('align-start-to-playhead', 'Align start to playhead', ['Tracks > Align content'], 'track.alignStartToPlayhead', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
+	implemented('align-start-to-selection-end', 'Align start to selection end', ['Tracks > Align content'], 'track.alignStartToSelectionEnd', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
+	implemented('align-end-to-playhead', 'Align end to playhead', ['Tracks > Align content'], 'track.alignEndToPlayhead', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
+	implemented('align-end-to-selection-end', 'Align end to selection end', ['Tracks > Align content'], 'track.alignEndToSelectionEnd', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
+	implemented('menu-sort', 'Sort tracks', ['Tracks'], 'track.openSortMenu', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
+	implemented('sort-by-time', 'Sort by time', ['Tracks > Sort tracks'], 'track.sortByTime', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
+	implemented('sort-by-name', 'Sort by name', ['Tracks > Sort tracks'], 'track.sortByName', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
 
 	// Clip properties and spectral tools.
 	implemented('clip-properties', 'Clip properties', ['Clip context'], 'clip.openProperties', { enableWhen: 'clip-selected', source: UPSTREAM.projectScene }),
@@ -315,7 +314,7 @@ const definitions = [
 	implemented('spectral-box-select', 'Spectral box select', ['Tools toolbar'], 'spectral.boxSelect', { enableWhen: 'spectrogram-track-selected', source: UPSTREAM.projectScene }),
 	implemented('spectral-delete', 'Spectral delete', ['Effect > Spectral'], 'spectral.delete', { enableWhen: 'editable-frequency-selection', source: UPSTREAM.builtinEffects }),
 	implemented('spectral-amplify', 'Spectral amplify', ['Effect > Spectral'], 'spectral.amplify', { enableWhen: 'editable-frequency-selection', source: UPSTREAM.builtinEffects }),
-	disabled('spectral-brush', 'Spectral brush', ['Tools toolbar'], DISABLED_REASONS.todo, { source: UPSTREAM.projectScene }),
+	implemented('spectral-brush', 'Spectral brush', ['Select > Spectral', 'Tools toolbar'], 'tools.toggleSpectralBrush', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.projectScene }),
 
 	// Built-in effect menus use dynamically generated upstream action URIs. These
 	// stable browser IDs are reconciled with the separate effect parameter manifest.
@@ -357,10 +356,7 @@ const definitions = [
 	disabled('apply-macros-palette', 'Apply macro', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('macro-fade-ends', 'Fade ends', ['Tools > Macros'], DISABLED_REASONS.menu),
 	disabled('macro-mp3-conversion', 'MP3 conversion', ['Tools > Macros'], DISABLED_REASONS.menu),
-	disabled('raw-data-import', 'Import raw data', ['Tools'], DISABLED_REASONS.todo, {
-		source: UPSTREAM.project,
-		menuVisible: false,
-	}),
+	implemented('raw-data-import', 'Import raw data', ['Tools'], 'io.importRawData', { enableWhen: 'project-writable', source: UPSTREAM.project }),
 	disabled('reset-configuration', 'Reset configuration', ['Tools'], DISABLED_REASONS.superseded, {
 		source: UPSTREAM.project,
 		menuVisible: false,
@@ -384,11 +380,11 @@ const definitions = [
 	implemented('local://selection-toolbar', 'Selection toolbar', ['View > Toolbars'], 'workspace.toggleSelectionToolbar', { source: null, origin: 'local' }),
 
 		// Existing browser placeholders explicitly retained by the user's parity policy.
-		disabled('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-		disabled('local://mute-all', 'Mute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-		disabled('local://unmute-all', 'Unmute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://repeat-generator', 'Repeat last generator', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
-	disabled('local://repeat-analyzer', 'Repeat last analyzer', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+		implemented('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], 'selection.selectNoTracks', { enableWhen: 'track-selected', source: null, origin: 'local' }),
+		implemented('local://mute-all', 'Mute all tracks', ['Tracks'], 'track.muteAll', { enableWhen: 'project-writable', source: null, origin: 'local' }),
+		implemented('local://unmute-all', 'Unmute all tracks', ['Tracks'], 'track.unmuteAll', { enableWhen: 'project-writable', source: null, origin: 'local' }),
+	implemented('local://repeat-generator', 'Repeat last generator', ['Generate'], 'generators.repeatLast', { enableWhen: 'repeatable-generator', source: null, origin: 'local' }),
+	implemented('local://repeat-analyzer', 'Repeat last analyzer', ['Analyze'], 'analysis.repeatLast', { enableWhen: 'repeatable-analyzer', source: null, origin: 'local' }),
 	disabled('local://silence-finder', 'Silence finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://sound-finder', 'Sound finder', ['Analyze'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 
@@ -403,7 +399,7 @@ const definitions = [
 	excluded('sample-data-import', 'Sample data import', ['Tools'], EXCLUDED_REASONS.plugins),
 	excluded('prev-window', 'Previous window', ['Extra'], EXCLUDED_REASONS.developer),
 	excluded('next-window', 'Next window', ['Extra'], EXCLUDED_REASONS.developer),
-	excluded('regular-interval-labels', 'Regular interval labels', ['Extra'], EXCLUDED_REASONS.developer),
+	implemented('regular-interval-labels', 'Regular interval labels', ['Extra'], 'timelineAnnotations.openRegularInterval', { enableWhen: 'project-writable' }),
 	excluded('device-info', 'Device information', ['Diagnostics'], EXCLUDED_REASONS.os),
 	excluded('midi-device-info', 'MIDI device information', ['Diagnostics'], EXCLUDED_REASONS.midi),
 	excluded('log', 'Application log', ['Diagnostics'], EXCLUDED_REASONS.developer),
@@ -683,13 +679,12 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'not-recording': !recording,
 		'sound-activation-preferences-available': projectOpened && snapshot.productId === 'soundscaper' && Boolean(snapshot.recordingInputs?.soundActivation),
 		'sound-activation-preferences-mutable': projectWritable && snapshot.productId === 'soundscaper' && Boolean(snapshot.recordingInputs?.soundActivation) && !snapshot.recordingInputs?.soundActivation?.preferenceMutationBlocked,
-		'spectrogram-track-selected': Boolean(selectedAudioTrack && (
-			selectedAudioTrack.displayMode === 'spectrogram'
-			|| selectedAudioTrack.displayMode === 'multiview'
-			|| snapshot.timeline?.view === 'spectrogram'
-		)),
+		'spectrogram-track-selected': audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot),
+		'editable-spectrogram-track-selected': editable && audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot),
 		'editable-frequency-selection': editable && Boolean(selectedAudioTrack) && frequencySelection,
 		'repeatable-effect-and-editable-selection': editable && (audioSelection || Boolean(selectedClip)) && Boolean(snapshot.effects?.canRepeatLast),
+		'repeatable-generator': editable && Boolean(snapshot.generators?.canRepeatLast),
+		'repeatable-analyzer': projectHasAudio && Boolean(snapshot.analysisRepeatable),
 		'effect-opened': effectOpened,
 		'effect-preset-selected': effectPresetSelected,
 		'editable-effect-preset-selected': projectWritable && effectPresetSelected,

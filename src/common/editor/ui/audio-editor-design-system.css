@@ -22,3 +22,7 @@
 @import './audio-editor-design-system/22-sequence-timing.css';
 @import './audio-editor-design-system/23-source-monitor.css';
 @import './audio-editor-design-system/24-portal-dark-theme.css';
+@import './audio-editor-design-system/25-spectral-brush.css';
+@import './audio-editor-design-system/26-take-comp.css';
+@import './audio-editor-design-system/27-audio-warp.css';
+@import './audio-editor-design-system/28-take-cycle-recovery.css';

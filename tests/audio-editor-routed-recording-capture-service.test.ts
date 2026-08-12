@@ -202,8 +202,11 @@ test('routed display capture supports ranges, channel fallback, meters, and time
 	assert.equal(fixture.stopCalls(), 1);
 });
 
-test('routed count-in matches the authoritative tempo and compound-signature maps', async () => {
-	const fixture = createRecordingCaptureFixture({ selection: { startFrame: 144_000, endFrame: 192_000 } });
+test('routed count-in shares a deferred playback start with every recorder', async () => {
+	const fixture = createRecordingCaptureFixture({
+		selection: { startFrame: 144_000, endFrame: 192_000 },
+		playAt: async () => 4.1,
+	});
 	fixture.state.leadInRecording = true;
 	fixture.state.recordingRouting = {
 		routes: {
@@ -228,6 +231,7 @@ test('routed count-in matches the authoritative tempo and compound-signature map
 
 	assert.deepEqual(fixture.seekCalls, [24_000]);
 	assert.equal(fixture.playAtCalls[0]?.[1], 24_000);
+	assert.deepEqual(fixture.recorderStartOptions, [{ startFrame: 316_800, stopFrame: 364_800 }]);
 });
 
 test('routed count-in preserves singleton timing for a map-absent project', async () => {

@@ -22,12 +22,12 @@ import {
 
 const SOURCE_ID = 'copy-audio-source';
 
-test('a future V17 archive copies byte-for-byte from Blob and byte-source inputs', async (context) => {
+test('a future V18 archive copies byte-for-byte from Blob and byte-source inputs', async (context) => {
 	const future = await futureArchive(context);
 	const original = new Uint8Array(await future.arrayBuffer());
 
 	const fromBlob = await collectCopy(future);
-	assert.equal(fromBlob.result.schemaVersion, 17);
+	assert.equal(fromBlob.result.schemaVersion, 18);
 	assert.equal(fromBlob.result.byteLength, original.byteLength);
 	assert.deepEqual(fromBlob.bytes, original, 'the Blob copy must be the exact original bytes');
 	assert.equal(digestScapeBytes(fromBlob.bytes), digestScapeBytes(original));
@@ -46,7 +46,7 @@ test('current-schema and mismatched or unknown-format archives refuse the unchan
 
 	const mismatched = await rewriteScapeManifest(
 		await futureArchive(context),
-		(manifest: { project: { schemaVersion: number } }) => { manifest.project.schemaVersion = 18; },
+		(manifest: { project: { schemaVersion: number } }) => { manifest.project.schemaVersion = 19; },
 	);
 	await assert.rejects(collectCopy(mismatched), /does not match its project document/u);
 
@@ -84,7 +84,7 @@ test('cancellation stops the unchanged copy with the abort reason', async (conte
 async function futureArchive(context: TestContext): Promise<Blob> {
 	return rewriteScapeProjectDocument(
 		await currentArchive(context),
-		(document: { schemaVersion: number }) => { document.schemaVersion = 17; },
+		(document: { schemaVersion: number }) => { document.schemaVersion = 18; },
 	);
 }
 

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { KeyValueRepository } from './key-value-repository.ts';
+import { AnalysisCacheRoutingRepository } from './analysis-cache-routing-repository.ts';
 import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
+import { KeyValueRepository } from './key-value-repository.ts';
 import { LinkedAudioOriginalSourceReader } from './linked-audio-original-source-reader.ts';
 import { LinkedOriginalProjectAliasRepository } from './linked-original-project-alias-repository.ts';
 import { LinkedOriginalProjectReachabilityRepository } from './linked-original-project-reachability-repository.ts';
@@ -22,18 +23,24 @@ import { MediaRepository } from './media-repository.ts';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import { OpfsRepository } from './opfs-repository.ts';
 import { PcmRepository, type PcmRepositoryOptions } from './pcm-repository.ts';
+import { ProjectCompareAndSwapRepository } from './project-compare-and-swap-repository.ts';
 import { ProjectRepository, type ProjectRepositoryPort } from './project-repository.ts';
+import { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
 import { RetentionRepository } from './retention-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { SourceReadRepository } from './source-read-repository.ts';
 import { SourceRecordRepository } from './source-record-repository.ts';
 import { SourceRepository } from './source-repository.ts';
 import { SourceWriteRepository } from './source-write-repository.ts';
+import { TakeCycleRecoveryEnvelopeRepository } from './take-cycle-recovery-envelope-repository.ts';
+import { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 
 export interface StorageRepositories {
 	readonly projects: ProjectRepositoryPort;
 	readonly settings: KeyValueRepository;
 	readonly analysis: KeyValueRepository;
+	readonly analysisCache: AnalysisCacheRoutingRepository;
+	readonly transientAnalysisCache: TransientAnalysisCacheRepository;
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
 	readonly linkedOriginalBindings: LinkedOriginalRepository;
@@ -48,6 +55,8 @@ export interface StorageRepositories {
 	readonly opfs: OpfsRepository;
 	readonly pcm: PcmRepository;
 	readonly retention: RetentionRepository;
+	readonly rawPcmSpools: RawPcmSpoolRepository;
+	readonly takeCycleRecoveryEnvelopes: TakeCycleRecoveryEnvelopeRepository;
 }
 
 export interface StorageRepositoryOptions {
@@ -62,6 +71,11 @@ export interface StorageRepositoryOptions {
 		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
 	>>;
 	readonly derivativeCacheNow?: () => number;
+	readonly transientAnalysisCacheLimits?: Readonly<Pick<
+		DerivativeCacheLimits,
+		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
+	>>;
+	readonly transientAnalysisCacheNow?: () => number;
 	readonly linkedOriginalPort?: LinkedOriginalPort | null;
 	readonly linkedVideoOriginalPort?: LinkedVideoOriginalPort | null;
 }
@@ -87,6 +101,11 @@ export function createStorageRepositories(
 	});
 	const sourceRecords = new SourceRecordRepository(port);
 	const analysis = new KeyValueRepository(port, 'analysis');
+	const transientAnalysisCache = new TransientAnalysisCacheRepository(analysis, {
+		limits: options.transientAnalysisCacheLimits,
+		now: options.transientAnalysisCacheNow,
+	});
+	const analysisCache = new AnalysisCacheRoutingRepository(analysis, transientAnalysisCache);
 	const media = new MediaRepository(port, opfs, {
 		cacheLimits: options.derivativeCacheLimits,
 		now: options.derivativeCacheNow,
@@ -130,13 +149,19 @@ export function createStorageRepositories(
 		reader,
 		media,
 		analysis,
+		transientAnalysisCache,
 		opfs,
 		pcm,
 	});
+	const rawPcmSpools = new RawPcmSpoolRepository(analysis, sourceRecords);
+	const takeCycleRecoveryEnvelopes = new TakeCycleRecoveryEnvelopeRepository(analysis);
+	const projects = new ProjectRepository(port, options.revisionLimit);
 	return Object.freeze({
-		projects: new ProjectRepository(port, options.revisionLimit),
+		projects: new ProjectCompareAndSwapRepository(projects, port, options.revisionLimit),
 		settings: new KeyValueRepository(port, 'settings'),
 		analysis,
+		analysisCache,
+		transientAnalysisCache,
 		sources,
 		media,
 		linkedOriginalBindings,
@@ -150,6 +175,10 @@ export function createStorageRepositories(
 		linkedVideoOriginals,
 		opfs,
 		pcm,
-		retention: new RetentionRepository({ port, sourceRecords, sources, media, opfs }),
+		retention: new RetentionRepository({
+			port, sourceRecords, sources, media, opfs, rawPcmSpools, transientAnalysisCache,
+		}),
+		rawPcmSpools,
+		takeCycleRecoveryEnvelopes,
 	});
 }

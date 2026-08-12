@@ -87,6 +87,48 @@ test('crossfade and schedule plans retain clip-local overlap and source offsets'
 	});
 });
 
+test('schedule plans consume authored warp segments instead of a scalar clip rate', () => {
+	const project = {
+		sampleRate: 48_000,
+		tempoMap: {
+			mode: 'musical' as const,
+			events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+		tracks: [{ id: 'track', type: 'audio', clipIds: ['clip'] }],
+		clips: [{
+			id: 'clip', kind: 'audio', anchor: 'sample', sourceId: 'source',
+			timelineStartFrame: 100, durationFrames: 100,
+			sourceStartFrame: 1_000, sourceDurationFrames: 200,
+			warpMap: {
+				feature: 'audio-warp' as const,
+				points: [
+					{ outer: 0, source: 1_000, mode: 'forward' as const },
+					{ outer: 50, source: 1_050, mode: 'forward' as const },
+					{ outer: 100, source: 1_200, mode: 'forward' as const },
+				],
+			},
+		}],
+	};
+	const plans = buildClipSchedulePlans({
+		project,
+		sources: new Map([['source', { length: 4_000, sampleRate: 96_000 } as AudioBuffer]]),
+		trackInputs: new Map([['track', {} as AudioNode]]),
+		fromFrame: 125,
+		toFrame: 175,
+		sampleRate: 48_000,
+	});
+	assert.deepEqual(plans.map((plan) => ({
+		segmentStart: plan.segmentStart,
+		segmentEnd: plan.segmentEnd,
+		relativeStart: plan.relativeStart,
+		offsetFrame: plan.offsetFrame,
+		playbackRate: plan.playbackRate,
+	})), [
+		{ segmentStart: 125, segmentEnd: 150, relativeStart: 25, offsetFrame: 1_025, playbackRate: 0.5 },
+		{ segmentStart: 150, segmentEnd: 175, relativeStart: 50, offsetFrame: 1_050, playbackRate: 1.5 },
+	]);
+});
+
 test('rack and project graph latency remain additive across graph stages', () => {
 	const limiter = (lookahead: number) => ({
 		type: 'limiter',

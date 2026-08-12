@@ -73,6 +73,12 @@ export interface AudioGeneratorEffectTarget extends Readonly<Record<string, unkn
 export interface AudioGeneratorState {
 	selectedTrackId: string | null;
 	audacityEffectProcessing: boolean;
+	lastGeneratorRequest?: AudioGeneratorRequest | null;
+}
+
+export interface AudioGeneratorRequest {
+	readonly type: AudioGeneratorType;
+	readonly options: AudioGeneratorOptions;
 }
 
 export interface AudioGeneratorCopy {
@@ -170,6 +176,7 @@ export interface AudioGeneratorServiceDependencies {
 export interface AudioGeneratorService {
 	generateSelectionSilence(): Promise<true | string | null>;
 	generateSignal(type: AudioGeneratorType, options?: AudioGeneratorOptions): Promise<string | null>;
+	repeatLast(): Promise<string | null>;
 }
 
 interface GeneratedSignal {
@@ -190,7 +197,12 @@ export function createAudioGeneratorService(
 ): Readonly<AudioGeneratorService> {
 	let operationGeneration = 0;
 
-	return Object.freeze({ generateSelectionSilence, generateSignal });
+	return Object.freeze({ generateSelectionSilence, generateSignal, repeatLast });
+
+	function repeatLast(): Promise<string | null> {
+		const request = dependencies.state.lastGeneratorRequest;
+		return request ? generateSignal(request.type, request.options) : Promise.resolve(null);
+	}
 
 	async function generateSelectionSilence(): Promise<true | string | null> {
 		dependencies.lifetime.assertActive();
@@ -319,6 +331,10 @@ export function createAudioGeneratorService(
 			dependencies.commit(prepared.command, {
 				selectTrackId: prepared.trackId,
 				selectClipId: prepared.clipId,
+			});
+			dependencies.state.lastGeneratorRequest = Object.freeze({
+				type,
+				options: Object.freeze({ ...options }),
 			});
 			dependencies.setStatus(dependencies.copy.done, 'success');
 			return prepared.clipId;

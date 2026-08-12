@@ -16,6 +16,7 @@ import {
 import {
 	PROJECT_FEATURE_AUDIO_CAPABILITY_IDS,
 	PROJECT_FEATURE_CAPABILITY_IDS,
+	PROJECT_FEATURE_VIDEO_CAPABILITY_IDS,
 } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import {
@@ -113,7 +114,7 @@ function project(featureId: string = AUDIO_EFFECTS) {
 	});
 }
 
-test('every registered first-party audio capability can bind one whole-mix fallback', () => {
+test('only eligible first-party audio capabilities can bind one whole-mix fallback', () => {
 	assert.deepEqual(PROJECT_FEATURE_AUDIO_CAPABILITY_IDS, [
 		PROJECT_FEATURE_CAPABILITY_IDS.audioImport,
 		PROJECT_FEATURE_CAPABILITY_IDS.audioPlayback,
@@ -127,8 +128,13 @@ test('every registered first-party audio capability can bind one whole-mix fallb
 		PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
 		PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
 		PROJECT_FEATURE_CAPABILITY_IDS.musicalTimeline,
-		PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
 	]);
+	assert.equal(PROJECT_FEATURE_AUDIO_CAPABILITY_IDS.includes(
+		PROJECT_FEATURE_CAPABILITY_IDS.audioWarp as never,
+	), false, 'authored warp maps require their native exact evaluator');
+	assert.equal(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS.includes(
+		PROJECT_FEATURE_CAPABILITY_IDS.audioWarp as never,
+	), false, 'audio warp maps cannot substitute a full video render');
 	for (const featureId of PROJECT_FEATURE_AUDIO_CAPABILITY_IDS) {
 		const input = project(featureId);
 		const projected = projectFeatureAudioRenderedFallbackPlayback(input, report({ featureId }));

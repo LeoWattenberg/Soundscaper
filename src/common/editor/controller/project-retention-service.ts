@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ProjectLinkedOriginalSourceReference } from '../storage/project-publication-options.ts';
+import {
+	collectTakeGroupSourceIds,
+	type TakeGroupSourceReferenceProject,
+} from '../take-group-source-references.ts';
 
 export interface RetentionClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -8,7 +12,7 @@ export interface RetentionClip extends Readonly<Record<string, unknown>> {
 	readonly kind?: 'audio' | 'video';
 }
 
-export interface RetentionProject extends Readonly<Record<string, unknown>> {
+export interface RetentionProject extends Readonly<Record<string, unknown>>, TakeGroupSourceReferenceProject {
 	readonly id: string;
 	readonly sources?: readonly Readonly<{
 		readonly id: string;
@@ -45,8 +49,9 @@ export interface ProjectRetentionState<History> {
 	readonly recordingSourceId: string | null;
 }
 
-interface RetentionSessionTab {
+interface RetentionSessionTab<History> {
 	readonly dirty: boolean;
+	readonly history?: History;
 }
 
 interface RetentionSessionHistoryTab<History> {
@@ -69,7 +74,7 @@ export interface ProjectRetentionServiceDependencies<
 		history: History,
 		options: Readonly<{ preservePresentSourceIds: ReadonlySet<string> }>,
 	) => History;
-	readonly sessionTab: (projectId: string) => RetentionSessionTab | null;
+	readonly sessionTab: (projectId: string) => RetentionSessionTab<History> | null;
 	readonly updateProjectHistory: (
 		projectId: string,
 		history: History,
@@ -96,6 +101,7 @@ export interface ProjectRetentionService<Project extends RetentionProject> {
 	liveSessionSourceIds(): Set<string>;
 	liveSessionClipIds(): Set<string>;
 	retainLiveClipIds(): void;
+	synchronizeLiveHistory<History extends RetentionHistory<Project>>(history: History): History;
 }
 
 /** Owns all roots that keep source metadata, PCM, peaks, and render caches live. */
@@ -112,7 +118,20 @@ export function createProjectRetentionService<
 		liveSessionSourceIds,
 		liveSessionClipIds,
 		retainLiveClipIds,
+		synchronizeLiveHistory,
 	});
+
+	function synchronizeLiveHistory<NextHistory extends RetentionHistory<Project>>(
+		nextHistory: NextHistory,
+	): NextHistory {
+		const projectId = nextHistory.present.id;
+		const tab = dependencies.sessionTab(projectId);
+		if (!tab) throw new Error('The active project session history is unavailable.');
+		dependencies.updateProjectHistory(projectId, nextHistory as unknown as History, { dirty: tab.dirty });
+		const synchronized = dependencies.sessionTab(projectId)?.history;
+		if (!synchronized) throw new Error('The synchronized project session history is unavailable.');
+		return synchronized as unknown as NextHistory;
+	}
 
 	function clipboardSourceIds(): ReadonlySet<string> {
 		const sourceIds = new Set<string>();
@@ -181,6 +200,10 @@ export function createProjectRetentionService<
 					if (!fallback?.sourceId) continue;
 					const kind = fallback.kind ?? sourceKind(fallback.sourceId);
 					if (kind) add(kind, fallback.sourceId);
+				}
+				for (const sourceId of collectTakeGroupSourceIds(project)) {
+					const kind = sourceKind(sourceId);
+					if (kind) add(kind, sourceId);
 				}
 			}
 		}

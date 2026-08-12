@@ -19,6 +19,7 @@ export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	musicalTimeline: 'soundscaper.musical-timeline',
 	timelineAnnotations: 'soundscaper.timeline-annotations',
 	trackFolders: 'soundscaper.track-folders',
+	takeComp: 'soundscaper.take-comp',
 	audioWarp: 'soundscaper.audio-warp',
 	sequenceTiming: 'framescaper.sequence-timing',
 	videoRetime: 'framescaper.video-retime',
@@ -55,6 +56,7 @@ const FOUNDATION_REQUIREMENTS = Object.freeze({
 	musicalTimeline: requirement('musicalTimeline', 'Musical timeline'),
 	timelineAnnotations: requirement('timelineAnnotations', 'Timeline markers and regions'),
 	trackFolders: requirement('trackFolders', 'Nested track folders'),
+	takeComp: requirement('takeComp', 'Take lanes and comps'),
 	audioWarp: requirement('audioWarp', 'Audio warp maps'),
 	sequenceTiming: requirement('sequenceTiming', 'Sequence timing'),
 	videoRetime: requirement('videoRetime', 'Video retime maps'),
@@ -81,7 +83,16 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		FOUNDATION_REQUIREMENTS.trackFolders,
 		(project) => dataArray(project, 'trackFolders').length > 0,
 	),
-	foundationOwned(FOUNDATION_REQUIREMENTS.audioWarp, (project) => projectHasClipField(project, 'audio', 'warpMap')),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.takeComp,
+		(project) => dataArray(project, 'takeGroups').length > 0,
+		() => true,
+	),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.audioWarp,
+		(project) => projectHasClipField(project, 'audio', 'warpMap'),
+		(project) => projectHasClipField(project, 'audio', 'warpMap'),
+	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.sequenceTiming, projectHasNonDefaultSequenceTiming),
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.videoRetime,
@@ -96,7 +107,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 ]);
 
 function requirement(
-	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'audioWarp' | 'sequenceTiming'
+	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'takeComp' | 'audioWarp' | 'sequenceTiming'
 		| 'videoRetime' | 'videoTimingAssets' | 'sourceCharacteristics',
 	displayName: string,
 ): ProjectFeatureRequirement {
@@ -124,7 +135,8 @@ function foundationOwned(
 
 /**
  * Keep editor-owned declarations aligned with maintained state. Publisher
- * declarations normally win; exact V16 retime state refuses substitution.
+ * declarations normally win; exact take/comp, audio-warp, and V16 retime state
+ * refuse substitution because none can degrade to an unrelated media render.
  */
 export function reconcileProjectOwnedFeatureRequirements(
 	project: Readonly<Record<string, unknown>>,

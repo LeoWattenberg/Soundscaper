@@ -23,14 +23,14 @@ interface MutablePasteCommand extends DataRecord {
 	annotationBatchIds?: Record<string, string>;
 }
 
-/** Allocate every V3 identity and derive its source-to-target sequence map. */
+/** Allocate every annotation-capable identity and derive its source-to-target sequence map. */
 export function preparePasteAnnotationMaps(
 	clipboard: AudioEditorClipboard,
 	options: PastePreparationOptions,
 	command: MutablePasteCommand,
 	idFactory: IdFactory,
 ): void {
-	if (clipboard.schemaVersion !== 3) return;
+	if (clipboard.schemaVersion < 3) return;
 	const sourceSequenceIds = new Set([
 		...clipboard.tracks.map((track) => requiredId(track.sourceSequenceId, 'clipboard track sourceSequenceId')),
 		...(clipboard.annotations || []).map((annotation) => annotation.sourceSequenceId),
@@ -91,7 +91,7 @@ export function assertPasteSequenceMaps(
 	clipboard: AudioEditorClipboard,
 	command: MutablePasteCommand,
 ): void {
-	if (clipboard.schemaVersion !== 3) return;
+	if (clipboard.schemaVersion < 3) return;
 	const sequenceMapDescriptor = Object.getOwnPropertyDescriptor(command, 'sequenceMap');
 	if (!sequenceMapDescriptor) return;
 	if (!sequenceMapDescriptor.enumerable || !Object.hasOwn(sequenceMapDescriptor, 'value')) {

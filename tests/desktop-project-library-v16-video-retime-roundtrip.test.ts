@@ -16,7 +16,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -47,10 +47,10 @@ const BIN_CURVE: VideoRetimeCurveV16 = Object.freeze({
 	segments: Object.freeze([Object.freeze({ mode: 'constant-reverse' })]),
 });
 
-test('fresh V8 desktop handoff preserves timeline and Project Bin V16 retime wires byte-exactly', async (context) => {
+test('fresh V9 desktop handoff preserves timeline and Project Bin V16 retime wires byte-exactly', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-v16-retime-desktop-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
-	const project = createAudioEditorProjectV16(projectOptions());
+	const project = createCurrentAudioEditorProject(projectOptions());
 	const document = serializeScapeProjectDocument(project);
 	const writer = await DesktopProjectLibraryHost.start({
 		appDataPath,
@@ -67,9 +67,9 @@ test('fresh V8 desktop handoff preserves timeline and Project Bin V16 retime wir
 		status: 'committed',
 		document,
 	});
-	assert.equal(writer.readCatalog().schemaVersion, 8);
+	assert.equal(writer.readCatalog().schemaVersion, 9);
 	assert.equal(writer.readCatalog().schemaVersion, DESKTOP_LIBRARY_SCHEMA_VERSION);
-	assert.equal(writer.readCatalog().projects[0]?.projectSchemaVersion, 16);
+	assert.equal(writer.readCatalog().projects[0]?.projectSchemaVersion, 17);
 	assert.equal(
 		writer.readCatalog().projects[0]?.projectSchemaVersion,
 		DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,

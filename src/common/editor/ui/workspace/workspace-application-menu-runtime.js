@@ -73,6 +73,8 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				openAudioWarp: () => openSurface('audio-warp'),
+				openTakeComp: () => openSurface('take-comp'),
 				newProject: () => run(() => controller.actions.project.create()),
 				openProjects,
 				openFile: () => fileService.isDesktop
@@ -111,6 +113,13 @@ export function createWorkspaceApplicationMenus({
 				selectAll: () => run(() => controller.actions.timeline.setSelection(0, durationFrames)),
 				selectNone: () => run(() => controller.actions.timeline.clearSelection()),
 				selectAllTracks: () => run(() => controller.actions.timeline.selectAllTracks()),
+				selectNoTracks: () => run(() => controller.actions.timeline.selectNoTracks()),
+				selectPreviousClipBoundaryToCursor: () => run(() => controller.actions.timeline.selectPreviousClipBoundaryToCursor()),
+				selectCursorToNextClipBoundary: () => run(() => controller.actions.timeline.selectCursorToNextClipBoundary()),
+				selectPreviousClip: () => run(() => controller.actions.timeline.selectPreviousClip()),
+				selectNextClip: () => run(() => controller.actions.timeline.selectNextClip()),
+				skipToSelectionStart: () => run(() => controller.actions.timeline.skipToSelectionStart()),
+				skipToSelectionEnd: () => run(() => controller.actions.timeline.skipToSelectionEnd()),
 				selectLeftOfPlayback: () => run(() => controller.actions.timeline.selectLeftOfPlayback()),
 				selectRightOfPlayback: () => run(() => controller.actions.timeline.selectRightOfPlayback()),
 				selectTrackStartToCursor: () => run(() => controller.actions.timeline.selectTrackStartToCursor()),

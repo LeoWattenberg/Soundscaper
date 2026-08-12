@@ -16,6 +16,7 @@ interface AudioEditorTimelineProps {
 	readonly displayAudioSupported: boolean;
 	readonly splitToolEnabled?: boolean;
 	readonly automationToolEnabled?: boolean;
+	readonly spectralBrushEnabled?: boolean;
 	readonly onToggleSplitTool?: () => void;
 	readonly onError: (error: unknown) => void;
 	readonly onOpenEffects?: (...args: readonly unknown[]) => void;
@@ -37,6 +38,7 @@ export default function AudioEditorTimeline({
 	displayAudioSupported,
 	splitToolEnabled = false,
 	automationToolEnabled = false,
+	spectralBrushEnabled = false,
 	onToggleSplitTool,
 	onError,
 	onOpenEffects,
@@ -50,7 +52,7 @@ export default function AudioEditorTimeline({
 	const geometry = { mobile, showArmControls, displayAudioSupported };
 	const selection = { searchRevealRequest };
 	const preview = { overlayTarget };
-	const navigation = { splitToolEnabled, automationToolEnabled };
+	const navigation = { splitToolEnabled, automationToolEnabled, spectralBrushEnabled };
 	const actions = {
 		onToggleSplitTool,
 		onError,

@@ -6,6 +6,7 @@ import type {
 	ProjectReadOnlyUpdate,
 } from './project-lifecycle-types.ts';
 import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from './project-bin-linked-video-relink-service.ts';
+import { TAKE_CYCLE_RECORDING_TASK } from './take-cycle-recording-service.ts';
 
 export interface ProjectLockState {
 	disposed: boolean;
@@ -27,6 +28,7 @@ export interface ProjectLockServiceRuntime {
 	readonly publishProjectState: () => void;
 	readonly setStatus: (message: string, state: 'error' | 'success') => void;
 	readonly handleError: (error: unknown) => void;
+	readonly invalidateRecordingAuthority?: (reason: unknown) => PromiseLike<unknown> | unknown;
 	readonly copy: Readonly<{
 		ready: string;
 		projectOpenOtherTab: string;
@@ -100,10 +102,18 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		if (!lock.lost) return;
 		void lock.lost.then(async () => {
 			if (!ownsLock(projectId, lock)) return;
+			const reason = new DOMException('Project write access was lost.', 'AbortError');
+			runtime.state.readOnly = true;
+			runtime.setProjectReadOnly(projectId, {
+				readOnly: true, reason: 'project-lock', lockMethod: lock.method,
+			});
 			runtime.cancelTask(
 				PROJECT_BIN_LINKED_VIDEO_RELINK_TASK,
-				new DOMException('Project write access was lost.', 'AbortError'),
+				reason,
 			);
+			runtime.cancelTask(TAKE_CYCLE_RECORDING_TASK, reason);
+			await runtime.invalidateRecordingAuthority?.(reason);
+			runtime.publishProjectState();
 			await recoverProjectLock(projectId, lock);
 		}).catch((error: unknown) => handleProjectLockRecoveryError(projectId, lock, error));
 	}

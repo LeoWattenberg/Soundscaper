@@ -104,12 +104,12 @@ export function stageTimelineAnnotationClipboardPaste(
 ): () => void {
 	const project = dataRecord(projectValue, 'project') as MutableClipboardAnnotationProject;
 	const command = dataRecord(commandValue, 'clipboard paste command');
-	const annotations = clipboard.schemaVersion === 3 ? clipboard.annotations || [] : [];
+	const annotations = clipboard.schemaVersion >= 3 ? clipboard.annotations || [] : [];
 	if (annotations.length && !isTimelineAnnotationProjectSchema(project.schemaVersion)) {
 		throw new RangeError('Timeline annotation paste requires schema 11 or 12.');
 	}
 	let maps: ValidatedAnnotationPasteMaps | null = null;
-	if (clipboard.schemaVersion !== 3) {
+	if (clipboard.schemaVersion < 3) {
 		for (const key of ['sequenceMap', 'annotationIds', 'annotationBatchIds']) {
 			if (Object.hasOwn(command, key)) throw new TypeError(`Legacy clipboard paste cannot contain ${key}.`);
 		}

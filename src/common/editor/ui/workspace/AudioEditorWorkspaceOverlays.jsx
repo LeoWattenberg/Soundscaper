@@ -11,7 +11,12 @@ const EditorDialog = React.lazy(() => import('../dialogs/EditorDialog.jsx'));
 const GeneratorDialog = React.lazy(() => import('../dialogs/GeneratorDialog.jsx'));
 const NyquistDialog = React.lazy(() => import('../dialogs/NyquistDialog.jsx'));
 const SpectralSelectionDialog = React.lazy(() => import('../dialogs/SpectralSelectionDialog.jsx'));
+const AudioWarpDialog = React.lazy(() => import('../dialogs/AudioWarpDialog.tsx'));
+const TakeCompDialog = React.lazy(() => import('../dialogs/TakeCompDialog.tsx'));
+const TakeCycleRecoveryDialog = React.lazy(() => import('../dialogs/TakeCycleRecoveryDialog.tsx'));
 const WorkspacePreferencesDialog = React.lazy(() => import('../dialogs/WorkspacePreferencesDialog.jsx'));
+const RawPcmImportDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
+const RegularIntervalAnnotationDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -131,6 +136,48 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					/>
 				</div>
 			)}
+			{capabilities.takeComp && activeSurface === 'take-comp' && (
+				<div data-editor-surface="take-comp">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<TakeCompDialog
+							productId={productId}
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{capabilities.takeComp && activeSurface === 'take-cycle-recovery' && snapshot.takeCycleRecovery && (
+				<div data-editor-surface="take-cycle-recovery">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<TakeCycleRecoveryDialog
+							productId={productId}
+							pending={snapshot.takeCycleRecovery}
+							controller={controller}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{capabilities.audioWarp && activeSurface === 'audio-warp' && (
+				<div data-editor-surface="audio-warp">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<AudioWarpDialog
+							productId={productId}
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
 			{capabilities.audioGenerators && activeSurface === 'generator' && (
 				<div data-editor-surface="generator">
 					<GeneratorDialog
@@ -144,6 +191,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					/>
 				</div>
 			)}
+			{activeSurface === 'raw-pcm-import' && <RawPcmImportDialog controller={controller} copy={copy} run={run} onClose={() => setActiveSurface(null)} />}
+			{capabilities.timelineAnnotations && activeSurface === 'regular-interval-annotations' && <RegularIntervalAnnotationDialog controller={controller} copy={copy} run={run} onClose={() => setActiveSurface(null)} />}
 			{capabilities.audioEffects && activeSurface === 'nyquist' && (
 				<div data-editor-surface="nyquist">
 					<NyquistDialog

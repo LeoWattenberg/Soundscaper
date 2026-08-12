@@ -18,6 +18,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'applyProject',
 	'setSourceResolver',
 	'setChunkSources',
+	'getAudioWarpRenderStatus',
 	'decodeAudioData',
 	'getAudioContext',
 	'setOutputDevice',

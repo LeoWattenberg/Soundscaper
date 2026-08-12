@@ -63,6 +63,7 @@ function createSnapshot(overrides: Partial<RecordingFinalizationSnapshot> = {}):
 	const writer = createWriter().writer;
 	return {
 		recorder: { stop: async () => {}, dispose: async () => {} },
+		kind: 'ordinary',
 		entries: null,
 		writer,
 		sourceId: 'source-1',

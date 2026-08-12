@@ -27,6 +27,7 @@ import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
@@ -209,7 +210,7 @@ test('a current .scape round trip preserves probed characteristics byte-exactly'
 		mimeType: 'video/mp4',
 	});
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 16);
+	assert.equal(exported.manifest.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));

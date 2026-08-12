@@ -105,7 +105,10 @@ export class AudioEditorProjectStore {
 			: repositories.projects;
 		this.settingsRepository = repositories.settings;
 		this.analysisRepository = repositories.analysis;
+		this.analysisCacheRepository = repositories.analysisCache || repositories.analysis;
 		this.sourceRepository = repositories.sources;
+		this.rawPcmSpoolRepository = repositories.rawPcmSpools;
+		this.takeCycleRecoveryEnvelopeRepository = repositories.takeCycleRecoveryEnvelopes;
 		this.mediaRepository = repositories.media;
 		this.linkedOriginalBindingRepository = repositories.linkedOriginalBindings || null;
 		this.linkedOriginalProjectAliasRepository = repositories.linkedOriginalProjectAliases || null;
@@ -209,15 +212,15 @@ export class AudioEditorProjectStore {
 	}
 
 	async saveAnalysis(key, value) {
-		return this.analysisRepository.put(key, value);
+		return this.analysisCacheRepository.put(key, value);
 	}
 
 	async loadAnalysis(key) {
-		return (await this.analysisRepository.get(key)) ?? null;
+		return (await this.analysisCacheRepository.get(key)) ?? null;
 	}
 
 	async deleteAnalysis(key) {
-		return this.analysisRepository.delete(key);
+		return this.analysisCacheRepository.delete(key);
 	}
 
 	/**

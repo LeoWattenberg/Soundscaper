@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicitly named legacy ports keep the migration seam typo-safe while project shapes are narrowed. */
 
@@ -54,6 +55,12 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		synchronizeAutomaticSampleEditMode, synchronizeMicrophoneMeterTarget,
 		updatePlayhead, updateSelection,
 	} = runtime;
+	const clipNavigation = createClipSelectionNavigationService({
+		state,
+		getProject,
+		updateSelection,
+		seek: (frame) => { engine.seek(frame); },
+	});
 
 	function selectTrack(trackId: any) {
 		const project = getProject();
@@ -337,6 +344,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	}
 
 	return Object.freeze({
+		clipNavigation,
 		selectAllTracks,
 		selectAtZeroCrossings,
 		selectClip,

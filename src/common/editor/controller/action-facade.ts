@@ -6,6 +6,8 @@ import {
 	createRecordingPreferenceActionFacade,
 	type RecordingActionScope,
 } from './recording-action-facade.ts';
+import { createProjectOwnedFeatureActionFacades } from './project-owned-feature-action-facades.ts';
+import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 
 export interface EditorActionRuntime {
@@ -34,7 +36,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 	duplicateProject, duplicateTrack, engine, exportEffectPreset,
 	exportLabels, exportVideo, findTrack,
-	flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
+	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 	handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
 	importEffectPresets, importFiles, importLabelFile, inspectScape,
@@ -61,19 +63,18 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	setLoopRegionToSelection, setPanelPreference,
 	setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 	setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
-	setSnapSettings, setSpectralBoxSelection, setTimelineView, setTimelineViewportWidth,
+	setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
 	setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 	setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 	snapTimelineFrame, splitAtFrame, splitStereoTrack,
-	state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache,
-	store, stretchClip, swapTrackChannels, switchProject,
+	state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache, store, stretchClip, swapTrackChannels, switchProject,
 	toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 	toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-	trimClips, updatePreferences, updateRackEffect,
-	updateVideoClipEffect, updateWorkspacePreference, updateZoom, sequenceTimingService,
-	sourceMonitorService, timelineAnnotationService, trackFolderService, videoEditService,
-	videoNavigationService, videoSourceReprobeService, videoTrimServices,
+	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect, updateWorkspacePreference, updateZoom,
+	selectionViewService, sequenceTimingService, sourceMonitorService, timelineAnnotationService,
+	regularIntervalAnnotationController, trackFolderService, trackStructuralOperations, videoEditService,
+	audioWarpService, takeCompService, videoNavigationService, videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -353,6 +354,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			cleanupDerivatives: cleanupDerivativeCache,
 		}),
 		timeline: Object.freeze({
+			...selectionViewService.clipNavigation,
 			selectTrack,
 			selectClip,
 			setSelection,
@@ -385,24 +387,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getVisibleClips,
 			requestWaveformPcmWindow,
 		}),
-		timelineAnnotations: Object.freeze({
-			createMarkerAtPlayhead: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.createMarker(...args)),
-			createRegionFromSelection: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.createRegion(...args)),
-			focus: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.focusAnnotation(...args)),
-			clearFocus: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.clearFocus(...args)),
-			select: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.selectAnnotation(...args)),
-			selectMany: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.selectAnnotations(...args)),
-			toggle: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.toggleAnnotation(...args)),
-			rename: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.renameAnnotations(...args)),
-			setColor: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.setAnnotationColor(...args)),
-			move: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.moveAnnotations(...args)),
-			resize: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.resizeAnnotation(...args)),
-			convert: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.convertAnnotation(...args)),
-			batch: restricted('timelineAnnotations', (annotationIds: RuntimeValue, batchId: RuntimeValue = createStableId('annotation-batch')) => timelineAnnotationService.setAnnotationBatch(annotationIds, batchId)),
-			unbatch: restricted('timelineAnnotations', (annotationIds: RuntimeValue) => timelineAnnotationService.setAnnotationBatch(annotationIds, null)),
-			remove: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.removeAnnotations(...args)),
-			previous: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigatePreviousAnnotation(...args)),
-			next: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigateNextAnnotation(...args)),
+		timelineAnnotations: createTimelineAnnotationActionFacade({
+			service: timelineAnnotationService, regularInterval: regularIntervalAnnotationController.create,
+			restricted, createId: createStableId,
 		}),
 		sequences: Object.freeze({
 			view: (sequenceId: RuntimeValue) => sequenceTimingService.view(sequenceId),
@@ -430,6 +417,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			select: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.selectFolder(...args)),
 			selectedFolderId: (...args: RuntimeValue) => trackFolderService.selectedFolderId(...args),
 		}),
+		...createProjectOwnedFeatureActionFacades({ capabilities, product, audioWarpService, takeCompService }),
 		sampleEdit: Object.freeze({
 			setMode: restricted('audioSampleEditing', setSampleEditMode),
 			pencil: restricted('audioSampleEditing', applySamplePencil),
@@ -437,7 +425,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			cancel: cancelSampleEdit,
 		}),
 		spectral: Object.freeze({
-			boxSelect: restricted('audioSpectralEditing', setSpectralBoxSelection),
+			boxSelect: restricted('audioSpectralEditing', (...args: RuntimeValue) => effectSelectionService.setSpectralBoxSelection(...args)),
+			brushSelect: restricted('audioSpectralEditing', (...args: RuntimeValue) => effectSelectionService.setSpectralBrushSelection(...args)),
 			delete: restricted('audioSpectralEditing', () => applySpectralSelection(-Infinity)),
 			amplify: restricted('audioSpectralEditing', (gainDb: RuntimeValue = 6) => applySpectralSelection(gainDb)),
 		}),
@@ -448,7 +437,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			// resulting browser track has no media layout until it contains clips.
 			addMono: addTrack,
 			addStereo: addTrack,
-			addLabel: addLabelTrack,
+			addLabel: addLabelTrack, ...trackStructuralOperations,
 			update: (trackId: RuntimeValue, changes: RuntimeValue) => commit({ type: 'track/update', trackId, changes }, { selectTrackId: trackId }),
 			reorder: reorderTrack,
 			moveUp: (trackId: RuntimeValue = state.selectedTrackId) => moveTrack(trackId, 'up'),
@@ -489,7 +478,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			updateMaster: (changes: RuntimeValue) => commit({ type: 'master/update', changes }),
 		}),
 		generators: Object.freeze({
-			generate: restricted('audioGenerators', generateSignal),
+			generate: restricted('audioGenerators', generateSignal), repeatLast: restricted('audioGenerators', repeatLastGenerator),
 		}),
 		nyquist: Object.freeze({
 			evaluate: restricted('audioEffects', (request: RuntimeValue) => runNyquistEvaluation(request)),
@@ -589,7 +578,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			run: restricted('audioAnalysis', analysisService.run),
 			plotSpectrum: restricted('audioAnalysis', analysisService.plotSpectrum),
 			findClipping: restricted('audioAnalysis', analysisService.findClipping),
-			contrast: restricted('audioAnalysis', analysisService.captureContrast),
+			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 		}),
 		export: Object.freeze({
 			start: (settings: RuntimeValue) => handleExportAction('start', settings),

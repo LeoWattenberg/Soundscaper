@@ -96,7 +96,8 @@ test('pinned inventory retains dynamic actions, menu-only IDs, and builtin regis
 		if (policy.status !== 'implemented') assert.ok(policy.reason, id);
 	}
 	assert.equal(AUDACITY_PINNED_APP_MENU_CONTAINER_POLICY['menu-extra'].status, 'excluded');
-	assert.equal(AUDACITY_PINNED_APP_MENU_CONTAINER_POLICY['menu-skip'].status, 'disabled-upstream');
+	assert.equal(AUDACITY_PINNED_APP_MENU_CONTAINER_POLICY['menu-selection-audio-clips'].status, 'implemented');
+	assert.equal(AUDACITY_PINNED_APP_MENU_CONTAINER_POLICY['menu-skip'].status, 'implemented');
 
 	assert.equal(AUDACITY_PINNED_BUILTIN_EFFECT_REGISTRATIONS.length, 26);
 	assert.equal(new Set(AUDACITY_PINNED_BUILTIN_EFFECT_REGISTRATIONS).size, 26);

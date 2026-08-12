@@ -1093,7 +1093,7 @@ test('engine streams persisted long sources live and schedules bounded chunks th
 		meterInterval: 1_000,
 	});
 	engine.loadProject(project, new Map(), { chunkSources: new Map([['source-1', provider]]) });
-	await engine.play();
+	assert.equal(await engine.playAt(0, 0), 0.02, 'playAt reports the start deferred for streamed-source priming');
 	assert.equal(realtime.bufferSources.length, 0, 'live playback never creates a full-source AudioBufferSource');
 	assert.equal(streamClient.opens.length, 1);
 	assert.deepEqual(

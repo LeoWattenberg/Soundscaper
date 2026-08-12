@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createClipRangeClipboardRuntimeHandlers } from './clip-range-clipboard-runtime.js';
+import { createAudioWarpRuntimeHandlers } from './audio-warp-runtime.ts';
 import { createEffectsVideoRuntimeHandlers } from './effects-video-runtime.js';
 import { createProjectSourceBinRuntimeHandlers } from './project-source-bin-runtime.js';
 import { createSequenceTimingRuntimeHandlers } from './sequence-timing-runtime.ts';
 import { createTempoSignatureRuntimeHandlers } from './tempo-signature-runtime.ts';
+import { createTakeCompRuntimeHandlers } from './take-comp-runtime.ts';
 import { createTimelineAnnotationRuntimeHandlers } from './timeline-annotation-runtime.ts';
 import {
 	defineEditorCommandHandlerRegistry,
@@ -31,6 +33,8 @@ export function createEditorCommandRuntime(
 		sequenceTiming: createSequenceTimingRuntimeHandlers(),
 		trackMixerLabel: createTrackMixerLabelRuntimeHandlers(),
 		trackFolder: createTrackFolderRuntimeHandlers(),
+		takeComp: createTakeCompRuntimeHandlers(dispatchChild),
+		audioWarp: createAudioWarpRuntimeHandlers(),
 		clipRangeClipboard: createClipRangeClipboardRuntimeHandlers(),
 		effectsVideo: createEffectsVideoRuntimeHandlers(),
 		timelineAnnotation: createTimelineAnnotationRuntimeHandlers(),

@@ -1,0 +1,86 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.audio-editor-audio-warp {
+	display: grid;
+	gap: 16px;
+}
+
+.audio-editor-audio-warp section,
+.audio-editor-audio-warp fieldset,
+.audio-editor-audio-warp__map {
+	border: 1px solid var(--audio-editor-border, CanvasText);
+	border-radius: 6px;
+	padding: 10px;
+}
+
+.audio-editor-audio-warp fieldset,
+.audio-editor-audio-warp__grid-fields,
+.audio-editor-audio-warp__strength,
+.audio-editor-audio-warp fieldset > label {
+	display: grid;
+	gap: 8px;
+}
+
+.audio-editor-audio-warp__grid-fields {
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.audio-editor-audio-warp__primary-actions,
+.audio-editor-audio-warp__check,
+.audio-editor-audio-warp__marker-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.audio-editor-audio-warp__marker-add {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 8px;
+	align-items: end;
+}
+
+.audio-editor-audio-warp__marker-add label {
+	display: grid;
+	gap: 4px;
+}
+
+.audio-editor-audio-warp__map input {
+	width: min(18ch, 100%);
+}
+
+.audio-editor-audio-warp__map {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+}
+
+.audio-editor-audio-warp__map th,
+.audio-editor-audio-warp__map td {
+	padding: 6px;
+	text-align: left;
+}
+
+.audio-editor-audio-warp__runtime,
+.audio-editor-audio-warp__block {
+	border-inline-start: 4px solid currentColor;
+	padding-inline-start: 8px;
+}
+
+.audio-editor-audio-warp__status {
+	min-height: 1.4em;
+}
+
+.audio-editor-audio-warp__clear {
+	justify-self: start;
+}
+
+@media (forced-colors: active) {
+	.audio-editor-audio-warp section,
+	.audio-editor-audio-warp fieldset,
+	.audio-editor-audio-warp__map {
+		border-color: CanvasText;
+		forced-color-adjust: none;
+	}
+}

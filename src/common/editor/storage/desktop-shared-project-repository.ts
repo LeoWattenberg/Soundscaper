@@ -40,6 +40,12 @@ import {
 	type DesktopSharedProjectCommitBridge,
 	DesktopSharedProjectRevisionWitness,
 } from './desktop-shared-project-commit.ts';
+import { publishDesktopSharedProjectIfCurrent } from './desktop-shared-project-compare-and-swap.ts';
+import {
+	DesktopSharedProjectLocalCleanupError,
+	rollbackDesktopSharedMediaAcquisition,
+} from './desktop-shared-project-failures.ts';
+export { DesktopSharedProjectLocalCleanupError } from './desktop-shared-project-failures.ts';
 
 type CurrentProjectDocument = AudioEditorProjectCurrent & ProjectDocument & Readonly<{
 	id: string;
@@ -47,7 +53,6 @@ type CurrentProjectDocument = AudioEditorProjectCurrent & ProjectDocument & Read
 	revision: number;
 	updatedAt: string;
 }>;
-
 const MIB = 1024 * 1024;
 const MAXIMUM_PROJECT_ID_BYTES = 4 * 1024;
 const MAXIMUM_PROJECT_SUMMARIES = 10_000;
@@ -152,6 +157,27 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			return snapshot;
 		});
 	}
+	async saveIfCurrent(expected: ProjectDocument, project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance) {
+		if (postCommit !== undefined && typeof postCommit !== 'function') {
+			throw new TypeError('Project post-commit maintenance must be a function.');
+		}
+		const admittedExpected = admitCurrentProject(expected, this.#maximumDocumentBytes);
+		const admitted = admitCurrentProject(project, this.#maximumDocumentBytes);
+		if (admitted.id !== admittedExpected.id) {
+			throw new Error('Desktop shared project compare-and-swap cannot change project identity.');
+		}
+		return this.#serializeLatestMutation(admitted.id, undefined, () => publishDesktopSharedProjectIfCurrent({
+			bridge: this.#bridge, shadow: this.#shadow, expected: admittedExpected, project: admitted, postCommit,
+			expectedDocument: serializeBoundedProject(admittedExpected, this.#maximumDocumentBytes),
+			projectDocument: serializeBoundedProject(admitted, this.#maximumDocumentBytes),
+			readAuthoritativeDocument: async () => {
+				const document = (await this.#readBundle(admitted.id))?.document ?? null;
+				if (document !== null) parseCanonicalProject(document, this.#maximumDocumentBytes, 'compare-and-swap base');
+				return document;
+			},
+			observe: (snapshot) => { this.#revisions.observe(snapshot); },
+		}));
+	}
 	maintainCurrentProject(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void> {
 		assertProjectId(projectId);
 		if (typeof maintenance !== 'function') throw new TypeError('Project maintenance must be a function.');
@@ -229,11 +255,11 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 					);
 					throwIfAborted(options.signal);
 				} catch (error) {
-					await rollbackAcquisition(acquisition, error);
+					await rollbackDesktopSharedMediaAcquisition(acquisition, error);
 				}
 			}
 			const snapshot = await this.#saveExactLoadedProject(project, document)
-				.catch((error: unknown) => rollbackAcquisition(acquisition, error));
+				.catch((error: unknown) => rollbackDesktopSharedMediaAcquisition(acquisition, error));
 			// Once the exact snapshot is durable, cancellation must not remove managed media it references.
 			acquisition?.commit();
 			throwIfAborted(options.signal);
@@ -376,33 +402,6 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 				}
 			}
 		});
-	}
-}
-
-async function rollbackAcquisition(
-	acquisition: DesktopSharedMediaAcquisition | null,
-	primary: unknown,
-): Promise<never> {
-	try {
-		await acquisition?.rollback();
-	} catch (cleanupError) {
-		throw new AggregateError(
-			[primary, cleanupError],
-			'Desktop shared project load and managed-source rollback both failed.',
-		);
-	}
-	throw primary;
-}
-
-/** A shared delete succeeded, but stale local shadow data could not be removed. */
-export class DesktopSharedProjectLocalCleanupError extends Error {
-	readonly projectId: string;
-	readonly remoteDeleted = true;
-
-	constructor(projectId: string, cause: unknown) {
-		super(`Desktop shared project ${projectId} was deleted, but local shadow cleanup failed.`, { cause });
-		this.name = 'DesktopSharedProjectLocalCleanupError';
-		this.projectId = projectId;
 	}
 }
 

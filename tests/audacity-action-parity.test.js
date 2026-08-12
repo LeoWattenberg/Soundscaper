@@ -90,14 +90,20 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	}
 	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
 
+	assert.deepEqual(
+		Object.values(AUDACITY_ACTION_MANIFEST)
+			.filter((definition) => definition.roadmapMilestone === '3')
+			.map((definition) => definition.id),
+		[],
+		'Milestone 3 exits with no planned Audacity action gaps',
+	);
 	for (const id of [
-		'select-previous-clip', 'align-together', 'sort-by-name', 'spectral-brush',
-		'raw-data-import',
+		'insert', 'project-properties',
+		'toggle-sound-activated-recording', 'set-sound-activation-level',
+		'menu-selection-spectral', 'toggle-spectral-selection', 'spectral-brush',
+		'select-previous-clip', 'select-next-clip', 'skip-to-selection-start',
+		'skip-to-selection-end', 'local://select-no-tracks',
 	]) {
-		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
-		assert.equal(audacityActionDefinition(id).roadmapMilestone, '3', id);
-	}
-	for (const id of ['toggle-sound-activated-recording', 'set-sound-activation-level']) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.IMPLEMENTED, id);
 		assert.equal(audacityActionDefinition(id).roadmapMilestone, undefined, id);
 	}
@@ -117,16 +123,8 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 test('upstream disabled and TODO actions stay explicit, inert, and user-explainable', () => {
 	const requiredDisabled = [
 		'export-midi',
-		'menu-selection-audio-clips',
-		'menu-selection-spectral',
-		'menu-skip',
-		'menu-align',
-		'menu-sort',
 		'menu-macros',
-		'raw-data-import',
 		'reset-configuration',
-		'spectral-brush',
-		'insert',
 	];
 
 	for (const id of requiredDisabled) {
@@ -204,13 +202,46 @@ test('sound activation parity actions expose real handlers and guarded enablemen
 	assert.equal(commands.get(level.id).disabled, false);
 });
 
-test('removed and superseded actions remain auditable without entering application menus', () => {
+test('spectral selection and brush actions are native, state-guarded menu workflows', () => {
+	const spectral = [
+		['menu-selection-spectral', 'tools.openSpectralSelection'],
+		['toggle-spectral-selection', 'tools.toggleSpectralSelection'],
+		['spectral-brush', 'tools.toggleSpectralBrush'],
+	];
+	for (const [id, handler] of spectral) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, id);
+		assert.equal(definition.handler, handler, id);
+		assert.equal(definition.enableWhen, 'editable-spectrogram-track-selected', id);
+	}
+	const context = {
+		snapshot: {
+			project: {
+				tracks: [{ id: 'audio', type: 'audio', displayMode: 'spectrogram', clipIds: [] }],
+				clips: [],
+				selection: { startFrame: 0, endFrame: 0, trackIds: ['audio'], clipIds: [], frequencyRange: null },
+			},
+			selectedTrackId: 'audio',
+			readOnly: false,
+			timeline: { view: 'waveform' },
+		},
+	};
+	assert.equal(evaluateAudacityActionEnablement('spectral-brush', context), true);
+	const waveform = structuredClone(context);
+	waveform.snapshot.project.tracks[0].displayMode = 'waveform';
+	assert.equal(evaluateAudacityActionEnablement('spectral-brush', waveform), false);
+	const readOnly = structuredClone(context);
+	readOnly.snapshot.readOnly = true;
+	assert.equal(evaluateAudacityActionEnablement('spectral-brush', readOnly), false);
+});
+
+test('removed and superseded actions remain auditable while raw import is actionable', () => {
 	const exportMidi = audacityActionDefinition('export-midi');
 	assert.equal(exportMidi.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	assert.equal(exportMidi.menuVisible, false);
 	const rawImport = audacityActionDefinition('raw-data-import');
-	assert.equal(rawImport.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
-	assert.equal(rawImport.menuVisible, false);
+	assert.equal(rawImport.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
+	assert.equal(rawImport.handler, 'io.importRawData');
 	const resetConfiguration = audacityActionDefinition('reset-configuration');
 	assert.equal(resetConfiguration.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	assert.equal(resetConfiguration.menuVisible, false);
@@ -224,7 +255,7 @@ test('removed and superseded actions remain auditable without entering applicati
 		],
 	}], { materializeDisabled: true });
 	const serialized = JSON.stringify(menus);
-	assert.doesNotMatch(serialized, /raw-data-import/);
+	assert.match(serialized, /raw-data-import/);
 	assert.doesNotMatch(serialized, /reset-configuration/);
 	assert.doesNotMatch(serialized, /sample-data-(?:import|export)/);
 	assert.doesNotMatch(JSON.stringify(applyAudacityParityToMenus([{
@@ -232,6 +263,21 @@ test('removed and superseded actions remain auditable without entering applicati
 		label: 'File',
 		items: [{ id: 'export-other', label: 'Export other', items: [] }],
 	}], { materializeDisabled: true })), /export-midi/);
+});
+
+test('milestone 3 import and analysis actions have exact menu ownership and handlers', () => {
+	for (const [id, parents, handler] of [
+		['raw-data-import', ['Tools'], 'io.importRawData'],
+		['local://repeat-generator', ['Generate'], 'generators.repeatLast'],
+		['local://repeat-analyzer', ['Analyze'], 'analysis.repeatLast'],
+		['regular-interval-labels', ['Extra'], 'timelineAnnotations.openRegularInterval'],
+	]) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, id);
+		assert.deepEqual(definition.locations, parents, id);
+		assert.equal(definition.handler, handler, id);
+		assert.equal(definition.roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.IMPLEMENTED, id);
+	}
 });
 
 test('the milestone 8B MIDI fence keeps every pinned action inert and off command surfaces', () => {
@@ -386,10 +432,7 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 
 test('every registered unavailable application-menu action has a parity classification', () => {
 	const placeholderIds = AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS;
-	assert.ok(
-		placeholderIds.length >= 14,
-		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
-	);
+	assert.equal(placeholderIds.length, 0);
 	assert.equal(new Set(placeholderIds).size, placeholderIds.length);
 	assert.ok(Object.isFrozen(placeholderIds));
 	assert.deepEqual(
@@ -418,6 +461,9 @@ test('critical functional manifest surfaces have semantic menu registry entries'
 	const explicitIds = new Set(AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS.map(resolveAudacityActionId));
 	const critical = [
 		'open-label-editor', 'open-metadata-editor', 'select-all-tracks',
+		'local://select-no-tracks', 'select-previous-clip-boundary-to-cursor',
+		'select-cursor-to-next-clip-boundary', 'select-previous-clip', 'select-next-clip',
+		'skip-to-selection-start', 'skip-to-selection-end',
 		'select-left-of-playback-position', 'select-right-of-playback-position',
 		'select-track-start-to-cursor', 'select-cursor-to-track-end', 'select-track-start-to-end',
 		'toggle-loop-region', 'clear-loop-region', 'set-loop-region-to-selection', 'set-loop-region-in-out',
@@ -517,9 +563,9 @@ test('shortcut command inventory consumes manifest actions while keeping disable
 	const insert = byId.get('insert');
 	assert.equal(insert.label, 'Einfügen');
 	assert.equal(insert.preferenceId, 'insert');
-	assert.equal(insert.parityStatus, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
-	assert.equal(insert.disabled, true);
-	assert.match(insert.disabledReason, /noch keine nutzbare Aktion/);
+	assert.equal(insert.parityStatus, AUDACITY_ACTION_STATUS.IMPLEMENTED);
+	assert.equal(insert.disabled, false);
+	assert.equal(insert.disabledReason, null);
 	const remote = new Map(collectAudacityShortcutCommands([], {
 		locale: 'fr',
 		copy: {
@@ -528,6 +574,6 @@ test('shortcut command inventory consumes manifest actions while keeping disable
 		},
 	}).map((command) => [command.id, command]));
 	assert.equal(remote.get('insert').label, 'Insertion distante');
-	assert.equal(remote.get('insert').disabledReason, 'Commande distante indisponible.');
+	assert.equal(remote.get('insert').disabledReason, null);
 	assert.throws(() => collectAudacityShortcutCommands(null), /menus must be an array/);
 });

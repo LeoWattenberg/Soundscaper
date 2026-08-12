@@ -85,12 +85,13 @@ test.describe('musical timeline controls', () => {
 
 		await page.keyboard.press('Escape');
 		await expect(flyout).toBeHidden();
+		await expect(musicalTimelineButton).toBeFocused();
 		const timelineRuler = editor.locator('[data-ruler]');
 		await expect(timelineRuler).toHaveAttribute('data-time-format', 'minutes-seconds');
 		await expect(timelineRuler.locator('[data-musical-map-ruler]')).toHaveCount(0);
-		await timelineRuler.focus();
-		await page.keyboard.press('Shift+F10');
+		await timelineRuler.press('Shift+F10');
 		const timelineMenu = page.locator('.timeline-ruler-context-menu');
+		await expect(timelineMenu).toBeVisible();
 		await timelineMenu.getByRole('menuitem', { name: 'Beats & measures', exact: true }).click();
 		await expect(timelineRuler).toHaveAttribute('data-time-format', 'beats-measures');
 		await expect(timelineRuler.locator('[data-musical-map-ruler]')).toHaveCount(1);

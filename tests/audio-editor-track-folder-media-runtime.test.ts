@@ -23,6 +23,7 @@ import { createTrackFoldersV12, type TrackFolderV12Options } from '../src/common
 import { createTrackHierarchyV12 } from '../src/common/editor/track-hierarchy-v12.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { resolveActiveVideoLayers } from '../src/common/editor/video-timeline.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -79,7 +80,7 @@ test('transient V12 media projection flattens folder state without mutating loca
 test('only exact V12 privately branded projections can bypass folder traversal', () => {
 	let traversals = 0;
 	const forged = {
-		schemaVersion: 16,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		trackFolderStateProjectionVersion: TRACK_FOLDER_STATE_PROJECTION_VERSION,
 		get tracks() {
 			traversals += 1;
@@ -90,7 +91,7 @@ test('only exact V12 privately branded projections can bypass folder traversal',
 	assert.equal(traversals, 0);
 
 	const future = {
-		schemaVersion: 17,
+		schemaVersion: 18,
 		trackFolderStateProjectionVersion: TRACK_FOLDER_STATE_PROJECTION_VERSION,
 	};
 	assert.strictEqual(projectTrackFolderMediaStateV12(future), future, 'future schemas stay opaque');
@@ -317,7 +318,7 @@ function asV12(
 	const foundationSequence = (base.sequences as readonly DataRecord[])[0] ?? { id: 'main' };
 	return {
 		...base,
-		schemaVersion: 16,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		trackFolders,
 		sequences: [{
 			...foundationSequence,

@@ -57,6 +57,7 @@ export function TrackListView({
 	recordingPreviews,
 	waveformCache,
 	automationToolEnabled,
+	spectralBrushEnabled,
 	showArmControls,
 	displayAudioSupported,
 }) {
@@ -207,6 +208,7 @@ export function TrackListView({
 					projectBinDragPreview={projectBinDragPreview}
 					waveformCache={waveformCache}
 					automationToolEnabled={automationToolEnabled}
+					spectralBrushEnabled={spectralBrushEnabled}
 					blocked={mutationsBlocked}
 					canonicalVideoTrim={snapshot.capabilities?.videoCompositing === true}
 					showArmControls={showArmControls}

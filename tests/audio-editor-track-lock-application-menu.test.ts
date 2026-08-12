@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
+import { materializeApplicationMenu } from '../src/common/editor/ui/application-menu-materialization.ts';
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from '../src/common/i18n/sequence-timing-copy.js';
@@ -52,6 +53,31 @@ test('no selection and blocked editing retain one disabled Tracks-menu item', ()
 	blocked.onClick?.();
 });
 
+test('read-only projects retain Scape copy export while busy projects block it', () => {
+	const readOnlyMenus = createApplicationMenus({
+		...menuInput({
+			productId: 'framescaper', type: 'video', locked: false, editBlocked: true,
+			actions: actionPorts({}),
+		}),
+		blocked: true,
+		snapshot: {
+			...menuInput({
+				productId: 'framescaper', type: 'video', locked: false, editBlocked: true,
+				actions: actionPorts({}),
+			}).snapshot,
+			readOnly: true,
+		},
+	});
+	assert.equal(scapeSaveItem(readOnlyMenus).disabled, false);
+	assert.equal(scapeSaveItem(createApplicationMenus({
+		...menuInput({
+			productId: 'soundscaper', type: 'audio', locked: false, editBlocked: true,
+			actions: actionPorts({}),
+		}),
+		blocked: true,
+	})).disabled, true);
+});
+
 test('workspace runtime dispatches the existing exact track.update command port', () => {
 	const calls: unknown[] = [];
 	const input = menuInput({
@@ -92,12 +118,63 @@ test('shared track-lock copy is localized for both shipped locales', () => {
 	}, { lockTrack: 'Spur sperren', unlockTrack: 'Spur entsperren' });
 });
 
+test('Tracks menu exposes every implemented structural operation without new default chrome', () => {
+	const called: string[] = [];
+	const handlers = Object.fromEntries([
+		'alignEndToEnd', 'alignTogether', 'alignStartToZero', 'alignStartToPlayhead',
+		'alignStartToSelectionEnd', 'alignEndToPlayhead', 'alignEndToSelectionEnd',
+		'sortByTime', 'sortByName', 'muteAll', 'unmuteAll', 'openAlignMenu', 'openSortMenu',
+	].map((id) => [id, () => { called.push(id); }]));
+	const menus = createApplicationMenus({
+		...menuInput({
+			productId: 'soundscaper', type: 'audio', locked: false, editBlocked: false,
+			actions: actionPorts({}),
+		}),
+		actionRuntime: { track: handlers },
+	});
+	const ids = [
+		'mute-all', 'unmute-all', 'align-end-to-end', 'align-together', 'align-start-to-zero',
+		'align-start-to-playhead', 'align-start-to-selection-end', 'align-end-to-playhead',
+		'align-end-to-selection-end', 'sort-by-time', 'sort-by-name',
+	];
+	for (const id of ids) {
+		const item = findMenuItem(menus as readonly MenuItem[], id);
+		assert.equal(item.parityStatus, 'implemented', id);
+		assert.equal(item.disabled, false, id);
+		item.onClick?.();
+	}
+	assert.deepEqual(called, [
+		'muteAll', 'unmuteAll', 'alignEndToEnd', 'alignTogether', 'alignStartToZero',
+		'alignStartToPlayhead', 'alignStartToSelectionEnd', 'alignEndToPlayhead',
+		'alignEndToSelectionEnd', 'sortByTime', 'sortByName',
+	]);
+});
+
 interface MenuItem {
 	readonly id?: unknown;
 	readonly label?: unknown;
 	readonly disabled?: unknown;
 	readonly items?: readonly MenuItem[];
 	readonly onClick?: () => unknown;
+	readonly parityStatus?: unknown;
+}
+
+function findMenuItem(items: readonly MenuItem[], id: string): MenuItem {
+	for (const item of items) {
+		if (item.id === id) return item;
+		const nested = item.items ? findMenuItemOrNull(item.items, id) : null;
+		if (nested) return nested;
+	}
+	assert.fail(`Missing menu item ${id}.`);
+}
+
+function findMenuItemOrNull(items: readonly MenuItem[], id: string): MenuItem | null {
+	for (const item of items) {
+		if (item.id === id) return item;
+		const nested = item.items ? findMenuItemOrNull(item.items, id) : null;
+		if (nested) return nested;
+	}
+	return null;
 }
 
 function trackLockItem(value: unknown): MenuItem {
@@ -106,6 +183,16 @@ function trackLockItem(value: unknown): MenuItem {
 	const item = tracks?.items?.find(({ id }) => id === 'track-lock-toggle');
 	assert.ok(item);
 	return item;
+}
+
+function scapeSaveItem(value: unknown): MenuItem {
+	const menus = value as readonly MenuItem[];
+	const file = menus.find(({ id }) => id === 'file');
+	assert.ok(file);
+	const materialized = materializeApplicationMenu(file);
+	const item = materialized.items?.find(({ id }) => id === 'save-scape');
+	assert.ok(item);
+	return item as MenuItem;
 }
 
 function menuInput({

@@ -32,6 +32,7 @@ import {
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
 import { applyCanonicalVideoTransformPlacement } from './canonical-video-transform-placement.ts';
+import { trimAudioWarpClipToTimelineRange } from '../audio-warp-clip-edit.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -521,16 +522,38 @@ export function trimClip(project, command) {
 		? clip.timelineStartFrame
 		: assertFrame(command.timelineStartFrame, 'clip trim destination');
 	const durationFrames = command.durationFrames ?? clip.durationFrames;
-	const sourceDurationFrames = command.sourceDurationFrames ?? Math.max(
-		1,
-		Math.round((clip.sourceDurationFrames ?? clip.durationFrames) * durationFrames / clip.durationFrames),
-	);
+	const warpSegment = clip.kind === 'audio' && clip.warpMap != null
+		? trimAudioWarpClipToTimelineRange(
+			project,
+			clip,
+			timelineStartFrame,
+			timelineStartFrame + durationFrames,
+		)
+		: null;
+	const sourceStartFrame = warpSegment?.sourceStartFrame
+		?? command.sourceStartFrame
+		?? clip.sourceStartFrame;
+	const sourceDurationFrames = warpSegment?.sourceDurationFrames
+		?? command.sourceDurationFrames
+		?? Math.max(
+			1,
+			Math.round((clip.sourceDurationFrames ?? clip.durationFrames) * durationFrames / clip.durationFrames),
+		);
+	if (warpSegment && Object.hasOwn(command, 'sourceStartFrame')
+		&& command.sourceStartFrame !== sourceStartFrame) {
+		throw new RangeError('Audio warp trim source start must match the exact map boundary.');
+	}
+	if (warpSegment && Object.hasOwn(command, 'sourceDurationFrames')
+		&& command.sourceDurationFrames !== sourceDurationFrames) {
+		throw new RangeError('Audio warp trim source duration must match the exact map boundaries.');
+	}
 	const updated = normalizeClipForProject(project, {
 		...clip,
 		timelineStartFrame,
-		sourceStartFrame: command.sourceStartFrame ?? clip.sourceStartFrame,
+		sourceStartFrame,
 		sourceDurationFrames,
 		durationFrames,
+		...(warpSegment ? { warpMap: warpSegment.warpMap } : {}),
 		trimStartFrames: command.trimStartFrames ?? clip.trimStartFrames,
 		trimEndFrames: command.trimEndFrames ?? clip.trimEndFrames,
 		envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),

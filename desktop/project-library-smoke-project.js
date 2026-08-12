@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION = 16;
+export const DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION = 17;
 export const DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID = 'main-sequence';
 
 export function createDesktopSmokeProjectFoundation(trackIds) {
@@ -28,5 +28,6 @@ export function createDesktopSmokeProjectFoundation(trackIds) {
 			events: [{ id: 'signature-1', bar: 0, numerator: 4, denominator: 4 }],
 		},
 		timelineAnnotations: [],
+		takeGroups: [],
 	};
 }

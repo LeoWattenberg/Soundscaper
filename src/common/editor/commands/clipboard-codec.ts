@@ -10,12 +10,17 @@ import {
 	admitAudioEditorProjectV9ValidationStructure,
 	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
 } from '../project-v9-validation-budget.ts';
+import {
+	assertTakeCompClipboardTrackOwnership,
+	collectTakeCompClipboardSourceIds,
+	normalizeTakeCompClipboardGroups,
+} from './take-comp-clipboard.ts';
 import type {
 	AudioEditorClipboard,
 	AudioEditorClipboardAnnotation,
 } from './protocol.ts';
 
-export const AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION = 3;
+export const AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION = 4;
 
 type DataRecord = Record<string, unknown>;
 
@@ -27,6 +32,7 @@ const ANNOTATION_CONTEXT = Object.freeze({
 	}),
 });
 const TOP_LEVEL_V3_KEYS = new Set(['schemaVersion', 'sampleRate', 'durationFrames', 'tracks', 'annotations']);
+const TOP_LEVEL_V4_KEYS = new Set([...TOP_LEVEL_V3_KEYS, 'takeGroups']);
 const TRACK_V3_KEYS = new Set([
 	'sourceTrackId', 'sourceTrackName', 'sourceTrackType', 'sourceLaneGroupId', 'sourceSequenceId', 'clips',
 ]);
@@ -44,31 +50,41 @@ export function collectAudioEditorClipboardSourceIds(
 			if (typeof clip?.sourceId === 'string' && clip.sourceId) ids.add(clip.sourceId);
 		}
 	}
+	if (descriptor?.schemaVersion === 4) {
+		for (const sourceId of collectTakeCompClipboardSourceIds(
+			normalizeTakeCompClipboardGroups(descriptor.takeGroups),
+		)) ids.add(sourceId);
+	}
 	return [...ids].sort();
 }
 
-/** Fail closed when a V3 paste contains, or disguises, annotation content. */
+/** Fail closed when a V3/V4 paste contains, or disguises, annotation content. */
 export function clipboardRequiresTimelineAnnotationCapability(value: unknown): boolean {
 	if (!isRecord(value)) return false;
 	const schema = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
 	if (!schema?.enumerable || !Object.hasOwn(schema, 'value')) return Object.hasOwn(value, 'annotations');
-	if (schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
+	if (schema.value !== 3 && schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
 	const annotations = Object.getOwnPropertyDescriptor(value, 'annotations');
 	if (!annotations?.enumerable || !Object.hasOwn(annotations, 'value')) return true;
 	return !Array.isArray(annotations.value) || annotations.value.length > 0;
 }
 
-/** Validate and detach one legacy V1/V2 or current V3 command descriptor. */
+/** Validate and detach one legacy V1/V2/V3 or current V4 command descriptor. */
 export function normalizeAudioEditorClipboardDescriptor(descriptor: unknown): AudioEditorClipboard {
 	if (!isRecord(descriptor)) throw new TypeError('An audio editor clipboard descriptor is required.');
 	let candidate = descriptor;
 	const schemaValue = ownDataValue(candidate, 'schemaVersion', 'clipboard');
-	if (schemaValue !== 1 && schemaValue !== 2 && schemaValue !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
+	if (schemaValue !== 1 && schemaValue !== 2 && schemaValue !== 3
+		&& schemaValue !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported clipboard schema version: ${String(schemaValue)}.`);
 	}
-	const schemaVersion = schemaValue as 1 | 2 | 3;
-	if (schemaVersion === AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
-		assertClosedRecord(candidate, TOP_LEVEL_V3_KEYS, 'clipboard');
+	const schemaVersion = schemaValue as 1 | 2 | 3 | 4;
+	if (schemaVersion >= 3) {
+		assertClosedRecord(
+			candidate,
+			schemaVersion === 4 ? TOP_LEVEL_V4_KEYS : TOP_LEVEL_V3_KEYS,
+			'clipboard',
+		);
 		admitAudioEditorProjectV9ValidationStructure(
 			candidate,
 			AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
@@ -78,7 +94,7 @@ export function normalizeAudioEditorClipboardDescriptor(descriptor: unknown): Au
 	positiveInteger(candidate.sampleRate, 'clipboard.sampleRate');
 	positiveInteger(candidate.durationFrames, 'clipboard.durationFrames');
 	if (!Array.isArray(candidate.tracks)) throw new TypeError('clipboard.tracks must be an array.');
-	if (schemaVersion === AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
+	if (schemaVersion >= 3) {
 		denseArray(candidate.tracks, 'clipboard.tracks', 100_000);
 		if (!Array.isArray(candidate.annotations)) throw new TypeError('clipboard.annotations must be an array.');
 		denseArray(
@@ -88,16 +104,21 @@ export function normalizeAudioEditorClipboardDescriptor(descriptor: unknown): Au
 		);
 	}
 	validateTracks(candidate.tracks, schemaVersion);
-	const normalized = (schemaVersion === AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION
+	const normalized = (schemaVersion >= 3
 		? candidate
 		: clone(candidate)) as DataRecord;
-	if (schemaVersion === AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
+	if (schemaVersion >= 3) {
 		normalized.annotations = normalizeAnnotations(candidate.annotations as unknown[]);
+	}
+	if (schemaVersion === 4) {
+		const takeGroups = normalizeTakeCompClipboardGroups(candidate.takeGroups);
+		assertTakeCompClipboardTrackOwnership(takeGroups, candidate.tracks);
+		normalized.takeGroups = takeGroups as unknown as AudioEditorClipboard['takeGroups'];
 	}
 	return normalized as unknown as AudioEditorClipboard;
 }
 
-function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3): void {
+function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3 | 4): void {
 	const laneGroups = new Map<string, Array<{ index: number; type: 'audio' | 'video'; sequenceId: string | null }>>();
 	const avLinks = new Map<string, Array<{
 		kind: 'audio' | 'video';
@@ -110,22 +131,22 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3): void {
 	for (const [trackIndex, trackValue] of tracks.entries()) {
 		const track = record(trackValue, `clipboard.tracks[${String(trackIndex)}]`);
 		const trackName = `clipboard.tracks[${String(trackIndex)}]`;
-		if (schemaVersion === 3) {
+		if (schemaVersion >= 3) {
 			assertClosedRecord(track, TRACK_V3_KEYS, trackName);
 		}
 		const sourceTrackId = nonEmptyString(track.sourceTrackId, `${trackName}.sourceTrackId`);
-		if (schemaVersion === 3) {
+		if (schemaVersion >= 3) {
 			if (trackIds.has(sourceTrackId)) throw new RangeError(`Duplicate clipboard source track ID: ${sourceTrackId}.`);
 			trackIds.add(sourceTrackId);
 			if (typeof track.sourceTrackName !== 'string') throw new TypeError(`${trackName}.sourceTrackName must be a string.`);
 		}
 		if (!Array.isArray(track.clips)) throw new TypeError(`${trackName}.clips must be an array.`);
-		if (schemaVersion === 3) denseArray(track.clips, `${trackName}.clips`, 100_000);
+		if (schemaVersion >= 3) denseArray(track.clips, `${trackName}.clips`, 100_000);
 		const sourceTrackType = schemaVersion >= 2 ? track.sourceTrackType : 'audio';
 		if (sourceTrackType !== 'audio' && sourceTrackType !== 'video') {
 			throw new RangeError(`${trackName}.sourceTrackType must be audio or video.`);
 		}
-		const sourceSequenceId = schemaVersion === 3
+		const sourceSequenceId = schemaVersion >= 3
 			? canonicalId(track.sourceSequenceId, `${trackName}.sourceSequenceId`)
 			: null;
 		if (schemaVersion >= 2 && track.sourceLaneGroupId != null) {
@@ -137,7 +158,7 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3): void {
 		for (const [clipIndex, clipValue] of track.clips.entries()) {
 			const clip = record(clipValue, `${trackName}.clips[${String(clipIndex)}]`);
 			const clipName = `${trackName}.clips[${String(clipIndex)}]`;
-			if (schemaVersion === 3) assertEnumerableDataProperties(clip, clipName);
+			if (schemaVersion >= 3) assertEnumerableDataProperties(clip, clipName);
 			nonEmptyString(clip.key, `${clipName}.key`);
 			nonEmptyString(clip.sourceId, `${clipName}.sourceId`);
 			nonNegativeInteger(clip.offsetFrame, `${clipName}.offsetFrame`);
@@ -146,7 +167,7 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3): void {
 			if (schemaVersion < 2) continue;
 			if (clip.kind !== 'audio' && clip.kind !== 'video') throw new RangeError(`${clipName}.kind must be audio or video.`);
 			if (clip.kind !== sourceTrackType) throw new RangeError(`${trackName} cannot contain a ${String(clip.kind)} clip.`);
-			if (schemaVersion === 3 && clip.kind === 'video' && clip.sequenceId !== sourceSequenceId) {
+			if (schemaVersion >= 3 && clip.kind === 'video' && clip.sequenceId !== sourceSequenceId) {
 				throw new RangeError(`${clipName}.sequenceId must match its source sequence context.`);
 			}
 			if (clip.groupId != null) nonEmptyString(clip.groupId, `${clipName}.groupId`);
@@ -166,7 +187,7 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3): void {
 	for (const [laneGroupId, grouped] of laneGroups) {
 		if (grouped.length !== 2 || grouped[0]?.type !== 'video' || grouped[1]?.type !== 'audio'
 			|| grouped[1].index !== grouped[0].index + 1
-			|| (schemaVersion === 3 && grouped[0].sequenceId !== grouped[1].sequenceId)) {
+			|| (schemaVersion >= 3 && grouped[0].sequenceId !== grouped[1].sequenceId)) {
 			throw new RangeError(`Clipboard media lane group ${laneGroupId} must contain one adjacent video/audio track pair.`);
 		}
 	}
@@ -175,7 +196,7 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3): void {
 			|| linked[0].offsetFrame !== linked[1].offsetFrame
 			|| linked[0].durationFrames !== linked[1].durationFrames
 			|| !linked[0].laneGroupId || linked[0].laneGroupId !== linked[1].laneGroupId
-			|| (schemaVersion === 3 && linked[0].sequenceId !== linked[1].sequenceId)) {
+			|| (schemaVersion >= 3 && linked[0].sequenceId !== linked[1].sequenceId)) {
 			throw new RangeError(`Clipboard A/V link ${avLinkId} must contain one aligned video/audio pair.`);
 		}
 	}

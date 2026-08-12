@@ -2,6 +2,7 @@
 
 import type { EditorControllerPhase } from './lifecycle.ts';
 import { createInitialStorageCapacitySnapshot } from './storage-capacity-service.ts';
+import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 
 export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets> {
 	readonly preferences: Preferences;
@@ -52,6 +53,8 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		timelineWidth: timelineMinimumSeconds * defaultPixelsPerSecond,
 		timelineView: 'waveform',
 		readOnly: false,
+		takeCycleRecovery: null as TakeCyclePendingOpenRecovery | null,
+		takeCycleRecoveryInspecting: false,
 		projectLock: null,
 		projectLockRetryTimer: 0,
 		autosaveTimer: 0,
@@ -60,6 +63,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		pendingSaveSnapshots: new Set<unknown>(),
 		saveQueue: Promise.resolve(),
 		recorder: null,
+		recordingKind: null as 'ordinary' | 'take-cycle' | null,
 		recordingWriter: null,
 		recordingStream: null,
 		recordingStarting: false,
@@ -131,6 +135,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		audacityPreviewAuditionBandId: null,
 		audacityPreviewGeneration: 0,
 		lastAudacityEffect: null,
+		lastGeneratorRequest: null,
 		audacityEffectWorker: null,
 		nyquistAbort: null,
 		nyquistResult: null,
@@ -145,6 +150,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		analysisVisuals: null,
 		analysisReport: null,
 		analysisProcessing: false,
+		lastAnalysisRequest: null,
 		contrastSelections: { foreground: null, background: null },
 		sampleEditMode: null,
 		sampleEditAvailable: false,

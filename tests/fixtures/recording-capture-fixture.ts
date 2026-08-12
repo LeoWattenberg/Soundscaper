@@ -113,7 +113,7 @@ interface RuntimeOptions {
 		options: RecordingControllerFactoryOptions,
 	) => Promise<RecordingCaptureControllerLike>;
 	readonly selection?: RecordingSelection | null;
-	readonly playAt?: (scheduledTime: number, startFrame: number) => Promise<unknown>;
+	readonly playAt?: (scheduledTime: number, startFrame: number) => Promise<number | void>;
 	readonly streamIsLive?: () => boolean;
 	readonly soundActivationSettings?: SoundActivationSettings | null;
 	readonly streamChannelCount?: number;

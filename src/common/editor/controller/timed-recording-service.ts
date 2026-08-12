@@ -43,6 +43,8 @@ export interface TimedRecordingResult {
 
 export interface TimedRecordingMutableState<TimerHandle = unknown> {
 	readOnly: boolean;
+	takeCycleRecovery?: unknown;
+	takeCycleRecoveryInspecting?: boolean;
 	disposed: boolean;
 	recorder: RecordingControllerLike | null;
 	recordingStarting: boolean;
@@ -223,7 +225,9 @@ export function createTimedRecordingService<TimerHandle>(
 		startTime: unknown,
 		options: TimedRecordingOptions = {},
 	): Promise<TimedRecordingResult | null> {
-		if (state.readOnly) throw new Error(runtime.messages.projectReadOnly);
+		if (state.readOnly || state.takeCycleRecovery || state.takeCycleRecoveryInspecting) {
+			throw new Error(runtime.messages.projectReadOnly);
+		}
 		if (state.recordingStarting || state.recordingStartPromise || state.recorder) return null;
 		if (state.timedRecordingPreparing) return null;
 		const startTimeMs = runtime.normalizeStartTime(startTime);

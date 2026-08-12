@@ -25,6 +25,37 @@ interface TestHistory extends RetentionHistory<TestProject> {
 	readonly previous?: readonly TestProject[];
 }
 
+test('live history synchronization preserves session dirty state and returns session authority', () => {
+	const initial: TestProject = { id: 'project', clips: [] };
+	const selected: TestProject = { id: 'project', clips: [{ id: 'selected' }] };
+	const normalized: TestProject = { id: 'project', clips: [{ id: 'session-normalized' }] };
+	let tab: { dirty: boolean; history: TestHistory } | null = {
+		dirty: true, history: { present: initial },
+	};
+	let synchronizedDirty: boolean | null = null;
+	const service = createProjectRetentionService<TestProject, TestHistory>({
+		state: { history: tab.history, clipboard: null, readOnly: false, recordingSourceId: null },
+		getProject: () => initial, setProject: () => undefined, compactHistory: (value) => value,
+		sessionTab: () => tab,
+		updateProjectHistory: (_projectId, value, options) => {
+			synchronizedDirty = options.dirty;
+			tab = { dirty: options.dirty, history: { ...value, present: normalized } };
+		},
+		getSourceReferenceCounts: () => ({}), getSessionTabs: () => [],
+		editorHistoryProjects: (value) => [value.present], allProjectClips: (value) => value.clips,
+		clipCache: {}, sourceBuffers: new Map(), sourcePeaks: new Map(),
+		evictSourceCaches: () => undefined,
+	});
+
+	assert.equal(service.synchronizeLiveHistory({ present: selected }).present, normalized);
+	assert.equal(synchronizedDirty, true);
+	tab = null;
+	assert.throws(
+		() => service.synchronizeLiveHistory({ present: selected }),
+		/active project session history is unavailable/u,
+	);
+});
+
 test('retention compaction preserves clipboard roots and updates the active tab dirty state', () => {
 	const first: TestProject = { id: 'project', clips: [{ id: 'clip-a', sourceId: 'source-a' }] };
 	const compacted: TestProject = { id: 'project', clips: [{ id: 'clip-a', sourceId: 'source-a' }] };

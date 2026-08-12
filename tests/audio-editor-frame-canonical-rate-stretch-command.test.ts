@@ -21,7 +21,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
@@ -120,7 +120,7 @@ function createProject() {
 		sourceStartFrame: 100, sourceDurationFrames: 2, avLinkId: 'link',
 		envelope: [{ frame: 1, value: 0.5 }], renderCacheRevision: 7,
 	});
-	return createAudioEditorProjectV16({
+	return createCurrentAudioEditorProject({
 		id: 'rate-stretch-command', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track', 'audio-track'] }],
 		primarySequenceId: 'main', sources: [videoSource, audioSource], clips: [video, audio],

@@ -170,7 +170,7 @@ test('the exact current schema serializes canonical tags and restores explicit b
 test('only the exact current schema receives binary tag traversal', () => {
 	const { parse, serialize } = codecFunctions();
 	if (!parse || !serialize) return;
-	for (const schemaVersion of [8, 14, 15, 17, '16']) {
+	for (const schemaVersion of [8, 14, 15, 18, '17']) {
 		const value = {
 			schemaVersion,
 			opaqueExtensions: {
@@ -189,7 +189,7 @@ test('non-current schemas retain ordinary values but receive structural JSON adm
 	const { parse } = codecFunctions();
 	if (!parse) return;
 	const future = {
-		schemaVersion: 17,
+		schemaVersion: 18,
 		opaqueExtensions: { candidate: binaryTag() },
 	};
 	assert.deepEqual(parse(JSON.stringify(future)), future);

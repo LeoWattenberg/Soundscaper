@@ -78,23 +78,21 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.press('Escape');
 	});
 
-	test('keeps disabled search commands inert and maps a louder request to Amplify without editing', async ({ page }) => {
+	test('opens project properties from search and maps a louder request to Amplify without editing', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const search = editor.locator('[data-editor-search-input]');
 		const popup = editor.locator('[data-editor-search-popup]');
 
 		await page.keyboard.press('Control+f');
 		await search.fill('project-properties');
-		const disabledCommand = popup.locator('[data-editor-search-key="command:project-properties"]');
-		await expect(disabledCommand).toBeVisible();
-		await expect(disabledCommand).toHaveAttribute('aria-disabled', 'true');
+		const projectProperties = popup.locator('[data-editor-search-key="command:project-properties"]');
+		await expect(projectProperties).toBeVisible();
+		await expect(projectProperties).not.toHaveAttribute('aria-disabled', 'true');
 		await expect(popup.getByRole('option')).toHaveCount(1);
-		await expect(search).not.toHaveAttribute('aria-activedescendant', /.+/);
+		await expect(projectProperties).toHaveAttribute('aria-selected', 'true');
 		await search.press('Enter');
-		await expect(popup).toBeVisible();
-		await disabledCommand.click({ force: true });
-		await expect(popup).toBeVisible();
-		await search.press('Escape');
+		await expect(popup).toBeHidden();
+		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeVisible();
 
 		await importFiles(editor, [toneA]);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });

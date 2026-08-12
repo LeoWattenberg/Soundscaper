@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	AUDIO_WARP_COMMAND_TYPES,
+	defineAudioWarpCommandHandlers,
+	type AudioWarpCommandHandlers,
+	type AudioWarpCommandType,
+} from './audio-warp.ts';
+import {
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 	defineClipRangeClipboardCommandHandlers,
 	type ClipRangeClipboardCommandHandlers,
@@ -52,6 +58,12 @@ import {
 	type TempoSignatureCommandType,
 } from './tempo-signature.ts';
 import {
+	defineTakeCompCommandHandlers,
+	TAKE_COMP_COMMAND_TYPES,
+	type TakeCompCommandHandlers,
+	type TakeCompCommandType,
+} from './take-comp.ts';
+import {
 	defineTimelineAnnotationCommandHandlers,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	type TimelineAnnotationCommandHandlers,
@@ -59,12 +71,15 @@ import {
 } from './timeline-annotation.ts';
 
 export {
+	AUDIO_WARP_COMMAND_TYPES,
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
+	defineAudioWarpCommandHandlers,
 	defineClipRangeClipboardCommandHandlers,
 	defineEffectsVideoCommandHandlers,
 	defineProjectSourceBinCommandHandlers,
 	defineSequenceTimingCommandHandlers,
 	defineTempoSignatureCommandHandlers,
+	defineTakeCompCommandHandlers,
 	defineTimelineAnnotationCommandHandlers,
 	defineTrackFolderCommandHandlers,
 	defineTrackMixerLabelCommandHandlers,
@@ -72,6 +87,7 @@ export {
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
 	SEQUENCE_TIMING_COMMAND_TYPES,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
+	TAKE_COMP_COMMAND_TYPES,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	TRACK_FOLDER_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
@@ -83,6 +99,8 @@ export interface EditorCommandHandlerDomains {
 	readonly sequenceTiming: SequenceTimingCommandHandlers;
 	readonly trackMixerLabel: TrackMixerLabelCommandHandlers;
 	readonly trackFolder: TrackFolderCommandHandlers;
+	readonly takeComp: TakeCompCommandHandlers;
+	readonly audioWarp: AudioWarpCommandHandlers;
 	readonly clipRangeClipboard: ClipRangeClipboardCommandHandlers;
 	readonly effectsVideo: EffectsVideoCommandHandlers;
 	readonly timelineAnnotation: TimelineAnnotationCommandHandlers;
@@ -94,6 +112,8 @@ type RegisteredDomainCommandType =
 	| SequenceTimingCommandType
 	| TrackMixerLabelCommandType
 	| TrackFolderCommandType
+	| TakeCompCommandType
+	| AudioWarpCommandType
 	| ClipRangeClipboardCommandType
 	| EffectsVideoCommandType
 	| TimelineAnnotationCommandType;
@@ -119,6 +139,8 @@ export function defineEditorCommandHandlerRegistry(
 		defineSequenceTimingCommandHandlers(domains.sequenceTiming),
 		defineTrackMixerLabelCommandHandlers(domains.trackMixerLabel),
 		defineTrackFolderCommandHandlers(domains.trackFolder),
+		defineTakeCompCommandHandlers(domains.takeComp),
+		defineAudioWarpCommandHandlers(domains.audioWarp),
 		defineClipRangeClipboardCommandHandlers(domains.clipRangeClipboard),
 		defineEffectsVideoCommandHandlers(domains.effectsVideo),
 		defineTimelineAnnotationCommandHandlers(domains.timelineAnnotation),

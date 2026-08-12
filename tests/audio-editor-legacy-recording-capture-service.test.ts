@@ -136,8 +136,11 @@ test('legacy capture covers blocked actions, armed-track lookup, and range recor
 	);
 });
 
-test('legacy count-in follows authoritative tempo and compound-signature maps', async () => {
-	const fixture = createRecordingCaptureFixture({ selection: { startFrame: 144_000, endFrame: 192_000 } });
+test('legacy count-in shares a deferred playback start with the recorder', async () => {
+	const fixture = createRecordingCaptureFixture({
+		selection: { startFrame: 144_000, endFrame: 192_000 },
+		playAt: async () => 4.1,
+	});
 	fixture.state.leadInRecording = true;
 	(fixture.project as { tempoMap: unknown }).tempoMap = {
 		mode: 'musical',
@@ -153,6 +156,7 @@ test('legacy count-in follows authoritative tempo and compound-signature maps', 
 
 	assert.deepEqual(fixture.seekCalls, [24_000]);
 	assert.equal(fixture.playAtCalls[0]?.[1], 24_000);
+	assert.deepEqual(fixture.recorderStartOptions, [{ startFrame: 316_800, stopFrame: 364_800 }]);
 });
 
 test('legacy count-in preserves singleton timing for a map-absent project', async () => {

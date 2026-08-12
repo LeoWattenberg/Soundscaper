@@ -93,7 +93,7 @@ test('project persistence admission is current-schema, bounded, and mutation-fre
 	const valid = currentProject(1);
 	const attempts: readonly unknown[] = [
 		{ ...valid, schemaVersion: 15 },
-		{ ...valid, schemaVersion: 17 },
+		{ ...valid, schemaVersion: 18 },
 		{ ...valid, id: '' },
 		{ ...valid, revision: -1 },
 		{ ...valid, title: 'x'.repeat(4_096) },

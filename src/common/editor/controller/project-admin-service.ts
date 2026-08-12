@@ -62,6 +62,9 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		scheduleTimer, sessionController, sessionTab, setProject, sourceBuffers,
 		sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store, switchProject,
 	} = runtime;
+	const recoveryBlocked = () => Boolean(
+		state.takeCycleRecovery || state.takeCycleRecoveryInspecting,
+	);
 
 	async function listProjects() {
 		await saveNow();
@@ -71,6 +74,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	}
 
 	async function prepareProjectHandoff() {
+		if (recoveryBlocked()) throw new Error(copy.projectReadOnly);
 		const project = getProject();
 		if (!project) throw new Error(copy.projectNotFound);
 		const metadata = sessionTab(project.id)?.metadata;
@@ -152,6 +156,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	}
 
 	async function duplicateProject(requestedTitle: any) {
+		if (recoveryBlocked()) return null;
 		const project = getProject();
 		if (!project) return;
 		await saveNow();
@@ -165,7 +170,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 
 	async function deleteProject() {
 		const project = getProject();
-		if (!project || state.readOnly) return;
+		if (!project || state.readOnly || recoveryBlocked()) return;
 		await stopRecording();
 		if (getProject() !== project) return null;
 		const id = project.id;
@@ -190,6 +195,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	}
 
 	async function garbageCollectSources() {
+		if (recoveryBlocked()) return;
 		if (!store.pruneUnreferencedSources) return;
 		clearScheduledTimer(state.sourceGcTimer);
 		state.sourceGcTimer = 0;
@@ -229,6 +235,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	}
 
 	async function clearLocalData() {
+		if (recoveryBlocked()) return;
 		await stopRecording();
 		cancelPlaybackCachePreparation();
 		await releaseProjectLock();

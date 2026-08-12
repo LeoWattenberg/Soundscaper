@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createEditorPreferencesService } from '../src/common/editor/controller/preferences-service.ts';
 import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
 import { createProjectSessionService } from '../src/common/editor/controller/project-session-service.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import type { ProjectLinkedOriginalSourceReference } from '../src/common/editor/storage/project-publication-options.ts';
 
 interface TestProject {
@@ -282,7 +283,7 @@ test('project session service deduplicates legacy recents and persists active UI
 		selectedAnnotationId: 'annotation',
 	}]]);
 	service.restoreProjectSelection({
-		schemaVersion: 16,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		timelineAnnotations: [{ id: 'restored-annotation' }],
 		tracks: [{ id: 'labels', type: 'label' }, { id: 'audio', type: 'audio' }],
 		clips: [{ id: 'restored-clip' }],

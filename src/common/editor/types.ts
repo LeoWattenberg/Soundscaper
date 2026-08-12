@@ -15,6 +15,7 @@ import type { SampleFrame } from './timeline-time.ts';
 import type { TimelineAnnotationV11 } from './timeline-annotation.ts';
 import type { RuntimeTimelineAnnotationProjection } from './runtime-timeline-annotation-projection.ts';
 import type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
+import type { TakeCyclePendingOpenRecovery } from './controller/take-cycle-capture-orchestrator.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 export type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
@@ -241,7 +242,12 @@ export type EditorProjectV16 = Omit<EditorProjectV15, 'schemaVersion'> & Readonl
 	schemaVersion: 16;
 }>;
 
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14 | EditorProjectV15 | EditorProjectV16;
+export type EditorProjectV17 = Omit<EditorProjectV16, 'schemaVersion'> & Readonly<{
+	schemaVersion: 17;
+	takeGroups: readonly Readonly<Record<string, unknown>>[];
+}>;
+
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14 | EditorProjectV15 | EditorProjectV16 | EditorProjectV17;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {
@@ -255,8 +261,15 @@ export interface EditorSoundActivationActions extends EditorActionTree {
 	readonly setHoldMilliseconds: EditorAction;
 }
 
+export interface EditorTakeCycleRecordingActions extends EditorActionTree {
+	readonly start: EditorAction;
+	readonly recover: EditorAction;
+	readonly discard: EditorAction;
+}
+
 export interface EditorRecordingActions extends EditorActionTree {
 	readonly soundActivation: EditorSoundActivationActions;
+	readonly cycle: EditorTakeCycleRecordingActions;
 }
 
 export interface EditorActions extends EditorActionTree {
@@ -268,11 +281,13 @@ export interface EditorActions extends EditorActionTree {
 	readonly recording: EditorRecordingActions;
 	readonly metering: EditorActionTree;
 	readonly audioDevices: EditorActionTree;
+	readonly audioWarp: EditorActionTree;
 	readonly storage: EditorActionTree;
 	readonly timeline: EditorActionTree;
 	readonly timelineAnnotations: EditorActionTree;
 	readonly sequences: EditorActionTree;
 	readonly trackFolders: EditorActionTree;
+	readonly takeComp: EditorActionTree;
 	readonly sampleEdit: EditorActionTree;
 	readonly spectral: EditorActionTree;
 	readonly track: EditorActionTree;
@@ -303,6 +318,8 @@ export interface EditorSnapshot {
 	readonly selectedAnnotationId: EditorId | null;
 	readonly timelineAnnotations: readonly RuntimeTimelineAnnotationProjection[];
 	readonly recordingInputs: EditorRecordingInputSnapshot;
+	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
+	readonly takeCycleRecovery: TakeCyclePendingOpenRecovery | null;
 	readonly readOnly: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;

@@ -11,6 +11,7 @@ import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
 import { AutomaticCrossfadeOverlays, createCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
+import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
 import {
 	normalizeSpectrogramScale,
@@ -64,6 +65,7 @@ export function AudioTrackRow({
 	projectBinDragPreview,
 	waveformCache,
 	automationToolEnabled,
+	spectralBrushEnabled,
 	blocked,
 	canonicalVideoTrim,
 	showArmControls,
@@ -143,7 +145,8 @@ export function AudioTrackRow({
 				* sourceDurationFrames / clip.durationFrames;
 			const pixelWidth = (clip.waveformEndFrame - clip.waveformStartFrame) / sampleRate * pixelsPerSecond;
 			if (!(visibleSourceSamples > 0) || !(pixelWidth > 0)
-				|| audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary') continue;
+				|| (clip.warpMap == null
+					&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary')) continue;
 			run(() => requestWindow(clip.id, {
 				startFrame: clip.waveformStartFrame,
 				endFrame: clip.waveformEndFrame,
@@ -167,6 +170,7 @@ export function AudioTrackRow({
 			controller,
 			sourceLookup,
 			clip,
+			project,
 			geometry: {
 				overscanStartFrame: projection.overscanStartFrame,
 				pixelsPerSecond,
@@ -459,6 +463,21 @@ export function AudioTrackRow({
 						spectrogramScale={spectrogramScale}
 					/>
 					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
+					{spectralBrushEnabled && selectedTrackId === track.id
+						&& ['spectrogram', 'multiview'].includes(displayMode) && (
+						<SpectralBrushOverlay
+							track={track}
+							displayMode={displayMode}
+							trackHeight={trackHeight}
+							windowWidth={windowWidth}
+							overscanStartFrame={projection.overscanStartFrame}
+							pixelsPerSecond={pixelsPerSecond}
+							sampleRate={sampleRate}
+							disabled={blocked}
+							copy={copy}
+							onCommit={(request) => run(() => controller.actions.spectral.brushSelect(request))}
+						/>
+					)}
 					{activeSpectralSelection && ['spectrogram', 'multiview'].includes(displayMode) && (
 						<SpectralSelectionOverlay
 							selection={activeSpectralSelection}

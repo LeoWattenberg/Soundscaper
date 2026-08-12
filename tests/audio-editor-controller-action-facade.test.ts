@@ -11,6 +11,7 @@ import {
 const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'analysis',
 	'audioDevices',
+	'audioWarp',
 	'clip',
 	'edit',
 	'effects',
@@ -30,6 +31,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'sequences',
 	'spectral',
 	'storage',
+	'takeComp',
 	'timeline',
 	'timelineAnnotations',
 	'track',

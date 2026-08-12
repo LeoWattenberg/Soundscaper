@@ -48,6 +48,7 @@ import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-
 import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
+import { remapTakeGroupSourceIds } from './take-group-source-references.ts';
 import {
 	normalizeVideoTimingAssetReference,
 	validateVideoTimingAssetBytes,
@@ -449,6 +450,7 @@ function remapScapeProjectSourceReferences(project, sourceIdMap) {
 	for (const clip of [...(project.clips || []), ...(project.projectBin?.clips || [])]) {
 		clip.sourceId = sourceIdMap.get(clip.sourceId) || clip.sourceId;
 	}
+	remapTakeGroupSourceIds(project, sourceIdMap);
 }
 
 function indexScapeTimingReferences(sources) {

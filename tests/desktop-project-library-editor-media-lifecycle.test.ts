@@ -254,7 +254,7 @@ function catalogProject(project: AudioEditorProjectCurrent): DesktopLibraryProje
 		metadataFile: 'projects/managed-upload-lifecycle-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 16,
+		projectSchemaVersion: 17,
 		projectRevision: project.revision,
 		byteLength: 1,
 		sha256: PROJECT_SHA256,

@@ -130,6 +130,17 @@ export function createTrackLockAdmission(
 			case 'track-folder/remove':
 				lockedId = firstLockedNodeDescendant(project, command.folderId, baselines);
 				break;
+			case 'take-comp/group-add':
+			case 'take-comp/group-update':
+			case 'take-comp/group-remove':
+			case 'take-comp/flatten':
+				lockedId = firstLockedTakeCompTrack(project, command, baselines);
+				break;
+			case 'audio-warp/set':
+			case 'audio-warp/clear':
+			case 'audio-warp/quantize':
+				lockedId = firstLockedClipOwner(project, command.clipId, baselines);
+				break;
 			default:
 				break;
 		}
@@ -376,6 +387,40 @@ function firstLockedNodeDescendant(
 				parentId = parentByNodeId.get(parentId) ?? null;
 			}
 		}
+	}
+	return null;
+}
+
+function firstLockedTakeCompTrack(
+	project: DataRecord,
+	command: Extract<AudioEditorCommand, { readonly type: `take-comp/${string}` }>,
+	baselines: ReadonlyMap<string, TrackLockBaseline>,
+): string | null {
+	const affected: string[] = [];
+	if (command.type === 'take-comp/group-add' || command.type === 'take-comp/group-update') {
+		const group = record(command.group, 'take comp command group');
+		affected.push(stableId(dataValue(group, 'trackId'), 'take comp track ID'));
+	}
+	if (command.type !== 'take-comp/group-add') {
+		const groupId = stableId(command.groupId, 'take group ID');
+		const takeGroups = Array.isArray(project.takeGroups)
+			? records(project.takeGroups, 'project.takeGroups')
+			: [];
+		const current = takeGroups.find((group) => group.id === groupId);
+		if (current) affected.push(stableId(dataValue(current, 'trackId'), 'take comp track ID'));
+	}
+	return affected.find((trackId) => baselines.has(trackId)) ?? null;
+}
+
+function firstLockedClipOwner(
+	project: DataRecord,
+	clipId: string,
+	baselines: ReadonlyMap<string, TrackLockBaseline>,
+): string | null {
+	for (const track of records(project.tracks, 'project.tracks')) {
+		const clipIds = stringArray(track.clipIds, `track ${String(track.id)}.clipIds`);
+		const trackId = stableId(track.id, 'track ID');
+		if (clipIds.includes(clipId) && baselines.has(trackId)) return trackId;
 	}
 	return null;
 }

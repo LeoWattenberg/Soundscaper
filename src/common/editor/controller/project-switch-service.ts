@@ -17,7 +17,7 @@ import type {
 } from './project-lifecycle-types.ts';
 import type { PreparedProjectSourceInputs, PreparedRequiredProjectSources } from './source-lifecycle-service.ts';
 import type { SourceChunkProviderReplacement } from './source-chunk-provider-registry.ts';
-
+import { createImmediateTakeCycleOpenRecoveryProjectPort, type TakeCycleOpenRecoveryProjectPort } from './take-cycle-open-recovery-app-port.ts';
 export type ProjectSwitchGuard = <Value>(value: PromiseLike<Value> | Value) => Promise<Value>;
 
 const NO_PROJECT_SWITCH_FAILURE = Symbol('no-project-switch-failure');
@@ -186,6 +186,7 @@ export interface ProjectSwitchServiceRuntime<
 		transientSourceBuffers?: unknown,
 		preparedSources?: PreparedProjectSourceInputs,
 	) => PromiseLike<unknown> | unknown;
+	readonly openRecovery?: Readonly<TakeCycleOpenRecoveryProjectPort>;
 	readonly recordOpenedProject: (projectId: string, guard: ProjectSwitchGuard) => Promise<unknown>;
 	readonly maintainOpenedProject: (
 		projectId: string,
@@ -209,7 +210,7 @@ export function createProjectSwitchService<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
 >(runtime: ProjectSwitchServiceRuntime<Project, History>) {
-	const playbackProjects = createPlaybackProjectService(runtime.productCapabilities);
+	const playbackProjects = createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
 	return Object.freeze({
 		newProject,
 		openProject,
@@ -353,7 +354,7 @@ export function createProjectSwitchService<
 			await guard(runtime.stopRecording().catch(() => undefined));
 			runtime.persistActiveSessionUiState();
 			const previousProject = runtime.getProject();
-			if (!options.skipFlush && previousProject && previousProject.id !== projectId && !runtime.state.readOnly) {
+			if (!options.skipFlush && previousProject && previousProject.id !== projectId && !runtime.state.readOnly && !openRecovery.blocked) {
 				await guard(runtime.saveNow());
 			}
 			runtime.cancelScheduledSave();
@@ -438,6 +439,7 @@ export function createProjectSwitchService<
 			fallbackAdmission.assertCurrent(activeProject);
 			runtime.setProject(activeProject);
 			runtime.projectGeneration.activate(activeProject.id);
+			await guard(openRecovery.inspectOpenedProject(projectId));
 			await guard(runtime.loadRecordingRouting(activeProject));
 			const tabMetadata = runtime.sessionTab(projectId)?.metadata || {};
 			runtime.restoreProjectSelection(activeProject, tabMetadata);
@@ -475,25 +477,29 @@ export function createProjectSwitchService<
 			await providerReplacement.commit();
 			runtime.lifetime.assertActive(token);
 			fallbackAdmission.assertCurrent(activeProject);
-			await runtime.recordOpenedProject(projectId, guard);
+			await guard(openRecovery.deferRecordOpened(() => runtime.recordOpenedProject(projectId, guard)));
 			if (options.save && !runtime.state.readOnly) {
-				await guard(runtime.saveProject(activeProject));
-				runtime.session.markProjectSaved(activeProject.id);
+				await guard(openRecovery.deferInitialSave(async () => {
+					const currentProject = runtime.getProject();
+					if (!currentProject || currentProject.id !== projectId) throw new Error('Deferred project save belongs to a stale project.');
+					await guard(runtime.saveProject(currentProject));
+					runtime.session.markProjectSaved(projectId);
+				}));
 			}
 			runtime.state.saveState = runtime.sessionTab(activeProject.id)?.dirty ? 'dirty' : 'saved';
 			runtime.state.projects = Object.freeze(await guard(runtime.listProjects()));
 			runtime.synchronizeMicrophoneMeterTarget();
 			runtime.publishProjectState();
-			await guard(runtime.garbageCollectSources());
+			await guard(openRecovery.deferGarbageCollection(() => runtime.garbageCollectSources()));
 			if (!options.save && !runtime.state.readOnly) {
 				const isCurrentWritable = (): boolean => {
-					try { runtime.lifetime.assertActive(token); fallbackAdmission.assertCurrent(activeProject); }
+					try { runtime.lifetime.assertActive(token); }
 					catch { return false; }
 					return runtime.getProject()?.id === projectId
 						&& runtime.state.projectLock === activeLock
 						&& !runtime.state.readOnly && !activeLock.readOnly;
 				};
-				try { await runtime.maintainOpenedProject(projectId, isCurrentWritable); } catch { /* Optional maintenance is report-only. */ }
+				await guard(openRecovery.deferMaintenance(async () => { try { await runtime.maintainOpenedProject(projectId, isCurrentWritable); } catch { /* Report-only. */ } }));
 				runtime.lifetime.assertActive(token);
 			}
 			if (lockReadOnly) runtime.setStatus(runtime.copy.projectOpenOtherTab, 'error');

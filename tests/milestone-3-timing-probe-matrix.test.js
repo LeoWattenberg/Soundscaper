@@ -82,7 +82,10 @@ test('WP-0.3 does not overclaim the unexecuted supported Electron matrix', () =>
 		assert.equal(row.status, 'pending-external');
 		assert.ok(row.blocker);
 	}
-	assert.match(matrix.minimumFollowUp, /ordinary import path/iu);
+	assert.match(matrix.minimumFollowUp, /ordinary-import timing-probe harness/iu);
+	for (const row of matrix.electronRows.filter(({ target }) => target === 'linux-x64')) {
+		assert.match(row.blocker, /harness exists.*runner execution.*accepted result/iu);
+	}
 });
 
 async function json(path) {

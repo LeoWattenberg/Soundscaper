@@ -2,12 +2,12 @@
 
 import { createHash } from 'node:crypto';
 
+import { parseDesktopSmokeConfigurationWithProjectPlan } from './desktop-smoke-configuration.js';
 import {
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
 	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
 	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
 	createDirectWavSmokeTargetHarness,
-	decodeDirectWavSmokePlan,
 	runDirectWavRendererSmoke,
 	validateDirectWavRendererResult,
 	validateDirectWavSmokeResult,
@@ -15,7 +15,6 @@ import {
 import {
 	DESKTOP_SCAPE_OPEN_SMOKE_MODE,
 	DESKTOP_SCAPE_OPEN_SMOKE_PREFIX,
-	decodeScapeOpenSmokePlan,
 	runScapeOpenRendererSmoke,
 	validateScapeOpenProjectDescriptor,
 	validateScapeOpenRendererResult,
@@ -24,7 +23,6 @@ import {
 import {
 	DESKTOP_SCAPE_REOPEN_SMOKE_MODE,
 	DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX,
-	decodeScapeReopenSmokePlan,
 	runScapeReopenRendererSmoke,
 	validateScapeReopenRendererResult,
 	validateScapeReopenSmokeResult,
@@ -32,7 +30,6 @@ import {
 import {
 	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
 	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX,
-	decodeDesktopProjectLibrarySourceBearingPlan,
 } from './project-library-source-bearing-smoke.js';
 import {
 	createDesktopProjectLibrarySourceBearingSmokeSession,
@@ -41,15 +38,19 @@ import { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke
 export { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke.js';
 import {
 	createDesktopProjectLibraryLeaseSmokeSession,
-	decodeDesktopProjectLibraryLeaseSmokePlan,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from './project-library-lease-smoke.js';
 import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from './project-library-smoke-project.js';
+import {
+	DESKTOP_VIDEO_TIMING_PROBE_MODE,
+	DESKTOP_VIDEO_TIMING_PROBE_PREFIX,
+	DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS,
+	createDesktopVideoTimingProbeFileHarness,
+	runDesktopVideoTimingProbeRendererSmoke,
+	validateDesktopVideoTimingProbeResult,
+} from './video-timing-probe-smoke.js';
 
-const SMOKE_ARGUMENT = '--soundscaper-smoke';
-const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
-const SMOKE_PLAN_PREFIX = '--soundscaper-smoke-plan=';
 const PROJECT_LIBRARY_MODE = 'project-library-handoff-v1';
 const MAXIMUM_PLAN_BYTES = 64 * 1024;
 const DIGEST = /^[a-f\d]{64}$/u;
@@ -75,55 +76,7 @@ const ARTIFACT_SMOKE_SCRIPT = `(async () => ({
 }))()`;
 
 export function parseDesktopSmokeConfiguration(argv) {
-	if (!Array.isArray(argv) || argv.some((argument) => typeof argument !== 'string')) {
-		throw new TypeError('Desktop smoke arguments must be strings');
-	}
-	const smokeCount = argv.filter((argument) => argument === SMOKE_ARGUMENT).length;
-	const modes = valuesForPrefix(argv, SMOKE_MODE_PREFIX);
-	const plans = valuesForPrefix(argv, SMOKE_PLAN_PREFIX);
-	if (smokeCount === 0) {
-		if (modes.length || plans.length) throw new TypeError('Desktop smoke mode and plan require smoke mode');
-		return Object.freeze({ mode: 'disabled', plan: null });
-	}
-	if (smokeCount !== 1) throw new TypeError('Desktop smoke requires exactly one smoke argument');
-	if (modes.length === 0 && plans.length === 0) {
-		return Object.freeze({ mode: 'artifact', plan: null });
-	}
-	if (modes.length === 0 && plans.length > 0) {
-		throw new TypeError('Desktop smoke plan requires project-library, direct-WAV, Scape-open, or persisted-reopen smoke mode');
-	}
-	if (modes.length !== 1) throw new TypeError('Desktop smoke requires exactly one smoke mode');
-	if (modes[0] === PROJECT_LIBRARY_MODE) {
-		if (plans.length !== 1) throw new TypeError('Project-library smoke mode requires exactly one smoke plan');
-		return deepFreeze({ mode: PROJECT_LIBRARY_MODE, plan: decodePlan(plans[0]) });
-	}
-	if (modes[0] === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) {
-		if (plans.length !== 1) throw new TypeError('Source-bearing project-library smoke mode requires exactly one smoke plan');
-		return deepFreeze({
-			mode: DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
-			plan: decodeDesktopProjectLibrarySourceBearingPlan(plans[0]),
-		});
-	}
-	if (modes[0] === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) {
-		if (plans.length !== 1) throw new TypeError('Lease-matrix smoke mode requires exactly one smoke plan');
-		return deepFreeze({
-			mode: DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
-			plan: decodeDesktopProjectLibraryLeaseSmokePlan(plans[0]),
-		});
-	}
-	if (modes[0] === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
-		if (plans.length !== 1) throw new TypeError('Direct-WAV smoke mode requires exactly one smoke plan');
-		return deepFreeze({ mode: DESKTOP_DIRECT_WAV_SMOKE_MODE, plan: decodeDirectWavSmokePlan(plans[0]) });
-	}
-	if (modes[0] === DESKTOP_SCAPE_OPEN_SMOKE_MODE) {
-		if (plans.length !== 1) throw new TypeError('Scape-open smoke mode requires exactly one smoke plan');
-		return deepFreeze({ mode: DESKTOP_SCAPE_OPEN_SMOKE_MODE, plan: decodeScapeOpenSmokePlan(plans[0]) });
-	}
-	if (modes[0] === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) {
-		if (plans.length !== 1) throw new TypeError('Scape persisted-reopen smoke mode requires exactly one smoke plan');
-		return deepFreeze({ mode: DESKTOP_SCAPE_REOPEN_SMOKE_MODE, plan: decodeScapeReopenSmokePlan(plans[0]) });
-	}
-	throw new TypeError('Unsupported desktop smoke mode');
+	return parseDesktopSmokeConfigurationWithProjectPlan(argv, decodePlan);
 }
 
 export function createDesktopSmokeProbe(options) {
@@ -168,6 +121,9 @@ export function createDesktopSmokeProbe(options) {
 		|| typeof directWavTargetHarness.evidence !== 'function')) {
 		throw new TypeError('Direct-WAV smoke requires a target harness');
 	}
+	const videoTimingFileHarness = configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE
+		? options?.videoTimingFileHarness ?? createDesktopVideoTimingProbeFileHarness(configuration.plan)
+		: null;
 
 	let attachedWindow = null;
 	let timeout = null;
@@ -249,7 +205,7 @@ export function createDesktopSmokeProbe(options) {
 		if (![PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
 			DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 			DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE,
-			DESKTOP_SCAPE_REOPEN_SMOKE_MODE].includes(configuration.mode)
+			DESKTOP_SCAPE_REOPEN_SMOKE_MODE, DESKTOP_VIDEO_TIMING_PROBE_MODE].includes(configuration.mode)
 			|| finished || (started && !sourceBearing && !leaseSession)) return;
 		started = true;
 		try {
@@ -326,6 +282,17 @@ export function createDesktopSmokeProbe(options) {
 				await finish(0);
 				return;
 			}
+			if (configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) {
+				const payload = validateDesktopVideoTimingProbeResult(
+					await attachedWindow.webContents.executeJavaScript(
+						`(${runDesktopVideoTimingProbeRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`, true,
+					),
+					plan,
+				);
+				log(`${DESKTOP_VIDEO_TIMING_PROBE_PREFIX} ${JSON.stringify(payload)}`);
+				await finish(0);
+				return;
+			}
 			const rendererResult = await attachedWindow.webContents.executeJavaScript(
 				`(${runProjectLibraryRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
 			);
@@ -341,6 +308,7 @@ export function createDesktopSmokeProbe(options) {
 	const resolveSavePath = async (choice) => configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
 		? directWavTargetHarness.resolveSavePath(choice)
 		: null;
+	const resolveOpenPaths = (choice) => videoTimingFileHarness?.resolveOpenPaths(choice) ?? null;
 
 	return Object.freeze({
 		attach,
@@ -348,6 +316,7 @@ export function createDesktopSmokeProbe(options) {
 		projectLibraryHostOptions: () => leaseSession?.hostOptions ?? Object.freeze({}),
 		rendererReady,
 		resolveSavePath,
+		resolveOpenPaths,
 	});
 }
 
@@ -484,10 +453,6 @@ function descriptorWithoutDocument(value) {
 	return { id: value.id, title: value.title, revision: value.revision, sha256: value.sha256 };
 }
 
-function valuesForPrefix(argv, prefix) {
-	return argv.filter((argument) => argument.startsWith(prefix)).map((argument) => argument.slice(prefix.length));
-}
-
 function strictRecord(value, keys, label) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| Object.getPrototypeOf(value) !== Object.prototype
@@ -554,6 +519,7 @@ function timeoutFor(mode) {
 	if (mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) return 90_000;
 	if (mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) return 90_000;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
+	if (mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) return DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS;
 	return 15_000;
 }
 
@@ -566,6 +532,7 @@ function prefixFor(mode) {
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return DESKTOP_SCAPE_OPEN_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX;
+	if (mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) return DESKTOP_VIDEO_TIMING_PROBE_PREFIX;
 	return 'SOUNDSCAPER_DESKTOP_SMOKE';
 }
 

@@ -11,7 +11,6 @@ import {
 	ToolButton,
 } from '@dilsonspickles/components';
 
-import { audacityActionReason } from '../../audacity-action-parity.js';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
@@ -66,6 +65,7 @@ export default function EditorToolToolbar({
 	onOpenSpectralSelection,
 	onOpenRecordingOffset,
 	onOpenTimedRecording,
+	onOpenTakeCycleRecovery,
 	onJumpToStart,
 	onJumpToEnd,
 	onGripperMouseDown,
@@ -87,7 +87,6 @@ export default function EditorToolToolbar({
 		|| selectedTrack.displayMode === 'multiview'
 		|| snapshot.timeline?.view === 'spectrogram'
 	));
-	const spectralBrushReason = audacityActionReason('spectral-brush', copy);
 	const recordControlLabel = snapshot.readOnly
 		? `${recordLabel} — ${copy.projectReadOnly}`
 		: recordLabel;
@@ -184,7 +183,7 @@ export default function EditorToolToolbar({
 							optionsAriaLabel={formatOptionsLabel(copy, copy.recordMenu)}
 							recording={snapshot.recording}
 							pressed={Boolean(snapshot.recording)}
-							disabled={snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
+							disabled={Boolean(snapshot.takeCycleRecovery) || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
 							onClick={toggleRecording}
 						>
 							{({ close }) => <RecordFlyout
@@ -197,6 +196,7 @@ export default function EditorToolToolbar({
 								run={run}
 								onOpenRecordingOffset={onOpenRecordingOffset}
 								onOpenTimedRecording={onOpenTimedRecording}
+								onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
 								onClose={close}
 							/>}
 						</AudioEditorSplitButton>
@@ -260,13 +260,16 @@ export default function EditorToolToolbar({
 									}}
 								/>
 							</span>}
-							{isToolbarButtonVisible('spectral-brush') && <span
-								data-action-id="spectral-brush"
-								data-disabled-reason={spectralBrushReason}
-								aria-disabled="true"
-								title={spectralBrushReason}
-							>
-								<ContextMenuItem label={`${copy.spectralBrush}: ${spectralBrushReason}`} disabled />
+							{isToolbarButtonVisible('spectral-brush') && <span data-action-id="spectral-brush">
+								<ContextMenuItem
+									label={copy.spectralBrush}
+									checked={uiFlags.spectralBrush}
+									disabled={!spectralTrackSelected || blocked}
+									onClick={() => {
+										close();
+										actionRuntime.tools.toggleSpectralBrush();
+									}}
+								/>
 							</span>}
 						</div>}
 					</AudioEditorSplitButton>}

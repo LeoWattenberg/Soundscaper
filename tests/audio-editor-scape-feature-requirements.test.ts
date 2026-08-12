@@ -29,6 +29,7 @@ import {
 } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 const FALLBACK_SOURCE_ID = 'rendered-fallback-source';
@@ -47,7 +48,7 @@ interface ScapeImportResult {
 	readonly collision: 'copy' | 'replace' | null;
 }
 
-test('the current V16 feature requirements retain their compatibility semantics through a Scape round trip', async () => {
+test('the current feature requirements retain their compatibility semantics through a Scape round trip', async () => {
 	const sourceStore = memoryStore('scape-feature-roundtrip-source');
 	const targetStore = memoryStore('scape-feature-roundtrip-target');
 	const project = featureProject('scape-feature-roundtrip');
@@ -62,7 +63,7 @@ test('the current V16 feature requirements retain their compatibility semantics 
 
 	assert.equal(imported.readOnly, false);
 	assert.equal(imported.reason, null);
-	assert.equal(imported.project.schemaVersion, 16);
+	assert.equal(imported.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.deepEqual(imported.project.featureRequirements, project.featureRequirements);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements), true);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements.requirements), true);
@@ -83,8 +84,8 @@ test('the current V16 feature requirements retain their compatibility semantics 
 test('pre-open Scape inspection reports selected-product feature compatibility', async () => {
 	const sourceStore = memoryStore('scape-feature-inspection-source');
 	const project = featureProject('scape-feature-inspection', FALLBACK_SOURCE_ID, {
-		native: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-		fallback: PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
+		native: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		fallback: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 	});
 	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 	const exported = await exportScapeProject(project, sourceStore);
@@ -92,7 +93,7 @@ test('pre-open Scape inspection reports selected-product feature compatibility',
 	const service = createScapeProjectFileService({
 		lifetime: new EditorControllerLifetime(),
 		store: null,
-		productCapabilities: PRODUCT_PROFILES.soundscaper.capabilities,
+		productCapabilities: PRODUCT_PROFILES.framescaper.capabilities,
 		openScape: () => { throw new Error('Inspection must not open the archive.'); },
 	});
 
@@ -205,7 +206,7 @@ test('pre-open Scape inspection leaves future project feature requirements opaqu
 
 	const inspected = await service.inspectScape(archive);
 
-	assert.equal(inspected.schemaVersion, 17);
+	assert.equal(inspected.schemaVersion, 18);
 	assert.equal(inspected.readOnly, true);
 	assert.equal(inspected.featureRequirementsCompatibility, null);
 });
@@ -330,7 +331,7 @@ async function storedSamples(store: ProjectStore, sourceId: string): Promise<num
 
 async function futureProjectArchive(): Promise<Blob> {
 	const projectText = JSON.stringify({
-		schemaVersion: 17,
+		schemaVersion: 18,
 		id: 'future-feature-project',
 		title: 'Future feature project',
 		sources: [],
@@ -349,7 +350,7 @@ async function futureProjectArchive(): Promise<Blob> {
 		project: {
 			entry: 'project.json',
 			mimeType: 'application/json',
-			schemaVersion: 17,
+			schemaVersion: 18,
 			size: projectBytes.byteLength,
 			sha256: createHash('sha256').update(projectBytes).digest('hex'),
 		},

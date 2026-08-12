@@ -13,7 +13,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	brandRuntimeProjectProjection,
 	isRuntimeProjectProjection,
@@ -336,7 +336,7 @@ function fixture(options: FixtureOptions = {}) {
 			...(linkedAudio ? { laneGroupId: 'linked-lanes' } : {}),
 		}, SAMPLE_RATE));
 	}
-	const persisted = createAudioEditorProjectV16({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'rate-stretch', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', clips, tracks, sources,

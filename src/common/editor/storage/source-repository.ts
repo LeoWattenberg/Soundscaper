@@ -7,7 +7,12 @@ import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import type { SourceReadOptions, SourceReadRepository } from './source-read-repository.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
-import type { AudioSourceWriter, SourceWriteRepository } from './source-write-repository.ts';
+import type {
+	AudioSourceStageReceipt,
+	OwnedAudioSourceWriter,
+	SourceWriteRepository,
+} from './source-write-repository.ts';
+import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 
@@ -17,6 +22,7 @@ export interface SourceRepositoryOptions {
 	readonly reader: SourceReadRepository;
 	readonly media: MediaRepository;
 	readonly analysis: KeyValueRepository;
+	readonly transientAnalysisCache?: Pick<TransientAnalysisCacheRepository, 'purge'>;
 	readonly opfs: OpfsRepository;
 	readonly pcm: PcmRepository;
 }
@@ -29,8 +35,23 @@ export class SourceRepository {
 		this.#options = options;
 	}
 
-	beginWrite(sourceId: string, metadata: Record<string, unknown> = {}): Promise<AudioSourceWriter> {
+	beginWrite(sourceId: string, metadata: Record<string, unknown> = {}): Promise<OwnedAudioSourceWriter> {
 		return this.#options.writer.begin(sourceId, metadata);
+	}
+
+	createStageReceipt(sourceId: string): AudioSourceStageReceipt {
+		return this.#options.writer.createStageReceipt(sourceId);
+	}
+
+	beginOwnedStage(
+		receipt: AudioSourceStageReceipt,
+		metadata: Record<string, unknown> = {},
+	): Promise<OwnedAudioSourceWriter> {
+		return this.#options.writer.beginOwned(receipt, metadata);
+	}
+
+	discardStageIfCurrent(receipt: AudioSourceStageReceipt): Promise<boolean> {
+		return this.#options.writer.discardStageIfCurrent(receipt);
 	}
 
 	writeDerived(
@@ -53,6 +74,10 @@ export class SourceRepository {
 
 	getMetadata(sourceId: string): Promise<StorageRecord | null> {
 		return this.#options.reader.getMetadata(sourceId);
+	}
+
+	replaceMetadataIfCurrent(expected: StorageRecord, replacement: StorageRecord): Promise<boolean> {
+		return this.#options.records.compareAndSwapMetadata(expected, replacement);
 	}
 
 	list(): Promise<StorageRecord[]> {
@@ -88,6 +113,9 @@ export class SourceRepository {
 			await this.deleteStored(source);
 		}
 		await this.#options.media.deleteAsset(sourceId);
+		// Cache payloads are disposable. Their cleanup can be retried and must
+		// never change the already-committed authoritative source deletion.
+		await this.#options.transientAnalysisCache?.purge().catch(() => undefined);
 		for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) {
 			await this.#options.analysis.delete(`${prefix}${sourceId}`);
 		}

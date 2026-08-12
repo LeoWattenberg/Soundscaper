@@ -5,6 +5,13 @@ export interface EffectSelectionFrequencyRange {
 	readonly maximumFrequency: number;
 }
 
+export interface SpectralBrushSelectionOptions {
+	readonly centerFrame: number;
+	readonly centerFrequency: number;
+	readonly radiusFrames: number;
+	readonly radiusFrequency: number;
+}
+
 export interface EffectSelection {
 	readonly startFrame: number;
 	readonly endFrame: number;
@@ -288,13 +295,72 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 		}).selection;
 	}
 
+	function setSpectralBrushSelection(
+		options: SpectralBrushSelectionOptions,
+	): EffectSelection | null {
+		if (runtime.editingBlocked()) return null;
+		const project = runtime.getProject();
+		if (project.schemaVersion < 2) throw new Error(runtime.copy.v2Required);
+		const track = findTrack(project, runtime.state.selectedTrackId);
+		if (!track || track.type !== 'audio') throw new Error(runtime.copy.audioTrackRequired);
+		const centerFrame = safeNonNegativeInteger(options?.centerFrame, 'spectral brush center frame');
+		const radiusFrames = safePositiveInteger(options?.radiusFrames, 'spectral brush frame radius');
+		const endFrame = centerFrame + radiusFrames;
+		if (!Number.isSafeInteger(endFrame)) throw new RangeError('Spectral brush frame range exceeds the safe integer domain.');
+		const nyquist = runtime.projectSampleRate() / 2;
+		const centerFrequency = finiteInRange(
+			options?.centerFrequency,
+			0,
+			nyquist,
+			'spectral brush center frequency',
+		);
+		const radiusFrequency = finitePositive(options?.radiusFrequency, 'spectral brush frequency radius');
+		const minimumFrequency = Math.max(0, centerFrequency - radiusFrequency);
+		const maximumFrequency = Math.min(nyquist, centerFrequency + radiusFrequency);
+		if (!(maximumFrequency > minimumFrequency)) {
+			throw new RangeError('Spectral brush frequency range must be positive.');
+		}
+		return runtime.setSelection(Math.max(0, centerFrame - radiusFrames), endFrame, {
+			trackIds: [track.id],
+			clipIds: [],
+			frequencyRange: { minimumFrequency, maximumFrequency },
+		}).selection;
+	}
+
 	return Object.freeze({
 		audacityEffectSelectionDetails,
 		audacityEffectTarget,
 		audacityEffectTargets,
 		audacitySpectralEffectContext,
 		setSpectralBoxSelection,
+		setSpectralBrushSelection,
 	});
+}
+
+function safeNonNegativeInteger(value: unknown, name: string): number {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < 0) throw new RangeError(`${name} must be a non-negative safe integer.`);
+	return number;
+}
+
+function safePositiveInteger(value: unknown, name: string): number {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
+	return number;
+}
+
+function finitePositive(value: unknown, name: string): number {
+	const number = Number(value);
+	if (!Number.isFinite(number)) throw new TypeError(`${name} must be finite.`);
+	if (!(number > 0)) throw new RangeError(`${name} must be positive.`);
+	return number;
+}
+
+function finiteInRange(value: unknown, minimum: number, maximum: number, name: string): number {
+	const number = Number(value);
+	if (!Number.isFinite(number)) throw new TypeError(`${name} must be finite.`);
+	if (number < minimum || number > maximum) throw new RangeError(`${name} must be between ${minimum} and ${maximum}.`);
+	return number;
 }
 
 function findTrack(project: EffectSelectionProject, trackId: string | null | undefined): EffectSelectionTrack | null {

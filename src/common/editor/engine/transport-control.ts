@@ -5,6 +5,10 @@ import {
 	throwIfAborted,
 } from './async-utils.ts';
 import {
+	prepareExactAudioWarpPlayback,
+	projectHasAuthoredAudioWarp,
+} from './audio-warp-fallback.ts';
+import {
 	assertPlayAtSpeedStaffPadMemorySafe,
 	audioBufferChannels,
 	clamp,
@@ -65,13 +69,25 @@ async play() {
 		if (this.state === 'playing') return;
 		this[ENGINE_CANCEL_SCRUB]();
 		this.playbackRate = 1;
-		this.playbackMode = 'normal';
 		this.preparedSpeedPlayback = null;
 		const context = await this.getAudioContext();
+		if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
+		if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
+		if (projectHasAuthoredAudioWarp(this.project)
+			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+			await prepareExactAudioWarpPlayback(
+				this,
+				this.positionFrame,
+				this.loop.enabled ? this.loop.endFrame : this.durationFrames,
+			);
+			this.playbackMode = 'audio-warp-exact';
+			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+			await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, context.currentTime);
+			return;
+		}
+		this.playbackMode = 'normal';
 		await ensureProjectWorklets(context, this.project);
 		await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
-		if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
-		if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
 		await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, context.currentTime);
 	},
 
@@ -107,6 +123,10 @@ async playAtSpeed(rate, {
 				normalizedRate,
 			);
 			this.playbackRate = normalizedRate;
+			if (projectHasAuthoredAudioWarp(this.project)
+				&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+				throw new Error('Variable-speed audio warp playback requires realtime warp acceleration.');
+			}
 			if (!preservePitch) {
 				this.playbackMode = 'naive';
 				this.preparedSpeedPlayback = null;
@@ -157,14 +177,31 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
 		this[ENGINE_CANCEL_SCRUB]();
 		this.playbackRate = 1;
-		this.playbackMode = 'normal';
 		this.preparedSpeedPlayback = null;
 		const context = await this.getAudioContext();
+		if (projectHasAuthoredAudioWarp(this.project)
+			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+			const scheduledFrame = clampFrame(fromFrame, 0, this.durationFrames);
+			if (scheduledFrame >= this.durationFrames) {
+				return Math.max(context.currentTime, Number(contextTime) || context.currentTime);
+			}
+			await prepareExactAudioWarpPlayback(
+				this,
+				scheduledFrame,
+				this.loop.enabled ? this.loop.endFrame : this.durationFrames,
+			);
+			this.playbackMode = 'audio-warp-exact';
+			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+			const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
+			this.positionFrame = scheduledFrame;
+			return this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime);
+		}
+		this.playbackMode = 'normal';
 		await ensureProjectWorklets(context, this.project);
 		await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 		this.positionFrame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
-		await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime);
+		return this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime);
 	},
 
 pause() {
@@ -249,6 +286,10 @@ async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 		const generation = ++this.scrubGeneration;
 		this[ENGINE_HALT_GRAPH]();
 		const context = await this.getAudioContext();
+		if (projectHasAuthoredAudioWarp(this.project)
+			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+			throw new Error('Audio warp scrub preview requires realtime warp acceleration.');
+		}
 		await ensureProjectWorklets(context, this.project);
 		if (!this.scrubbing || generation !== this.scrubGeneration || !this.project) return this.positionFrame;
 

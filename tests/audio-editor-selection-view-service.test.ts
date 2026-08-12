@@ -13,6 +13,7 @@ function createFixture() {
 	type TestProject = {
 		id: string;
 		schemaVersion: number;
+		sampleRate: number;
 		tracks: Array<{
 			id: string;
 			type: string;
@@ -21,8 +22,10 @@ function createFixture() {
 		}>;
 		clips: Array<{
 			id: string;
+			kind: 'audio';
 			timelineStartFrame: number;
 			durationFrames: number;
+			sourceStartFrame: number;
 		}>;
 		timelineAnnotations?: unknown[];
 		selection: {
@@ -37,14 +40,15 @@ function createFixture() {
 	let project: TestProject = {
 		id: 'project-a',
 		schemaVersion: 5,
+		sampleRate: 1_000,
 		tracks: [
 			{ id: 'track-a', type: 'audio', clipIds: ['clip-a'] },
 			{ id: 'track-b', type: 'audio', clipIds: ['clip-b'] },
 			{ id: 'labels', type: 'label', labels: [{ startFrame: 5, endFrame: 75 }] },
 		],
 		clips: [
-			{ id: 'clip-a', timelineStartFrame: 10, durationFrames: 20 },
-			{ id: 'clip-b', timelineStartFrame: 40, durationFrames: 30 },
+			{ id: 'clip-a', kind: 'audio', timelineStartFrame: 10, durationFrames: 20, sourceStartFrame: 0 },
+			{ id: 'clip-b', kind: 'audio', timelineStartFrame: 40, durationFrames: 30, sourceStartFrame: 0 },
 		],
 		selection: { startFrame: 10, endFrame: 30, trackIds: ['track-a'], clipIds: [] },
 	};
@@ -60,6 +64,7 @@ function createFixture() {
 	const statuses: Array<[unknown, unknown]> = [];
 	const handledErrors: unknown[] = [];
 	const playheads: unknown[] = [];
+	const seeks: number[] = [];
 	const state: Record<string, unknown> = {
 		analysisProcessing: false,
 		selectedTrackId: 'track-a',
@@ -97,7 +102,7 @@ function createFixture() {
 			zeroCrossingsAligned: 'Aligned.',
 		},
 		editorTimelineDurationFrames: () => 100,
-		engine: { getPositionFrames: () => 20 },
+		engine: { getPositionFrames: () => 20, seek: (frame: number) => { seeks.push(frame); } },
 		findClip: (value, clipId) => value.clips.find((clip: { id: string }) => clip.id === clipId) || null,
 		findClipTrack: (value, clipId) => value.tracks.find((track: { clipIds?: string[] }) => track.clipIds?.includes(clipId)) || null,
 		findNearestAudioZeroCrossing: (_channels, frame) => frame,
@@ -143,6 +148,7 @@ function createFixture() {
 		statuses,
 		handledErrors,
 		playheads,
+		seeks,
 		project: () => project,
 		updateProject(changes: Partial<TestProject>) {
 			project = { ...project, ...changes };
@@ -158,6 +164,22 @@ function createFixture() {
 		},
 	};
 }
+
+test('selection service composes clip navigation through one frozen controller port', () => {
+	const fixture = createFixture();
+	const navigation = fixture.service.clipNavigation;
+	assert.equal(Object.isFrozen(navigation), true);
+
+	fixture.updateProject({
+		selection: { startFrame: 10, endFrame: 30, trackIds: [], clipIds: [] },
+	});
+	assert.equal(navigation.selectNextClip()?.selection.startFrame, 40);
+	assert.equal(fixture.state.selectedClipId, 'clip-b');
+	assert.equal(navigation.skipToSelectionStart(), 40);
+	assert.equal(navigation.skipToSelectionEnd(), 70);
+	assert.deepEqual(fixture.seeks, [40, 70]);
+	assert.deepEqual(navigation.selectNoTracks()?.selection.trackIds, []);
+});
 
 test('selection async completion cannot publish into a replacement project', async () => {
 	const fixture = createFixture();

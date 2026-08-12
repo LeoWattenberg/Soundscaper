@@ -16,9 +16,9 @@ import {
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
 import {
-	createAudioEditorProjectV16,
-	type AudioEditorProjectV16,
-} from '../src/common/editor/project-v16.ts';
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import { projectForCommandConsumers } from '../src/common/editor/project-current-runtime.ts';
 import {
 	createVideoSourceV10,
@@ -44,13 +44,13 @@ function curve(): VideoRetimeCurveV16 {
 	};
 }
 
-function project(retimeMap: VideoRetimeCurveV16 | null = curve()): AudioEditorProjectV16 {
+function project(retimeMap: VideoRetimeCurveV16 | null = curve()): AudioEditorProjectCurrent {
 	const source = createVideoSourceV10({
 		id: 'video-source', name: 'Video', frameCount: 40_000,
 		sampleFrameCount: 40_000, sourceFrameCount: 20,
 		frameRate: { num: 24, den: 1 }, width: 16, height: 16,
 	});
-	return createAudioEditorProjectV16({
+	return createCurrentAudioEditorProject({
 		id: 'retime-command-preservation', now: NOW,
 		sources: [source],
 		clips: [{

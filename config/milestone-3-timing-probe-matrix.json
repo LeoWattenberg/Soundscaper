@@ -85,14 +85,14 @@
 			"version": "43.1.1",
 			"target": "linux-x64",
 			"status": "pending-external",
-			"blocker": "No packaged Electron timing-probe witness imports both pinned fixtures and validates the persisted timing body."
+			"blocker": "The packaged Electron timing-probe harness exists for this Linux x64 product; maintained-runner execution and an accepted result remain required."
 		},
 		{
 			"product": "framescaper",
 			"version": "43.1.1",
 			"target": "linux-x64",
 			"status": "pending-external",
-			"blocker": "No packaged Electron timing-probe witness imports both pinned fixtures and validates the persisted timing body."
+			"blocker": "The packaged Electron timing-probe harness exists for this Linux x64 product; maintained-runner execution and an accepted result remain required."
 		},
 		{
 			"product": "soundscaper",
@@ -109,5 +109,5 @@
 			"blocker": "A Windows x64 packaged runner and accepted timing-probe result are required."
 		}
 	],
-	"minimumFollowUp": "Add a packaged Electron harness that drives the ordinary import path, validates the exact persisted timing asset body for both fixtures, and publish passing Soundscaper and Framescaper results from the maintained linux-x64 and windows-x64 runners."
+	"minimumFollowUp": "Execute the packaged ordinary-import timing-probe harness on the maintained linux-x64 runner and publish accepted Soundscaper and Framescaper results; add the corresponding windows-x64 runner execution and accepted results."
 }

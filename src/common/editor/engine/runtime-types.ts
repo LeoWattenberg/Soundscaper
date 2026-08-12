@@ -56,6 +56,25 @@ export interface MutablePreparedSpeedPlayback extends Omit<PreparedSpeedPlayback
 	audioBuffer: AudioBuffer | null;
 }
 
+export interface PreparedAudioWarpPlayback {
+	readonly project: EngineProject;
+	readonly authorityFingerprint: string;
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly channels: readonly Float32Array[];
+	readonly frameCount: number;
+	readonly sampleRate: number;
+	audioBuffer: AudioBuffer | null;
+}
+
+export interface AudioWarpPlaybackPreparation {
+	readonly project: EngineProject;
+	readonly authorityFingerprint: string;
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly promise: Promise<Readonly<PreparedAudioWarpPlayback>>;
+}
+
 export interface EngineLoudnessMeter {
 	readonly node: AudioNode;
 	setRunning(running: boolean): void;
@@ -68,6 +87,7 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	audioContextFactory: EngineRealtimeContextFactory | null;
 	offlineAudioContextFactory: EngineOfflineContextFactory | null;
 	softwareRenderer: EngineSoftwareRenderer | null;
+	audioWarpRealtimeAcceleration: boolean;
 	sourceResolver: EngineSourceResolver | null;
 	chunkStreamClient: (ChunkStreamClientLike & { dispose?(): void }) | null;
 	chunkStreamClientFactory: () => ChunkStreamClientLike & { dispose?(): void };
@@ -87,8 +107,10 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	playEndFrame: number;
 	loopScheduleTime: number;
 	playbackRate: number;
-	playbackMode: 'normal' | 'naive' | 'staffpad';
+	playbackMode: 'normal' | 'naive' | 'staffpad' | 'audio-warp-exact';
 	preparedSpeedPlayback: MutablePreparedSpeedPlayback | null;
+	preparedAudioWarpPlayback: PreparedAudioWarpPlayback | null;
+	audioWarpPlaybackPreparation: AudioWarpPlaybackPreparation | null;
 	state: string;
 	loop: NormalizedLoop;
 	graph: ProjectGraph | null;
@@ -123,10 +145,10 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	[ENGINE_GET_CONTEXT](): Promise<EngineAudioContext>;
 	[ENGINE_HANDLE_SCHEDULING_ERROR](error: unknown): void;
 	[ENGINE_HALT_GRAPH](): void;
-	[ENGINE_SCHEDULE_CURRENT_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<void>;
+	[ENGINE_SCHEDULE_CURRENT_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<number>;
 	[ENGINE_SCHEDULE_LOOP_AHEAD](): void;
-	[ENGINE_SCHEDULE_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<void>;
-	[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<void>;
+	[ENGINE_SCHEDULE_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<number>;
+	[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<number>;
 	[ENGINE_SET_STATE](value: string): void;
 	[ENGINE_START_TICKER](): void;
 	[ENGINE_STOP_TICKER](): void;

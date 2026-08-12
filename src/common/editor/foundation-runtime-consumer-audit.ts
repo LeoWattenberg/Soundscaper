@@ -142,6 +142,14 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
 	{
+		file: 'src/common/editor/audio-warp-clip-authority.ts',
+		reason: 'Warp authoring snapshots resolved clip geometry into immutable stale-edit authority; it is a persisted edit adapter rather than a runtime media consumer.',
+	},
+	{
+		file: 'src/common/editor/audio-warp-clip-edit.ts',
+		reason: 'Warp trim and split authoring resolve persisted clip boundaries before deriving exact child maps; they do not create a playback projection.',
+	},
+	{
 		file: 'src/common/editor/app.js',
 		reason: 'Command acquisition projects the editable draft before mutation; command reconciliation restores persisted authority.',
 	},
@@ -206,6 +214,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The slip/slide pointer adapter requires an already-branded request-start projection plus verified source timing while capturing immutable gesture authority; it does not create or consume a runtime playback projection.',
 	},
 	{
+		file: 'src/common/editor/controller/track-structural-operation-planner.ts',
+		reason: 'The structural edit planner resolves clip placement while deriving one atomic alignment or sort command; it does not create or consume a runtime playback projection.',
+	},
+	{
 		file: 'src/common/editor/project-feature-requirements.ts',
 		reason: 'Owned feature-declaration reconciliation resolves a fallback target duration while validating persisted requirements.',
 	},
@@ -220,6 +232,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 	{
 		file: 'src/common/editor/project-v10-foundation-validation.ts',
 		reason: 'Foundation validation intentionally resolves authoritative wire coordinates to prove bounds and derived equality.',
+	},
+	{
+		file: 'src/common/editor/quality/m3-longform-editorial-workload.ts',
+		reason: 'The deterministic qualification oracle resolves final clip positions only to compare persisted edit results against independently tracked expected coordinates; it is test workload construction rather than a runtime media consumer.',
 	},
 ]);
 

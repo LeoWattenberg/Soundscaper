@@ -51,6 +51,33 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'audio-warp-quantization',
+		file: 'src/common/editor/audio-warp-domain.ts',
+		behavior: 'Transient quantization resolves each rational grid position once with the shared nearest-point policy before authoring one strictly increasing sample map.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
+		id: 'audio-warp-clip-editing',
+		file: 'src/common/editor/audio-warp-clip-edit.ts',
+		behavior: 'Musical warp trims and splits exactly invert their resolved sample boundary to one clip-local beat coordinate before slicing the persisted map.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
+		id: 'audio-warp-runtime-authority',
+		file: 'src/common/editor/audio-warp-runtime-authority.ts',
+		behavior: 'Persisted and runtime musical warp authority exactly inverts resolved sample endpoints to verify that the authored beat domain matches the clip extent.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
+		id: 'audio-warp-runtime-mapping',
+		file: 'src/common/editor/audio-warp-runtime.ts',
+		behavior: 'Runtime warp mapping point-resolves beat and warp boundaries once, and retains rational source positions between boundaries.',
+		conversions: [
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'roundRational', policies: ['point'] },
+		],
+	},
+	{
 		id: 'legacy-aup-timeline-import',
 		file: 'src/common/editor/aup-legacy-conversion.js',
 		behavior: 'Legacy label, selection, source, clip, and envelope timestamps become nearest sample instants during interchange import.',
@@ -356,6 +383,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
 			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
 		],
+	},
+	{
+		id: 'm3-longform-position-oracle',
+		file: 'src/common/editor/quality/m3-longform-editorial-workload.ts',
+		behavior: 'The independent long-form position oracle converts each final projected video clip start to its nearest absolute sequence-frame point without accumulating edit deltas.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
 	},
 	{
 		id: 'sequence-frame-navigation',

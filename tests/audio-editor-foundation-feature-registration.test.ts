@@ -29,6 +29,11 @@ const FOUNDATION_FIXTURES = Object.freeze([
 		project: { clips: [{ kind: 'audio', warpMap: { feature: 'audio-warp' } }] },
 	}),
 	Object.freeze({
+		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.takeComp,
+		project: { takeGroups: [{ id: 'take-group' }] },
+	}),
+	Object.freeze({
 		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.sequenceTiming,
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.sequenceTiming,
 		project: { sequences: [{ rate: { num: 24, den: 1 }, dropFrame: false }] },
@@ -65,16 +70,122 @@ test('every foundation document type has one owned capability predicate', () => 
 	);
 });
 
-test('foundation registry and both profiles stay equal and classify unavailable state', () => {
+test('foundation registry and both profiles stay equal', () => {
 	const registry = Object.keys(PROJECT_FEATURE_CAPABILITY_IDS).sort();
 	assert.deepEqual(Object.keys(PRODUCT_PROFILES.soundscaper.capabilities).sort(), registry);
 	assert.deepEqual(Object.keys(PRODUCT_PROFILES.framescaper.capabilities).sort(), registry);
+});
+
+test('V17 audio warp state is native when enabled and otherwise bypass-only', () => {
 	const manifest = reconcileProjectOwnedFeatureRequirements(FOUNDATION_FIXTURES[1].project, EMPTY_MANIFEST);
 	const project = { schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, featureRequirements: manifest };
-	for (const profile of [PRODUCT_PROFILES.soundscaper, PRODUCT_PROFILES.framescaper]) {
+	for (const [profile, availability, disposition, compatible] of [
+		[{ ...PRODUCT_PROFILES.soundscaper, capabilities: {
+			...PRODUCT_PROFILES.soundscaper.capabilities, audioWarp: true,
+		} }, 'available', 'native', true],
+		[PRODUCT_PROFILES.framescaper, 'unavailable', 'bypassed', false],
+	] as const) {
 		const report = createProjectFeatureCompatibilityService(profile.capabilities).evaluate(project);
-		assert.equal(report?.items[0]?.availability, 'unavailable');
-		assert.equal(report?.compatible, false);
+		assert.deepEqual({
+			compatible: report?.compatible,
+			availability: report?.items[0]?.availability,
+			disposition: report?.items[0]?.disposition,
+			fallback: report?.items[0]?.fallback,
+		}, { compatible, availability, disposition, fallback: null }, profile.id);
+	}
+});
+
+test('nonempty warp state refuses publisher substitution and retains the owned bypass boundary', () => {
+	const fixture = FOUNDATION_FIXTURES[1];
+	for (const kind of ['audio', 'video'] as const) {
+		const fallback = kind === 'audio'
+			? { role: 'project-audio-mix-v1' as const, kind, sourceId: 'fallback', sha256: 'ab'.repeat(32) }
+			: { role: 'project-video-render-v1' as const, kind, sourceId: 'fallback', sha256: 'ab'.repeat(32) };
+		assert.throws(() => reconcileProjectOwnedFeatureRequirements(fixture.project, {
+			schemaVersion: 2,
+			requirements: Object.freeze([{
+				id: `publisher-warp-${kind}-render`,
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
+				displayName: `Publisher warp ${kind} render`,
+				disposition: 'rendered-fallback',
+				fallback,
+			}]),
+		}), /reserved owned soundscaper\.audio-warp requirement conflicts/iu);
+	}
+});
+
+test('Project Bin warp state retains owned native/bypass truth and refuses substitution', () => {
+	const binProject = {
+		projectBin: { clips: [{ kind: 'audio', warpMap: { feature: 'audio-warp' } }] },
+	};
+	const manifest = reconcileProjectOwnedFeatureRequirements(binProject, EMPTY_MANIFEST);
+	assert.equal(manifest.requirements[0]?.id, PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioWarp);
+	for (const [profile, availability, disposition, compatible] of [
+		[{ ...PRODUCT_PROFILES.soundscaper, capabilities: {
+			...PRODUCT_PROFILES.soundscaper.capabilities, audioWarp: true,
+		} }, 'available', 'native', true],
+		[PRODUCT_PROFILES.framescaper, 'unavailable', 'bypassed', false],
+	] as const) {
+		const report = createProjectFeatureCompatibilityService(profile.capabilities).evaluate({
+			schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+			featureRequirements: manifest,
+		});
+		assert.deepEqual({
+			availability: report?.items[0]?.availability,
+			disposition: report?.items[0]?.disposition,
+			compatible: report?.compatible,
+		}, { availability, disposition, compatible });
+	}
+	assert.throws(() => reconcileProjectOwnedFeatureRequirements(binProject, {
+		schemaVersion: 2,
+		requirements: [{
+			id: 'publisher-bin-warp-render',
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
+			displayName: 'Publisher Project Bin warp render',
+			disposition: 'rendered-fallback',
+			fallback: {
+				role: 'project-audio-mix-v1', kind: 'audio', sourceId: 'fallback', sha256: 'ab'.repeat(32),
+			},
+		}],
+	}), /reserved owned soundscaper\.audio-warp requirement conflicts/iu);
+});
+
+test('V17 take/comp state is native in Soundscaper and bypass-only in Framescaper', () => {
+	const takeComp = FOUNDATION_FIXTURES.find(
+		({ id }) => id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
+	);
+	assert.ok(takeComp);
+	const featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		takeComp.project,
+		EMPTY_MANIFEST,
+	);
+	const project = {
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		featureRequirements,
+	};
+	for (const [profile, capability, availability, disposition, compatible] of [
+		[PRODUCT_PROFILES.soundscaper, true, 'available', 'native', true],
+		[PRODUCT_PROFILES.framescaper, false, 'unavailable', 'bypassed', false],
+	] as const) {
+		assert.equal(profile.capabilities.takeComp, capability, profile.id);
+		const report = createProjectFeatureCompatibilityService(profile.capabilities).evaluate(project);
+		assert.deepEqual({
+			compatible: report?.compatible,
+			requirementId: report?.items[0]?.requirementId,
+			featureId: report?.items[0]?.featureId,
+			availability: report?.items[0]?.availability,
+			declaredDisposition: report?.items[0]?.declaredDisposition,
+			disposition: report?.items[0]?.disposition,
+			fallback: report?.items[0]?.fallback,
+		}, {
+			compatible,
+			requirementId: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.takeComp,
+			availability,
+			declaredDisposition: 'bypass',
+			disposition,
+			fallback: null,
+		}, profile.id);
 	}
 });
 

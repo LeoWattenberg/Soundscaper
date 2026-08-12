@@ -33,6 +33,21 @@ test('timed recording service exposes only schedule and cancellation actions', (
 	assert.equal(Object.isFrozen(service), true);
 });
 
+test('pending open recovery refuses timed recording before input or context preparation', async () => {
+	let preparations = 0;
+	const service = createTimedRecordingService({
+		state: createState({ takeCycleRecovery: {} }),
+		getProjectId: () => 'project-1', normalizeStartTime: Number, currentTimeMs: () => 1_000,
+		prepareInputs: async () => { preparations += 1; return { inputKeys: [] }; },
+		prepareContext: async () => { preparations += 1; }, startRecording: async () => {},
+		cancelRecordingStart: () => false, finalizeRecording: async () => {},
+		activatePreparedRecording: async () => {}, scheduleTimer: () => 1, clearTimer: () => {},
+		messages: messages(),
+	});
+	await assert.rejects(service.scheduleTimedRecording(5_000), /read only/u);
+	assert.equal(preparations, 0);
+});
+
 test('timed recording prepares input and context in parallel before arming a bounded timer', async () => {
 	const state = createState();
 	const inputGate = deferred<Readonly<{ inputKeys: readonly string[] }>>();
