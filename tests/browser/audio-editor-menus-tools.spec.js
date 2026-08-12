@@ -203,7 +203,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(view).toBeFocused();
 	});
 
-	test('omits unavailable project, view, track, and tool commands', async ({ page }) => {
+	test('omits unavailable commands and opens project properties from File', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu' });
 		for (const [menuName, labels] of [
@@ -233,8 +233,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
 		const projectProperties = getMenuItem(fileMenu, 'Project properties');
-		await expect(projectProperties).toHaveAttribute('aria-disabled', 'true');
-		await expect(projectProperties.locator('[data-disabled-reason]')).toHaveAttribute('title', /does not provide a usable handler/);
+		await expect(projectProperties).not.toHaveAttribute('aria-disabled', 'true');
+		await projectProperties.click();
+		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeVisible();
 	});
 
 	test('imports configured raw PCM and composes regular annotations from Tools', async ({ page }) => {
@@ -641,7 +642,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 	}
 
-	test('builds the shortcut command inventory from manifest actions and keeps disabled commands inert', async ({ page }) => {
+	test('builds the shortcut command inventory from implemented manifest actions', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
@@ -649,14 +650,13 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await search.fill('Insert');
 		const insert = preferences.locator('[data-shortcut-action="insert"]');
-		const reason = /does not provide a usable handler yet/;
 		await expect(insert).toBeVisible();
-		await expect(insert).toHaveAttribute('aria-disabled', 'true');
-		await expect(insert).toHaveAttribute('title', reason);
-		await expect(insert).toHaveAttribute('data-disabled-reason', reason);
-		await expect(insert.locator('input')).toBeDisabled();
-		await expect(insert.getByRole('button', { name: 'Assign', exact: true })).toBeDisabled();
-		await expect(insert.locator('[data-shortcut-disabled-reason]')).toHaveText(reason);
+		await expect(insert).not.toHaveAttribute('aria-disabled', 'true');
+		const insertShortcut = insert.locator('input');
+		await expect(insertShortcut).toBeEnabled();
+		await insertShortcut.fill('Alt+I');
+		await expect(insert.getByRole('button', { name: 'Assign', exact: true })).toBeEnabled();
+		await expect(insert.locator('[data-shortcut-disabled-reason]')).toHaveCount(0);
 
 		await search.fill('Zoom normal');
 		await expect(preferences.locator('[data-shortcut-action="zoom-default"]')).toBeVisible();

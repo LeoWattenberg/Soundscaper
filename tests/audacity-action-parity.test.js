@@ -90,11 +90,15 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	}
 	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
 
-	for (const id of ['insert', 'project-properties']) {
-		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
-		assert.equal(audacityActionDefinition(id).roadmapMilestone, '3', id);
-	}
+	assert.deepEqual(
+		Object.values(AUDACITY_ACTION_MANIFEST)
+			.filter((definition) => definition.roadmapMilestone === '3')
+			.map((definition) => definition.id),
+		[],
+		'Milestone 3 exits with no planned Audacity action gaps',
+	);
 	for (const id of [
+		'insert', 'project-properties',
 		'toggle-sound-activated-recording', 'set-sound-activation-level',
 		'menu-selection-spectral', 'toggle-spectral-selection', 'spectral-brush',
 		'select-previous-clip', 'select-next-clip', 'skip-to-selection-start',
@@ -121,7 +125,6 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 		'export-midi',
 		'menu-macros',
 		'reset-configuration',
-		'insert',
 	];
 
 	for (const id of requiredDisabled) {
@@ -560,9 +563,9 @@ test('shortcut command inventory consumes manifest actions while keeping disable
 	const insert = byId.get('insert');
 	assert.equal(insert.label, 'Einfügen');
 	assert.equal(insert.preferenceId, 'insert');
-	assert.equal(insert.parityStatus, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
-	assert.equal(insert.disabled, true);
-	assert.match(insert.disabledReason, /noch keine nutzbare Aktion/);
+	assert.equal(insert.parityStatus, AUDACITY_ACTION_STATUS.IMPLEMENTED);
+	assert.equal(insert.disabled, false);
+	assert.equal(insert.disabledReason, null);
 	const remote = new Map(collectAudacityShortcutCommands([], {
 		locale: 'fr',
 		copy: {
@@ -571,6 +574,6 @@ test('shortcut command inventory consumes manifest actions while keeping disable
 		},
 	}).map((command) => [command.id, command]));
 	assert.equal(remote.get('insert').label, 'Insertion distante');
-	assert.equal(remote.get('insert').disabledReason, 'Commande distante indisponible.');
+	assert.equal(remote.get('insert').disabledReason, null);
 	assert.throws(() => collectAudacityShortcutCommands(null), /menus must be an array/);
 });
