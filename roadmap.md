@@ -545,7 +545,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   state; c-a2 is folded into c-c, and durable storage/c-c remain hard-stopped on
   V18 product isolation. A standalone V17 proof lease cannot authenticate the
   future V18 settlement boundary. Body staging or adoption is not authorized;
-  Soundscaper product work is owned elsewhere. Adaptive preview,
+  the next contract-first prerequisite is the dormant
+  [opaque Framescaper V18 storage profile](docs/milestone-3b-framescaper-storage-profile.md),
+  whose draft adds no production selector or persistence authority. Soundscaper
+  product work is owned elsewhere. Adaptive preview,
   offline/relink, and synchronized multicamera groups follow the separately
   reviewed durable transition.
 

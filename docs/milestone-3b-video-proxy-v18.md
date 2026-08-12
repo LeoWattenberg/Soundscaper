@@ -48,7 +48,13 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    change. That later owner verifies both bodies, holds currentness, and
    discards only new exact publications while retaining opaque full-row claims
    and roots.
-4. **3B-6c-c — atomic V18 adoption:** in one separately reviewed semantic transition,
+4. **3B-6c-c0 — dormant storage-profile prerequisite — contract draft:** add
+   only the [opaque shared `EditorProjectStorageProfile` capability and exact
+   product-owned dormant Framescaper V18
+   token](milestone-3b-framescaper-storage-profile.md), with opt-in generic
+   database, OPFS directory/worker, and project-lock threading. No app or
+   product selects it, and it authorizes no persistence or adoption.
+5. **3B-6c-c — atomic V18 adoption:** in one separately reviewed semantic transition,
    add a Framescaper-selected current-schema/archive/repository profile after V17,
    requirements/capabilities, preservation, retention, conditional `.scape`
    format 2 for attached projects,
@@ -570,7 +576,9 @@ module remains dormant, with no maintained consumer, persistence, preparation
 consumption, project/schema owner, capability, UI, browser row, or Soundscaper
 change.
 
-Durable storage and c-c remain hard-stopped, and a2 is folded into c-c. No
+The next contract-first prerequisite is dormant c-c0 storage-profile threading;
+its draft does not authorize production. Durable storage and c-c remain
+hard-stopped, and a2 is folded into c-c. No
 generic callback is an adoption boundary, and no pre-c-c slice may claim
 settlement or own the original lease. Later work needs its own contracts,
 including c-c's product-isolation review; production storage or adoption work

@@ -371,8 +371,10 @@ profile, capability, UI, browser, or desktop integration in these slices. The
 packet explicitly adds no proxy consumer, menu, playback, offline, relink,
 delivery, export, or audio behavior. Only the schema-neutral dormant c-a1 and
 c-b1 slices are implemented; c-a2 is folded into c-c, and durable storage plus
-c-c remain unauthorized. Persistence remains subject to the refreshed V18
-blocker review.
+c-c remain unauthorized. The next contract-first prerequisite is the dormant
+[opaque Framescaper V18 storage profile](milestone-3b-framescaper-storage-profile.md);
+its draft adds no production selector or persistence authority. Persistence
+remains subject to the refreshed V18 blocker review.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.
