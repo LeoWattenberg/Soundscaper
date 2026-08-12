@@ -233,18 +233,28 @@ exact ownership, source bounds, group non-overlap on a track, and deeply frozen
 canonical snapshots. Nonempty state reconciles exactly one reserved
 soundscaper.take-comp requirement for org.soundscaper.capability.take-comp with
 display name Take lanes and comps, disposition bypass, and fallback null; empty
-state invents no requirement. The capability is known but initially false in
-both Soundscaper and Framescaper product profiles and in the production
-capability register, so both compatibility reports classify it
-unavailable/bypassed and incompatible, retaining the existing read-only
-activation boundary. It is excluded from both audio and video rendered-fallback
-eligibility sets, and a publisher-authored fallback of either kind rejects.
-Exact-V17 creation, clone, and raw load preserve the state without aliases, and
-fresh desktop V9 metadata 9 with SQLite user_version 11 saves in Soundscaper and
-reopens in Framescaper with the take groups unchanged. This preservation-only
-slice claims no take or comp authoring, editing, recording, playback, render,
-export, fallback substitution, native comp evaluation, current-format .scape
-nonempty-state witness, or visible workflow.
+state invents no requirement. Whenever take state exists, the reserved
+requirement refuses publisher substitution. The capability is true in
+Soundscaper and in the production capability register, so its compatibility
+report is available/native and compatible; it is false but registered in
+Framescaper, whose report is unavailable/bypassed and incompatible, so
+activation is intrinsically read-only there. It is excluded from both audio and
+video rendered-fallback eligibility sets, and publisher-authored substitution or
+rendered fallback rejects. Soundscaper composes a typed take/comp domain, group
+add, update, remove, and flatten command handlers, exact lane and take audition,
+range promotion, boundary editing, and stale-safe exact flatten publication
+behind a Tracks-menu dialog; Framescaper exposes no take/comp menu. Clipboard V4
+clips take geometry, retains take-owned source roots, and pastes an
+independently identified graph. A current-format .scape collision copy proves
+take groups as the only logical roots for exact PCM, remaps source and storage
+identities plus every take source ID, leaves recipient collisions untouched, and
+reopens the copied document and PCM exactly. A fresh desktop V9 metadata 9 and
+SQLite user_version 11 handoff proves Soundscaper opens the project writable, a
+fresh Framescaper recipient fetches the managed PCM and preserves the exact
+document intrinsically read-only, and a fresh Soundscaper recipient reopens it
+writable with no missing sources. Cycle recording, pass capture,
+interrupted-pass recovery, and the open-time recover-or-discard workflow remain
+outside this policy slice.
 <!-- /policy-narrative:take-comp-v17-preservation -->
 
 ## Persisted track locking

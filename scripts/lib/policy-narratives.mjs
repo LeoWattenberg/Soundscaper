@@ -75,6 +75,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		wrap: 80,
 	}),
 	Object.freeze({
+		marker: 'take-comp-native-and-cross-product-preservation',
+		register: 'config/production-security-matrix.json',
+		riskId: 'external-project-document-validation',
+		controlId: 'take-comp-native-and-cross-product-preservation',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+	}),
+	Object.freeze({
 		marker: 'desktop-electron-lease-protections',
 		register: 'config/project-compatibility.json',
 		ruleId: 'current-desktop-electron-lease-protections',

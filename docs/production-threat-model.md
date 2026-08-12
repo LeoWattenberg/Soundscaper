@@ -74,16 +74,9 @@ marker across explicit transient clones, and rejects a forged marker before
 hierarchy traversal. Canonical folder state, leaf-local flags, routing, history,
 and persistence remain unchanged; collapsed and height remain UI-only.
 
-Schema 17 take groups are mandatory closed canonical records. They validate
-sequence and audio-track ownership, audio-source bounds, canonical lane, take,
-region, and group ordering. A 4,096-identity ceiling and 160-character stable-ID
-ceiling apply across globally unique group, lane, take, and region identities;
-overlaps on the same sequence track reject. Nonempty state owns
-`soundscaper.take-comp`, with display name `Take lanes and comps`, disposition
-`bypass`, and no fallback. Both products register its capability known but
-unavailable, preserving nonempty state read-only. It is excluded from audio
-and video rendered-fallback eligibility; publisher substitution and either
-fallback kind reject.
+<!-- policy-narrative:take-comp-native-and-cross-product-preservation -->
+Schema 17 take groups are mandatory closed canonical records with sequence and audio-track ownership, audio-source bounds, canonical lane, take, region, and group ordering, globally unique bounded identities, a 4,096-identity and 160-character stable-ID ceiling, and nonoverlap on one sequence track. Nonempty state owns the exact reserved `soundscaper.take-comp` requirement for `org.soundscaper.capability.take-comp`, display name `Take lanes and comps`, disposition `bypass`, and no fallback. That requirement refuses publisher substitution and the capability is excluded from audio and video rendered-fallback eligibility. Soundscaper registers takeComp true, so compatibility is available/native and writable; its typed domain and commands provide group add, update, remove, and flatten, exact lane and take audition, range promotion, boundary editing, and stale-safe exact flatten publication through a Tracks-menu dialog. Framescaper registers takeComp false but known, so compatibility is unavailable/bypassed and intrinsically read-only and it exposes no take/comp menu. Clipboard V4 clips take geometry, retains take-owned source roots, and pastes an independently identified graph. A current-format `.scape` collision copy proves take groups as the only logical roots for exact PCM, remaps source and storage identities and every take source ID, keeps recipient collisions untouched, and reopens the copied document and bytes exactly. A fresh-recipient desktop handoff proves Soundscaper writable, Framescaper read-only preservation of the exact document and managed PCM, and Soundscaper writable return with no missing sources. Cycle recording, pass capture, interrupted-pass recovery, and open-time recover-or-discard remain outside this control.
+<!-- /policy-narrative:take-comp-native-and-cross-product-preservation -->
 
 Schema 17 also requires one own enumerable boolean `locked` field on every
 audio, video, and label track. The shared command boundary preserves the
