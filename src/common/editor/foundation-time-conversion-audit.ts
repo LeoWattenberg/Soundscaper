@@ -380,6 +380,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'm3-longform-position-oracle',
+		file: 'src/common/editor/quality/m3-longform-editorial-workload.ts',
+		behavior: 'The independent long-form position oracle converts each final projected video clip start to its nearest absolute sequence-frame point without accumulating edit deltas.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
 		id: 'sequence-frame-navigation',
 		file: 'src/common/editor/sequence-frame-navigation.ts',
 		behavior: 'Sequence-frame navigation floors a sample onto its containing frame, then resolves every boundary it reports from the absolute origin as a nearest sample point, so snapping and stepping cannot accumulate error.',
