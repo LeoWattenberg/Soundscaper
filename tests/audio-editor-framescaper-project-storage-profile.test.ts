@@ -21,7 +21,9 @@ import type { StorageRepositories, StorageRepositoryFactory,
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
+const PREREQUISITE_MODULE = 'src/framescaper/editor-project-runtime-profile-v18-prerequisite.ts';
 const PRODUCT_MODULE = 'src/framescaper/editor-project-storage-profile-v18.ts';
+const PREREQUISITE_TEST_MODULE = 'tests/audio-editor-framescaper-project-runtime-profile-prerequisite.test.ts';
 const TEST_MODULE = 'tests/audio-editor-framescaper-project-storage-profile.test.ts';
 const PROFILE_EXPORT = 'FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE';
 const FRAME_NAMES = Object.freeze({
@@ -432,7 +434,7 @@ test('the exact Framescaper selector remains statically dormant and product-owne
 		if (source.includes(PROFILE_EXPORT)) references.push(file);
 		if ((Object.values(FRAME_NAMES) as string[]).some((value) => source.includes(value))) literalOwners.add(file);
 	}
-	assert.deepEqual(references, [PRODUCT_MODULE, TEST_MODULE]);
+	assert.deepEqual(references, [PREREQUISITE_MODULE, PRODUCT_MODULE, PREREQUISITE_TEST_MODULE, TEST_MODULE]);
 	assert.deepEqual([...literalOwners], [PRODUCT_MODULE, TEST_MODULE]);
 	const genericSource = await readFile(resolve(ROOT, 'src/common/editor/storage/project-storage-profile.ts'), 'utf8');
 	assert.doesNotMatch(genericSource, /framescaper/iu);
