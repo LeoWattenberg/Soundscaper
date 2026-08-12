@@ -64,6 +64,12 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    on the separately reviewed product-isolation transition. No earlier commit
    may load, save, or transfer a non-null project attachment.
 
+The next contract-first step is the
+[Framescaper V18 product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md).
+It authorizes no production, but pins the one authenticated runtime profile and
+the atomic schema/storage/archive/controller/desktop selection law required
+before c-c can begin.
+
 The merged milestone-3A work already owns shared V17 for take/comp state,
 desktop library metadata 9/project 17/database 11, and `.scape` format 1. This
 packet must not redefine or mutate that released wire. Slice c-a1 therefore
