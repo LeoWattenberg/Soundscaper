@@ -2,6 +2,7 @@
 
 import {
 	PCM_CONTAINER_STORAGE_TYPE,
+	PCM_CONTAINER_EXTENSION,
 	PCM_ENCODING_WAVPACK_F32_V1,
 	WAVPACK_PCM_MAXIMUM_FRAMES,
 	compressionStatistics,
@@ -35,6 +36,16 @@ export interface AudioSourceWriter {
 	abort(): Promise<void>;
 }
 
+export interface OwnedAudioSourceWriter extends AudioSourceWriter {
+	readonly stageReceipt: AudioSourceStageReceipt;
+}
+
+export interface AudioSourceStageReceipt {
+	readonly version: 1;
+	readonly sourceId: string;
+	readonly sourceToken: string;
+}
+
 interface AudioBufferLike {
 	readonly numberOfChannels: number;
 	readonly length: number;
@@ -58,14 +69,30 @@ export class SourceWriteRepository {
 		this.#options = options;
 	}
 
-	async begin(sourceId: string, metadata: Record<string, unknown> = {}): Promise<AudioSourceWriter> {
+	createStageReceipt(sourceId: string): AudioSourceStageReceipt {
 		if (!sourceId) throw new Error('A source id is required.');
+		return Object.freeze({
+			version: 1,
+			sourceId,
+			sourceToken: `${sourceId}:pending:${createId('write')}`,
+		});
+	}
+
+	begin(sourceId: string, metadata: Record<string, unknown> = {}): Promise<OwnedAudioSourceWriter> {
+		return this.beginOwned(this.createStageReceipt(sourceId), metadata);
+	}
+
+	async beginOwned(
+		receiptValue: unknown,
+		metadata: Record<string, unknown> = {},
+	): Promise<OwnedAudioSourceWriter> {
+		const stageReceipt = normalizeAudioSourceStageReceipt(receiptValue);
+		const { sourceId, sourceToken: token } = stageReceipt;
 		const writeSampleRate = normalizePcmSampleRate(metadata.sampleRate ?? 48_000);
 		const declaredChunkFrames = metadata.chunkFrames == null
 			? null
 			: normalizePcmChunkFrames(metadata.chunkFrames);
 		const database = await this.#options.database();
-		const token = `${sourceId}:pending:${createId('write')}`;
 		const opfsWriter = await this.#options.opfs.createPcmWriter(token, metadata);
 		const persistEncodedChunks = Boolean(opfsWriter || database);
 		let chunkIndex = 0;
@@ -87,6 +114,7 @@ export class SourceWriteRepository {
 		};
 
 		return {
+			stageReceipt,
 			get framesWritten() { return totalFrames; },
 			async write(inputChannels, { signal } = {}) {
 				throwIfAborted(signal);
@@ -261,6 +289,18 @@ export class SourceWriteRepository {
 		};
 	}
 
+	/** Remove only an unpublished stage carrying this exact random write capability. */
+	async discardStageIfCurrent(receiptValue: unknown): Promise<boolean> {
+		const receipt = normalizeAudioSourceStageReceipt(receiptValue);
+		const current = await this.#options.records.getMetadata(receipt.sourceId);
+		if (current?.sourceToken === receipt.sourceToken) return false;
+		await Promise.all([
+			this.#options.opfs.deletePath(stagePath(receipt.sourceToken)),
+			this.#options.records.deleteChunks(receipt.sourceToken),
+		]);
+		return true;
+	}
+
 	async writeDerived(
 		sourceId: string,
 		baseSourceId: string,
@@ -388,6 +428,49 @@ export class SourceWriteRepository {
 			throw error;
 		}
 	}
+}
+
+export function normalizeAudioSourceStageReceipt(value: unknown): AudioSourceStageReceipt {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
+		throw new TypeError('Audio source stage receipt must be a closed data record.');
+	}
+	const record = value as Record<PropertyKey, unknown>;
+	const keys = Reflect.ownKeys(record);
+	const expectedKeys = ['version', 'sourceId', 'sourceToken'];
+	if (keys.length !== expectedKeys.length || expectedKeys.some((key) => !keys.includes(key))) {
+		throw new TypeError('Audio source stage receipt has an invalid closed shape.');
+	}
+	for (const key of keys) {
+		const descriptor = Object.getOwnPropertyDescriptor(record, key);
+		if (typeof key !== 'string' || !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`Audio source stage receipt.${String(key)} must be an enumerable data property.`);
+		}
+	}
+	if (record.version !== 1) throw new RangeError('Audio source stage receipt version must be 1.');
+	const sourceId = canonicalReceiptText(record.sourceId, 'sourceId');
+	const sourceToken = canonicalReceiptText(record.sourceToken, 'sourceToken');
+	if (!sourceToken.startsWith(`${sourceId}:pending:write-`)) {
+		throw new Error('Audio source stage receipt token does not belong to sourceId.');
+	}
+	return Object.freeze({
+		version: 1,
+		sourceId,
+		sourceToken,
+	});
+}
+
+function stagePath(sourceToken: string): string {
+	return `${sourceToken.replace(/[^a-z0-9._-]+/giu, '-')}${PCM_CONTAINER_EXTENSION}`;
+}
+
+function canonicalReceiptText(value: unknown, name: string): string {
+	if (typeof value !== 'string' || !value.length || value !== value.trim()
+		|| value !== value.normalize('NFC') || value.length > 1_024
+		|| /[\u0000-\u001f\u007f]/u.test(value)) {
+		throw new TypeError(`Audio source stage receipt ${name} must be canonical text.`);
+	}
+	return value;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

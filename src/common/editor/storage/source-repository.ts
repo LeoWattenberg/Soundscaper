@@ -7,7 +7,11 @@ import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import type { SourceReadOptions, SourceReadRepository } from './source-read-repository.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
-import type { AudioSourceWriter, SourceWriteRepository } from './source-write-repository.ts';
+import type {
+	AudioSourceStageReceipt,
+	OwnedAudioSourceWriter,
+	SourceWriteRepository,
+} from './source-write-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 
@@ -29,8 +33,23 @@ export class SourceRepository {
 		this.#options = options;
 	}
 
-	beginWrite(sourceId: string, metadata: Record<string, unknown> = {}): Promise<AudioSourceWriter> {
+	beginWrite(sourceId: string, metadata: Record<string, unknown> = {}): Promise<OwnedAudioSourceWriter> {
 		return this.#options.writer.begin(sourceId, metadata);
+	}
+
+	createStageReceipt(sourceId: string): AudioSourceStageReceipt {
+		return this.#options.writer.createStageReceipt(sourceId);
+	}
+
+	beginOwnedStage(
+		receipt: AudioSourceStageReceipt,
+		metadata: Record<string, unknown> = {},
+	): Promise<OwnedAudioSourceWriter> {
+		return this.#options.writer.beginOwned(receipt, metadata);
+	}
+
+	discardStageIfCurrent(receipt: AudioSourceStageReceipt): Promise<boolean> {
+		return this.#options.writer.discardStageIfCurrent(receipt);
 	}
 
 	writeDerived(
