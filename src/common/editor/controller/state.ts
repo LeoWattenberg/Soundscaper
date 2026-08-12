@@ -60,6 +60,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		pendingSaveSnapshots: new Set<unknown>(),
 		saveQueue: Promise.resolve(),
 		recorder: null,
+		recordingKind: null as 'ordinary' | 'take-cycle' | null,
 		recordingWriter: null,
 		recordingStream: null,
 		recordingStarting: false,

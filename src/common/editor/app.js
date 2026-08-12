@@ -226,6 +226,8 @@ import { createVideoTrimServices } from './controller/video-trim-composition.ts'
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createTakeCompControllerComposition } from './controller/take-comp-composition.ts';
+import { createTakeCycleAppComposition } from './controller/take-cycle-app-composition.ts';
+import { createTakeCycleRecordingAppSession } from './controller/take-cycle-recording-app-session.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
@@ -1647,6 +1649,18 @@ export function createAudioEditorController(_root = null, options = {}) {
 			store.deleteAnalysis?.(peakCacheKey(sourceId)),
 		),
 	});
+	const takeCycleRecording = createTakeCycleAppComposition({
+		lifetime, store, session: sessionController, projectGeneration, state, recording: recordingCaptureRuntime, getProject: () => project,
+		setProject: (value) => { project = value; }, activeSelection, findAudioSource: (value, mediaId) => findSource(value, mediaId), trackName: (value, trackId) => findTrack(value, trackId)?.name || copy.recordingLabel,
+		getRoutes: () => state.recordingRouting.routes, soundActivationEnabled: () => soundActivationPolicyService.getSnapshot().preferences.enabled, recordingRouteSourceKey, createId: createStableId,
+		createRecordingName: (name) => `${name} ${new Date().toLocaleTimeString(locale)}`, preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs,
+		activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }), publishProject: () => { projectRetentionService.retainLiveClipIds(); publishProjectState(); },
+		synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); }, now: () => new Date(currentTimeMs()),
+	});
+	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({
+		cycle: takeCycleRecording, recordingMessage: copy.recording,
+		setTransportState: updateTransportState, setStatus,
+	});
 	let timedRecordingService;
 	const recordingSessionService = createRecordingSessionService({
 		state,
@@ -1669,6 +1683,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 				? legacyRecordingCapture.capture(recordingOptions, scope)
 				: routedRecordingCapture.capture(recordingOptions, scope);
 		},
+		beginTakeCycleRecording: takeCycleRecordingSession.begin,
 		performLegacyFinalization: legacyRecordingFinalization.finalize,
 		performRoutedFinalization: routedRecordingFinalization.finalize,
 		releaseUnretainedRecordingInputs,
@@ -2003,63 +2018,48 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function updatePreferences(patch) {
 		return preferencesService.update(patch);
 	}
-
 	function revertFactorySettings() {
 		return preferencesService.revertFactorySettings();
 	}
-
 	function setWorkspacePreference(workspaceId) {
 		return preferencesService.setWorkspace(workspaceId);
 	}
-
 	function toggleToolbarPreference(toolbarId) {
 		return preferencesService.toggleToolbar(toolbarId);
 	}
-
 	function moveToolbarPreference(toolbarId, requestedIndex) {
 		return preferencesService.moveToolbar(toolbarId, requestedIndex);
 	}
-
 	function setToolbarButtonPreference(buttonId, visible) {
 		return preferencesService.setToolbarButton(buttonId, visible);
 	}
-
 	function togglePanelPreference(panelId) {
 		return preferencesService.togglePanel(panelId);
 	}
-
 	function setPanelPreference(panelId, changes = {}) {
 		return preferencesService.setPanel(panelId, changes);
 	}
-
 	function movePanelPreference(panelId, dock, requestedIndex) {
 		return preferencesService.movePanel(panelId, dock, requestedIndex);
 	}
-
 	function setShortcutPreference(actionId, bindings) {
 		return preferencesService.setShortcut(actionId, bindings);
 	}
-
 	function createWorkspacePreference(name, workspaceId = createStableId('workspace')) {
 		return preferencesService.createWorkspace(name, workspaceId);
 	}
-
 	function updateWorkspacePreference(workspaceId, changes = {}) {
 		return preferencesService.updateWorkspace(workspaceId, changes);
 	}
-
 	function deleteWorkspacePreference(workspaceId) {
 		return preferencesService.deleteWorkspace(workspaceId);
 	}
-
 	function sessionTab(projectId) {
 		return projectSessionService.sessionTab(projectId);
 	}
-
 	function persistActiveSessionUiState() {
 		return projectSessionService.persistActiveSessionUiState();
 	}
-
 	async function bootstrap(token) {
 		return projectBootstrapService.bootstrap(token);
 	}

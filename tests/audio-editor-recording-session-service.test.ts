@@ -25,11 +25,44 @@ test('recording service exposes only controller action entry points', () => {
 		'finalizeRecording',
 		'startRecording',
 		'startRecordingOnNewTrack',
+		'startTakeCycleRecording',
 		'stopRecording',
 		'toggleLeadInRecording',
 		'toggleRecordingPause',
 	]);
 	assert.equal(Object.isFrozen(service), true);
+});
+
+test('take cycle recording owns a distinct kind and stop finalizes only through its adapter', async () => {
+	const state = createState();
+	let cycleStops = 0;
+	let legacyFinalizations = 0;
+	let routedFinalizations = 0;
+	const cycleRecorder: RecordingControllerLike = {
+		state: 'recording',
+		async stop() { cycleStops += 1; },
+	};
+	const service = createRecordingSessionService({
+		state,
+		getProjectId: () => 'project-1',
+		beginRecording: async () => {},
+		beginTakeCycleRecording: async () => cycleRecorder,
+		performLegacyFinalization: async () => { legacyFinalizations += 1; },
+		performRoutedFinalization: async () => { routedFinalizations += 1; },
+	});
+
+	await service.startTakeCycleRecording();
+	assert.equal(state.recordingKind, 'take-cycle');
+	assert.strictEqual(state.recorder, cycleRecorder);
+	assert.equal(service.toggleRecordingPause(), false);
+	const first = service.stopRecording();
+	const second = service.stopRecording();
+	await Promise.all([first, second]);
+	assert.equal(cycleStops, 1);
+	assert.equal(legacyFinalizations, 0);
+	assert.equal(routedFinalizations, 0);
+	assert.equal(state.recordingKind, null);
+	assert.equal(state.recorder, null);
 });
 
 test('routed recording controller coordinates live sources and isolates device controls', async () => {
@@ -509,6 +542,7 @@ function createState(
 		disposed: false,
 		projectBinPreview: null,
 		recorder: null,
+		recordingKind: null,
 		recordingStarting: false,
 		recordingStartGeneration: 0,
 		recordingStartPromise: null,

@@ -66,6 +66,7 @@ export interface RecordingSessionMutableState {
 	disposed: boolean;
 	projectBinPreview: unknown | null;
 	recorder: RecordingControllerLike | null;
+	recordingKind: 'ordinary' | 'take-cycle' | null;
 	recordingStarting: boolean;
 	recordingStartGeneration: number;
 	recordingStartPromise: Promise<void> | null;
@@ -98,6 +99,7 @@ export interface RecordingSessionMutableState {
 
 export interface RecordingFinalizationSnapshot {
 	readonly recorder: RecordingControllerLike;
+	readonly kind: 'ordinary' | 'take-cycle';
 	readonly entries: readonly unknown[] | null;
 	readonly writer: unknown | null;
 	readonly sourceId: string | null;
@@ -119,6 +121,9 @@ export interface RecordingSessionServiceRuntime {
 		options: RecordingStartOptions,
 		scope: RecordingStartScope,
 	) => MaybePromise<void>;
+	readonly beginTakeCycleRecording?: (
+		scope: RecordingStartScope,
+	) => MaybePromise<RecordingControllerLike>;
 	readonly performLegacyFinalization: (
 		snapshot: RecordingFinalizationSnapshot,
 	) => MaybePromise<void>;
@@ -314,10 +319,36 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		}
 		if (state.projectBinPreview) void runtime.stopProjectBinPreview?.();
 		const scope = createStartScope();
+		state.recordingKind = 'ordinary';
 		const operation = invokeAsPromise(() => runtime.beginRecording(options, scope));
 		const tracked = operation.finally(() => {
 			if (state.recordingStartPromise === tracked) {
 				state.recordingStartPromise = null;
+				if (!state.recorder) state.recordingKind = null;
+				publishDocumentSnapshot();
+			}
+		});
+		state.recordingStartPromise = tracked;
+		return tracked;
+	}
+
+	function startTakeCycleRecording(): Promise<void> | undefined {
+		if (!runtime.beginTakeCycleRecording || startBlocked()
+			|| state.timedRecordingPreparing || state.timedRecording) return undefined;
+		if (state.projectBinPreview) void runtime.stopProjectBinPreview?.();
+		const scope = createStartScope();
+		state.recordingStarting = true;
+		state.recordingKind = 'take-cycle';
+		const operation = invokeAsPromise(async () => {
+			const recorder = await runtime.beginTakeCycleRecording!(scope);
+			scope.assertCurrent();
+			state.recorder = recorder;
+		});
+		const tracked = operation.finally(() => {
+			if (state.recordingStartPromise === tracked) {
+				state.recordingStartPromise = null;
+				state.recordingStarting = false;
+				if (!state.recorder) state.recordingKind = null;
 				publishDocumentSnapshot();
 			}
 		});
@@ -346,6 +377,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 
 	function toggleRecordingPause(): boolean {
 		if (!state.recorder) return false;
+		if (state.recordingKind === 'take-cycle') return false;
 		if (state.recordingPaused) {
 			const resumed = state.recorder.resume?.();
 			if (resumed !== false) {
@@ -379,6 +411,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		if (!state.recorder) return null;
 		return Object.freeze({
 			recorder: state.recorder,
+			kind: state.recordingKind ?? 'ordinary',
 			entries: state.recordingEntries,
 			writer: state.recordingWriter,
 			sourceId: state.recordingSourceId,
@@ -402,6 +435,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		}
 		state.recordingCleanup = null;
 		state.recorder = null;
+		state.recordingKind = null;
 		state.recordingEntries = null;
 		state.recordingWriter = null;
 		state.recordingStream = null;
@@ -438,7 +472,8 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		state.recordingFinishing = true;
 		publishDocumentSnapshot();
 		try {
-			if (snapshot.entries) {
+			if (snapshot.kind === 'take-cycle') await snapshot.recorder.stop();
+			else if (snapshot.entries) {
 				await runtime.performRoutedFinalization({ ...snapshot, entries: snapshot.entries });
 			} else await runtime.performLegacyFinalization(snapshot);
 		} catch (error) {
@@ -467,6 +502,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		}
 		if (state.recordingFinalizePromise) return state.recordingFinalizePromise;
 		if (!state.recorder) return undefined;
+		if (state.recordingKind === 'take-cycle') return finalizeRecording();
 		let stopError: unknown = null;
 		try {
 			await state.recorder.stop();
@@ -483,6 +519,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		finalizeRecording,
 		startRecording,
 		startRecordingOnNewTrack,
+		startTakeCycleRecording,
 		stopRecording,
 		toggleLeadInRecording,
 		toggleRecordingPause,
