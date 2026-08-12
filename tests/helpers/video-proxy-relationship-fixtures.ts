@@ -8,8 +8,10 @@ import {
 	createVideoProxyRelationshipAuthority,
 	type VideoProxyRelationshipAuthorityDependencies,
 } from '../../src/common/editor/video-proxy-relationship.ts';
-import { createAudioEditorProjectV16 } from '../../src/common/editor/project-v16.ts';
+import { createAudioEditorProjectV17 } from '../../src/common/editor/project-v17.ts';
 import {
+	createAudioSourceV10,
+	createAudioTrackV10,
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../../src/common/editor/project-v10.ts';
@@ -390,24 +392,42 @@ export function videoProxyProject(options: Readonly<{
 }> = {}): Record<string, unknown> {
 	const originalSource = videoSource(ORIGINAL_SOURCE_ID, ORIGINAL_SHA256);
 	const otherSource = videoSource('other-source', OTHER_SHA256);
+	const takeSource = createAudioSourceV10({
+		id: 'take-source', name: 'Canonical take', storageKey: 'take-source-storage',
+		frameCount: 480, channelCount: 1, sampleRate: 48_000,
+	});
 	const timeline = videoClip('timeline-original', ORIGINAL_SOURCE_ID, options.timelineRetime ?? null);
 	const bin = videoClip('bin-original', ORIGINAL_SOURCE_ID, options.binRetime ?? null, true);
 	const unrelated = videoClip('bin-unrelated', 'other-source', retimeCurve(), true);
-	return createAudioEditorProjectV16({
+	return createAudioEditorProjectV17({
 		id: PROJECT_ID,
 		title: 'Proxy relationship fixture',
 		now: NOW,
 		sampleRate: 48_000,
-		sources: [originalSource, otherSource],
+		sources: [originalSource, otherSource, takeSource],
 		clips: [timeline],
-		tracks: [createVideoTrackV10({
-			id: 'video-track', name: 'Video', clipIds: ['timeline-original'], locked: false,
-		})],
-		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track'] }],
+		tracks: [
+			createVideoTrackV10({
+				id: 'video-track', name: 'Video', clipIds: ['timeline-original'], locked: false,
+			}),
+			createAudioTrackV10({ id: 'take-track', name: 'Take track', clipIds: [] }),
+		],
+		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track', 'take-track'] }],
 		primarySequenceId: 'main',
 		projectBin: {
 			clips: options.includeUnrelatedRetime === false ? [bin] : [bin, unrelated],
 		},
+		takeGroups: [{
+			id: 'take-group', sequenceId: 'main', trackId: 'take-track',
+			startSample: 0, endSample: 240,
+			laneOrder: ['take-lane'],
+			lanes: [{ id: 'take-lane' }],
+			takes: [{
+				id: 'take', laneId: 'take-lane', sourceId: 'take-source',
+				startSample: 0, endSample: 240, sourceStartSample: 0,
+			}],
+			compRegions: [{ id: 'take-region', takeId: 'take', startSample: 0, endSample: 240 }],
+		}],
 	}) as unknown as Record<string, unknown>;
 }
 
