@@ -1658,7 +1658,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs, activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }),
 		publishProject: () => { projectRetentionService.retainLiveClipIds(); publishProjectState(); }, synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); }, now: () => new Date(currentTimeMs()) });
 	takeCycleOpenRecoveryBinding.bind(createTakeCycleOpenRecoveryCoordinator({ state, inspect: takeCycleRecording.inspectOpenRecovery, recover: takeCycleRecording.recoverOnOpen, getCurrentProjectId: () => project?.id ?? null, isDisposed: () => state.disposed, isCurrentProjectWritable: () => Boolean(project && state.projectLock && !state.readOnly && !state.projectLock.readOnly), publish: publishDocumentSnapshot }));
-	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({ cycle: takeCycleRecording, recordingMessage: copy.recording, setTransportState: updateTransportState, setStatus });
+	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({ cycle: takeCycleRecording, prepareCurrentProject: flushProject, recordingMessage: copy.recording, setTransportState: updateTransportState, setStatus });
 	let timedRecordingService;
 	const recordingSessionService = createRecordingSessionService({
 		state,

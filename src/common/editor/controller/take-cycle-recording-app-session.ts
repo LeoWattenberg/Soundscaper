@@ -6,6 +6,7 @@ import type { RecordingControllerLike, RecordingStartScope } from './recording-s
 export interface TakeCycleRecordingAppSessionDependencies {
 	readonly cycle: Pick<TakeCycleProductionComposition, 'start'>;
 	readonly recordingMessage: string;
+	prepareCurrentProject(): PromiseLike<unknown> | unknown;
 	setTransportState(state: 'recording'): void;
 	setStatus(message: string): void;
 }
@@ -18,6 +19,9 @@ export function createTakeCycleRecordingAppSession(
 }> {
 	return Object.freeze({
 		async begin(scope: RecordingStartScope) {
+			scope.assertCurrent();
+			await dependencies.prepareCurrentProject();
+			scope.assertCurrent();
 			const recorder = await dependencies.cycle.start(scope);
 			dependencies.setTransportState('recording');
 			dependencies.setStatus(dependencies.recordingMessage);

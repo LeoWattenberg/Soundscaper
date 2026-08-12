@@ -45,9 +45,10 @@ interface MutationLifetime<LifetimeToken> {
 	assertActive(token?: LifetimeToken): void;
 }
 
-interface ProjectRetentionPort {
+interface ProjectRetentionPort<History> {
 	compactLiveSourceState(dirty?: boolean | null): unknown;
 	retainLiveClipIds(): void;
+	synchronizeLiveHistory(history: History): History;
 }
 
 interface ProjectPublisherPort {
@@ -87,7 +88,7 @@ export interface ProjectMutationServiceDependencies<
 	readonly setHistory: (history: History) => void;
 	readonly executeEditorCommand: (history: History, command: AudioEditorCommand) => History;
 	readonly applyEditorCommand: (project: Project, command: AudioEditorCommand) => Project;
-	readonly retention: ProjectRetentionPort;
+	readonly retention: ProjectRetentionPort<History>;
 	readonly publisher: ProjectPublisherPort;
 	readonly saves: ProjectSavePort;
 	readonly stopProjectBinPreview: () => unknown;
@@ -168,13 +169,13 @@ export function createProjectMutationService<
 		assertEditorCommandCapabilities(command, dependencies.capabilities, dependencies.productName);
 		const history = requireHistory();
 		const nextProject = dependencies.applyEditorCommand(history.present, command);
-		const nextHistory = { ...history, present: nextProject };
+		const nextHistory = dependencies.retention.synchronizeLiveHistory({ ...history, present: nextProject });
 		dependencies.setHistory(nextHistory);
 		dependencies.state.history = nextHistory;
-		dependencies.setProject(nextProject);
+		dependencies.setProject(nextHistory.present);
 		dependencies.synchronizeAnnotationFocus();
 		dependencies.publisher.publishProjectState();
-		return nextProject;
+		return nextHistory.present;
 	}
 
 	function projectChanged(options: ProjectChangedOptions = {}): void {

@@ -63,6 +63,7 @@ test('selection updates replace only history.present and do not autosave or comp
 	const initial = projectFixture(1);
 	const selected = projectFixture(2);
 	let history: TestHistory = { present: initial, undo: ['existing'] };
+	let synchronized = 0;
 	let published = 0;
 	let autosaves = 0;
 	let compacted = 0;
@@ -76,16 +77,22 @@ test('selection updates replace only history.present and do not autosave or comp
 			assert.equal(command.type, 'selection/set');
 			return selected;
 		},
+		synchronizeHistory: (value) => {
+			synchronized += 1;
+			return { ...value, present: { ...value.present, revision: 3 } };
+		},
 		publish: () => { published += 1; },
 		autosave: () => { autosaves += 1; return true; },
 		compact: () => { compacted += 1; },
 		synchronizeAnnotationFocus: () => { annotationSynchronizations += 1; },
 	});
 
-	assert.equal(fixture.service.updateSelection({
+	const result = fixture.service.updateSelection({
 		type: 'selection/set', startFrame: 10, endFrame: 20,
-	}), selected);
-	assert.deepEqual(history, { present: selected, undo: ['existing'] });
+	});
+	assert.equal(result.revision, 3);
+	assert.deepEqual(history, { present: { ...selected, revision: 3 }, undo: ['existing'] });
+	assert.equal(synchronized, 1);
 	assert.equal(published, 1);
 	assert.equal(autosaves, 0);
 	assert.equal(compacted, 0);
@@ -230,6 +237,7 @@ interface FixtureOverrides {
 	readonly setHistory?: (history: TestHistory) => void;
 	readonly executeHistory?: (history: TestHistory, command: AudioEditorCommand) => TestHistory;
 	readonly applyCommand?: (project: TestProject, command: AudioEditorCommand) => TestProject;
+	readonly synchronizeHistory?: (history: TestHistory) => TestHistory;
 	readonly compact?: () => void;
 	readonly retainClips?: () => void;
 	readonly publish?: () => void;
@@ -285,6 +293,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		retention: {
 			compactLiveSourceState: overrides.compact || (() => undefined),
 			retainLiveClipIds: overrides.retainClips || (() => undefined),
+			synchronizeLiveHistory: overrides.synchronizeHistory || ((value) => value),
 		},
 		publisher: { publishProjectState: overrides.publish || (() => undefined) },
 		saves: {
