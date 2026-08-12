@@ -180,7 +180,11 @@ export default function createApplicationMenus({
 				{ id: 'file-close', label: copy.closeProject, shortcut: 'Ctrl+W', disabled: blocked, onClick: actions.closeProject },
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: editBlocked, onClick: actions.saveProject },
-				{ id: 'save-scape', label: copy.saveScape, shortcut: 'Ctrl+Shift+S', disabled: blocked, onClick: actions.saveScape },
+				{
+					id: 'save-scape', label: copy.saveScape, shortcut: 'Ctrl+Shift+S',
+					resolve: () => ({ disabled: blocked && !snapshot.readOnly }),
+					onClick: actions.saveScape,
+				},
 				{ id: 'switch-product', label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper, disabled: handoffBlocked, onClick: actions.switchProduct },
 				divider(),
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
+import { materializeApplicationMenu } from '../src/common/editor/ui/application-menu-materialization.ts';
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from '../src/common/i18n/sequence-timing-copy.js';
@@ -50,6 +51,31 @@ test('no selection and blocked editing retain one disabled Tracks-menu item', ()
 	assert.equal(blocked.label, 'Unlock track');
 	assert.equal(blocked.disabled, true);
 	blocked.onClick?.();
+});
+
+test('read-only projects retain Scape copy export while busy projects block it', () => {
+	const readOnlyMenus = createApplicationMenus({
+		...menuInput({
+			productId: 'framescaper', type: 'video', locked: false, editBlocked: true,
+			actions: actionPorts({}),
+		}),
+		blocked: true,
+		snapshot: {
+			...menuInput({
+				productId: 'framescaper', type: 'video', locked: false, editBlocked: true,
+				actions: actionPorts({}),
+			}).snapshot,
+			readOnly: true,
+		},
+	});
+	assert.equal(scapeSaveItem(readOnlyMenus).disabled, false);
+	assert.equal(scapeSaveItem(createApplicationMenus({
+		...menuInput({
+			productId: 'soundscaper', type: 'audio', locked: false, editBlocked: true,
+			actions: actionPorts({}),
+		}),
+		blocked: true,
+	})).disabled, true);
 });
 
 test('workspace runtime dispatches the existing exact track.update command port', () => {
@@ -157,6 +183,16 @@ function trackLockItem(value: unknown): MenuItem {
 	const item = tracks?.items?.find(({ id }) => id === 'track-lock-toggle');
 	assert.ok(item);
 	return item;
+}
+
+function scapeSaveItem(value: unknown): MenuItem {
+	const menus = value as readonly MenuItem[];
+	const file = menus.find(({ id }) => id === 'file');
+	assert.ok(file);
+	const materialized = materializeApplicationMenu(file);
+	const item = materialized.items?.find(({ id }) => id === 'save-scape');
+	assert.ok(item);
+	return item as MenuItem;
 }
 
 function menuInput({
