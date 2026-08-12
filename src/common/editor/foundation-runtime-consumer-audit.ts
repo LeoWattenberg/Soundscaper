@@ -206,6 +206,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The slip/slide pointer adapter requires an already-branded request-start projection plus verified source timing while capturing immutable gesture authority; it does not create or consume a runtime playback projection.',
 	},
 	{
+		file: 'src/common/editor/controller/track-structural-operation-planner.ts',
+		reason: 'The structural edit planner resolves clip placement while deriving one atomic alignment or sort command; it does not create or consume a runtime playback projection.',
+	},
+	{
 		file: 'src/common/editor/project-feature-requirements.ts',
 		reason: 'Owned feature-declaration reconciliation resolves a fallback target duration while validating persisted requirements.',
 	},

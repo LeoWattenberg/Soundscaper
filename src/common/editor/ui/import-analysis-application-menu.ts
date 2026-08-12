@@ -11,10 +11,10 @@ interface MenuContext {
 	readonly blocked: boolean;
 	readonly analyzerBlocked: boolean;
 	readonly actionRuntime: Readonly<{
-		readonly generators: Readonly<{ repeatLast(): unknown }>;
-		readonly analysis: Readonly<{ repeatLast(): unknown }>;
-		readonly io: Readonly<{ importRawData(): unknown }>;
-		readonly timelineAnnotations: Readonly<{ openRegularInterval(): unknown }>;
+		readonly generators?: Readonly<{ repeatLast?(): unknown }>;
+		readonly analysis?: Readonly<{ repeatLast?(): unknown }>;
+		readonly io?: Readonly<{ importRawData?(): unknown }>;
+		readonly timelineAnnotations?: Readonly<{ openRegularInterval?(): unknown }>;
 	}> | null;
 }
 
@@ -24,7 +24,7 @@ export function createRepeatGeneratorMenuItem(context: MenuContext) {
 	return {
 		id: 'repeat-generator', label: context.copy.repeatLastGenerator,
 		disabled: context.editBlocked || !context.snapshot?.generators?.canRepeatLast,
-		onClick: context.actionRuntime?.generators.repeatLast ?? NO_ACTION,
+		onClick: context.actionRuntime?.generators?.repeatLast ?? NO_ACTION,
 	};
 }
 
@@ -32,7 +32,7 @@ export function createRepeatAnalyzerMenuItem(context: MenuContext) {
 	return {
 		id: 'repeat-analyzer', label: context.copy.repeatLastAnalyzer,
 		disabled: context.analyzerBlocked || !context.snapshot?.analysisRepeatable,
-		onClick: context.actionRuntime?.analysis.repeatLast ?? NO_ACTION,
+		onClick: context.actionRuntime?.analysis?.repeatLast ?? NO_ACTION,
 	};
 }
 
@@ -41,11 +41,11 @@ export function createImportAnalysisToolMenuItems(context: MenuContext) {
 	return [
 		{
 			id: 'raw-data-import', label: context.copy.audacityParityLabelImportRawData,
-			disabled: context.blocked, onClick: context.actionRuntime?.io.importRawData ?? NO_ACTION,
+			disabled: context.blocked, onClick: context.actionRuntime?.io?.importRawData ?? NO_ACTION,
 		},
 		{
 			id: 'regular-interval-labels', label: context.copy.regularIntervalLabels,
-			disabled: context.editBlocked, onClick: context.actionRuntime?.timelineAnnotations.openRegularInterval ?? NO_ACTION,
+			disabled: context.editBlocked, onClick: context.actionRuntime?.timelineAnnotations?.openRegularInterval ?? NO_ACTION,
 		},
 	];
 }
