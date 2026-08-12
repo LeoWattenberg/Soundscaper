@@ -409,9 +409,15 @@ Packet boundaries, dependencies, and acceptance are owned by
 - **Shared / Web Enhanced — Planned:** transient analysis, warp markers,
   beat-aware stretch, audio quantization, and groove strength over the shared
   breakpoint model with an exact offline fallback.
-- **Web Core — Planned:** complete punch/count-in and approved Audacity gaps,
-  including sound-activated recording, clip-boundary navigation, alignment,
-  sorting, spectral selection/brush, and repeat-generator/analyzer workflows.
+- **Web Core — Implemented:** tempo-map-aware compound-meter count-in and exact
+  one-transaction punch run through both default and routed capture, alongside
+  sound-activated recording. Every approved milestone-3 Audacity action is
+  menu-reached with concrete enablement and localization: clip and selection
+  navigation, spectral selection and brush, boundary skips, structural
+  alignment and sorting, bounded raw import, bulk selection and mute actions,
+  repeat generator/analyzer, and regular-interval annotations. The audited
+  milestone-3 manifest count is zero planned actions; Node and browser evidence
+  covers recording, undo, menu reachability, and keyboard navigation.
 
 ### Framescaper track (3B, parallel after 3.0)
 
