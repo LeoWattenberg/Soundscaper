@@ -57,6 +57,9 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'take-comp/group-update',
 	'take-comp/group-remove',
 	'take-comp/flatten',
+	'audio-warp/set',
+	'audio-warp/clear',
+	'audio-warp/quantize',
 	'label/add',
 	'label/update',
 	'label/remove',
@@ -405,6 +408,21 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly preFlattenSnapshot: CommandObject;
 		readonly source: CommandObject;
 		readonly clip: CommandObject;
+	};
+	readonly 'audio-warp/set': {
+		readonly clipId: string;
+		readonly expectedClipAuthority: CommandObject;
+		readonly warpMap: CommandObject;
+	};
+	readonly 'audio-warp/clear': {
+		readonly clipId: string;
+		readonly expectedClipAuthority: CommandObject;
+	};
+	readonly 'audio-warp/quantize': {
+		readonly clipId: string;
+		readonly expectedClipAuthority: CommandObject;
+		readonly transientSources: readonly ExactRationalCommandValue[];
+		readonly options: CommandObject;
 	};
 	readonly 'label/add': { readonly trackId: string; readonly label: CommandObject };
 	readonly 'label/update': { readonly trackId: string; readonly labelId: string; readonly changes: CommandObject };

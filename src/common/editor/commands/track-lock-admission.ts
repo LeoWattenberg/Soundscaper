@@ -136,6 +136,11 @@ export function createTrackLockAdmission(
 			case 'take-comp/flatten':
 				lockedId = firstLockedTakeCompTrack(project, command, baselines);
 				break;
+			case 'audio-warp/set':
+			case 'audio-warp/clear':
+			case 'audio-warp/quantize':
+				lockedId = firstLockedClipOwner(project, command.clipId, baselines);
+				break;
 			default:
 				break;
 		}
@@ -405,6 +410,19 @@ function firstLockedTakeCompTrack(
 		if (current) affected.push(stableId(dataValue(current, 'trackId'), 'take comp track ID'));
 	}
 	return affected.find((trackId) => baselines.has(trackId)) ?? null;
+}
+
+function firstLockedClipOwner(
+	project: DataRecord,
+	clipId: string,
+	baselines: ReadonlyMap<string, TrackLockBaseline>,
+): string | null {
+	for (const track of records(project.tracks, 'project.tracks')) {
+		const clipIds = stringArray(track.clipIds, `track ${String(track.id)}.clipIds`);
+		const trackId = stableId(track.id, 'track ID');
+		if (clipIds.includes(clipId) && baselines.has(trackId)) return trackId;
+	}
+	return null;
 }
 
 function runtimeSnapshot(project: DataRecord): DataRecord {

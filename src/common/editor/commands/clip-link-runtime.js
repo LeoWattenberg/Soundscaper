@@ -20,6 +20,7 @@ import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
+import { splitAudioWarpClipAtTimelineFrame } from '../audio-warp-clip-edit.ts';
 
 // foundation-edit-matrix: split
 
@@ -92,8 +93,11 @@ export function prepareLinkedSplitCommand(project, clipId, atFrame, idFactory = 
 
 function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = null, rightVideoEffectIds = undefined) {
 	const track = requireClipTrack(project, clip.id);
-	const left = segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id);
-	const right = segmentOfClip(
+	const warpSplit = clip.kind === 'audio' && clip.warpMap != null
+		? splitAudioWarpClipAtTimelineFrame(project, clip, atFrame)
+		: null;
+	let left = segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id);
+	let right = segmentOfClip(
 		clip,
 		atFrame,
 		clipEndFrame(clip),
@@ -101,6 +105,10 @@ function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = nu
 		rightClipId,
 		rightVideoEffectIds,
 	);
+	if (warpSplit) {
+		left = { ...left, ...warpSplit.left };
+		right = { ...right, ...warpSplit.right };
+	}
 	if (rightAvLinkId) right.avLinkId = rightAvLinkId;
 	replaceClip(project, left);
 	project.clips.push(right);

@@ -142,6 +142,14 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 /** Non-shield importers discovered beside the owned consumer and boundary files. */
 export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly FoundationRuntimeProjectionImporterExclusion[] = deepFreeze([
 	{
+		file: 'src/common/editor/audio-warp-clip-authority.ts',
+		reason: 'Warp authoring snapshots resolved clip geometry into immutable stale-edit authority; it is a persisted edit adapter rather than a runtime media consumer.',
+	},
+	{
+		file: 'src/common/editor/audio-warp-clip-edit.ts',
+		reason: 'Warp trim and split authoring resolve persisted clip boundaries before deriving exact child maps; they do not create a playback projection.',
+	},
+	{
 		file: 'src/common/editor/app.js',
 		reason: 'Command acquisition projects the editable draft before mutation; command reconciliation restores persisted authority.',
 	},

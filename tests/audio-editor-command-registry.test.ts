@@ -4,6 +4,7 @@ import test from 'node:test';
 import * as commandFacade from '../src/common/editor/commands.js';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import {
+	AUDIO_WARP_COMMAND_TYPES,
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 	EFFECTS_VIDEO_COMMAND_TYPES,
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
@@ -35,11 +36,12 @@ test('command domains partition the authoritative protocol exactly once', () => 
 		...TRACK_MIXER_LABEL_COMMAND_TYPES,
 		...TRACK_FOLDER_COMMAND_TYPES,
 		...TAKE_COMP_COMMAND_TYPES,
+		...AUDIO_WARP_COMMAND_TYPES,
 		...CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 		...EFFECTS_VIDEO_COMMAND_TYPES,
 		...TIMELINE_ANNOTATION_COMMAND_TYPES,
 	];
-	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 87);
+	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 90);
 	assert.equal(new Set(domainTypes).size, domainTypes.length, 'a command type belongs to only one domain');
 	assert.deepEqual([...domainTypes].sort(), [...AUDIO_EDITOR_COMMAND_TYPES].sort());
 });
@@ -187,6 +189,7 @@ function domainHandlers(handlers: Record<string, unknown>): EditorCommandHandler
 		trackMixerLabel: pick(handlers, TRACK_MIXER_LABEL_COMMAND_TYPES),
 		trackFolder: pick(handlers, TRACK_FOLDER_COMMAND_TYPES),
 		takeComp: pick(handlers, TAKE_COMP_COMMAND_TYPES),
+		audioWarp: pick(handlers, AUDIO_WARP_COMMAND_TYPES),
 		clipRangeClipboard: pick(handlers, CLIP_RANGE_CLIPBOARD_COMMAND_TYPES),
 		effectsVideo: pick(handlers, EFFECTS_VIDEO_COMMAND_TYPES),
 		timelineAnnotation: pick(handlers, TIMELINE_ANNOTATION_COMMAND_TYPES),

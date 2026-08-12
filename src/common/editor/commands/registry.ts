@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	AUDIO_WARP_COMMAND_TYPES,
+	defineAudioWarpCommandHandlers,
+	type AudioWarpCommandHandlers,
+	type AudioWarpCommandType,
+} from './audio-warp.ts';
+import {
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 	defineClipRangeClipboardCommandHandlers,
 	type ClipRangeClipboardCommandHandlers,
@@ -65,7 +71,9 @@ import {
 } from './timeline-annotation.ts';
 
 export {
+	AUDIO_WARP_COMMAND_TYPES,
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
+	defineAudioWarpCommandHandlers,
 	defineClipRangeClipboardCommandHandlers,
 	defineEffectsVideoCommandHandlers,
 	defineProjectSourceBinCommandHandlers,
@@ -92,6 +100,7 @@ export interface EditorCommandHandlerDomains {
 	readonly trackMixerLabel: TrackMixerLabelCommandHandlers;
 	readonly trackFolder: TrackFolderCommandHandlers;
 	readonly takeComp: TakeCompCommandHandlers;
+	readonly audioWarp: AudioWarpCommandHandlers;
 	readonly clipRangeClipboard: ClipRangeClipboardCommandHandlers;
 	readonly effectsVideo: EffectsVideoCommandHandlers;
 	readonly timelineAnnotation: TimelineAnnotationCommandHandlers;
@@ -104,6 +113,7 @@ type RegisteredDomainCommandType =
 	| TrackMixerLabelCommandType
 	| TrackFolderCommandType
 	| TakeCompCommandType
+	| AudioWarpCommandType
 	| ClipRangeClipboardCommandType
 	| EffectsVideoCommandType
 	| TimelineAnnotationCommandType;
@@ -130,6 +140,7 @@ export function defineEditorCommandHandlerRegistry(
 		defineTrackMixerLabelCommandHandlers(domains.trackMixerLabel),
 		defineTrackFolderCommandHandlers(domains.trackFolder),
 		defineTakeCompCommandHandlers(domains.takeComp),
+		defineAudioWarpCommandHandlers(domains.audioWarp),
 		defineClipRangeClipboardCommandHandlers(domains.clipRangeClipboard),
 		defineEffectsVideoCommandHandlers(domains.effectsVideo),
 		defineTimelineAnnotationCommandHandlers(domains.timelineAnnotation),

@@ -57,9 +57,15 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
-		id: 'audio-warp-runtime-projection',
+		id: 'audio-warp-clip-editing',
+		file: 'src/common/editor/audio-warp-clip-edit.ts',
+		behavior: 'Musical warp trims and splits exactly invert their resolved sample boundary to one clip-local beat coordinate before slicing the persisted map.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
+		id: 'audio-warp-runtime-mapping',
 		file: 'src/common/editor/audio-warp-runtime.ts',
-		behavior: 'Warp playback, waveform, and render consumers preserve exact beat authority and round only shared timeline boundaries with the named nearest-point policy.',
+		behavior: 'Runtime warp mapping exactly inverts musical samples, point-resolves beat and warp boundaries once, and retains rational source positions between boundaries.',
 		conversions: [
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
 			{ helper: 'roundRational', policies: ['point'] },
