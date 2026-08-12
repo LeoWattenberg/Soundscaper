@@ -130,6 +130,12 @@ export function createTrackLockAdmission(
 			case 'track-folder/remove':
 				lockedId = firstLockedNodeDescendant(project, command.folderId, baselines);
 				break;
+			case 'take-comp/group-add':
+			case 'take-comp/group-update':
+			case 'take-comp/group-remove':
+			case 'take-comp/flatten':
+				lockedId = firstLockedTakeCompTrack(project, command, baselines);
+				break;
 			default:
 				break;
 		}
@@ -378,6 +384,27 @@ function firstLockedNodeDescendant(
 		}
 	}
 	return null;
+}
+
+function firstLockedTakeCompTrack(
+	project: DataRecord,
+	command: Extract<AudioEditorCommand, { readonly type: `take-comp/${string}` }>,
+	baselines: ReadonlyMap<string, TrackLockBaseline>,
+): string | null {
+	const affected: string[] = [];
+	if (command.type === 'take-comp/group-add' || command.type === 'take-comp/group-update') {
+		const group = record(command.group, 'take comp command group');
+		affected.push(stableId(dataValue(group, 'trackId'), 'take comp track ID'));
+	}
+	if (command.type !== 'take-comp/group-add') {
+		const groupId = stableId(command.groupId, 'take group ID');
+		const takeGroups = Array.isArray(project.takeGroups)
+			? records(project.takeGroups, 'project.takeGroups')
+			: [];
+		const current = takeGroups.find((group) => group.id === groupId);
+		if (current) affected.push(stableId(dataValue(current, 'trackId'), 'take comp track ID'));
+	}
+	return affected.find((trackId) => baselines.has(trackId)) ?? null;
 }
 
 function runtimeSnapshot(project: DataRecord): DataRecord {

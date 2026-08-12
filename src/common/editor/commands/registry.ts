@@ -52,6 +52,12 @@ import {
 	type TempoSignatureCommandType,
 } from './tempo-signature.ts';
 import {
+	defineTakeCompCommandHandlers,
+	TAKE_COMP_COMMAND_TYPES,
+	type TakeCompCommandHandlers,
+	type TakeCompCommandType,
+} from './take-comp.ts';
+import {
 	defineTimelineAnnotationCommandHandlers,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	type TimelineAnnotationCommandHandlers,
@@ -65,6 +71,7 @@ export {
 	defineProjectSourceBinCommandHandlers,
 	defineSequenceTimingCommandHandlers,
 	defineTempoSignatureCommandHandlers,
+	defineTakeCompCommandHandlers,
 	defineTimelineAnnotationCommandHandlers,
 	defineTrackFolderCommandHandlers,
 	defineTrackMixerLabelCommandHandlers,
@@ -72,6 +79,7 @@ export {
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
 	SEQUENCE_TIMING_COMMAND_TYPES,
 	TEMPO_SIGNATURE_COMMAND_TYPES,
+	TAKE_COMP_COMMAND_TYPES,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	TRACK_FOLDER_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
@@ -83,6 +91,7 @@ export interface EditorCommandHandlerDomains {
 	readonly sequenceTiming: SequenceTimingCommandHandlers;
 	readonly trackMixerLabel: TrackMixerLabelCommandHandlers;
 	readonly trackFolder: TrackFolderCommandHandlers;
+	readonly takeComp: TakeCompCommandHandlers;
 	readonly clipRangeClipboard: ClipRangeClipboardCommandHandlers;
 	readonly effectsVideo: EffectsVideoCommandHandlers;
 	readonly timelineAnnotation: TimelineAnnotationCommandHandlers;
@@ -94,6 +103,7 @@ type RegisteredDomainCommandType =
 	| SequenceTimingCommandType
 	| TrackMixerLabelCommandType
 	| TrackFolderCommandType
+	| TakeCompCommandType
 	| ClipRangeClipboardCommandType
 	| EffectsVideoCommandType
 	| TimelineAnnotationCommandType;
@@ -119,6 +129,7 @@ export function defineEditorCommandHandlerRegistry(
 		defineSequenceTimingCommandHandlers(domains.sequenceTiming),
 		defineTrackMixerLabelCommandHandlers(domains.trackMixerLabel),
 		defineTrackFolderCommandHandlers(domains.trackFolder),
+		defineTakeCompCommandHandlers(domains.takeComp),
 		defineClipRangeClipboardCommandHandlers(domains.clipRangeClipboard),
 		defineEffectsVideoCommandHandlers(domains.effectsVideo),
 		defineTimelineAnnotationCommandHandlers(domains.timelineAnnotation),

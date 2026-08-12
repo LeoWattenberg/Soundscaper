@@ -53,6 +53,10 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'track-folder/update',
 	'track-folder/remove',
 	'track-node/move',
+	'take-comp/group-add',
+	'take-comp/group-update',
+	'take-comp/group-remove',
+	'take-comp/flatten',
 	'label/add',
 	'label/update',
 	'label/remove',
@@ -387,6 +391,20 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly nodeId: string;
 		readonly parentFolderId?: string | null;
 		readonly index: number;
+	};
+	readonly 'take-comp/group-add': { readonly group: CommandObject };
+	readonly 'take-comp/group-update': {
+		readonly groupId: string;
+		readonly group: CommandObject;
+	};
+	readonly 'take-comp/group-remove': { readonly groupId: string };
+	readonly 'take-comp/flatten': {
+		readonly groupId: string;
+		readonly operationId: string;
+		readonly outputId: string;
+		readonly preFlattenSnapshot: CommandObject;
+		readonly source: CommandObject;
+		readonly clip: CommandObject;
 	};
 	readonly 'label/add': { readonly trackId: string; readonly label: CommandObject };
 	readonly 'label/update': { readonly trackId: string; readonly labelId: string; readonly changes: CommandObject };

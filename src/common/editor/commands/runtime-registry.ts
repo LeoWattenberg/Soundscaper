@@ -5,6 +5,7 @@ import { createEffectsVideoRuntimeHandlers } from './effects-video-runtime.js';
 import { createProjectSourceBinRuntimeHandlers } from './project-source-bin-runtime.js';
 import { createSequenceTimingRuntimeHandlers } from './sequence-timing-runtime.ts';
 import { createTempoSignatureRuntimeHandlers } from './tempo-signature-runtime.ts';
+import { createTakeCompRuntimeHandlers } from './take-comp-runtime.ts';
 import { createTimelineAnnotationRuntimeHandlers } from './timeline-annotation-runtime.ts';
 import {
 	defineEditorCommandHandlerRegistry,
@@ -31,6 +32,7 @@ export function createEditorCommandRuntime(
 		sequenceTiming: createSequenceTimingRuntimeHandlers(),
 		trackMixerLabel: createTrackMixerLabelRuntimeHandlers(),
 		trackFolder: createTrackFolderRuntimeHandlers(),
+		takeComp: createTakeCompRuntimeHandlers(dispatchChild),
 		clipRangeClipboard: createClipRangeClipboardRuntimeHandlers(),
 		effectsVideo: createEffectsVideoRuntimeHandlers(),
 		timelineAnnotation: createTimelineAnnotationRuntimeHandlers(),
