@@ -9,6 +9,8 @@ import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import {
 	createTakeCycleCurrentProjectPublicationService,
+	type TakeCyclePublicationHistory,
+	type TakeCyclePublicationSession,
 } from '../src/common/editor/controller/take-cycle-current-project-publication-service.ts';
 import type { TakeCyclePublishedProject } from '../src/common/editor/controller/take-cycle-recording-repository-composition.ts';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
@@ -74,7 +76,7 @@ function publicationFixture() {
 	const session = createAudioEditorSessionController();
 	session.openProject(base, { history: createEditorHistory(base), dirty: true });
 	let project = base;
-	let history = session.getProjectHistory(base.id);
+	let history = session.getProjectHistory(base.id) as TakeCyclePublicationHistory;
 	const synchronized: typeof base[] = [];
 	const service = createTakeCycleCurrentProjectPublicationService({
 		getActiveProject: () => project,
@@ -82,14 +84,14 @@ function publicationFixture() {
 		setActiveProject: (value) => { project = value; },
 		setActiveHistory: (value) => { history = value; },
 		isActiveProject: (projectId) => project.id === projectId,
-		session,
+		session: session as unknown as TakeCyclePublicationSession,
 		synchronizeProject: (value) => { synchronized.push(value); },
 	});
 	return {
 		base, session, synchronized,
 		get project() { return project; },
 		set project(value) { project = value; },
-		set history(value) { history = value; },
+		set history(value: TakeCyclePublicationHistory) { history = value; },
 		publish: service.publish,
 	};
 }
