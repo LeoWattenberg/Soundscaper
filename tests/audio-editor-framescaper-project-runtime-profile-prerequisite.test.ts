@@ -35,6 +35,9 @@ const DEFINITION_FIELDS = [
 type Definition = EditorProjectRuntimeProfilePrerequisiteDefinition;
 type MutableRecord = Record<PropertyKey, unknown>;
 interface TrapHits { prototype: number; keys: number; descriptors: number; gets: number; }
+type StructuralTokenIsAssignable = Readonly<Record<never, never>> extends
+	EditorProjectRuntimeProfilePrerequisite ? true : false;
+type AssertFalse<Value extends false> = Value;
 
 test('owns exactly four TypeScript declarations, two runtime exports, and one product singleton', async () => {
 	assert.deepEqual(Object.keys(prerequisiteModule).sort(), [
@@ -156,19 +159,30 @@ test('authenticates storage before any nested-array trap or candidate observatio
 
 test('refuses open, inherited, exotic, accessor, and malformed definitions', () => {
 	class DefinitionClass { owner = 'framescaper'; }
-	const missing = definition() as unknown as MutableRecord;
-	delete missing.owner;
 	const symbol = definition() as unknown as MutableRecord;
 	symbol[Symbol('extra')] = true;
-	const nonEnumerable = definition() as unknown as MutableRecord;
-	Object.defineProperty(nonEnumerable, 'owner', { value: 'framescaper', enumerable: false });
-	const accessor = definition() as unknown as MutableRecord;
-	Object.defineProperty(accessor, 'owner', { enumerable: true, get: () => 'framescaper' });
 	for (const value of [
 		null, undefined, false, 1, 'profile', Symbol('profile'), () => undefined, [],
-		new DefinitionClass(), missing, { ...definition(), extra: true }, symbol,
-		nonEnumerable, accessor,
+		new DefinitionClass(), Object.create(definition()), { ...definition(), extra: true }, symbol,
 	]) assert.throws(() => createEditorProjectRuntimeProfilePrerequisite(value), TypeError);
+	let getters = 0;
+	for (const field of DEFINITION_FIELDS) {
+		const missing = definition() as unknown as MutableRecord;
+		delete missing[field];
+		assert.throws(() => createEditorProjectRuntimeProfilePrerequisite(missing), TypeError);
+		const nonEnumerable = definition() as unknown as MutableRecord;
+		Object.defineProperty(nonEnumerable, field, {
+			value: nonEnumerable[field], enumerable: false,
+		});
+		assert.throws(() => createEditorProjectRuntimeProfilePrerequisite(nonEnumerable), TypeError);
+		const accessor = definition() as unknown as MutableRecord;
+		Object.defineProperty(accessor, field, {
+			enumerable: true,
+			get() { getters += 1; return definition()[field]; },
+		});
+		assert.throws(() => createEditorProjectRuntimeProfilePrerequisite(accessor), TypeError);
+	}
+	assert.equal(getters, 0);
 });
 
 test('propagates descriptor traps and refuses nonconforming top-level proxy results', () => {
@@ -306,6 +320,10 @@ test('refuses non-plain, sparse, accessor, extra-key, symbol, and trapping neste
 			{ getPrototypeOf() { return Object.prototype; } },
 			{ ownKeys(target) { return Reflect.ownKeys(target).filter((key) => key !== '0'); } },
 			{ getOwnPropertyDescriptor(target, key) {
+				const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+				return key === 'length' && descriptor ? { ...descriptor, value: 99 } : descriptor;
+			} },
+			{ getOwnPropertyDescriptor(target, key) {
 				return key === '0' ? undefined : Reflect.getOwnPropertyDescriptor(target, key);
 			} },
 		] satisfies ProxyHandler<unknown[]>[]) assert.throws(
@@ -342,13 +360,21 @@ test('authenticates only creator-issued prerequisite identities without observin
 test('keeps the product token statically dormant and out of common and Soundscaper owners', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const runtimeReferences: string[] = [];
+	const runtimeModulePathReferences: string[] = [];
 	const storageReferences: string[] = [];
 	for (const file of files) {
 		const source = await readSource(file);
 		if (source.includes(RUNTIME_EXPORT)) runtimeReferences.push(file);
+		if (source.includes('editor-project-runtime-profile-v18-prerequisite')) {
+			runtimeModulePathReferences.push(file);
+		}
 		if (source.includes(STORAGE_EXPORT)) storageReferences.push(file);
 	}
 	assert.deepEqual(runtimeReferences, [PRODUCT_MODULE, TEST_MODULE]);
+	assert.deepEqual(runtimeModulePathReferences, [
+		TEST_MODULE,
+		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
+	]);
 	assert.deepEqual(storageReferences, [
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-storage-profile-v18.ts',
@@ -356,13 +382,13 @@ test('keeps the product token statically dormant and out of common and Soundscap
 		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
 	]);
 	const genericSource = await readSource(GENERIC_MODULE);
-	assert.deepEqual(importSpecifiers(genericSource), ['./storage/project-storage-profile.ts']);
+	assert.deepEqual([...new Set(importSpecifiers(genericSource))], ['./storage/project-storage-profile.ts']);
 	assert.doesNotMatch(genericSource, /framescaper|capabilityProfile|project-feature|productId/iu);
 	for (const file of files.filter((file) => file.startsWith('src/common/') || file.startsWith('src/soundscaper/'))) {
 		assert.doesNotMatch(await readSource(file), /editor-project-runtime-profile-v18-prerequisite/u, file);
 	}
 	const productSource = await readSource(PRODUCT_MODULE);
-	assert.deepEqual(importSpecifiers(productSource).sort(), [
+	assert.deepEqual([...new Set(importSpecifiers(productSource))].sort(), [
 		'../common/editor/project-runtime-profile-prerequisite.ts',
 		'./editor-project-storage-profile-v18.ts',
 	]);
@@ -453,3 +479,5 @@ async function readSource(relative: string): Promise<string> {
 function importSpecifiers(source: string): string[] {
 	return [...source.matchAll(/\bfrom\s+['"]([^'"]+)['"]/gu)].map((match) => match[1]);
 }
+
+void (null as AssertFalse<StructuralTokenIsAssignable> | null);
