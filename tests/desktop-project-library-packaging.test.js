@@ -87,6 +87,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/stable-id.js',
 		'src/common/editor/take-comp-document-v17.js',
 		'src/common/editor/take-comp-domain.js',
+		'src/common/editor/take-group-source-references.js',
 		'src/common/editor/terminal-channel-widths.js',
 		'src/common/editor/timeline-annotation.js',
 		'src/common/editor/timeline-coordinate-limits.js',

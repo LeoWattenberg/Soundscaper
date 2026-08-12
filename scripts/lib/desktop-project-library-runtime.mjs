@@ -69,6 +69,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/stable-id.js',
 	'src/common/editor/take-comp-document-v17.js',
 	'src/common/editor/take-comp-domain.js',
+	'src/common/editor/take-group-source-references.js',
 	'src/common/editor/terminal-channel-widths.js',
 	'src/common/editor/timeline-annotation.js',
 	'src/common/editor/timeline-coordinate-limits.js',

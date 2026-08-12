@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ProjectLinkedOriginalSourceReference } from '../storage/project-publication-options.ts';
+import {
+	collectTakeGroupSourceIds,
+	type TakeGroupSourceReferenceProject,
+} from '../take-group-source-references.ts';
 
 export interface RetentionClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -8,7 +12,7 @@ export interface RetentionClip extends Readonly<Record<string, unknown>> {
 	readonly kind?: 'audio' | 'video';
 }
 
-export interface RetentionProject extends Readonly<Record<string, unknown>> {
+export interface RetentionProject extends Readonly<Record<string, unknown>>, TakeGroupSourceReferenceProject {
 	readonly id: string;
 	readonly sources?: readonly Readonly<{
 		readonly id: string;
@@ -181,6 +185,10 @@ export function createProjectRetentionService<
 					if (!fallback?.sourceId) continue;
 					const kind = fallback.kind ?? sourceKind(fallback.sourceId);
 					if (kind) add(kind, fallback.sourceId);
+				}
+				for (const sourceId of collectTakeGroupSourceIds(project)) {
+					const kind = sourceKind(sourceId);
+					if (kind) add(kind, sourceId);
 				}
 			}
 		}
