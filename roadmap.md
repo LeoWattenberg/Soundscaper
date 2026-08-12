@@ -553,10 +553,13 @@ Packet boundaries, dependencies, and acceptance are owned by
   staging or adoption is not authorized; Soundscaper
   product work is owned elsewhere. Adaptive preview,
   offline/relink, and synchronized multicamera groups follow the separately
-  reviewed durable transition. The next contract-first step is the
+  reviewed durable transition. The reviewed
   [Framescaper V18 product-isolation boundary](docs/milestone-3b-framescaper-v18-product-isolation.md),
-  which pins one atomic schema/storage/archive/controller/desktop selection and
-  authorizes no production.
+  pins one atomic schema/storage/archive/controller/desktop selection and
+  authorizes no production. Its next contract-first slice is the non-selectable
+  [dormant runtime-profile
+  prerequisite](docs/milestone-3b-framescaper-runtime-profile-prerequisite.md),
+  which explicitly defers capability authority.
 
 ### Shared exit gate
 

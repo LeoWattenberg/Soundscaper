@@ -381,10 +381,13 @@ delivery, export, or audio behavior. Only the schema-neutral dormant c-a1,
 c-b1, and c-c0 slices are implemented; c-a2 is folded into c-c, and durable
 proxy storage plus c-c remain unauthorized. The storage profile adds no
 production selector or persistence authority. Persistence remains subject to
-the refreshed V18 blocker review. The next contract-first step is the
-[Framescaper V18 product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md);
-it keeps production unauthorized and defines the indivisible transition that
-must precede durable c-c work.
+the refreshed V18 blocker review. The reviewed
+[Framescaper V18 product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md)
+defines the indivisible transition that must precede durable c-c work. Its next
+contract-first slice is the non-selectable
+[dormant runtime-profile
+prerequisite](milestone-3b-framescaper-runtime-profile-prerequisite.md), which
+defers capability authority and authorizes no production behavior.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

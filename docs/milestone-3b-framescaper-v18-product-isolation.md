@@ -64,6 +64,16 @@ schema, archive, storage, and desktop contract literals are authenticated at
 both endpoints before either side performs non-handshake operational I/O or
 mutates state.
 
+The independently landable contract-first precursor is the
+[dormant Framescaper runtime-profile
+prerequisite](milestone-3b-framescaper-runtime-profile-prerequisite.md). It
+freezes the fields above except `capabilityProfile` around the exact c-c0 token,
+but is a separate non-selectable type. No authenticated Framescaper capability
+owner exists yet, so the final runtime profile remains deferred rather than
+accepting a structural placeholder. Its eventual creator must authenticate and
+retain the exact prerequisite and capability-token identities; a copied or
+reparsed prerequisite definition grants no authority.
+
 ## Selection and non-interference
 
 The first selector is a Framescaper-owned bootstrap adapter. It supplies the
@@ -193,7 +203,9 @@ the first selector lands.
 This contract authorizes no production module, V18 validator, runtime token,
 profile selector, capability registration, archive format, storage claim,
 controller wiring, desktop v10 path, UI, menu, preview, or Soundscaper change.
-The next executable step is a separately reviewed dormant token contract/RED;
-the first reachable selector remains the full atomic c-c transition. Durable
-proxy storage, attachment authoring, and 3B-6d remain blocked until that
-transition is green.
+The next executable step is the strict RED from the separately reviewed
+[dormant runtime-profile prerequisite
+contract](milestone-3b-framescaper-runtime-profile-prerequisite.md); the first
+reachable selector remains the full atomic c-c transition. Durable proxy
+storage, attachment authoring, and 3B-6d remain blocked until that transition
+is green.
