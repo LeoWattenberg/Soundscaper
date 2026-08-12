@@ -421,7 +421,6 @@ export default function createApplicationMenus({
 			id: 'tracks',
 			label: copy.tracksMenu,
 			items: [
-				...createTakeCompApplicationMenuItems({ productId, capability: Boolean(capabilities.takeComp), project, copy, open: actions.openTakeComp }),
 				{
 					id: 'add-new-track',
 					label: copy.addNewTrack,
@@ -430,6 +429,7 @@ export default function createApplicationMenus({
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },
 					],
 				},
+				...createTakeCompApplicationMenuItems({ productId, capability: Boolean(capabilities.takeComp), project, copy, open: actions.openTakeComp }),
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
 				trackLock.toggle,
