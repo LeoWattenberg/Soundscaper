@@ -49,6 +49,45 @@ test('returns an exact cache hit without reading PCM', async () => {
 	assert.deepEqual(fixture.reads, []);
 });
 
+test('digestless audio resolves a full-source PCM identity before cache and range reads', async () => {
+	const resolvedSha256 = 'ef'.repeat(32);
+	const fixture = createFixture({
+		sourceSha256: undefined,
+		resolveSourceSha256: async (projectId, source, signal) => {
+			assert.equal(projectId, 'project-1');
+			assert.equal(source.id, 'source-1');
+			assert.equal(signal.aborted, false);
+			fixture.events.push('digest');
+			return resolvedSha256;
+		},
+	});
+
+	const outcome = await fixture.service.analyzeClip('clip-1');
+
+	assert.deepEqual(fixture.events.slice(0, 3), ['digest', 'load', 'range']);
+	assert.equal(outcome.cacheKey, transientAnalysisIdentity({
+		sourceSha256: resolvedSha256,
+		sourceRange: { startFrame: 10, endFrame: 18 },
+	}).key);
+});
+
+test('source authority is rechecked around asynchronous digest resolution', async () => {
+	const fixture = createFixture({
+		sourceSha256: undefined,
+		resolveSourceSha256: async () => {
+			fixture.project = project({ sourceSha256: undefined, storageKey: 'replacement' });
+			return 'ef'.repeat(32);
+		},
+	});
+
+	await assert.rejects(
+		fixture.service.analyzeClip('clip-1'),
+		/clip clip-1 changed before transient analysis completed/u,
+	);
+	assert.deepEqual(fixture.events, []);
+	assert.deepEqual(fixture.reads, []);
+});
+
 test('discards corrupt cache data before recomputing it', async () => {
 	const fixture = createFixture();
 	const identity = transientAnalysisIdentity({
@@ -131,6 +170,7 @@ function createFixture(options: Readonly<{
 	sourceSha256?: string | undefined;
 	afterRead?: () => void;
 	analyze?: Analyze;
+	resolveSourceSha256?: Parameters<typeof createTransientAnalysisService>[0]['resolveSourceSha256'];
 }> = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
@@ -147,6 +187,7 @@ function createFixture(options: Readonly<{
 		reads,
 		saved,
 		deleted,
+		events: [] as string[],
 		readStarted,
 		defaultAnalyze: null as unknown as Analyze,
 		service: null as unknown as ReturnType<typeof createTransientAnalysisService>,
@@ -160,11 +201,12 @@ function createFixture(options: Readonly<{
 		getProject: () => fixture.project,
 		captureProject: () => projectGeneration.capture(),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
-		loadAnalysis: async (key) => saved.get(key) ?? null,
+		loadAnalysis: async (key) => { fixture.events.push('load'); return saved.get(key) ?? null; },
 		saveAnalysis: async (key, value) => { saved.set(key, value as Record<string, unknown>); },
 		deleteAnalysis: async (key) => { deleted.push(key); saved.delete(key); },
 		readSourceRange: async (source, range, signal) => {
 			assert.equal(signal.aborted, false);
+			fixture.events.push('range');
 			reads.push({ sourceId: source.id, ...range });
 			resolveRead();
 			options.afterRead?.();
@@ -173,6 +215,7 @@ function createFixture(options: Readonly<{
 		analyzeChannels: options.analyze ?? ((channels, detectorOptions, signal) => (
 			fixture.defaultAnalyze(channels, detectorOptions, signal)
 		)),
+		...(options.resolveSourceSha256 ? { resolveSourceSha256: options.resolveSourceSha256 } : {}),
 	});
 	lifetime.markReady();
 	return fixture;
@@ -183,6 +226,7 @@ function project(overrides: Readonly<{
 	sourceDurationFrames?: number;
 	sourceSha256?: string | undefined;
 	kind?: 'audio' | 'video';
+	storageKey?: string;
 }> = {}): TransientAnalysisControllerProject {
 	return Object.freeze({
 		id: 'project-1',
@@ -195,7 +239,11 @@ function project(overrides: Readonly<{
 		})],
 		sources: [Object.freeze({
 			id: 'source-1',
+			storageKey: overrides.storageKey ?? 'stored-source-1',
 			frameCount: 100,
+			channelCount: 1,
+			chunkFrames: 64,
+			sampleRate: 48_000,
 			contentSha256: Object.hasOwn(overrides, 'sourceSha256') ? overrides.sourceSha256 : SOURCE_SHA256,
 		})],
 	});

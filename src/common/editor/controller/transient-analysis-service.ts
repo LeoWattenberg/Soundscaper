@@ -12,6 +12,7 @@ import {
 	inspectTransientAnalysisCacheRecord,
 	transientAnalysisIdentity,
 } from '../storage/transient-analysis-cache.ts';
+import { isMediaContentSha256 } from '../storage/media-content-provenance.ts';
 import type {
 	EditorControllerLifetime,
 	EditorProjectToken,
@@ -28,8 +29,13 @@ export interface TransientAnalysisControllerClip {
 
 export interface TransientAnalysisControllerSource {
 	readonly id: string;
+	readonly kind?: 'audio' | 'video';
+	readonly storageKey?: string;
 	readonly frameCount: number;
-	readonly contentSha256?: string;
+	readonly channelCount: number;
+	readonly chunkFrames: number;
+	readonly sampleRate: number;
+	readonly contentSha256?: unknown;
 }
 
 export interface TransientAnalysisControllerProject {
@@ -59,6 +65,11 @@ export interface TransientAnalysisServiceDependencies {
 	loadAnalysis(key: string): Promise<unknown>;
 	saveAnalysis(key: string, value: unknown): Promise<unknown>;
 	deleteAnalysis(key: string): Promise<unknown>;
+	resolveSourceSha256?(
+		projectId: string,
+		source: TransientAnalysisControllerSource,
+		signal: AbortSignal,
+	): PromiseLike<string> | string;
 	readSourceRange(
 		source: TransientAnalysisControllerSource,
 		range: Readonly<{ startFrame: number; endFrame: number }>,
@@ -84,7 +95,12 @@ interface ClipAnalysisAuthority {
 	readonly sourceId: string;
 	readonly sourceStartFrame: number;
 	readonly sourceEndFrame: number;
-	readonly sourceSha256: string;
+	readonly sourceStorageKey: string;
+	readonly sourceFrameCount: number;
+	readonly sourceChannelCount: number;
+	readonly sourceChunkFrames: number;
+	readonly sourceSampleRate: number;
+	readonly verifiedSourceSha256: string | null;
 }
 
 /**
@@ -106,19 +122,25 @@ export function createTransientAnalysisService(
 	): Promise<Readonly<ClipTransientAnalysisOutcome>> {
 		dependencies.lifetime.assertActive();
 		const clipId = requiredId(clipIdValue, 'An audio clip id is required for transient analysis.');
-		const authority = captureAuthority(dependencies.getProject(), clipId);
-		const identity = transientAnalysisIdentity({
-			sourceSha256: authority.sourceSha256,
-			sourceRange: {
-				startFrame: authority.sourceStartFrame,
-				endFrame: authority.sourceEndFrame,
-			},
-			channelPolicy: options.channelPolicy,
-			parameters: options.parameters,
-		});
 		const projectToken = dependencies.captureProject();
+		const authority = captureAuthority(dependencies.getProject(), clipId);
 		const task = dependencies.lifetime.startTask(`transient-analysis:${clipId}`);
 		try {
+			assertOwned(task, projectToken, authority);
+			const sourceAtStart = findSource(dependencies.getProject(), authority.sourceId);
+			if (!sourceAtStart) throw new Error(`Audio source ${authority.sourceId} was not found.`);
+			const sourceSha256 = authority.verifiedSourceSha256
+				?? await resolveSourceSha256(authority, sourceAtStart, task.signal);
+			assertOwned(task, projectToken, authority);
+			const identity = transientAnalysisIdentity({
+				sourceSha256,
+				sourceRange: {
+					startFrame: authority.sourceStartFrame,
+					endFrame: authority.sourceEndFrame,
+				},
+				channelPolicy: options.channelPolicy,
+				parameters: options.parameters,
+			});
 			const cached = await dependencies.loadAnalysis(identity.key);
 			assertOwned(task, projectToken, authority);
 			const inspection = inspectTransientAnalysisCacheRecord(cached, identity);
@@ -149,6 +171,21 @@ export function createTransientAnalysisService(
 		}
 	}
 
+	async function resolveSourceSha256(
+		authority: Readonly<ClipAnalysisAuthority>,
+		source: TransientAnalysisControllerSource,
+		signal: AbortSignal,
+	): Promise<string> {
+		if (!dependencies.resolveSourceSha256) {
+			throw new Error(`Audio source ${source.id} requires a verified source SHA-256 digest.`);
+		}
+		const digest = await dependencies.resolveSourceSha256(authority.projectId, source, signal);
+		if (!isMediaContentSha256(digest)) {
+			throw new Error(`Audio source ${source.id} requires a verified source SHA-256 digest.`);
+		}
+		return digest;
+	}
+
 	function assertOwned(
 		task: EditorTaskScope,
 		projectToken: EditorProjectToken,
@@ -176,16 +213,24 @@ function captureAuthority(
 	const sourceEndFrame = safeAdd(sourceStartFrame, sourceDurationFrames, 'clip source range');
 	const frameCount = nonNegativeSafeInteger(source.frameCount, 'source frame count');
 	if (sourceEndFrame > frameCount) throw new RangeError('The clip source range exceeds its source media.');
-	if (!/^[a-f0-9]{64}$/u.test(source.contentSha256 ?? '')) {
-		throw new Error(`Audio source ${source.id} requires a verified source SHA-256 digest.`);
-	}
+	const sourceStorageKey = requiredId(
+		source.storageKey ?? source.id,
+		'A source storage key is required for transient analysis.',
+	);
 	return Object.freeze({
 		projectId: requiredId(project.id, 'A project id is required for transient analysis.'),
 		clipId,
 		sourceId: source.id,
 		sourceStartFrame,
 		sourceEndFrame,
-		sourceSha256: source.contentSha256!,
+		sourceStorageKey,
+		sourceFrameCount: frameCount,
+		sourceChannelCount: positiveSafeInteger(source.channelCount, 'source channel count'),
+		sourceChunkFrames: positiveSafeInteger(source.chunkFrames, 'source chunk frames'),
+		sourceSampleRate: positiveSafeInteger(source.sampleRate, 'source sample rate'),
+		verifiedSourceSha256: isMediaContentSha256(source.contentSha256)
+			? source.contentSha256
+			: null,
 	});
 }
 
@@ -205,7 +250,12 @@ function sameAuthority(
 		&& left.sourceId === right.sourceId
 		&& left.sourceStartFrame === right.sourceStartFrame
 		&& left.sourceEndFrame === right.sourceEndFrame
-		&& left.sourceSha256 === right.sourceSha256;
+		&& left.sourceStorageKey === right.sourceStorageKey
+		&& left.sourceFrameCount === right.sourceFrameCount
+		&& left.sourceChannelCount === right.sourceChannelCount
+		&& left.sourceChunkFrames === right.sourceChunkFrames
+		&& left.sourceSampleRate === right.sourceSampleRate
+		&& left.verifiedSourceSha256 === right.verifiedSourceSha256;
 }
 
 function validateReadChannels(channels: readonly Float32Array[], expectedFrames: number): void {
