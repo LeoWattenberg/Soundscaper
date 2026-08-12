@@ -532,14 +532,19 @@ Packet boundaries, dependencies, and acceptance are owned by
 - **Web Core — In progress:** [dormant exact proxy timing
   conformance](docs/milestone-3b-video-proxy-timing-conformance.md) and the
   [exact proxy relationship proof](docs/milestone-3b-video-proxy-relationship.md)
-  are implemented through `937e52bf`, with no UI, persistence, capability
-  change, or browser row. The immediate next slice is the contract-first 3B-6c
-  [durable V18 persisted attachment](docs/milestone-3b-video-proxy-v18.md).
-  Shared V17 is already owned by take/comp state, so only 3B-6c-a1's dormant
-  current-target preparation material is authorized now; persistence remains
-  stopped for the refreshed V18 review. This is a Framescaper-only product
-  slice; Soundscaper product work is owned elsewhere. Adaptive preview,
-  offline/relink, and synchronized multicamera groups follow it.
+  are implemented through `937e52bf`. The dormant 3B-6c-a1
+  [current-target preparation material](docs/milestone-3b-video-proxy-v18.md)
+  is implemented through `c195a8c1`: exact V17 relationship admission retains
+  the already validated timing publication behind a private one-use WeakMap.
+  These slices add no UI, schema, storage, capability, Soundscaper change, or
+  browser row. Shared V17 is already owned by take/comp state; c-a2 is folded
+  into c-c, while c-b and c-c remain unauthorized and hard-stopped, with
+  persistence additionally stopped for the refreshed V18 product-isolation
+  review. A standalone V17 proof lease cannot authenticate the future V18
+  settlement boundary. The immediate next step is contract and review, not
+  production code. This is a Framescaper-only product slice; Soundscaper
+  product work is owned elsewhere. Adaptive preview, offline/relink, and
+  synchronized multicamera groups follow it.
 
 ### Shared exit gate
 

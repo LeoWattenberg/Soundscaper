@@ -314,36 +314,53 @@ delivered
 [3B-6a exact video-proxy timing conformance](milestone-3b-video-proxy-timing-conformance.md),
 then contract `ce9c4782` and implementation `937e52bf` delivered the dormant
 [3B-6b exact proxy relationship proof](milestone-3b-video-proxy-relationship.md)
-on 2026-08-12. The latter spans pre-I/O retime admission, repository-owned
-original observation, same-Blob generation, hashing, exact timing observation,
-and post-I/O currentness. Its focused Node suite passed 13/13; both TypeScript
-configurations and focused lint passed, and two independent adversarial reviews
-found no remaining issue. The canonical `npm run check` passed with 5,393
+on 2026-08-12. Contract `26b3bede` and implementation `c195a8c1` then delivered
+3B-6c-a1's dormant current-target preparation material on 2026-08-12: exact V17
+relationship admission plus one-use retention of the already validated timing
+publication in private WeakMap state. The 3B-6b proof spans pre-I/O retime
+admission, repository-owned original observation, same-Blob generation,
+hashing, exact timing observation, and post-I/O currentness. Its focused Node
+suite passed 13/13; both TypeScript configurations and focused lint passed, and
+two independent adversarial reviews found no remaining issue. Its canonical
+`npm run check` passed with 5,393
 tests (5,391 passed and 2 skipped), 90.07% line, 82.01% branch, and 90.86%
 function coverage; architecture covered 907 modules, 2,515 dependencies, and
 1,992 maintained files; and the build transformed 1,182 modules and emitted
 104 JavaScript chunks with a 400,686-byte largest chunk. No browser row was
 required because no maintained consumer or UI imports either proof. These
 slices add no persistence, capability availability, or compatibility-rule
-flip and do not weaken 3B-5's exact-executor hard stop. The immediate next
-slice is 3B-6c-a1's contract-first dormant current-V17 preparation material;
-the durable pointer moves to V18 because merged take/comp state already owns
+flip and do not weaken 3B-5's exact-executor hard stop. The c-a1 canonical
+`npm run check` passed with 5,736 tests (5,734 passed and 2 skipped), 90.15%
+statement and line coverage, 81.66% branch coverage, and 91.29% function
+coverage; architecture covered 1,010 modules, 2,789 dependencies, and 2,187
+maintained files; and the build emitted 115 JavaScript chunks with a
+428,990-byte largest chunk. It added no schema, storage, capability, UI, or
+Soundscaper change. The immediate next step is a contract and review for the
+next dormant slice, not production code; c-b and c-c remain unauthorized and
+hard-stopped, with c-c additionally stopped on its product-isolation
+transition. c-a2 is folded into c-c rather than implemented independently: a
+standalone V17 proof lease cannot fence the future all-null V18 base or
+authenticate the coordinator's storage-settlement outcome, while c-b may stage
+dormant bodies but must not claim settlement or own that lease.
+The durable pointer moves to V18 because merged take/comp state already owns
 V17. Project Bin menu and adaptive-preview lifecycle, then multicamera, follow
 the separately reviewed persistence slices.
 
-The proposed
+The reviewed
 [3B-6c durable V18 video-proxy attachment](milestone-3b-video-proxy-v18.md)
-is the next reviewed boundary. It requires one-use retention of 3B-6b's exact
-candidate timing publication, content-addressed proxy and timing bodies, atomic
-pointer publication/rollback, V18 preservation and unavailable capability,
-Framescaper-selected `.scape` format 2, and fresh Framescaper desktop isolation.
+has delivered only its schema-neutral dormant c-a1 preparation slice. Its
+remaining reviewed design requires content-addressed proxy and timing bodies,
+atomic pointer publication/rollback, V18 preservation and unavailable
+capability, Framescaper-selected `.scape` format 2, and fresh Framescaper
+desktop isolation.
 The merged shared V17 take/comp wire remains immutable; durable proxy state is
 reserved for V18. Soundscaper receives no
 profile, capability, UI, browser, or desktop integration in this packet. The
-slice explicitly adds no proxy consumer, menu, playback, offline, relink,
+packet explicitly adds no proxy consumer, menu, playback, offline, relink,
 delivery, export, or audio behavior. Only the schema-neutral dormant c-a1
-preparation slice is authorized; persistence remains subject to the refreshed
-V18 blocker review.
+preparation slice is implemented; c-a2 is folded into c-c, c-b and c-c are not
+authorized for production implementation, and persistence remains subject to
+the refreshed V18 blocker review.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

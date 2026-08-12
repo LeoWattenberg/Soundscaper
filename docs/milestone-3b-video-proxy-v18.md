@@ -1,6 +1,7 @@
 # Milestone 3B-6c: durable V18 video-proxy attachment
 
-> **Reviewed split contract — only 3B-6c-a1 is authorized.** 3B-6a and
+> **Reviewed split contract — 3B-6c-a1 is implemented; later slices remain
+> unauthorized.** 3B-6a and
 > 3B-6b prove exact timing and one uninterrupted original-to-candidate
 > relationship, but intentionally persist nothing. This packet owns the first
 > durable proxy state: an exact V18 source attachment, its immutable proxy and
@@ -20,40 +21,48 @@ continue to refer to the original.
 
 Delivery is ordered without ever admitting a dangling persisted pointer:
 
-1. **3B-6c-a1 — current-target preparation material:** supersede 3B-6b's
+1. **3B-6c-a1 — current-target preparation material — implemented in
+   `c195a8c1` on 2026-08-12:** supersede 3B-6b's
    now-historical V16 target admission with exact current V17 admission, then
    retain the exact candidate timing publication already created from the
    canonical candidate `Blob`. A private authenticated consumer yields the same
    candidate, timing reference/bytes, relationship, and scalar facts once, then
    erases them. Public proof/info surfaces do not expose timing bytes, lease
    tokens, or a token-construction path. This schema-neutral dormant slice is
-   the only implementation authorized by this contract review.
-2. **3B-6c-a2 — adoption lease:** the relationship authority owns a private
-   adoption operation that opens and holds a fresh exact original lease through
-   storage settlement. It remains dormant and returns no raw repository token.
+   complete. It adds no schema, storage, capability, UI, or Soundscaper change.
+2. **3B-6c-a2 — folded into atomic adoption:** no standalone adoption-lease API
+   lands. The current V17 proof seam cannot fence the future all-null V18 base,
+   authenticate storage settlement, or distinguish prepublication cleanup from
+   committed work. The c-c coordinator therefore owns the fresh exact original
+   lease together with the Framescaper V18 target authority and authenticated
+   attachment compare-and-swap, holds it through the authoritative outcome and
+   required reconciliation, releases it exactly once, and exposes no raw
+   repository token or general callback seam.
 3. **3B-6c-b — dormant owned-body staging:** add the strict attachment
    normalizer and a private coordinator that writes or verifies the
    content-addressed proxy and timing bodies, holds currentness, and can discard
    only newly created exact publications. It retains opaque full-row claims and
    provisional roots, not merely public metadata. It cannot mutate a project or
-   history and current schema remains V17.
+   history and current schema remains V17. It remains unauthorized pending its
+   own contract and review.
 4. **3B-6c-c — atomic V18 adoption:** in one separately reviewed semantic transition,
    add a Framescaper-selected current-schema/archive/repository profile after V17,
    requirements/capabilities, preservation, retention, conditional `.scape`
    format 2 for attached projects,
    fresh Framescaper desktop persistence/handoff, policy evidence, and the
-   dedicated pointer-publication path. No earlier commit may load, save, or
-   transfer a non-null project attachment.
+   dedicated pointer-publication path. It remains unauthorized and hard-stopped
+   on the separately reviewed product-isolation transition. No earlier commit
+   may load, save, or transfer a non-null project attachment.
 
 The merged milestone-3A work already owns shared V17 for take/comp state,
 desktop library metadata 9/project 17/database 11, and `.scape` format 1. This
 packet must not redefine or mutate that released wire. Slice c-a1 therefore
-updates only the dormant proxy authority to accept exact V17, including its
-canonical `takeGroups`, and retains no take/comp state. Durable attachment is a
+updated only the dormant proxy authority to accept exact V17, including its
+canonical `takeGroups`, and retained no take/comp state. Durable attachment is a
 future exact V18 layer; fresh desktop and archive numbers are reserved only by
 the separately reviewed c-c transition.
 
-3B-6b proof admission moves in c-a1 from exact V16 to exact V17. The final c-c
+3B-6b proof admission moved in c-a1 from exact V16 to exact V17. The final c-c
 transition gives the Framescaper-selected profile exact-current V18 and requires
 the selected source's attachment to be `null`. A proof may inspect a preservation-only V18 document containing
 unrelated attachments, but the pointer-publication coordinator starts only
@@ -533,14 +542,27 @@ evidence.
 
 ## Reds and acceptance
 
-Start c-a1 with strict dormant Node reds; c-a2/c-b require their own reviewed
-reds, and c-c remains unauthorized until its refreshed shared-schema review.
-For c-a1 specifically prove canonical V17 `takeGroups`, synchronous V16/V18 and
-V17-reserved-name refusal with zero original/candidate work, one exact
-publication creation/transfer, private one-use consumption, same public
-result/info identities, distinct publication-byte storage across preparations,
-failure/cancellation/release cleanup, and no timing token/index or maintained
-consumer retention.
+3B-6c-a1 was implemented in `c195a8c1` on 2026-08-12. Its strict dormant Node
+coverage proves canonical V17 `takeGroups`, synchronous V16/V18 and
+V17-reserved-name refusal with zero original/candidate work, one exact timing
+publication transferred into private WeakMap preparation state, one-use
+authenticated consumption, same public result/info identities, distinct
+publication-byte storage across preparations, failure/cancellation/release
+cleanup, and no timing token/index or maintained consumer retention. It adds no
+schema, storage, capability, UI, or Soundscaper behavior. The canonical
+`npm run check` passed with 5,736 tests (5,734 passed and 2 skipped), 90.15%
+statement and line coverage, 81.66% branch coverage, and 91.29% function
+coverage; architecture covered 1,010 modules, 2,789 dependencies, and 2,187
+maintained files; and the build emitted 115 JavaScript chunks with a
+428,990-byte largest chunk.
+
+c-b and c-c remain unauthorized and hard-stopped; a2 is folded into c-c rather
+than implemented independently. No generic asynchronous callback is an
+adoption boundary, and c-b may stage dormant bodies but must not claim storage
+settlement or own the original lease. c-b and c-c require their own reviewed
+contracts and reds, and c-c also requires its refreshed shared-schema and
+product-isolation review. The immediate next step is contract and review, not
+production code.
 For the eventual c-c, prove the full
 Framescaper cross-surface/platform set. Prove exact/null/deep-freeze wire validation; every binding and
 cap boundary; unchanged V17 under the shared/Soundscaper profile, Framescaper
@@ -572,7 +594,8 @@ read-only with the unavailable bypass declaration, shows no proxy UI/use, and
 Save a copy round-trips both exact bodies. It makes no codec, picture, playback,
 offline, relink, or export claim.
 
-Run focused Node/browser tests, every TypeScript configuration, lint,
+For each later authorized slice, run focused Node/browser tests, every
+TypeScript configuration, lint,
 architecture/file-size, local-link/roadmap/policy checks, narrative sync,
 runtime-evidence repinning, and canonical `npm run check`. Packet 3B-6 stays
 **In progress**; 3B-6d menu/lifecycle work remains blocked until all of 3B-6c
