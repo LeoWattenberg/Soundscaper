@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EngineLoop } from '../engine/types.ts';
+import { TAKE_COMP_MAXIMUM_ENTITIES } from '../take-comp-domain.ts';
 import { TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES } from './take-cycle-capture-spool.ts';
 import type {
 	RecordingCaptureChunk,
@@ -15,6 +16,16 @@ export interface TakeCycleRoutedCaptureProject extends Readonly<Record<string, u
 	readonly tracks: readonly RecordingTrack[];
 	readonly loop: EngineLoop;
 	readonly sequences: readonly Readonly<{ readonly id: string; readonly trackIds: readonly string[] }>[];
+	readonly takeGroups?: readonly Readonly<{
+		readonly id: string;
+		readonly sequenceId: string;
+		readonly trackId: string;
+		readonly startSample: number;
+		readonly endSample: number;
+		readonly lanes?: readonly unknown[];
+		readonly takes?: readonly unknown[];
+		readonly compRegions?: readonly unknown[];
+	}>[];
 }
 
 export type NormalizedTakeCycleRoutedProject = TakeCycleRoutedCaptureProject & {
@@ -94,6 +105,79 @@ export function takeCycleRoutedOwningSequence(
 		&& sequence.trackIds.includes(trackId));
 	if (owners.length !== 1) throw new Error(`Take cycle track ${trackId} must belong to exactly one sequence.`);
 	return stableTakeCycleRoutedId(owners[0]!.id, 'take cycle routed sequence ID');
+}
+
+/** Reuse an exact group; a distinct group may only be created in an unoccupied extent. */
+export function takeCycleRoutedGroupId(
+	project: TakeCycleRoutedCaptureProject,
+	sequenceIdValue: string,
+	trackIdValue: string,
+	loopStartSample: number,
+	loopEndSample: number,
+	createGroupId: () => string,
+): string {
+	const sequenceId = stableTakeCycleRoutedId(sequenceIdValue, 'take cycle routed sequence ID');
+	const trackId = stableTakeCycleRoutedId(trackIdValue, 'take cycle routed track ID');
+	const groups = project.takeGroups ?? [];
+	if (!Array.isArray(groups)) throw new TypeError('Take cycle routed take-group inventory is invalid.');
+	for (const value of groups) {
+		const group = dataRecord(value, 'take cycle routed take group');
+		if (group.sequenceId !== sequenceId || group.trackId !== trackId) continue;
+		const startSample = nonNegativeTakeCycleRoutedInteger(group.startSample, 'take group start');
+		const endSample = nonNegativeTakeCycleRoutedInteger(group.endSample, 'take group end');
+		if (endSample <= startSample) throw new RangeError('Take cycle routed take-group extent is invalid.');
+		if (startSample === loopStartSample && endSample === loopEndSample) {
+			return stableTakeCycleRoutedId(group.id, 'take cycle routed group ID');
+		}
+		if (startSample < loopEndSample && loopStartSample < endSample) {
+			throw new RangeError(`Take cycle loop overlaps take group ${String(group.id)} with a different extent.`);
+		}
+	}
+	return stableTakeCycleRoutedId(createGroupId(), 'take cycle routed group ID');
+}
+
+/** Admit the minimum one-pass identity cost for every armed routed target. */
+export function takeCycleRoutedPassCapacity(
+	project: TakeCycleRoutedCaptureProject,
+	targets: readonly Readonly<{ readonly sequenceId: string; readonly trackId: string }>[],
+	loopStartSample: number,
+	loopEndSample: number,
+): number {
+	const groups = project.takeGroups ?? [];
+	if (!Array.isArray(groups)) throw new TypeError('Take cycle routed take-group inventory is invalid.');
+	let entityCount = 0;
+	for (const value of groups) {
+		const group = dataRecord(value, 'take cycle routed take group');
+		entityCount += 1
+			+ optionalDenseLength(group.lanes, 'take group lanes')
+			+ optionalDenseLength(group.takes, 'take group takes')
+			+ optionalDenseLength(group.compRegions, 'take group comp regions');
+	}
+	let fixedEntityCount = entityCount;
+	for (const target of targets) {
+		const exact = groups.some((value) => {
+			const group = dataRecord(value, 'take cycle routed take group');
+			return group.sequenceId === target.sequenceId && group.trackId === target.trackId
+				&& group.startSample === loopStartSample && group.endSample === loopEndSample;
+		});
+		fixedEntityCount += exact ? 0 : 2;
+	}
+	const maximumPasses = Math.floor(
+		(TAKE_COMP_MAXIMUM_ENTITIES - fixedEntityCount) / (2 * targets.length),
+	);
+	if (maximumPasses < 1) {
+		throw new RangeError('Take cycle recording exceeds the V17 take/comp identity capacity.');
+	}
+	return maximumPasses;
+}
+
+function optionalDenseLength(value: unknown, name: string): number {
+	if (value === undefined) return 0;
+	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype
+		|| Reflect.ownKeys(value).length !== value.length + 1) {
+		throw new TypeError(`Take cycle routed ${name} inventory is invalid.`);
+	}
+	return value.length;
 }
 
 export function normalizeTakeCycleRoutedChunk(

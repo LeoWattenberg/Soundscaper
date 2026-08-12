@@ -18,7 +18,7 @@ import type { SourceRepository } from '../storage/source-repository.ts';
 import type { AudioSourceStageReceipt, OwnedAudioSourceWriter } from '../storage/source-write-repository.ts';
 import type { StorageRecord } from '../storage/media-records.ts';
 import type { TakeCycleRecoveryEnvelopeRepository } from '../storage/take-cycle-recovery-envelope-repository.ts';
-import { packPlanarFloat32, WAVPACK_PCM_MAXIMUM_FRAMES } from '../wavpack/pcm.js';
+import { packPlanarFloat32 } from '../wavpack/pcm.js';
 import type { EditorControllerLifetime, EditorProjectToken } from './lifecycle.ts';
 import {
 	createTakeCycleRecordingService,
@@ -32,6 +32,7 @@ import {
 	type TakeCycleRecoveryRequest,
 	type TakeCycleStageReceiptOperation,
 } from './take-cycle-recording-service.ts';
+import { normalizeTakeCycleSourceDescription } from './take-cycle-source-validation.ts';
 import type { TakeCycleEnvelopeRecoveryPlan } from '../take-cycle-recovery-envelope.ts';
 const TEXT_ENCODER = new TextEncoder();
 export interface TakeCycleLaneTarget {
@@ -133,7 +134,7 @@ export function createTakeCycleRecordingRepositoryComposition(
 			const pass = operation.plan.passes[index];
 			if (!publication || !pass) throw new Error('Take cycle project preparation is missing one exact pass.');
 			const stageOperation = Object.freeze({ ...operation, publication, pass });
-			const description = normalizeSourceDescription(
+			const description = normalizeTakeCycleSourceDescription(
 				await dependencies.describeSource(stageOperation),
 				pass.captureEndSample - pass.captureStartSample,
 				base.sampleRate,
@@ -398,7 +399,7 @@ function projectCommand(
 	}));
 	const takes = operation.plan.passes.map((pass, index) => ({
 		id: pass.takeId,
-		laneId: operation.plan.laneId,
+		laneId: pass.laneId,
 		sourceId: sources[index]!.publication.mediaId,
 		startSample: pass.timelineStartSample,
 		endSample: pass.timelineEndSample,
@@ -413,13 +414,16 @@ function projectCommand(
 			|| existing.endSample !== operation.plan.loopEndSample) {
 			throw new Error('Take cycle lane does not match its existing group ownership and extent.');
 		}
-		if (existing.lanes.some(({ id }) => id === operation.plan.laneId)) {
-			throw new Error(`Take cycle lane ${operation.plan.laneId} already exists.`);
+		const repeatedLaneId = operation.plan.laneIds.find((laneId) => (
+			existing.lanes.some(({ id }) => id === laneId)
+		));
+		if (repeatedLaneId) {
+			throw new Error(`Take cycle lane ${repeatedLaneId} already exists.`);
 		}
 		group = {
 			...existing,
-			laneOrder: [...existing.laneOrder, operation.plan.laneId],
-			lanes: [...existing.lanes, { id: operation.plan.laneId }],
+			laneOrder: [...existing.laneOrder, ...operation.plan.laneIds],
+			lanes: [...existing.lanes, ...operation.plan.laneIds.map((id) => ({ id }))],
 			takes: [...existing.takes, ...takes],
 		};
 		groupCommand = {
@@ -433,8 +437,8 @@ function projectCommand(
 			trackId: target.trackId,
 			startSample: operation.plan.loopStartSample,
 			endSample: operation.plan.loopEndSample,
-			laneOrder: [operation.plan.laneId],
-			lanes: [{ id: operation.plan.laneId }],
+			laneOrder: [...operation.plan.laneIds],
+			lanes: operation.plan.laneIds.map((id) => ({ id })),
 			takes,
 			compRegions: [{
 				id: normalizeCompRegionId(regionIdValue),
@@ -496,27 +500,6 @@ function snapshotChannels(
 		throw new Error('Take cycle PCM chunk has noncanonical channel geometry.');
 	}
 	return Object.freeze(value.map((channel) => channel.slice()));
-}
-
-function normalizeSourceDescription(
-	value: TakeCycleSourceDescription,
-	expectedFrames: number,
-	projectSampleRate: number,
-): TakeCycleSourceDescription {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('Take cycle source description is required.');
-	}
-	const frameCount = positiveInteger(value.frameCount, 'take cycle source frameCount');
-	const channelCount = positiveInteger(value.channelCount, 'take cycle source channelCount');
-	const chunkFrames = positiveInteger(value.chunkFrames, 'take cycle source chunkFrames');
-	const sampleRate = positiveInteger(value.sampleRate, 'take cycle source sampleRate');
-	if (frameCount !== expectedFrames) throw new Error('Take cycle source frameCount must equal its exact pass extent.');
-	if (sampleRate !== projectSampleRate) throw new Error('Take cycle source PCM must use the project sample rate.');
-	if (channelCount > 64) throw new RangeError('Take cycle source channelCount exceeds its limit.');
-	if (chunkFrames > WAVPACK_PCM_MAXIMUM_FRAMES) throw new RangeError('Take cycle source chunkFrames exceeds its limit.');
-	const name = String(value.name ?? '').trim();
-	if (!name || name !== value.name || name.length > 255) throw new TypeError('Take cycle source name is invalid.');
-	return Object.freeze({ name, sampleRate, channelCount, chunkFrames, frameCount });
 }
 
 function normalizeLaneTarget(value: TakeCycleLaneTarget): TakeCycleLaneTarget {

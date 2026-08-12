@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { TAKE_CYCLE_CAPTURE_MAXIMUM_SPANS } from '../take-cycle-capture-domain.ts';
+import {
+	TAKE_CYCLE_CAPTURE_MAXIMUM_PASSES,
+	TAKE_CYCLE_CAPTURE_MAXIMUM_SPANS,
+} from '../take-cycle-capture-domain.ts';
 import { createStreamingWindowedSincResampler } from '../resample.js';
 import {
 	TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES,
@@ -31,6 +34,7 @@ export interface TakeCycleRoutedPcmStreamOptions {
 	readonly chunkFrames: number;
 	readonly loopStartSample: number;
 	readonly loopEndSample: number;
+	readonly maximumPasses: number;
 	readonly append: (span: TakeCycleCapturePcmSpan) => Promise<void>;
 	readonly createResampler?: TakeCycleRoutedResamplerFactory;
 }
@@ -91,6 +95,11 @@ export function createTakeCycleRoutedPcmStream(
 		}
 		let offset = 0;
 		while (offset < frames) {
+			const maximumEnd = BigInt(options.loopStartSample)
+				+ BigInt(options.loopEndSample - options.loopStartSample) * BigInt(options.maximumPasses);
+			if (BigInt(cursor) >= maximumEnd) {
+				throw new RangeError('Take cycle recording exceeds the V17 take/comp identity capacity.');
+			}
 			if (spanCount >= TAKE_CYCLE_CAPTURE_MAXIMUM_SPANS) {
 				throw new RangeError(`Cycle capture exceeds ${String(TAKE_CYCLE_CAPTURE_MAXIMUM_SPANS)} spans.`);
 			}
@@ -119,11 +128,12 @@ function normalizeOptions(value: TakeCycleRoutedPcmStreamOptions): TakeCycleRout
 	const chunkFrames = positiveInteger(value.chunkFrames, maximumChunkFrames, 'chunk frames');
 	const loopStartSample = nonNegativeInteger(value.loopStartSample, 'loop start');
 	const loopEndSample = nonNegativeInteger(value.loopEndSample, 'loop end');
+	const maximumPasses = positiveInteger(value.maximumPasses, TAKE_CYCLE_CAPTURE_MAXIMUM_PASSES, 'maximum passes');
 	if (loopEndSample <= loopStartSample) throw new RangeError('Take cycle routed loop extent must be positive.');
 	if (typeof value.append !== 'function') throw new TypeError('Take cycle routed append port is required.');
 	return Object.freeze({
 		inputSampleRate, projectSampleRate, channelCount, chunkFrames,
-		loopStartSample, loopEndSample, append: value.append,
+		loopStartSample, loopEndSample, maximumPasses, append: value.append,
 		...(value.createResampler ? { createResampler: value.createResampler } : {}),
 	});
 }

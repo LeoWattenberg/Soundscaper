@@ -32,6 +32,10 @@ test('routed cycle capture pre-registers per-track groups then resamples into ex
 	assert.deepEqual(fixture.loopCalls, [{ enabled: true, startFrame: 100, endFrame: 500 }]);
 	assert.deepEqual(fixture.seekCalls, [100]);
 	assert.deepEqual(fixture.startOptions, [{ startFrame: 165_287 }]);
+	assert.deepEqual(fixture.storageRequests, [{
+		requiredBytes: 48_000 * 2 * Float32Array.BYTES_PER_ELEMENT * 60,
+		operation: 'take-cycle-recording',
+	}]);
 
 	const recorder = fixture.recorderOptions[0]!;
 	await recorder.onChunk(chunk(0, 441, 0.25, -0.5));
@@ -57,6 +61,104 @@ test('routed cycle capture pre-registers per-track groups then resamples into ex
 	assert.ok(fixture.events.indexOf('seal:track-b') < fixture.events.indexOf('finalize'));
 	assert.ok(fixture.events.indexOf('finalize') < fixture.events.indexOf('activate'));
 	assert.equal(fixture.pauseCalls(), 1);
+});
+
+test('durable project-rate storage refusal precedes live registration when capture rate differs', async () => {
+	const refusal = new Error('insufficient point-in-time storage');
+	const fixture = captureFixture({
+		tracks: ['track-a'], captureSampleRate: 44_100, preflightError: refusal,
+	});
+	const service = createTakeCycleRoutedCaptureService(fixture.runtime);
+
+	await assert.rejects(service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope), refusal);
+	assert.deepEqual(fixture.storageRequests, [{
+		requiredBytes: 48_000 * Float32Array.BYTES_PER_ELEMENT * 60,
+		operation: 'take-cycle-recording',
+	}]);
+	assert.equal(fixture.events.includes('begin-session'), false);
+	assert.equal(fixture.lanes.size, 0);
+	assert.equal(fixture.releaseCalls(), 1);
+});
+
+test('a second exact-loop recording reuses its existing group before durable capture starts', async () => {
+	const fixture = captureFixture({
+		tracks: ['track-a'],
+		takeGroups: [{
+			id: 'existing-cycle', sequenceId: 'main-sequence', trackId: 'track-a',
+			startSample: 100, endSample: 500,
+		}],
+	});
+	const service = createTakeCycleRoutedCaptureService(fixture.runtime);
+	const started = await service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope);
+
+	assert.equal(started.lanes[0]?.groupId, 'existing-cycle');
+	assert.equal(fixture.groupIdCalls(), 0);
+	await service.stop();
+});
+
+test('a nonmatching loop extent cannot overlap an existing take group', async () => {
+	const fixture = captureFixture({
+		tracks: ['track-a'],
+		takeGroups: [{
+			id: 'existing-cycle', sequenceId: 'main-sequence', trackId: 'track-a',
+			startSample: 50, endSample: 200,
+		}],
+	});
+	const service = createTakeCycleRoutedCaptureService(fixture.runtime);
+
+	await assert.rejects(
+		service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope),
+		/overlaps take group existing-cycle with a different extent/u,
+	);
+	assert.equal(fixture.groupIdCalls(), 0);
+	assert.equal(fixture.inputRequests(), 0);
+});
+
+test('V17 identity admission accepts the exact boundary and refuses one identity beyond it before input I/O', async () => {
+	for (const [laneCount, accepted] of [[4_091, true], [4_092, false]] as const) {
+		const fixture = captureFixture({
+			tracks: ['track-a'],
+			takeGroups: [{
+				id: 'nonoverlapping', sequenceId: 'main-sequence', trackId: 'track-a',
+				startSample: 600, endSample: 700,
+				lanes: Array.from({ length: laneCount }, (_, index) => ({ id: `old-lane-${String(index)}` })),
+			}],
+		});
+		const service = createTakeCycleRoutedCaptureService(fixture.runtime);
+		if (accepted) {
+			await service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope);
+			assert.equal(fixture.inputRequests(), 1);
+			await service.stop();
+		} else {
+			await assert.rejects(
+				service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope),
+				/exceeds the V17 take\/comp identity capacity/u,
+			);
+			assert.equal(fixture.inputRequests(), 0);
+			assert.equal(fixture.events.length, 0);
+		}
+	}
+});
+
+test('capture refuses the first pass beyond its admitted V17 identity capacity', async () => {
+	const fixture = captureFixture({
+		tracks: ['track-a'],
+		takeGroups: [{
+			id: 'nonoverlapping', sequenceId: 'main-sequence', trackId: 'track-a',
+			startSample: 600, endSample: 700,
+			lanes: Array.from({ length: 4_089 }, (_, index) => ({ id: `old-lane-${String(index)}` })),
+		}],
+	});
+	const service = createTakeCycleRoutedCaptureService(fixture.runtime);
+	await service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope);
+
+	await fixture.recorderOptions[0]!.onChunk(chunk(0, 1_200, 0.25));
+	const result = await service.stop();
+	assert.equal(result.lanes[0]?.status, 'failed');
+	assert.match(String(result.lanes[0]?.error), /exceeds the V17 take\/comp identity capacity/u);
+	await waitFor(() => fixture.releaseCalls() === 1);
+	assert.equal(fixture.lanes.get('track-a')?.discardCalls, 1);
+	assert.equal(fixture.events.includes('finalize'), false);
 });
 
 test('callbacks are serialized with backpressure and stop awaits the in-flight append before flush and seal', async () => {
@@ -246,6 +348,17 @@ interface FixtureOptions {
 	readonly playError?: Error;
 	readonly acquireGate?: Promise<void>;
 	readonly lockedTracks?: readonly string[];
+	readonly takeGroups?: readonly Readonly<{
+		readonly id: string;
+		readonly sequenceId: string;
+		readonly trackId: string;
+		readonly startSample: number;
+		readonly endSample: number;
+		readonly lanes?: readonly unknown[];
+		readonly takes?: readonly unknown[];
+		readonly compRegions?: readonly unknown[];
+	}>[];
+	readonly preflightError?: Error;
 }
 
 function captureFixture(options: FixtureOptions = {}) {
@@ -257,12 +370,17 @@ function captureFixture(options: FixtureOptions = {}) {
 	const loopCalls: Array<Readonly<{ enabled: boolean; startFrame: number; endFrame: number }>> = [];
 	const seekCalls: number[] = [];
 	const finalizedTrackIds: string[] = [];
+	const storageRequests: Array<Readonly<{
+		readonly requiredBytes: number;
+		readonly operation: 'take-cycle-recording';
+	}>> = [];
 	let requests = 0;
 	let pauses = 0;
 	let releases = 0;
 	let activeProjectId = 'project-cycle';
 	let disposed = false;
 	let laneIdentity = 0;
+	let groupIdCalls = 0;
 	const project = {
 		id: 'project-cycle', sampleRate: 48_000,
 		tracks: trackIds.map((id) => ({
@@ -271,6 +389,7 @@ function captureFixture(options: FixtureOptions = {}) {
 		sequences: [{ id: 'main-sequence', trackIds: [...trackIds] }],
 		primarySequenceId: 'main-sequence',
 		loop: { enabled: true, startFrame: 100, endFrame: 500 },
+		takeGroups: options.takeGroups ?? [],
 	};
 	const selection: { current: { startFrame: number; endFrame: number } | null } = { current: null };
 	const soundActivation = { current: false };
@@ -374,10 +493,13 @@ function captureFixture(options: FixtureOptions = {}) {
 				setMonitoring() {}, setInputGain() {},
 			};
 		},
-		createGroupId: (trackId) => `group-${trackId}`,
+		createGroupId: (trackId) => { groupIdCalls += 1; return `group-${trackId}`; },
 		createRecordingName: (trackId) => `Cycle ${trackId}`,
 		sourceChunkFrames: 65_536,
-		preflightStorage: async () => {},
+		async preflightStorage(requiredBytes, operation) {
+			storageRequests.push({ requiredBytes, operation });
+			if (options.preflightError) throw options.preflightError;
+		},
 		beginPlaybackCachePreparation: async () => {},
 		handleError() {},
 		releaseInputs() { releases += 1; },
@@ -394,9 +516,10 @@ function captureFixture(options: FixtureOptions = {}) {
 		},
 	});
 	return {
-		runtime, scope, project, events, lanes, recorderOptions, startOptions, loopCalls, seekCalls,
+		runtime, scope, project, events, lanes, recorderOptions, startOptions, loopCalls, seekCalls, storageRequests,
 		finalizedTrackIds, selection, soundActivation,
 		inputRequests: () => requests,
+		groupIdCalls: () => groupIdCalls,
 		pauseCalls: () => pauses,
 		releaseCalls: () => releases,
 		switchProject(projectId: string) { activeProjectId = projectId; },

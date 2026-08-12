@@ -74,6 +74,7 @@ export interface TakeCycleRecoveryEnvelope {
 
 export interface TakeCycleRecoveryEnvelopePublication {
 	readonly journalId: string;
+	readonly laneId: string;
 	readonly mediaId: string;
 	readonly byteLength: number;
 	readonly sha256: string;
@@ -171,14 +172,14 @@ export function createTakeCycleRecoveryEnvelope(
 	}
 	const entries = publications.map((value, entryIndex): TakeCycleRecoveryEnvelopeEntry => {
 		const publication = closedRecord(value, `take cycle envelope publications[${String(entryIndex)}]`, [
-			'journalId', 'mediaId', 'byteLength', 'sha256', 'stageReceipt',
+			'journalId', 'laneId', 'mediaId', 'byteLength', 'sha256', 'stageReceipt',
 		]);
 		const journal = createTakeMediaPublicationJournal({
 			journalId: publication.journalId,
 			binding: {
 				generation,
 				groupId: plan.groupId,
-				laneId: plan.laneId,
+				laneId: publication.laneId,
 				takeId: plan.passes[entryIndex]!.takeId,
 				mediaId: publication.mediaId,
 				byteLength: publication.byteLength,
@@ -373,7 +374,7 @@ function normalizeCaptureRequest(value: unknown): Readonly<{
 	readonly plan: ExactTakeCycleCapturePlan;
 }> {
 	const request = closedRecord(value, 'take cycle envelope capture request', [
-		'groupId', 'laneId', 'loopStartSample', 'loopEndSample',
+		'groupId', 'laneId', 'laneIds', 'loopStartSample', 'loopEndSample',
 		'captureSpans', 'takeIds', 'interrupted',
 	]);
 	const plan = planExactTakeCycleCapture(request);
@@ -392,6 +393,7 @@ function normalizeCaptureRequest(value: unknown): Readonly<{
 		captureRequest: Object.freeze({
 			groupId: plan.groupId,
 			laneId: plan.laneId,
+			laneIds: plan.laneIds,
 			loopStartSample: plan.loopStartSample,
 			loopEndSample: plan.loopEndSample,
 			captureSpans: Object.freeze(spans),
@@ -413,7 +415,7 @@ function normalizeEntry(
 	const journal = normalizeTakeMediaPublicationJournal(entry.journal);
 	const pass = plan.passes[entryIndex];
 	if (!pass || journal.binding.generation !== generation
-		|| journal.binding.groupId !== plan.groupId || journal.binding.laneId !== plan.laneId
+		|| journal.binding.groupId !== plan.groupId || journal.binding.laneId !== pass.laneId
 		|| journal.binding.takeId !== pass.takeId) {
 		throw new Error('Take cycle envelope journal does not match its exact lane pass.');
 	}

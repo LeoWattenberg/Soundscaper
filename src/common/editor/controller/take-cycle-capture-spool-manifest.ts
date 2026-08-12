@@ -36,6 +36,7 @@ export function capturePlan(lane: TakeCycleLaneFinalizationRequest) {
 	return planExactTakeCycleCapture({
 		groupId: lane.groupId,
 		laneId: lane.laneId,
+		laneIds: lane.publications.map(({ laneId }) => laneId),
 		loopStartSample: lane.loopStartSample,
 		loopEndSample: lane.loopEndSample,
 		captureSpans: lane.captureSpans,
@@ -65,6 +66,10 @@ export function normalizeDraft(value: unknown, draftTokenValue: unknown): TakeCy
 	const plan = planExactTakeCycleCapture({
 		groupId: laneRecord.groupId,
 		laneId: laneRecord.laneId,
+		laneIds: publicationValues.map((value) => stableId(
+			dataRecord(value, 'take cycle publication').laneId,
+			'take cycle pass laneId',
+		)),
 		loopStartSample: laneRecord.loopStartSample,
 		loopEndSample: laneRecord.loopEndSample,
 		captureSpans,
@@ -79,6 +84,7 @@ export function normalizeDraft(value: unknown, draftTokenValue: unknown): TakeCy
 		if (publication.takeId !== plan.passes[index]!.takeId) throw new Error('Take cycle take identity changed.');
 		return Object.freeze({
 			journalId: stableId(publication.journalId, 'take cycle journalId'),
+			laneId: plan.passes[index]!.laneId,
 			takeId: plan.passes[index]!.takeId,
 			mediaId: stableId(publication.mediaId, 'take cycle mediaId'),
 			byteLength: positiveInteger(publication.byteLength, 'take cycle publication byteLength'),

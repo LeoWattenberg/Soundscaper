@@ -193,6 +193,7 @@ export function createTakeCycleRecordingService(
 			));
 			publications.push(Object.freeze({
 				journalId: publication.journalId,
+				laneId: publication.laneId,
 				mediaId: publication.mediaId,
 				byteLength: publication.byteLength,
 				sha256: publication.sha256,
@@ -205,6 +206,7 @@ export function createTakeCycleRecordingService(
 			captureRequest: {
 				groupId: lane.plan.groupId,
 				laneId: lane.plan.laneId,
+				laneIds: lane.plan.laneIds,
 				loopStartSample: lane.plan.loopStartSample,
 				loopEndSample: lane.plan.loopEndSample,
 				captureSpans: lane.captureSpans,
@@ -378,6 +380,7 @@ function prepareFinalization(request: TakeCycleFinalizationRequest): Readonly<{
 		const plan = planExactTakeCycleCapture({
 			groupId: lane.groupId,
 			laneId: lane.laneId,
+			laneIds: publicationValues.map(({ laneId }) => laneId),
 			loopStartSample: lane.loopStartSample,
 			loopEndSample: lane.loopEndSample,
 			captureSpans: lane.captureSpans,
@@ -386,12 +389,13 @@ function prepareFinalization(request: TakeCycleFinalizationRequest): Readonly<{
 		});
 		const captureSpans = snapshotSpans(lane.captureSpans);
 		registerIdentity(identityKinds, plan.groupId, 'group', true);
-		registerIdentity(identityKinds, plan.laneId, 'lane');
+		for (const passLaneId of plan.laneIds) registerIdentity(identityKinds, passLaneId, 'lane');
 		const envelopeId = stableIdentity(lane.envelopeId, 'take cycle envelopeId');
 		registerIdentity(identityKinds, envelopeId, 'envelope');
 		const publications = publicationValues.map((value, entryIndex) => {
 			const publication = Object.freeze({
 				journalId: value.journalId,
+				laneId: value.laneId,
 				takeId: value.takeId,
 				mediaId: value.mediaId,
 				byteLength: value.byteLength,
@@ -402,7 +406,7 @@ function prepareFinalization(request: TakeCycleFinalizationRequest): Readonly<{
 				binding: {
 					generation,
 					groupId: plan.groupId,
-					laneId: plan.laneId,
+					laneId: plan.passes[entryIndex]!.laneId,
 					takeId: plan.passes[entryIndex]!.takeId,
 					mediaId: publication.mediaId,
 					byteLength: publication.byteLength,

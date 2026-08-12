@@ -19,10 +19,11 @@ import {
 	normalizeTakeCycleRoutedProject,
 	positiveTakeCycleRoutedInteger,
 	snapshotTakeCycleRoutedRoutes,
-	stableTakeCycleRoutedId,
 	stableTakeCycleRoutedName,
+	takeCycleRoutedGroupId,
 	takeCycleRoutedLaneChunkFrames,
 	takeCycleRoutedOwningSequence,
+	takeCycleRoutedPassCapacity,
 	takeCycleRoutedStaleProjectError,
 } from './take-cycle-routed-capture-validation.ts';
 import type {
@@ -43,6 +44,12 @@ import type {
 	RecordingCaptureControllerLike,
 	RecordingStartScope,
 } from './recording-session-service.ts';
+import {
+	pauseTakeCycleCaptureTransport,
+	reportTakeCycleCaptureError,
+	settleTakeCycleCaptureControllers,
+} from './take-cycle-routed-capture-settlement.ts';
+import { acquireTakeCycleRoutedSources } from './take-cycle-routed-source-acquisition.ts';
 export type {
 	TakeCycleRoutedCaptureEngine,
 	TakeCycleRoutedCaptureProject,
@@ -184,14 +191,32 @@ export function createTakeCycleRoutedCaptureService(
 		if (plan.skippedTrackIds.length || !plan.assigned.length) {
 			throw new Error('Every take cycle track requires one routed input.');
 		}
+		const targets = plan.assigned.map(({ track }) => ({
+			trackId: track.id,
+			sequenceId: takeCycleRoutedOwningSequence(project, track.id),
+		}));
+		const maximumPasses = takeCycleRoutedPassCapacity(
+			project,
+			targets,
+			project.loop.startFrame,
+			project.loop.endFrame,
+		);
 		const groupIds = new Set<string>();
-		const lanes = plan.assigned.map(({ track, route, sourceKey }): LiveLane => {
-			const groupId = stableTakeCycleRoutedId(runtime.createGroupId(track.id), 'take cycle routed group ID');
+		const lanes = plan.assigned.map(({ track, route, sourceKey }, index): LiveLane => {
+			const sequenceId = targets[index]!.sequenceId;
+			const groupId = takeCycleRoutedGroupId(
+				project,
+				sequenceId,
+				track.id,
+				project.loop.startFrame,
+				project.loop.endFrame,
+				() => runtime.createGroupId(track.id),
+			);
 			if (groupIds.has(groupId)) throw new Error(`Duplicate take cycle routed group ${groupId}.`);
 			groupIds.add(groupId);
 			return {
 				track, route, sourceKey, groupId,
-				sequenceId: takeCycleRoutedOwningSequence(project, track.id),
+				sequenceId,
 				capture: null, pcm: null, status: 'capturing', error: null,
 			};
 		});
@@ -212,7 +237,7 @@ export function createTakeCycleRoutedCaptureService(
 			total + source.lanes.reduce((sum, lane) => sum + lane.route.channelCount, 0)
 		), 0);
 		await runtime.preflightStorage(
-			captureSampleRate * channelCount * Float32Array.BYTES_PER_ELEMENT * 60,
+			project.sampleRate * channelCount * Float32Array.BYTES_PER_ELEMENT * 60,
 			'take-cycle-recording',
 		);
 		assertScopeCurrent(scope, project.id);
@@ -248,6 +273,7 @@ export function createTakeCycleRoutedCaptureService(
 						chunkFrames,
 						loopStartSample: project.loop.startFrame,
 						loopEndSample: project.loop.endFrame,
+						maximumPasses,
 						append: lane.capture.append,
 						...(runtime.createResampler ? { createResampler: runtime.createResampler } : {}),
 					});
@@ -308,52 +334,18 @@ export function createTakeCycleRoutedCaptureService(
 		lanes: LiveLane[],
 		projectSampleRate: number,
 	): Promise<LiveSource[]> {
-		const acquisitions = groups.map(async ({ sourceKey, routes }) => {
-			const first = routes[0]?.route;
-			if (!first) throw new Error('Take cycle routed source group is empty.');
-			const requiredChannels = Math.max(...routes.map(({ route }) => route.channelStart + route.channelCount));
-			const stream = first.kind === 'display'
-				? await runtime.capturePool.acquireDisplay()
-				: await runtime.capturePool.acquireHardware(first.deviceId, {
-					channelCount: requiredChannels, sampleRate: projectSampleRate,
-				});
-			return { sourceKey, routes, first, stream };
-		});
-		const settled = await Promise.allSettled(acquisitions);
-		const sources: LiveSource[] = [];
-		for (let index = 0; index < settled.length; index += 1) {
-			const result = settled[index]!;
-			const group = groups[index]!;
-			if (result.status === 'rejected') {
-				for (const route of group.routes) await failLane(lanes.find((lane) => lane.track.id === route.track.id)!, result.reason);
-				continue;
-			}
-			const { first, stream } = result.value;
-			if (!runtime.recordingStreamIsLive(stream, first.kind)) {
-				const error = new Error(`Take cycle routed input ${group.sourceKey} is disconnected.`);
-				for (const route of group.routes) await failLane(lanes.find((lane) => lane.track.id === route.track.id)!, error);
-				continue;
-			}
-			const channelCount = positiveTakeCycleRoutedInteger(
-				runtime.streamAudioChannelCount(stream), 64, 'routed input channel count',
-			);
-			const surviving: LiveLane[] = [];
-			for (const { track } of group.routes) {
-				const lane = lanes.find((candidate) => candidate.track.id === track.id)!;
-				if (lane.route.kind === 'display'
-					|| lane.route.channelStart + lane.route.channelCount <= channelCount) {
-					surviving.push(lane);
-				} else {
-					await failLane(lane, new Error(`Take cycle route ${lane.track.id} exceeds its input channels.`));
-				}
-			}
-			sources.push({
-				sourceKey: group.sourceKey, kind: first.kind, stream, channelCount,
-				lanes: surviving, controller: null, tail: Promise.resolve(), accepting: true,
-				expectedFrameStart: null,
-			});
-		}
-		return sources;
+		const laneFor = (trackId: string) => lanes.find((lane) => lane.track.id === trackId)!;
+		const acquired = await acquireTakeCycleRoutedSources(
+			groups,
+			projectSampleRate,
+			runtime,
+			async ({ track }, error) => failLane(laneFor(track.id), error),
+		);
+		return acquired.map((source) => ({
+			...source,
+			lanes: source.lanes.map(({ track }) => laneFor(track.id)),
+			controller: null, tail: Promise.resolve(), accepting: true, expectedFrameStart: null,
+		}));
 	}
 
 	function enqueueChunk(
@@ -561,18 +553,11 @@ export function createTakeCycleRoutedCaptureService(
 		sources: readonly LiveSource[],
 		operation: (controller: RecordingCaptureControllerLike | null) => unknown,
 	): Promise<void> {
-		const settled = await Promise.allSettled(sources.map(async ({ controller }) => {
-			await operation(controller);
-		}));
-		for (const result of settled) if (result.status === 'rejected') reportError(result.reason);
+		await settleTakeCycleCaptureControllers(sources.map(({ controller }) => controller), operation, reportError);
 	}
 
 	function pauseTransport(): void {
-		try {
-			runtime.engine.pause();
-		} catch (error) {
-			reportError(error);
-		}
+		pauseTakeCycleCaptureTransport(() => runtime.engine.pause(), reportError);
 	}
 
 	function releaseInputs(): void {
@@ -586,11 +571,7 @@ export function createTakeCycleRoutedCaptureService(
 	}
 
 	function reportError(error: unknown): void {
-		try {
-			runtime.handleError(error);
-		} catch {
-			// Error reporting must never interrupt durable lane settlement.
-		}
+		reportTakeCycleCaptureError(error, runtime.handleError);
 	}
 }
 function isCapturingLane(lane: LiveLane): boolean {

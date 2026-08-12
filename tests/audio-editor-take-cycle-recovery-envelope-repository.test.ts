@@ -73,12 +73,13 @@ function envelope() {
 		generation: 7,
 		captureRequest: {
 			groupId: 'group-cycle', laneId: 'lane-cycle',
+			laneIds: ['lane-cycle'],
 			loopStartSample: 0, loopEndSample: 100,
 			captureSpans: [{ startSample: 0, endSample: 100 }],
 			takeIds: ['take-a'], interrupted: false,
 		},
 		publications: [{
-			journalId: 'journal-a', mediaId: 'media-a', byteLength: 100,
+			journalId: 'journal-a', laneId: 'lane-cycle', mediaId: 'media-a', byteLength: 100,
 			sha256: 'ab'.repeat(32),
 			stageReceipt: {
 				version: 1, sourceId: 'media-a', sourceToken: 'media-a:pending:write-receipt-a',

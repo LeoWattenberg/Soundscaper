@@ -9,13 +9,10 @@ import {
 import { digestScapeBytes } from '../scape-archive-media.ts';
 import type { RawPcmSpoolRecord, RawPcmSpoolRepository } from '../storage/raw-pcm-spool-repository.ts';
 import { WAVPACK_PCM_MAXIMUM_FRAMES } from '../wavpack/pcm.js';
-import {
-	PcmEvidenceAccumulator,
-	TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES,
-	type TakeCyclePcmEvidence,
-} from './take-cycle-capture-pcm-evidence.ts';
+import { TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES } from './take-cycle-capture-pcm-evidence.ts';
 import { normalizeDraft, sameDraft } from './take-cycle-capture-spool-manifest.ts';
 import { discardTakeCycleLiveCapture } from './take-cycle-live-capture-discard.ts';
+import { collectTakeCycleLivePassEvidence } from './take-cycle-live-pass-evidence.ts';
 import type {
 	TakeCycleCaptureDraft,
 	TakeCycleCaptureDraftSeed,
@@ -53,7 +50,7 @@ export interface TakeCycleLiveCaptureSpool {
 	resolve(
 		projectId: string,
 		decision: 'recover' | 'discard',
-		createPassIdentities: (passIndex: number) => TakeCycleCapturePassIdentities,
+		createPassIdentities: (passIndex: number, firstLaneId: string) => TakeCycleCapturePassIdentities,
 	): Promise<readonly TakeCycleCaptureDraft[]>;
 	readPass(
 		draft: TakeCycleCaptureDraft,
@@ -213,7 +210,7 @@ export function createTakeCycleLiveCaptureSpool(
 	async function resolve(
 		projectIdValue: string,
 		decision: 'recover' | 'discard',
-		createPassIdentities: (passIndex: number) => TakeCycleCapturePassIdentities,
+		createPassIdentities: (passIndex: number, firstLaneId: string) => TakeCycleCapturePassIdentities,
 	): Promise<readonly TakeCycleCaptureDraft[]> {
 		const projectId = stableId(projectIdValue, 'take cycle projectId');
 		const drafts: TakeCycleCaptureDraft[] = [];
@@ -300,7 +297,7 @@ export function createTakeCycleLiveCaptureSpool(
 	async function materialize(
 		record: RawPcmSpoolRecord,
 		intentValue: LiveCaptureIntent,
-		createPassIdentities: (passIndex: number) => TakeCycleCapturePassIdentities,
+		createPassIdentities: (passIndex: number, firstLaneId: string) => TakeCycleCapturePassIdentities,
 		signal?: AbortSignal,
 	): Promise<TakeCycleCaptureDraft> {
 		const intent = normalizeIntent(intentValue, record);
@@ -312,18 +309,28 @@ export function createTakeCycleLiveCaptureSpool(
 		}
 		const identities = Array.from(
 			{ length: passCount },
-			(_, passIndex) => normalizePassIdentities(createPassIdentities(passIndex)),
+			(_, passIndex) => normalizePassIdentities(createPassIdentities(passIndex, intent.laneId)),
 		);
 		const plan = planExactTakeCycleCapture({
 			groupId: intent.groupId,
 			laneId: intent.laneId,
+			laneIds: identities.map(({ laneId }) => laneId),
 			loopStartSample: intent.loopStartSample,
 			loopEndSample: intent.loopEndSample,
 			captureSpans: intent.captureSpans,
 			takeIds: identities.map(({ takeId }) => takeId),
 			interrupted: capturedFrames % loopFrames !== 0,
 		});
-		const evidence = await passEvidence(record, intent, passCount, signal);
+		const evidence = await collectTakeCycleLivePassEvidence({
+			chunks: repository.chunks(record),
+			captureSpans: intent.captureSpans,
+			loopStartSample: intent.loopStartSample,
+			loopEndSample: intent.loopEndSample,
+			passCount,
+			channelCount: intent.source.channelCount,
+			chunkFrames: intent.source.chunkFrames,
+			...(signal ? { signal } : {}),
+		});
 		const publications = plan.passes.map((_pass, index) => Object.freeze({
 			...identities[index]!, ...evidence[index]!,
 		}));
@@ -351,41 +358,6 @@ export function createTakeCycleLiveCaptureSpool(
 		});
 		const next = await repository.replaceData(record, Object.freeze({ kind: DRAFT_KIND, draft: persistent }));
 		return normalizeDraft(persistent, next.spoolToken);
-	}
-
-	async function passEvidence(
-		record: RawPcmSpoolRecord,
-		intent: LiveCaptureIntent,
-		passCount: number,
-		signal?: AbortSignal,
-	): Promise<readonly TakeCyclePcmEvidence[]> {
-		const accumulators = Array.from(
-			{ length: passCount },
-			() => new PcmEvidenceAccumulator(intent.source.channelCount, intent.source.chunkFrames),
-		);
-		let spanIndex = 0;
-		for await (const chunk of repository.chunks(record)) {
-			throwIfAborted(signal);
-			const span = intent.captureSpans[spanIndex];
-			if (!span || chunk.index !== spanIndex || chunk.frames !== span.endSample - span.startSample) {
-				throw new Error('Live capture chunk does not match its incrementally fenced span.');
-			}
-			let sample = span.startSample;
-			let offset = 0;
-			while (sample < span.endSample) {
-				const passIndex = Math.floor((sample - intent.loopStartSample)
-					/ (intent.loopEndSample - intent.loopStartSample));
-				const passLimit = intent.loopStartSample
-					+ (passIndex + 1) * (intent.loopEndSample - intent.loopStartSample);
-				const length = Math.min(span.endSample, passLimit) - sample;
-				accumulators[passIndex]!.write(chunk.channels.map((channel) => channel.subarray(offset, offset + length)));
-				sample += length;
-				offset += length;
-			}
-			spanIndex += 1;
-		}
-		if (spanIndex !== intent.captureSpans.length) throw new Error('Live capture PCM prefix is truncated.');
-		return Object.freeze(accumulators.map((accumulator) => accumulator.finish()));
 	}
 
 	async function ownedRecord(draft: TakeCycleCaptureDraft): Promise<RawPcmSpoolRecord> {
@@ -512,6 +484,7 @@ function capturePlan(draft: TakeCycleCaptureDraft) {
 	return planExactTakeCycleCapture({
 		groupId: draft.lane.groupId,
 		laneId: draft.lane.laneId,
+		laneIds: draft.lane.publications.map(({ laneId }) => laneId),
 		loopStartSample: draft.lane.loopStartSample,
 		loopEndSample: draft.lane.loopEndSample,
 		captureSpans: draft.lane.captureSpans,
@@ -522,6 +495,7 @@ function capturePlan(draft: TakeCycleCaptureDraft) {
 
 function normalizePassIdentities(value: TakeCycleCapturePassIdentities): TakeCycleCapturePassIdentities {
 	return Object.freeze({
+		laneId: stableId(value?.laneId, 'take cycle pass laneId'),
 		takeId: stableId(value?.takeId, 'take cycle takeId'),
 		mediaId: stableId(value?.mediaId, 'take cycle mediaId'),
 		journalId: stableId(value?.journalId, 'take cycle journalId'),

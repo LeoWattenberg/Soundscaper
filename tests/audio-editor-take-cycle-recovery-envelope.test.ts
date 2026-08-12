@@ -200,6 +200,7 @@ function stagedEnvelope(): TakeCycleRecoveryEnvelope {
 		generation: 7,
 		captureRequest: {
 			groupId: 'group-cycle', laneId: 'lane-cycle',
+			laneIds: ['lane-cycle', 'lane-cycle-b', 'lane-cycle-c'],
 			loopStartSample: 100, loopEndSample: 200,
 			captureSpans: [
 				{ startSample: 100, endSample: 160 },
@@ -227,6 +228,7 @@ function stagedEnvelope(): TakeCycleRecoveryEnvelope {
 function publication(id: string, byteLength: number, sha256: string) {
 	return {
 		journalId: `journal-${id}`,
+		laneId: id === 'a' ? 'lane-cycle' : `lane-cycle-${id}`,
 		mediaId: `media-${id}`,
 		byteLength,
 		sha256,

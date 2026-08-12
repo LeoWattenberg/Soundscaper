@@ -37,6 +37,34 @@ test('publication generations increase atomically and persist across IndexedDB r
 	await reopened.close();
 });
 
+test('global spool admission accepts its exact boundary and remains bounded after reopen', async () => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = uniqueName('cycle-capture-global-bound');
+	const first = storageFixture('indexeddb', indexedDB, databaseName);
+	await first.analysis.put('raw-pcm-spool-global-inventory-v1', {
+		version: 1,
+		entries: Array.from({ length: 4_095 }, (_, index) => ({
+			projectId: `project-${String(index)}`,
+			spoolId: `spool-${String(index)}`,
+			spoolToken: `spool-${String(index)}:capture:token-${String(index)}`,
+		})),
+	});
+	await first.rawPcmSpools.create(rawSpoolRequest('boundary-spool'));
+	await assert.rejects(
+		first.rawPcmSpools.create({ ...rawSpoolRequest('overflow-spool'), projectId: 'overflow-project' }),
+		/global bound/u,
+	);
+	await first.close();
+
+	const reopened = storageFixture('indexeddb', indexedDB, databaseName);
+	await assert.rejects(
+		reopened.rawPcmSpools.create({ ...rawSpoolRequest('reopened-overflow'), projectId: 'reopened-project' }),
+		/global bound/u,
+	);
+	assert.equal((await reopened.rawPcmSpools.list('project-cycle')).length, 1);
+	await reopened.close();
+});
+
 test('retention keeps old capturing and sealed spool roots but reclaims an unregistered orphan', async () => {
 	const storage = storageFixture('memory');
 	let capturing = await storage.rawPcmSpools.create(rawSpoolRequest('capturing-spool'));

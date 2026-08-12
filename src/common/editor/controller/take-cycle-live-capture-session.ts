@@ -95,7 +95,10 @@ export async function beginTakeCycleLiveCaptureSession(
 			loopEndSample: lane.loopEndSample,
 			target: Object.freeze({ trackId: lane.lane.trackId, sequenceId: lane.lane.sequenceId }),
 			source: lane.lane,
-			createPassIdentities: () => Object.freeze({
+			createPassIdentities: (passIndex, firstLaneId) => Object.freeze({
+				laneId: passIndex === 0
+					? firstLaneId
+					: freshIdentity(dependencies.createId('lane'), 'lane', identities),
 				takeId: freshIdentity(dependencies.createId('take'), 'take', identities),
 				mediaId: freshIdentity(dependencies.createId('media'), 'media', identities),
 				journalId: freshIdentity(dependencies.createId('journal'), 'journal', identities),

@@ -267,12 +267,14 @@ function stagedEnvelope(): TakeCycleRecoveryEnvelope {
 		envelopeId: 'envelope-cycle', generation: 7,
 		captureRequest: {
 			groupId: 'group-cycle', laneId: 'lane-cycle',
+			laneIds: ['lane-cycle', 'lane-cycle-b'],
 			loopStartSample: 0, loopEndSample: 100,
 			captureSpans: [{ startSample: 0, endSample: 200 }],
 			takeIds: ['take-a', 'take-b'], interrupted: false,
 		},
 		publications: ['a', 'b'].map((id) => ({
 			journalId: `journal-${id}`,
+			laneId: id === 'a' ? 'lane-cycle' : 'lane-cycle-b',
 			mediaId: `media-${id}`,
 			byteLength: 100,
 			sha256: `${id === 'a' ? 'ab' : 'cd'}`.repeat(32),

@@ -65,6 +65,56 @@ test('repository composition publishes receipt-owned PCM and one real V17 histor
 	assert.deepEqual(reopened, persisted);
 });
 
+test('two complete passes publish as deterministic independently auditionable lanes', async () => {
+	const fixture = await compositionFixture();
+	const evidence = pcmEvidence([FIRST, SECOND]);
+	const result = await fixture.composition.finalize({
+		publicationGeneration: 7,
+		lanes: [{
+			envelopeId: 'envelope-multipass', groupId: 'group-cycle', laneId: 'lane-pass-1',
+			loopStartSample: 100, loopEndSample: 108,
+			captureSpans: [{ startSample: 100, endSample: 116 }], interrupted: false,
+			publications: [
+				{ journalId: 'journal-pass-1', laneId: 'lane-pass-1', takeId: 'take-pass-1', mediaId: 'media-pass-1', ...evidence },
+				{ journalId: 'journal-pass-2', laneId: 'lane-pass-2', takeId: 'take-pass-2', mediaId: 'media-pass-2', ...evidence },
+			],
+		}],
+	});
+
+	assert.equal(result.lanes[0]?.status, 'committed');
+	assert.deepEqual(result.lanes[0]?.committedPasses.map(({ laneId }) => laneId), [
+		'lane-pass-1', 'lane-pass-2',
+	]);
+	const persisted = await fixture.projects.load('project-cycle') as AudioEditorProjectV17;
+	assert.deepEqual(persisted.takeGroups[0]?.laneOrder, ['lane-pass-1', 'lane-pass-2']);
+	assert.deepEqual(persisted.takeGroups[0]?.takes.map(({ id, laneId }) => ({ id, laneId })), [
+		{ id: 'take-pass-1', laneId: 'lane-pass-1' },
+		{ id: 'take-pass-2', laneId: 'lane-pass-2' },
+	]);
+	assert.equal(fixture.history.undoStack.length, 1);
+	assert.deepEqual(await fixture.projects.load('project-cycle'), persisted);
+});
+
+test('a second exact-loop recording appends ordered lanes to the existing group and remains undoable', async () => {
+	const fixture = await compositionFixture();
+	await fixture.composition.finalize(request());
+	await fixture.composition.finalize(request({
+		envelopeId: 'envelope-b', laneId: 'lane-b', takeId: 'take-b',
+		mediaId: 'media-b', journalId: 'journal-b',
+	}));
+
+	const persisted = await fixture.projects.load('project-cycle') as AudioEditorProjectV17;
+	assert.deepEqual(persisted.takeGroups[0]?.laneOrder, ['lane-a', 'lane-b']);
+	assert.deepEqual(persisted.takeGroups[0]?.takes.map(({ id, laneId }) => ({ id, laneId })), [
+		{ id: 'take-a', laneId: 'lane-a' },
+		{ id: 'take-b', laneId: 'lane-b' },
+	]);
+	assert.equal(fixture.history.undoStack.length, 2);
+	const undone = fixture.history.undoStack.at(-1)?.project as AudioEditorProjectV17 | undefined;
+	assert.deepEqual(undone?.takeGroups[0]?.laneOrder, ['lane-a']);
+	assert.deepEqual(await fixture.projects.load('project-cycle'), persisted);
+});
+
 test('routed capture publishes two tracks as separate groups in real V17 command history', async () => {
 	const fixture = await compositionFixture();
 	const routedCapture: { current?: ReturnType<typeof createTakeCycleCaptureOrchestrator> } = {};
@@ -309,16 +359,27 @@ function routedLane(
 	};
 }
 
-function request(): TakeCycleFinalizationRequest {
+function request(overrides: Readonly<Partial<{
+	readonly envelopeId: string;
+	readonly laneId: string;
+	readonly takeId: string;
+	readonly mediaId: string;
+	readonly journalId: string;
+}>> = {}): TakeCycleFinalizationRequest {
 	const evidence = pcmEvidence([FIRST, SECOND]);
+	const envelopeId = overrides.envelopeId ?? 'envelope-a';
+	const laneId = overrides.laneId ?? 'lane-a';
+	const takeId = overrides.takeId ?? 'take-a';
+	const mediaId = overrides.mediaId ?? 'media-a';
+	const journalId = overrides.journalId ?? 'journal-a';
 	return {
 		publicationGeneration: 7,
 		lanes: [{
-			envelopeId: 'envelope-a', groupId: 'group-cycle', laneId: 'lane-a',
+			envelopeId, groupId: 'group-cycle', laneId,
 			loopStartSample: 100, loopEndSample: 108,
 			captureSpans: [{ startSample: 100, endSample: 108 }], interrupted: false,
 			publications: [{
-				journalId: 'journal-a', takeId: 'take-a', mediaId: 'media-a', ...evidence,
+				journalId, laneId, takeId, mediaId, ...evidence,
 			}],
 		}],
 	};

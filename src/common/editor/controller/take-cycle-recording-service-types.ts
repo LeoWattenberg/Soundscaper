@@ -23,6 +23,7 @@ export type MaybePromise<Value> = PromiseLike<Value> | Value;
 
 export interface TakeCyclePublicationDescriptor {
 	readonly journalId: string;
+	readonly laneId: string;
 	readonly takeId: string;
 	readonly mediaId: string;
 	readonly byteLength: number;

@@ -181,7 +181,10 @@ export function createTakeCycleCaptureOrchestrator(
 						chunkFrames: lane.chunkFrames,
 					}),
 					capture: lane.capture,
-					createPassIdentities: () => Object.freeze({
+					createPassIdentities: (passIndex, firstLaneId) => Object.freeze({
+						laneId: passIndex === 0
+							? firstLaneId
+							: freshIdentity(dependencies.createId('lane'), 'lane', identities),
 						takeId: freshIdentity(dependencies.createId('take'), 'take', identities),
 						mediaId: freshIdentity(dependencies.createId('media'), 'media', identities),
 						journalId: freshIdentity(dependencies.createId('journal'), 'journal', identities),
@@ -239,7 +242,10 @@ export function createTakeCycleCaptureOrchestrator(
 		const resolved = await dependencies.spool.resolveOpenCaptures(
 			request.projectId,
 			request.decision,
-			() => Object.freeze({
+			(passIndex, firstLaneId) => Object.freeze({
+				laneId: passIndex === 0
+					? firstLaneId
+					: freshIdentity(dependencies.createId('lane'), 'lane', recoveryIdentities),
 				takeId: freshIdentity(dependencies.createId('take'), 'take', recoveryIdentities),
 				mediaId: freshIdentity(dependencies.createId('media'), 'media', recoveryIdentities),
 				journalId: freshIdentity(dependencies.createId('journal'), 'journal', recoveryIdentities),
@@ -254,6 +260,7 @@ export function createTakeCycleCaptureOrchestrator(
 		const activated: TakeCycleActivatedMedia[] = [];
 		const activatedKeys = new Set<string>();
 		const bindings = request.decision === 'recover'
+			&& (plan.disposition === 'replay-published' || plan.disposition === 'settle-committed')
 			? await dependencies.listRecoveredMedia(request.projectId)
 			: [];
 		if (request.decision === 'recover'
@@ -474,7 +481,7 @@ function exactDraftBindings(
 		if (!binding) continue;
 		if (binding.generation !== draft.publicationGeneration
 			|| binding.groupId !== draft.lane.groupId
-			|| binding.laneId !== draft.lane.laneId
+			|| binding.laneId !== publication.laneId
 			|| binding.takeId !== publication.takeId
 			|| binding.byteLength !== publication.byteLength
 			|| binding.sha256 !== publication.sha256) {
@@ -490,8 +497,9 @@ function registerDraftIdentities(draft: TakeCycleCaptureDraft, identities: Set<s
 		[draft.draftId, 'envelope'],
 		[draft.lane.laneId, 'lane'],
 	];
-	for (const publication of draft.lane.publications) {
+	for (const [passIndex, publication] of draft.lane.publications.entries()) {
 		owned.push(
+			...(passIndex ? [[publication.laneId, 'lane'] as const] : []),
 			[publication.takeId, 'take'],
 			[publication.mediaId, 'media'],
 			[publication.journalId, 'journal'],

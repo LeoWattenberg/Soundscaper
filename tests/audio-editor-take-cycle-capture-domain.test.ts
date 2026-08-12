@@ -11,6 +11,7 @@ function request(overrides: Readonly<Record<string, unknown>> = {}): Record<stri
 	return {
 		groupId: 'group-cycle',
 		laneId: 'lane-cycle',
+		laneIds: ['lane-cycle', 'lane-cycle-2', 'lane-cycle-3'],
 		loopStartSample: 100,
 		loopEndSample: 200,
 		captureSpans: [
@@ -30,11 +31,12 @@ test('cycle capture partitions incoming spans at exact loop boundaries and prese
 	assert.deepEqual(plan, {
 		kind: 'exact-take-cycle-capture',
 		groupId: 'group-cycle', laneId: 'lane-cycle',
+		laneIds: ['lane-cycle', 'lane-cycle-2', 'lane-cycle-3'],
 		loopStartSample: 100, loopEndSample: 200, loopSampleCount: 100,
 		captureStartSample: 100, captureEndSample: 330, interrupted: true,
 		passes: [
 			{
-				passIndex: 0, takeId: 'take-1',
+				passIndex: 0, laneId: 'lane-cycle', takeId: 'take-1',
 				captureStartSample: 100, captureEndSample: 200,
 				timelineStartSample: 100, timelineEndSample: 200,
 				complete: true, interrupted: false,
@@ -44,7 +46,7 @@ test('cycle capture partitions incoming spans at exact loop boundaries and prese
 				],
 			},
 			{
-				passIndex: 1, takeId: 'take-2',
+				passIndex: 1, laneId: 'lane-cycle-2', takeId: 'take-2',
 				captureStartSample: 200, captureEndSample: 300,
 				timelineStartSample: 100, timelineEndSample: 200,
 				complete: true, interrupted: false,
@@ -54,7 +56,7 @@ test('cycle capture partitions incoming spans at exact loop boundaries and prese
 				],
 			},
 			{
-				passIndex: 2, takeId: 'take-3',
+				passIndex: 2, laneId: 'lane-cycle-3', takeId: 'take-3',
 				captureStartSample: 300, captureEndSample: 330,
 				timelineStartSample: 100, timelineEndSample: 130,
 				complete: false, interrupted: true,
@@ -83,6 +85,7 @@ test('every complete pass reuses the exact loop grid without cumulative drift', 
 			{ startSample: loopStartSample + 17, endSample: loopStartSample + 96_003 },
 			{ startSample: loopStartSample + 96_003, endSample: captureEndSample },
 		],
+		laneIds: ['lane-cycle', 'lane-cycle-2', 'lane-cycle-3'],
 		takeIds: ['take-1', 'take-2', 'take-3'],
 		interrupted: false,
 	}));
@@ -110,6 +113,7 @@ test('a partial final pass is accepted only as an explicit interruption', () => 
 	);
 	const exactInterrupted = planExactTakeCycleCapture(request({
 		captureSpans: [{ startSample: 100, endSample: 300 }],
+		laneIds: ['lane-cycle', 'lane-cycle-2'],
 		takeIds: ['take-1', 'take-2'],
 		interrupted: true,
 	}));
@@ -117,7 +121,7 @@ test('a partial final pass is accepted only as an explicit interruption', () => 
 	assert.equal(exactInterrupted.passes.at(-1)?.interrupted, false);
 });
 
-test('caller-supplied group, lane, and take identities are canonical, unique, and exact in count', () => {
+test('caller-supplied group, ordered pass lanes, and take identities are canonical, unique, and exact in count', () => {
 	assert.throws(
 		() => planExactTakeCycleCapture(request({ groupId: ' group-cycle' })),
 		/canonical non-empty string/u,
@@ -125,6 +129,18 @@ test('caller-supplied group, lane, and take identities are canonical, unique, an
 	assert.throws(
 		() => planExactTakeCycleCapture(request({ laneId: 'group-cycle' })),
 		/groupId and laneId must be distinct/u,
+	);
+	assert.throws(
+		() => planExactTakeCycleCapture(request({ laneIds: ['lane-cycle', 'lane-cycle', 'lane-cycle-3'] })),
+		/Duplicate cycle lane ID lane-cycle/u,
+	);
+	assert.throws(
+		() => planExactTakeCycleCapture(request({ laneIds: ['lane-cycle', 'lane-cycle-2'] })),
+		/requires exactly 3 caller-supplied lane IDs/u,
+	);
+	assert.throws(
+		() => planExactTakeCycleCapture(request({ laneIds: ['different', 'lane-cycle-2', 'lane-cycle-3'] })),
+		/first cycle lane ID must equal laneId/u,
 	);
 	assert.throws(
 		() => planExactTakeCycleCapture(request({ takeIds: ['take-1', 'take-1', 'take-3'] })),

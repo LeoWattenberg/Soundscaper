@@ -21,6 +21,7 @@ export interface TakeCycleCaptureSpan {
 export interface ExactTakeCycleCaptureRequest {
 	readonly groupId: string;
 	readonly laneId: string;
+	readonly laneIds: readonly string[];
 	readonly loopStartSample: number;
 	readonly loopEndSample: number;
 	readonly captureSpans: readonly TakeCycleCaptureSpan[];
@@ -38,6 +39,7 @@ export interface TakeCycleCaptureFragment {
 
 export interface TakeCycleCapturePass {
 	readonly passIndex: number;
+	readonly laneId: TakeLaneId;
 	readonly takeId: TakeId;
 	readonly captureStartSample: number;
 	readonly captureEndSample: number;
@@ -52,6 +54,7 @@ export interface ExactTakeCycleCapturePlan {
 	readonly kind: 'exact-take-cycle-capture';
 	readonly groupId: TakeCompGroupId;
 	readonly laneId: TakeLaneId;
+	readonly laneIds: readonly TakeLaneId[];
 	readonly loopStartSample: number;
 	readonly loopEndSample: number;
 	readonly loopSampleCount: number;
@@ -66,7 +69,7 @@ type DataRecord = Readonly<Record<string, unknown>>;
 /** Partition one unwrapped capture stream over a fixed integer loop grid. */
 export function planExactTakeCycleCapture(value: unknown): ExactTakeCycleCapturePlan {
 	const request = closedRecord(value, 'take cycle capture request', [
-		'groupId', 'laneId', 'loopStartSample', 'loopEndSample',
+		'groupId', 'laneId', 'laneIds', 'loopStartSample', 'loopEndSample',
 		'captureSpans', 'takeIds', 'interrupted',
 	]);
 	const groupId = normalizeTakeCompGroupId(request.groupId);
@@ -125,11 +128,30 @@ export function planExactTakeCycleCapture(value: unknown): ExactTakeCycleCapture
 	if (takeIdValues.length !== passCount) {
 		throw new RangeError(`Cycle capture requires exactly ${String(passCount)} caller-supplied take IDs.`);
 	}
+	const laneIdValues = denseArray(
+		request.laneIds,
+		'cycle capture laneIds',
+		TAKE_CYCLE_CAPTURE_MAXIMUM_PASSES,
+	);
+	if (laneIdValues.length !== passCount) {
+		throw new RangeError(`Cycle capture requires exactly ${String(passCount)} caller-supplied lane IDs.`);
+	}
+	const laneIdSet = new Set<string>();
+	const laneIds = laneIdValues.map((laneIdValue): TakeLaneId => {
+		const passLaneId = normalizeTakeLaneId(laneIdValue);
+		if (laneIdSet.has(passLaneId)) throw new RangeError(`Duplicate cycle lane ID ${passLaneId}.`);
+		if (String(passLaneId) === String(groupId)) {
+			throw new RangeError(`Cycle lane ID ${passLaneId} collides with cycle group identity.`);
+		}
+		laneIdSet.add(passLaneId);
+		return passLaneId;
+	});
+	if (laneIds[0] !== laneId) throw new RangeError('The first cycle lane ID must equal laneId.');
 	const takeIdSet = new Set<string>();
 	const takeIds = takeIdValues.map((takeIdValue): TakeId => {
 		const takeId = normalizeTakeId(takeIdValue);
 		if (takeIdSet.has(takeId)) throw new RangeError(`Duplicate cycle take ID ${takeId}.`);
-		if (String(takeId) === String(groupId) || String(takeId) === String(laneId)) {
+		if (String(takeId) === String(groupId) || laneIdSet.has(takeId)) {
 			throw new RangeError(`Cycle take ID ${takeId} collides with cycle group or lane identity.`);
 		}
 		takeIdSet.add(takeId);
@@ -168,6 +190,7 @@ export function planExactTakeCycleCapture(value: unknown): ExactTakeCycleCapture
 		const complete = timelineEndSample === loopEndSample;
 		passes.push(Object.freeze({
 			passIndex,
+			laneId: laneIds[passIndex]!,
 			takeId: takeIds[passIndex]!,
 			captureStartSample,
 			captureEndSample: passEndSample,
@@ -180,7 +203,7 @@ export function planExactTakeCycleCapture(value: unknown): ExactTakeCycleCapture
 	}
 
 	return Object.freeze({
-		kind: 'exact-take-cycle-capture', groupId, laneId,
+		kind: 'exact-take-cycle-capture', groupId, laneId, laneIds: Object.freeze(laneIds),
 		loopStartSample, loopEndSample, loopSampleCount,
 		captureStartSample: loopStartSample, captureEndSample,
 		interrupted: request.interrupted,

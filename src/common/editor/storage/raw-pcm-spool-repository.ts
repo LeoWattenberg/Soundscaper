@@ -5,6 +5,7 @@ import type { SourceChunkRecord, SourceRecordRepository } from './source-record-
 
 const KEY_PREFIX = 'raw-pcm-spool-registry-v1:';
 const GENERATION_KEY_PREFIX = 'take-cycle-publication-generation-v1:';
+const GLOBAL_INVENTORY_KEY = 'raw-pcm-spool-global-inventory-v1';
 const MAXIMUM_ACTIVE_SPOOLS = 64;
 const MAXIMUM_GLOBAL_ACTIVE_SPOOLS = 4_096;
 const MAXIMUM_CHUNK_BYTES = 8 * 1024 * 1024;
@@ -39,6 +40,15 @@ interface RawPcmSpoolRegistry {
 	readonly version: 1;
 	readonly projectId: string;
 	readonly records: readonly RawPcmSpoolRecord[];
+}
+
+interface RawPcmSpoolGlobalInventory {
+	readonly version: 1;
+	readonly entries: readonly Readonly<{
+		readonly projectId: string;
+		readonly spoolId: string;
+		readonly spoolToken: string;
+	}>[];
 }
 
 export interface RawPcmSpoolChunk {
@@ -99,22 +109,28 @@ export class RawPcmSpoolRepository {
 			chunkCount: 0,
 			data: snapshotData(request.data),
 		});
-		for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
-			const registry = await this.#loadRegistry(record.projectId);
-			if (registry.records.some(({ spoolId }) => spoolId === record.spoolId)) {
-				throw new Error(`Raw PCM spool ${record.spoolId} already exists.`);
+		await this.#reserveGlobal(record);
+		try {
+			for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
+				const registry = await this.#loadRegistry(record.projectId);
+				if (registry.records.some(({ spoolId }) => spoolId === record.spoolId)) {
+					throw new Error(`Raw PCM spool ${record.spoolId} already exists.`);
+				}
+				if (registry.records.length >= MAXIMUM_ACTIVE_SPOOLS) {
+					throw new RangeError(`Project ${record.projectId} has too many active raw PCM spools.`);
+				}
+				const next = freezeRegistry(record.projectId, [...registry.records, record]);
+				if (registry.records.length === 0 && !registry.exists) {
+					if (await this.#values.putIfAbsent(registryKey(record.projectId), next)) return record;
+				} else if (await this.#values.replaceIfCurrent(registryKey(record.projectId), registry.value, next)) {
+					return record;
+				}
 			}
-			if (registry.records.length >= MAXIMUM_ACTIVE_SPOOLS) {
-				throw new RangeError(`Project ${record.projectId} has too many active raw PCM spools.`);
-			}
-			const next = freezeRegistry(record.projectId, [...registry.records, record]);
-			if (registry.records.length === 0 && !registry.exists) {
-				if (await this.#values.putIfAbsent(registryKey(record.projectId), next)) return record;
-			} else if (await this.#values.replaceIfCurrent(registryKey(record.projectId), registry.value, next)) {
-				return record;
-			}
+			throw new Error('Raw PCM spool creation exceeded its bounded CAS retry limit.');
+		} catch (error) {
+			await this.#releaseGlobal(record);
+			throw error;
 		}
-		throw new Error('Raw PCM spool creation exceeded its bounded CAS retry limit.');
 	}
 
 	async list(projectIdValue: string): Promise<readonly RawPcmSpoolRecord[]> {
@@ -286,17 +302,70 @@ export class RawPcmSpoolRepository {
 		for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
 			const registry = await this.#loadRegistry(expected.projectId);
 			const index = registry.records.findIndex(({ spoolId }) => spoolId === expected.spoolId);
-			if (index < 0) return true;
+			if (index < 0) {
+				await this.#releaseGlobal(expected);
+				return true;
+			}
 			if (!sameRecord(registry.records[index]!, expected)) return false;
 			const records = registry.records.filter((_, recordIndex) => recordIndex !== index);
 			if (!records.length) {
-				if (await this.#values.deleteIfCurrent(registryKey(expected.projectId), registry.value)) return true;
+				if (await this.#values.deleteIfCurrent(registryKey(expected.projectId), registry.value)) {
+					await this.#releaseGlobal(expected);
+					return true;
+				}
 			} else {
 				const next = freezeRegistry(expected.projectId, records);
-				if (await this.#values.replaceIfCurrent(registryKey(expected.projectId), registry.value, next)) return true;
+				if (await this.#values.replaceIfCurrent(registryKey(expected.projectId), registry.value, next)) {
+					await this.#releaseGlobal(expected);
+					return true;
+				}
 			}
 		}
 		throw new Error('Raw PCM spool removal exceeded its bounded CAS retry limit.');
+	}
+
+	async #reserveGlobal(record: RawPcmSpoolRecord): Promise<void> {
+		for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
+			const value = await this.#values.get(GLOBAL_INVENTORY_KEY);
+			const inventory = value == null ? await this.#repairGlobalInventory() : normalizeGlobalInventory(value);
+			if (inventory.entries.some((entry) => entry.projectId === record.projectId && entry.spoolId === record.spoolId)) {
+				throw new Error(`Raw PCM spool ${record.spoolId} already exists.`);
+			}
+			if (inventory.entries.length >= MAXIMUM_GLOBAL_ACTIVE_SPOOLS) {
+				throw new RangeError('Raw PCM spool inventory exceeds its global bound.');
+			}
+			const next = freezeGlobalInventory([...inventory.entries, globalEntry(record)]);
+			if (value == null) {
+				if (await this.#values.putIfAbsent(GLOBAL_INVENTORY_KEY, next)) return;
+			} else if (await this.#values.replaceIfCurrent(GLOBAL_INVENTORY_KEY, value, next)) return;
+		}
+		throw new Error('Raw PCM spool global admission exceeded its bounded CAS retry limit.');
+	}
+
+	async #releaseGlobal(record: RawPcmSpoolRecord): Promise<void> {
+		for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
+			const value = await this.#values.get(GLOBAL_INVENTORY_KEY);
+			if (value == null) return;
+			const inventory = normalizeGlobalInventory(value);
+			const entries = inventory.entries.filter((entry) => entry.spoolToken !== record.spoolToken);
+			if (entries.length === inventory.entries.length) return;
+			const next = freezeGlobalInventory(entries);
+			if (await this.#values.replaceIfCurrent(GLOBAL_INVENTORY_KEY, value, next)) return;
+		}
+		throw new Error('Raw PCM spool global release exceeded its bounded CAS retry limit.');
+	}
+
+	async #repairGlobalInventory(): Promise<RawPcmSpoolGlobalInventory> {
+		const entries = [];
+		for (const value of await this.#values.listByPrefix(KEY_PREFIX)) {
+			const record = dataRecord(value, 'raw PCM spool registry entry');
+			const registry = normalizeRegistry(record.value, stableId(record.projectId, 'raw PCM spool projectId'));
+			entries.push(...registry.records.map(globalEntry));
+			if (entries.length > MAXIMUM_GLOBAL_ACTIVE_SPOOLS) {
+				throw new RangeError('Raw PCM spool inventory exceeds its global bound.');
+			}
+		}
+		return freezeGlobalInventory(entries);
 	}
 
 	async #loadRegistry(projectId: string): Promise<Readonly<{
@@ -397,6 +466,41 @@ function freezeRegistry(projectId: string, records: readonly RawPcmSpoolRecord[]
 		version: 1,
 		projectId,
 		records: Object.freeze([...records].sort((left, right) => left.spoolId.localeCompare(right.spoolId))),
+	});
+}
+
+function normalizeGlobalInventory(value: unknown): RawPcmSpoolGlobalInventory {
+	const record = dataRecord(value, 'raw PCM spool global inventory');
+	if (record.version !== 1 || !Array.isArray(record.entries)
+		|| record.entries.length > MAXIMUM_GLOBAL_ACTIVE_SPOOLS) {
+		throw new Error('Raw PCM spool global inventory is invalid.');
+	}
+	const entries = record.entries.map((value) => {
+		const entry = dataRecord(value, 'raw PCM spool global inventory entry');
+		return Object.freeze({
+			projectId: stableId(entry.projectId, 'raw PCM spool projectId'),
+			spoolId: stableId(entry.spoolId, 'raw PCM spool ID'),
+			spoolToken: stableId(entry.spoolToken, 'raw PCM spool token'),
+		});
+	});
+	if (new Set(entries.map(({ spoolToken }) => spoolToken)).size !== entries.length) {
+		throw new Error('Raw PCM spool global inventory contains duplicate ownership.');
+	}
+	return freezeGlobalInventory(entries);
+}
+
+function freezeGlobalInventory(entries: RawPcmSpoolGlobalInventory['entries']): RawPcmSpoolGlobalInventory {
+	return Object.freeze({
+		version: 1,
+		entries: Object.freeze([...entries].sort((left, right) => left.spoolToken.localeCompare(right.spoolToken))),
+	});
+}
+
+function globalEntry(record: RawPcmSpoolRecord): RawPcmSpoolGlobalInventory['entries'][number] {
+	return Object.freeze({
+		projectId: record.projectId,
+		spoolId: record.spoolId,
+		spoolToken: record.spoolToken,
 	});
 }
 

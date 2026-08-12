@@ -39,6 +39,7 @@ export interface TakeCycleCapturePcmSpan extends TakeCycleCaptureSpan {
 }
 
 export interface TakeCycleCapturePassIdentities {
+	readonly laneId: string;
 	readonly takeId: string;
 	readonly mediaId: string;
 	readonly journalId: string;
@@ -79,7 +80,7 @@ export interface TakeCycleCaptureDraftSeed {
 		| { readonly kind: 'stream'; readonly spans: AsyncIterable<TakeCycleCapturePcmSpan> }
 		| { readonly kind: 'committed'; readonly spool: TakeCycleCommittedCaptureSpool }
 	>;
-	createPassIdentities(passIndex: number): TakeCycleCapturePassIdentities;
+	createPassIdentities(passIndex: number, firstLaneId: string): TakeCycleCapturePassIdentities;
 }
 
 export interface TakeCycleCaptureSpool {
@@ -95,7 +96,7 @@ export interface TakeCycleCaptureSpool {
 	resolveOpenCaptures(
 		projectId: string,
 		decision: 'recover' | 'discard',
-		createPassIdentities: (passIndex: number) => TakeCycleCapturePassIdentities,
+		createPassIdentities: (passIndex: number, firstLaneId: string) => TakeCycleCapturePassIdentities,
 	): Promise<readonly TakeCycleCaptureDraft[]>;
 	readPass(
 		draft: TakeCycleCaptureDraft,
@@ -169,10 +170,13 @@ export function createTakeCycleCaptureSourceSpool(
 		});
 		const geometry = storedCaptureGeometry(stored, spans, seed);
 		const evidence = await passEvidenceFromStoredCapture(sources, stored, spans, seed, signal);
-		const identities = evidence.map((_, passIndex) => normalizePassIdentities(seed.createPassIdentities(passIndex)));
+		const identities = evidence.map((_, passIndex) => normalizePassIdentities(
+			seed.createPassIdentities(passIndex, seed.laneId),
+		));
 		const plan = planExactTakeCycleCapture({
 			groupId: seed.groupId,
 			laneId: seed.laneId,
+			laneIds: identities.map(({ laneId }) => laneId),
 			loopStartSample: seed.loopStartSample,
 			loopEndSample: seed.loopEndSample,
 			captureSpans: spans,
@@ -252,7 +256,7 @@ export function createTakeCycleCaptureSourceSpool(
 	async function resolveOpenCaptures(
 		projectId: string,
 		decision: 'recover' | 'discard',
-		createPassIdentities: (passIndex: number) => TakeCycleCapturePassIdentities,
+		createPassIdentities: (passIndex: number, firstLaneId: string) => TakeCycleCapturePassIdentities,
 	): Promise<readonly TakeCycleCaptureDraft[]> {
 		const drafts = await live.resolve(projectId, decision, createPassIdentities);
 		for (const draft of drafts) origins.set(draft.draftId, 'live');
@@ -388,6 +392,7 @@ function normalizeSeed(value: TakeCycleCaptureDraftSeed): NormalizedSeed {
 
 function normalizePassIdentities(value: TakeCycleCapturePassIdentities): TakeCycleCapturePassIdentities {
 	return Object.freeze({
+		laneId: stableId(value?.laneId, 'take cycle pass laneId'),
 		takeId: stableId(value?.takeId, 'take cycle takeId'),
 		mediaId: stableId(value?.mediaId, 'take cycle mediaId'),
 		journalId: stableId(value?.journalId, 'take cycle journalId'),

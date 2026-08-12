@@ -7,7 +7,9 @@ import {
 	createTakeCycleCaptureOrchestrator,
 	type TakeCycleCapturedLane,
 } from '../src/common/editor/controller/take-cycle-capture-orchestrator.ts';
-import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/take-cycle-capture-spool.ts';
+import {
+	createTakeCycleCaptureSourceSpool,
+} from '../src/common/editor/controller/take-cycle-capture-spool.ts';
 import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/take-cycle-live-capture-spool.ts';
 import type {
 	TakeCycleFinalizationRequest,
@@ -46,15 +48,15 @@ test('capture orchestration durably spools a stream and exposes exact repository
 	assert.deepEqual(request.lanes[0]?.publications.map(({ byteLength }) => byteLength), [40, 12]);
 	assert.match(request.lanes[0]?.publications[0]?.sha256 ?? '', /^[a-f0-9]{64}$/u);
 	assert.deepEqual(fixture.ids, [
-		'envelope', 'lane', 'take', 'media', 'journal', 'take', 'media', 'journal',
+		'envelope', 'lane', 'take', 'media', 'journal', 'lane', 'take', 'media', 'journal',
 	]);
 	assert.deepEqual(fixture.targets, [{ trackId: 'track-a', sequenceId: 'main-sequence' }]);
 	assert.deepEqual(fixture.descriptions.map(({ frameCount }) => frameCount), [8, 2]);
 	assert.deepEqual(fixture.reads.get('media-4'), [[...CHUNK_A], [...CHUNK_B]]);
-	assert.deepEqual(fixture.reads.get('media-7'), [[...CHUNK_C]]);
+	assert.deepEqual(fixture.reads.get('media-8'), [[...CHUNK_C]]);
 	assert.deepEqual(fixture.activated, [
 		{ laneId: 'lane-2', takeId: 'take-3', mediaId: 'media-4' },
-		{ laneId: 'lane-2', takeId: 'take-6', mediaId: 'media-7' },
+		{ laneId: 'lane-6', takeId: 'take-7', mediaId: 'media-8' },
 	]);
 	assert.equal(fixture.orchestrator.pendingCaptureCount, 0);
 	assert.equal(await storage.sources.getMetadata('envelope-1'), null, 'settlement deletes exact draft metadata and PCM');
@@ -521,7 +523,7 @@ function finalizationResult(
 				committedPasses: failed ? [] : lane.publications.map((publication) => ({
 					generation: request.publicationGeneration,
 					groupId: lane.groupId,
-					laneId: lane.laneId,
+					laneId: publication.laneId,
 					takeId: publication.takeId,
 					mediaId: publication.mediaId,
 					byteLength: publication.byteLength,
@@ -566,6 +568,7 @@ function recoveryEnvelopeAuthority(projectId: string, generation: number): TakeC
 		generation,
 		captureRequest: {
 			groupId: 'group-envelope', laneId: 'lane-envelope',
+			laneIds: ['lane-envelope'],
 			loopStartSample: 0, loopEndSample: 4,
 			captureSpans: [{ startSample: 0, endSample: 4 }],
 			takeIds: ['take-envelope'], interrupted: false,

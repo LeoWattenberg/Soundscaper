@@ -61,8 +61,10 @@ function request(): TakeCycleFinalizationRequest {
 }
 
 function publication(id: string, byteLength: number, sha256: string) {
+	const [lane, pass] = id.split('-');
 	return {
 		journalId: `journal-${id}`,
+		laneId: pass === '1' ? `lane-${lane}` : `lane-${id}`,
 		takeId: `take-${id}`,
 		mediaId: `media-${id}`,
 		byteLength,
@@ -82,7 +84,7 @@ test('multi-input finalization persists one exact envelope and one project publi
 	]);
 	assert.equal(Object.isFrozen(result), true);
 	assert.deepEqual(fixture.staged[0]?.plan.passes[2], {
-		passIndex: 2, takeId: 'take-a-3',
+		passIndex: 2, laneId: 'lane-a-3', takeId: 'take-a-3',
 		captureStartSample: 300, captureEndSample: 330,
 		timelineStartSample: 100, timelineEndSample: 130,
 		complete: false, interrupted: true,
