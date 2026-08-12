@@ -6,6 +6,8 @@ import {
 	createRecordingPreferenceActionFacade,
 	type RecordingActionScope,
 } from './recording-action-facade.ts';
+import { createTakeCompActionFacade } from './take-comp-action-facade.ts';
+import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 
 export interface EditorActionRuntime {
@@ -72,7 +74,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	selectionViewService, sequenceTimingService, sourceMonitorService, timelineAnnotationService,
 	regularIntervalAnnotationController, trackFolderService, trackStructuralOperations, videoEditService,
-	videoNavigationService, videoSourceReprobeService, videoTrimServices,
+	takeCompService, videoNavigationService, videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -385,24 +387,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getVisibleClips,
 			requestWaveformPcmWindow,
 		}),
-		timelineAnnotations: Object.freeze({
-			createMarkerAtPlayhead: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.createMarker(...args)),
-			createRegionFromSelection: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.createRegion(...args)),
-			focus: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.focusAnnotation(...args)),
-			clearFocus: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.clearFocus(...args)),
-			select: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.selectAnnotation(...args)),
-			selectMany: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.selectAnnotations(...args)),
-			toggle: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.toggleAnnotation(...args)),
-			rename: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.renameAnnotations(...args)),
-			setColor: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.setAnnotationColor(...args)),
-			move: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.moveAnnotations(...args)),
-			resize: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.resizeAnnotation(...args)),
-			convert: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.convertAnnotation(...args)),
-			batch: restricted('timelineAnnotations', (annotationIds: RuntimeValue, batchId: RuntimeValue = createStableId('annotation-batch')) => timelineAnnotationService.setAnnotationBatch(annotationIds, batchId)),
-			unbatch: restricted('timelineAnnotations', (annotationIds: RuntimeValue) => timelineAnnotationService.setAnnotationBatch(annotationIds, null)),
-			remove: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.removeAnnotations(...args)),
-			previous: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigatePreviousAnnotation(...args)),
-			next: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigateNextAnnotation(...args)), regularInterval: restricted('timelineAnnotations', regularIntervalAnnotationController.create),
+		timelineAnnotations: createTimelineAnnotationActionFacade({
+			service: timelineAnnotationService, regularInterval: regularIntervalAnnotationController.create,
+			restricted, createId: createStableId,
 		}),
 		sequences: Object.freeze({
 			view: (sequenceId: RuntimeValue) => sequenceTimingService.view(sequenceId),
@@ -429,6 +416,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			wrapSelection: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.wrapTracksIntoFolder(...args)),
 			select: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.selectFolder(...args)),
 			selectedFolderId: (...args: RuntimeValue) => trackFolderService.selectedFolderId(...args),
+		}),
+		takeComp: createTakeCompActionFacade({
+			enabled: Boolean(capabilities.takeComp), productName: product.name, service: takeCompService,
 		}),
 		sampleEdit: Object.freeze({
 			setMode: restricted('audioSampleEditing', setSampleEditMode),

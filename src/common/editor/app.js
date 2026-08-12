@@ -168,6 +168,7 @@ import {
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
+import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
 import { createScapeProjectFileService } from './controller/scape-project-file-service.ts';
 import { createEditorEditService } from './controller/edit-service.ts';
 import { createLabelService } from './controller/label-service.ts';
@@ -228,6 +229,7 @@ import { createVideoNavigationService } from './controller/video-navigation-serv
 import { createVideoTrimServices } from './controller/video-trim-composition.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
+import { createTakeCompControllerComposition } from './controller/take-comp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
@@ -1168,6 +1170,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	});
+	const takeCompService = createTakeCompControllerComposition({
+		lifetime, sourceBuffers, sourceChunkProviders, sourceResolver: clipTimePitchSourceResolver,
+		derivedSources: derivedSourceService, getProject: () => project, editingBlocked, commit,
+		createId: createStableId, captureProject: () => projectGeneration.capture(project?.id ?? null),
+		assertProject: (token) => projectGeneration.assertCurrent(token),
+		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),
+		stopPlayback: () => engine.stop(), renderSnapshot, setStatus,
+	});
 	const mixRenderService = createMixRenderService({
 		lifetime, copy, derivedSources: derivedSourceService,
 		store, sourceBuffers, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
@@ -1763,7 +1773,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setRecordingTrackRoute,
 		streamAudioChannelCount,
 	});
-	const actions = guardControllerActions(createGroupedEditorActions({
+	const actions = guardEditorControllerActions(createGroupedEditorActions({
 		AUDIO_EDITOR_DEFAULT_SHORTCUTS, addEffect, addLabel, addLabelTrack,
 		addTrack, addVideoClipEffect, addVideoTrackPair, adjustAllTrackHeights,
 		adjustTrackHeight, analysisService: progressAnalysisService, applyAudacityEffectFromController, applyEffectPreset,
@@ -1817,9 +1827,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		sourceMonitorService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
+		sourceMonitorService, takeCompService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
-	}));
+	}), () => lifetime.assertActive());
 	let disposePromise = null;
 
 	return {
@@ -1897,6 +1907,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await cleanup(() => Promise.resolve(state.outputCleanup?.()));
 			await cleanup(() => projectBinService.dispose(), true);
+			await cleanup(() => takeCompService.dispose(), true);
 			await cleanup(() => clipTimePitchCacheService.disposeRenderEngines(), true);
 			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
 			await cleanup(() => nativeProjectService.dispose());
@@ -1921,19 +1932,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (disposalError) throw disposalError;
 	}
 
-	function guardControllerActions(value) {
-		if (typeof value === 'function') {
-			return (...args) => {
-				lifetime.assertActive();
-				return value(...args);
-			};
-		}
-		if (!value || typeof value !== 'object') return value;
-		return Object.freeze(Object.fromEntries(Object.entries(value).map(([key, child]) => [
-			key,
-			guardControllerActions(child),
-		])));
-	}
 	function getSnapshot() {
 		return documentChannel.get();
 	}

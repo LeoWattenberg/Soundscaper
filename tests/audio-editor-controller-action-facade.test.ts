@@ -30,6 +30,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'sequences',
 	'spectral',
 	'storage',
+	'takeComp',
 	'timeline',
 	'timelineAnnotations',
 	'track',
@@ -419,6 +420,48 @@ test('timeline annotation actions remain capability gated until product activati
 	const createMarker = actions.createMarkerAtPlayhead;
 	if (typeof createMarker !== 'function') throw new TypeError('Timeline marker creation must be callable.');
 	assert.throws(() => createMarker(), /does not support timelineAnnotations/u);
+});
+
+test('take comp facade exposes every persistent and audition operation behind one capability', () => {
+	const calls: Array<readonly [string, ...unknown[]]> = [];
+	const service = new Proxy<Record<string, (...args: unknown[]) => unknown>>({}, {
+		get(_target, name) {
+			return (...args: unknown[]) => {
+				calls.push([String(name), ...args]);
+				return name;
+			};
+		},
+	});
+	const base = createRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'takeCompService') return service;
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const actions = createGroupedEditorActions(runtime).takeComp;
+	const requests: Readonly<Record<string, readonly unknown[]>> = {
+		createGroup: [{ id: 'group' }],
+		updateGroup: ['group', { id: 'group' }],
+		removeGroup: ['group'],
+		auditionTake: ['group', 'take'],
+		auditionLane: ['group', 'lane'],
+		stopAudition: [],
+		promoteTake: ['group', { takeId: 'take' }],
+		editCompBoundary: ['group', { regionId: 'region' }],
+		editSharedCompBoundary: ['group', { leftRegionId: 'left' }],
+		flatten: ['group'],
+	};
+	for (const [name, args] of Object.entries(requests)) {
+		const action = actions[name];
+		if (typeof action !== 'function') throw new TypeError(`Missing take comp action: ${name}.`);
+		action(...args);
+	}
+	assert.deepEqual(calls, Object.entries(requests).map(([name, args]) => [name, ...args]));
+
+	const blocked = createGroupedEditorActions(createRuntime(false)).takeComp.flatten;
+	if (typeof blocked !== 'function') throw new TypeError('Flatten must remain callable.');
+	assert.throws(() => blocked('group'), /does not support takeComp/u);
 });
 
 test('controller action facade exposes explicit safe storage operations', async () => {
