@@ -4,6 +4,7 @@ import {
 	ChunkStreamClient,
 	createChunkStreamAudioNode,
 } from '../chunk-stream-client.js';
+import { createAudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import {
 	getProjectDurationFrames,
 	getProjectTimelineDurationFrames,
@@ -81,8 +82,12 @@ export function initializeEngineRuntime(
 		meterInterval = DEFAULT_METER_INTERVAL,
 	}: EngineRuntimeOptions = {},
 ): void {
-	engine.audioContextFactory = audioContextFactory || getAudioContextConstructor();
-	engine.offlineAudioContextFactory = offlineAudioContextFactory || getOfflineAudioContextConstructor();
+	engine.audioContextFactory = audioContextFactory === undefined
+		? getAudioContextConstructor()
+		: audioContextFactory;
+	engine.offlineAudioContextFactory = offlineAudioContextFactory === undefined
+		? getOfflineAudioContextConstructor()
+		: offlineAudioContextFactory;
 	engine.softwareRenderer = softwareRenderer || null;
 	engine.sourceResolver = normalizeSourceResolver(sourceResolver);
 	engine.chunkStreamClient = chunkStreamClient || null;
@@ -263,7 +268,15 @@ setChunkSources(chunkSources = new Map()) {
 		const entries = chunkSources instanceof Map ? chunkSources : new Map(Object.entries(chunkSources || {}));
 		this.chunkSources = new Map([...entries].map(([sourceId, source]) => [String(sourceId), normalizeChunkSource(source)]));
 		return this;
-	},
+},
+
+getAudioWarpRenderStatus() {
+	this[ENGINE_ASSERT_ACTIVE]();
+	return createAudioWarpRenderPathStatus({
+		realtimeAcceleration: this.audioContextFactory !== null,
+		exactOfflineAvailable: this.offlineAudioContextFactory !== null,
+	});
+},
 
 async decodeAudioData(data) {
 		const context = await this.getAudioContext({ resume: false });
@@ -404,6 +417,7 @@ async [ENGINE_GET_CONTEXT]() {
 	| 'applyProject'
 	| 'setSourceResolver'
 	| 'setChunkSources'
+	| 'getAudioWarpRenderStatus'
 	| 'decodeAudioData'
 	| 'getAudioContext'
 	| 'setOutputDevice'

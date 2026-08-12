@@ -6,7 +6,9 @@ import test from 'node:test';
 import {
 	audioWarpMapFingerprint,
 	audioWarpSourceWindowRange,
+	createAudioWarpRenderPathStatus,
 	buildAudioWarpRuntimeSegments,
+	evaluateAudioWarpRenderParity,
 	evaluateAudioWarpSourceFrame,
 	selectAudioWarpRenderPath,
 } from '../src/common/editor/audio-warp-runtime.ts';
@@ -114,6 +116,43 @@ test('runtime maps require explicit clip endpoints and select only exact render 
 	assert.equal(selectAudioWarpRenderPath({ realtimeAcceleration: true }), 'realtime');
 	assert.equal(selectAudioWarpRenderPath({ realtimeAcceleration: false }), 'exact-offline');
 	assert.throws(() => selectAudioWarpRenderPath({ realtimeAcceleration: false, exactOfflineAvailable: false }), /exact offline/iu);
+});
+
+test('runtime status exposes the selected native or exact-offline path and never scalar', () => {
+	assert.deepEqual(createAudioWarpRenderPathStatus({
+		realtimeAcceleration: true,
+		exactOfflineAvailable: true,
+	}), {
+		path: 'realtime',
+		realtimeAcceleration: true,
+		exactOfflineAvailable: true,
+		fallback: false,
+	});
+	assert.deepEqual(createAudioWarpRenderPathStatus({
+		realtimeAcceleration: false,
+		exactOfflineAvailable: true,
+	}), {
+		path: 'exact-offline',
+		realtimeAcceleration: false,
+		exactOfflineAvailable: true,
+		fallback: true,
+	});
+	assert.doesNotMatch(JSON.stringify(createAudioWarpRenderPathStatus({
+		realtimeAcceleration: false,
+		exactOfflineAvailable: true,
+	})), /scalar/iu);
+});
+
+test('realtime segment projection and exact offline evaluator agree across the shared error budget', () => {
+	const parity = evaluateAudioWarpRenderParity(SAMPLE_PROJECT, SAMPLE_CLIP, {
+		startFrame: 100,
+		endFrame: 200,
+		sourceSampleRate: 48_000,
+	});
+	assert.equal(parity.breakpointCount, 3);
+	assert.ok(parity.comparedFrameCount >= 5);
+	assert.ok(parity.maximumErrorFrames <= parity.errorBudgetFrames);
+	assert.equal(parity.errorBudgetFrames, 0.000_001);
 });
 
 test('canonical map fingerprints are stable and authority-sensitive', () => {

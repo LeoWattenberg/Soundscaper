@@ -11,6 +11,7 @@ import {
 const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'analysis',
 	'audioDevices',
+	'audioWarp',
 	'clip',
 	'edit',
 	'effects',

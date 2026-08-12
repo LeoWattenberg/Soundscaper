@@ -6,7 +6,7 @@ import {
 	createRecordingPreferenceActionFacade,
 	type RecordingActionScope,
 } from './recording-action-facade.ts';
-import { createTakeCompActionFacade } from './take-comp-action-facade.ts';
+import { createProjectOwnedFeatureActionFacades } from './project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 
@@ -74,7 +74,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	selectionViewService, sequenceTimingService, sourceMonitorService, timelineAnnotationService,
 	regularIntervalAnnotationController, trackFolderService, trackStructuralOperations, videoEditService,
-	takeCompService, videoNavigationService, videoSourceReprobeService, videoTrimServices,
+	audioWarpService, takeCompService, videoNavigationService, videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -417,9 +417,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			select: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.selectFolder(...args)),
 			selectedFolderId: (...args: RuntimeValue) => trackFolderService.selectedFolderId(...args),
 		}),
-		takeComp: createTakeCompActionFacade({
-			enabled: Boolean(capabilities.takeComp), productName: product.name, service: takeCompService,
-		}),
+		...createProjectOwnedFeatureActionFacades({ capabilities, product, audioWarpService, takeCompService }),
 		sampleEdit: Object.freeze({
 			setMode: restricted('audioSampleEditing', setSampleEditMode),
 			pencil: restricted('audioSampleEditing', applySamplePencil),

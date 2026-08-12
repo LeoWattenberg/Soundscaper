@@ -160,11 +160,7 @@ import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { NyquistEvaluationClient } from './nyquist/client.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
-import {
-	EditorControllerLifetime,
-	EditorProjectGeneration,
-	isEditorDisposedError,
-} from './controller/lifecycle.ts';
+import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
@@ -230,6 +226,7 @@ import { createVideoTrimServices } from './controller/video-trim-composition.ts'
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
 import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createTakeCompControllerComposition } from './controller/take-comp-composition.ts';
+import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
@@ -1178,6 +1175,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),
 		stopPlayback: () => engine.stop(), renderSnapshot, setStatus,
 	});
+	const audioWarpService = createAudioWarpControllerComposition({ lifetime, store, getProject: () => project, getSelectedClipId: () => state.selectedClipId, editingBlocked, commit, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token), getRenderStatus: () => engine.getAudioWarpRenderStatus(), setAnalysisProcessing: (processing) => { state.analysisProcessing = processing; }, publish: publishDocumentSnapshot });
 	const mixRenderService = createMixRenderService({
 		lifetime, copy, derivedSources: derivedSourceService,
 		store, sourceBuffers, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
@@ -1827,7 +1825,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		sourceMonitorService, takeCompService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
+		audioWarpService, sourceMonitorService, takeCompService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;
@@ -1907,7 +1905,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 			await cleanup(() => Promise.resolve(state.outputCleanup?.()));
 			await cleanup(() => projectBinService.dispose(), true);
-			await cleanup(() => takeCompService.dispose(), true);
+			audioWarpService.dispose(); await cleanup(() => takeCompService.dispose(), true);
 			await cleanup(() => clipTimePitchCacheService.disposeRenderEngines(), true);
 			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
 			await cleanup(() => nativeProjectService.dispose());

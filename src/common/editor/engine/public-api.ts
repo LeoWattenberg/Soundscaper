@@ -2,6 +2,7 @@
 
 import type { NormalizedLoop, PlanarPcm } from './buffer-math.ts';
 import type { EffectSpectrumMetadata } from './effect-rack.ts';
+import type { AudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import type {
 	EngineChunkSource,
 	EngineLoop,
@@ -165,6 +166,7 @@ export interface EnginePublicApi {
 	getAudioContext(options?: Readonly<{ resume?: boolean }>): Promise<EngineAudioContext>;
 	setOutputDevice(deviceId?: string): Promise<EngineOutputDeviceState>;
 	getOutputDeviceState(): EngineOutputDeviceState;
+	getAudioWarpRenderStatus(): Readonly<AudioWarpRenderPathStatus>;
 	play(): Promise<void>;
 	playAtSpeed(rate: number, options?: EnginePlayAtSpeedOptions): Promise<void>;
 	playAt(contextTime: number, fromFrame?: number): Promise<void>;
