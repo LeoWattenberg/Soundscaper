@@ -156,6 +156,19 @@ test('take/comp state is bypass-only and refuses rendered fallback substitution'
 			tracks: [],
 		}), /not eligible for an? (?:audio|video) rendered fallback/iu);
 	}
+	assert.throws(() => createAudioEditorProjectV17({
+		...options(),
+		featureRequirements: {
+			schemaVersion: 2,
+			requirements: [{
+				id: 'publisher-take-comp-bypass',
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.takeComp,
+				displayName: 'Publisher take comps',
+				disposition: 'bypass',
+				fallback: null,
+			}],
+		},
+	}), /reserved.*take-comp.*requirement conflicts with publisher data/iu);
 });
 
 test('V17 validates ownership, source bounds, take coverage, ordering, and global identities', () => {

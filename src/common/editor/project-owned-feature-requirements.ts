@@ -86,6 +86,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.takeComp,
 		(project) => dataArray(project, 'takeGroups').length > 0,
+		() => true,
 	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.audioWarp, (project) => projectHasClipField(project, 'audio', 'warpMap')),
 	foundationOwned(FOUNDATION_REQUIREMENTS.sequenceTiming, projectHasNonDefaultSequenceTiming),
@@ -130,7 +131,7 @@ function foundationOwned(
 
 /**
  * Keep editor-owned declarations aligned with maintained state. Publisher
- * declarations normally win; exact V16 retime state refuses substitution.
+ * declarations normally win; owned state with exact semantics can refuse substitution.
  */
 export function reconcileProjectOwnedFeatureRequirements(
 	project: Readonly<Record<string, unknown>>,
