@@ -1,10 +1,20 @@
 # Milestone 3B-6b: exact video-proxy relationship proof
 
-> **Ready for implementation.** This is the next dormant, schema-neutral slice after
-> [3B-6a timing conformance](milestone-3b-video-proxy-timing-conformance.md). It proves
-> one candidate relationship in memory. It adds no project field, repository row,
-> publication, command, menu, preview consumer, offline claim, capability availability,
-> or compatibility-rule flip. Packet 3B-6 remains **In progress**.
+> **3B-6b implemented, dormant, on 2026-08-12.** Contract `ce9c4782`
+> precedes `937e52bf`'s exact proxy-relationship authority. The focused Node
+> suite passed 13/13; both TypeScript configurations and focused lint passed,
+> and two independent adversarial reviews found no remaining issue. The
+> canonical `npm run check` passed with 5,393 tests (5,391 passed and 2
+> skipped), 90.07% line, 82.01% branch, and 90.86% function coverage;
+> architecture covered 907 modules, 2,515 dependencies, and 1,992 maintained
+> files; and the build transformed 1,182 modules and emitted 104 JavaScript
+> chunks with a 400,686-byte largest chunk. No browser row was required because
+> no maintained consumer or UI imports this dormant proof. It adds no project
+> field, repository row, publication, command, menu, preview consumer, offline
+> claim, capability availability, or compatibility-rule flip. Packet 3B-6
+> remains **In progress**; the immediate next slice is the contract-first 3B-6c
+> V17 persisted attachment, whose production implementation is not authorized
+> until that contract is reviewed.
 
 ## Outcome and delivery boundary
 
@@ -15,11 +25,15 @@ authentic 3B-6a proof; then recheck the project and original generation before
 issuing an opaque relationship proof. No caller may splice together a digest,
 timing token, probe result, or conformance proof obtained elsewhere.
 
-Implement two strict modules under 600 lines each:
+The implementation stays under the 600-line ceiling across four strict modules:
 
 - `video-proxy-candidate-observation.ts` owns trusted generation, canonical
   candidate bytes, SHA-256, exact timing observation, and the private candidate
-  timing token; and
+  timing token;
+- `video-proxy-project-snapshot.ts` owns bounded descriptor-only project
+  capture before canonical V16 serialization and validation;
+- `video-proxy-relationship-lease.ts` owns closed original-lease admission,
+  exact fingerprint comparison, and once-only cleanup; and
 - `video-proxy-relationship.ts` owns exact V16 target admission, the original
   lease, 3B-6a conformance, currentness, cleanup, and relationship proofs.
 

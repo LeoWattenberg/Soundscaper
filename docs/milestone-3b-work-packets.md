@@ -311,23 +311,24 @@ narrower-domain proof.
 
 **Status: In progress.** Contract `1d93145b` and implementation `a7f14a47`
 delivered
-[3B-6a — exact video-proxy timing conformance](milestone-3b-video-proxy-timing-conformance.md)
-on 2026-08-12: one schema-neutral, dormant proof that two authenticated timing
-views have the same `N + 1` exact picture boundaries. Its focused Node test
-passed 1/1. The canonical `npm run check` passed with 5,380 tests (5,378 passed
-and 2 skipped), 91.34% line, 79.93% branch, and 90.45% function coverage;
-architecture covered 903 modules, 2,501 dependencies, and 1,986 maintained
-files; and the build emitted 104 JavaScript chunks with a 400,686-byte largest
-chunk. No browser row was required because no maintained path imports the
-module. It adds no UI, persistence, capability availability, or
-compatibility-rule flip and does not weaken 3B-5's exact-executor hard stop.
-The immediate next slice is the reviewed
-[3B-6b exact proxy relationship proof](milestone-3b-video-proxy-relationship.md):
-one dormant operation spanning pre-I/O retime admission, repository-owned
-original observation, same-Blob generation/hash/exact timing observation, and
-post-I/O currentness. Its production implementation has not started. Atomic
-V17 attachment, Project Bin menu and adaptive-preview lifecycle, then
-multicamera follow that contract.
+[3B-6a exact video-proxy timing conformance](milestone-3b-video-proxy-timing-conformance.md),
+then contract `ce9c4782` and implementation `937e52bf` delivered the dormant
+[3B-6b exact proxy relationship proof](milestone-3b-video-proxy-relationship.md)
+on 2026-08-12. The latter spans pre-I/O retime admission, repository-owned
+original observation, same-Blob generation, hashing, exact timing observation,
+and post-I/O currentness. Its focused Node suite passed 13/13; both TypeScript
+configurations and focused lint passed, and two independent adversarial reviews
+found no remaining issue. The canonical `npm run check` passed with 5,393
+tests (5,391 passed and 2 skipped), 90.07% line, 82.01% branch, and 90.86%
+function coverage; architecture covered 907 modules, 2,515 dependencies, and
+1,992 maintained files; and the build transformed 1,182 modules and emitted
+104 JavaScript chunks with a 400,686-byte largest chunk. No browser row was
+required because no maintained consumer or UI imports either proof. These
+slices add no persistence, capability availability, or compatibility-rule
+flip and do not weaken 3B-5's exact-executor hard stop. The immediate next
+slice is the contract-first 3B-6c V17 persisted attachment; production
+implementation is not authorized until that contract is reviewed. Project Bin
+menu and adaptive-preview lifecycle, then multicamera, follow it.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

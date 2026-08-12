@@ -493,12 +493,13 @@ Packet boundaries, dependencies, and acceptance are owned by
   maintained retime workflows, nested sequences, subsequence time mapping, and
   flattening remain later slices.
 - **Web Core — In progress:** [dormant exact proxy timing
-  conformance](docs/milestone-3b-video-proxy-timing-conformance.md) is
-  implemented through `a7f14a47`, with no UI, persistence, capability change,
-  or browser row. The immediate next slice is the reviewed [exact proxy
-  relationship proof](docs/milestone-3b-video-proxy-relationship.md); its
-  production implementation, durable attachment, adaptive preview,
-  offline/relink, and synchronized multicamera groups follow it.
+  conformance](docs/milestone-3b-video-proxy-timing-conformance.md) and the
+  [exact proxy relationship proof](docs/milestone-3b-video-proxy-relationship.md)
+  are implemented through `937e52bf`, with no UI, persistence, capability
+  change, or browser row. The immediate next slice is the contract-first 3B-6c
+  V17 persisted attachment; its production implementation is not authorized
+  until that contract is reviewed. Adaptive preview, offline/relink, and
+  synchronized multicamera groups follow it.
 
 ### Shared exit gate
 
