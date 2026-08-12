@@ -7,9 +7,7 @@ import {
 	createTakeCycleCaptureOrchestrator,
 	type TakeCycleCapturedLane,
 } from '../src/common/editor/controller/take-cycle-capture-orchestrator.ts';
-import {
-	createTakeCycleCaptureSourceSpool,
-} from '../src/common/editor/controller/take-cycle-capture-spool.ts';
+import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/take-cycle-capture-spool.ts';
 import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/take-cycle-live-capture-spool.ts';
 import type {
 	TakeCycleFinalizationRequest,
