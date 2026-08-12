@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-11. Milestones are ordered by
+> Grounded against the repository on 2026-08-12. Milestones are ordered by
 > dependency and close only when their exit gates pass. They are not release-date
 > promises.
 
@@ -404,11 +404,27 @@ Packet boundaries, dependencies, and acceptance are owned by
   top-level timeline folder holding audio owns a group bus and deeper folders
   route to it. Bus nesting below that single layer stays milestone-4 work and
   is not approximated here.
-- **Shared / Web Core — Planned:** take lanes, cycle-recorded takes, audition,
-  promotion, comp regions, flattening, and interrupted-take recovery.
-- **Shared / Web Enhanced — Planned:** transient analysis, warp markers,
-  beat-aware stretch, audio quantization, and groove strength over the shared
-  breakpoint model with an exact offline fallback.
+- **Shared / Web Core — Implemented:** schema-V17 take groups persist stable,
+  ordered lane, take, and non-overlapping comp-region identities. Soundscaper's
+  menu-reached workflow auditions and promotes takes, edits comp boundaries,
+  and flattens explicitly as one reversible edit while retaining referenced
+  sources. Exact cycle capture creates one ordered lane per loop pass, appends
+  repeated recordings to the same exact group, isolates failed routed lanes,
+  and settles project, media, raw-spool, and recovery-envelope ownership through
+  generation-fenced publication. Explicit recover or discard is required after
+  interruption; mutation stays blocked while that decision is pending. Focused
+  domain, command, storage-fault, `.scape`, desktop-handoff, cross-product, and
+  browser take-comp workflows cover the maintained surface.
+- **Shared / Web Enhanced — Implemented:** digest- and algorithm-bound transient
+  analysis uses bounded disposable cache storage, while strictly increasing
+  audio warp maps share one exact evaluator across waveform projection,
+  realtime scheduling, and export. Soundscaper reaches marker authoring,
+  beat-aware quantization, and adjustable groove strength through its existing
+  menus; deterministic commands preserve trims, splits, tempo edits, undo/redo,
+  clipboard, and save/reopen meaning. Missing realtime acceleration selects the
+  bounded exact-offline path instead of scalar stretch, including direct WAV
+  output. `.scape`, desktop handoff, and browser workflows prove native
+  Soundscaper editing and read-only Framescaper preservation.
 - **Web Core — Implemented:** tempo-map-aware compound-meter count-in and exact
   one-transaction punch run through both default and routed capture, alongside
   sound-activated recording. Every approved milestone-3 Audacity action is
@@ -418,6 +434,21 @@ Packet boundaries, dependencies, and acceptance are owned by
   repeat generator/analyzer, and regular-interval annotations. The audited
   milestone-3 manifest count is zero planned actions; Node and browser evidence
   covers recording, undo, menu reachability, and keyboard navigation.
+- **Shared qualification — Implemented (provisional):** the local 3A-7 evidence
+  harness deterministically builds the two-hour, 24-audio-track,
+  two-proxy-video-track, 10,000-edit workload, measures decoded-media A/V clocks,
+  seeking, scrolling, and retained heap, and admits results through a fail-closed
+  collector. A packaged Electron timing-probe harness also exists. These are
+  runnable evidence infrastructure, not accepted qualification: the fixed
+  `reference-linux-gpu-01` host remains unprovisioned, the long-form workload is
+  still provisional and absent from the qualified workload set, and all four
+  Linux/Windows packaged Electron timing rows remain `pending-external`. WebKit
+  remains deferred under milestone-2 scope revision 2.
+
+Soundscaper packets 3A-1 through 3A-6 are implemented, but packet 3A-7 and
+milestone 3 remain **In progress** until the external results above exist,
+milestone 2's partial Electron lease matrix closes, and the parallel Framescaper
+track reaches its exit gate.
 
 ### Framescaper track (3B, parallel after 3.0)
 
