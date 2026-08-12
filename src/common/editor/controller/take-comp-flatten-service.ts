@@ -45,6 +45,7 @@ export interface TakeCompFlattenServiceDependencies {
 		sourceBuffers: EngineSourceBufferInput,
 		signal: AbortSignal,
 		chunkSources: EngineChunkSourceInput,
+		prepareTimePitchCaches?: boolean,
 	): Promise<AudioBufferLike>;
 	renderPublication?(
 		preparation: PreparedTakeCompFlatten,
@@ -109,7 +110,7 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 			includeMaster: false,
 			includeTrackPan: false,
 			respectMuteSolo: false,
-		}, dependencies.sourceBuffers, ownership.task.signal, dependencies.sourceChunkProviders);
+		}, dependencies.sourceBuffers, ownership.task.signal, dependencies.sourceChunkProviders, false);
 		assertOwned(ownership);
 		const duration = preparation.renderPlan.endSample - preparation.renderPlan.startSample;
 		if (rendered.length !== duration || rendered.sampleRate !== project.sampleRate) {

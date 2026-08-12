@@ -206,7 +206,8 @@ function compositionFixture(options: Readonly<{
 			};
 		},
 		stopPlayback: () => { playbackStops += 1; },
-		async renderSnapshot(value, range) {
+		async renderSnapshot(value, range, _sourceBuffers, _signal, _chunkSources, prepareTimePitchCaches) {
+			assert.equal(prepareTimePitchCaches, false, 'the isolated render has no committed cache ownership');
 			renderedProjects.push(value as unknown as AudioEditorProjectV17);
 			renderRanges.push(range);
 			options.onRender?.();
