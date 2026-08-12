@@ -140,7 +140,7 @@ parallel per environment.
    The pre-release schema policy removed retained migrations and promises
    their reinstatement "from the first shipped release onward"
    (docs/milestone-3-plan.md:27-74, reinstatement clause at 67-68). The
-   compatibility register holds current schema 16 with
+   compatibility register holds current schema 17 with
    `retainedMigrationSources: []` and a retirement gate requiring a
    `first-release-versioned-policy-change`
    (config/project-compatibility.json:4-8, 21-28), older schemas fail
