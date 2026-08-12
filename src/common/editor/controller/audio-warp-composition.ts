@@ -78,21 +78,8 @@ export interface AudioWarpControllerComposition {
 export function createAudioWarpControllerComposition(
 	dependencies: Readonly<AudioWarpControllerCompositionDependencies>,
 ): Readonly<AudioWarpControllerComposition> {
-	const pcmAccess = dependencies.pcmAccess ?? createTransientAnalysisPcmAccess({
-		store: dependencies.store,
-	});
-	const transientAnalysis = createTransientAnalysisService({
-		lifetime: dependencies.lifetime,
-		getProject: () => dependencies.getProject() as unknown as TransientAnalysisControllerProject,
-		captureProject: dependencies.captureProject,
-		assertProject: dependencies.assertProject,
-		loadAnalysis: dependencies.store.loadAnalysis.bind(dependencies.store),
-		saveAnalysis: dependencies.store.saveAnalysis.bind(dependencies.store),
-		deleteAnalysis: dependencies.store.deleteAnalysis.bind(dependencies.store),
-		resolveSourceSha256: pcmAccess.resolveSourceSha256,
-		readSourceRange: pcmAccess.readSourceRange,
-		...(dependencies.analyzeChannels ? { analyzeChannels: dependencies.analyzeChannels } : {}),
-	});
+	let pcmAccess = dependencies.pcmAccess;
+	let transientAnalysis: ReturnType<typeof createTransientAnalysisService> | null = null;
 	const authoring = createAudioWarpAuthoringService({
 		lifetime: dependencies.lifetime,
 		getProject: dependencies.getProject,
@@ -107,7 +94,7 @@ export function createAudioWarpControllerComposition(
 		quantizeSelected,
 		applyGrooveSelected,
 		clearSelected,
-		dispose: pcmAccess.dispose,
+		dispose,
 	});
 
 	function view(): Readonly<AudioWarpControllerView> {
@@ -184,11 +171,33 @@ export function createAudioWarpControllerComposition(
 		analysisDepth += 1;
 		if (analysisDepth === 1) setAnalysisProcessing(true);
 		try {
-			return await transientAnalysis.analyzeClip(clipId);
+			return await analysisService().analyzeClip(clipId);
 		} finally {
 			analysisDepth -= 1;
 			if (analysisDepth === 0) setAnalysisProcessing(false);
 		}
+	}
+
+	function analysisService(): ReturnType<typeof createTransientAnalysisService> {
+		if (transientAnalysis) return transientAnalysis;
+		pcmAccess ??= createTransientAnalysisPcmAccess({ store: dependencies.store });
+		transientAnalysis = createTransientAnalysisService({
+			lifetime: dependencies.lifetime,
+			getProject: () => dependencies.getProject() as unknown as TransientAnalysisControllerProject,
+			captureProject: dependencies.captureProject,
+			assertProject: dependencies.assertProject,
+			loadAnalysis: dependencies.store.loadAnalysis.bind(dependencies.store),
+			saveAnalysis: dependencies.store.saveAnalysis.bind(dependencies.store),
+			deleteAnalysis: dependencies.store.deleteAnalysis.bind(dependencies.store),
+			resolveSourceSha256: pcmAccess.resolveSourceSha256,
+			readSourceRange: pcmAccess.readSourceRange,
+			...(dependencies.analyzeChannels ? { analyzeChannels: dependencies.analyzeChannels } : {}),
+		});
+		return transientAnalysis;
+	}
+
+	function dispose(): void {
+		pcmAccess?.dispose();
 	}
 
 	function setAnalysisProcessing(processing: boolean): void {
