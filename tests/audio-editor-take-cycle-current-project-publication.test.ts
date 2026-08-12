@@ -48,7 +48,7 @@ test('restart recovery replaces an exact base without inventing undo history', a
 test('restart recovery accepts an already exact target but refuses stale base authority', async () => {
 	const exact = publicationFixture();
 	const publication = livePublication(exact.base);
-	const targetHistory = createEditorHistory(publication.target);
+	const targetHistory = createEditorHistory(publication.target) as unknown as TakeCyclePublicationHistory;
 	exact.session.updateProjectHistory(exact.base.id, targetHistory, { dirty: true });
 	exact.project = publication.target;
 	exact.history = targetHistory;
