@@ -335,8 +335,17 @@ statement and line coverage, 81.66% branch coverage, and 91.29% function
 coverage; architecture covered 1,010 modules, 2,789 dependencies, and 2,187
 maintained files; and the build emitted 115 JavaScript chunks with a
 428,990-byte largest chunk. It added no schema, storage, capability, UI, or
-Soundscaper change. The immediate next step is c-b1's reviewed pure normalizer;
-durable storage and c-c remain hard-stopped on product isolation.
+Soundscaper change. Contract `5a59a796`, RED `e9687c0c`, production
+`189e901f`, and proof hardening `692fee74` then delivered c-b1's pure dormant
+V18 attachment normalizer on 2026-08-12. Its canonical `npm run check` passed
+with 5,744 tests (5,742 passed and 2 skipped), 90.17% statement and line
+coverage, 81.69% branch coverage, and 91.3% function coverage; architecture
+covered 1,011 modules, 2,790 dependencies, and 2,189 maintained files; and the
+build emitted 115 JavaScript chunks with a 428,990-byte largest chunk. The
+exact three-export module has no maintained consumer and adds no persistence,
+preparation consumption, project/schema owner, capability, UI, browser row, or
+Soundscaper change. Durable storage and c-c remain hard-stopped on product
+isolation.
 c-a2 is folded into c-c rather than implemented independently: a
 standalone V17 proof lease cannot fence the future all-null V18 base or
 authenticate the coordinator's storage-settlement outcome.
@@ -346,23 +355,24 @@ the separately reviewed persistence slices.
 
 The reviewed
 [3B-6c durable V18 video-proxy attachment](milestone-3b-video-proxy-v18.md)
-has delivered only its schema-neutral dormant c-a1 preparation slice. Its
-next contract-first boundary is the pure dormant
+has delivered its schema-neutral dormant c-a1 preparation slice and pure
+dormant
 [V18 attachment normalizer](milestone-3b-video-proxy-attachment-normalization.md).
-It consumes no preparation and touches no storage; durable body staging remains
-blocked on the product-isolated c-c composition. The remaining design requires
+The normalizer consumes no preparation and touches no storage; durable body
+staging remains blocked on the product-isolated c-c composition. The remaining
+design requires
 content-addressed proxy and timing bodies,
 atomic pointer publication/rollback, V18 preservation and unavailable
 capability, Framescaper-selected `.scape` format 2, and fresh Framescaper
 desktop isolation.
 The merged shared V17 take/comp wire remains immutable; durable proxy state is
 reserved for V18. Soundscaper receives no
-profile, capability, UI, browser, or desktop integration in this packet. The
+profile, capability, UI, browser, or desktop integration in these slices. The
 packet explicitly adds no proxy consumer, menu, playback, offline, relink,
-delivery, export, or audio behavior. Only the schema-neutral dormant c-a1
-preparation slice is implemented; c-a2 is folded into c-c, only c-b1
-normalization is authorized, and durable storage plus c-c remain unauthorized. Persistence
-remains subject to the refreshed V18 blocker review.
+delivery, export, or audio behavior. Only the schema-neutral dormant c-a1 and
+c-b1 slices are implemented; c-a2 is folded into c-c, and durable storage plus
+c-c remain unauthorized. Persistence remains subject to the refreshed V18
+blocker review.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

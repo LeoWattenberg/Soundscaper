@@ -536,16 +536,18 @@ Packet boundaries, dependencies, and acceptance are owned by
   [current-target preparation material](docs/milestone-3b-video-proxy-v18.md)
   is implemented through `c195a8c1`: exact V17 relationship admission retains
   the already validated timing publication behind a private one-use WeakMap.
-  These slices add no UI, schema, storage, capability, Soundscaper change, or
-  browser row. Shared V17 is already owned by take/comp state; c-a2 is folded
-  into c-c, only c-b1 normalization is authorized, and durable storage/c-c remain
-  hard-stopped on V18 product isolation. A standalone V17 proof lease cannot authenticate the future V18
-  settlement boundary. The immediate next step is the reviewed pure dormant
-  [V18 attachment normalizer](docs/milestone-3b-video-proxy-attachment-normalization.md),
-  not body staging or adoption. This is a Framescaper-only product slice;
-  Soundscaper
-  product work is owned elsewhere. Adaptive preview, offline/relink, and
-  synchronized multicamera groups follow it.
+  The pure dormant
+  [V18 attachment normalizer](docs/milestone-3b-video-proxy-attachment-normalization.md)
+  is implemented through production `189e901f` and proof hardening `692fee74`
+  on 2026-08-12. These Framescaper-only slices add no maintained proxy consumer,
+  UI, schema/project owner, storage, preparation consumption, capability,
+  Soundscaper change, or browser row. Shared V17 is already owned by take/comp
+  state; c-a2 is folded into c-c, and durable storage/c-c remain hard-stopped on
+  V18 product isolation. A standalone V17 proof lease cannot authenticate the
+  future V18 settlement boundary. Body staging or adoption is not authorized;
+  Soundscaper product work is owned elsewhere. Adaptive preview,
+  offline/relink, and synchronized multicamera groups follow the separately
+  reviewed durable transition.
 
 ### Shared exit gate
 

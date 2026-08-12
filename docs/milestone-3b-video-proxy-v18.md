@@ -1,7 +1,7 @@
 # Milestone 3B-6c: durable V18 video-proxy attachment
 
-> **Reviewed split contract — 3B-6c-a1 is implemented; later slices remain
-> unauthorized.** 3B-6a and
+> **Reviewed split contract — 3B-6c-a1 and dormant c-b1 are implemented;
+> durable storage and c-c remain unauthorized.** 3B-6a and
 > 3B-6b prove exact timing and one uninterrupted original-to-candidate
 > relationship, but intentionally persist nothing. This packet owns the first
 > durable proxy state: an exact V18 source attachment, its immutable proxy and
@@ -38,13 +38,16 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    attachment compare-and-swap, holds it through the authoritative outcome and
    required reconciliation, releases it exactly once, and exposes no raw
    repository token or general callback seam.
-3. **3B-6c-b1 — dormant attachment wire:** first add
+3. **3B-6c-b1 — dormant attachment wire — implemented in `189e901f`, with
+   proof hardening in `692fee74`, on 2026-08-12:** add
    the pure dormant [V18 attachment
    normalizer](milestone-3b-video-proxy-attachment-normalization.md) without
    consuming preparation or touching storage. Durable staging remains folded
-   behind c-c's isolated repository; only c-b1 normalization is authorized.
-   That later owner verifies both bodies, holds currentness, and discards only
-   new exact publications while retaining opaque full-row claims and roots.
+   behind c-c's isolated repository. The module has no maintained consumer and
+   adds no project/schema owner, capability, UI, browser row, or Soundscaper
+   change. That later owner verifies both bodies, holds currentness, and
+   discards only new exact publications while retaining opaque full-row claims
+   and roots.
 4. **3B-6c-c — atomic V18 adoption:** in one separately reviewed semantic transition,
    add a Framescaper-selected current-schema/archive/repository profile after V17,
    requirements/capabilities, preservation, retention, conditional `.scape`
@@ -557,12 +560,21 @@ coverage; architecture covered 1,010 modules, 2,789 dependencies, and 2,187
 maintained files; and the build emitted 115 JavaScript chunks with a
 428,990-byte largest chunk.
 
-c-b1 normalization is reviewed and authorized; durable storage and c-c remain
-hard-stopped, and a2 is folded into c-c. No generic
-callback is an adoption boundary, and no pre-c-c slice may claim settlement or
-own the original lease. c-b1 starts with focused reds; later work needs its
-own contracts, including c-c's product-isolation review. The immediate next
-step is contract review, not production code.
+c-b1 normalization was implemented in `189e901f`, with proof hardening in
+`692fee74`, on 2026-08-12. Its canonical `npm run check` passed with 5,744 tests
+(5,742 passed and 2 skipped), 90.17% statement and line coverage, 81.69% branch
+coverage, and 91.3% function coverage; architecture covered 1,011 modules,
+2,790 dependencies, and 2,189 maintained files; and the build emitted 115
+JavaScript chunks with a 428,990-byte largest chunk. The exact three-export
+module remains dormant, with no maintained consumer, persistence, preparation
+consumption, project/schema owner, capability, UI, browser row, or Soundscaper
+change.
+
+Durable storage and c-c remain hard-stopped, and a2 is folded into c-c. No
+generic callback is an adoption boundary, and no pre-c-c slice may claim
+settlement or own the original lease. Later work needs its own contracts,
+including c-c's product-isolation review; production storage or adoption work
+is not authorized.
 For eventual c-c, prove the full Framescaper cross-surface/platform set. Prove exact/null/deep-freeze wire validation; every binding and
 cap boundary; unchanged V17 under the shared/Soundscaper profile, Framescaper
 V17 re-import, V18 current, V19 read-only; forged and twice-consumed preparations; same candidate/timing objects and one-use

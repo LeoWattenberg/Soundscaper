@@ -1,6 +1,8 @@
 # Milestone 3B-6c-b1: dormant V18 proxy-attachment normalization
 
-> **Reviewed contract — implementation is authorized.** This is
+> **Implemented on 2026-08-12.** Contract `5a59a796`, strict RED
+> `e9687c0c`, production `189e901f`, and proof hardening `692fee74` delivered
+> this slice. This is
 > a Framescaper-only milestone slice at the domain boundary. It defines one
 > pure V18 attachment value but does not make V18 current, consume proxy
 > preparation material, write or read storage, add a project field, register a
@@ -187,6 +189,17 @@ architecture/file-size and dependency checks, `git diff --check`, then
 canonical `npm run check`. No browser row is required because the module is
 dormant and has no product consumer.
 
-Packet 3B-6 remains **In progress**. Implementation of this normalizer does not
-authorize body staging, V18 adoption, capability availability, proxy use, or
-any Soundscaper work.
+Production `189e901f` and proof-hardening `692fee74` completed the normalizer on
+2026-08-12. Canonical `npm run check` passed with 5,744 tests (5,742 passed and
+2 skipped), 90.17% statement and line coverage, 81.69% branch coverage, and
+91.3% function coverage; architecture covered 1,011 modules, 2,790
+dependencies, and 2,189 maintained files; and the build emitted 115 JavaScript
+chunks with a 428,990-byte largest chunk. The exact three-export module remains
+dormant: no maintained consumer imports it, and it adds no persistence,
+preparation consumption, project/schema owner, capability, UI, browser row, or
+Soundscaper change.
+
+Packet 3B-6 remains **In progress**. This normalizer does not authorize body
+staging, V18 adoption, capability availability, proxy use, or any Soundscaper
+work. Durable storage and c-c remain hard-stopped on the separately reviewed
+Framescaper product-isolation transition.
