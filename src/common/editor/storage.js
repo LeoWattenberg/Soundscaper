@@ -106,6 +106,8 @@ export class AudioEditorProjectStore {
 		this.settingsRepository = repositories.settings;
 		this.analysisRepository = repositories.analysis;
 		this.sourceRepository = repositories.sources;
+		this.rawPcmSpoolRepository = repositories.rawPcmSpools;
+		this.takeCycleRecoveryEnvelopeRepository = repositories.takeCycleRecoveryEnvelopes;
 		this.mediaRepository = repositories.media;
 		this.linkedOriginalBindingRepository = repositories.linkedOriginalBindings || null;
 		this.linkedOriginalProjectAliasRepository = repositories.linkedOriginalProjectAliases || null;

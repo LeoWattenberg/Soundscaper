@@ -24,12 +24,14 @@ import { OpfsRepository } from './opfs-repository.ts';
 import { PcmRepository, type PcmRepositoryOptions } from './pcm-repository.ts';
 import { ProjectCompareAndSwapRepository } from './project-compare-and-swap-repository.ts';
 import { ProjectRepository, type ProjectRepositoryPort } from './project-repository.ts';
+import { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
 import { RetentionRepository } from './retention-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { SourceReadRepository } from './source-read-repository.ts';
 import { SourceRecordRepository } from './source-record-repository.ts';
 import { SourceRepository } from './source-repository.ts';
 import { SourceWriteRepository } from './source-write-repository.ts';
+import { TakeCycleRecoveryEnvelopeRepository } from './take-cycle-recovery-envelope-repository.ts';
 
 export interface StorageRepositories {
 	readonly projects: ProjectRepositoryPort;
@@ -49,6 +51,8 @@ export interface StorageRepositories {
 	readonly opfs: OpfsRepository;
 	readonly pcm: PcmRepository;
 	readonly retention: RetentionRepository;
+	readonly rawPcmSpools: RawPcmSpoolRepository;
+	readonly takeCycleRecoveryEnvelopes: TakeCycleRecoveryEnvelopeRepository;
 }
 
 export interface StorageRepositoryOptions {
@@ -134,6 +138,8 @@ export function createStorageRepositories(
 		opfs,
 		pcm,
 	});
+	const rawPcmSpools = new RawPcmSpoolRepository(analysis, sourceRecords);
+	const takeCycleRecoveryEnvelopes = new TakeCycleRecoveryEnvelopeRepository(analysis);
 	const projects = new ProjectRepository(port, options.revisionLimit);
 	return Object.freeze({
 		projects: new ProjectCompareAndSwapRepository(projects, port, options.revisionLimit),
@@ -152,6 +158,8 @@ export function createStorageRepositories(
 		linkedVideoOriginals,
 		opfs,
 		pcm,
-		retention: new RetentionRepository({ port, sourceRecords, sources, media, opfs }),
+		retention: new RetentionRepository({ port, sourceRecords, sources, media, opfs, rawPcmSpools }),
+		rawPcmSpools,
+		takeCycleRecoveryEnvelopes,
 	});
 }

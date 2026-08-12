@@ -6,6 +6,12 @@ import test from 'node:test';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import {
+	createTakeCycleCaptureOrchestrator,
+	type TakeCycleCapturedLane,
+} from '../src/common/editor/controller/take-cycle-capture-orchestrator.ts';
+import { createTakeCycleCaptureSourceSpool } from '../src/common/editor/controller/take-cycle-capture-spool.ts';
+import { createTakeCycleLiveCaptureSpool } from '../src/common/editor/controller/take-cycle-live-capture-spool.ts';
+import {
 	createTakeCycleRecordingRepositoryComposition,
 	type TakeCyclePublishedProject,
 } from '../src/common/editor/controller/take-cycle-recording-repository-composition.ts';
@@ -16,8 +22,10 @@ import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { createScapeDigest, scapeHex } from '../src/common/editor/scape-archive-media.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
+import type { TakeCycleRecoveryEnvelope } from '../src/common/editor/take-cycle-recovery-envelope.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { ProjectRepositoryPort } from '../src/common/editor/storage/project-repository.ts';
+import type { RawPcmSpoolRepository } from '../src/common/editor/storage/raw-pcm-spool-repository.ts';
 import type { SourceRepository } from '../src/common/editor/storage/source-repository.ts';
 import { TakeCycleRecoveryEnvelopeRepository } from '../src/common/editor/storage/take-cycle-recovery-envelope-repository.ts';
 import { packPlanarFloat32 } from '../src/common/editor/wavpack/pcm.js';
@@ -55,6 +63,58 @@ test('repository composition publishes receipt-owned PCM and one real V17 histor
 
 	const reopened = await fixture.projects.load('project-cycle');
 	assert.deepEqual(reopened, persisted);
+});
+
+test('routed capture publishes two tracks as separate groups in real V17 command history', async () => {
+	const fixture = await compositionFixture();
+	const routedCapture: { current?: ReturnType<typeof createTakeCycleCaptureOrchestrator> } = {};
+	const composition = createComposition(fixture, {
+		resolveLaneTarget: ({ plan }: { readonly plan: { readonly laneId: string } }) => (
+			routedCapture.current!.resolveLaneTarget(plan.laneId)
+		),
+		describeSource: ({ publication }: { readonly publication: { readonly mediaId: string } }) => (
+			routedCapture.current!.describeSource(publication.mediaId)
+		),
+		readPassChunks: ({ envelope, entryIndex }: {
+			readonly envelope: TakeCycleRecoveryEnvelope;
+			readonly entryIndex: number;
+		}) => (
+			routedCapture.current!.readPassChunks(envelope.entries[entryIndex]!.journal.binding.mediaId)
+		),
+	});
+	let identity = 0;
+	const orchestrator = createTakeCycleCaptureOrchestrator({
+		service: composition,
+		spool: createTakeCycleCaptureSourceSpool(
+			fixture.sources,
+			createTakeCycleLiveCaptureSpool(fixture.rawPcmSpools),
+		),
+		loadRecoveryEnvelope: (projectId) => fixture.recovery.load(projectId),
+		createId(prefix) { identity += 1; return `${prefix}-${String(identity)}`; },
+		activateCommittedSource() { /* real source metadata is already committed */ },
+		listRecoveredMedia: async () => [],
+	});
+	routedCapture.current = orchestrator;
+	const result = await orchestrator.finalize({
+		projectId: fixture.base.id,
+		loopStartSample: 100,
+		loopEndSample: 108,
+		lanes: [
+			routedLane('group-a', 'track-a', [FIRST, SECOND]),
+			routedLane('group-b', 'track-b', [SECOND, FIRST]),
+		],
+	});
+
+	assert.deepEqual(result.lanes.map(({ status }) => status), ['committed', 'committed']);
+	const persisted = await fixture.projects.load(fixture.base.id) as AudioEditorProjectV17;
+	assert.equal(persisted.revision, fixture.base.revision + 2);
+	assert.deepEqual(persisted.takeGroups.map(({ id, trackId }) => ({ id, trackId })), [
+		{ id: 'group-a', trackId: 'track-a' },
+		{ id: 'group-b', trackId: 'track-b' },
+	]);
+	assert.equal(fixture.history.undoStack.length, 2);
+	assert.deepEqual((await fixture.sources.list()).map(({ id }) => id).sort(), ['media-4', 'media-9']);
+	assert.deepEqual(await fixture.rawPcmSpools.list(fixture.base.id), []);
 });
 
 test('restart recovery replays an exact published lane through project CAS', async () => {
@@ -133,6 +193,7 @@ interface Fixture {
 	readonly base: AudioEditorProjectV17;
 	readonly projects: ProjectRepositoryPort;
 	readonly sources: SourceRepository;
+	readonly rawPcmSpools: RawPcmSpoolRepository;
 	readonly recovery: TakeCycleRecoveryEnvelopeRepository;
 	readonly lifetime: EditorControllerLifetime;
 	readonly generation: EditorProjectGeneration;
@@ -148,11 +209,15 @@ async function compositionFixture(): Promise<Fixture> {
 	});
 	const projects = store.projectRepository as ProjectRepositoryPort;
 	const sources = store.sourceRepository as SourceRepository;
+	const rawPcmSpools = store.rawPcmSpoolRepository as RawPcmSpoolRepository;
 	const recovery = new TakeCycleRecoveryEnvelopeRepository(store.analysisRepository);
 	const base = createAudioEditorProjectV17({
 		id: 'project-cycle', title: 'Cycle project', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [] })],
-		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
+		tracks: [
+			createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [] }),
+			createAudioTrackV10({ id: 'track-b', name: 'Guitar', clipIds: [] }),
+		],
+		sequences: [{ id: 'main-sequence', trackIds: ['track-a', 'track-b'] }],
 		primarySequenceId: 'main-sequence',
 	});
 	await projects.save(base);
@@ -161,7 +226,7 @@ async function compositionFixture(): Promise<Fixture> {
 	const generation = new EditorProjectGeneration();
 	generation.activate(base.id);
 	const fixture = {
-		base, projects, sources, recovery, lifetime, generation,
+		base, projects, sources, rawPcmSpools, recovery, lifetime, generation,
 		publications: [] as TakeCyclePublishedProject[],
 		stageTokens: [] as string[],
 		history: createEditorHistory(base),
@@ -211,6 +276,36 @@ function sourceDescription() {
 	return {
 		name: 'Cycle take', sampleRate: 48_000, channelCount: 1,
 		chunkFrames: 4, frameCount: 8,
+	};
+}
+
+function routedLane(
+	groupId: string,
+	trackId: string,
+	chunks: readonly (readonly Float32Array[])[],
+): TakeCycleCapturedLane {
+	return {
+		groupId,
+		trackId,
+		sequenceId: 'main-sequence',
+		name: `${trackId} cycle`,
+		sampleRate: 48_000,
+		channelCount: 1,
+		chunkFrames: 4,
+		capture: {
+			kind: 'stream',
+			spans: (async function* () {
+				let startSample = 100;
+				for (const channels of chunks) {
+					yield {
+						startSample,
+						endSample: startSample + channels[0]!.length,
+						channels,
+					};
+					startSample += channels[0]!.length;
+				}
+			})(),
+		},
 	};
 }
 

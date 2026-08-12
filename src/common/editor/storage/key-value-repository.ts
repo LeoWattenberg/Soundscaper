@@ -1,9 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { request, transact } from './indexeddb-backend.ts';
+import { readCursorPage, request, transact } from './indexeddb-backend.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
 type KeyValueStoreName = 'settings' | 'analysis';
+const KEY_VALUE_INVENTORY_PAGE_SIZE = 64;
+const MAXIMUM_KEY_VALUE_INVENTORY_RECORDS = 65_536;
+const MAXIMUM_KEY_VALUE_PREFIX_RECORDS = 4_096;
+
+export interface KeyValuePrefixRecord {
+	readonly key: string;
+	readonly projectId: string;
+	readonly value: unknown;
+}
 
 /** Repository for one named key/value domain. */
 export class KeyValueRepository {
@@ -89,12 +98,72 @@ export class KeyValueRepository {
 		return record ? clone(record.value) : undefined;
 	}
 
+	async listByPrefix(prefix: string): Promise<readonly Readonly<KeyValuePrefixRecord>[]> {
+		if (typeof prefix !== 'string' || !prefix.length) throw new TypeError('A key/value prefix is required.');
+		const database = await this.#port.database();
+		const matches: Readonly<KeyValuePrefixRecord>[] = [];
+		let scanned = 0;
+		if (!database) {
+			for (const value of this.#port.memory[this.#storeName].values()) {
+				scanned += 1;
+				assertInventoryBound(scanned);
+				const match = prefixRecord(value, prefix);
+				if (match) matches.push(match);
+				assertPrefixBound(matches.length);
+			}
+			return Object.freeze(matches);
+		}
+		let afterPrimaryKey: IDBValidKey | undefined;
+		while (true) {
+			const page = await transact(database, this.#storeName, 'readonly', (stores) => (
+				readCursorPage<Readonly<{ primaryKey: IDBValidKey; value: unknown }>>(stores[this.#storeName], {
+					afterPrimaryKey,
+					limit: KEY_VALUE_INVENTORY_PAGE_SIZE,
+					project: (value, primaryKey) => Object.freeze({ primaryKey, value }),
+				})
+			));
+			if (!page.length) return Object.freeze(matches);
+			afterPrimaryKey = page.at(-1)!.primaryKey;
+			for (const { value } of page) {
+				scanned += 1;
+				assertInventoryBound(scanned);
+				const match = prefixRecord(value, prefix);
+				if (match) matches.push(match);
+				assertPrefixBound(matches.length);
+			}
+		}
+	}
+
 	async delete(key: string): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) this.#port.memory[this.#storeName].delete(key);
 		else await transact(database, this.#storeName, 'readwrite', (stores) => {
 			stores[this.#storeName].delete(key);
 		});
+	}
+}
+
+function prefixRecord(value: unknown, prefix: string): Readonly<KeyValuePrefixRecord> | null {
+	const record = value && typeof value === 'object'
+		? value as { readonly key?: unknown; readonly value?: unknown }
+		: null;
+	if (!record || typeof record.key !== 'string' || !record.key.startsWith(prefix)) return null;
+	return Object.freeze({
+		key: record.key,
+		projectId: decodeURIComponent(record.key.slice(prefix.length)),
+		value: clone(record.value),
+	});
+}
+
+function assertInventoryBound(count: number): void {
+	if (count > MAXIMUM_KEY_VALUE_INVENTORY_RECORDS) {
+		throw new RangeError('Key/value inventory exceeds its complete-scan bound.');
+	}
+}
+
+function assertPrefixBound(count: number): void {
+	if (count > MAXIMUM_KEY_VALUE_PREFIX_RECORDS) {
+		throw new RangeError('Key/value prefix inventory exceeds its result bound.');
 	}
 }
 

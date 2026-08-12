@@ -74,6 +74,10 @@ export class SourceRepository {
 		return this.#options.reader.getMetadata(sourceId);
 	}
 
+	replaceMetadataIfCurrent(expected: StorageRecord, replacement: StorageRecord): Promise<boolean> {
+		return this.#options.records.compareAndSwapMetadata(expected, replacement);
+	}
+
 	list(): Promise<StorageRecord[]> {
 		return this.#options.records.list();
 	}

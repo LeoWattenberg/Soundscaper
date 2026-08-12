@@ -28,6 +28,7 @@ import {
 } from './media-records.ts';
 import type { MediaRepository } from './media-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
+import type { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceRepository } from './source-repository.ts';
@@ -54,6 +55,7 @@ export interface RetentionRepositoryOptions {
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
 	readonly opfs: OpfsRepository;
+	readonly rawPcmSpools: Pick<RawPcmSpoolRepository, 'listAll'>;
 }
 
 /** Cross-domain reachability, temporary cleanup, and whole-store clearing. */
@@ -76,6 +78,7 @@ export class RetentionRepository {
 		const activeStaging = await this.#options.media.activeAssetStaging();
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
+		for (const spool of await this.#options.rawPcmSpools.listAll()) tokens.add(spool.spoolToken);
 		const mediaAssets = await this.#options.media.assetRecords();
 		const binaryRecords = [
 			...mediaAssets,
