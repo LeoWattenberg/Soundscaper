@@ -91,7 +91,6 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
 
 	for (const id of [
-		'align-together', 'sort-by-name',
 		'raw-data-import',
 	]) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
@@ -122,8 +121,6 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 test('upstream disabled and TODO actions stay explicit, inert, and user-explainable', () => {
 	const requiredDisabled = [
 		'export-midi',
-		'menu-align',
-		'menu-sort',
 		'menu-macros',
 		'raw-data-import',
 		'reset-configuration',

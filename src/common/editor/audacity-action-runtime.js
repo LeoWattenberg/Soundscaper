@@ -1,7 +1,6 @@
 import { projectDurationFrames } from './project.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 import { createAudacitySpectralActionRuntime } from './controller/audacity-spectral-action-runtime.ts';
-
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -506,7 +505,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				const track = selectedAudioTrack();
 				return track ? controllerActions.track.setDisplayMode(track.id, 'half-wave') : null;
 			},
-			setColor: (color = 'auto') => updateSelectedTrack({ color }),
+			setColor: (color = 'auto') => updateSelectedTrack({ color }), openAlignMenu: () => ui.issue('open-menu', { menuId: 'tracks', itemId: 'menu-align' }), openSortMenu: () => ui.issue('open-menu', { menuId: 'tracks', itemId: 'menu-sort' }),
 		},
 		navigation: {
 			moveItemLeft: () => moveSelectedClip(-nudgeFrames()),

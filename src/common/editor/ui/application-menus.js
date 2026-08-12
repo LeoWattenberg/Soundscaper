@@ -22,6 +22,7 @@ import { createFramescaperEditControlMenuItems } from './framescaper-edit-contro
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
+import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 
 export default function createApplicationMenus({
 	productId,
@@ -105,6 +106,10 @@ export default function createApplicationMenus({
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
 	}), { setTrackLocked: actions.setTrackLocked });
 	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy }, actions);
+	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
+		hasTracks: Boolean(project?.tracks.length),
+		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
+	});
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
@@ -487,8 +492,7 @@ export default function createApplicationMenus({
 				},
 				divider(),
 				{ id: 'mute-track', label: selectedAudioTrack?.mute ? copy.unmuteTrack : copy.muteTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.toggleTrackMute },
-				unavailable('mute-all', copy.muteAllTracks),
-				unavailable('unmute-all', copy.unmuteAllTracks),
+				...structuralMenus.muteItems,
 				{ id: 'mix', label: copy.mixMenu, items: [{
 					id: 'mixdown-to',
 					label: copy.mixdownTo,
@@ -496,14 +500,8 @@ export default function createApplicationMenus({
 					onClick: actions.mixAndRender,
 				}] },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.trackResample, label: copy.resample, disabled: editBlocked || !selectedAudioTrack, onClick: actions.openResample },
-				{ id: 'menu-align', label: copy.alignTracks, items: [
-					unavailable('align-end-to-end', copy.alignEndToEnd),
-					unavailable('align-together', copy.alignTogether),
-				] },
-				{ id: 'menu-sort', label: copy.sortTracks, items: [
-					unavailable('sort-by-time', copy.sortByTime),
-					unavailable('sort-by-name', copy.sortByName),
-				] },
+				structuralMenus.alignMenu,
+				structuralMenus.sortMenu,
 			],
 		},
 		{

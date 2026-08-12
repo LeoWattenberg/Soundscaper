@@ -69,9 +69,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 	toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect,
-	updateWorkspacePreference, updateZoom, selectionViewService, sequenceTimingService,
-	sourceMonitorService, timelineAnnotationService, trackFolderService, videoEditService,
+	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect, updateWorkspacePreference, updateZoom,
+	selectionViewService, sequenceTimingService, sourceMonitorService, timelineAnnotationService,
+	trackFolderService, trackStructuralOperations, videoEditService,
 	videoNavigationService, videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
@@ -449,7 +449,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			// resulting browser track has no media layout until it contains clips.
 			addMono: addTrack,
 			addStereo: addTrack,
-			addLabel: addLabelTrack,
+			addLabel: addLabelTrack, ...trackStructuralOperations,
 			update: (trackId: RuntimeValue, changes: RuntimeValue) => commit({ type: 'track/update', trackId, changes }, { selectTrackId: trackId }),
 			reorder: reorderTrack,
 			moveUp: (trackId: RuntimeValue = state.selectedTrackId) => moveTrack(trackId, 'up'),
