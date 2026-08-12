@@ -15,6 +15,7 @@ import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from '../application-menu-registry.ts';
 import { formatPlaybackSpeed } from '../meter-settings.ts';
+import { createTakeCycleRecordingMenuItems } from '../take-cycle-recording-menu.ts';
 import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 
@@ -63,6 +64,7 @@ export function RecordFlyout({
 	run,
 	onOpenRecordingOffset,
 	onOpenTimedRecording,
+	onOpenTakeCycleRecovery = () => undefined,
 	onClose,
 }) {
 	const recordingInputBlocked = snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording;
@@ -70,6 +72,12 @@ export function RecordFlyout({
 	const soundActivationMutationBlocked = snapshot.readOnly
 		|| !soundActivation
 		|| soundActivation.preferenceMutationBlocked;
+	const takeCycleItems = createTakeCycleRecordingMenuItems({
+		snapshot,
+		copy,
+		start: () => run(() => controller.actions.recording.cycle.start()),
+		openRecovery: onOpenTakeCycleRecovery,
+	});
 	const items = [
 		{
 			label: snapshot.recording ? copy.stopRecording : recordLabel,
@@ -93,6 +101,8 @@ export function RecordFlyout({
 			onClick: () => run(() => controller.actions.recording.pause()),
 		},
 		{ divider: true },
+		...takeCycleItems,
+		...(takeCycleItems.length ? [{ divider: true }] : []),
 		{
 			label: snapshot.recordingInputs?.hasOpenInputs ? copy.audioDeviceRefresh : copy.recordingAllowInputs,
 			disabled: recordingInputBlocked,

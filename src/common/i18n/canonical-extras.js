@@ -485,6 +485,17 @@ const COPY_ENTRIES = Object.freeze([
 	["takeCompOperationComplete","Take comp updated.","Take-Comp aktualisiert."],
 	["takeCompFlattenComplete","Take comp flattened.","Take-Comp zusammengeführt."],
 	["takeCompRemoveComplete","Take group removed.","Take-Gruppe entfernt."],
+	["takeCycleRecordMenu","Record loop into takes","Loop in Takes aufnehmen"],
+	["takeCycleRecoveryMenu","Resolve interrupted take recording","Unterbrochene Take-Aufnahme klären"],
+	["takeCycleRecoveryTitle","Interrupted take recording","Unterbrochene Take-Aufnahme"],
+	["takeCycleRecoveryDescription","An interrupted loop recording has durable audio that is not yet settled. Choose whether to recover the takes or discard only this exact recording generation.","Eine unterbrochene Loop-Aufnahme enthält dauerhafte Audiodaten, die noch nicht abgeschlossen sind. Wähle, ob die Takes wiederhergestellt oder nur diese exakte Aufnahmegeneration verworfen werden soll."],
+	["takeCycleRecoverySummary","Generation {generation} contains {count} unsettled recording lanes.","Generation {generation} enthält {count} nicht abgeschlossene Aufnahmespuren."],
+	["takeCycleRecoveryCloseHint","Closing this dialog makes no decision. Editing remains blocked until you recover or discard the interrupted recording.","Das Schließen dieses Dialogs trifft keine Entscheidung. Die Bearbeitung bleibt gesperrt, bis du die unterbrochene Aufnahme wiederherstellst oder verwirfst."],
+	["takeCycleRecover","Recover takes","Takes wiederherstellen"],
+	["takeCycleDiscard","Discard takes","Takes verwerfen"],
+	["takeCycleRecovering","Recovering takes…","Takes werden wiederhergestellt …"],
+	["takeCycleDiscarding","Discarding takes…","Takes werden verworfen …"],
+	["takeCycleRecoveryWorking","Verifying exact recovery ownership…","Exakte Wiederherstellungszuordnung wird geprüft …"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

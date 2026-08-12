@@ -65,6 +65,7 @@ export default function EditorToolToolbar({
 	onOpenSpectralSelection,
 	onOpenRecordingOffset,
 	onOpenTimedRecording,
+	onOpenTakeCycleRecovery,
 	onJumpToStart,
 	onJumpToEnd,
 	onGripperMouseDown,
@@ -195,6 +196,7 @@ export default function EditorToolToolbar({
 								run={run}
 								onOpenRecordingOffset={onOpenRecordingOffset}
 								onOpenTimedRecording={onOpenTimedRecording}
+								onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
 								onClose={close}
 							/>}
 						</AudioEditorSplitButton>

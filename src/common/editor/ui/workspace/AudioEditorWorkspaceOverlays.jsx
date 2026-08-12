@@ -13,6 +13,7 @@ const NyquistDialog = React.lazy(() => import('../dialogs/NyquistDialog.jsx'));
 const SpectralSelectionDialog = React.lazy(() => import('../dialogs/SpectralSelectionDialog.jsx'));
 const AudioWarpDialog = React.lazy(() => import('../dialogs/AudioWarpDialog.tsx'));
 const TakeCompDialog = React.lazy(() => import('../dialogs/TakeCompDialog.tsx'));
+const TakeCycleRecoveryDialog = React.lazy(() => import('../dialogs/TakeCycleRecoveryDialog.tsx'));
 const WorkspacePreferencesDialog = React.lazy(() => import('../dialogs/WorkspacePreferencesDialog.jsx'));
 const RawPcmImportDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
 const RegularIntervalAnnotationDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
@@ -142,6 +143,20 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							productId={productId}
 							controller={controller}
 							snapshot={snapshot}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{capabilities.takeComp && activeSurface === 'take-cycle-recovery' && snapshot.takeCycleRecovery && (
+				<div data-editor-surface="take-cycle-recovery">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<TakeCycleRecoveryDialog
+							productId={productId}
+							pending={snapshot.takeCycleRecovery}
+							controller={controller}
 							copy={copy}
 							run={run}
 							onClose={() => setActiveSurface(null)}

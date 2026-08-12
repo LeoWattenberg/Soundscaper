@@ -27,6 +27,7 @@ import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinua
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
 import { createWorkspaceApplicationMenus } from './workspace-application-menu-runtime.js';
+import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import {
 	desktopExternalDestination,
@@ -49,7 +50,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	}), [copy, fileService, locale, productId]);
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller), [controller]);
 	const snapshot = useAudioEditorSnapshot(controller);
-	const [activeSurface, setActiveSurface] = useState(null);
+	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
 	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
 	const [effectWindow, setEffectWindow] = useState(null);
 	const [macroDraft, setMacroDraft] = useState(() => ({ name: copy.untitledMacro, effects: [] }));
@@ -264,7 +265,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 				: requestedSection === 'snap' ? 'editing' : 'shortcuts');
 		}
 		setActiveSurface(surface);
-	}, []);
+	}, [setActiveSurface]);
 
 	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {
 		if (!trackId && scope !== 'master') return;
@@ -282,7 +283,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 			panel.tabIndex = -1;
 			panel.focus({ preventScroll: false });
 		});
-	}, [controller, run, snapshot.selectedTrackId]);
+	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
 
 	const durationFrames = project ? projectDurationFrames(project) : 0;
 	const statusMessage = localError || snapshot.status?.message || copy.ready;
@@ -325,7 +326,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 	const closeNyquist = useCallback(() => {
 		controller.actions.nyquist.cancel();
 		setActiveSurface(null);
-	}, [controller]);
+	}, [controller, setActiveSurface]);
 	const openWorkspacePanel = useCallback((panelId) => {
 		if (panelId === 'project-bin') setProjectBinSessionOpened(true);
 		run(() => controller.actions.preferences.setPanel(panelId, { visible: true }));
@@ -496,6 +497,7 @@ export default function AudioEditorWorkspace({ locale, copy, productId = 'sounds
 			onOpenSpectralSelection={openSpectralSelection}
 			onOpenRecordingOffset={openRecordingOffset}
 			onOpenTimedRecording={openTimedRecording}
+			onOpenTakeCycleRecovery={() => openSurface('take-cycle-recovery')}
 			onJumpToStart={jumpToStart}
 			onJumpToEnd={jumpToEnd}
 			onGripperMouseDown={handleToolbarGripperMouseDown}
