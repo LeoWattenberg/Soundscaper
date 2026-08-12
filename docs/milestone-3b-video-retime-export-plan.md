@@ -1,11 +1,17 @@
 # Milestone 3B-5g: exact serialized video-retime export intent
 
-> **Draft for read-only review on 2026-08-12.** Exact backend-neutral planning
-> is feasible, but exact execution on the pinned FFmpeg runtime is not. After
-> this contract is reviewed, 3B-5g-a may implement only the dormant V6 intent
-> below. 3B-5g-b remains hard-stopped. Neither slice changes a maintained
-> consumer, capability, product policy, menu, export path, FFmpeg graph/argv, or
-> executability claim.
+> **3B-5g-a implemented on 2026-08-12.** Contract correction `e905a3dd`
+> removed the unreachable decimal sub-cap, and `b8bfbda5` delivers only the
+> dormant backend-neutral V6 intent below. The canonical `npm run check` gate
+> passed with 5,368 tests total, 5,366 passed, and 2 skipped; 90.03% statement
+> and line coverage, 82.04% branch coverage, and 90.8% function coverage.
+> Architecture passed with 900 modules, 2,494 dependencies, and 1,981
+> maintained files. The build transformed 1,180 modules and emitted 104
+> production JavaScript chunks; the largest was 400,686 bytes. No Chromium row
+> was required because the serializer is dormant and has no maintained
+> consumer. Packet 3B-5 remains **In progress**: 3B-5g-b, 3B-5h, and the
+> `videoRetime` capability remain hard-stopped pending a reviewed exact backend
+> or narrower-domain proof.
 
 ## Outcome and packet order
 

@@ -279,16 +279,21 @@ passed 4/4, including the unequal final VFR interval. No maintained path
 imports this dormant family and there is no capability flip. Packet 3B-5
 remains in progress.
 
-The drafted sixth slice is
+The delivered sixth slice's backend-neutral half is
 [3B-5g — exact serialized video-retime export intent](milestone-3b-video-retime-export-plan.md).
-It splits backend-neutral work from the failed execution assumption: 3B-5g-a
-may implement one dormant, JSON-safe, intersection-bounded V6 intent only after
-read-only contract review, while 3B-5g-b exact execution is hard-stopped because
-the pinned FFmpeg Number/rational paths cannot prove the complete admitted V16
-ordinal domain. The immediate pickup is review, then 3B-5g-a strict red; no
-FFmpeg/filter/argv/browser-export work, maintained consumer, or capability flip
-is authorized. 3B-5h export adoption remains blocked with 3B-5g-b rather than
-partially routing other consumers around it.
+Contract correction `e905a3dd` removed a dominated decimal sub-cap, then
+`b8bfbda5` implemented 3B-5g-a's dormant, JSON-safe,
+intersection-bounded V6 intent on 2026-08-12. Its canonical gate passed with
+5,368 tests total (5,366 passed, 2 skipped), 90.03% statement/line, 82.04%
+branch, and 90.8% function coverage. Architecture passed with 900 modules,
+2,494 dependencies, and 1,981 maintained files; the build transformed 1,180
+modules and emitted 104 JavaScript chunks with a 400,686-byte largest chunk.
+No browser row was required because no maintained consumer imports the dormant
+serializer. Packet 3B-5 remains in progress. 3B-5g-b exact execution is
+hard-stopped because the pinned FFmpeg Number/rational paths cannot prove the
+complete admitted V16 ordinal domain; 3B-5h, every maintained retime consumer,
+and the capability flip remain blocked pending a reviewed exact backend or
+narrower-domain proof.
 
 - **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
   model, reverse and freeze frames, nested sequences with subsequence time

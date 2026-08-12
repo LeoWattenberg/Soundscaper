@@ -1,27 +1,27 @@
 # Milestone 3B-5d: native video-retime workflow decomposition
 
-> **3B-5d reviewed; 3B-5e and 3B-5f implemented on 2026-08-12.** The
+> **3B-5d reviewed; 3B-5e, 3B-5f, and 3B-5g-a implemented on 2026-08-12.** The
 > decomposition landed in `17ffbae3`; commit `23b7fe17` delivers exact
 > authenticated frame dispatch, `e1e833e0` delivers exact output cadence and
 > its generic queue, and `24a12c73` delivers the paused HTML adapter plus VFR
-> browser oracle. The delivered [3B-5a
+> browser oracle. Contract correction `e905a3dd` precedes `b8bfbda5`'s dormant
+> backend-neutral V6 export intent. The delivered [3B-5a
 > algebra](milestone-3b-exact-video-retime-algebra.md), [3B-5b V16
 > wire](milestone-3b-video-retime-v16.md), [3B-5c clip
 > mapper](milestone-3b-video-retime-runtime-mapping.md), dispatcher, cadence,
-> and preview family still expose no maintained writable/drawable workflow or
-> capability change.
+> preview, and export-intent family still expose no maintained
+> writable/drawable workflow or capability change.
 
-The canonical `npm run check` gate passed with 5,357 tests total, 5,355 passed
-and 2 skipped; 90.00% statement and line coverage, 82.08% branch coverage, and
-90.75% function coverage. The focused Node cadence/executor suite passed 23/23
-and focused Chromium passed 4/4. Architecture passed with 896 modules, 2,486
-dependencies, and 1,975 maintained files. The build processed 1,180 modules
-and emitted 104 production JavaScript chunks; the largest, `aup4-worker`, was
-400,686 bytes. Packet 3B-5 remains **In progress**. The immediate pickup is
-read-only review of the focused [3B-5g exact serialized export-intent
-contract](milestone-3b-video-retime-export-plan.md); only its backend-neutral
-3B-5g-a implementation becomes actionable after review. Exact execution in
-3B-5g-b is hard-stopped.
+The canonical `npm run check` gate passed with 5,368 tests total, 5,366 passed
+and 2 skipped; 90.03% statement and line coverage, 82.04% branch coverage, and
+90.8% function coverage. Architecture passed with 900 modules, 2,494
+dependencies, and 1,981 maintained files. The build transformed 1,180 modules
+and emitted 104 production JavaScript chunks; the largest was 400,686 bytes.
+No Chromium row was required for 3B-5g-a because its serializer is dormant and
+has no maintained consumer. Packet 3B-5 remains **In progress**. Exact
+execution in 3B-5g-b, atomic adoption in 3B-5h, and the `videoRetime`
+capability remain hard-stopped pending a reviewed exact backend or
+narrower-domain proof.
 
 ## Dependency audit and delivery rule
 
@@ -183,9 +183,10 @@ Nothing imports this executor from `VideoPreviewPanel.jsx` yet.
 ## 3B-5g — exact serialized intent, stopped executor
 
 The focused [3B-5g contract](milestone-3b-video-retime-export-plan.md) is the
-sole authority for this split. After read-only review, 3B-5g-a may add one
-dormant `video-retime-export-intent` V6 serializer. It consumes global sample
-cadence, one captured sequence identity/rate, absolute-sample topology,
+sole authority for this split. **3B-5g-a was implemented in `b8bfbda5` after
+contract correction `e905a3dd`.** Its dormant `video-retime-export-intent` V6
+serializer consumes global sample cadence, one captured sequence identity/rate,
+absolute-sample topology,
 canonical clips, and authenticated timing tokens. It emits only JSON-safe active
 mapping intersections: curve rows retain original segment coefficients, while
 persisted null uses a distinct exact wall-clock row and never the dispatcher.
