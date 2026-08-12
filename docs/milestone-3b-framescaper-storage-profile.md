@@ -70,8 +70,10 @@ the generic constructor from these exact names:
 }
 ```
 
-No barrel re-exports it and no maintained production consumer imports it. A
-later separately reviewed Framescaper bootstrap transition must own its first
+No barrel re-exports it. Dormant c1a now imports the exact token solely into its
+non-selectable product-owned runtime-profile prerequisite; no maintained app,
+bootstrap, controller, or persistence consumer imports or selects it. A later
+separately reviewed Framescaper bootstrap transition must own its first
 selection. Shared and Soundscaper owners must not import `src/framescaper`.
 
 ## Closed names and identifier law
@@ -177,8 +179,9 @@ Start with one strict focused Node test below 600 lines. Prove:
 - omitted profiles retain all four legacy identities and explicit
   `databaseName` behavior; two authentic profiles have disjoint instrumented
   namespaces, subject to the documented origin-global quota caveat; and
-- static dormancy: only the focused test imports the Framescaper constant; no
-  app, bootstrap, controller, UI, capability, archive, desktop, schema, proxy,
+- static dormancy: only the exact product owner, dormant c1a prerequisite, and
+  their two focused tests reference the Framescaper constant; no app,
+  bootstrap, controller, UI, capability, archive, desktop, schema, proxy,
   shared, or Soundscaper owner selects or imports it.
 
 Run the focused test, every TypeScript configuration, focused lint,
@@ -195,8 +198,10 @@ typecheck only on six unrelated concurrent test diagnostics; it reported no
 c-c0 diagnostic. A separate full Node run reached 5,779 tests (5,776 passed,
 2 skipped) and had one failure solely from concurrent `clip-transform-service`
 static consumer-allowlist drift outside c-c0; the focused suite remained green.
-Static proof keeps the exact Framescaper constant product-owned and imported by
-no maintained production consumer.
+Static proof keeps the exact Framescaper constant product-owned. Successor
+`13f80172` adds only the dormant product-owned c1a runtime-profile prerequisite
+as a production reference; the updated exhaustive allowlist still finds no
+selector, persistence consumer, shared import, or Soundscaper import.
 
 ## Hard stops
 

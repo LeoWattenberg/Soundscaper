@@ -351,7 +351,13 @@ threading covers the database/degraded-memory key, OPFS directory and worker,
 and project-lock prefix while preserving every default. No app, product, or
 bootstrap selects the token, so no maintained Framescaper flow opens its store
 and it grants no durable proxy authority. Durable storage and c-c remain
-hard-stopped on product isolation.
+hard-stopped on product isolation. Contract `4b2715e0`, REDs `1e5bb447` and
+`dd34fa52`, and implementation `13f80172` then delivered c1a's dormant
+non-selectable [runtime-profile
+prerequisite](milestone-3b-framescaper-runtime-profile-prerequisite.md) on
+2026-08-12. It authenticates and retains the c-c0 token with the exact V18,
+archive, and desktop literals, but owns no capability token, selector, schema,
+archive, controller, or persistence behavior and changes no Soundscaper owner.
 c-a2 is folded into c-c rather than implemented independently: a
 standalone V17 proof lease cannot fence the future all-null V18 base or
 authenticate the coordinator's storage-settlement outcome.
@@ -378,16 +384,15 @@ reserved for V18. Soundscaper receives no
 profile, capability, UI, browser, or desktop integration in these slices. The
 packet explicitly adds no proxy consumer, menu, playback, offline, relink,
 delivery, export, or audio behavior. Only the schema-neutral dormant c-a1,
-c-b1, and c-c0 slices are implemented; c-a2 is folded into c-c, and durable
-proxy storage plus c-c remain unauthorized. The storage profile adds no
-production selector or persistence authority. Persistence remains subject to
-the refreshed V18 blocker review. The reviewed
+c-b1, c-c0, and c1a slices are implemented; c-a2 is folded into c-c, and
+durable proxy storage plus c-c remain unauthorized. The storage and runtime
+prerequisite profiles add no production selector or persistence authority.
+Persistence remains subject to the refreshed V18 blocker review. The reviewed
 [Framescaper V18 product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md)
-defines the indivisible transition that must precede durable c-c work. Its next
-contract-first slice is the non-selectable
-[dormant runtime-profile
-prerequisite](milestone-3b-framescaper-runtime-profile-prerequisite.md), which
-defers capability authority and authorizes no production behavior.
+defines the indivisible transition that must precede durable c-c work. The
+dormant runtime-profile prerequisite is implemented through `13f80172`; the
+next contract-first prerequisite is a separately reviewed authenticated
+Framescaper capability token, still without a selector or production behavior.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

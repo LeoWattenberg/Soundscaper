@@ -1,11 +1,12 @@
 # Milestone 3B-6c-c1: Framescaper V18 product isolation
 
 > **Contract only — production selection is not authorized.** Dormant c-c0
-> supplies an exact physical namespace token, but every maintained project,
-> archive, controller, compatibility, and desktop owner still uses the shared
-> exact-V17 runtime. This packet defines the indivisible Framescaper transition
-> that must precede durable proxy storage. Soundscaper remains exact V17 and is
-> not modified by this packet.
+> supplies an exact physical namespace token, and implemented dormant c1a
+> freezes the non-capability runtime identity around it. Every maintained
+> project, archive, controller, compatibility, and desktop owner still uses the
+> shared exact-V17 runtime. This packet defines the indivisible Framescaper
+> transition that must precede durable proxy storage. Soundscaper remains exact
+> V17 and is not modified by this packet.
 
 ## Stop condition and atomicity law
 
@@ -66,13 +67,14 @@ mutates state.
 
 The independently landable contract-first precursor is the
 [dormant Framescaper runtime-profile
-prerequisite](milestone-3b-framescaper-runtime-profile-prerequisite.md). It
-freezes the fields above except `capabilityProfile` around the exact c-c0 token,
-but is a separate non-selectable type. No authenticated Framescaper capability
-owner exists yet, so the final runtime profile remains deferred rather than
-accepting a structural placeholder. Its eventual creator must authenticate and
-retain the exact prerequisite and capability-token identities; a copied or
-reparsed prerequisite definition grants no authority.
+prerequisite](milestone-3b-framescaper-runtime-profile-prerequisite.md),
+implemented in `13f80172` on 2026-08-12. It freezes the fields above except
+`capabilityProfile` around the exact c-c0 token, but remains a separate
+non-selectable type with no maintained consumer. No authenticated Framescaper
+capability owner exists yet, so the final runtime profile remains deferred
+rather than accepting a structural placeholder. Its eventual creator must
+authenticate and retain the exact prerequisite and capability-token
+identities; a copied or reparsed prerequisite definition grants no authority.
 
 ## Selection and non-interference
 
@@ -200,12 +202,10 @@ the first selector lands.
 
 ## Hard stops
 
-This contract authorizes no production module, V18 validator, runtime token,
-profile selector, capability registration, archive format, storage claim,
-controller wiring, desktop v10 path, UI, menu, preview, or Soundscaper change.
-The next executable step is the strict RED from the separately reviewed
-[dormant runtime-profile prerequisite
-contract](milestone-3b-framescaper-runtime-profile-prerequisite.md); the first
-reachable selector remains the full atomic c-c transition. Durable proxy
-storage, attachment authoring, and 3B-6d remain blocked until that transition
-is green.
+This contract authorizes no V18 validator, final runtime token, profile
+selector, capability registration, archive format, storage claim, controller
+wiring, desktop v10 path, UI, menu, preview, or Soundscaper change. Dormant c1a
+is implemented; the next executable step is a separately reviewed
+Framescaper capability-token contract/RED. The first reachable selector remains
+the full atomic c-c transition. Durable proxy storage, attachment authoring,
+and 3B-6d remain blocked until that transition is green.

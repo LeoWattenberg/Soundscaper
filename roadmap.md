@@ -554,12 +554,16 @@ Packet boundaries, dependencies, and acceptance are owned by
   product work is owned elsewhere. Adaptive preview,
   offline/relink, and synchronized multicamera groups follow the separately
   reviewed durable transition. The reviewed
-  [Framescaper V18 product-isolation boundary](docs/milestone-3b-framescaper-v18-product-isolation.md),
+  [Framescaper V18 product-isolation boundary](docs/milestone-3b-framescaper-v18-product-isolation.md)
   pins one atomic schema/storage/archive/controller/desktop selection and
-  authorizes no production. Its next contract-first slice is the non-selectable
+  authorizes no production. Its non-selectable
   [dormant runtime-profile
   prerequisite](docs/milestone-3b-framescaper-runtime-profile-prerequisite.md),
-  which explicitly defers capability authority.
+  implemented through `13f80172` on 2026-08-12, retains the exact c-c0 identity
+  and static V18 contract literals while explicitly deferring capability
+  authority. The next contract-first prerequisite is the authenticated
+  Framescaper capability-token contract; no selector or durable proxy behavior
+  is authorized.
 
 ### Shared exit gate
 

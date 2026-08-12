@@ -1,10 +1,11 @@
 # Milestone 3B-6c-c1a: dormant Framescaper runtime-profile prerequisite
 
-> **Contract only — no selector or production behavior is authorized.** This
-> slice may add one opaque, unreachable token that freezes the already reviewed
-> Framescaper V18 runtime identity around the implemented c-c0 storage token.
-> It is not the final selectable runtime profile, persists nothing, and changes
-> no Soundscaper schema, capability, archive, storage, desktop, or UI behavior.
+> **Implemented as a dormant prerequisite in `13f80172` on 2026-08-12; no
+> selector or production behavior is authorized.** This slice adds one opaque,
+> unreachable token that freezes the reviewed Framescaper V18 runtime identity
+> around the implemented c-c0 storage token. It is not the final selectable
+> runtime profile, persists nothing, and changes no Soundscaper schema,
+> capability, archive, storage, desktop, or UI behavior.
 
 ## Dependency and split
 
@@ -153,13 +154,12 @@ exact definition:
 ```
 
 No barrel re-exports it. Only its focused test may import the exact constant.
-The implementation commit must update c-c0's contract status and its focused
-test's exact storage-token reference allowlist to admit this one product-owned
-module as the storage token's sole dormant production consumer; it must retain
-the exhaustive source scan rather than weakening it. No app, bootstrap, common
-product profile, route, UI, controller, project/schema, archive, compatibility,
-repository, lock, worker, file, desktop, capability, or Soundscaper module
-imports or selects either prerequisite.
+Implementation `13f80172` updates c-c0's focused exact storage-token reference
+allowlist to admit this one product-owned module as the storage token's sole
+dormant production consumer while retaining the exhaustive source scan. No
+app, bootstrap, common product profile, route, UI, controller, project/schema,
+archive, compatibility, repository, lock, worker, file, desktop, capability,
+or Soundscaper module imports or selects either prerequisite.
 
 ## Strict RED and acceptance
 
@@ -187,6 +187,18 @@ Run the focused test, every TypeScript configuration, focused lint,
 architecture/file-size and dependency checks, `git diff --check`, then
 canonical `npm run check`. No browser row is required because the token is
 unreachable and has no UI or behavior.
+
+Implementation `13f80172` passed both focused dormant profile suites (2/2),
+`tsconfig.json`, `tsconfig.tests.json`, `tsconfig.desktop-runtime.json`, and
+`tsconfig.tooling.json`, targeted ESLint, `git diff --check`, and the
+architecture/file-size gate over 1,017 modules, 2,802 dependencies, and 2,199
+maintained files. Static proof finds no selector or maintained consumer beyond
+the exact dormant Framescaper owner, and no common or Soundscaper owner imports
+the product token. The full Node suite passed 5,798 tests (5,796 passed and 2
+reference-scale rows skipped), and the canonical `npm run check` completed
+lint, typecheck, architecture, audits, coverage, and the production build. The
+next contract-first prerequisite is the separately reviewed authenticated
+Framescaper capability token.
 
 ## Hard stops
 
