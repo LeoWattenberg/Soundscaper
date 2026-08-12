@@ -557,7 +557,6 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 		documentation,
 		/shared-project-parse-budget.*remains open.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128 exact-V17 decode and validator admissions.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*total main-process RSS/isu,
 	);
-
 });
 
 test('desktop save admission evidence pins product-wide capacity before staging', async () => {
@@ -594,7 +593,6 @@ test('desktop save admission evidence pins product-wide capacity before staging'
 		documentation,
 		/desktop-write-path-capabilities.*partial.*16 outstanding product-wide save targets.*4 pending or live save sessions.*65 GiB per-save and aggregate admitted bytes.*synchronously before the first await.*lower-only.*BigInt `statfs`.*before staging open.*point-in-time.*not an operating-system reservation.*cleanup failure.*charged.*active chunk.*parent-directory/isu,
 	);
-
 });
 
 async function readMatrix() {
