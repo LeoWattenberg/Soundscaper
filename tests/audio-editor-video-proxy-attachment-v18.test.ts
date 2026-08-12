@@ -38,7 +38,7 @@ test('normalizes one exact detached frozen 19-field attachment', () => {
 	assert.equal(Object.getPrototypeOf(first.timingAsset), Object.prototype);
 	assert.equal(Object.isFrozen(first), true);
 	assert.equal(Object.isFrozen(first.timingAsset), true);
-	(input as MutableRecord).generatorId = 'mutated';
+	(input as unknown as MutableRecord).generatorId = 'mutated';
 	(input.timingAsset as unknown as MutableRecord).timescale = 90_000;
 	assert.equal(first.generatorId, 'generator');
 	assert.equal(first.timingAsset.timescale, 1_000);
@@ -84,7 +84,7 @@ test('accepts plain null-prototype records and refuses other graph shapes', () =
 		assert.throws(() => normalizeVideoProxyAttachmentV18(attachment({ timingAsset })), /timing|object|plain|record/iu);
 	}
 	const input = Object.assign(Object.create(null) as object, attachment()) as VideoProxyAttachmentV18;
-	input.timingAsset = Object.assign(Object.create(null) as object, timing()) as never;
+	(input as unknown as MutableRecord).timingAsset = Object.assign(Object.create(null) as object, timing());
 	assert.deepEqual(normalizeVideoProxyAttachmentV18(input), attachment());
 });
 
