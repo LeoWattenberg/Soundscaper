@@ -16,6 +16,12 @@ import {
 } from './audio-warp-authoring-service.ts';
 import type { EditorControllerLifetime, EditorProjectToken } from './lifecycle.ts';
 import {
+	addAudioWarpMarker,
+	deleteAudioWarpMarker,
+	moveAudioWarpMarker,
+	type AudioWarpMarkerInput,
+} from './audio-warp-marker-editor.ts';
+import {
 	createTransientAnalysisPcmAccess,
 	type TransientAnalysisPcmAccess,
 	type TransientAnalysisPcmStore,
@@ -68,6 +74,9 @@ export interface AudioWarpControllerComposition {
 	view(): Readonly<AudioWarpControllerView>;
 	analyzeSelected(): Promise<Readonly<ClipTransientAnalysisOutcome>>;
 	createIdentityMapSelected(): unknown;
+	addMarkerSelected(marker: AudioWarpMarkerInput): unknown;
+	moveMarkerSelected(pointIndex: number, marker: AudioWarpMarkerInput): unknown;
+	deleteMarkerSelected(pointIndex: number): unknown;
 	quantizeSelected(options: AudioWarpQuantizeOptions): Promise<unknown>;
 	applyGrooveSelected(options: AudioWarpGrooveApplicationOptions): Promise<unknown>;
 	clearSelected(): unknown;
@@ -91,6 +100,9 @@ export function createAudioWarpControllerComposition(
 		view,
 		analyzeSelected,
 		createIdentityMapSelected,
+		addMarkerSelected,
+		moveMarkerSelected,
+		deleteMarkerSelected,
 		quantizeSelected,
 		applyGrooveSelected,
 		clearSelected,
@@ -134,6 +146,27 @@ export function createAudioWarpControllerComposition(
 		return authoring.setWarpMap(preparation, identityWarpMap(preparation));
 	}
 
+	function addMarkerSelected(marker: AudioWarpMarkerInput): unknown {
+		const preparation = preparedMap();
+		return authoring.setWarpMap(preparation, addAudioWarpMarker(preparation.warpMap, marker));
+	}
+
+	function moveMarkerSelected(pointIndex: number, marker: AudioWarpMarkerInput): unknown {
+		const preparation = preparedMap();
+		return authoring.setWarpMap(
+			preparation,
+			moveAudioWarpMarker(preparation.warpMap, pointIndex, marker),
+		);
+	}
+
+	function deleteMarkerSelected(pointIndex: number): unknown {
+		const preparation = preparedMap();
+		return authoring.setWarpMap(
+			preparation,
+			deleteAudioWarpMarker(preparation.warpMap, pointIndex),
+		);
+	}
+
 	async function quantizeSelected(options: AudioWarpQuantizeOptions): Promise<unknown> {
 		const clipId = requireSelectedAudioClip();
 		const outcome = await analyzeWithProcessing(clipId);
@@ -163,6 +196,12 @@ export function createAudioWarpControllerComposition(
 			preparation = authoring.prepareClipEdit(clipId);
 		}
 		return preparation;
+	}
+
+	function preparedMap(): PreparedAudioWarpClipEdit & Readonly<{ warpMap: Readonly<AudioWarpMap> }> {
+		const preparation = authoring.prepareClipEdit(requireSelectedAudioClip());
+		if (preparation.warpMap === null) throw new RangeError('Create an identity warp map before editing markers.');
+		return preparation as PreparedAudioWarpClipEdit & Readonly<{ warpMap: Readonly<AudioWarpMap> }>;
 	}
 
 	async function analyzeWithProcessing(
@@ -208,8 +247,13 @@ export function createAudioWarpControllerComposition(
 	function requireSelectedAudioClip(): string {
 		dependencies.lifetime.assertActive();
 		const clipId = dependencies.getSelectedClipId();
-		if (!selectedAudioClip(dependencies.getProject(), clipId)) {
+		const project = dependencies.getProject();
+		if (!selectedAudioClip(project, clipId)) {
 			throw new RangeError('Select one audio clip before editing its warp map.');
+		}
+		if (dependencies.editingBlocked()) throw new Error('Editing is blocked for this project.');
+		if (owningTrack(project, clipId!)?.locked === true) {
+			throw new Error('The selected audio clip belongs to a locked track.');
 		}
 		return clipId!;
 	}

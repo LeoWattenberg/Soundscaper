@@ -9,6 +9,7 @@ test('audio warp facade exposes every selected-clip workflow operation behind on
 	const calls: string[] = [];
 	const service = Object.fromEntries([
 		'view', 'analyzeSelected', 'createIdentityMapSelected', 'quantizeSelected',
+		'addMarkerSelected', 'moveMarkerSelected', 'deleteMarkerSelected',
 		'applyGrooveSelected', 'clearSelected',
 	].map((name) => [name, (..._args: readonly unknown[]) => {
 		calls.push(name);
@@ -21,11 +22,15 @@ test('audio warp facade exposes every selected-clip workflow operation behind on
 	assert.equal(actions.view(), 'view');
 	assert.equal(await actions.analyze(), 'analyzeSelected');
 	assert.equal(actions.createIdentityMap(), 'createIdentityMapSelected');
+	assert.equal(actions.addMarker({}), 'addMarkerSelected');
+	assert.equal(actions.moveMarker(1, {}), 'moveMarkerSelected');
+	assert.equal(actions.deleteMarker(1), 'deleteMarkerSelected');
 	assert.equal(await actions.quantize({}), 'quantizeSelected');
 	assert.equal(await actions.applyGroove({}), 'applyGrooveSelected');
 	assert.equal(actions.clear(), 'clearSelected');
 	assert.deepEqual(calls, [
-		'view', 'analyzeSelected', 'createIdentityMapSelected', 'quantizeSelected',
+		'view', 'analyzeSelected', 'createIdentityMapSelected',
+		'addMarkerSelected', 'moveMarkerSelected', 'deleteMarkerSelected', 'quantizeSelected',
 		'applyGrooveSelected', 'clearSelected',
 	]);
 	assert.equal(Object.isFrozen(actions), true);

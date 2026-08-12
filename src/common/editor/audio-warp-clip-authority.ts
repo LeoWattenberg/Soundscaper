@@ -4,7 +4,7 @@ import {
 	normalizeAudioWarpMap,
 	type AudioWarpMap,
 } from './audio-warp-domain.ts';
-import { createAudioWarpRuntimeEvaluator } from './audio-warp-runtime.ts';
+import { normalizeAudioWarpRuntimeInputs } from './audio-warp-runtime-authority.ts';
 import {
 	readClosedDomainField,
 	readClosedDomainRecord,
@@ -78,10 +78,10 @@ export function normalizeAudioWarpMapForClip(
 ): Readonly<AudioWarpMap> {
 	const map = normalizeAudioWarpMap(value);
 	const runtime = resolveRuntimeClipProjection(project, clip);
-	return createAudioWarpRuntimeEvaluator(project, {
+	return normalizeAudioWarpRuntimeInputs(project, {
 		...runtime,
 		warpMap: map,
-	} as unknown as Parameters<typeof createAudioWarpRuntimeEvaluator>[1]).map;
+	} as unknown as Parameters<typeof normalizeAudioWarpRuntimeInputs>[1]).map;
 }
 
 export function normalizeAudioWarpClipAuthority(value: unknown): Readonly<AudioWarpClipAuthority> {

@@ -24,6 +24,7 @@ import { createClipSelectionNavigationMenuModel } from './clip-selection-navigat
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
 import { createTakeCompApplicationMenuItems } from './take-comp-application-menu.ts';
+import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
 export default function createApplicationMenus({
 	productId,
 	aboutLabel,
@@ -527,18 +528,10 @@ export default function createApplicationMenus({
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.repeatLastEffect, label: copy.repeatLastEffect, disabled: editBlocked || !editSelectionActive || !snapshot.effects?.canRepeatLast, onClick: actions.repeatLastEffect },
 				divider(),
 				...effectGroups,
-				{ id: 'pitch-tempo', label: copy.pitchTempo, items: [
-					{ id: 'change-pitch', label: copy.changePitch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-pitch') },
-					{ id: 'change-tempo', label: copy.changeTempo, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-tempo') },
-					{ id: 'effect://builtin/change-speed-pitch', label: copy.changeSpeedPitch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-change-speed-pitch') },
-					{ id: 'effect://builtin/sliding-stretch', label: copy.slidingStretch, disabled: editBlocked || !selectedAudioTrack, onClick: () => actions.openSelectionEffect('audacity-sliding-stretch') },
-					...(effectLabels.has('audacity-paulstretch') ? [{
-						id: 'audacity-paulstretch',
-						label: effectLabels.get('audacity-paulstretch') || 'Paulstretch',
-						disabled: editBlocked || !selectedAudioTrack,
-						onClick: () => actions.openSelectionEffect('audacity-paulstretch'),
-					}] : []),
-				] },
+				{ id: 'pitch-tempo', label: copy.pitchTempo, items: createPitchAndTempoApplicationMenuItems({
+					productId, capabilities, project, selectedClipId: selectedClip?.id ?? null,
+					selectedAudioTrack, editingBlocked: editBlocked, copy, effectLabels, actions,
+				}) },
 				{
 					id: 'nyquist-effects',
 					label: copy.nyquist,

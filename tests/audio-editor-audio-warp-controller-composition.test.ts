@@ -57,6 +57,25 @@ test('creating a map without prior warp state persists exact identity endpoints'
 	assert.equal(fixture.service.view().hasWarpMap, true);
 });
 
+test('selected-clip marker add, move, and delete persist through the existing exact set command', () => {
+	const fixture = compositionFixture();
+	assert.throws(() => fixture.service.addMarkerSelected({ outer: 50, source: 200 }), /identity warp map/iu);
+	fixture.service.createIdentityMapSelected();
+	fixture.service.addMarkerSelected({ outer: 50, source: 200 });
+	assert.deepEqual(warpPointsOf(fixture.present())[1], {
+		outer: { num: 50, den: 1 }, source: { num: 200, den: 1 }, mode: 'forward',
+	});
+	fixture.service.moveMarkerSelected(1, { outer: { num: 121, den: 2 }, source: 220 });
+	assert.deepEqual(warpPointsOf(fixture.present())[1], {
+		outer: { num: 121, den: 2 }, source: { num: 220, den: 1 }, mode: 'forward',
+	});
+	fixture.service.deleteMarkerSelected(1);
+	assert.equal(warpPointsOf(fixture.present()).length, 2);
+	assert.deepEqual(fixture.commands.map(({ type }) => type), [
+		'audio-warp/set', 'audio-warp/set', 'audio-warp/set', 'audio-warp/set',
+	]);
+});
+
 test('quantize routes exact zero, one, and intermediate strengths after ensuring identity', async () => {
 	for (const strength of [0, { num: 1, den: 2 }, 1] as const) {
 		const fixture = compositionFixture();
@@ -128,14 +147,27 @@ test('controller admission blocks no-selection, read-only/busy, video, and locke
 	blocked.setBlocked(true);
 	assert.equal(blocked.service.view().blockReason, 'busy-or-read-only');
 	assert.throws(() => blocked.service.createIdentityMapSelected(), /Editing is blocked/u);
+	await assert.rejects(blocked.service.analyzeSelected(), /Editing is blocked/u);
 
 	const locked = compositionFixture({ locked: true });
 	assert.equal(locked.service.view().blockReason, 'locked');
 	assert.throws(() => locked.service.createIdentityMapSelected(), /locked/u);
+	await assert.rejects(locked.service.analyzeSelected(), /locked/u);
 
 	const video = compositionFixture({ selectedClipKind: 'video' });
 	assert.equal(video.service.view().blockReason, 'no-audio-clip');
 	await assert.rejects(video.service.analyzeSelected(), /Select one audio clip/iu);
+});
+
+test('PCM storage capability is admitted only when transient analysis is requested', async () => {
+	const fixture = compositionFixture({ lazyPcmAccess: true });
+
+	assert.equal(fixture.service.view().selectedClipId, 'clip');
+	fixture.service.createIdentityMapSelected();
+	await assert.rejects(
+		fixture.service.analyzeSelected(),
+		/Transient analysis requires canonical PCM storage access/u,
+	);
 });
 
 type Analyze = NonNullable<Parameters<typeof createAudioWarpControllerComposition>[0]['analyzeChannels']>;
@@ -144,6 +176,7 @@ function compositionFixture(options: Readonly<{
 	locked?: boolean;
 	selectedClipKind?: 'audio' | 'video';
 	analyze?: Analyze;
+	lazyPcmAccess?: boolean;
 }> = {}) {
 	let present = project(Boolean(options.locked), options.selectedClipKind);
 	let selectedClipId: string | null = 'clip';
@@ -157,6 +190,11 @@ function compositionFixture(options: Readonly<{
 	const processing: boolean[] = [];
 	let resolveRangeStarted!: () => void;
 	const rangeStarted = new Promise<void>((resolve) => { resolveRangeStarted = resolve; });
+	const analysisStore = {
+		loadAnalysis: async (key: string) => cache.get(key) ?? null,
+		saveAnalysis: async (key: string, value: unknown) => { cache.set(key, value); },
+		deleteAnalysis: async (key: string) => { cache.delete(key); },
+	};
 	const service = createAudioWarpControllerComposition({
 		lifetime,
 		getProject: () => present,
@@ -169,15 +207,13 @@ function compositionFixture(options: Readonly<{
 		},
 		captureProject: () => generation.capture(present.id),
 		assertProject: (token) => generation.assertCurrent(token),
-		store: {
-			loadAnalysis: async (key) => cache.get(key) ?? null,
-			saveAnalysis: async (key, value) => { cache.set(key, value); },
-			deleteAnalysis: async (key) => { cache.delete(key); },
+		store: (options.lazyPcmAccess ? analysisStore : {
+			...analysisStore,
 			getSourceMetadata: async () => null,
 			async *readSourceChunks() { /* The injected access owns fixture PCM. */ },
 			openSourceReadSession: async () => null,
-		},
-		pcmAccess: {
+		}) as Parameters<typeof createAudioWarpControllerComposition>[0]['store'],
+		...(options.lazyPcmAccess ? {} : { pcmAccess: {
 			async resolveSourceSha256(projectId, source) {
 				pcmEvents.push(`digest:${projectId}:${source.id}`);
 				return SOURCE_SHA256;
@@ -190,7 +226,7 @@ function compositionFixture(options: Readonly<{
 				return [pcm];
 			},
 			dispose: () => undefined,
-		},
+		} }),
 		analyzeChannels: options.analyze ?? ((channels, detectorOptions) => (
 			detectPcmTransients(channels, detectorOptions)
 		)),
@@ -234,4 +270,12 @@ function clipOf(projectValue: AudioEditorProjectCurrent): Readonly<Record<string
 	const clip = projectValue.clips.find(({ id }) => id === 'clip');
 	if (!clip) throw new Error('Missing fixture clip.');
 	return clip;
+}
+
+function warpPointsOf(projectValue: AudioEditorProjectCurrent): readonly unknown[] {
+	const warpMap = clipOf(projectValue).warpMap;
+	if (!warpMap || typeof warpMap !== 'object' || !Array.isArray((warpMap as { points?: unknown }).points)) {
+		throw new Error('Missing fixture warp map.');
+	}
+	return (warpMap as { points: readonly unknown[] }).points;
 }

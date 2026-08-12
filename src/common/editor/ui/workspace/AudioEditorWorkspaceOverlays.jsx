@@ -11,6 +11,7 @@ const EditorDialog = React.lazy(() => import('../dialogs/EditorDialog.jsx'));
 const GeneratorDialog = React.lazy(() => import('../dialogs/GeneratorDialog.jsx'));
 const NyquistDialog = React.lazy(() => import('../dialogs/NyquistDialog.jsx'));
 const SpectralSelectionDialog = React.lazy(() => import('../dialogs/SpectralSelectionDialog.jsx'));
+const AudioWarpDialog = React.lazy(() => import('../dialogs/AudioWarpDialog.tsx'));
 const TakeCompDialog = React.lazy(() => import('../dialogs/TakeCompDialog.tsx'));
 const WorkspacePreferencesDialog = React.lazy(() => import('../dialogs/WorkspacePreferencesDialog.jsx'));
 const RawPcmImportDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
@@ -138,6 +139,20 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				<div data-editor-surface="take-comp">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<TakeCompDialog
+							productId={productId}
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{capabilities.audioWarp && activeSurface === 'audio-warp' && (
+				<div data-editor-surface="audio-warp">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<AudioWarpDialog
 							productId={productId}
 							controller={controller}
 							snapshot={snapshot}

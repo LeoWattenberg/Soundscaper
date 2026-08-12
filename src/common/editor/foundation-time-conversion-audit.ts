@@ -63,13 +63,18 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
+		id: 'audio-warp-runtime-authority',
+		file: 'src/common/editor/audio-warp-runtime-authority.ts',
+		behavior: 'Persisted and runtime musical warp authority exactly inverts resolved sample endpoints to verify that the authored beat domain matches the clip extent.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
 		id: 'audio-warp-runtime-mapping',
 		file: 'src/common/editor/audio-warp-runtime.ts',
-		behavior: 'Runtime warp mapping exactly inverts musical samples, point-resolves beat and warp boundaries once, and retains rational source positions between boundaries.',
+		behavior: 'Runtime warp mapping point-resolves beat and warp boundaries once, and retains rational source positions between boundaries.',
 		conversions: [
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
 			{ helper: 'roundRational', policies: ['point'] },
-			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
 		],
 	},
 	{

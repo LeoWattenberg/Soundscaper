@@ -84,8 +84,8 @@ test('the current feature requirements retain their compatibility semantics thro
 test('pre-open Scape inspection reports selected-product feature compatibility', async () => {
 	const sourceStore = memoryStore('scape-feature-inspection-source');
 	const project = featureProject('scape-feature-inspection', FALLBACK_SOURCE_ID, {
-		native: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-		fallback: PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
+		native: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+		fallback: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 	});
 	await persistFallbackSource(sourceStore, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 	const exported = await exportScapeProject(project, sourceStore);
@@ -93,7 +93,7 @@ test('pre-open Scape inspection reports selected-product feature compatibility',
 	const service = createScapeProjectFileService({
 		lifetime: new EditorControllerLifetime(),
 		store: null,
-		productCapabilities: PRODUCT_PROFILES.soundscaper.capabilities,
+		productCapabilities: PRODUCT_PROFILES.framescaper.capabilities,
 		openScape: () => { throw new Error('Inspection must not open the archive.'); },
 	});
 

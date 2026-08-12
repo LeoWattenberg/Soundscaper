@@ -8,17 +8,20 @@ import {
 	normalizeAudioWarpMap,
 	type AudioWarpMap,
 } from './audio-warp-domain.ts';
-import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
 	addRationals,
 	beatToSampleFrame,
-	compareRationals,
 	roundRational,
 	subtractRationals,
 	type HoldTempoMap,
 	type Rational,
 	type RationalInput,
 } from './timeline-time.ts';
+import {
+	audioWarpOuterAtTimelineFrame,
+	isMusicalAudioWarpClip,
+	normalizeAudioWarpRuntimeInputs,
+} from './audio-warp-runtime-authority.ts';
 
 export interface AudioWarpRuntimeProject {
 	readonly sampleRate: number;
@@ -119,7 +122,7 @@ export function createAudioWarpRuntimeEvaluator(
 	projectValue: AudioWarpRuntimeProject,
 	clipValue: AudioWarpRuntimeClip,
 ): Readonly<AudioWarpRuntimeEvaluator> {
-	const { project, clip, map } = normalizeRuntimeInputs(projectValue, clipValue);
+	const { project, clip, map } = normalizeAudioWarpRuntimeInputs(projectValue, clipValue);
 	return Object.freeze({
 		map,
 		fingerprint: audioWarpMapFingerprint(map),
@@ -129,7 +132,7 @@ export function createAudioWarpRuntimeEvaluator(
 				|| timelineFrame > clip.timelineStartFrame + clip.durationFrames) {
 				throw new RangeError('Audio warp timeline frame must remain within the clip extent.');
 			}
-			return evaluateAudioWarpMap(map, outerAtTimelineFrame(project, clip, timelineFrame));
+			return evaluateAudioWarpMap(map, audioWarpOuterAtTimelineFrame(project, clip, timelineFrame));
 		},
 	});
 }
@@ -144,7 +147,7 @@ export function buildAudioWarpRuntimeSegments(
 	clipValue: AudioWarpRuntimeClip,
 	rangeValue: AudioWarpRuntimeRange,
 ): readonly Readonly<AudioWarpRuntimeSegment>[] {
-	const { project, clip, map } = normalizeRuntimeInputs(projectValue, clipValue);
+	const { project, clip, map } = normalizeAudioWarpRuntimeInputs(projectValue, clipValue);
 	const startFrame = safeInteger(rangeValue?.startFrame, 'audio warp range startFrame');
 	const endFrame = safeInteger(rangeValue?.endFrame, 'audio warp range endFrame');
 	const sourceSampleRate = positiveSafeInteger(
@@ -160,7 +163,7 @@ export function buildAudioWarpRuntimeSegments(
 		const frame = timelineFrameAtOuter(project, clip, point.outer);
 		if (frame > startFrame && frame < endFrame) boundaries.add(frame);
 	}
-	if (isMusicalClip(clip)) {
+	if (isMusicalAudioWarpClip(clip)) {
 		for (const event of project.tempoMap.events.slice(1)) {
 			const frame = beatToSampleFrame(event.beat, project.tempoMap, project.sampleRate, 'point');
 			if (frame > startFrame && frame < endFrame) boundaries.add(frame);
@@ -173,11 +176,11 @@ export function buildAudioWarpRuntimeSegments(
 		const timelineEndFrame = ordered[index + 1]!;
 		const sourceStartFrame = evaluateAudioWarpMap(
 			map,
-			outerAtTimelineFrame(project, clip, timelineStartFrame),
+			audioWarpOuterAtTimelineFrame(project, clip, timelineStartFrame),
 		);
 		const sourceEndFrame = evaluateAudioWarpMap(
 			map,
-			outerAtTimelineFrame(project, clip, timelineEndFrame),
+			audioWarpOuterAtTimelineFrame(project, clip, timelineEndFrame),
 		);
 		const sourceSpan = rationalNumber(subtractRationals(sourceEndFrame, sourceStartFrame));
 		const timelineSpan = timelineEndFrame - timelineStartFrame;
@@ -305,87 +308,12 @@ export function evaluateAudioWarpRenderParity(
 	});
 }
 
-function normalizeRuntimeInputs(
-	projectValue: AudioWarpRuntimeProject,
-	clipValue: AudioWarpRuntimeClip,
-): Readonly<{
-	project: AudioWarpRuntimeProject;
-	clip: AudioWarpRuntimeClip;
-	map: Readonly<AudioWarpMap>;
-}> {
-	if (!projectValue || typeof projectValue !== 'object') throw new TypeError('An audio warp project is required.');
-	const project = {
-		...projectValue,
-		sampleRate: positiveSafeInteger(projectValue.sampleRate, 'audio warp project sample rate'),
-	};
-	if (!Array.isArray(project.tempoMap?.events) || project.tempoMap.events.length === 0) {
-		throw new TypeError('An audio warp project requires a hold tempo map.');
-	}
-	if (!clipValue || typeof clipValue !== 'object' || clipValue.kind !== 'audio') {
-		throw new TypeError('An audio clip is required for warp evaluation.');
-	}
-	const clip = {
-		...clipValue,
-		timelineStartFrame: nonNegativeSafeInteger(clipValue.timelineStartFrame, 'audio warp clip start'),
-		durationFrames: positiveSafeInteger(clipValue.durationFrames, 'audio warp clip duration'),
-		sourceStartFrame: nonNegativeSafeInteger(clipValue.sourceStartFrame, 'audio warp source start'),
-		sourceDurationFrames: positiveSafeInteger(clipValue.sourceDurationFrames, 'audio warp source duration'),
-	};
-	if (clip.reversed) throw new RangeError('Audio warp maps require forward clip source orientation.');
-	const map = normalizeAudioWarpMap(clip.warpMap);
-	assertMapEndpoints(project, clip, map);
-	return Object.freeze({ project, clip, map });
-}
-
-function assertMapEndpoints(
-	project: AudioWarpRuntimeProject,
-	clip: AudioWarpRuntimeClip,
-	map: Readonly<AudioWarpMap>,
-): void {
-	const first = map.points[0]!;
-	const last = map.points.at(-1)!;
-	const expectedOuterEnd = isMusicalClip(clip)
-		? clip.musicalDurationBeats!
-		: clip.durationFrames;
-	const expectedSourceEnd = safeAdd(
-		clip.sourceStartFrame,
-		clip.sourceDurationFrames,
-		'audio warp source extent',
-	);
-	if (compareRationals(first.outer, 0) !== 0
-		|| compareRationals(last.outer, expectedOuterEnd) !== 0) {
-		throw new RangeError('Audio warp outer endpoints must match the clip anchor extent.');
-	}
-	if (compareRationals(first.source, clip.sourceStartFrame) !== 0
-		|| compareRationals(last.source, expectedSourceEnd) !== 0) {
-		throw new RangeError('Audio warp source endpoints must match the clip source extent.');
-	}
-	// Exercise the inverse at both endpoints so malformed musical authority is
-	// rejected at the same boundary as runtime consumption.
-	outerAtTimelineFrame(project, clip, clip.timelineStartFrame);
-	outerAtTimelineFrame(project, clip, clip.timelineStartFrame + clip.durationFrames);
-}
-
-function outerAtTimelineFrame(
-	project: AudioWarpRuntimeProject,
-	clip: AudioWarpRuntimeClip,
-	timelineFrame: number,
-): Rational {
-	if (!isMusicalClip(clip)) {
-		return Object.freeze({ num: timelineFrame - clip.timelineStartFrame, den: 1 });
-	}
-	return subtractRationals(
-		sampleFrameToBeat(timelineFrame, project.tempoMap, project.sampleRate),
-		clip.musicalStartBeat!,
-	);
-}
-
 function timelineFrameAtOuter(
 	project: AudioWarpRuntimeProject,
 	clip: AudioWarpRuntimeClip,
 	outer: Rational,
 ): number {
-	if (!isMusicalClip(clip)) {
+	if (!isMusicalAudioWarpClip(clip)) {
 		return safeAdd(
 			clip.timelineStartFrame,
 			roundRational(outer.num, outer.den, 'point'),
@@ -398,15 +326,6 @@ function timelineFrameAtOuter(
 		project.sampleRate,
 		'point',
 	);
-}
-
-function isMusicalClip(clip: AudioWarpRuntimeClip): boolean {
-	if (clip.anchor !== 'musical') return false;
-	if (clip.musicalExtent !== 'beat' || clip.musicalStartBeat == null
-		|| clip.musicalDurationBeats == null) {
-		throw new TypeError('A musical audio warp clip requires beat start and extent authority.');
-	}
-	return true;
 }
 
 function rationalNumber(value: Rational): number {
