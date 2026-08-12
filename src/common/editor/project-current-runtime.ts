@@ -16,7 +16,7 @@ import {
 	validateAudioEditorProjectV10,
 } from './project-v10-validation.ts';
 import { validateAudioEditorProjectV11 } from './project-v11-validation.ts';
-import { validateAudioEditorProjectV16 } from './project-v16-validation.ts';
+import { validateAudioEditorProjectV17 } from './project-v17-validation.ts';
 import { reconcileVideoSourceCharacteristicsV14 } from './source-characteristics-v14.ts';
 import {
 	isRuntimeProjectProjection,
@@ -26,7 +26,7 @@ import {
 
 type DataRecord = Record<string, unknown>;
 
-/** V10 introduced the authoritative foundation retained by V11 through V16. */
+/** V10 introduced the authoritative foundation retained by V11 through V17. */
 export function isFoundationProjectSchema(schemaVersion: unknown): boolean {
 	return schemaVersion === AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION
 		|| schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
@@ -81,7 +81,7 @@ export function validateCurrentAudioEditorProject(project: unknown): boolean {
 	if (!project || typeof project !== 'object' || Array.isArray(project)) return false;
 	const candidate = project as Readonly<Record<string, unknown>>;
 	return candidate.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		? validateAudioEditorProjectV16(candidate)
+		? validateAudioEditorProjectV17(candidate)
 		: false;
 }
 

@@ -15,6 +15,7 @@ import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
 import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js';
 import { parseAudioEditorLabels } from '../src/common/editor/label-io.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { createLabelTrackV10 } from '../src/common/editor/project-v10.ts';
 
 const NOW = '2026-08-09T00:00:00.000Z';
@@ -97,7 +98,7 @@ test('a positive Audacity label region remains a region below one destination sa
 	}));
 });
 
-test('legacy XML AUP labels import as V16 annotations instead of internal label-track objects', () => {
+test('legacy XML AUP labels import as current annotations instead of internal label-track objects', () => {
 	let nextId = 0;
 	const decoded = convertLegacyAupToProject({
 		sampleRate: 48_000,
@@ -116,7 +117,7 @@ test('legacy XML AUP labels import as V16 annotations instead of internal label-
 		idFactory: (prefix: string) => `${prefix}-${String(++nextId)}`,
 	});
 
-	assert.equal(decoded.project.schemaVersion, 16);
+	assert.equal(decoded.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.equal(decoded.project.tracks.some(({ type }: { type?: string }) => type === 'label'), false);
 	assert.deepEqual(decoded.project.timelineAnnotations.map(({ kind }: { kind: string }) => kind), ['marker', 'region']);
 	assert.equal((decoded.project.timelineAnnotations[0] as { positionFrame: number }).positionFrame, 12_000);

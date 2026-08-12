@@ -20,7 +20,7 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
@@ -216,7 +216,7 @@ function highRateProject(withSuffix: boolean) {
 		clipIds: clips.map(({ id }) => String(id)),
 		locked: false,
 	});
-	return createAudioEditorProjectV16({
+	return createCurrentAudioEditorProject({
 		id: `high-rate-${withSuffix ? 'pair' : 'edge'}`,
 		now: NOW,
 		sampleRate: SAMPLE_RATE,

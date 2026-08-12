@@ -20,7 +20,10 @@ import {
 	AudioEditorProjectReimportRequiredError,
 	migrateAudioEditorProject,
 } from '../src/common/editor/migration.js';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import {
 	SCAPE_FORMAT,
@@ -100,7 +103,7 @@ test('scape archives round-trip mixed projects, original media, PCM, effects, an
 	}
 });
 
-test('V16 timeline annotations survive a current-format scape semantic round trip', async () => {
+test('timeline annotations survive a current-format scape semantic round trip', async () => {
 	const sourceStore = memoryStore('scape-v11-annotation-source');
 	const targetStore = memoryStore('scape-v11-annotation-target');
 	const timelineAnnotations = [{
@@ -120,10 +123,10 @@ test('V16 timeline annotations survive a current-format scape semantic round tri
 	});
 
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 16);
+	assert.equal(exported.manifest.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
-	assert.equal(imported.project.schemaVersion, 16);
+	assert.equal(imported.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.deepEqual(imported.project.timelineAnnotations, timelineAnnotations);
 	assert.deepEqual((await targetStore.loadProject(project.id)).timelineAnnotations, timelineAnnotations);
 });
@@ -156,21 +159,21 @@ test('an explicit historical V10 scape fails with typed re-import before persist
 		() => importScapeProject(exported.blob, targetStore),
 		(error) => error instanceof AudioEditorProjectReimportRequiredError
 			&& error.schemaVersion === 10
-			&& error.currentSchemaVersion === 16,
+			&& error.currentSchemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	);
 	assert.equal(persistenceCalls, 0);
 	assert.deepEqual(await backingStore.listProjects(), []);
 	assert.deepEqual(await backingStore.listSources(), []);
 });
 
-test('a future V17 scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
+test('a future V18 scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
 	const sourceStore = memoryStore('scape-future-preview-source');
 	const targetStore = memoryStore('scape-future-preview-target');
 	const project = mixedProject();
 	await persistAssets(sourceStore);
 	const exported = await exportScapeProject(project, sourceStore);
 	const future = await rewriteScapeProjectDocument(exported.blob, (document) => {
-		document.schemaVersion = 17;
+		document.schemaVersion = 18;
 		document.timelineAnnotations = { futureShape: { retained: true } };
 		const videoSource = document.sources.find((source) => source.kind === 'video');
 		videoSource.posterStorageKey = 'future-poster-locator';

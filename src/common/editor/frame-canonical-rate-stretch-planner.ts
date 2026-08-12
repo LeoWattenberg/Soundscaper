@@ -26,7 +26,7 @@ import {
 	validateFrameCanonicalVideoTracks,
 	type FrameCanonicalTrimParticipant,
 } from './frame-canonical-trim-planning.ts';
-import { AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION } from './project-schema-version.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { isRuntimeProjectProjection } from './runtime-clip-projection.ts';
 import {
 	roundRational,
@@ -72,8 +72,8 @@ export function planFrameCanonicalRateStretch(
 		throw new TypeError('A frame-canonical rate stretch requires the branded command projection.');
 	}
 	const project = frameTrimRecord(projectValue, 'project');
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION) {
-		throw new RangeError('A frame-canonical rate stretch requires the exact V16 command projection.');
+	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+		throw new RangeError('A frame-canonical rate stretch requires the exact current command projection.');
 	}
 	const activeClipId = nonEmptyString(request?.activeClipId, 'request.activeClipId');
 	const edge = stretchEdge(request?.edge);

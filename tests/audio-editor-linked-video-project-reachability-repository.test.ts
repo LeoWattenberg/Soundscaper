@@ -161,7 +161,7 @@ test('unknown current and retained projects suppress cleanup before the binding 
 		({ store }) => store === LINKED_VIDEO_ORIGINAL_STORE_NAME,
 	).length ?? 0;
 
-	fixture.indexedDB?.seedRecord(fixture.databaseName, 'projects', { ...valid, schemaVersion: 17 });
+	fixture.indexedDB?.seedRecord(fixture.databaseName, 'projects', { ...valid, schemaVersion: 18 });
 	assert.equal(await fixture.reachability.pruneProjectBindings(PROJECT_ID, []), null);
 	assert.equal(bindingCursorCount(), 0);
 

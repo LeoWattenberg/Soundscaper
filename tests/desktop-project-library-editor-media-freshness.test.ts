@@ -180,7 +180,7 @@ function bundle(
 		metadataFile: 'projects/managed-media-freshness-entry/project.scape',
 		preferredProduct: 'soundscaper',
 		updatedAtMs: 1,
-		projectSchemaVersion: 16,
+		projectSchemaVersion: 17,
 		projectRevision: projectValue.revision,
 		byteLength: 1,
 		sha256: '0'.repeat(64),

@@ -51,6 +51,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'audio-warp-quantization',
+		file: 'src/common/editor/audio-warp-domain.ts',
+		behavior: 'Transient quantization resolves each rational grid position once with the shared nearest-point policy before authoring one strictly increasing sample map.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
 		id: 'legacy-aup-timeline-import',
 		file: 'src/common/editor/aup-legacy-conversion.js',
 		behavior: 'Legacy label, selection, source, clip, and envelope timestamps become nearest sample instants during interchange import.',

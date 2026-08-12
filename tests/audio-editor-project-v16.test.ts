@@ -130,7 +130,7 @@ test('V16 creates and validates exact timeline and Project Bin curve wires in tw
 	assert.notStrictEqual(project.projectBin.clips[0]?.retimeMap, inputCurve);
 	assert.equal(Object.isFrozen(project.clips[0]?.retimeMap), true);
 	assert.equal(validateAudioEditorProjectV16(project), true);
-	assert.equal(validateCurrentAudioEditorProject(project), true);
+	assert.throws(() => validateCurrentAudioEditorProject(project), /schema version/iu);
 
 	const requirement = project.featureRequirements.requirements.find(
 		({ id }) => id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.videoRetime,
@@ -250,7 +250,7 @@ test('V16 refuses publisher substitution for non-null curves but retains normal 
 	assert.equal(project.featureRequirements.requirements[0]?.id, 'publisher.video-retime');
 });
 
-test('V16 clone/load/current aliases preserve curve state; V15 reimports and V17 stays opaque', () => {
+test('V16 clone/load and V17 current aliases preserve curve state; V18 stays opaque', () => {
 	const project = createAudioEditorProjectV16(projectOptions());
 	const clone = cloneAudioEditorProjectV16(project);
 	const loaded = loadAudioEditorProjectV16(project);
@@ -264,7 +264,8 @@ test('V16 clone/load/current aliases preserve curve state; V15 reimports and V17
 		(loaded.project as AudioEditorProjectV16).projectBin.clips[0]?.retimeMap,
 		project.projectBin.clips[0]?.retimeMap,
 	);
-	assert.equal(current.schemaVersion, 16);
+	assert.equal(current.schemaVersion, 17);
+	assert.deepEqual(current.takeGroups, []);
 	assert.deepEqual(cloneCurrentAudioEditorProject(current), current);
 	assert.deepEqual(loadCurrentAudioEditorProject(current), { project: current, readOnly: false, reason: null });
 
@@ -274,20 +275,20 @@ test('V16 clone/load/current aliases preserve curve state; V15 reimports and V17
 		() => migrateAudioEditorProject(v15),
 		(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError,
 	);
-	const future = { ...project, schemaVersion: 17, future: { retained: true } };
+	const future = { ...current, schemaVersion: 18, future: { retained: true } };
 	assert.deepEqual(migrateAudioEditorProject(future), {
 		project: future,
 		migrated: false,
-		fromVersion: 17,
+		fromVersion: 18,
 		readOnly: true,
 		reason: 'newer-schema',
 	});
 });
 
-test('current and inherited schema predicates route exact V16 while keeping V15 historical', () => {
+test('current V17 inherits the V16 retime predicate while keeping V15 historical', () => {
 	assert.equal(AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION, 16);
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 16);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 16);
+	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 17);
+	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 17);
 	for (const predicate of [
 		isTimelineAnnotationProjectSchema,
 		isTrackFolderProjectSchema,
@@ -295,6 +296,7 @@ test('current and inherited schema predicates route exact V16 while keeping V15 
 		isTrackLockProjectSchema,
 		isVideoRetimeCurveProjectSchema,
 	]) assert.equal(predicate(16), true);
+	assert.equal(isVideoRetimeCurveProjectSchema(17), true);
 	assert.equal(isVideoRetimeCurveProjectSchema(15), false);
 	assert.equal(isTrackLockProjectSchema(15), true);
 });

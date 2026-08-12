@@ -241,7 +241,12 @@ export type EditorProjectV16 = Omit<EditorProjectV15, 'schemaVersion'> & Readonl
 	schemaVersion: 16;
 }>;
 
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14 | EditorProjectV15 | EditorProjectV16;
+export type EditorProjectV17 = Omit<EditorProjectV16, 'schemaVersion'> & Readonly<{
+	schemaVersion: 17;
+	takeGroups: readonly Readonly<Record<string, unknown>>[];
+}>;
+
+export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14 | EditorProjectV15 | EditorProjectV16 | EditorProjectV17;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

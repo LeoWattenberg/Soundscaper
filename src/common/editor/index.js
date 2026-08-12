@@ -74,6 +74,7 @@ export * from './project-v9.ts';
 export * from './project-v10.ts';
 export * from './project-v11.ts';
 export * from './project-v12.ts';
+export * from './project-v17.ts';
 export * from './project-current.ts';
 export * from './project-feature-requirements.ts';
 export {

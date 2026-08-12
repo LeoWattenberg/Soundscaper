@@ -407,6 +407,7 @@ function projectDocument(revision, title, overrides = {}) {
 		clips: [],
 		projectBin: { clips: [] },
 		timelineAnnotations: [],
+		takeGroups: [],
 		...overrides,
 	});
 }

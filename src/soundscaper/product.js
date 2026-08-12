@@ -25,6 +25,7 @@ export const SOUNDSCAPER_PROFILE = {
 		musicalTimeline: true,
 		timelineAnnotations: true,
 		trackFolders: true,
+		takeComp: false,
 		audioWarp: false,
 		sequenceTiming: true,
 		videoRetime: false,
