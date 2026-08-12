@@ -309,6 +309,14 @@ narrower-domain proof.
 
 ## 3B-6 — Proxies, relink, and multicamera
 
+**Status: Planned.** The dependency-ordered first slice is
+[3B-6a — exact video-proxy timing conformance](milestone-3b-video-proxy-timing-conformance.md):
+one schema-neutral, dormant proof that two authenticated timing views have the
+same `N + 1` exact picture boundaries. The later order is exact proxy
+relationship and pre-I/O retime admission, atomic V17 attachment, Project Bin
+menu and adaptive-preview lifecycle, then multicamera. 3B-6a has no maintained
+consumer or capability flip and does not weaken 3B-5's exact-executor hard stop.
+
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.
 - **Invariants:** A proxy never becomes the authoritative source; the planned

@@ -492,8 +492,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   hard-stopped pending a reviewed exact backend or narrower-domain proof;
   maintained retime workflows, nested sequences, subsequence time mapping, and
   flattening remain later slices.
-- **Web Core — Planned:** proxy attachment, adaptive preview, offline/relink, and
-  synchronized multicamera groups.
+- **Web Core — Planned:** the first dependency-ordered contract is
+  [dormant exact proxy timing conformance](docs/milestone-3b-video-proxy-timing-conformance.md);
+  proxy relationship and durable attachment, adaptive preview, offline/relink,
+  and synchronized multicamera groups follow it.
 
 ### Shared exit gate
 
