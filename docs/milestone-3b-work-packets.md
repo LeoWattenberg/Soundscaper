@@ -344,8 +344,14 @@ covered 1,011 modules, 2,790 dependencies, and 2,189 maintained files; and the
 build emitted 115 JavaScript chunks with a 428,990-byte largest chunk. The
 exact three-export module has no maintained consumer and adds no persistence,
 preparation consumption, project/schema owner, capability, UI, browser row, or
-Soundscaper change. Durable storage and c-c remain hard-stopped on product
-isolation.
+Soundscaper change. Contract `41198b82`, RED `63dd590d`, and implementation
+`cc164b67` then delivered c-c0's dormant opaque storage-profile capability and
+exact product-owned Framescaper V18 token on 2026-08-12. Its opt-in generic
+threading covers the database/degraded-memory key, OPFS directory and worker,
+and project-lock prefix while preserving every default. No app, product, or
+bootstrap selects the token, so no maintained Framescaper flow opens its store
+and it grants no durable proxy authority. Durable storage and c-c remain
+hard-stopped on product isolation.
 c-a2 is folded into c-c rather than implemented independently: a
 standalone V17 proof lease cannot fence the future all-null V18 base or
 authenticate the coordinator's storage-settlement outcome.
@@ -358,9 +364,11 @@ The reviewed
 has delivered its schema-neutral dormant c-a1 preparation slice and pure
 dormant
 [V18 attachment normalizer](milestone-3b-video-proxy-attachment-normalization.md).
-The normalizer consumes no preparation and touches no storage; durable body
-staging remains blocked on the product-isolated c-c composition. The remaining
-design requires
+The normalizer consumes no preparation and touches no storage. Dormant c-c0's
+[opaque Framescaper V18 storage profile](milestone-3b-framescaper-storage-profile.md)
+is implemented through `cc164b67`, but no production selector imports it;
+durable body staging remains blocked on the product-isolated c-c composition.
+The remaining design requires
 content-addressed proxy and timing bodies,
 atomic pointer publication/rollback, V18 preservation and unavailable
 capability, Framescaper-selected `.scape` format 2, and fresh Framescaper
@@ -369,12 +377,11 @@ The merged shared V17 take/comp wire remains immutable; durable proxy state is
 reserved for V18. Soundscaper receives no
 profile, capability, UI, browser, or desktop integration in these slices. The
 packet explicitly adds no proxy consumer, menu, playback, offline, relink,
-delivery, export, or audio behavior. Only the schema-neutral dormant c-a1 and
-c-b1 slices are implemented; c-a2 is folded into c-c, and durable storage plus
-c-c remain unauthorized. The next contract-first prerequisite is the dormant
-[opaque Framescaper V18 storage profile](milestone-3b-framescaper-storage-profile.md);
-its draft adds no production selector or persistence authority. Persistence
-remains subject to the refreshed V18 blocker review.
+delivery, export, or audio behavior. Only the schema-neutral dormant c-a1,
+c-b1, and c-c0 slices are implemented; c-a2 is folded into c-c, and durable
+proxy storage plus c-c remain unauthorized. The storage profile adds no
+production selector or persistence authority. Persistence remains subject to
+the refreshed V18 blocker review.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

@@ -1,11 +1,12 @@
 # Milestone 3B-6c-c0: dormant Framescaper storage profile
 
-> **Contract draft — production is not yet authorized.** This prerequisite may
-> add one opaque shared storage-profile capability and thread an explicitly
-> supplied authentic token through existing generic persistence seams. It does
-> not select a profile in any app, product, bootstrap, controller, or ordinary
-> fixture. It opens no store, creates no directory or worker, acquires no lock,
-> persists no proxy, and changes no Soundscaper behavior.
+> **Implemented as a dormant prerequisite in `cc164b67` on 2026-08-12;
+> production selection is not authorized.** This slice adds one opaque shared
+> storage-profile capability and threads an explicitly supplied authentic token
+> through existing generic persistence seams. No app, product, bootstrap,
+> controller, or ordinary fixture selects it, so no maintained Framescaper flow
+> opens its store, creates its directory or worker, or acquires its lock. It
+> persists no proxy and changes no Soundscaper behavior.
 
 ## Generic capability owner
 
@@ -185,6 +186,17 @@ architecture/file-size and dependency checks, `git diff --check`, then
 canonical `npm run check`. No browser row is required. `storage.js` is already
 adjacent to the 600-line ceiling; extract a focused option adapter rather than
 growing it past the limit.
+
+Implementation `cc164b67` passed all 15 focused tests, all four TypeScript
+configurations during implementation, targeted ESLint, `git diff --check`, and
+the architecture/file-size gate over 1,015 modules, 2,798 dependencies, and
+2,196 maintained files. The final canonical rerun passed lint, then stopped in
+typecheck only on six unrelated concurrent test diagnostics; it reported no
+c-c0 diagnostic. A separate full Node run reached 5,779 tests (5,776 passed,
+2 skipped) and had one failure solely from concurrent `clip-transform-service`
+static consumer-allowlist drift outside c-c0; the focused suite remained green.
+Static proof keeps the exact Framescaper constant product-owned and imported by
+no maintained production consumer.
 
 ## Hard stops
 

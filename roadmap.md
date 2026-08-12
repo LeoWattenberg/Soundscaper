@@ -540,14 +540,17 @@ Packet boundaries, dependencies, and acceptance are owned by
   [V18 attachment normalizer](docs/milestone-3b-video-proxy-attachment-normalization.md)
   is implemented through production `189e901f` and proof hardening `692fee74`
   on 2026-08-12. These Framescaper-only slices add no maintained proxy consumer,
-  UI, schema/project owner, storage, preparation consumption, capability,
-  Soundscaper change, or browser row. Shared V17 is already owned by take/comp
-  state; c-a2 is folded into c-c, and durable storage/c-c remain hard-stopped on
-  V18 product isolation. A standalone V17 proof lease cannot authenticate the
-  future V18 settlement boundary. Body staging or adoption is not authorized;
-  the next contract-first prerequisite is the dormant
+  UI, schema/project owner, durable proxy storage, preparation consumption,
+  capability, Soundscaper change, or browser row. Shared V17 is already owned
+  by take/comp state; c-a2 is folded into c-c, and durable storage/c-c remain
+  hard-stopped on V18 product isolation. A standalone V17 proof lease cannot
+  authenticate the future V18 settlement boundary. The dormant
   [opaque Framescaper V18 storage profile](docs/milestone-3b-framescaper-storage-profile.md),
-  whose draft adds no production selector or persistence authority. Soundscaper
+  implemented through `cc164b67` on 2026-08-12, threads exact opt-in database,
+  OPFS directory/worker, and project-lock identities while retaining every
+  default. No app, product, or bootstrap selects it, so no maintained
+  Framescaper flow opens its store and it grants no persistence authority. Body
+  staging or adoption is not authorized; Soundscaper
   product work is owned elsewhere. Adaptive preview,
   offline/relink, and synchronized multicamera groups follow the separately
   reviewed durable transition.

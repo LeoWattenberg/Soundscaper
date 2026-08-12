@@ -1,7 +1,7 @@
 # Milestone 3B-6c: durable V18 video-proxy attachment
 
-> **Reviewed split contract — 3B-6c-a1 and dormant c-b1 are implemented;
-> durable storage and c-c remain unauthorized.** 3B-6a and
+> **Reviewed split contract — 3B-6c-a1, dormant c-b1, and dormant c-c0 are
+> implemented; durable proxy storage and c-c remain unauthorized.** 3B-6a and
 > 3B-6b prove exact timing and one uninterrupted original-to-candidate
 > relationship, but intentionally persist nothing. This packet owns the first
 > durable proxy state: an exact V18 source attachment, its immutable proxy and
@@ -48,8 +48,9 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    change. That later owner verifies both bodies, holds currentness, and
    discards only new exact publications while retaining opaque full-row claims
    and roots.
-4. **3B-6c-c0 — dormant storage-profile prerequisite — contract draft:** add
-   only the [opaque shared `EditorProjectStorageProfile` capability and exact
+4. **3B-6c-c0 — dormant storage-profile prerequisite — implemented in
+   `cc164b67` on 2026-08-12:** add only the [opaque shared
+   `EditorProjectStorageProfile` capability and exact
    product-owned dormant Framescaper V18
    token](milestone-3b-framescaper-storage-profile.md), with opt-in generic
    database, OPFS directory/worker, and project-lock threading. No app or
@@ -102,8 +103,9 @@ prunes, reconciles, or publishes through the existing
 `kw-media-audio-editor` database, `audio-editor-sources` directory, default
 memory key, or audio-editor lock namespace. A same-origin product switch and
 either product's clear or maintenance path cannot enumerate or delete the
-other profile's records or payloads. These exact injected names are a c-c
-prerequisite; c-a1 creates or opens no store.
+other profile's records or payloads. The exact injected-name seam is
+implemented by dormant c-c0, but selecting its Framescaper token remains a c-c
+prerequisite; c-a1 and c-c0 create or open no store by themselves.
 
 ## Exact V18 wire
 
@@ -576,8 +578,12 @@ module remains dormant, with no maintained consumer, persistence, preparation
 consumption, project/schema owner, capability, UI, browser row, or Soundscaper
 change.
 
-The next contract-first prerequisite is dormant c-c0 storage-profile threading;
-its draft does not authorize production. Durable storage and c-c remain
+Dormant c-c0 storage-profile threading was implemented in `cc164b67` on
+2026-08-12. Its 15 focused tests, four TypeScript configurations, targeted
+ESLint, architecture/file-size gate, and diff check passed during
+implementation; the final canonical rerun stopped in unrelated concurrent
+test-only TypeScript diagnostics and reported no c-c0 diagnostic. No app,
+product, or bootstrap selects the token, so durable proxy storage and c-c remain
 hard-stopped, and a2 is folded into c-c. No
 generic callback is an adoption boundary, and no pre-c-c slice may claim
 settlement or own the original lease. Later work needs its own contracts,
