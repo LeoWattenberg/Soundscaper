@@ -21,6 +21,7 @@ import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
+import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 
 export default function createApplicationMenus({
 	productId,
@@ -103,6 +104,7 @@ export default function createApplicationMenus({
 	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
 	}), { setTrackLocked: actions.setTrackLocked });
+	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy }, actions);
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
@@ -274,14 +276,9 @@ export default function createApplicationMenus({
 				divider(),
 				{ id: 'select-tracks', label: copy.selectTracks, items: [
 					{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.selectAllTracks, label: copy.allTracks, disabled: !project?.tracks.length, onClick: actions.selectAllTracks },
-					unavailable('select-no-tracks', copy.noTracks),
+					clipSelectionNavigationMenus.selectNoTracks,
 				] },
-				{ id: 'menu-selection-audio-clips', label: copy.selectAudioClips, items: [
-					unavailable('select-previous-clip-boundary-to-cursor', copy.previousClipBoundaryToCursor),
-					unavailable('select-cursor-to-next-clip-boundary', copy.cursorToNextClipBoundary),
-					unavailable('select-previous-clip', copy.previousClip),
-					unavailable('select-next-clip', copy.nextClip),
-				] },
+				clipSelectionNavigationMenus.audioClips,
 				{ id: 'menu-selection-spectral', label: copy.selectSpectral, items: [
 					{ id: 'toggle-spectral-selection', label: copy.toggleSpectralSelection, disabled: editBlocked || !spectralTrackSelected },
 					{ id: 'spectral-brush', label: copy.spectralBrush, checked: Boolean(uiFlags.spectralBrush), disabled: editBlocked || !spectralTrackSelected },
@@ -386,6 +383,7 @@ export default function createApplicationMenus({
 						{ id: 'increase-all-track-heights', label: copy.increaseAllTrackHeights, shortcut: 'Ctrl+Shift+Up', disabled: !project?.tracks.length, onClick: actions.increaseAllTrackHeights },
 					],
 				},
+				clipSelectionNavigationMenus.skip,
 				divider(),
 				{ id: 'fullscreen', label: copy.fullscreen, shortcut: 'F11', onClick: actions.fullscreen },
 			],

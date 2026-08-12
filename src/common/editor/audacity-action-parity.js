@@ -172,11 +172,10 @@ const definitions = [
 	implemented('set-loop-region-in-out', 'Set loop in/out', ['Select > Looping'], 'transport.setLoopInOut', { enableWhen: 'project-opened', source: UPSTREAM.playback }),
 	implemented('toggle-selection-follows-loop-region', 'Creating a loop also selects audio', ['Select > Looping'], 'transport.toggleSelectionFollowsLoop', { enableWhen: 'project-opened', source: UPSTREAM.playback }),
 	implemented('zero-cross', 'At zero crossings', ['Select'], 'selection.zeroCross', { shortcut: 'Z', enableWhen: 'time-selection' }),
-	disabled('menu-selection-audio-clips', 'Audio clips', ['Select'], DISABLED_REASONS.menu),
-	disabled('select-previous-clip-boundary-to-cursor', 'Previous clip boundary to cursor', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('select-cursor-to-next-clip-boundary', 'Cursor to next clip boundary', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('select-previous-clip', 'Previous clip', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('select-next-clip', 'Next clip', ['Select > Audio clips'], DISABLED_REASONS.menu),
+	implemented('select-previous-clip-boundary-to-cursor', 'Previous clip boundary to cursor', ['Select > Audio clips'], 'selection.selectPreviousClipBoundaryToCursor', { enableWhen: 'project-has-audio' }),
+	implemented('select-cursor-to-next-clip-boundary', 'Cursor to next clip boundary', ['Select > Audio clips'], 'selection.selectCursorToNextClipBoundary', { enableWhen: 'project-has-audio' }),
+	implemented('select-previous-clip', 'Previous clip', ['Select > Audio clips'], 'selection.selectPreviousClip', { enableWhen: 'project-has-audio' }),
+	implemented('select-next-clip', 'Next clip', ['Select > Audio clips'], 'selection.selectNextClip', { enableWhen: 'project-has-audio' }),
 	implemented('menu-selection-spectral', 'Spectral', ['Select'], 'tools.openSpectralSelection', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.menu }),
 	implemented('toggle-spectral-selection', 'Spectral selection', ['Select > Spectral'], 'tools.toggleSpectralSelection', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.menu }),
 
@@ -206,9 +205,8 @@ const definitions = [
 	implemented('toggle-update-display-while-playing', 'Update display while playing', ['View'], 'timeline.toggleUpdateWhilePlaying', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-pinned-play-head', 'Pinned playhead', ['View'], 'timeline.togglePinnedPlayhead', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('toggle-playback-on-ruler-click-enabled', 'Click ruler to start playback', ['Timeline ruler'], 'timeline.toggleRulerPlayback', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	disabled('menu-skip', 'Skip to', ['View'], DISABLED_REASONS.menu),
-	disabled('skip-to-selection-start', 'Selection start', ['View > Skip to'], DISABLED_REASONS.menu),
-	disabled('skip-to-selection-end', 'Selection end', ['View > Skip to'], DISABLED_REASONS.menu),
+	implemented('skip-to-selection-start', 'Selection start', ['View > Skip to'], 'selection.skipToSelectionStart', { enableWhen: 'project-opened' }),
+	implemented('skip-to-selection-end', 'Selection end', ['View > Skip to'], 'selection.skipToSelectionEnd', { enableWhen: 'project-opened' }),
 
 	// Recording and transport. Browser implementations use the default permitted microphone.
 	implemented('record-on-current-track', 'Record on current track', ['Record', 'Transport'], 'recording.startCurrentTrack', { shortcut: 'R', enableWhen: 'project-writable-and-not-recording', source: UPSTREAM.record }),
@@ -385,7 +383,7 @@ const definitions = [
 	implemented('local://selection-toolbar', 'Selection toolbar', ['View > Toolbars'], 'workspace.toggleSelectionToolbar', { source: null, origin: 'local' }),
 
 		// Existing browser placeholders explicitly retained by the user's parity policy.
-		disabled('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
+		implemented('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], 'selection.selectNoTracks', { enableWhen: 'track-selected', source: null, origin: 'local' }),
 		disabled('local://mute-all', 'Mute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 		disabled('local://unmute-all', 'Unmute all tracks', ['Tracks'], DISABLED_REASONS.local, { source: null, origin: 'local' }),
 	disabled('local://repeat-generator', 'Repeat last generator', ['Generate'], DISABLED_REASONS.local, { source: null, origin: 'local' }),

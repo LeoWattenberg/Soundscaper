@@ -6,6 +6,13 @@ export const AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS = Object.freeze({
 	openLabelEditor: 'labels',
 	openMetadataEditor: 'metadata',
 	selectAllTracks: 'select-all-tracks',
+	selectNoTracks: 'select-no-tracks',
+	selectPreviousClipBoundaryToCursor: 'select-previous-clip-boundary-to-cursor',
+	selectCursorToNextClipBoundary: 'select-cursor-to-next-clip-boundary',
+	selectPreviousClip: 'select-previous-clip',
+	selectNextClip: 'select-next-clip',
+	skipToSelectionStart: 'skip-to-selection-start',
+	skipToSelectionEnd: 'skip-to-selection-end',
 	selectLeftOfPlaybackPosition: 'left-at-playback',
 	selectRightOfPlaybackPosition: 'right-at-playback',
 	selectTrackStartToCursor: 'track-start-cursor',
@@ -39,11 +46,6 @@ export const AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS = Object.freeze(
 );
 
 export const AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS = Object.freeze([
-	'select-no-tracks',
-	'select-previous-clip-boundary-to-cursor',
-	'select-cursor-to-next-clip-boundary',
-	'select-previous-clip',
-	'select-next-clip',
 	'mute-all',
 	'unmute-all',
 	'align-end-to-end',

@@ -91,7 +91,7 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
 
 	for (const id of [
-		'select-previous-clip', 'align-together', 'sort-by-name',
+		'align-together', 'sort-by-name',
 		'raw-data-import',
 	]) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
@@ -100,6 +100,8 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	for (const id of [
 		'toggle-sound-activated-recording', 'set-sound-activation-level',
 		'menu-selection-spectral', 'toggle-spectral-selection', 'spectral-brush',
+		'select-previous-clip', 'select-next-clip', 'skip-to-selection-start',
+		'skip-to-selection-end', 'local://select-no-tracks',
 	]) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.IMPLEMENTED, id);
 		assert.equal(audacityActionDefinition(id).roadmapMilestone, undefined, id);
@@ -120,8 +122,6 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 test('upstream disabled and TODO actions stay explicit, inert, and user-explainable', () => {
 	const requiredDisabled = [
 		'export-midi',
-		'menu-selection-audio-clips',
-		'menu-skip',
 		'menu-align',
 		'menu-sort',
 		'menu-macros',
@@ -420,10 +420,7 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 
 test('every registered unavailable application-menu action has a parity classification', () => {
 	const placeholderIds = AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS;
-	assert.ok(
-		placeholderIds.length >= 13,
-		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
-	);
+	assert.ok(placeholderIds.length > 0, 'Expected an explicit unavailable-action inventory.');
 	assert.equal(new Set(placeholderIds).size, placeholderIds.length);
 	assert.ok(Object.isFrozen(placeholderIds));
 	assert.deepEqual(
@@ -452,6 +449,9 @@ test('critical functional manifest surfaces have semantic menu registry entries'
 	const explicitIds = new Set(AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS.map(resolveAudacityActionId));
 	const critical = [
 		'open-label-editor', 'open-metadata-editor', 'select-all-tracks',
+		'local://select-no-tracks', 'select-previous-clip-boundary-to-cursor',
+		'select-cursor-to-next-clip-boundary', 'select-previous-clip', 'select-next-clip',
+		'skip-to-selection-start', 'skip-to-selection-end',
 		'select-left-of-playback-position', 'select-right-of-playback-position',
 		'select-track-start-to-cursor', 'select-cursor-to-track-end', 'select-track-start-to-end',
 		'toggle-loop-region', 'clear-loop-region', 'set-loop-region-to-selection', 'set-loop-region-in-out',
