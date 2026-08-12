@@ -5,8 +5,10 @@ import test from 'node:test';
 
 import {
 	TRANSIENT_ANALYSIS_ALGORITHM,
+	TRANSIENT_ANALYSIS_LIMITS,
 	detectPcmTransients,
 	normalizeTransientAnalysisParameters,
+	planTransientAnalysisAdmission,
 	type TransientAnalysisResult,
 } from '../src/common/editor/transient-analysis.ts';
 import {
@@ -105,6 +107,58 @@ test('analysis parameters and PCM geometry are closed, bounded, and finite', () 
 		() => detectPcmTransients([new Float32Array(4)], { channelPolicy: 'left-only' as never }),
 		/channel policy/iu,
 	);
+});
+
+test('detector auxiliary arrays and candidate output are admitted before allocation', () => {
+	const boundary = planTransientAnalysisAdmission(1_000_000, {
+		windowFrames: 1, hopFrames: 1, minimumSpacingFrames: 0,
+	});
+	assert.deepEqual(boundary, {
+		frameCount: 1_000_000,
+		windowCount: 1_000_000,
+		maximumCandidateCount: 1_000_000,
+		pcmBytes: 0,
+		pcmCopyCount: 0,
+		pcmResidentBytes: 0,
+		decodedChunkBytes: 0,
+		auxiliaryArrayBytes: 24_000_000,
+		candidateBytes: 32_000_000,
+		detectorWorkingSetBytes: 56_000_000,
+		peakScratchBytes: 56_000_000,
+		workingSetBytes: 56_000_000,
+	});
+	assert.ok(boundary.workingSetBytes <= TRANSIENT_ANALYSIS_LIMITS.maximumWorkingSetBytes);
+	assert.throws(
+		() => planTransientAnalysisAdmission(1_000_001, {
+			windowFrames: 1, hopFrames: 1, minimumSpacingFrames: 0,
+		}),
+		/exceeding the 1000000-window output bound/iu,
+	);
+	assert.throws(
+		() => detectPcmTransients([new Float32Array(1_000_001)], {
+			parameters: { windowFrames: 1, hopFrames: 1, minimumSpacingFrames: 0 },
+		}),
+		/exceeding the 1000000-window output bound/iu,
+	);
+	const aggregateBoundary = planTransientAnalysisAdmission(2_031_616, {
+		windowFrames: 1_048_576, hopFrames: 1_048_576, minimumSpacingFrames: 0,
+	}, { channelCount: 32, sourceChunkFrames: 65_536 });
+	assert.equal(aggregateBoundary.pcmBytes, 260_046_848);
+	assert.equal(aggregateBoundary.decodedChunkBytes, 8_388_608);
+	assert.equal(
+		aggregateBoundary.workingSetBytes,
+		TRANSIENT_ANALYSIS_LIMITS.maximumWorkingSetBytes,
+		'exact maintained-path useful-payload boundary is admitted',
+	);
+	assert.throws(() => planTransientAnalysisAdmission(2_031_617, {
+		windowFrames: 1_048_576, hopFrames: 1_048_576, minimumSpacingFrames: 0,
+	}, { channelCount: 32, sourceChunkFrames: 65_536 }), /aggregate PCM and detector working-set bytes/iu);
+	const narrowRange = planTransientAnalysisAdmission(1, {
+		windowFrames: 1, hopFrames: 1, minimumSpacingFrames: 0,
+	}, { channelCount: 32, sourceChunkFrames: 65_536, sourceFrameCount: 100_000 });
+	assert.equal(narrowRange.pcmBytes, 128);
+	assert.equal(narrowRange.decodedChunkBytes, 8_388_608,
+		'a one-frame range can still overlap one full maintained storage chunk');
 });
 
 test('derivative identity canonically binds digest, range, channel policy, parameters, and revision', () => {

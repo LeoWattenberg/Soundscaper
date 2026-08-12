@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
-	DetectPcmTransientsOptions,
-	TransientAnalysisResult,
+import {
+	TRANSIENT_ANALYSIS_LIMITS,
+	planTransientAnalysisAdmission,
+	type DetectPcmTransientsOptions,
+	type TransientAnalysisResult,
 } from './transient-analysis.ts';
 import {
 	TRANSIENT_ANALYSIS_WORKER_REQUEST,
@@ -36,6 +38,7 @@ export function detectPcmTransientsInWorker(
 	const signal = clientOptions.signal;
 	if (signal?.aborted) return Promise.reject(signal.reason);
 	const ownership = clientOptions.pcmOwnership ?? 'borrow';
+	admitWorkerChannels(channelsValue, options, ownership);
 	const channels = prepareChannels(channelsValue, ownership);
 	const transfer = channels.map((channel) => channel.buffer as ArrayBuffer);
 	const requestId = `transient-${Date.now().toString(36)}-${(++requestSequence).toString(36)}`;
@@ -91,6 +94,28 @@ export function detectPcmTransientsInWorker(
 		} catch (error) {
 			settle(() => reject(error));
 		}
+	});
+}
+
+function admitWorkerChannels(
+	value: readonly Float32Array[],
+	options: Readonly<DetectPcmTransientsOptions>,
+	ownership: 'borrow' | 'transfer',
+): void {
+	if (!Array.isArray(value) || value.length < 1
+		|| value.length > TRANSIENT_ANALYSIS_LIMITS.maximumChannels
+		|| value.some((channel) => !(channel instanceof Float32Array))) {
+		throw new RangeError(
+			`Transient analysis worker PCM requires 1 to ${String(TRANSIENT_ANALYSIS_LIMITS.maximumChannels)} Float32Array channels.`,
+		);
+	}
+	const frameCount = value[0]!.length;
+	if (value.some((channel) => channel.length !== frameCount)) {
+		throw new RangeError('Transient analysis worker PCM channels must be equally sized.');
+	}
+	planTransientAnalysisAdmission(frameCount, options.parameters, {
+		channelCount: value.length,
+		pcmCopyCount: ownership === 'borrow' ? 2 : 1,
 	});
 }
 

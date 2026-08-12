@@ -2,10 +2,12 @@
 
 import {
 	type DetectPcmTransientsOptions,
+	planTransientAnalysisAdmission,
 	type TransientAnalysisChannelPolicy,
 	type TransientAnalysisParameters,
 	type TransientAnalysisResult,
 } from '../transient-analysis.ts';
+import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../pcm-chunks.js';
 import { detectPcmTransientsInWorker } from '../transient-analysis-worker-client.ts';
 import {
 	createTransientAnalysisCacheRecord,
@@ -153,6 +155,15 @@ export function createTransientAnalysisService(
 			}
 			const source = findSource(dependencies.getProject(), authority.sourceId);
 			if (!source) throw new Error(`Audio source ${authority.sourceId} was not found.`);
+			planTransientAnalysisAdmission(
+				authority.sourceEndFrame - authority.sourceStartFrame,
+				identity.parameters,
+				{
+					channelCount: authority.sourceChannelCount,
+					sourceChunkFrames: authority.sourceChunkFrames,
+					sourceFrameCount: authority.sourceFrameCount,
+				},
+			);
 			const channels = await dependencies.readSourceRange(source, identity.sourceRange, task.signal);
 			assertOwned(task, projectToken, authority);
 			validateReadChannels(channels, authority.sourceEndFrame - authority.sourceStartFrame);
@@ -226,7 +237,11 @@ function captureAuthority(
 		sourceStorageKey,
 		sourceFrameCount: frameCount,
 		sourceChannelCount: positiveSafeInteger(source.channelCount, 'source channel count'),
-		sourceChunkFrames: positiveSafeInteger(source.chunkFrames, 'source chunk frames'),
+		sourceChunkFrames: boundedPositiveSafeInteger(
+			source.chunkFrames,
+			AUDIO_EDITOR_PCM_CHUNK_FRAMES,
+			'source chunk frames',
+		),
 		sourceSampleRate: positiveSafeInteger(source.sampleRate, 'source sample rate'),
 		verifiedSourceSha256: isMediaContentSha256(source.contentSha256)
 			? source.contentSha256
@@ -308,6 +323,14 @@ function nonNegativeSafeInteger(value: unknown, field: string): number {
 function positiveSafeInteger(value: unknown, field: string): number {
 	const normalized = nonNegativeSafeInteger(value, field);
 	if (normalized < 1) throw new RangeError(`${field} must be positive.`);
+	return normalized;
+}
+
+function boundedPositiveSafeInteger(value: unknown, maximum: number, field: string): number {
+	const normalized = positiveSafeInteger(value, field);
+	if (normalized > maximum) {
+		throw new RangeError(`${field} must be no greater than ${String(maximum)}.`);
+	}
 	return normalized;
 }
 

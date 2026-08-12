@@ -61,6 +61,36 @@ test('transfer ownership rejects shared and partial backing buffers', () => {
 	);
 });
 
+test('direct worker requests admit geometry and detector working set before copy or worker creation', () => {
+	let workers = 0;
+	let posts = 0;
+	const workerFactory = () => {
+		workers += 1;
+		const worker = new LinkedWorker();
+		const postMessage = worker.postMessage.bind(worker);
+		worker.postMessage = (message, transfer) => { posts += 1; postMessage(message, transfer); };
+		return worker;
+	};
+	const oversizedWindows = new Float32Array(1_000_001);
+	for (const pcmOwnership of ['borrow', 'transfer'] as const) assert.throws(() => detectPcmTransientsInWorker([oversizedWindows], {
+		parameters: { windowFrames: 1, hopFrames: 1, minimumSpacingFrames: 0 },
+	}, { workerFactory, pcmOwnership }), /1000000-window output bound/iu);
+	assert.equal(oversizedWindows.byteLength, 4_000_004, 'borrowed input was not detached');
+	assert.equal(workers, 0);
+
+	const shared = new Float32Array(2_097_152);
+	const oversizedPcm = Array.from({ length: 32 }, () => shared);
+	for (const pcmOwnership of ['borrow', 'transfer'] as const) assert.throws(() => detectPcmTransientsInWorker(oversizedPcm, {
+		parameters: { windowFrames: 1_048_576, hopFrames: 1_048_576 },
+	}, { workerFactory, pcmOwnership }), /aggregate PCM and detector working-set bytes/iu);
+	const tooManyChannels = Array.from({ length: 33 }, () => new Float32Array(1));
+	assert.throws(() => detectPcmTransientsInWorker(tooManyChannels, {}, {
+		workerFactory,
+	}), /1 to 32/iu);
+	assert.equal(workers, 0);
+	assert.equal(posts, 0);
+});
+
 test('cancellation rejects with the exact reason and terminates the worker', async () => {
 	const worker = new LinkedWorker({ stalled: true });
 	const controller = new AbortController();

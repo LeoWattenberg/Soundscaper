@@ -164,6 +164,31 @@ test('fails closed without an audio clip and verified source digest', async () =
 	await assert.rejects(fixture.service.analyzeClip('clip-1'), /Audio clip clip-1 was not found/u);
 });
 
+test('aggregate PCM and detector admission refuses before source-range allocation', async () => {
+	const fixture = createFixture({
+		projectOverrides: {
+			sourceStartFrame: 0,
+			sourceDurationFrames: 2_031_617,
+			frameCount: 2_031_617,
+			channelCount: 32,
+			chunkFrames: 65_536,
+		},
+	});
+
+	await assert.rejects(fixture.service.analyzeClip('clip-1', {
+		parameters: { windowFrames: 1_048_576, hopFrames: 1_048_576 },
+	}), /aggregate PCM and detector working-set bytes/iu);
+	assert.deepEqual(fixture.reads, [], 'range reader was never invoked');
+	assert.deepEqual(fixture.events, ['load'], 'admission runs after the cache miss but before PCM access');
+});
+
+test('unmaintained source chunks refuse before cache or range access', async () => {
+	const fixture = createFixture({ projectOverrides: { chunkFrames: 65_537 } });
+	await assert.rejects(fixture.service.analyzeClip('clip-1'), /source chunk frames.*65536/iu);
+	assert.deepEqual(fixture.events, []);
+	assert.deepEqual(fixture.reads, []);
+});
+
 type Analyze = NonNullable<Parameters<typeof createTransientAnalysisService>[0]['analyzeChannels']>;
 
 function createFixture(options: Readonly<{
@@ -171,6 +196,7 @@ function createFixture(options: Readonly<{
 	afterRead?: () => void;
 	analyze?: Analyze;
 	resolveSourceSha256?: Parameters<typeof createTransientAnalysisService>[0]['resolveSourceSha256'];
+	projectOverrides?: Parameters<typeof project>[0];
 }> = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
@@ -181,7 +207,10 @@ function createFixture(options: Readonly<{
 	const saved = new Map<string, Record<string, unknown>>();
 	const deleted: string[] = [];
 	const fixture = {
-		project: project({ sourceSha256: Object.hasOwn(options, 'sourceSha256') ? options.sourceSha256 : SOURCE_SHA256 }),
+		project: project({
+			...options.projectOverrides,
+			sourceSha256: Object.hasOwn(options, 'sourceSha256') ? options.sourceSha256 : SOURCE_SHA256,
+		}),
 		lifetime,
 		projectGeneration,
 		reads,
@@ -227,6 +256,9 @@ function project(overrides: Readonly<{
 	sourceSha256?: string | undefined;
 	kind?: 'audio' | 'video';
 	storageKey?: string;
+	frameCount?: number;
+	channelCount?: number;
+	chunkFrames?: number;
 }> = {}): TransientAnalysisControllerProject {
 	return Object.freeze({
 		id: 'project-1',
@@ -240,9 +272,9 @@ function project(overrides: Readonly<{
 		sources: [Object.freeze({
 			id: 'source-1',
 			storageKey: overrides.storageKey ?? 'stored-source-1',
-			frameCount: 100,
-			channelCount: 1,
-			chunkFrames: 64,
+			frameCount: overrides.frameCount ?? 100,
+			channelCount: overrides.channelCount ?? 1,
+			chunkFrames: overrides.chunkFrames ?? 64,
 			sampleRate: 48_000,
 			contentSha256: Object.hasOwn(overrides, 'sourceSha256') ? overrides.sourceSha256 : SOURCE_SHA256,
 		})],

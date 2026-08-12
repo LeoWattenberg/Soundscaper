@@ -9,7 +9,13 @@ export const TRANSIENT_ANALYSIS_LIMITS = Object.freeze({
 	maximumChannels: 32,
 	maximumWindowFrames: 1_048_576,
 	maximumBaselineWindowHops: 4_096,
+	maximumWorkingSetBytes: 256 * 1024 * 1024,
+	maximumTransients: 1_000_000,
 });
+
+const FLOAT64_BYTES = Float64Array.BYTES_PER_ELEMENT;
+const TRANSIENT_RECORD_USEFUL_BYTES = Float64Array.BYTES_PER_ELEMENT * 2;
+const TRANSIENT_CANDIDATE_GENERATIONS = 2;
 
 export type TransientAnalysisChannelPolicy = 'linked-peak' | 'mono-average';
 
@@ -54,6 +60,28 @@ export interface DetectPcmTransientsOptions {
 	readonly sourceStartFrame?: number;
 	readonly channelPolicy?: TransientAnalysisChannelPolicy;
 	readonly parameters?: Partial<TransientAnalysisParameters>;
+}
+
+export interface TransientAnalysisAdmission {
+	readonly frameCount: number;
+	readonly windowCount: number;
+	readonly maximumCandidateCount: number;
+	readonly pcmBytes: number;
+	readonly pcmCopyCount: number;
+	readonly pcmResidentBytes: number;
+	readonly decodedChunkBytes: number;
+	readonly auxiliaryArrayBytes: number;
+	readonly candidateBytes: number;
+	readonly detectorWorkingSetBytes: number;
+	readonly peakScratchBytes: number;
+	readonly workingSetBytes: number;
+}
+
+export interface TransientAnalysisPcmAdmissionOptions {
+	readonly channelCount?: number;
+	readonly pcmCopyCount?: number;
+	readonly sourceChunkFrames?: number;
+	readonly sourceFrameCount?: number;
 }
 
 const PARAMETER_KEYS = Object.freeze([
@@ -137,6 +165,84 @@ export function normalizeTransientAnalysisChannelPolicy(
 	return value;
 }
 
+/** Admit PCM ownership, exact detector arrays, and a conservative candidate payload together. */
+export function planTransientAnalysisAdmission(
+	frameCountValue: unknown,
+	parametersValue: unknown = {},
+	pcmValue: Readonly<TransientAnalysisPcmAdmissionOptions> = {},
+): Readonly<TransientAnalysisAdmission> {
+	const frameCount = nonNegativeSafeInteger(frameCountValue, 'Transient analysis frame count');
+	const parameters = normalizeTransientAnalysisParameters(parametersValue);
+	const channelCount = boundedNonNegativeSafeInteger(
+		pcmValue.channelCount ?? 0,
+		'Transient analysis PCM channel count',
+		TRANSIENT_ANALYSIS_LIMITS.maximumChannels,
+	);
+	const pcmCopyCount = channelCount === 0 ? 0 : boundedPositiveSafeInteger(
+		pcmValue.pcmCopyCount ?? 1,
+		'Transient analysis PCM copy count',
+		2,
+	);
+	const sourceChunkFrames = channelCount === 0 ? 0 : boundedNonNegativeSafeInteger(
+		pcmValue.sourceChunkFrames ?? 0,
+		'Transient analysis source chunk frames',
+		Number.MAX_SAFE_INTEGER,
+	);
+	const sourceFrameCount = channelCount === 0 ? 0 : boundedNonNegativeSafeInteger(
+		pcmValue.sourceFrameCount ?? frameCount,
+		'Transient analysis source frame count',
+		Number.MAX_SAFE_INTEGER,
+	);
+	const windowCount = Math.ceil(frameCount / parameters.hopFrames);
+	const maximumCandidateCount = Math.min(
+		windowCount,
+		TRANSIENT_ANALYSIS_LIMITS.maximumTransients,
+	);
+	if (windowCount > TRANSIENT_ANALYSIS_LIMITS.maximumTransients) {
+		throw new RangeError(
+			`Transient analysis would inspect ${String(windowCount)} windows, exceeding the ${String(TRANSIENT_ANALYSIS_LIMITS.maximumTransients)}-window output bound.`,
+		);
+	}
+	const pcmBytes = checkedProduct(
+		checkedProduct(frameCount, channelCount),
+		Float32Array.BYTES_PER_ELEMENT,
+	);
+	const pcmResidentBytes = checkedProduct(pcmBytes, pcmCopyCount);
+	const decodedChunkBytes = checkedProduct(
+		checkedProduct(Math.min(sourceFrameCount, sourceChunkFrames), channelCount),
+		Float32Array.BYTES_PER_ELEMENT,
+	);
+	const auxiliaryArrayBytes = checkedProduct(windowCount, 3 * FLOAT64_BYTES);
+	// result() freezes a second candidate generation while the detector's
+	// mutable candidate list is still live.
+	const candidateBytes = checkedProduct(
+		maximumCandidateCount,
+		TRANSIENT_RECORD_USEFUL_BYTES * TRANSIENT_CANDIDATE_GENERATIONS,
+	);
+	const detectorWorkingSetBytes = checkedAdd(auxiliaryArrayBytes, candidateBytes);
+	const peakScratchBytes = Math.max(decodedChunkBytes, detectorWorkingSetBytes);
+	const workingSetBytes = checkedAdd(pcmResidentBytes, peakScratchBytes);
+	if (workingSetBytes > TRANSIENT_ANALYSIS_LIMITS.maximumWorkingSetBytes) {
+		throw new RangeError(
+			`Transient analysis needs ${String(workingSetBytes)} aggregate PCM and detector working-set bytes, exceeding the ${String(TRANSIENT_ANALYSIS_LIMITS.maximumWorkingSetBytes)}-byte bound.`,
+		);
+	}
+	return Object.freeze({
+		frameCount,
+		windowCount,
+		maximumCandidateCount,
+		pcmBytes,
+		pcmCopyCount,
+		pcmResidentBytes,
+		decodedChunkBytes,
+		auxiliaryArrayBytes,
+		candidateBytes,
+		detectorWorkingSetBytes,
+		peakScratchBytes,
+		workingSetBytes,
+	});
+}
+
 /**
  * Detect attacks from deterministic forward-window energy flux. Candidate
  * windows are refined to the earliest strongest source sample, then a stable
@@ -154,7 +260,9 @@ export function detectPcmTransients(
 	const sourceRange = Object.freeze({ startFrame: sourceStartFrame, endFrame: sourceEndFrame });
 	if (frameCount === 0) return result(channelPolicy, parameters, sourceRange, []);
 
-	const windowCount = Math.ceil(frameCount / parameters.hopFrames);
+	const { windowCount } = planTransientAnalysisAdmission(frameCount, parameters, {
+		channelCount: channels.length,
+	});
 	const levels = new Float64Array(windowCount);
 	const peakFrames = new Float64Array(windowCount);
 	for (let windowIndex = 0; windowIndex < windowCount; windowIndex += 1) {
@@ -286,6 +394,13 @@ function boundedPositiveSafeInteger(value: unknown, field: string, maximum: numb
 	return Number(value);
 }
 
+function boundedNonNegativeSafeInteger(value: unknown, field: string, maximum: number): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 0 || Number(value) > maximum) {
+		throw new RangeError(`${field} must be a non-negative safe integer no greater than ${String(maximum)}.`);
+	}
+	return Number(value);
+}
+
 function nonNegativeSafeInteger(value: unknown, field: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 0) {
 		throw new RangeError(`${field} must be a non-negative safe integer.`);
@@ -304,6 +419,21 @@ function safeAdd(left: number, right: number, field: string): number {
 	if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right)
 		|| right > Number.MAX_SAFE_INTEGER - left) {
 		throw new RangeError(`${field} exceeds the supported safe integer range.`);
+	}
+	return left + right;
+}
+
+function checkedProduct(left: number, right: number): number {
+	if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right)
+		|| left < 0 || right < 0 || (left !== 0 && right > Number.MAX_SAFE_INTEGER / left)) {
+		throw new RangeError('Transient analysis working-set multiplication exceeds the safe integer range.');
+	}
+	return left * right;
+}
+
+function checkedAdd(left: number, right: number): number {
+	if (right > Number.MAX_SAFE_INTEGER - left) {
+		throw new RangeError('Transient analysis working-set addition exceeds the safe integer range.');
 	}
 	return left + right;
 }
