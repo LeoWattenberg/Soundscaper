@@ -90,9 +90,7 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	}
 	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
 
-	for (const id of [
-		'raw-data-import',
-	]) {
+	for (const id of ['insert', 'project-properties']) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
 		assert.equal(audacityActionDefinition(id).roadmapMilestone, '3', id);
 	}
@@ -122,7 +120,6 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 	const requiredDisabled = [
 		'export-midi',
 		'menu-macros',
-		'raw-data-import',
 		'reset-configuration',
 		'insert',
 	];
@@ -235,13 +232,13 @@ test('spectral selection and brush actions are native, state-guarded menu workfl
 	assert.equal(evaluateAudacityActionEnablement('spectral-brush', readOnly), false);
 });
 
-test('removed and superseded actions remain auditable without entering application menus', () => {
+test('removed and superseded actions remain auditable while raw import is actionable', () => {
 	const exportMidi = audacityActionDefinition('export-midi');
 	assert.equal(exportMidi.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	assert.equal(exportMidi.menuVisible, false);
 	const rawImport = audacityActionDefinition('raw-data-import');
-	assert.equal(rawImport.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
-	assert.equal(rawImport.menuVisible, false);
+	assert.equal(rawImport.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
+	assert.equal(rawImport.handler, 'io.importRawData');
 	const resetConfiguration = audacityActionDefinition('reset-configuration');
 	assert.equal(resetConfiguration.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM);
 	assert.equal(resetConfiguration.menuVisible, false);
@@ -255,7 +252,7 @@ test('removed and superseded actions remain auditable without entering applicati
 		],
 	}], { materializeDisabled: true });
 	const serialized = JSON.stringify(menus);
-	assert.doesNotMatch(serialized, /raw-data-import/);
+	assert.match(serialized, /raw-data-import/);
 	assert.doesNotMatch(serialized, /reset-configuration/);
 	assert.doesNotMatch(serialized, /sample-data-(?:import|export)/);
 	assert.doesNotMatch(JSON.stringify(applyAudacityParityToMenus([{
@@ -263,6 +260,21 @@ test('removed and superseded actions remain auditable without entering applicati
 		label: 'File',
 		items: [{ id: 'export-other', label: 'Export other', items: [] }],
 	}], { materializeDisabled: true })), /export-midi/);
+});
+
+test('milestone 3 import and analysis actions have exact menu ownership and handlers', () => {
+	for (const [id, parents, handler] of [
+		['raw-data-import', ['Tools'], 'io.importRawData'],
+		['local://repeat-generator', ['Generate'], 'generators.repeatLast'],
+		['local://repeat-analyzer', ['Analyze'], 'analysis.repeatLast'],
+		['regular-interval-labels', ['Extra'], 'timelineAnnotations.openRegularInterval'],
+	]) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, id);
+		assert.deepEqual(definition.locations, parents, id);
+		assert.equal(definition.handler, handler, id);
+		assert.equal(definition.roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.IMPLEMENTED, id);
+	}
 });
 
 test('the milestone 8B MIDI fence keeps every pinned action inert and off command surfaces', () => {
@@ -417,7 +429,7 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 
 test('every registered unavailable application-menu action has a parity classification', () => {
 	const placeholderIds = AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS;
-	assert.ok(placeholderIds.length > 0, 'Expected an explicit unavailable-action inventory.');
+	assert.equal(placeholderIds.length, 0);
 	assert.equal(new Set(placeholderIds).size, placeholderIds.length);
 	assert.ok(Object.isFrozen(placeholderIds));
 	assert.deepEqual(

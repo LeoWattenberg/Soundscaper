@@ -12,6 +12,7 @@ import {
 	effectSourceMetadata,
 	getMenuItem,
 	importFiles,
+	openAnalysisPanel,
 	openExportDialog,
 	registerAudioEditorHooks,
 	setDocumentTheme,
@@ -216,7 +217,6 @@ test.describe('audio editor React/design-system workflows', () => {
 				'Plugin manager',
 				'Screenshot tools',
 				'Run benchmark',
-				'Import raw data',
 				'Reset configuration',
 				'Sample data import',
 				'Sample data export',
@@ -235,6 +235,52 @@ test.describe('audio editor React/design-system workflows', () => {
 		const projectProperties = getMenuItem(fileMenu, 'Project properties');
 		await expect(projectProperties).toHaveAttribute('aria-disabled', 'true');
 		await expect(projectProperties.locator('[data-disabled-reason]')).toHaveAttribute('title', /does not provide a usable handler/);
+	});
+
+	test('imports configured raw PCM and composes regular annotations from Tools', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Tools', 'Import raw data');
+		const rawDialog = page.getByRole('dialog', { name: 'Import raw data', exact: true });
+		await expect(rawDialog).toBeVisible();
+		await rawDialog.getByLabel('Raw PCM file').setInputFiles({
+			name: 'pulse.raw', mimeType: 'application/octet-stream', buffer: Buffer.alloc(160),
+		});
+		await rawDialog.getByLabel('Sample rate').fill('8000');
+		await rawDialog.getByRole('button', { name: 'Import', exact: true }).click();
+		await expect(rawDialog).toBeHidden();
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 15_000 });
+
+		await chooseCommandAction(page, editor, 'Tools', 'Regular interval labels');
+		const regularDialog = page.getByRole('dialog', { name: 'Regular interval labels', exact: true });
+		await regularDialog.getByLabel('Start frame').fill('0');
+		await regularDialog.getByLabel('End frame').fill('10');
+		await regularDialog.getByLabel('Interval in frames').fill('2');
+		await regularDialog.getByRole('button', { name: 'Create annotations', exact: true }).click();
+		await expect(regularDialog).toBeHidden();
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		await expect(editor.getByRole('listbox', { name: 'Markers and named regions', exact: true }).getByRole('option')).toHaveCount(5);
+		expect(errors).toEqual([]);
+	});
+
+	test('repeats the last generator and analyzer from their menus', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Generate', 'Tone');
+		const generator = page.getByRole('dialog', { name: 'Tone', exact: true });
+		await generator.locator('[data-generator-field="durationSeconds"] input').fill('0.01');
+		await generator.getByRole('button', { name: 'Generate', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 15_000 });
+		await chooseCommandAction(page, editor, 'Generate', 'Repeat last generator');
+		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 15_000 });
+
+		const analysis = await openAnalysisPanel(page, editor);
+		await analysis.getByRole('button', { name: 'Analyze master', exact: true }).click();
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
+		await analysis.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
+		await chooseCommandAction(page, editor, 'Analyze', 'Repeat last analyzer');
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
+		expect(errors).toEqual([]);
 	});
 
 	test('reverts editor preferences from Help after confirmation without deleting the project', async ({ page }) => {

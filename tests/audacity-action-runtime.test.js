@@ -94,6 +94,10 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(uiController.getSnapshot().request.type, 'open-surface');
 		assert.equal(uiController.getSnapshot().request.payload.surface, 'preferences');
 		assert.equal(uiController.getSnapshot().request.payload.section, 'sound-activation');
+		runtime.actions.io.importRawData();
+		assert.equal(uiController.getSnapshot().request.payload.surface, 'raw-pcm-import');
+		runtime.actions.timelineAnnotations.openRegularInterval();
+		assert.equal(uiController.getSnapshot().request.payload.surface, 'regular-interval-annotations');
 		assert.equal(runtime.actions.tools.toggleSplitTool(), true);
 		assert.equal(uiController.getSnapshot().flags.splitTool, true);
 		assert.equal(uiController.getSnapshot().flags.spectralBrush, false);

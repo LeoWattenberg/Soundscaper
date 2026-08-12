@@ -173,6 +173,7 @@ import { createEditorEditService } from './controller/edit-service.ts';
 import { createLabelService } from './controller/label-service.ts';
 import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
 import { createAudioGeneratorService } from './controller/generator-service.ts';
+import { createRegularIntervalAnnotationController } from './controller/regular-interval-annotation-controller.ts';
 import { createSelectionEffectResultService } from './controller/effect-result-service.ts';
 import { createSelectionEffectExecutionService } from './controller/effect-execution-service.ts';
 import { createEffectControlsService } from './controller/effect-controls-service.ts';
@@ -671,6 +672,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		lifetime, state, getProject: () => project, editingBlocked, createId: createStableId,
 		getPositionFrames: () => engine.getPositionFrames(), commit, updateSelection, publishProjectState,
 	});
+	const regularIntervalAnnotationController = createRegularIntervalAnnotationController({ getProject: () => project, editingBlocked, createId: createStableId, commit });
 	const trackFolderService = createTrackFolderService({
 		lifetime, getProject: () => project, editingBlocked, createId: createStableId,
 		commit, publishProjectState,
@@ -736,8 +738,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		switchProject,
 	});
 	const analysisService = createAudioAnalysisService({
-		lifetime,
-		copy,
+		lifetime, copy, state,
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		getProject: () => project,
@@ -763,7 +764,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		run: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.run(...args)),
 		plotSpectrum: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.plotSpectrum(...args)),
 		findClipping: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.findClipping(...args)),
-		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)),
+		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)), repeatLast: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.repeatLast(...args)),
 	});
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
@@ -1778,7 +1779,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 		duplicateProject, duplicateTrack, engine, exportEffectPreset,
 		exportLabels, exportVideo, findClip, findTrack,
-		flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
+		flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 		getProjectBinClipVisualData, getVideoSourceVisualData: projectVisualService.getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
 		importEffectPresets, importFiles, importLabelFile, inspectScape,
@@ -1815,7 +1816,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
-		selectionViewService, sequenceTimingService, timelineAnnotationService, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
+		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
 		sourceMonitorService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}));
@@ -2237,12 +2238,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function addLabel(trackId, labelOptions = {}) {
 		return trackService.addLabel(trackId, labelOptions);
 	}
-
-
 	async function importLabelFile(...args) {
 		return labelService.importLabelFile(...args);
 	}
-
 	async function exportLabels(...args) {
 		return labelService.exportLabels(...args);
 	}
@@ -2262,6 +2260,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function generateSignal(...args) {
 		return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.generateSignal(...args));
 	}
+
+	async function repeatLastGenerator(...args) { return taskProgress.run('generate', copy.generatingAudio, () => audioGeneratorService.repeatLast(...args)); }
 
 	function selectTrack(trackId) {
 		return selectionViewService.selectTrack(trackId);

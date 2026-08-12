@@ -7,7 +7,6 @@ const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changeSpeedPitch: 'audacity-change-speed-pitch',
 	slidingStretch: 'audacity-sliding-stretch',
 });
-
 const UI_FLAG_DEFAULTS = Object.freeze({
 	clipping: true,
 	halfWave: false,
@@ -20,7 +19,6 @@ const UI_FLAG_DEFAULTS = Object.freeze({
 	storagePanel: false,
 	tracksPanel: true,
 });
-
 /**
  * Small, framework-neutral UI command target used by manifest actions which
  * open a dialog, focus a panel, or toggle browser-only chrome. React consumes
@@ -33,16 +31,13 @@ export function createAudioEditorUiActionController(options = {}) {
 	let disposed = false;
 	let snapshot = null;
 	const listeners = new Set();
-
 	function ensureUsable() {
 		if (disposed) throw new Error('The audio editor UI action controller is disposed.');
 	}
-
 	function publish() {
 		snapshot = null;
 		for (const listener of [...listeners]) listener();
 	}
-
 	function issue(type, payload = {}) {
 		ensureUsable();
 		if (typeof type !== 'string' || !type.trim()) throw new TypeError('A UI action type is required.');
@@ -340,6 +335,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		},
 		io: {
 			importAudio: (files = null) => files ? controllerActions.project.importFiles(files) : ui.issue('choose-audio-files'),
+			importRawData: () => openSurface('raw-pcm-import'),
 			exportAudio: (settings = null) => settings ? controllerActions.export.start(settings) : openSurface('export'),
 			exportClip: (clipId = snapshot().selectedClipId) => {
 				const clip = project()?.clips.find((candidate) => candidate.id === clipId);
@@ -348,6 +344,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames, { clipIds: [clip.id] });
 				return openSurface('export', { range: 'selection', clipId: clip.id });
 			},
+		},
+		timelineAnnotations: {
+			...controllerActions.timelineAnnotations,
+			openRegularInterval: () => openSurface('regular-interval-annotations'),
 		},
 		session: {
 			closeProject: (projectId = project()?.id, closeOptions) => (

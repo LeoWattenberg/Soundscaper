@@ -115,6 +115,8 @@ export interface EditorDocumentSnapshotState {
 	readonly audacityControlTrackId: string | null;
 	readonly audacityNoiseProfile: unknown;
 	readonly lastAudacityEffect: unknown;
+	readonly lastGeneratorRequest?: unknown;
+	readonly lastAnalysisRequest?: unknown;
 	readonly audacityPreviewSource: unknown;
 	readonly effectPresets: unknown;
 	readonly nyquistAbort: unknown;
@@ -291,6 +293,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		analysisVisuals: state.analysisVisuals,
 		analysisReport: state.analysisReport,
 		analysisProcessing: state.analysisProcessing,
+		analysisRepeatable: Boolean(state.lastAnalysisRequest),
 		export: Object.freeze({ progress: state.exportProgress, output: state.exportOutput }),
 		effects: Object.freeze({
 			rackTypes: Object.freeze(runtime.getRackEffectTypes()),
@@ -306,6 +309,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			previewing: Boolean(state.audacityPreviewSource),
 			presets: runtime.getEffectPresets(),
 		}),
+		generators: Object.freeze({ canRepeatLast: Boolean(state.lastGeneratorRequest) }),
 		nyquist: Object.freeze({
 			processing: Boolean(state.nyquistAbort),
 			result: state.nyquistResult,

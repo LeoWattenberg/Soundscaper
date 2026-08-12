@@ -34,7 +34,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 	duplicateProject, duplicateTrack, engine, exportEffectPreset,
 	exportLabels, exportVideo, findTrack,
-	flushProject, generateSelectionSilence, generateSignal, getClipVisualData,
+	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 	handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
 	importEffectPresets, importFiles, importLabelFile, inspectScape,
@@ -71,7 +71,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	selectionViewService, sequenceTimingService, sourceMonitorService, timelineAnnotationService,
-	trackFolderService, trackStructuralOperations, videoEditService,
+	regularIntervalAnnotationController, trackFolderService, trackStructuralOperations, videoEditService,
 	videoNavigationService, videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
@@ -402,7 +402,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			unbatch: restricted('timelineAnnotations', (annotationIds: RuntimeValue) => timelineAnnotationService.setAnnotationBatch(annotationIds, null)),
 			remove: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.removeAnnotations(...args)),
 			previous: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigatePreviousAnnotation(...args)),
-			next: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigateNextAnnotation(...args)),
+			next: restricted('timelineAnnotations', (...args: RuntimeValue) => timelineAnnotationService.navigateNextAnnotation(...args)), regularInterval: restricted('timelineAnnotations', regularIntervalAnnotationController.create),
 		}),
 		sequences: Object.freeze({
 			view: (sequenceId: RuntimeValue) => sequenceTimingService.view(sequenceId),
@@ -490,7 +490,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			updateMaster: (changes: RuntimeValue) => commit({ type: 'master/update', changes }),
 		}),
 		generators: Object.freeze({
-			generate: restricted('audioGenerators', generateSignal),
+			generate: restricted('audioGenerators', generateSignal), repeatLast: restricted('audioGenerators', repeatLastGenerator),
 		}),
 		nyquist: Object.freeze({
 			evaluate: restricted('audioEffects', (request: RuntimeValue) => runNyquistEvaluation(request)),
@@ -590,7 +590,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			run: restricted('audioAnalysis', analysisService.run),
 			plotSpectrum: restricted('audioAnalysis', analysisService.plotSpectrum),
 			findClipping: restricted('audioAnalysis', analysisService.findClipping),
-			contrast: restricted('audioAnalysis', analysisService.captureContrast),
+			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 		}),
 		export: Object.freeze({
 			start: (settings: RuntimeValue) => handleExportAction('start', settings),

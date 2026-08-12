@@ -46,8 +46,6 @@ export const AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS = Object.freeze(
 );
 
 export const AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS = Object.freeze([
-	'repeat-generator',
-	'repeat-analyzer',
 ] as const);
 
 export type AudioEditorUnavailableApplicationMenuActionId =

@@ -47,9 +47,20 @@ interface ContrastSelection {
 	readonly scope: string;
 }
 
+export type AnalysisRepeatRequest = Readonly<
+	| { readonly type: 'levels'; readonly scope: string }
+	| { readonly type: 'spectrum' | 'clipping'; readonly scope: string; readonly options: Readonly<Record<string, unknown>> }
+	| { readonly type: 'contrast'; readonly role: string; readonly scope: string; readonly options: Readonly<Record<string, unknown>> }
+>;
+
+export interface AnalysisState {
+	lastAnalysisRequest: AnalysisRepeatRequest | null;
+}
+
 interface AnalysisDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly copy: AnalysisCopy;
+	readonly state: AnalysisState;
 	captureProject(): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
 	getProject(): AnalysisProjectIdentity;
@@ -89,8 +100,17 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		plotSpectrum: (scope = 'master') => runSpecialized('spectrum', scope),
 		findClipping: (scope = 'master', options: Record<string, unknown> = {}) => runSpecialized('clipping', scope, options),
 		captureContrast,
+		repeatLast,
 		cancel: () => lifetime.cancelTask('analysis'),
 	});
+
+	function repeatLast(): Promise<unknown> {
+		const request = dependencies.state.lastAnalysisRequest;
+		if (!request) return Promise.resolve(null);
+		if (request.type === 'levels') return run(request.scope);
+		if (request.type === 'contrast') return captureContrast(request.role, request.scope, request.options);
+		return runSpecialized(request.type, request.scope, request.options);
+	}
 
 	async function run(scope = 'master'): Promise<unknown> {
 		const project = dependencies.getProject();
@@ -112,6 +132,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			assertCurrent(task, projectToken);
 			if (cached?.result) {
 				dependencies.showAnalysis(cached.result, cached.visuals, cached.report || levelsReport(scope, range));
+				remember({ type: 'levels', scope });
 				dependencies.setStatus(copy.analysisCached, 'success');
 				return cached.result;
 			}
@@ -126,6 +147,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			});
 			assertCurrent(task, projectToken);
 			dependencies.showAnalysis(result, visuals, report);
+			remember({ type: 'levels', scope });
 			dependencies.setStatus(copy.done, 'success');
 			return result;
 		} catch (error) {
@@ -150,6 +172,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				})
 				: clippingReport(scope, range, channels, options);
 			dependencies.showAnalysis(result, dependencies.createVisuals(channels, sampleRate), report);
+			remember({ type, scope, options: Object.freeze({ ...options }) });
 			dependencies.setStatus(copy.done, 'success');
 			return report;
 		} catch (error) {
@@ -192,6 +215,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				passes: Number.isFinite(differenceDb) ? Number(differenceDb) >= minimumDifferenceDb : null,
 			});
 			dependencies.showAnalysis(result, dependencies.createVisuals(channels, sampleRate), report);
+			remember({ type: 'contrast', role, scope, options: Object.freeze({ ...options }) });
 			const roleLabel = role === 'foreground' ? copy.contrastForegroundRole : copy.contrastBackgroundRole;
 			dependencies.setStatus(copy.contrastStored.replace('{role}', roleLabel), 'success');
 			return report;
@@ -244,6 +268,10 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 
 	function handleTaskError(error: unknown): void {
 		if (!isAbortError(error) && !isEditorDisposedError(error)) dependencies.handleError(error);
+	}
+
+	function remember(request: AnalysisRepeatRequest): void {
+		dependencies.state.lastAnalysisRequest = Object.freeze(request);
 	}
 }
 

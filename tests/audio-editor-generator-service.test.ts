@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	createAudioGeneratorService,
 	type AudioGeneratorProject,
+	type AudioGeneratorState,
 	type AudioGeneratorServiceDependencies,
 } from '../src/common/editor/controller/generator-service.ts';
 import {
@@ -53,7 +54,7 @@ function createFixture(overrides: Partial<AudioGeneratorServiceDependencies> = {
 	const projectGeneration = new EditorProjectGeneration();
 	let activeProject = project();
 	projectGeneration.activate(activeProject.id);
-	const state = { selectedTrackId: 'track-a' as string | null, audacityEffectProcessing: false };
+	const state: AudioGeneratorState = { selectedTrackId: 'track-a', audacityEffectProcessing: false, lastGeneratorRequest: null };
 	const commits: Array<Readonly<{
 		command: AudioEditorCommand;
 		selection?: Readonly<{ selectTrackId?: string | null; selectClipId?: string | null }>;
@@ -291,4 +292,16 @@ test('blocked generation returns before allocating an async task', async () => {
 	assert.equal(await service.generateSignal('silence'), null);
 	assert.deepEqual(fixture.preflights, []);
 	assert.equal(fixture.publishes(), 0);
+});
+
+test('repeat generator replays the last successful closed request', async () => {
+	const fixture = createFixture();
+	const service = createAudioGeneratorService(fixture.dependencies);
+	assert.equal(await service.repeatLast(), null);
+	await service.generateSignal('tone', { durationSeconds: 0.01, frequency: 220 });
+	await service.repeatLast();
+	assert.equal(fixture.commits.length, 2);
+	assert.deepEqual(fixture.state.lastGeneratorRequest, {
+		type: 'tone', options: { durationSeconds: 0.01, frequency: 220 },
+	});
 });

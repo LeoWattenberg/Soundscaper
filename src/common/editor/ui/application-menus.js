@@ -2,7 +2,6 @@ import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
 import {
 	AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS,
-	createUnavailableApplicationMenuItem,
 } from './application-menu-registry.ts';
 import {
 	EFFECT_MENU_GROUPS,
@@ -23,7 +22,7 @@ import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-vi
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
-
+import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
 export default function createApplicationMenus({
 	productId,
 	aboutLabel,
@@ -46,7 +45,6 @@ export default function createApplicationMenus({
 	actions,
 }) {
 	const divider = () => ({ divider: true });
-	const unavailable = createUnavailableApplicationMenuItem;
 	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
 		project.clips.some((clip) => clip.id === clipId)
 	)));
@@ -111,6 +109,7 @@ export default function createApplicationMenus({
 		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
 	});
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
+	const importAnalysisMenuContext = { productId, copy, snapshot, editBlocked, blocked, analyzerBlocked, actionRuntime };
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
 		id: labelKey,
@@ -138,7 +137,6 @@ export default function createApplicationMenus({
 	const nyquistItems = (category) => nyquistPlugins
 		.filter((plugin) => plugin.category === category)
 		.map((plugin) => nyquistItem(plugin, nyquistDisabled(plugin)));
-
 	const menus = applyAudacityParityToMenus([
 		{
 			id: 'file',
@@ -508,7 +506,7 @@ export default function createApplicationMenus({
 			id: 'generate',
 			label: copy.generateMenu,
 			items: [
-				unavailable('repeat-generator', copy.repeatLastGenerator),
+				createRepeatGeneratorMenuItem(importAnalysisMenuContext),
 				divider(),
 				{ id: 'silence-generator', label: copy.silenceGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('silence') },
 				{ id: 'tone-generator', label: copy.toneGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('tone') },
@@ -558,7 +556,7 @@ export default function createApplicationMenus({
 			id: 'analyze',
 			label: copy.analyzeMenu,
 			items: [
-				unavailable('repeat-analyzer', copy.repeatLastAnalyzer),
+				createRepeatAnalyzerMenuItem(importAnalysisMenuContext),
 				divider(),
 				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
@@ -572,6 +570,7 @@ export default function createApplicationMenus({
 			id: 'tools',
 			label: copy.toolsMenu,
 			items: [
+				...createImportAnalysisToolMenuItems(importAnalysisMenuContext),
 				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
 				{ id: 'nyquist-prompt', label: copy.nyquistPrompt, disabled: !project, onClick: () => actions.openNyquist() },
 			],
