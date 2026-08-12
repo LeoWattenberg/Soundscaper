@@ -769,15 +769,41 @@
 		{
 			"id": "m3-longform-editorial-2h-v1",
 			"milestones": ["3"],
-			"status": "planned",
-			"kind": "planned-deterministic-project-generator",
+			"status": "provisional",
+			"kind": "deterministic-current-schema-project-generator",
 			"specification": {
+				"localDiagnosticCommand": "npm run quality:collect:m3-longform",
+				"routineBrowserTestBehavior": "skip-with-explicit-collector",
+				"qualificationPublication": "forbidden-by-pending-collector",
+				"generatorRevision": 1,
+				"seed": 1554098974,
 				"durationSeconds": 7200,
+				"sampleRate": 48000,
+				"videoFrameRate": { "num": 30, "den": 1 },
 				"audioTrackCount": 24,
 				"proxyVideoTrackCount": 2,
-				"editCount": 10000
+				"editCount": 10000,
+				"commandsPerTransaction": 250,
+				"operationCounts": {
+					"audioClipMoves": 2500,
+					"proxyVideoClipMoves": 2500,
+					"selectionChanges": 2500,
+					"trackMixChanges": 2500
+				},
+				"seekCheckpointsSamples": [0, 2880000, 86400000, 172800000, 345552000],
+				"scrollFrameIntervalSampleCount": 240,
+				"projectSha256": "00f5ec5df0210f2fb025c8435bc6368f370eed5f51418e02862dd50d66c25a5a",
+				"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
 			},
-			"evidence": ["roadmap.md#3-parallel-editorial-foundations"]
+			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The browser diagnostic measures shared timeline scheduling coordinates without decoded media; it does not qualify decoded-media A/V drift. Browser timing, coordinate drift and retained-heap observations remain local pending-external diagnostics until the fixed-hardware reference-linux-gpu-01 environment is provisioned, fingerprinted and qualification-eligible.",
+			"evidence": [
+				"package.json",
+				"src/common/editor/quality/m3-longform-editorial-workload.ts",
+				"tests/audio-editor-m3-longform-editorial-workload.test.ts",
+				"tests/browser/audio-editor-longform-editorial-benchmark.spec.js",
+				"scripts/collect-m3-longform-editorial-quality.mjs",
+				"tests/quality-budget-longform-editorial-collector.test.ts"
+			]
 		},
 		{
 			"id": "m4-production-parity-v1",
@@ -987,7 +1013,13 @@
 				{ "metricId": "editorial.scrollFrameIntervalP95Ms", "comparison": "lte", "value": 33.34, "unit": "ms" },
 				{ "metricId": "editorial.retainedHeapDeltaBytes", "comparison": "lte", "value": 268435456, "unit": "bytes" }
 			],
-			"evidence": ["roadmap.md#3-parallel-editorial-foundations"]
+			"evidence": [
+				"src/common/editor/quality/m3-longform-editorial-workload.ts",
+				"tests/audio-editor-m3-longform-editorial-workload.test.ts",
+				"tests/browser/audio-editor-longform-editorial-benchmark.spec.js",
+				"scripts/collect-m3-longform-editorial-quality.mjs",
+				"tests/quality-budget-longform-editorial-collector.test.ts"
+			]
 		},
 		{
 			"id": "m4-production-render-parity",
