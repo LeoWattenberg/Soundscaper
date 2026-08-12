@@ -23,6 +23,7 @@ import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
+import { createTakeCompApplicationMenuItems } from './take-comp-application-menu.ts';
 export default function createApplicationMenus({
 	productId,
 	aboutLabel,
@@ -419,6 +420,7 @@ export default function createApplicationMenus({
 			id: 'tracks',
 			label: copy.tracksMenu,
 			items: [
+				...createTakeCompApplicationMenuItems({ productId, capability: Boolean(capabilities.takeComp), project, copy, open: actions.openTakeComp }),
 				{
 					id: 'add-new-track',
 					label: copy.addNewTrack,

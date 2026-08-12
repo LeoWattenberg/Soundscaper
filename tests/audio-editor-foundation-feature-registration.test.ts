@@ -83,7 +83,7 @@ test('foundation registry and both profiles stay equal and classify unavailable 
 	}
 });
 
-test('V17 take/comp state is known but read-only in both product profiles', () => {
+test('V17 take/comp state is native in Soundscaper and bypass-only in Framescaper', () => {
 	const takeComp = FOUNDATION_FIXTURES.find(
 		({ id }) => id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
 	);
@@ -96,8 +96,11 @@ test('V17 take/comp state is known but read-only in both product profiles', () =
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements,
 	};
-	for (const profile of [PRODUCT_PROFILES.soundscaper, PRODUCT_PROFILES.framescaper]) {
-		assert.equal(profile.capabilities.takeComp, false, profile.id);
+	for (const [profile, capability, availability, disposition, compatible] of [
+		[PRODUCT_PROFILES.soundscaper, true, 'available', 'native', true],
+		[PRODUCT_PROFILES.framescaper, false, 'unavailable', 'bypassed', false],
+	] as const) {
+		assert.equal(profile.capabilities.takeComp, capability, profile.id);
 		const report = createProjectFeatureCompatibilityService(profile.capabilities).evaluate(project);
 		assert.deepEqual({
 			compatible: report?.compatible,
@@ -108,12 +111,12 @@ test('V17 take/comp state is known but read-only in both product profiles', () =
 			disposition: report?.items[0]?.disposition,
 			fallback: report?.items[0]?.fallback,
 		}, {
-			compatible: false,
+			compatible,
 			requirementId: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
 			featureId: PROJECT_FEATURE_CAPABILITY_IDS.takeComp,
-			availability: 'unavailable',
+			availability,
 			declaredDisposition: 'bypass',
-			disposition: 'bypassed',
+			disposition,
 			fallback: null,
 		}, profile.id);
 	}

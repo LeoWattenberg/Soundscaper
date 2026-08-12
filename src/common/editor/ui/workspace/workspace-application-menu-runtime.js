@@ -73,6 +73,7 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				openTakeComp: () => openSurface('take-comp'),
 				newProject: () => run(() => controller.actions.project.create()),
 				openProjects,
 				openFile: () => fileService.isDesktop
