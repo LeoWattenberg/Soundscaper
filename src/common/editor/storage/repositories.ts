@@ -64,6 +64,8 @@ export interface StorageRepositoryOptions {
 	readonly preferOpfs: boolean;
 	readonly storageManager?: StorageManager | null;
 	readonly opfsRoot?: FileSystemDirectoryHandle | null;
+	readonly opfsDirectoryName?: string;
+	readonly opfsWorkerName?: string;
 	readonly pcmCodec?: PcmRepositoryOptions['codec'];
 	readonly pcmCodecFactory?: PcmRepositoryOptions['codecFactory'];
 	readonly derivativeCacheLimits?: Readonly<Pick<
@@ -94,6 +96,8 @@ export function createStorageRepositories(
 		preferOpfs: options.preferOpfs,
 		storageManager: options.storageManager,
 		opfsRoot: options.opfsRoot,
+		opfsDirectoryName: options.opfsDirectoryName,
+		opfsWorkerName: options.opfsWorkerName,
 	});
 	const pcm = new PcmRepository({
 		codec: options.pcmCodec,

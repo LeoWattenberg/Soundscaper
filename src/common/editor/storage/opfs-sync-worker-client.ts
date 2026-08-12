@@ -10,6 +10,8 @@ import {
 	type OpfsSyncOperationId,
 } from './opfs-sync-worker-protocol.ts';
 
+export const DEFAULT_OPFS_WORKER_NAME = 'soundscaper-opfs-storage';
+
 export interface OpfsWorkerLike {
 	postMessage(message: unknown, transfer?: readonly Transferable[]): void;
 	addEventListener(type: string, listener: (event: MessageEvent) => void): void;
@@ -17,7 +19,8 @@ export interface OpfsWorkerLike {
 }
 
 export interface OpfsSyncWorkerClientOptions {
-	readonly workerFactory?: () => OpfsWorkerLike;
+	readonly workerName?: string;
+	readonly workerFactory?: (workerName: string) => OpfsWorkerLike;
 	readonly timeoutMs?: number;
 }
 
@@ -71,7 +74,8 @@ let nextRequestId = 1;
 
 /** Capability-detected request client for the dedicated synchronous OPFS worker. */
 export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
-	readonly #workerFactory: () => OpfsWorkerLike;
+	readonly #workerName: string;
+	readonly #workerFactory: (workerName: string) => OpfsWorkerLike;
 	readonly #broker: WorkerRequestBroker;
 	#worker: OpfsWorkerLike | null = null;
 	#initializePromise: Promise<boolean> | null = null;
@@ -79,6 +83,7 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 	#closed = false;
 
 	constructor(options: OpfsSyncWorkerClientOptions = {}) {
+		this.#workerName = options.workerName ?? DEFAULT_OPFS_WORKER_NAME;
 		this.#workerFactory = options.workerFactory ?? defaultWorkerFactory;
 		this.#broker = new WorkerRequestBroker({ timeoutMs: options.timeoutMs });
 	}
@@ -184,7 +189,7 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 
 	async #initialize(directory: FileSystemDirectoryHandle): Promise<boolean> {
 		try {
-			const worker = this.#workerFactory();
+			const worker = this.#workerFactory(this.#workerName);
 			if (!worker || typeof worker.postMessage !== 'function') return false;
 			this.#worker = worker;
 			worker.addEventListener('message', (event) => this.#handleMessage(worker, event.data));
@@ -259,11 +264,11 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 	}
 }
 
-function defaultWorkerFactory(): OpfsWorkerLike {
+function defaultWorkerFactory(workerName: string): OpfsWorkerLike {
 	if (typeof Worker !== 'function') throw new Error('OPFS Web Worker is unavailable in this environment.');
 	return new Worker(new URL('./opfs-sync-worker.ts', import.meta.url), {
 		type: 'module',
-		name: 'soundscaper-opfs-storage',
+		name: workerName,
 	});
 }
 

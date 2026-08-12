@@ -1,12 +1,10 @@
-import {
-	EditorStoreBlockedError,
-	EditorStoreClosedError,
-	EditorStoreVersionStaleError,
-	memoryFallbackReason,
-} from './storage/status.ts';
+import { EditorStoreBlockedError, EditorStoreClosedError, EditorStoreVersionStaleError, memoryFallbackReason } from './storage/status.ts';
 import { openDatabase } from './storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
+import { editorProjectStorageProfileNamesFromOptions } from './storage/project-storage-profile-options.ts';
+import { DEFAULT_OPFS_DIRECTORY_NAME } from './storage/opfs-repository.ts';
+import { DEFAULT_OPFS_WORKER_NAME } from './storage/opfs-sync-worker-client.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
 import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-coordinator.ts';
 import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
@@ -25,9 +23,11 @@ export function createProjectStore(options = {}) {
 }
 
 export class AudioEditorProjectStore {
-	constructor({
+	constructor(/** @type {import('./storage/project-store-options.ts').AudioEditorProjectStoreOptions} */ options = {}) {
+		const projectStorageProfileNames = editorProjectStorageProfileNamesFromOptions(options);
+		const {
 		indexedDB = /** @type {IDBFactory | null} */ (globalThis.indexedDB),
-		databaseName = DEFAULT_DATABASE_NAME,
+		databaseName: requestedDatabaseName = DEFAULT_DATABASE_NAME,
 		memoryFallback = true,
 		storageManager = globalThis.navigator?.storage,
 		opfsRoot = null,
@@ -44,7 +44,8 @@ export class AudioEditorProjectStore {
 		onDesktopSharedProjectLocalCleanupError = reportDesktopSharedProjectLocalCleanupError,
 		onLinkedVideoOriginalLocatorCleanupError = undefined,
 		repositoryFactory = /** @type {import('./storage/repositories.ts').StorageRepositoryFactory} */ (createStorageRepositories),
-	} = {}) {
+		} = options;
+		const databaseName = projectStorageProfileNames?.databaseName ?? requestedDatabaseName;
 		this.databaseName = databaseName;
 		this.indexedDB = indexedDB;
 		this.memoryFallback = memoryFallback;
@@ -77,6 +78,8 @@ export class AudioEditorProjectStore {
 			derivativeCacheNow,
 			linkedOriginalPort,
 			linkedVideoOriginalPort,
+			opfsDirectoryName: projectStorageProfileNames?.opfsDirectoryName ?? DEFAULT_OPFS_DIRECTORY_NAME,
+			opfsWorkerName: projectStorageProfileNames?.opfsWorkerName ?? DEFAULT_OPFS_WORKER_NAME,
 		});
 		this.projectRepository = desktopProjectBridge
 			? new DesktopSharedProjectRepository({

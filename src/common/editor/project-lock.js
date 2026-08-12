@@ -1,3 +1,5 @@
+import { editorProjectStorageProfileNames } from './storage/project-storage-profile.ts';
+
 const LOCK_PREFIX = 'kw-media-audio-editor-lock:';
 const LEASE_DURATION_MS = 15_000;
 const HEARTBEAT_MS = 5_000;
@@ -11,25 +13,34 @@ const LEASE_PROTOCOL_VERSION = 1;
  */
 export async function acquireProjectLock(projectId, options = {}) {
 	if (!projectId) throw new Error('A project id is required.');
+	const profileDescriptor = Object.getOwnPropertyDescriptor(options, 'projectStorageProfile');
+	if (profileDescriptor && !Object.hasOwn(profileDescriptor, 'value')) {
+		throw new TypeError('projectStorageProfile must be an own data property.');
+	}
+	const projectStorageProfile = profileDescriptor?.value;
+	const lockPrefix = projectStorageProfile === undefined
+		? LOCK_PREFIX
+		: editorProjectStorageProfileNames(projectStorageProfile).projectLockPrefix;
+	const lockName = `${lockPrefix}${projectId}`;
 	const navigatorObject = options.navigator ?? globalThis.navigator;
 	if (navigatorObject?.locks?.request) {
-		return acquireNavigatorLock(projectId, navigatorObject.locks, options);
+		return acquireNavigatorLock(projectId, lockName, navigatorObject.locks, options);
 	}
-	return acquireLease(projectId, options);
+	return acquireLease(projectId, lockName, options);
 }
 
-async function acquireNavigatorLock(projectId, locks, options) {
+async function acquireNavigatorLock(projectId, lockName, locks, options) {
 	if (options.force) {
-		const forced = requestForcedNavigatorLock(projectId, locks);
+		const forced = requestForcedNavigatorLock(lockName, locks);
 		const writable = await forced.acquired;
-		if (!writable) return acquireNavigatorLock(projectId, locks, { ...options, force: false });
-		return navigatorLockResult(projectId, forced, options, true);
+		if (!writable) return acquireNavigatorLock(projectId, lockName, locks, { ...options, force: false });
+		return navigatorLockResult(projectId, lockName, forced, options, true);
 	}
-	const attempt = await requestNavigatorLock(projectId, locks);
-	if (attempt.writable) return navigatorLockResult(projectId, attempt, options);
+	const attempt = await requestNavigatorLock(lockName, locks);
+	if (attempt.writable) return navigatorLockResult(projectId, lockName, attempt, options);
 	await attempt.finished;
 
-	const queued = requestQueuedNavigatorLock(projectId, locks);
+	const queued = requestQueuedNavigatorLock(lockName, locks);
 	const handoffMs = Number.isFinite(options.navigatorLockHandoffMs)
 		? Math.max(0, options.navigatorLockHandoffMs)
 		: NAVIGATOR_LOCK_HANDOFF_MS;
@@ -37,7 +48,7 @@ async function acquireNavigatorLock(projectId, locks, options) {
 		queued.acquired,
 		new Promise((resolve) => (options.setTimeout ?? globalThis.setTimeout)(() => resolve(false), handoffMs)),
 	]);
-	if (acquiredDuringHandoff) return navigatorLockResult(projectId, queued, options);
+	if (acquiredDuringHandoff) return navigatorLockResult(projectId, lockName, queued, options);
 
 	const pending = {
 		projectId,
@@ -50,14 +61,14 @@ async function acquireNavigatorLock(projectId, locks, options) {
 	};
 	pending.available = queued.acquired.then((writable) => {
 		if (!writable) return null;
-		const available = navigatorLockResult(projectId, queued, options);
+		const available = navigatorLockResult(projectId, lockName, queued, options);
 		available.handoffFrom = pending;
 		return available;
 	});
 	return pending;
 }
 
-function navigatorLockResult(projectId, attempt, options, force = false) {
+function navigatorLockResult(projectId, lockName, attempt, options, force = false) {
 	let released = false;
 	let resolveLost;
 	const lost = new Promise((resolve) => { resolveLost = resolve; });
@@ -65,7 +76,7 @@ function navigatorLockResult(projectId, attempt, options, force = false) {
 	const BroadcastChannelClass = options.BroadcastChannel ?? globalThis.BroadcastChannel;
 	let channel = null;
 	try {
-		channel = BroadcastChannelClass ? new BroadcastChannelClass(`${LOCK_PREFIX}${projectId}`) : null;
+		channel = BroadcastChannelClass ? new BroadcastChannelClass(lockName) : null;
 		if (channel) {
 			channel.onmessage = ({ data = {} }) => {
 				if (data.type === 'takeover' && data.owner !== owner) loseLock();
@@ -106,14 +117,14 @@ function navigatorLockResult(projectId, attempt, options, force = false) {
 	}
 }
 
-function requestForcedNavigatorLock(projectId, locks) {
+function requestForcedNavigatorLock(lockName, locks) {
 	let releaseHold;
 	let resolveAcquired;
 	const acquired = new Promise((resolve) => { resolveAcquired = resolve; });
 	const hold = new Promise((resolve) => { releaseHold = resolve; });
 	let finished;
 	try {
-		finished = Promise.resolve(locks.request(`${LOCK_PREFIX}${projectId}`, {
+		finished = Promise.resolve(locks.request(lockName, {
 			mode: 'exclusive',
 			steal: true,
 		}, async (lock) => {
@@ -127,14 +138,14 @@ function requestForcedNavigatorLock(projectId, locks) {
 	return { acquired, finished, release: releaseHold };
 }
 
-async function requestNavigatorLock(projectId, locks) {
+async function requestNavigatorLock(lockName, locks) {
 	let releaseHold;
 	let resolveAcquired;
 	const acquired = new Promise((resolve) => { resolveAcquired = resolve; });
 	const hold = new Promise((resolve) => { releaseHold = resolve; });
 	let finished;
 	try {
-		finished = Promise.resolve(locks.request(`${LOCK_PREFIX}${projectId}`, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
+		finished = Promise.resolve(locks.request(lockName, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
 			resolveAcquired(Boolean(lock));
 			if (lock) await hold;
 		})).catch(() => resolveAcquired(false));
@@ -150,7 +161,7 @@ async function requestNavigatorLock(projectId, locks) {
 	};
 }
 
-function requestQueuedNavigatorLock(projectId, locks) {
+function requestQueuedNavigatorLock(lockName, locks) {
 	const controller = new AbortController();
 	let acquiredLock = false;
 	let released = false;
@@ -160,7 +171,7 @@ function requestQueuedNavigatorLock(projectId, locks) {
 	const hold = new Promise((resolve) => { releaseHold = resolve; });
 	let finished;
 	try {
-		finished = Promise.resolve(locks.request(`${LOCK_PREFIX}${projectId}`, {
+		finished = Promise.resolve(locks.request(lockName, {
 			mode: 'exclusive',
 			signal: controller.signal,
 		}, async (lock) => {
@@ -184,7 +195,7 @@ function requestQueuedNavigatorLock(projectId, locks) {
 	};
 }
 
-async function acquireLease(projectId, options) {
+async function acquireLease(projectId, lockName, options) {
 	const storage = options.localStorage ?? safeLocalStorage();
 	const BroadcastChannelClass = options.BroadcastChannel ?? globalThis.BroadcastChannel;
 	const now = options.now ?? (() => Date.now());
@@ -192,7 +203,7 @@ async function acquireLease(projectId, options) {
 	const clearIntervalFn = options.clearInterval ?? globalThis.clearInterval;
 	const setTimeoutFn = options.setTimeout ?? globalThis.setTimeout;
 	const lifecycleTarget = options.lifecycleTarget ?? globalThis;
-	const key = `${LOCK_PREFIX}${projectId}`;
+	const key = lockName;
 	const owner = createOwner();
 	let channel = null;
 	let heartbeat = 0;

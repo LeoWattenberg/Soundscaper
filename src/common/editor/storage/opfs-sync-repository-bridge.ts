@@ -13,6 +13,7 @@ import {
 
 export interface OpfsSyncRepositoryBridgeOptions {
 	readonly client?: OpfsSyncStoragePort | null;
+	readonly workerName?: string;
 }
 
 /** Optional worker route shared by the OPFS repository's six binary operation classes. */
@@ -21,7 +22,9 @@ export class OpfsSyncRepositoryBridge {
 	#availability: Promise<boolean> | null = null;
 
 	constructor(options: OpfsSyncRepositoryBridgeOptions = {}) {
-		this.#client = options.client === undefined ? new OpfsSyncWorkerClient() : options.client;
+		this.#client = options.client === undefined
+			? new OpfsSyncWorkerClient({ workerName: options.workerName })
+			: options.client;
 	}
 
 	async snapshot(

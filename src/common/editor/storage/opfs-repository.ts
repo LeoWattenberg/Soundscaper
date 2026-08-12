@@ -19,6 +19,8 @@ import type { OpfsSyncStoragePort } from './opfs-sync-worker-client.ts';
 import type { OpfsSyncOperationId } from './opfs-sync-worker-protocol.ts';
 import { syncBinaryWriter, syncPcmWriter } from './opfs-sync-writer-adapters.ts';
 
+export const DEFAULT_OPFS_DIRECTORY_NAME = 'audio-editor-sources';
+
 interface PcmIndexEntry {
 	readonly index: number;
 	readonly frames: number;
@@ -91,6 +93,8 @@ export interface OpfsRepositoryOptions {
 	readonly preferOpfs: boolean;
 	readonly storageManager?: StorageManager | null;
 	readonly opfsRoot?: FileSystemDirectoryHandle | null;
+	readonly opfsDirectoryName?: string;
+	readonly opfsWorkerName?: string;
 	readonly syncWorkerClient?: OpfsSyncStoragePort | null;
 }
 
@@ -103,7 +107,10 @@ export class OpfsRepository {
 
 	constructor(options: OpfsRepositoryOptions) {
 		this.#options = options;
-		this.#sync = new OpfsSyncRepositoryBridge({ client: options.syncWorkerClient });
+		this.#sync = new OpfsSyncRepositoryBridge({
+			client: options.syncWorkerClient,
+			workerName: options.opfsWorkerName,
+		});
 	}
 
 	async directory(): Promise<FileSystemDirectoryHandle | null> {
@@ -113,7 +120,10 @@ export class OpfsRepository {
 				try {
 					const root = this.#options.opfsRoot || await this.#options.storageManager?.getDirectory?.();
 					if (!root?.getDirectoryHandle) return null;
-					return root.getDirectoryHandle('audio-editor-sources', { create: true });
+					return root.getDirectoryHandle(
+						this.#options.opfsDirectoryName ?? DEFAULT_OPFS_DIRECTORY_NAME,
+						{ create: true },
+					);
 				} catch {
 					return null;
 				}
