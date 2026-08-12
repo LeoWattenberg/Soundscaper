@@ -213,15 +213,20 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 					}, sampleRate)
 				: 0;
 			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
-			const currentContextFrame = Math.ceil(
-				(scheduledTime + availableLeadInFrames / sampleRate) * context.sampleRate,
-			);
 			const selectionProjectFrames = selection
 				? selection.endFrame - selection.startFrame + sourceOffsetProjectFrames
 				: 0;
-			const stopFrame = selection
-				? currentContextFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
-				: undefined;
+			const recorderSchedule = (contextStartTime: number) => {
+				const startFrame = Math.ceil(
+					(contextStartTime + availableLeadInFrames / sampleRate) * context.sampleRate,
+				);
+				return {
+					startFrame,
+					stopFrame: selection
+						? startFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
+						: undefined,
+				};
+			};
 			const interrupt = () => {
 				if (ownsStart() && state.recorder && !state.recordingFinishing) {
 					void runtime.stopRecording().catch(runtime.handleError);
@@ -239,12 +244,19 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			runtime.engine.setLoop(false);
 			runtime.engine.seek(requestedStartFrame - availableLeadInFrames);
 			if (timedStart) {
-				recorder.start({ startFrame: currentContextFrame, stopFrame });
+				recorder.start(recorderSchedule(scheduledTime));
 				scope.assertCurrent();
 			} else {
-				await runtime.engine.playAt(scheduledTime, requestedStartFrame - availableLeadInFrames);
+				const playbackStartTime = await runtime.engine.playAt(
+					scheduledTime,
+					requestedStartFrame - availableLeadInFrames,
+				);
 				scope.assertCurrent();
-				recorder.start({ startFrame: currentContextFrame, stopFrame });
+				recorder.start(recorderSchedule(
+					typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
+						? playbackStartTime
+						: scheduledTime,
+				));
 				state.recordingPaused = false;
 				runtime.setStatus(runtime.messages.recording);
 				runtime.updateTransportState('recording');

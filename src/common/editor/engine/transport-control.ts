@@ -182,7 +182,9 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		if (projectHasAuthoredAudioWarp(this.project)
 			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
 			const scheduledFrame = clampFrame(fromFrame, 0, this.durationFrames);
-			if (scheduledFrame >= this.durationFrames) return;
+			if (scheduledFrame >= this.durationFrames) {
+				return Math.max(context.currentTime, Number(contextTime) || context.currentTime);
+			}
 			await prepareExactAudioWarpPlayback(
 				this,
 				scheduledFrame,
@@ -192,15 +194,14 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 			const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 			this.positionFrame = scheduledFrame;
-			await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime);
-			return;
+			return this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime);
 		}
 		this.playbackMode = 'normal';
 		await ensureProjectWorklets(context, this.project);
 		await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 		this.positionFrame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
-		await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime);
+		return this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime);
 	},
 
 pause() {

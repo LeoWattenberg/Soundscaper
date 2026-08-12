@@ -128,10 +128,10 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 				fromFrame,
 				scheduledTime,
 			);
-			return;
+			return scheduledTime;
 		}
 		const prepared = this.preparedSpeedPlayback;
-		if (!context || !this.project || !prepared) return;
+		if (!context || !this.project || !prepared) return scheduledTime;
 		if (this.meterListeners.size && !this.masterLoudnessMeter && !this.masterLoudnessMeterError) {
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		}
@@ -204,11 +204,12 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 		this.masterLoudnessMeter?.setRunning(!this.loudnessMeasurementManuallyPaused);
 		this[ENGINE_START_TICKER]();
 		this[ENGINE_EMIT_POSITION]();
+		return scheduledTime;
 	},
 
 async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
 		const context = this.context;
-		if (!context || !this.project) return;
+		if (!context || !this.project) return scheduledTime;
 		if (this.meterListeners.size && !this.masterLoudnessMeter && !this.masterLoudnessMeterError) {
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		}
@@ -261,7 +262,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			if (this.graph === graph) this[ENGINE_HALT_GRAPH]();
 			throw error;
 		}
-		if (this.graph !== graph) return;
+		if (this.graph !== graph) return schedule.contextStartTime;
 		scheduledTime = schedule.contextStartTime;
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
@@ -272,6 +273,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		this.masterLoudnessMeter?.setRunning(!this.loudnessMeasurementManuallyPaused);
 		this[ENGINE_START_TICKER]();
 		this[ENGINE_EMIT_POSITION]();
+		return scheduledTime;
 	},
 
 [ENGINE_GET_CHUNK_STREAM_CLIENT]() {

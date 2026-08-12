@@ -145,10 +145,10 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	[ENGINE_GET_CONTEXT](): Promise<EngineAudioContext>;
 	[ENGINE_HANDLE_SCHEDULING_ERROR](error: unknown): void;
 	[ENGINE_HALT_GRAPH](): void;
-	[ENGINE_SCHEDULE_CURRENT_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<void>;
+	[ENGINE_SCHEDULE_CURRENT_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<number>;
 	[ENGINE_SCHEDULE_LOOP_AHEAD](): void;
-	[ENGINE_SCHEDULE_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<void>;
-	[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<void>;
+	[ENGINE_SCHEDULE_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<number>;
+	[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](fromFrame: number, scheduledTime?: number): Promise<number>;
 	[ENGINE_SET_STATE](value: string): void;
 	[ENGINE_START_TICKER](): void;
 	[ENGINE_STOP_TICKER](): void;

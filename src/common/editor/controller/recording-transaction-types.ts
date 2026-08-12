@@ -141,7 +141,7 @@ export interface RecordingEnginePort {
 	getPositionFrames(): number;
 	setLoop(enabled: boolean): void;
 	seek(frame: number): void;
-	playAt(contextTime: number, frame: number): Promise<unknown>;
+	playAt(contextTime: number, frame: number): Promise<number | void>;
 	pause(): void;
 }
 

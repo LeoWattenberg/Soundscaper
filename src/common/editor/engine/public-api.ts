@@ -169,7 +169,8 @@ export interface EnginePublicApi {
 	getAudioWarpRenderStatus(): Readonly<AudioWarpRenderPathStatus>;
 	play(): Promise<void>;
 	playAtSpeed(rate: number, options?: EnginePlayAtSpeedOptions): Promise<void>;
-	playAt(contextTime: number, fromFrame?: number): Promise<void>;
+	/** Resolves to the actual context start after asynchronous playback priming. */
+	playAt(contextTime: number, fromFrame?: number): Promise<number>;
 	pause(): void;
 	stop(): void;
 	seek(frame: number): number;
