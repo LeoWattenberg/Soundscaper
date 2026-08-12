@@ -213,9 +213,14 @@ envelope and preflight every scalar's exact JSON-escaped UTF-8 length. Before ea
 row is retained, charge exact canonical JSON for repeated strings, fixed keys/
 punctuation, arrays, and numeric scalars; refuse above 8,388,608 bytes. Separately
 charge every repeated decimal occurrence's exact JSON-token bytes before
-retention, capped at 4,194,304 bytes. Only after admission may one no-newline
-`TextEncoder(JSON.stringify(intent))` run; its length must equal the counter. Never
-allocate an over-cap stringify. Backend-specific caps await reviewed 3B-5g-b.
+retention and expose that diagnostic count. There is no second decimal cap:
+under the admitted rational bounds and closed row grammar, canonical row JSON is
+always more than twice its decimal-token bytes, so the formerly proposed
+4,194,304-byte sub-cap was strictly dominated by the 8,388,608-byte ceiling and
+could not be reached through this public seam. Only after admission may one
+no-newline `TextEncoder(JSON.stringify(intent))` run; its length must equal the
+counter. Never allocate an over-cap stringify. Backend-specific caps await
+reviewed 3B-5g-b.
 
 Work is O(T + C + S + K log(S + 1)) through the existing mapper; storage is
 O(T + C + S + K). These bounded terms are independent of output-frame and VFR
@@ -229,7 +234,8 @@ curve fields; all modes and coefficients; half-open/final VFR windows; escaped I
 repeated decimals, and canonical JSON/order/freeze; canonical clip ownership; one
 compile/token per clip/source; and changing-get V2 Proxy rejection or descriptor-
 value semantics with zero post-bind raw gets. Also prove no accessor/VFR scan;
-mutation isolation; forged-token/source refusal; every cap at and above limit;
+mutation isolation; forged-token/source refusal; repeated decimal accounting and
+the JSON-dominance invariant; every independently reachable cap at and above limit;
 `J` before/at-start and at/after-end; and a huge-span curve/source with exactly two
 ownership calls. A 2,000,000-frame intent never iterates/allocates by output count.
 Initial red is missing module/export. Run focused tests, both TypeScript configs,
