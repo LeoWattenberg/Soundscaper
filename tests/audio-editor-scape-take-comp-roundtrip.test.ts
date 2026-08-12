@@ -19,9 +19,9 @@ import {
 	writePcm,
 } from './helpers/desktop-project-library-fallback-handoff-fixture.ts';
 import {
-	createTakeOnlyProjectFixture,
-	type TakeOnlyAudioSource,
-} from './helpers/take-comp-cross-product-fixture.ts';
+	createCycleProducedTakeFixture,
+	type CycleProducedAudioSource,
+} from './helpers/cycle-produced-take-fixture.ts';
 
 interface ScapeImportResult {
 	readonly project: AudioEditorProjectCurrent;
@@ -31,8 +31,9 @@ interface ScapeImportResult {
 const COLLIDING_CHANNELS = Object.freeze([Object.freeze([0.875, -0.875])]);
 
 test('current Scape collision-copy preserves and exactly remaps take-only PCM after reopen', async (context) => {
-	const fixture = createTakeOnlyProjectFixture();
-	const sender = memoryStore(context, 'scape-take-only-sender');
+	const fixture = await createCycleProducedTakeFixture('recovery');
+	context.after(async () => { await fixture.store.close(); });
+	const sender = fixture.store;
 	const recipient = memoryStore(context, 'scape-take-only-recipient');
 	assert.deepEqual(fixture.project.clips, []);
 	assert.deepEqual(fixture.project.projectBin.clips, []);
@@ -41,8 +42,6 @@ test('current Scape collision-copy preserves and exactly remaps take-only PCM af
 		fixture.pcm.map(({ source }) => source.id),
 		'take groups must be the only logical roots for both PCM sources',
 	);
-	for (const { channels, source } of fixture.pcm) await writePcm(sender, source, channels);
-
 	const exported = await exportScapeProject(fixture.project, sender);
 	assert.ok(exported.blob instanceof Blob);
 	assert.deepEqual(exported.manifest.assets.map(({ kind, sha256, size, sourceId }) => ({
@@ -88,13 +87,8 @@ test('current Scape collision-copy preserves and exactly remaps take-only PCM af
 			sourceId: remappedSourceIds.get(take.sourceId),
 		})),
 	});
-	assert.deepEqual(
-		copiedGroup.takes.map(({ id, sourceId }) => ({ id, sourceId })),
-		fixture.pcm.map(({ source }, index) => ({
-			id: `take-only-take-${index === 0 ? 'a' : 'b'}`,
-			sourceId: remappedSourceIds.get(source.id),
-		})),
-	);
+	assert.deepEqual(copiedGroup.takes.map(({ id, sourceId }) => ({ id, sourceId })),
+		originalGroup.takes.map(({ id, sourceId }) => ({ id, sourceId: remappedSourceIds.get(sourceId) })));
 
 	for (const { channels, source } of fixture.pcm) {
 		const importedId = remappedSourceIds.get(source.id);
@@ -119,7 +113,7 @@ test('current Scape collision-copy preserves and exactly remaps take-only PCM af
 	}
 });
 
-function collisionSource(source: TakeOnlyAudioSource): TakeOnlyAudioSource {
+function collisionSource(source: CycleProducedAudioSource): CycleProducedAudioSource {
 	return { ...source, storageKey: source.id, frameCount: COLLIDING_CHANNELS[0]!.length,
 		chunkFrames: COLLIDING_CHANNELS[0]!.length };
 }

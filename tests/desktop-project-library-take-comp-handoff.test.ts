@@ -29,9 +29,8 @@ import {
 	writePcm,
 } from './helpers/desktop-project-library-fallback-handoff-fixture.ts';
 import {
-	createTakeOnlyProjectFixture,
-	TAKE_PROJECT_ID,
-} from './helpers/take-comp-cross-product-fixture.ts';
+	createCycleProducedTakeFixture,
+} from './helpers/cycle-produced-take-fixture.ts';
 
 const INITIAL_SOUND_OWNER = owner('soundscaper', 811, 'take-handoff-sound-initial');
 const FRAME_OWNER = owner('framescaper', 812, 'take-handoff-frame');
@@ -40,7 +39,9 @@ const RETURN_SOUND_OWNER = owner('soundscaper', 813, 'take-handoff-sound-return'
 test('take-only PCM survives a fresh read-only Framescaper handoff and returns to Soundscaper', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-take-comp-handoff-'));
 	const resources = trackResources(context, appDataPath);
-	const fixture = createTakeOnlyProjectFixture();
+	const fixture = await createCycleProducedTakeFixture('finalize');
+	context.after(async () => { await fixture.store.close(); });
+	const projectId = fixture.project.id;
 	assert.deepEqual(fixture.project.clips, []);
 	assert.deepEqual(fixture.project.projectBin.clips, []);
 	assert.deepEqual(
@@ -59,7 +60,7 @@ test('take-only PCM survives a fresh read-only Framescaper handoff and returns t
 	));
 	await persistTakePcm(initialStore, fixture);
 	await initialStore.saveProject(fixture.project);
-	await initialStore.saveSetting('soundscaper:last-project-id', TAKE_PROJECT_ID);
+	await initialStore.saveSetting('soundscaper:last-project-id', projectId);
 	assert.deepEqual(initialHost.readCatalog().media, [], 'ordinary saves remain document-only');
 	const initialEngine = createHeadlessEngine();
 	const initialSoundscaper = resources.trackController(createEditorController(null, {
@@ -75,10 +76,10 @@ test('take-only PCM survives a fresh read-only Framescaper handoff and returns t
 	await assertStoredTakePcm(initialStore, fixture);
 	assert.deepEqual(initialSoundscaper.getSnapshot().missingSourceIds, []);
 	assert.deepEqual(await projectActions(initialSoundscaper).prepareHandoff(), {
-		projectId: TAKE_PROJECT_ID,
+		projectId,
 		revision: fixture.project.revision,
 	});
-	const outbound = await initialService.readSharedProjectBundle(TAKE_PROJECT_ID);
+	const outbound = await initialService.readSharedProjectBundle(projectId);
 	assert.ok(outbound);
 	await assertManagedTakeBundle(initialService, outbound, fixture);
 	await resources.disposeController(initialSoundscaper);
@@ -97,8 +98,8 @@ test('take-only PCM survives a fresh read-only Framescaper handoff and returns t
 		frameProbe.bridge,
 	));
 	for (const { source } of fixture.pcm) assert.equal(await frameStore.getSourceMetadata(source.storageKey), null);
-	assert.deepEqual(await frameStore.listProjectRevisions(TAKE_PROJECT_ID), []);
-	await frameStore.saveSetting('framescaper:last-project-id', TAKE_PROJECT_ID);
+	assert.deepEqual(await frameStore.listProjectRevisions(projectId), []);
+	await frameStore.saveSetting('framescaper:last-project-id', projectId);
 	const frameEngine = createHeadlessEngine();
 	const framescaper = resources.trackController(createEditorController(null, {
 		engine: frameEngine.engine,
@@ -117,14 +118,14 @@ test('take-only PCM survives a fresh read-only Framescaper handoff and returns t
 		new Set(outbound.sources.map(({ bindingId }) => bindingId)),
 	);
 	assertExactTakeProject(
-		await frameStore.loadProject(TAKE_PROJECT_ID, { revision: fixture.project.revision }),
+		await frameStore.loadProject(projectId, { revision: fixture.project.revision }),
 		fixture.project,
 	);
 	assert.deepEqual(await projectActions(framescaper).prepareHandoff(), {
-		projectId: TAKE_PROJECT_ID,
+		projectId,
 		revision: fixture.project.revision,
 	});
-	const returning = await frameService.readSharedProjectBundle(TAKE_PROJECT_ID);
+	const returning = await frameService.readSharedProjectBundle(projectId);
 	assert.ok(returning);
 	await assertManagedTakeBundle(frameService, returning, fixture);
 	assert.equal(returning.document, outbound.document, 'read-only handoff must preserve the exact document');
@@ -144,8 +145,8 @@ test('take-only PCM survives a fresh read-only Framescaper handoff and returns t
 		returnProbe.bridge,
 	));
 	for (const { source } of fixture.pcm) assert.equal(await returnStore.getSourceMetadata(source.storageKey), null);
-	assert.deepEqual(await returnStore.listProjectRevisions(TAKE_PROJECT_ID), []);
-	await returnStore.saveSetting('soundscaper:last-project-id', TAKE_PROJECT_ID);
+	assert.deepEqual(await returnStore.listProjectRevisions(projectId), []);
+	await returnStore.saveSetting('soundscaper:last-project-id', projectId);
 	const returnEngine = createHeadlessEngine();
 	const returnedSoundscaper = resources.trackController(createEditorController(null, {
 		engine: returnEngine.engine,
@@ -164,12 +165,12 @@ test('take-only PCM survives a fresh read-only Framescaper handoff and returns t
 		new Set(returning.sources.map(({ bindingId }) => bindingId)),
 	);
 	assertExactTakeProject(
-		await returnStore.loadProject(TAKE_PROJECT_ID, { revision: fixture.project.revision }),
+		await returnStore.loadProject(projectId, { revision: fixture.project.revision }),
 		fixture.project,
 	);
 });
 
-type TakeFixture = ReturnType<typeof createTakeOnlyProjectFixture>;
+type TakeFixture = Awaited<ReturnType<typeof createCycleProducedTakeFixture>>;
 
 async function persistTakePcm(store: AudioEditorProjectStore, fixture: TakeFixture): Promise<void> {
 	for (const { channels, source } of fixture.pcm) await writePcm(store, source, channels);
