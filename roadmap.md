@@ -534,9 +534,12 @@ Packet boundaries, dependencies, and acceptance are owned by
   [exact proxy relationship proof](docs/milestone-3b-video-proxy-relationship.md)
   are implemented through `937e52bf`, with no UI, persistence, capability
   change, or browser row. The immediate next slice is the contract-first 3B-6c
-  V17 persisted attachment; its production implementation is not authorized
-  until that contract is reviewed. Adaptive preview, offline/relink, and
-  synchronized multicamera groups follow it.
+  [durable V18 persisted attachment](docs/milestone-3b-video-proxy-v18.md).
+  Shared V17 is already owned by take/comp state, so only 3B-6c-a1's dormant
+  current-target preparation material is authorized now; persistence remains
+  stopped for the refreshed V18 review. This is a Framescaper-only product
+  slice; Soundscaper product work is owned elsewhere. Adaptive preview,
+  offline/relink, and synchronized multicamera groups follow it.
 
 ### Shared exit gate
 

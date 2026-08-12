@@ -326,9 +326,24 @@ function coverage; architecture covered 907 modules, 2,515 dependencies, and
 required because no maintained consumer or UI imports either proof. These
 slices add no persistence, capability availability, or compatibility-rule
 flip and do not weaken 3B-5's exact-executor hard stop. The immediate next
-slice is the contract-first 3B-6c V17 persisted attachment; production
-implementation is not authorized until that contract is reviewed. Project Bin
-menu and adaptive-preview lifecycle, then multicamera, follow it.
+slice is 3B-6c-a1's contract-first dormant current-V17 preparation material;
+the durable pointer moves to V18 because merged take/comp state already owns
+V17. Project Bin menu and adaptive-preview lifecycle, then multicamera, follow
+the separately reviewed persistence slices.
+
+The proposed
+[3B-6c durable V18 video-proxy attachment](milestone-3b-video-proxy-v18.md)
+is the next reviewed boundary. It requires one-use retention of 3B-6b's exact
+candidate timing publication, content-addressed proxy and timing bodies, atomic
+pointer publication/rollback, V18 preservation and unavailable capability,
+Framescaper-selected `.scape` format 2, and fresh Framescaper desktop isolation.
+The merged shared V17 take/comp wire remains immutable; durable proxy state is
+reserved for V18. Soundscaper receives no
+profile, capability, UI, browser, or desktop integration in this packet. The
+slice explicitly adds no proxy consumer, menu, playback, offline, relink,
+delivery, export, or audio behavior. Only the schema-neutral dormant c-a1
+preparation slice is authorized; persistence remains subject to the refreshed
+V18 blocker review.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.
