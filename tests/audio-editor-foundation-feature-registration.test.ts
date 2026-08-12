@@ -29,6 +29,11 @@ const FOUNDATION_FIXTURES = Object.freeze([
 		project: { clips: [{ kind: 'audio', warpMap: { feature: 'audio-warp' } }] },
 	}),
 	Object.freeze({
+		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
+		featureId: PROJECT_FEATURE_CAPABILITY_IDS.takeComp,
+		project: { takeGroups: [{ id: 'take-group' }] },
+	}),
+	Object.freeze({
 		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.sequenceTiming,
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.sequenceTiming,
 		project: { sequences: [{ rate: { num: 24, den: 1 }, dropFrame: false }] },
@@ -75,6 +80,42 @@ test('foundation registry and both profiles stay equal and classify unavailable 
 		const report = createProjectFeatureCompatibilityService(profile.capabilities).evaluate(project);
 		assert.equal(report?.items[0]?.availability, 'unavailable');
 		assert.equal(report?.compatible, false);
+	}
+});
+
+test('V17 take/comp state is known but read-only in both product profiles', () => {
+	const takeComp = FOUNDATION_FIXTURES.find(
+		({ id }) => id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
+	);
+	assert.ok(takeComp);
+	const featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		takeComp.project,
+		EMPTY_MANIFEST,
+	);
+	const project = {
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		featureRequirements,
+	};
+	for (const profile of [PRODUCT_PROFILES.soundscaper, PRODUCT_PROFILES.framescaper]) {
+		assert.equal(profile.capabilities.takeComp, false, profile.id);
+		const report = createProjectFeatureCompatibilityService(profile.capabilities).evaluate(project);
+		assert.deepEqual({
+			compatible: report?.compatible,
+			requirementId: report?.items[0]?.requirementId,
+			featureId: report?.items[0]?.featureId,
+			availability: report?.items[0]?.availability,
+			declaredDisposition: report?.items[0]?.declaredDisposition,
+			disposition: report?.items[0]?.disposition,
+			fallback: report?.items[0]?.fallback,
+		}, {
+			compatible: false,
+			requirementId: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.takeComp,
+			availability: 'unavailable',
+			declaredDisposition: 'bypass',
+			disposition: 'bypassed',
+			fallback: null,
+		}, profile.id);
 	}
 });
 
