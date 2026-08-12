@@ -321,9 +321,13 @@ files; and the build emitted 104 JavaScript chunks with a 400,686-byte largest
 chunk. No browser row was required because no maintained path imports the
 module. It adds no UI, persistence, capability availability, or
 compatibility-rule flip and does not weaken 3B-5's exact-executor hard stop.
-The immediate next slice is the 3B-6b exact proxy relationship contract; its
-production implementation has not started. Atomic V17 attachment, Project Bin
-menu and adaptive-preview lifecycle, then multicamera follow that contract.
+The immediate next slice is the reviewed
+[3B-6b exact proxy relationship proof](milestone-3b-video-proxy-relationship.md):
+one dormant operation spanning pre-I/O retime admission, repository-owned
+original observation, same-Blob generation/hash/exact timing observation, and
+post-I/O currentness. Its production implementation has not started. Atomic
+V17 attachment, Project Bin menu and adaptive-preview lifecycle, then
+multicamera follow that contract.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

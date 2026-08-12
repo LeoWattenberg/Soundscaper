@@ -495,9 +495,10 @@ Packet boundaries, dependencies, and acceptance are owned by
 - **Web Core — In progress:** [dormant exact proxy timing
   conformance](docs/milestone-3b-video-proxy-timing-conformance.md) is
   implemented through `a7f14a47`, with no UI, persistence, capability change,
-  or browser row. The immediate next slice is the exact proxy relationship
-  contract; its production implementation, durable attachment, adaptive
-  preview, offline/relink, and synchronized multicamera groups follow it.
+  or browser row. The immediate next slice is the reviewed [exact proxy
+  relationship proof](docs/milestone-3b-video-proxy-relationship.md); its
+  production implementation, durable attachment, adaptive preview,
+  offline/relink, and synchronized multicamera groups follow it.
 
 ### Shared exit gate
 
