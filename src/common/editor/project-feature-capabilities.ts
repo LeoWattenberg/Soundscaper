@@ -55,7 +55,6 @@ export const PROJECT_FEATURE_AUDIO_CAPABILITY_IDS = Object.freeze([
 	PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
 	PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
 	PROJECT_FEATURE_CAPABILITY_IDS.musicalTimeline,
-	PROJECT_FEATURE_CAPABILITY_IDS.audioWarp,
 ] as const);
 
 export type ProjectFeatureAudioCapabilityId = typeof PROJECT_FEATURE_AUDIO_CAPABILITY_IDS[number];

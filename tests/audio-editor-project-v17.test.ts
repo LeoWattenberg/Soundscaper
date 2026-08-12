@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { applyEditorCommand } from '../src/common/editor/commands.js';
+
 import {
 	AudioEditorProjectReimportRequiredError,
 	migrateAudioEditorProject,
@@ -19,6 +21,7 @@ import {
 	isVideoRetimeCurveProjectSchema,
 } from '../src/common/editor/project-schema-version.ts';
 import {
+	createAudioClipV10,
 	createAudioSourceV10,
 	createAudioTrackV10,
 } from '../src/common/editor/project-v10.ts';
@@ -115,12 +118,110 @@ test('V17 creates canonical take/comp state and its reserved no-fallback require
 	});
 });
 
+test('valid Project Bin warp state places as a distinct native timeline clip', () => {
+	const source = createAudioSourceV10({
+		id: 'bin-warp-source', storageKey: 'bin-warp-source',
+		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
+	});
+	const warpMap = {
+		feature: 'audio-warp' as const,
+		points: [
+			{ outer: 0, source: 100, mode: 'forward' as const },
+			{ outer: 250, source: 300, mode: 'forward' as const },
+			{ outer: 500, source: 600, mode: 'forward' as const },
+		],
+	};
+	const binClip = createAudioClipV10({
+		id: 'bin-warp-clip', binItemId: 'bin-warp-clip', sourceId: source.id,
+		timelineStartFrame: 0, durationFrames: 500,
+		sourceStartFrame: 100, sourceDurationFrames: 500, warpMap,
+	});
+	const project = createAudioEditorProjectV17({
+		id: 'bin-warp-project', title: 'Project Bin warp', now: NOW,
+		sources: [source], clips: [],
+		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Audio', clipIds: [] })],
+		projectBin: { clips: [binClip] },
+	});
+	const placed = applyEditorCommand(project, {
+		type: 'project-bin/place', binClipId: String(binClip.id),
+		trackId: 'track-a', timelineStartFrame: 200, clipId: 'placed-warp-clip',
+	}, { now: NOW });
+	const timelineClip = placed.clips.find(({ id }) => id === 'placed-warp-clip');
+	assert.ok(timelineClip);
+	assert.notEqual(timelineClip.id, binClip.id);
+	assert.equal(timelineClip.binItemId, null);
+	assert.deepEqual(timelineClip.warpMap, binClip.warpMap);
+	assert.equal(validateAudioEditorProjectV17(placed), true);
+});
+
 test('V17 defaults to no take groups and does not invent optional feature state', () => {
 	const project = createAudioEditorProjectV17(options([]));
 	assert.deepEqual(project.takeGroups, []);
 	assert.equal(project.featureRequirements.requirements.some(
 		({ id }) => id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.takeComp,
 	), false);
+});
+
+test('V17 accepts only timeline warp maps with complete native runtime authority', () => {
+	const warpOptions = (overrides: Record<string, unknown> = {}) => ({
+		...options([]),
+		clips: [createAudioClipV10({
+			id: 'warp-clip', kind: 'audio', sourceId: 'source-a', anchor: 'sample',
+			timelineStartFrame: 0, durationFrames: 100,
+			sourceStartFrame: 10, sourceDurationFrames: 200,
+			warpMap: { feature: 'audio-warp', points: [
+				{ outer: 0, source: 10, mode: 'forward' },
+				{ outer: 100, source: 210, mode: 'forward' },
+			] },
+			...overrides,
+		})],
+		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: ['warp-clip'] })],
+	});
+	assert.equal(validateAudioEditorProjectV17(createAudioEditorProjectV17(warpOptions())), true);
+	for (const warpMap of [
+		{ feature: 'audio-warp', points: [
+			{ outer: 1, source: 10, mode: 'forward' }, { outer: 100, source: 210, mode: 'forward' },
+		] },
+		{ feature: 'audio-warp', points: [
+			{ outer: 0, source: 0, mode: 'forward' }, { outer: 100, source: 210, mode: 'forward' },
+		] },
+	] as const) {
+		assert.throws(() => createAudioEditorProjectV17(warpOptions({ warpMap })), /native runtime authority/iu);
+	}
+	assert.throws(() => createAudioEditorProjectV17(warpOptions({ reversed: true })), /native runtime authority/iu);
+	assert.throws(() => createAudioEditorProjectV17(warpOptions({
+		anchor: 'musical', musicalExtent: 'fixedSamples', musicalStartBeat: 0,
+	})), /native runtime authority/iu);
+	const musical = createAudioEditorProjectV17(warpOptions({
+		anchor: 'musical', musicalExtent: 'beat', musicalStartBeat: 0,
+		musicalDurationBeats: 1,
+		warpMap: { feature: 'audio-warp', points: [
+			{ outer: 0, source: 10, mode: 'forward' },
+			{ outer: 1, source: 210, mode: 'forward' },
+		] },
+	}));
+	assert.equal(validateAudioEditorProjectV17(musical), true);
+
+	const valid = createAudioEditorProjectV17(warpOptions());
+	const authoredBinClip = { ...valid.clips[0], id: 'bin-warp', binItemId: 'bin-warp' };
+	const binProject = { ...valid, clips: [], tracks: [
+		{ ...valid.tracks[0], clipIds: [] },
+	], projectBin: { ...valid.projectBin, clips: [authoredBinClip] } };
+	assert.equal(validateAudioEditorProjectV17(binProject), true);
+	const reopened = loadAudioEditorProjectV17(binProject);
+	assert.equal(reopened.readOnly, false);
+	assert.deepEqual(
+		((reopened.project as typeof valid).projectBin.clips[0] as Record<string, unknown>)?.warpMap,
+		(authoredBinClip as Record<string, unknown>).warpMap,
+	);
+	const malformedBin = structuredClone(binProject);
+	(malformedBin.projectBin.clips[0] as Record<string, unknown>).warpMap = {
+		feature: 'audio-warp', points: [
+			{ outer: 0, source: 0, mode: 'forward' },
+			{ outer: 99, source: 210, mode: 'forward' },
+		],
+	};
+	assert.throws(() => validateAudioEditorProjectV17(malformedBin), /insertable runtime authority/iu);
 });
 
 test('take/comp state is bypass-only and refuses rendered fallback substitution', () => {
