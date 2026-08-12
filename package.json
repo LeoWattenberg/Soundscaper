@@ -49,6 +49,7 @@
 		"desktop:dist": "npm run desktop:prepare && electron-builder --config electron-builder.config.cjs --publish never",
 		"desktop:dist:framescaper": "npm run desktop:prepare:framescaper && SCAPE_PRODUCT=framescaper electron-builder --config electron-builder.config.cjs --publish never",
 		"desktop:smoke": "node scripts/desktop-smoke.mjs",
+		"desktop:smoke:timing-probe": "node scripts/desktop-video-timing-probe-smoke.mjs",
 		"desktop:smoke:direct-wav": "node scripts/desktop-direct-wav-smoke.mjs",
 		"desktop:smoke:scape-open": "node --import tsx scripts/desktop-scape-open-smoke.mjs",
 		"desktop:smoke:framescaper": "SCAPE_PRODUCT=framescaper node scripts/desktop-smoke.mjs",

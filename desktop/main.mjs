@@ -384,11 +384,12 @@ function assertTrustedIpc(event) {
 async function chooseFiles(event, value) {
 	const owner = rendererSaveOwnerFor(event);
 	const choice = validateFileChoice(value);
-	const result = await dialog.showOpenDialog(mainWindow, {
-		title: choice.purpose === 'project' ? 'Open project' : 'Import files',
-		properties: choice.multiple ? ['openFile', 'multiSelections'] : ['openFile'],
-		filters: choice.filters,
-	});
+	const smokeFilePaths = desktopSmokeProbe.resolveOpenPaths(choice);
+	const result = smokeFilePaths !== null ? { canceled: false, filePaths: smokeFilePaths }
+		: await dialog.showOpenDialog(mainWindow, {
+			title: choice.purpose === 'project' ? 'Open project' : 'Import files',
+			properties: choice.multiple ? ['openFile', 'multiSelections'] : ['openFile'], filters: choice.filters,
+		});
 	if (result.canceled) return [];
 	const descriptors = [];
 	try {
