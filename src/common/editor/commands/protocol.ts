@@ -224,11 +224,12 @@ export type AudioEditorClipboardAnnotation =
 	}>;
 
 export interface AudioEditorClipboard {
-	readonly schemaVersion: 1 | 2 | 3;
+	readonly schemaVersion: 1 | 2 | 3 | 4;
 	readonly sampleRate: number;
 	readonly durationFrames: number;
 	readonly tracks: readonly AudioEditorClipboardTrack[];
 	readonly annotations?: readonly AudioEditorClipboardAnnotation[];
+	readonly takeGroups?: readonly CommandObject[];
 }
 
 export interface CommandRangePayload {
@@ -510,6 +511,10 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly sequenceMap?: StableIdMap;
 		readonly annotationIds?: StableIdMap;
 		readonly annotationBatchIds?: StableIdMap;
+		readonly takeGroupIds?: StableIdMap;
+		readonly takeLaneIds?: StableIdMap;
+		readonly takeIds?: StableIdMap;
+		readonly compRegionIds?: StableIdMap;
 	};
 	readonly 'edit/insert': ThreePointEditCommandPayload;
 	readonly 'edit/overwrite': ThreePointEditCommandPayload;
