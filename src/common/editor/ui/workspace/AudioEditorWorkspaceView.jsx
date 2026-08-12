@@ -322,6 +322,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 						displayAudioSupported={displayAudioSupported}
 						splitToolEnabled={uiFlags.splitTool}
 						automationToolEnabled={automationToolEnabled}
+						spectralBrushEnabled={uiFlags.spectralBrush}
 						onToggleSplitTool={toggleSplitTool}
 						onError={onError}
 						onOpenEffects={openEffects}

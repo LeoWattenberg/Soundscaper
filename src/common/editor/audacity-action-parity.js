@@ -16,6 +16,7 @@ import {
 } from '../i18n/action-parity.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { createAudacityActionDefinition as actionDefinition } from './audacity-action-roadmap.ts';
+import { audacitySpectrogramTrackSelected } from './audacity-action-enablement.ts';
 import { audioTrackChannelCountV2 } from './project-v2.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 
@@ -176,8 +177,8 @@ const definitions = [
 	disabled('select-cursor-to-next-clip-boundary', 'Cursor to next clip boundary', ['Select > Audio clips'], DISABLED_REASONS.menu),
 	disabled('select-previous-clip', 'Previous clip', ['Select > Audio clips'], DISABLED_REASONS.menu),
 	disabled('select-next-clip', 'Next clip', ['Select > Audio clips'], DISABLED_REASONS.menu),
-	disabled('menu-selection-spectral', 'Spectral', ['Select'], DISABLED_REASONS.menu),
-	disabled('toggle-spectral-selection', 'Spectral selection', ['Select > Spectral'], DISABLED_REASONS.menu),
+	implemented('menu-selection-spectral', 'Spectral', ['Select'], 'tools.openSpectralSelection', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.menu }),
+	implemented('toggle-spectral-selection', 'Spectral selection', ['Select > Spectral'], 'tools.toggleSpectralSelection', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.menu }),
 
 	// View, rulers, and panels.
 	implemented('zoom-in', 'Zoom in', ['View > Zoom'], 'timeline.zoomIn', { shortcut: 'Ctrl+1', enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
@@ -315,7 +316,7 @@ const definitions = [
 	implemented('spectral-box-select', 'Spectral box select', ['Tools toolbar'], 'spectral.boxSelect', { enableWhen: 'spectrogram-track-selected', source: UPSTREAM.projectScene }),
 	implemented('spectral-delete', 'Spectral delete', ['Effect > Spectral'], 'spectral.delete', { enableWhen: 'editable-frequency-selection', source: UPSTREAM.builtinEffects }),
 	implemented('spectral-amplify', 'Spectral amplify', ['Effect > Spectral'], 'spectral.amplify', { enableWhen: 'editable-frequency-selection', source: UPSTREAM.builtinEffects }),
-	disabled('spectral-brush', 'Spectral brush', ['Tools toolbar'], DISABLED_REASONS.todo, { source: UPSTREAM.projectScene }),
+	implemented('spectral-brush', 'Spectral brush', ['Select > Spectral', 'Tools toolbar'], 'tools.toggleSpectralBrush', { enableWhen: 'editable-spectrogram-track-selected', source: UPSTREAM.projectScene }),
 
 	// Built-in effect menus use dynamically generated upstream action URIs. These
 	// stable browser IDs are reconciled with the separate effect parameter manifest.
@@ -683,11 +684,8 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'not-recording': !recording,
 		'sound-activation-preferences-available': projectOpened && snapshot.productId === 'soundscaper' && Boolean(snapshot.recordingInputs?.soundActivation),
 		'sound-activation-preferences-mutable': projectWritable && snapshot.productId === 'soundscaper' && Boolean(snapshot.recordingInputs?.soundActivation) && !snapshot.recordingInputs?.soundActivation?.preferenceMutationBlocked,
-		'spectrogram-track-selected': Boolean(selectedAudioTrack && (
-			selectedAudioTrack.displayMode === 'spectrogram'
-			|| selectedAudioTrack.displayMode === 'multiview'
-			|| snapshot.timeline?.view === 'spectrogram'
-		)),
+		'spectrogram-track-selected': audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot),
+		'editable-spectrogram-track-selected': editable && audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot),
 		'editable-frequency-selection': editable && Boolean(selectedAudioTrack) && frequencySelection,
 		'repeatable-effect-and-editable-selection': editable && (audioSelection || Boolean(selectedClip)) && Boolean(snapshot.effects?.canRepeatLast),
 		'effect-opened': effectOpened,

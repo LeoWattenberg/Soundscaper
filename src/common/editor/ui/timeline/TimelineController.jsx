@@ -25,7 +25,7 @@ export default function TimelineController({
 	const { mobile, showArmControls, displayAudioSupported } = geometryInput;
 	const { searchRevealRequest } = selectionInput;
 	const { overlayTarget } = previewInput;
-	const { splitToolEnabled, automationToolEnabled } = navigationInput;
+	const { splitToolEnabled, automationToolEnabled, spectralBrushEnabled } = navigationInput;
 	const {
 		onToggleSplitTool,
 		onError,
@@ -133,6 +133,7 @@ export default function TimelineController({
 		scrollRef: state.scrollRef,
 		timelineScrollRef: state.timelineScrollRef,
 		addTrackTriggerRef: state.addTrackTriggerRef,
+		spectralBrushEnabled,
 	};
 	const actions = {
 		...menuActions,

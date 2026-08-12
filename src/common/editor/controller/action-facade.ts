@@ -61,7 +61,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	setLoopRegionToSelection, setPanelPreference,
 	setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 	setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
-	setSnapSettings, setSpectralBoxSelection, setTimelineView, setTimelineViewportWidth,
+	setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
 	setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 	setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 	snapTimelineFrame, splitAtFrame, splitStereoTrack,
@@ -437,7 +437,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			cancel: cancelSampleEdit,
 		}),
 		spectral: Object.freeze({
-			boxSelect: restricted('audioSpectralEditing', setSpectralBoxSelection),
+			boxSelect: restricted('audioSpectralEditing', (...args: RuntimeValue) => effectSelectionService.setSpectralBoxSelection(...args)),
+			brushSelect: restricted('audioSpectralEditing', (...args: RuntimeValue) => effectSelectionService.setSpectralBrushSelection(...args)),
 			delete: restricted('audioSpectralEditing', () => applySpectralSelection(-Infinity)),
 			amplify: restricted('audioSpectralEditing', (gainDb: RuntimeValue = 6) => applySpectralSelection(gainDb)),
 		}),

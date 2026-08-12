@@ -10,7 +10,6 @@ import {
 	closeEffectsPanel,
 	collectClientErrors,
 	effectSourceMetadata,
-	escapeRegex,
 	getMenuItem,
 	importFiles,
 	openExportDialog,
@@ -567,26 +566,32 @@ test.describe('audio editor React/design-system workflows', () => {
 	for (const locale of [
 		{
 			path: '/embed/en/',
+			selectMenu: 'Select',
+			spectralMenu: 'Spectral',
 			label: 'Spectral brush',
 			optionsLabel: 'Spectrogram options',
-			reason: /does not provide a usable handler yet/,
 		},
 		{
 			path: '/embed/de/',
+			selectMenu: 'Auswählen',
+			spectralMenu: 'Spektral',
 			label: 'Spektralpinsel',
 			optionsLabel: 'Optionen für Spektrogramm',
-			reason: /noch keine nutzbare Aktion bereit/,
 		},
 	]) {
-		test(`${locale.path} keeps the upstream spectral brush visible and inert`, async ({ page }) => {
+		test(`${locale.path} opts into the spectral brush from its menu`, async ({ page }) => {
 			const editor = await bootEditor(page, locale.path);
+			await editor.getByRole('button', { name: /^(Spectrogram|Spektrogramm)$/ }).click();
 			await editor.getByRole('button', { name: locale.optionsLabel, exact: true }).click();
-			const entry = editor.locator('[data-action-id="spectral-brush"]');
-			await expect(entry).toBeVisible();
-			await expect(entry).toHaveAttribute('aria-disabled', 'true');
-			await expect(entry).toHaveAttribute('title', locale.reason);
-			await expect(entry).toHaveAttribute('data-disabled-reason', locale.reason);
-			await expect(entry.getByRole('menuitem', { name: new RegExp(`^${escapeRegex(locale.label)}:`) })).toBeDisabled();
+			await expect(editor.locator('[data-action-id="spectral-brush"]')).toHaveCount(0);
+			await page.keyboard.press('Escape');
+			await chooseNestedCommandAction(page, editor, locale.selectMenu, [locale.spectralMenu, locale.label]);
+			const brush = editor.locator('[data-spectral-brush]');
+			await expect(brush).toBeVisible();
+			await expect(brush).toHaveAccessibleName(locale.label);
+			await brush.focus();
+			await page.keyboard.press('Enter');
+			await expect(editor.locator('[data-spectral-selection]')).toBeVisible();
 		});
 	}
 

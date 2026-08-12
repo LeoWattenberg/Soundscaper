@@ -44,7 +44,6 @@ export const AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS = Object.freez
 	'select-cursor-to-next-clip-boundary',
 	'select-previous-clip',
 	'select-next-clip',
-	'toggle-spectral-selection',
 	'mute-all',
 	'unmute-all',
 	'align-end-to-end',

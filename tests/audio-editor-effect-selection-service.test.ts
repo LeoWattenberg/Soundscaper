@@ -206,6 +206,79 @@ test('spectral box creation validates Nyquist limits and respects edit blocking'
 	assert.equal(harness.service.setSpectralBoxSelection({ minimumFrequency: 100, maximumFrequency: 1_000 }), null);
 });
 
+test('spectral brush creates one bounded time-frequency selection from a point and radius', () => {
+	const harness = createHarness();
+	assert.deepEqual(harness.service.setSpectralBrushSelection({
+		centerFrame: 200,
+		centerFrequency: 1_000,
+		radiusFrames: 40,
+		radiusFrequency: 250,
+	}), {
+		startFrame: 160,
+		endFrame: 240,
+		trackIds: ['track-a'],
+		clipIds: [],
+		frequencyRange: { minimumFrequency: 750, maximumFrequency: 1_250 },
+	});
+	assert.deepEqual(harness.commits, [{
+		startFrame: 160,
+		endFrame: 240,
+		trackIds: ['track-a'],
+		clipIds: [],
+		frequencyRange: { minimumFrequency: 750, maximumFrequency: 1_250 },
+	}]);
+});
+
+test('spectral brush clamps at timeline and Nyquist bounds and rejects malformed requests', () => {
+	const harness = createHarness();
+	assert.deepEqual(harness.service.setSpectralBrushSelection({
+		centerFrame: 5,
+		centerFrequency: 23_900,
+		radiusFrames: 10,
+		radiusFrequency: 500,
+	}), {
+		startFrame: 0,
+		endFrame: 15,
+		trackIds: ['track-a'],
+		clipIds: [],
+		frequencyRange: { minimumFrequency: 23_400, maximumFrequency: 24_000 },
+	});
+	assert.throws(
+		() => harness.service.setSpectralBrushSelection({
+			centerFrame: 5.5,
+			centerFrequency: 1_000,
+			radiusFrames: 10,
+			radiusFrequency: 100,
+		}),
+		/safe integer/u,
+	);
+	assert.throws(
+		() => harness.service.setSpectralBrushSelection({
+			centerFrame: 5,
+			centerFrequency: Number.NaN,
+			radiusFrames: 10,
+			radiusFrequency: 100,
+		}),
+		/finite/u,
+	);
+	assert.throws(
+		() => harness.service.setSpectralBrushSelection({
+			centerFrame: 5,
+			centerFrequency: 1_000,
+			radiusFrames: 0,
+			radiusFrequency: 100,
+		}),
+		/positive/u,
+	);
+	harness.setBlocked(true);
+	assert.equal(harness.service.setSpectralBrushSelection({
+		centerFrame: 5,
+		centerFrequency: 1_000,
+		radiusFrames: 10,
+		radiusFrequency: 100,
+	}), null);
+});
+
 test('selection details and range targets retain explicit track and frequency metadata', () => {
 	const harness = createHarness();
 	harness.state.selectedClipId = null;

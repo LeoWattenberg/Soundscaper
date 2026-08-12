@@ -26,7 +26,7 @@ export const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	'waveform-view': true,
 	'spectrogram-view': true,
 	'spectral-box-select': true,
-	'spectral-brush': true,
+	'spectral-brush': false,
 	'zoom-in': true,
 	'zoom-out': true,
 	'zoom-fit': true,

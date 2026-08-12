@@ -91,13 +91,16 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
 
 	for (const id of [
-		'select-previous-clip', 'align-together', 'sort-by-name', 'spectral-brush',
+		'select-previous-clip', 'align-together', 'sort-by-name',
 		'raw-data-import',
 	]) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED, id);
 		assert.equal(audacityActionDefinition(id).roadmapMilestone, '3', id);
 	}
-	for (const id of ['toggle-sound-activated-recording', 'set-sound-activation-level']) {
+	for (const id of [
+		'toggle-sound-activated-recording', 'set-sound-activation-level',
+		'menu-selection-spectral', 'toggle-spectral-selection', 'spectral-brush',
+	]) {
 		assert.equal(audacityActionDefinition(id).roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.IMPLEMENTED, id);
 		assert.equal(audacityActionDefinition(id).roadmapMilestone, undefined, id);
 	}
@@ -118,14 +121,12 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 	const requiredDisabled = [
 		'export-midi',
 		'menu-selection-audio-clips',
-		'menu-selection-spectral',
 		'menu-skip',
 		'menu-align',
 		'menu-sort',
 		'menu-macros',
 		'raw-data-import',
 		'reset-configuration',
-		'spectral-brush',
 		'insert',
 	];
 
@@ -202,6 +203,39 @@ test('sound activation parity actions expose real handlers and guarded enablemen
 	const commands = new Map(collectAudacityShortcutCommands([record]).map((command) => [command.id, command]));
 	assert.equal(commands.get(toggle.id).disabled, false);
 	assert.equal(commands.get(level.id).disabled, false);
+});
+
+test('spectral selection and brush actions are native, state-guarded menu workflows', () => {
+	const spectral = [
+		['menu-selection-spectral', 'tools.openSpectralSelection'],
+		['toggle-spectral-selection', 'tools.toggleSpectralSelection'],
+		['spectral-brush', 'tools.toggleSpectralBrush'],
+	];
+	for (const [id, handler] of spectral) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, id);
+		assert.equal(definition.handler, handler, id);
+		assert.equal(definition.enableWhen, 'editable-spectrogram-track-selected', id);
+	}
+	const context = {
+		snapshot: {
+			project: {
+				tracks: [{ id: 'audio', type: 'audio', displayMode: 'spectrogram', clipIds: [] }],
+				clips: [],
+				selection: { startFrame: 0, endFrame: 0, trackIds: ['audio'], clipIds: [], frequencyRange: null },
+			},
+			selectedTrackId: 'audio',
+			readOnly: false,
+			timeline: { view: 'waveform' },
+		},
+	};
+	assert.equal(evaluateAudacityActionEnablement('spectral-brush', context), true);
+	const waveform = structuredClone(context);
+	waveform.snapshot.project.tracks[0].displayMode = 'waveform';
+	assert.equal(evaluateAudacityActionEnablement('spectral-brush', waveform), false);
+	const readOnly = structuredClone(context);
+	readOnly.snapshot.readOnly = true;
+	assert.equal(evaluateAudacityActionEnablement('spectral-brush', readOnly), false);
 });
 
 test('removed and superseded actions remain auditable without entering application menus', () => {
@@ -387,7 +421,7 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 test('every registered unavailable application-menu action has a parity classification', () => {
 	const placeholderIds = AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS;
 	assert.ok(
-		placeholderIds.length >= 14,
+		placeholderIds.length >= 13,
 		`Expected the explicit unavailable-action inventory, received ${placeholderIds.length} placeholders.`,
 	);
 	assert.equal(new Set(placeholderIds).size, placeholderIds.length);

@@ -309,7 +309,7 @@ export const AUDACITY_PINNED_APP_MENU_CONTAINER_POLICY = deepFreeze({
 	'menu-label': implementedContainer(),
 	'menu-edit': implementedContainer(),
 	'menu-selection-audio-clips': disabledContainer('The pinned menu disables the unfinished audio-clip selection submenu.'),
-	'menu-selection-spectral': disabledContainer('The pinned menu disables the unfinished spectral selection submenu.'),
+	'menu-selection-spectral': implementedContainer(),
 	'menu-selection-region': implementedContainer(),
 	'menu-looping': implementedContainer(),
 	'menu-select': implementedContainer(),

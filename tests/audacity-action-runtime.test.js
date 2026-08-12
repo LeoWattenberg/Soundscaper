@@ -96,6 +96,13 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(uiController.getSnapshot().request.payload.section, 'sound-activation');
 		assert.equal(runtime.actions.tools.toggleSplitTool(), true);
 		assert.equal(uiController.getSnapshot().flags.splitTool, true);
+		assert.equal(uiController.getSnapshot().flags.spectralBrush, false);
+		assert.equal(runtime.actions.tools.toggleSpectralBrush(), true);
+		assert.equal(uiController.getSnapshot().flags.spectralBrush, true);
+		assert.equal(uiController.getSnapshot().flags.splitTool, false);
+		assert.equal(runtime.actions.tools.toggleSpectralBrush(), false);
+		runtime.actions.tools.openSpectralSelection();
+		assert.equal(uiController.getSnapshot().request.payload.surface, 'spectral-selection');
 		runtime.actions.track.setColor('#123456');
 		assert.equal(controller.getSnapshot().project.tracks[0].color, '#123456');
 		runtime.actions.track.setHalfWaveView();

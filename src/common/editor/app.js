@@ -1805,7 +1805,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 		setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
 		setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
-		setSnapSettings, setSpectralBoxSelection, setTimelineView, setTimelineViewportWidth,
+		setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording,
@@ -2745,10 +2745,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	function audacitySpectralEffectContext(...args) {
 		return effectSelectionService.audacitySpectralEffectContext(...args);
-	}
-
-	function setSpectralBoxSelection(...args) {
-		return effectSelectionService.setSpectralBoxSelection(...args);
 	}
 
 	function applySpectralSelection(...args) {

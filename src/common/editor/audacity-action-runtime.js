@@ -1,5 +1,6 @@
 import { projectDurationFrames } from './project.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
+import { createAudacitySpectralActionRuntime } from './controller/audacity-spectral-action-runtime.ts';
 
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
@@ -13,6 +14,7 @@ const UI_FLAG_DEFAULTS = Object.freeze({
 	halfWave: false,
 	masterTrack: false,
 	selectionToolbar: true,
+	spectralBrush: false,
 	splitTool: false,
 	statusbar: true,
 	// Storage capacity is a diagnostic surface, not everyday chrome; Help opts in.
@@ -173,6 +175,14 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		return panel;
 	};
 	const setSelection = (startFrame, endFrame, details = {}) => controllerActions.timeline.setSelection(startFrame, endFrame, details);
+	const spectralTools = createAudacitySpectralActionRuntime({
+		getProject: project,
+		setSelection,
+		spectralActions: controllerActions.spectral,
+		openSurface,
+		getUiFlags: () => uiController.getSnapshot().flags,
+		setUiFlag: ui.setFlag,
+	});
 	const selectEntireProject = () => setSelection(0, projectDurationFrames(project()));
 	const nudgeFrames = () => 1;
 	let alternateZoom = 240;
@@ -519,6 +529,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			}),
 		},
 		tools: {
+			...spectralTools,
 			toggleSplitTool: () => ui.toggleFlag('splitTool'),
 		},
 		nyquist: {

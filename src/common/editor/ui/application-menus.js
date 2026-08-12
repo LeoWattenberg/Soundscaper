@@ -283,7 +283,8 @@ export default function createApplicationMenus({
 					unavailable('select-next-clip', copy.nextClip),
 				] },
 				{ id: 'menu-selection-spectral', label: copy.selectSpectral, items: [
-					unavailable('toggle-spectral-selection', copy.toggleSpectralSelection),
+					{ id: 'toggle-spectral-selection', label: copy.toggleSpectralSelection, disabled: editBlocked || !spectralTrackSelected },
+					{ id: 'spectral-brush', label: copy.spectralBrush, checked: Boolean(uiFlags.spectralBrush), disabled: editBlocked || !spectralTrackSelected },
 				] },
 				{
 					id: 'select-region',

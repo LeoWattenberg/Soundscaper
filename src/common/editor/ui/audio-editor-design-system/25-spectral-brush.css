@@ -1,0 +1,24 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system .audio-editor-spectral-brush {
+	position: absolute;
+	z-index: 31;
+	inset: 0 0 auto;
+	cursor: crosshair;
+	touch-action: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-spectral-brush:focus-visible {
+	outline: 3px solid var(--kw-editor-accent);
+	outline-offset: -3px;
+}
+
+#kw-audio-editor-design-system .audio-editor-spectral-brush__preview {
+	position: absolute;
+	box-sizing: border-box;
+	border: 2px solid #fff;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--kw-editor-accent) 28%, transparent);
+	box-shadow: 0 0 0 1px #111;
+	pointer-events: none;
+}
