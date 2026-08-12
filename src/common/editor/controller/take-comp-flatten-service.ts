@@ -6,7 +6,7 @@ import {
 	createAudioEditorProjectV6,
 	createAudioTrackV6,
 } from '../project-v6.ts';
-import { createAudioClipV10 } from '../project-v10.ts';
+import { createAudioClipV10, createAudioSourceV10 } from '../project-v10.ts';
 import type { AudioEditorProjectV17 } from '../project-v17.ts';
 import type { TakeCompDocumentGroup, TakeCompDocumentTake } from '../take-comp-document-v17.ts';
 import type { TakeCompFlattenTakeSegment } from '../take-comp-domain.ts';
@@ -123,7 +123,7 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 		try {
 			assertOwned(ownership);
 			return Object.freeze({
-				source: commandObject(record.source),
+				source: commandObject(createAudioSourceV10(record.source)),
 				clip: commandObject(createAudioClipV10({
 					id: preparation.renderPlan.outputId,
 					sourceId: record.source.id,

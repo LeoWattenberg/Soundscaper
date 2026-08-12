@@ -159,11 +159,12 @@ function compositionFixture(options: Readonly<{
 			async persistRenderedMixSource(rendered: AudioBufferLike) {
 				assert.equal(rendered, buffer);
 				const record = {
-					source: createAudioSourceV10({
-						id: 'flat-source', storageKey: 'flat-source', name: 'Flat source',
+					source: {
+						id: 'flat-source', storageKey: 'flat-source', name: 'Flat source', mimeType: 'audio/wav',
 						frameCount: rendered.length, channelCount: rendered.numberOfChannels,
-						sampleRate: rendered.sampleRate,
-					}),
+						sampleRate: rendered.sampleRate, originalSampleRate: rendered.sampleRate,
+						sampleFormat: 'float32', chunkFrames: 65_536,
+					},
 					buffer: rendered,
 					channels: [rendered.getChannelData(0)],
 				};
