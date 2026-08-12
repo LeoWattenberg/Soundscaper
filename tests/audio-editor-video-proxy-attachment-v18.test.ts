@@ -15,6 +15,20 @@ import {
 	VIDEO_TIMING_ASSET_ENCODING,
 	VIDEO_TIMING_ASSET_HEADER_BYTES,
 } from '../src/common/editor/video-timing-asset-reference.ts';
+import {
+	canHaveModifiers,
+	createSourceFile,
+	getModifiers,
+	isExportAssignment,
+	isExportDeclaration,
+	isFunctionDeclaration,
+	isInterfaceDeclaration,
+	isVariableStatement,
+	ScriptKind,
+	ScriptTarget,
+	SyntaxKind,
+	type Statement,
+} from 'typescript';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROXY_SHA256 = 'a'.repeat(64);
@@ -202,10 +216,7 @@ test('remains an isolated dormant scalar owner', () => {
 	const sourceFile = 'src/common/editor/video-proxy-attachment-v18.ts';
 	const source = fs.readFileSync(path.join(ROOT, sourceFile), 'utf8');
 	assert.match(source, /from ['"]\.\/video-timing-asset-reference\.ts['"]/u);
-	assert.deepEqual(
-		[...source.matchAll(/export (?:const|interface|function)\s+([A-Za-z0-9_]+)/gu)].map((match) => match[1]),
-		['VIDEO_PROXY_MAXIMUM_BODY_BYTES', 'VideoProxyAttachmentV18', 'normalizeVideoProxyAttachmentV18'],
-	);
+	assertExactExports(sourceFile, source);
 	assert.doesNotMatch(source,
 		/video-timing-asset\.ts|video-timing-storage|candidate-observation|proxy-relationship|project-|storage\/|controller\/|ui\/|repository|capabilit|scape-|desktop|app\./u);
 	for (const root of ['src', 'desktop', 'scripts']) for (const file of sourceFiles(path.join(ROOT, root))) {
@@ -302,7 +313,27 @@ function sourceFiles(directory: string): string[] {
 	for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
 		const resolved = path.join(directory, entry.name);
 		if (entry.isDirectory()) files.push(...sourceFiles(resolved));
-		else if (/\.(?:js|jsx|ts|tsx)$/u.test(entry.name)) files.push(resolved);
+		else if (/\.(?:cjs|cts|js|jsx|mjs|mts|ts|tsx)$/u.test(entry.name)) files.push(resolved);
 	}
 	return files;
+}
+
+function assertExactExports(file: string, source: string): void {
+	const parsed = createSourceFile(file, source, ScriptTarget.Latest, true, ScriptKind.TS);
+	const exported = parsed.statements.filter(isExportedStatement);
+	assert.equal(exported.length, 3);
+	const [maximum, attachmentType, normalizer] = exported;
+	assert.ok(maximum && isVariableStatement(maximum));
+	assert.equal(maximum.declarationList.declarations.length, 1);
+	assert.equal(maximum.declarationList.declarations[0]?.name.getText(parsed), 'VIDEO_PROXY_MAXIMUM_BODY_BYTES');
+	assert.ok(attachmentType && isInterfaceDeclaration(attachmentType));
+	assert.equal(attachmentType.name.text, 'VideoProxyAttachmentV18');
+	assert.ok(normalizer && isFunctionDeclaration(normalizer));
+	assert.equal(normalizer.name?.text, 'normalizeVideoProxyAttachmentV18');
+}
+
+function isExportedStatement(statement: Statement): boolean {
+	if (isExportAssignment(statement) || isExportDeclaration(statement)) return true;
+	return canHaveModifiers(statement)
+		&& Boolean(getModifiers(statement)?.some(({ kind }) => kind === SyntaxKind.ExportKeyword));
 }
