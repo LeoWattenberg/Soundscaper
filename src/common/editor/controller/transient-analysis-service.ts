@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	detectPcmTransients,
 	type DetectPcmTransientsOptions,
 	type TransientAnalysisChannelPolicy,
 	type TransientAnalysisParameters,
 	type TransientAnalysisResult,
 } from '../transient-analysis.ts';
+import { detectPcmTransientsInWorker } from '../transient-analysis-worker-client.ts';
 import {
 	createTransientAnalysisCacheRecord,
 	inspectTransientAnalysisCacheRecord,
@@ -95,8 +95,8 @@ export function createTransientAnalysisService(
 	dependencies: Readonly<TransientAnalysisServiceDependencies>,
 ): Readonly<TransientAnalysisService> {
 	const analyzeChannels = dependencies.analyzeChannels
-		?? ((channels: readonly Float32Array[], options: Readonly<DetectPcmTransientsOptions>) => (
-			detectPcmTransients(channels, options)
+		?? ((channels: readonly Float32Array[], options: Readonly<DetectPcmTransientsOptions>, signal: AbortSignal) => (
+			detectPcmTransientsInWorker(channels, options, { signal, pcmOwnership: 'transfer' })
 		));
 	return Object.freeze({ analyzeClip });
 
