@@ -38,13 +38,13 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    attachment compare-and-swap, holds it through the authoritative outcome and
    required reconciliation, releases it exactly once, and exposes no raw
    repository token or general callback seam.
-3. **3B-6c-b — dormant owned-body staging:** add the strict attachment
-   normalizer and a private coordinator that writes or verifies the
-   content-addressed proxy and timing bodies, holds currentness, and can discard
-   only newly created exact publications. It retains opaque full-row claims and
-   provisional roots, not merely public metadata. It cannot mutate a project or
-   history and current schema remains V17. It remains unauthorized pending its
-   own contract and review.
+3. **3B-6c-b1 — dormant attachment wire:** first add
+   the pure dormant [V18 attachment
+   normalizer](milestone-3b-video-proxy-attachment-normalization.md) without
+   consuming preparation or touching storage. Durable staging remains folded
+   behind c-c's isolated repository; only c-b1 normalization is authorized.
+   That later owner verifies both bodies, holds currentness, and discards only
+   new exact publications while retaining opaque full-row claims and roots.
 4. **3B-6c-c — atomic V18 adoption:** in one separately reviewed semantic transition,
    add a Framescaper-selected current-schema/archive/repository profile after V17,
    requirements/capabilities, preservation, retention, conditional `.scape`
@@ -132,8 +132,9 @@ interface VideoProxyAttachmentV18 {
 ```
 
 The normalizer descriptor-snapshots exact closed plain data once, rejects
-accessors, symbols, non-enumerables, extra keys, unstable proxies, and mutable
-aliases, and returns a deeply frozen detached value. Candidate bytes are
+accessors, symbols, non-enumerables, extra keys, and nonconforming Proxy trap
+results, then retains no raw alias or post-snapshot behavior and returns a
+deeply frozen detached value. Candidate bytes are
 `1..512 MiB`; MIME is canonical `video/*` and at most 128 characters; SHA-256
 is lowercase hexadecimal; generator/recipe/backend IDs are printable,
 pathless, and at most 128 characters; versions and counts are positive safe
@@ -556,18 +557,15 @@ coverage; architecture covered 1,010 modules, 2,789 dependencies, and 2,187
 maintained files; and the build emitted 115 JavaScript chunks with a
 428,990-byte largest chunk.
 
-c-b and c-c remain unauthorized and hard-stopped; a2 is folded into c-c rather
-than implemented independently. No generic asynchronous callback is an
-adoption boundary, and c-b may stage dormant bodies but must not claim storage
-settlement or own the original lease. c-b and c-c require their own reviewed
-contracts and reds, and c-c also requires its refreshed shared-schema and
-product-isolation review. The immediate next step is contract and review, not
-production code.
-For the eventual c-c, prove the full
-Framescaper cross-surface/platform set. Prove exact/null/deep-freeze wire validation; every binding and
+c-b1 normalization is reviewed and authorized; durable storage and c-c remain
+hard-stopped, and a2 is folded into c-c. No generic
+callback is an adoption boundary, and no pre-c-c slice may claim settlement or
+own the original lease. c-b1 starts with focused reds; later work needs its
+own contracts, including c-c's product-isolation review. The immediate next
+step is contract review, not production code.
+For eventual c-c, prove the full Framescaper cross-surface/platform set. Prove exact/null/deep-freeze wire validation; every binding and
 cap boundary; unchanged V17 under the shared/Soundscaper profile, Framescaper
-V17 re-import, V18 current, V19 read-only; forged
-and twice-consumed preparations; same candidate/timing objects and one-use
+V17 re-import, V18 current, V19 read-only; forged and twice-consumed preparations; same candidate/timing objects and one-use
 retention; missing/corrupt/substituted bodies; one interior PTS or final-duration
 change; equivalent rescaled timing acceptance; and original/task/cancellation
 drift with exact two-body rollback and no pointer.

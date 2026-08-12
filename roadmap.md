@@ -538,11 +538,12 @@ Packet boundaries, dependencies, and acceptance are owned by
   the already validated timing publication behind a private one-use WeakMap.
   These slices add no UI, schema, storage, capability, Soundscaper change, or
   browser row. Shared V17 is already owned by take/comp state; c-a2 is folded
-  into c-c, while c-b and c-c remain unauthorized and hard-stopped, with
-  persistence additionally stopped for the refreshed V18 product-isolation
-  review. A standalone V17 proof lease cannot authenticate the future V18
-  settlement boundary. The immediate next step is contract and review, not
-  production code. This is a Framescaper-only product slice; Soundscaper
+  into c-c, only c-b1 normalization is authorized, and durable storage/c-c remain
+  hard-stopped on V18 product isolation. A standalone V17 proof lease cannot authenticate the future V18
+  settlement boundary. The immediate next step is the reviewed pure dormant
+  [V18 attachment normalizer](docs/milestone-3b-video-proxy-attachment-normalization.md),
+  not body staging or adoption. This is a Framescaper-only product slice;
+  Soundscaper
   product work is owned elsewhere. Adaptive preview, offline/relink, and
   synchronized multicamera groups follow it.
 

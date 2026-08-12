@@ -335,13 +335,11 @@ statement and line coverage, 81.66% branch coverage, and 91.29% function
 coverage; architecture covered 1,010 modules, 2,789 dependencies, and 2,187
 maintained files; and the build emitted 115 JavaScript chunks with a
 428,990-byte largest chunk. It added no schema, storage, capability, UI, or
-Soundscaper change. The immediate next step is a contract and review for the
-next dormant slice, not production code; c-b and c-c remain unauthorized and
-hard-stopped, with c-c additionally stopped on its product-isolation
-transition. c-a2 is folded into c-c rather than implemented independently: a
+Soundscaper change. The immediate next step is c-b1's reviewed pure normalizer;
+durable storage and c-c remain hard-stopped on product isolation.
+c-a2 is folded into c-c rather than implemented independently: a
 standalone V17 proof lease cannot fence the future all-null V18 base or
-authenticate the coordinator's storage-settlement outcome, while c-b may stage
-dormant bodies but must not claim settlement or own that lease.
+authenticate the coordinator's storage-settlement outcome.
 The durable pointer moves to V18 because merged take/comp state already owns
 V17. Project Bin menu and adaptive-preview lifecycle, then multicamera, follow
 the separately reviewed persistence slices.
@@ -349,7 +347,11 @@ the separately reviewed persistence slices.
 The reviewed
 [3B-6c durable V18 video-proxy attachment](milestone-3b-video-proxy-v18.md)
 has delivered only its schema-neutral dormant c-a1 preparation slice. Its
-remaining reviewed design requires content-addressed proxy and timing bodies,
+next contract-first boundary is the pure dormant
+[V18 attachment normalizer](milestone-3b-video-proxy-attachment-normalization.md).
+It consumes no preparation and touches no storage; durable body staging remains
+blocked on the product-isolated c-c composition. The remaining design requires
+content-addressed proxy and timing bodies,
 atomic pointer publication/rollback, V18 preservation and unavailable
 capability, Framescaper-selected `.scape` format 2, and fresh Framescaper
 desktop isolation.
@@ -358,9 +360,9 @@ reserved for V18. Soundscaper receives no
 profile, capability, UI, browser, or desktop integration in this packet. The
 packet explicitly adds no proxy consumer, menu, playback, offline, relink,
 delivery, export, or audio behavior. Only the schema-neutral dormant c-a1
-preparation slice is implemented; c-a2 is folded into c-c, c-b and c-c are not
-authorized for production implementation, and persistence remains subject to
-the refreshed V18 blocker review.
+preparation slice is implemented; c-a2 is folded into c-c, only c-b1
+normalization is authorized, and durable storage plus c-c remain unauthorized. Persistence
+remains subject to the refreshed V18 blocker review.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.
