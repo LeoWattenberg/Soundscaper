@@ -1,11 +1,17 @@
 # Milestone 3B-6a: exact video-proxy timing conformance
 
-> **Ready for implementation.** This is the first dependency-correct slice of
-> [3B-6](milestone-3b-work-packets.md#3b-6--proxies-relink-and-multicamera).
-> It is schema-neutral and dormant: no relationship, project field, storage
-> publication, command, menu, preview choice, offline fallback, export change,
-> capability availability, or compatibility-rule flip lands here. Packet 3B-6
-> remains planned until a maintained workflow exists.
+> **3B-6a implemented on 2026-08-12.** Contract `1d93145b` precedes
+> `a7f14a47`'s exact timing-conformance authority. The focused Node test passed
+> 1/1. The canonical `npm run check` passed with 5,380 tests (5,378 passed and
+> 2 skipped), 91.34% line, 79.93% branch, and 90.45% function coverage;
+> architecture covered 903 modules, 2,501 dependencies, and 1,986 maintained
+> files; and the build emitted 104 JavaScript chunks with a 400,686-byte
+> largest chunk. No Chromium row was required because no maintained path
+> imports this dormant module. It adds no relationship, project field,
+> persistence, command, menu, preview choice, capability availability, or
+> compatibility-rule flip. Packet 3B-6 remains **In progress**; the immediate
+> next slice is the 3B-6b exact proxy relationship contract, not production
+> implementation.
 
 ## Outcome and dependency order
 
@@ -17,11 +23,12 @@ state and does not make a candidate usable as a proxy.
 
 The rest of 3B-6 stays in this order:
 
-1. **3B-6a — timing conformance:** the dormant proof seam below.
-2. **3B-6b — exact proxy relationship:** snapshot original identity and both
-   clip collections before I/O, reject target-source retime curves, bind proxy
-   content/generation provenance to a fresh original fingerprint after I/O,
-   and consume an authenticated 3B-6a proof. This remains dormant.
+1. **3B-6a — timing conformance (implemented):** the dormant proof seam below.
+2. **3B-6b — exact proxy relationship (next contract):** snapshot original
+   identity and both clip collections before I/O, reject target-source retime
+   curves, bind proxy content/generation provenance to a fresh original
+   fingerprint after I/O, and consume an authenticated 3B-6a proof. Its
+   contract remains to be reviewed before production implementation begins.
 3. **3B-6c — V17 durable attachment:** one atomic revision persists the
    reviewed relationship, preservation paths, owned-state requirement, and
    unavailable capability registration.
