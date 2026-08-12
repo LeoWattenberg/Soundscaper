@@ -12,6 +12,7 @@ import type {
 	OwnedAudioSourceWriter,
 	SourceWriteRepository,
 } from './source-write-repository.ts';
+import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 
@@ -21,6 +22,7 @@ export interface SourceRepositoryOptions {
 	readonly reader: SourceReadRepository;
 	readonly media: MediaRepository;
 	readonly analysis: KeyValueRepository;
+	readonly transientAnalysisCache?: Pick<TransientAnalysisCacheRepository, 'purge'>;
 	readonly opfs: OpfsRepository;
 	readonly pcm: PcmRepository;
 }
@@ -111,6 +113,9 @@ export class SourceRepository {
 			await this.deleteStored(source);
 		}
 		await this.#options.media.deleteAsset(sourceId);
+		// Cache payloads are disposable. Their cleanup can be retried and must
+		// never change the already-committed authoritative source deletion.
+		await this.#options.transientAnalysisCache?.purge().catch(() => undefined);
 		for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) {
 			await this.#options.analysis.delete(`${prefix}${sourceId}`);
 		}

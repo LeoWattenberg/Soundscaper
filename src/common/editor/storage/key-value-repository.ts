@@ -134,6 +134,41 @@ export class KeyValueRepository {
 		}
 	}
 
+	/** Delete one owned namespace in bounded cursor pages without retaining its values. */
+	async deleteByPrefix(prefix: string): Promise<number> {
+		if (typeof prefix !== 'string' || !prefix.length) throw new TypeError('A key/value prefix is required.');
+		const database = await this.#port.database();
+		if (!database) {
+			let scanned = 0;
+			let deleted = 0;
+			for (const key of [...this.#port.memory[this.#storeName].keys()].sort()) {
+				scanned += 1;
+				assertInventoryBound(scanned);
+				if (!key.startsWith(prefix)) continue;
+				if (this.#port.memory[this.#storeName].delete(key)) deleted += 1;
+			}
+			return deleted;
+		}
+		let afterPrimaryKey: string | undefined;
+		let scanned = 0;
+		let deleted = 0;
+		while (true) {
+			const page = await transact(database, this.#storeName, 'readwrite', (stores) => (
+				deletePrefixCursorPage(
+					stores[this.#storeName],
+					prefix,
+					afterPrimaryKey,
+					KEY_VALUE_INVENTORY_PAGE_SIZE - (afterPrimaryKey === undefined ? 0 : 2),
+				)
+			));
+			scanned += page.scanned;
+			deleted += page.deleted;
+			assertInventoryBound(scanned);
+			if (page.done || !page.lastPrimaryKey) return deleted;
+			afterPrimaryKey = page.lastPrimaryKey;
+		}
+	}
+
 	async delete(key: string): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) this.#port.memory[this.#storeName].delete(key);
@@ -143,6 +178,56 @@ export class KeyValueRepository {
 	}
 }
 
+function deletePrefixCursorPage(
+	store: IDBObjectStore,
+	prefix: string,
+	afterPrimaryKey: string | undefined,
+	limit: number,
+): Promise<Readonly<{
+	deleted: number;
+	done: boolean;
+	lastPrimaryKey: string | null;
+	scanned: number;
+}>> {
+	return new Promise((resolve, reject) => {
+		let deleted = 0;
+		let scanned = 0;
+		let lastPrimaryKey: string | null = null;
+		const cursorRequest = store.openCursor();
+		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not purge key/value records.'));
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) {
+				resolve(Object.freeze({ deleted, done: true, lastPrimaryKey, scanned }));
+				return;
+			}
+			if (typeof cursor.primaryKey !== 'string') {
+				reject(new TypeError('A key/value cursor primary key must be a string.'));
+				return;
+			}
+			if (afterPrimaryKey !== undefined && cursor.primaryKey < afterPrimaryKey) {
+				cursor.continue(afterPrimaryKey);
+				return;
+			}
+			if (afterPrimaryKey !== undefined && cursor.primaryKey === afterPrimaryKey) {
+				cursor.continue();
+				return;
+			}
+			scanned += 1;
+			lastPrimaryKey = cursor.primaryKey;
+			if (cursor.primaryKey.startsWith(prefix)) {
+				store.delete(cursor.primaryKey);
+				deleted += 1;
+			}
+			if (scanned >= limit) {
+				resolve(Object.freeze({ deleted, done: false, lastPrimaryKey, scanned }));
+				return;
+			}
+			cursor.continue();
+		};
+	});
+}
+
 function prefixRecord(value: unknown, prefix: string): Readonly<KeyValuePrefixRecord> | null {
 	const record = value && typeof value === 'object'
 		? value as { readonly key?: unknown; readonly value?: unknown }
@@ -150,9 +235,14 @@ function prefixRecord(value: unknown, prefix: string): Readonly<KeyValuePrefixRe
 	if (!record || typeof record.key !== 'string' || !record.key.startsWith(prefix)) return null;
 	return Object.freeze({
 		key: record.key,
-		projectId: decodeURIComponent(record.key.slice(prefix.length)),
+		projectId: decodeKeySuffix(record.key.slice(prefix.length)),
 		value: clone(record.value),
 	});
+}
+
+function decodeKeySuffix(value: string): string {
+	try { return decodeURIComponent(value); }
+	catch { return value; }
 }
 
 function assertInventoryBound(count: number): void {

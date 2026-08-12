@@ -19,6 +19,7 @@ import { isMediaContentSha256 } from './media-content-provenance.ts';
 export const TRANSIENT_ANALYSIS_DERIVATIVE_BINDING_VERSION = 1;
 export const TRANSIENT_ANALYSIS_CACHE_RECORD_VERSION = 1;
 export const TRANSIENT_ANALYSIS_CACHE_MAXIMUM_TRANSIENTS = 1_000_000;
+export const TRANSIENT_ANALYSIS_CACHE_KEY_PREFIX = 'transient-analysis-sha256:';
 
 export interface TransientAnalysisAlgorithm {
 	readonly id: string;
@@ -59,7 +60,7 @@ export type TransientAnalysisCacheInspection = Readonly<{
 	analysis: Readonly<TransientAnalysisResult> | null;
 }>;
 
-const KEY_PREFIX = 'transient-analysis-sha256:';
+const CACHE_KEY_PATTERN = /^transient-analysis-sha256:[a-f0-9]{64}$/u;
 const MAXIMUM_ALGORITHM_ID_CHARACTERS = 128;
 const TEXT_ENCODER = new TextEncoder();
 const CACHE_RECORD_KEYS = new Set([
@@ -98,7 +99,7 @@ export function transientAnalysisIdentity(
 	);
 	const digest = bytesToHex(sha256(TEXT_ENCODER.encode(JSON.stringify(descriptor))));
 	return Object.freeze({
-		key: `${KEY_PREFIX}${digest}`,
+		key: `${TRANSIENT_ANALYSIS_CACHE_KEY_PREFIX}${digest}`,
 		derivativeBindingVersion: TRANSIENT_ANALYSIS_DERIVATIVE_BINDING_VERSION,
 		sourceSha256: input.sourceSha256,
 		sourceRange,
@@ -107,6 +108,16 @@ export function transientAnalysisIdentity(
 		algorithmRevision: algorithm.revision,
 		parameters,
 	});
+}
+
+/** Match the owned namespace, including malformed rows that must not escape lifecycle policy. */
+export function isTransientAnalysisCacheNamespaceKey(value: unknown): value is string {
+	return typeof value === 'string' && value.startsWith(TRANSIENT_ANALYSIS_CACHE_KEY_PREFIX);
+}
+
+/** Match one canonical content-addressed transient cache key. */
+export function isTransientAnalysisCacheKey(value: unknown): value is string {
+	return typeof value === 'string' && CACHE_KEY_PATTERN.test(value);
 }
 
 export function normalizeTransientAnalysisAlgorithm(
