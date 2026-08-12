@@ -8,6 +8,11 @@ import {
 	createVideoRetimeFrameDispatcher,
 } from '../src/common/editor/video-retime-frame-dispatch.ts';
 import {
+	createVideoRetimeFrameBindingFromSnapshot,
+	snapshotVideoRetimeFrameClip,
+	videoRetimeFrameClipSnapshotInfo,
+} from '../src/common/editor/video-retime-frame-binding.ts';
+import {
 	bindVideoSourceTimingView,
 	type BoundVideoSourceTimingView,
 	type VideoSourceTimingView,
@@ -18,6 +23,7 @@ import {
 } from '../src/common/editor/video-timing-asset.ts';
 
 const DISPATCH_SOURCE_URL = new URL('../src/common/editor/video-retime-frame-dispatch.ts', import.meta.url);
+const BINDING_SOURCE_URL = new URL('../src/common/editor/video-retime-frame-binding.ts', import.meta.url);
 const TIMING_SOURCE_URL = new URL('../src/common/editor/video-source-timing-view.ts', import.meta.url);
 const SOURCE_SHA256 = '9e'.repeat(32);
 const RATE_24 = Object.freeze({ num: 24, den: 1 });
@@ -179,6 +185,109 @@ test('snapshots each clip once, reuses one timing token, and retains only bounde
 	assert.equal(timingViews.getCalls, 1);
 });
 
+test('authenticates reusable clip snapshots and publishes canonical curve coefficients', () => {
+	const timing = bindCfrTiming('video-source', 50, RATE_24);
+	const snapshot = snapshotVideoRetimeFrameClip(videoClip(fiveModeCurve()));
+	assert.strictEqual(videoRetimeFrameClipSnapshotInfo(snapshot), snapshot);
+	assert.deepEqual(snapshot, {
+		id: 'video-clip',
+		sourceId: 'video-source',
+		sequenceId: 'main',
+		sequenceStartFrame: 101,
+		outerFrameCount: 10,
+		sourceInFrame: 8,
+		sourceOutFrame: 16,
+		mapping: 'curve',
+		segmentCount: 5,
+	});
+	const binding = createVideoRetimeFrameBindingFromSnapshot(snapshot, timing);
+	assert.deepEqual(binding.segments[1], {
+		segmentIndex: 1,
+		mode: 'ramp-forward',
+		startOuterCell: 2,
+		endOuterCell: 4,
+		sourceStart: exact(12n),
+		sourceEnd: exact(14n),
+		startVelocity: exact(0n),
+		endVelocity: exact(2n),
+	});
+	assert.deepEqual(binding.mapOuterFrame({ numerator: 7n, denominator: 2n }), exact(105n, 8n));
+	assert.strictEqual(binding.ownedFrameAt(3), binding.ownedFrameAt(3));
+	assertDeepFrozen(binding);
+
+	const nullSnapshot = snapshotVideoRetimeFrameClip(videoClip(null));
+	assert.equal(nullSnapshot.mapping, 'uniform-wall-clock');
+	assert.equal(nullSnapshot.segmentCount, 0);
+	assert.throws(
+		() => createVideoRetimeFrameBindingFromSnapshot(nullSnapshot, timing),
+		/null|curve|retime/iu,
+	);
+	assert.throws(
+		() => videoRetimeFrameClipSnapshotInfo(Object.freeze({ ...snapshot })),
+		/forged|snapshot|authentic/iu,
+	);
+});
+
+test('descriptor-snapshots the complete curve wire without invoking Proxy getters', () => {
+	const tracker = { gets: 0 };
+	const curve = rejectGet({
+		feature: 'video-retime',
+		version: 2,
+		points: rejectGet([
+			rejectGet({
+				outerFrame: 0,
+				sourceFrame: rejectGet({ num: 0, den: 1 }, tracker),
+			}, tracker),
+			rejectGet({
+				outerFrame: 2,
+				sourceFrame: rejectGet({ num: 2, den: 1 }, tracker),
+			}, tracker),
+		], tracker),
+		segments: rejectGet([
+			rejectGet({ mode: 'constant-forward' }, tracker),
+		], tracker),
+	}, tracker);
+	const rawClip = rejectGet(videoClip(curve, {
+		sequenceStartFrame: 0,
+		sequenceFrameCount: 2,
+		sourceInFrame: 0,
+		sourceFrameCount: 2,
+	}), tracker);
+	const snapshot = snapshotVideoRetimeFrameClip(rawClip);
+	const binding = createVideoRetimeFrameBindingFromSnapshot(
+		snapshot,
+		bindCfrTiming('video-source', 2, RATE_24),
+	);
+
+	assert.equal(tracker.gets, 0);
+	assert.deepEqual(binding.mapOuterFrame(2), exact(2n));
+	assert.equal(binding.segments[0]?.mode, 'constant-forward');
+
+	let lengthReads = 0;
+	let pointReads = 0;
+	const oversizedPoints = Array.from({ length: 4_097 }, (_, outerFrame) => ({
+		outerFrame,
+		sourceFrame: { num: outerFrame, den: 1 },
+	}));
+	const changingLengthPoints = new Proxy(oversizedPoints, {
+		getOwnPropertyDescriptor(target, key) {
+			if (key === 'length') {
+				lengthReads += 1;
+				return { ...Reflect.getOwnPropertyDescriptor(target, key), value: lengthReads === 1 ? 2 : target.length };
+			}
+			pointReads += 1;
+			return Reflect.getOwnPropertyDescriptor(target, key);
+		},
+	});
+	assert.throws(() => snapshotVideoRetimeFrameClip(videoClip({
+		feature: 'video-retime', version: 2,
+		points: changingLengthPoints,
+		segments: [{ mode: 'constant-forward' }],
+	})), /array|dense|length|point|segment/iu);
+	assert.equal(lengthReads, 1);
+	assert.equal(pointReads, 0);
+});
+
 test('refuses forged timing, source mismatch, unsafe cells, and clip accessors without invoking them', () => {
 	const timing = bindCfrTiming('secure-source', 8, RATE_24);
 	assert.throws(
@@ -238,12 +347,16 @@ test('refuses forged timing, source mismatch, unsafe cells, and clip accessors w
 });
 
 test('keeps timing traversal in the timing owner and compilation in the clip mapper', async () => {
-	const [dispatchSource, timingSource] = await Promise.all([
+	const [dispatchSource, bindingSource, timingSource] = await Promise.all([
 		readFile(DISPATCH_SOURCE_URL, 'utf8'),
+		readFile(BINDING_SOURCE_URL, 'utf8'),
 		readFile(TIMING_SOURCE_URL, 'utf8'),
 	]);
 
-	assert.equal(callCount(dispatchSource, 'createVideoRetimeRuntimeMapper'), 1);
+	assert.equal(callCount(dispatchSource, 'createVideoRetimeFrameBinding'), 1);
+	assert.equal(callCount(bindingSource, 'createVideoRetimeRuntimeMapper'), 1);
+	assert.doesNotMatch(bindingSource, /\b(?:compileVideoRetimeCurveV16|normalizeVideoRetimeCurveV16|compileVideoRetimeCurve)\b/u);
+	assert.doesNotMatch(dispatchSource, /\b(?:createVideoRetimeRuntimeMapper|videoSourceFrameTime)\b/u);
 	assert.equal(callCount(timingSource, 'videoSourceTimingView'), 2, 'definition plus one binding call');
 	assert.equal(callCount(timingSource, 'validateVfrIndex'), 2, 'definition plus the existing binding validation');
 	assert.doesNotMatch(dispatchSource, /\b(?:videoSourceTimingView|VideoTimingIndex|presentationTicks|finalFrameDurationTicks|endTicks)\b/u);
@@ -385,6 +498,15 @@ function trackedArray<Value>(target: Value[]) {
 		}),
 		ownKeyReads: () => ownKeyReads,
 	};
+}
+
+function rejectGet<Value extends object>(target: Value, tracker: { gets: number }): Value {
+	return new Proxy(target, {
+		get() {
+			tracker.gets += 1;
+			throw new Error('A descriptor snapshot must not invoke Proxy get.');
+		},
+	});
 }
 
 function exact(numerator: bigint, denominator = 1n) {

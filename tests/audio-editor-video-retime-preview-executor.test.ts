@@ -415,7 +415,7 @@ test('disposal is terminal and fences every late active or pending publication',
 	assert.equal(harness.presentations.length, 1);
 	assert.equal(harness.published.length, 0);
 });
-test('keeps the dormant executor runtime-self-contained and out of maintained consumers', async () => {
+test('keeps the reviewed dormant retime family out of product consumers', async () => {
 	const executorSource = await readFile(EXECUTOR_SOURCE_URL, 'utf8');
 	const importStatements = executorSource.match(/^import[\s\S]*?;$/gmu) ?? [];
 	for (const statement of importStatements) {
@@ -423,20 +423,21 @@ test('keeps the dormant executor runtime-self-contained and out of maintained co
 		assert.match(statement, /from ['"]\.\/video-retime-frame-dispatch\.ts['"]/u);
 	}
 	assert.ok(executorSource.split(/\r\n|\n|\r/u).length - 1 <= 600);
-	const allowed = new Set([
-		'video-retime-html-video-seek-port.ts',
-		'video-retime-output-cadence.ts',
-		'video-retime-preview-executor.ts',
-	]);
+	const outputCadenceConsumers = new Set(['video-retime-export-domain.ts', 'video-retime-export-plan.ts']);
+	const previewExecutorConsumers = new Set(['video-retime-html-video-seek-port.ts']);
 	for (const path of await maintainedSources(new URL('.', EDITOR_SOURCE_ROOT))) {
 		const name = path.pathname.split('/').at(-1) ?? '';
-		if (allowed.has(name)) continue;
 		const source = await readFile(path, 'utf8');
-		assert.doesNotMatch(
-			source,
-			/from\s+['"][^'"]*video-retime-(?:output-cadence|preview-executor)(?:\.ts)?['"]|import\s*\(\s*['"][^'"]*video-retime-(?:output-cadence|preview-executor)(?:\.ts)?['"]\s*\)/u,
-			`${path.pathname} must not consume dormant 5f modules`,
-		);
+		if (name !== 'video-retime-output-cadence.ts' && !outputCadenceConsumers.has(name)) {
+			assert.doesNotMatch(source,
+				/from\s+['"][^'"]*video-retime-output-cadence(?:\.ts)?['"]|import\s*\(\s*['"][^'"]*video-retime-output-cadence(?:\.ts)?['"]\s*\)/u,
+				`${path.pathname} must not consume dormant 5f cadence`);
+		}
+		if (name !== 'video-retime-preview-executor.ts' && !previewExecutorConsumers.has(name)) {
+			assert.doesNotMatch(source,
+				/from\s+['"][^'"]*video-retime-preview-executor(?:\.ts)?['"]|import\s*\(\s*['"][^'"]*video-retime-preview-executor(?:\.ts)?['"]\s*\)/u,
+				`${path.pathname} must not consume the dormant 5f preview executor`);
+		}
 	}
 });
 function executorFor(harness: ReturnType<typeof mediaHarness>) {
