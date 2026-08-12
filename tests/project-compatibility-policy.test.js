@@ -34,7 +34,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 
 	const expectedStatuses = {
 		'legacy-schema-migration': 'implemented',
-		'current-schema-editing': 'implemented', 'current-video-retime-v16-preservation': 'implemented', 'current-take-comp-v17-preservation': 'implemented', 'current-track-locking': 'implemented', 'current-timeline-annotation-capability': 'implemented',
+		'current-schema-editing': 'implemented', 'current-video-retime-v16-preservation': 'implemented', 'current-take-comp-v17-preservation': 'implemented', 'current-audio-warp-capability': 'implemented', 'current-track-locking': 'implemented', 'current-timeline-annotation-capability': 'implemented',
 		'current-track-folder-capability': 'implemented', 'current-source-characteristics-capability': 'implemented',
 		'current-linked-pcm-portable-archive': 'implemented',
 		'current-desktop-project-catalog-commit': 'implemented', 'current-desktop-electron-lease-protections': 'partial',

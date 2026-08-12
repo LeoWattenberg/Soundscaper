@@ -257,6 +257,60 @@ interrupted-pass recovery, and the open-time recover-or-discard workflow remain
 outside this policy slice.
 <!-- /policy-narrative:take-comp-v17-preservation -->
 
+## Audio warp compatibility
+
+<!-- policy-narrative:audio-warp-capability -->
+V17 validates audio warp maps on both timeline and Project Bin audio clips. A
+map has 2 through 4,096 closed points with canonical reduced rational outer and
+source positions, strictly increasing outer and source domains, and forward mode
+only. Its outer endpoints match the resolved clip anchor extent and its source
+endpoints match the clip source extent. Sample-anchored maps use sample frames;
+musical maps require a beat extent and exact tempo authority; reversed clips
+reject. A valid Project Bin map survives project-bin/place as a distinct
+timeline clip ID with null binItemId and the same exact map, then passes V17
+validation. Nonempty state reconciles exactly one reserved
+soundscaper.audio-warp requirement for org.soundscaper.capability.audio-warp
+with display name Audio warp maps, disposition bypass, and fallback null; empty
+state invents no requirement. Authored state refuses publisher substitution.
+audioWarp is true in Soundscaper and in the production capability register, so
+compatibility is available/native, compatible, and writable. It is false but
+registered in Framescaper, so compatibility is unavailable/bypassed and
+incompatible and activation is intrinsically read-only. The capability is
+excluded from both audio and video rendered-fallback eligibility sets;
+publisher-authored substitution or rendered fallback rejects. Transient identity
+binds the canonical full-source PCM SHA-256 digest, exact source range, channel
+policy, normalized analysis parameters, and algorithm revision. A missing digest
+is resolved by streaming the full canonical source under storage-generation
+checks; exact range reading is bounded before allocation and opens only
+intersecting generation-bound chunks. Transient records persist only in the
+disposable derived analysis cache, never project JSON. Each record binds its key
+and payload SHA-256 and contains a bounded transient array; corrupt or stale
+records are discarded. Aggregate count, useful-byte, and age LRU retention is
+enforced separately by the cache repository. Because no authoritative
+digest-to-source index exists, successful source deletion and retention pruning
+conservatively purge the whole transient payload and companion namespaces. Cache
+state never roots pruning, unrelated analysis survives, and a disposable cleanup
+fault cannot roll back or reject authoritative source deletion. That cache
+lifecycle is not a bound on the project document, and V17 has no
+transient-analysis array. Exact map algebra and its evaluator drive playback,
+waveform projection, trim, split, exact offline fallback, and export. The
+runtime never substitutes scalar output-length conversion: realtime segments
+derive exact source-position endpoints and a piecewise linear projection from
+the same map. A maintained nonidentity production-path browser fixture proves
+PCM parity within the 0.000001 signal-error budget in Chromium and Firefox. When
+realtime acceleration is absent, the bounded exact fallback admits only the
+effect-free stateless dry, gain, pan, mute, envelope, and fade path; every
+enabled processor in an included track, bus, send, or master rack rejects before
+render. Playback retains the current window and exactly one window ahead; a
+missed deadline stops playback and never time-shifts the next window, so gapless
+playback is not guaranteed. Soundscaper exposes the workflow only through the
+Effect > Pitch and tempo menu for a selected unlocked audio clip, with analyze,
+identity-map, add, move, delete, quantize, groove, and clear actions. Browser
+evidence exercises keyboard operation, screen-reader names and roles, serious
+axe checks, and forced colors. Framescaper exposes no audio-warp menu or
+surface.
+<!-- /policy-narrative:audio-warp-capability -->
+
 ## Persisted track locking
 
 Schema 17 requires one own boolean `locked` field on every audio, video, and
