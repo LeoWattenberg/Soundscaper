@@ -22,6 +22,7 @@ import { MediaRepository } from './media-repository.ts';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import { OpfsRepository } from './opfs-repository.ts';
 import { PcmRepository, type PcmRepositoryOptions } from './pcm-repository.ts';
+import { ProjectCompareAndSwapRepository } from './project-compare-and-swap-repository.ts';
 import { ProjectRepository, type ProjectRepositoryPort } from './project-repository.ts';
 import { RetentionRepository } from './retention-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
@@ -133,8 +134,9 @@ export function createStorageRepositories(
 		opfs,
 		pcm,
 	});
+	const projects = new ProjectRepository(port, options.revisionLimit);
 	return Object.freeze({
-		projects: new ProjectRepository(port, options.revisionLimit),
+		projects: new ProjectCompareAndSwapRepository(projects, port, options.revisionLimit),
 		settings: new KeyValueRepository(port, 'settings'),
 		analysis,
 		sources,

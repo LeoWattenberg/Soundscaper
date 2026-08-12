@@ -47,7 +47,6 @@ type CurrentProjectDocument = AudioEditorProjectCurrent & ProjectDocument & Read
 	revision: number;
 	updatedAt: string;
 }>;
-
 const MIB = 1024 * 1024;
 const MAXIMUM_PROJECT_ID_BYTES = 4 * 1024;
 const MAXIMUM_PROJECT_SUMMARIES = 10_000;
@@ -151,6 +150,11 @@ export class DesktopSharedProjectRepository implements ProjectRepositoryPort {
 			await postCommit?.();
 			return snapshot;
 		});
+	}
+	async saveIfCurrent(expected: ProjectDocument, project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance) {
+		const current = await this.load(expected.id);
+		if (!current || serializeScapeProjectDocument(current) !== serializeScapeProjectDocument(expected)) return null;
+		return this.save(project, postCommit);
 	}
 	maintainCurrentProject(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void> {
 		assertProjectId(projectId);
