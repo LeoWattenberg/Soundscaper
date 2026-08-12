@@ -628,7 +628,9 @@ test.describe('audio editor React/design-system workflows', () => {
 	]) {
 		test(`${locale.path} opts into the spectral brush from its menu`, async ({ page }) => {
 			const editor = await bootEditor(page, locale.path);
-			await editor.getByRole('button', { name: /^(Spectrogram|Spektrogramm)$/ }).click();
+			const spectrogram = editor.getByRole('button', { name: /^(Spectrogram|Spektrogramm)$/ });
+			await spectrogram.click();
+			await expect(spectrogram).toHaveAttribute('aria-pressed', 'true');
 			await editor.getByRole('button', { name: locale.optionsLabel, exact: true }).click();
 			await expect(editor.locator('[data-action-id="spectral-brush"]')).toHaveCount(0);
 			await page.keyboard.press('Escape');
