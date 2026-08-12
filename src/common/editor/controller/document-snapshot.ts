@@ -8,6 +8,7 @@ import { createDocumentTimelineAnnotationSnapshot } from './document-timeline-an
 import { createDocumentTrackFolderSnapshot } from './document-track-folder-snapshot.ts';
 import { createDocumentRecordingInputSnapshot } from './document-recording-input-snapshot.ts';
 import type { SoundActivationPolicySnapshot } from './sound-activation-policy-service.ts';
+import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 
 interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 	readonly startFrame: number;
@@ -77,6 +78,8 @@ export interface EditorDocumentSnapshotState {
 	readonly timedRecording: TimedRecordingSnapshot | null;
 	readonly timedRecordingCancelling: boolean;
 	readonly recorder: unknown;
+	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
+	readonly takeCycleRecovery: TakeCyclePendingOpenRecovery | null;
 	readonly recordingPreview: unknown;
 	readonly recordingPreviews: readonly unknown[];
 	readonly recordingDevices: readonly unknown[];
@@ -228,6 +231,8 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			})
 			: null,
 		recording: Boolean(state.recorder && !state.timedRecording && !state.timedRecordingCancelling),
+		recordingKind: state.recordingKind,
+		takeCycleRecovery: state.takeCycleRecovery,
 		recordingPreview: runtime.recordingPreviewSnapshot(state.recordingPreview),
 		recordingPreviews: Object.freeze(state.recordingPreviews
 			.map(runtime.recordingPreviewSnapshot)

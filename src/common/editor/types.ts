@@ -15,6 +15,7 @@ import type { SampleFrame } from './timeline-time.ts';
 import type { TimelineAnnotationV11 } from './timeline-annotation.ts';
 import type { RuntimeTimelineAnnotationProjection } from './runtime-timeline-annotation-projection.ts';
 import type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
+import type { TakeCyclePendingOpenRecovery } from './controller/take-cycle-capture-orchestrator.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 export type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
@@ -260,8 +261,15 @@ export interface EditorSoundActivationActions extends EditorActionTree {
 	readonly setHoldMilliseconds: EditorAction;
 }
 
+export interface EditorTakeCycleRecordingActions extends EditorActionTree {
+	readonly start: EditorAction;
+	readonly recover: EditorAction;
+	readonly discard: EditorAction;
+}
+
 export interface EditorRecordingActions extends EditorActionTree {
 	readonly soundActivation: EditorSoundActivationActions;
+	readonly cycle: EditorTakeCycleRecordingActions;
 }
 
 export interface EditorActions extends EditorActionTree {
@@ -310,6 +318,8 @@ export interface EditorSnapshot {
 	readonly selectedAnnotationId: EditorId | null;
 	readonly timelineAnnotations: readonly RuntimeTimelineAnnotationProjection[];
 	readonly recordingInputs: EditorRecordingInputSnapshot;
+	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
+	readonly takeCycleRecovery: TakeCyclePendingOpenRecovery | null;
 	readonly readOnly: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;

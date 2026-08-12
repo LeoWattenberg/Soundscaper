@@ -65,6 +65,20 @@ test('take cycle recording owns a distinct kind and stop finalizes only through 
 	assert.equal(state.recorder, null);
 });
 
+test('pending open recovery blocks ordinary, new-track, and cycle recording starts', async () => {
+	const state = createState({ takeCycleRecovery: {} }); let starts = 0;
+	const service = createRecordingSessionService({
+		state, getProjectId: () => 'project-1',
+		beginRecording: async () => { starts += 1; },
+		beginTakeCycleRecording: async () => { starts += 1; return { stop() {} }; },
+		addTrack: () => { starts += 1; return 'track'; },
+		performLegacyFinalization: async () => {}, performRoutedFinalization: async () => {},
+	});
+	assert.equal(service.startRecording(), undefined); assert.equal(service.startTakeCycleRecording(), undefined);
+	assert.equal(await service.startRecordingOnNewTrack(), null);
+	assert.equal(starts, 0);
+});
+
 test('routed recording controller coordinates live sources and isolates device controls', async () => {
 	const device = createCaptureController();
 	const display = createCaptureController({ stopError: new Error('display stopped') });

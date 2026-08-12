@@ -61,6 +61,27 @@ test('routed cycle capture pre-registers per-track groups then resamples into ex
 	assert.ok(fixture.events.indexOf('seal:track-b') < fixture.events.indexOf('finalize'));
 	assert.ok(fixture.events.indexOf('finalize') < fixture.events.indexOf('activate'));
 	assert.equal(fixture.pauseCalls(), 1);
+	assert.deepEqual(fixture.preflightBytes, [
+		48_000 * 2 * Float32Array.BYTES_PER_ELEMENT * 60,
+	]);
+});
+
+test('project-rate storage refusal happens before durable session or lane registration', async () => {
+	const fixture = captureFixture({
+		captureSampleRate: 44_100,
+		projectSampleRate: 192_000,
+		preflightError: new Error('insufficient project-rate storage'),
+	});
+	const service = createTakeCycleRoutedCaptureService(fixture.runtime);
+	await assert.rejects(
+		service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope),
+		/insufficient project-rate storage/u,
+	);
+	assert.deepEqual(fixture.preflightBytes, [
+		192_000 * 2 * Float32Array.BYTES_PER_ELEMENT * 60,
+	]);
+	assert.equal(fixture.events.includes('begin-session'), false);
+	assert.equal(fixture.lanes.size, 0);
 });
 
 test('durable project-rate storage refusal precedes live registration when capture rate differs', async () => {
@@ -344,6 +365,8 @@ interface LaneFixture {
 interface FixtureOptions {
 	readonly tracks?: readonly string[];
 	readonly captureSampleRate?: number;
+	readonly projectSampleRate?: number;
+	readonly preflightError?: Error;
 	readonly append?: (trackId: string, call: number) => Promise<void>;
 	readonly playError?: Error;
 	readonly acquireGate?: Promise<void>;
@@ -358,7 +381,6 @@ interface FixtureOptions {
 		readonly takes?: readonly unknown[];
 		readonly compRegions?: readonly unknown[];
 	}>[];
-	readonly preflightError?: Error;
 }
 
 function captureFixture(options: FixtureOptions = {}) {
@@ -374,6 +396,7 @@ function captureFixture(options: FixtureOptions = {}) {
 		readonly requiredBytes: number;
 		readonly operation: 'take-cycle-recording';
 	}>> = [];
+	const preflightBytes: number[] = [];
 	let requests = 0;
 	let pauses = 0;
 	let releases = 0;
@@ -382,7 +405,7 @@ function captureFixture(options: FixtureOptions = {}) {
 	let laneIdentity = 0;
 	let groupIdCalls = 0;
 	const project = {
-		id: 'project-cycle', sampleRate: 48_000,
+		id: 'project-cycle', sampleRate: options.projectSampleRate ?? 48_000,
 		tracks: trackIds.map((id) => ({
 			id, type: 'audio', armed: true, locked: options.lockedTracks?.includes(id) ?? false,
 		})),
@@ -498,6 +521,7 @@ function captureFixture(options: FixtureOptions = {}) {
 		sourceChunkFrames: 65_536,
 		async preflightStorage(requiredBytes, operation) {
 			storageRequests.push({ requiredBytes, operation });
+			preflightBytes.push(requiredBytes);
 			if (options.preflightError) throw options.preflightError;
 		},
 		beginPlaybackCachePreparation: async () => {},
@@ -517,7 +541,7 @@ function captureFixture(options: FixtureOptions = {}) {
 	});
 	return {
 		runtime, scope, project, events, lanes, recorderOptions, startOptions, loopCalls, seekCalls, storageRequests,
-		finalizedTrackIds, selection, soundActivation,
+		finalizedTrackIds, selection, soundActivation, preflightBytes,
 		inputRequests: () => requests,
 		groupIdCalls: () => groupIdCalls,
 		pauseCalls: () => pauses,

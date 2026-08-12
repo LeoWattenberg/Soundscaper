@@ -373,10 +373,25 @@ test('a crash mid-write reopens the exact durable prefix as an interrupted recov
 	await discardedStorage.close();
 });
 
+test('incomplete envelope cleanup never reuses stale media bindings over the durable raw draft', async () => {
+	const storage = storageFixture('memory'), first = orchestratorFixture(storage, { loseFirstFinalize: true });
+	await assert.rejects(first.orchestrator.finalize({
+		projectId: 'project-cycle', loopStartSample: 0, loopEndSample: 4, lanes: [capturedLane('track-a', [CHUNK_A], 0)],
+	}), /simulated process loss/u);
+	const draft = (await first.orchestrator.inspectOpenRecovery({ projectId: 'project-cycle' }))!, lane = ((await storage.rawPcmSpools.list('project-cycle'))[0]!.data as { readonly draft: { readonly lane: { readonly groupId: string; readonly laneId: string; readonly publications: readonly Readonly<{ readonly takeId: string; readonly mediaId: string; readonly byteLength: number; readonly sha256: string }>[] } } }).draft.lane, publication = lane.publications[0]!;
+	const reopened = orchestratorFixture(storage, { recoveryEnvelopeGeneration: draft.publicationGeneration, recoveryDisposition: 'cleanup-incomplete', recoveredBindings: [Object.freeze({ generation: draft.publicationGeneration, groupId: lane.groupId, laneId: lane.laneId, ...publication })] });
+	const pending = await pendingRecovery(reopened.orchestrator), outcome = await reopened.orchestrator.recoverOnOpen({ pending, decision: 'recover' });
+	assert.equal(outcome.plan.disposition, 'cleanup-incomplete'); assert.deepEqual(outcome.resumedLanes.map(({ status }) => status), ['committed']);
+	assert.equal(outcome.activatedMedia.length, 1); assert.equal(reopened.finalizations.length, 1);
+	assert.deepEqual(await storage.rawPcmSpools.list('project-cycle'), []);
+});
+
 interface FixtureOptions {
 	readonly failedLaneIds?: ReadonlySet<string>;
 	readonly recoveryEnvelopeGeneration?: number;
 	readonly loseFirstFinalize?: boolean;
+	readonly recoveryDisposition?: 'clean' | 'cleanup-incomplete';
+	readonly recoveredBindings?: readonly import('../src/common/editor/take-media-recovery-journal.ts').TakeMediaPublicationBinding[];
 }
 
 function orchestratorFixture(storage: ReturnType<typeof storageFixture>, options: FixtureOptions = {}) {
@@ -417,7 +432,7 @@ function orchestratorFixture(storage: ReturnType<typeof storageFixture>, options
 			recoveries.push(request);
 			return {
 				kind: 'take-cycle-envelope-recovery' as const,
-				disposition: 'clean' as const,
+				disposition: options.recoveryDisposition ?? 'clean',
 				envelopeId: null,
 				generation: request.currentGeneration,
 				actions: [],
@@ -436,7 +451,7 @@ function orchestratorFixture(storage: ReturnType<typeof storageFixture>, options
 			: recoveryEnvelopeAuthority(projectId, options.recoveryEnvelopeGeneration),
 		createId(prefix) { ids.push(prefix); identity += 1; return `${prefix}-${String(identity)}`; },
 		async activateCommittedSource(media) { activated.push(media); },
-		listRecoveredMedia: async () => [],
+		listRecoveredMedia: async () => options.recoveredBindings ?? [],
 	});
 	holder.orchestrator = orchestrator;
 	return { orchestrator, ids, finalizations, recoveries, activated, targets, descriptions, reads };

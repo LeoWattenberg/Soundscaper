@@ -83,6 +83,7 @@ export function createTakeCycleProductionComposition(
 		async loadRecoveryEnvelope(projectId) {
 			const envelope = await dependencies.recoveryRepository.load(projectId);
 			if (envelope) recoveredBindings.set(projectId, envelopeBindings(envelope));
+			else recoveredBindings.delete(projectId);
 			return envelope;
 		},
 		createId: (prefix) => dependencies.createId(prefix),
@@ -102,7 +103,6 @@ export function createTakeCycleProductionComposition(
 			decision: TakeMediaRecoveryDecision,
 		) => {
 			await requireOrchestrator().recoverOnOpen({ pending, decision });
-			await dependencies.synchronizeActivatedProject();
 			recoveredBindings.delete(pending.projectId);
 		},
 		cancel: (reason?: unknown) => requireOrchestrator().cancel(reason),

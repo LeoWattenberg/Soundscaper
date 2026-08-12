@@ -228,6 +228,7 @@ import { createTrackFolderService } from './controller/track-folder-service.ts';
 import { createTakeCompControllerComposition } from './controller/take-comp-composition.ts';
 import { createTakeCycleAppComposition } from './controller/take-cycle-app-composition.ts';
 import { createTakeCycleRecordingAppSession } from './controller/take-cycle-recording-app-session.ts';
+import { createTakeCycleOpenRecoveryAppPort, createTakeCycleOpenRecoveryCoordinator } from './controller/take-cycle-open-recovery-app-port.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
@@ -435,6 +436,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingInputGain: RECORDING_INPUT_GAIN_DEFAULT,
 		preferredInputDeviceId: RECORDING_DEFAULT_DEVICE_ID,
 	});
+	const takeCycleOpenRecoveryBinding = createTakeCycleOpenRecoveryAppPort(), takeCycleOpenRecovery = takeCycleOpenRecoveryBinding.port;
 	const soundActivationPolicyService = createControllerSoundActivationPolicy(state, updatePreferences, publishDocumentSnapshot);
 	const storageCapacityService = createControllerStorageCapacityService({
 		store, state,
@@ -627,7 +629,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state,
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history),
-		isReadOnly: () => state.readOnly,
+		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
 		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
@@ -779,6 +781,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishProjectState,
 		setStatus,
 		handleError,
+		invalidateRecordingAuthority: invalidateTakeCycleRecording,
 		copy,
 		retryMaximumMs: PROJECT_LOCK_RETRY_MAX_MS,
 		currentTimeMs: Date.now,
@@ -826,7 +829,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			sourceBuffers, sourcePeaks, projectRetentionService.liveSessionSourceIds(),
 		),
 		loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
-				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }),
+				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }), openRecovery: takeCycleOpenRecovery,
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard), maintainOpenedProject: (projectId, isCurrentWritable) => store.maintainOpenedProject?.(projectId, () => isCurrentWritable() ? projectRetentionService.liveSessionLinkedOriginalSourceReferences() : null),
 		saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedOriginalSourceReferences: projectRetentionService.liveSessionLinkedOriginalSourceReferences() }),
 		listProjects: () => store.listProjects(),
@@ -853,7 +856,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setRemoveDeviceChangeListener: (remove) => { removeDeviceChangeListener = remove; },
 		loadRecentProjectState: (guard) => projectSessionService.loadRecentProjectState(guard),
 		openProject: (savedProject) => projectSwitchService.openProject(savedProject),
-		newProject: () => projectSwitchService.newProject(),
+		newProject: () => projectSwitchService.newProject(), openRecovery: takeCycleOpenRecovery,
 		publishProjectState,
 		saveNow,
 		refreshStorageUsage,
@@ -1649,18 +1652,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 			store.deleteAnalysis?.(peakCacheKey(sourceId)),
 		),
 	});
-	const takeCycleRecording = createTakeCycleAppComposition({
-		lifetime, store, session: sessionController, projectGeneration, state, recording: recordingCaptureRuntime, getProject: () => project,
-		setProject: (value) => { project = value; }, activeSelection, findAudioSource: (value, mediaId) => findSource(value, mediaId), trackName: (value, trackId) => findTrack(value, trackId)?.name || copy.recordingLabel,
-		getRoutes: () => state.recordingRouting.routes, soundActivationEnabled: () => soundActivationPolicyService.getSnapshot().preferences.enabled, recordingRouteSourceKey, createId: createStableId,
-		createRecordingName: (name) => `${name} ${new Date().toLocaleTimeString(locale)}`, preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs,
-		activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }), publishProject: () => { projectRetentionService.retainLiveClipIds(); publishProjectState(); },
-		synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); }, now: () => new Date(currentTimeMs()),
-	});
-	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({
-		cycle: takeCycleRecording, recordingMessage: copy.recording,
-		setTransportState: updateTransportState, setStatus,
-	});
+	const takeCycleRecording = createTakeCycleAppComposition({ lifetime, store, session: sessionController, projectGeneration, state, recording: recordingCaptureRuntime, getProject: () => project, setProject: (value) => { project = value; }, activeSelection,
+		findAudioSource: (value, mediaId) => findSource(value, mediaId), trackName: (value, trackId) => findTrack(value, trackId)?.name || copy.recordingLabel, getRoutes: () => state.recordingRouting.routes,
+		soundActivationEnabled: () => soundActivationPolicyService.getSnapshot().preferences.enabled, recordingRouteSourceKey, createId: createStableId, createRecordingName: (name) => `${name} ${new Date().toLocaleTimeString(locale)}`,
+		preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs, activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }),
+		publishProject: () => { projectRetentionService.retainLiveClipIds(); publishProjectState(); }, synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); }, now: () => new Date(currentTimeMs()) });
+	takeCycleOpenRecoveryBinding.bind(createTakeCycleOpenRecoveryCoordinator({ state, inspect: takeCycleRecording.inspectOpenRecovery, recover: takeCycleRecording.recoverOnOpen, getCurrentProjectId: () => project?.id ?? null, isDisposed: () => state.disposed, isCurrentProjectWritable: () => Boolean(project && state.projectLock && !state.readOnly && !state.projectLock.readOnly), publish: publishDocumentSnapshot }));
+	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({ cycle: takeCycleRecording, recordingMessage: copy.recording, setTransportState: updateTransportState, setStatus });
 	let timedRecordingService;
 	const recordingSessionService = createRecordingSessionService({
 		state,
@@ -1832,11 +1830,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
 		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
-		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording,
+		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording, startTakeCycleRecording: () => recordingSessionService.startTakeCycleRecording(),
 		startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage: storageCapacityService.cleanupDisposableStorage, cleanupDerivativeCache: storageCapacityService.cleanupDerivativeCache,
 		store, stretchClip, swapTrackChannels, switchProject,
 		toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
+		recoverTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'recover'), discardTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'discard'),
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
@@ -1884,7 +1883,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			try { await operation(); } catch (error) { disposalError ||= error; if (fencesSourceRetirement) sourceRetirementError ||= error; }
 		};
 		try {
-			projectGeneration.invalidate();
+			takeCycleOpenRecovery.dispose(); projectGeneration.invalidate();
 			const visualDisposal = projectVisualService.dispose(), scapeInspectionDrain = scapeInspectionQuiescence.drain();
 			removeDeviceChangeListener();
 			removeDeviceChangeListener = () => {};
@@ -2851,6 +2850,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function startRecording(options = {}) {
 		return recordingSessionService.startRecording(options);
 	}
+	async function invalidateTakeCycleRecording(reason) { state.recordingStartGeneration += 1; takeCycleRecording.cancel(reason); await stopRecording().catch(handleError); }
 
 	async function stopRecording() {
 		return recordingSessionService.stopRecording();

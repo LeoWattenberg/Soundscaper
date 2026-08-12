@@ -22,6 +22,8 @@ export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	preferredInputChannelCount: number;
 	preferredOutputDeviceId: string;
 	readOnly: boolean;
+	takeCycleRecovery?: unknown;
+	takeCycleRecoveryInspecting?: boolean;
 }
 
 export interface ProjectBootstrapStore<Project extends ProjectLifecycleProject> {
@@ -77,6 +79,10 @@ export interface ProjectBootstrapServiceRuntime<
 	) => Promise<string | null>;
 	readonly openProject: (project: Project) => Promise<unknown>;
 	readonly newProject: () => Promise<unknown>;
+	readonly openRecovery?: Readonly<{
+		deferInitialSave(operation: () => PromiseLike<unknown> | unknown): PromiseLike<boolean>;
+		deferMaintenance(operation: () => PromiseLike<unknown> | unknown): PromiseLike<boolean>;
+	}>;
 	readonly publishProjectState: () => void;
 	readonly saveNow: () => PromiseLike<unknown> | unknown;
 	readonly refreshStorageUsage: () => PromiseLike<unknown> | unknown;
@@ -105,6 +111,10 @@ export function createProjectBootstrapService<
 	Preferences,
 	EffectPresets,
 >(runtime: ProjectBootstrapServiceRuntime<Project, Preferences, EffectPresets>) {
+	const deferInitialSave = runtime.openRecovery?.deferInitialSave
+		?? runProjectBootstrapOperation;
+	const deferMaintenance = runtime.openRecovery?.deferMaintenance
+		?? runProjectBootstrapOperation;
 	return Object.freeze({ bootstrap });
 
 	async function bootstrap(token: EditorLifetimeToken): Promise<void> {
@@ -116,7 +126,6 @@ export function createProjectBootstrapService<
 		const reconcileLinkedOriginalLocators = runtime.store.reconcileLinkedOriginalLocators
 			?? runtime.store.reconcileLinkedVideoOriginalLocators;
 		await guard(reconcileLinkedOriginalLocators?.call(runtime.store));
-		await guard(runtime.store.cleanupTemporaryAssets?.());
 		void Promise.resolve()
 			.then(() => runtime.store.requestPersistentStorage())
 			.catch((error: unknown) => {
@@ -191,10 +200,16 @@ export function createProjectBootstrapService<
 		if (saved) await guard(runtime.openProject(saved));
 		else await guard(runtime.newProject());
 		runtime.publishProjectState();
-		if (!runtime.state.readOnly) await guard(runtime.saveNow());
+		if (!runtime.state.readOnly) {
+			await guard(deferInitialSave(() => runtime.saveNow()));
+		}
+		await guard(deferMaintenance(
+			() => runtime.store.cleanupTemporaryAssets?.(),
+		));
 		await guard(runtime.refreshStorageUsage());
 		if (runtime.hasMissingTimelineSources()) runtime.setStatus(runtime.copy.missingSourcesBlocked, 'error');
-		else if (!runtime.state.readOnly) runtime.setStatus(runtime.copy.ready, 'success');
+		else if (!runtime.state.readOnly && !runtime.state.takeCycleRecovery
+			&& !runtime.state.takeCycleRecoveryInspecting) runtime.setStatus(runtime.copy.ready, 'success');
 	}
 
 	function registerDeviceChangeListener(): void {
@@ -209,4 +224,11 @@ export function createProjectBootstrapService<
 			runtime.mediaDevices?.removeEventListener?.('devicechange', handleDeviceChange);
 		});
 	}
+}
+
+async function runProjectBootstrapOperation(
+	operation: () => PromiseLike<unknown> | unknown,
+): Promise<true> {
+	await operation();
+	return true;
 }

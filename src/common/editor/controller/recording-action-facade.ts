@@ -9,6 +9,9 @@ type RestrictedAction = (capability: string, action: RuntimeAction) => RuntimeAc
 export interface RecordingActionScope {
 	readonly startRecording: RuntimeAction;
 	readonly startRecordingOnNewTrack: RuntimeAction;
+	readonly startTakeCycleRecording: RuntimeAction;
+	readonly recoverTakeCycleRecording: RuntimeAction;
+	readonly discardTakeCycleRecording: RuntimeAction;
 	readonly scheduleTimedRecording: RuntimeAction;
 	readonly cancelTimedRecording: RuntimeAction;
 	readonly toggleRecordingPause: RuntimeAction;
@@ -38,6 +41,11 @@ export function createRecordingActionFacade(
 	return Object.freeze({
 		start: restricted('audioRecording', scope.startRecording),
 		startNewTrack: restricted('audioRecording', scope.startRecordingOnNewTrack),
+		cycle: Object.freeze({
+			start: restricted('takeComp', scope.startTakeCycleRecording),
+			recover: restricted('takeComp', scope.recoverTakeCycleRecording),
+			discard: restricted('takeComp', scope.discardTakeCycleRecording),
+		}),
 		schedule: restricted('audioRecording', scope.scheduleTimedRecording),
 		cancelScheduled: scope.cancelTimedRecording,
 		pause: scope.toggleRecordingPause,

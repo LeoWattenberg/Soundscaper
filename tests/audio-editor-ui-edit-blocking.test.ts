@@ -10,6 +10,7 @@ import {
 
 const cases = [
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.READ_ONLY, { readOnly: true }, false],
+	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.TAKE_CYCLE_RECOVERY, { takeCycleRecovery: {} }, true],
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.IMPORTING, { importing: true }, true],
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.RECORDING_STARTING, { recordingStarting: true }, true],
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.RECORDING_SCHEDULING, { recordingScheduling: true }, true],
@@ -38,6 +39,7 @@ test('edit-blocking selectors classify every busy state with a stable reason cod
 test('edit-blocking selectors use deterministic priority and expose all active reasons', () => {
 	const snapshot = {
 		readOnly: true,
+		takeCycleRecovery: {},
 		importing: true,
 		recording: true,
 		exporting: true,
@@ -47,6 +49,7 @@ test('edit-blocking selectors use deterministic priority and expose all active r
 	assert.equal(editBlock.reason, AUDIO_EDITOR_EDIT_BLOCK_REASONS.READ_ONLY);
 	assert.deepEqual(editBlock.reasons, [
 		AUDIO_EDITOR_EDIT_BLOCK_REASONS.READ_ONLY,
+		AUDIO_EDITOR_EDIT_BLOCK_REASONS.TAKE_CYCLE_RECOVERY,
 		AUDIO_EDITOR_EDIT_BLOCK_REASONS.IMPORTING,
 		AUDIO_EDITOR_EDIT_BLOCK_REASONS.RECORDING,
 		AUDIO_EDITOR_EDIT_BLOCK_REASONS.EXPORTING,
@@ -56,7 +59,7 @@ test('edit-blocking selectors use deterministic priority and expose all active r
 	assert.ok(Object.isFrozen(editBlock.reasons));
 
 	const busyBlock = selectAudioEditorBusyBlock(snapshot);
-	assert.equal(busyBlock.reason, AUDIO_EDITOR_EDIT_BLOCK_REASONS.IMPORTING);
+	assert.equal(busyBlock.reason, AUDIO_EDITOR_EDIT_BLOCK_REASONS.TAKE_CYCLE_RECOVERY);
 	assert.ok(!busyBlock.reasons.includes(AUDIO_EDITOR_EDIT_BLOCK_REASONS.READ_ONLY));
 });
 

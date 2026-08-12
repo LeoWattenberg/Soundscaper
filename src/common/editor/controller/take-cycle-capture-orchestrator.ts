@@ -263,6 +263,9 @@ export function createTakeCycleCaptureOrchestrator(
 			&& (plan.disposition === 'replay-published' || plan.disposition === 'settle-committed')
 			? await dependencies.listRecoveredMedia(request.projectId)
 			: [];
+		const reusableBindings = plan.disposition === 'cleanup-incomplete'
+			? Object.freeze<TakeMediaPublicationBinding[]>([])
+			: bindings;
 		if (request.decision === 'recover'
 			&& (plan.disposition === 'replay-published' || plan.disposition === 'settle-committed')) {
 			for (const binding of bindings) await activate(binding, activated, activatedKeys);
@@ -274,7 +277,7 @@ export function createTakeCycleCaptureOrchestrator(
 				await removeDraft(draft);
 				continue;
 			}
-			const matching = exactDraftBindings(draft, bindings);
+			const matching = exactDraftBindings(draft, reusableBindings);
 			if (matching.length === draft.lane.publications.length) {
 				for (const binding of matching) await activate(binding, activated, activatedKeys);
 				await removeDraft(draft);

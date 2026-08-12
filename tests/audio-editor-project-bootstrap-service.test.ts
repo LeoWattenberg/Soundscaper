@@ -47,6 +47,8 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 	let removeDeviceListener: () => void = () => undefined;
 	let deviceListener: (() => void) | null = null;
 	let disposed = false;
+	let recoveryBlocked = false;
+	const deferredRecovery: Array<() => PromiseLike<unknown> | unknown> = [];
 	const events: string[] = [];
 	const statuses: Array<readonly [string, string]> = [];
 	const errors: unknown[] = [];
@@ -69,6 +71,8 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 		preferredInputChannelCount: 1,
 		preferredOutputDeviceId: '',
 		readOnly: false,
+		takeCycleRecovery: null as unknown,
+		takeCycleRecoveryInspecting: false,
 	};
 	const runtime: ProjectBootstrapServiceRuntime<TestProject, TestPreferences, TestPresets> = {
 		state,
@@ -134,6 +138,10 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 		loadRecentProjectState: async () => lastProjectId,
 		openProject: (value) => openProject(value),
 		newProject: async () => { events.push('new-project'); },
+		openRecovery: {
+			deferInitialSave: (operation) => deferRecovery(operation),
+			deferMaintenance: (operation) => deferRecovery(operation),
+		},
 		publishProjectState: () => { events.push('publish'); },
 		saveNow: async () => { events.push('save-now'); },
 		refreshStorageUsage: async () => { events.push('storage-usage'); },
@@ -171,7 +179,24 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 		setReconciliation(value: typeof reconcileLinkedVideoOriginalLocators) {
 			reconcileLinkedVideoOriginalLocators = value;
 		},
+		setRecoveryBlocked(value: boolean) {
+			recoveryBlocked = value;
+			state.takeCycleRecovery = value ? {} : null;
+		},
+		async resolveRecovery() {
+			recoveryBlocked = false;
+			state.takeCycleRecovery = null;
+			for (const operation of deferredRecovery.splice(0)) await operation();
+		},
 	};
+
+	async function deferRecovery(
+		operation: () => PromiseLike<unknown> | unknown,
+	): Promise<boolean> {
+		if (!recoveryBlocked) { await operation(); return true; }
+		deferredRecovery.push(operation);
+		return false;
+	}
 }
 
 test('bootstrap applies settings before opening the saved project', async () => {
@@ -212,6 +237,19 @@ test('bootstrap applies settings before opening the saved project', async () => 
 	assert.equal(fixture.events.filter((event) => event.startsWith('refresh-devices:')).length, 2);
 	fixture.removeDeviceListener();
 	assert.ok(fixture.events.includes('unlisten-devices'));
+});
+
+test('bootstrap defers its initial save and temporary cleanup behind open recovery', async () => {
+	const fixture = createFixture();
+	fixture.setRecoveryBlocked(true);
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	assert.equal(fixture.events.includes('new-project'), true);
+	assert.equal(fixture.events.includes('save-now'), false);
+	assert.equal(fixture.events.includes('cleanup-assets'), false);
+	assert.equal(fixture.statuses.length, 0);
+
+	await fixture.resolveRecovery();
+	assert.ok(fixture.events.indexOf('save-now') < fixture.events.indexOf('cleanup-assets'));
 });
 
 test('terminal disposal during store readiness prevents later resource acquisition', async () => {

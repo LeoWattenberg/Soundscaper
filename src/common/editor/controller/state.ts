@@ -2,6 +2,7 @@
 
 import type { EditorControllerPhase } from './lifecycle.ts';
 import { createInitialStorageCapacitySnapshot } from './storage-capacity-service.ts';
+import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 
 export interface EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets> {
 	readonly preferences: Preferences;
@@ -52,6 +53,8 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		timelineWidth: timelineMinimumSeconds * defaultPixelsPerSecond,
 		timelineView: 'waveform',
 		readOnly: false,
+		takeCycleRecovery: null as TakeCyclePendingOpenRecovery | null,
+		takeCycleRecoveryInspecting: false,
 		projectLock: null,
 		projectLockRetryTimer: 0,
 		autosaveTimer: 0,

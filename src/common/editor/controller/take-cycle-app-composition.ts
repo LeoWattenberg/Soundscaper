@@ -18,6 +18,7 @@ import {
 	type TakeCycleProductionComposition,
 } from './take-cycle-production-composition.ts';
 import type { TakeCycleRoutedCaptureRuntime } from './take-cycle-routed-capture-types.ts';
+import { resolveTakeCycleGroupId } from './take-cycle-group-id.ts';
 
 interface TakeCycleAppState {
 	history: TakeCyclePublicationHistory | null;
@@ -28,10 +29,10 @@ interface TakeCycleAppState {
 }
 
 interface TakeCycleAppStore {
-	readonly projectRepository: ProjectRepositoryPort;
-	readonly sourceRepository: SourceRepository;
-	readonly rawPcmSpoolRepository: RawPcmSpoolRepository;
-	readonly takeCycleRecoveryEnvelopeRepository: TakeCycleRecoveryEnvelopeRepository;
+	readonly projectRepository?: ProjectRepositoryPort;
+	readonly sourceRepository?: SourceRepository;
+	readonly rawPcmSpoolRepository?: RawPcmSpoolRepository;
+	readonly takeCycleRecoveryEnvelopeRepository?: TakeCycleRecoveryEnvelopeRepository;
 	getSourceMetadata(sourceId: string): PromiseLike<unknown> | unknown;
 }
 
@@ -81,6 +82,7 @@ export interface TakeCycleAppCompositionDependencies {
 export function createTakeCycleAppComposition(
 	dependencies: TakeCycleAppCompositionDependencies,
 ): Readonly<TakeCycleProductionComposition> {
+	if (!hasDurableTakeCycleRepositories(dependencies.store)) return unavailableComposition();
 	const publication = createTakeCycleCurrentProjectPublicationService({
 		session: dependencies.session,
 		getActiveProject: dependencies.getProject,
@@ -113,7 +115,14 @@ export function createTakeCycleAppComposition(
 			activeSelection: dependencies.activeSelection,
 			soundActivationEnabled: dependencies.soundActivationEnabled,
 			recordingRouteSourceKey: dependencies.recordingRouteSourceKey,
-			createGroupId: () => dependencies.createId('take-group'),
+			createGroupId: (trackId) => {
+				const project = requireProject();
+				const owners = project.sequences.filter(({ trackIds }) => trackIds.includes(trackId));
+				if (owners.length !== 1) throw new Error(`Take cycle track ${trackId} has ambiguous sequence ownership.`);
+				return resolveTakeCycleGroupId(
+					project, owners[0]!.id, trackId, () => dependencies.createId('take-group'),
+				);
+			},
 			createRecordingName: (trackId) => dependencies.createRecordingName(
 				dependencies.trackName(requireProject(), trackId),
 			),
@@ -139,6 +148,30 @@ export function createTakeCycleAppComposition(
 		if (dependencies.getProject() !== captured || !metadata) throw staleProjectError();
 		await dependencies.activateStoredSource(source, metadata);
 	}
+}
+
+function hasDurableTakeCycleRepositories(store: TakeCycleAppStore): store is TakeCycleAppStore & Required<Pick<
+	TakeCycleAppStore,
+	'projectRepository' | 'sourceRepository' | 'rawPcmSpoolRepository' | 'takeCycleRecoveryEnvelopeRepository'
+>> {
+	return Boolean(store.projectRepository && store.sourceRepository
+		&& store.rawPcmSpoolRepository && store.takeCycleRecoveryEnvelopeRepository);
+}
+
+function unavailableComposition(): Readonly<TakeCycleProductionComposition> {
+	const unavailable = () => new Error('Take cycle recording requires durable project and source repositories.');
+	return Object.freeze({
+		routed: Object.freeze({
+			active: false,
+			start: async () => { throw unavailable(); },
+			stop: async () => { throw unavailable(); },
+			pause: () => { throw unavailable(); },
+		}),
+		start: async () => { throw unavailable(); },
+		inspectOpenRecovery: async () => null,
+		recoverOnOpen: async () => { throw unavailable(); },
+		cancel() {},
+	});
 }
 
 function appProject(project: AudioEditorProjectV17): TakeCycleAppProject {

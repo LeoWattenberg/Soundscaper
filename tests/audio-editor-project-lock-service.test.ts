@@ -8,6 +8,7 @@ import {
 	type ProjectLockServiceRuntime,
 } from '../src/common/editor/controller/project-lock-service.ts';
 import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
+import { TAKE_CYCLE_RECORDING_TASK } from '../src/common/editor/controller/take-cycle-recording-service.ts';
 import type { ProjectLifecycleLock } from '../src/common/editor/controller/project-lifecycle-types.ts';
 
 function deferred<Value>() {
@@ -49,6 +50,7 @@ function createFixture(initialLock: TestLock | null = null) {
 	const statuses: Array<readonly [string, string]> = [];
 	const errors: unknown[] = [];
 	const cancelledTasks: string[] = [];
+	let invalidations = 0;
 	const state = {
 		disposed: false,
 		readOnly: Boolean(initialLock?.readOnly),
@@ -65,6 +67,7 @@ function createFixture(initialLock: TestLock | null = null) {
 		publishProjectState: () => { publications.resolve(); },
 		setStatus: (message, status) => { statuses.push([message, status]); },
 		handleError: (error) => { errors.push(error); },
+		invalidateRecordingAuthority: async () => { invalidations += 1; },
 		copy: {
 			ready: 'Ready',
 			projectOpenOtherTab: 'Open elsewhere',
@@ -81,6 +84,7 @@ function createFixture(initialLock: TestLock | null = null) {
 	};
 	return {
 		cancelledTasks,
+		get invalidations() { return invalidations; },
 		errors,
 		publications,
 		service: createProjectLockService(runtime),
@@ -204,8 +208,13 @@ test('lock loss reacquires ownership and preserves intrinsic read-only metadata'
 	fixture.service.watchProjectLockLoss('project-a', previous);
 
 	lost.resolve();
-	await Promise.resolve();
-	assert.deepEqual(fixture.cancelledTasks, [PROJECT_BIN_LINKED_VIDEO_RELINK_TASK]);
+	await fixture.publications.promise;
+	assert.deepEqual(fixture.cancelledTasks, [
+		PROJECT_BIN_LINKED_VIDEO_RELINK_TASK,
+		TAKE_CYCLE_RECORDING_TASK,
+	]);
+	assert.equal(fixture.invalidations, 1);
+	assert.equal(fixture.state.readOnly, true);
 	acquisition.resolve(next);
 	await fixture.publications.promise;
 

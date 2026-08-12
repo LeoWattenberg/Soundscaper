@@ -63,6 +63,8 @@ export interface RecordingStartScope {
 
 export interface RecordingSessionMutableState {
 	readOnly: boolean;
+	takeCycleRecovery?: unknown;
+	takeCycleRecoveryInspecting?: boolean;
 	disposed: boolean;
 	projectBinPreview: unknown | null;
 	recorder: RecordingControllerLike | null;
@@ -289,6 +291,8 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 
 	function startBlocked(): boolean {
 		return state.readOnly
+			|| Boolean(state.takeCycleRecovery)
+			|| state.takeCycleRecoveryInspecting === true
 			|| state.recordingStarting
 			|| Boolean(state.recordingStartPromise)
 			|| Boolean(state.recorder);
@@ -357,7 +361,8 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 	}
 
 	async function startRecordingOnNewTrack(options: RecordingStartOptions = {}): Promise<string | null> {
-		if (state.readOnly || state.recordingStarting || state.recordingStartPromise
+		if (state.readOnly || state.takeCycleRecovery || state.takeCycleRecoveryInspecting
+			|| state.recordingStarting || state.recordingStartPromise
 			|| state.timedRecordingPreparing
 			|| state.timedRecording || state.recorder) return null;
 		const trackId = runtime.addTrack?.({ armed: true }) || null;

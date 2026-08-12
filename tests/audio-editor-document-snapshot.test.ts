@@ -31,6 +31,12 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		recordingPreviews: [null, { frames: 4 }],
 		history: { undoStack: ['old', 'new'], redoStack: ['redo'] },
 		clipboard: { sourceIds: [] },
+		recordingKind: 'take-cycle',
+		takeCycleRecovery: Object.freeze({
+			kind: 'take-cycle-pending-open-recovery', projectId: 'project',
+			publicationGeneration: 4, recoveryToken: 'recover-4', draftCount: 2,
+			requiresDecision: true,
+		}),
 	});
 	const snapshot = createEditorDocumentSnapshot({
 		state,
@@ -106,6 +112,9 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		trackId: 'track',
 	});
 	assert.equal(snapshot.recording, false);
+	assert.equal(snapshot.recordingKind, 'take-cycle');
+	assert.strictEqual(snapshot.takeCycleRecovery, state.takeCycleRecovery);
+	assert.equal(Object.isFrozen(snapshot.takeCycleRecovery), true);
 	assert.strictEqual(snapshot.recordingInputs.soundActivation, SOUND_ACTIVATION_SNAPSHOT);
 	assert.deepEqual(snapshot.recordingPreviews, [{ frames: 4 }]);
 	assert.deepEqual(snapshot.history.undoEntries, ['summary:new', 'summary:old']);
@@ -250,6 +259,7 @@ function stateFixture(
 		playAtSpeedAbort: null, readOnly: false, projectLock: null, importing: false,
 		recordingStarting: false, timedRecordingPreparing: false, timedRecording: null,
 		timedRecordingCancelling: false, recorder: null, recordingPreview: null,
+		recordingKind: null, takeCycleRecovery: null,
 		recordingPreviews: [], recordingDevices: [],
 		recordingRouting: { routes: {}, offsets: {} }, recordingRouteHealth: {},
 		recordingPoolSources: [], audacityEffectProcessing: false, exportAbort: null,

@@ -30,6 +30,8 @@ export interface ProjectMutationState<
 	Routing extends MutationRecordingRouting,
 > {
 	readOnly: boolean;
+	takeCycleRecovery?: unknown;
+	takeCycleRecoveryInspecting?: boolean;
 	history: History | null;
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
@@ -245,6 +247,9 @@ export function createProjectMutationService<
 
 	function assertWritable(): void {
 		if (dependencies.state.readOnly) throw new Error(dependencies.projectReadOnlyMessage);
+		if (dependencies.state.takeCycleRecovery || dependencies.state.takeCycleRecoveryInspecting) {
+			throw new Error('Resolve pending take cycle recovery before editing.');
+		}
 	}
 
 	function requireHistory(): History {

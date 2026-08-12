@@ -109,6 +109,23 @@ test('read-only mutation fails before command execution', () => {
 	assert.equal(executed, 0);
 });
 
+test('pending take cycle recovery fails every command mutation before execution', () => {
+	let executed = 0;
+	const fixture = mutationFixture({
+		executeHistory: (history) => { executed += 1; return history; },
+	});
+	(fixture.state as typeof fixture.state & { takeCycleRecovery: unknown }).takeCycleRecovery = {};
+	assert.throws(
+		() => fixture.service.commit({ type: 'project/rename', title: 'Blocked' }),
+		/Resolve pending take cycle recovery/u,
+	);
+	assert.throws(
+		() => fixture.service.updateSelection({ type: 'selection/set', startFrame: 0, endFrame: 0 }),
+		/Resolve pending take cycle recovery/u,
+	);
+	assert.equal(executed, 0);
+});
+
 test('projectChanged normalizes routing, prunes stale selections, and owns publication order', async () => {
 	const project = projectFixture(1);
 	const normalized: TestRouting = { routes: { 'track-a': { kind: 'device' } } };
