@@ -169,6 +169,7 @@ export function AudioTrackRow({
 			controller,
 			sourceLookup,
 			clip,
+			project,
 			geometry: {
 				overscanStartFrame: projection.overscanStartFrame,
 				pixelsPerSecond,

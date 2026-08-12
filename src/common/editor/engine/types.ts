@@ -43,6 +43,7 @@ export interface EngineClip extends Readonly<Record<string, unknown>> {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 	readonly envelope?: readonly EngineEnvelopePoint[];
+	readonly warpMap?: unknown;
 }
 
 export interface EngineTrack extends EngineGainOwner {
@@ -67,6 +68,7 @@ export interface EngineProject extends Readonly<Record<string, unknown>> {
 	readonly schemaVersion?: number;
 	readonly sampleRate?: number;
 	readonly masterChannels?: number;
+	readonly tempoMap?: import('../timeline-time.ts').HoldTempoMap;
 	readonly metadata?: Readonly<{ adm?: unknown }>;
 	readonly loop?: EngineLoop;
 	readonly clips?: readonly EngineClip[];

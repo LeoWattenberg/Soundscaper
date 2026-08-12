@@ -22,6 +22,7 @@ interface WaveformClipIdentity {
 	readonly fadeOutFrames?: number;
 	readonly reversed?: boolean;
 	readonly envelope?: readonly Readonly<{ frame?: number; value?: number }>[];
+	readonly warpMap?: unknown;
 }
 
 export interface WaveformSourceWindow {
@@ -54,7 +55,7 @@ export function createWaveformPreviewCacheKey({
 	readonly rendering: WaveformPreviewRenderingKey;
 }): string {
 	return JSON.stringify([
-		'waveform-preview-v1',
+		'waveform-preview-v2',
 		source?.id ?? clip.sourceId ?? '',
 		source?.storageKey ?? '',
 		source?.revision ?? source?.updatedAt ?? source?.committedAt ?? '',
@@ -69,6 +70,7 @@ export function createWaveformPreviewCacheKey({
 		clip.fadeOutFrames ?? 0,
 		Boolean(clip.reversed),
 		(clip.envelope ?? []).map((point) => [point.frame ?? 0, point.value ?? 1]),
+		clip.warpMap ?? null,
 		sourceWindow.startFrame,
 		sourceWindow.endFrame,
 		rendering.showRms,

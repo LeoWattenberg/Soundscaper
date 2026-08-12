@@ -9,6 +9,7 @@ import { envelopeFramesToDesignPoints } from '../../automation.js';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
 import { createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
 import { pcmWindowCoversProjectedClip, type PcmPreviewWindow } from './preview.ts';
+import { prepareAudioWarpWaveformWindow } from './audio-warp-waveform.ts';
 
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 const EMPTY_DESIGN_SYSTEM_WAVEFORM = Object.freeze([]);
@@ -42,6 +43,12 @@ export interface TimelineWaveformClip {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 	readonly reversed?: boolean;
+	readonly kind?: unknown;
+	readonly anchor?: unknown;
+	readonly musicalStartBeat?: unknown;
+	readonly musicalExtent?: unknown;
+	readonly musicalDurationBeats?: unknown;
+	readonly warpMap?: unknown;
 	readonly envelope?: readonly Readonly<{ frame?: number; value?: number }>[];
 }
 
@@ -108,6 +115,7 @@ export interface TimelineClipViewModelOptions {
 		pixelsPerSecond: number;
 		sampleRate: number;
 	}>;
+	readonly project?: Readonly<Record<string, unknown>> | null;
 	readonly selection: Readonly<{
 		selectedClipIds: Set<string> | string | null | undefined;
 	}>;
@@ -130,6 +138,7 @@ export function createTimelineClipViewModel({
 	sourceLookup,
 	clip,
 	geometry,
+	project = null,
 	selection,
 	copy,
 	rendering,
@@ -225,7 +234,22 @@ export function createTimelineClipViewModel({
 			)
 			: waveformPcmWindow?.channels;
 		const waveform = (usesPcm
-			? prepareBoundedWaveformWindow(Array.from(pcmChannels || []), clip, {
+			? clip.warpMap != null
+				? prepareAudioWarpWaveformWindow(
+					project as unknown as Parameters<typeof prepareAudioWarpWaveformWindow>[0],
+					clip as Parameters<typeof prepareAudioWarpWaveformWindow>[1],
+					Array.from(pcmChannels || []),
+					{
+						startFrame: clip.waveformStartFrame,
+						endFrame: clip.waveformEndFrame,
+						maxSamples: maximumSamples,
+						pixelWidth,
+						sourceFrameOffset: waveformSource === waveformPcmWindow
+							? waveformPcmWindow?.startFrame ?? 0
+							: 0,
+					},
+				)
+				: prepareBoundedWaveformWindow(Array.from(pcmChannels || []), clip, {
 				startFrame: clip.waveformStartFrame,
 				endFrame: clip.waveformEndFrame,
 				maxSamples: maximumSamples,
