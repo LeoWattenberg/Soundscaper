@@ -29,7 +29,7 @@ if (process.env[CHILD_FLAG] === '1') {
 		assert.deepEqual(fixture.specification, {
 			localDiagnosticCommand: 'npm run quality:collect:m3-longform',
 			routineBrowserTestBehavior: 'skip-with-explicit-collector',
-			qualificationPublication: 'forbidden-by-pending-collector',
+			qualificationPublication: 'accepted-only-after-qualified-environment-and-digest-bound-verification',
 			generatorRevision: 1,
 			seed: 1_554_098_974,
 			durationSeconds: 7_200,
