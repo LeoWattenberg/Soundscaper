@@ -3,6 +3,7 @@
 import {
 	projectEffectTailFrames,
 } from '../effects.js';
+import { projectHasAuthoredAudioWarp, renderExactAudioWarpToSink } from './audio-warp-fallback.ts';
 import {
 	createAsyncPlanarPcmSinkQueue,
 } from '../pcm-sink.js';
@@ -241,6 +242,14 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		if (!this.project) throw new Error('Load an audio editor project before rendering.');
 		if (typeof onChunk !== 'function') throw new TypeError('Realtime rendering requires an onChunk callback.');
 		if (signal?.aborted) throw createAbortError();
+		if (projectHasAuthoredAudioWarp(this.project)
+			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+			return renderExactAudioWarpToSink(this, {
+				startFrame, endFrame, includeTail, trackId, includeMaster, includeTrackPan,
+				respectMuteSolo, sampleRate, outputFrames: requestedOutputFrames, preRollFrames,
+				chunkFrames, onChunk, onProgress, signal,
+			});
+		}
 		const fromFrame = clampFrame(startFrame, 0, this.durationFrames);
 		const toFrame = clampFrame(endFrame, fromFrame, this.durationFrames);
 		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));

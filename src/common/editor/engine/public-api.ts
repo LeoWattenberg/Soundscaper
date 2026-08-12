@@ -40,7 +40,7 @@ export interface EngineStateSnapshot {
 	readonly durationFrames: number;
 	readonly loop: NormalizedLoop;
 	readonly playbackRate: number;
-	readonly playbackMode: 'normal' | 'naive' | 'staffpad';
+	readonly playbackMode: 'normal' | 'naive' | 'staffpad' | 'audio-warp-exact';
 }
 
 export interface EngineLoudnessMeasurementState {

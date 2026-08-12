@@ -9,6 +9,7 @@ import {
 	connect,
 } from './audio-node-utils.ts';
 import type { AudioNodeArray } from './audio-node-utils.ts';
+import { scheduleExactWarpPlayback } from './audio-warp-playback-scheduler.ts';
 import {
 	clampFrame,
 	DEFAULT_SAMPLE_RATE,
@@ -111,7 +112,8 @@ export function disposeGraph(graph: DisposableAudioGraph, stopSources: boolean):
 
 export const engineTransportSchedulerMethods = {
 async [ENGINE_SCHEDULE_CURRENT_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
-		if (this.playbackMode === 'staffpad' && this.preparedSpeedPlayback) {
+		if ((this.playbackMode === 'staffpad' && this.preparedSpeedPlayback)
+			|| (this.playbackMode === 'audio-warp-exact' && this.preparedAudioWarpPlayback)) {
 			return this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](fromFrame, scheduledTime);
 		}
 		return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, scheduledTime);
@@ -119,6 +121,15 @@ async [ENGINE_SCHEDULE_CURRENT_PLAYBACK](this: EngineRuntimeHost, fromFrame, sch
 
 async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
 		const context = this.context;
+		if (this.playbackMode === 'audio-warp-exact' && this.preparedAudioWarpPlayback) {
+			await scheduleExactWarpPlayback(
+				this,
+				this.preparedAudioWarpPlayback,
+				fromFrame,
+				scheduledTime,
+			);
+			return;
+		}
 		const prepared = this.preparedSpeedPlayback;
 		if (!context || !this.project || !prepared) return;
 		if (this.meterListeners.size && !this.masterLoudnessMeter && !this.masterLoudnessMeterError) {
@@ -327,7 +338,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 
 [ENGINE_SCHEDULE_LOOP_AHEAD]() {
 		if (!this.graph || !this.context || !this.project || !this.loop.enabled) return;
-		if (this.playbackMode === 'staffpad') return;
+		if (this.playbackMode === 'staffpad' || this.playbackMode === 'audio-warp-exact') return;
 		const durationSeconds = (this.loop.endFrame - this.loop.startFrame) / (this.sampleRate * this.playbackRate);
 		if (!(durationSeconds > 0)) return;
 		const horizon = this.context.currentTime + Math.max(0.25, this.meterInterval / 1000 * 4);

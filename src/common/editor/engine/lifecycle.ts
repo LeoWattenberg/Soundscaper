@@ -6,6 +6,9 @@ import {
 } from '../chunk-stream-client.js';
 import { createAudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import {
+	clearPreparedAudioWarpPlayback,
+} from './audio-warp-fallback.ts';
+import {
 	getProjectDurationFrames,
 	getProjectTimelineDurationFrames,
 	normalizeLoop,
@@ -52,6 +55,7 @@ export interface EngineRuntimeOptions {
 	readonly audioContextFactory?: EngineRealtimeContextFactory | null;
 	readonly offlineAudioContextFactory?: EngineOfflineContextFactory | null;
 	readonly softwareRenderer?: EngineSoftwareRenderer | null;
+	readonly audioWarpRealtimeAcceleration?: boolean;
 	readonly sourceResolver?: unknown;
 	readonly chunkStreamClient?: EngineRuntimeHost['chunkStreamClient'];
 	readonly chunkStreamClientFactory?: EngineRuntimeHost['chunkStreamClientFactory'];
@@ -71,6 +75,7 @@ export function initializeEngineRuntime(
 		audioContextFactory,
 		offlineAudioContextFactory,
 		softwareRenderer,
+		audioWarpRealtimeAcceleration,
 		sourceResolver,
 		chunkStreamClient,
 		chunkStreamClientFactory,
@@ -89,6 +94,8 @@ export function initializeEngineRuntime(
 		? getOfflineAudioContextConstructor()
 		: offlineAudioContextFactory;
 	engine.softwareRenderer = softwareRenderer || null;
+	engine.audioWarpRealtimeAcceleration = audioWarpRealtimeAcceleration
+		?? hasNativeAudioWarpAcceleration(engine.audioContextFactory);
 	engine.sourceResolver = normalizeSourceResolver(sourceResolver);
 	engine.chunkStreamClient = chunkStreamClient || null;
 	engine.chunkStreamClientFactory = chunkStreamClientFactory || (() => new ChunkStreamClient());
@@ -110,6 +117,8 @@ export function initializeEngineRuntime(
 	engine.playbackRate = 1;
 	engine.playbackMode = 'normal';
 	engine.preparedSpeedPlayback = null;
+	engine.preparedAudioWarpPlayback = null;
+	engine.audioWarpPlaybackPreparation = null;
 	engine.state = 'empty';
 	engine.loop = { enabled: false, startFrame: 0, endFrame: 0 };
 	engine.graph = null;
@@ -138,7 +147,15 @@ interface EngineAudioGlobal {
 	readonly webkitAudioContext?: EngineRealtimeContextFactory;
 	readonly OfflineAudioContext?: EngineOfflineContextFactory;
 	readonly webkitOfflineAudioContext?: EngineOfflineContextFactory;
+	readonly AudioBufferSourceNode?: Readonly<{ readonly prototype?: object }>;
 	readonly window?: EngineAudioGlobal;
+}
+
+function hasNativeAudioWarpAcceleration(factory: EngineRealtimeContextFactory | null): boolean {
+	if (!factory) return false;
+	const browser = globalThis as unknown as EngineAudioGlobal;
+	const Constructor = browser.AudioBufferSourceNode ?? browser.window?.AudioBufferSourceNode;
+	return Boolean(Constructor?.prototype && 'playbackRate' in Constructor.prototype);
 }
 
 export function getAudioContextConstructor(): EngineRealtimeContextFactory | null {
@@ -230,6 +247,7 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		this.playbackRate = 1;
 		this.playbackMode = 'normal';
 		this.preparedSpeedPlayback = null;
+		clearPreparedAudioWarpPlayback(this);
 		this.positionFrame = Math.min(this.positionFrame, this.playbackDurationFrames);
 		this.playEndFrame = this.playbackDurationFrames;
 		this.loop = normalizeLoop(runtimeProject?.loop, this.durationFrames);
@@ -260,6 +278,7 @@ applyProject(this: EngineRuntimeHost, project, sourceBuffers = this.sources, opt
 setSourceResolver(sourceResolver = null) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		this.sourceResolver = normalizeSourceResolver(sourceResolver);
+		clearPreparedAudioWarpPlayback(this);
 		return this;
 	},
 
@@ -267,16 +286,18 @@ setChunkSources(chunkSources = new Map()) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		const entries = chunkSources instanceof Map ? chunkSources : new Map(Object.entries(chunkSources || {}));
 		this.chunkSources = new Map([...entries].map(([sourceId, source]) => [String(sourceId), normalizeChunkSource(source)]));
+		clearPreparedAudioWarpPlayback(this);
 		return this;
-},
+	},
 
 getAudioWarpRenderStatus() {
-	this[ENGINE_ASSERT_ACTIVE]();
-	return createAudioWarpRenderPathStatus({
-		realtimeAcceleration: this.audioContextFactory !== null,
-		exactOfflineAvailable: this.offlineAudioContextFactory !== null,
-	});
-},
+		this[ENGINE_ASSERT_ACTIVE]();
+		return createAudioWarpRenderPathStatus({
+			realtimeAcceleration: this.audioWarpRealtimeAcceleration,
+			exactOfflineAvailable: this.offlineAudioContextFactory !== null
+				|| this.softwareRenderer !== null,
+		});
+	},
 
 async decodeAudioData(data) {
 		const context = await this.getAudioContext({ resume: false });
@@ -358,6 +379,7 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 		this.parametricEqErrorListeners.clear();
 		this.reversedBuffers = new WeakMap();
 		this.preparedSpeedPlayback = null;
+		clearPreparedAudioWarpPlayback(this);
 		this.masterLoudnessMeter?.dispose();
 		this.masterLoudnessMeter = null;
 		this.latestMasterLoudnessMeter = null;
