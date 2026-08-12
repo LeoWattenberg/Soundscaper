@@ -2,12 +2,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
+import { verifyQualityBudgetResultFiles } from './verify-quality-budget-result.mjs';
 
 const execFileAsync = promisify(execFile);
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
@@ -19,8 +21,9 @@ const PROFILE = 'deterministic-two-hour-editorial-v1';
 const BROWSER_SPEC = 'tests/browser/audio-editor-longform-editorial-benchmark.spec.js';
 
 /**
- * Run one opt-in browser diagnostic and persist only a pending-external result.
- * This collector intentionally has no accepted-evidence publication path.
+ * Run one no-retry browser measurement. An unqualified host can publish only a
+ * pending-external diagnostic; an exact activated environment writes retained,
+ * digest-bound raw and accepted evidence through the common verifier.
  */
 export async function collectM3LongformEditorialDiagnostic(options, dependencies = {}) {
 	const outputDirectory = ownString(options, 'outputDirectory');
@@ -30,7 +33,22 @@ export async function collectM3LongformEditorialDiagnostic(options, dependencies
 	const { stdout, stderr } = await runBrowser();
 	const diagnostic = parseM3LongformEditorialDiagnostic(`${stdout}\n${stderr}`);
 	const result = createPendingM3LongformEditorialResult(diagnostic, config);
-	return writePending(outputDirectory, result);
+	return writeM3LongformEditorialResult(
+		outputDirectory, diagnostic, result, config,
+		{ ...dependencies, writePending },
+	);
+}
+
+export function writeM3LongformEditorialResult(
+	outputDirectory,
+	diagnostic,
+	result,
+	config,
+	dependencies = {},
+) {
+	return result.evaluation.passed
+		? writeAccepted(outputDirectory, diagnostic, result, config, dependencies)
+		: (dependencies.writePending ?? writePendingResult)(outputDirectory, result);
 }
 
 /** Admit one and only one diagnostic with the frozen workload identity. */
@@ -57,7 +75,7 @@ export function parseM3LongformEditorialDiagnostic(output) {
 	return matches[0];
 }
 
-/** Recompute all six metrics from raw observations and preserve the external blocker. */
+/** Recompute all six metrics; only a configured qualified environment can pass. */
 export function createPendingM3LongformEditorialResult(input, inputConfig) {
 	const diagnostic = snapshotJsonData(input, 'diagnostic');
 	const config = snapshotJsonData(inputConfig, 'config');
@@ -67,8 +85,8 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 
 	assertIdentity(diagnostic);
-	if (diagnostic.observationClass !== 'timeline-coordinate-diagnostic-no-decoded-media') {
-		throw new Error('Browser diagnostic observationClass must preserve the decoded-media limitation.');
+	if (diagnostic.observationClass !== 'decoded-media-av-scheduling-v1') {
+		throw new Error('Browser diagnostic observationClass must prove decoded-media A/V scheduling.');
 	}
 	assertMeasurementPolicy(policy);
 	const expectedFixture = expectedFixtureContract(fixture);
@@ -119,7 +137,6 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		throw new Error('Fixture seek checkpoints must match the measurement trial count.');
 	}
 	const seekDurations = [];
-	const driftValues = [];
 	for (const [index, value] of seekTrials.entries()) {
 		const trial = requireRecord(value, `seekTrials[${index}]`);
 		const checkpoint = finiteNonNegativeInteger(trial.checkpointSample, `seekTrials[${index}].checkpointSample`);
@@ -135,10 +152,42 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 			`seekTrials[${index}].observedVideoFrame`,
 		);
 		seekDurations.push(finiteNonNegative(trial.elapsedMs, `seekTrials[${index}].elapsedMs`));
-		const audioMs = audioSample / expectedFixture.sampleRate * 1_000;
-		const videoMs = videoFrame
-			* expectedFixture.videoFrameRate.den / expectedFixture.videoFrameRate.num * 1_000;
-		driftValues.push(Math.abs(audioMs - videoMs));
+		const expectedVideoFrame = audioSample
+			* expectedFixture.videoFrameRate.num
+			/ expectedFixture.videoFrameRate.den
+			/ expectedFixture.sampleRate;
+		if (videoFrame !== expectedVideoFrame) {
+			throw new Error(`seekTrials[${index}] audio and video timeline coordinates diverged.`);
+		}
+	}
+	const decodedAvSamples = exactArray(diagnostic.decodedAvSamples, 24, 'decoded A/V samples');
+	const decodedFixtureCounts = new Map([
+		['av-landscape-webm-v1', 0],
+		['av-portrait-webm-v1', 0],
+	]);
+	const driftValues = decodedAvSamples.map((value, index) => {
+		const sample = requireRecord(value, `decodedAvSamples[${index}]`);
+		const fixtureId = finiteString(sample.fixtureId, `decodedAvSamples[${index}].fixtureId`);
+		if (!decodedFixtureCounts.has(fixtureId)) {
+			throw new Error(`decodedAvSamples[${index}] uses an unknown decoded fixture.`);
+		}
+		decodedFixtureCounts.set(fixtureId, decodedFixtureCounts.get(fixtureId) + 1);
+		const audioSeconds = finiteNonNegative(
+			sample.audioMediaTimeSeconds,
+			`decodedAvSamples[${index}].audioMediaTimeSeconds`,
+		);
+		const videoSeconds = finiteNonNegative(
+			sample.videoMediaTimeSeconds,
+			`decodedAvSamples[${index}].videoMediaTimeSeconds`,
+		);
+		const driftMs = finiteNonNegative(sample.driftMs, `decodedAvSamples[${index}].driftMs`);
+		if (Math.abs(Math.abs(audioSeconds - videoSeconds) * 1_000 - driftMs) > 0.000_001) {
+			throw new Error(`decodedAvSamples[${index}] drift does not match its decoded clocks.`);
+		}
+		return driftMs;
+	});
+	if ([...decodedFixtureCounts.values()].some((count) => count !== 12)) {
+		throw new Error('Decoded A/V samples must cover both repository fixtures exactly 12 times.');
 	}
 
 	const scrollIntervals = exactArray(
@@ -193,12 +242,9 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		rendererClass,
 		metrics,
 	});
-	if (evaluation.passed) {
-		throw new Error('Pending collector cannot publish accepted qualification evidence.');
-	}
 	return Object.freeze({
 		schemaVersion: 1,
-		status: 'pending-external',
+		status: evaluation.passed ? 'accepted' : 'pending-external',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: ENVIRONMENT_ID,
@@ -212,13 +258,14 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		metrics,
 		rawSampleCounts: Object.freeze({
 			positionChecks: positionChecks.length,
+			decodedAvSamples: decodedAvSamples.length,
 			seekWarmupTrials: diagnostic.seekWarmupTrialCount,
 			seekTrials: seekTrials.length,
 			scrollFrameIntervals: scrollIntervals.length,
 			forcedCollectionsBefore: forcedBefore,
 			forcedCollectionsAfter: forcedAfter,
 		}),
-		qualificationEvidencePublished: false,
+		qualificationEvidencePublished: evaluation.passed,
 		evaluation,
 	});
 }
@@ -245,6 +292,75 @@ async function writePendingResult(outputDirectory, result) {
 	const resultPath = join(outputDirectory, `${WORKLOAD_ID}.pending-external.json`);
 	await writeFile(resultPath, `${JSON.stringify(result, null, '\t')}\n`, { flag: 'wx' });
 	return Object.freeze({ resultPath, result });
+}
+
+async function writeAccepted(outputDirectory, diagnostic, pending, config, dependencies) {
+	const sourceRevision = dependencies.sourceRevision ?? await currentSourceRevision();
+	const configBytes = dependencies.configBytes ?? await readFile(CONFIG_URL);
+	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
+	if (!deepEqualJson(pending.environmentFingerprint, environment.fingerprint)) {
+		throw new Error('Accepted long-form environment fingerprint does not match the qualified descriptor.');
+	}
+	const rawArtifactName = `${WORKLOAD_ID}.raw.json`;
+	const resultArtifactName = `${WORKLOAD_ID}.accepted.json`;
+	const raw = Object.freeze({
+		schemaVersion: 1,
+		workloadId: WORKLOAD_ID,
+		environmentId: ENVIRONMENT_ID,
+		environmentFingerprint: pending.environmentFingerprint,
+		sourceRevision,
+		attemptCount: 1,
+		retryCount: 0,
+		observationClass: pending.observationClass,
+		fixture: pending.fixture,
+		metrics: pending.metrics,
+		rawSampleCounts: pending.rawSampleCounts,
+		diagnostic,
+	});
+	const rawBytes = Buffer.from(`${JSON.stringify(raw, null, '\t')}\n`);
+	const result = Object.freeze({
+		schemaVersion: 1,
+		workloadId: WORKLOAD_ID,
+		fixtureIds: Object.freeze([FIXTURE_ID]),
+		environmentId: ENVIRONMENT_ID,
+		environmentFingerprint: pending.environmentFingerprint,
+		rendererClass: pending.rendererClass,
+		budgetSha256: sha256(configBytes),
+		sourceRevision,
+		attemptCount: 1,
+		retryCount: 0,
+		rawEvidence: Object.freeze({
+			artifactName: rawArtifactName,
+			byteLength: rawBytes.byteLength,
+			sha256: sha256(rawBytes),
+		}),
+		metrics: pending.metrics,
+	});
+	await mkdir(outputDirectory, { recursive: true });
+	const rawPath = join(outputDirectory, rawArtifactName);
+	const resultPath = join(outputDirectory, resultArtifactName);
+	await writeFile(rawPath, rawBytes, { flag: 'wx' });
+	await writeFile(resultPath, `${JSON.stringify(result, null, '\t')}\n`, { flag: 'wx' });
+	const verify = dependencies.verifyAccepted ?? verifyQualityBudgetResultFiles;
+	const verification = await verify({
+		configPath: fileURLToPath(CONFIG_URL), resultPath, expectedSourceRevision: sourceRevision,
+	});
+	if (!verification.passed) {
+		throw new Error(`Accepted long-form evidence failed verification:\n${verification.failures.join('\n')}`);
+	}
+	return Object.freeze({ rawPath, resultPath, result, verification });
+}
+
+async function currentSourceRevision() {
+	const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
+		cwd: REPOSITORY_ROOT,
+		encoding: 'utf8',
+	});
+	return stdout.trim();
+}
+
+function sha256(bytes) {
+	return createHash('sha256').update(bytes).digest('hex');
 }
 
 function expectedFixtureContract(fixture) {

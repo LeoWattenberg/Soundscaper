@@ -13,6 +13,7 @@ import {
 	bootEditor,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { deterministicAvMedia } from './fixtures/deterministic-av-media.js';
 
 const DATABASE_NAME = 'kw-media-audio-editor';
 const ENVIRONMENT_ID = 'reference-linux-gpu-01';
@@ -77,13 +78,14 @@ test('collects the opt-in two-hour editorial diagnostic without qualifying the h
 		M3_LONGFORM_EDITORIAL_SPECIFICATION.scrollFrameIntervalSampleCount,
 	);
 	const afterBytes = await usedHeapAfterCollections(cdp, 3);
+	const decodedAvSamples = await measureDecodedAvDrift(page);
 	const renderer = await rendererDiagnostic(page);
 	const environmentFingerprint = await browserFingerprint(page, browser, renderer);
 
 	const diagnostic = {
 		schemaVersion: 1,
 		profile: M3_LONGFORM_EDITORIAL_PROFILE,
-		observationClass: 'timeline-coordinate-diagnostic-no-decoded-media',
+		observationClass: 'decoded-media-av-scheduling-v1',
 		workloadId: M3_LONGFORM_EDITORIAL_WORKLOAD_ID,
 		fixtureId: M3_LONGFORM_EDITORIAL_FIXTURE_ID,
 		environmentId: ENVIRONMENT_ID,
@@ -93,6 +95,7 @@ test('collects the opt-in two-hour editorial diagnostic without qualifying the h
 		positionChecks,
 		seekWarmupTrialCount: 1,
 		seekTrials,
+		decodedAvSamples,
 		scrollFrameIntervalsMs,
 		retainedHeap: {
 			beforeBytes,
@@ -120,6 +123,87 @@ function fixtureIdentity(workload) {
 		projectSha256: sha256(JSON.stringify(workload.project)),
 		editPlanSha256: sha256(JSON.stringify(workload.editPlan.commands)),
 	};
+}
+
+async function measureDecodedAvDrift(page) {
+	const fixtures = deterministicAvMedia.map(({ id, file }) => ({
+		id,
+		mimeType: file.mimeType,
+		base64: file.buffer.toString('base64'),
+	}));
+	return page.evaluate(async (encodedFixtures) => {
+		const samples = [];
+		for (const fixture of encodedFixtures) {
+			const binary = atob(fixture.base64);
+			const bytes = Uint8Array.from(binary, (value) => value.charCodeAt(0));
+			const context = new AudioContext({ sampleRate: 48_000 });
+			const decoded = await context.decodeAudioData(bytes.buffer.slice(0));
+			if (decoded.sampleRate !== 48_000 || decoded.numberOfChannels < 1 || decoded.length < 1) {
+				throw new Error(`Decoded A/V probe ${fixture.id} has invalid audio geometry.`);
+			}
+			const video = document.createElement('video');
+			const url = URL.createObjectURL(new Blob([bytes], { type: fixture.mimeType }));
+			video.src = url;
+			video.muted = true;
+			video.playsInline = true;
+			video.preload = 'auto';
+			video.style.cssText = 'position:fixed;width:2px;height:2px;opacity:0;pointer-events:none';
+			document.body.append(video);
+			const source = context.createBufferSource();
+			const silent = context.createGain();
+			silent.gain.value = 0;
+			source.buffer = decoded;
+			source.connect(silent);
+			silent.connect(context.destination);
+			try {
+				await new Promise((resolve, reject) => {
+					video.oncanplay = resolve;
+					video.onerror = () => reject(video.error ?? new Error(`Could not decode ${fixture.id}.`));
+					video.load();
+				});
+				await context.resume();
+				await video.play();
+				await new Promise((resolve, reject) => {
+					let originAudioSeconds = null;
+					let originVideoSeconds = null;
+					const timeout = setTimeout(() => reject(new Error(`Decoded A/V probe ${fixture.id} timed out.`)), 10_000);
+					const frame = (_now, metadata) => {
+						const presentationAudioSeconds = context.currentTime
+							+ (Number(metadata.expectedDisplayTime) - performance.now()) / 1_000;
+						if (originAudioSeconds === null) {
+							originAudioSeconds = presentationAudioSeconds;
+							originVideoSeconds = Number(metadata.mediaTime);
+							source.start(context.currentTime, Math.max(0, originVideoSeconds));
+						}
+						const audioMediaTimeSeconds = originVideoSeconds
+							+ presentationAudioSeconds - originAudioSeconds;
+						samples.push({
+							fixtureId: fixture.id,
+							audioMediaTimeSeconds,
+							videoMediaTimeSeconds: Number(metadata.mediaTime),
+							driftMs: Math.abs(audioMediaTimeSeconds - Number(metadata.mediaTime)) * 1_000,
+						});
+						if (samples.filter(({ fixtureId }) => fixtureId === fixture.id).length >= 12) {
+							clearTimeout(timeout);
+							resolve();
+							return;
+						}
+						video.requestVideoFrameCallback(frame);
+					};
+					video.requestVideoFrameCallback(frame);
+				});
+			} finally {
+				try { source.stop(); } catch { /* The source may already have ended. */ }
+				video.pause();
+				video.removeAttribute('src');
+				video.load();
+				video.remove();
+				URL.revokeObjectURL(url);
+				await context.close();
+			}
+		}
+		return samples;
+	}, fixtures);
 }
 
 async function seedProject(page, project) {

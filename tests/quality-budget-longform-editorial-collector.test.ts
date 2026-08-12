@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
 	createPendingM3LongformEditorialResult,
 	parseM3LongformEditorialDiagnostic,
+	writeM3LongformEditorialResult,
 } from '../scripts/collect-m3-longform-editorial-quality.mjs';
 
 const config = JSON.parse(await readFile(
@@ -41,7 +44,7 @@ function makeDiagnostic() {
 	return {
 		schemaVersion: 1,
 		profile: 'deterministic-two-hour-editorial-v1',
-		observationClass: 'timeline-coordinate-diagnostic-no-decoded-media',
+		observationClass: 'decoded-media-av-scheduling-v1',
 		workloadId: 'm3-longform-editorial',
 		fixtureId: 'm3-longform-editorial-2h-v1',
 		environmentId: 'reference-linux-gpu-01',
@@ -73,6 +76,18 @@ function makeDiagnostic() {
 			observedVideoFrame: checkpointSample / 1_600,
 			elapsedMs: [100, 20, 30, 40, 50][index],
 		})),
+		decodedAvSamples: ['av-landscape-webm-v1', 'av-portrait-webm-v1'].flatMap(
+			(fixtureId, fixtureIndex) => Array.from({ length: 12 }, (_, index) => {
+				const videoMediaTimeSeconds = index / 15;
+				const driftMs = fixtureIndex + index / 100;
+				return {
+					fixtureId,
+					videoMediaTimeSeconds,
+					audioMediaTimeSeconds: videoMediaTimeSeconds + driftMs / 1_000,
+					driftMs,
+				};
+			}),
+		),
 		scrollFrameIntervalsMs: Array.from({ length: 240 }, (_, index) => 10 + index % 10),
 		retainedHeap: {
 			beforeBytes: 1_000,
@@ -95,13 +110,14 @@ test('the long-form collector recomputes every metric with the frozen sampling p
 	assert.deepEqual(result.metrics, {
 		'editorial.audioPositionErrorSamples': 0,
 		'editorial.videoPositionErrorFrames': 0,
-		'editorial.avDriftMaximumMs': 0,
+		'editorial.avDriftMaximumMs': 1.11,
 		'editorial.seekP95Ms': 100,
 		'editorial.scrollFrameIntervalP95Ms': 19,
 		'editorial.retainedHeapDeltaBytes': 1_234,
 	});
 	assert.deepEqual(result.rawSampleCounts, {
 		positionChecks: 26,
+		decodedAvSamples: 24,
 		seekWarmupTrials: 1,
 		seekTrials: 5,
 		scrollFrameIntervals: 240,
@@ -166,19 +182,67 @@ test('fixture drift and malformed raw observations fail before a result can exis
 	);
 });
 
-test('the pending collector rejects accepted publication even after a hypothetical activation', () => {
+test('a hypothetically provisioned matching environment enables accepted publication', () => {
 	const activated = structuredClone(config) as {
-		environments: Array<{ id: string; status: string; qualificationEligible: boolean }>;
+		environments: Array<{
+			id: string;
+			status: string;
+			qualificationEligible: boolean;
+			fingerprint: Record<string, unknown>;
+		}>;
 	};
 	const environment = activated.environments.find(({ id }) => id === 'reference-linux-gpu-01');
 	assert.ok(environment);
 	environment.status = 'active';
 	environment.qualificationEligible = true;
+	environment.fingerprint = structuredClone(makeDiagnostic().environmentFingerprint);
+	const result = createPendingM3LongformEditorialResult(makeDiagnostic(), activated);
+	assert.equal(result.status, 'accepted');
+	assert.equal(result.qualificationEvidencePublished, true);
+	assert.equal(result.evaluation.passed, true);
+});
 
-	assert.throws(
-		() => createPendingM3LongformEditorialResult(makeDiagnostic(), activated),
-		/Pending collector cannot publish accepted qualification evidence/iu,
+test('qualified measurements publish digest-bound raw and accepted artifacts', async () => {
+	const activated = structuredClone(config) as {
+		environments: Array<{
+			id: string;
+			status: string;
+			qualificationEligible: boolean;
+			fingerprint: Record<string, unknown>;
+		}>;
+	};
+	const diagnostic = makeDiagnostic();
+	const environment = activated.environments.find(({ id }) => id === 'reference-linux-gpu-01');
+	assert.ok(environment);
+	environment.status = 'active';
+	environment.qualificationEligible = true;
+	environment.fingerprint = structuredClone(diagnostic.environmentFingerprint);
+	const result = createPendingM3LongformEditorialResult(diagnostic, activated);
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m3-longform-'));
+	const configBytes = Buffer.from(`${JSON.stringify(activated, null, '\t')}\n`);
+	let verificationCalls = 0;
+	const written = await writeM3LongformEditorialResult(
+		directory, diagnostic, result, activated,
+		{
+			configBytes,
+			sourceRevision: 'c'.repeat(40),
+			verifyAccepted: async () => {
+				verificationCalls += 1;
+				return { passed: true, failures: [], verdicts: [] };
+			},
+		},
 	);
+	assert.equal(verificationCalls, 1);
+	assert.equal(written.rawPath, join(directory, 'm3-longform-editorial.raw.json'));
+	assert.equal(written.resultPath, join(directory, 'm3-longform-editorial.accepted.json'));
+	const [raw, accepted] = await Promise.all([
+		readFile(written.rawPath, 'utf8').then(JSON.parse),
+		readFile(written.resultPath, 'utf8').then(JSON.parse),
+	]);
+	assert.equal(raw.observationClass, 'decoded-media-av-scheduling-v1');
+	assert.deepEqual(accepted.metrics, result.metrics);
+	assert.equal(accepted.rawEvidence.artifactName, 'm3-longform-editorial.raw.json');
+	assert.equal(accepted.environmentFingerprint.gpuModel, 'diagnostic-gpu');
 });
 
 test('the registered runnable harness preserves every external qualification blocker', () => {
@@ -200,10 +264,11 @@ test('the registered runnable harness preserves every external qualification blo
 	assert.equal(fixture?.status, 'provisional');
 	assert.equal(fixture?.kind, 'deterministic-current-schema-project-generator');
 	assert.equal(fixture?.specification.localDiagnosticCommand, 'npm run quality:collect:m3-longform');
-	assert.equal(fixture?.specification.qualificationPublication, 'forbidden-by-pending-collector');
+	assert.equal(fixture?.specification.qualificationPublication,
+		'accepted-only-after-qualified-environment-and-digest-bound-verification');
 	assert.equal(packageMetadata.scripts['quality:collect:m3-longform'],
 		'node scripts/collect-m3-longform-editorial-quality.mjs');
-	assert.equal(workload?.status, 'planned');
+	assert.equal(workload?.status, 'provisional');
 	assert.equal(environment?.status, 'unprovisioned');
 	assert.equal(environment?.qualificationEligible, false);
 	assert.ok(Object.values(environment?.fingerprint ?? {}).every((value) => value === null));
