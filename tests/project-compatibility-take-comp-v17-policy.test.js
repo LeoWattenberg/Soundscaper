@@ -14,7 +14,7 @@ test('V17 policy records native Soundscaper take/comp and read-only Framescaper 
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/Exact-schema-17 take\/comp state.*closed.*bounded.*canonical.*ownership-validated.*bypass-only no-fallback.*native and writable in Soundscaper.*known unavailable.*read-only in Framescaper.*publisher substitution.*audio or video rendered fallback.*reject.*\.scape collision copy.*fresh-recipient desktop handoff.*take-owned PCM.*source identity remapping/iu,
+		/Exact-schema-17 take\/comp state.*closed.*bounded.*canonical.*ownership-validated.*bypass-only no-fallback.*native and writable in Soundscaper.*known unavailable.*read-only in Framescaper.*publisher substitution.*audio or video rendered fallback.*reject.*capability-gated routed cycle.*ordered pass lanes.*explicit durable recover or discard.*\.scape collision copy.*fresh-recipient desktop handoff.*production-finalized or restart-recovered.*take-owned PCM.*source identity remapping/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -42,7 +42,23 @@ test('V17 policy records native Soundscaper take/comp and read-only Framescaper 
 	);
 	assert.match(
 		rule.currentBehavior,
-		/fresh desktop V9 metadata 9.*SQLite user_version 11.*Soundscaper.*writable.*fresh Framescaper recipient.*managed PCM.*exact document.*read-only.*fresh Soundscaper recipient.*writable.*no missing sources.*Cycle recording.*interrupted-pass recovery.*outside this policy slice/iu,
+		/fresh desktop V9 metadata 9.*SQLite user_version 11.*Soundscaper.*writable.*fresh Framescaper recipient.*managed PCM.*exact document.*read-only.*fresh Soundscaper recipient.*writable.*no missing sources/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/Record options menu.*Record loop into takes.*writable.*takeComp.*Framescaper.*neither.*cycle entry.*recovery UI.*direct start, Recover, and Discard.*takeComp.*before controller mutation/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/positive enabled loop.*unlocked armed audio targets.*routed input.*one owning sequence.*timed.*punch-selection.*sound-activated.*pending recovery.*differently sized overlap.*refuse/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/selection-only edits.*owning session.*without autosave or compaction.*flushes the exact current project.*before capture input or durable session I\/O.*rechecks currentness/iu,
+	);
+	assert.match(
+		rule.currentBehavior,
+		/each complete pass.*explicitly interrupted partial final pass.*separate ordered lane, take, and source.*repeating the exact loop.*same group.*repository finalization and restart replay.*exact two-lane.*schema-17.*PCM.*\.scape collision-copy.*recovered cycle output.*desktop.*handoff.*finalized cycle output.*`durable-routed-take-cycle-capture-and-recovery`/iu,
 	);
 	assert.deepEqual(rule.evidence, [
 		'src/common/editor/take-comp-domain.ts',
@@ -78,6 +94,24 @@ test('V17 policy records native Soundscaper take/comp and read-only Framescaper 
 		'tests/browser/audio-editor-take-comp.spec.js',
 		'tests/audio-editor-scape-take-comp-roundtrip.test.ts',
 		'tests/desktop-project-library-take-comp-handoff.test.ts',
+		'src/common/editor/take-cycle-capture-domain.ts',
+		'src/common/editor/controller/take-cycle-routed-capture-service.ts',
+		'src/common/editor/controller/take-cycle-recording-app-session.ts',
+		'src/common/editor/controller/take-cycle-current-project-publication-service.ts',
+		'src/common/editor/controller/take-cycle-open-recovery-authority.ts',
+		'src/common/editor/controller/take-cycle-open-recovery-coordinator.ts',
+		'src/common/editor/controller/take-cycle-production-composition.ts',
+		'src/common/editor/controller/take-cycle-app-composition.ts',
+		'src/common/editor/controller/recording-action-facade.ts',
+		'src/common/editor/ui/take-cycle-recording-menu.ts',
+		'src/common/editor/ui/dialogs/TakeCycleRecoveryDialog.tsx',
+		'tests/audio-editor-take-cycle-repository-composition.test.ts',
+		'tests/audio-editor-take-cycle-production-recovery-storage.test.ts',
+		'tests/audio-editor-take-cycle-current-project-settlement.test.ts',
+		'tests/audio-editor-cycle-produced-take-fixture.test.ts',
+		'tests/audio-editor-recording-cycle-action-facade.test.ts',
+		'tests/audio-editor-take-cycle-ui.test.tsx',
+		'tests/browser/audio-editor-take-cycle-recording.spec.js',
 	]);
 
 	const documentation = (await readFile(documentationUrl, 'utf8')).replace(/\s+/gu, ' ');
@@ -85,5 +119,6 @@ test('V17 policy records native Soundscaper take/comp and read-only Framescaper 
 	assert.match(documentation, /soundscaper\.take-comp.*org\.soundscaper\.capability\.take-comp.*bypass.*fallback null/iu);
 	assert.match(documentation, /true in Soundscaper.*available\/native.*false but registered in Framescaper.*unavailable\/bypassed.*intrinsically read-only/iu);
 	assert.match(documentation, /excluded from both audio and video rendered-fallback.*publisher-authored substitution or rendered fallback.*rejects/iu);
-	assert.match(documentation, /Tracks-menu dialog.*clipboard V4.*\.scape collision copy.*fresh desktop V9 metadata 9.*Cycle recording.*outside this policy slice/iu);
+	assert.match(documentation, /Tracks-menu dialog.*clipboard V4.*\.scape collision copy.*fresh desktop V9 metadata 9.*Record options menu.*Record loop into takes/iu);
+	assert.match(documentation, /Framescaper.*neither.*cycle entry.*recovery UI.*complete pass.*interrupted partial final pass.*repository finalization and restart replay.*exact two-lane.*durable-routed-take-cycle-capture-and-recovery/iu);
 });

@@ -102,6 +102,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 	}),
 	Object.freeze({
+		marker: 'durable-routed-take-cycle-capture-and-recovery',
+		register: 'config/production-security-matrix.json',
+		riskId: 'long-job-cancellation',
+		controlId: 'durable-routed-take-cycle-capture-and-recovery',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+	}),
+	Object.freeze({
 		marker: 'bounded-audio-warp-transient-analysis',
 		register: 'config/production-security-matrix.json',
 		riskId: 'long-job-cancellation',

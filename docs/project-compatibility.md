@@ -252,9 +252,27 @@ reopens the copied document and PCM exactly. A fresh desktop V9 metadata 9 and
 SQLite user_version 11 handoff proves Soundscaper opens the project writable, a
 fresh Framescaper recipient fetches the managed PCM and preserves the exact
 document intrinsically read-only, and a fresh Soundscaper recipient reopens it
-writable with no missing sources. Cycle recording, pass capture,
-interrupted-pass recovery, and the open-time recover-or-discard workflow remain
-outside this policy slice.
+writable with no missing sources. Soundscaper's existing Record options menu
+exposes Record loop into takes only for a writable exact-schema-17 project with
+takeComp true; Framescaper exposes neither the cycle entry nor recovery UI, and
+direct start, Recover, and Discard actions enforce takeComp before controller
+mutation. A positive enabled loop with unlocked armed audio targets, one routed
+input for every target, and exactly one owning sequence per target is admitted;
+timed, punch-selection, and sound-activated recording, busy or pending recovery
+state, and a differently sized overlapping take group refuse. Selection-only
+edits synchronize the owning session while preserving dirty state and without
+autosave or compaction; cycle start then flushes the exact current project
+before capture input or durable session I/O and rechecks currentness. Each
+complete pass and an explicitly interrupted partial final pass becomes a
+separate ordered lane, take, and source; repeating the exact loop appends to the
+same group. Durable repository finalization and restart replay reopen exact
+two-lane schema-17 documents and PCM. The .scape collision-copy witness consumes
+recovered cycle output and proves exact source remapping and PCM; the fresh
+desktop Soundscaper-to-Framescaper-read-only-to-Soundscaper handoff consumes
+finalized cycle output and returns with no missing sources. The dedicated
+`durable-routed-take-cycle-capture-and-recovery` production-security control
+owns the exact resource, durability, recovery-authority, and qualification
+limits.
 <!-- /policy-narrative:take-comp-v17-preservation -->
 
 ## Audio warp compatibility

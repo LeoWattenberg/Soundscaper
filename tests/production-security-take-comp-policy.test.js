@@ -32,11 +32,11 @@ test('take/comp security truth binds native Soundscaper to read-only Framescaper
 	);
 	assert.match(
 		control.summary,
-		/clipboard V4.*take-owned source roots.*independently identified graph.*current-format `\.scape` collision copy.*only logical roots.*exact PCM.*source and storage identities.*take source IDs?.*recipient collisions untouched.*reopens.*fresh-recipient desktop handoff.*managed PCM.*no missing sources/iu,
+		/clipboard V4.*take-owned source roots.*independently identified graph.*current-format `\.scape` collision copy.*production-recovered cycle output.*only logical roots.*exact PCM.*source and storage identities.*take source IDs?.*recipient collisions untouched.*reopens.*fresh-recipient desktop handoff.*production-finalized cycle output.*managed PCM.*no missing sources/iu,
 	);
 	assert.match(
 		control.summary,
-		/Cycle recording.*pass capture.*interrupted-pass recovery.*recover-or-discard.*outside this control/iu,
+		/routed cycle capture.*durability.*explicit open recovery.*bounded-resource truth.*dedicated `durable-routed-take-cycle-capture-and-recovery` control/iu,
 	);
 
 	const evidencePaths = new Set(control.evidence.map(({ path }) => path));
@@ -52,6 +52,8 @@ test('take/comp security truth binds native Soundscaper to read-only Framescaper
 		'tests/audio-editor-take-comp-composition.test.ts',
 		'tests/audio-editor-take-comp-clipboard.test.ts',
 		'tests/browser/audio-editor-take-comp.spec.js',
+		'tests/helpers/cycle-produced-take-fixture.ts',
+		'tests/audio-editor-cycle-produced-take-fixture.test.ts',
 		'tests/audio-editor-scape-take-comp-roundtrip.test.ts',
 		'tests/desktop-project-library-take-comp-handoff.test.ts',
 	]) assert.equal(evidencePaths.has(path), true, path);
@@ -59,5 +61,5 @@ test('take/comp security truth binds native Soundscaper to read-only Framescaper
 	const threatModel = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
 	assert.match(threatModel, /policy-narrative:take-comp-native-and-cross-product-preservation/iu);
 	assert.match(threatModel, /Soundscaper.*available\/native.*Framescaper.*unavailable\/bypassed.*intrinsically read-only/iu);
-	assert.match(threatModel, /current-format `\.scape` collision copy.*fresh-recipient desktop handoff.*Cycle recording.*outside this control/iu);
+	assert.match(threatModel, /current-format `\.scape` collision copy.*production-recovered cycle output.*fresh-recipient desktop handoff.*production-finalized cycle output.*durable-routed-take-cycle-capture-and-recovery/iu);
 });

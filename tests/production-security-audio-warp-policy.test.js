@@ -53,6 +53,9 @@ test('audio-warp project admission refuses semantic substitution and rendered fa
 		'tests/audio-editor-project-feature-audio-rendered-fallback.test.ts',
 		'tests/audio-editor-audio-warp-runtime.test.ts',
 		'tests/audio-editor-audio-warp-pcm-parity.test.ts',
+		'tests/audio-editor-scape-audio-warp-roundtrip.test.ts',
+		'tests/desktop-project-library-audio-warp-handoff.test.ts',
+		'tests/audio-editor-audio-warp-export-service.test.ts',
 		'tests/browser/audio-editor-audio-warp.spec.js',
 	]);
 });

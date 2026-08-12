@@ -106,6 +106,9 @@ test('audio-warp policy records native Soundscaper and read-only Framescaper tru
 		'tests/audio-editor-transient-analysis-pcm-access.test.ts',
 		'tests/audio-editor-audio-warp-controller-composition.test.ts',
 		'tests/audio-editor-audio-warp-ui.test.tsx',
+		'tests/audio-editor-scape-audio-warp-roundtrip.test.ts',
+		'tests/desktop-project-library-audio-warp-handoff.test.ts',
+		'tests/audio-editor-audio-warp-export-service.test.ts',
 		'tests/browser/audio-editor-audio-warp.spec.js',
 	]) assert.equal(evidence.has(path), true, path);
 
