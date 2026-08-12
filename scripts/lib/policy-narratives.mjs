@@ -66,6 +66,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		wrap: 80,
 	}),
 	Object.freeze({
+		marker: 'take-comp-v17-preservation',
+		register: 'config/project-compatibility.json',
+		ruleId: 'current-take-comp-v17-preservation',
+		field: 'currentBehavior',
+		document: 'docs/project-compatibility.md',
+		intro: null,
+		wrap: 80,
+	}),
+	Object.freeze({
 		marker: 'desktop-electron-lease-protections',
 		register: 'config/project-compatibility.json',
 		ruleId: 'current-desktop-electron-lease-protections',
