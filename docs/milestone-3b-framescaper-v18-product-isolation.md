@@ -75,6 +75,10 @@ capability owner exists yet, so the final runtime profile remains deferred
 rather than accepting a structural placeholder. Its eventual creator must
 authenticate and retain the exact prerequisite and capability-token
 identities; a copied or reparsed prerequisite definition grants no authority.
+The next contract-first boundary is the dormant
+[Framescaper runtime capability
+profile](milestone-3b-framescaper-runtime-capability-profile.md); it authorizes
+no production, c1a composition, or selector.
 
 ## Selection and non-interference
 
@@ -206,6 +210,8 @@ This contract authorizes no V18 validator, final runtime token, profile
 selector, capability registration, archive format, storage claim, controller
 wiring, desktop v10 path, UI, menu, preview, or Soundscaper change. Dormant c1a
 is implemented; the next executable step is a separately reviewed
-Framescaper capability-token contract/RED. The first reachable selector remains
-the full atomic c-c transition. Durable proxy storage, attachment authoring,
-and 3B-6d remain blocked until that transition is green.
+[Framescaper runtime capability-profile
+contract/RED](milestone-3b-framescaper-runtime-capability-profile.md). The first
+reachable selector remains the full atomic c-c transition. Durable proxy
+storage, attachment authoring, and 3B-6d remain blocked until that transition
+is green.

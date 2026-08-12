@@ -391,8 +391,10 @@ Persistence remains subject to the refreshed V18 blocker review. The reviewed
 [Framescaper V18 product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md)
 defines the indivisible transition that must precede durable c-c work. The
 dormant runtime-profile prerequisite is implemented through `13f80172`; the
-next contract-first prerequisite is a separately reviewed authenticated
-Framescaper capability token, still without a selector or production behavior.
+next contract-first prerequisite is the separately reviewed dormant
+[Framescaper runtime capability
+profile](milestone-3b-framescaper-runtime-capability-profile.md), still without
+c1a composition, a selector, or production behavior.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

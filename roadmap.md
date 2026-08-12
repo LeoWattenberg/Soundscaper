@@ -561,9 +561,10 @@ Packet boundaries, dependencies, and acceptance are owned by
   prerequisite](docs/milestone-3b-framescaper-runtime-profile-prerequisite.md),
   implemented through `13f80172` on 2026-08-12, retains the exact c-c0 identity
   and static V18 contract literals while explicitly deferring capability
-  authority. The next contract-first prerequisite is the authenticated
-  Framescaper capability-token contract; no selector or durable proxy behavior
-  is authorized.
+  authority. The next contract-first prerequisite is the dormant
+  [Framescaper runtime capability
+  profile](docs/milestone-3b-framescaper-runtime-capability-profile.md); no c1a
+  composition, selector, or durable proxy behavior is authorized.
 
 ### Shared exit gate
 

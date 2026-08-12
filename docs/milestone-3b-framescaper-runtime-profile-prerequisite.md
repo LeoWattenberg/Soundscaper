@@ -197,8 +197,9 @@ the exact dormant Framescaper owner, and no common or Soundscaper owner imports
 the product token. The full Node suite passed 5,798 tests (5,796 passed and 2
 reference-scale rows skipped), and the canonical `npm run check` completed
 lint, typecheck, architecture, audits, coverage, and the production build. The
-next contract-first prerequisite is the separately reviewed authenticated
-Framescaper capability token.
+next contract-first prerequisite is the separately reviewed dormant
+[Framescaper runtime capability
+profile](milestone-3b-framescaper-runtime-capability-profile.md).
 
 ## Hard stops
 
