@@ -493,9 +493,9 @@ const COPY_ENTRIES = Object.freeze([
 	["takeCycleRecoveryCloseHint","Closing this dialog makes no decision. Editing remains blocked until you recover or discard the interrupted recording.","Das Schließen dieses Dialogs trifft keine Entscheidung. Die Bearbeitung bleibt gesperrt, bis du die unterbrochene Aufnahme wiederherstellst oder verwirfst."],
 	["takeCycleRecover","Recover takes","Takes wiederherstellen"],
 	["takeCycleDiscard","Discard takes","Takes verwerfen"],
-	["takeCycleRecovering","Recovering takes…","Takes werden wiederhergestellt …"],
-	["takeCycleDiscarding","Discarding takes…","Takes werden verworfen …"],
-	["takeCycleRecoveryWorking","Verifying exact recovery ownership…","Exakte Wiederherstellungszuordnung wird geprüft …"],
+	["takeCycleRecovering","Recovering takes","Takes werden wiederhergestellt"],
+	["takeCycleDiscarding","Discarding takes","Takes werden verworfen"],
+	["takeCycleRecoveryWorking","Verifying exact recovery ownership","Exakte Wiederherstellungszuordnung wird geprüft"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({
