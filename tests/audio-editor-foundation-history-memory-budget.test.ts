@@ -27,10 +27,28 @@ if (process.env[CHILD_FLAG] === '1') {
 		const workload = budget.workloads.find(({ id }: { id: string }) => id === 'm3-longform-editorial');
 		const threshold = workload.thresholds.find(({ metricId }: { metricId: string }) => metricId === METRIC_ID);
 		assert.deepEqual(fixture.specification, {
+			localDiagnosticCommand: 'npm run quality:collect:m3-longform',
+			routineBrowserTestBehavior: 'skip-with-explicit-collector',
+			qualificationPublication: 'forbidden-by-pending-collector',
+			generatorRevision: 1,
+			seed: 1_554_098_974,
 			durationSeconds: 7_200,
+			sampleRate: 48_000,
+			videoFrameRate: { num: 30, den: 1 },
 			audioTrackCount: 24,
 			proxyVideoTrackCount: 2,
 			editCount: 10_000,
+			commandsPerTransaction: 250,
+			operationCounts: {
+				audioClipMoves: 2_500,
+				proxyVideoClipMoves: 2_500,
+				selectionChanges: 2_500,
+				trackMixChanges: 2_500,
+			},
+			seekCheckpointsSamples: [0, 2_880_000, 86_400_000, 172_800_000, 345_552_000],
+			scrollFrameIntervalSampleCount: 240,
+			projectSha256: '00f5ec5df0210f2fb025c8435bc6368f370eed5f51418e02862dd50d66c25a5a',
+			editPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 		});
 		assert.deepEqual(threshold, {
 			metricId: METRIC_ID,

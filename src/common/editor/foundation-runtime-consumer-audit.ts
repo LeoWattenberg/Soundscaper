@@ -233,6 +233,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		file: 'src/common/editor/project-v10-foundation-validation.ts',
 		reason: 'Foundation validation intentionally resolves authoritative wire coordinates to prove bounds and derived equality.',
 	},
+	{
+		file: 'src/common/editor/quality/m3-longform-editorial-workload.ts',
+		reason: 'The deterministic qualification oracle resolves final clip positions only to compare persisted edit results against independently tracked expected coordinates; it is test workload construction rather than a runtime media consumer.',
+	},
 ]);
 
 /**
