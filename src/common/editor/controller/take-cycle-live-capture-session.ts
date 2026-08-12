@@ -28,6 +28,7 @@ export interface TakeCycleLiveLaneCapture {
 	readonly frameCount: number;
 	append(span: TakeCycleCapturePcmSpan, options?: { readonly signal?: AbortSignal }): Promise<void>;
 	seal(options?: { readonly signal?: AbortSignal }): Promise<TakeCycleCaptureDraft>;
+	discard(): Promise<void>;
 }
 
 export interface TakeCycleLiveCaptureSession {
@@ -114,6 +115,10 @@ export async function beginTakeCycleLiveCaptureSession(
 				sealed.push(draft);
 				dependencies.onDraft(draft);
 				return draft;
+			},
+			async discard() {
+				await writer.discard();
+				open.delete(writer.draftId);
 			},
 		});
 	}

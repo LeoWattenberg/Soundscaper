@@ -10,7 +10,7 @@ const MAXIMUM_GLOBAL_ACTIVE_SPOOLS = 4_096;
 const MAXIMUM_CHUNK_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_CAS_ATTEMPTS = 32;
 
-export type RawPcmSpoolState = 'capturing' | 'sealed' | 'deleting';
+export type RawPcmSpoolState = 'capturing' | 'sealed' | 'discarded' | 'deleting';
 
 export interface RawPcmSpoolRecord {
 	readonly version: 1;
@@ -189,7 +189,9 @@ export class RawPcmSpoolRepository {
 
 	async replaceData(expectedValue: RawPcmSpoolRecord, data: unknown): Promise<RawPcmSpoolRecord> {
 		const expected = normalizeRecord(expectedValue);
-		if (expected.state === 'deleting') throw new Error('A deleting raw PCM spool cannot replace data.');
+		if (expected.state === 'discarded' || expected.state === 'deleting') {
+			throw new Error('A settled raw PCM spool cannot replace data.');
+		}
 		const next = freezeRecord({ ...expected, data: snapshotData(data) });
 		if (sameRecord(expected, next)) return expected;
 		if (!await this.#replace(expected, next)) throw new Error('Raw PCM spool changed before data replacement.');
@@ -198,6 +200,9 @@ export class RawPcmSpoolRepository {
 
 	async *chunks(recordValue: RawPcmSpoolRecord): AsyncGenerator<RawPcmSpoolChunk> {
 		const record = normalizeRecord(recordValue);
+		if (record.state === 'discarded' || record.state === 'deleting') {
+			throw new Error('Discarded raw PCM is not readable capture evidence.');
+		}
 		await this.#assertCurrent(record);
 		for (let index = 0; index < record.chunkCount; index += 1) {
 			const stored = await this.#chunks.chunk(record.spoolToken, index);
@@ -209,6 +214,9 @@ export class RawPcmSpoolRepository {
 
 	async chunk(recordValue: RawPcmSpoolRecord, indexValue: number): Promise<RawPcmSpoolChunk> {
 		const record = normalizeRecord(recordValue);
+		if (record.state === 'discarded' || record.state === 'deleting') {
+			throw new Error('Discarded raw PCM is not readable capture evidence.');
+		}
 		const index = nonNegativeInteger(indexValue, 'raw PCM spool chunk index');
 		if (index >= record.chunkCount) throw new RangeError(`Raw PCM spool chunk ${String(index)} is outside its prefix.`);
 		await this.#assertCurrent(record);
@@ -216,6 +224,31 @@ export class RawPcmSpoolRepository {
 		const chunk = normalizeStoredChunk(stored, record, index);
 		await this.#assertCurrent(record);
 		return chunk;
+	}
+
+	/** Settle an exact capturing prefix as failed before reclaiming its owned PCM. */
+	async discard(expectedValue: RawPcmSpoolRecord, data: unknown): Promise<boolean> {
+		const expected = normalizeRecord(expectedValue);
+		if (expected.state !== 'capturing') return false;
+		const discarded = freezeRecord({ ...expected, state: 'discarded', data: snapshotData(data) });
+		let settled: RawPcmSpoolRecord | null = null;
+		for (let attempt = 0; attempt < MAXIMUM_CAS_ATTEMPTS; attempt += 1) {
+			const current = (await this.#loadRegistry(expected.projectId)).records
+				.find(({ spoolId }) => spoolId === expected.spoolId);
+			if (!current) return true;
+			if (sameRecord(current, discarded)) {
+				settled = current;
+				break;
+			}
+			if (!sameRecord(current, expected)) return false;
+			if (await this.#replace(current, discarded)) {
+				settled = discarded;
+				break;
+			}
+		}
+		if (!settled) throw new Error('Raw PCM spool discard exceeded its bounded CAS retry limit.');
+		await this.#chunks.deleteChunks(settled.spoolToken);
+		return this.#removeRecord(settled);
 	}
 
 	async remove(expectedValue: RawPcmSpoolRecord): Promise<boolean> {
@@ -331,7 +364,8 @@ function normalizeRegistry(value: unknown, expectedProjectId: string): RawPcmSpo
 function normalizeRecord(value: unknown): RawPcmSpoolRecord {
 	const record = dataRecord(value, 'raw PCM spool record');
 	const state = record.state;
-	if (record.version !== 1 || (state !== 'capturing' && state !== 'sealed' && state !== 'deleting')) {
+	if (record.version !== 1 || (state !== 'capturing' && state !== 'sealed'
+		&& state !== 'discarded' && state !== 'deleting')) {
 		throw new Error('Raw PCM spool record version or state is invalid.');
 	}
 	const channelCount = boundedPositiveInteger(record.channelCount, 64, 'raw PCM spool channelCount');

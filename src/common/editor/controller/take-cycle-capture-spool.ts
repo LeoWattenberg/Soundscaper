@@ -127,6 +127,7 @@ export function createTakeCycleCaptureSourceSpool(
 			spoolToken: writer.spoolToken,
 			get frameCount() { return writer.frameCount; },
 			append: writer.append,
+			discard: writer.discard,
 			async seal(options?: { readonly signal?: AbortSignal }) {
 				const draft = await writer.seal(options);
 				origins.set(draft.draftId, 'live');

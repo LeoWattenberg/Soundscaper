@@ -7,35 +7,26 @@ import {
 	type TakeCycleCaptureSpan,
 } from '../take-cycle-capture-domain.ts';
 import { digestScapeBytes } from '../scape-archive-media.ts';
-import type {
-	RawPcmSpoolRecord,
-	RawPcmSpoolRepository,
-} from '../storage/raw-pcm-spool-repository.ts';
+import type { RawPcmSpoolRecord, RawPcmSpoolRepository } from '../storage/raw-pcm-spool-repository.ts';
 import { WAVPACK_PCM_MAXIMUM_FRAMES } from '../wavpack/pcm.js';
 import {
 	PcmEvidenceAccumulator,
 	TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES,
 	type TakeCyclePcmEvidence,
 } from './take-cycle-capture-pcm-evidence.ts';
-import {
-	normalizeDraft,
-	sameDraft,
-} from './take-cycle-capture-spool-manifest.ts';
+import { normalizeDraft, sameDraft } from './take-cycle-capture-spool-manifest.ts';
+import { discardTakeCycleLiveCapture } from './take-cycle-live-capture-discard.ts';
 import type {
 	TakeCycleCaptureDraft,
 	TakeCycleCaptureDraftSeed,
 	TakeCycleCapturePassIdentities,
 	TakeCycleCapturePcmSpan,
 } from './take-cycle-capture-spool.ts';
-import type {
-	TakeCycleLaneTarget,
-	TakeCycleSourceDescription,
-} from './take-cycle-recording-repository-composition.ts';
+import type { TakeCycleLaneTarget, TakeCycleSourceDescription } from './take-cycle-recording-repository-composition.ts';
 
 const INTENT_KIND = 'take-cycle-live-capture-intent-v1';
 const DRAFT_KIND = 'take-cycle-live-capture-draft-v1';
 const TEXT_ENCODER = new TextEncoder();
-
 export interface TakeCycleLiveCaptureInventory {
 	readonly drafts: readonly TakeCycleCaptureDraft[];
 	readonly capturing: readonly TakeCycleCapturingSpoolEvidence[];
@@ -80,6 +71,7 @@ export interface TakeCycleLiveCaptureWriter {
 	readonly frameCount: number;
 	append(span: TakeCycleCapturePcmSpan, options?: { readonly signal?: AbortSignal }): Promise<void>;
 	seal(options?: { readonly signal?: AbortSignal }): Promise<TakeCycleCaptureDraft>;
+	discard(): Promise<void>;
 }
 
 interface LiveCaptureIntent {
@@ -100,7 +92,7 @@ interface LiveCaptureIntent {
 export function createTakeCycleLiveCaptureSpool(
 	repository: Pick<RawPcmSpoolRepository,
 		'allocateGeneration' | 'create' | 'list' | 'load' | 'append' | 'seal'
-		| 'replaceData' | 'chunks' | 'chunk' | 'remove'
+		| 'replaceData' | 'chunks' | 'chunk' | 'remove' | 'discard'
 	>,
 ): Readonly<TakeCycleLiveCaptureSpool> {
 	return Object.freeze({
@@ -120,7 +112,8 @@ export function createTakeCycleLiveCaptureSpool(
 			data: intent,
 		});
 		let busy = false;
-		let closed = false;
+		let terminal: 'open' | 'sealed' | 'discarded' = 'open';
+		let discardPromise: Promise<void> | null = null;
 		return Object.freeze({
 			draftId: intent.envelopeId,
 			spoolToken: record.spoolToken,
@@ -129,7 +122,7 @@ export function createTakeCycleLiveCaptureSpool(
 				spanValue: TakeCycleCapturePcmSpan,
 				{ signal }: { readonly signal?: AbortSignal } = {},
 			) {
-				if (closed) throw new Error('Take cycle live capture is already sealed.');
+				if (terminal !== 'open') throw new Error('Take cycle live capture is already settled.');
 				if (busy) throw new Error('Take cycle live capture operations must be awaited serially.');
 				busy = true;
 				try {
@@ -153,13 +146,21 @@ export function createTakeCycleLiveCaptureSpool(
 				}
 			},
 			async seal({ signal }: { readonly signal?: AbortSignal } = {}) {
-				if (closed) throw new Error('Take cycle live capture is already sealed.');
+				if (terminal !== 'open') throw new Error('Take cycle live capture is already settled.');
 				if (busy) throw new Error('Take cycle live capture operations must be awaited serially.');
 				throwIfAborted(signal);
 				if (!intent.captureSpans.length) throw new RangeError('Take cycle capture requires at least one PCM span.');
-				closed = true;
+				terminal = 'sealed';
 				record = await repository.seal(record, intent);
 				return materialize(record, intent, seed.createPassIdentities, signal);
+			},
+			discard() {
+				if (discardPromise) return discardPromise;
+				if (terminal === 'sealed') return Promise.reject(new Error('Take cycle live capture is already sealed.'));
+				if (busy) return Promise.reject(new Error('Take cycle live capture operations must be awaited serially.'));
+				terminal = 'discarded';
+				discardPromise = discardTakeCycleLiveCapture(repository, record, intent);
+				return discardPromise;
 			},
 		});
 	}
@@ -181,7 +182,7 @@ export function createTakeCycleLiveCaptureSpool(
 		const drafts: TakeCycleCaptureDraft[] = [];
 		const capturing: TakeCycleCapturingSpoolEvidence[] = [];
 		for (const record of await repository.list(projectId)) {
-			if (record.state === 'deleting') {
+			if (record.state === 'discarded' || record.state === 'deleting') {
 				await repository.remove(record);
 				continue;
 			}
@@ -217,7 +218,8 @@ export function createTakeCycleLiveCaptureSpool(
 		const projectId = stableId(projectIdValue, 'take cycle projectId');
 		const drafts: TakeCycleCaptureDraft[] = [];
 		for (let record of await repository.list(projectId)) {
-			if (decision === 'discard' || record.state === 'deleting' || record.frameCount === 0) {
+			if (decision === 'discard' || record.state === 'discarded'
+				|| record.state === 'deleting' || record.frameCount === 0) {
 				if (!await repository.remove(record)) throw new Error(`Live capture spool ${record.spoolId} changed before removal.`);
 				continue;
 			}
