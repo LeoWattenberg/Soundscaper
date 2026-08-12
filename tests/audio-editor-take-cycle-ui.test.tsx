@@ -124,6 +124,23 @@ test('workspace auto-offers each authority once and keeps recovery menu-only', a
 	assert.match(css, /forced-color-adjust: none/u);
 });
 
+test('pending recovery visibly blocks ordinary recording mutations and cycle pause', async () => {
+	const [transport, toolbar] = await Promise.all([
+		readFile(new URL('../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/toolbar/EditorToolToolbar.jsx', import.meta.url), 'utf8'),
+	]);
+	assert.match(transport, /const recoveryBlocked = Boolean\(snapshot\.takeCycleRecovery\)/u);
+	assert.match(transport, /const ordinaryRecording = snapshot\.recordingKind !== 'take-cycle'/u);
+	assert.match(transport, /disabled: !snapshot\.recording \|\| !ordinaryRecording/u);
+	assert.match(transport, /const recordingInputBlocked = recoveryBlocked \|\| snapshot\.recording/u);
+	assert.match(transport, /label: copy\.monitor,[\s\S]{0,100}disabled: recoveryBlocked/u);
+	assert.match(transport, /label: copy\.recordingOffset, disabled: recoveryBlocked/u);
+	assert.match(transport, /label: copy\.timedRecording,[\s\S]{0,100}disabled: recoveryBlocked/u);
+	assert.match(transport, /label: copy\.soundActivatedRecording,[\s\S]{0,120}disabled: recoveryBlocked/u);
+	assert.match(transport, /label: copy\.soundActivationLevel,[\s\S]{0,100}disabled: recoveryBlocked/u);
+	assert.match(toolbar, /disabled=\{Boolean\(snapshot\.takeCycleRecovery\) \|\| snapshot\.readOnly/u);
+});
+
 test('cycle recording and recovery copy is complete in English and German', () => {
 	const keys = [
 		'takeCycleRecordMenu', 'takeCycleRecoveryMenu', 'takeCycleRecoveryTitle',

@@ -183,7 +183,7 @@ export default function EditorToolToolbar({
 							optionsAriaLabel={formatOptionsLabel(copy, copy.recordMenu)}
 							recording={snapshot.recording}
 							pressed={Boolean(snapshot.recording)}
-							disabled={snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
+							disabled={Boolean(snapshot.takeCycleRecovery) || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
 							onClick={toggleRecording}
 						>
 							{({ close }) => <RecordFlyout
