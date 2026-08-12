@@ -9,7 +9,10 @@ import { envelopeFramesToDesignPoints } from '../../automation.js';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
 import { createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
 import { pcmWindowCoversProjectedClip, type PcmPreviewWindow } from './preview.ts';
-import { prepareAudioWarpWaveformWindow } from './audio-warp-waveform.ts';
+import {
+	prepareAudioWarpPeakPyramidWaveformWindow,
+	prepareAudioWarpWaveformWindow,
+} from './audio-warp-waveform.ts';
 
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 const EMPTY_DESIGN_SYSTEM_WAVEFORM = Object.freeze([]);
@@ -190,6 +193,7 @@ export function createTimelineClipViewModel({
 		? visual?.pcmWindow || null
 		: null;
 	const waveformPeaks = allowPeakPyramid ? visual?.peaks : null;
+	const isWarped = clip.warpMap != null;
 	const visibleSourceSamples = (clip.waveformEndFrame - clip.waveformStartFrame)
 		* sourceDurationFrames / clip.durationFrames;
 	const pixelWidth = output.duration * pixelsPerSecond;
@@ -197,7 +201,7 @@ export function createTimelineClipViewModel({
 		&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary');
 	const waveformSource = usePeakPyramid
 		? waveformPeaks
-		: waveformBuffer || waveformPcmWindow || waveformPeaks;
+		: waveformBuffer || waveformPcmWindow || (isWarped ? null : waveformPeaks);
 	const cached = cache?.get(String(clip.id));
 	if (reuseCachedWaveform && cached?.data.audacityWaveform) {
 		Object.assign(output, cached.data);
@@ -257,18 +261,32 @@ export function createTimelineClipViewModel({
 				sourceFrameOffset: waveformSource === waveformPcmWindow ? waveformPcmWindow?.startFrame ?? 0 : 0,
 				reuseSummaryForCompatibility,
 			})
-			: preparePeakPyramidWaveformWindow(
-				visual?.peaks as Parameters<typeof preparePeakPyramidWaveformWindow>[0],
-				clip,
-				{
-					startFrame: clip.waveformStartFrame,
-					endFrame: clip.waveformEndFrame,
-					maxSamples: maximumSamples,
-					pixelWidth,
-					channelCount: Math.max(1, Math.min(2, Number(source?.channelCount) || 1)),
-					sourceFrameCount: source?.frameCount,
-				},
-			)) as unknown as PreparedTimelineWaveform;
+			: isWarped
+				? prepareAudioWarpPeakPyramidWaveformWindow(
+					project as unknown as Parameters<typeof prepareAudioWarpPeakPyramidWaveformWindow>[0],
+					clip as Parameters<typeof prepareAudioWarpPeakPyramidWaveformWindow>[1],
+					visual?.peaks,
+					{
+						startFrame: clip.waveformStartFrame,
+						endFrame: clip.waveformEndFrame,
+						maxSamples: maximumSamples,
+						pixelWidth,
+						channelCount: Math.max(1, Math.min(2, Number(source?.channelCount) || 1)),
+						sourceFrameCount: source?.frameCount,
+					},
+				)
+				: preparePeakPyramidWaveformWindow(
+					visual?.peaks as Parameters<typeof preparePeakPyramidWaveformWindow>[0],
+					clip,
+					{
+						startFrame: clip.waveformStartFrame,
+						endFrame: clip.waveformEndFrame,
+						maxSamples: maximumSamples,
+						pixelWidth,
+						channelCount: Math.max(1, Math.min(2, Number(source?.channelCount) || 1)),
+						sourceFrameCount: source?.frameCount,
+					},
+				)) as unknown as PreparedTimelineWaveform;
 		const waveformData: TimelineWaveformPlanData = {
 			audacityWaveform: {
 				...waveform.rendering,

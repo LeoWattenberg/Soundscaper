@@ -54,6 +54,13 @@ export interface AudioWarpRuntimeRange {
 	readonly sourceSampleRate: number;
 }
 
+export interface AudioWarpSourceWindowOptions {
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly sourceFrameCount: number;
+	readonly paddingFrames?: number;
+}
+
 export interface AudioWarpRenderPathOptions {
 	readonly realtimeAcceleration: boolean;
 	readonly exactOfflineAvailable?: boolean;
@@ -172,6 +179,45 @@ export function buildAudioWarpRuntimeSegments(
 		}));
 	}
 	return Object.freeze(segments);
+}
+
+/** Resolve one visible clip window to the bounded PCM source window it needs. */
+export function audioWarpSourceWindowRange(
+	projectValue: AudioWarpRuntimeProject,
+	clipValue: AudioWarpRuntimeClip,
+	options: Readonly<AudioWarpSourceWindowOptions>,
+): Readonly<{ startFrame: number; endFrame: number }> {
+	const evaluator = createAudioWarpRuntimeEvaluator(projectValue, clipValue);
+	const clipDuration = positiveSafeInteger(clipValue.durationFrames, 'audio warp clip duration');
+	const startFrame = nonNegativeSafeInteger(options?.startFrame, 'audio warp window start');
+	const endFrame = nonNegativeSafeInteger(options?.endFrame, 'audio warp window end');
+	if (endFrame <= startFrame || endFrame > clipDuration) {
+		throw new RangeError('Audio warp source windows must be positive and remain within the clip extent.');
+	}
+	const sourceFrameCount = nonNegativeSafeInteger(
+		options.sourceFrameCount,
+		'audio warp source frame count',
+	);
+	const paddingFrames = nonNegativeSafeInteger(
+		options.paddingFrames ?? 2,
+		'audio warp source window padding',
+	);
+	const timelineStart = safeAdd(
+		nonNegativeSafeInteger(clipValue.timelineStartFrame, 'audio warp clip start'),
+		startFrame,
+		'audio warp visible start',
+	);
+	const timelineEnd = safeAdd(
+		nonNegativeSafeInteger(clipValue.timelineStartFrame, 'audio warp clip start'),
+		endFrame,
+		'audio warp visible end',
+	);
+	const mappedStart = rationalNumber(evaluator.sourceAtTimelineFrame(timelineStart));
+	const mappedEnd = rationalNumber(evaluator.sourceAtTimelineFrame(timelineEnd));
+	return Object.freeze({
+		startFrame: Math.max(0, Math.floor(Math.min(mappedStart, mappedEnd)) - paddingFrames),
+		endFrame: Math.min(sourceFrameCount, Math.ceil(Math.max(mappedStart, mappedEnd)) + paddingFrames),
+	});
 }
 
 /** Never substitute the legacy scalar renderer for an authored warp map. */

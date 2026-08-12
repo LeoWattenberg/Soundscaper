@@ -145,7 +145,8 @@ export function AudioTrackRow({
 				* sourceDurationFrames / clip.durationFrames;
 			const pixelWidth = (clip.waveformEndFrame - clip.waveformStartFrame) / sampleRate * pixelsPerSecond;
 			if (!(visibleSourceSamples > 0) || !(pixelWidth > 0)
-				|| audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary') continue;
+				|| (clip.warpMap == null
+					&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary')) continue;
 			run(() => requestWindow(clip.id, {
 				startFrame: clip.waveformStartFrame,
 				endFrame: clip.waveformEndFrame,

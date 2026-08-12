@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	audioWarpMapFingerprint,
+	audioWarpSourceWindowRange,
 	buildAudioWarpRuntimeSegments,
 	evaluateAudioWarpSourceFrame,
 	selectAudioWarpRenderPath,
@@ -125,4 +126,17 @@ test('canonical map fingerprints are stable and authority-sensitive', () => {
 			? { ...point, source: 1_051 }
 			: point),
 	}), canonical);
+});
+
+test('waveform PCM reads use exact warped source bounds with bounded padding', () => {
+	assert.deepEqual(audioWarpSourceWindowRange(SAMPLE_PROJECT, SAMPLE_CLIP, {
+		startFrame: 25,
+		endFrame: 75,
+		sourceFrameCount: 2_000,
+	}), { startFrame: 1_023, endFrame: 1_127 });
+	assert.deepEqual(audioWarpSourceWindowRange(SAMPLE_PROJECT, SAMPLE_CLIP, {
+		startFrame: 0,
+		endFrame: 100,
+		sourceFrameCount: 1_200,
+	}), { startFrame: 998, endFrame: 1_200 });
 });
