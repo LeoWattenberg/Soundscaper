@@ -119,20 +119,25 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 			rendered,
 			`${group.id} — flattened take.wav`,
 		);
-		assertOwned(ownership);
-		return Object.freeze({
-			source: commandObject(record.source),
-			clip: commandObject(createAudioClipV10({
-				id: preparation.renderPlan.outputId,
-				sourceId: record.source.id,
-				title: `${group.id} — flattened take`,
-				anchor: 'sample',
-				timelineStartFrame: preparation.renderPlan.startSample,
-				durationFrames: duration,
-				sourceStartFrame: 0,
-				sourceDurationFrames: duration,
-			})),
-		});
+		try {
+			assertOwned(ownership);
+			return Object.freeze({
+				source: commandObject(record.source),
+				clip: commandObject(createAudioClipV10({
+					id: preparation.renderPlan.outputId,
+					sourceId: record.source.id,
+					title: `${group.id} — flattened take`,
+					anchor: 'sample',
+					timelineStartFrame: preparation.renderPlan.startSample,
+					durationFrames: duration,
+					sourceStartFrame: 0,
+					sourceDurationFrames: duration,
+				})),
+			});
+		} catch (error) {
+			await dependencies.derivedSources.rollbackDerivedSources([record]);
+			throw error;
+		}
 	}
 
 	function assertOwned(ownership: Readonly<{ project: EditorProjectToken; task: EditorTaskScope }>): void {

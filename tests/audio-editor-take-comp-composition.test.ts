@@ -120,6 +120,11 @@ test('locked and stale flatten attempts fail before publication and roll back pe
 	await assert.rejects(() => stale.composition.flatten('group-a'), /changed after flatten rendering began/iu);
 	assert.equal(stale.commands.filter(({ type }) => type === 'take-comp/flatten').length, 0);
 	assert.deepEqual(stale.rollbacks, [['flat-source']]);
+
+	const switched = compositionFixture({ switchProjectAfterPersist: true });
+	await assert.rejects(() => switched.composition.flatten('group-a'), /project changed/iu);
+	assert.equal(switched.commands.length, 0);
+	assert.deepEqual(switched.rollbacks, [['flat-source']]);
 });
 
 interface PreviewEngineFixture {
@@ -133,6 +138,7 @@ interface PreviewEngineFixture {
 function compositionFixture(options: Readonly<{
 	locked?: boolean;
 	onRender?(): void;
+	switchProjectAfterPersist?: boolean;
 }> = {}) {
 	let current = project(options.locked === true);
 	const commands: AudioEditorCommand[] = [];
@@ -152,7 +158,7 @@ function compositionFixture(options: Readonly<{
 		derivedSources: {
 			async persistRenderedMixSource(rendered: AudioBufferLike) {
 				assert.equal(rendered, buffer);
-				return {
+				const record = {
 					source: createAudioSourceV10({
 						id: 'flat-source', storageKey: 'flat-source', name: 'Flat source',
 						frameCount: rendered.length, channelCount: rendered.numberOfChannels,
@@ -161,6 +167,8 @@ function compositionFixture(options: Readonly<{
 					buffer: rendered,
 					channels: [rendered.getChannelData(0)],
 				};
+				if (options.switchProjectAfterPersist) current = { ...current, id: 'other-project' };
+				return record;
 			},
 			async rollbackDerivedSources(records: readonly Pick<DerivedSourceRecord, 'source'>[]) {
 				rollbacks.push(records.map(({ source }) => source.id));
