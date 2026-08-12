@@ -68,11 +68,19 @@ test('consumes the exact private timing publication once without changing the pu
 		() => consumePreparedVideoProxyRelationship(prepared),
 		/authentic|consum|prepar/iu,
 	);
+	let forgedReads = 0;
+	const proxyForgery = new Proxy(prepared, {
+		get(target, key, receiver) {
+			forgedReads += 1;
+			return Reflect.get(target, key, receiver);
+		},
+	});
 	for (const forged of [
 		{ ...prepared },
 		structuredClone(prepared),
 		JSON.parse(JSON.stringify(prepared)) as object,
 		Object.freeze({ kind: 'video-proxy-relationship-preparation', version: 1 }),
+		proxyForgery,
 		null,
 	]) {
 		assert.throws(
@@ -80,6 +88,7 @@ test('consumes the exact private timing publication once without changing the pu
 			/authentic|consum|prepar/iu,
 		);
 	}
+	assert.equal(forgedReads, 0, 'preparation authentication must precede public-field reads');
 });
 
 test('fresh preparations own distinct timing publications and byte storage', async () => {
@@ -176,6 +185,12 @@ test('source owns one publication transfer and keeps the dormant Framescaper sea
 	assert.match(relationship, /proxyAttachment/u);
 	assert.match(relationship, /PREPARATIONS\.set/u);
 	assert.match(relationship, /PREPARATIONS\.delete[\s\S]*?return material/u);
+	assert.match(
+		relationship,
+		/const cleanupFailure = await releaseVideoProxyOriginalLease[\s\S]*?captureCompletionTarget[\s\S]*?PREPARATIONS\.set/u,
+		'private material must publish only after release and final completion capture',
+	);
+	assert.doesNotMatch(relationship, /createVideoTimingAssetPublication|encodeVideoTimingAsset/u);
 	assert.doesNotMatch(app, /video-proxy-(?:candidate-observation|relationship)/u);
 	assert.doesNotMatch(relationship, /project-v18|proxyAttachment\s*:/u);
 });

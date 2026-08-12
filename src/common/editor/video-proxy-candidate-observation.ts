@@ -12,6 +12,7 @@ import {
 import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
+	type VideoTimingAssetPublication,
 } from './video-timing-asset.ts';
 import {
 	probeVideoTiming,
@@ -81,6 +82,7 @@ export interface VideoProxyCandidateObservationRequest {
 export interface VideoProxyCandidateObservationMaterial {
 	readonly candidate: Blob;
 	readonly timing: BoundVideoSourceTimingView;
+	readonly timingPublication: VideoTimingAssetPublication;
 	readonly sha256: string;
 	readonly byteLength: number;
 	readonly mimeType: string;
@@ -205,6 +207,7 @@ export async function observeVideoProxyCandidate(
 	OBSERVATIONS.set(observation, Object.freeze({
 		candidate,
 		timing,
+		timingPublication: publication,
 		sha256,
 		byteLength: candidate.size,
 		mimeType: candidate.type,

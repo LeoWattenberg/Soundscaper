@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { validateAudioEditorProjectV16 } from './project-v16-validation.ts';
+import { validateAudioEditorProjectV17 } from './project-v17-validation.ts';
 import { parseScapeProjectDocument, serializeScapeProjectDocument } from './scape-project-document.ts';
 import { snapshotVideoProxyProject } from './video-proxy-project-snapshot.ts';
 import {
@@ -14,7 +14,6 @@ import {
 import {
 	proveVideoProxyTimingConformance,
 	videoProxyTimingConformanceInfo,
-	type VideoProxyTimingConformance,
 } from './video-proxy-timing-conformance.ts';
 import {
 	boundVideoSourceTimingViewInfo,
@@ -27,6 +26,16 @@ import {
 	sameVideoProxyOriginalIdentity,
 	type CapturedVideoProxyOriginalLease,
 } from './video-proxy-relationship-lease.ts';
+import {
+	closedDataRecord,
+	dataArrayProperty,
+	dataProperty,
+	dataRecord,
+	deepFreeze,
+	nonEmptyString,
+	positiveSafeInteger,
+} from './video-proxy-relationship-values.ts';
+import type { VideoTimingAssetPublication } from './video-timing-asset.ts';
 type Awaitable<Value> = PromiseLike<Value> | Value;
 export interface VideoProxyOriginalObservationRequest {
 	readonly projectId: string; readonly sourceId: string; readonly storageKey: string;
@@ -47,6 +56,13 @@ export interface VideoProxyRelationshipAuthority { readonly kind: 'video-proxy-r
 export interface VideoProxyRelationship { readonly kind: 'video-proxy-relationship'; readonly version: 1 }
 export interface VideoProxyRelationshipRequest { readonly sourceId: string; readonly signal?: AbortSignal }
 export interface PreparedVideoProxyRelationship { readonly relationship: VideoProxyRelationship; readonly candidate: Blob }
+/** @internal One-use material retained only for the later Framescaper adoption owner. */
+export interface VideoProxyRelationshipPreparationMaterial {
+	readonly relationship: VideoProxyRelationship;
+	readonly candidate: Blob;
+	readonly timingPublication: VideoTimingAssetPublication;
+	readonly info: VideoProxyRelationshipInfo;
+}
 export interface VideoProxyRelationshipInfo {
 	readonly kind: 'video-proxy-relationship'; readonly version: 1;
 	readonly rule: 'exact-original-generation-proxy-content-and-timing-v1';
@@ -69,7 +85,6 @@ interface AuthorityState {
 interface RelationshipState {
 	readonly authorityId: number; readonly info: VideoProxyRelationshipInfo; readonly targetFingerprint: string;
 	readonly originalIdentity: VideoProxyCandidateOriginalIdentity;
-	readonly timingProof: VideoProxyTimingConformance;
 }
 interface TargetSnapshot {
 	readonly projectId: string; readonly sourceId: string; readonly storageKey: string; readonly mimeType: string;
@@ -78,6 +93,7 @@ interface TargetSnapshot {
 }
 const AUTHORITIES = new WeakMap<object, AuthorityState>();
 const RELATIONSHIPS = new WeakMap<object, RelationshipState>();
+const PREPARATIONS = new WeakMap<object, VideoProxyRelationshipPreparationMaterial>();
 const SHA256 = /^[a-f0-9]{64}$/u;
 const textEncoder = new TextEncoder();
 const NO_FAILURE = Symbol('no video proxy relationship failure');
@@ -165,6 +181,20 @@ export function assertVideoProxyRelationshipCurrent(
 export function videoProxyRelationshipInfo(relationshipValue: VideoProxyRelationship): VideoProxyRelationshipInfo {
 	return relationshipState(relationshipValue).info;
 }
+/** @internal Consume preparation-only bytes without exposing them through the public proof. */
+export function consumePreparedVideoProxyRelationship(
+	preparationValue: PreparedVideoProxyRelationship,
+): VideoProxyRelationshipPreparationMaterial {
+	if (!preparationValue || typeof preparationValue !== 'object') {
+		throw new TypeError('An authenticated video proxy relationship preparation is required.');
+	}
+	const material = PREPARATIONS.get(preparationValue);
+	if (!material) {
+		throw new TypeError('An authenticated unconsumed video proxy relationship preparation is required.');
+	}
+	PREPARATIONS.delete(preparationValue);
+	return material;
+}
 async function proveVideoProxyRelationshipAsync(
 	authority: AuthorityState,
 	target: TargetSnapshot,
@@ -173,6 +203,7 @@ async function proveVideoProxyRelationshipAsync(
 ): Promise<PreparedVideoProxyRelationship> {
 	let lease: CapturedVideoProxyOriginalLease | null = null;
 	let result: PreparedVideoProxyRelationship | undefined;
+	let preparationMaterial: VideoProxyRelationshipPreparationMaterial | undefined;
 	let issuedRelationship: VideoProxyRelationship | null = null;
 	let failure: unknown = NO_FAILURE;
 	try {
@@ -231,10 +262,15 @@ async function proveVideoProxyRelationshipAsync(
 			info,
 			targetFingerprint: target.fingerprint,
 			originalIdentity: activeLease.fingerprint,
-			timingProof,
 		}));
 		issuedRelationship = relationship;
 		result = Object.freeze({ relationship, candidate: candidate.candidate });
+		preparationMaterial = Object.freeze({
+			relationship,
+			candidate: candidate.candidate,
+			timingPublication: candidate.timingPublication,
+			info,
+		});
 	} catch (error) {
 		failure = error;
 	}
@@ -248,7 +284,9 @@ async function proveVideoProxyRelationshipAsync(
 		if (issuedRelationship) RELATIONSHIPS.delete(issuedRelationship);
 		throw error;
 	}
-	return nonNullable(result);
+	const prepared = nonNullable(result);
+	PREPARATIONS.set(prepared, nonNullable(preparationMaterial));
+	return prepared;
 }
 async function assertVideoProxyRelationshipCurrentAsync(
 	authority: AuthorityState,
@@ -310,10 +348,15 @@ interface TargetStructure {
 }
 function captureTargetStructure(authority: AuthorityState, sourceId: string): TargetStructure {
 	const projectValue = snapshotVideoProxyProject(authority.getProject());
-	validateAudioEditorProjectV16(projectValue);
+	validateAudioEditorProjectV17(projectValue);
 	const project = projectValue as Record<string, unknown>;
 	const projectId = nonEmptyString(dataProperty(project, 'id', 'project'), 'project.id');
 	const sources = dataArrayProperty(project, 'sources', 'project.sources');
+	for (const source of sources) {
+		if (Object.hasOwn(dataRecord(source, 'project source'), 'proxyAttachment')) {
+			throw new TypeError('Exact V17 proxy relationship sources reserve proxyAttachment for V18.');
+		}
+	}
 	const matchingSources = sources.filter((source) => (
 		nonEmptyString(dataProperty(dataRecord(source, 'project source'), 'id', 'project source'), 'source.id')
 		=== sourceId
@@ -333,7 +376,7 @@ function captureTargetStructure(authority: AuthorityState, sourceId: string): Ta
 	captureOccurrences(timelineClips, 'timeline', sourceId, ownership, occurrences);
 	captureOccurrences(binClips, 'project-bin', sourceId, ownership, occurrences);
 	const structural = serializeScapeProjectDocument({
-		schemaVersion: 16,
+		schemaVersion: 17,
 		projectId,
 		source: sourceValue,
 		occurrences,
@@ -516,68 +559,6 @@ function relationshipState(value: unknown): RelationshipState {
 	const state = RELATIONSHIPS.get(value);
 	if (!state) throw new TypeError('An authenticated video proxy relationship proof is required.');
 	return state;
-}
-function closedDataRecord(
-	value: unknown,
-	allowed: readonly string[],
-	name: string,
-	required: readonly string[] = allowed,
-): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${name} must be a closed object.`);
-	}
-	const prototype = Object.getPrototypeOf(value);
-	if (prototype !== Object.prototype && prototype !== null) throw new TypeError(`${name} must be a closed object.`);
-	const keys = Reflect.ownKeys(value);
-	if (keys.some((key) => typeof key !== 'string' || !allowed.includes(key))
-		|| required.some((key) => !keys.includes(key))) {
-		throw new TypeError(`${name} has unsupported, missing, or extra fields.`);
-	}
-	const result: Record<string, unknown> = {};
-	for (const key of keys as string[]) result[key] = dataProperty(value as Record<string, unknown>, key, name);
-	return result;
-}
-function dataRecord(value: unknown, name: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
-	return value as Record<string, unknown>;
-}
-function deepFreeze<Value>(value: Value, seen = new Set<object>()): Value {
-	if (!value || typeof value !== 'object' || seen.has(value)) return value;
-	if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value;
-	seen.add(value);
-	for (const nested of Object.values(value)) deepFreeze(nested, seen);
-	return Object.freeze(value);
-}
-function dataProperty(value: Record<string, unknown>, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`${name}.${key} must be an own enumerable data property, not an accessor.`);
-	}
-	return descriptor.value;
-}
-function dataArrayProperty(value: Record<string, unknown>, key: string, name: string): readonly unknown[] {
-	const raw = dataProperty(value, key, name);
-	if (!Array.isArray(raw)) throw new TypeError(`${name} must be an array.`);
-	const lengthDescriptor = Object.getOwnPropertyDescriptor(raw, 'length');
-	const length = lengthDescriptor?.value;
-	if (!Number.isSafeInteger(length) || Number(length) < 0) throw new TypeError(`${name} length is invalid.`);
-	const result: unknown[] = [];
-	for (let index = 0; index < Number(length); index += 1) {
-		const descriptor = Object.getOwnPropertyDescriptor(raw, String(index));
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`${name}[${String(index)}] must be an enumerable data property.`);
-		}
-		result.push(descriptor.value);
-	}
-	return result;
-}
-function nonEmptyString(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${name} must be a non-empty string.`);
-	return value;
-}
-function positiveSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be positive.`);
-	return Number(value);
 }
 function sha256Digest(value: unknown): string {
 	const result = nonEmptyString(value, 'video proxy SHA-256');
