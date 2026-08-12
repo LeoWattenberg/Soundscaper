@@ -69,7 +69,7 @@ test('the compatibility register binds exact V17 editing to current implementati
 	]);
 	assert.match(
 		threatModel.replace(/\s+/gu, ' '),
-		/Schema 16.*own enumerable boolean `locked` field.*audio, video, and label track.*shared command boundary.*transaction-start authority.*nested batches.*direct and indirect changes.*editorial content.*structure.*source bindings.*resolved timing.*reconciled result before publication.*locked later in the same transaction.*authority monotonically.*Selection.*header, mixer, view, and track-rack controls remain usable.*both products.*Lock track and Unlock track.*Tracks menu.*no capability, fallback, read-only compatibility state, or default-visible control.*does not imply mute, hidden, bypass, or whole-project read-only state/iu,
+		/Schema 17.*own enumerable boolean `locked` field.*audio, video, and label track.*shared command boundary.*transaction-start authority.*nested batches.*direct and indirect changes.*editorial content.*structure.*source bindings.*resolved timing.*reconciled result before publication.*locked later in the same transaction.*authority monotonically.*Selection.*header, mixer, view, and track-rack controls remain usable.*both products.*Lock track and Unlock track.*Tracks menu.*no capability, fallback, read-only compatibility state, or default-visible control.*does not imply mute, hidden, bypass, or whole-project read-only state/iu,
 	);
 	assert.match(
 		trackFolders.currentBehavior,
