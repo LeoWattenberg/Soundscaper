@@ -57,6 +57,16 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
+		id: 'audio-warp-runtime-projection',
+		file: 'src/common/editor/audio-warp-runtime.ts',
+		behavior: 'Warp playback, waveform, and render consumers preserve exact beat authority and round only shared timeline boundaries with the named nearest-point policy.',
+		conversions: [
+			{ helper: 'beatToSampleFrame', policies: ['point'] },
+			{ helper: 'roundRational', policies: ['point'] },
+			{ helper: 'sampleFrameToBeat', policies: ['exact'] },
+		],
+	},
+	{
 		id: 'legacy-aup-timeline-import',
 		file: 'src/common/editor/aup-legacy-conversion.js',
 		behavior: 'Legacy label, selection, source, clip, and envelope timestamps become nearest sample instants during interchange import.',
