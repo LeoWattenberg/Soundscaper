@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -28,7 +29,9 @@ test('the milestone 3 exit cohort is exact V18 rather than renamed V17 proxy med
 	)));
 	assert.ok(first.project.subsequences.length > 0);
 	assert.ok(first.project.multicameraGroups.length > 0);
-	assert.ok(first.project.sequences.some((sequence) => sequence.startTimecode.hours > 0));
+	assert.ok(first.project.sequences.some((sequence) => (
+		(sequence.startTimecode as Readonly<{ readonly hours: number }>).hours > 0
+	)));
 	assert.equal(Object.isFrozen(first), true);
 });
 
@@ -45,7 +48,9 @@ test('the V18 exit cohort validates every exact drift checkpoint and refuses tam
 	assert.equal(result.maximumMulticameraErrorSamples, 0);
 	assert.equal(result.checkpointCount, workload.checkpoints.length);
 
-	const tampered = structuredClone(workload);
+	const tampered = structuredClone(workload) as unknown as {
+		checkpoints: Array<{ observedSample: number }>;
+	};
 	tampered.checkpoints[1]!.observedSample += 1;
 	assert.throws(
 		() => validateM3FramescaperV18ExitWorkload(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, tampered),
@@ -61,4 +66,47 @@ test('the cohort authenticates the exact profile before observing workload input
 		/profile/iu,
 	);
 	assert.equal(touched, false);
+});
+
+test('the provisional quality register names the V18 cohort separately from legacy V17 evidence', () => {
+	const quality = JSON.parse(readFileSync(new URL('../config/quality-budgets.json', import.meta.url), 'utf8')) as {
+		fixtures: Array<Record<string, unknown>>;
+		workloads: Array<Record<string, unknown>>;
+	};
+	const fixture = quality.fixtures.find(({ id }) => id === 'm3-framescaper-v18-exit-2h-v1');
+	const workload = quality.workloads.find(({ id }) => id === 'm3-framescaper-v18-exit');
+	assert.deepEqual(fixture, {
+		id: 'm3-framescaper-v18-exit-2h-v1',
+		milestones: ['3'],
+		status: 'provisional',
+		kind: 'deterministic-framescaper-v18-exit-project-generator',
+		specification: {
+			schemaVersion: 18,
+			durationSeconds: 7200,
+			sampleRate: 48000,
+			contains: ['attached-proxy', 'nested-sequence', 'multicamera', 'verified-vfr', 'source-timecode'],
+		},
+		limitation: 'This exact V18 cohort is deterministic structural and zero-drift oracle input. It does not qualify the unavailable proxy generator, the reviewed retime hard stop, GPU performance, packaged Electron, or operating-system durability.',
+		evidence: [
+			'src/framescaper/quality/m3-framescaper-v18-exit-workload.ts',
+			'tests/audio-editor-m3-framescaper-v18-exit-workload.test.ts',
+		],
+	});
+	assert.deepEqual(workload, {
+		id: 'm3-framescaper-v18-exit',
+		milestone: '3',
+		status: 'provisional',
+		fixtureIds: ['m3-framescaper-v18-exit-2h-v1'],
+		environmentIds: ['reference-linux-gpu-01'],
+		thresholds: [
+			{ metricId: 'framescaperV18.audioPositionErrorSamples', comparison: 'eq', value: 0, unit: 'samples' },
+			{ metricId: 'framescaperV18.videoPositionErrorFrames', comparison: 'eq', value: 0, unit: 'frames' },
+			{ metricId: 'framescaperV18.nestedPositionErrorFrames', comparison: 'eq', value: 0, unit: 'frames' },
+			{ metricId: 'framescaperV18.multicameraSyncErrorSamples', comparison: 'eq', value: 0, unit: 'samples' },
+		],
+		evidence: [
+			'src/framescaper/quality/m3-framescaper-v18-exit-workload.ts',
+			'tests/audio-editor-m3-framescaper-v18-exit-workload.test.ts',
+		],
+	});
 });
