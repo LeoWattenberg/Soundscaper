@@ -59,7 +59,7 @@ test('product-owned controller activates a fresh writable V18 project', async (c
 	assert.equal(controller.project.title, 'Framescaper V18');
 });
 
-test('product controller executes nested-sequence menu commands with undo and redo', async (context) => {
+test('product controller authors a nested graph from a fresh normal V18 project with undo and redo', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV18({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
@@ -72,19 +72,20 @@ test('product controller executes nested-sequence menu commands with undo and re
 		await environment.close();
 	});
 	await controller.ready;
-	const nestedProject = environment.runtime.createProject({
-		id: 'nested-controller', title: 'Nested controller', now: '2026-08-13T12:00:00.000Z',
-		sequences: [
-			{ id: 'main', rate: { num: 30, den: 1 }, trackIds: [] },
-			{ id: 'shared', rate: { num: 24, den: 1 }, trackIds: [] },
-		],
-		primarySequenceId: 'main',
+	const primary = controller.project.sequences[0] as Readonly<Record<string, unknown>>;
+	controller.actions.sequences.createSequence({
+		id: 'shared', name: 'Shared sequence', rate: structuredClone(primary.rate),
+		dropFrame: primary.dropFrame, startTimecode: structuredClone(primary.startTimecode),
+		trackIds: [], trackNodes: [],
 	});
-	await environment.createProjectIfAbsent(nestedProject);
-	await controller.actions.project.open(nestedProject);
+	assert.equal(controller.project.sequences.length, 2);
+	controller.actions.edit.undo();
+	assert.equal(controller.project.sequences.length, 1);
+	controller.actions.edit.redo();
+	assert.equal(controller.project.sequences.length, 2);
 	controller.actions.sequences.addNested({
-		id: 'nested-shared', sequenceId: 'main', sourceSequenceId: 'shared',
-		sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 24,
+		id: 'nested-shared', sequenceId: primary.id, sourceSequenceId: 'shared',
+		sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 30,
 	});
 	assert.equal((controller.project.subsequences as readonly unknown[]).length, 1);
 	controller.actions.sequences.updateNested('nested-shared', { sequenceStartFrame: 60 });
@@ -95,6 +96,8 @@ test('product controller executes nested-sequence menu commands with undo and re
 	assert.equal((controller.project.subsequences as readonly { sequenceStartFrame: number }[])[0]?.sequenceStartFrame, 60);
 	controller.actions.sequences.removeNested('nested-shared');
 	assert.deepEqual(controller.project.subsequences, []);
+	controller.actions.sequences.deleteSequence('shared');
+	assert.equal(controller.project.sequences.length, 1);
 });
 
 test('product controller executes fenced multicamera menu commands with undo', async (context) => {
