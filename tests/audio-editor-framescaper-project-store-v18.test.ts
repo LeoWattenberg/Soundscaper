@@ -17,6 +17,7 @@ import {
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
 	createFramescaperProjectStoreV18,
+	framescaperProjectStoreAuthorityV18,
 } from '../src/framescaper/editor-project-store-v18.ts';
 import * as framescaperStoreModule from '../src/framescaper/editor-project-store-v18.ts';
 import { FramescaperProjectRepositoryV18 } from '../src/framescaper/editor-project-repository-v18.ts';
@@ -44,6 +45,7 @@ test('owns one generic opaque binding boundary and one dormant product factory',
 	]);
 	assert.deepEqual(Object.keys(framescaperStoreModule), [
 		'createFramescaperProjectStoreV18',
+		'framescaperProjectStoreAuthorityV18',
 	]);
 });
 
@@ -260,6 +262,38 @@ test('product store injection accepts only the exact out-of-band binding without
 		assert.deepEqual(hostileStore.hits, [0, 0, 0, 0]);
 		assert.equal(probe.sideEffects(), 0);
 	}
+});
+
+test('product authority exposes only the exact repository port and OPFS identity', () => {
+	const store = createFramescaperProjectStoreV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		{ indexedDB: null, repositoryFactory: fixtureFactory() },
+	);
+	const authority = framescaperProjectStoreAuthorityV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		store,
+	);
+	assert.equal(Object.isFrozen(authority), true);
+	assert.equal(authority.port.memory, store.memory);
+	assert.equal(authority.opfs, store.opfsRepository);
+	assert.deepEqual(Object.keys(authority).sort(), ['opfs', 'port']);
+
+	const hostileProfile = zeroTrapProxy({});
+	const hostileStore = zeroTrapProxy(store);
+	assert.throws(
+		() => framescaperProjectStoreAuthorityV18(hostileProfile.proxy, hostileStore.proxy),
+		/exact Framescaper V18/iu,
+	);
+	assert.deepEqual(hostileProfile.hits, [0, 0, 0, 0]);
+	assert.deepEqual(hostileStore.hits, [0, 0, 0, 0]);
+	assert.throws(
+		() => framescaperProjectStoreAuthorityV18(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+			hostileStore.proxy,
+		),
+		/product-created.*V18 store|store authority/iu,
+	);
+	assert.deepEqual(hostileStore.hits, [0, 0, 0, 0]);
 });
 
 function hostileCreationOptions(
