@@ -22,7 +22,9 @@ const COPY = Object.freeze({
 
 test('product actions construct the four exact fenced multicamera command families', () => {
 	const commands: FramescaperProjectCommandV18[] = [];
-	const actions = createFramescaperMulticameraActionsV18((command) => commands.push(command));
+	const actions = createFramescaperMulticameraActionsV18(
+		(command: FramescaperProjectCommandV18) => commands.push(command),
+	);
 	const group = multicameraGroup();
 	actions.createMulticamera('project-a', 7, group);
 	actions.updateMulticamera('project-a', 8, 'group-a', 'camera-a', {
@@ -93,11 +95,13 @@ test('the Tracks menu switches, sample-nudges, and removes only the selected gro
 	]);
 	assert.equal((commands[0] as { memberId: string }).memberId, 'camera-b');
 	assert.equal(
-		(commands[1] as { group: ReturnType<typeof multicameraGroup> }).group.members[0]?.syncOffsetSamples,
+		(commands[1] as unknown as { group: ReturnType<typeof multicameraGroup> }).group.members[0]
+			?.syncOffsetSamples,
 		-1,
 	);
 	assert.equal(
-		(commands[2] as { group: ReturnType<typeof multicameraGroup> }).group.members[0]?.syncOffsetSamples,
+		(commands[2] as unknown as { group: ReturnType<typeof multicameraGroup> }).group.members[0]
+			?.syncOffsetSamples,
 		1,
 	);
 	assert.equal(Object.isFrozen((commands[1] as { group: object }).group), true);
@@ -111,14 +115,16 @@ test('multicamera menu is Framescaper-only and fail-closed for stale or blocked 
 	for (const candidate of [
 		{ ...project(), schemaVersion: 17 },
 		{ ...project(), selection: { clipIds: [] } },
-		project(),
 	]) {
 		const menu = createFramescaperMulticameraMenuItems({
-			productId: 'framescaper', project: candidate,
-			editingBlocked: candidate === project(), copy: COPY,
+			productId: 'framescaper', project: candidate, editingBlocked: false, copy: COPY,
 		}, execute);
 		if (menu) assert.equal(menu.disabled, true);
 	}
+	const blocked = createFramescaperMulticameraMenuItems({
+		productId: 'framescaper', project: project(), editingBlocked: true, copy: COPY,
+	}, execute);
+	assert.equal(blocked?.disabled, true);
 });
 
 function multicameraGroup() {

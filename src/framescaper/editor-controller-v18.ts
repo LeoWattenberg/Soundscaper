@@ -8,6 +8,7 @@ import {
 import {
 	createFramescaperProjectMaintenanceRuntimeV18,
 } from './editor-project-v18-maintenance-runtime.ts';
+import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-multicam-actions.ts';
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
 import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
 import { createFramescaperScapeNativeRuntimeV18 } from './editor-scape-native-v18.ts';
@@ -36,10 +37,14 @@ export function createFramescaperAudioEditorControllerV18(
 		environment.runtime.profile,
 		environment.scapeProjectFile,
 	);
-	let executeNestedSequenceCommand: ((command: unknown) => unknown) | null = null;
-	const productSequenceActions = createFramescaperSequenceActionsV18((command: FramescaperProjectCommandV18) => {
-		if (!executeNestedSequenceCommand) throw new Error('The Framescaper controller is not ready.');
-		return executeNestedSequenceCommand(command);
+	let executeProductSequenceCommand: ((command: unknown) => unknown) | null = null;
+	const execute = (command: FramescaperProjectCommandV18): unknown => {
+		if (!executeProductSequenceCommand) throw new Error('The Framescaper controller is not ready.');
+		return executeProductSequenceCommand(command);
+	};
+	const productSequenceActions = Object.freeze({
+		...createFramescaperSequenceActionsV18(execute),
+		...createFramescaperMulticameraActionsV18(execute),
 	});
 	const controller = createAudioEditorController(null, {
 		headless: true,
@@ -55,7 +60,7 @@ export function createFramescaperAudioEditorControllerV18(
 		productSequenceActions,
 		...presentation,
 	});
-	executeNestedSequenceCommand = (command) => controller.actions.edit.commit(command);
+	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
 	return controller;
 }
 

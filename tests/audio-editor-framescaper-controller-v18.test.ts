@@ -29,6 +29,7 @@ const {
 const { FramescaperScapeArchiveV18 } = await import('../src/framescaper/scape-project-preservation-v18.ts');
 const { FramescaperScapeProjectFileV18 } = await import('../src/framescaper/scape-project-file-v18.ts');
 const { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } = await import('../src/framescaper/editor-project-runtime-profile-v18.ts');
+const { createVideoSourceV10, createVideoTrackV10 } = await import('../src/common/editor/project-v10.ts');
 
 test('product-owned controller activates a fresh writable V18 project', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV18({
@@ -94,6 +95,71 @@ test('product controller executes nested-sequence menu commands with undo and re
 	assert.equal((controller.project.subsequences as readonly { sequenceStartFrame: number }[])[0]?.sequenceStartFrame, 60);
 	controller.actions.sequences.removeNested('nested-shared');
 	assert.deepEqual(controller.project.subsequences, []);
+});
+
+test('product controller executes fenced multicamera menu commands with undo', async (context) => {
+	const environment = await createFramescaperEditorProjectEnvironmentV18({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	});
+	const controller = createFramescaperAudioEditorControllerV18(environment, { locale: 'en' });
+	context.after(async () => {
+		await controller.dispose();
+		await environment.close();
+	});
+	await controller.ready;
+	const rate = { num: 30, den: 1 };
+	const project = environment.runtime.createProject({
+		id: 'multicamera-controller', title: 'Multicamera controller',
+		now: '2026-08-13T12:00:00.000Z', sampleRate: 48_000,
+		sources: ['a', 'b'].map((suffix) => createVideoSourceV10({
+			id: `camera-${suffix}`, name: `Camera ${suffix.toUpperCase()}`,
+			storageKey: `camera-${suffix}`, mimeType: 'video/mp4',
+			contentSha256: (suffix === 'a' ? '12' : '34').repeat(32),
+			sampleFrameCount: 480_000, sourceFrameCount: 300, frameRate: rate,
+			width: 1920, height: 1080,
+		})),
+		clips: [{
+			kind: 'video', id: 'output-clip', sourceId: 'camera-a', title: 'Output',
+			sequenceId: 'main', sequenceStartFrame: 0, sequenceFrameCount: 30,
+			sourceInFrame: 1, sourceFrameCount: 30, retimeMap: null,
+		}],
+		projectBin: { clips: [{
+			kind: 'video', id: 'camera-b-bin', binItemId: 'camera-b-item', sourceId: 'camera-b',
+			title: 'Camera B', sequenceId: 'main', sequenceStartFrame: 0, sequenceFrameCount: 30,
+			sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
+		}] },
+		tracks: [createVideoTrackV10({
+			id: 'video-track', name: 'Video', clipIds: ['output-clip'], locked: false,
+		})],
+		sequences: [{ id: 'main', rate, trackIds: ['video-track'] }],
+		primarySequenceId: 'main',
+	});
+	await environment.createProjectIfAbsent(project);
+	await controller.actions.project.open(project);
+	const group = {
+		id: 'group-a', projectId: project.id, sequenceId: 'main', outputClipId: 'output-clip',
+		activeMemberId: 'member-a', members: [
+			{ id: 'member-a', groupId: 'group-a', sourceId: 'camera-a', syncOffsetSamples: 0 },
+			{ id: 'member-b', groupId: 'group-a', sourceId: 'camera-b', syncOffsetSamples: 0 },
+		],
+	};
+	controller.actions.sequences.createMulticamera(project.id, project.revision, group);
+	assert.equal((controller.project.multicameraGroups as readonly unknown[]).length, 1);
+	controller.actions.sequences.switchMulticamera(
+		project.id, Number(controller.project.revision), 'group-a', 'member-a', 'member-b',
+	);
+	assert.equal(
+		(controller.project.multicameraGroups as readonly { activeMemberId: string }[])[0]?.activeMemberId,
+		'member-b',
+	);
+	controller.actions.edit.undo();
+	assert.equal(
+		(controller.project.multicameraGroups as readonly { activeMemberId: string }[])[0]?.activeMemberId,
+		'member-a',
+	);
 });
 
 test('product controller refuses cloned environments and authority options before effects', async (context) => {

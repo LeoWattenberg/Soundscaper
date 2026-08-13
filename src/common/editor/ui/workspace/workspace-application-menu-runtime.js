@@ -73,6 +73,31 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				executeMulticameraCommand: (command) => run(() => {
+					switch (command?.type) {
+						case 'multicamera/create':
+							return controller.actions.sequences.createMulticamera(
+								command.projectId, command.expectedProjectRevision, command.group,
+							);
+						case 'multicamera/update':
+							return controller.actions.sequences.updateMulticamera(
+								command.projectId, command.expectedProjectRevision, command.groupId,
+								command.expectedActiveMemberId, command.group,
+							);
+						case 'multicamera/switch':
+							return controller.actions.sequences.switchMulticamera(
+								command.projectId, command.expectedProjectRevision, command.groupId,
+								command.expectedActiveMemberId, command.memberId,
+							);
+						case 'multicamera/remove':
+							return controller.actions.sequences.removeMulticamera(
+								command.projectId, command.expectedProjectRevision, command.groupId,
+								command.expectedActiveMemberId,
+							);
+						default:
+							throw new TypeError('The multicamera menu command is unsupported.');
+					}
+				}),
 				executeNestedSequenceCommand: (command) => run(() => {
 					switch (command?.type) {
 						case 'subsequence/add':
