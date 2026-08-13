@@ -136,7 +136,10 @@ export async function readM4ParityReferenceHostObservation(path) {
 	try {
 		parsed = JSON.parse(await readFile(path, 'utf8'));
 	} catch (error) {
-		throw new Error(`Reference host observation is unavailable or invalid: ${errorMessage(error)}.`);
+		throw new Error(
+			`Reference host observation is unavailable or invalid: ${errorMessage(error)}.`,
+			{ cause: error },
+		);
 	}
 	const envelope = requireExactRecord(
 		snapshotStrictJsonData(parsed, 'reference host observation'),
