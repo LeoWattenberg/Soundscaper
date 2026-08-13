@@ -3,6 +3,8 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	assertAccessibleBasics,
+	assertNoSeriousAxeViolations,
 	chooseFileAction,
 	chooseNestedCommandAction,
 	collectClientErrors,
@@ -22,6 +24,7 @@ test.describe('Framescaper V18 nested-sequence authoring', () => {
 		expect(projectId).toBeTruthy();
 
 		await nestedAction(page, editor, 'Create shared sequence');
+		await assertNestedMenuAccessibility(page, editor);
 		await saveProject(page, editor);
 		await expect.poll(() => storedNestedState(page, projectId)).toMatchObject({
 			sequenceIds: ['main-sequence', 'shared-sequence-1'],
@@ -77,6 +80,27 @@ test.describe('Framescaper V18 nested-sequence authoring', () => {
 		expect(errors).toEqual([]);
 	});
 });
+
+async function assertNestedMenuAccessibility(page, editor) {
+	await page.emulateMedia({ forcedColors: 'active' });
+	const tracks = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
+		.getByRole('menuitem', { name: 'Tracks', exact: true });
+	await tracks.click();
+	const tracksMenu = page.getByRole('menu', { name: 'Tracks', exact: true });
+	const nested = tracksMenu.getByRole('menuitem', { name: /^Nested sequences(?:\s|$)/u });
+	await nested.focus();
+	await page.keyboard.press('ArrowRight');
+	const submenu = nested.getByRole('menu');
+	await expect(submenu).toBeVisible();
+	await submenu.evaluate((element) => { element.id = 'framescaper-nested-accessibility-menu'; });
+	await assertAccessibleBasics(submenu);
+	await assertNoSeriousAxeViolations(page, '#framescaper-nested-accessibility-menu');
+	await expect(submenu.getByRole('menuitem', { name: /^Create shared sequence(?:\s|$)/u }))
+		.toHaveCSS('forced-color-adjust', 'auto');
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
+	await page.emulateMedia({ forcedColors: 'none' });
+}
 
 async function nestedAction(page, editor, action) {
 	await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();

@@ -1,5 +1,7 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
+	assertAccessibleBasics,
+	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseFileAction,
 	chooseNestedCommandAction,
@@ -22,7 +24,7 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		}));
 	});
 
-	test('creates, switches, saves, and reopens an exact V18 camera group from Tracks', async ({ page }, testInfo) => {
+	test('creates, switches, saves, and reopens an exact V18 camera group from Tracks', async ({ page, browserName }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit',
 			'Playwright WebKit rejects the IndexedDB Blob write that persists imported A/V sources.');
 		test.setTimeout(180_000);
@@ -58,6 +60,7 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		await expect(videoClips.first().locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Multicamera', 'Create from video sources']);
+		await assertMulticameraMenuAccessibility(page, editor, browserName);
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
 		await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 		await chooseFileAction(page, editor, 'Save project');
@@ -88,6 +91,29 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		await expect.poll(() => storedMulticamera(page, projectId)).toEqual(switched);
 	});
 });
+
+async function assertMulticameraMenuAccessibility(page, editor, browserName) {
+	await page.emulateMedia({ forcedColors: 'active' });
+	const tracks = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
+		.getByRole('menuitem', { name: 'Tracks', exact: true });
+	await tracks.click();
+	const tracksMenu = page.getByRole('menu', { name: 'Tracks', exact: true });
+	const multicamera = tracksMenu.getByRole('menuitem', { name: /^Multicamera(?:\s|$)/u });
+	await multicamera.focus();
+	await page.keyboard.press('ArrowRight');
+	const submenu = multicamera.getByRole('menu');
+	await expect(submenu).toBeVisible();
+	await submenu.evaluate((element) => { element.id = 'framescaper-multicamera-accessibility-menu'; });
+	await assertAccessibleBasics(submenu);
+	await assertNoSeriousAxeViolations(page, '#framescaper-multicamera-accessibility-menu');
+	if (browserName !== 'webkit') {
+		await expect(submenu.getByRole('menuitem', { name: /^Switch camera(?:\s|$)/u }))
+			.toHaveCSS('forced-color-adjust', 'auto');
+	}
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
+	await page.emulateMedia({ forcedColors: 'none' });
+}
 
 function cameraFixture(name) {
 	return {
