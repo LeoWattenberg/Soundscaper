@@ -26,7 +26,7 @@ test('V18 playback authenticates the exact profile before observing a project', 
 	assert.equal(reads, 0);
 });
 
-test('all-null V18 playback stays writable-compatible and schema 18', () => {
+test('all-null V18 playback stays writable-compatible through a V17 engine foundation', () => {
 	const service = createFramescaperPlaybackProjectServiceV18(PROFILE);
 	const project = createFramescaperProjectV18(PROFILE, {
 		id: 'playback-v18',
@@ -34,13 +34,13 @@ test('all-null V18 playback stays writable-compatible and schema 18', () => {
 		now: '2026-08-13T12:00:00.000Z',
 	});
 	const projection = service.projectForPlayback(project);
-	assert.equal(projection.project.schemaVersion, 18);
+	assert.equal(projection.project.schemaVersion, 17);
 	assert.equal(projection.featureRequirementsReport?.compatible ?? true, true);
 	assert.deepEqual(projection.requiredAudioSourceIds, []);
 	assert.deepEqual(projection.requiredVideoSourceIds, []);
 });
 
-test('attached V18 reports the unavailable bypass and retains original-only playback input', () => {
+test('attached V18 reports the unavailable bypass and strips proxy authority from playback input', () => {
 	const service = createFramescaperPlaybackProjectServiceV18(PROFILE);
 	const project = archiveProject();
 	const projection = service.projectForPlayback(project);
@@ -51,8 +51,14 @@ test('attached V18 reports the unavailable bypass and retains original-only play
 	assert.equal(proxyItem?.availability, 'unavailable');
 	assert.equal(proxyItem?.disposition, 'bypassed');
 	assert.deepEqual(projection.requiredVideoSourceIds, []);
-	assert.equal(projection.project.schemaVersion, 18);
-	assert.deepEqual(projection.project.sources[0]?.proxyAttachment, project.sources[0]?.proxyAttachment);
+	assert.equal(projection.project.schemaVersion, 17);
+	assert.equal(Object.hasOwn(projection.project.sources[0] ?? {}, 'proxyAttachment'), false);
+	assert.equal(
+		projection.project.featureRequirements.requirements.some(
+			(requirement) => requirement.id === 'framescaper.video-proxy',
+		),
+		false,
+	);
 	assert.equal(projection.project.sources[0]?.storageKey, project.sources[0]?.storageKey);
 });
 

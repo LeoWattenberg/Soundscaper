@@ -10,7 +10,7 @@ import {
 } from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
-	framescaperProjectForRuntimeConsumersV18,
+	framescaperProjectForPlaybackFoundationV18,
 } from './editor-project-v18-runtime.ts';
 import {
 	readFramescaperProjectSchemaVersion,
@@ -40,7 +40,7 @@ export function createFramescaperPlaybackProjectServiceV18(
 	): PlaybackProjectProjection<Project> {
 		if (readFramescaperProjectSchemaVersion(project) !== 18) return opaqueProjection(project);
 		const canonical = project as unknown as FramescaperProjectV18;
-		const runtimeProject = framescaperProjectForRuntimeConsumersV18(profile, canonical);
+		const runtimeProject = framescaperProjectForPlaybackFoundationV18(profile, canonical);
 		return Object.freeze({
 			project: runtimeProject as unknown as Project,
 			featureRequirementsReport: compatibility.evaluate(canonical),

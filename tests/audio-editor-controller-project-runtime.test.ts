@@ -6,6 +6,9 @@ import test from 'node:test';
 import {
 	resolveControllerProjectRuntime,
 } from '../src/common/editor/controller/project-runtime.ts';
+import {
+	createControllerProjectRuntimeMetrics,
+} from '../src/common/editor/controller/project-runtime-metrics.ts';
 import { createEditorProjectRuntimeV18Selection } from '../src/framescaper/editor-project-runtime-v18-selection.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 
@@ -16,6 +19,7 @@ test('controller runtime keeps the current V17 owner as the exact default', () =
 	});
 	assert.equal(project.schemaVersion, 17);
 	assert.equal(runtime.migrateProject(project).project.schemaVersion, 17);
+	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 17);
 });
 
 test('controller runtime snapshots the complete selected V18 operation set', () => {
@@ -34,6 +38,10 @@ test('controller runtime snapshots the complete selected V18 operation set', () 
 	}).title, 'Applied');
 	assert.equal(runtime.cloneProject(project).schemaVersion, 18);
 	assert.equal(runtime.projectForCommandConsumers(project).schemaVersion, 18);
+	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 17);
+	const metrics = createControllerProjectRuntimeMetrics(runtime);
+	assert.equal(metrics.projectDurationFrames(project), 0);
+	assert.equal(metrics.editorTimelineDurationFrames(project), Number(project.sampleRate) * 30);
 });
 
 test('controller runtime refuses partial callback collections', () => {

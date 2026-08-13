@@ -54,7 +54,9 @@ export interface EditorProjectRuntimeV18Selection {
 	readonly validateProject: (project: unknown) => project is FramescaperProjectV18;
 	readonly migrateProject: (project: unknown) => ReturnType<typeof migrateFramescaperProjectV18>;
 	readonly projectForCommandConsumers: (project: unknown) => FramescaperProjectV18;
-	readonly projectForRuntimeConsumers: (project: unknown) => FramescaperProjectV18;
+	readonly projectForRuntimeConsumers: (
+		project: unknown,
+	) => ReturnType<typeof framescaperProjectForRuntimeConsumersV18>;
 	readonly createHistory: (project: unknown) => FramescaperProjectHistoryV18;
 	readonly applyCommand: (
 		project: unknown,

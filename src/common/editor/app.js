@@ -55,12 +55,10 @@ import {
 	AUDIO_EDITOR_SAMPLE_RATE,
 	EDITOR_TIMELINE_MINIMUM_SECONDS,
 	createStableId,
-	editorTimelineDurationFrames,
 	findClip,
 	findClipTrack,
 	findSource,
 	findTrack,
-	projectDurationFrames,
 	projectEnvelope,
 } from './project.js';
 import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCountV2 } from './project-v2.js';
@@ -181,6 +179,7 @@ import { createProjectBootstrapService } from './controller/project-bootstrap-se
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
 import { resolveControllerProjectRuntime } from './controller/project-runtime.ts';
+import { createControllerProjectRuntimeMetrics } from './controller/project-runtime-metrics.ts';
 import { SourceChunkProviderRegistry } from './controller/source-chunk-provider-registry.ts';
 import {
 	createPlaybackProjectApplyService,
@@ -343,6 +342,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
 	const projectRuntime = resolveControllerProjectRuntime(options.projectRuntime);
+	const { projectDurationFrames, editorTimelineDurationFrames } = createControllerProjectRuntimeMetrics(projectRuntime);
 	const copy = Object.freeze({ ...ENGLISH_COPY, ...(options.copy || {}) });
 	const locale = normalizeBcp47Locale(options.locale);
 	const product = productProfile(options.productId || options.product?.id || 'soundscaper');

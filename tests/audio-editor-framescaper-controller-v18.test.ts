@@ -37,10 +37,13 @@ test('product-owned controller activates a fresh writable V18 project', async (c
 		await environment.close();
 	});
 	const ready = await controller.ready;
-	assert.equal(ready.phase, 'ready');
+	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
 	assert.equal(ready.project.schemaVersion, 18);
 	assert.equal(ready.readOnly, false);
-	assert.equal(ready.preferences.workspace.activeId, 'video-editor');
+	assert.equal(
+		(ready.preferences.workspace as Readonly<{ activeId: string }>).activeId,
+		'video-editor',
+	);
 	assert.equal((await environment.store.loadProject(ready.project.id))?.schemaVersion, 18);
 	controller.actions.project.rename('Framescaper V18');
 	assert.equal(controller.project.schemaVersion, 18);

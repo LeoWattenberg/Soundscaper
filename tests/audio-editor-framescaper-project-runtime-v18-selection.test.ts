@@ -33,7 +33,7 @@ test('selected runtime creates, migrates, projects, commands, and histories exac
 	assert.deepEqual(runtime.cloneProject(project), project);
 	assert.equal(runtime.migrateProject(project).project.schemaVersion, 18);
 	assert.equal(runtime.projectForCommandConsumers(project).schemaVersion, 18);
-	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 18);
+	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 17);
 	assert.equal(runtime.applyCommand(project, {
 		type: 'project/rename',
 		title: 'Applied V18',

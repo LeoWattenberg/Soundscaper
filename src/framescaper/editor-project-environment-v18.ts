@@ -30,6 +30,7 @@ import {
 } from './scape-project-preservation-v18.ts';
 
 const OPTION_FIELDS = ['storeOptions', 'now', 'createGeneration'] as const;
+const PRODUCT_ENVIRONMENTS = new WeakSet<object>();
 const EMPTY_CLEANUP_SCOPE = Object.freeze({
 	sessionProjects: Object.freeze([]),
 	histories: Object.freeze([]),
@@ -96,7 +97,7 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 				...(options.createGeneration ? { createGeneration: options.createGeneration } : {}),
 			},
 		);
-		return Object.freeze({
+		const environment = Object.freeze({
 			runtime,
 			store,
 			archive,
@@ -116,6 +117,8 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 			),
 			close: () => store.close(),
 		});
+		PRODUCT_ENVIRONMENTS.add(environment);
+		return environment;
 	} catch (error) {
 		try {
 			await store.close();
@@ -128,6 +131,15 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 		}
 		throw error;
 	}
+}
+
+export function assertFramescaperEditorProjectEnvironmentV18(
+	value: unknown,
+): Readonly<FramescaperEditorProjectEnvironmentV18> {
+	if (!value || typeof value !== 'object' || !PRODUCT_ENVIRONMENTS.has(value)) {
+		throw new TypeError('An exact product-created Framescaper V18 environment is required.');
+	}
+	return value as Readonly<FramescaperEditorProjectEnvironmentV18>;
 }
 
 function exactProjectRepository(store: AudioEditorProjectStore): Readonly<{

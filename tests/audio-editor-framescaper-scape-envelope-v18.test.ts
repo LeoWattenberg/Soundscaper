@@ -183,6 +183,7 @@ test('stays within the dormant V18 preservation path and leaves the V17 archive 
 		}
 	}
 	assert.deepEqual(references, [
+		'src/framescaper/scape-project-file-envelope-v18.ts',
 		'src/framescaper/scape-project-preservation-v18.ts',
 		'tests/audio-editor-framescaper-project-runtime-profile.test.ts',
 		TEST_MODULE,

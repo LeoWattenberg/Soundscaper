@@ -9,7 +9,11 @@ import { normalizeVideoProxyAttachmentV18 } from '../common/editor/video-proxy-a
 import {
 	resolveRuntimeProjectProjection,
 	type RuntimeClipProject,
+	type RuntimeProjectProjection,
 } from '../common/editor/runtime-clip-projection.ts';
+import {
+	framescaperProjectFeatureRequirementsForV17Foundation,
+} from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
 	validateFramescaperProjectV18,
@@ -18,18 +22,47 @@ import {
 
 type DataRecord = Record<string, unknown>;
 
+export interface FramescaperProjectRuntimeFoundationV17 extends RuntimeClipProject {
+	readonly id: string;
+	readonly schemaVersion: 17;
+	readonly sources: readonly Readonly<Record<string, unknown>>[];
+}
+
 /** Resolve an exact V18 project through the unchanged V17 timing foundation. */
 export function framescaperProjectForRuntimeConsumersV18(
 	profile: EditorProjectRuntimeProfile | unknown,
 	project: FramescaperProjectV18 | unknown,
-): FramescaperProjectV18 {
+): RuntimeProjectProjection<FramescaperProjectRuntimeFoundationV17> {
+	const foundation = framescaperProjectForPlaybackFoundationV18(profile, project);
+	return resolveRuntimeProjectProjection(foundation);
+}
+
+/**
+ * Produce the exact V17-shaped transient document accepted by the unchanged
+ * playback engine. Private V18 attachment authority and its requirement never
+ * cross this boundary; canonical source identities still address originals.
+ */
+export function framescaperProjectForPlaybackFoundationV18(
+	profile: EditorProjectRuntimeProfile | unknown,
+	project: FramescaperProjectV18 | unknown,
+): FramescaperProjectRuntimeFoundationV17 {
 	assertFramescaperProjectV18Profile(profile);
 	validateFramescaperProjectV18(profile, project);
-	const foundation = resolveRuntimeProjectProjection({
-		...(project as FramescaperProjectV18),
+	const canonical = project as FramescaperProjectV18;
+	const sources = canonical.sources.map((source) => {
+		const foundationSource: Record<string, unknown> = { ...source };
+		delete foundationSource.proxyAttachment;
+		return Object.freeze(foundationSource);
+	});
+	return Object.freeze({
+		...canonical,
 		schemaVersion: 17,
-	} as RuntimeClipProject) as unknown as DataRecord;
-	return Object.freeze({ ...foundation, schemaVersion: 18 }) as FramescaperProjectV18;
+		sources: Object.freeze(sources),
+		featureRequirements: framescaperProjectFeatureRequirementsForV17Foundation(
+			profile,
+			canonical,
+		),
+	}) as FramescaperProjectRuntimeFoundationV17;
 }
 
 /** Produce the branded command projection without teaching global V17 helpers about V18. */

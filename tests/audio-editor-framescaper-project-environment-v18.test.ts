@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import {
+	assertFramescaperEditorProjectEnvironmentV18,
 	createFramescaperEditorProjectEnvironmentV18,
 } from '../src/framescaper/editor-project-environment-v18.ts';
 import { FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE } from '../src/framescaper/editor-project-storage-profile-v18.ts';
@@ -21,6 +22,11 @@ test('product environment composes one exact V18 authority after startup cleanup
 	context.after(() => environment.close());
 
 	assert.equal(environment.runtime.profile, FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE);
+	assert.equal(assertFramescaperEditorProjectEnvironmentV18(environment), environment);
+	assert.throws(
+		() => assertFramescaperEditorProjectEnvironmentV18({ ...environment }),
+		/exact.*environment/iu,
+	);
 	assert.equal(
 		environment.store.databaseName,
 		editorProjectStorageProfileNames(FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE).databaseName,
@@ -32,7 +38,7 @@ test('product environment composes one exact V18 authority after startup cleanup
 		title: 'Environment V18',
 		now: '2026-08-13T12:00:00.000Z',
 	});
-	assert.equal(environment.playback.projectForPlayback(project).project.schemaVersion, 18);
+	assert.equal(environment.playback.projectForPlayback(project).project.schemaVersion, 17);
 	assert.equal((await environment.archive.exportProject(project)).formatVersion, 1);
 	assert.deepEqual(await environment.createProjectIfAbsent(project), project);
 	await environment.store.saveProject({ ...project, title: 'Saved environment V18' });

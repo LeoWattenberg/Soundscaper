@@ -13,10 +13,11 @@ import {
 import { migrateAudioEditorProject } from '../migration.js';
 import { cloneProject } from '../project.js';
 import { createCurrentAudioEditorProject } from '../project-current.ts';
-import { projectForCommandConsumers } from '../project-current-runtime.ts';
+import { projectForCommandConsumers, projectForRuntimeConsumers } from '../project-current-runtime.ts';
 
 const METHOD_NAMES = [
 	'createProject', 'cloneProject', 'migrateProject', 'projectForCommandConsumers',
+	'projectForRuntimeConsumers',
 	'createHistory', 'executeCommand', 'applyCommand', 'undo', 'redo', 'canUndo', 'canRedo',
 ] as const;
 
@@ -41,6 +42,7 @@ export interface ControllerProjectRuntime {
 		readonly reason?: string | null;
 	}>;
 	readonly projectForCommandConsumers: (project: unknown) => ControllerRuntimeProject;
+	readonly projectForRuntimeConsumers: (project: unknown) => ControllerRuntimeProject;
 	readonly createHistory: (project: unknown) => ControllerRuntimeHistory;
 	readonly executeCommand: (
 		history: ControllerRuntimeHistory,
@@ -69,6 +71,9 @@ const DEFAULT_RUNTIME = Object.freeze({
 	cloneProject,
 	migrateProject: migrateAudioEditorProject,
 	projectForCommandConsumers,
+	projectForRuntimeConsumers: (project: ControllerRuntimeProject) => (
+		projectForRuntimeConsumers(project as never) as ControllerRuntimeProject
+	),
 	createHistory: createEditorHistory,
 	executeCommand: executeEditorCommand,
 	applyCommand: applyEditorCommand,
