@@ -113,6 +113,7 @@ export function materializeFramescaperNestedPlaybackFoundationV18(
 		featureRequirements: framescaperProjectFeatureRequirementsForV17Foundation(profile, project),
 	};
 	delete foundation.subsequences;
+	delete foundation.multicameraGroups;
 	const result = Object.freeze(foundation) as FramescaperNestedPlaybackFoundationV17;
 	validateAudioEditorProjectV17(result);
 	return result;

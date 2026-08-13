@@ -17,6 +17,9 @@ import {
 import {
 	materializeFramescaperNestedPlaybackFoundationV18,
 } from './editor-project-v18-nested-playback.ts';
+import {
+	materializeFramescaperMulticameraPlaybackProjectV18,
+} from './editor-project-v18-multicam-playback.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
 	validateFramescaperProjectV18,
@@ -52,23 +55,29 @@ export function framescaperProjectForPlaybackFoundationV18(
 	assertFramescaperProjectV18Profile(profile);
 	validateFramescaperProjectV18(profile, project);
 	const canonical = project as FramescaperProjectV18;
-	if (canonical.subsequences.length > 0) {
-		return materializeFramescaperNestedPlaybackFoundationV18(profile, canonical);
+	const playback = canonical.multicameraGroups.length > 0
+		? materializeFramescaperMulticameraPlaybackProjectV18(profile, canonical)
+		: canonical;
+	if (playback.subsequences.length > 0) {
+		return materializeFramescaperNestedPlaybackFoundationV18(profile, playback);
 	}
-	const sources = canonical.sources.map((source) => {
+	const sources = playback.sources.map((source) => {
 		const foundationSource: Record<string, unknown> = { ...source };
 		delete foundationSource.proxyAttachment;
 		return Object.freeze(foundationSource);
 	});
-	return Object.freeze({
-		...canonical,
+	const foundation: Record<string, unknown> = {
+		...playback,
 		schemaVersion: 17,
 		sources: Object.freeze(sources),
 		featureRequirements: framescaperProjectFeatureRequirementsForV17Foundation(
 			profile,
-			canonical,
+			playback,
 		),
-	}) as FramescaperProjectRuntimeFoundationV17;
+	};
+	delete foundation.subsequences;
+	delete foundation.multicameraGroups;
+	return Object.freeze(foundation) as FramescaperProjectRuntimeFoundationV17;
 }
 
 /** Produce the branded command projection without teaching global V17 helpers about V18. */

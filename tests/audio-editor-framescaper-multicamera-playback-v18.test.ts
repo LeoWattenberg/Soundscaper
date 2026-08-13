@@ -40,7 +40,7 @@ test('multicamera playback selects the active canonical source without moving pe
 		sourceId: 'source-b',
 		sourceInFrame: 3,
 		sourceFrameCount: 3,
-	});
+	} as Readonly<Record<string, unknown>>);
 	assert.equal(output?.sequenceStartFrame, 10);
 	assert.equal(output?.sequenceFrameCount, 3);
 	assert.deepEqual(materialized.multicameraGroups, []);
@@ -170,7 +170,7 @@ function cfrProject(
 		],
 		clips: [{
 			kind: 'video', id: 'output-clip', sourceId: 'source-a', title: 'Multicamera output',
-			sequenceId: clipSequenceId, sequenceStartFrame: 0, sequenceFrameCount: 3,
+			sequenceId: clipSequenceId, sequenceStartFrame: nested ? 0 : 10, sequenceFrameCount: 3,
 			sourceInFrame: 2, sourceFrameCount: 3, retimeMap: null,
 		}],
 		tracks: [createVideoTrackV10({
