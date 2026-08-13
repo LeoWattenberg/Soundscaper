@@ -12,6 +12,7 @@ import {
 	beginVideoPreviewRenderLedger,
 	completeVideoPreviewRenderLedger,
 	createVideoPreviewFallbackReport,
+	createVideoPreviewSafeFallbackReport,
 	recordVideoPreviewEntryFallback,
 	recordVideoPreviewEntryRendered,
 } from './video-preview-render-ledger.js';
@@ -585,6 +586,8 @@ export function createVideoPreviewCompositor(canvas, options) {
 	return new VideoPreviewCompositor(canvas, options);
 }
 
+// The render loop recovers through this entry point, so it must report a
+// renderer failure rather than repeat whatever rejection ended the render.
 export function createVideoPreviewCompositorFallbackReport(layers) {
-	return createVideoPreviewFallbackReport(layers, SUPPORTED_EFFECT_TYPES);
+	return createVideoPreviewSafeFallbackReport(layers, SUPPORTED_EFFECT_TYPES);
 }

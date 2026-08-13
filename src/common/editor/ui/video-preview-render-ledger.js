@@ -80,6 +80,19 @@ export function createVideoPreviewFallbackReport(layers, supportedEffectTypes) {
 	return completeVideoPreviewRenderLedger(ledger, 0, 'failed');
 }
 
+/**
+ * Report renderer failure even when the layer set itself cannot produce a
+ * ledger. Recovery paths call this instead of the strict report: throwing a
+ * second time there abandons the render loop rather than reporting the failure.
+ */
+export function createVideoPreviewSafeFallbackReport(layers, supportedEffectTypes) {
+	try {
+		return createVideoPreviewFallbackReport(layers, supportedEffectTypes);
+	} catch {
+		return completeVideoPreviewRenderLedger({ effects: new Map() }, 0, 'failed');
+	}
+}
+
 /** Preserve the old render-loop contract while reporting effect fallback separately. */
 export function shouldContinueVideoPreviewPlayback(report, transportState) {
 	return transportState === 'playing' && report?.rendererStatus === 'available';
