@@ -391,6 +391,21 @@ test('non-exact inversion at the maximum-safe endpoint never creates an unsafe s
 	assert.equal(occurrence.upper.num - occurrence.lower.num, 1);
 });
 
+test('irrational inversion brackets enclose roots inside sub-integer segments', () => {
+	for (const [start, end, expected] of [
+		[rational(0), rational(1, 2), { lower: rational(0), upper: rational(1) }],
+		[rational(1), rational(3, 2), { lower: rational(1), upper: rational(2) }],
+	] as const) {
+		const curve = compileInterpolationCurve({
+			anchors: [{ position: start, value: 0 }, { position: end, value: 1 }],
+			segments: [{ kind: 'eased' }],
+		});
+		assert.deepEqual(invertInterpolationCurve(curve, 0.25), [{
+			kind: 'bracket', ...expected,
+		}]);
+	}
+});
+
 test('44.1 kHz by 24 fps half-frame ties remain exact until one named rounding policy is chosen', () => {
 	const halfVideoFrameInSamples = rational(3_675, 2);
 	const curve = compileInterpolationCurve({

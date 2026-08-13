@@ -338,20 +338,26 @@ function invertMovingSegment(
 		segment.start.position.numerator, segment.start.position.denominator, 'enclosingEnd',
 	);
 	const maximum = roundRational(
-		segment.end.position.numerator, segment.end.position.denominator, 'enclosingStart',
+		segment.end.position.numerator, segment.end.position.denominator, 'enclosingEnd',
 	);
-	if (minimum > maximum) return integerBracket(minimum);
 	let low = minimum;
 	let high = maximum;
 	while (low < high) {
 		const middle = low + Math.floor((high - low) / 2);
-		const evaluated = evaluateSegment(segment, integerFraction(middle));
+		const evaluated = evaluateSegmentAtInteger(segment, middle);
 		if (evaluated === target) return pointOccurrence(integerFraction(middle));
 		if ((direction === 1 && evaluated < target) || (direction === -1 && evaluated > target)) low = middle + 1;
 		else high = middle;
 	}
-	if (evaluateSegment(segment, integerFraction(low)) === target) return pointOccurrence(integerFraction(low));
+	if (evaluateSegmentAtInteger(segment, low) === target) return pointOccurrence(integerFraction(low));
 	return integerBracket(low);
+}
+
+function evaluateSegmentAtInteger(segment: InternalSegment, position: number): number {
+	const exact = integerFraction(position);
+	if (compareFractions(exact, segment.start.position) <= 0) return segment.start.value;
+	if (compareFractions(exact, segment.end.position) >= 0) return segment.end.value;
+	return evaluateSegment(segment, exact);
 }
 
 function integerBracket(upper: number): InverseOccurrence {
