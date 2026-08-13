@@ -13,7 +13,7 @@ test('desktop package metadata exposes the packaged timing probe', async () => {
 	assert.equal(metadata.scripts['desktop:smoke:timing-probe'], 'node scripts/desktop-video-timing-probe-smoke.mjs');
 });
 
-test('desktop CI runs the packaged timing probe for both Linux x64 products', async () => {
+test('desktop CI runs the packaged timing probe for both products on Linux and Windows x64', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	const packageJobStart = workflow.indexOf('\n  package:');
 	const nextJobStart = workflow.indexOf('\n  package-with-tests:', packageJobStart);
@@ -26,10 +26,10 @@ test('desktop CI runs the packaged timing probe for both Linux x64 products', as
 	assert.ok(directWavIndex > timingIndex);
 	assert.ok(retainIndex > timingIndex);
 	const step = packageJob.slice(timingIndex, directWavIndex);
-	assert.match(step, /if: matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'/u);
+	assert.match(step, /if: matrix\.target\.arch == 'x64'.*matrix\.target\.platform == 'linux'.*matrix\.target\.platform == 'win'/u);
 	assert.doesNotMatch(step, /matrix\.product ==/u);
 	assert.match(step, /run: npm run desktop:smoke:timing-probe/u);
 	assert.match(step, /SOUNDSCAPER_SMOKE_ARCH: x64/u);
-	assert.match(step, /SOUNDSCAPER_SMOKE_XVFB: 'true'/u);
+	assert.match(step, /SOUNDSCAPER_SMOKE_XVFB: \$\{\{ runner\.os == 'Linux' && 'true' \|\| 'false' \}\}/u);
 	assert.equal(workflow.match(/npm run desktop:smoke:timing-probe/gu)?.length, 1);
 });
