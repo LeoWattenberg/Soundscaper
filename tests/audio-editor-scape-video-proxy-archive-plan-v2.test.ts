@@ -199,6 +199,7 @@ test('has only closed dormant V18 consumers and cannot change the V17 archive ow
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
 	assert.deepEqual(references, [
+		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
 		'src/framescaper/scape-project-envelope-v18.ts',
 		'src/framescaper/scape-project-preservation-v18-support.ts',
 		'src/framescaper/scape-project-preservation-v18.ts',
