@@ -1,14 +1,29 @@
 diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts
-index c853bee..a45922b 100644
+index c853beed..ae52e1e7 100644
 --- a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts
 +++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.d.ts
-@@ -1,4 +1,4 @@
+@@ -1,7 +1,19 @@
 -import { FSNode, FFMessageLoadConfig, OK, IsFirst, LogEventCallback, ProgressEventCallback, FileData, FFFSType, FFFSMountOptions, FFFSPath } from "./types.js";
 +import { FSNode, FSFileStat, FFMessageLoadConfig, OK, IsFirst, LogEventCallback, ProgressEventCallback, FileData, FFFSType, FFFSMountOptions, FFFSPath } from "./types.js";
  type FFMessageOptions = {
      signal?: AbortSignal;
  };
-@@ -128,6 +128,19 @@ export declare class FFmpeg {
++export interface FFmpegInputStream {
++    readonly path: string;
++    readonly capacityBytes: number;
++    /** Copy one chunk no larger than capacityBytes. Writes must be awaited serially. */
++    write(data: Uint8Array, options?: FFMessageOptions): Promise<void>;
++    /** Publish EOF after the active write completes. */
++    close(): Promise<void>;
++    /** Fail the stream and wake blocked readers and writers. */
++    abort(reason?: unknown): void;
++    /** Abort if needed and release the worker-side device. */
++    dispose(): Promise<void>;
++}
+ /**
+  * Provides APIs to interact with ffmpeg web worker.
+  *
+@@ -128,6 +140,26 @@ export declare class FFmpeg {
       * @category File System
       */
      readFile: (path: string, encoding?: string, { signal }?: FFMessageOptions) => Promise<FileData>;
@@ -25,23 +40,198 @@ index c853bee..a45922b 100644
 +     * @category File System
 +     */
 +    readFileRange: (path: string, offset: number, maximumBytes: number, { signal }?: FFMessageOptions) => Promise<Uint8Array>;
++    /**
++     * Create a bounded shared-memory character device that FFmpeg can consume
++     * while an exec call is running.
++     *
++     * @category File System
++     */
++    createInputStream: (path: string, capacityBytes?: number, { signal }?: FFMessageOptions) => Promise<FFmpegInputStream>;
      /**
       * Delete a file.
       *
 diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js
-index fae4753..38e4b06 100644
+index fae47533..d54c97f7 100644
 --- a/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js
 +++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js
-@@ -37,6 +37,8 @@ export class FFmpeg {
+@@ -1,6 +1,132 @@
+ import { FFMessageType } from "./const.js";
+ import { getMessageID } from "./utils.js";
+ import { ERROR_TERMINATED, ERROR_NOT_LOADED } from "./errors.js";
++const INPUT_STREAM_HEADER_INTS = 8;
++const INPUT_STREAM_STATE = 0;
++const INPUT_STREAM_WRITE_INDEX = 2;
++const INPUT_STREAM_USED_BYTES = 3;
++const INPUT_STREAM_EPOCH = 4;
++const INPUT_STREAM_OPEN = 0;
++const INPUT_STREAM_CLOSED = 1;
++const INPUT_STREAM_ABORTED = 2;
++const MINIMUM_INPUT_STREAM_CAPACITY = 4096;
++const MAXIMUM_INPUT_STREAM_CAPACITY = 8 * 1024 * 1024;
++const MAXIMUM_INPUT_STREAM_COUNT = 8;
++const MAXIMUM_TOTAL_INPUT_STREAM_CAPACITY = 16 * 1024 * 1024;
++const TYPED_ARRAY_PROTOTYPE = Object.getPrototypeOf(Uint8Array.prototype);
++const TYPED_ARRAY_BYTE_LENGTH = Object.getOwnPropertyDescriptor(TYPED_ARRAY_PROTOTYPE, "byteLength").get;
++const copyInputStreamChunk = (value, capacityBytes) => {
++    let byteLength;
++    try {
++        byteLength = Reflect.apply(TYPED_ARRAY_BYTE_LENGTH, value, []);
++    }
++    catch {
++        throw new TypeError("FFmpeg input stream chunks must be plain Uint8Array bytes.");
++    }
++    if (Object.getPrototypeOf(value) !== Uint8Array.prototype)
++        throw new TypeError("FFmpeg input stream chunks must be plain Uint8Array bytes.");
++    if (byteLength > capacityBytes)
++        throw new RangeError("FFmpeg input stream chunks cannot exceed the bounded stream capacity.");
++    const snapshot = new Uint8Array(byteLength);
++    Uint8Array.prototype.set.call(snapshot, value);
++    return snapshot;
++};
++const validateInputStreamPath = (path) => {
++    if (typeof path !== "string" || path.length < 2 || path.length > 255 ||
++        !/^\/[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(path) || path.includes("//") ||
++        path.split("/").some((part) => part === "." || part === "..")) {
++        throw new TypeError("FFmpeg input stream path must be a canonical absolute path.");
++    }
++    return path;
++};
++const validateInputStreamCapacity = (capacityBytes) => {
++    if (!Number.isSafeInteger(capacityBytes) || capacityBytes < MINIMUM_INPUT_STREAM_CAPACITY ||
++        capacityBytes > MAXIMUM_INPUT_STREAM_CAPACITY) {
++        throw new RangeError(`FFmpeg input stream capacity must be a safe integer from ${MINIMUM_INPUT_STREAM_CAPACITY} through ${MAXIMUM_INPUT_STREAM_CAPACITY}.`);
++    }
++    return capacityBytes;
++};
++const streamStateError = (state, reason) => state === INPUT_STREAM_ABORTED
++    ? reason instanceof Error ? reason : new Error("FFmpeg input stream was aborted.")
++    : new Error("FFmpeg input stream is closed.");
++const waitForInputStreamChange = async (control, expected, signal) => {
++    if (signal?.aborted)
++        throw signal.reason ?? new DOMException("The operation was aborted.", "AbortError");
++    if (typeof Atomics.waitAsync !== "function")
++        throw new Error("FFmpeg input streaming requires Atomics.waitAsync support.");
++    const waiter = Atomics.waitAsync(control, INPUT_STREAM_EPOCH, expected);
++    if (!waiter.async)
++        return;
++    if (!signal) {
++        await waiter.value;
++        return;
++    }
++    let removeAbort = () => undefined;
++    try {
++        await Promise.race([
++            waiter.value,
++            new Promise((_, reject) => {
++                const onAbort = () => reject(signal.reason ?? new DOMException("The operation was aborted.", "AbortError"));
++                signal.addEventListener("abort", onAbort, { once: true });
++                removeAbort = () => signal.removeEventListener("abort", onAbort);
++            }),
++        ]);
++    }
++    finally {
++        removeAbort();
++    }
++};
++const notifyInputStreamChange = (control) => {
++    Atomics.add(control, INPUT_STREAM_EPOCH, 1);
++    Atomics.notify(control, INPUT_STREAM_EPOCH);
++};
++const waitForInputStreamOperation = async (operation, signal) => {
++    if (!signal)
++        return operation;
++    if (signal.aborted)
++        throw signal.reason ?? new DOMException("The operation was aborted.", "AbortError");
++    let removeAbort = () => undefined;
++    try {
++        return await Promise.race([
++            operation,
++            new Promise((_, reject) => {
++                const onAbort = () => reject(signal.reason ?? new DOMException("The operation was aborted.", "AbortError"));
++                signal.addEventListener("abort", onAbort, { once: true });
++                removeAbort = () => signal.removeEventListener("abort", onAbort);
++            }),
++        ]);
++    }
++    finally {
++        removeAbort();
++    }
++};
++const writeInputStreamBytes = async (control, bytes, capacityBytes, value, signal, reason) => {
++    const source = value;
++    let sourceOffset = 0;
++    while (sourceOffset < source.byteLength) {
++        if (signal?.aborted)
++            throw signal.reason ?? new DOMException("The operation was aborted.", "AbortError");
++        const state = Atomics.load(control, INPUT_STREAM_STATE);
++        if (state !== INPUT_STREAM_OPEN)
++            throw streamStateError(state, reason());
++        const usedBytes = Atomics.load(control, INPUT_STREAM_USED_BYTES);
++        if (usedBytes >= capacityBytes) {
++            const epoch = Atomics.load(control, INPUT_STREAM_EPOCH);
++            if (Atomics.load(control, INPUT_STREAM_USED_BYTES) >= capacityBytes &&
++                Atomics.load(control, INPUT_STREAM_STATE) === INPUT_STREAM_OPEN) {
++                await waitForInputStreamChange(control, epoch, signal);
++            }
++            continue;
++        }
++        const writeIndex = Atomics.load(control, INPUT_STREAM_WRITE_INDEX);
++        const byteCount = Math.min(source.byteLength - sourceOffset, capacityBytes - usedBytes, capacityBytes - writeIndex);
++        bytes.set(source.subarray(sourceOffset, sourceOffset + byteCount), writeIndex);
++        Atomics.store(control, INPUT_STREAM_WRITE_INDEX, (writeIndex + byteCount) % capacityBytes);
++        Atomics.add(control, INPUT_STREAM_USED_BYTES, byteCount);
++        sourceOffset += byteCount;
++        notifyInputStreamChange(control);
++    }
++};
+ /**
+  * Provides APIs to interact with ffmpeg web worker.
+  *
+@@ -19,6 +145,11 @@ export class FFmpeg {
+     #rejects = {};
+     #logEventCallbacks = [];
+     #progressEventCallbacks = [];
++    #inputStreams = new Set();
++    #inputStreamFinalizers = new Map();
++    #inputStreamCount = 0;
++    #inputStreamCapacityBytes = 0;
++    #workerGeneration = 0;
+     loaded = false;
+     /**
+      * register worker message event handlers.
+@@ -37,6 +168,10 @@ export class FFmpeg {
                      case FFMessageType.FFPROBE:
                      case FFMessageType.WRITE_FILE:
                      case FFMessageType.READ_FILE:
 +                    case FFMessageType.STAT_FILE:
 +                    case FFMessageType.READ_FILE_RANGE:
++                    case FFMessageType.CREATE_INPUT_STREAM:
++                    case FFMessageType.DELETE_INPUT_STREAM:
                      case FFMessageType.DELETE_FILE:
                      case FFMessageType.RENAME:
                      case FFMessageType.CREATE_DIR:
-@@ -258,6 +260,33 @@ export class FFmpeg {
+@@ -101,6 +236,7 @@ export class FFmpeg {
+      */
+     load = ({ classWorkerURL, ...config } = {}, { signal } = {}) => {
+         if (!this.#worker) {
++            this.#workerGeneration += 1;
+             this.#worker = classWorkerURL ?
+                 new Worker(new URL(classWorkerURL, import.meta.url), {
+                     type: "module",
+@@ -184,6 +320,12 @@ export class FFmpeg {
+      * @category FFmpeg
+      */
+     terminate = () => {
++        for (const stream of this.#inputStreams)
++            stream.abort(ERROR_TERMINATED);
++        for (const finalize of this.#inputStreamFinalizers.values())
++            finalize();
++        this.#inputStreams.clear();
++        this.#inputStreamFinalizers.clear();
+         const ids = Object.keys(this.#rejects);
+         // rejects all incomplete Promises.
+         for (const id of ids) {
+@@ -258,6 +400,187 @@ export class FFmpeg {
          type: FFMessageType.READ_FILE,
          data: { path, encoding },
      }, undefined, signal);
@@ -72,40 +262,198 @@ index fae4753..38e4b06 100644
 +            data: { path, offset, maximumBytes },
 +        }, undefined, signal);
 +    };
++    /**
++     * Create a bounded shared-memory character device that FFmpeg can consume
++     * while an exec call is running.
++     *
++     * @category File System
++     */
++    createInputStream = async (path, capacityBytes = 1024 * 1024, { signal } = {}) => {
++        validateInputStreamPath(path);
++        validateInputStreamCapacity(capacityBytes);
++        if (signal?.aborted)
++            throw signal.reason ?? new DOMException("The operation was aborted.", "AbortError");
++        if (typeof SharedArrayBuffer !== "function")
++            throw new Error("FFmpeg input streaming requires SharedArrayBuffer support.");
++        if (typeof Atomics.waitAsync !== "function")
++            throw new Error("FFmpeg input streaming requires Atomics.waitAsync support.");
++        if (this.#inputStreamCount >= MAXIMUM_INPUT_STREAM_COUNT ||
++            this.#inputStreamCapacityBytes + capacityBytes > MAXIMUM_TOTAL_INPUT_STREAM_CAPACITY) {
++            throw new RangeError("FFmpeg input streams exceed the bounded per-instance reservation.");
++        }
++        this.#inputStreamCount += 1;
++        this.#inputStreamCapacityBytes += capacityBytes;
++        const generation = this.#workerGeneration;
++        let reservationReleased = false;
++        const releaseReservation = () => {
++            if (reservationReleased)
++                return;
++            reservationReleased = true;
++            this.#inputStreamCount -= 1;
++            this.#inputStreamCapacityBytes -= capacityBytes;
++        };
++        let buffer;
++        try {
++            buffer = new SharedArrayBuffer((INPUT_STREAM_HEADER_INTS * Int32Array.BYTES_PER_ELEMENT) + capacityBytes);
++        }
++        catch (error) {
++            releaseReservation();
++            throw error;
++        }
++        const control = new Int32Array(buffer, 0, INPUT_STREAM_HEADER_INTS);
++        const bytes = new Uint8Array(buffer, INPUT_STREAM_HEADER_INTS * Int32Array.BYTES_PER_ELEMENT, capacityBytes);
++        let abortReason;
++        let disposed = false;
++        let activeWrite = null;
++        let closePromise = null;
++        let disposePromise = null;
++        const abortStream = (reason) => {
++            if (disposed)
++                return;
++            if (Atomics.compareExchange(control, INPUT_STREAM_STATE, INPUT_STREAM_OPEN, INPUT_STREAM_ABORTED) === INPUT_STREAM_OPEN) {
++                abortReason = reason;
++                notifyInputStreamChange(control);
++            }
++        };
++        let stream;
++        const finalizeStream = () => {
++            if (disposed)
++                return;
++            disposed = true;
++            if (stream) {
++                this.#inputStreams.delete(stream);
++                this.#inputStreamFinalizers.delete(stream);
++            }
++            releaseReservation();
++        };
++        stream = Object.freeze({
++            path,
++            capacityBytes,
++            write: (data, options = {}) => {
++                if (closePromise || disposePromise || disposed || Atomics.load(control, INPUT_STREAM_STATE) !== INPUT_STREAM_OPEN)
++                    return Promise.reject(new Error("FFmpeg input stream is closed."));
++                if (activeWrite)
++                    return Promise.reject(new Error("FFmpeg input stream already has an active write."));
++                let snapshot;
++                try {
++                    snapshot = copyInputStreamChunk(data, capacityBytes);
++                }
++                catch (error) {
++                    return Promise.reject(error);
++                }
++                let operation;
++                operation = writeInputStreamBytes(control, bytes, capacityBytes, snapshot, options?.signal, () => abortReason)
++                    .catch((error) => {
++                    abortStream(error);
++                    throw error;
++                })
++                    .finally(() => {
++                    if (activeWrite === operation)
++                        activeWrite = null;
++                });
++                activeWrite = operation;
++                return operation;
++            },
++            close: () => {
++                if (closePromise)
++                    return closePromise;
++                closePromise = (async () => {
++                    if (disposed)
++                        return;
++                    if (activeWrite)
++                        await activeWrite;
++                    const state = Atomics.load(control, INPUT_STREAM_STATE);
++                    if (state === INPUT_STREAM_ABORTED)
++                        throw streamStateError(state, abortReason);
++                    if (Atomics.compareExchange(control, INPUT_STREAM_STATE, INPUT_STREAM_OPEN, INPUT_STREAM_CLOSED) === INPUT_STREAM_OPEN)
++                        notifyInputStreamChange(control);
++                })();
++                return closePromise;
++            },
++            abort: abortStream,
++            dispose: () => {
++                if (disposePromise)
++                    return disposePromise;
++                const operation = (async () => {
++                    abortStream();
++                    if (activeWrite)
++                        await activeWrite.catch(() => undefined);
++                    if (generation === this.#workerGeneration && this.#worker) {
++                        await this.#send({
++                            type: FFMessageType.DELETE_INPUT_STREAM,
++                            data: { path },
++                        });
++                    }
++                    finalizeStream();
++                })();
++                disposePromise = operation.catch((error) => {
++                    disposePromise = null;
++                    throw error;
++                });
++                return disposePromise;
++            },
++        });
++        const creation = this.#send({
++            type: FFMessageType.CREATE_INPUT_STREAM,
++            data: { path, buffer, capacityBytes },
++        });
++        try {
++            await waitForInputStreamOperation(creation, signal);
++        }
++        catch (error) {
++            abortStream(error);
++            creation.then(async () => {
++                if (generation === this.#workerGeneration && this.#worker) {
++                    await this.#send({
++                        type: FFMessageType.DELETE_INPUT_STREAM,
++                        data: { path },
++                    });
++                }
++            }).catch(() => undefined).finally(finalizeStream);
++            throw error;
++        }
++        this.#inputStreams.add(stream);
++        this.#inputStreamFinalizers.set(stream, finalizeStream);
++        return stream;
++    };
      /**
       * Delete a file.
       *
 diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts
-index d208c23..662b1ba 100644
+index d208c23e..c451dec5 100644
 --- a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts
 +++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.d.ts
-@@ -8,6 +8,8 @@ export declare enum FFMessageType {
+@@ -8,6 +8,10 @@ export declare enum FFMessageType {
      FFPROBE = "FFPROBE",
      WRITE_FILE = "WRITE_FILE",
      READ_FILE = "READ_FILE",
 +    STAT_FILE = "STAT_FILE",
 +    READ_FILE_RANGE = "READ_FILE_RANGE",
++    CREATE_INPUT_STREAM = "CREATE_INPUT_STREAM",
++    DELETE_INPUT_STREAM = "DELETE_INPUT_STREAM",
      DELETE_FILE = "DELETE_FILE",
      RENAME = "RENAME",
      CREATE_DIR = "CREATE_DIR",
 diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
-index 9ee05d8..0c66684 100644
+index 9ee05d87..7ff3b80f 100644
 --- a/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
 +++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
-@@ -9,6 +9,8 @@ export var FFMessageType;
+@@ -9,6 +9,10 @@ export var FFMessageType;
      FFMessageType["FFPROBE"] = "FFPROBE";
      FFMessageType["WRITE_FILE"] = "WRITE_FILE";
      FFMessageType["READ_FILE"] = "READ_FILE";
 +    FFMessageType["STAT_FILE"] = "STAT_FILE";
 +    FFMessageType["READ_FILE_RANGE"] = "READ_FILE_RANGE";
++    FFMessageType["CREATE_INPUT_STREAM"] = "CREATE_INPUT_STREAM";
++    FFMessageType["DELETE_INPUT_STREAM"] = "DELETE_INPUT_STREAM";
      FFMessageType["DELETE_FILE"] = "DELETE_FILE";
      FFMessageType["RENAME"] = "RENAME";
      FFMessageType["CREATE_DIR"] = "CREATE_DIR";
 diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts b/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts
-index 8b0eda3..454b0f2 100644
+index 8b0eda36..dd5ca21b 100644
 --- a/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts
 +++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/types.d.ts
-@@ -42,6 +42,14 @@ export interface FFMessageReadFileData {
+@@ -42,6 +42,22 @@ export interface FFMessageReadFileData {
      path: FFFSPath;
      encoding: string;
  }
@@ -117,19 +465,27 @@ index 8b0eda3..454b0f2 100644
 +    offset: number;
 +    maximumBytes: number;
 +}
++export interface FFMessageCreateInputStreamData {
++    path: FFFSPath;
++    buffer: SharedArrayBuffer;
++    capacityBytes: number;
++}
++export interface FFMessageDeleteInputStreamData {
++    path: FFFSPath;
++}
  export interface FFMessageDeleteFileData {
      path: FFFSPath;
  }
-@@ -88,7 +96,7 @@ export interface FFMessageMountData {
+@@ -88,7 +104,7 @@ export interface FFMessageMountData {
  export interface FFMessageUnmountData {
      mountPoint: FFFSPath;
  }
 -export type FFMessageData = FFMessageLoadConfig | FFMessageExecData | FFMessageWriteFileData | FFMessageReadFileData | FFMessageDeleteFileData | FFMessageRenameData | FFMessageCreateDirData | FFMessageListDirData | FFMessageDeleteDirData | FFMessageMountData | FFMessageUnmountData;
-+export type FFMessageData = FFMessageLoadConfig | FFMessageExecData | FFMessageWriteFileData | FFMessageReadFileData | FFMessageStatFileData | FFMessageReadFileRangeData | FFMessageDeleteFileData | FFMessageRenameData | FFMessageCreateDirData | FFMessageListDirData | FFMessageDeleteDirData | FFMessageMountData | FFMessageUnmountData;
++export type FFMessageData = FFMessageLoadConfig | FFMessageExecData | FFMessageWriteFileData | FFMessageReadFileData | FFMessageStatFileData | FFMessageReadFileRangeData | FFMessageCreateInputStreamData | FFMessageDeleteInputStreamData | FFMessageDeleteFileData | FFMessageRenameData | FFMessageCreateDirData | FFMessageListDirData | FFMessageDeleteDirData | FFMessageMountData | FFMessageUnmountData;
  export interface Message {
      type: string;
      data?: FFMessageData;
-@@ -116,7 +124,10 @@ export interface FSNode {
+@@ -116,7 +132,10 @@ export interface FSNode {
      name: string;
      isDir: boolean;
  }
@@ -142,13 +498,49 @@ index 8b0eda3..454b0f2 100644
      [id: number | string]: (data: CallbackData) => void;
  }
 diff --git a/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js b/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js
-index cca2a61..8fb7175 100644
+index cca2a611..f359fafc 100644
 --- a/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js
 +++ b/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js
-@@ -58,6 +58,40 @@ const writeFile = ({ path, data }) => {
+@@ -4,6 +4,18 @@
+ import { CORE_URL, FFMessageType } from "./const.js";
+ import { ERROR_UNKNOWN_MESSAGE_TYPE, ERROR_NOT_LOADED, ERROR_IMPORT_FAILURE, } from "./errors.js";
+ let ffmpeg;
++const INPUT_STREAM_HEADER_INTS = 8;
++const INPUT_STREAM_STATE = 0;
++const INPUT_STREAM_READ_INDEX = 1;
++const INPUT_STREAM_USED_BYTES = 3;
++const INPUT_STREAM_EPOCH = 4;
++const INPUT_STREAM_OPEN = 0;
++const INPUT_STREAM_CLOSED = 1;
++const INPUT_STREAM_ABORTED = 2;
++const MINIMUM_INPUT_STREAM_CAPACITY = 4096;
++const MAXIMUM_INPUT_STREAM_CAPACITY = 8 * 1024 * 1024;
++const inputStreams = new Map();
++let nextInputStreamMinor = 1;
+ const load = async ({ coreURL: _coreURL, wasmURL: _wasmURL, workerURL: _workerURL, }) => {
+     const first = !ffmpeg;
+     try {
+@@ -53,17 +65,167 @@ const ffprobe = ({ args, timeout = -1 }) => {
+     ffmpeg.reset();
+     return ret;
+ };
++const assertNotInputStreamPath = (...paths) => {
++    if (paths.some((path) => {
++        const prefix = path.endsWith("/") ? path : `${path}/`;
++        return inputStreams.has(path) || [...inputStreams.keys()].some((streamPath) => streamPath.startsWith(prefix));
++    }))
++        throw new Error("FFmpeg input stream paths are reserved from regular file APIs.");
++};
+ const writeFile = ({ path, data }) => {
++    assertNotInputStreamPath(path);
+     ffmpeg.FS.writeFile(path, data);
      return true;
  };
- const readFile = ({ path, encoding }) => ffmpeg.FS.readFile(path, { encoding });
+-const readFile = ({ path, encoding }) => ffmpeg.FS.readFile(path, { encoding });
++const readFile = ({ path, encoding }) => {
++    assertNotInputStreamPath(path);
++    return ffmpeg.FS.readFile(path, { encoding });
++};
 +const statFile = ({ path }) => {
 +    const stat = ffmpeg.FS.stat(path);
 +    if (!ffmpeg.FS.isFile(stat.mode))
@@ -183,10 +575,142 @@ index cca2a61..8fb7175 100644
 +        ffmpeg.FS.close(stream);
 +    }
 +};
++const validateInputStreamPath = (path) => {
++    if (typeof path !== "string" || path.length < 2 || path.length > 255 ||
++        !/^\/[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(path) || path.includes("//") ||
++        path.split("/").some((part) => part === "." || part === "..")) {
++        throw new TypeError("FFmpeg input stream path must be a canonical absolute path.");
++    }
++    return path;
++};
++const inputStreamDevice = () => {
++    for (let count = 0; count < 255; count += 1) {
++        const minor = nextInputStreamMinor;
++        nextInputStreamMinor = minor === 255 ? 1 : minor + 1;
++        const device = ffmpeg.FS.makedev(80, minor);
++        if (!ffmpeg.FS.getDevice(device))
++            return device;
++    }
++    throw new Error("FFmpeg input stream device limit reached.");
++};
++const createInputStream = ({ path, buffer, capacityBytes }) => {
++    validateInputStreamPath(path);
++    if (typeof SharedArrayBuffer !== "function" || !(buffer instanceof SharedArrayBuffer))
++        throw new TypeError("FFmpeg input stream requires a SharedArrayBuffer.");
++    if (!Number.isSafeInteger(capacityBytes) || capacityBytes < MINIMUM_INPUT_STREAM_CAPACITY ||
++        capacityBytes > MAXIMUM_INPUT_STREAM_CAPACITY ||
++        buffer.byteLength !== (INPUT_STREAM_HEADER_INTS * Int32Array.BYTES_PER_ELEMENT) + capacityBytes) {
++        throw new RangeError("FFmpeg input stream has an invalid bounded capacity.");
++    }
++    if (inputStreams.has(path) || ffmpeg.FS.analyzePath(path).exists)
++        throw new Error("FFmpeg input stream path already exists.");
++    const control = new Int32Array(buffer, 0, INPUT_STREAM_HEADER_INTS);
++    for (let index = 0; index < INPUT_STREAM_HEADER_INTS; index += 1) {
++        if (Atomics.load(control, index) !== 0)
++            throw new TypeError("FFmpeg input stream control state must be zero-initialized.");
++    }
++    const bytes = new Uint8Array(buffer, INPUT_STREAM_HEADER_INTS * Int32Array.BYTES_PER_ELEMENT, capacityBytes);
++    const device = inputStreamDevice();
++    const read = (_stream, output, outputOffset, length) => {
++        if (!(output instanceof Int8Array || output instanceof Uint8Array) ||
++            !Number.isSafeInteger(outputOffset) || outputOffset < 0 ||
++            !Number.isSafeInteger(length) || length < 0 || outputOffset + length > output.byteLength) {
++            throw new ffmpeg.FS.ErrnoError(28);
++        }
++        let outputLength = 0;
++        while (outputLength < length) {
++            const state = Atomics.load(control, INPUT_STREAM_STATE);
++            if (state === INPUT_STREAM_ABORTED)
++                throw new ffmpeg.FS.ErrnoError(29);
++            const usedBytes = Atomics.load(control, INPUT_STREAM_USED_BYTES);
++            if (usedBytes > 0) {
++                const readIndex = Atomics.load(control, INPUT_STREAM_READ_INDEX);
++                const byteCount = Math.min(length - outputLength, usedBytes, capacityBytes - readIndex);
++                output.set(bytes.subarray(readIndex, readIndex + byteCount), outputOffset + outputLength);
++                Atomics.store(control, INPUT_STREAM_READ_INDEX, (readIndex + byteCount) % capacityBytes);
++                Atomics.sub(control, INPUT_STREAM_USED_BYTES, byteCount);
++                outputLength += byteCount;
++                Atomics.add(control, INPUT_STREAM_EPOCH, 1);
++                Atomics.notify(control, INPUT_STREAM_EPOCH);
++                continue;
++            }
++            if (state === INPUT_STREAM_CLOSED)
++                return outputLength;
++            if (state !== INPUT_STREAM_OPEN)
++                throw new ffmpeg.FS.ErrnoError(29);
++            const epoch = Atomics.load(control, INPUT_STREAM_EPOCH);
++            if (Atomics.load(control, INPUT_STREAM_USED_BYTES) === 0 &&
++                Atomics.load(control, INPUT_STREAM_STATE) === INPUT_STREAM_OPEN) {
++                Atomics.wait(control, INPUT_STREAM_EPOCH, epoch);
++            }
++        }
++        return outputLength;
++    };
++    ffmpeg.FS.registerDevice(device, {
++        open: (stream) => { stream.seekable = false; },
++        close: () => undefined,
++        read,
++        write: () => { throw new ffmpeg.FS.ErrnoError(29); },
++        llseek: () => { throw new ffmpeg.FS.ErrnoError(70); },
++    });
++    try {
++        ffmpeg.FS.mkdev(path, 384, device);
++    }
++    catch (error) {
++        delete ffmpeg.FS.devices[device];
++        throw error;
++    }
++    inputStreams.set(path, { control, device });
++    return true;
++};
++const deleteInputStream = ({ path }) => {
++    validateInputStreamPath(path);
++    const entry = inputStreams.get(path);
++    if (!entry)
++        throw new Error("FFmpeg input stream does not exist.");
++    if (Atomics.load(entry.control, INPUT_STREAM_STATE) === INPUT_STREAM_OPEN)
++        throw new Error("FFmpeg input stream must be closed or aborted before deletion.");
++    const current = ffmpeg.FS.analyzePath(path);
++    if (!current.exists || current.object?.rdev !== entry.device)
++        throw new Error("FFmpeg input stream device identity no longer matches its registered path.");
++    ffmpeg.FS.unlink(path);
++    delete ffmpeg.FS.devices[entry.device];
++    inputStreams.delete(path);
++    return true;
++};
  // TODO: check if deletion works.
  const deleteFile = ({ path }) => {
++    assertNotInputStreamPath(path);
      ffmpeg.FS.unlink(path);
-@@ -121,6 +155,12 @@ self.onmessage = async ({ data: { id, type, data: _data }, }) => {
+     return true;
+ };
+ const rename = ({ oldPath, newPath }) => {
++    assertNotInputStreamPath(oldPath, newPath);
+     ffmpeg.FS.rename(oldPath, newPath);
+     return true;
+ };
+@@ -84,10 +246,12 @@ const listDir = ({ path }) => {
+ };
+ // TODO: check if deletion works.
+ const deleteDir = ({ path }) => {
++    assertNotInputStreamPath(path);
+     ffmpeg.FS.rmdir(path);
+     return true;
+ };
+ const mount = ({ fsType, options, mountPoint }) => {
++    assertNotInputStreamPath(mountPoint);
+     const str = fsType;
+     const fs = ffmpeg.FS.filesystems[str];
+     if (!fs)
+@@ -96,6 +260,7 @@ const mount = ({ fsType, options, mountPoint }) => {
+     return true;
+ };
+ const unmount = ({ mountPoint }) => {
++    assertNotInputStreamPath(mountPoint);
+     ffmpeg.FS.unmount(mountPoint);
+     return true;
+ };
+@@ -121,6 +286,18 @@ self.onmessage = async ({ data: { id, type, data: _data }, }) => {
              case FFMessageType.READ_FILE:
                  data = readFile(_data);
                  break;
@@ -195,6 +719,12 @@ index cca2a61..8fb7175 100644
 +                break;
 +            case FFMessageType.READ_FILE_RANGE:
 +                data = readFileRange(_data);
++                break;
++            case FFMessageType.CREATE_INPUT_STREAM:
++                data = createInputStream(_data);
++                break;
++            case FFMessageType.DELETE_INPUT_STREAM:
++                data = deleteInputStream(_data);
 +                break;
              case FFMessageType.DELETE_FILE:
                  data = deleteFile(_data);
