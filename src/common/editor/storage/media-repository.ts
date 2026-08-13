@@ -16,7 +16,7 @@ import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
 import {
 	MediaAssetWriteRepository,
 	type MediaAssetWriteOptions,
-	type OwnedMediaAssetWriter,
+	type VideoProxyClaimedMediaAssetWriter,
 } from './media-asset-write-repository.ts';
 import {
 	binaryMetadata,
@@ -67,7 +67,7 @@ export class MediaRepository {
 		sourceId: string,
 		metadata: Readonly<Record<string, unknown>>,
 		options: MediaAssetWriteOptions,
-	): Promise<OwnedMediaAssetWriter> {
+	): Promise<VideoProxyClaimedMediaAssetWriter> {
 		return this.#assetWrites.begin(sourceId, metadata, options);
 	}
 	beginAssetMaintenance(options: Readonly<{ permanent?: boolean }> = {}): MediaAssetMaintenance { return this.#assetLifecycle.beginMaintenance(options); }

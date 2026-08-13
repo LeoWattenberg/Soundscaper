@@ -17,8 +17,11 @@ import { MediaAssetDisposalRepository } from './media-asset-disposal-repository.
 import {
 	MediaPublicationReconciliationError,
 	ownedMediaAssetPublication,
-	sameMediaPayload,
 } from './media-asset-owned-publication.ts';
+import {
+	publishMediaAssetWrite,
+	type MediaAssetWritePublicationResult,
+} from './media-asset-write-publication.ts';
 import {
 	abortPreparedMediaAssetStaging,
 	prepareMediaAssetStaging,
@@ -26,10 +29,8 @@ import {
 } from './media-asset-staged-sink.ts';
 import {
 	type ActiveMediaAssetStaging,
-	type MediaAssetStagingLease,
 	MediaAssetStagingRepository,
 } from './media-asset-staging-repository.ts';
-import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
 import {
 	freshVerifiedMediaContentDigest,
 	isMediaContentSha256,
@@ -46,14 +47,21 @@ import type { StorageRepositoryPort } from './repository-port.ts';
 import { request, transact } from './indexeddb-backend.ts';
 import type {
 	MediaAssetWriteOptions,
-	OwnedMediaAssetWriter,
 	OwnedMediaAssetPublication,
+	VideoProxyClaimedMediaAssetPublication,
+	VideoProxyClaimedMediaAssetWriter,
 } from './media-asset-write-contract.ts';
+import {
+	normalizeVideoProxyClaimStagingInput,
+	type VideoProxyClaimStagingInput,
+} from './video-proxy-claim-staging-record.ts';
 export type {
 	MediaAssetWriter,
 	MediaAssetWriteOptions,
 	OwnedMediaAssetWriter,
 	OwnedMediaAssetPublication,
+	VideoProxyClaimedMediaAssetPublication,
+	VideoProxyClaimedMediaAssetWriter,
 } from './media-asset-write-contract.ts';
 
 export const MEDIA_ASSET_STREAM_CHUNK_BYTES = 4 * 1024 * 1024;
@@ -63,7 +71,7 @@ export { MEDIA_ASSET_CHUNK_STORAGE_TYPE };
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 interface ManagedMediaAssetWriter {
-	readonly writer: OwnedMediaAssetWriter;
+	readonly writer: VideoProxyClaimedMediaAssetWriter;
 	abortForMaintenance(): Promise<void>;
 }
 
@@ -94,7 +102,7 @@ export class MediaAssetWriteRepository {
 		sourceId: string,
 		metadata: Readonly<Record<string, unknown>>,
 		options: MediaAssetWriteOptions,
-	): Promise<OwnedMediaAssetWriter> {
+	): Promise<VideoProxyClaimedMediaAssetWriter> {
 		this.#coordinator.assertAccepting();
 		const id = nonEmptyString(sourceId, 'A media source id is required.');
 		const expectedBytes = nonNegativeSafeInteger(
@@ -263,9 +271,15 @@ export class MediaAssetWriteRepository {
 		let chunkIndex = 0;
 		let state: 'open' | 'committing' | 'committed' | 'aborted' | 'indeterminate' = 'open';
 		let activeWrite: Promise<void> | null = null;
-		let commitPromise: Promise<StorageRecord> | null = null;
+		let commitPromise: Promise<Readonly<{
+			readonly record: StorageRecord;
+			readonly publication: Readonly<MediaAssetWritePublicationResult>;
+		}>> | null = null;
 		let metadataCommitPromise: Promise<Readonly<Record<string, unknown>>> | null = null;
 		let ownedCommitPromise: Promise<OwnedMediaAssetPublication> | null = null;
+		let claimedCommitPromise: Promise<Readonly<VideoProxyClaimedMediaAssetPublication>> | null = null;
+		let publicationMode: 'ordinary' | 'video-proxy-claim' | null = null;
+		let claimedInputIdentity: string | null = null;
 		let cleanupPromise: Promise<void> | null = null;
 		let abortPromise: Promise<void> | null = null;
 		let maintenanceAbortPromise: Promise<void> | null = null;
@@ -302,7 +316,11 @@ export class MediaAssetWriteRepository {
 		};
 		const performCommit = async (
 			options: Readonly<{ signal?: AbortSignal }>,
-		): Promise<StorageRecord> => {
+			videoProxyClaim?: VideoProxyClaimStagingInput,
+		): Promise<Readonly<{
+			readonly record: StorageRecord;
+			readonly publication: Readonly<MediaAssetWritePublicationResult>;
+		}>> => {
 			const signal = options.signal ?? defaultSignal;
 			try {
 				if (activeWrite) await activeWrite;
@@ -337,10 +355,19 @@ export class MediaAssetWriteRepository {
 					pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 				};
 				publicationStarted = true;
-				await this.#publish(record, signal, database, lease);
+				const publication = await publishMediaAssetWrite(
+					this.#port,
+					record,
+					lease,
+					database,
+					{
+						...(signal ? { signal } : {}),
+						...(videoProxyClaim ? { videoProxyClaim } : {}),
+					},
+				);
 				state = 'committed';
 				onSettled();
-				return record;
+				return Object.freeze({ record, publication });
 			} catch (error) {
 				if (error instanceof MediaPublicationReconciliationError) {
 					state = 'indeterminate';
@@ -350,7 +377,28 @@ export class MediaAssetWriteRepository {
 				return abortWith(error);
 			}
 		};
-		const writer: OwnedMediaAssetWriter = {
+		const startCommit = (
+			mode: 'ordinary' | 'video-proxy-claim',
+			options: Readonly<{ signal?: AbortSignal }>,
+			videoProxyClaim?: VideoProxyClaimStagingInput,
+		): Promise<Readonly<{
+			readonly record: StorageRecord;
+			readonly publication: Readonly<MediaAssetWritePublicationResult>;
+		}>> | null => {
+			const identity = videoProxyClaim ? JSON.stringify(videoProxyClaim) : null;
+			if (state === 'open') {
+				state = 'committing';
+				publicationMode = mode;
+				claimedInputIdentity = identity;
+				commitPromise = performCommit(options, videoProxyClaim);
+			}
+			if (state !== 'committing' || !commitPromise || publicationMode !== mode
+				|| claimedInputIdentity !== identity) {
+				return null;
+			}
+			return commitPromise;
+		};
+		const writer: VideoProxyClaimedMediaAssetWriter = {
 			maximumChunkBytes: MEDIA_ASSET_STREAM_CHUNK_BYTES,
 			get bytesWritten() { return bytesWritten; },
 			write: (input, options = {}) => {
@@ -398,28 +446,41 @@ export class MediaAssetWriteRepository {
 				return operation;
 			},
 			commit: (options = {}) => {
-				if (state === 'open') {
-					state = 'committing';
-					commitPromise = performCommit(options);
-				}
-				if (state !== 'committing' || !commitPromise) {
-					return Promise.reject(new Error('The streamed media writer is closed.'));
-				}
-				metadataCommitPromise ??= commitPromise.then(mediaAssetMetadata);
+				const operation = startCommit('ordinary', options);
+				if (!operation) return Promise.reject(new Error('The streamed media writer is closed.'));
+				metadataCommitPromise ??= operation.then(
+					({ record }) => mediaAssetMetadata(record),
+				);
 				return metadataCommitPromise;
 			},
 			commitOwned: (options = {}) => {
-				if (state === 'open') {
-					state = 'committing';
-					commitPromise = performCommit(options);
-				}
-				if (state !== 'committing' || !commitPromise) {
-					return Promise.reject(new Error('The streamed media writer is closed.'));
-				}
-				ownedCommitPromise ??= commitPromise.then((record) => (
+				const operation = startCommit('ordinary', options);
+				if (!operation) return Promise.reject(new Error('The streamed media writer is closed.'));
+				ownedCommitPromise ??= operation.then(({ record }) => (
 					ownedMediaAssetPublication(record, this.#port, this.#disposal, this.#opfs)
 				));
 				return ownedCommitPromise;
+			},
+			commitVideoProxyClaim: (inputValue, options = {}) => {
+				let input: VideoProxyClaimStagingInput;
+				try { input = normalizeVideoProxyClaimStagingInput(inputValue); }
+				catch (error) { return Promise.reject(error); }
+				const operation = startCommit('video-proxy-claim', options, input);
+				if (!operation) return Promise.reject(new Error('The streamed media writer is closed.'));
+				claimedCommitPromise ??= operation.then(
+					({ record, publication }) => {
+						if (!publication.claim) {
+							throw new Error('Atomic video proxy body publication did not return its durable root.');
+						}
+						const metadata = mediaAssetMetadata(record);
+						delete metadata.path;
+						return Object.freeze({
+							metadata: Object.freeze(metadata),
+							claim: publication.claim,
+						});
+					},
+				);
+				return claimedCommitPromise;
 			},
 			abort: () => {
 				if (maintenanceAbortPromise) return maintenanceAbortPromise;
@@ -486,73 +547,6 @@ export class MediaAssetWriteRepository {
 			request(mediaAssets.get(sourceId)).then(Boolean)
 		));
 	}
-
-	async #publish(
-		record: StorageRecord,
-		signal: AbortSignal | undefined,
-		database: IDBDatabase | null,
-		lease: MediaAssetStagingLease,
-	): Promise<void> {
-		const sourceId = record.sourceId as string;
-		throwIfAborted(signal);
-		if (!database) {
-			lease.assertInMemory();
-			if (this.#port.memory.mediaAssets.has(sourceId)) {
-				throw new Error(`Immutable media asset ${sourceId} cannot be overwritten.`);
-			}
-			throwIfAborted(signal);
-			lease.completeInMemory();
-			try {
-				this.#port.memory.mediaAssets.set(sourceId, clone(record));
-			} catch (error) {
-				if (await this.#reconcilePublication(record, error, null)) return;
-				throw error;
-			}
-			return;
-		}
-		let mutationStarted = false;
-		try {
-			await transact(database, [
-				'mediaAssets',
-				MEDIA_ASSET_STAGING_STORE_NAME,
-			], 'readwrite', async (stores) => {
-				const mediaAssets = stores.mediaAssets;
-				const staging = stores[MEDIA_ASSET_STAGING_STORE_NAME];
-				if (await request(mediaAssets.get(sourceId))) {
-					throw new Error(`Immutable media asset ${sourceId} cannot be overwritten.`);
-				}
-				throwIfAborted(signal);
-				await lease.assertInStore(staging);
-				throwIfAborted(signal);
-				mutationStarted = true;
-				await request(mediaAssets.put(record));
-				await lease.completeInStore(staging);
-			});
-		} catch (error) {
-			if (!mutationStarted) throw error;
-			if (await this.#reconcilePublication(record, error, database)) return;
-			throw error;
-		}
-	}
-
-	async #reconcilePublication(
-		record: StorageRecord,
-		primary: unknown,
-		database: IDBDatabase | null,
-	): Promise<boolean> {
-		let current: StorageRecord | null;
-		try {
-			const value = !database
-				? this.#port.memory.mediaAssets.get(record.sourceId as string)
-				: await transact(database, 'mediaAssets', 'readonly', ({ mediaAssets }) => (
-					request(mediaAssets.get(record.sourceId as string))
-				));
-			current = storageRecord(value);
-		} catch (reconciliationError) {
-			throw new MediaPublicationReconciliationError(primary, reconciliationError);
-		}
-		return sameMediaPayload(current, record);
-	}
 }
 
 function nonNegativeSafeInteger(value: unknown, message: string): number {
@@ -574,15 +568,6 @@ function nonNegativeInteger(value: unknown, fallback: number): number {
 
 function hex(bytes: Uint8Array): string {
 	return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
-}
-
-function storageRecord(value: unknown): StorageRecord | null {
-	return value && typeof value === 'object' ? value as StorageRecord : null;
 }
 
 function isString(value: unknown): value is string {

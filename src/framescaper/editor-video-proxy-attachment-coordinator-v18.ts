@@ -6,9 +6,9 @@ import {
 	MEDIA_CONTENT_DIGEST_CHUNK_BYTES,
 } from '../common/editor/storage/media-content-digest.ts';
 import type {
-	OwnedMediaAssetPublication,
-	OwnedMediaAssetWriter,
+	VideoProxyClaimedMediaAssetWriter,
 } from '../common/editor/storage/media-asset-write-contract.ts';
+import { MediaPublicationReconciliationError } from '../common/editor/storage/media-asset-owned-publication.ts';
 import {
 	VideoProxyClaimRepository,
 	type VideoProxyClaimRecord,
@@ -16,6 +16,9 @@ import {
 import {
 	VideoProxyClaimStagingRepository,
 } from '../common/editor/storage/video-proxy-claim-staging-repository.ts';
+import type {
+	VideoProxyClaimStagingInput,
+} from '../common/editor/storage/video-proxy-claim-staging-record.ts';
 import {
 	assertVideoProxyRelationshipAdoptionCurrent,
 	captureVideoProxyRelationshipAdoptionLease,
@@ -75,7 +78,7 @@ interface AttachmentStoreV18 extends FramescaperVideoProxyCapacityStoreV18 {
 		sourceId: string,
 		metadata: Readonly<Record<string, unknown>>,
 		options: Readonly<{ expectedBytes: number; expectedSha256: string; signal?: AbortSignal }>,
-	): Promise<OwnedMediaAssetWriter>;
+	): Promise<VideoProxyClaimedMediaAssetWriter>;
 }
 
 interface BodySpec {
@@ -92,7 +95,8 @@ interface BodySpec {
 
 interface StagedBody {
 	readonly spec: BodySpec;
-	readonly publication: OwnedMediaAssetPublication | null;
+	readonly input: VideoProxyClaimStagingInput;
+	readonly created: boolean;
 	claim: Readonly<VideoProxyClaimRecord> | null;
 	claimAttempted: boolean;
 }
@@ -189,27 +193,29 @@ export class FramescaperVideoProxyAttachmentCoordinatorV18 {
 			this.#gate.assertCurrent(ticket);
 			assertVideoProxyRelationshipAdoptionCurrent(adoption);
 
-			const specs = bodySpecs(material, attachment);
-			for (const spec of specs) staged.push(await stageBody(this.#store, spec, request.signal));
-			this.#gate.assertCurrent(ticket);
-			assertVideoProxyRelationshipAdoptionCurrent(adoption);
-
 			const baseFingerprint = framescaperProjectFingerprintV18(
 				this.#environment.runtime.profile,
 				gate.base,
 			);
+			const specs = bodySpecs(material, attachment);
+			for (const spec of specs) {
+				const input = claimInput(request, gate.projectId, baseFingerprint, spec);
+				staged.push(await stageBody(this.#store, spec, input, request.signal));
+			}
+			this.#gate.assertCurrent(ticket);
+			assertVideoProxyRelationshipAdoptionCurrent(adoption);
+
 			for (const body of staged) {
 				body.claimAttempted = true;
-				body.claim = await this.#claimStaging.createVerifiedClaim({
-					operationId: request.operationId,
-					projectId: gate.projectId,
-					sourceId: request.sourceId,
-					baseFingerprint,
-					bodyKind: body.spec.bodyKind,
-					bodyKey: body.spec.key,
-					byteLength: body.spec.byteLength,
-					mimeType: body.spec.mimeType,
-				}, request.signal ? { signal: request.signal } : {});
+				body.claim = body.created
+					? await this.#claimStaging.verifyNewBodyClaim(
+						body.claim!,
+						request.signal ? { signal: request.signal } : {},
+					)
+					: await this.#claimStaging.createVerifiedClaim(
+						body.input,
+						request.signal ? { signal: request.signal } : {},
+					);
 				if (body.spec.timing) await verifyStoredTiming(this.#store, body.spec, request.signal);
 			}
 			this.#gate.assertCurrent(ticket);
@@ -278,15 +284,14 @@ export class FramescaperVideoProxyAttachmentCoordinatorV18 {
 	): Promise<unknown[]> {
 		const errors: unknown[] = [];
 		for (const body of staged) {
-			if (body.publication || !body.claim) continue;
+			if (body.created || !body.claim) continue;
 			try { await this.#claimStaging.releaseVerifiedClaimIfCurrent(body.claim); }
 			catch (error) { errors.push(error); }
 		}
 		if (errors.length) return errors;
 		const snapshot = ticket ? this.#gate.snapshot(ticket) : null;
-		const newClaimAttempt = staged.some((body) => body.publication && body.claimAttempted);
-		let cleanupSettled = false;
-		if (snapshot && newClaimAttempt) {
+		const newClaimRooted = staged.some((body) => body.created && body.claimAttempted && body.claim);
+		if (snapshot && newClaimRooted) {
 			try {
 				const cleanup = await this.#environment.claimCleanup.cleanupOperation({
 					operationId: request.operationId,
@@ -302,13 +307,7 @@ export class FramescaperVideoProxyAttachmentCoordinatorV18 {
 					pendingSaveSnapshots: [],
 				});
 				if (cleanup.status !== 'settled') errors.push(new Error('V18 proxy claim cleanup is indeterminate.'));
-				else cleanupSettled = true;
 			} catch (error) { errors.push(error); }
-		}
-		for (const body of [...staged].reverse()) {
-			if (!body.publication || body.claim
-				|| body.claimAttempted && !cleanupSettled) continue;
-			try { await body.publication.discardIfCurrent(); } catch (error) { errors.push(error); }
 		}
 		return errors;
 	}
@@ -404,12 +403,35 @@ function bodySpecs(
 	})]);
 }
 
-async function stageBody(store: AttachmentStoreV18, spec: BodySpec, signal?: AbortSignal): Promise<StagedBody> {
+function claimInput(
+	request: Readonly<FramescaperVideoProxyAttachmentRequestV18>,
+	projectId: string,
+	baseFingerprint: string,
+	spec: BodySpec,
+): VideoProxyClaimStagingInput {
+	return Object.freeze({
+		operationId: request.operationId,
+		projectId,
+		sourceId: request.sourceId,
+		baseFingerprint,
+		bodyKind: spec.bodyKind,
+		bodyKey: spec.key,
+		byteLength: spec.byteLength,
+		mimeType: spec.mimeType,
+	});
+}
+
+async function stageBody(
+	store: AttachmentStoreV18,
+	spec: BodySpec,
+	input: VideoProxyClaimStagingInput,
+	signal?: AbortSignal,
+): Promise<StagedBody> {
 	throwIfAborted(signal);
 	const existing = await store.getMediaAssetMetadata(spec.key);
 	if (existing !== null && existing !== undefined) {
 		assertBodyMetadata(existing, spec);
-		return { spec, publication: null, claim: null, claimAttempted: false };
+		return { spec, input, created: false, claim: null, claimAttempted: false };
 	}
 	const writer = await store.beginMediaAssetWrite(spec.key, {
 		name: spec.key, kind: spec.kind, encoding: spec.encoding, mimeType: spec.mimeType,
@@ -424,30 +446,40 @@ async function stageBody(store: AttachmentStoreV18, spec: BodySpec, signal?: Abo
 		...(signal ? { signal } : {}),
 	});
 	assertWriter(writer);
-	let publication: OwnedMediaAssetPublication | null = null;
 	try {
 		await writeBody(writer, spec.body, signal);
-		publication = await writer.commitOwned(signal ? { signal } : {});
-		assertBodyMetadata(publication.metadata, spec);
-		return { spec, publication, claim: null, claimAttempted: false };
+		const publication = await writer.commitVideoProxyClaim(
+			input,
+			signal ? { signal } : {},
+		);
+		return {
+			spec,
+			input,
+			created: true,
+			claim: publication.claim,
+			claimAttempted: true,
+		};
 	} catch (error) {
 		try {
-			if (publication) await publication.discardIfCurrent();
-			else await writer.abort();
+			await writer.abort();
 		} catch (cleanupError) {
 			throw new AggregateError([error, cleanupError], 'V18 proxy body write and cleanup both failed.', { cause: error });
 		}
-		if (publication) throw error;
+		if (error instanceof MediaPublicationReconciliationError) throw error;
 		const raced = await store.getMediaAssetMetadata(spec.key);
 		if (raced !== null && raced !== undefined) {
 			assertBodyMetadata(raced, spec);
-			return { spec, publication: null, claim: null, claimAttempted: false };
+			return { spec, input, created: false, claim: null, claimAttempted: false };
 		}
 		throw error;
 	}
 }
 
-async function writeBody(writer: OwnedMediaAssetWriter, body: Blob | Uint8Array, signal?: AbortSignal): Promise<void> {
+async function writeBody(
+	writer: VideoProxyClaimedMediaAssetWriter,
+	body: Blob | Uint8Array,
+	signal?: AbortSignal,
+): Promise<void> {
 	const size = body instanceof Blob ? body.size : body.byteLength;
 	for (let offset = 0; offset < size; offset += writer.maximumChunkBytes) {
 		throwIfAborted(signal);
@@ -475,9 +507,9 @@ function assertBodyMetadata(value: unknown, spec: BodySpec): void {
 	}
 }
 
-function assertWriter(value: unknown): asserts value is OwnedMediaAssetWriter {
-	const writer = value as Partial<OwnedMediaAssetWriter> | null;
-	if (!writer || typeof writer.write !== 'function' || typeof writer.commitOwned !== 'function'
+function assertWriter(value: unknown): asserts value is VideoProxyClaimedMediaAssetWriter {
+	const writer = value as Partial<VideoProxyClaimedMediaAssetWriter> | null;
+	if (!writer || typeof writer.write !== 'function' || typeof writer.commitVideoProxyClaim !== 'function'
 		|| typeof writer.abort !== 'function' || !Number.isSafeInteger(writer.maximumChunkBytes)
 		|| Number(writer.maximumChunkBytes) < 1 || Number(writer.maximumChunkBytes) > MEDIA_CONTENT_DIGEST_CHUNK_BYTES) {
 		throw new TypeError('An exact bounded V18 owned media writer is required.');
