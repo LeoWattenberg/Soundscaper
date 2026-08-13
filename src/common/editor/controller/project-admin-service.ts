@@ -30,6 +30,7 @@ export interface ProjectAdminServiceRuntime {
 	readonly openProject: LegacyPort;
 	readonly persistSetting: LegacyPort;
 	readonly projectSaveService: any;
+	readonly projectGeneration: Readonly<{ invalidate(): void }>;
 	readonly projectMaintenanceRuntime?: Readonly<{
 		reconcileAndCollectStorageRoots(request: Readonly<{
 			currentProject: unknown;
@@ -63,7 +64,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		evictUnreferencedSourceCaches, flushProject, getProject, handleError,
 		liveSessionClipIds, liveSessionLinkedOriginalSourceReferences,
 		liveSessionSourceIds, newProject, openProject, persistSetting,
-		projectSaveService, projectMaintenanceRuntime, projectSessionService, publishDocumentSnapshot,
+		projectSaveService, projectGeneration, projectMaintenanceRuntime, projectSessionService, publishDocumentSnapshot,
 		recordingRoutingSettingKey, releaseProjectLock, revokeVideoVisuals, saveNow,
 		scheduleTimer, sessionController, sessionTab, setProject, sourceBuffers,
 		sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store, switchProject,
@@ -179,57 +180,83 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		if (!project || state.readOnly || recoveryBlocked()) return;
 		await stopRecording();
 		if (getProject() !== project) return null;
-		projectSaveService.cancelScheduled();
-		await projectSaveService.drain?.();
-		projectSaveService.cancelScheduled();
-		if (getProject() !== project) return null;
 		const id = project.id;
+		const historyCapture = sessionController.captureProjectHistory(id);
+		const activation = sessionController.beginProjectActivation(id, {
+			expectedHistoryToken: historyCapture.token,
+		});
 		const failures: unknown[] = [];
 		const attempt = async (operation: () => PromiseLike<unknown> | unknown): Promise<void> => {
 			try { await operation(); } catch (error) { failures.push(error); }
 		};
 		let deleteAttempted = false;
-		let deleteCommitted = false;
-
-		// Removing the active identity is the synchronous fence between drained saves and teardown.
-		setProject(null);
+		let deleteResolved = false;
+		let saveSuspended = false;
 		try {
-			await releaseProjectLock();
-			await revokeVideoVisuals();
-			engine.stop();
-			await stopProjectBinPreview({ dispose: true });
-			await disposeRenderEngines();
-			sourceChunkProviders.clear();
-			await sourceChunkProviders.drain?.();
-			deleteAttempted = true;
-			await store.deleteProject(id);
-			deleteCommitted = true;
-		} catch (error) {
-			failures.push(error);
-			deleteCommitted = deleteAttempted && isCommittedFailure(error);
+			// These synchronous operations close mutation, project-token, and save
+			// admission before the first drain await. The exact-history reservation
+			// prevents a competing tab activation from replacing that ownership.
+			projectSaveService.suspend();
+			saveSuspended = true;
+			projectGeneration.invalidate();
+			state.history = null;
+			setProject(null);
+			try {
+				await projectSaveService.drain();
+				await releaseProjectLock();
+				await revokeVideoVisuals();
+				engine.stop();
+				await stopProjectBinPreview({ dispose: true });
+				await disposeRenderEngines();
+				sourceChunkProviders.clear();
+				await sourceChunkProviders.drain?.();
+				deleteAttempted = true;
+				await store.deleteProject(id);
+				deleteResolved = true;
+			} catch (error) {
+				failures.push(error);
+			}
+			if (deleteResolved) {
+				await attempt(() => persistSetting(recordingRoutingSettingKey(id), null, { policy: 'required' }));
+			}
+
+			// Queue the replacement synchronously after releasing and closing the
+			// old tab, so later activation requests serialize behind this one.
+			activation.release();
+			try {
+				const result = sessionController.closeProject(id, { force: true });
+				if (result?.closed === false) throw new Error('The deleted project session could not be closed.');
+			} catch (error) {
+				failures.push(error);
+			}
+			state.selectedTrackId = null;
+			state.selectedClipId = null;
+			state.selectedAnnotationId = null;
+			state.missingSourceIds.clear();
+			state.projects = Object.freeze([]);
+			let nextProject: unknown;
+			let nextProjectStarted = false;
+			try {
+				nextProject = newProject({ skipFlush: true });
+				nextProjectStarted = true;
+			} catch (error) {
+				failures.push(error);
+			}
+			if (nextProjectStarted) await attempt(() => nextProject);
+			if (deleteAttempted) {
+				await attempt(() => evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds()));
+				await attempt(() => garbageCollectSources());
+			}
+			let listed = false;
+			await attempt(async () => {
+				await listProjects();
+				listed = true;
+			});
+			if (!listed) await attempt(() => publishDocumentSnapshot());
+		} finally {
+			activation.release();
+			if (saveSuspended) projectSaveService.resume();
 		}
-		if (deleteCommitted) {
-			await attempt(() => persistSetting(recordingRoutingSettingKey(id), null, { policy: 'required' }));
-		}
-		await attempt(() => {
-			const result = sessionController.closeProject(id, { force: true });
-			if (result?.closed === false) throw new Error('The deleted project session could not be closed.');
-		});
-		state.history = null;
-		state.selectedAnnotationId = null;
-		state.missingSourceIds.clear();
-		state.projects = Object.freeze([]);
-		if (deleteAttempted) {
-			await attempt(() => evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds()));
-			await attempt(() => garbageCollectSources());
-		}
-		await attempt(() => newProject({ skipFlush: true }));
-		let listed = false;
-		await attempt(async () => {
-			await listProjects();
-			listed = true;
-		});
-		if (!listed) await attempt(() => publishDocumentSnapshot());
 		throwProjectDeletionFailures(failures);
 	}
 
@@ -322,10 +349,6 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		renameProject,
 		sessionHistoryProjects,
 	});
-}
-
-function isCommittedFailure(value: unknown): boolean {
-	return Boolean(value && typeof value === 'object' && (value as { readonly committed?: unknown }).committed === true);
 }
 
 function throwProjectDeletionFailures(failures: readonly unknown[]): void {

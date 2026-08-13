@@ -67,6 +67,7 @@ function createFixture() {
 		openProject: async () => { openCalls += 1; },
 		persistSetting: async () => undefined,
 		projectSaveService: { cancelScheduled: noop, pendingSnapshots: [] },
+		projectGeneration: { invalidate: noop },
 		projectMaintenanceRuntime: {
 			async reconcileAndCollectStorageRoots(request: unknown) {
 				maintenanceCalls += 1;

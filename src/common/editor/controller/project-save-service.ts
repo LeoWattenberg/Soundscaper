@@ -45,7 +45,8 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
  * Serializes project persistence independently from controller feature work.
  * Every queued snapshot is written, but only the newest generation for the
  * active project may publish a saved state. A terminal flush closes scheduling
- * before appending its final snapshot to the same queue.
+ * before appending its final snapshot to the same queue. Temporary suspension
+ * closes save admission while a destructive owner drains the stable queue.
  */
 export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	dependencies: ProjectSaveServiceDependencies<Project>,
@@ -57,11 +58,14 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	const clearTimer = dependencies.clearTimer || ((handle) => globalThis.clearTimeout(handle));
 	const autosaveDelayMs = dependencies.autosaveDelayMs ?? 500;
 	let terminal = false;
+	let suspended = false;
 
 	return Object.freeze({
 		scheduleAutosave,
 		flushProject,
 		terminalFlush,
+		suspend,
+		resume: () => { suspended = false; },
 		cancelScheduled,
 		drain: () => state.saveQueue,
 		get pendingSnapshots(): ReadonlySet<Project> {
@@ -70,7 +74,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	});
 
 	function scheduleAutosave(): boolean {
-		if (terminal || dependencies.isReadOnly()) return false;
+		if (terminal || suspended || dependencies.isReadOnly()) return false;
 		cancelScheduled();
 		state.saveGeneration += 1;
 		const generation = state.saveGeneration;
@@ -91,6 +95,11 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		state.autosaveTimer = 0;
 	}
 
+	function suspend(): void {
+		suspended = true;
+		cancelScheduled();
+	}
+
 	function flushProject(): Promise<unknown> | undefined {
 		return flushCurrentProject(false);
 	}
@@ -103,7 +112,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	}
 
 	function flushCurrentProject(allowTerminal: boolean): Promise<unknown> | undefined {
-		if (terminal && !allowTerminal) return undefined;
+		if (suspended || (terminal && !allowTerminal)) return undefined;
 		if (!dependencies.hasHistory() || dependencies.isReadOnly()) {
 			cancelScheduled();
 			return undefined;

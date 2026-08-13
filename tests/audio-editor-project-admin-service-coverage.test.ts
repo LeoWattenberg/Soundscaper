@@ -143,7 +143,7 @@ test('project deletion fences mutation, save, and activation admission before dr
 		assert.equal(fixture.runtime.projectSaveService.scheduleAutosave(), false);
 		assert.equal(fixture.runtime.projectSaveService.flushProject(), undefined);
 		assert.equal(fixture.saveAdmissions(), 0);
-		assert.throws(
+		await assert.rejects(
 			() => service.renameProject('Zombie mutation'),
 			/active project history/iu,
 		);
