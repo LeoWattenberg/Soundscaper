@@ -184,6 +184,21 @@ test('every projection or runtime-wrapper importer is an owned boundary or one e
 	}
 });
 
+test('offline exact export assembly and visible-source planning own reviewed runtime boundaries', () => {
+	const consumers = FOUNDATION_RUNTIME_CONSUMER_SURFACES.filter(({ id }) => (
+		id === 'offline-keyframe-video-export-assembly'
+		|| id === 'offline-keyframe-video-export-source-plan'
+	));
+	assert.deepEqual(consumers.map(({ id }) => id), [
+		'offline-keyframe-video-export-assembly',
+		'offline-keyframe-video-export-source-plan',
+	]);
+	assert.deepEqual(consumers.map(({ file }) => file), [
+		'src/common/editor/ui/video-keyframe-offline-video-export.ts',
+		'src/common/editor/ui/video-keyframe-offline-video-export-sources.ts',
+	]);
+});
+
 test('registered projection boundaries terminate at the branded clip resolver', async () => {
 	const roots = FOUNDATION_RUNTIME_PROJECTION_BOUNDARIES.filter(({ root }) => root);
 	assert.deepEqual(roots.map(({ boundary }) => boundary), ['resolveRuntimeProjectProjection']);

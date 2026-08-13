@@ -1,0 +1,532 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { canonicalMediaContentBlob } from '../storage/media-content-digest.ts';
+import {
+	admitAudioEditorProjectV9ValidationStructure,
+	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+} from '../project-v9-validation-budget.ts';
+import { MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES } from '../project-publication-admission.ts';
+import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
+import {
+	createVideoKeyframeExportFrameSource,
+	type VideoKeyframeExportFrameRequest,
+} from '../video-keyframe-export-frame-source.ts';
+import {
+	createVideoKeyframeExportPresentationAuthority,
+} from '../video-keyframe-export-presentation-authority.ts';
+import { FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES } from '../ffmpeg-output-stream.ts';
+import {
+	admitVideoKeyframeEncoderWorkload,
+	type VideoKeyframeEncoderFormat,
+	type VideoKeyframeEncoderWorkloadRequest,
+} from '../video-keyframe-encoder-stream.ts';
+import {
+	encodeVideoKeyframeVideo,
+	VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
+	type VideoKeyframeVideoEditorFfmpeg,
+	type VideoKeyframeVideoEncoderRequest,
+	type VideoKeyframeVideoEncoderResult,
+} from '../video-keyframe-video-encoder.ts';
+import type { BoundVideoSourceTimingView } from '../video-source-timing-view.ts';
+import { boundVideoSourceTimingViewInfo } from '../video-source-timing-view.ts';
+import {
+	createVideoKeyframeOfflineHtmlVideoSourceResolver,
+	type VideoKeyframeOfflineHtmlVideoSourceResolver,
+	type VideoKeyframeOfflineHtmlVideoSourceResolverOptions,
+} from './video-keyframe-offline-html-video-source-resolver.ts';
+import {
+	createVideoKeyframeOfflineRgbaRenderer,
+	type VideoKeyframeOfflineRgbaRenderer,
+} from './video-keyframe-offline-rgba-renderer.ts';
+import {
+	planVideoKeyframeOfflineVideoSources,
+} from './video-keyframe-offline-video-export-sources.ts';
+
+interface OfflineCanvas extends HTMLCanvasElement {
+	width: number;
+	height: number;
+}
+
+export interface VideoKeyframeOfflineVideoSourceInput {
+	readonly sourceId: string;
+	readonly blob: Blob;
+}
+
+export interface VideoKeyframeOfflineVideoExportRequest {
+	readonly project: Readonly<Record<string, unknown>>;
+	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
+	readonly sources: readonly VideoKeyframeOfflineVideoSourceInput[];
+	readonly canvas: VideoKeyframeExportFrameRequest['canvas'];
+	readonly startFrame?: number;
+	readonly endFrame?: number;
+	readonly format: VideoKeyframeEncoderFormat;
+	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
+	readonly ringCapacityBytes?: number;
+	readonly maximumWidth?: number;
+	readonly maximumHeight?: number;
+	readonly maximumFrameCount?: number;
+	readonly maximumTotalRgbaBytes?: number;
+	readonly maximumOutputBytes?: number;
+	readonly maximumOutputChunkBytes?: number;
+	readonly sourceTimeoutMs?: number;
+	readonly signal: AbortSignal;
+	readonly assertCurrent: () => void;
+}
+
+export interface VideoKeyframeOfflineVideoExportDependencies {
+	readonly createCanvas: () => OfflineCanvas;
+	readonly createResolver: (
+		options: VideoKeyframeOfflineHtmlVideoSourceResolverOptions,
+	) => VideoKeyframeOfflineHtmlVideoSourceResolver;
+	readonly createRenderer: typeof createVideoKeyframeOfflineRgbaRenderer;
+	readonly encodeVideo: typeof encodeVideoKeyframeVideo;
+}
+
+interface NormalizedRequest {
+	readonly project: Readonly<Record<string, unknown>>;
+	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
+	readonly sources: readonly Readonly<{ sourceId: string; blob: Blob }>[];
+	readonly canvas: VideoKeyframeExportFrameRequest['canvas'];
+	readonly startFrame?: number;
+	readonly endFrame?: number;
+	readonly format: VideoKeyframeEncoderFormat;
+	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
+	readonly encoderOptions: Readonly<Record<string, number>>;
+	readonly sourceTimeoutMs?: number;
+	readonly signal: AbortSignal;
+	readonly assertCurrent: () => void;
+}
+
+const REQUEST_FIELDS = [
+	'project', 'timingBySourceId', 'sources', 'canvas', 'startFrame', 'endFrame',
+	'format', 'editorFfmpeg', 'ringCapacityBytes', 'maximumWidth', 'maximumHeight',
+	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
+	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'signal', 'assertCurrent',
+] as const;
+const ENCODER_OPTION_FIELDS = [
+	'ringCapacityBytes', 'maximumWidth', 'maximumHeight', 'maximumFrameCount',
+	'maximumTotalRgbaBytes', 'maximumOutputBytes', 'maximumOutputChunkBytes',
+] as const;
+const MAXIMUM_SOURCE_COUNT = 4_096;
+const MAXIMUM_SOURCE_TIMEOUT_MS = 30_000;
+const DEFAULT_DEPENDENCIES: VideoKeyframeOfflineVideoExportDependencies = Object.freeze({
+	createCanvas(): OfflineCanvas {
+		if (!globalThis.document || typeof globalThis.document.createElement !== 'function') {
+			throw new Error('Offline video export requires a browser canvas.');
+		}
+		return globalThis.document.createElement('canvas');
+	},
+	createResolver: createVideoKeyframeOfflineHtmlVideoSourceResolver,
+	createRenderer: createVideoKeyframeOfflineRgbaRenderer,
+	encodeVideo: encodeVideoKeyframeVideo,
+});
+
+/** Authenticate and encode one dormant exact browser RGBA export, publishing only after cleanup. */
+export async function encodeVideoKeyframeOfflineVideo(
+	requestValue: VideoKeyframeOfflineVideoExportRequest,
+	dependenciesValue: VideoKeyframeOfflineVideoExportDependencies = DEFAULT_DEPENDENCIES,
+): Promise<VideoKeyframeVideoEncoderResult> {
+	const request = normalizeRequest(requestValue);
+	const dependencies = normalizeDependencies(dependenciesValue);
+	assertReady(request);
+	const project = request.project;
+	const runtimeProject = projectForRuntimeConsumers(project);
+	const sourcePlan = planVideoKeyframeOfflineVideoSources({
+		...request,
+		project: runtimeProject,
+	});
+	const authority = createVideoKeyframeExportPresentationAuthority({
+		project: sourcePlan.project,
+		timingBySourceId: request.timingBySourceId,
+	});
+	const frameSource = createVideoKeyframeExportFrameSource({
+		project: runtimeProject,
+		canvas: request.canvas,
+		...(request.startFrame === undefined ? {} : { startFrame: request.startFrame }),
+		...(request.endFrame === undefined ? {} : { endFrame: request.endFrame }),
+		resolvePresentationDescriptor: authority.resolvePresentationDescriptor,
+	});
+	preflightEncoder(request, frameSource);
+	const assets = await sourcePlan.authenticate(
+		request.sources,
+		authority.presentationForEntry,
+		Object.freeze({ signal: request.signal, assertCurrent: request.assertCurrent }),
+	);
+	assertReady(request);
+	let resolver: VideoKeyframeOfflineHtmlVideoSourceResolver | null = null;
+	let renderer: VideoKeyframeOfflineRgbaRenderer | null = null;
+	let result: VideoKeyframeVideoEncoderResult | null = null;
+	let primary: unknown;
+	let hasPrimary = false;
+	try {
+		resolver = dependencies.createResolver(Object.freeze({
+			sources: assets,
+			...(request.sourceTimeoutMs === undefined ? {} : { timeoutMs: request.sourceTimeoutMs }),
+		}));
+		const canvas = dependencies.createCanvas();
+		canvas.width = frameSource.canvas.width;
+		canvas.height = frameSource.canvas.height;
+		renderer = dependencies.createRenderer(Object.freeze({
+			frameSource,
+			canvas,
+			resolveSource: resolver.resolveSource,
+		}));
+		result = await dependencies.encodeVideo(
+			request.editorFfmpeg,
+			encoderRequest(request, frameSource, renderer),
+		);
+	} catch (error) {
+		primary = error;
+		hasPrimary = true;
+	}
+	const cleanupFailures: unknown[] = [];
+	if (renderer !== null) {
+		const failure = await retryCleanup(() => renderer!.dispose(), 'offline RGBA renderer');
+		if (failure !== null) cleanupFailures.push(failure);
+	}
+	if (resolver !== null) {
+		const failure = await retryCleanup(() => resolver!.dispose(), 'offline video source resolver');
+		if (failure !== null) cleanupFailures.push(failure);
+	}
+	if (!hasPrimary && cleanupFailures.length === 0) {
+		try { assertReady(request); } catch (error) { primary = error; hasPrimary = true; }
+	}
+	if (hasPrimary || cleanupFailures.length > 0) {
+		result?.bytes.fill(0);
+		if (hasPrimary && cleanupFailures.length === 0) throw primary;
+		if (!hasPrimary && cleanupFailures.length === 1) throw cleanupFailures[0];
+		throw new AggregateError(
+			hasPrimary ? [primary, ...cleanupFailures] : cleanupFailures,
+			'Offline video encoding and browser resource cleanup did not both complete successfully.',
+			{ ...(hasPrimary ? { cause: primary } : {}) },
+		);
+	}
+	if (!result) throw new Error('Offline video export produced no exact encoded result.');
+	return result;
+}
+
+async function retryCleanup(
+	dispose: () => PromiseLike<void> | void,
+	name: string,
+): Promise<unknown | null> {
+	try {
+		await dispose();
+		return null;
+	} catch (error) {
+		try {
+			await dispose();
+			return null;
+		} catch (retryError) {
+			return new AggregateError(
+				[error, retryError], `${name} cleanup failed twice.`, { cause: error },
+			);
+		}
+	}
+}
+
+function encoderRequest(
+	request: NormalizedRequest,
+	frameSource: ReturnType<typeof createVideoKeyframeExportFrameSource>,
+	renderer: VideoKeyframeOfflineRgbaRenderer,
+): VideoKeyframeVideoEncoderRequest {
+	return Object.freeze({
+		frameSource,
+		producer: renderer,
+		format: request.format,
+		...request.encoderOptions,
+		signal: request.signal,
+		assertCurrent: request.assertCurrent,
+	});
+}
+
+function preflightEncoder(
+	request: NormalizedRequest,
+	frameSource: ReturnType<typeof createVideoKeyframeExportFrameSource>,
+): void {
+	const workload: Record<string, unknown> = {
+		frameSource,
+		format: request.format,
+		inputPath: '/framescaper-keyframes-preflight.rgba',
+		outputPath: `/framescaper-keyframes-preflight.${request.format}`,
+	};
+	for (const key of [
+		'ringCapacityBytes', 'maximumWidth', 'maximumHeight',
+		'maximumFrameCount', 'maximumTotalRgbaBytes',
+	] as const) {
+		if (request.encoderOptions[key] !== undefined) workload[key] = request.encoderOptions[key];
+	}
+	admitVideoKeyframeEncoderWorkload(workload as unknown as VideoKeyframeEncoderWorkloadRequest);
+	preflightOutputMaximum(
+		request.encoderOptions.maximumOutputBytes,
+		VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
+		'maximumOutputBytes',
+	);
+	preflightOutputMaximum(
+		request.encoderOptions.maximumOutputChunkBytes,
+		FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES,
+		'maximumOutputChunkBytes',
+	);
+}
+
+function preflightOutputMaximum(value: number | undefined, maximum: number, name: string): void {
+	if (value !== undefined && (!Number.isSafeInteger(value) || value < 1 || value > maximum)) {
+		throw new RangeError(
+			`Offline video export ${name} must be a positive safe integer no greater than ${String(maximum)}.`,
+		);
+	}
+}
+
+function normalizeRequest(value: unknown): NormalizedRequest {
+	const request = closedRecord(value, 'offline video export request', REQUEST_FIELDS);
+	if (request.format !== 'mp4' && request.format !== 'webm') {
+		throw new RangeError('Offline video export format must be mp4 or webm.');
+	}
+	if (!(request.signal instanceof AbortSignal)) throw new TypeError('Offline video export requires an AbortSignal.');
+	if (typeof request.assertCurrent !== 'function') throw new TypeError('Offline video export requires assertCurrent.');
+	const startFrame = request.startFrame === undefined
+		? undefined
+		: nonNegativeSafeInteger(request.startFrame, 'offline video export startFrame');
+	const endFrame = request.endFrame === undefined
+		? undefined
+		: positiveSafeInteger(request.endFrame, 'offline video export endFrame');
+	if (startFrame !== undefined && endFrame !== undefined && endFrame <= startFrame) {
+		throw new RangeError('Offline video export endFrame must exceed startFrame.');
+	}
+	const sourceTimeoutMs = request.sourceTimeoutMs === undefined
+		? undefined
+		: boundedPositiveSafeInteger(
+			request.sourceTimeoutMs, MAXIMUM_SOURCE_TIMEOUT_MS, 'offline video export sourceTimeoutMs',
+		);
+	const project = snapshotProject(request.project);
+	const timingBySourceId = snapshotTiming(request.timingBySourceId);
+	const sourceValues = denseArray(request.sources, 'offline video export sources', MAXIMUM_SOURCE_COUNT);
+	const sources: Readonly<{ sourceId: string; blob: Blob }>[] = [];
+	const sourceIds = new Set<string>();
+	for (const [index, value_] of sourceValues.entries()) {
+		const source = closedRecord(value_, `offline video export sources[${String(index)}]`, ['sourceId', 'blob']);
+		const sourceId = boundedId(source.sourceId, `offline video export sources[${String(index)}].sourceId`);
+		if (sourceIds.has(sourceId)) throw new RangeError(`Duplicate offline video source ID ${sourceId}.`);
+		sourceIds.add(sourceId);
+		const blob = Object.freeze(canonicalMediaContentBlob(source.blob));
+		if (blob.size < 1) throw new RangeError('Offline video source Blobs must not be empty.');
+		sources.push(Object.freeze({ sourceId, blob }));
+	}
+	const encoderOptions: Record<string, number> = {};
+	for (const key of ENCODER_OPTION_FIELDS) {
+		if (request[key] !== undefined) encoderOptions[key] = request[key] as number;
+	}
+	return Object.freeze({
+		project,
+		timingBySourceId,
+		sources: Object.freeze(sources),
+		canvas: snapshotCanvas(request.canvas),
+		...(startFrame === undefined ? {} : { startFrame }),
+		...(endFrame === undefined ? {} : { endFrame }),
+		format: request.format,
+		editorFfmpeg: snapshotEditorFfmpeg(request.editorFfmpeg),
+		encoderOptions: Object.freeze(encoderOptions),
+		...(sourceTimeoutMs === undefined ? {} : { sourceTimeoutMs }),
+		signal: request.signal,
+		assertCurrent: request.assertCurrent as () => void,
+	});
+}
+
+function snapshotProject(value: unknown): Readonly<Record<string, unknown>> {
+	const project = record(value, 'offline video export project');
+	admitAudioEditorProjectV9ValidationStructure(
+		project,
+		AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+	);
+	assertSnapshotPayloadBound(project);
+	let snapshot: unknown;
+	try { snapshot = structuredClone(project); } catch (cause) {
+		throw new TypeError('Offline video export project must be structured-clone data.', { cause });
+	}
+	return deepFreeze(record(snapshot, 'offline video export project snapshot'));
+}
+
+function assertSnapshotPayloadBound(value: object): void {
+	const stack: unknown[] = [value];
+	const seen = new WeakSet<object>();
+	let textCodeUnits = 0;
+	while (stack.length > 0) {
+		const current = stack.pop();
+		if (typeof current === 'string') {
+			textCodeUnits += current.length;
+			if (textCodeUnits > MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES) {
+				throw new RangeError('Offline video export project text exceeds its snapshot byte bound.');
+			}
+			continue;
+		}
+		if (!current || typeof current !== 'object' || seen.has(current)) continue;
+		if (isBinary(current)) {
+			throw new TypeError('Offline video export projects cannot embed binary data.');
+		}
+		seen.add(current);
+		for (const key of Reflect.ownKeys(current)) {
+			stack.push(Object.getOwnPropertyDescriptor(current, key)?.value);
+		}
+	}
+}
+
+function isBinary(value: object): boolean {
+	return value instanceof ArrayBuffer
+		|| ArrayBuffer.isView(value)
+		|| (typeof SharedArrayBuffer === 'function' && value instanceof SharedArrayBuffer);
+}
+
+function snapshotTiming(value: unknown): ReadonlyMap<string, BoundVideoSourceTimingView> {
+	if (!(value instanceof Map)) throw new TypeError('Offline video export timing must be a ReadonlyMap.');
+	const result = new Map<string, BoundVideoSourceTimingView>();
+	const iterator = Reflect.apply(Map.prototype.entries, value, []) as MapIterator<[unknown, unknown]>;
+	for (const [keyValue, timingValue] of iterator) {
+		const key = boundedId(keyValue, 'offline video export timing source ID');
+		if (result.size >= MAXIMUM_SOURCE_COUNT) throw new RangeError('Offline video export timing sources exceed their limit.');
+		const info = boundVideoSourceTimingViewInfo(timingValue);
+		if (info.sourceId !== key) throw new Error(`Offline video export timing key ${key} is mismatched.`);
+		result.set(key, timingValue as BoundVideoSourceTimingView);
+	}
+	return result;
+}
+
+function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas'] {
+	const canvas = closedRecord(value, 'offline video export canvas', ['width', 'height', 'frameRate']);
+	const frameRate = typeof canvas.frameRate === 'object' && canvas.frameRate !== null
+		? closedRecord(canvas.frameRate, 'offline video export frame rate', ['num', 'den'])
+		: canvas.frameRate;
+	return Object.freeze({
+		width: canvas.width as number,
+		height: canvas.height as number,
+		frameRate: frameRate as VideoKeyframeExportFrameRequest['canvas']['frameRate'],
+	});
+}
+
+function snapshotEditorFfmpeg(value: unknown): VideoKeyframeVideoEditorFfmpeg {
+	const operation = ownFunction(value, 'runVideoKeyframeEncoderOperation', 'offline video export FFmpeg owner');
+	return Object.freeze({
+		runVideoKeyframeEncoderOperation(...arguments_: unknown[]) {
+			return Reflect.apply(operation, value, arguments_);
+		},
+	}) as VideoKeyframeVideoEditorFfmpeg;
+}
+
+function normalizeDependencies(value: unknown): VideoKeyframeOfflineVideoExportDependencies {
+	const dependencies = closedRecord(value, 'offline video export dependencies', [
+		'createCanvas', 'createResolver', 'createRenderer', 'encodeVideo',
+	]);
+	const createCanvas = ownFunction(dependencies, 'createCanvas', 'offline video export dependencies');
+	const createResolver = ownFunction(dependencies, 'createResolver', 'offline video export dependencies');
+	const createRenderer = ownFunction(dependencies, 'createRenderer', 'offline video export dependencies');
+	const encodeVideo = ownFunction(dependencies, 'encodeVideo', 'offline video export dependencies');
+	return Object.freeze({
+		createCanvas: () => Reflect.apply(createCanvas, value, []) as OfflineCanvas,
+		createResolver: (options: VideoKeyframeOfflineHtmlVideoSourceResolverOptions) => Reflect.apply(
+			createResolver, value, [options],
+		) as VideoKeyframeOfflineHtmlVideoSourceResolver,
+		createRenderer: ((options: Parameters<typeof createVideoKeyframeOfflineRgbaRenderer>[0]) => Reflect.apply(
+			createRenderer, value, [options],
+		) as VideoKeyframeOfflineRgbaRenderer) as typeof createVideoKeyframeOfflineRgbaRenderer,
+		encodeVideo: ((...arguments_: Parameters<typeof encodeVideoKeyframeVideo>) => Reflect.apply(
+			encodeVideo, value, arguments_,
+		) as ReturnType<typeof encodeVideoKeyframeVideo>) as typeof encodeVideoKeyframeVideo,
+	});
+}
+
+function ownFunction(value: unknown, key: string, name: string): (...arguments_: never[]) => unknown {
+	if (!value || (typeof value !== 'object' && typeof value !== 'function')) {
+		throw new TypeError(`${name} must be an object.`);
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') {
+		throw new TypeError(`${name}.${key} must be an enumerable own data function.`);
+	}
+	return descriptor.value as (...arguments_: never[]) => unknown;
+}
+
+function deepFreeze<Value extends Readonly<Record<string, unknown>>>(value: Value): Value {
+	const stack: object[] = [value];
+	const seen = new WeakSet<object>();
+	const order: object[] = [];
+	while (stack.length > 0) {
+		const current = stack.pop()!;
+		if (seen.has(current)) continue;
+		seen.add(current);
+		if (isBinary(current)) {
+			throw new TypeError('Offline video export projects cannot embed binary data.');
+		}
+		order.push(current);
+		for (const key of Reflect.ownKeys(current)) {
+			const nested = Object.getOwnPropertyDescriptor(current, key)?.value;
+			if (nested && typeof nested === 'object') stack.push(nested as object);
+		}
+	}
+	for (let index = order.length - 1; index >= 0; index -= 1) Object.freeze(order[index]);
+	return value;
+}
+
+function assertReady(request: Pick<NormalizedRequest, 'signal' | 'assertCurrent'>): void {
+	if (request.signal.aborted) throw request.signal.reason ?? new DOMException('Offline video export was cancelled.', 'AbortError');
+	request.assertCurrent();
+}
+
+function closedRecord(value: unknown, name: string, allowed: readonly string[]): Readonly<Record<string, unknown>> {
+	const source = record(value, name);
+	const keys = Reflect.ownKeys(source);
+	if (keys.some((key) => typeof key !== 'string' || !allowed.includes(key))) {
+		throw new TypeError(`${name} has an unsupported field.`);
+	}
+	const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+	for (const key of keys) result[String(key)] = data(source, String(key), name);
+	return Object.freeze(result);
+}
+
+function record(value: unknown, name: string): Readonly<Record<string, unknown>> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a plain record.`);
+	const prototype = Object.getPrototypeOf(value);
+	if (prototype !== Object.prototype && prototype !== null) throw new TypeError(`${name} must be a plain record.`);
+	return value as Readonly<Record<string, unknown>>;
+}
+
+function data(value: object, key: string, name: string): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name}.${key} must be an own data property.`);
+	return descriptor.value;
+}
+
+function denseArray(value: unknown, name: string, maximum: number): readonly unknown[] {
+	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype || value.length > maximum) {
+		throw new RangeError(`${name} must be a bounded ordinary array.`);
+	}
+	const result: unknown[] = [];
+	for (let index = 0; index < value.length; index += 1) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name} must be dense own data.`);
+		result.push(descriptor.value);
+	}
+	if (Reflect.ownKeys(value).length !== value.length + 1) throw new TypeError(`${name} cannot contain named fields.`);
+	return Object.freeze(result);
+}
+
+function boundedId(value: unknown, name: string): string {
+	if (typeof value !== 'string' || value.length < 1 || value.length > 256) throw new TypeError(`${name} must be a bounded ID.`);
+	return value;
+}
+
+function nonNegativeSafeInteger(value: unknown, name: string): number {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+		throw new RangeError(`${name} must be a non-negative safe integer.`);
+	}
+	return value;
+}
+
+function positiveSafeInteger(value: unknown, name: string): number {
+	const result = nonNegativeSafeInteger(value, name);
+	if (result < 1) throw new RangeError(`${name} must be positive.`);
+	return result;
+}
+
+function boundedPositiveSafeInteger(value: unknown, maximum: number, name: string): number {
+	const result = positiveSafeInteger(value, name);
+	if (result > maximum) throw new RangeError(`${name} cannot exceed ${String(maximum)}.`);
+	return result;
+}

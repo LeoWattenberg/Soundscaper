@@ -180,6 +180,9 @@ function resolveVideoKeyframeExportState(
 	resolvePresentationDescriptor: VideoKeyframeExportPresentationResolver | undefined,
 ) {
 	const clip = request.clip as Readonly<Record<string, unknown>>;
+	if (resolvePresentationDescriptor === undefined && !Object.hasOwn(clip, 'videoKeyframes')) {
+		return null;
+	}
 	const timelineStartFrame = nonNegativeSafeInteger(
 		dataProperty(clip, 'timelineStartFrame', 'video keyframe export clip'),
 		'video keyframe export clip.timelineStartFrame',

@@ -62,6 +62,31 @@ test('frame source retains wide exact frame positions and static composition par
 	assert.equal(active.clips[0].renderDescription.blendMode, DEFAULT_VIDEO_CLIP_COMPOSITION.blendMode);
 });
 
+test('static clips without keyed sequence geometry use the renderer-neutral fast path', () => {
+	const project = {
+		schemaVersion: 9,
+		sampleRate: 1,
+		primarySequenceId: 'sequence-1',
+		sequences: [{ id: 'sequence-1', type: 'samples', trackIds: ['track-1'] }],
+		sources: [{ id: 'source-1', kind: 'video', sampleRate: 1, width: 2, height: 2 }],
+		clips: [{
+			id: 'clip-1', kind: 'video', sourceId: 'source-1', sequenceId: 'sequence-1',
+			timelineStartFrame: 0, durationFrames: 1,
+			sourceStartFrame: 0, sourceDurationFrames: 1, videoEffects: [],
+		}],
+		tracks: [{ id: 'track-1', type: 'video', clipIds: ['clip-1'] }],
+		projectBin: { clips: [] },
+	};
+	const source = createVideoKeyframeExportFrameSource({
+		project,
+		canvas: { width: 2, height: 2, frameRate: 1 },
+	});
+	const entry = (source.frame(0).layers[0] as {
+		clips: readonly [{ renderDescription: { blendMode: string } }];
+	}).clips[0];
+	assert.equal(entry.renderDescription.blendMode, DEFAULT_VIDEO_CLIP_COMPOSITION.blendMode);
+});
+
 test('frame source binds exact presentation descriptors to keyed and static clip entries', () => {
 	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project);
