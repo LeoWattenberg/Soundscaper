@@ -1,8 +1,6 @@
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
-import {
-	AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS,
-} from './application-menu-registry.ts';
+import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import {
 	EFFECT_MENU_GROUPS,
 	audioEditorTrackBlockBounds,
@@ -11,15 +9,11 @@ import {
 	trackSources,
 } from './application-menu-model.js';
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
-import {
-	ANALYZER_PANEL_ID_SET,
-	WORKSPACE_PANEL_IDS,
-	workspacePanelLabel,
-} from './workspace/workspace-panel-model.ts';
+import { ANALYZER_PANEL_ID_SET, WORKSPACE_PANEL_IDS, workspacePanelLabel } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
-import { createVideoCompositionApplicationMenuItems } from './video-composition-application-menu.ts';
+import { createFramescaperVideoFinishingMenuItems } from './framescaper-video-finishing-menu.ts';
 import { createApplicationMenuProductTrackItems } from './application-menu-product-items.js';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
@@ -104,7 +98,11 @@ export default function createApplicationMenus({
 		productId, selectedClipId: selectedClip?.id ?? null, editingBlocked: editBlocked,
 		copy, currentPlayheadSample: actions.currentVideoPlayheadSample,
 	}, actions);
-	const videoCompositionItems = createVideoCompositionApplicationMenuItems({ productId, capability: Boolean(capabilities.videoGeometry), project, selectedClipId: selectedClip?.id ?? null, editingBlocked: editBlocked, copy, open: actions.openVideoComposition });
+	const videoFinishingItems = createFramescaperVideoFinishingMenuItems({ productId, capabilities, project,
+		selectedClipId: selectedClip?.id ?? null,
+		editingBlocked: editBlocked,
+		copy, actions,
+	});
 	const productTrackItems = createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions });
 	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
@@ -272,7 +270,7 @@ export default function createApplicationMenus({
 						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !groupedSelectedClips, onClick: () => actions.executeEdit('ungroup') },
 						...framescaperVideoTrimItems,
 						...(framescaperEditControls.link ? [framescaperEditControls.link] : []),
-						...videoCompositionItems,
+						...videoFinishingItems,
 						{ id: 'clip-properties', label: copy.clipPropertiesCommand, disabled: !selectedClip, onClick: actions.openClipProperties },
 					],
 				},

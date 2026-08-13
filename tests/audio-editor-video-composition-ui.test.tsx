@@ -195,7 +195,7 @@ test('video composition remains menu-reached and capability guarded in workspace
 		readFile(new URL('../src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/inspector/VideoCompositionDialog.tsx', import.meta.url), 'utf8'),
 	]);
-	assert.match(menus, /clip-boundaries[\s\S]*\.\.\.videoCompositionItems[\s\S]*clip-properties/u);
+	assert.match(menus, /clip-boundaries[\s\S]*\.\.\.videoFinishingItems[\s\S]*clip-properties/u);
 	assert.match(runtime, /openVideoComposition: \(\) => openSurface\('video-composition'\)/u);
 	assert.match(overlays, /productId === 'framescaper'[\s\S]*capabilities\.videoGeometry[\s\S]*activeSurface === 'video-composition'/u);
 	assert.match(overlays, /import\('\.\.\/inspector\/VideoCompositionDialog\.tsx'\)/u);
