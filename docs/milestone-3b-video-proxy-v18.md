@@ -64,10 +64,10 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    on the reviewed product-isolation transition. No earlier commit
    may load, save, or transfer a non-null project attachment.
 
-The next contract-first step is the dormant
-[Framescaper runtime-profile composition](milestone-3b-framescaper-runtime-profile.md).
-It may authenticate only the exact c1a and c1b identities and authorizes no
-production. The reviewed
+The dormant
+[Framescaper runtime-profile composition](milestone-3b-framescaper-runtime-profile.md)
+is implemented through `ace30ac1`; it authenticates only the exact c1a and c1b
+identities and authorizes no production. The reviewed
 [product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md)
 still requires the first reachable selection to bind schema, storage, archive,
 controller, and desktop behavior atomically.
@@ -594,9 +594,10 @@ test-only TypeScript diagnostics and reported no c-c0 diagnostic. No app,
 product, or bootstrap selects the token, so durable proxy storage and c-c remain
 hard-stopped, and a2 is folded into c-c. No
 generic callback is an adoption boundary, and no pre-c-c slice may claim
-settlement or own the original lease. Dormant c1c composition is the only next
-authorized contract-first boundary; production storage or adoption work is not
-authorized.
+settlement or own the original lease. Dormant c1c composition is implemented;
+production storage or adoption work remains unauthorized until the
+product-isolation contract's V17 handoff policy conflict is resolved and full
+c-c REDs are reviewed.
 For eventual c-c, prove the full Framescaper cross-surface/platform set. Prove exact/null/deep-freeze wire validation; every binding and
 cap boundary; unchanged V17 under the shared/Soundscaper profile, Framescaper
 V17 re-import, V18 current, V19 read-only; forged and twice-consumed preparations; same candidate/timing objects and one-use

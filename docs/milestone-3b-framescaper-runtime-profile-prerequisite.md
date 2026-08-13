@@ -200,15 +200,16 @@ separately reviewed dormant
 [Framescaper runtime capability
 profile](milestone-3b-framescaper-runtime-capability-profile.md) is implemented
 through `c1c70639`, without composition, selection, or production authority.
-The next contract-first boundary is the dormant
+The dormant
 [final runtime-profile composition](milestone-3b-framescaper-runtime-profile.md),
-which may retain only the exact c1a and c1b identities and remains unreachable.
+implemented through `ace30ac1`, retains only the exact c1a and c1b identities
+and remains unreachable.
 
 ## Hard stops
 
 This slice authorizes only the generic prerequisite owner, exact product token,
-and their strict proof. Separately reviewed c1c may import and authenticate that
-exact token solely inside an unreachable `EditorProjectRuntimeProfile`. This
+and their strict proof. Implemented c1c imports and authenticates that exact
+token solely inside an unreachable `EditorProjectRuntimeProfile`. This
 slice does not authorize any other runtime profile, a capability registration,
 a selector, bootstrap/app option, V18
 constructor or validator, c-c0 storage selection, archive format 2, retention,

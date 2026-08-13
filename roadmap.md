@@ -561,14 +561,14 @@ Packet boundaries, dependencies, and acceptance are owned by
   prerequisite](docs/milestone-3b-framescaper-runtime-profile-prerequisite.md),
   implemented through `13f80172` on 2026-08-12, retains the exact c-c0 identity
   and static V18 contract literals while explicitly deferring capability
-  authority. The dormant [Framescaper runtime capability
-  profile](docs/milestone-3b-framescaper-runtime-capability-profile.md),
-  implemented through `c1c70639` on 2026-08-13, freezes the private 29-row
-  authority without changing a maintained product or global registry. The next
-  reviewed [dormant final runtime-profile composition](docs/milestone-3b-framescaper-runtime-profile.md) remains
-  unreachable with only exact c1a/c1b identities. Full atomic c-c is first
-  reachable; no selector, durable proxy behavior, capability flip, or
-  Soundscaper change is independently authorized.
+  authority. The dormant [capability
+  profile](docs/milestone-3b-framescaper-runtime-capability-profile.md) and
+  [final composition](docs/milestone-3b-framescaper-runtime-profile.md),
+  implemented through `c1c70639` and `ace30ac1` on 2026-08-13, remain
+  unreachable and change no maintained product or global registry. Atomic c-c
+  is the first reachable boundary, but its V17 re-import law conflicts with the
+  implemented Milestone 2 editable cross-product handoff. Resolve that policy
+  before c-c REDs; no selector, proxy behavior, capability flip, or Soundscaper change is authorized.
 
 ### Shared exit gate
 

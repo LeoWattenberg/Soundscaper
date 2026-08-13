@@ -3,7 +3,8 @@
 > **Contract only — production selection is not authorized.** Dormant c-c0
 > supplies an exact physical namespace token, implemented dormant c1a freezes
 > the non-capability runtime identity around it, and implemented dormant c1b
-> supplies the authenticated capability identity. Every maintained
+> supplies the authenticated capability identity. Implemented dormant c1c
+> composes those exact identities without selecting them. Every maintained
 > project, archive, controller, compatibility, and desktop owner still uses the
 > shared exact-V17 runtime. This packet defines the indivisible Framescaper
 > transition that must precede durable proxy storage. Soundscaper remains exact
@@ -72,17 +73,16 @@ implemented in `13f80172` on 2026-08-12. It freezes the fields above except
 `capabilityProfile` around the exact c-c0 token, but remains a separate
 non-selectable type with no maintained consumer. The authenticated Framescaper
 capability owner is implemented through `c1c70639`, but remains dormant and
-separately non-selectable. The final runtime profile remains deferred rather
-than accepting a structural placeholder. Its eventual creator must
-authenticate and retain the exact prerequisite and capability-token
-identities; a copied or reparsed prerequisite definition grants no authority.
+separately non-selectable. The final runtime profile is implemented through
+`ace30ac1` and remains unreachable. It authenticates and retains the exact
+prerequisite and capability-token identities; a copied or reparsed definition
+grants no authority.
 The dormant
 [Framescaper runtime capability
 profile](milestone-3b-framescaper-runtime-capability-profile.md) authorizes no
-production or selector. Its separately reviewed successor is the dormant
+production or selector. Its implemented successor is the dormant
 [final runtime-profile composition](milestone-3b-framescaper-runtime-profile.md),
-which may authenticate the exact c1a and c1b identities but remains
-unreachable.
+which authenticates the exact c1a and c1b identities but remains unreachable.
 
 ## Selection and non-interference
 
@@ -121,6 +121,28 @@ V18. Exact V17 returns typed `REIMPORT_REQUIRED` before traversing nested data;
 there is no migration. V19 and later are descriptor-snapshotted opaque
 read-only documents. Soundscaper continues to create and edit exact V17 and to
 treat V18 as its existing future read-only schema.
+
+## Pre-code compatibility decision
+
+Atomic c-c is blocked on a released-contract conflict. The implemented
+`m2-handoff-packaged-roundtrip` acceptance in
+`config/milestone-2-closure.json` requires both cross-product directions to
+activate, play, edit, and save on the recipient, and
+`tests/browser/audio-editor-scape-product-roundtrip.spec.js` exercises that
+maintained Framescaper V17 behavior. This contract instead requires selected
+Framescaper to return typed `REIMPORT_REQUIRED` for V17, while desktop v10
+rejects V17 entirely.
+
+Before c-c REDs or production code, one reviewed decision must either:
+
+1. retain the V18 isolation law and revise the Milestone 2 workflow to explicit
+   legacy-v9 or copy-only preservation evidence; or
+2. retain writable Framescaper V17 recipient behavior and revise this
+   product-isolation, prior-schema, archive, and desktop-v10 law.
+
+Do not silently reinterpret either accepted contract. The chosen policy,
+machine-readable closure record, browser workflows, compatibility prose, and
+c-c REDs must change together before selection work begins.
 
 Every maintained V18 consumer in one JS realm receives the same authenticated
 profile:
@@ -211,13 +233,12 @@ the first selector lands.
 
 ## Hard stops
 
-This contract authorizes no V18 validator or reachable runtime profile. The
-separately reviewed c1c contract may add only the unreachable final runtime
-token, its generic owner, and focused proof. This contract authorizes no profile
+This contract authorizes no V18 validator or reachable runtime profile.
+Implemented c1c adds only the unreachable final runtime token, its generic
+owner, and focused proof. This contract authorizes no profile
 selector, capability registration, archive format, storage claim, controller
-wiring, desktop v10 path, UI, menu, preview, or Soundscaper change. Dormant c1a
-and c1b are implemented. The next executable step is a separately reviewed
-strict RED for the dormant final runtime-profile composition. Its completion
-does not authorize a selector: the first reachable selector remains the full
-atomic c-c transition. Durable proxy storage, attachment authoring, and 3B-6d
-remain blocked until that transition is green.
+wiring, desktop v10 path, UI, menu, preview, or Soundscaper change. Dormant c1a,
+c1b, and c1c are implemented. The next executable step is the reviewed policy
+decision above, followed by strict RED decomposition of the full atomic c-c
+transition. The first reachable selector remains that transition. Durable proxy
+storage, attachment authoring, and 3B-6d remain blocked until it is green.

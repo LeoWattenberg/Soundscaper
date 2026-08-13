@@ -1,10 +1,11 @@
 # Milestone 3B-6c-c1c: dormant Framescaper runtime profile
 
-> **Contract only — no maintained production behavior or selection is
-> authorized.** This slice may compose the implemented dormant c1a prerequisite
-> and c1b capability identities into one opaque, unreachable Framescaper
-> runtime-profile token. It does not select V18, expose a structural profile,
-> register a capability, or change Soundscaper.
+> **Implemented as a dormant runtime profile in `ace30ac1` on 2026-08-13; no
+> maintained production behavior or selection is authorized.** Contract
+> `90b66b61`, authority reviews `dbc9b807` and `39c02557`, strict RED
+> `a2e1ee03`, and proof hardening `6f82c3c2` and `758705ac` delivered one opaque,
+> unreachable Framescaper composition. It does not select V18, expose a
+> structural profile, register a capability, or change Soundscaper.
 
 ## Dependency and boundary
 
@@ -160,9 +161,9 @@ because the token remains unreachable and has no UI or behavior.
 
 ## Hard stops
 
-After the reviewed strict RED, this contract authorizes only the generic opaque
-composition owner, the exact dormant Framescaper singleton, the focused proof,
-and the two narrow predecessor-dormancy allowlist updates. It authorizes no
+The implemented slice contains only the generic opaque composition owner, the
+exact dormant Framescaper singleton, the focused proof, and the two narrow
+predecessor-dormancy allowlist updates. It authorizes no
 selector, bootstrap option, V18 constructor/validator/migration, c-c0 storage
 selection, capability registration or flip, compatibility change, archive
 format 2, preservation, retention, repository claim, controller wiring,
@@ -172,3 +173,14 @@ Soundscaper change.
 The first reachable use or selection remains the full atomic c-c transition.
 Stop if the token becomes selectable, if child authority is flattened or
 structural, or if any existing global V17/Soundscaper owner changes.
+
+## Implementation evidence
+
+The focused c1c proof passes all 10 cases, while the combined c1a/c1b/c1c suite
+passes 34/34. The final canonical `npm run check` passed 5,822 tests (5,820
+passed and 2 reference-scale rows skipped), with 90.22% statement and line
+coverage, 81.8% branch coverage, and 91.33% function coverage. Architecture
+covered 1,021 modules and 2,808 dependencies; the size gate covered 2,205
+maintained files. The production build emitted 115 JavaScript chunks, with a
+428,990-byte largest chunk. No browser row was required because no maintained
+consumer, UI, or behavior imports the final token.

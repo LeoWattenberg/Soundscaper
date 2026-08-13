@@ -181,12 +181,11 @@ Framescaper singleton, and focused proof. It authorizes no
 maintained consumer or behavior, global registry or product-profile edit,
 c1a mutation, selector, V18 schema or archive behavior, requirement
 registration, compatibility change, proxy storage/attachment/use, desktop v10,
-UI/menu, or Soundscaper change. Separately reviewed c1c may import and
-authenticate this exact token solely inside an unreachable final profile. The
+UI/menu, or Soundscaper change. Implemented c1c imports and authenticates this
+exact token solely inside an unreachable final profile. The
 first reachable use and selector remain the full atomic c-c transition, whose
 strict RED must be separately reviewed before reachable selection or maintained
-behavior changes. The next
-contract-first decomposition is the dormant final
+behavior changes. The implemented dormant final
 [Framescaper runtime profile](milestone-3b-framescaper-runtime-profile.md),
 which remains unreachable and grants no selection authority.
 
