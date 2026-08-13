@@ -396,11 +396,16 @@ test.describe('Scape open feature decisions', () => {
 
 		await assertAffectedPixelatePlaceholder(soundscaper, effectId);
 		const originalTab = soundscaper.getByRole('tab', { name: 'Untitled project', exact: true });
+		// Project tabs stay disabled while the opened project is still settling, and
+		// focus()/press() have no actionability wait of their own, so a keyboard
+		// activation raced against the tail of the read-only open would be dropped.
+		await expect(originalTab).toBeEnabled();
 		await originalTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', originalSoundscaperId);
 		await expect(soundscaper.locator('[data-project-feature-video-effect-placeholders]')).toHaveCount(0);
 		const incomingTab = soundscaper.getByRole('tab', { name: 'Framescaper effect handoff', exact: true });
+		await expect(incomingTab).toBeEnabled();
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', incomingId);

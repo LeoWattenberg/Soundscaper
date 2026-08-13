@@ -30,7 +30,7 @@ const TRACK_ID = 'audio-warp-track';
 test.describe('audio warp and transient workflow', () => {
 	registerAudioEditorHooks();
 
-	test('Soundscaper authors a selected clip through its menu with accessible exact controls', async ({ page }) => {
+	test('Soundscaper authors a selected clip through its menu with accessible exact controls', async ({ browserName, page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const errors = collectClientErrors(page);
@@ -99,8 +99,12 @@ test.describe('audio warp and transient workflow', () => {
 		await dialog.getByRole('button', { name: 'Apply groove', exact: true }).click();
 		await expect(dialog).toContainText('Groove applied.');
 
-		await page.emulateMedia({ forcedColors: 'active' });
-		await expect(dialog.getByRole('group', { name: 'Quantization', exact: true })).toHaveCSS('forced-color-adjust', 'none');
+		// WebKit does not implement forced-color-adjust, so its computed value is
+		// empty there rather than the authored 'none'.
+		if (browserName !== 'webkit') {
+			await page.emulateMedia({ forcedColors: 'active' });
+			await expect(dialog.getByRole('group', { name: 'Quantization', exact: true })).toHaveCSS('forced-color-adjust', 'none');
+		}
 		await dialog.getByRole('button', { name: 'Clear warp map', exact: true }).click();
 		await expect(dialog.getByText('No warp map is authored.', { exact: true })).toBeVisible();
 		await expect(dialog).toContainText('Warp map cleared.');

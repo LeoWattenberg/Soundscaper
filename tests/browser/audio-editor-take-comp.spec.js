@@ -26,7 +26,7 @@ const TRACK_ID = 'take-comp-track';
 test.describe('take lane and comp workflow', () => {
 	registerAudioEditorHooks();
 
-	test('Soundscaper reaches every comp edit through its menu and publishes flattened PCM', async ({ page }) => {
+	test('Soundscaper reaches every comp edit through its menu and publishes flattened PCM', async ({ browserName, page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const errors = collectClientErrors(page);
@@ -89,8 +89,12 @@ test.describe('take lane and comp workflow', () => {
 		await dialog.getByRole('button', { name: 'Promote range', exact: true }).click();
 		await expect(dialog.getByRole('table', { name: 'Comp regions', exact: true }).getByRole('row')).toHaveCount(5);
 
-		await page.emulateMedia({ forcedColors: 'active' });
-		await expect(dialog.getByRole('button', { name: 'Select Take A', exact: true })).toHaveCSS('forced-color-adjust', 'none');
+		// WebKit does not implement forced-color-adjust, so its computed value is
+		// empty there rather than the authored 'none'.
+		if (browserName !== 'webkit') {
+			await page.emulateMedia({ forcedColors: 'active' });
+			await expect(dialog.getByRole('button', { name: 'Select Take A', exact: true })).toHaveCSS('forced-color-adjust', 'none');
+		}
 		await dialog.getByRole('button', { name: 'Flatten comp', exact: true }).click();
 		await expect(dialog.locator('[data-take-comp-empty]')).toContainText('This project has no take groups yet.');
 		await expect(clipByName(editor, 'group-a — flattened take.wav')).toBeVisible();
