@@ -443,21 +443,13 @@ test('the exact Framescaper selector remains isolated across maintained product 
 		TEST_MODULE,
 	]);
 	assert.deepEqual([...literalOwners], [
-		'desktop/framescaper-v18-artifact-smoke.js',
-		'desktop/project-library-v10-contract.ts',
-		'desktop/video-timing-probe-smoke.js',
-		PRODUCT_MODULE,
-		TEST_MODULE,
-		'tests/audio-editor-framescaper-project-store-v18.test.ts',
-		'tests/browser/editor-products.spec.js',
-		'tests/browser/framescaper-v18-exit-observation.spec.js',
-		'tests/browser/framescaper-v18-multicamera.spec.js',
-		'tests/browser/framescaper-v18-nested-authoring.spec.js',
-		'tests/desktop-framescaper-v18-artifact-smoke.test.js',
-		'tests/desktop-project-library-v10-contract.test.ts',
-		'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
-		'tests/desktop-smoke.test.js',
-		'tests/desktop-video-timing-probe-smoke.test.js',
+		'desktop/framescaper-v18-artifact-smoke.js', 'desktop/project-library-v10-contract.ts',
+		'desktop/video-timing-probe-smoke.js', PRODUCT_MODULE, TEST_MODULE,
+		'tests/audio-editor-framescaper-project-store-v18.test.ts', 'tests/browser/editor-products.spec.js',
+		'tests/browser/framescaper-v18-exit-observation.spec.js', 'tests/browser/framescaper-v18-multicamera.spec.js',
+		'tests/browser/framescaper-v18-nested-authoring.spec.js', 'tests/desktop-framescaper-v18-artifact-smoke.test.js',
+		'tests/desktop-project-library-v10-contract.test.ts', 'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
+		'tests/desktop-smoke.test.js', 'tests/desktop-video-timing-probe-smoke.test.js',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',
 	]);
 	const genericSource = await readFile(resolve(ROOT, 'src/common/editor/storage/project-storage-profile.ts'), 'utf8');
