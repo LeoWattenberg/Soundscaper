@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	compileInterpolationCurve,
 	evaluateInterpolationCurve,
+	evaluateInterpolationCurveAtExactPosition,
 	invertInterpolationCurve,
 } from '../src/common/editor/interpolation-curve.ts';
 import { roundRational } from '../src/common/editor/timeline-time.ts';
@@ -374,6 +375,26 @@ test('compiler admits legacy synthetic segments while retaining a hostile-input 
 	assert.throws(() => evaluateInterpolationCurve(compiled, {
 		num: Number.MAX_SAFE_INTEGER,
 		den: Number.MAX_SAFE_INTEGER - 1,
+	}), /1000000|denominator|rational/iu);
+});
+
+test('derived exact evaluation has a wider query domain without widening persisted curve coordinates', () => {
+	const denominator = 1_000_001;
+	const curve = compileInterpolationCurve(baseInput());
+	assert.throws(
+		() => evaluateInterpolationCurve(curve, rational(1, denominator)),
+		/1000000|denominator|rational/iu,
+	);
+	assert.equal(
+		evaluateInterpolationCurveAtExactPosition(curve, rational(1, denominator)),
+		1 / (10 * denominator),
+	);
+	assert.throws(() => compileInterpolationCurve({
+		anchors: [
+			{ position: rational(0), value: 0 },
+			{ position: rational(1, denominator), value: 1 },
+		],
+		segments: [{ kind: 'linear' }],
 	}), /1000000|denominator|rational/iu);
 });
 

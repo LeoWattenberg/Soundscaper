@@ -569,7 +569,11 @@ Packet boundaries, dependencies, and acceptance are owned by
 ## 4. Parallel production surfaces
 
 **Depends on:** milestone 3.
-**Status:** **In progress — shared 4.0 implemented provisionally; product tracks gated.** M3 remains open, so 4A/4B are planned; reference-GPU qualification is `pending-external`.
+**Status:** **In progress — shared 4.0 implemented provisionally; Framescaper
+4B-1 implementation candidate in progress.** The project owner cleared the
+maintained Framescaper base for 4B implementation while leaving milestone-3
+manual/packaged evidence and the milestone-4 reference-GPU qualification open.
+Soundscaper 4A remains gated and unstarted.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 
@@ -601,10 +605,14 @@ invariants, and the bounded work packets are owned by the
 
 ### Framescaper track
 
-- **Shared / Web Core — Planned:** transform, crop, opacity, blend, flip, and
-  compositing-order controls.
-- **Shared / Web Core — Planned:** keyframes with hold, linear, eased, and Bézier
-  interpolation plus copy/paste/preset semantics.
+- **Shared / Web Core — In progress:** transform, crop, opacity, blend, flip,
+  and compositing-order controls. The exact V19 browser candidate, preservation
+  paths, and local Chromium/non-browser acceptance exist; the calibrated local
+  cross-renderer matrix passes unchanged gates, while reference-GPU
+  qualification remains open.
+- **Shared / Web Core — In progress:** keyframes with hold, linear, eased, and
+  Bézier interpolation plus copy/paste/preset semantics. The bounded V20 domain
+  slice is under implementation after the V19 render contract.
 - **Shared / Web Core — Planned:** explicit transition objects and a migrated,
   extensible transition registry.
 - **Web Core — Planned:** masks, mattes, titles, text, shapes, solids, stills,

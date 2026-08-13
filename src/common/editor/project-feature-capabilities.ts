@@ -21,6 +21,7 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	videoEffects: 'org.soundscaper.capability.video-effects',
 	videoCompositing: 'org.soundscaper.capability.video-compositing',
 	videoGeometry: 'org.soundscaper.capability.video-geometry',
+	videoKeyframes: 'org.soundscaper.capability.video-keyframes',
 	multicamera: 'org.soundscaper.capability.multicamera',
 	musicalTimeline: 'org.soundscaper.capability.musical-timeline',
 	nestedSequences: 'org.soundscaper.capability.nested-sequences',

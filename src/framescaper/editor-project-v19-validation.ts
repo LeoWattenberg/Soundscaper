@@ -156,6 +156,9 @@ function validateClipArray(value: unknown, name: string): void {
 		const clip = dataRecord(item, `${name}[${String(index)}]`);
 		const kind = dataProperty(clip, 'kind', `${name}[${String(index)}]`);
 		const id = String(dataProperty(clip, 'id', `${name}[${String(index)}]`));
+		if (Object.getOwnPropertyDescriptor(clip, 'videoKeyframes')) {
+			throw new TypeError(`Framescaper V19 clip ${id} must not carry V20 videoKeyframes.`);
+		}
 		const descriptor = Object.getOwnPropertyDescriptor(clip, 'videoComposition');
 		if (kind === 'video') {
 			if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
@@ -185,7 +188,9 @@ function copyDataRecord(value: Record<string, unknown>, name: string): Record<st
 	const copy: Record<string, unknown> = {};
 	for (const key of Reflect.ownKeys(value)) {
 		if (typeof key !== 'string') throw new TypeError(`${name} cannot contain symbol properties.`);
-		copy[key] = dataProperty(value, key, name);
+		Object.defineProperty(copy, key, {
+			configurable: true, enumerable: true, value: dataProperty(value, key, name), writable: true,
+		});
 	}
 	return copy;
 }

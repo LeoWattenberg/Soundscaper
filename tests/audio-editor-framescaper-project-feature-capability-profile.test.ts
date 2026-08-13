@@ -46,6 +46,7 @@ const PRODUCT_EXPORT = 'FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE';
 const PRODUCT_MODULE_STEM = 'editor-project-feature-capability-profile-v18';
 const GENERIC_MODULE_STEM = 'project-feature-capability-profile';
 const VIDEO_PROXY_ID = 'org.soundscaper.capability.video-proxy';
+const VIDEO_KEYFRAMES_ID = 'org.soundscaper.capability.video-keyframes';
 const NESTED_SEQUENCES_ID = 'org.soundscaper.capability.nested-sequences';
 const MULTICAMERA_ID = 'org.soundscaper.capability.multicamera';
 
@@ -83,6 +84,7 @@ const EXPECTED = Object.freeze([
 	registration('videoEffects', 'org.soundscaper.capability.video-effects', true),
 	registration('videoExport', 'org.soundscaper.capability.video-export', true),
 	registration('videoImport', 'org.soundscaper.capability.video-import', true),
+	registration('videoKeyframes', VIDEO_KEYFRAMES_ID, false),
 	registration('videoPlayback', 'org.soundscaper.capability.video-playback', true),
 	registration('videoProxy', VIDEO_PROXY_ID, false),
 	registration('videoRetime', 'org.soundscaper.capability.video-retime', false),
@@ -108,7 +110,7 @@ test('owns two type declarations, two runtime exports, and one exact product exp
 	assert.doesNotMatch(source, /export\s+(?:type\s+)?\{/u);
 });
 
-test('the exact Framescaper singleton owns 31 sorted registrations with 17 available', () => {
+test('the exact Framescaper singleton owns 32 sorted registrations with 17 available', () => {
 	const token: EditorProjectFeatureCapabilityProfile =
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE;
 	assert.equal(Object.isFrozen(token), true);
@@ -117,7 +119,7 @@ test('the exact Framescaper singleton owns 31 sorted registrations with 17 avail
 	const snapshot = editorProjectFeatureCapabilityProfileDefinition(token);
 	assert.equal(snapshot.owner, 'framescaper');
 	assert.deepEqual(snapshot.registrations, EXPECTED);
-	assert.equal(snapshot.registrations.length, 31);
+	assert.equal(snapshot.registrations.length, 32);
 	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 17);
 	assert.deepEqual(snapshot.registrations.find((item: Registration) => item.key === 'videoProxy'),
 		registration('videoProxy', VIDEO_PROXY_ID, false));
@@ -126,16 +128,20 @@ test('the exact Framescaper singleton owns 31 sorted registrations with 17 avail
 	assert.ok(snapshot.registrations.every((item: Registration) => Object.isFrozen(item)));
 });
 
-test('the immutable V18 profile matches its 30 global IDs and predates V19 video geometry', () => {
+test('the immutable V18 profile predates V19 geometry while registering unavailable V20 keyframes', () => {
 	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy');
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
-	assert.equal(parity.length, 30);
+	assert.equal(parity.length, 31);
 	assert.deepEqual(
 		parity.map(({ key }) => key).sort(),
 		Object.keys(ids).filter((key) => key !== 'videoGeometry').sort(),
 	);
-	assert.deepEqual(Object.keys(ids).sort(), Object.keys(availability).sort());
+	assert.deepEqual(
+		Object.keys(ids).sort(),
+		Object.keys(availability).sort(),
+	);
+	assert.equal(availability.videoKeyframes, false);
 	for (const row of parity) {
 		assert.equal(ids[row.key], row.featureId, row.key);
 		assert.equal(typeof availability[row.key], 'boolean', row.key);
@@ -380,17 +386,21 @@ test('keeps private capability ownership within the closed V18 domain set', asyn
 		FINAL_GENERIC_MODULE,
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-feature-capability-profile-v19.ts',
+		'src/framescaper/editor-project-feature-capability-profile-v20.ts',
 		FEATURE_OWNER_MODULE,
 		'src/framescaper/editor-project-feature-requirements-v19.ts',
+		'src/framescaper/editor-project-feature-requirements-v20.ts',
 		FINAL_PRODUCT_MODULE,
 		'src/framescaper/editor-project-runtime-profile-v19.ts',
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
+		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(privateIdReferences, [
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-feature-capability-profile-v19.ts',
+		'src/framescaper/editor-project-feature-capability-profile-v20.ts',
 		FEATURE_OWNER_MODULE, TEST_MODULE, FEATURE_TEST_MODULE,
 		'tests/browser/framescaper-v18-scape-preservation.spec.js',
 	]);

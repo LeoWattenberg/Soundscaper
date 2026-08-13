@@ -69,6 +69,11 @@ export function divideRationals(left: RationalInput, right: RationalInput): Rati
 		denominator: divisor.numerator,
 	}));
 }
+export function multiplyDivideRationals(left: RationalInput, right: RationalInput, divisor: RationalInput): Rational {
+	return publicRational(divideFractions(multiplyFractions(bigFraction(left), bigFraction(right)), bigFraction(divisor))); }
+export function addMultiplyDivideRationals(addend: RationalInput, left: RationalInput, right: RationalInput, divisor: RationalInput): Rational {
+	return publicRational(addFractions(bigFraction(addend), divideFractions(multiplyFractions(bigFraction(left), bigFraction(right)), bigFraction(divisor)))); }
+export function compareRationalSum(left: RationalInput, right: RationalInput, target: RationalInput): -1 | 0 | 1 { const difference = subtractFractions(addFractions(bigFraction(left), bigFraction(right)), bigFraction(target)); return difference.numerator < 0n ? -1 : difference.numerator > 0n ? 1 : 0; }
 export function compareRationals(left: RationalInput, right: RationalInput): -1 | 0 | 1 {
 	const a = bigFraction(left);
 	const b = bigFraction(right);

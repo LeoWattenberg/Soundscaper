@@ -31,6 +31,7 @@ import {
 	type Rational,
 	type RationalInput,
 } from './timeline-time.ts';
+import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 
 export interface InterpolationAnchor {
 	readonly position: Rational;
@@ -153,6 +154,27 @@ export function evaluateInterpolationCurve(
 ): number {
 	const curve = compiledCurve(curveValue);
 	const position = queryPosition(positionValue, 'position');
+	return evaluateCurveAtPosition(curve, position);
+}
+
+/**
+ * Evaluate a derived exact coordinate. Persisted anchors and ordinary public
+ * queries retain the shared 1,000,000 denominator ceiling; affine clip-view
+ * mapping may use the wider coordinate domain without converting to a float.
+ */
+export function evaluateInterpolationCurveAtExactPosition(
+	curveValue: unknown,
+	positionValue: RationalInput,
+): number {
+	const curve = compiledCurve(curveValue);
+	const position = queryExactPosition(positionValue, 'exact position');
+	return evaluateCurveAtPosition(curve, position);
+}
+
+function evaluateCurveAtPosition(
+	curve: InternalCurve,
+	position: ExactInterpolationFraction,
+): number {
 	const first = nonNullable(curve.anchors[0]);
 	const last = nonNullable(curve.anchors.at(-1));
 	if (compareFractions(position, first.position) <= 0) return first.value;
@@ -281,6 +303,13 @@ function inputPosition(value: unknown, name: string): Readonly<{
 
 function queryPosition(value: RationalInput, name: string): ExactInterpolationFraction {
 	return inputPosition(value, name).exact;
+}
+
+function queryExactPosition(value: RationalInput, _name: string): ExactInterpolationFraction {
+	const normalized = normalizeRational(value, {
+		maximumDenominator: AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR,
+	});
+	return exactFraction(normalized);
 }
 
 function segmentAt(curve: InternalCurve, position: ExactInterpolationFraction): InternalSegment {

@@ -526,16 +526,95 @@ surface.
 
 ## 4B-2 — Keyframes
 
+### Persisted keyframe domain wire
+
+Every V20 video clip owns the mandatory closed field `videoKeyframes`. Its
+canonical V1 value is
+`{ schemaVersion: 1, timeDomain: { authoredDuration, viewStart, viewDuration }, curves: [...] }`.
+All three time-domain fields are canonical reduced rational objects in sequence
+frames. `authoredDuration` and `viewDuration` are positive, `viewStart` is
+nonnegative, and `viewStart + viewDuration <= authoredDuration`. A fresh clip's
+contextual empty value uses its exact `sequenceFrameCount` for both duration
+fields and zero for `viewStart`; there is no context-free persisted default.
+
+Each curve is a closed `{ target, curve: { anchors, segments } }` record. A
+target is either `{ kind: 'composition', parameterId }` for an explicitly
+interpolable numeric 4B-1 property, or
+`{ kind: 'video-effect', effectId, parameterId }` for a parameter registered by
+the referenced effect instance's type. `compositingOrder`, flips, and blend mode
+are not V1 composition targets. Registered integer effect parameters use
+integer-valued anchors and hold segments only. Curves are sorted by a
+collision-free canonical target key and duplicate targets reject.
+
+A clip admits at most 256 curves, which is the bounded local lane cap beneath
+the existing project traversal ceiling. Each curve has 2 through 4,096 anchors.
+Every anchor and Bezier control time is a canonical reduced rational object
+within the inclusive authored domain `0..authoredDuration`; anchors are
+strictly increasing and need not cover either endpoint because evaluation holds
+the nearest endpoint outside the authored interval. Persisted rationals retain
+the shared denominator ceiling. Values and Bezier value controls are finite,
+are not negative zero, and remain within the target's registered range.
+Evaluation returns a detached canonical target/value patch and persists no
+samples, matrices, or other derived state.
+
+A visible clip-local query `p` maps exactly to authored position
+`viewStart + p * viewDuration / sequenceFrameCount`. That affine operation
+cross-cancels as one exact ratio before exposing a public rational; the derived
+query may use the wider safe coordinate denominator domain without widening the
+persisted anchor/control wire or converting through floating point.
+
+Crop curves preserve the composition's cross-field invariant over their whole
+path. Left/right curves, when both present, have identical anchor positions,
+segment kinds, and Bezier control positions; top/bottom follow the same rule.
+An absent opposite side is the constant base-composition value. Every paired
+anchor and Bezier control retains a conservative minimum aperture of `1e-9`;
+this prevents separately rounded binary64 evaluation from closing a crop whose
+persisted control polygon merely compares below one. Normalization receives the
+owning clip's exact positive visible duration, canonical base composition, and
+current registered video-effect stack so target existence, ranges, and crop
+validity are contextual rather than duplicated in the persisted wire.
+
+Edits preserve the complete authored curve and change only the exact view
+window unless extension requires growing the authored domain:
+
+- trim maps both requested visible-local boundaries through the affine rule and
+  stores that authored subwindow; it inserts no boundary anchors;
+- extension before authored zero translates every anchor and Bezier control,
+  the prior view, and the authored end by one exact positive offset, while
+  extension after the authored end grows `authoredDuration`;
+- split gives both detached children the complete identical authored curve and
+  partitions the prior view at the exact mapped split position;
+- stretch changes only the owning clip's `sequenceFrameCount`; the time domain
+  and complete authored curve remain byte-equivalent, so the view stretches;
+- rejoin is defined only for identical complete authored curves/domains,
+  ordered adjacent views, and one exact view-to-visible stretch rate; it
+  concatenates the views without curve reconstruction; and
+- transient nested/subsequence leaf materialization applies the same trim rule
+  to its leaf subrange. Persisted nested source occurrences remain unchanged.
+
+Every edit computes and normalizes a detached candidate before replacement. It
+refuses transactionally if a shifted persisted rational or authored extent
+cannot remain canonical within the persisted safe-integer and denominator
+limits. No trim, split, stretch, rejoin, or nested projection subdivides an
+eased/Bezier segment, samples an endpoint, or persists a derived approximation.
+
+The present implementation is the exact V20 model/domain slice only. Both
+product profiles register `videoKeyframes` as known but unavailable, and the
+V20 model profile remains unselected; command, inspector, playback, storage,
+and renderer activation are not claimed here. Exact animated export remains
+blocked on the bounded shared-frame encoder stream, so capability availability
+must not flip until that workflow and its preview/export parity evidence land.
+
 - **Outcome:** Add bounded keyframe curves to the numeric 4B-1 property IDs and
   registered video-effect parameters, with copy/paste, preset, and stale-safe
   editing through the selection-aware inspector.
 - **Dependencies:** 4B-1's wire, affine resolver, renderer parity, and stable
   IDs; the implemented 4.0 interpolation vocabulary.
-- **Invariants:** Every time is a canonical clip-relative rational in the
-  owning clip domain; trim-in anchoring never slides; points are strictly
+- **Invariants:** Every persisted time is a canonical authored-domain rational;
+  the exact view map preserves trim-in anchoring; points are strictly
   ordered and bounded to 4,096 per curve under the project-wide node ceiling;
-  discrete fields are hold-only; derived samples and evaluated matrices are
-  not persisted.
+  integer effect parameters are hold-only; derived samples, view queries, and
+  evaluated matrices are not persisted.
 - **Acceptance:** Hold, linear, eased, and Bézier vectors; trim/split/join,
   copy/paste/preset, nested/multicam, undo/redo, storage, renderer parity, point
   caps, and hostile-input tests.

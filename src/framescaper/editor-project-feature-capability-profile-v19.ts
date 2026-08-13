@@ -4,7 +4,7 @@ import {
 	createEditorProjectFeatureCapabilityProfile,
 } from '../common/editor/project-feature-capability-profile.ts';
 
-/** Exact V19 product capabilities. Geometry is owned by videoCompositing. */
+/** Exact V19 product capabilities. Geometry remains distinct from legacy compositing. */
 export const FRAMESCAPER_V19_PROJECT_FEATURE_CAPABILITY_PROFILE =
 	createEditorProjectFeatureCapabilityProfile({
 		owner: 'framescaper',
@@ -36,6 +36,7 @@ export const FRAMESCAPER_V19_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'videoExport', featureId: 'org.soundscaper.capability.video-export', available: true },
 			{ key: 'videoGeometry', featureId: 'org.soundscaper.capability.video-geometry', available: true },
 			{ key: 'videoImport', featureId: 'org.soundscaper.capability.video-import', available: true },
+			{ key: 'videoKeyframes', featureId: 'org.soundscaper.capability.video-keyframes', available: false },
 			{ key: 'videoPlayback', featureId: 'org.soundscaper.capability.video-playback', available: true },
 			{ key: 'videoProxy', featureId: 'org.soundscaper.capability.video-proxy', available: false },
 			{ key: 'videoRetime', featureId: 'org.soundscaper.capability.video-retime', available: false },

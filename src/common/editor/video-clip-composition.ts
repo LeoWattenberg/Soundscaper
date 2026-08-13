@@ -41,6 +41,30 @@ export const VIDEO_CLIP_COMPOSITION_PARAMETER_IDS = Object.freeze([
 export type VideoClipCompositionBlendMode = typeof VIDEO_CLIP_COMPOSITION_BLEND_MODES[number];
 export type VideoClipCompositionParameterId = typeof VIDEO_CLIP_COMPOSITION_PARAMETER_IDS[number];
 
+export interface VideoClipCompositionNumericParameterDescriptor {
+	readonly minimum: number;
+	readonly maximum: number;
+}
+
+/** One owned registry for the numeric composition identities 4B-2 may interpolate. */
+export const VIDEO_CLIP_COMPOSITION_NUMERIC_PARAMETER_DESCRIPTORS = Object.freeze({
+	'crop.left': numericDescriptor(0, 1),
+	'crop.top': numericDescriptor(0, 1),
+	'crop.right': numericDescriptor(0, 1),
+	'crop.bottom': numericDescriptor(0, 1),
+	'transform.anchorX': numericDescriptor(0, 1),
+	'transform.anchorY': numericDescriptor(0, 1),
+	'transform.positionX': numericDescriptor(-8, 8),
+	'transform.positionY': numericDescriptor(-8, 8),
+	'transform.scaleX': numericDescriptor(0.01, 100),
+	'transform.scaleY': numericDescriptor(0.01, 100),
+	'transform.rotationDegrees': numericDescriptor(-36_000, 36_000),
+	opacity: numericDescriptor(0, 1),
+} as const satisfies Readonly<Record<string, VideoClipCompositionNumericParameterDescriptor>>);
+
+export type VideoClipCompositionNumericParameterId =
+	keyof typeof VIDEO_CLIP_COMPOSITION_NUMERIC_PARAMETER_DESCRIPTORS;
+
 export interface VideoClipCompositionCrop {
 	readonly left: number;
 	readonly top: number;
@@ -79,12 +103,6 @@ const TRANSFORM_FIELDS = Object.freeze([
 ]);
 const BLEND_MODE_SET: ReadonlySet<string> = new Set(VIDEO_CLIP_COMPOSITION_BLEND_MODES);
 
-const MINIMUM_POSITION = -8;
-const MAXIMUM_POSITION = 8;
-const MINIMUM_SCALE = 0.01;
-const MAXIMUM_SCALE = 100;
-const MINIMUM_ROTATION_DEGREES = -36_000;
-const MAXIMUM_ROTATION_DEGREES = 36_000;
 const MINIMUM_COMPOSITING_ORDER = -32_768;
 const MAXIMUM_COMPOSITING_ORDER = 32_767;
 
@@ -111,7 +129,7 @@ export function normalizeVideoClipComposition(
 		schemaVersion: VIDEO_CLIP_COMPOSITION_SCHEMA_VERSION,
 		crop,
 		transform,
-		opacity: boundedNumber(field(composition, 'opacity', name), `${name}.opacity`, 0, 1),
+		opacity: boundedCompositionNumber(field(composition, 'opacity', name), `${name}.opacity`, 'opacity'),
 		blendMode: blendMode as VideoClipCompositionBlendMode,
 		compositingOrder: boundedSafeInteger(
 			field(composition, 'compositingOrder', name),
@@ -146,10 +164,10 @@ export function videoClipCompositionsEqual(left: unknown, right: unknown): boole
 
 function normalizeCrop(value: unknown, name: string): VideoClipCompositionCrop {
 	const crop = readClosedDomainRecord(value, name, CROP_FIELDS);
-	const left = boundedNumber(field(crop, 'left', name), `${name}.left`, 0, 1);
-	const top = boundedNumber(field(crop, 'top', name), `${name}.top`, 0, 1);
-	const right = boundedNumber(field(crop, 'right', name), `${name}.right`, 0, 1);
-	const bottom = boundedNumber(field(crop, 'bottom', name), `${name}.bottom`, 0, 1);
+	const left = boundedCompositionNumber(field(crop, 'left', name), `${name}.left`, 'crop.left');
+	const top = boundedCompositionNumber(field(crop, 'top', name), `${name}.top`, 'crop.top');
+	const right = boundedCompositionNumber(field(crop, 'right', name), `${name}.right`, 'crop.right');
+	const bottom = boundedCompositionNumber(field(crop, 'bottom', name), `${name}.bottom`, 'crop.bottom');
 	if (left + right >= 1) throw new RangeError(`${name}.left plus ${name}.right must be less than 1.`);
 	if (top + bottom >= 1) throw new RangeError(`${name}.top plus ${name}.bottom must be less than 1.`);
 	return Object.freeze({ left, top, right, bottom });
@@ -158,25 +176,14 @@ function normalizeCrop(value: unknown, name: string): VideoClipCompositionCrop {
 function normalizeTransform(value: unknown, name: string): VideoClipCompositionTransform {
 	const transform = readClosedDomainRecord(value, name, TRANSFORM_FIELDS);
 	return Object.freeze({
-		anchorX: boundedNumber(field(transform, 'anchorX', name), `${name}.anchorX`, 0, 1),
-		anchorY: boundedNumber(field(transform, 'anchorY', name), `${name}.anchorY`, 0, 1),
-		positionX: boundedNumber(
-			field(transform, 'positionX', name), `${name}.positionX`, MINIMUM_POSITION, MAXIMUM_POSITION,
-		),
-		positionY: boundedNumber(
-			field(transform, 'positionY', name), `${name}.positionY`, MINIMUM_POSITION, MAXIMUM_POSITION,
-		),
-		scaleX: boundedNumber(
-			field(transform, 'scaleX', name), `${name}.scaleX`, MINIMUM_SCALE, MAXIMUM_SCALE,
-		),
-		scaleY: boundedNumber(
-			field(transform, 'scaleY', name), `${name}.scaleY`, MINIMUM_SCALE, MAXIMUM_SCALE,
-		),
-		rotationDegrees: boundedNumber(
-			field(transform, 'rotationDegrees', name),
-			`${name}.rotationDegrees`,
-			MINIMUM_ROTATION_DEGREES,
-			MAXIMUM_ROTATION_DEGREES,
+		anchorX: boundedCompositionNumber(field(transform, 'anchorX', name), `${name}.anchorX`, 'transform.anchorX'),
+		anchorY: boundedCompositionNumber(field(transform, 'anchorY', name), `${name}.anchorY`, 'transform.anchorY'),
+		positionX: boundedCompositionNumber(field(transform, 'positionX', name), `${name}.positionX`, 'transform.positionX'),
+		positionY: boundedCompositionNumber(field(transform, 'positionY', name), `${name}.positionY`, 'transform.positionY'),
+		scaleX: boundedCompositionNumber(field(transform, 'scaleX', name), `${name}.scaleX`, 'transform.scaleX'),
+		scaleY: boundedCompositionNumber(field(transform, 'scaleY', name), `${name}.scaleY`, 'transform.scaleY'),
+		rotationDegrees: boundedCompositionNumber(
+			field(transform, 'rotationDegrees', name), `${name}.rotationDegrees`, 'transform.rotationDegrees',
 		),
 		flipHorizontal: booleanValue(
 			field(transform, 'flipHorizontal', name), `${name}.flipHorizontal`,
@@ -198,6 +205,22 @@ function boundedNumber(value: unknown, name: string, minimum: number, maximum: n
 	if (Object.is(value, -0)) throw new RangeError(`${name} must not be negative zero.`);
 	if (value < minimum || value > maximum) throw new RangeError(`${name} is outside its range.`);
 	return value;
+}
+
+function boundedCompositionNumber(
+	value: unknown,
+	name: string,
+	parameterId: VideoClipCompositionNumericParameterId,
+): number {
+	const descriptor = VIDEO_CLIP_COMPOSITION_NUMERIC_PARAMETER_DESCRIPTORS[parameterId];
+	return boundedNumber(value, name, descriptor.minimum, descriptor.maximum);
+}
+
+function numericDescriptor(
+	minimum: number,
+	maximum: number,
+): VideoClipCompositionNumericParameterDescriptor {
+	return Object.freeze({ minimum, maximum });
 }
 
 function boundedSafeInteger(value: unknown, name: string, minimum: number, maximum: number): number {

@@ -176,7 +176,12 @@ function snapshotClone(value: unknown, name: string, seen = new Map<object, unkn
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
 			throw new TypeError(`${name}.${key} must be an own enumerable data property.`);
 		}
-		result[key] = snapshotClone(descriptor.value, `${name}.${key}`, seen);
+		Object.defineProperty(result, key, {
+			configurable: true,
+			enumerable: true,
+			value: snapshotClone(descriptor.value, `${name}.${key}`, seen),
+			writable: true,
+		});
 	}
 	return result;
 }

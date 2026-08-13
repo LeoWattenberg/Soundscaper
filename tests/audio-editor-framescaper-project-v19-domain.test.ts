@@ -68,6 +68,24 @@ test('V19 validation rejects missing video composition and composition on audio'
 	);
 });
 
+test('V19 rejects V20 keyframe ownership instead of silently accepting downgraded state', () => {
+	const project = createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, options());
+	const downgraded = structuredClone(project) as unknown as Record<string, unknown>;
+	((downgraded.clips as Record<string, unknown>[])[0]!).videoKeyframes = {
+		schemaVersion: 1,
+		timeDomain: {
+			authoredDuration: { num: 10, den: 1 },
+			viewStart: { num: 0, den: 1 },
+			viewDuration: { num: 10, den: 1 },
+		},
+		curves: [],
+	};
+	assert.throws(
+		() => validateFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, downgraded),
+		/videoKeyframes.*V20|V19.*videoKeyframes/iu,
+	);
+});
+
 test('V19 clone detaches composition and runtime projection preserves it', () => {
 	const project = createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, options());
 	const clone = cloneFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, project);

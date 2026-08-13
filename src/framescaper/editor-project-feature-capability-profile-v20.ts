@@ -4,7 +4,8 @@ import {
 	createEditorProjectFeatureCapabilityProfile,
 } from '../common/editor/project-feature-capability-profile.ts';
 
-export const FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE =
+/** Unselected exact V20 capabilities; availability does not select a product route. */
+export const FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE =
 	createEditorProjectFeatureCapabilityProfile({
 		owner: 'framescaper',
 		registrations: [
@@ -33,6 +34,7 @@ export const FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'videoCompositing', featureId: 'org.soundscaper.capability.video-compositing', available: true },
 			{ key: 'videoEffects', featureId: 'org.soundscaper.capability.video-effects', available: true },
 			{ key: 'videoExport', featureId: 'org.soundscaper.capability.video-export', available: true },
+			{ key: 'videoGeometry', featureId: 'org.soundscaper.capability.video-geometry', available: true },
 			{ key: 'videoImport', featureId: 'org.soundscaper.capability.video-import', available: true },
 			{ key: 'videoKeyframes', featureId: 'org.soundscaper.capability.video-keyframes', available: false },
 			{ key: 'videoPlayback', featureId: 'org.soundscaper.capability.video-playback', available: true },

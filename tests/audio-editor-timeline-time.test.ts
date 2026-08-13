@@ -4,11 +4,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	addMultiplyDivideRationals,
 	addRationals,
 	beatToSampleFrame,
 	composeRationalRates,
 	countInSampleFrames,
 	evaluateBreakpointMap,
+	multiplyDivideRationals,
 	normalizeRational,
 	roundRational,
 	sampleFrameToVideoFrame,
@@ -62,6 +64,21 @@ test('rational composition reduces before evaluation and rejects unsafe results'
 	), { num: 720_000_000, den: 1_002_001 });
 	assert.deepEqual(normalizeRational({ num: -20, den: -30 }), { num: 2, den: 3 });
 	assert.deepEqual(addRationals({ num: 1, den: 3 }, { num: 1, den: 6 }), { num: 1, den: 2 });
+	assert.deepEqual(multiplyDivideRationals(1_000_000_000, 1_000_000_000, 1_000_000_000), {
+		num: 1_000_000_000, den: 1,
+	}, 'cross cancellation occurs before the public safe-integer boundary');
+	assert.throws(
+		() => multiplyDivideRationals(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 1),
+		/safe integer domain/iu,
+	);
+	const wide = 9_007_199_253_999_999;
+	assert.deepEqual(addMultiplyDivideRationals(
+		{ num: 1, den: 1_000_000 },
+		{ num: 1, den: wide },
+		{ num: 1, den: 1_000_000 },
+		1,
+	), { num: 9_007_199_254, den: wide },
+	'one affine reduction keeps a safe final coordinate when the product alone is not public');
 	assert.throws(
 		() => videoFrameToSampleFrame(Number.MAX_SAFE_INTEGER, { num: 1, den: 1 }, 768_000),
 		/safe integer/iu,
