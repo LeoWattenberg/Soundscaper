@@ -250,6 +250,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'interpolation-inverse-cells',
+		file: 'src/common/editor/interpolation-curve.ts',
+		behavior: 'Interpolation inversion encloses a non-exact root in its authoritative whole-coordinate cell while retaining rational anchors until a consumer deliberately chooses that bracket.',
+		conversions: [{ helper: 'roundRational', policies: ['enclosingEnd', 'enclosingStart'] }],
+	},
+	{
 		id: 'monotonic-tempo-projection',
 		file: 'src/common/editor/monotonic-tempo-projector.ts',
 		behavior: 'A nondecreasing beat stream validates the held map once, accumulates exact segment positions, and point-rounds each absolute result without rescanning prior events.',
