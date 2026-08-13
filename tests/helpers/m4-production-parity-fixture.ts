@@ -9,6 +9,20 @@ export const M4_PARITY_VIDEO_CASES = Object.freeze([
 	Object.freeze({ name: 'edge-gaussian-blur', fixtureArtifactId: 'edge', effectId: 'm4-parity-gaussian-blur' }),
 	Object.freeze({ name: 'transparency-vignette', fixtureArtifactId: 'transparency', effectId: 'm4-parity-vignette' }),
 	Object.freeze({ name: 'color-chart-baseline', fixtureArtifactId: 'color-chart', effectId: null }),
+	...[
+		'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference', 'exclusion',
+	].map((blendMode) => Object.freeze({
+		name: `composition-blend-${blendMode}`,
+		fixtureArtifactId: 'transparency',
+		effectId: null,
+		compositionBlendModes: Object.freeze(['normal', blendMode]),
+	})),
+	Object.freeze({
+		name: 'composition-combined-transform-order',
+		fixtureArtifactId: 'gradient',
+		effectId: null,
+		compositionBlendModes: Object.freeze(['normal', 'normal']),
+	}),
 ]);
 
 export function makeM4ProductionParityDiagnostic(omittedEffectId: string | null = null) {
@@ -65,6 +79,12 @@ export function makeM4ProductionParityDiagnostic(omittedEffectId: string | null 
 				? []
 				: [effectId];
 			const omitted = index === 0 && omittedEffectId !== null ? [effectId] : [];
+			const compositionBlendModes = 'compositionBlendModes' in definition
+				? definition.compositionBlendModes
+				: null;
+			const compositionClipIds = compositionBlendModes?.map((_, clipIndex) => (
+				`${definition.name}-${clipIndex === 0 ? 'background' : 'foreground'}`
+			)) ?? [];
 			return {
 				name: definition.name,
 				fixtureArtifactId: definition.fixtureArtifactId,
@@ -76,13 +96,24 @@ export function makeM4ProductionParityDiagnostic(omittedEffectId: string | null 
 				renderReport: {
 					status: omitted.length ? 'fallback' : 'rendered',
 					rendererStatus: 'available',
-					renderedEntryCount: 1,
+					renderedEntryCount: compositionClipIds.length || 1,
 					effects: {
 						requested: effectId === null ? [] : [effectId],
 						rendered,
 						fallbackRendered: [] as string[],
 						omitted,
 					},
+					...(compositionBlendModes === null ? {} : {
+						composition: {
+							requested: compositionClipIds.map((clipId, compositionIndex) => ({
+								clipId,
+								blendMode: compositionBlendModes[compositionIndex],
+							})),
+							rendered: compositionClipIds,
+							fallbackRendered: [] as string[],
+							omitted: [] as string[],
+						},
+					}),
 				},
 			};
 		}),

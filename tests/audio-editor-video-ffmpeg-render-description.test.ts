@@ -50,6 +50,7 @@ test('V6 renders the canonical crop, affine, authored opacity, and normal blend 
 		'colorchannelmixer=aa=0.4',
 		'premultiply=inplace=1',
 		`overlay=x=${String(outputCenterX)}-overlay_w/2:y=${String(outputCenterY)}-overlay_h/2`,
+		'format=pix_fmts=rgba,split=2',
 		'alphaextract,format=pix_fmts=gbrp',
 		"blend=all_expr='B'",
 		'maskedmerge,format=pix_fmts=rgba',

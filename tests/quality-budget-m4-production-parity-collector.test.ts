@@ -71,6 +71,7 @@ test('the M4 collector independently recomputes exactly five parity metrics', ()
 	assert.equal(result.qualificationEnvironmentId, 'reference-linux-gpu-01');
 	assert.equal(result.metricGatePassed, true);
 	assert.equal(result.qualificationEvidencePublished, false);
+	assert.equal(Object.keys(result.metrics).length, 5);
 	assert.deepEqual(result.metrics, {
 		'parity.audioMaximumAbsoluteSampleError': 0,
 		'parity.pdcErrorSamples': 0,
@@ -81,15 +82,14 @@ test('the M4 collector independently recomputes exactly five parity metrics', ()
 	assert.deepEqual(result.rawSampleCounts, {
 		audioChannels: 2,
 		audioFrames: 48_000,
-		videoCases: 4,
-		videoPixels: 36_864,
+		videoCases: 13,
+		videoPixels: 119_808,
 		requestedEffectInstances: 3,
+		requestedCompositionInstances: 18,
 	});
 	assert.equal(result.evaluation.passed, false);
 	assert.match(result.evaluation.failures.join('\n'), /unprovisioned/iu);
-	assert.equal(Object.keys(result.metrics).length, 5);
 });
-
 test('the M4 collector reports gross PDC shifts outside the former local search window', () => {
 	const diagnostic = makeDiagnostic();
 	const audio = createM4ProductionParityAudioFixture();
@@ -165,10 +165,10 @@ test('fixture drift, truncated evidence, and dishonest ledgers fail closed', () 
 	);
 });
 
-test('video evidence requires the exact ordered four-golden inventory and registered digests', () => {
+test('video evidence requires the exact ordered effect and composition inventory and registered digests', () => {
 	const missing = makeDiagnostic();
 	missing.videoCases.pop();
-	assert.throws(() => createPendingM4ProductionParityResult(missing, config), /4 through 4/iu);
+	assert.throws(() => createPendingM4ProductionParityResult(missing, config), /13 through 13/iu);
 
 	const duplicate = makeDiagnostic();
 	duplicate.videoCases[1] = structuredClone(duplicate.videoCases[0]!);
@@ -242,7 +242,7 @@ test('collector identity, specification, raw evidence, and config snapshots reje
 	);
 
 	const sparseRawCases = makeDiagnostic();
-	sparseRawCases.videoCases.length = 5;
+	delete sparseRawCases.videoCases[5];
 	assert.throws(
 		() => createPendingM4ProductionParityResult(sparseRawCases, config),
 		/dense own-data array/iu,

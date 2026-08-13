@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+const COMPOSITION_BLEND_MODES = new Set([
+	'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference', 'exclusion',
+]);
+
 /** Decode canonical frame-major little-endian Float32 evidence. */
 export function decodeM4ParityAudio(value, specification, label) {
 	const channelCount = positiveInteger(specification.channelCount, 'fixture channel count');
@@ -75,11 +79,15 @@ export function compareM4ParityVideo(actual, expected, width, height) {
 	});
 }
 
-/** Validate the complete four-way partition and return requested-minus-rendered. */
+/** Validate effect and composition partitions and return requested-minus-rendered work. */
 export function validateM4ParityRenderReport(value, path) {
+	const hasComposition = isRecord(value) && Object.hasOwn(value, 'composition');
 	const report = exactRecord(
 		value,
-		['effects', 'renderedEntryCount', 'rendererStatus', 'status'],
+		[
+			'effects', 'renderedEntryCount', 'rendererStatus', 'status',
+			...(hasComposition ? ['composition'] : []),
+		],
 		path,
 	);
 	if (report.status !== 'rendered' && report.status !== 'fallback') {
@@ -107,15 +115,67 @@ export function validateM4ParityRenderReport(value, path) {
 		|| outcome.some((id) => !requestedSet.has(id))) {
 		throw new Error(`${path} effect outcomes must exactly partition requested effects.`);
 	}
+	const composition = hasComposition
+		? validateCompositionPartition(report.composition, path)
+		: { requested: [], unrendered: [] };
 	const expectedStatus = report.rendererStatus === 'failed' || fallbackRendered.length || omitted.length
+		|| composition.unrendered.length
 		? 'fallback'
 		: 'rendered';
-	if (report.status !== expectedStatus) throw new Error(`${path}.status does not match its effect partition.`);
+	if (report.status !== expectedStatus) throw new Error(`${path}.status does not match its work partition.`);
 	const renderedSet = new Set(rendered);
 	return Object.freeze({
-		requested: Object.freeze(requested),
-		unrendered: Object.freeze(requested.filter((id) => !renderedSet.has(id))),
+		requested: Object.freeze([...requested, ...composition.requested]),
+		requestedEffects: Object.freeze(requested),
+		requestedCompositions: Object.freeze(composition.requested),
+		unrendered: Object.freeze([
+			...requested.filter((id) => !renderedSet.has(id)).map((id) => `effect:${id}`),
+			...composition.unrendered,
+		]),
 	});
+}
+
+function validateCompositionPartition(input, path) {
+	const value = exactRecord(
+		input,
+		['fallbackRendered', 'omitted', 'rendered', 'requested'],
+		`${path}.composition`,
+	);
+	if (!Array.isArray(value.requested) || value.requested.length > 4_096) {
+		throw new Error(`${path}.composition.requested must be a bounded array.`);
+	}
+	const clipIds = value.requested.map((candidate, index) => {
+		const request = exactRecord(
+			candidate,
+			['blendMode', 'clipId'],
+			`${path}.composition.requested[${index}]`,
+		);
+		const clipId = effectIds([request.clipId], `${path}.composition.requested[${index}].clipId`)[0];
+		if (!COMPOSITION_BLEND_MODES.has(request.blendMode)) {
+			throw new Error(`${path}.composition.requested[${index}].blendMode is unsupported.`);
+		}
+		return clipId;
+	});
+	if (new Set(clipIds).size !== clipIds.length) {
+		throw new Error(`${path}.composition.requested contains duplicate clip IDs.`);
+	}
+	const rendered = effectIds(value.rendered, `${path}.composition.rendered`);
+	const fallback = effectIds(value.fallbackRendered, `${path}.composition.fallbackRendered`);
+	const omitted = effectIds(value.omitted, `${path}.composition.omitted`);
+	const requestedSet = new Set(clipIds);
+	const outcomes = [...rendered, ...fallback, ...omitted];
+	if (new Set(outcomes).size !== outcomes.length
+		|| outcomes.length !== clipIds.length
+		|| outcomes.some((id) => !requestedSet.has(id))) {
+		throw new Error(`${path}.composition outcomes must exactly partition requested clips.`);
+	}
+	const renderedSet = new Set(rendered);
+	return {
+		requested: clipIds.map((id) => `composition:${id}`),
+		unrendered: clipIds
+			.filter((id) => !renderedSet.has(id))
+			.map((id) => `composition:${id}`),
+	};
 }
 
 export function decodeM4ParityRgba(value, expectedLength, label) {

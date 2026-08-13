@@ -161,7 +161,8 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 	);
 	const caseNames = new Set();
 	const requestedEffectIds = new Set();
-	const unrenderedEffectIds = new Set();
+	const requestedCompositionIds = new Set();
+	const unrenderedOperationIds = new Set();
 	let minimumSsim = 1;
 	let maximumChannelMae = 0;
 	let videoPixels = 0;
@@ -202,13 +203,19 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 		maximumChannelMae = Math.max(maximumChannelMae, metrics.maximumChannelMae);
 		videoPixels += videoCase.width * videoCase.height;
 		const report = validateM4ParityRenderReport(videoCase.renderReport, `${path}.renderReport`);
-		for (const id of report.requested) {
+		for (const id of report.requestedEffects) {
 			if (requestedEffectIds.has(id)) {
 				throw new Error(`Effect instance ${id} is requested by more than one M4 parity case.`);
 			}
 			requestedEffectIds.add(id);
 		}
-		for (const id of report.unrendered) unrenderedEffectIds.add(id);
+		for (const id of report.requestedCompositions) {
+			if (requestedCompositionIds.has(id)) {
+				throw new Error(`Composition instance ${id} is requested by more than one M4 parity case.`);
+			}
+			requestedCompositionIds.add(id);
+		}
+		for (const id of report.unrendered) unrenderedOperationIds.add(id);
 	}
 
 	const metrics = Object.freeze({
@@ -222,7 +229,7 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 		),
 		'parity.videoMinimumSsim': minimumSsim,
 		'parity.videoMaximumChannelMae': maximumChannelMae,
-		'parity.silentlyOmittedEffects': unrenderedEffectIds.size,
+		'parity.silentlyOmittedEffects': unrenderedOperationIds.size,
 	});
 	const rendererClass = diagnostic.rendererClass;
 	if (!['hardware', 'software', 'unknown'].includes(rendererClass)) {
@@ -282,6 +289,7 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 			videoCases: videoCases.length,
 			videoPixels,
 			requestedEffectInstances: requestedEffectIds.size,
+			requestedCompositionInstances: requestedCompositionIds.size,
 		}),
 		metricGatePassed,
 		qualificationEvidencePublished: status === 'accepted',

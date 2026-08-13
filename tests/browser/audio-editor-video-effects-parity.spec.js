@@ -15,25 +15,10 @@ import {
 	createVideoEffectParityFixture,
 	rgbaToPpm,
 } from './video-effect-parity-helpers.js';
+import { videoPreviewSourceResponse } from './video-preview-source-route.js';
 
 const PARITY_ROUTE_ROOT = '/__video-effect-parity__';
 const RUNTIME_ROUTES = new Map([
-	[`${PARITY_ROUTE_ROOT}/compositor.js`, {
-		file: new URL('../../src/common/editor/ui/video-preview-compositor.js', import.meta.url),
-		contentType: 'text/javascript',
-	}],
-	[`${PARITY_ROUTE_ROOT}/video-preview-effects.js`, {
-		file: new URL('../../src/common/editor/ui/video-preview-effects.js', import.meta.url),
-		contentType: 'text/javascript',
-	}],
-	[`${PARITY_ROUTE_ROOT}/video-preview-render-ledger.js`, {
-		file: new URL('../../src/common/editor/ui/video-preview-render-ledger.js', import.meta.url),
-		contentType: 'text/javascript',
-	}],
-	[`${PARITY_ROUTE_ROOT}/video-preview-viewports.js`, {
-		file: new URL('../../src/common/editor/ui/video-preview-viewports.js', import.meta.url),
-		contentType: 'text/javascript',
-	}],
 	[`${PARITY_ROUTE_ROOT}/ffmpeg/classes.js`, {
 		file: new URL('../../node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js', import.meta.url),
 		contentType: 'text/javascript',
@@ -497,6 +482,11 @@ async function installParityRuntimeRoutes(page) {
 			});
 			return;
 		}
+		const source = await videoPreviewSourceResponse(pathname, PARITY_ROUTE_ROOT);
+		if (source) {
+			await route.fulfill({ status: 200, ...source });
+			return;
+		}
 		const descriptor = RUNTIME_ROUTES.get(pathname);
 		if (!descriptor) {
 			await route.fulfill({ status: 404, body: 'Not found' });
@@ -519,7 +509,7 @@ async function initializeParityRuntime(page) {
 	await page.evaluate(async (root) => {
 		const [{ FFmpeg }, { VideoPreviewCompositor }] = await Promise.all([
 			import(`${root}/ffmpeg/classes.js`),
-			import(`${root}/compositor.js`),
+			import(`${root}/source/common/editor/ui/video-preview-compositor.js`),
 		]);
 		const logs = [];
 		const ffmpeg = new FFmpeg();

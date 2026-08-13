@@ -350,7 +350,7 @@ export function appendVideoFfmpegV6LayerBlend(request: AppendVideoFfmpegV6LayerB
 		`[${request.backdropLabel}]split=2[${prefix}_backdrop_blend][${prefix}_backdrop_merge]`,
 	);
 	request.filters.push(
-		`[${request.layerLabel}]split=2[${prefix}_source_color][${prefix}_source_alpha]`,
+		`[${request.layerLabel}]format=pix_fmts=rgba,split=2[${prefix}_source_color][${prefix}_source_alpha]`,
 	);
 	request.filters.push(
 		`[${prefix}_source_color]unpremultiply=inplace=1,format=pix_fmts=gbrp[${prefix}_source_rgb]`,

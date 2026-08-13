@@ -5,6 +5,15 @@ export const M4_PARITY_VIDEO_CASES = Object.freeze([
 	Object.freeze({ name: 'edge-gaussian-blur', fixtureArtifactId: 'edge' }),
 	Object.freeze({ name: 'transparency-vignette', fixtureArtifactId: 'transparency' }),
 	Object.freeze({ name: 'color-chart-baseline', fixtureArtifactId: 'color-chart' }),
+	Object.freeze({ name: 'composition-blend-normal', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-blend-multiply', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-blend-screen', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-blend-overlay', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-blend-darken', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-blend-lighten', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-blend-difference', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-blend-exclusion', fixtureArtifactId: 'transparency' }),
+	Object.freeze({ name: 'composition-combined-transform-order', fixtureArtifactId: 'gradient' }),
 ]);
 
 const ARTIFACT_IDS = Object.freeze(['gradient', 'color-chart', 'edge', 'transparency']);

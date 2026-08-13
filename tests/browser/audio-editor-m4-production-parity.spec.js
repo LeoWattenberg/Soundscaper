@@ -15,8 +15,13 @@ import {
 	decodeM4ProductionParityAudio,
 	encodeM4ProductionParityAudio,
 } from '../../src/common/editor/quality/m4-production-parity-workload.ts';
+import {
+	DEFAULT_VIDEO_CLIP_COMPOSITION,
+	VIDEO_CLIP_COMPOSITION_BLEND_MODES,
+} from '../../src/common/editor/video-clip-composition.ts';
 import { buildVideoFfmpegArgs } from '../../src/common/editor/video-ffmpeg.js';
 import { videoEffectDefaults } from '../../src/common/editor/video-effects.js';
+import { resolveVideoRenderDescription } from '../../src/common/editor/video-render-description.ts';
 import {
 	mergeM4ParityReferenceFingerprint,
 	readM4ParityReferenceHostObservation,
@@ -27,6 +32,7 @@ import {
 	compareVideoEffectFrames,
 	createVideoEffectParityFixture,
 } from './video-effect-parity-helpers.js';
+import { videoPreviewSourceResponse } from './video-preview-source-route.js';
 
 const ROUTE_ROOT = '/__m4-production-parity__';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
@@ -35,10 +41,6 @@ const REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
 const ENVIRONMENT_ID = process.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID
 	|| (process.env.GITHUB_ACTIONS === 'true' ? HOSTED_ENVIRONMENT_ID : LOCAL_ENVIRONMENT_ID);
 const RUNTIME_ROUTES = new Map([
-	[`${ROUTE_ROOT}/compositor.js`, route('../../src/common/editor/ui/video-preview-compositor.js', 'text/javascript')],
-	[`${ROUTE_ROOT}/video-preview-effects.js`, route('../../src/common/editor/ui/video-preview-effects.js', 'text/javascript')],
-	[`${ROUTE_ROOT}/video-preview-render-ledger.js`, route('../../src/common/editor/ui/video-preview-render-ledger.js', 'text/javascript')],
-	[`${ROUTE_ROOT}/video-preview-viewports.js`, route('../../src/common/editor/ui/video-preview-viewports.js', 'text/javascript')],
 	[`${ROUTE_ROOT}/ffmpeg/classes.js`, route('../../node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js', 'text/javascript')],
 	[`${ROUTE_ROOT}/ffmpeg/const.js`, route('../../node_modules/@ffmpeg/ffmpeg/dist/esm/const.js', 'text/javascript')],
 	[`${ROUTE_ROOT}/ffmpeg/errors.js`, route('../../node_modules/@ffmpeg/ffmpeg/dist/esm/errors.js', 'text/javascript')],
@@ -52,6 +54,28 @@ const VIDEO_CASES = Object.freeze([
 	videoCase('edge-gaussian-blur', 'edge', effect('m4-edge-gaussian-blur', 'gaussian-blur')),
 	videoCase('transparency-vignette', 'transparency', effect('m4-transparency-vignette', 'vignette')),
 	videoCase('color-chart-baseline', 'color-chart'),
+	...VIDEO_CLIP_COMPOSITION_BLEND_MODES.map((blendMode) => compositionVideoCase(
+		`composition-blend-${blendMode}`,
+		'transparency',
+		{ blendMode, opacity: 0.625, compositingOrder: 2 },
+	)),
+	compositionVideoCase('composition-combined-transform-order', 'gradient', {
+		crop: { left: 0.0625, top: 0.125, right: 0.125, bottom: 0.0625 },
+		transform: {
+			anchorX: 0.375,
+			anchorY: 0.625,
+			positionX: 0.54,
+			positionY: 0.46,
+			scaleX: 0.875,
+			scaleY: 1.125,
+			rotationDegrees: 12,
+			flipHorizontal: true,
+			flipVertical: true,
+		},
+		opacity: 0.2,
+		blendMode: 'normal',
+		compositingOrder: 7,
+	}),
 ]);
 
 test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualifying the host', async ({
@@ -103,7 +127,9 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 			height: fixtureFrame.height,
 			inputBase64: Buffer.from(fixtureFrame.bytes).toString('base64'),
 			effects: parity.effects,
-			graph: effectFilterGraph(parity.effects, fixtureFrame.width, fixtureFrame.height),
+			layers: parity.layers,
+			graph: parity.graph
+				?? effectFilterGraph(parity.effects, fixtureFrame.width, fixtureFrame.height),
 		});
 		const preview = new Uint8Array(Buffer.from(rendered.previewBase64, 'base64'));
 		const exported = new Uint8Array(Buffer.from(rendered.exportBase64, 'base64'));
@@ -113,7 +139,10 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 			fixtureFrame.width,
 			fixtureFrame.height,
 		);
-		expect(metrics.ssim, `${parity.name} SSIM`).toBeGreaterThanOrEqual(
+		expect(
+			metrics.ssim,
+			`${parity.name} SSIM; channel MAE ${JSON.stringify(metrics.channelMae)}`,
+		).toBeGreaterThanOrEqual(
 			VIDEO_EFFECT_PARITY_MINIMUM_SSIM,
 		);
 		for (const [channel, mae] of Object.entries(metrics.channelMae)) {
@@ -122,6 +151,7 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 			);
 		}
 		expect(rendered.renderReport.effects.omitted).toEqual([]);
+		expect(rendered.renderReport.composition?.omitted ?? []).toEqual([]);
 		videoCases.push({
 			name: parity.name,
 			fixtureArtifactId: parity.fixture,
@@ -216,6 +246,47 @@ function videoCase(name, fixture, ...effects) {
 	return Object.freeze({ name, fixture, effects: Object.freeze(effects) });
 }
 
+function compositionVideoCase(name, fixture, composition) {
+	const width = M4_PRODUCTION_PARITY_SPECIFICATION.videoWidth;
+	const height = M4_PRODUCTION_PARITY_SPECIFICATION.videoHeight;
+	const background = compositionDescription({ compositingOrder: -1 }, width, height);
+	const foreground = compositionDescription(composition, width, height);
+	const layers = Object.freeze([
+		Object.freeze({
+			blendMode: background.blendMode,
+			entries: Object.freeze([Object.freeze({
+				clipId: `${name}-background`, effects: Object.freeze([]), renderDescription: background,
+			})]),
+		}),
+		Object.freeze({
+			blendMode: foreground.blendMode,
+			entries: Object.freeze([Object.freeze({
+				clipId: `${name}-foreground`, effects: Object.freeze([]), renderDescription: foreground,
+			})]),
+		}),
+	]);
+	return Object.freeze({
+		name,
+		fixture,
+		effects: Object.freeze([]),
+		layers,
+		graph: compositionFilterGraph(layers, width, height),
+	});
+}
+
+function compositionDescription(changes, width, height) {
+	return resolveVideoRenderDescription({
+		composition: {
+			...DEFAULT_VIDEO_CLIP_COMPOSITION,
+			...changes,
+			crop: { ...DEFAULT_VIDEO_CLIP_COMPOSITION.crop, ...changes.crop },
+			transform: { ...DEFAULT_VIDEO_CLIP_COMPOSITION.transform, ...changes.transform },
+		},
+		sourceDisplaySize: { width, height },
+		canvas: { width, height },
+	});
+}
+
 async function installRuntimeRoutes(page) {
 	await page.route(`**${ROUTE_ROOT}/**`, async (requestRoute) => {
 		const pathname = new URL(requestRoute.request().url()).pathname;
@@ -225,6 +296,11 @@ async function installRuntimeRoutes(page) {
 				contentType: 'text/html',
 				body: '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#000}</style>',
 			});
+			return;
+		}
+		const source = await videoPreviewSourceResponse(pathname, ROUTE_ROOT);
+		if (source) {
+			await requestRoute.fulfill({ status: 200, ...source });
 			return;
 		}
 		const descriptor = RUNTIME_ROUTES.get(pathname);
@@ -246,7 +322,7 @@ async function initializeRuntime(page) {
 	await page.evaluate(async (root) => {
 		const [{ FFmpeg }, compositor] = await Promise.all([
 			import(`${root}/ffmpeg/classes.js`),
-			import(`${root}/compositor.js`),
+			import(`${root}/source/common/editor/ui/video-preview-compositor.js`),
 		]);
 		const logs = [];
 		const ffmpeg = new FFmpeg();
@@ -407,7 +483,7 @@ async function auditDeliberateOmission(page) {
 }
 
 async function renderVideoParityCase(page, parity) {
-	return page.evaluate(async ({ name, width, height, inputBase64, effects, graph }) => {
+	return page.evaluate(async ({ name, width, height, inputBase64, effects, layers, graph }) => {
 		const runtime = window.__m4ProductionParity;
 		const input = Uint8Array.from(atob(inputBase64), (value) => value.charCodeAt(0));
 		const source = document.createElement('canvas');
@@ -428,9 +504,14 @@ async function renderVideoParityCase(page, parity) {
 		output.style.height = `${height}px`;
 		document.body.replaceChildren(output);
 		const compositor = new runtime.VideoPreviewCompositor(output);
-		const renderReport = compositor.render([{ entries: [{
-			clipId: `${name}-clip`, video: source, opacity: 1, effects,
-		}] }], { referenceWidth: width, referenceHeight: height });
+		const previewLayers = layers?.map((layer) => ({
+			...layer,
+			entries: layer.entries.map((entry) => ({ ...entry, video: source })),
+		})) ?? [{ entries: [{ clipId: `${name}-clip`, video: source, opacity: 1, effects }] }];
+		const renderReport = compositor.render(
+			previewLayers,
+			{ referenceWidth: width, referenceHeight: height },
+		);
 		const gl = compositor.gl;
 		gl.finish();
 		const bottomUp = new Uint8Array(width * height * 4);
@@ -453,7 +534,11 @@ async function renderVideoParityCase(page, parity) {
 				'-filter_complex', graph, '-map', '[video_out]', '-frames:v', '1',
 				'-c:v', 'rawvideo', '-pix_fmt', 'rgba', '-f', 'rawvideo', outputName,
 			]);
-			if (exitCode !== 0) throw new Error(`${name}: FFmpeg exited with ${exitCode}.`);
+			if (exitCode !== 0) {
+				throw new Error(
+					`${name}: FFmpeg exited with ${exitCode}.\n${runtime.logs.slice(-30).join('\n')}`,
+				);
+			}
 			const exported = await runtime.ffmpeg.readFile(outputName);
 			return {
 				previewBase64: bytesToBase64(preview),
@@ -495,6 +580,48 @@ function effectFilterGraph(effects, width, height) {
 					opacityStart: 1, opacityEnd: 1, videoEffects: effects,
 				}],
 			}],
+		}],
+		filterPlan: { audio: { strategy: 'none' } },
+	};
+	const args = buildVideoFfmpegArgs(plan, {
+		videoInputPaths: { fixture: 'fixture.rgba' },
+	}, 'unused.mp4');
+	return args[args.indexOf('-filter_complex') + 1];
+}
+
+function compositionFilterGraph(layers, width, height) {
+	const plan = {
+		version: 6,
+		format: 'mp4',
+		container: 'mp4',
+		extension: 'mp4',
+		mimeType: 'video/mp4',
+		durationSeconds: 1,
+		canvas: { width, height, frameRate: 1, pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		codecs: {
+			video: 'h264', videoEncoder: 'libx264', audio: null, audioEncoder: null, pixelFormat: 'yuv420p',
+		},
+		inputs: [{
+			kind: 'video-source', inputIndex: 0, sourceId: 'fixture', mimeType: 'video/raw',
+		}],
+		intervals: [{
+			kind: 'composition',
+			durationSeconds: 1,
+			layers: layers.map((layer, index) => {
+				const description = layer.entries[0].renderDescription;
+				return {
+					trackId: `fixture-track-${String(index)}`,
+					trackIndex: layers.length - index - 1,
+					clips: [{
+						role: 'single', inputIndex: 0, sourceId: 'fixture',
+						sourceStartTimeSeconds: 0, sourceEndTimeSeconds: 1, playbackRate: 1,
+						opacityStart: description.opacityStart,
+						opacityEnd: description.opacityEnd,
+						videoEffects: [],
+						renderDescription: description,
+					}],
+				};
+			}),
 		}],
 		filterPlan: { audio: { strategy: 'none' } },
 	};
