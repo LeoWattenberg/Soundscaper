@@ -32,13 +32,18 @@ fixture, environment, metric, and threshold identifiers.
   recorded as `failed`, independently of environment qualification. After the
   reference descriptor is provisioned, `npm run
   quality:collect:m4-production-parity -- --reference <output-directory>`
-  enables explicit qualification. Browser observations and a host-owned probe
+  enables explicit qualification. The provisioned runner must set
+  `SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH` to an independently captured
+  `m4-reference-host-observation-v1` JSON record. Browser observations and that
+  host-owned record
   assemble the complete OS/update-policy, CPU/RAM, GPU/VRAM/driver/WebGL,
   display/refresh/pixel-ratio, power-policy, browser-binary/launch-flag, and
   runner-label fingerprint. The collector requires a byte-exact descriptor
   match before publishing accepted evidence; the configured expected value is
   never used as observed evidence. A reference-mode identity or fingerprint
   mismatch aborts collection before writing either pending or accepted files.
+  Accepted evidence pins the complete budget-config digest and, through its
+  digest-bound raw artifact, the exact registered workload descriptor digest.
 - The 12-effect 1280x720 preview test records timing and heap data, but its media
   file is generated with `MediaRecorder` for each run. It therefore remains a
   provisional fixture.

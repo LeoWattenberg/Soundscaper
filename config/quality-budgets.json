@@ -818,6 +818,7 @@
 			"kind": "deterministic-audio-vectors-and-video-golden-frames",
 			"specification": {
 				"localDiagnosticCommand": "npm run quality:collect:m4-production-parity",
+				"referenceHostObservationPathEnvironmentVariable": "SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH",
 				"routineBrowserTestBehavior": "skip-with-explicit-collector",
 				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification",
 				"generatorRevision": 1,

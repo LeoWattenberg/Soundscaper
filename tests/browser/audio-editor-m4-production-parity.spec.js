@@ -18,6 +18,10 @@ import {
 import { buildVideoFfmpegArgs } from '../../src/common/editor/video-ffmpeg.js';
 import { videoEffectDefaults } from '../../src/common/editor/video-effects.js';
 import {
+	mergeM4ParityReferenceFingerprint,
+	readM4ParityReferenceHostObservation,
+} from '../../scripts/lib/m4-production-parity-identity.mjs';
+import {
 	VIDEO_EFFECT_PARITY_MAXIMUM_CHANNEL_MAE,
 	VIDEO_EFFECT_PARITY_MINIMUM_SSIM,
 	compareVideoEffectFrames,
@@ -159,71 +163,27 @@ async function diagnosticEnvironmentFingerprint(browser, renderer) {
 		webglRenderer: renderer.renderer,
 	};
 	if (ENVIRONMENT_ID !== REFERENCE_ENVIRONMENT_ID) return portable;
-	const host = referenceHostProbe();
-	return {
+	const host = await readM4ParityReferenceHostObservation(
+		process.env.SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH,
+	);
+	const browserObservation = {
 		osImage: await linuxOsImage(),
-		osUpdatePolicy: host.osUpdatePolicy,
 		cpuModel: cpus()[0]?.model || 'unknown',
 		logicalCpuCount: cpus().length,
 		memoryBytes: totalmem(),
-		gpuModel: host.gpuModel,
-		gpuMemoryBytes: host.gpuMemoryBytes,
-		gpuDriver: host.gpuDriver,
 		webglVendor: renderer.vendor,
 		webglRenderer: renderer.renderer,
-		displayMode: host.displayMode,
-		displayRefreshHz: host.displayRefreshHz,
 		devicePixelRatio: renderer.devicePixelRatio,
-		powerProfile: host.powerProfile,
 		browserVersion: browser.version(),
 		browserBinarySha256: await sha256File(browser.browserType().executablePath()),
-		browserLaunchFlags: host.browserLaunchFlags,
-		runnerLabels: host.runnerLabels,
 	};
+	return mergeM4ParityReferenceFingerprint(host, browserObservation);
 }
 
 async function sha256File(path) {
 	const hash = createHash('sha256');
 	for await (const chunk of createReadStream(path)) hash.update(chunk);
 	return hash.digest('hex');
-}
-
-function referenceHostProbe() {
-	const values = {
-		osUpdatePolicy: process.env.SOUNDSCAPER_M4_HOST_OS_UPDATE_POLICY,
-		gpuModel: process.env.SOUNDSCAPER_M4_HOST_GPU_MODEL,
-		gpuMemoryBytes: Number(process.env.SOUNDSCAPER_M4_HOST_GPU_MEMORY_BYTES),
-		gpuDriver: process.env.SOUNDSCAPER_M4_HOST_GPU_DRIVER,
-		displayMode: process.env.SOUNDSCAPER_M4_HOST_DISPLAY_MODE,
-		displayRefreshHz: Number(process.env.SOUNDSCAPER_M4_HOST_DISPLAY_REFRESH_HZ),
-		powerProfile: process.env.SOUNDSCAPER_M4_HOST_POWER_PROFILE,
-		browserLaunchFlags: hostStringArray('SOUNDSCAPER_M4_HOST_BROWSER_LAUNCH_FLAGS', true),
-		runnerLabels: hostStringArray('SOUNDSCAPER_M4_HOST_RUNNER_LABELS', false),
-	};
-	if (typeof values.osUpdatePolicy !== 'string' || !values.osUpdatePolicy
-		|| typeof values.gpuModel !== 'string' || !values.gpuModel
-		|| !Number.isSafeInteger(values.gpuMemoryBytes) || values.gpuMemoryBytes < 1
-		|| typeof values.gpuDriver !== 'string' || !values.gpuDriver
-		|| typeof values.displayMode !== 'string' || !values.displayMode
-		|| !Number.isFinite(values.displayRefreshHz) || values.displayRefreshHz <= 0
-		|| typeof values.powerProfile !== 'string' || !values.powerProfile) {
-		throw new Error('Reference qualification requires the provisioned host-owned GPU/display/power probe.');
-	}
-	return values;
-}
-
-function hostStringArray(name, allowEmpty) {
-	let parsed;
-	try {
-		parsed = JSON.parse(process.env[name] ?? 'null');
-	} catch {
-		throw new Error(`Reference host probe ${name} must be a JSON string array.`);
-	}
-	if (!Array.isArray(parsed) || (!allowEmpty && parsed.length === 0)
-		|| parsed.some((value) => typeof value !== 'string' || !value)) {
-		throw new Error(`Reference host probe ${name} must be a JSON string array.`);
-	}
-	return parsed;
 }
 
 async function linuxOsImage() {

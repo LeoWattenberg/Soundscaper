@@ -25,6 +25,7 @@ import {
 	parseM4ParityCliOptions,
 	resolveM4ParityCollectionEnvironment,
 } from './lib/m4-production-parity-identity.mjs';
+import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 import { verifyQualityBudgetResultFiles } from './verify-quality-budget-result.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -49,10 +50,14 @@ export {
 
 /** Run the single-worker/no-retry diagnostic and publish only admitted evidence. */
 export async function collectM4ProductionParityDiagnostic(options, dependencies = {}) {
-	const outputDirectory = ownString(options, 'outputDirectory');
-	const config = dependencies.config ?? JSON.parse(await readFile(CONFIG_URL, 'utf8'));
+	const collectorOptions = snapshotStrictJsonData(options, 'collector options');
+	const outputDirectory = ownString(collectorOptions, 'outputDirectory');
+	const config = snapshotStrictJsonData(
+		dependencies.config ?? JSON.parse(await readFile(CONFIG_URL, 'utf8')),
+		'config',
+	);
 	const collectionEnvironment = resolveM4ParityCollectionEnvironment(
-		options,
+		collectorOptions,
 		config,
 		dependencies.processEnvironment ?? process.env,
 	);
@@ -96,8 +101,8 @@ export function parseM4ProductionParityDiagnostic(output) {
 
 /** Recompute the exact five metrics from complete PCM, RGBA, and work ledgers. */
 export function createPendingM4ProductionParityResult(input, inputConfig) {
-	const diagnostic = snapshotJsonData(input, 'diagnostic');
-	const config = snapshotJsonData(inputConfig, 'config');
+	const diagnostic = snapshotStrictJsonData(input, 'diagnostic');
+	const config = snapshotStrictJsonData(inputConfig, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
 	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
@@ -256,9 +261,18 @@ export function writeM4ProductionParityResult(
 	config,
 	dependencies = {},
 ) {
-	return result.status === 'accepted'
-		? writeAccepted(outputDirectory, diagnostic, result, config, dependencies)
-		: (dependencies.writePending ?? writePendingResult)(outputDirectory, result);
+	const diagnosticSnapshot = snapshotStrictJsonData(diagnostic, 'diagnostic');
+	const resultSnapshot = snapshotStrictJsonData(result, 'result');
+	const configSnapshot = snapshotStrictJsonData(config, 'config');
+	return resultSnapshot.status === 'accepted'
+		? writeAccepted(
+			outputDirectory,
+			diagnosticSnapshot,
+			resultSnapshot,
+			configSnapshot,
+			dependencies,
+		)
+		: (dependencies.writePending ?? writePendingResult)(outputDirectory, resultSnapshot);
 }
 
 async function runBrowserDiagnostic(collectionEnvironment) {
@@ -297,9 +311,12 @@ async function writeAccepted(outputDirectory, diagnostic, pending, config, depen
 	const sourceRevision = dependencies.sourceRevision ?? await currentSourceRevision();
 	const configBytes = dependencies.configBytes ?? await readFile(CONFIG_URL);
 	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
+	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	if (!deepEqualJson(pending.environmentFingerprint, environment.fingerprint)) {
 		throw new Error('Accepted M4 environment fingerprint does not match the qualified descriptor.');
 	}
+	const budgetSha256 = sha256(configBytes);
+	const workloadSha256 = sha256(Buffer.from(JSON.stringify(workload)));
 	const rawArtifactName = `${WORKLOAD_ID}.raw.json`;
 	const resultArtifactName = `${WORKLOAD_ID}.accepted.json`;
 	const raw = Object.freeze({
@@ -308,6 +325,8 @@ async function writeAccepted(outputDirectory, diagnostic, pending, config, depen
 		environmentId: REFERENCE_ENVIRONMENT_ID,
 		environmentFingerprint: pending.environmentFingerprint,
 		sourceRevision,
+		budgetSha256,
+		workloadSha256,
 		attemptCount: 1,
 		retryCount: 0,
 		observationClass: pending.observationClass,
@@ -324,7 +343,7 @@ async function writeAccepted(outputDirectory, diagnostic, pending, config, depen
 		environmentId: REFERENCE_ENVIRONMENT_ID,
 		environmentFingerprint: pending.environmentFingerprint,
 		rendererClass: pending.rendererClass,
-		budgetSha256: sha256(configBytes),
+		budgetSha256,
 		sourceRevision,
 		attemptCount: 1,
 		retryCount: 0,
@@ -355,7 +374,7 @@ async function writeAccepted(outputDirectory, diagnostic, pending, config, depen
 
 function expectedFixtureContract(fixture) {
 	const specification = requireRecord(fixture.specification, 'fixture.specification');
-	return snapshotJsonData({
+	return snapshotStrictJsonData({
 		generatorRevision: specification.generatorRevision,
 		seed: specification.seed,
 		sampleRate: specification.sampleRate,
@@ -477,19 +496,6 @@ function isRecord(value) {
 		&& typeof value === 'object'
 		&& !Array.isArray(value)
 		&& (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
-}
-
-function snapshotJsonData(value, path) {
-	if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
-	if (typeof value === 'number') {
-		if (!Number.isFinite(value)) throw new Error(`${path} must contain only finite JSON data.`);
-		return value;
-	}
-	if (Array.isArray(value)) return value.map((entry, index) => snapshotJsonData(entry, `${path}[${index}]`));
-	if (!isRecord(value)) throw new Error(`${path} must contain only plain JSON data.`);
-	const result = {};
-	for (const [key, entry] of Object.entries(value)) result[key] = snapshotJsonData(entry, `${path}.${key}`);
-	return result;
 }
 
 function deepEqualJson(left, right) {

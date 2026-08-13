@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -16,6 +17,10 @@ import {
 	resolveM4ProductionParityCollectionEnvironment,
 	writeM4ProductionParityResult,
 } from '../scripts/collect-m4-production-parity-quality.mjs';
+import {
+	mergeM4ParityReferenceFingerprint,
+	readM4ParityReferenceHostObservation,
+} from '../scripts/lib/m4-production-parity-identity.mjs';
 import { createVideoEffectParityFixture } from './browser/video-effect-parity-helpers.js';
 
 const config = JSON.parse(await readFile(
@@ -209,6 +214,65 @@ test('fixture drift, truncated evidence, and dishonest ledgers fail closed', () 
 	);
 });
 
+test('collector identity, specification, raw evidence, and config snapshots reject hostile data', () => {
+	let getterReads = 0;
+	const rawAccessor = makeDiagnostic();
+	Object.defineProperty(rawAccessor.audio, 'previewBase64', {
+		enumerable: true,
+		get() {
+			getterReads += 1;
+			return '';
+		},
+	});
+	assert.throws(() => createPendingM4ProductionParityResult(rawAccessor, config), /own data/iu);
+	assert.equal(getterReads, 0);
+
+	const configAccessor = structuredClone(config) as Record<string, unknown>;
+	Object.defineProperty(configAccessor, 'measurementPolicy', {
+		enumerable: true,
+		get() {
+			getterReads += 1;
+			return {};
+		},
+	});
+	assert.throws(
+		() => createPendingM4ProductionParityResult(makeDiagnostic(), configAccessor),
+		/own data/iu,
+	);
+	assert.equal(getterReads, 0);
+
+	const unsafeSpecification = makeDiagnostic();
+	Object.defineProperty(unsafeSpecification.fixture, '__proto__', {
+		enumerable: true,
+		value: { hidden: true },
+	});
+	assert.throws(
+		() => createPendingM4ProductionParityResult(unsafeSpecification, config),
+		/safe string-keyed/iu,
+	);
+	const symbolicIdentity = makeDiagnostic() as ReturnType<typeof makeDiagnostic> & {
+		[key: symbol]: boolean;
+	};
+	symbolicIdentity[Symbol('hidden-identity')] = true;
+	assert.throws(
+		() => createPendingM4ProductionParityResult(symbolicIdentity, config),
+		/safe string-keyed/iu,
+	);
+
+	const sparseRawCases = makeDiagnostic();
+	sparseRawCases.videoCases.length = 2;
+	assert.throws(
+		() => createPendingM4ProductionParityResult(sparseRawCases, config),
+		/dense own-data array/iu,
+	);
+	const extraArrayKey = makeDiagnostic();
+	Object.defineProperty(extraArrayKey.videoCases, 'unreviewed', { value: true });
+	assert.throws(
+		() => createPendingM4ProductionParityResult(extraArrayKey, config),
+		/extra or symbol array keys/iu,
+	);
+});
+
 test('the diagnostic parser admits exactly one matching structured record', () => {
 	const diagnostic = makeDiagnostic();
 	const line = `SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify(diagnostic)}`;
@@ -245,8 +309,14 @@ test('matching provisioned evidence writes verified files once and never overwri
 	assert.equal(verificationCalls, 1);
 	assert.equal(written.resultPath, join(directory, 'm4-production-render-parity.accepted.json'));
 	const accepted = JSON.parse(await readFile(written.resultPath, 'utf8'));
+	const raw = JSON.parse(await readFile(written.rawPath, 'utf8'));
 	assert.deepEqual(accepted.metrics, result.metrics);
 	assert.equal(accepted.rawEvidence.artifactName, 'm4-production-render-parity.raw.json');
+	assert.equal(accepted.budgetSha256, sha256(dependencies.configBytes));
+	assert.equal(raw.budgetSha256, accepted.budgetSha256);
+	assert.equal(raw.workloadSha256, sha256(Buffer.from(JSON.stringify(
+		activated.workloads.find(({ id }) => id === 'm4-production-render-parity'),
+	))));
 	await assert.rejects(
 		writeM4ProductionParityResult(directory, diagnostic, result, activated, dependencies),
 		/exists|EEXIST/iu,
@@ -301,6 +371,59 @@ test('reference mode rejects unprovisioned, incomplete, or mismatched fingerprin
 	}, config), /correctness or reference/iu);
 });
 
+test('reference observation is independent, complete, and browser-overlap checked', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m4-host-observation-'));
+	const path = join(directory, 'reference-host-observation.json');
+	const fingerprint = referenceFingerprint();
+	await writeFile(path, `${JSON.stringify({
+		schemaVersion: 1,
+		observationClass: 'm4-reference-host-observation-v1',
+		fingerprint,
+	}, null, '\t')}\n`);
+	const independentlyObserved = await readM4ParityReferenceHostObservation(path);
+	assert.deepEqual(
+		mergeM4ParityReferenceFingerprint(independentlyObserved, browserReferenceObservation()),
+		fingerprint,
+	);
+
+	await assert.rejects(
+		readM4ParityReferenceHostObservation(join(directory, 'missing.json')),
+		/unavailable or invalid/iu,
+	);
+	const incomplete = structuredClone(fingerprint) as Record<string, unknown>;
+	delete incomplete.gpuDriver;
+	await writeFile(path, JSON.stringify({
+		schemaVersion: 1,
+		observationClass: 'm4-reference-host-observation-v1',
+		fingerprint: incomplete,
+	}));
+	await assert.rejects(readM4ParityReferenceHostObservation(path), /exact fields/iu);
+	assert.throws(
+		() => mergeM4ParityReferenceFingerprint(fingerprint, {
+			...browserReferenceObservation(),
+			webglRenderer: 'unexpected-runtime-renderer',
+		}),
+		/browser-observed reference field webglRenderer/iu,
+	);
+	let reads = 0;
+	const accessorFingerprint = referenceFingerprint();
+	Object.defineProperty(accessorFingerprint, 'cpuModel', {
+		enumerable: true,
+		get() {
+			reads += 1;
+			return 'forged';
+		},
+	});
+	assert.throws(
+		() => mergeM4ParityReferenceFingerprint(
+			accessorFingerprint,
+			browserReferenceObservation(),
+		),
+		/own data/iu,
+	);
+	assert.equal(reads, 0);
+});
+
 test('CLI parsing defaults to correctness and admits one explicit reference mode', () => {
 	assert.deepEqual(parseM4ProductionParityCliOptions(['/tmp/result'], {}), {
 		qualificationMode: 'correctness',
@@ -324,7 +447,7 @@ test('CLI parsing defaults to correctness and admits one explicit reference mode
 
 test('an observed reference fingerprint cannot be spoofed with the expected descriptor', () => {
 	const activated = activatedReferenceConfig();
-	const spoofed = makeReferenceDiagnostic();
+	const spoofed = structuredClone(makeReferenceDiagnostic());
 	spoofed.environmentFingerprint.gpuModel = 'different-observed-gpu';
 	const result = createPendingM4ProductionParityResult(spoofed, activated);
 	assert.equal(result.status, 'pending-external');
@@ -334,7 +457,7 @@ test('an observed reference fingerprint cannot be spoofed with the expected desc
 
 test('reference collection rejects a mismatched browser observation before any publication', async () => {
 	const activated = activatedReferenceConfig();
-	const observed = makeReferenceDiagnostic();
+	const observed = structuredClone(makeReferenceDiagnostic());
 	observed.environmentFingerprint.gpuModel = 'unexpected-runtime-renderer';
 	let pendingWrites = 0;
 	let acceptedVerifications = 0;
@@ -406,7 +529,25 @@ function makeReferenceDiagnostic() {
 	return {
 		...makeDiagnostic(),
 		environmentId: 'reference-linux-gpu-01',
-		environmentFingerprint: referenceFingerprint(),
+		environmentFingerprint: mergeM4ParityReferenceFingerprint(
+			referenceFingerprint(),
+			browserReferenceObservation(),
+		),
+	};
+}
+
+function browserReferenceObservation() {
+	const fingerprint = referenceFingerprint();
+	return {
+		osImage: fingerprint.osImage,
+		cpuModel: fingerprint.cpuModel,
+		logicalCpuCount: fingerprint.logicalCpuCount,
+		memoryBytes: fingerprint.memoryBytes,
+		webglVendor: fingerprint.webglVendor,
+		webglRenderer: fingerprint.webglRenderer,
+		devicePixelRatio: fingerprint.devicePixelRatio,
+		browserVersion: fingerprint.browserVersion,
+		browserBinarySha256: fingerprint.browserBinarySha256,
 	};
 }
 
@@ -423,4 +564,8 @@ function activatedReferenceConfig(): QualityConfig {
 
 function toBase64(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString('base64');
+}
+
+function sha256(bytes: Uint8Array): string {
+	return createHash('sha256').update(bytes).digest('hex');
 }

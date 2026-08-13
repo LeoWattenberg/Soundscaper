@@ -448,9 +448,12 @@ before code (docs/milestone-3-plan.md:467-470).
   4A/4B feature cites them; hosted-CI runs remain correctness evidence
   only. Local/hosted diagnostics never claim the reference id. Explicit
   reference mode assembles the complete runtime hardware, OS, display, power,
-  browser, and runner identity from browser observations and a host-owned probe,
+  browser, and runner identity from browser observations and an independently
+  captured `m4-reference-host-observation-v1` JSON record named by
+  `SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH`,
   then matches it exactly to the provisioned descriptor; expected data is never
-  echoed as observation.
+  echoed as observation. Accepted evidence pins both the full budget config and
+  the exact registered workload descriptor through its digest-bound raw record.
 - **Acceptance:** the focused Chromium/FFmpeg harness passes against today's
   features; a deliberately unsupported effect is the sole omitted ID, and
   collector tests prove one omitted or fallback-rendered effect trips the

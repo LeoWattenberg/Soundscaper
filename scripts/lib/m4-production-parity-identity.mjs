@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readFile } from 'node:fs/promises';
+
+import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
+
 export const M4_PARITY_REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
 export const M4_PARITY_HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.61.1';
 export const M4_PARITY_LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 export const M4_PARITY_WORKLOAD_ID = 'm4-production-render-parity';
 
-const REFERENCE_FINGERPRINT_FIELDS = Object.freeze([
+export const M4_PARITY_REFERENCE_FINGERPRINT_FIELDS = Object.freeze([
 	'osImage',
 	'osUpdatePolicy',
 	'cpuModel',
@@ -25,15 +29,34 @@ const REFERENCE_FINGERPRINT_FIELDS = Object.freeze([
 	'browserLaunchFlags',
 	'runnerLabels',
 ]);
+const BROWSER_OBSERVATION_FIELDS = Object.freeze([
+	'osImage',
+	'cpuModel',
+	'logicalCpuCount',
+	'memoryBytes',
+	'webglVendor',
+	'webglRenderer',
+	'devicePixelRatio',
+	'browserVersion',
+	'browserBinarySha256',
+]);
+const HOST_OBSERVATION_CLASS = 'm4-reference-host-observation-v1';
 
 /** Resolve correctness versus explicitly provisioned reference collection identity. */
 export function resolveM4ParityCollectionEnvironment(options, config, processEnvironment = {}) {
-	const record = requireRecord(options, 'collector options');
+	const record = requireRecord(
+		snapshotStrictJsonData(options, 'collector options'),
+		'collector options',
+	);
+	const qualityConfig = requireRecord(
+		snapshotStrictJsonData(config, 'config'),
+		'config',
+	);
 	const qualificationMode = record.qualificationMode ?? 'correctness';
 	if (qualificationMode === 'correctness') {
 		return Object.freeze({
 			qualificationMode,
-			environmentId: processEnvironment.GITHUB_ACTIONS === 'true'
+			environmentId: ownEnvironmentString(processEnvironment, 'GITHUB_ACTIONS') === 'true'
 				? M4_PARITY_HOSTED_ENVIRONMENT_ID
 				: M4_PARITY_LOCAL_ENVIRONMENT_ID,
 			expectedFingerprint: null,
@@ -43,7 +66,7 @@ export function resolveM4ParityCollectionEnvironment(options, config, processEnv
 		throw new Error('M4 collection qualificationMode must be correctness or reference.');
 	}
 	const environment = exactDescriptor(
-		requireRecord(config, 'config').environments,
+		qualityConfig.environments,
 		M4_PARITY_REFERENCE_ENVIRONMENT_ID,
 		'environment',
 	);
@@ -53,7 +76,7 @@ export function resolveM4ParityCollectionEnvironment(options, config, processEnv
 	return Object.freeze({
 		qualificationMode,
 		environmentId: M4_PARITY_REFERENCE_ENVIRONMENT_ID,
-		expectedFingerprint: Object.freeze(snapshotJsonData(
+		expectedFingerprint: Object.freeze(snapshotStrictJsonData(
 			environment.fingerprint,
 			'reference environment fingerprint',
 		)),
@@ -62,14 +85,18 @@ export function resolveM4ParityCollectionEnvironment(options, config, processEnv
 
 /** Parse an explicit mode without letting default correctness claim reference identity. */
 export function parseM4ParityCliOptions(args, environment = {}) {
-	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string')) {
+	const values = snapshotStrictJsonData(args, 'M4 collector CLI arguments');
+	if (!Array.isArray(values) || values.some((value) => typeof value !== 'string')) {
 		throw new TypeError('M4 collector CLI arguments must be strings.');
 	}
-	let qualificationMode = environment.SOUNDSCAPER_M4_REFERENCE_QUALIFICATION === '1'
+	let qualificationMode = ownEnvironmentString(
+		environment,
+		'SOUNDSCAPER_M4_REFERENCE_QUALIFICATION',
+	) === '1'
 		? 'reference'
 		: 'correctness';
 	let outputDirectory = null;
-	for (const argument of args) {
+	for (const argument of values) {
 		if (argument === '--reference') {
 			if (qualificationMode === 'reference') {
 				throw new Error('Reference qualification mode may be selected only once.');
@@ -86,16 +113,52 @@ export function parseM4ParityCliOptions(args, environment = {}) {
 
 /** Require the browser to report its observed collection identity, never a configured echo. */
 export function assertM4ParityCollectionEnvironment(diagnostic, collectionEnvironment) {
-	if (diagnostic.environmentId !== collectionEnvironment.environmentId) {
+	const observed = snapshotStrictJsonData(diagnostic, 'browser diagnostic');
+	const expected = snapshotStrictJsonData(collectionEnvironment, 'collection environment');
+	if (observed.environmentId !== expected.environmentId) {
 		throw new Error('Browser diagnostic relabeled its collection environment.');
 	}
-	if (collectionEnvironment.qualificationMode === 'reference'
+	if (expected.qualificationMode === 'reference'
 		&& !deepEqualJson(
-			diagnostic.environmentFingerprint,
-			collectionEnvironment.expectedFingerprint,
+			observed.environmentFingerprint,
+			expected.expectedFingerprint,
 		)) {
 		throw new Error('Browser-observed reference fingerprint does not match the provisioned descriptor.');
 	}
+}
+
+/** Read a provisioning-owned observation without consulting the expected descriptor. */
+export async function readM4ParityReferenceHostObservation(path) {
+	if (typeof path !== 'string' || path.length < 1 || path.length > 4_096) {
+		throw new Error('Reference qualification requires a host observation JSON path.');
+	}
+	let parsed;
+	try {
+		parsed = JSON.parse(await readFile(path, 'utf8'));
+	} catch (error) {
+		throw new Error(`Reference host observation is unavailable or invalid: ${errorMessage(error)}.`);
+	}
+	const envelope = requireExactRecord(
+		snapshotStrictJsonData(parsed, 'reference host observation'),
+		['fingerprint', 'observationClass', 'schemaVersion'],
+		'reference host observation',
+	);
+	if (envelope.schemaVersion !== 1 || envelope.observationClass !== HOST_OBSERVATION_CLASS) {
+		throw new Error('Reference host observation identity is invalid.');
+	}
+	return validateReferenceFingerprint(envelope.fingerprint);
+}
+
+/** Merge only after every independently observed overlapping value agrees. */
+export function mergeM4ParityReferenceFingerprint(hostInput, browserInput) {
+	const host = validateReferenceFingerprint(hostInput);
+	const browser = validateBrowserObservation(browserInput);
+	for (const field of BROWSER_OBSERVATION_FIELDS) {
+		if (!deepEqualJson(host[field], browser[field])) {
+			throw new Error(`Browser-observed reference field ${field} does not match the host observation.`);
+		}
+	}
+	return Object.freeze({ ...host, ...browser });
 }
 
 function isProvisionedReferenceEnvironment(environment) {
@@ -104,19 +167,91 @@ function isProvisionedReferenceEnvironment(environment) {
 		&& Array.isArray(environment.eligibleWorkloadIds)
 		&& environment.eligibleWorkloadIds.includes(M4_PARITY_WORKLOAD_ID)
 		&& isRecord(environment.fingerprint)
-		&& hasExactFields(environment.fingerprint, REFERENCE_FINGERPRINT_FIELDS)
-		&& !containsNullish(environment.fingerprint);
+		&& isValidReferenceFingerprint(environment.fingerprint);
 }
 
-function containsNullish(value) {
-	if (value === null || value === undefined) return true;
-	if (Array.isArray(value)) return value.some(containsNullish);
-	if (isRecord(value)) return Object.values(value).some(containsNullish);
-	return false;
+function isValidReferenceFingerprint(value) {
+	try {
+		validateReferenceFingerprint(value);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
-function hasExactFields(value, fields) {
-	return deepEqualJson(Object.keys(value).sort(), [...fields].sort());
+function validateReferenceFingerprint(value) {
+	const fingerprint = requireExactRecord(
+		snapshotStrictJsonData(value, 'reference fingerprint'),
+		M4_PARITY_REFERENCE_FINGERPRINT_FIELDS,
+		'reference fingerprint',
+	);
+	for (const field of [
+		'osImage', 'osUpdatePolicy', 'cpuModel', 'gpuModel', 'gpuDriver',
+		'webglVendor', 'webglRenderer', 'displayMode', 'powerProfile', 'browserVersion',
+	]) boundedString(fingerprint[field], field);
+	for (const field of ['logicalCpuCount', 'memoryBytes', 'gpuMemoryBytes']) {
+		if (!Number.isSafeInteger(fingerprint[field]) || fingerprint[field] < 1) {
+			throw new Error(`Reference fingerprint ${field} must be a positive safe integer.`);
+		}
+	}
+	for (const field of ['displayRefreshHz', 'devicePixelRatio']) {
+		if (!Number.isFinite(fingerprint[field]) || fingerprint[field] <= 0) {
+			throw new Error(`Reference fingerprint ${field} must be positive and finite.`);
+		}
+	}
+	if (typeof fingerprint.browserBinarySha256 !== 'string'
+		|| !/^[a-f\d]{64}$/u.test(fingerprint.browserBinarySha256)) {
+		throw new Error('Reference fingerprint browserBinarySha256 must be one lowercase SHA-256.');
+	}
+	validateStringArray(fingerprint.browserLaunchFlags, 'browserLaunchFlags', true);
+	validateStringArray(fingerprint.runnerLabels, 'runnerLabels', false);
+	return Object.freeze(fingerprint);
+}
+
+function validateBrowserObservation(value) {
+	const observation = requireExactRecord(
+		snapshotStrictJsonData(value, 'browser reference observation'),
+		BROWSER_OBSERVATION_FIELDS,
+		'browser reference observation',
+	);
+	for (const field of ['osImage', 'cpuModel', 'webglVendor', 'webglRenderer', 'browserVersion']) {
+		boundedString(observation[field], field);
+	}
+	for (const field of ['logicalCpuCount', 'memoryBytes']) {
+		if (!Number.isSafeInteger(observation[field]) || observation[field] < 1) {
+			throw new Error(`Browser reference observation ${field} must be a positive safe integer.`);
+		}
+	}
+	if (!Number.isFinite(observation.devicePixelRatio) || observation.devicePixelRatio <= 0) {
+		throw new Error('Browser reference observation devicePixelRatio must be positive and finite.');
+	}
+	if (typeof observation.browserBinarySha256 !== 'string'
+		|| !/^[a-f\d]{64}$/u.test(observation.browserBinarySha256)) {
+		throw new Error('Browser reference observation browserBinarySha256 must be one lowercase SHA-256.');
+	}
+	return Object.freeze(observation);
+}
+
+function requireExactRecord(value, fields, path) {
+	const record = requireRecord(value, path);
+	if (!deepEqualJson(Object.keys(record).sort(), [...fields].sort())) {
+		throw new Error(`${path} must contain the exact fields.`);
+	}
+	return record;
+}
+
+function boundedString(value, field) {
+	if (typeof value !== 'string' || value.length < 1 || value.length > 4_096) {
+		throw new Error(`Reference observation ${field} must be a bounded string.`);
+	}
+}
+
+function validateStringArray(value, field, allowEmpty) {
+	if (!Array.isArray(value) || (!allowEmpty && value.length === 0) || value.length > 128
+		|| value.some((entry) => typeof entry !== 'string' || entry.length < 1 || entry.length > 512)
+		|| new Set(value).size !== value.length) {
+		throw new Error(`Reference fingerprint ${field} must be a bounded unique string array.`);
+	}
 }
 
 function exactDescriptor(collection, id, label) {
@@ -139,19 +274,23 @@ function isRecord(value) {
 		&& (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
 
-function snapshotJsonData(value, path) {
-	if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
-	if (typeof value === 'number') {
-		if (!Number.isFinite(value)) throw new Error(`${path} must contain only finite JSON data.`);
-		return value;
-	}
-	if (Array.isArray(value)) return value.map((entry, index) => snapshotJsonData(entry, `${path}[${index}]`));
-	if (!isRecord(value)) throw new Error(`${path} must contain only plain JSON data.`);
-	const result = {};
-	for (const [key, entry] of Object.entries(value)) result[key] = snapshotJsonData(entry, `${path}.${key}`);
-	return result;
-}
-
 function deepEqualJson(left, right) {
 	return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function errorMessage(error) {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function ownEnvironmentString(environment, key) {
+	if (environment === null || (typeof environment !== 'object' && typeof environment !== 'function')) {
+		throw new Error('Collector environment must expose own data properties.');
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(environment, key);
+	if (!descriptor) return undefined;
+	if (!Object.hasOwn(descriptor, 'value')
+		|| (descriptor.value !== undefined && typeof descriptor.value !== 'string')) {
+		throw new Error(`Collector environment ${key} must be an own string data property.`);
+	}
+	return descriptor.value;
 }
