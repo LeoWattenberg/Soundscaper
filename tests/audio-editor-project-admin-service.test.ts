@@ -28,6 +28,8 @@ function createFixture() {
 	const sourceBuffers = new Map<string, unknown>();
 	const sourceChunkProviders = new Map<string, unknown>();
 	const sourcePeaks = new Map<string, unknown>();
+	let maintenanceCalls = 0;
+	let prunedProtectedSourceIds: Set<string> | null = null;
 	const state = {
 		readOnly: false,
 		recordingRouting: {},
@@ -65,6 +67,16 @@ function createFixture() {
 		openProject: async () => { openCalls += 1; },
 		persistSetting: async () => undefined,
 		projectSaveService: { cancelScheduled: noop, pendingSnapshots: [] },
+		projectMaintenanceRuntime: {
+			async reconcileAndCollectStorageRoots(request: unknown) {
+				maintenanceCalls += 1;
+				assert.deepEqual(request, {
+					currentProject: project,
+					pendingSaveSnapshots: [],
+				});
+				return { storageRoots: ['v18-proxy', 'v18-timing'] };
+			},
+		},
 		projectSessionService: { clearRecentProjects: async () => [] },
 		publishDocumentSnapshot: noop,
 		recordingRoutingSettingKey: (id) => `routing:${id}`,
@@ -95,6 +107,10 @@ function createFixture() {
 				return { id: 'copy', title: 'Copy', revision: 1 };
 			},
 			async listProjects() { return []; },
+			async pruneUnreferencedSources(options: { protectedSourceIds: Set<string> }) {
+				prunedProtectedSourceIds = new Set(options.protectedSourceIds);
+				return { deletedSourceIds: [] };
+			},
 			async prepareProjectHandoff() {
 				handoffCalls.push('prepare');
 				await prepareHandoff();
@@ -109,6 +125,8 @@ function createFixture() {
 		openCalls: () => openCalls,
 		releaseCalls: () => releaseCalls,
 		handoffCalls,
+		maintenanceCalls: () => maintenanceCalls,
+		prunedProtectedSourceIds: () => prunedProtectedSourceIds,
 		replaceProject() { project = { id: 'project-b', title: 'Project B', revision: 1 }; },
 		setFlush(value: () => Promise<void>) { flush = value; },
 		setPrepareHandoff(value: () => Promise<void>) { prepareHandoff = value; },
@@ -123,6 +141,13 @@ test('duplicate completion cannot act on a project replaced while saving', async
 	assert.equal(await pending, null);
 	assert.equal(fixture.duplicateCalls(), 0);
 	assert.equal(fixture.openCalls(), 0);
+});
+
+test('garbage collection settles product maintenance before pruning V18 roots', async () => {
+	const fixture = createFixture();
+	await fixture.service.garbageCollectSources();
+	assert.equal(fixture.maintenanceCalls(), 1);
+	assert.deepEqual(fixture.prunedProtectedSourceIds(), new Set(['v18-proxy', 'v18-timing']));
 });
 
 test('handoff checks project ownership again after its flush', async () => {
