@@ -300,7 +300,7 @@ test('recovery refuses corrupt journals, changed metadata, and stale leases with
 	}
 });
 
-test('stays isolated from V9, product entrypoints, project bodies, and IPC', async () => {
+test('keeps the catalog isolated while allowing only its maintained V10 lifecycle owners', async () => {
 	const source = await readSource(MODULE);
 	assert.deepEqual(importSpecifiers(source), [
 		'node:crypto',
@@ -318,9 +318,11 @@ test('stays isolated from V9, product entrypoints, project bodies, and IPC', asy
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
 	assert.deepEqual(references, [
+		'desktop/project-library-v10-lifecycle-host.ts',
 		'desktop/project-library-v10-main.ts',
 		'tests/desktop-project-library-packaging.test.js',
 		TEST_MODULE,
+		'tests/desktop-project-library-v10-lifecycle-host.test.ts',
 	]);
 	assert.ok(source.split('\n').length <= 600, 'catalog source must stay under 600 lines');
 });
