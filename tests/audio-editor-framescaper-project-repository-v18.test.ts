@@ -67,10 +67,11 @@ test('ordinary save preserves exact attachment bytes without promoting a new poi
 	const renamed = nextProject(attached);
 	(renamed as unknown as Record<string, unknown>).title = 'Renamed without pointer change';
 	assert.deepEqual(await repository.save(renamed), renamed);
-	assert.equal(delegate.saved, 1);
+	assert.equal(delegate.saved, 0);
+	assert.equal(delegate.casSaved, 1);
 	const next = nextProject(renamed);
 	assert.deepEqual(await repository.saveIfCurrent(renamed, next), next);
-	assert.equal(delegate.casSaved, 1);
+	assert.equal(delegate.casSaved, 2);
 });
 
 test('read, maintenance, and deletion remain delegated without V17 reinterpretation', async () => {
