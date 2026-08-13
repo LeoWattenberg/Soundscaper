@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createStableId } from '../common/editor/stable-id.js';
+import { throwIfScapeAborted } from '../common/editor/scape-abort.ts';
+import { createBlobScapeArchiveByteSource } from '../common/editor/scape-archive-byte-source.ts';
 import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import {
@@ -44,6 +46,11 @@ export interface FramescaperScapeNativeRuntimeV18 {
 		store: FramescaperScapeNativeStoreV18,
 		options: Parameters<FramescaperScapeProjectFileV18['exportProject']>[1],
 	) => ReturnType<FramescaperScapeProjectFileV18['exportProject']>;
+	readonly copyScapeArchive: (
+		input: Blob,
+		write: (bytes: Uint8Array) => void | PromiseLike<void>,
+		options: Readonly<{ signal: AbortSignal }>,
+	) => Promise<Readonly<{ byteLength: number; schemaVersion: 18 }>>;
 }
 
 /** Maps generic native-project choices onto exact V18 publication contracts. */
@@ -81,6 +88,39 @@ export function createFramescaperScapeNativeRuntimeV18(
 			_store: FramescaperScapeNativeStoreV18,
 			options: Parameters<FramescaperScapeProjectFileV18['exportProject']>[1],
 		) => file.exportProject(project, options),
+		copyScapeArchive: async (
+			input: Blob,
+			write: (bytes: Uint8Array) => void | PromiseLike<void>,
+			options: Readonly<{ signal: AbortSignal }>,
+		) => {
+			if (typeof write !== 'function') throw new TypeError('A V18 Scape archive copy sink is required.');
+			const signal = options?.signal;
+			if (!(signal instanceof AbortSignal)) throw new TypeError('A V18 Scape archive copy signal is required.');
+			const inspection = await file.inspectScapeProject(
+				input,
+				null,
+				{ signal },
+				{ retain() {} },
+			);
+			if (!inspection.readOnly || inspection.schemaVersion !== 18) {
+				throw new Error('Only an intrinsically read-only V18 Scape archive can be copied unchanged.');
+			}
+			throwIfScapeAborted(signal);
+			const source = createBlobScapeArchiveByteSource(input);
+			let offset = 0;
+			while (offset < source.size) {
+				throwIfScapeAborted(signal);
+				const bytes = await source.read({
+					offset,
+					length: Math.min(source.maximumReadBytes, source.size - offset),
+					signal,
+				});
+				await write(bytes);
+				offset += bytes.byteLength;
+			}
+			throwIfScapeAborted(signal);
+			return Object.freeze({ byteLength: offset, schemaVersion: 18 });
+		},
 	});
 }
 
