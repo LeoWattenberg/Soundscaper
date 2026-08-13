@@ -185,6 +185,59 @@ test('FFmpeg output streaming validates the stat result and preserves stat failu
 	assert.deepEqual(sink.events, ['abort:stat failed']);
 });
 
+test('FFmpeg output streaming rejects source, sink, and stat accessors without invoking them', async () => {
+	let sourceGetterCalls = 0;
+	const source = Object.create(null) as Record<string, unknown>;
+	Object.defineProperty(source, 'statFile', {
+		enumerable: true,
+		get() { sourceGetterCalls += 1; return async () => ({ size: 1 }); },
+	});
+	Object.defineProperty(source, 'readFileRange', {
+		enumerable: true,
+		value: async () => Uint8Array.of(1),
+	});
+	await assert.rejects(
+		streamFfmpegOutputFile(source as never, '/source.bin', new TestSink()),
+		/source\.statFile.*data property/u,
+	);
+	assert.equal(sourceGetterCalls, 0);
+
+	let sinkGetterCalls = 0;
+	const sink = Object.create(null) as Record<string, unknown>;
+	for (const key of ['open', 'write', 'close', 'abort']) {
+		Object.defineProperty(sink, key, key === 'write' ? {
+			enumerable: true,
+			get() { sinkGetterCalls += 1; return async () => undefined; },
+		} : {
+			enumerable: true,
+			value: async () => undefined,
+		});
+	}
+	await assert.rejects(
+		streamFfmpegOutputFile({
+			async statFile(): Promise<{ size: number }> { return { size: 1 }; },
+			async readFileRange(): Promise<Uint8Array> { return Uint8Array.of(1); },
+		}, '/sink.bin', sink as never),
+		/sink\.write.*data property/u,
+	);
+	assert.equal(sinkGetterCalls, 0);
+
+	let statGetterCalls = 0;
+	const stat = Object.create(null) as Record<string, unknown>;
+	Object.defineProperty(stat, 'size', {
+		enumerable: true,
+		get() { statGetterCalls += 1; return 1; },
+	});
+	await assert.rejects(
+		streamFfmpegOutputFile({
+			async statFile(): Promise<{ size: number }> { return stat as { size: number }; },
+			async readFileRange(): Promise<Uint8Array> { return Uint8Array.of(1); },
+		}, '/stat.bin', new TestSink()),
+		/stat\.size.*data property/u,
+	);
+	assert.equal(statGetterCalls, 0);
+});
+
 test('FFmpeg output streaming rejects zero, short, oversized, and non-byte ranges', async () => {
 	const cases: ReadonlyArray<readonly [string, unknown, RegExp]> = [
 		['no progress', new Uint8Array(0), /made no forward progress/u],

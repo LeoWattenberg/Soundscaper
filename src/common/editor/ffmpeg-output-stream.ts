@@ -71,62 +71,104 @@ export async function streamFfmpegOutputFile<Output>(
 	options: FfmpegOutputStreamOptions = {},
 ): Promise<FfmpegOutputStreamResult<Output>> {
 	try {
-		validateSource(source);
-		validateSink(sink);
+		const admittedSource = normalizeSource(source);
+		const admittedSink = normalizeSink(sink);
+		const settings = normalizeOptions(options);
 		validatePath(path);
-		const maximumChunkBytes = normalizeMaximumChunkBytes(options.maximumChunkBytes);
-		assertFfmpegOutputReady(options);
-		const stat = await source.statFile(path, signalOptions(options.signal));
-		assertFfmpegOutputReady(options);
+		const maximumChunkBytes = normalizeMaximumChunkBytes(settings.maximumChunkBytes);
+		assertFfmpegOutputReady(settings);
+		const stat = await admittedSource.statFile(path, signalOptions(settings.signal));
+		assertFfmpegOutputReady(settings);
 		const byteLength = normalizeFileSize(stat);
-		await sink.open(byteLength);
-		assertFfmpegOutputReady(options);
+		await admittedSink.open(byteLength);
+		assertFfmpegOutputReady(settings);
 
 		let offset = 0;
 		let chunkCount = 0;
 		while (offset < byteLength) {
-			assertFfmpegOutputReady(options);
+			assertFfmpegOutputReady(settings);
 			const requestedByteLength = Math.min(maximumChunkBytes, byteLength - offset);
-			const chunk: unknown = await source.readFileRange(
+			const chunk: unknown = await admittedSource.readFileRange(
 				path,
 				offset,
 				requestedByteLength,
-				signalOptions(options.signal),
+				signalOptions(settings.signal),
 			);
-			assertFfmpegOutputReady(options);
+			assertFfmpegOutputReady(settings);
 			validateRange(chunk, requestedByteLength, offset);
-			await sink.write(chunk);
-			assertFfmpegOutputReady(options);
+			await admittedSink.write(chunk);
+			assertFfmpegOutputReady(settings);
 			offset += chunk.byteLength;
 			chunkCount += 1;
 		}
 		if (offset !== byteLength) {
 			throw new Error('FFmpeg output stream did not reach the exact statted byte length.');
 		}
-		const output = await sink.close();
-		assertFfmpegOutputReady(options);
+		const output = await admittedSink.close();
+		assertFfmpegOutputReady(settings);
 		return Object.freeze({ output, byteLength, chunkCount });
 	} catch (primary) {
 		throw await abortFfmpegOutputSink(sink, primary);
 	}
 }
 
-function validateSource(source: FfmpegOutputFileSource): void {
-	if (!source || typeof source.statFile !== 'function' || typeof source.readFileRange !== 'function') {
-		throw new TypeError('Expected an FFmpeg output source with statFile and readFileRange methods.');
-	}
+function normalizeSource(source: FfmpegOutputFileSource): FfmpegOutputFileSource {
+	const statFile = dataMethod(source, 'statFile', 'FFmpeg output source');
+	const readFileRange = dataMethod(source, 'readFileRange', 'FFmpeg output source');
+	return Object.freeze({
+		statFile(path: string, options?: Readonly<{ signal?: AbortSignal }>) {
+			return Reflect.apply(statFile, source, [path, options]) as PromiseLike<FfmpegOutputFileStat>;
+		},
+		readFileRange(
+			path: string,
+			offset: number,
+			maximumBytes: number,
+			options?: Readonly<{ signal?: AbortSignal }>,
+		) {
+			return Reflect.apply(
+				readFileRange, source, [path, offset, maximumBytes, options],
+			) as PromiseLike<Uint8Array>;
+		},
+	});
 }
 
-function validateSink<Output>(sink: FfmpegOutputSink<Output>): void {
-	if (
-		!sink
-		|| typeof sink.open !== 'function'
-		|| typeof sink.write !== 'function'
-		|| typeof sink.close !== 'function'
-		|| typeof sink.abort !== 'function'
-	) {
-		throw new TypeError('Expected an FFmpeg output sink with open, write, close, and abort methods.');
+function normalizeSink<Output>(sink: FfmpegOutputSink<Output>): FfmpegOutputSink<Output> {
+	const open = dataMethod(sink, 'open', 'FFmpeg output sink');
+	const write = dataMethod(sink, 'write', 'FFmpeg output sink');
+	const close = dataMethod(sink, 'close', 'FFmpeg output sink');
+	const abort = dataMethod(sink, 'abort', 'FFmpeg output sink');
+	return Object.freeze({
+		open(exactByteLength: number) {
+			return Reflect.apply(open, sink, [exactByteLength]) as Promise<void>;
+		},
+		write(chunk: Uint8Array) { return Reflect.apply(write, sink, [chunk]) as Promise<void>; },
+		close() { return Reflect.apply(close, sink, []) as Promise<Output>; },
+		abort(reason?: unknown) { return Reflect.apply(abort, sink, [reason]) as Promise<void>; },
+	});
+}
+
+function normalizeOptions(value: FfmpegOutputStreamOptions): FfmpegOutputStreamOptions {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('FFmpeg output stream options must be an object.');
 	}
+	const admitted: { signal?: AbortSignal | null; assertCurrent?: () => void; maximumChunkBytes?: number } = {};
+	for (const key of Reflect.ownKeys(value)) {
+		if (key !== 'signal' && key !== 'assertCurrent' && key !== 'maximumChunkBytes') {
+			throw new TypeError('FFmpeg output stream options have an unsupported field.');
+		}
+		const member = ownData(value, key, 'FFmpeg output stream options');
+		if (key === 'signal') admitted.signal = member as AbortSignal | null | undefined;
+		else if (key === 'assertCurrent') admitted.assertCurrent = member as (() => void) | undefined;
+		else admitted.maximumChunkBytes = member as number | undefined;
+	}
+	if (admitted.signal !== undefined && admitted.signal !== null
+		&& (typeof AbortSignal !== 'function' || !(admitted.signal instanceof AbortSignal))) {
+		throw new TypeError('FFmpeg output stream signal must be an AbortSignal.');
+	}
+	if (admitted.assertCurrent !== undefined && typeof admitted.assertCurrent !== 'function') {
+		throw new TypeError('FFmpeg output stream assertCurrent must be a function.');
+	}
+	return Object.freeze(admitted);
 }
 
 function validatePath(path: string): void {
@@ -150,8 +192,8 @@ function normalizeMaximumChunkBytes(value: number | undefined): number {
 }
 
 function normalizeFileSize(stat: unknown): number {
-	const size = stat && typeof stat === 'object' && 'size' in stat
-		? (stat as { readonly size?: unknown }).size
+	const size = stat && typeof stat === 'object'
+		? ownData(stat, 'size', 'FFmpeg output stat')
 		: undefined;
 	if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0) {
 		throw new RangeError('FFmpeg output file size must be a safe non-negative integer.');
@@ -192,9 +234,10 @@ export async function abortFfmpegOutputSink<Output>(
 	sink: FfmpegOutputSink<Output>,
 	primary: unknown,
 ): Promise<unknown> {
-	if (!sink || typeof sink.abort !== 'function') return primary;
+	let abort: (...arguments_: never[]) => unknown;
+	try { abort = dataMethod(sink, 'abort', 'FFmpeg output sink'); } catch { return primary; }
 	try {
-		await sink.abort(primary);
+		await Reflect.apply(abort, sink, [primary]);
 		return primary;
 	} catch (cleanup) {
 		return new AggregateError(
@@ -202,6 +245,32 @@ export async function abortFfmpegOutputSink<Output>(
 			'FFmpeg output operation failed and its sink could not be aborted.',
 		);
 	}
+}
+
+function dataMethod(value: unknown, key: string, name: string): (...arguments_: never[]) => unknown {
+	if (!value || (typeof value !== 'object' && typeof value !== 'function')) {
+		throw new TypeError(`${name} must be an object.`);
+	}
+	let owner: object | null = value;
+	while (owner) {
+		const descriptor = Object.getOwnPropertyDescriptor(owner, key);
+		if (descriptor) {
+			if (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') {
+				throw new TypeError(`${name}.${key} must be a data property function.`);
+			}
+			return descriptor.value as (...arguments_: never[]) => unknown;
+		}
+		owner = Object.getPrototypeOf(owner) as object | null;
+	}
+	throw new TypeError(`${name}.${key} must be a data property function.`);
+}
+
+function ownData(value: object, key: PropertyKey, name: string): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(`${name}.${String(key)} must be an own data property.`);
+	}
+	return descriptor.value;
 }
 
 function createAbortError(): Error {

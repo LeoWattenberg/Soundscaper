@@ -27,6 +27,7 @@ import {
 } from './ffmpeg-video-timing-probe.ts';
 import { isFfmpegSourceCharacteristicsLog, parseFfmpegVideoSourceCharacteristics } from './ffmpeg-video-source-characteristics.ts';
 import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
+import { createVideoKeyframeEncoderOperationRunner } from './video-keyframe-ffmpeg-operation.ts';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
@@ -209,16 +210,19 @@ export function createEditorFfmpeg(options = {}) {
 		}
 	}
 
-	function run(task) {
+	function run(task, beforeLoad) {
 		assertActive();
 		cancelIdleTeardown();
 		const operationGeneration = generation;
 		pendingOperations += 1;
 		const execute = async () => {
+			beforeLoad?.();
 			assertGeneration(operationGeneration);
 			const instance = await load();
 			assertGeneration(operationGeneration);
-			return task(instance);
+			const result = await task(instance);
+			assertGeneration(operationGeneration);
+			return result;
 		};
 		const result = queue.then(execute, execute);
 		queue = result.catch(() => undefined);
@@ -227,7 +231,6 @@ export function createEditorFfmpeg(options = {}) {
 			if (!disposed && pendingOperations === 0) scheduleIdleTeardown();
 		});
 	}
-
 	async function encode(wav, format, settings = {}) {
 		const normalizedFormat = canonicalMediaExportFormat(format);
 		const descriptor = getMediaExportFormat(normalizedFormat);
@@ -530,10 +533,12 @@ export function createEditorFfmpeg(options = {}) {
 	function assertGeneration(expected) {
 		if (disposed || generation !== expected) throw new FfmpegDisposedError();
 	}
-
+	const runVideoKeyframeEncoderOperation = createVideoKeyframeEncoderOperationRunner(
+		run, terminateRuntime, (instance) => terminatedInstances.has(instance));
 	return {
 		load, encode, encodeFile, encodeFileToSink, encodeVideo, encodeVideoToSink,
-		decode, probeVideoTiming, conformVideoToCfr, dispose, capabilities: () => capabilities,
+		decode, probeVideoTiming, conformVideoToCfr, runVideoKeyframeEncoderOperation,
+		dispose, capabilities: () => capabilities,
 	};
 }
 
