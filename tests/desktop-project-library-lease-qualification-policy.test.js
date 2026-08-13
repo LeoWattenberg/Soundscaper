@@ -43,6 +43,32 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.match(`${v9.summary} ${v10.summary}`, /separate.*(?:scope|database|storage).*cross-product.*isolation/isu);
 });
 
+test('roadmap preserves the frozen M2 inventory as history without re-admitting Framescaper V17', async () => {
+	const closure = await json('config/milestone-2-closure.json');
+	const item = closure.items.find(({ id }) => id === 'm2-electron-lease-matrix');
+	assert.equal(closure.scopeRevision, 2);
+	assert.deepEqual(item.workflowIds, [
+		'same-project-simultaneous-open',
+		'cross-product-simultaneous-open',
+		'writer-lease-transfer',
+		'stale-lease-takeover',
+		'conflicting-canonical-commit',
+		'renderer-loss-during-operation',
+		'orderly-process-restart',
+		'crash-restart-recovery',
+	]);
+
+	const roadmap = await text('roadmap.md');
+	assert.match(roadmap, /eight.*workflow.*frozen historical.*V9.*V17/isu);
+	assert.match(roadmap, /current executable qualification.*Soundscaper V9.*Framescaper V10/isu);
+	assert.match(roadmap, /does not.*re-admit.*Framescaper V17/isu);
+	assert.match(roadmap, /Windows x64.*Linux x64.*accepted packaged results.*absent.*Partial/isu);
+});
+
 async function json(path) {
-	return JSON.parse(await readFile(new URL(path, ROOT), 'utf8'));
+	return JSON.parse(await text(path));
+}
+
+async function text(path) {
+	return readFile(new URL(path, ROOT), 'utf8');
 }
