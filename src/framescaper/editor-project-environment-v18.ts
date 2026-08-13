@@ -8,6 +8,11 @@ import {
 	createFramescaperPlaybackProjectServiceV18,
 } from './editor-project-playback-v18.ts';
 import {
+	connectFramescaperDesktopProjectLibraryV10Renderer,
+	type FramescaperDesktopProjectLibraryV10Renderer,
+	type FramescaperDesktopProjectLibraryV10ShadowStore,
+} from './desktop-project-library-v10-renderer.ts';
+import {
 	createEditorProjectRuntimeV18Selection,
 	type EditorProjectRuntimeV18Selection,
 } from './editor-project-runtime-v18-selection.ts';
@@ -49,6 +54,7 @@ export interface FramescaperEditorProjectEnvironmentV18 {
 	readonly store: AudioEditorProjectStore;
 	readonly archive: FramescaperScapeArchiveV18;
 	readonly scapeProjectFile: FramescaperScapeProjectFileV18;
+	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV10Renderer | null;
 	readonly playback: PlaybackProjectService;
 	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
 	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
@@ -99,6 +105,13 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 				...(options.createGeneration ? { createGeneration: options.createGeneration } : {}),
 			},
 		);
+		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryV10Renderer(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+			{
+				store: store as unknown as FramescaperDesktopProjectLibraryV10ShadowStore,
+				archive,
+			},
+		);
 		const scapeProjectFile = new FramescaperScapeProjectFileV18(
 			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			{
@@ -110,6 +123,7 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 			runtime,
 			store,
 			archive,
+			desktopProjectLibrary,
 			scapeProjectFile,
 			playback: createFramescaperPlaybackProjectServiceV18(
 				FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
