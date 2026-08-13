@@ -56,6 +56,17 @@ test('the V18 exit cohort validates every exact drift checkpoint and refuses tam
 		() => validateM3FramescaperV18ExitWorkload(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, tampered),
 		/drift/iu,
 	);
+	const changedProject = structuredClone(workload) as unknown as {
+		project: { title: string };
+	};
+	changedProject.project.title = 'A different valid project';
+	assert.throws(
+		() => validateM3FramescaperV18ExitWorkload(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+			changedProject,
+		),
+		/exact.*cohort|cohort.*changed/iu,
+	);
 });
 
 test('the cohort authenticates the exact profile before observing workload input', () => {
