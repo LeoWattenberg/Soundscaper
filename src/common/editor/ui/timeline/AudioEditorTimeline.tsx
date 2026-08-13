@@ -9,6 +9,7 @@ interface TimelineSearchRevealRequest {
 interface AudioEditorTimelineProps {
 	readonly controller: EditorController;
 	readonly snapshot: EditorSnapshot;
+	readonly runtimeProject?: Readonly<Record<string, unknown>> | null;
 	readonly locale: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly mobile: boolean;
@@ -31,6 +32,7 @@ interface AudioEditorTimelineProps {
 export default function AudioEditorTimeline({
 	controller,
 	snapshot,
+	runtimeProject = null,
 	locale,
 	copy,
 	mobile,
@@ -67,6 +69,7 @@ export default function AudioEditorTimeline({
 		<TimelineController
 			controller={controller}
 			snapshot={snapshot}
+			runtimeProject={runtimeProject}
 			locale={locale}
 			copy={copy}
 			geometry={geometry}

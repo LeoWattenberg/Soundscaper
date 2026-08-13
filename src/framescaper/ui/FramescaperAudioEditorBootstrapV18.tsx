@@ -17,6 +17,10 @@ const BoundAudioEditorApp = lazy(async () => {
 
 type FramescaperWebControllerV18 = ReturnType<typeof createFramescaperAudioEditorControllerV18>;
 type FramescaperWebFileServiceV18 = ReturnType<typeof createAudioEditorFileService>;
+type FramescaperProjectRuntimeProjectionV18 =
+	FramescaperEditorProjectEnvironmentV18['runtime']['projectForRuntimeConsumers'];
+
+const RUNTIME_PROJECTORS = new WeakMap<object, FramescaperProjectRuntimeProjectionV18>();
 
 export interface FramescaperWebEditorRuntimePresentationV18 {
 	readonly locale: string;
@@ -57,7 +61,9 @@ export async function createFramescaperWebEditorRuntimeV18(
 			disposal ??= disposeRuntime(controller, environment);
 			return disposal;
 		};
-		return Object.freeze({ controller, fileService, dispose });
+		const runtime = Object.freeze({ controller, fileService, dispose });
+		RUNTIME_PROJECTORS.set(runtime, environment.runtime.projectForRuntimeConsumers);
+		return runtime;
 	} catch (error) {
 		try { await environment.close(); }
 		catch (cleanupError) {
@@ -142,8 +148,17 @@ export default function FramescaperAudioEditorBootstrapV18({
 			productId="framescaper"
 			controller={runtime.controller}
 			fileService={runtime.fileService}
+			projectForRuntimeConsumers={runtimeProjector(runtime)}
 		/>
 	</Suspense>;
+}
+
+function runtimeProjector(
+	runtime: Readonly<FramescaperWebEditorRuntimeV18>,
+): FramescaperProjectRuntimeProjectionV18 {
+	const projector = RUNTIME_PROJECTORS.get(runtime);
+	if (!projector) throw new TypeError('An exact Framescaper V18 web runtime is required.');
+	return projector;
 }
 
 async function disposeRuntime(

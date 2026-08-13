@@ -14,6 +14,7 @@ import { useTimelineViewportModel } from './useTimelineViewportModel.js';
 export default function TimelineController({
 	controller,
 	snapshot,
+	runtimeProject,
 	locale,
 	copy,
 	geometry: geometryInput,
@@ -41,6 +42,7 @@ export default function TimelineController({
 	const model = useTimelineViewportModel({
 		controller,
 		snapshot,
+		runtimeProject,
 		mobile,
 		showArmControls,
 		state,

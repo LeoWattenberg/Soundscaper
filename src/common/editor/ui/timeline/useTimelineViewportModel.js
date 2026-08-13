@@ -29,6 +29,7 @@ import { timelineAnnotationsAvailable } from './timeline-annotation-ui-model.ts'
 export function useTimelineViewportModel({
 	controller,
 	snapshot,
+	runtimeProject,
 	mobile,
 	showArmControls,
 	state,
@@ -45,8 +46,8 @@ export function useTimelineViewportModel({
 	} = state;
 	const persistedProject = snapshot.project;
 	const project = useMemo(
-		() => persistedProject ? resolveRuntimeProjectProjection(persistedProject) : null,
-		[persistedProject],
+		() => runtimeProject ?? (persistedProject ? resolveRuntimeProjectProjection(persistedProject) : null),
+		[persistedProject, runtimeProject],
 	);
 	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
 	const { activeProfile } = useAccessibilityProfile();

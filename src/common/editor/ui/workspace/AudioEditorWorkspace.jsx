@@ -39,6 +39,7 @@ export default function AudioEditorWorkspace({
 	productId = 'soundscaper',
 	controller,
 	fileService,
+	projectForRuntimeConsumers,
 }) {
 	const product = useMemo(() => productProfile(productId), [productId]);
 	const capabilities = product.capabilities;
@@ -88,6 +89,9 @@ export default function AudioEditorWorkspace({
 	const isCompact = useMediaQuery('(max-width: 900px)');
 	const isProjectBinCompact = useMediaQuery('(max-width: 520px)');
 	const project = snapshot.project;
+	const runtimeProject = useMemo(() => (
+		project && projectForRuntimeConsumers ? projectForRuntimeConsumers(project) : null
+	), [project, projectForRuntimeConsumers]);
 	const preferences = snapshot.preferences;
 	const isVideoEditorWorkspace = preferences?.workspace?.activeId === 'video-editor';
 	const projectBinPreferenceVisible = preferences?.workspace?.panels?.['project-bin']?.visible === true;
@@ -281,7 +285,7 @@ export default function AudioEditorWorkspace({
 		});
 	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
 
-	const durationFrames = project ? projectDurationFrames(project) : 0;
+	const durationFrames = project ? projectDurationFrames(runtimeProject ?? project) : 0;
 	const statusMessage = localError || snapshot.status?.message || copy.ready;
 	const statusState = localError ? 'error' : snapshot.status?.state || 'info';
 	const aup4Compatibility = snapshot.aup4Compatibility;
@@ -554,6 +558,7 @@ export default function AudioEditorWorkspace({
 		preferencesPage,
 		productId,
 		project,
+		runtimeProject,
 		projectBinEffectivelyOpen,
 		recordingMeterSettings,
 		revealProjectBin,

@@ -64,6 +64,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		preferences,
 		productId,
 		project,
+		runtimeProject,
 		projectBinEffectivelyOpen,
 		recordingMeterSettings,
 		revealProjectBin,
@@ -315,6 +316,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					<AudioEditorTimeline
 						controller={controller}
 						snapshot={snapshot}
+						runtimeProject={runtimeProject}
 						locale={locale}
 						copy={copy}
 						mobile={isCompact}
