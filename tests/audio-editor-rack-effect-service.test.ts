@@ -248,18 +248,50 @@ test('rack gestures never configure a switched project or a replaced target', ()
 test('rack gesture no-op, read-only, supersession, and commit rollback paths are safe', () => {
 	const harness = createHarness();
 	const original = harness.service.beginRackEffectGesture('track', 'track-1', 'delay-1');
+	harness.service.previewRackEffect('track', 'track-1', 'delay-1', { feedback: 0.8 });
 	harness.service.commitRackEffectGesture('track', 'track-1', 'delay-1', original);
 	assert.equal(harness.commands.length, 0);
-	assert.equal(harness.rackConfigurations.length, 0);
+	assert.deepEqual(harness.rackConfigurations.at(-1)?.params, original);
 	assert.equal(harness.service.cancelRackEffectGesture('track', 'track-1', 'delay-1'), false);
 
+	harness.state.readOnly = true;
+	assert.throws(
+		() => harness.service.beginRackEffectGesture('track', 'track-1', 'delay-1'),
+		/read only/iu,
+	);
+	assert.throws(
+		() => harness.service.previewRackEffect('track', 'track-1', 'delay-1', { feedback: 0.8 }),
+		/read only/iu,
+	);
+	assert.equal(harness.rackConfigurations.length, 2);
+	assert.equal(harness.state.rackEffectGestures.size, 0);
+
+	harness.state.readOnly = false;
+	harness.service.beginRackEffectGesture('track', 'track-1', 'delay-1');
+	harness.service.previewRackEffect('track', 'track-1', 'delay-1', { feedback: 0.7 });
 	harness.state.readOnly = true;
 	assert.throws(
 		() => harness.service.commitRackEffectGesture('track', 'track-1', 'delay-1', original),
 		/read only/iu,
 	);
-	harness.state.readOnly = false;
+	assert.deepEqual(harness.rackConfigurations.at(-1)?.params, original);
+	assert.equal(harness.commands.length, 0);
+	assert.equal(harness.state.rackEffectGestures.size, 0);
 
+	harness.state.readOnly = false;
+	const originalEq = harness.service.beginParametricEqGesture('track', 'track-1', 'eq-1');
+	const eqBands = originalEq.bands as readonly Readonly<Record<string, unknown>>[];
+	harness.service.previewParametricEq('track', 'track-1', 'eq-1', {
+		...originalEq,
+		bands: eqBands.map((band, index) => index === 0 ? { ...band, gain: 8 } : band),
+	});
+	harness.state.readOnly = true;
+	assert.notEqual(harness.service.cancelParametricEqGesture('track', 'track-1', 'eq-1'), false);
+	assert.deepEqual(harness.eqConfigurations.at(-1)?.params, originalEq);
+	assert.equal(harness.eqConfigurations.at(-1)?.transitionFrames, 0);
+	assert.equal(harness.state.parametricEqGestures.size, 0);
+
+	harness.state.readOnly = false;
 	harness.service.beginRackEffectGesture('track', 'track-1', 'delay-1');
 	harness.setCommitFailure(new Error('commit failed'));
 	assert.throws(
