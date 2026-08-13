@@ -179,12 +179,13 @@ canonical `npm run check`. No browser row is required.
 The implemented slice contains only the generic opaque owner, exact dormant
 Framescaper singleton, and focused proof. It authorizes no
 maintained consumer or behavior, global registry or product-profile edit,
-c1a/final-profile composition, selector, V18 schema or archive behavior,
-requirement registration, compatibility change, proxy storage/attachment/use,
-desktop v10, UI/menu, or Soundscaper change. The first reachable token
-composition and selector remain the full atomic c-c transition, whose strict
-RED must be separately reviewed and decomposed before production changes. The
-next contract-first decomposition is the dormant final
+c1a mutation, selector, V18 schema or archive behavior, requirement
+registration, compatibility change, proxy storage/attachment/use, desktop v10,
+UI/menu, or Soundscaper change. Separately reviewed c1c may import and
+authenticate this exact token solely inside an unreachable final profile. The
+first reachable use and selector remain the full atomic c-c transition, whose
+strict RED must be separately reviewed before production changes. The next
+contract-first decomposition is the dormant final
 [Framescaper runtime profile](milestone-3b-framescaper-runtime-profile.md),
 which remains unreachable and grants no selection authority.
 

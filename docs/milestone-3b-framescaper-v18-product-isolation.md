@@ -30,7 +30,7 @@ composition cannot land and fail closed together, stop before selection.
 Add one generic strict owner at
 `src/common/editor/project-runtime-profile.ts`. It exports an opaque
 `EditorProjectRuntimeProfile`, a descriptor-snapshotting creator, and an
-identity-authenticating internal resolver. Tokens are fresh, frozen,
+identity-authenticating definition accessor. Tokens are fresh, frozen,
 null-prototype, zero-key objects held by a private `WeakMap`. The resolver does
 the private lookup before inspecting public data; clones, spreads,
 serialization, structured clones, and Proxy wrappers refuse with zero traps.
@@ -45,14 +45,18 @@ literals, generic callbacks, or independently selectable booleans:
 }
 ```
 
-The prerequisite's authenticated snapshot owns the exact owner, V18, archive,
-desktop, and c-c0 storage literals. Shared consumers may resolve those children
-only after authenticating the final profile; no flattened definition grants
-authority.
+The accessor returns only the stable frozen child-token pair after
+authenticating the final token; it grants no independently supplied child or
+override authority. The prerequisite's authenticated snapshot owns the exact
+owner, V18, archive, desktop, and c-c0 storage literals. Shared consumers must
+capture the final token and may resolve its children only from it; no flattened
+definition grants authority.
 
 The exact product-owned singleton lives under `src/framescaper/` and is not
-barrel-exported. It composes the exact c-c0 storage token. Equal definitions do
-not grant the singleton's selection authority. That identity is process-local
+barrel-exported. It composes the exact c1a and c1b tokens; c1a transitively
+authenticates the exact c-c0 storage token. Equal definitions, other authentic
+children, and a fresh token over the same exact children do not grant the
+singleton's selection authority. That identity is process-local
 and JS-realm-local; it is never serialized, cloned, or sent over IPC. Each
 Framescaper main, preload, renderer, worker, or browser realm owns or receives
 its own maintained singleton through its composition root. Cross-realm
@@ -84,7 +88,8 @@ unreachable.
 
 The first selector is a Framescaper-owned bootstrap adapter. It supplies the
 one exact token once, before store, session, controller, archive, lock, file,
-or desktop construction. Shared owners may consume the authenticated resolved
+or desktop construction. It rejects every other token identity before resolving
+children or causing side effects. Shared owners may consume the authenticated resolved
 profile, but must not infer it from `productId`, routes, URLs, globals, or
 ambient product state. `/en` and every Soundscaper/ordinary test path must not
 import the Framescaper singleton. An absent or exact `undefined` profile keeps
@@ -206,7 +211,9 @@ the first selector lands.
 
 ## Hard stops
 
-This contract authorizes no V18 validator, final runtime token, profile
+This contract authorizes no V18 validator or reachable runtime profile. The
+separately reviewed c1c contract may add only the unreachable final runtime
+token, its generic owner, and focused proof. This contract authorizes no profile
 selector, capability registration, archive format, storage claim, controller
 wiring, desktop v10 path, UI, menu, preview, or Soundscaper change. Dormant c1a
 and c1b are implemented. The next executable step is a separately reviewed

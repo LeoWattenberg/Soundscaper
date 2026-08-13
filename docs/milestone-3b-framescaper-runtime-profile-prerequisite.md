@@ -207,8 +207,10 @@ which may retain only the exact c1a and c1b identities and remains unreachable.
 ## Hard stops
 
 This slice authorizes only the generic prerequisite owner, exact product token,
-and their strict proof. It does not authorize `EditorProjectRuntimeProfile`, a
-capability token or registration, a selector, bootstrap/app option, V18
+and their strict proof. Separately reviewed c1c may import and authenticate that
+exact token solely inside an unreachable `EditorProjectRuntimeProfile`. This
+slice does not authorize any other runtime profile, a capability registration,
+a selector, bootstrap/app option, V18
 constructor or validator, c-c0 storage selection, archive format 2, retention,
 repository claims, controller wiring, cross-realm handshake, desktop v10,
 proxy staging or attachment, menu/UI, or Soundscaper change.
