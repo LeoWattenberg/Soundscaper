@@ -73,6 +73,7 @@ export {
 	createReplaceClipSourceCommand,
 	createResizeTimelineAnnotationCommand,
 	createSetTempoMapModeCommand,
+	createSetVideoKeyframesCommand,
 	createUpdateSequenceTimingCommand,
 	createUpdateSignatureEventCommand,
 	createUpdateTempoEventCommand,

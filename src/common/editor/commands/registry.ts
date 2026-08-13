@@ -75,6 +75,12 @@ import {
 	type VideoCompositionCommandHandlers,
 	type VideoCompositionCommandType,
 } from './video-composition.ts';
+import {
+	defineVideoKeyframesCommandHandlers,
+	VIDEO_KEYFRAMES_COMMAND_TYPES,
+	type VideoKeyframesCommandHandlers,
+	type VideoKeyframesCommandType,
+} from './video-keyframes.ts';
 
 export {
 	AUDIO_WARP_COMMAND_TYPES,
@@ -88,6 +94,7 @@ export {
 	defineTakeCompCommandHandlers,
 	defineTimelineAnnotationCommandHandlers,
 	defineVideoCompositionCommandHandlers,
+	defineVideoKeyframesCommandHandlers,
 	defineTrackFolderCommandHandlers,
 	defineTrackMixerLabelCommandHandlers,
 	EFFECTS_VIDEO_COMMAND_TYPES,
@@ -97,6 +104,7 @@ export {
 	TAKE_COMP_COMMAND_TYPES,
 	TIMELINE_ANNOTATION_COMMAND_TYPES,
 	VIDEO_COMPOSITION_COMMAND_TYPES,
+	VIDEO_KEYFRAMES_COMMAND_TYPES,
 	TRACK_FOLDER_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
 };
@@ -113,6 +121,7 @@ export interface EditorCommandHandlerDomains {
 	readonly effectsVideo: EffectsVideoCommandHandlers;
 	readonly timelineAnnotation: TimelineAnnotationCommandHandlers;
 	readonly videoComposition: VideoCompositionCommandHandlers;
+	readonly videoKeyframes: VideoKeyframesCommandHandlers;
 }
 
 type RegisteredDomainCommandType =
@@ -126,7 +135,8 @@ type RegisteredDomainCommandType =
 	| ClipRangeClipboardCommandType
 	| EffectsVideoCommandType
 	| TimelineAnnotationCommandType
-	| VideoCompositionCommandType;
+	| VideoCompositionCommandType
+	| VideoKeyframesCommandType;
 
 type DomainsAreExhaustive = [
 	Exclude<AudioEditorCommandType, RegisteredDomainCommandType>,
@@ -155,6 +165,7 @@ export function defineEditorCommandHandlerRegistry(
 		defineEffectsVideoCommandHandlers(domains.effectsVideo),
 		defineTimelineAnnotationCommandHandlers(domains.timelineAnnotation),
 		defineVideoCompositionCommandHandlers(domains.videoComposition),
+		defineVideoKeyframesCommandHandlers(domains.videoKeyframes),
 	] as const;
 	const combined: Partial<Record<AudioEditorCommandType, EditorCommandHandler>> = {};
 	for (const domain of domainRegistries) {

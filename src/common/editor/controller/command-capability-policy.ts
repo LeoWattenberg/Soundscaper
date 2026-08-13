@@ -16,6 +16,7 @@ export interface EditorCommandCapabilities {
 	readonly trackFolders: boolean;
 	readonly videoEffects: boolean;
 	readonly videoGeometry?: boolean;
+	readonly videoKeyframes?: boolean;
 }
 
 /**
@@ -41,6 +42,12 @@ export function assertEditorCommandCapabilities(
 	}
 	if (!capabilities.videoGeometry && command.type.startsWith('video-composition/')) {
 		unsupported(productName, 'videoGeometry');
+	}
+	if (!capabilities.videoKeyframes && command.type.startsWith('video-keyframes/')) {
+		unsupported(productName, 'videoKeyframes');
+	}
+	if (!capabilities.videoKeyframes && commandRequiresVideoKeyframesCapability(command)) {
+		unsupported(productName, 'videoKeyframes');
 	}
 	if (!capabilities.videoGeometry && commandRequiresVideoGeometryCapability(command)) {
 		unsupported(productName, 'videoGeometry');
@@ -137,8 +144,35 @@ function commandRequiresVideoGeometryCapability(command: AudioEditorCommand): bo
 			return nestedPayloadHasField(command, 'changes', 'videoComposition');
 		case 'clip/transform-many':
 			return transformListHasField(command, 'videoComposition');
+		case 'project-bin/replace-media':
+			return optionalArrayPayloadHasField(command, 'templates', 'videoComposition');
+		case 'take-comp/flatten':
+			return nestedPayloadHasField(command, 'clip', 'videoComposition');
 		case 'clipboard/paste':
 			return clipboardRequiresVideoGeometryCapability(command.clipboard);
+		default:
+			return false;
+	}
+}
+
+/** Cover generic carriers so unavailable products cannot publish V20 state. */
+function commandRequiresVideoKeyframesCapability(command: AudioEditorCommand): boolean {
+	switch (command.type) {
+		case 'clip/add':
+		case 'project-bin/add':
+			return nestedPayloadHasField(command, 'clip', 'videoKeyframes');
+		case 'clip/update':
+		case 'project-bin/update':
+		case 'clip/overwrite':
+			return nestedPayloadHasField(command, 'changes', 'videoKeyframes');
+		case 'clip/transform-many':
+			return transformListHasField(command, 'videoKeyframes');
+		case 'project-bin/replace-media':
+			return optionalArrayPayloadHasField(command, 'templates', 'videoKeyframes');
+		case 'take-comp/flatten':
+			return nestedPayloadHasField(command, 'clip', 'videoKeyframes');
+		case 'clipboard/paste':
+			return clipboardClipHasField(command.clipboard, 'videoKeyframes');
 		default:
 			return false;
 	}
@@ -160,6 +194,15 @@ function transformListHasField(value: unknown, field: string): boolean {
 	return transforms.some((transform) => nestedPayloadHasField(transform, 'changes', field));
 }
 
+function optionalArrayPayloadHasField(value: unknown, key: string, field: string): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor) return false;
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) return true;
+	const items = denseArrayDataValues(descriptor.value, 100_000);
+	return !items || items.some((item) => hasPossiblyDisguisedOwnField(item, field));
+}
+
 function hasPossiblyDisguisedOwnField(value: unknown, field: string): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const descriptor = Object.getOwnPropertyDescriptor(value, field);
@@ -168,6 +211,10 @@ function hasPossiblyDisguisedOwnField(value: unknown, field: string): boolean {
 
 /** Inspect V1..V4 clip payloads without evaluating a disguised composition accessor. */
 function clipboardRequiresVideoGeometryCapability(value: unknown): boolean {
+	return clipboardClipHasField(value, 'videoComposition');
+}
+
+function clipboardClipHasField(value: unknown, field: string): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const schemaVersion = ownEnumerableDataValue(value, 'schemaVersion');
 	if (schemaVersion === INVALID_DATA_VALUE) return Object.hasOwn(value, 'tracks');
@@ -182,7 +229,7 @@ function clipboardRequiresVideoGeometryCapability(value: unknown): boolean {
 		if (clipsValue === INVALID_DATA_VALUE) return true;
 		const clips = denseArrayDataValues(clipsValue, 100_000);
 		if (!clips) return true;
-		if (clips.some((clip) => hasPossiblyDisguisedOwnField(clip, 'videoComposition'))) return true;
+		if (clips.some((clip) => hasPossiblyDisguisedOwnField(clip, field))) return true;
 	}
 	return false;
 }

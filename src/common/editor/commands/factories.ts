@@ -39,6 +39,7 @@ import type {
 	TimelineAnnotationResizeCoordinate,
 	TimelineAnnotationUpdateChanges,
 } from './protocol.ts';
+import { snapshotVideoKeyframesSetCommand } from './video-keyframes.ts';
 
 type CommandFor<Type extends AudioEditorCommandType> = Extract<AudioEditorCommand, { readonly type: Type }>;
 
@@ -137,6 +138,19 @@ export function createRemoveVideoEffectCommand(
 		clipId: requireStableCommandId(clipId, 'video clip'),
 		effectId: requireStableCommandId(effectId, 'video effect'),
 	};
+}
+
+export function createSetVideoKeyframesCommand(
+	clipId: string,
+	expectedKeyframes: unknown,
+	keyframes: unknown,
+): CommandFor<'video-keyframes/set'> {
+	return snapshotVideoKeyframesSetCommand({
+		type: 'video-keyframes/set',
+		clipId: requireStableCommandId(clipId, 'video clip'),
+		expectedKeyframes,
+		keyframes,
+	});
 }
 
 export function createAddLabelTrackCommand(options: CommandFactoryValue = {}): CommandFor<'track/add'> {

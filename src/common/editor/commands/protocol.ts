@@ -6,6 +6,7 @@ import type {
 } from '../timeline-annotation.ts';
 import type { Rational } from '../timeline-time.ts';
 import type { VideoClipComposition } from '../video-clip-composition.ts';
+import type { VideoKeyframesSetCommandPayload } from './video-keyframes-command-payload.d.ts';
 
 /**
  * Authoritative command discriminants. Adding a command starts here, then the
@@ -103,6 +104,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'video-effect/remove',
 	'video-effect/reorder',
 	'video-composition/set',
+	'video-keyframes/set',
 ] as const;
 
 export type AudioEditorCommandType = typeof AUDIO_EDITOR_COMMAND_TYPES[number];
@@ -549,6 +551,7 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly expectedComposition: VideoClipComposition;
 		readonly composition: VideoClipComposition;
 	};
+	readonly 'video-keyframes/set': VideoKeyframesSetCommandPayload;
 };
 
 export interface BatchAudioEditorCommand {

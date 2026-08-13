@@ -9,6 +9,7 @@ import { createTempoSignatureRuntimeHandlers } from './tempo-signature-runtime.t
 import { createTakeCompRuntimeHandlers } from './take-comp-runtime.ts';
 import { createTimelineAnnotationRuntimeHandlers } from './timeline-annotation-runtime.ts';
 import { createVideoCompositionRuntimeHandlers } from './video-composition-runtime.ts';
+import { createVideoKeyframesRuntimeHandlers } from './video-keyframes-runtime.ts';
 import {
 	defineEditorCommandHandlerRegistry,
 } from './registry.ts';
@@ -40,5 +41,6 @@ export function createEditorCommandRuntime(
 		effectsVideo: createEffectsVideoRuntimeHandlers(),
 		timelineAnnotation: createTimelineAnnotationRuntimeHandlers(),
 		videoComposition: createVideoCompositionRuntimeHandlers(),
+		videoKeyframes: createVideoKeyframesRuntimeHandlers(),
 	});
 }

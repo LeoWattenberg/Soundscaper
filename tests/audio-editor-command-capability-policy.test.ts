@@ -19,11 +19,21 @@ const enabled: EditorCommandCapabilities = {
 	trackFolders: true,
 	videoEffects: true,
 	videoGeometry: true,
+	videoKeyframes: true,
 };
 const authoredWarpMap = { feature: 'audio-warp', points: [
 	{ outer: 0, source: 0, mode: 'forward' },
 	{ outer: 1, source: 1, mode: 'forward' },
 ] };
+const authoredVideoKeyframes = {
+	schemaVersion: 1,
+	timeDomain: {
+		authoredDuration: { num: 1, den: 1 },
+		viewStart: { num: 0, den: 1 },
+		viewDuration: { num: 1, den: 1 },
+	},
+	curves: [],
+};
 const authoredVideoComposition = {
 	schemaVersion: 1,
 	crop: { left: 0.1, top: 0, right: 0, bottom: 0 },
@@ -82,6 +92,40 @@ test('command capability policy covers every product-sensitive payload path', ()
 			type: 'video-composition/set', clipId: 'clip',
 			expectedComposition: {} as never, composition: {} as never,
 		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'video-keyframes/set', clipId: 'clip',
+			expectedKeyframes: {} as never, keyframes: {} as never,
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'clip/add', trackId: 'track', clip: { id: 'clip', videoKeyframes: authoredVideoKeyframes },
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'project-bin/add', clip: { id: 'clip', videoKeyframes: authoredVideoKeyframes },
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'clip/update', clipId: 'clip', changes: { videoKeyframes: authoredVideoKeyframes },
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'project-bin/update', clipId: 'clip', changes: { videoKeyframes: authoredVideoKeyframes },
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'clip/overwrite', clipId: 'clip', changes: { videoKeyframes: authoredVideoKeyframes },
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'clip/transform-many', transforms: [{
+				clipId: 'clip', changes: { videoKeyframes: authoredVideoKeyframes },
+			}],
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'project-bin/replace-media', clipId: 'clip',
+			replacements: [{ oldSourceId: 'old', newSourceId: 'new' }],
+			templates: [{ id: 'template', videoKeyframes: authoredVideoKeyframes }],
+			shortfallMode: 'keep-spacing',
+		} },
+		{ capability: 'videoKeyframes', command: {
+			type: 'take-comp/flatten', groupId: 'group', operationId: 'operation', outputId: 'output',
+			preFlattenSnapshot: {}, source: {}, clip: { id: 'clip', kind: 'audio', videoKeyframes: authoredVideoKeyframes },
+		} },
 		{ capability: 'videoGeometry', command: {
 			type: 'clip/add', trackId: 'track',
 			clip: { id: 'clip', kind: 'video', videoComposition: authoredVideoComposition },
@@ -103,6 +147,16 @@ test('command capability policy covers every product-sensitive payload path', ()
 			type: 'clip/transform-many', transforms: [{
 				clipId: 'clip', changes: { videoComposition: authoredVideoComposition },
 			}],
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'project-bin/replace-media', clipId: 'clip',
+			replacements: [{ oldSourceId: 'old', newSourceId: 'new' }],
+			templates: [{ id: 'template', videoComposition: authoredVideoComposition }],
+			shortfallMode: 'keep-spacing',
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'take-comp/flatten', groupId: 'group', operationId: 'operation', outputId: 'output',
+			preFlattenSnapshot: {}, source: {}, clip: { id: 'clip', kind: 'audio', videoComposition: authoredVideoComposition },
 		} },
 		{ capability: 'videoEffects', command: { type: 'clip/update', clipId: 'clip', changes: { videoEffects: [] } } },
 		{ capability: 'videoEffects', command: { type: 'clip/add', trackId: 'track', clip: { videoEffects: [{ id: 'effect' }] } } },
@@ -194,6 +248,28 @@ test('capability policy inspects clipboard video composition across every suppor
 			`clipboard V${String(schemaVersion)} must not introduce video composition state`,
 		);
 	}
+});
+
+test('capability policy refuses disguised keyframes in current clipboard clips', () => {
+	const clipboard = {
+		schemaVersion: 5,
+		sampleRate: 48_000,
+		durationFrames: 1,
+		tracks: [{
+			sourceTrackId: 'track', sourceTrackName: 'Track', sourceTrackType: 'video' as const,
+			sourceSequenceId: 'main', clips: [{ id: 'clip', videoKeyframes: authoredVideoKeyframes }],
+		}],
+		annotations: [],
+		takeGroups: [],
+	} as unknown as AudioEditorClipboard;
+	assert.throws(
+		() => assertEditorCommandCapabilities(
+			{ type: 'clipboard/paste', clipboard, atFrame: 0 },
+			{ ...enabled, videoKeyframes: false },
+			'Soundscaper',
+		),
+		/Soundscaper does not support videoKeyframes\./u,
+	);
 });
 
 test('capability policy refuses disguised warp maps without invoking accessors', () => {
