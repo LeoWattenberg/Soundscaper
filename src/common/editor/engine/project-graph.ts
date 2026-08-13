@@ -285,12 +285,14 @@ export function buildProjectGraph(
 			const sendAudible = !respectMuteSolo || (!track.mute && (!anySolo || track.solo || send.solo));
 			const sendGain = addNode(nodes, context.createGain());
 			setParam(sendGain.gain, sendAudible ? finite(requestedGain, 0) : 0, context.currentTime);
-			parameterRegistry.registerAudioParam(stripParameterDescriptor({
-				kind: 'edge',
-				// Runtime-only V17 identity; 4A retains it when materializing the edge.
-				edgeId: legacySendEdgeId(trackId, String(send.id)),
-				parameterId: 'level',
-			}, trackLatency), sendGain.gain);
+			if (isSchedulableAudioParam(sendGain.gain)) {
+				parameterRegistry.registerAudioParam(stripParameterDescriptor({
+					kind: 'edge',
+					// Runtime-only V17 identity; 4A retains it when materializing the edge.
+					edgeId: legacySendEdgeId(trackId, String(send.id)),
+					parameterId: 'level',
+				}, trackLatency), sendGain.gain);
+			}
 			connect(output, sendGain);
 			connect(sendGain, sendInputs.get(String(send.id)));
 		}
@@ -451,9 +453,18 @@ function registerStripParam(
 	latencyFrames: number,
 	transformValue?: (value: number) => number,
 ): void {
+	// Lightweight render/test contexts may expose only the static AudioParam
+	// surface used by the existing graph. A lane-free graph must keep working
+	// without upgrading those parameters into scheduled targets.
+	if (!isSchedulableAudioParam(param)) return;
 	registry.registerAudioParam(
 		stripParameterDescriptor({ kind: 'strip', strip, parameterId }, latencyFrames),
 		param,
 		transformValue ? { transformValue } : {},
 	);
+}
+
+function isSchedulableAudioParam(param: AudioParam | null | undefined): param is AudioParam {
+	return typeof param?.setValueAtTime === 'function'
+		&& typeof param.linearRampToValueAtTime === 'function';
 }

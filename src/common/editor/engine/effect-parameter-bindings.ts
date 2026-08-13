@@ -21,6 +21,7 @@ export function registerEffectAudioParam(
 	options: EffectParameterBindingOptions,
 	elementId?: string,
 ): void {
+	if (!isSchedulableAudioParam(param)) return;
 	const inventory = parameterInventory(effect, options);
 	if (!inventory) return;
 	const descriptor = inventory.descriptors.find((candidate) => (
@@ -45,6 +46,7 @@ export function registerEffectAudioParamGroup(
 	options: EffectParameterBindingOptions,
 	elementId?: string,
 ): void {
+	if (!bindings.every(({ param }) => isSchedulableAudioParam(param))) return;
 	const inventory = parameterInventory(effect, options);
 	if (!inventory) return;
 	const descriptor = inventory.descriptors.find((candidate) => (
@@ -101,4 +103,9 @@ function effectStripRef(scope: unknown, targetId: unknown): StripRef | null {
 function latencyFrames(value: unknown): number {
 	const number = Number(value);
 	return Number.isSafeInteger(number) && number >= 0 ? number : 0;
+}
+
+function isSchedulableAudioParam(param: AudioParam | null | undefined): param is AudioParam {
+	return typeof param?.setValueAtTime === 'function'
+		&& typeof param.linearRampToValueAtTime === 'function';
 }
