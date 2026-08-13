@@ -414,9 +414,11 @@ Persistence remains subject to the refreshed V18 blocker review. The reviewed
 defines the indivisible transition that must precede durable c-c work. The
 dormant runtime-profile prerequisite, capability profile, and final composition
 are implemented through `13f80172`, `c1c70639`, and `ace30ac1`. The first
-reachable selection remains atomic c-c, but its REDs and production work are
-blocked until the V17 cross-product handoff conflict documented by the
-product-isolation contract receives one reviewed policy decision.
+reachable selection remains atomic c-c. The reviewed V18 policy decision
+classifies the frozen shared-schema-17 handoff evidence as legacy, makes
+cross-product V18 transfer copy-only preservation, and records that exact V17
+requires re-import in Framescaper. The c-c REDs are authorized; production
+selection remains indivisible and must satisfy the product-isolation contract.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

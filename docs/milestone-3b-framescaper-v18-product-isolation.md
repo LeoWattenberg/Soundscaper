@@ -122,27 +122,24 @@ there is no migration. V19 and later are descriptor-snapshotted opaque
 read-only documents. Soundscaper continues to create and edit exact V17 and to
 treat V18 as its existing future read-only schema.
 
-## Pre-code compatibility decision
+## Reviewed pre-code compatibility decision
 
-Atomic c-c is blocked on a released-contract conflict. The implemented
-`m2-handoff-packaged-roundtrip` acceptance in
-`config/milestone-2-closure.json` requires both cross-product directions to
-activate, play, edit, and save on the recipient, and
-`tests/browser/audio-editor-scape-product-roundtrip.spec.js` exercises that
-maintained Framescaper V17 behavior. This contract instead requires selected
-Framescaper to return typed `REIMPORT_REQUIRED` for V17, while desktop v10
-rejects V17 entirely.
+V18 is authoritative for Framescaper. The implemented
+`m2-handoff-packaged-roundtrip` acceptance and its browser and packaged desktop
+witnesses remain historical legacy shared-schema-17 evidence; the Electron
+portion is specifically desktop-library-v9 evidence. They do not authorize
+Framescaper V17 activation after the V18 selector lands. Selected Framescaper
+returns typed `REIMPORT_REQUIRED` for exact V17 before nested traversal, and
+desktop v10 rejects V17 entirely.
 
-Before c-c REDs or production code, one reviewed decision must either:
-
-1. retain the V18 isolation law and revise the Milestone 2 workflow to explicit
-   legacy-v9 or copy-only preservation evidence; or
-2. retain writable Framescaper V17 recipient behavior and revise this
-   product-isolation, prior-schema, archive, and desktop-v10 law.
-
-Do not silently reinterpret either accepted contract. The chosen policy,
-machine-readable closure record, browser workflows, compatibility prose, and
-c-c REDs must change together before selection work begins.
+Cross-product V18 transfer is copy-only preservation until a later reviewed
+contract qualifies activation. Neither Soundscaper's future-schema read-only
+handling nor a byte-preserving archive copy grants edit, save, migration,
+history, media activation, or desktop-library adoption authority. The closure
+register, compatibility rules, and the legacy browser witness carry this exact
+boundary. With that reviewed decision recorded, c-c RED decomposition is
+authorized; production selection still requires the indivisible transition and
+all strict proofs below.
 
 Every maintained V18 consumer in one JS realm receives the same authenticated
 profile:

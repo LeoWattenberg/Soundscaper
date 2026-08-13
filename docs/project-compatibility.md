@@ -1371,7 +1371,10 @@ rendered-fallback roles; it does not qualify packaged rendered-media delivery,
 fallback authoring or other relationships, audible or device-output fidelity,
 general browser or codec coverage, linked or unmanaged media, installers or file
 associations, concurrent opens, crash or power-loss behavior, or Windows, macOS,
-or ARM64.
+or ARM64. This is legacy desktop-library-v9, shared-schema-17 pre-V18 evidence;
+it does not authorize Framescaper V17 activation after the V18 selector lands,
+and cross-product V18 transfer is copy-only preservation until separately
+qualified.
 <!-- /policy-narrative:desktop-packaged-source-bearing-handoff -->
 
 A maintained Chromium browser spec closes the two frozen web `.scape` workflow
@@ -1390,6 +1393,12 @@ does not qualify direct File System Access streaming, Firefox, WebKit or Safari,
 long-form or reference-scale behavior, broad codec coverage, rendered
 fallbacks, linked or unmanaged media, quota or eviction recovery, crash
 behavior, or preservation of a shared cross-product undo journal.
+
+Both frozen web workflows are legacy shared-schema-17 pre-V18 evidence. They do
+not authorize Framescaper V17 activation after the V18 selector lands. Exact
+V17 then takes the typed re-import route in Framescaper, and cross-product V18
+transfer is copy-only preservation until separately qualified; archive copying
+does not grant activation, edit, save, migration, or media-use authority.
 
 This catalog rule is current-only. Activation-specific feature-capability
 evaluation remains editor-owned. Explicit managed canonical PCM and retained

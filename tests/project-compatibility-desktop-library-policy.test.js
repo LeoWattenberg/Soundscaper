@@ -382,7 +382,7 @@ test('shared desktop project policy pins the current editor handoff boundary', a
 	assert.deepEqual(packagedHandoff.evidence, PACKAGED_HANDOFF_EVIDENCE.map(({ path }) => path));
 	assert.match(
 		packagedHandoff.requiredOutcome,
-		/two frozen Electron shared-library workflow IDs.*separately packaged Soundscaper and Framescaper UI processes.*exact current-schema mixed-media identity.*activation.*playback.*recipient edit and save.*return to the originating product profile.*all four exact rendered-fallback role workflows.*unchanged project back.*less-capable recipient.*reopen editable.*origin.*canonical-document.*media-body identity/iu,
+		/two frozen Electron shared-library workflow IDs.*legacy exact-schema-17.*desktop-library-v9 evidence.*separately packaged Soundscaper and Framescaper UI processes.*mixed-media identity.*activation.*playback.*recipient edit and save.*return to the originating product profile.*all four exact rendered-fallback role workflows.*unchanged project back.*less-capable recipient.*reopen editable.*origin.*canonical-document.*media-body identity/iu,
 	);
 	assert.match(packagedHandoff.currentBehavior, PACKAGED_HANDOFF_CLAIMS.compatibilityRuleBehavior);
 	assert.match(packagedHandoff.currentBehavior, PACKAGED_HANDOFF_CLAIMS.compatibilityRuleQualification);

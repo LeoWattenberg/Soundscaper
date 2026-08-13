@@ -193,6 +193,14 @@
 			"id": "m2-handoff-packaged-roundtrip",
 			"gateId": "m2-gate-mixed-media-handoff",
 			"status": "implemented",
+			"compatibilityBoundary": {
+				"classification": "legacy-shared-schema-17-pre-framescaper-v18",
+				"desktopLibrarySchemaVersion": 9,
+				"framescaperCurrentProjectSchemaVersion": 18,
+				"framescaperPriorSchemaPolicy": "reimport-required",
+				"crossProductV18Policy": "copy-only-preservation",
+				"authorizesFramescaperV17Activation": false
+			},
 			"workflowIds": [
 				"web-soundscaper-to-framescaper-to-soundscaper-scape",
 				"web-framescaper-to-soundscaper-to-framescaper-scape",
@@ -206,8 +214,9 @@
 				"electron-framescaper-to-soundscaper-to-framescaper-library"
 			],
 			"acceptance": [
-				"Each workflow preserves project identity, editable history-visible state and exact required media while supporting activation, playback, one edit and save on the recipient.",
-				"The Electron workflows run through packaged UI products; headless-only evidence is insufficient."
+				"As legacy pre-V18 evidence, each frozen shared-schema-17 workflow preserves project identity, editable history-visible state and exact required media while supporting activation, playback, one edit and save on the recipient.",
+				"The Electron workflows run through packaged desktop-library-v9 UI products; headless-only evidence is insufficient.",
+				"This closure item does not authorize Framescaper V17 activation after V18 selection; exact V17 requires re-import, and cross-product V18 transfer is copy-only preservation until separately qualified."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
 		},

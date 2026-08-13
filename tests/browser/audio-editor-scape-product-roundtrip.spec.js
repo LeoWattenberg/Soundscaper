@@ -26,6 +26,7 @@ import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
+const LEGACY_SHARED_PROJECT_SCHEMA_VERSION = 17;
 const PRODUCT_PATHS = {
 	soundscaper: '/embed/en/',
 	framescaper: '/framescaper/embed/en/',
@@ -41,7 +42,7 @@ const WORKFLOWS = [{
 	recipient: 'soundscaper',
 }];
 
-test.describe('cross-product Scape handoff roundtrips', () => {
+test.describe('legacy shared-schema-17 cross-product Scape handoff roundtrips', () => {
 	registerAudioEditorHooks();
 
 	for (const workflow of WORKFLOWS) {
@@ -66,6 +67,7 @@ test.describe('cross-product Scape handoff roundtrips', () => {
 			const outboundArchive = await exportScapeArchive(page, origin);
 			const outbound = await inspectScapeArchive(outboundArchive);
 			expect(outbound.projectId).toBe(projectId);
+			expect(outbound.schemaVersion).toBe(LEGACY_SHARED_PROJECT_SCHEMA_VERSION);
 			expect([...new Set(outbound.assets.map(({ kind }) => kind))].sort())
 				.toEqual(['audio', 'video', 'video-timing']);
 
@@ -201,6 +203,7 @@ async function inspectScapeArchive(archive) {
 		}
 		return {
 			projectId: project.id,
+			schemaVersion: project.schemaVersion,
 			assets: assets.sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
 		};
 	} finally {

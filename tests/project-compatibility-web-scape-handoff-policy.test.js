@@ -29,7 +29,7 @@ test('web Scape handoff policy closes both frozen cross-product workflows', asyn
 	assert.deepEqual(rule.evidence, ['tests/browser/audio-editor-scape-product-roundtrip.spec.js']);
 	assert.match(
 		rule.requiredOutcome,
-		/two frozen web workflow IDs.*isolated browser profiles.*current-schema mixed-media project identity.*exact required media.*activation.*playback.*history-visible recipient edit.*save.*return/iu,
+		/two frozen web workflow IDs.*legacy exact-schema-17 evidence.*isolated browser profiles.*mixed-media project identity.*exact required media.*activation.*playback.*history-visible recipient edit.*save.*return/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
