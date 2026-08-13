@@ -43,6 +43,7 @@ test('V18 Edit menu action ports reject graph-lossy copy, cut, and duplicate bef
 		for (const action of ['copy', 'cutLeaveGap', 'duplicate'] as const) {
 			await context.test(`${graph} ${action}`, async () => {
 				const project = graphProject(environment, graph, `${graph}-${action}`);
+				await stageVideoSources(environment, project);
 				await environment.createProjectIfAbsent(project);
 				await controller.actions.project.open(project);
 				controller.actions.timeline.setSelection(0, 48_000, {
@@ -157,6 +158,21 @@ function graphProject(
 			}],
 		}] } : {}),
 	});
+}
+
+async function stageVideoSources(
+	environment: EnvironmentV18,
+	project: ReturnType<EnvironmentV18['runtime']['createProject']>,
+): Promise<void> {
+	for (const source of project.sources) {
+		if (source.kind !== 'video') continue;
+		const mimeType = String(source.mimeType);
+		await environment.store.writeMediaAsset(
+			source.storageKey,
+			new Blob([String(source.id)], { type: mimeType }),
+			{ mimeType },
+		);
+	}
 }
 
 function flatProject(

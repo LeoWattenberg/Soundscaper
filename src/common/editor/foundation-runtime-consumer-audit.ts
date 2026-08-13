@@ -150,8 +150,8 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'Warp trim and split authoring resolve persisted clip boundaries before deriving exact child maps; they do not create a playback projection.',
 	},
 	{
-		file: 'src/common/editor/app.js',
-		reason: 'Command acquisition projects the editable draft before mutation; command reconciliation restores persisted authority.',
+		file: 'src/common/editor/controller/project-runtime.ts',
+		reason: 'The default controller runtime binds command and presentation projections as edit adapters; selected product authority supplies the same closed surface.',
 	},
 	{
 		file: 'src/common/editor/commands.js',

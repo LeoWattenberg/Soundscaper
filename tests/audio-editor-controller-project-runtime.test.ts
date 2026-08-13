@@ -22,7 +22,7 @@ test('controller runtime keeps the current V17 owner as the exact default', () =
 	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 17);
 });
 
-test('controller runtime snapshots the complete selected V18 operation set', () => {
+test('controller runtime snapshots V18 authority with the planner-safe command projection', () => {
 	const selected = createEditorProjectRuntimeV18Selection(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE);
 	const runtime = resolveControllerProjectRuntime(selected);
 	const project = runtime.createProject({
@@ -37,7 +37,7 @@ test('controller runtime snapshots the complete selected V18 operation set', () 
 		type: 'project/rename', title: 'Applied',
 	}).title, 'Applied');
 	assert.equal(runtime.cloneProject(project).schemaVersion, 18);
-	assert.equal(runtime.projectForCommandConsumers(project).schemaVersion, 18);
+	assert.equal(runtime.projectForCommandConsumers(project).schemaVersion, 17);
 	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 17);
 	const metrics = createControllerProjectRuntimeMetrics(runtime);
 	assert.equal(metrics.projectDurationFrames(project), 0);
