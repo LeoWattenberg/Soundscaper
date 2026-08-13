@@ -251,6 +251,50 @@ test('a no-lane graph accepts existing long track, effect, bus, and send IDs', (
 	}), true);
 });
 
+test('effect parameter targets carry the latency standing ahead of them', () => {
+	const context = new MockContext();
+	const project: EngineProject = {
+		sampleRate: 48_000,
+		tracks: [{
+			type: 'audio', id: 'track-1', gain: 1, pan: 0, mute: false, solo: false,
+			effects: [
+				createEffect('limiter', { id: 'limiter-1', params: { lookahead: 0.01 } }),
+				createEffect('delay', { id: 'delay-1', params: { time: 0.25, feedback: 0.3, mix: 0.2 } }),
+			],
+		}],
+		mixer: { groups: [], sends: [], routes: {} },
+		master: {
+			gain: 1, pan: 0, mute: false,
+			effects: [createEffect('compressor', { id: 'compressor-1' })],
+		},
+	};
+	const graph = buildProjectGraph(
+		context as unknown as BaseAudioContext,
+		context.destination as unknown as AudioNode,
+		project,
+		{ metering: false },
+	);
+	assert.equal(graph.latencyFrames, 480);
+	const latencies = new Map<string, Set<number>>();
+	for (const target of graph.parameterRegistry.entries()) {
+		const address = target.descriptor.address;
+		if (address.kind !== 'effect') continue;
+		latencies.set(
+			address.effectId,
+			(latencies.get(address.effectId) ?? new Set<number>()).add(target.latencyFrames),
+		);
+	}
+	// The rack head is uncompensated; a later effect carries its upstream rack
+	// latency, and a master effect carries the whole track stage, exactly as the
+	// strip gain target on the same graph already does.
+	assert.deepEqual([...(latencies.get('limiter-1') ?? [])], [0]);
+	assert.deepEqual([...(latencies.get('delay-1') ?? [])], [480]);
+	assert.deepEqual([...(latencies.get('compressor-1') ?? [])], [480]);
+	assert.equal(graph.parameterRegistry.get({
+		kind: 'strip', strip: { kind: 'track', id: 'track-1' }, parameterId: 'gain',
+	})?.latencyFrames, 480);
+});
+
 function paramEvents(context: MockContext): Array<readonly [string, string, number, number?]> {
 	const events: Array<readonly [string, string, number, number?]> = [];
 	for (const node of context.created) {

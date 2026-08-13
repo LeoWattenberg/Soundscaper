@@ -376,7 +376,7 @@ test('effect bindings expose stable native and worklet targets without posting e
 		createEffect('highpass', { id: 'filter-1' }),
 		'frequency',
 		frequency,
-		{ parameterRegistry: nativeRegistry, scope: 'track', targetId: 'track-1', latencyFrames: 96 },
+		{ parameterRegistry: nativeRegistry, scope: 'track', targetId: 'track-1', parameterLatencyFrames: 96 },
 	);
 	const nativeTarget = nativeRegistry.get({
 		kind: 'effect', strip: TRACK, effectId: 'filter-1', parameterId: 'frequency',
@@ -390,7 +390,7 @@ test('effect bindings expose stable native and worklet targets without posting e
 	registerEffectMessageParameterProducer(
 		createEffect('delay', { id: 'delay-1' }),
 		{ postMessage: (message: unknown) => { messages.push(structuredClone(message)); } } as MessagePort,
-		{ parameterRegistry: messageRegistry, scope: 'master', targetId: null, latencyFrames: 64 },
+		{ parameterRegistry: messageRegistry, scope: 'master', targetId: null, parameterLatencyFrames: 64 },
 	);
 	assert.equal(messageRegistry.size, 3);
 	assert.deepEqual(messages, []);
