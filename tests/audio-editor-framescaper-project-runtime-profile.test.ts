@@ -310,6 +310,8 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'tests/audio-editor-framescaper-project-v18-domain.test.ts',
 		'tests/audio-editor-framescaper-project-v18-feature-requirements.test.ts',
 		'tests/audio-editor-framescaper-project-v18-history.test.ts',
+		'tests/audio-editor-framescaper-project-v18-preservation-repository.test.ts',
+		'tests/audio-editor-framescaper-project-v18-retention.test.ts',
 		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 	]);
@@ -321,6 +323,8 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'tests/audio-editor-framescaper-project-v18-domain.test.ts',
 		'tests/audio-editor-framescaper-project-v18-feature-requirements.test.ts',
 		'tests/audio-editor-framescaper-project-v18-history.test.ts',
+		'tests/audio-editor-framescaper-project-v18-preservation-repository.test.ts',
+		'tests/audio-editor-framescaper-project-v18-retention.test.ts',
 		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 	]);
@@ -332,7 +336,9 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'src/framescaper/editor-project-v18-commands.ts',
 		'src/framescaper/editor-project-v18-history.ts',
 		'src/framescaper/editor-project-v18-migration.ts',
+		'src/framescaper/editor-project-v18-preservation-repository.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
+		'src/framescaper/editor-project-v18-retention.ts',
 		'src/framescaper/editor-project-v18-runtime.ts',
 		'src/framescaper/editor-project-v18-session.ts',
 		'src/framescaper/editor-project-v18-validation.ts',

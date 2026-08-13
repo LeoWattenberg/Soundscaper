@@ -38,6 +38,7 @@ test('owns one generic opaque binding boundary and one dormant product factory',
 	assert.deepEqual(Object.keys(bindingModule).sort(), [
 		'assertEditorProjectStoreProfile',
 		'bindEditorProjectStoreProfile',
+		'bindEditorProjectStoreProfileFromOptions',
 		'editorProjectStoreProfile',
 	]);
 	assert.deepEqual(Object.keys(framescaperStoreModule), [
@@ -82,7 +83,7 @@ test('generic binding authenticates the profile first and permanently refuses re
 		repositoryFactory: fixtureFactory(),
 	});
 	assert.doesNotThrow(() => bindEditorProjectStoreProfile(store, first));
-	assert.throws(() => bindEditorProjectStoreProfile(store, second), /rebind|already.*profile/iu);
+	assert.throws(() => bindEditorProjectStoreProfile(store, second), /rebound|already.*profile/iu);
 	assert.equal(editorProjectStoreProfile(store), first);
 
 	const hostileStore = zeroTrapProxy(store);
@@ -179,10 +180,10 @@ test('product factory rejects accessor authorities without invoking them', () =>
 
 test('product factory creates the exact isolated store and authenticates injection', () => {
 	let repositoryCalls = 0;
-	let repositoryOptions: Record<string, unknown> | null = null;
+	const repositoryOptions: Record<string, unknown>[] = [];
 	const repositoryFactory: StorageRepositoryFactory = (_port, options) => {
 		repositoryCalls += 1;
-		repositoryOptions = options as unknown as Record<string, unknown>;
+		repositoryOptions.push(options as unknown as Record<string, unknown>);
 		return repositoryFixture();
 	};
 	const store = createFramescaperProjectStoreV18(
@@ -195,8 +196,8 @@ test('product factory creates the exact isolated store and authenticates injecti
 	assert.equal(store.databaseName, FRAME_NAMES.databaseName);
 	assert.equal(repositoryCalls, 1);
 	assert.deepEqual({
-		opfsDirectoryName: repositoryOptions?.opfsDirectoryName,
-		opfsWorkerName: repositoryOptions?.opfsWorkerName,
+		opfsDirectoryName: repositoryOptions[0]?.opfsDirectoryName,
+		opfsWorkerName: repositoryOptions[0]?.opfsWorkerName,
 	}, {
 		opfsDirectoryName: FRAME_NAMES.opfsDirectoryName,
 		opfsWorkerName: FRAME_NAMES.opfsWorkerName,

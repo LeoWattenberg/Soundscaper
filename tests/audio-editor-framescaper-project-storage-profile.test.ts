@@ -434,8 +434,20 @@ test('the exact Framescaper selector remains statically dormant and product-owne
 		if (source.includes(PROFILE_EXPORT)) references.push(file);
 		if ((Object.values(FRAME_NAMES) as string[]).some((value) => source.includes(value))) literalOwners.add(file);
 	}
-	assert.deepEqual(references, [PREREQUISITE_MODULE, PRODUCT_MODULE, PREREQUISITE_TEST_MODULE, TEST_MODULE]);
-	assert.deepEqual([...literalOwners], [PRODUCT_MODULE, TEST_MODULE]);
+	assert.deepEqual(references, [
+		PREREQUISITE_MODULE,
+		PRODUCT_MODULE,
+		PREREQUISITE_TEST_MODULE,
+		TEST_MODULE,
+	]);
+	assert.deepEqual([...literalOwners], [
+		'desktop/project-library-v10-contract.ts',
+		PRODUCT_MODULE,
+		TEST_MODULE,
+		'tests/audio-editor-framescaper-project-store-v18.test.ts',
+		'tests/desktop-project-library-v10-contract.test.ts',
+		'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
+	]);
 	const genericSource = await readFile(resolve(ROOT, 'src/common/editor/storage/project-storage-profile.ts'), 'utf8');
 	assert.doesNotMatch(genericSource, /framescaper/iu);
 });
@@ -447,7 +459,7 @@ test('statically threads the opt-in profile while retaining exact legacy identit
 		'src/common/editor/storage/opfs-sync-worker-client.ts', 'src/common/editor/project-lock.js',
 	].map(readSource));
 	assert.match(storage, /projectStorageProfile/u);
-	assert.match(storage, /editorProjectStorageProfileNames/u);
+	assert.match(storage, /bindEditorProjectStoreProfileFromOptions/u);
 	assert.match(storage, /opfsDirectoryName/u);
 	assert.match(storage, /opfsWorkerName/u);
 	assert.match(repositories, /opfsDirectoryName/u);

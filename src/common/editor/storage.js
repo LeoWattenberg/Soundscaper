@@ -2,7 +2,7 @@ import { EditorStoreBlockedError, EditorStoreClosedError, EditorStoreVersionStal
 import { openDatabase } from './storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from './storage/memory-backend.ts';
 import { createStorageRepositories } from './storage/repositories.ts';
-import { editorProjectStorageProfileNamesFromOptions } from './storage/project-storage-profile-options.ts';
+import { bindEditorProjectStoreProfileFromOptions } from './storage/project-store-profile-binding.ts';
 import { DEFAULT_OPFS_DIRECTORY_NAME } from './storage/opfs-repository.ts';
 import { DEFAULT_OPFS_WORKER_NAME } from './storage/opfs-sync-worker-client.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
@@ -24,7 +24,7 @@ export function createProjectStore(options = {}) {
 
 export class AudioEditorProjectStore {
 	constructor(/** @type {import('./storage/project-store-options.ts').AudioEditorProjectStoreOptions} */ options = {}) {
-		const projectStorageProfileNames = editorProjectStorageProfileNamesFromOptions(options);
+		const { names: projectStorageProfileNames } = bindEditorProjectStoreProfileFromOptions(this, options);
 		const {
 		indexedDB = /** @type {IDBFactory | null} */ (globalThis.indexedDB),
 		databaseName: requestedDatabaseName = DEFAULT_DATABASE_NAME,
