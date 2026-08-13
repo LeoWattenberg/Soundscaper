@@ -23,6 +23,24 @@ export interface VideoRetimePreviewMediaPort {
 	) => PromiseLike<Readonly<{ readonly mediaTime: number }>>;
 }
 
+/** Validate one exact descriptor and derive the interior HTML-media seek request. */
+export function createVideoRetimePreviewPresentationRequest(
+	descriptorValue: VideoRetimeFrameDescriptor,
+	signalValue: AbortSignal,
+): VideoRetimePreviewPresentationRequest {
+	if (typeof AbortSignal === 'undefined' || !(signalValue instanceof AbortSignal)) {
+		throw new TypeError('A video retime preview presentation request requires an AbortSignal.');
+	}
+	const prepared = prepareFrame(descriptorValue);
+	return Object.freeze({
+		drawableSourceFrame: prepared.descriptor.drawableSourceFrame,
+		intervalStartSeconds: prepared.intervalStartSeconds,
+		intervalEndSeconds: prepared.intervalEndSeconds,
+		targetSeconds: prepared.targetSeconds,
+		signal: signalValue,
+	});
+}
+
 export type VideoRetimePreviewResult =
 	| Readonly<{ readonly kind: 'presented' }>
 	| Readonly<{ readonly kind: 'superseded' }>

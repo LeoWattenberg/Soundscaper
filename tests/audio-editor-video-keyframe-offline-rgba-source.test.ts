@@ -12,8 +12,12 @@ test('offline source cache reuses one exact lifecycle and disposes it once', asy
 	const fixture = presentation();
 	const cache = new VideoKeyframeOfflineSourceCache(() => fixture.value);
 	const signal = new AbortController().signal;
-	const first = await cache.present({ sourceId: 'source-1', sourceTimeSeconds: 0 }, signal);
-	const second = await cache.present({ sourceId: 'source-1', sourceTimeSeconds: 1 }, signal);
+	cache.beginFrame();
+	const first = await cache.present({ sourceId: 'source-1', clipId: 'clip-1', sourceTimeSeconds: 0 }, signal);
+	cache.finishFrame();
+	cache.beginFrame();
+	const second = await cache.present({ sourceId: 'source-1', clipId: 'clip-1', sourceTimeSeconds: 1 }, signal);
+	cache.finishFrame();
 	assert.equal(first, second);
 	assert.equal(first.readyState, 4);
 	assert.equal(first.videoWidth, 64);
@@ -32,12 +36,16 @@ test('offline source cache rejects identity drift and disposes only the unretain
 	let current = first.value;
 	const cache = new VideoKeyframeOfflineSourceCache(() => current);
 	const signal = new AbortController().signal;
-	await cache.present({ sourceId: 'source-1' }, signal);
+	cache.beginFrame();
+	await cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, signal);
+	cache.finishFrame();
 	current = second.value;
+	cache.beginFrame();
 	await assert.rejects(
-		cache.present({ sourceId: 'source-1' }, signal),
+		cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, signal),
 		/source identity changed/u,
 	);
+	cache.finishFrame();
 	assert.equal(first.disposals(), 0);
 	assert.equal(second.disposals(), 1);
 	await cache.dispose();
@@ -50,10 +58,17 @@ test('first-presentation failure evicts and disposes before a fresh retry', asyn
 	let current = broken.value;
 	const cache = new VideoKeyframeOfflineSourceCache(() => current);
 	const signal = new AbortController().signal;
-	await assert.rejects(cache.present({ sourceId: 'source-1' }, signal), /decoder failed/u);
+	cache.beginFrame();
+	await assert.rejects(
+		cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, signal),
+		/decoder failed/u,
+	);
+	cache.finishFrame();
 	assert.equal(broken.disposals(), 1);
 	current = recovered.value;
-	await cache.present({ sourceId: 'source-1' }, signal);
+	cache.beginFrame();
+	await cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, signal);
+	cache.finishFrame();
 	await cache.dispose();
 	assert.equal(recovered.disposals(), 1);
 });
@@ -70,11 +85,20 @@ test('cached lifecycle failure retires the decoder before a fresh authenticated 
 	let current = cached.value;
 	const cache = new VideoKeyframeOfflineSourceCache(() => current);
 	const signal = new AbortController().signal;
-	await cache.present({ sourceId: 'source-1' }, signal);
-	await assert.rejects(cache.present({ sourceId: 'source-1' }, signal), /later decode failed/u);
+	cache.beginFrame();
+	await cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, signal);
+	cache.finishFrame();
+	cache.beginFrame();
+	await assert.rejects(
+		cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, signal),
+		/later decode failed/u,
+	);
+	cache.finishFrame();
 	assert.equal(cached.disposals(), 1);
 	current = recovered.value;
-	await cache.present({ sourceId: 'source-1' }, signal);
+	cache.beginFrame();
+	await cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, signal);
+	cache.finishFrame();
 	await cache.dispose();
 	assert.equal(cached.disposals(), 1);
 	assert.equal(recovered.disposals(), 1);
@@ -88,9 +112,11 @@ test('aborted admission does not resolve or retain a source lifecycle', async ()
 	});
 	const controller = new AbortController();
 	controller.abort();
-	await assert.rejects(cache.present({ sourceId: 'source-1' }, controller.signal), {
+	cache.beginFrame();
+	await assert.rejects(cache.present({ sourceId: 'source-1', clipId: 'clip-1' }, controller.signal), {
 		name: 'AbortError',
 	});
+	cache.finishFrame();
 	assert.equal(resolutions, 0);
 	await cache.dispose();
 });

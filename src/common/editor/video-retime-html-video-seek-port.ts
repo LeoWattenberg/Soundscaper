@@ -1,6 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	createVideoRetimePreviewPresentationRequest,
+	type VideoRetimePreviewMediaPort,
+	type VideoRetimePreviewPresentationRequest,
+} from './video-retime-preview-executor.ts';
 import type {
+	VideoRetimeFrameDescriptor,
+} from './video-retime-frame-dispatch.ts';
+
+export type {
 	VideoRetimePreviewMediaPort,
 	VideoRetimePreviewPresentationRequest,
 } from './video-retime-preview-executor.ts';
@@ -41,6 +50,14 @@ interface VideoSourceIdentity {
 
 const DEFAULT_TIMEOUT_MS = 5_000;
 const MAXIMUM_TIMEOUT_MS = 30_000;
+
+/** Adapt one exact source-frame descriptor into this seek port's validated request. */
+export function createVideoRetimeHtmlVideoPresentationRequest(
+	descriptor: VideoRetimeFrameDescriptor,
+	signal: AbortSignal,
+): VideoRetimePreviewPresentationRequest {
+	return createVideoRetimePreviewPresentationRequest(descriptor, signal);
+}
 
 /** Present one exact retime interval through an exclusively owned paused video element. */
 export function createVideoRetimeHtmlVideoSeekPort(
