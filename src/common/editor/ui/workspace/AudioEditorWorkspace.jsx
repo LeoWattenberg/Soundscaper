@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createAudioEditorController as createEditorController } from '../../app.js';
-import { createAudioEditorFileService } from '../../file-service.js';
 import { productProfile } from '../../../products.js';
 import { createAudacityActionRuntime } from '../../audacity-action-runtime.js';
 import { projectDurationFrames } from '../../project.js';
@@ -35,19 +33,17 @@ import {
 	useMediaQuery,
 } from '../workspace-runtime.js';
 
-export default function AudioEditorWorkspace({ locale, copy, productId = 'soundscaper' }) {
+export default function AudioEditorWorkspace({
+	locale,
+	copy,
+	productId = 'soundscaper',
+	controller,
+	fileService,
+}) {
 	const product = useMemo(() => productProfile(productId), [productId]);
 	const capabilities = product.capabilities;
 	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;
 	const editorThemeVariables = useAudioEditorThemeVariables();
-	const fileService = useMemo(() => createAudioEditorFileService(), []);
-	const controller = useMemo(() => createEditorController(null, {
-		headless: true,
-		locale,
-		copy,
-		fileService,
-		productId,
-	}), [copy, fileService, locale, productId]);
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller), [controller]);
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);

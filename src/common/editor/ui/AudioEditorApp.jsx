@@ -2,13 +2,27 @@ import React from 'react';
 
 import { DesignSystemProviders } from './DesignSystemRuntime.jsx';
 import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';
+import DefaultAudioEditorWorkspace from './workspace/DefaultAudioEditorWorkspace.jsx';
 import './audio-editor-design-system.css';
 
 export default function AudioEditorApp(props) {
+	return <AudioEditorFrame copy={props.copy}>
+		<DefaultAudioEditorWorkspace {...props} />
+	</AudioEditorFrame>;
+}
+
+/** Presentation-only seam for a product-owned, already-constructed runtime. */
+export function BoundAudioEditorApp(props) {
+	return <AudioEditorFrame copy={props.copy}>
+		<AudioEditorWorkspace {...props} />
+	</AudioEditorFrame>;
+}
+
+function AudioEditorFrame({ copy, children }) {
 	return (
-		<AudioEditorErrorBoundary copy={props.copy}>
-			<DesignSystemProviders copy={props.copy}>
-				<AudioEditorWorkspace {...props} />
+		<AudioEditorErrorBoundary copy={copy}>
+			<DesignSystemProviders copy={copy}>
+				{children}
 			</DesignSystemProviders>
 		</AudioEditorErrorBoundary>
 	);

@@ -5,10 +5,14 @@ import BrandSidebar from './BrandSidebar.jsx';
 import './site.css';
 
 const AudioEditorBootstrap = lazy(() => import('../editor/ui/AudioEditorBootstrap.jsx'));
+const FramescaperAudioEditorBootstrapV18 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx'));
 
 export default function App({ route }) {
 	const { direction, embedded, locale, productId } = route;
 	const copy = bundledCopyForLocale(locale);
+	const EditorBootstrap = productId === 'framescaper'
+		? FramescaperAudioEditorBootstrapV18
+		: AudioEditorBootstrap;
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,
 		title: copy.framescaperTitle,
@@ -30,7 +34,7 @@ export default function App({ route }) {
 				<section className="section audio-editor-section tool-workspace">
 					<div className="container audio-editor-container">
 						<Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
-							<AudioEditorBootstrap locale={locale} fallbackCopy={copy} productId={productId} />
+							<EditorBootstrap locale={locale} fallbackCopy={copy} productId={productId} />
 						</Suspense>
 					</div>
 				</section>
