@@ -166,7 +166,7 @@ test('rejects corrupt proxy or timing bodies and exact row metadata drift', asyn
 test('validates timing bytes then reruns exact 3B-6a boundary conformance', async () => {
 	const drift = createVideoTimingAssetPublication(ARCHIVE_PROXY_SHA, {
 		timescale: 10,
-		presentationTicks: [0n, 1n, 2n, 4n, 4n, 5n, 6n, 7n, 8n, 9n],
+		presentationTicks: [0n, 1n, 2n, 4n, 5n, 6n, 7n, 8n, 9n, 10n],
 		finalFrameDurationTicks: 1n,
 	});
 	const project = withTiming(archiveProject(), drift.reference);
@@ -365,7 +365,7 @@ function reattestationFixture(options: FixtureOptions = {}) {
 	const timingBody = options.timingBody ?? new Blob([exactBuffer(ARCHIVE_TIMING.bytes)], {
 		type: VIDEO_TIMING_ASSET_MIME_TYPE,
 	});
-	let task = Object.freeze({ generation: 1 });
+	let task: Readonly<{ generation: number }> = Object.freeze({ generation: 1 });
 	let proxyCurrent = options.proxyCurrent ?? true;
 	let timingCurrent = true;
 	let originalCurrent = true;
