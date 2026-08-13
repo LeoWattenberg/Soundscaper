@@ -47,6 +47,7 @@ import {
 	DESKTOP_VIDEO_TIMING_PROBE_PREFIX,
 	DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS,
 	createDesktopVideoTimingProbeFileHarness,
+	createDesktopVideoTimingProbeStorageProfile,
 	runDesktopVideoTimingProbeRendererSmoke,
 	validateDesktopVideoTimingProbeResult,
 } from './video-timing-probe-smoke.js';
@@ -123,6 +124,9 @@ export function createDesktopSmokeProbe(options) {
 	}
 	const videoTimingFileHarness = configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE
 		? options?.videoTimingFileHarness ?? createDesktopVideoTimingProbeFileHarness(configuration.plan)
+		: null;
+	const videoTimingStorageProfile = configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE
+		? createDesktopVideoTimingProbeStorageProfile(productId)
 		: null;
 
 	let attachedWindow = null;
@@ -285,7 +289,7 @@ export function createDesktopSmokeProbe(options) {
 			if (configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) {
 				const payload = validateDesktopVideoTimingProbeResult(
 					await attachedWindow.webContents.executeJavaScript(
-						`(${runDesktopVideoTimingProbeRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`, true,
+						`(${runDesktopVideoTimingProbeRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)}, ${JSON.stringify(videoTimingStorageProfile)})`, true,
 					),
 					plan,
 				);

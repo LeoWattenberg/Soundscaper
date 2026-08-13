@@ -33,6 +33,22 @@ const EXPECTED_FIXTURES = Object.freeze([
 		timingSha256: '40e6ddca512c4fba6fa08944709cf3852de3dd49416dfc817304eec8a352ecf7',
 	}),
 ]);
+const STORAGE_PROFILES = Object.freeze({
+	soundscaper: Object.freeze({
+		productId: 'soundscaper',
+		databaseName: 'kw-media-audio-editor',
+		opfsDirectoryName: 'audio-editor-sources',
+	}),
+	framescaper: Object.freeze({
+		productId: 'framescaper',
+		databaseName: 'kw-media-framescaper-editor-v18',
+		opfsDirectoryName: 'framescaper-editor-v18-sources',
+	}),
+});
+
+export function createDesktopVideoTimingProbeStorageProfile(productId) {
+	return STORAGE_PROFILES[requiredProduct(productId)];
+}
 
 export function createDesktopVideoTimingProbePlan(value) {
 	const plan = strictRecord(value, ['fixtures', 'mode', 'productId', 'schemaVersion', 'token'], 'plan');
@@ -114,7 +130,8 @@ export function createDesktopVideoTimingProbeFileHarness(planValue) {
 	});
 }
 
-export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan) {
+export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, storageProfileValue) {
+	const storageProfile = validateStorageProfile(storageProfileValue, plan?.productId);
 	const editor = scope.document?.querySelector?.('[data-audio-editor]');
 	if (!editor || editor.getAttribute('data-audio-editor-bound') !== 'true') {
 		throw new Error('Desktop video timing-probe editor is not ready');
@@ -162,7 +179,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan) {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
 		});
-		const database = await request(globalScope.indexedDB.open('kw-media-audio-editor'));
+		const database = await request(globalScope.indexedDB.open(storageProfile.databaseName));
 		try {
 			const transaction = database.transaction(['projects', 'mediaAssets', 'mediaAssetChunks'], 'readonly');
 			const [projects, mediaAssets, mediaChunks] = await Promise.all([
@@ -205,7 +222,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan) {
 	async function readMediaAssetBytes(globalScope, record, mediaChunks) {
 		if (record.storage === 'opfs') {
 			const root = await globalScope.navigator.storage.getDirectory();
-			const directory = await root.getDirectoryHandle('audio-editor-sources');
+			const directory = await root.getDirectoryHandle(storageProfile.opfsDirectoryName);
 			const handle = await directory.getFileHandle(record.path);
 			return new Uint8Array(await (await handle.getFile()).arrayBuffer());
 		}
@@ -221,6 +238,32 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan) {
 			offset += payload.byteLength;
 		}
 		return bytes;
+	}
+
+	function validateStorageProfile(value, productId) {
+		const fields = ['databaseName', 'opfsDirectoryName', 'productId'];
+		if (!value || typeof value !== 'object' || Array.isArray(value)
+			|| Object.getPrototypeOf(value) !== Object.prototype
+			|| Reflect.ownKeys(value).length !== fields.length) {
+			throw new TypeError('Desktop video timing-probe storage profile must be a closed object');
+		}
+		const profile = {};
+		for (const field of fields) {
+			const descriptor = Object.getOwnPropertyDescriptor(value, field);
+			if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+				throw new TypeError(`Desktop video timing-probe storage profile ${field} is invalid`);
+			}
+			profile[field] = descriptor.value;
+		}
+		const framescaper = productId === 'framescaper';
+		if ((!framescaper && productId !== 'soundscaper') || profile.productId !== productId
+			|| profile.databaseName !== (framescaper
+				? 'kw-media-framescaper-editor-v18' : 'kw-media-audio-editor')
+			|| profile.opfsDirectoryName !== (framescaper
+				? 'framescaper-editor-v18-sources' : 'audio-editor-sources')) {
+			throw new TypeError('Desktop video timing-probe storage profile does not match its product');
+		}
+		return Object.freeze(profile);
 	}
 }
 
