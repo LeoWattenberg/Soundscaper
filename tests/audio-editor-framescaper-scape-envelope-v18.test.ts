@@ -188,6 +188,7 @@ test('stays within the dormant V18 preservation path and leaves the V17 archive 
 		'tests/audio-editor-framescaper-project-runtime-profile.test.ts',
 		TEST_MODULE,
 		'tests/audio-editor-scape-video-proxy-archive-plan-v2.test.ts',
+		'tests/audio-editor-video-proxy-attachment-v18.test.ts',
 	]);
 	const source = await readFile(resolve(ROOT, MODULE), 'utf8');
 	assert.match(source, /assertFramescaperProjectV18Profile/u);
