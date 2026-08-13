@@ -19,6 +19,11 @@ import type { StorageRecord } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import {
+	normalizeVideoProxyCleanupTombstoneRecord,
+	VIDEO_PROXY_CLEANUP_TOMBSTONE_KIND,
+	videoProxyCleanupTombstoneKey,
+} from './video-proxy-cleanup-tombstone.ts';
+import {
 	MAX_VIDEO_PROXY_CLAIMS,
 	normalizeVideoProxyClaimRecord,
 	type VideoProxyClaimBodyKind,
@@ -124,15 +129,23 @@ export class VideoProxyClaimStagingRepository {
 			['mediaAssets', MEDIA_ASSET_STAGING_STORE_NAME],
 			'readwrite',
 			async ({ mediaAssets, mediaAssetStaging }) => {
-				const inventory = await request(mediaAssetStaging
-					.index('kind')
+				const inventory = await request(mediaAssetStaging.index('kind')
 					.getAll(VIDEO_PROXY_CLAIM_KIND, this.#maximumClaims + 1));
 				for (const candidate of inventory) normalizeVideoProxyClaimRecord(candidate);
 				if (inventory.length >= this.#maximumClaims) {
 					throw new RangeError('The bounded video proxy claim inventory limit was reached.');
 				}
+				const tombstones = await request(mediaAssetStaging.index('kind').getAll(
+					VIDEO_PROXY_CLEANUP_TOMBSTONE_KIND,
+					this.#maximumClaims - inventory.length + 1,
+				));
+				for (const candidate of tombstones) normalizeVideoProxyCleanupTombstoneRecord(candidate);
+				if (inventory.length + tombstones.length >= this.#maximumClaims) {
+					throw new RangeError('The bounded video proxy claim inventory limit was reached.');
+				}
 				const key = videoProxyClaimKey(input.operationId, input.bodyKind, input.bodyKey);
-				if (await request(mediaAssetStaging.get(key)) !== undefined) {
+				if (await request(mediaAssetStaging.get(key)) !== undefined
+					|| await request(mediaAssetStaging.get(videoProxyCleanupTombstoneKey(input.bodyKey))) !== undefined) {
 					throw new Error('The video proxy claim generation already exists.');
 				}
 				const row = await request(mediaAssets.get(input.bodyKey));

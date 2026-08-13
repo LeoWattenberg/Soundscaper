@@ -10,6 +10,7 @@ import {
 } from './media-content-provenance.ts';
 import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { videoProxyCleanupTombstoneKey } from './video-proxy-cleanup-tombstone-schema.ts';
 
 export const VIDEO_PROXY_CLAIM_SCHEMA_VERSION = 1 as const;
 export const VIDEO_PROXY_CLAIM_KIND = 'video-proxy-claim' as const;
@@ -136,6 +137,18 @@ export class VideoProxyClaimRepository {
 		}
 		const proxy = normalizeVideoProxyClaimRecord(proxyValue);
 		const timing = normalizeVideoProxyClaimRecord(timingValue);
+		const reservations = await transact(
+			database,
+			MEDIA_ASSET_STAGING_STORE_NAME,
+			'readonly',
+			({ mediaAssetStaging }) => Promise.all([
+				request(mediaAssetStaging.get(videoProxyCleanupTombstoneKey(proxy.bodyKey))),
+				request(mediaAssetStaging.get(videoProxyCleanupTombstoneKey(timing.bodyKey))),
+			]),
+		);
+		if (reservations.some((value) => value !== undefined)) {
+			throw new Error('A video proxy body is reserved for restart cleanup.');
+		}
 		assertRequestedClaim(proxy, requested, 'proxy', requested.proxyClaimKey);
 		assertRequestedClaim(timing, requested, 'timing', requested.timingClaimKey);
 		assertClaimsLive(proxy, timing, this.#now());

@@ -2,6 +2,7 @@
 
 import { collectProjectStorageKeys } from '../common/editor/retention.js';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { normalizeVideoProxyCleanupTombstoneRecord } from '../common/editor/storage/video-proxy-cleanup-tombstone.ts';
 import {
 	MAX_VIDEO_PROXY_CLAIMS,
 	normalizeVideoProxyClaimRecord,
@@ -82,7 +83,7 @@ export function collectFramescaperProjectStorageRootsV18(
 		for (const project of normalized.projects) projects.push(snapshotProject(profile, project));
 	}
 	for (const project of scope.pendingSaveSnapshots) projects.push(snapshotProject(profile, project));
-	const claims = scope.claims.map((claim) => normalizeVideoProxyClaimRecord(claim));
+	const claimRoots = scope.claims.map(retentionClaimBodyKey);
 
 	const roots = new Set<string>();
 	for (const project of projects) {
@@ -95,11 +96,23 @@ export function collectFramescaperProjectStorageRootsV18(
 			assertRootLimit(roots, limits.maximumRoots);
 		}
 	}
-	for (const claim of claims) {
-		roots.add(claim.bodyKey);
+	for (const bodyKey of claimRoots) {
+		roots.add(bodyKey);
 		assertRootLimit(roots, limits.maximumRoots);
 	}
 	return Object.freeze([...roots].sort());
+}
+
+function retentionClaimBodyKey(value: unknown): string {
+	try {
+		return normalizeVideoProxyClaimRecord(value).bodyKey;
+	} catch (claimError) {
+		try {
+			return normalizeVideoProxyCleanupTombstoneRecord(value).claim.bodyKey;
+		} catch {
+			throw claimError;
+		}
+	}
 }
 
 function normalizeScope(value: unknown): NormalizedScope {
