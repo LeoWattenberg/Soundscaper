@@ -66,7 +66,7 @@ test('fixed smoothstep eased evaluation is continuous and uses exact rational an
 	assert.ok(Math.abs(evaluateInterpolationCurve(curve, rational(3_500_001, 1_000_000)) - 6.000002) < 1e-12);
 });
 
-test('inverse returns exact anchors and integer roots, plateau ranges, and enclosing integer brackets', () => {
+test('inverse returns exact rational roots, plateau ranges, and enclosing integer brackets', () => {
 	const linear = compileInterpolationCurve({
 		anchors: [
 			{ position: rational(0), value: 0 },
@@ -77,7 +77,7 @@ test('inverse returns exact anchors and integer roots, plateau ranges, and enclo
 	assert.deepEqual(invertInterpolationCurve(linear, 0), [{ kind: 'point', position: rational(0) }]);
 	assert.deepEqual(invertInterpolationCurve(linear, 10), [{ kind: 'point', position: rational(5) }]);
 	assert.deepEqual(invertInterpolationCurve(linear, 5), [{
-		kind: 'bracket', lower: rational(2), upper: rational(3),
+		kind: 'point', position: rational(5, 2),
 	}]);
 	assert.deepEqual(invertInterpolationCurve(linear, 30), []);
 
@@ -101,6 +101,9 @@ test('inverse returns exact anchors and integer roots, plateau ranges, and enclo
 		segments: [{ kind: 'eased' }],
 	});
 	assert.deepEqual(invertInterpolationCurve(eased, 0), [{ kind: 'point', position: rational(5) }]);
+	assert.deepEqual(invertInterpolationCurve(eased, -4), [{
+		kind: 'bracket', lower: rational(1), upper: rational(2),
+	}], 'a non-exact smoothstep root remains an authoritative integer-cell bracket');
 });
 
 test('Bézier inversion supports monotone values and rejects nonmonotone value handles without blocking evaluation', () => {
@@ -227,21 +230,33 @@ test('bounded generated curves stay continuous and invert every sampled monotone
 	}
 });
 
-test('generated fractional roots remain brackets instead of being promoted to exact integer points', () => {
-	for (let span = 2; span <= 64; span += 1) {
+test('generated exact rational linear roots remain points instead of integer-cell brackets', () => {
+	for (let exponent = 1; exponent <= 8; exponent += 1) {
+		const span = 2 ** exponent;
 		const curve = compileInterpolationCurve({
 			anchors: [
 				{ position: rational(0), value: 0 },
-				{ position: rational(span), value: span * 2 },
+				{ position: rational(span), value: span },
 			],
 			segments: [{ kind: 'linear' }],
 		});
 		for (let lower = 0; lower < span; lower += 1) {
-			assert.deepEqual(invertInterpolationCurve(curve, lower * 2 + 1), [{
-				kind: 'bracket', lower: rational(lower), upper: rational(lower + 1),
+			assert.deepEqual(invertInterpolationCurve(curve, lower + 0.5), [{
+				kind: 'point', position: rational(lower * 2 + 1, 2),
 			}]);
 		}
 	}
+
+	const roundedEvaluation = compileInterpolationCurve({
+		anchors: [
+			{ position: rational(0), value: 0 },
+			{ position: rational(11), value: 22 },
+		],
+		segments: [{ kind: 'linear' }],
+	});
+	assert.deepEqual(invertInterpolationCurve(roundedEvaluation, 15), [{
+		kind: 'bracket', lower: rational(7), upper: rational(8),
+	}], 'a rational algebra candidate is not promoted when evaluator rechecking differs');
 });
 
 test('compile admits 4096 segments, rejects the next one, and bounds hostile rational inputs', () => {

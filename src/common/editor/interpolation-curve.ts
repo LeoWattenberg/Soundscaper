@@ -310,6 +310,8 @@ function invertMovingSegment(
 	target: number,
 	direction: -1 | 1,
 ): InverseOccurrence {
+	const rationalCandidate = exactLinearCandidate(segment, target);
+	if (rationalCandidate !== null) return pointOccurrence(rationalCandidate);
 	const minimum = roundRational(
 		segment.start.position.numerator, segment.start.position.denominator, 'enclosingEnd',
 	);
@@ -330,6 +332,27 @@ function invertMovingSegment(
 		lower: normalizeRational(Math.max(0, low - 1)),
 		upper: normalizeRational(low),
 	});
+}
+
+function exactLinearCandidate(segment: InternalSegment, target: number): Fraction | null {
+	if (segment.shape.kind !== 'linear') return null;
+	const valueSpan = subtract(numberFraction(segment.end.value), numberFraction(segment.start.value));
+	const amount = divide(
+		subtract(numberFraction(target), numberFraction(segment.start.value)),
+		valueSpan,
+	);
+	const candidate = add(
+		segment.start.position,
+		multiply(subtract(segment.end.position, segment.start.position), amount),
+	);
+	let admitted: Fraction;
+	try {
+		admitted = exactFraction(normalizeRational(publicFraction(candidate)));
+	} catch (error) {
+		if (error instanceof RangeError) return null;
+		throw error;
+	}
+	return evaluateSegment(segment, admitted) === target ? admitted : null;
 }
 
 function valueDirection(start: number, end: number, shape: InternalShape): -1 | 0 | 1 | null {
@@ -428,6 +451,19 @@ function integerFraction(value: number): Fraction {
 	return Object.freeze({ numerator: BigInt(value), denominator: 1n });
 }
 
+function numberFraction(value: number): Fraction {
+	if (Number.isSafeInteger(value)) return integerFraction(value);
+	const match = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/iu.exec(String(value));
+	if (!match) throw new RangeError('A finite interpolation value could not be represented exactly.');
+	const decimals = match[3] ?? '';
+	const exponent = Number(match[4] ?? 0) - decimals.length;
+	let numerator = BigInt(`${match[1] ?? ''}${match[2] ?? ''}${decimals}`);
+	let denominator = 1n;
+	if (exponent >= 0) numerator *= 10n ** BigInt(exponent);
+	else denominator = 10n ** BigInt(-exponent);
+	return normalizeFraction(numerator, denominator);
+}
+
 function normalizeFraction(numerator: bigint, denominator: bigint): Fraction {
 	if (denominator === 0n) throw new RangeError('An interpolation position denominator cannot be zero.');
 	if (denominator < 0n) { numerator = -numerator; denominator = -denominator; }
@@ -440,6 +476,17 @@ function subtract(left: Fraction, right: Fraction): Fraction {
 		left.numerator * right.denominator - right.numerator * left.denominator,
 		left.denominator * right.denominator,
 	);
+}
+
+function add(left: Fraction, right: Fraction): Fraction {
+	return normalizeFraction(
+		left.numerator * right.denominator + right.numerator * left.denominator,
+		left.denominator * right.denominator,
+	);
+}
+
+function multiply(left: Fraction, right: Fraction): Fraction {
+	return normalizeFraction(left.numerator * right.numerator, left.denominator * right.denominator);
 }
 
 function divide(left: Fraction, right: Fraction): Fraction {
