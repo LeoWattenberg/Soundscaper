@@ -78,10 +78,17 @@ test('desktop host close fences late work and drains an admitted project commit'
 		return originalCommitProject.call(this, options);
 	};
 	context.after(() => { prototype.commitProject = originalCommitProject; });
+	// The commit below is held open past the lease TTL on purpose, so the renewal
+	// timer is all that keeps the lease owned. Renewal throws once the stored
+	// expiry falls behind the clock, and until close() marks the coordinator
+	// closed that failure aborts the in-flight commit instead of being ignored.
+	// A one-second TTL therefore tolerated only a one-second stall between the
+	// commit starting and close() landing; a loaded runner exceeds that. Keep the
+	// frequent renewals and widen the window the stall has to beat.
 	const host = await DesktopProjectLibraryHost.start({
 		appDataPath,
 		owner: SOUNDSCAPER_OWNER,
-		leaseTtlMs: 1_000,
+		leaseTtlMs: 3_000,
 		renewIntervalMs: 100,
 	});
 	context.after(() => host.close());
@@ -93,7 +100,7 @@ test('desktop host close fences late work and drains an admitted project commit'
 		() => host.commitProject(commitOptions(2, 'soundscaper', 10_002)),
 		/host is closed/u,
 	);
-	await delay(1_100);
+	await delay(3_300);
 	continueCommit?.();
 	const committed = await commit;
 	await closing;
