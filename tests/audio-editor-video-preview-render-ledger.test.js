@@ -2,9 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	createVideoPreviewCompositorFallbackReport,
+} from '../src/common/editor/ui/video-preview-compositor.js';
+import {
 	beginVideoPreviewRenderLedger,
 	completeVideoPreviewRenderLedger,
 	createVideoPreviewFallbackReport,
+	createVideoPreviewSafeFallbackReport,
 	recordVideoPreviewEntryFallback,
 	recordVideoPreviewEntryRendered,
 	shouldContinueVideoPreviewPlayback,
@@ -76,6 +80,36 @@ test('disabled effects are not requested and duplicate instance IDs reject', () 
 			],
 		}], supportedEffectTypes),
 		/duplicate/iu,
+	);
+});
+
+test('the recovery report survives layers the strict ledger rejects', () => {
+	const unreportable = [{
+		entries: [
+			entry('clip-a', [effect('duplicate', 'pixelate')]),
+			entry('clip-b', [effect('duplicate', 'color-adjust')]),
+		],
+	}];
+	const oversized = [{
+		entries: [entry('clip-a', [effect(`effect-${'x'.repeat(200)}`, 'color-adjust')])],
+	}];
+	for (const layers of [unreportable, oversized]) {
+		assert.throws(() => createVideoPreviewFallbackReport(layers, supportedEffectTypes));
+		const expected = {
+			status: 'fallback',
+			rendererStatus: 'failed',
+			renderedEntryCount: 0,
+			effects: { requested: [], rendered: [], fallbackRendered: [], omitted: [] },
+		};
+		assert.deepEqual(createVideoPreviewSafeFallbackReport(layers, supportedEffectTypes), expected);
+		assert.deepEqual(createVideoPreviewCompositorFallbackReport(layers), expected);
+	}
+	assert.deepEqual(
+		createVideoPreviewSafeFallbackReport(
+			[{ entries: [entry('clip-a', [effect('effect-a', 'color-adjust')])] }],
+			supportedEffectTypes,
+		).effects.fallbackRendered,
+		['effect-a'],
 	);
 });
 
