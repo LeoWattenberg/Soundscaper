@@ -10,6 +10,7 @@ import type { StorageRepositoryPort } from '../src/common/editor/storage/reposit
 import {
 	VideoProxyClaimRepository,
 	type VideoProxyClaimRecord,
+	videoProxyClaimKey,
 } from '../src/common/editor/storage/video-proxy-claim-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
@@ -114,6 +115,47 @@ test('preparation refuses incomplete, unverified, mixed, and malformed claim pai
 	await assert.rejects(fixture.repository.preparePreservationPlan(planRequest(proxy, timing)), /missing/iu);
 });
 
+test('expired claims and cloned or wrapped plan values cannot grant preservation authority', async (context) => {
+	const fixture = await createFixture(context);
+	const proxy = claim('proxy', `video-proxy-sha256:${PROXY_DIGEST}`, PROXY_DIGEST);
+	const timing = claim('timing', `video-timing-sha256:${TIMING_DIGEST}`, TIMING_DIGEST);
+	await seedClaims(fixture.database, proxy, timing);
+	const expiredRepository = new VideoProxyClaimRepository(fixture.port, {
+		now: () => proxy.expiresAt,
+	});
+	await assert.rejects(expiredRepository.preparePreservationPlan(planRequest(proxy, timing)), /expired/iu);
+
+	const plan = await fixture.repository.preparePreservationPlan(planRequest(proxy, timing));
+	for (const forged of [{ ...plan }, structuredClone(plan)]) {
+		await assert.rejects(
+			transact(
+				fixture.database,
+				MEDIA_ASSET_STAGING_STORE_NAME,
+				'readwrite',
+				({ mediaAssetStaging }) => fixture.repository.consumePreservationPlan(forged, mediaAssetStaging),
+			),
+			/authentic/iu,
+		);
+	}
+	let traps = 0;
+	const wrapped = new Proxy(plan, {
+		getPrototypeOf() { traps += 1; throw new Error('prototype trap'); },
+		ownKeys() { traps += 1; throw new Error('keys trap'); },
+		getOwnPropertyDescriptor() { traps += 1; throw new Error('descriptor trap'); },
+	});
+	await assert.rejects(
+		transact(
+			fixture.database,
+			MEDIA_ASSET_STAGING_STORE_NAME,
+			'readwrite',
+			({ mediaAssetStaging }) => fixture.repository.consumePreservationPlan(wrapped, mediaAssetStaging),
+		),
+		/authentic/iu,
+	);
+	assert.equal(traps, 0);
+	assert.deepEqual(await storedClaims(fixture.database, proxy.key, timing.key), [proxy, timing]);
+});
+
 test('production preservation hard-stops on degraded memory storage before claim access', async () => {
 	let memoryReads = 0;
 	const memory = new Proxy(getMemoryDatabase(uniqueName('proxy-claims-memory')), {
@@ -136,6 +178,7 @@ test('production preservation hard-stops on degraded memory storage before claim
 
 interface Fixture {
 	readonly database: IDBDatabase;
+	readonly port: StorageRepositoryPort;
 	readonly repository: VideoProxyClaimRepository;
 }
 
@@ -147,7 +190,11 @@ async function createFixture(context: TestContext): Promise<Fixture> {
 		memory: getMemoryDatabase(databaseName),
 		database: async () => database,
 	};
-	return { database, repository: new VideoProxyClaimRepository(port) };
+	return {
+		database,
+		port,
+		repository: new VideoProxyClaimRepository(port, { now: () => 1_786_550_400_200 }),
+	};
 }
 
 function claim(
@@ -160,7 +207,7 @@ function claim(
 		? 'video/mp4'
 		: 'application/vnd.soundscaper.video-timing';
 	return {
-		key: `video-proxy-claim:${OPERATION_ID}:${bodyKind}`,
+		key: videoProxyClaimKey(OPERATION_ID, bodyKind, bodyKey),
 		kind: 'video-proxy-claim',
 		schemaVersion: 1,
 		status: 'verified',
