@@ -36,22 +36,16 @@ export interface FramescaperDesktopProjectLibraryV10ShadowStore extends Framesca
 	loadProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown;
 }
 
-export interface FramescaperDesktopProjectLibraryV10ExpectedProject {
-	readonly projectRevision: number;
-	readonly projectSha256: string;
-}
-
-export interface FramescaperDesktopProjectLibraryV10Publication {
-	readonly expectedMetadataRevision: number;
-	readonly expectedProject: Readonly<FramescaperDesktopProjectLibraryV10ExpectedProject> | null;
-	readonly project: unknown;
-	readonly signal?: AbortSignal;
-}
-
 export interface FramescaperDesktopProjectLibraryV10Renderer {
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<FramescaperProjectV18 | null>;
-	publishProject(request: FramescaperDesktopProjectLibraryV10Publication): Promise<FramescaperProjectV18>;
+	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
+		Promise<FramescaperProjectV18>;
 }
+
+const RENDERER_COMPOSITIONS = new WeakMap<object, Readonly<{
+	readonly profile: EditorProjectRuntimeProfile;
+	readonly store: FramescaperDesktopProjectLibraryV10ShadowStore;
+}>>();
 
 export class FramescaperDesktopProjectLibraryV10CommittedError extends Error {
 	readonly committed = true;
@@ -63,11 +57,9 @@ export class FramescaperDesktopProjectLibraryV10CommittedError extends Error {
 }
 
 const COMPOSITION_FIELDS = ['store', 'archive'] as const;
-const PUBLICATION_REQUIRED_FIELDS = ['expectedMetadataRevision', 'expectedProject', 'project'] as const;
+const PUBLICATION_REQUIRED_FIELDS = ['project'] as const;
 const PUBLICATION_OPTIONAL_FIELDS = ['signal'] as const;
-const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
 const SIGNAL_FIELDS = ['signal'] as const;
-const DIGEST = /^[a-f0-9]{64}$/u;
 
 /** Connect the packaged V10 bridge only to one already-authenticated V18 shadow/archive pair. */
 export async function connectFramescaperDesktopProjectLibraryV10Renderer(
@@ -97,7 +89,22 @@ export async function connectFramescaperDesktopProjectLibraryV10Renderer(
 	if (bridge.handshakeState() !== 'admitted') {
 		throw new TypeError('The Framescaper desktop V10 bridge did not retain its admitted handshake.');
 	}
-	return Object.freeze(new Renderer(profile, store, archive, bridge));
+	const renderer = Object.freeze(new Renderer(profile, store, archive, bridge));
+	RENDERER_COMPOSITIONS.set(renderer, Object.freeze({ profile, store }));
+	return renderer;
+}
+
+/** Authenticate the renderer/store pair without exposing its bridge or private CAS witnesses. */
+export function assertFramescaperDesktopProjectLibraryV10RendererComposition(
+	profileValue: EditorProjectRuntimeProfile | unknown,
+	store: unknown,
+	renderer: unknown,
+): asserts renderer is FramescaperDesktopProjectLibraryV10Renderer {
+	assertFramescaperProjectV18Profile(profileValue);
+	const composition = RENDERER_COMPOSITIONS.get(renderer as object);
+	if (!composition || composition.profile !== profileValue || composition.store !== store) {
+		throw new TypeError('The exact admitted Framescaper desktop V10 renderer composition is required.');
+	}
 }
 
 class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
@@ -105,6 +112,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 	readonly #store: FramescaperDesktopProjectLibraryV10ShadowStore;
 	readonly #archive: FramescaperScapeArchiveV18;
 	readonly #bridge: FramescaperDesktopV10RendererBridge;
+	readonly #witnesses = new Map<string, Witness>();
 	#tail: Promise<void> = Promise.resolve();
 
 	constructor(
@@ -126,15 +134,49 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 			throwIfScapeAborted(signal);
 			const raw = await this.#bridge.readProjectBundle(projectId);
 			throwIfScapeAborted(signal);
-			if (raw === null) return null;
+			if (raw === null) {
+				this.#witnesses.set(projectId, Object.freeze({ kind: 'absent', expectedMetadataRevision: 0 }));
+				return null;
+			}
 			const snapshot = validateFramescaperDesktopV10Bundle(this.#profile, raw, projectId);
-			return this.#reconcile(snapshot, signal);
+			const project = await this.#reconcile(snapshot, signal);
+			this.#witnesses.set(projectId, Object.freeze({
+				kind: 'current',
+				expectedMetadataRevision: snapshot.bundle.metadataRevision,
+				expectedProject: Object.freeze({
+					projectRevision: snapshot.bundle.project.projectRevision,
+					projectSha256: snapshot.bundle.project.sha256,
+				}),
+			}));
+			return project;
 		});
 	}
 
-	publishProject(requestValue: FramescaperDesktopProjectLibraryV10Publication) {
-		const request = publicationRequest(this.#profile, requestValue);
-		return this.#exclusive(() => this.#publish(request));
+	publishProject(requestValue: unknown) {
+		const request = rendererPublicationRequest(this.#profile, requestValue);
+		return this.#exclusive(() => this.#publishFromWitness(request));
+	}
+
+	async #publishFromWitness(request: RendererPublication): Promise<FramescaperProjectV18> {
+		const projectId = validateFramescaperDesktopV10ProjectId(String(request.project.id));
+		const witness = this.#witnesses.get(projectId);
+		if (!witness) throw new Error('An authoritative desktop V10 load witness is required before publication.');
+		if (witness.kind === 'absent') {
+			if (Number(request.project.revision) !== 0) {
+				throw new Error('The desktop V10 absence witness can publish only fresh revision zero.');
+			}
+		} else if (Number(request.project.revision) !== witness.expectedProject.projectRevision + 1) {
+			throw new Error('The desktop V10 publication is stale against its private revision witness.');
+		}
+		try {
+			return await this.#publish(Object.freeze({
+				...request,
+				expectedMetadataRevision: witness.expectedMetadataRevision,
+				expectedProject: witness.kind === 'absent' ? null : witness.expectedProject,
+			}));
+		} finally {
+			this.#witnesses.delete(projectId);
+		}
 	}
 
 	async #publish(request: NormalizedPublication): Promise<FramescaperProjectV18> {
@@ -258,38 +300,38 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 
 interface NormalizedPublication {
 	readonly expectedMetadataRevision: number;
-	readonly expectedProject: Readonly<FramescaperDesktopProjectLibraryV10ExpectedProject> | null;
+	readonly expectedProject: Readonly<{ readonly projectRevision: number; readonly projectSha256: string }> | null;
 	readonly project: FramescaperProjectV18;
 	readonly document: string;
 	readonly documentSha256: string;
 	readonly signal?: AbortSignal;
 }
 
-function publicationRequest(profile: EditorProjectRuntimeProfile, value: unknown): NormalizedPublication {
+interface RendererPublication {
+	readonly project: FramescaperProjectV18;
+	readonly document: string;
+	readonly documentSha256: string;
+	readonly signal?: AbortSignal;
+}
+
+type Witness = Readonly<{ readonly kind: 'absent'; readonly expectedMetadataRevision: 0 }>
+	| Readonly<{
+		readonly kind: 'current';
+		readonly expectedMetadataRevision: number;
+		readonly expectedProject: Readonly<{ readonly projectRevision: number; readonly projectSha256: string }>;
+	}>;
+
+function rendererPublicationRequest(profile: EditorProjectRuntimeProfile, value: unknown): RendererPublication {
 	const raw = allowedRecord(
 		value, PUBLICATION_REQUIRED_FIELDS, PUBLICATION_OPTIONAL_FIELDS, 'Framescaper desktop V10 publication',
 	);
 	const snapshot = snapshotFramescaperDesktopV10Project(profile, raw.project);
 	const signal = raw.signal === undefined ? undefined : abortSignal(raw.signal);
 	return Object.freeze({
-		expectedMetadataRevision: nonNegative(raw.expectedMetadataRevision, 'metadata revision'),
-		expectedProject: expectedProject(raw.expectedProject),
 		project: snapshot.project,
 		document: snapshot.document,
 		documentSha256: snapshot.sha256,
 		...(signal ? { signal } : {}),
-	});
-}
-
-function expectedProject(value: unknown): Readonly<FramescaperDesktopProjectLibraryV10ExpectedProject> | null {
-	if (value === null) return null;
-	const raw = allowedRecord(value, EXPECTED_FIELDS, [], 'Framescaper desktop V10 expected project');
-	if (typeof raw.projectSha256 !== 'string' || !DIGEST.test(raw.projectSha256)) {
-		throw new TypeError('The expected desktop project digest is invalid.');
-	}
-	return Object.freeze({
-		projectRevision: nonNegative(raw.projectRevision, 'project revision'),
-		projectSha256: raw.projectSha256,
 	});
 }
 
@@ -451,9 +493,4 @@ function ownData(value: object, field: string, name: string): unknown {
 		throw new TypeError(`${name}.${field} must be an own data property.`);
 	}
 	return descriptor.value;
-}
-
-function nonNegative(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`The desktop ${name} is invalid.`);
-	return Number(value);
 }

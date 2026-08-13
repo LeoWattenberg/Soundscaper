@@ -118,14 +118,7 @@ test('publishes bounded pathless bodies in main before claim-bound shadow reconc
 	const project = structuredClone(current) as FramescaperProjectV18;
 	(project as unknown as { revision: number }).revision = 1;
 	(project as unknown as { title: string }).title = 'Published through desktop V10';
-	const published = await renderer.publishProject({
-		expectedMetadataRevision: currentBundle.metadataRevision,
-		expectedProject: {
-			projectRevision: currentBundle.project.projectRevision,
-			projectSha256: currentBundle.project.sha256,
-		},
-		project,
-	});
+	const published = await renderer.publishProject({ project });
 
 	assert.deepEqual(published, project);
 	assert.equal(events[0], 'begin');

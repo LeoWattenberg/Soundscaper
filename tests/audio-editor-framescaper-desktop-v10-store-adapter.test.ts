@@ -1,239 +1,289 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 
 import {
-	createFramescaperDesktopProjectStoreV10Adapter,
-} from '../src/framescaper/desktop-project-library-v10-store-adapter.ts';
-import type {
-	FramescaperDesktopProjectLibraryV10Renderer,
+	createFramescaperDesktopProjectLibraryV10Handshake,
+} from '../desktop/project-library-v10-contract.ts';
+import {
+	connectFramescaperDesktopProjectLibraryV10Renderer,
+	type FramescaperDesktopProjectLibraryV10ShadowStore,
 } from '../src/framescaper/desktop-project-library-v10-renderer.ts';
+import {
+	createFramescaperDesktopProjectStoreV10Adapter,
+	type FramescaperDesktopProjectStoreV10Adapter,
+} from '../src/framescaper/desktop-project-library-v10-store-adapter.ts';
+import {
+	createFramescaperProjectStoreV18,
+	framescaperProjectStoreAuthorityV18,
+} from '../src/framescaper/editor-project-store-v18.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import { createFramescaperProjectV18, type FramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
+import { FramescaperScapeArchiveV18 } from '../src/framescaper/scape-project-preservation-v18.ts';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
-test('web composition returns the exact local V18 store with no wrapper authority', () => {
-	const local = localStoreFixture();
+const PUBLICATION_ID = 'cd'.repeat(24);
+
+test('web composition returns the exact local V18 store with no wrapper authority', async (context) => {
+	const fixture = await lifecycleFixture(context, false);
 	assert.equal(createFramescaperDesktopProjectStoreV10Adapter(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-		{ localStore: local.store, desktopProjectLibrary: null },
-	), local.store);
-});
-
-test('load always refreshes main and keeps revision witnesses private', async () => {
-	const local = localStoreFixture();
-	const project = projectFixture({ id: 'authoritative-load', revision: 4 });
-	const calls: string[] = [];
-	const renderer = rendererFixture({
-		readProject: async (projectId) => {
-			calls.push(`main-read:${projectId}`);
-			local.seed(project);
-			return structuredClone(project);
-		},
-	});
-	const store = createFramescaperDesktopProjectStoreV10Adapter(
+		{ localStore: fixture.localStore, desktopProjectLibrary: null },
+	), fixture.localStore);
+	assert.throws(() => createFramescaperDesktopProjectStoreV10Adapter(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-		{ localStore: local.store, desktopProjectLibrary: renderer.api },
-	);
-
-	assert.deepEqual(await store.loadProject(String(project.id)), project);
-	assert.deepEqual(await store.loadProject(String(project.id)), project);
-	assert.deepEqual(calls, ['main-read:authoritative-load', 'main-read:authoritative-load']);
-	assert.deepEqual(renderer.readCalls, [
-		{ projectId: 'authoritative-load', hasSignal: false },
-		{ projectId: 'authoritative-load', hasSignal: false },
-	]);
-	assert.deepEqual(Reflect.ownKeys(store), Reflect.ownKeys(local.store));
-	assert.equal(JSON.stringify(store).includes('metadataRevision'), false);
-	assert.equal(JSON.stringify(store).includes('projectSha256'), false);
-	assert.equal(Object.hasOwn(store, 'desktopProjectLibrary'), false);
-
-	const revision = await store.loadProject(String(project.id), { revision: 4 });
-	assert.deepEqual(revision, project);
-	assert.equal(renderer.readCalls.length, 2);
+		{ localStore: {} as never, desktopProjectLibrary: null },
+	), /exact|local store|authority/iu);
 });
 
-test('save is main-first and uses only a renderer-held witness before local reconciliation', async () => {
-	const local = localStoreFixture();
+test('load always refreshes main while revision loads remain shadow-local', async (context) => {
+	const fixture = await lifecycleFixture(context);
+	const first = projectFixture({ id: 'authoritative-load', revision: 0 });
+	fixture.main.seed(first);
+	assert.deepEqual(await fixture.store.loadProject(String(first.id)), first);
+
+	const second = projectFixture({ id: String(first.id), revision: 1, title: 'Refreshed main' });
+	fixture.main.seed(second);
+	assert.deepEqual(await fixture.store.loadProject(String(first.id)), second);
+	assert.deepEqual(fixture.main.reads, ['authoritative-load', 'authoritative-load']);
+	assert.deepEqual(await fixture.localStore.loadProject(String(first.id)), second);
+
+	assert.deepEqual(await fixture.store.loadProject(String(first.id), { revision: 0 }), first);
+	assert.equal(fixture.main.reads.length, 2);
+	assert.equal(Object.hasOwn(fixture.store, 'desktopProjectLibrary'), false);
+	assert.equal(JSON.stringify(fixture.store).includes('projectSha256'), false);
+});
+
+test('save commits in main before exact local shadow reconciliation', async (context) => {
+	const fixture = await lifecycleFixture(context);
 	const current = projectFixture({ id: 'main-first-save', revision: 0 });
-	const project = projectFixture({ id: 'main-first-save', revision: 1, title: 'Main first' });
-	local.seed(current);
+	fixture.main.seed(current);
+	await fixture.store.loadProject(String(current.id));
+	const project = projectFixture({ id: String(current.id), revision: 1, title: 'Main first' });
+	fixture.main.beforeFinish = async () => {
+		assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), current);
+	};
+
 	const events: string[] = [];
-	const renderer = rendererFixture({
-		readProject: async () => structuredClone(current),
-		publishProject: async (request) => {
-			events.push('main-publish');
-			assert.deepEqual(await local.store.loadProject(String(project.id)), current);
-			assert.deepEqual(Reflect.ownKeys(request), ['project']);
-			local.seed(project);
-			return structuredClone(project);
-		},
-	});
-	const store = createFramescaperDesktopProjectStoreV10Adapter(
-		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-		{ localStore: local.store, desktopProjectLibrary: renderer.api },
-	);
-	await store.loadProject(String(current.id));
-	const saved = await store.saveProject(project, {
-		admitProjectPublication: async () => { events.push('admit'); },
+	const saved = await fixture.store.saveProject(project, {
+		admitProjectPublication: async () => { events.push('admitted'); },
 		protectedLinkedOriginalSourceReferences: [],
 	});
-
 	assert.deepEqual(saved, project);
-	assert.deepEqual(events, ['admit', 'main-publish']);
-	assert.deepEqual(renderer.publishCalls, [{ project }]);
-	assert.deepEqual(await local.store.loadProject(String(project.id)), project);
-	assert.equal(local.saveCalls, 0);
+	assert.deepEqual(events, ['admitted']);
+	assert.deepEqual(fixture.main.events.slice(-2), ['begin', 'finish']);
+	assert.deepEqual(await fixture.localStore.loadProject(String(project.id)), project);
+	assert.deepEqual(Reflect.ownKeys(fixture.main.lastBegin!), [
+		'expectedMetadataRevision', 'expectedProject', 'project', 'bodies',
+	]);
+	assert.equal(JSON.stringify(fixture.main.lastBegin).includes('lease'), false);
+	assert.equal(JSON.stringify(fixture.main.lastBegin).includes('path'), false);
+	assert.equal(JSON.stringify(fixture.main.lastBegin).includes('callback'), false);
 });
 
-test('save refuses a missing or stale private witness before main or local mutation', async () => {
-	for (const scenario of ['missing', 'stale'] as const) {
-		const local = localStoreFixture();
-		const current = projectFixture({ id: `refuse-${scenario}`, revision: 2 });
-		const project = projectFixture({ id: `refuse-${scenario}`, revision: 3 });
-		local.seed(current);
-		const renderer = rendererFixture({
-			readProject: async () => scenario === 'stale'
-				? projectFixture({ id: String(project.id), revision: 1 })
-				: null,
-		});
-		const store = createFramescaperDesktopProjectStoreV10Adapter(
-			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-			{ localStore: local.store, desktopProjectLibrary: renderer.api },
-		);
-		if (scenario === 'stale') await store.loadProject(String(project.id));
-		await assert.rejects(store.saveProject(project), /witness|stale|authoritative.*load/iu);
-		assert.equal(renderer.publishCalls.length, 0);
-		assert.equal(local.saveCalls, 0);
-		assert.deepEqual(await local.store.loadProject(String(project.id)), current);
-	}
+test('save refuses missing and stale private witnesses before main or local mutation', async (context) => {
+	const fixture = await lifecycleFixture(context);
+	const current = projectFixture({ id: 'witness-save', revision: 0 });
+	fixture.main.seed(current);
+	const next = projectFixture({ id: String(current.id), revision: 1 });
+	await assert.rejects(fixture.store.saveProject(next), /authoritative.*witness/iu);
+	assert.equal(fixture.main.publications, 0);
+	assert.equal(await fixture.localStore.loadProject(String(current.id)), null);
+
+	await fixture.store.loadProject(String(current.id));
+	const skipped = projectFixture({ id: String(current.id), revision: 2 });
+	await assert.rejects(fixture.store.saveProject(skipped), /stale.*witness/iu);
+	assert.equal(fixture.main.publications, 0);
+	assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), current);
 });
 
-test('create is main-first, collision-safe, and consumes its private absence witness once', async () => {
-	const local = localStoreFixture();
+test('create is main-first, collision-safe, and consumes its absence witness once', async (context) => {
+	const fixture = await lifecycleFixture(context);
 	const project = projectFixture({ id: 'desktop-create', revision: 0 });
-	const events: string[] = [];
-	const renderer = rendererFixture({
-		readProject: async () => { events.push('main-read'); return null; },
-		publishProject: async (request) => {
-			events.push('main-publish');
-			assert.deepEqual(Reflect.ownKeys(request), ['project']);
-			assert.equal(await local.store.loadProject(String(project.id)), null);
-			local.seed(project);
-			return structuredClone(project);
-		},
-	});
-	const store = createFramescaperDesktopProjectStoreV10Adapter(
-		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-		{ localStore: local.store, desktopProjectLibrary: renderer.api },
-	);
-	const created = await store.createProjectIfAbsent(project);
-	assert.deepEqual(created, project);
-	assert.deepEqual(events, ['main-read', 'main-publish']);
-	assert.equal(local.createCalls, 0);
-	assert.deepEqual(await local.store.loadProject(String(project.id)), project);
-	await assert.rejects(store.createProjectIfAbsent(project), /already exists|absent/iu);
-	assert.equal(renderer.publishCalls.length, 1);
-});
-
-test('desktop mode rejects local-only delete and duplication while delegating non-project store ownership', async () => {
-	const local = localStoreFixture();
-	const renderer = rendererFixture({ readProject: async () => null });
-	const store = createFramescaperDesktopProjectStoreV10Adapter(
-		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-		{ localStore: local.store, desktopProjectLibrary: renderer.api },
-	);
-	await assert.rejects(store.deleteProject('project'), /V10.*delete.*unavailable/iu);
-	await assert.rejects(store.duplicateProject('project'), /V10.*duplication.*unavailable/iu);
-	assert.equal(local.deleteCalls, 0);
-	assert.equal(local.duplicateCalls, 0);
-	assert.deepEqual(await store.listProjects(), []);
-	assert.equal(store.getStatus(), local.status);
-	assert.equal(await store.saveSetting('key', 'value'), 'setting:value');
-	assert.deepEqual(local.settingCalls, [['key', 'value']]);
-	assert.equal(store.preservesProjectsOnClear(), true);
-	assert.equal(store.prepareProjectHandoff, undefined);
-});
-
-interface RendererOverrides {
-	readonly readProject?: (projectId: string) => Promise<FramescaperProjectV18 | null>;
-	readonly publishProject?: (request: Readonly<{ project: unknown }>) => Promise<FramescaperProjectV18>;
-}
-
-function rendererFixture(overrides: RendererOverrides = {}) {
-	const readCalls: Array<{ projectId: string; hasSignal: boolean }> = [];
-	const publishCalls: Array<Readonly<{ project: FramescaperProjectV18 }>> = [];
-	const api: FramescaperDesktopProjectLibraryV10Renderer = Object.freeze({
-		async readProject(projectId, options = {}) {
-			readCalls.push({ projectId, hasSignal: options.signal !== undefined });
-			return overrides.readProject?.(projectId) ?? null;
-		},
-		async publishProject(request) {
-			const record = request as unknown as Readonly<{ project: FramescaperProjectV18 }>;
-			publishCalls.push({ project: structuredClone(record.project) });
-			if (overrides.publishProject) return overrides.publishProject(request);
-			return structuredClone(record.project);
-		},
-	});
-	return { api, readCalls, publishCalls };
-}
-
-function localStoreFixture() {
-	const projects = new Map<string, FramescaperProjectV18>();
-	const status = Object.freeze({ state: 'indexeddb' });
-	const settingCalls: unknown[][] = [];
-	let saveCalls = 0;
-	let createCalls = 0;
-	let deleteCalls = 0;
-	let duplicateCalls = 0;
-	const store = {
-		backend: 'indexeddb', maximumProjectDocumentBytes: 256 * 1024 * 1024,
-		getStatus: () => status,
-		ready: async () => store,
-		estimateStorage: async () => ({ usage: 1, quota: Number.MAX_SAFE_INTEGER }),
-		loadProject: async (projectId: string, options: { revision?: number } = {}) => {
-			const project = projects.get(projectId) ?? null;
-			return project && (options.revision === undefined || options.revision === project.revision)
-				? structuredClone(project)
-				: null;
-		},
-		saveProject: async (project: FramescaperProjectV18) => {
-			saveCalls += 1; projects.set(String(project.id), structuredClone(project)); return project;
-		},
-		createProjectIfAbsent: async (project: FramescaperProjectV18) => {
-			createCalls += 1;
-			if (projects.has(String(project.id))) return null;
-			projects.set(String(project.id), structuredClone(project)); return project;
-		},
-		listProjects: async () => [...projects.values()].map((project) => structuredClone(project)),
-		listProjectRevisions: async () => [],
-		deleteProject: async (projectId: string) => { deleteCalls += 1; projects.delete(projectId); },
-		duplicateProject: async () => { duplicateCalls += 1; return null; },
-		prepareProjectHandoff: async () => [],
-		preservesProjectsOnClear: () => false,
-		saveSetting: async (key: string, value: unknown) => {
-			settingCalls.push([key, value]); return `setting:${String(value)}`;
-		},
-		loadSetting: async (_key: string, fallback: unknown) => fallback,
-		close: async () => undefined,
+	fixture.main.beforeFinish = async () => {
+		assert.equal(await fixture.localStore.loadProject(String(project.id)), null);
 	};
+	assert.deepEqual(await fixture.store.createProjectIfAbsent(project), project);
+	assert.deepEqual(await fixture.localStore.loadProject(String(project.id)), project);
+	assert.equal(await fixture.store.createProjectIfAbsent(project), null);
+	assert.equal(fixture.main.publications, 1);
+	assert.deepEqual(fixture.main.reads, ['desktop-create', 'desktop-create']);
+});
+
+test('desktop rejects local-only delete and duplication and delegates non-project ownership', async (context) => {
+	const fixture = await lifecycleFixture(context);
+	await assert.rejects(fixture.store.deleteProject('project'), /V10.*delete.*unavailable/iu);
+	await assert.rejects(fixture.store.duplicateProject('project'), /V10.*duplication.*unavailable/iu);
+	assert.deepEqual(fixture.store.getStatus(), fixture.localStore.getStatus());
+	assert.equal(await fixture.store.saveSetting('desktop-adapter', 'value'), 'value');
+	assert.equal(await fixture.localStore.loadSetting('desktop-adapter', null), 'value');
+	assert.equal(fixture.store.preservesProjectsOnClear(), true);
+	assert.equal(fixture.store.prepareProjectHandoff, undefined);
+	assert.deepEqual(await fixture.store.listProjects(), []);
+});
+
+type LocalStore = ReturnType<typeof createFramescaperProjectStoreV18>;
+
+interface BaseLifecycleFixture {
+	readonly localStore: LocalStore;
+	readonly main: MainFixture;
+}
+
+interface LifecycleFixture extends BaseLifecycleFixture {
+	readonly store: FramescaperDesktopProjectStoreV10Adapter<LocalStore>;
+	readonly main: MainFixture;
+}
+
+interface WebLifecycleFixture extends BaseLifecycleFixture {
+	readonly store: LocalStore;
+	readonly main: MainFixture;
+}
+
+function lifecycleFixture(context: TestContext): Promise<LifecycleFixture>;
+function lifecycleFixture(context: TestContext, desktop: false): Promise<WebLifecycleFixture>;
+async function lifecycleFixture(
+	context: TestContext,
+	desktop = true,
+): Promise<LifecycleFixture | WebLifecycleFixture> {
+	const localStore = createFramescaperProjectStoreV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+		preferOpfs: false,
+	});
+	await localStore.ready();
+	context.after(() => localStore.close());
+	const authority = framescaperProjectStoreAuthorityV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, localStore);
+	assert.ok(authority.opfs);
+	const archive = new FramescaperScapeArchiveV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		store: localStore as unknown as FramescaperDesktopProjectLibraryV10ShadowStore,
+		port: authority.port,
+		opfs: authority.opfs,
+	});
+	const main = new MainFixture();
+	if (!desktop) return { localStore, store: localStore, main };
+	installBridge(context, main.api);
+	const renderer = await connectFramescaperDesktopProjectLibraryV10Renderer(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		{ store: localStore as unknown as FramescaperDesktopProjectLibraryV10ShadowStore, archive },
+	);
+	assert.ok(renderer);
+	const store = createFramescaperDesktopProjectStoreV10Adapter(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		{ localStore, desktopProjectLibrary: renderer },
+	);
+	return { localStore, store, main };
+}
+
+class MainFixture {
+	readonly events: string[] = [];
+	readonly reads: string[] = [];
+	readonly api;
+	beforeFinish: (() => Promise<void>) | null = null;
+	lastBegin: Record<string, unknown> | null = null;
+	#metadataRevision = 0;
+	#projects = new Map<string, FramescaperProjectV18>();
+	#active: FramescaperProjectV18 | null = null;
+	#connected = false;
+	#publications = 0;
+
+	constructor() {
+		this.api = Object.freeze({
+			connect: async () => { this.#connected = true; return createFramescaperDesktopProjectLibraryV10Handshake(); },
+			handshakeState: () => this.#connected ? 'admitted' : 'pending',
+			readProjectBundle: async (projectId: string) => {
+				this.reads.push(projectId);
+				const project = this.#projects.get(projectId);
+				return project ? bundle(project, this.#metadataRevision) : null;
+			},
+			readBodyChunk: async () => { throw new Error('Format-1 fixture has no desktop bodies.'); },
+			beginPublication: async (request: Record<string, unknown>) => this.#begin(request),
+			writePublicationChunk: async () => { throw new Error('Format-1 fixture has no upload bodies.'); },
+			finishPublication: async (request: Record<string, unknown>) => this.#finish(request),
+			abortPublication: async () => { this.#active = null; return true; },
+		});
+	}
+
+	get publications(): number { return this.#publications; }
+
+	seed(project: FramescaperProjectV18): void {
+		const prior = this.#projects.get(String(project.id));
+		if (!prior || JSON.stringify(prior) !== JSON.stringify(project)) this.#metadataRevision += 1;
+		this.#projects.set(String(project.id), structuredClone(project));
+	}
+
+	#begin(request: Record<string, unknown>) {
+		this.events.push('begin');
+		this.lastBegin = structuredClone(request);
+		const project = structuredClone(request.project) as FramescaperProjectV18;
+		const current = this.#projects.get(String(project.id));
+		if (request.expectedMetadataRevision !== this.#metadataRevision) throw new Error('metadata CAS stale');
+		const expected = request.expectedProject as { projectRevision: number; projectSha256: string } | null;
+		if (expected === null) {
+			if (current) throw new Error('project already exists');
+		} else {
+			if (!current || Number(current.revision) !== expected.projectRevision
+				|| digest(new TextEncoder().encode(JSON.stringify(current))) !== expected.projectSha256) {
+				throw new Error('project CAS stale');
+			}
+		}
+		assert.deepEqual(request.bodies, []);
+		this.#active = project;
+		return { publicationId: PUBLICATION_ID, maximumChunkBytes: 4 * 1024 * 1024, bodyCount: 0 };
+	}
+
+	async #finish(request: Record<string, unknown>) {
+		this.events.push('finish');
+		assert.equal(request.publicationId, PUBLICATION_ID);
+		assert.ok(this.#active);
+		await this.beforeFinish?.();
+		const project = this.#active;
+		this.#active = null;
+		this.#projects.set(String(project.id), structuredClone(project));
+		this.#metadataRevision += 1;
+		this.#publications += 1;
+		return bundle(project, this.#metadataRevision);
+	}
+}
+
+function bundle(project: FramescaperProjectV18, metadataRevision: number) {
+	const document = JSON.stringify(project);
+	const bytes = new TextEncoder().encode(document);
+	const sha = digest(bytes);
+	const id = 'desktop_entry_01';
 	return {
-		store,
-		status,
-		settingCalls,
-		get saveCalls() { return saveCalls; },
-		get createCalls() { return createCalls; },
-		get deleteCalls() { return deleteCalls; },
-		get duplicateCalls() { return duplicateCalls; },
-		seed: (project: FramescaperProjectV18) => projects.set(String(project.id), structuredClone(project)),
+		metadataRevision,
+		project: {
+			id, projectId: String(project.id), name: String(project.title),
+			metadataFile: `${id}/${String(project.revision)}-${sha}.json`,
+			preferredProduct: 'framescaper', updatedAtMs: 1_786_550_400_000,
+			projectSchemaVersion: 18, projectRevision: Number(project.revision),
+			byteLength: bytes.byteLength, sha256: sha,
+		},
+		document,
+		bodies: [],
 	};
+}
+
+function installBridge(context: TestContext, api: unknown): void {
+	const name = 'framescaperProjectLibraryDesktop';
+	const prior = Object.getOwnPropertyDescriptor(globalThis, name);
+	Object.defineProperty(globalThis, name, {
+		configurable: true, enumerable: true, writable: false,
+		value: Object.freeze({ v10: api }),
+	});
+	context.after(() => {
+		if (prior) Object.defineProperty(globalThis, name, prior);
+		else Reflect.deleteProperty(globalThis, name);
+	});
 }
 
 function projectFixture(options: Readonly<{ id: string; revision: number; title?: string }>): FramescaperProjectV18 {
 	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
-		id: options.id,
-		title: options.title ?? options.id,
-		now: '2026-08-13T12:00:00.000Z',
+		id: options.id, title: options.title ?? options.id, now: '2026-08-13T12:00:00.000Z',
 	});
 	return { ...project, revision: options.revision };
 }
+
+function digest(bytes: Uint8Array): string { return bytesToHex(sha256(bytes)); }
