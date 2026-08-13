@@ -115,31 +115,58 @@ test('project deletion validates ownership and then clears project-specific stat
 	assert.equal(await createProjectAdminService(replaced.runtime).deleteProject(), null);
 });
 
-test('project deletion cancels and drains queued saves before irreversible teardown', async () => {
+test('project deletion fences mutation, save, and activation admission before draining queued saves', async () => {
 	const fixture = createFixture();
 	const drainStarted = deferred();
 	const drainGate = deferred();
+	const oldGeneration = fixture.captureProjectGeneration();
+	fixture.setCloseObserver(() => {
+		queueMicrotask(() => { fixture.calls.push('competing-after-close'); });
+	});
 	fixture.runtime.projectSaveService.drain = async () => {
 		fixture.calls.push('drain-save:start');
 		drainStarted.resolve();
 		await drainGate.promise;
 		fixture.calls.push('drain-save:done');
 	};
-	const pending = createProjectAdminService(fixture.runtime).deleteProject();
-	await new Promise<void>((resolve) => { setImmediate(resolve); });
+	const service = createProjectAdminService(fixture.runtime);
+	const pending = service.deleteProject();
+	await drainStarted.promise;
 	try {
 		assert.equal(fixture.calls.includes('cancel-save'), true);
 		assert.equal(fixture.calls.includes('drain-save:start'), true);
+		assert.equal(fixture.saveSuspended(), true);
+		assert.equal(fixture.reservationActive(), true);
+		assert.equal(fixture.project(), null);
+		assert.equal(fixture.state.history, null);
+		assert.equal(fixture.isProjectGenerationCurrent(oldGeneration), false);
+		assert.equal(fixture.runtime.projectSaveService.scheduleAutosave(), false);
+		assert.equal(fixture.runtime.projectSaveService.flushProject(), undefined);
+		assert.equal(fixture.saveAdmissions(), 0);
+		assert.throws(
+			() => service.renameProject('Zombie mutation'),
+			/active project history/iu,
+		);
+		assert.equal(await service.duplicateProject('Zombie copy'), undefined);
+		assert.throws(
+			() => fixture.runtime.sessionController.switchProject('project-b'),
+			/reserved for activation/iu,
+		);
 		assert.equal(fixture.calls.includes('release'), false);
 		assert.equal(fixture.calls.includes('delete:project-a'), false);
 	} finally {
 		drainGate.resolve();
 		await pending;
 	}
-	await drainStarted.promise;
 	assert.ok(fixture.calls.indexOf('cancel-save') < fixture.calls.indexOf('drain-save:start'));
 	assert.ok(fixture.calls.indexOf('drain-save:done') < fixture.calls.indexOf('release'));
 	assert.ok(fixture.calls.indexOf('release') < fixture.calls.indexOf('delete:project-a'));
+	assert.equal(fixture.reservationActive(), false);
+	assert.equal(fixture.saveSuspended(), false);
+	assert.ok(fixture.calls.indexOf('release-history:project-a') < fixture.calls.indexOf('close:project-a'));
+	assert.ok(fixture.calls.indexOf('close:project-a') < fixture.calls.indexOf('new-project'));
+	assert.ok(fixture.calls.indexOf('new-project') < fixture.calls.indexOf('competing-after-close'));
+	assert.equal(fixture.runtime.projectSaveService.scheduleAutosave(), true);
 });
 
 test('project deletion failures still retire the torn-down session without a zombie tab', async () => {
@@ -160,6 +187,9 @@ test('project deletion failures still retire the torn-down session without a zom
 		assert.equal(fixture.calls.includes('close:project-a'), true);
 		assert.equal(fixture.calls.includes('new-project'), true);
 		assert.equal(fixture.calls.includes('list'), true);
+		assert.equal(fixture.calls.includes('persist:routing:project-a:null'), false);
+		assert.equal(fixture.reservationActive(), false);
+		assert.equal(fixture.saveSuspended(), false);
 		assert.equal(fixture.project(), null);
 		assert.equal(fixture.state.history, null);
 		assert.equal(fixture.state.selectedAnnotationId, null);

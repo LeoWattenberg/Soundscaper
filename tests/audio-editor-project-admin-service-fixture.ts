@@ -44,10 +44,17 @@ export class TestSourceChunkProviders extends Map<string, unknown> {
 export function createFixture() {
 	let project: Project | null = { id: 'project-a', title: 'Project A', revision: 3 };
 	let closeResult: { closed: boolean; activeProjectId?: string } = { closed: true };
+	let closeObserver: () => void = () => undefined;
 	let pruneResult: { deletedSourceIds?: string[]; nextEligibleAt?: number | null } = {};
 	let pruneOptions: { readonly protectedSourceIds: Set<string> } | null = null;
 	const calls: string[] = [];
 	let stopRecording = async () => { calls.push('stop-recording'); };
+	let saveSuspended = false;
+	let saveAdmissions = 0;
+	let projectGeneration = 1;
+	let activeGenerationProjectId: string | null = 'project-a';
+	let activationReservation: object | null = null;
+	const historyToken = Object.freeze({});
 	const savedProjects: Project[] = [];
 	const savedProjectOptions: Array<Readonly<{
 		protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
@@ -87,13 +94,63 @@ export function createFixture() {
 	const projectSaveService = {
 		cancelScheduled: () => { calls.push('cancel-save'); },
 		drain: async () => { calls.push('drain-save'); },
+		flushProject: () => {
+			if (saveSuspended) return undefined;
+			saveAdmissions += 1;
+			calls.push('flush-save-admitted');
+			return Promise.resolve();
+		},
 		pendingSnapshots: [{ id: 'pending' }],
+		resume: () => {
+			calls.push('resume-save');
+			saveSuspended = false;
+		},
+		scheduleAutosave: () => {
+			if (saveSuspended) return false;
+			saveAdmissions += 1;
+			calls.push('autosave-admitted');
+			return true;
+		},
+		suspend: () => {
+			calls.push('suspend-save');
+			saveSuspended = true;
+			calls.push('cancel-save');
+		},
 	};
 	const sessionController = {
 		getSnapshot: () => ({ tabs: [...tabs.values()] }),
+		captureProjectHistory(projectId: string) {
+			const tab = tabs.get(projectId);
+			if (!tab) throw new ReferenceError('Project tab is missing.');
+			calls.push(`capture-history:${projectId}`);
+			return Object.freeze({ history: structuredClone(tab.history), token: historyToken });
+		},
+		beginProjectActivation(projectId: string, options: { expectedHistoryToken?: unknown }) {
+			if (activationReservation || options.expectedHistoryToken !== historyToken) {
+				throw new DOMException('The project is reserved for activation.', 'AbortError');
+			}
+			calls.push(`reserve-history:${projectId}`);
+			const reservation = Object.freeze({});
+			activationReservation = reservation;
+			return Object.freeze({
+				token: Object.freeze({}),
+				release() {
+					if (activationReservation !== reservation) return false;
+					calls.push(`release-history:${projectId}`);
+					activationReservation = null;
+					return true;
+				},
+			});
+		},
 		closeProject(projectId: string) {
+			if (activationReservation) throw new DOMException('The project is reserved for activation.', 'AbortError');
 			calls.push(`close:${projectId}`);
+			closeObserver();
 			return closeResult;
+		},
+		switchProject(projectId: string) {
+			if (activationReservation) throw new DOMException('The project is reserved for activation.', 'AbortError');
+			calls.push(`competing-switch:${projectId}`);
 		},
 		clearClipboard: () => { calls.push('clear-clipboard'); },
 		markProjectSaved: (projectId: string) => { calls.push(`marked:${projectId}`); },
@@ -123,7 +180,7 @@ export function createFixture() {
 		},
 		async clear() { calls.push('clear-store'); },
 	};
-	const runtime: ProjectAdminServiceRuntime = {
+	const runtime = {
 		cancelPlaybackCachePreparation: () => { calls.push('cancel-cache'); },
 		clearScheduledTimer: (timer: number) => { calls.push(`clear-timer:${timer}`); },
 		clearWaveformPcmWindows: () => { calls.push('clear-windows'); },
@@ -131,7 +188,10 @@ export function createFixture() {
 			retainClipIds: () => { calls.push('retain-clips'); },
 			clear: () => { calls.push('clear-time-pitch'); },
 		},
-		commit: (command: { title: string }) => { calls.push(`rename:${command.title}`); },
+		commit: (command: { title: string }) => {
+			if (!state.history) throw new Error('An active project history is required.');
+			calls.push(`rename:${command.title}`);
+		},
 		copy: {
 			projectNotFound: 'Project not found.',
 			projectReadOnly: 'Project is read-only.',
@@ -156,6 +216,18 @@ export function createFixture() {
 		openProject: async (value: Project) => { calls.push(`open:${value.id}`); },
 		persistSetting: async (key: string, value: unknown) => { calls.push(`persist:${key}:${String(value)}`); },
 		projectSaveService,
+		projectGeneration: {
+			activate(projectId: string) {
+				projectGeneration += 1;
+				activeGenerationProjectId = projectId;
+				calls.push(`activate-generation:${projectId}`);
+			},
+			invalidate() {
+				projectGeneration += 1;
+				activeGenerationProjectId = null;
+				calls.push('invalidate-generation');
+			},
+		},
 		projectSessionService: {
 			clearRecentProjects: async () => {
 				calls.push('clear-recents');
@@ -182,6 +254,8 @@ export function createFixture() {
 		stopRecording: () => stopRecording(),
 		store,
 		switchProject: async (value: Project) => { calls.push(`switch:${value.id}`); },
+	} as ProjectAdminServiceRuntime & {
+		readonly projectGeneration: Readonly<{ activate(projectId: string): void; invalidate(): void }>;
 	};
 	return {
 		calls,
@@ -189,6 +263,17 @@ export function createFixture() {
 		setProject: (value: Project | null) => { project = value; },
 		setStopRecording: (value: () => Promise<void>) => { stopRecording = value; },
 		closeResult: (value: typeof closeResult) => { closeResult = value; },
+		setCloseObserver: (value: () => void) => { closeObserver = value; },
+		reservationActive: () => activationReservation !== null,
+		saveAdmissions: () => saveAdmissions,
+		saveSuspended: () => saveSuspended,
+		captureProjectGeneration: () => Object.freeze({
+			generation: projectGeneration,
+			projectId: activeGenerationProjectId,
+		}),
+		isProjectGenerationCurrent: (token: Readonly<{ generation: number; projectId: string | null }>) => (
+			token.generation === projectGeneration && token.projectId === activeGenerationProjectId
+		),
 		pruneOptions: () => pruneOptions,
 		pruneResult: (value: typeof pruneResult) => { pruneResult = value; },
 		runtime,

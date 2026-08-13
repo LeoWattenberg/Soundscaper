@@ -200,6 +200,67 @@ test('terminal project flush waits behind queued work and rejects later autosave
 	assert.equal(state.pendingSaveSnapshots.size, 0);
 });
 
+test('suspended project saves cancel timers and reject new work behind a stable drain', async () => {
+	let project: TestProject = { id: 'project', revision: 1 };
+	const state = {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set<TestProject>(),
+		saveQueue: Promise.resolve<unknown>(undefined),
+		saveState: 'saved',
+	};
+	const timers = new Map<number, () => void>();
+	const writes: Array<{ snapshot: TestProject; resolve: () => void }> = [];
+	let nextTimer = 1;
+	const service = createProjectSaveService({
+		state,
+		getProject: () => project,
+		hasHistory: () => true,
+		isReadOnly: () => false,
+		cloneProject: (value) => ({ ...value }),
+		admitProjectPublication: async () => undefined,
+		saveProject: (snapshot) => new Promise<void>((resolve) => { writes.push({ snapshot, resolve }); }),
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: () => true,
+		hasSessionTab: () => true,
+		markProjectSaved: () => undefined,
+		publish: () => undefined,
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: () => undefined,
+		scheduleTimer(callback) {
+			const handle = nextTimer++;
+			timers.set(handle, callback);
+			return handle;
+		},
+		clearTimer: (handle) => { timers.delete(handle); },
+	});
+
+	assert.equal(service.scheduleAutosave(), true);
+	assert.equal(timers.has(state.autosaveTimer), true);
+	const queued = service.flushProject();
+	assert.ok(queued);
+	await waitFor(() => writes.length === 1);
+	project = { id: 'project', revision: 2 };
+	assert.equal(service.scheduleAutosave(), true);
+	assert.equal(timers.has(state.autosaveTimer), true);
+	service.suspend();
+	assert.equal(state.autosaveTimer, 0);
+	assert.equal(timers.size, 0);
+	const drain = service.drain();
+	project = { id: 'project', revision: 3 };
+	assert.equal(service.scheduleAutosave(), false);
+	assert.equal(service.flushProject(), undefined);
+	assert.equal(service.drain(), drain);
+	assert.equal(writes.length, 1);
+	writes[0]?.resolve();
+	await drain;
+
+	service.resume();
+	assert.equal(service.scheduleAutosave(), true);
+	assert.equal(timers.size, 1);
+});
+
 test('preferences service recovers invalid storage and preserves the read-only schema gate', async () => {
 	type Preferences = ReturnType<typeof preferenceFixture>;
 	let preferences = preferenceFixture();
