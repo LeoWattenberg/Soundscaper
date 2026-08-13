@@ -35,6 +35,7 @@
 		"quality:collect:m2-direct-compressed": "node scripts/collect-m2-direct-structural-quality.mjs m2-direct-compressed-output-v2",
 		"quality:collect:m2-direct-video": "node scripts/collect-m2-direct-structural-quality.mjs m2-direct-mp4-webm-video-output-v1",
 		"quality:collect:m3-longform": "node scripts/collect-m3-longform-editorial-quality.mjs",
+		"quality:collect:m3-framescaper-v18-exit": "node scripts/collect-m3-framescaper-v18-exit-quality.mjs",
 		"quality:collect:m4-production-parity": "node scripts/collect-m4-production-parity-quality.mjs",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",
