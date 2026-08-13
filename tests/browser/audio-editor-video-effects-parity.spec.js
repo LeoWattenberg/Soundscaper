@@ -26,6 +26,14 @@ const RUNTIME_ROUTES = new Map([
 		file: new URL('../../src/common/editor/ui/video-preview-effects.js', import.meta.url),
 		contentType: 'text/javascript',
 	}],
+	[`${PARITY_ROUTE_ROOT}/video-preview-render-ledger.js`, {
+		file: new URL('../../src/common/editor/ui/video-preview-render-ledger.js', import.meta.url),
+		contentType: 'text/javascript',
+	}],
+	[`${PARITY_ROUTE_ROOT}/video-preview-viewports.js`, {
+		file: new URL('../../src/common/editor/ui/video-preview-viewports.js', import.meta.url),
+		contentType: 'text/javascript',
+	}],
 	[`${PARITY_ROUTE_ROOT}/ffmpeg/classes.js`, {
 		file: new URL('../../node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js', import.meta.url),
 		contentType: 'text/javascript',
@@ -583,10 +591,10 @@ async function renderCompositionParityCase(page, parity) {
 				opacity: entry.opacity,
 			})),
 		}));
-		const count = compositor.render(previewLayers, { referenceWidth: width, referenceHeight: height });
+		const report = compositor.render(previewLayers, { referenceWidth: width, referenceHeight: height });
 		const expectedCount = layers.reduce((total, layer) => total + layer.length, 0);
-		if (count !== expectedCount) {
-			throw new Error(`Preview rendered ${count} fixture entries instead of ${expectedCount}.`);
+		if (report.renderedEntryCount !== expectedCount) {
+			throw new Error(`Preview rendered ${report.renderedEntryCount} fixture entries instead of ${expectedCount}.`);
 		}
 		const gl = compositor.gl;
 		gl.finish();

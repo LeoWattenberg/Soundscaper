@@ -8,12 +8,25 @@ import {
 	programLocations,
 	videoEffectPasses,
 } from './video-preview-effects.js';
+import {
+	beginVideoPreviewRenderLedger,
+	completeVideoPreviewRenderLedger,
+	createVideoPreviewFallbackReport,
+	recordVideoPreviewEntryFallback,
+	recordVideoPreviewEntryRendered,
+} from './video-preview-render-ledger.js';
+import {
+	videoPreviewBlurViewport,
+	videoPreviewViewports,
+} from './video-preview-viewports.js';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
 	VIDEO_PREVIEW_PIXELATE_GRID_SIZE,
 	videoEffectPasses,
 } from './video-preview-effects.js';
+export { videoPreviewBlurViewport, videoPreviewViewports } from './video-preview-viewports.js';
+export { shouldContinueVideoPreviewPlayback } from './video-preview-render-ledger.js';
 
 const MAX_RENDER_DIMENSION = 4096;
 const COPY_PASS = Object.freeze({});
@@ -22,6 +35,7 @@ const FINAL_YUV420_PASS = Object.freeze({ code: 7 });
 const EMPTY_EFFECTS = Object.freeze([]);
 const ZERO_VECTOR_2 = Object.freeze([0, 0]);
 const ZERO_VECTOR_4 = Object.freeze([0, 0, 0, 0]);
+const SUPPORTED_EFFECT_TYPES = new Set(Object.keys(EFFECT_CODES));
 
 function createRenderTarget(gl, width, height) {
 	const texture = gl.createTexture();
@@ -47,96 +61,6 @@ function deleteRenderTarget(gl, target) {
 	if (!target) return;
 	gl.deleteFramebuffer(target.framebuffer);
 	gl.deleteTexture(target.texture);
-}
-
-function containViewport(sourceWidth, sourceHeight, outerX, outerY, outerWidth, outerHeight, viewport) {
-	const scale = Math.min(outerWidth / sourceWidth, outerHeight / sourceHeight);
-	const fittedWidth = Math.max(1, Math.round(sourceWidth * scale));
-	const fittedHeight = Math.max(1, Math.round(sourceHeight * scale));
-	viewport.x = outerX + Math.round((outerWidth - fittedWidth) / 2);
-	viewport.y = outerY + Math.round((outerHeight - fittedHeight) / 2);
-	viewport.width = fittedWidth;
-	viewport.height = fittedHeight;
-	return viewport;
-}
-
-/**
- * Mirror export geometry inside the physical preview panel: contain the export
- * canvas first, then contain a source inside that shared canvas viewport.
- */
-export function videoPreviewViewports(
-	sourceWidth,
-	sourceHeight,
-	panelWidth,
-	panelHeight,
-	referenceWidth,
-	referenceHeight,
-	result = null,
-) {
-	const output = result || {
-		canvas: { x: 0, y: 0, width: 1, height: 1 },
-		content: { x: 0, y: 0, width: 1, height: 1 },
-		pixelScale: 1,
-	};
-	const safeSourceWidth = Math.max(1, finiteNumber(sourceWidth, 1));
-	const safeSourceHeight = Math.max(1, finiteNumber(sourceHeight, 1));
-	const safePanelWidth = Math.max(1, finiteNumber(panelWidth, 1));
-	const safePanelHeight = Math.max(1, finiteNumber(panelHeight, 1));
-	const safeReferenceWidth = Math.max(1, finiteNumber(referenceWidth, safePanelWidth));
-	const safeReferenceHeight = Math.max(1, finiteNumber(referenceHeight, safePanelHeight));
-	containViewport(
-		safeReferenceWidth,
-		safeReferenceHeight,
-		0,
-		0,
-		safePanelWidth,
-		safePanelHeight,
-		output.canvas,
-	);
-	containViewport(
-		safeSourceWidth,
-		safeSourceHeight,
-		output.canvas.x,
-		output.canvas.y,
-		output.canvas.width,
-		output.canvas.height,
-		output.content,
-	);
-	output.pixelScale = Math.min(
-		safePanelWidth / safeReferenceWidth,
-		safePanelHeight / safeReferenceHeight,
-	);
-	return output;
-}
-
-/** Map a full-resolution nested content rect into the active blur target. */
-export function videoPreviewBlurViewport(
-	contentViewport,
-	panelWidth,
-	panelHeight,
-	blurTargetWidth,
-	blurTargetHeight,
-	renderScale = GAUSSIAN_BLUR_RENDER_SCALE,
-	result = null,
-) {
-	const output = result || { x: 0, y: 0, width: 1, height: 1 };
-	const safeTargetWidth = Math.max(1, Math.floor(finiteNumber(blurTargetWidth, 1)));
-	const safeTargetHeight = Math.max(1, Math.floor(finiteNumber(blurTargetHeight, 1)));
-	const targetScale = Math.max(0.0001, finiteNumber(renderScale, GAUSSIAN_BLUR_RENDER_SCALE))
-		/ GAUSSIAN_BLUR_RENDER_SCALE;
-	const scaleX = safeTargetWidth / Math.max(1, panelWidth) * targetScale;
-	const scaleY = safeTargetHeight / Math.max(1, panelHeight) * targetScale;
-	output.x = Math.min(safeTargetWidth - 1, Math.max(0, Math.round(contentViewport.x * scaleX)));
-	output.y = Math.min(safeTargetHeight - 1, Math.max(0, Math.round(contentViewport.y * scaleY)));
-	output.width = Math.min(
-		safeTargetWidth - output.x,
-		Math.max(1, Math.round(contentViewport.width * scaleX)),
-	);
-	output.height = Math.min(
-		safeTargetHeight - output.y,
-		Math.max(1, Math.round(contentViewport.height * scaleY)),
-	);
-	return output;
 }
 
 /**
@@ -414,7 +338,10 @@ export class VideoPreviewCompositor {
 	}
 
 	render(layers = [], options = {}) {
-		if (this.disposed || this.contextLost) return -1;
+		if (this.disposed || this.contextLost) {
+			return createVideoPreviewFallbackReport(layers, SUPPORTED_EFFECT_TYPES);
+		}
+		const ledger = beginVideoPreviewRenderLedger(layers, SUPPORTED_EFFECT_TYPES);
 		this.resizeToDisplaySize();
 		this.renderGeneration += 1;
 		const gl = this.gl;
@@ -436,19 +363,21 @@ export class VideoPreviewCompositor {
 		this.finalEffectResolution.width = referenceWidth;
 		this.finalEffectResolution.height = referenceHeight;
 		const previewScale = this.previewScale;
-		let effectRenderFailed = false;
 
 		for (const layer of layers) {
 			this.clearTarget(this.targets.layer);
 			let renderedLayerEntries = 0;
 			for (const entry of layer.entries || []) {
 				const video = entry.video;
-				if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) continue;
+				if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+					recordVideoPreviewEntryFallback(ledger, entry);
+					continue;
+				}
 				let videoTexture;
 				try {
 					videoTexture = this.uploadVideo(video);
 				} catch {
-					effectRenderFailed = true;
+					recordVideoPreviewEntryFallback(ledger, entry);
 					continue;
 				}
 				// An entry presents its display geometry, which is what this browser
@@ -480,6 +409,7 @@ export class VideoPreviewCompositor {
 					);
 					renderedEntries += 1;
 					renderedLayerEntries += 1;
+					recordVideoPreviewEntryRendered(ledger, entry);
 					continue;
 				}
 				gl.disable(gl.BLEND);
@@ -611,6 +541,7 @@ export class VideoPreviewCompositor {
 				}
 				renderedEntries += 1;
 				renderedLayerEntries += 1;
+				recordVideoPreviewEntryRendered(ledger, entry);
 			}
 			if (!renderedLayerEntries) continue;
 			gl.enable(gl.BLEND);
@@ -634,7 +565,7 @@ export class VideoPreviewCompositor {
 		);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		this.pruneUnusedVideoTextures();
-		return effectRenderFailed ? -1 : renderedEntries;
+		return completeVideoPreviewRenderLedger(ledger, renderedEntries);
 	}
 
 	dispose() {
@@ -652,4 +583,8 @@ export class VideoPreviewCompositor {
 
 export function createVideoPreviewCompositor(canvas, options) {
 	return new VideoPreviewCompositor(canvas, options);
+}
+
+export function createVideoPreviewCompositorFallbackReport(layers) {
+	return createVideoPreviewFallbackReport(layers, SUPPORTED_EFFECT_TYPES);
 }
