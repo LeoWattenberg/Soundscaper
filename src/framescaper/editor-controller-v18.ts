@@ -8,6 +8,8 @@ import {
 import {
 	createFramescaperProjectMaintenanceRuntimeV18,
 } from './editor-project-v18-maintenance-runtime.ts';
+import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
+import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
 import { createFramescaperScapeNativeRuntimeV18 } from './editor-scape-native-v18.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
@@ -34,7 +36,12 @@ export function createFramescaperAudioEditorControllerV18(
 		environment.runtime.profile,
 		environment.scapeProjectFile,
 	);
-	return createAudioEditorController(null, {
+	let executeNestedSequenceCommand: ((command: unknown) => unknown) | null = null;
+	const productSequenceActions = createFramescaperSequenceActionsV18((command: FramescaperProjectCommandV18) => {
+		if (!executeNestedSequenceCommand) throw new Error('The Framescaper controller is not ready.');
+		return executeNestedSequenceCommand(command);
+	});
+	const controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
 		store: environment.store,
@@ -45,8 +52,11 @@ export function createFramescaperAudioEditorControllerV18(
 		createProjectIfAbsent: environment.createProjectIfAbsent,
 		projectMaintenanceRuntime: maintenance,
 		scapeProjectRuntime,
+		productSequenceActions,
 		...presentation,
 	});
+	executeNestedSequenceCommand = (command) => controller.actions.edit.commit(command);
+	return controller;
 }
 
 function snapshotPresentation(value: unknown): FramescaperAudioEditorControllerPresentationV18 {

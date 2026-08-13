@@ -9,6 +9,7 @@ import {
 import { createProjectOwnedFeatureActionFacades } from './project-owned-feature-action-facades.ts';
 import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
+import { snapshotProductActionExtensions } from './product-action-extensions.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -74,7 +75,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	selectionViewService, sequenceTimingService, sourceMonitorService, timelineAnnotationService,
 	regularIntervalAnnotationController, trackFolderService, trackStructuralOperations, videoEditService,
-	audioWarpService, takeCompService, videoNavigationService, videoSourceReprobeService, videoTrimServices,
+	audioWarpService, productSequenceActions, takeCompService, videoNavigationService,
+	videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
 		if (!capabilities[capability]) {
@@ -119,6 +121,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		scope as RecordingActionScope,
 		restricted,
 	);
+	const sequenceExtensions = snapshotProductActionExtensions<RuntimeValue>(productSequenceActions, [
+		'label', 'setActive', 'stepFrame', 'seekLabel',
+	]);
 	return Object.freeze({
 		project: Object.freeze({
 			create: (projectOptions: RuntimeValue) => newProject(projectOptions),
@@ -405,6 +410,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 				sequenceTimingService.stepPlayhead(frameDelta, sequenceId)
 			)),
 			seekLabel: yieldProgramPlayhead((label: RuntimeValue, sequenceId: RuntimeValue) => sequenceTimingService.seekLabel(label, sequenceId)),
+			...sequenceExtensions,
 		}),
 		trackFolders: Object.freeze({
 			create: restricted('trackFolders', (...args: RuntimeValue) => trackFolderService.createFolder(...args)),

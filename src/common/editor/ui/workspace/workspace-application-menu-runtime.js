@@ -73,6 +73,18 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				executeNestedSequenceCommand: (command) => run(() => {
+					switch (command?.type) {
+						case 'subsequence/add':
+							return controller.actions.sequences.addNested(command.subsequence);
+						case 'subsequence/update':
+							return controller.actions.sequences.updateNested(command.subsequenceId, command.changes);
+						case 'subsequence/remove':
+							return controller.actions.sequences.removeNested(command.subsequenceId);
+						default:
+							throw new TypeError('The nested-sequence menu command is unsupported.');
+					}
+				}),
 				openAudioWarp: () => openSurface('audio-warp'),
 				openTakeComp: () => openSurface('take-comp'),
 				newProject: () => run(() => controller.actions.project.create()),

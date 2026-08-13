@@ -19,6 +19,7 @@ import {
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
+import { createApplicationMenuProductTrackItems } from './application-menu-product-items.js';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
@@ -102,6 +103,7 @@ export default function createApplicationMenus({
 		productId, selectedClipId: selectedClip?.id ?? null, editingBlocked: editBlocked,
 		copy, currentPlayheadSample: actions.currentVideoPlayheadSample,
 	}, actions);
+	const productTrackItems = createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions });
 	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
 	}), { setTrackLocked: actions.setTrackLocked });
@@ -433,6 +435,7 @@ export default function createApplicationMenus({
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },
 					],
 				},
+				...productTrackItems,
 				...createTakeCompApplicationMenuItems({ productId, capability: Boolean(capabilities.takeComp), project, copy, open: actions.openTakeComp }),
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },

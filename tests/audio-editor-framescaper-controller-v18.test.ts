@@ -71,14 +71,16 @@ test('product controller executes nested-sequence menu commands with undo and re
 		await environment.close();
 	});
 	await controller.ready;
-	controller.actions.project.open(environment.runtime.createProject({
+	const nestedProject = environment.runtime.createProject({
 		id: 'nested-controller', title: 'Nested controller', now: '2026-08-13T12:00:00.000Z',
 		sequences: [
 			{ id: 'main', rate: { num: 30, den: 1 }, trackIds: [] },
 			{ id: 'shared', rate: { num: 24, den: 1 }, trackIds: [] },
 		],
 		primarySequenceId: 'main',
-	}));
+	});
+	await environment.createProjectIfAbsent(nestedProject);
+	await controller.actions.project.open(nestedProject);
 	controller.actions.sequences.addNested({
 		id: 'nested-shared', sequenceId: 'main', sourceSequenceId: 'shared',
 		sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 24,

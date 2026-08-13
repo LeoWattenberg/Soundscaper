@@ -150,7 +150,7 @@ import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
 import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
-import { createScapeProjectFileService } from './controller/scape-project-file-service.ts';
+import { productActionRuntime } from './controller/product-action-runtime.ts'; import { createScapeProjectFileService } from './controller/scape-project-file-service.ts';
 import { createEditorEditService } from './controller/edit-service.ts';
 import { createLabelService } from './controller/label-service.ts';
 import { createClipboardEditService } from './controller/clipboard-edit-service.ts';
@@ -880,7 +880,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		migrateProject: projectRuntime.migrateProject,
 		importScapeProject: options.scapeProjectRuntime?.importScapeProject || importScapeProject,
 		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || exportScapeProject,
-		copyFutureScapeArchive,
+		copyFutureScapeArchive: options.scapeProjectRuntime?.copyScapeArchive || copyFutureScapeArchive,
 		normalizeCompatibilityReport: normalizeAup4CompatibilityReport,
 		reportHasMissingPcm: aup4ReportHasMissingPcm,
 		sessionTab,
@@ -1830,7 +1830,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		audioWarpService, sourceMonitorService, takeCompService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService,
+		audioWarpService, sourceMonitorService, takeCompService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, ...productActionRuntime(options),
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;
