@@ -34,7 +34,11 @@ import { createInstrumentedIndexedDB } from './instrumented-indexeddb.js';
 
 export const ARCHIVE_PROJECT_ID = 'framescaper-v18-archive';
 export const ARCHIVE_SOURCE_ID = 'archive-video';
-export const ARCHIVE_ORIGINAL_SHA = '12'.repeat(32);
+export const ARCHIVE_ORIGINAL_BYTES = Uint8Array.from(
+	{ length: 211 },
+	(_, index) => (index * 29 + 7) & 0xff,
+);
+export const ARCHIVE_ORIGINAL_SHA = digest(ARCHIVE_ORIGINAL_BYTES);
 export const ARCHIVE_NOW = 1_786_550_400_000;
 export const ARCHIVE_PROXY_BYTES = Uint8Array.from({ length: 137 }, (_, index) => (index * 17) & 0xff);
 export const ARCHIVE_PROXY_SHA = digest(ARCHIVE_PROXY_BYTES);
@@ -84,6 +88,13 @@ export class FixtureArchiveStore {
 		this.calls.metadata += 1;
 		const value = await transact(this.#database, 'mediaAssets', 'readonly', ({ mediaAssets }) => (
 			request(mediaAssets.get(sourceId))
+		));
+		return value && typeof value === 'object' ? structuredClone(value) as Record<string, unknown> : null;
+	}
+
+	async loadProject(projectId: string): Promise<Record<string, unknown> | null> {
+		const value = await transact(this.#database, 'projects', 'readonly', ({ projects }) => (
+			request(projects.get(projectId))
 		));
 		return value && typeof value === 'object' ? structuredClone(value) as Record<string, unknown> : null;
 	}
@@ -242,7 +253,8 @@ export function archiveManifest(project: FramescaperProjectV18): Record<string, 
 		},
 		assets: [{
 			sourceId: ARCHIVE_SOURCE_ID, kind: 'video', encoding: 'original',
-			entry: `media/${ARCHIVE_SOURCE_ID}/original`, mimeType: 'video/mp4', size: 1_024,
+			entry: `media/${ARCHIVE_SOURCE_ID}/original`, mimeType: 'video/mp4',
+			size: ARCHIVE_ORIGINAL_BYTES.byteLength,
 			sha256: ARCHIVE_ORIGINAL_SHA,
 		}, ...archiveProxyDescriptors()],
 	};
@@ -272,6 +284,43 @@ export function archiveEntries(
 		archiveEntry(descriptors[0]!, overrides.proxy ?? ARCHIVE_PROXY_BYTES, onRead),
 		archiveEntry(descriptors[1]!, overrides.timing ?? ARCHIVE_TIMING.bytes, onRead),
 	];
+}
+
+export async function seedFramescaperV18ArchiveBodies(
+	fixture: FramescaperV18ArchiveFixture,
+	attached = true,
+): Promise<void> {
+	const bodies: Array<Readonly<{
+		descriptor: Record<string, unknown>;
+		bytes: Uint8Array;
+		metadata?: Record<string, unknown>;
+	}>> = [{
+		descriptor: (archiveManifest(archiveProject()).assets as Record<string, unknown>[])[0]!,
+		bytes: ARCHIVE_ORIGINAL_BYTES,
+	}];
+	if (attached) {
+		for (const [index, bytes] of [ARCHIVE_PROXY_BYTES, ARCHIVE_TIMING.bytes].entries()) {
+			bodies.push({
+				descriptor: archiveProxyDescriptors()[index]!,
+				bytes,
+				...(index === 1 ? { metadata: {
+					frameCount: ARCHIVE_TIMING.reference.frameCount,
+					timescale: ARCHIVE_TIMING.reference.timescale,
+					finalFrameDurationTicks: ARCHIVE_TIMING.reference.finalFrameDurationTicks,
+				} } : {}),
+			});
+		}
+	}
+	for (const { descriptor, bytes, metadata = {} } of bodies) {
+		const writer = await fixture.store.beginMediaAssetWrite(String(descriptor.sourceId), {
+			name: String(descriptor.entry), kind: descriptor.kind, encoding: descriptor.encoding,
+			mimeType: descriptor.mimeType, ...metadata,
+		}, {
+			expectedBytes: Number(descriptor.size), expectedSha256: String(descriptor.sha256),
+		});
+		await writer.write(bytes);
+		await writer.commitOwned();
+	}
 }
 
 export async function storedValue(
