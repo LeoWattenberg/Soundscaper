@@ -8,18 +8,31 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-13:** 4B-1 is **In progress**. 4B-2 through 4B-8 are
-planned. The Soundscaper 4A track is unstarted.
+**Status on 2026-08-13:** the 4B-1 implementation candidate is complete apart
+from manual/reference-GPU qualification. 4B-2 is **In progress**. 4B-3 through
+4B-8 are planned. The Soundscaper 4A track is unstarted.
 
-The browser implementation candidate now includes exact V19 composition state,
+The 4B-1 browser implementation candidate includes exact V19 composition state,
 commands/history, clipboard V5 and edit preservation, the shared render
 description, WebGL and FFmpeg consumers, localized menu editing, browser
-storage, and current-format `.scape`. Packaged Framescaper deliberately remains
+storage, current-format `.scape`, copy-only cross-product handoff, and the
+calibrated browser/FFmpeg golden matrix. Packaged Framescaper deliberately remains
 on its qualified V18/desktop-V10 authority until a complete V19/desktop-V11
-transport and proxy/timing archive port exists. Copy-only cross-product proof,
-the calibrated browser/FFmpeg golden matrix, and the reference-GPU cohort are
-also still open; therefore neither this packet nor milestone 4B is recorded
-complete by the implementation candidate.
+transport and proxy/timing archive port exists. The reference-GPU cohort and
+manual packaged qualification are still open; therefore neither this packet
+nor milestone 4B is recorded complete by the implementation candidate.
+
+The 4B-2 candidate now includes the dormant exact V20 keyframe domain, bounded
+stale-safe commands/history, clipboard V6 and edit-carrier preservation,
+current-format `.scape` preservation, a shared lazy render-state provider,
+exact live WebGL preview evaluation, and a pre-I/O animated-export refusal.
+Both product profiles still advertise the capability as unavailable and V20 is
+not selected. A dormant exact random-access frame source and bounded
+SharedArrayBuffer FFmpeg input device now prove byte-exact backpressured frame
+transport against the real browser/WASM core. Menu editing, selected
+storage/runtime routing, the offline WebGL frame producer, encoder
+orchestration, and the activation-time security/quality registration remain
+open.
 
 The project owner explicitly cleared the milestone-3 implementation sequencing
 gate for Framescaper 4B against the current maintained base. That clearance is
@@ -578,7 +591,11 @@ Edits preserve the complete authored curve and change only the exact view
 window unless extension requires growing the authored domain:
 
 - trim maps both requested visible-local boundaries through the affine rule and
-  stores that authored subwindow; it inserts no boundary anchors;
+  stores that authored subwindow; the canonical planner carries an explicit
+  old-clip-local `sequenceTrimRange` beside final placement so ripple
+  relocation and rounded source coordinates cannot change intent, and an
+  ambiguous source-changing canonical command refuses; it inserts no boundary
+  anchors;
 - extension before authored zero translates every anchor and Bezier control,
   the prior view, and the authored end by one exact positive offset, while
   extension after the authored end grows `authoredDuration`;
@@ -598,17 +615,24 @@ cannot remain canonical within the persisted safe-integer and denominator
 limits. No trim, split, stretch, rejoin, or nested projection subdivides an
 eased/Bezier segment, samples an endpoint, or persists a derived approximation.
 
-The present implementation includes the exact V20 model/domain and a dormant
-preview-consumer slice. A project-snapshot-scoped provider compiles keyed clips
-lazily and resolves their composition and effect state from the actual program
-preview sample through the exact visible-local mapping above; legacy clips do
-not enter that path, and invalid keyed state blanks the program preview with a
-localized error instead of rendering static state. Both product profiles still
-register `videoKeyframes` as known but unavailable, and the V20 model profile
-remains unselected; inspector, selected storage/playback routing, and export
-activation are not claimed here. Exact animated export remains blocked on the
-bounded shared-frame encoder stream, so capability availability must not flip
-until that workflow and its preview/export parity evidence land.
+The present implementation includes the exact V20 model/domain, bounded
+stale-safe commands and history, exact edit/clipboard/Project-Bin carrier
+preservation, portable `.scape` preservation, and a dormant preview-consumer
+slice. A project-snapshot-scoped provider compiles keyed clips lazily and
+resolves their composition and effect state from the actual program preview
+sample through the exact visible-local mapping above; legacy clips do not enter
+that path, and invalid keyed state blanks the program preview with a localized
+error instead of rendering static state. Static export rejects animated state
+before media or FFmpeg I/O. Both product profiles still register
+`videoKeyframes` as known but unavailable, and the V20 model profile remains
+unselected; inspector, selected storage/playback routing, and export activation
+are not claimed here. The dormant export seam now owns an immutable bounded
+project snapshot, exact random-access frame positions, the shared lazy keyed
+state resolver, and a fixed-capacity/count SharedArrayBuffer character device.
+It has a real Chromium/WASM byte-exact backpressure witness, but no offline
+WebGL frame producer or selected encoder workflow yet. Capability availability
+must not flip until that integration, its workload admission, its dedicated
+security/quality registration, and preview/export parity evidence land.
 
 - **Outcome:** Add bounded keyframe curves to the numeric 4B-1 property IDs and
   registered video-effect parameters, with copy/paste, preset, and stale-safe

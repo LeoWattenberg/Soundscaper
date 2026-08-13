@@ -55,8 +55,10 @@ product revision, V19, under the unchanged pre-release no-migration policy.
 
 ## 2026-08-13 implementation decisions
 
-- Serialized 4.0 is implemented provisionally. Framescaper 4B-1 is in progress
-  under the explicit sequencing clearance and is decomposed in
+- Serialized 4.0 is implemented provisionally. The Framescaper 4B-1
+  implementation candidate is complete apart from manual/reference-GPU
+  qualification, and 4B-2 is in progress under the explicit sequencing
+  clearance. Both are decomposed in
   [`docs/milestone-4b-framescaper-finishing.md`](milestone-4b-framescaper-finishing.md).
   Soundscaper 4A is unstarted; both track exit gates and the overall
   milestone-4 exit gate remain open.
@@ -392,7 +394,9 @@ per the standing duties (roadmap.md:844-846).
 its hosted correctness acceptance is green. Reference-GPU qualification remains
 `pending-external`, and milestone 3 remains recorded **In progress** with its
 manual/external evidence unchanged. The project owner explicitly cleared the
-Framescaper implementation sequencing gate: 4B-1 is **In progress** under its
+Framescaper implementation sequencing gate: the 4B-1 implementation candidate
+is complete apart from manual/reference-GPU qualification, and 4B-2 is
+**In progress** under the
 [pickup contract](milestone-4b-framescaper-finishing.md). 4A is unstarted.
 
 ## Work packets
