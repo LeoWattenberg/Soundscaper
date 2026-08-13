@@ -95,6 +95,50 @@ test('owns the lease, publishes through one exact session, and closes the databa
 	} finally { database.close(); }
 });
 
+test('sessions expose main-owned catalog, duplicate, and exact delete lifecycle operations', async (context) => {
+	const appDataPath = await temporaryRoot(context);
+	const main = await startMain(appDataPath);
+	context.after(() => main.close());
+	const session = main.openSession(createFramescaperDesktopProjectLibraryV10Handshake());
+	const source = await uploadV10MainPublication(session);
+	assert.deepEqual(await session.listProjects(), {
+		metadataRevision: 1,
+		projects: [{
+			id: V10_MAIN_PROJECT_ID,
+			title: 'Framescaper V10 main publication',
+			revision: 1,
+			updatedAt: new Date(source.project.updatedAtMs).toISOString(),
+		}],
+	});
+	const duplicated = await session.duplicateProject({
+		sourceProjectId: V10_MAIN_PROJECT_ID,
+		copyProjectId: 'framescaper-v10-main-copy',
+		title: 'Main copy',
+		timestamp: '2026-08-13T18:00:00.000Z',
+		expectedMetadataRevision: source.metadataRevision,
+		expectedSource: {
+			projectRevision: source.project.projectRevision,
+			projectSha256: source.project.sha256,
+		},
+	});
+	assert.equal(duplicated.project.projectId, 'framescaper-v10-main-copy');
+	assert.equal(duplicated.project.projectRevision, 0);
+	assert.deepEqual(await session.deleteProject({
+		projectId: V10_MAIN_PROJECT_ID,
+		expectedMetadataRevision: duplicated.metadataRevision,
+		expectedProject: {
+			projectRevision: source.project.projectRevision,
+			projectSha256: source.project.sha256,
+		},
+	}), {
+		projectId: V10_MAIN_PROJECT_ID,
+		metadataRevision: 3,
+		deleted: true,
+	});
+	assert.equal(await session.readProjectBundle(V10_MAIN_PROJECT_ID), null);
+	assert.ok(await session.readProjectBundle('framescaper-v10-main-copy'));
+});
+
 test('startup takes a released fence and rolls a prepared body journal forward', async (context) => {
 	const appDataPath = await temporaryRoot(context);
 	await seedPreparedPublication(appDataPath);

@@ -70,6 +70,28 @@ test('one exact handshake admits bounded pathless publication and independently 
 	const result = await bridge.finishPublication({ publicationId: admission.publicationId });
 	assert.equal(result.project.projectId, V10_MAIN_PROJECT_ID);
 	assert.deepEqual(await bridge.readProjectBundle(V10_MAIN_PROJECT_ID), result);
+	assert.deepEqual((await bridge.listProjects()).projects.map(({ id }) => id), [V10_MAIN_PROJECT_ID]);
+	const duplicated = await bridge.duplicateProject({
+		sourceProjectId: V10_MAIN_PROJECT_ID,
+		copyProjectId: 'framescaper-v10-ipc-copy',
+		title: 'IPC copy',
+		timestamp: '2026-08-13T18:00:00.000Z',
+		expectedMetadataRevision: result.metadataRevision,
+		expectedSource: {
+			projectRevision: result.project.projectRevision,
+			projectSha256: result.project.sha256,
+		},
+	});
+	assert.equal(duplicated.project.projectId, 'framescaper-v10-ipc-copy');
+	assert.deepEqual(await bridge.deleteProject({
+		projectId: V10_MAIN_PROJECT_ID,
+		expectedMetadataRevision: duplicated.metadataRevision,
+		expectedProject: {
+			projectRevision: result.project.projectRevision,
+			projectSha256: result.project.sha256,
+		},
+	}), { projectId: V10_MAIN_PROJECT_ID, metadataRevision: 3, deleted: true });
+	assert.equal(await bridge.readProjectBundle(V10_MAIN_PROJECT_ID), null);
 	for (const [, payload] of fixture.calls.slice(1)) {
 		assert.equal(hasForbiddenAuthority(payload), false);
 	}
