@@ -35,7 +35,7 @@ import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/edito
 const ROOT = resolve(import.meta.dirname, '..');
 const GENERIC_MODULE = 'src/common/editor/project-feature-capability-profile.ts';
 const PRODUCT_MODULE = 'src/framescaper/editor-project-feature-capability-profile-v18.ts';
-const FINAL_GENERIC_MODULE = 'src/common/editor/project-runtime-' + 'profile.ts';
+const FINAL_GENERIC_MODULE = 'src/common/editor/project-runtime-profile.ts';
 const FINAL_PRODUCT_MODULE = 'src/framescaper/editor-project-runtime-profile-' + 'v18.ts';
 const TEST_MODULE = 'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts';
 const FINAL_TEST_MODULE = 'tests/audio-editor-framescaper-project-runtime-profile.test.ts';

@@ -97,9 +97,11 @@ test('creates fresh identities over one detached stable frozen pair', () => {
 	const first = createEditorProjectRuntimeProfile(input);
 	const second = createEditorProjectRuntimeProfile(definition());
 	const snapshot = editorProjectRuntimeProfileDefinition(first);
+	const secondSnapshot = editorProjectRuntimeProfileDefinition(second);
 	assert.notEqual(first, second);
 	assert.equal(editorProjectRuntimeProfileDefinition(first), snapshot);
-	assert.deepEqual(snapshot, editorProjectRuntimeProfileDefinition(second));
+	assert.notEqual(snapshot, secondSnapshot);
+	assert.deepEqual(snapshot, secondSnapshot);
 	assert.notEqual(snapshot, input);
 	assert.equal(snapshot.prerequisite, FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE_PREREQUISITE);
 	assert.equal(snapshot.capabilityProfile, FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE);
@@ -176,13 +178,18 @@ test('refuses every open, inherited, exotic, and malformed definition', () => {
 });
 
 test('propagates definition traps and refuses nonconforming proxy results', () => {
-	for (const [handler, pattern] of [
-		[{ getPrototypeOf() { throw new Error('prototype failed'); } }, /prototype failed/u],
-		[{ ownKeys() { throw new Error('keys failed'); } }, /keys failed/u],
-		[{ getOwnPropertyDescriptor() { throw new Error('descriptor failed'); } }, /descriptor failed/u],
-	] as const) assert.throws(
-		() => createEditorProjectRuntimeProfile(new Proxy(definition(), handler)), pattern,
-	);
+	for (const trap of ['prototype', 'keys', 'descriptor'] as const) {
+		const sentinel = new Error(`${trap} failed`);
+		const handler: ProxyHandler<Definition> = trap === 'prototype'
+			? { getPrototypeOf() { throw sentinel; } }
+			: trap === 'keys'
+				? { ownKeys() { throw sentinel; } }
+				: { getOwnPropertyDescriptor() { throw sentinel; } };
+		assert.throws(
+			() => createEditorProjectRuntimeProfile(new Proxy(definition(), handler)),
+			(error) => { assert.equal(error, sentinel); return true; },
+		);
+	}
 	for (const handler of [
 		{ getPrototypeOf() { return Array.prototype; } },
 		{ ownKeys() { return ['prerequisite']; } },
@@ -296,7 +303,11 @@ test('keeps the final singleton and module statically dormant outside its proof'
 	}
 	assert.deepEqual(exportReferences, [PRODUCT_MODULE, TEST_MODULE]);
 	assert.deepEqual(productPathReferences, [TEST_MODULE]);
-	assert.deepEqual(genericPathReferences, [PRODUCT_MODULE, TEST_MODULE]);
+	assert.deepEqual(genericPathReferences, [
+		PRODUCT_MODULE,
+		'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts',
+		TEST_MODULE,
+	]);
 	assert.deepEqual([...new Set(importSpecifiers(await readSource(GENERIC_MODULE)))].sort(), [
 		'./project-feature-capability-profile.ts',
 		'./project-runtime-profile-prerequisite.ts',

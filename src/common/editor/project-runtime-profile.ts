@@ -48,7 +48,7 @@ export function editorProjectRuntimeProfileDefinition(
 function snapshotDefinition(
 	value: unknown,
 ): Readonly<EditorProjectRuntimeProfileDefinition> {
-	if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+	if (value === null || typeof value !== 'object') {
 		throw new TypeError('Editor project runtime profile must be a plain record.');
 	}
 	const prototype = Object.getPrototypeOf(value);
