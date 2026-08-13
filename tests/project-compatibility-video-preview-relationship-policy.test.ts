@@ -56,7 +56,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 	);
 	assert.match(
 		relationship.currentBehavior,
-		/maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed videoEffects-only clip-target render relationship.*separately qualified.*controller activation.*bounded video delivery.*independent route-specific relationship.*source.*digest admissions.*other video fallback and proxy relationships.*unqualified/iu,
+		/maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed videoEffects-only clip-target render relationship.*separately qualified.*controller activation.*bounded video delivery.*independent route-specific relationship.*source.*digest admissions.*Framescaper V18 proxy attachment preservation.*isolated re-attestation.*qualified.*proxy-consuming presentation.*generation.*offline.*relink relationships remain unqualified/iu,
 	);
 	for (const evidence of [
 		'src/common/editor/storage/video-derivative-relationship.ts',
@@ -94,7 +94,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 		documentation,
 		/reproducible.*not.*project history.*\.scape.*managed handoff.*rendered fallbacks.*durable/isu,
 	);
-	assert.match(documentation, /maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed\s+videoEffects-only clip-target render relationship.*separately qualified.*controller\s+activation.*bounded video delivery.*independent\s+route-specific relationship.*source.*digest admissions.*other video fallback\s+and proxy relationships remain unqualified/isu);
+	assert.match(documentation, /maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed\s+videoEffects-only clip-target render relationship.*separately qualified.*controller\s+activation.*bounded video delivery.*independent\s+route-specific relationship.*source.*digest admissions.*Framescaper V18\s+proxy attachment preservation.*isolated re-attestation.*qualified.*proxy-consuming presentation.*generation.*offline.*relink relationships remain unqualified/isu);
 	assert.match(
 		documentation,
 		/not editorial proxies.*decoder.*RSS/isu,

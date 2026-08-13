@@ -47,16 +47,16 @@ test('the frozen Milestone 2 handoff evidence cannot authorize Framescaper V17 a
 	assert.match(browserEvidence, /expect\(outbound\.schemaVersion\)\.toBe\(LEGACY_SHARED_PROJECT_SCHEMA_VERSION\)/u);
 });
 
-test('the reviewed Milestone 3 contract records V18 as authoritative and unblocks c-c REDs', async () => {
+test('the reviewed Milestone 3 contract records V18 as authoritative and atomically selected', async () => {
 	const [isolationContract, workPackets] = await Promise.all([
 		readFile(isolationContractUrl, 'utf8'),
 		readFile(workPacketsUrl, 'utf8'),
 	]);
 	assert.match(
 		isolationContract,
-		/V18 is authoritative.*legacy shared-schema-17.*copy-only preservation.*c-c RED/isu,
+		/V18 is authoritative.*legacy shared-schema-17.*copy-only preservation.*Production selection uses the indivisible transition/isu,
 	);
 	assert.doesNotMatch(isolationContract, /Atomic c-c is blocked on a released-contract conflict/u);
-	assert.match(workPackets, /V18 policy decision.*c-c REDs are authorized/isu);
+	assert.match(workPackets, /maintained\s+\[3B-6c durable V18 video-proxy attachment\].*selected Framescaper V18 owner.*copy-only preservation/isu);
 	assert.doesNotMatch(workPackets, /blocked until the V17 cross-product handoff conflict/u);
 });
