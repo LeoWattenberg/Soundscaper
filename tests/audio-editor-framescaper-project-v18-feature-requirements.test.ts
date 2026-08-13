@@ -86,10 +86,12 @@ test('nonempty nested V18 state owns one native no-fallback requirement', () => 
 		fallback: null,
 		message: 'Nested sequences is available natively.',
 	});
-	const missing = structuredClone(project);
+	const missing = structuredClone(project) as unknown as Record<string, unknown> & {
+		featureRequirements: { requirements: readonly { id: string }[] };
+	};
 	missing.featureRequirements = manifest(missing.featureRequirements.requirements.filter(
 		(requirement) => requirement.id !== 'framescaper.nested-sequences',
-	));
+	)) as { requirements: readonly { id: string }[] };
 	assert.throws(() => validateFramescaperProjectV18(PROFILE, missing),
 		/requires.*framescaper\.nested-sequences/iu);
 	const empty = createFramescaperProjectV18(PROFILE, options());
