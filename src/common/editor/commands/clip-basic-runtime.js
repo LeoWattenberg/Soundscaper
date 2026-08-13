@@ -115,7 +115,7 @@ export function replaceClipSource(project, clipId, sourceId) {
 	const updated = normalizeClipForProject(project, {
 		...clip,
 		sourceId: source.id,
-		renderCacheRevision: clip.renderCacheRevision + 1,
+		renderCacheRevision: (clip.renderCacheRevision ?? 0) + 1,
 		id: clip.id,
 	});
 	assertClipSourceBounds(project, updated);
