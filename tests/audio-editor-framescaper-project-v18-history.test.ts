@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/scape-project-document.ts';
 import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
+	FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18,
 	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
 } from '../src/framescaper/editor-project-feature-requirements-v18.ts';
 import {
@@ -216,6 +217,96 @@ test('nested-sequence commands preserve aliases through history, cloning, and Sc
 		parsed,
 	), clone);
 });
+
+test('V18 sequence commands create an empty secondary owner before nesting and delete it after removal', () => {
+	const profile = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
+	const initial = createFramescaperProjectV18(profile, {
+		id: 'sequence-authoring', title: 'Sequence authoring', now: CREATED,
+	});
+	const primary = initial.sequences[0]!;
+	const shared = emptySequence('shared', 'Shared sequence', primary);
+	const created = applyFramescaperProjectCommandV18(profile, initial, {
+		type: 'sequence/create', sequence: shared,
+	}, { now: EDITED });
+	assert.deepEqual(created.sequences, [primary, shared]);
+	assert.equal(created.revision, initial.revision + 1);
+	assert.equal(created.featureRequirements.requirements.some(
+		({ id }) => id === FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18.id,
+	), false);
+
+	const placed = applyFramescaperProjectCommandV18(profile, created, {
+		type: 'subsequence/add', subsequence: {
+			id: 'shared-placement', sequenceId: String(primary.id), sourceSequenceId: 'shared',
+			sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 30,
+		},
+	});
+	assert.equal(placed.featureRequirements.requirements.some(
+		({ id }) => id === FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18.id,
+	), true);
+	assert.throws(() => applyFramescaperProjectCommandV18(profile, placed, {
+		type: 'sequence/delete', sequenceId: 'shared',
+	}), /sequence.*referenced|nested.*placement/iu);
+
+	const unplaced = applyFramescaperProjectCommandV18(profile, placed, {
+		type: 'subsequence/remove', subsequenceId: 'shared-placement',
+	});
+	const deleted = applyFramescaperProjectCommandV18(profile, unplaced, {
+		type: 'sequence/delete', sequenceId: 'shared',
+	}, { now: REDONE });
+	assert.deepEqual(deleted.sequences, [primary]);
+	assert.deepEqual(deleted.subsequences, []);
+	assert.equal(deleted.featureRequirements.requirements.some(
+		({ id }) => id === FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18.id,
+	), false);
+});
+
+test('V18 sequence authoring is strict, history-owned, and refuses unsafe deletion', () => {
+	const profile = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
+	const initial = createFramescaperProjectV18(profile, {
+		id: 'sequence-fences', title: 'Sequence fences', now: CREATED,
+	});
+	const primary = initial.sequences[0]!;
+	const sequence = emptySequence('shared', 'Shared sequence', primary);
+	assert.throws(() => applyFramescaperProjectCommandV18(profile, initial, {
+		type: 'sequence/delete', sequenceId: String(initial.primarySequenceId),
+	}), /primary sequence/iu);
+	assert.throws(() => applyFramescaperProjectCommandV18(profile, initial, {
+		type: 'sequence/create', sequence: { ...sequence, surprise: true },
+	} as never), /unsupported field|exact/iu);
+	assert.throws(() => applyFramescaperProjectCommandV18(profile, initial, {
+		type: 'sequence/create', sequence: { ...sequence, trackIds: ['occupied'] },
+	} as never), /empty|track/iu);
+
+	let history = createFramescaperProjectHistoryV18(profile, initial);
+	history = executeFramescaperProjectCommandV18(profile, history, {
+		type: 'sequence/create', sequence,
+	}, { now: EDITED });
+	assert.equal(history.present.sequences.length, 2);
+	assert.equal(history.undoStack[0]?.command.type, 'sequence/create');
+	const undone = undoFramescaperProjectCommandV18(profile, history, { now: UNDONE });
+	assert.equal(undone.present.sequences.length, 1);
+	const redone = redoFramescaperProjectCommandV18(profile, undone, { now: REDONE });
+	assert.equal(redone.present.sequences.length, 2);
+	assert.equal(redone.present.sequences[1]?.id, 'shared');
+	assert.throws(() => applyFramescaperProjectCommandV18(profile, redone.present, {
+		type: 'sequence/create', sequence,
+	}), /duplicate.*sequence|already exists/iu);
+});
+
+function emptySequence(
+	id: string,
+	name: string,
+	primary: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
+	return {
+		id, name,
+		rate: structuredClone(primary.rate),
+		dropFrame: primary.dropFrame,
+		startTimecode: structuredClone(primary.startTimecode),
+		trackIds: [],
+		trackNodes: [],
+	};
+}
 
 function attachment(): Record<string, unknown> {
 	return {
