@@ -87,7 +87,7 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 			threshold: [-100, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
 			knee: [0, 40, { unit: 'dB', step: 0.1, taper: 'linear' }],
 			ratio: [1, 20, { unit: ':1', step: 0.1, taper: 'logarithmic' }],
-			attack: [0, 1, { unit: 's', step: 0.001, taper: 'logarithmic' }],
+			attack: [0, 1, { unit: 's', step: 0.001, taper: 'linear' }],
 			release: [0.01, 2, { unit: 's', step: 0.001, taper: 'logarithmic' }],
 			makeupGain: [-24, 24, { unit: 'dB', step: 0.1, taper: 'decibel', automatable: false, automationBlockReason: 'Makeup gain currently changes the native effect graph topology.' }],
 		},
@@ -96,7 +96,7 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 		defaults: { ceiling: -1, lookahead: 0.005, release: 0.1 },
 		ranges: {
 			ceiling: [-24, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
-			lookahead: [0, 0.1, { unit: 's', step: 0.001, taper: 'logarithmic' }],
+			lookahead: [0, 0.1, { unit: 's', step: 0.001, taper: 'linear' }],
 			release: [0.01, 2, { unit: 's', step: 0.001, taper: 'logarithmic' }],
 		},
 	},
@@ -104,8 +104,8 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 		defaults: { threshold: -50, attack: 0.005, hold: 0.05, release: 0.1, rangeDb: -80 },
 		ranges: {
 			threshold: [-100, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
-			attack: [0, 1, { unit: 's', step: 0.001, taper: 'logarithmic' }],
-			hold: [0, 2, { unit: 's', step: 0.001, taper: 'logarithmic' }],
+			attack: [0, 1, { unit: 's', step: 0.001, taper: 'linear' }],
+			hold: [0, 2, { unit: 's', step: 0.001, taper: 'linear' }],
 			release: [0.01, 3, { unit: 's', step: 0.001, taper: 'logarithmic' }],
 			rangeDb: [-100, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
 		},
@@ -115,7 +115,7 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 		ranges: {
 			mix: [0, 1, { unit: 'ratio', step: 0.01, taper: 'linear', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
 			decay: [0.1, 10, { unit: 's', step: 0.01, taper: 'logarithmic', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
-			preDelay: [0, 1, { unit: 's', step: 0.001, taper: 'logarithmic', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
+			preDelay: [0, 1, { unit: 's', step: 0.001, taper: 'linear', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
 		},
 	},
 	delay: {

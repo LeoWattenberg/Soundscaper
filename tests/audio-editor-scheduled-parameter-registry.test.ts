@@ -299,6 +299,11 @@ test('registry accepts only closed own-data descriptor snapshots', () => {
 		...descriptor,
 		automatable: false,
 	} as typeof descriptor, mockAudioParam()), /block reason/iu);
+	assert.throws(() => registry.registerAudioParam({
+		...descriptor,
+		minimum: 0,
+		taper: 'logarithmic',
+	} as typeof descriptor, mockAudioParam()), /positive minimum/iu);
 	const serialized = JSON.stringify(descriptor);
 	const parsed = JSON.parse(
 		`${serialized.slice(0, -1)},"__proto__":{"automatable":false}}`,

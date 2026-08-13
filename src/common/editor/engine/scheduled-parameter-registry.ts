@@ -331,6 +331,9 @@ function normalizeDescriptor(value: ParameterDescriptor): ParameterDescriptor {
 		&& taper !== 'decibel' && taper !== 'discrete') {
 		throw new RangeError('A descriptor taper must be linear, logarithmic, decibel, or discrete.');
 	}
+	if (taper === 'logarithmic' && minimum <= 0) {
+		throw new RangeError('A logarithmic parameter descriptor requires a positive minimum.');
+	}
 	const automationTolerance = nonNegativeFiniteNumber(
 		descriptor.automationTolerance,
 		'descriptor automationTolerance',

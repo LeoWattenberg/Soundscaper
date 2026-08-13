@@ -94,7 +94,7 @@ export function effectParameterInventory(
 		const address = normalizeParameterAddress({
 			kind: 'effect', strip, effectId, ...(elementId === undefined ? {} : { elementId }), parameterId,
 		});
-		const latencyChanging = elementId === undefined && parameterChangesLatency(
+		const latencyChanging = elementId === undefined && definition.taper !== 'discrete' && parameterChangesLatency(
 			type, effect.params, parameterId, minimum, maximum, rate,
 		);
 		const explicitlyBlocked = definition.automatable === false;
@@ -134,7 +134,9 @@ export function effectParameterInventory(
 				const fallback = parameterId === 'frequency' ? 1_000 : parameterId === 'q' ? 1 : 0;
 				add(parameterId, range.metadata, range.minimum, range.maximum, fallback, elementId);
 			}
-			add('slope', discreteMetadata('dB/oct', false, 'Changing filter topology is not sample-offset safe.'), Math.min(...PARAMETRIC_EQ_SLOPES), Math.max(...PARAMETRIC_EQ_SLOPES), PARAMETRIC_EQ_SLOPES[0], elementId);
+			add('slope', discreteMetadata(
+				'dB/oct', false, 'Changing filter topology is not sample-offset safe.', 12,
+			), Math.min(...PARAMETRIC_EQ_SLOPES), Math.max(...PARAMETRIC_EQ_SLOPES), PARAMETRIC_EQ_SLOPES[0], elementId);
 		}
 		return frozenInventory(descriptors, revisionInputs);
 	}
@@ -150,11 +152,11 @@ export function effectParameterInventory(
 				const maximum = finiteNumber(liveRange?.[1] ?? descriptor.maximum, `${type}.${parameterId}.maximum`);
 				add(parameterId, descriptor, minimum, maximum, finiteNumber(descriptor.default, `${type}.${parameterId}.default`));
 			} else if (descriptor.kind === 'boolean') {
-				add(parameterId, discreteMetadata('boolean'), 0, 1, descriptor.default ? 1 : 0);
+				add(parameterId, discreteDefinition(descriptor, 'boolean'), 0, 1, descriptor.default ? 1 : 0);
 			} else if (descriptor.kind === 'enum') {
 				const options = descriptor.options || [];
 				const index = Math.max(0, options.findIndex((option) => option.value === descriptor.default));
-				add(parameterId, discreteMetadata('enum'), 0, Math.max(0, options.length - 1), index);
+				add(parameterId, discreteDefinition(descriptor, 'enum'), 0, Math.max(0, options.length - 1), index);
 			} else if (descriptor.kind === 'bands') {
 				const frequencies = descriptor.frequencies || [];
 				for (let index = 0; index < frequencies.length; index += 1) {
@@ -259,8 +261,21 @@ function discreteMetadata(
 	unit: string,
 	automatable = true,
 	automationBlockReason?: string,
+	step = 1,
 ): NumericMetadata {
-	return { unit, step: 1, taper: 'discrete', automatable, automationBlockReason };
+	return { unit, step, taper: 'discrete', automatable, automationBlockReason };
+}
+
+function discreteDefinition(
+	definition: AudacityParameterDefinition,
+	unit: string,
+): NumericMetadata {
+	return {
+		...definition,
+		unit,
+		step: 1,
+		taper: 'discrete',
+	};
 }
 
 function unitOf(definition: NumericMetadata): string {

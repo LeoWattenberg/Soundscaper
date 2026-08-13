@@ -95,6 +95,11 @@ test('effect and element IDs keep descriptors stable across reorder and reload',
 	assert.ok(lowGain);
 	assert.equal(lowGain.defaultValue, 0);
 	assert.equal(lowGain.unit, 'dB');
+	const slopes = effectParameterInventory(TRACK, original).descriptors.filter((descriptor) => (
+		descriptor.address.kind === 'effect' && descriptor.address.parameterId === 'slope'
+	));
+	assert.ok(slopes.length > 0);
+	assert.ok(slopes.every((descriptor) => descriptor.step === 12));
 });
 
 test('Audacity scalar descriptors retain manifest ranges and block latency-changing parameters', () => {
@@ -161,6 +166,9 @@ test('descriptor inventory exactly covers every rack scalar owned by built-in an
 		for (const descriptor of inventory.descriptors.filter((candidate) => !candidate.automatable)) {
 			assert.ok(descriptor.automationBlockReason, `${type} ${descriptor.id}`);
 		}
+		for (const descriptor of inventory.descriptors.filter((candidate) => candidate.taper === 'logarithmic')) {
+			assert.ok(descriptor.minimum > 0, `${type} ${descriptor.id}`);
+		}
 	}
 
 	for (const type of AUDACITY_RACK_EFFECT_TYPES) {
@@ -197,6 +205,9 @@ test('descriptor inventory exactly covers every rack scalar owned by built-in an
 		for (const descriptor of inventory.descriptors.filter((candidate) => !candidate.automatable)) {
 			assert.ok(descriptor.automationBlockReason, `${type} ${descriptor.id}`);
 		}
+		for (const descriptor of inventory.descriptors.filter((candidate) => candidate.taper === 'logarithmic')) {
+			assert.ok(descriptor.minimum > 0, `${type} ${descriptor.id}`);
+		}
 	}
 
 	const limiter = effectParameterInventory(TRACK, createEffect('limiter', { id: 'limiter' }));
@@ -204,9 +215,38 @@ test('descriptor inventory exactly covers every rack scalar owned by built-in an
 	const graphic = effectParameterInventory(
 		TRACK, createEffect('audacity-graphic-eq', { id: 'graphic' }),
 	);
+	const phaser = effectParameterInventory(
+		TRACK, createEffect('audacity-phaser', { id: 'phaser' }),
+	);
+	const classic = effectParameterInventory(
+		TRACK, createEffect('audacity-classic-filters', { id: 'classic' }),
+	);
+	const distortion = effectParameterInventory(
+		TRACK, createEffect('audacity-distortion', { id: 'distortion' }),
+	);
 	assert.match(blockReason(limiter, 'lookahead'), /latency/iu);
 	assert.match(blockReason(reverb, 'decay'), /graph/iu);
 	assert.match(blockReason(graphic, 'filterLength'), /latency/iu);
+	assert.match(blockReason(phaser, 'stages'), /topology/iu);
+	assert.match(blockReason(classic, 'order'), /topology/iu);
+	assert.match(blockReason(classic, 'family'), /topology/iu);
+	assert.match(blockReason(classic, 'direction'), /topology/iu);
+	assert.match(blockReason(distortion, 'dcBlock'), /(topology|tail)/iu);
+	assert.match(blockReason(distortion, 'mode'), /topology/iu);
+	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-phaser'].params.stages.automatable, false);
+	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-classic-filters'].params.order.automatable, false);
+	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-distortion'].params.dcBlock.automatable, false);
+	assert.equal(AUDACITY_EFFECT_DEFINITIONS['audacity-distortion'].params.mode.automatable, false);
+
+	for (const type of Object.keys(AUDIO_EFFECT_DEFINITIONS)) {
+		const inventory = effectParameterInventory(TRACK, createEffect(type, { id: `${type}-taper` }));
+		for (const descriptor of inventory.descriptors) {
+			if (descriptor.taper === 'logarithmic') {
+				assert.ok(descriptor.minimum > 0, `${type} ${descriptor.id}`);
+			}
+		}
+	}
+	assert.equal(parameterDescriptor(limiter, 'lookahead').taper, 'linear');
 });
 
 function blockReason(
@@ -218,4 +258,15 @@ function blockReason(
 	));
 	assert.equal(descriptor?.automatable, false);
 	return descriptor?.automationBlockReason || '';
+}
+
+function parameterDescriptor(
+	inventory: ReturnType<typeof effectParameterInventory>,
+	parameterId: string,
+) {
+	const descriptor = inventory.descriptors.find((candidate) => (
+		candidate.address.kind === 'effect' && candidate.address.parameterId === parameterId
+	));
+	assert.ok(descriptor);
+	return descriptor;
 }
