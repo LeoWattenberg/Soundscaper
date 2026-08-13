@@ -30,7 +30,6 @@ import {
 import {
 	registerEffectAudioParam,
 	registerEffectAudioParamGroup,
-	registerEffectMessageParameters,
 } from './effect-parameter-bindings.ts';
 import { isParametricEqType } from './project-effects.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
@@ -189,7 +188,6 @@ export function applyEffect(
 				connect(delay, processor, 0, 1);
 			} else connect(controlInput, processor, 0, 1);
 		}
-		registerEffectMessageParameters(effect, processor.port, options);
 		return processor;
 	}
 	if ((type === 'limiter' || type === 'gate') && isDynamicsWorkletLoaded(context)) {
@@ -202,7 +200,6 @@ export function applyEffect(
 				processorOptions: { type, params },
 			}));
 			connect(input, dynamics);
-			registerEffectMessageParameters(effect, dynamics.port, options);
 			return dynamics;
 		}
 	}
@@ -233,7 +230,6 @@ export function applyEffect(
 		const outputAnalyser = options.effectAnalysis ? createSpectrumAnalyser(context, nodes) : null;
 		if (outputAnalyser) connect(processor, outputAnalyser);
 		registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options);
-		registerEffectMessageParameters(effect, processor.port, options);
 		return outputAnalyser || processor;
 	}
 	if (['highpass', 'lowpass', 'bandpass', 'notch', 'peaking', 'lowshelf', 'highshelf'].includes(type)) {
@@ -376,7 +372,6 @@ function connectDelay(
 		}));
 		connect(input, delay);
 		registerEffectNode(effect, delay, options);
-		registerEffectMessageParameters(effect, delay.port, options);
 		return delay;
 	}
 	if (typeof context.createDelay !== 'function') return input;

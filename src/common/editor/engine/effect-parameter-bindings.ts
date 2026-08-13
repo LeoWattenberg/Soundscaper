@@ -7,6 +7,13 @@ import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.
 
 export type EffectParameterScope = 'track' | 'group' | 'send' | 'master';
 
+export const WORKLET_PARAMETER_QUEUE_CONSUMER_REVISION_INPUT = Object.freeze({
+	id: 'soundscaper-4a-worklet-parameter-queue-consumer-v1',
+	protocol: 'schedule-parameter-v1',
+	owner: 'Soundscaper 4A',
+	reason: 'Current first-party effect worklets do not consume frame-offset parameter packets. A bounded sample-offset queue must be integrated and tested before a worklet target is exposed to an automation lane.',
+});
+
 export interface EffectParameterBindingOptions {
 	readonly parameterRegistry?: ScheduledParameterRegistry;
 	readonly scope?: string;
@@ -61,7 +68,13 @@ export function registerEffectAudioParamGroup(
 	});
 }
 
-export function registerEffectMessageParameters(
+/**
+ * Register only the host-side producer contract for a future worklet queue.
+ * This does not make an arbitrary MessagePort a consumer. Current first-party
+ * worklets are intentionally not passed here; the 4A revision input above must
+ * land before their parameter targets can be exposed.
+ */
+export function registerEffectMessageParameterProducer(
 	effect: EngineEffect,
 	port: MessagePort | null | undefined,
 	options: EffectParameterBindingOptions,

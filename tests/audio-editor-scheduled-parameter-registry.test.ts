@@ -9,7 +9,8 @@ import {
 } from '../src/common/editor/effect-parameter-descriptors.ts';
 import {
 	registerEffectAudioParam,
-	registerEffectMessageParameters,
+	registerEffectMessageParameterProducer,
+	WORKLET_PARAMETER_QUEUE_CONSUMER_REVISION_INPUT,
 } from '../src/common/editor/engine/effect-parameter-bindings.ts';
 import {
 	ScheduledParameterRegistry,
@@ -242,7 +243,7 @@ test('effect bindings expose stable native and worklet targets without posting e
 
 	const messageRegistry = new ScheduledParameterRegistry();
 	const messages: unknown[] = [];
-	registerEffectMessageParameters(
+	registerEffectMessageParameterProducer(
 		createEffect('delay', { id: 'delay-1' }),
 		{ postMessage: (message: unknown) => { messages.push(structuredClone(message)); } } as MessagePort,
 		{ parameterRegistry: messageRegistry, scope: 'master', targetId: null, latencyFrames: 64 },
@@ -258,13 +259,19 @@ test('effect bindings expose stable native and worklet targets without posting e
 	assert.equal((messages[0] as { events: readonly { frameOffset: number }[] }).events[0]?.frameOffset, 64);
 });
 
-test('worklet receiver contracts cover every automatable scalar without eager packets', () => {
+test('worklet producer contracts cover every automatable scalar without claiming a consumer', () => {
+	assert.deepEqual(WORKLET_PARAMETER_QUEUE_CONSUMER_REVISION_INPUT, {
+		id: 'soundscaper-4a-worklet-parameter-queue-consumer-v1',
+		protocol: 'schedule-parameter-v1',
+		owner: 'Soundscaper 4A',
+		reason: 'Current first-party effect worklets do not consume frame-offset parameter packets. A bounded sample-offset queue must be integrated and tested before a worklet target is exposed to an automation lane.',
+	});
 	const types = [...Object.keys(AUDIO_EFFECT_DEFINITIONS), ...AUDACITY_RACK_EFFECT_TYPES];
 	for (const type of types) {
 		const registry = new ScheduledParameterRegistry();
 		const messages: unknown[] = [];
 		const effect = createEffect(type, { id: `${type}-binding-inventory` });
-		registerEffectMessageParameters(
+		registerEffectMessageParameterProducer(
 			effect,
 			{ postMessage: (message: unknown) => { messages.push(message); } } as MessagePort,
 			{ parameterRegistry: registry, scope: 'track', targetId: 'track-1' },
