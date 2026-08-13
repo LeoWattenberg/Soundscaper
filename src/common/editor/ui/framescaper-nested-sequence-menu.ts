@@ -13,6 +13,8 @@ interface NestedSequenceValue extends DataRecord {
 }
 
 export type FramescaperNestedSequenceMenuCommand =
+	| Readonly<{ readonly type: 'sequence/create'; readonly sequence: DataRecord }>
+	| Readonly<{ readonly type: 'sequence/delete'; readonly sequenceId: string }>
 	| Readonly<{ readonly type: 'subsequence/add'; readonly subsequence: NestedSequenceValue }>
 	| Readonly<{
 		readonly type: 'subsequence/update';
@@ -23,9 +25,11 @@ export type FramescaperNestedSequenceMenuCommand =
 
 export interface FramescaperNestedSequenceMenuCopy {
 	readonly nestedSequences: string;
+	readonly createSequence: string;
 	readonly addNestedSequence: string;
 	readonly updateNestedSequence: string;
 	readonly removeNestedSequence: string;
+	readonly deleteSequence: string;
 }
 
 export interface FramescaperNestedSequenceMenuInput {
@@ -53,7 +57,7 @@ export interface FramescaperNestedSequenceMenu {
 	readonly items: readonly Readonly<FramescaperNestedSequenceMenuLeaf>[];
 }
 
-/** Add one deterministic opt-in placement and edit the first existing placement. */
+/** Create an empty shared sequence, then author one deterministic opt-in placement. */
 export function createFramescaperNestedSequenceMenuItems(
 	input: FramescaperNestedSequenceMenuInput,
 	actions: FramescaperNestedSequenceMenuActions,
@@ -67,6 +71,9 @@ export function createFramescaperNestedSequenceMenuItems(
 	const parent = sequences.find(({ id }) => id === primaryId) ?? null;
 	const source = sequences.find(({ id }) => id !== primaryId) ?? null;
 	const existing = subsequences[0] ?? null;
+	const createCommand = schemaVersion === 18 && !input.editingBlocked && parent
+		? createCommandFor(parent, sequences)
+		: null;
 	const addCommand = schemaVersion === 18 && !input.editingBlocked && parent && source
 		? addCommandFor(parent, source, subsequences)
 		: null;
@@ -76,16 +83,49 @@ export function createFramescaperNestedSequenceMenuItems(
 	const removeCommand = schemaVersion === 18 && !input.editingBlocked && existing
 		? removeCommandFor(existing)
 		: null;
+	const deletable = project ? sequences.find((sequence) => (
+		sequence.id !== primaryId && canDeleteSequence(project, sequence, subsequences)
+	)) ?? null : null;
+	const deleteCommand = schemaVersion === 18 && !input.editingBlocked && deletable
+		? deleteCommandFor(deletable)
+		: null;
 	const items = Object.freeze([
+		leaf('nested-sequence-create', input.copy.createSequence, createCommand, actions),
 		leaf('nested-sequence-add', input.copy.addNestedSequence, addCommand, actions),
 		leaf('nested-sequence-update', input.copy.updateNestedSequence, updateCommand, actions),
 		leaf('nested-sequence-remove', input.copy.removeNestedSequence, removeCommand, actions),
+		leaf('nested-sequence-delete', input.copy.deleteSequence, deleteCommand, actions),
 	]);
 	return Object.freeze({
 		id: 'nested-sequences',
 		label: input.copy.nestedSequences,
 		disabled: items.every(({ disabled }) => disabled),
 		items,
+	});
+}
+
+function createCommandFor(
+	primary: DataRecord,
+	sequences: readonly DataRecord[],
+): FramescaperNestedSequenceMenuCommand | null {
+	const primaryRate = rate(primary.rate);
+	const startTimecode = timecode(primary.startTimecode);
+	if (!primaryRate || typeof primary.dropFrame !== 'boolean' || !startTimecode) return null;
+	const ids = new Set(sequences.map(({ id }) => id));
+	let suffix = 1;
+	let id = `shared-sequence-${String(suffix)}`;
+	while (ids.has(id)) { suffix += 1; id = `shared-sequence-${String(suffix)}`; }
+	return Object.freeze({
+		type: 'sequence/create',
+		sequence: Object.freeze({
+			id,
+			name: `Shared sequence ${String(suffix)}`,
+			rate: Object.freeze(primaryRate),
+			dropFrame: primary.dropFrame,
+			startTimecode: Object.freeze(startTimecode),
+			trackIds: Object.freeze([]),
+			trackNodes: Object.freeze([]),
+		}),
 	});
 }
 
@@ -131,6 +171,28 @@ function removeCommandFor(value: DataRecord): FramescaperNestedSequenceMenuComma
 	return id ? Object.freeze({ type: 'subsequence/remove', subsequenceId: id }) : null;
 }
 
+function deleteCommandFor(value: DataRecord): FramescaperNestedSequenceMenuCommand | null {
+	const sequenceId = string(value.id);
+	return sequenceId ? Object.freeze({ type: 'sequence/delete', sequenceId }) : null;
+}
+
+function canDeleteSequence(
+	project: DataRecord,
+	sequence: DataRecord,
+	subsequences: readonly DataRecord[],
+): boolean {
+	const sequenceId = string(sequence.id);
+	if (!sequenceId || !emptyArray(sequence.trackIds) || !emptyArray(sequence.trackNodes)) return false;
+	if (subsequences.some((placement) => (
+		placement.sequenceId === sequenceId || placement.sourceSequenceId === sequenceId
+	))) return false;
+	for (const field of ['clips', 'timelineAnnotations', 'takeGroups', 'multicameraGroups']) {
+		if (records(project[field]).some((value) => value.sequenceId === sequenceId)) return false;
+	}
+	const bin = record(project.projectBin);
+	return !records(bin?.clips).some((clip) => clip.sequenceId === sequenceId);
+}
+
 function leaf(
 	id: string,
 	label: string,
@@ -174,6 +236,28 @@ function rate(value: unknown): Readonly<{ readonly num: number; readonly den: nu
 	const num = safeInteger(candidate?.num, 1);
 	const den = safeInteger(candidate?.den, 1);
 	return num === null || den === null ? null : { num, den };
+}
+
+function timecode(value: unknown): Readonly<{
+	readonly negative: boolean;
+	readonly hours: number;
+	readonly minutes: number;
+	readonly seconds: number;
+	readonly frames: number;
+}> | null {
+	const candidate = record(value);
+	if (!candidate || typeof candidate.negative !== 'boolean') return null;
+	const hours = safeInteger(candidate.hours, 0);
+	const minutes = safeInteger(candidate.minutes, 0);
+	const seconds = safeInteger(candidate.seconds, 0);
+	const frames = safeInteger(candidate.frames, 0);
+	return hours === null || minutes === null || seconds === null || frames === null
+		? null
+		: { negative: candidate.negative, hours, minutes, seconds, frames };
+}
+
+function emptyArray(value: unknown): boolean {
+	return Array.isArray(value) && value.length === 0;
 }
 
 function string(value: unknown): string | null {

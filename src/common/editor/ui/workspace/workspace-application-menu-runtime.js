@@ -100,6 +100,10 @@ export function createWorkspaceApplicationMenus({
 				}),
 				executeNestedSequenceCommand: (command) => run(() => {
 					switch (command?.type) {
+						case 'sequence/create':
+							return controller.actions.sequences.createSequence(command.sequence);
+						case 'sequence/delete':
+							return controller.actions.sequences.deleteSequence(command.sequenceId);
 						case 'subsequence/add':
 							return controller.actions.sequences.addNested(command.subsequence);
 						case 'subsequence/update':

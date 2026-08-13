@@ -5,8 +5,14 @@ import type {
 	FramescaperSubsequenceChangesV18,
 	FramescaperSubsequenceV18,
 } from './editor-project-v18-subsequence.ts';
+import {
+	framescaperSequenceIdV18,
+	snapshotFramescaperSequenceV18,
+} from './editor-project-v18-sequence.ts';
 
 export interface FramescaperSequenceActionsV18 {
+	readonly createSequence: (sequence: unknown) => unknown;
+	readonly deleteSequence: (sequenceId: unknown) => unknown;
 	readonly addNested: (subsequence: unknown) => unknown;
 	readonly updateNested: (subsequenceId: unknown, changes: unknown) => unknown;
 	readonly removeNested: (subsequenceId: unknown) => unknown;
@@ -21,6 +27,16 @@ export function createFramescaperSequenceActionsV18(
 	}
 	const execute = executeValue as (command: FramescaperProjectCommandV18) => unknown;
 	return Object.freeze({
+		createSequence(sequenceValue: unknown): unknown {
+			return execute(Object.freeze({
+				type: 'sequence/create', sequence: snapshotFramescaperSequenceV18(sequenceValue),
+			}));
+		},
+		deleteSequence(sequenceIdValue: unknown): unknown {
+			return execute(Object.freeze({
+				type: 'sequence/delete', sequenceId: framescaperSequenceIdV18(sequenceIdValue),
+			}));
+		},
 		addNested(subsequenceValue: unknown): unknown {
 			return execute(Object.freeze({
 				type: 'subsequence/add', subsequence: subsequence(subsequenceValue),

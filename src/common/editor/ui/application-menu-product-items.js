@@ -7,9 +7,11 @@ export function createApplicationMenuProductTrackItems({ productId, project, edi
 	const nestedSequences = createFramescaperNestedSequenceMenuItems({
 		productId, project, editingBlocked: editBlocked, copy: {
 			nestedSequences: copy.nestedSequences,
+			createSequence: copy.createSequence,
 			addNestedSequence: copy.addNestedSequence,
 			updateNestedSequence: copy.updateNestedSequence,
 			removeNestedSequence: copy.removeNestedSequence,
+			deleteSequence: copy.deleteSequence,
 		},
 	}, { execute: actions.executeNestedSequenceCommand });
 	const multicamera = createFramescaperMulticameraMenuItems({

@@ -301,9 +301,9 @@ function emptySequence(
 ): FramescaperSequenceV18 {
 	return {
 		id, name,
-		rate: structuredClone(primary.rate),
-		dropFrame: primary.dropFrame,
-		startTimecode: structuredClone(primary.startTimecode),
+		rate: structuredClone(primary.rate) as FramescaperSequenceV18['rate'],
+		dropFrame: primary.dropFrame as boolean,
+		startTimecode: structuredClone(primary.startTimecode) as FramescaperSequenceV18['startTimecode'],
 		trackIds: [],
 		trackNodes: [],
 	};
