@@ -3,6 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {
+	parseScapeProjectDocument,
+	serializeScapeProjectDocument,
+} from '../src/common/editor/scape-project-document.ts';
 import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
 	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
@@ -20,6 +24,7 @@ import {
 	undoFramescaperProjectCommandV18,
 } from '../src/framescaper/editor-project-v18-history.ts';
 import {
+	cloneFramescaperProjectV18,
 	createFramescaperProjectV18,
 } from '../src/framescaper/editor-project-v18.ts';
 import {
@@ -148,6 +153,68 @@ test('the isolated V18 session installs validated history atomically against a p
 	(invalid.present as unknown as Record<string, unknown>).schemaVersion = 17;
 	assert.throws(() => session.install(current.token, invalid), /schema version/iu);
 	assert.equal(session.snapshot().present.title, 'Installed');
+});
+
+test('nested-sequence commands preserve aliases through history, cloning, and Scape documents', () => {
+	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		id: 'nested-command', title: 'Nested command', now: CREATED,
+		sequences: [
+			{ id: 'root', rate: { num: 30, den: 1 }, trackIds: [] },
+			{ id: 'shared', rate: { num: 24, den: 1 }, trackIds: [] },
+		],
+		primarySequenceId: 'root',
+	});
+	const added = applyFramescaperProjectCommandV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		project,
+		{
+			type: 'subsequence/add',
+			subsequence: {
+				id: 'shared-a', sequenceId: 'root', sourceSequenceId: 'shared',
+				sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 24,
+			},
+		},
+		{ now: EDITED },
+	);
+	assert.equal(added.revision, Number(project.revision) + 1);
+	assert.equal(added.subsequences[0]?.sourceSequenceId, 'shared');
+
+	let history = createFramescaperProjectHistoryV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		added,
+	);
+	history = executeFramescaperProjectCommandV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		history,
+		{ type: 'subsequence/update', subsequenceId: 'shared-a', changes: { sequenceStartFrame: 90 } },
+		{ now: UNDONE },
+	);
+	assert.equal(history.present.subsequences[0]?.sequenceStartFrame, 90);
+	assert.equal(history.undoStack[0]?.command.type, 'subsequence/update');
+	const undone = undoFramescaperProjectCommandV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		history,
+		{ now: REDONE },
+	);
+	assert.equal(undone.present.subsequences[0]?.sequenceStartFrame, 0);
+	const redone = redoFramescaperProjectCommandV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		undone,
+		{ now: '2026-08-13T10:04:00.000Z' },
+	);
+	assert.equal(redone.present.subsequences[0]?.sequenceStartFrame, 90);
+
+	const clone = cloneFramescaperProjectV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		redone.present,
+	);
+	assert.deepEqual(clone.subsequences, redone.present.subsequences);
+	assert.notStrictEqual(clone.subsequences, redone.present.subsequences);
+	const parsed = parseScapeProjectDocument(serializeScapeProjectDocument(clone));
+	assert.deepEqual(cloneFramescaperProjectV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		parsed,
+	), clone);
 });
 
 function attachment(): Record<string, unknown> {

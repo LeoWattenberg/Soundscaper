@@ -19,6 +19,11 @@ import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
+	FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH,
+	flattenFramescaperSequenceV18,
+	mapFramescaperNestedSequenceFrameV18,
+} from '../src/framescaper/editor-project-v18-nested-sequence.ts';
+import {
 	cloneFramescaperProjectV18,
 	createFramescaperProjectV18,
 	loadFramescaperProjectV18,
@@ -209,6 +214,127 @@ test('V18 runtime and command projections preserve attachment authority and reco
 		attached,
 	), /changed.*proxy attachment authority/iu);
 });
+
+test('V18 nested sequences map composed rates exactly and flatten shared subsequences deterministically', () => {
+	const project = createFramescaperProjectV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		nestedSequenceOptions(),
+	);
+	assert.deepEqual(mapFramescaperNestedSequenceFrameV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		project,
+		{ rootSequenceId: 'root', subsequenceIds: ['root-mid-a', 'mid-leaf'], sourceFrame: 1 },
+	), { numerator: 56n, denominator: 5n });
+
+	const flattened = flattenFramescaperSequenceV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		project,
+		'root',
+	);
+	assert.deepEqual(flattened, [
+		{
+			clipId: 'leaf-clip', trackId: 'leaf-track', sourceId: 'nested-source', kind: 'video',
+			leafSequenceId: 'leaf', sequencePath: ['root', 'mid', 'leaf'],
+			subsequencePath: ['root-mid-a', 'mid-leaf'],
+			startFrame: { numerator: 16n, denominator: 1n },
+			endFrame: { numerator: 40n, denominator: 1n },
+		},
+		{
+			clipId: 'leaf-clip', trackId: 'leaf-track', sourceId: 'nested-source', kind: 'video',
+			leafSequenceId: 'leaf', sequencePath: ['root', 'mid', 'leaf'],
+			subsequencePath: ['root-mid-b', 'mid-leaf'],
+			startFrame: { numerator: 106n, denominator: 1n },
+			endFrame: { numerator: 130n, denominator: 1n },
+		},
+	]);
+	assert.equal(Object.isFrozen(flattened), true);
+	assert.equal(Object.isFrozen(flattened[0]?.sequencePath), true);
+
+	const reordered = structuredClone(project) as unknown as Record<string, unknown>;
+	(reordered.subsequences as unknown[]).reverse();
+	assert.deepEqual(flattenFramescaperSequenceV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		reordered,
+		'root',
+	), flattened);
+});
+
+test('V18 nested-sequence validation rejects inexact duration, cycles, and excessive depth', () => {
+	const project = createFramescaperProjectV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		nestedSequenceOptions(),
+	);
+	const inexact = structuredClone(project) as unknown as Record<string, unknown>;
+	(inexact.subsequences as Record<string, unknown>[])[0]!.sequenceFrameCount = 59;
+	assert.throws(
+		() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, inexact),
+		/exact.*duration|duration.*exact/iu,
+	);
+
+	const cyclic = structuredClone(project) as unknown as Record<string, unknown>;
+	(cyclic.subsequences as Record<string, unknown>[]).push({
+		id: 'leaf-root', sequenceId: 'leaf', sourceSequenceId: 'root',
+		sequenceStartFrame: 0, sequenceFrameCount: 50, sourceInFrame: 0, sourceFrameCount: 60,
+	});
+	assert.throws(
+		() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, cyclic),
+		/cycle/iu,
+	);
+
+	const count = FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH + 2;
+	assert.throws(() => createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		id: 'too-deep', title: 'Too deep', now: NOW,
+		sequences: Array.from({ length: count }, (_, index) => ({
+			id: `sequence-${String(index)}`, rate: { num: 30, den: 1 }, trackIds: [],
+		})),
+		primarySequenceId: 'sequence-0',
+		subsequences: Array.from({ length: count - 1 }, (_, index) => ({
+			id: `nested-${String(index)}`,
+			sequenceId: `sequence-${String(index)}`,
+			sourceSequenceId: `sequence-${String(index + 1)}`,
+			sequenceStartFrame: 0, sequenceFrameCount: 1, sourceInFrame: 0, sourceFrameCount: 1,
+		})),
+	}), /depth/iu);
+});
+
+function nestedSequenceOptions(): Record<string, unknown> {
+	return {
+		id: 'nested-v18', title: 'Nested V18', now: NOW,
+		sources: [createVideoSourceV10({
+			id: 'nested-source', name: 'Nested source', storageKey: 'nested-source', mimeType: 'video/mp4',
+			contentSha256: ORIGINAL_SHA, sampleFrameCount: 192_000, sourceFrameCount: 100,
+			frameRate: { num: 25, den: 1 }, width: 1920, height: 1080,
+		})],
+		clips: [{
+			kind: 'video', id: 'leaf-clip', sourceId: 'nested-source', title: 'Leaf',
+			sequenceId: 'leaf', sequenceStartFrame: 5, sequenceFrameCount: 20,
+			sourceInFrame: 0, sourceFrameCount: 20, retimeMap: null,
+		}],
+		tracks: [createVideoTrackV10({
+			id: 'leaf-track', name: 'Leaf track', clipIds: ['leaf-clip'], locked: false,
+		})],
+		sequences: [
+			{ id: 'root', rate: { num: 30, den: 1 }, trackIds: [] },
+			{ id: 'mid', rate: { num: 24, den: 1 }, trackIds: [] },
+			{ id: 'leaf', rate: { num: 25, den: 1 }, trackIds: ['leaf-track'] },
+		],
+		primarySequenceId: 'root',
+		subsequences: [
+			{
+				id: 'root-mid-b', sequenceId: 'root', sourceSequenceId: 'mid',
+				sequenceStartFrame: 100, sequenceFrameCount: 60, sourceInFrame: 0, sourceFrameCount: 48,
+			},
+			{
+				id: 'mid-leaf', sequenceId: 'mid', sourceSequenceId: 'leaf',
+				sequenceStartFrame: 0, sequenceFrameCount: 48, sourceInFrame: 0, sourceFrameCount: 50,
+			},
+			{
+				id: 'root-mid-a', sequenceId: 'root', sourceSequenceId: 'mid',
+				sequenceStartFrame: 10, sequenceFrameCount: 60, sourceInFrame: 0, sourceFrameCount: 48,
+			},
+		],
+	};
+}
 
 function options(): Record<string, unknown> {
 	return {
