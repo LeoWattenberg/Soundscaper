@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
 import {
@@ -59,10 +60,11 @@ export function initializeFramescaperDesktopProjectLibraryV10Database(
 		`);
 		const empty = emptyFramescaperDesktopLibraryV10Metadata();
 		const json = JSON.stringify(empty);
+		const digest = createHash('sha256').update(json, 'utf8').digest('hex');
 		database.prepare(`
 		INSERT OR IGNORE INTO library_metadata
 		(singleton, revision, json, digest, published_at_ms) VALUES (1, ?, ?, ?, 0)
-		`).run(empty.revision, json, '0'.repeat(64));
+		`).run(empty.revision, json, digest);
 		database.prepare(`
 		INSERT OR IGNORE INTO library_lease
 		(singleton, active, fencing_token, took_over) VALUES (1, 0, 0, 0)

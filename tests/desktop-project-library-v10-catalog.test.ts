@@ -38,8 +38,8 @@ test('constructs an inert Framescaper-only catalog behind the exact V10 handshak
 		assert.throws(() => catalog.readMetadata(), /handshake.*required/iu);
 		assert.throws(() => catalog.publishMetadata({
 			expectedRevision: 0,
-			lease: lease.proxy,
-			metadata: metadata.proxy,
+			lease: lease.proxy as never,
+			metadata: metadata.proxy as never,
 		}), /handshake.*required/iu);
 		assert.deepEqual(metadata.hits, [0, 0, 0, 0]);
 		assert.deepEqual(lease.hits, [0, 0, 0, 0]);
@@ -308,6 +308,7 @@ test('stays dormant and isolated from V9, product entrypoints, project bodies, a
 		'./project-library-v10-contract.ts',
 		'./project-library-v10-database.ts',
 		'./project-library-v10-handshake-gate.ts',
+		'./project-library-v10-persistence-codecs.ts',
 		'./project-library-v10-metadata.ts',
 	]);
 	assert.doesNotMatch(source,
