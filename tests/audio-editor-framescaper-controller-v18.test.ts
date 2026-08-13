@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 
 const assetLoader = `
 	export async function resolve(specifier, context, nextResolve) {
@@ -21,6 +21,14 @@ const {
 	createFramescaperEditorProjectEnvironmentV18,
 } = await import('../src/framescaper/editor-project-environment-v18.ts');
 const { createInstrumentedIndexedDB } = await import('./helpers/instrumented-indexeddb.js');
+const {
+	archiveProject,
+	createFramescaperV18ArchiveFixture,
+	seedFramescaperV18ArchiveBodies,
+} = await import('./helpers/framescaper-v18-archive-fixture.ts');
+const { FramescaperScapeArchiveV18 } = await import('../src/framescaper/scape-project-preservation-v18.ts');
+const { FramescaperScapeProjectFileV18 } = await import('../src/framescaper/scape-project-file-v18.ts');
+const { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } = await import('../src/framescaper/editor-project-runtime-profile-v18.ts');
 
 test('product-owned controller activates a fresh writable V18 project', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV18({
@@ -75,3 +83,46 @@ test('product controller refuses cloned environments and authority options befor
 		assert.equal(reads, 0);
 	}
 });
+
+test('product controller reaches exact V18 Scape inspection and read-only format-2 import', async (context) => {
+	const exported = await createFormat2Archive(context);
+	const environment = await createFramescaperEditorProjectEnvironmentV18({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	});
+	const controller = createFramescaperAudioEditorControllerV18(environment, { locale: 'en' });
+	context.after(async () => {
+		await controller.dispose();
+		await environment.close();
+	});
+	await controller.ready;
+	const inspected = await controller.inspectScape(exported);
+	assert.equal(inspected.schemaVersion, 18);
+	assert.equal(inspected.readOnly, true);
+	assert.equal(inspected.manifest.formatVersion, 2);
+	const opened = await controller.openScapeFile(exported, () => 'open-read-only');
+	assert.equal(opened.project.schemaVersion, 18);
+	assert.equal(controller.project.schemaVersion, 18);
+	assert.equal(controller.getSnapshot().readOnly, true);
+	assert.equal(controller.getSnapshot().intrinsicReadOnly, true);
+	assert.deepEqual(await environment.store.loadProject(String(controller.project.id)), controller.project);
+});
+
+async function createFormat2Archive(context: TestContext): Promise<Blob> {
+	const fixture = await createFramescaperV18ArchiveFixture(context);
+	await seedFramescaperV18ArchiveBodies(fixture);
+	const archive = new FramescaperScapeArchiveV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		store: fixture.store,
+		port: fixture.port,
+		opfs: fixture.opfs,
+	});
+	const file = new FramescaperScapeProjectFileV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		archive,
+		store: fixture.store,
+	});
+	const exported = await file.exportProject(archiveProject());
+	assert.ok(exported.blob);
+	return exported.blob;
+}
