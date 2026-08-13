@@ -6,11 +6,10 @@ import {
 	clampFrame,
 	finite,
 	getProjectDurationFrames,
-	nonNegativeInteger,
-	positiveInteger,
 } from './buffer-math.ts';
 import type { FrameRange } from './clip-schedule-plan.ts';
 import type { ProjectGainParams, ScheduledGainParam } from './project-graph.ts';
+import { compileProjectGainEvents } from './project-gain-event-plan.ts';
 import type {
 	EngineClip,
 	EngineGainOwner,
@@ -38,33 +37,18 @@ export function scheduleProjectGains({
 	sampleRate,
 	transportRate,
 }: ScheduleProjectGainsOptions): void {
-	const timelineRate = sampleRate * transportRate;
 	const durationFrames = Math.max(1, getProjectDurationFrames(project), toFrame);
 	const scheduleEnvelope = (owner: EngineGainOwner | undefined, scheduled?: ScheduledGainParam): void => {
 		if (!scheduled?.param || !Array.isArray(owner?.envelope) || !owner.envelope.length) return;
-		const baseGain = Math.max(0, finite(owner.gain, 1));
-		const latencySeconds = nonNegativeInteger(scheduled.latencyFrames, 0)
-			/ positiveInteger(context.sampleRate, sampleRate);
-		const startTime = contextStartTime + latencySeconds;
-		setParam(
-			scheduled.param,
-			baseGain * envelopeValueAtFrame(owner.envelope, fromFrame, durationFrames),
-			startTime,
-		);
-		for (const point of owner.envelope) {
-			if (point.frame <= fromFrame || point.frame >= toFrame) continue;
-			linearRamp(
-				scheduled.param,
-				baseGain * Math.max(0, finite(point.value, 1)),
-				startTime + (point.frame - fromFrame) / timelineRate,
-			);
-		}
-		if (toFrame > fromFrame) {
-			linearRamp(
-				scheduled.param,
-				baseGain * envelopeValueAtFrame(owner.envelope, toFrame, durationFrames),
-				startTime + (toFrame - fromFrame) / timelineRate,
-			);
+		const events = compileProjectGainEvents(owner, {
+			fromFrame, toFrame, durationFrames, contextStartTime, sampleRate,
+			contextSampleRate: context.sampleRate,
+			transportRate,
+			latencyFrames: scheduled.latencyFrames,
+		});
+		for (const event of events) {
+			if (event.kind === 'set') setParam(scheduled.param, event.value, event.time);
+			else linearRamp(scheduled.param, event.value, event.time);
 		}
 	};
 	for (const [trackIndex, track] of (project.tracks || []).entries()) {

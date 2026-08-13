@@ -21,11 +21,11 @@ import {
 import {
 	applyEffectRack,
 	createAnalyser,
-	effectRackLatencyFrames,
 	type EffectAnalyserEntry,
 	type EffectRackOptions,
 } from './effect-rack.ts';
 import { activeRackEffects } from './project-effects.ts';
+import { compileProjectPdcPlan } from './project-pdc-plan.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type {
 	EngineMixerBus,
@@ -46,22 +46,7 @@ export function projectGraphLatencyFrames(
 		sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE,
 	}: ProjectGraphLatencyOptions = {},
 ): number {
-	const tracks = (project?.tracks || []).filter((track) => (
-		track.type !== 'label' && track.type !== 'video'
-			&& (trackId == null || String(track.id) === String(trackId))
-	));
-	const trackLatency = tracks.reduce((maximum, track) => Math.max(
-		maximum,
-		effectRackLatencyFrames(activeRackEffects(track), sampleRate),
-	), 0);
-	const masterLatency = includeMaster
-		? effectRackLatencyFrames(activeRackEffects(project?.master), sampleRate)
-		: 0;
-	const busLatency = Math.max(0, ...[
-		...(project?.mixer?.groups || []),
-		...(project?.mixer?.sends || []),
-	].map((bus) => effectRackLatencyFrames(activeRackEffects(bus), sampleRate)));
-	return trackLatency + busLatency + masterLatency;
+	return compileProjectPdcPlan(project, { trackId, includeMaster, sampleRate }).latencyFrames;
 }
 
 export interface ScheduledGainParam {
@@ -155,9 +140,12 @@ export function buildProjectGraph(
 	for (const [index, track] of tracks.entries()) {
 		trackInputs.set(String(track.id ?? index), addNode(nodes, context.createGain()));
 	}
-	const renderedTracks = tracks.filter((track, index) => (
-		onlyTrackId == null || String(onlyTrackId) === String(track.id ?? index)
-	));
+	const pdcPlan = compileProjectPdcPlan(project, {
+		trackId: onlyTrackId,
+		includeMaster,
+		sampleRate: context.sampleRate || DEFAULT_SAMPLE_RATE,
+		fallbackTrackIndexIds: true,
+	});
 	const effectChannelCounts = new Map(tracks.map((track, index) => [
 		String(track.id ?? index),
 		terminalChannelWidths.tracks.get(String(track.id ?? index)) ?? 2,
@@ -167,10 +155,7 @@ export function buildProjectGraph(
 		positiveInteger(project?.masterChannels, 2),
 		...effectChannelCounts.values(),
 	), 1, 32);
-	const maximumTrackLatency = renderedTracks.reduce((maximum, track) => Math.max(
-		maximum,
-		effectRackLatencyFrames(activeRackEffects(track), context.sampleRate || DEFAULT_SAMPLE_RATE),
-	), 0);
+	const maximumTrackLatency = pdcPlan.maximumTrackLatencyFrames;
 	const masterInput = addNode(nodes, context.createGain());
 	const admMetadata = project.metadata?.adm;
 	const admMode = admMetadata && typeof admMetadata === 'object' && 'mode' in admMetadata
@@ -180,11 +165,8 @@ export function buildProjectGraph(
 	const preservesAdmChannels = admMode === 'authored' || admMode === 'passthrough';
 	const groupInputs = new Map(groups.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
 	const sendInputs = new Map(sends.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
-	const busLatencies = new Map([...groups, ...sends].map((bus) => [
-		String(bus.id),
-		effectRackLatencyFrames(activeRackEffects(bus), context.sampleRate || DEFAULT_SAMPLE_RATE),
-	]));
-	const maximumBusLatency = Math.max(0, ...busLatencies.values());
+	const busLatencies = pdcPlan.busLatencyFrames;
+	const maximumBusLatency = pdcPlan.maximumBusLatencyFrames;
 	const anySolo = respectMuteSolo && [...tracks, ...groups, ...sends].some((channel) => channel.solo);
 	const connectTerminal = (output: AudioNode, scope: 'track' | 'group' | 'send', id: string, channelCount: number): void => {
 		if (admBedRouter) admBedRouter.routeTerminal(scope, id, output, channelCount);
@@ -217,7 +199,7 @@ export function buildProjectGraph(
 		const input = trackInputs.get(trackId);
 		if (!input) continue;
 		const rackEffects = activeRackEffects(track);
-		const trackLatency = effectRackLatencyFrames(rackEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
+		const trackLatency = pdcPlan.trackLatencyFrames.get(trackId) ?? 0;
 		let output = applyEffectRack(context, input, rackEffects, nodes, {
 			sidechainInputs: trackInputs,
 			scope: 'track',
@@ -356,7 +338,7 @@ export function buildProjectGraph(
 	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id))!, sendAnalysers, sendGainParams, 'send');
 
 	const masterEffects = includeMaster ? activeRackEffects(project?.master) : [];
-	const masterLatency = effectRackLatencyFrames(masterEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
+	const masterLatency = pdcPlan.masterLatencyFrames;
 	const masterOutput = applyEffectRack(context, masterInput, masterEffects, nodes, {
 		sidechainInputs: trackInputs,
 		baseSidechainDelayFrames: maximumTrackLatency + maximumBusLatency,
