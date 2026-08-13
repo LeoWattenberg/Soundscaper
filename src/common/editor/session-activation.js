@@ -22,6 +22,7 @@ export function createProjectActivationReservations(findTab) {
 		}
 		const expectsHistory = Object.hasOwn(options, 'expectedHistoryToken');
 		const requiresAbsent = options.requireAbsent === true;
+		const exclusive = options.exclusive === true;
 		if (expectsHistory === requiresAbsent) {
 			throw new TypeError('Reserve either an existing project history or an absent project ID.');
 		}
@@ -34,6 +35,7 @@ export function createProjectActivationReservations(findTab) {
 		const reservation = {
 			mode: expectsHistory ? 'existing' : 'absent',
 			historyToken: expectsHistory ? options.expectedHistoryToken : null,
+			exclusive,
 			opened: false,
 			token,
 		};
@@ -49,7 +51,15 @@ export function createProjectActivationReservations(findTab) {
 	}
 
 	function assertMutable(projectId, changesActiveProject = false) {
-		if (reservations.has(projectId) || (changesActiveProject && reservations.size)) {
+		if (reservations.has(projectId)
+			|| [...reservations.values()].some((reservation) => reservation.exclusive)
+			|| (changesActiveProject && reservations.size)) {
+			throw reservedError();
+		}
+	}
+
+	function assertExclusiveMutable() {
+		if ([...reservations.values()].some((reservation) => reservation.exclusive)) {
 			throw reservedError();
 		}
 	}
@@ -68,7 +78,8 @@ export function createProjectActivationReservations(findTab) {
 	function assertOpen(projectId, options = {}, activates = true) {
 		const reservation = matchingReservation(projectId, options);
 		if (!reservation) {
-			if (activates && reservations.size) throw reservedError();
+			if ((activates || [...reservations.values()].some((entry) => entry.exclusive))
+				&& reservations.size) throw reservedError();
 			return;
 		}
 		if (reservation.mode !== 'absent' || reservation.opened || findTab(projectId)) {
@@ -79,6 +90,17 @@ export function createProjectActivationReservations(findTab) {
 	function markOpened(projectId, options = {}) {
 		const reservation = matchingReservation(projectId, options);
 		if (reservation) reservation.opened = true;
+	}
+
+	function assertInstall(projectId, options = {}) {
+		const reservation = matchingReservation(projectId, options);
+		const tab = findTab(projectId);
+		if (!reservation || reservation.mode !== 'existing' || reservation.opened
+			|| !tab || tab.historyToken !== reservation.historyToken
+			|| options.expectedHistoryToken !== reservation.historyToken) {
+			throw reservedError();
+		}
+		return true;
 	}
 
 	function matchingReservation(projectId, options) {
@@ -95,8 +117,10 @@ export function createProjectActivationReservations(findTab) {
 	return Object.freeze({
 		begin,
 		assertMutable,
+		assertExclusiveMutable,
 		assertOpen,
 		assertSwitch,
+		assertInstall,
 		markOpened,
 		assertRestorable() {
 			if (reservations.size) throw reservedError();

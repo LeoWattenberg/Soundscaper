@@ -1,6 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
 import { validateAudioEditorProjectV17 } from './project-v17-validation.ts';
 import { parseScapeProjectDocument, serializeScapeProjectDocument } from './scape-project-document.ts';
 import { snapshotVideoProxyProject } from './video-proxy-project-snapshot.ts';
@@ -17,9 +15,13 @@ import {
 } from './video-proxy-timing-conformance.ts';
 import {
 	boundVideoSourceTimingViewInfo,
-	videoSourceFrameTime,
 	type BoundVideoSourceTimingView,
 } from './video-source-timing-view.ts';
+import {
+	videoProxyScalarFingerprint as scalarFingerprint,
+	videoProxyTimelineOwnership as timelineOwnership,
+	videoProxyTimingFingerprint as timingFingerprint,
+} from './video-proxy-relationship-fingerprint.ts';
 import {
 	captureVideoProxyOriginalLease,
 	releaseVideoProxyOriginalLease,
@@ -56,6 +58,10 @@ export interface VideoProxyRelationshipAuthority { readonly kind: 'video-proxy-r
 export interface VideoProxyRelationship { readonly kind: 'video-proxy-relationship'; readonly version: 1 }
 export interface VideoProxyRelationshipRequest { readonly sourceId: string; readonly signal?: AbortSignal }
 export interface PreparedVideoProxyRelationship { readonly relationship: VideoProxyRelationship; readonly candidate: Blob }
+/** @internal Opaque fresh-original lease held only by atomic Framescaper adoption. */
+export interface VideoProxyRelationshipAdoptionLease {
+	readonly kind: 'video-proxy-relationship-adoption-lease'; readonly version: 1;
+}
 /** @internal One-use material retained only for the later Framescaper adoption owner. */
 export interface VideoProxyRelationshipPreparationMaterial {
 	readonly relationship: VideoProxyRelationship;
@@ -86,6 +92,11 @@ interface RelationshipState {
 	readonly authorityId: number; readonly info: VideoProxyRelationshipInfo; readonly targetFingerprint: string;
 	readonly originalIdentity: VideoProxyCandidateOriginalIdentity;
 }
+interface AdoptionState {
+	readonly authority: AuthorityState; readonly relationship: RelationshipState;
+	readonly target: TargetSnapshot; readonly task: unknown; readonly signal?: AbortSignal;
+	readonly lease: CapturedVideoProxyOriginalLease;
+}
 interface TargetSnapshot {
 	readonly projectId: string; readonly sourceId: string; readonly storageKey: string; readonly mimeType: string;
 	readonly contentSha256: string; readonly timing: BoundVideoSourceTimingView;
@@ -94,8 +105,8 @@ interface TargetSnapshot {
 const AUTHORITIES = new WeakMap<object, AuthorityState>();
 const RELATIONSHIPS = new WeakMap<object, RelationshipState>();
 const PREPARATIONS = new WeakMap<object, VideoProxyRelationshipPreparationMaterial>();
+const ADOPTIONS = new WeakMap<object, AdoptionState>();
 const SHA256 = /^[a-f0-9]{64}$/u;
-const textEncoder = new TextEncoder();
 const NO_FAILURE = Symbol('no video proxy relationship failure');
 let nextAuthorityId = 0;
 /** Capture trusted relationship dependencies as an opaque process-local authority. */
@@ -194,6 +205,51 @@ export function consumePreparedVideoProxyRelationship(
 	}
 	PREPARATIONS.delete(preparationValue);
 	return material;
+}
+/** @internal Capture and hold the relationship authority's fresh exact original lease. */
+export async function captureVideoProxyRelationshipAdoptionLease(
+	authorityValue: VideoProxyRelationshipAuthority,
+	relationshipValue: VideoProxyRelationship,
+	requestValue: VideoProxyRelationshipRequest,
+): Promise<VideoProxyRelationshipAdoptionLease> {
+	const authority = authorityState(authorityValue);
+	const relationship = relationshipState(relationshipValue);
+	if (relationship.authorityId !== authority.id) throw new TypeError('The relationship belongs to a different authority.');
+	const request = captureRequest(requestValue);
+	if (request.sourceId !== relationship.info.originalSourceId) throw new RangeError('The adoption source identity changed.');
+	throwIfAborted(request.signal);
+	const task = authority.captureTask(); authority.assertTaskCurrent(task);
+	const target = captureTarget(authority, request.sourceId);
+	if (target.fingerprint !== relationship.targetFingerprint) throw new Error('The adoption target is stale.');
+	let lease: CapturedVideoProxyOriginalLease | null = null;
+	try {
+		lease = await captureVideoProxyOriginalLease(await authority.observeOriginal(originalRequest(target, request.signal)));
+		assertOperationCurrent(authority, task, request.signal, lease);
+		assertOriginalMatchesTarget(lease, target);
+		if (!sameVideoProxyOriginalIdentity(lease.fingerprint, relationship.originalIdentity)) {
+			throw new Error('The adoption original generation is stale.');
+		}
+		const token = Object.freeze({ kind: 'video-proxy-relationship-adoption-lease', version: 1 }) as VideoProxyRelationshipAdoptionLease;
+		ADOPTIONS.set(token, { authority, relationship, target, task, lease, ...(request.signal ? { signal: request.signal } : {}) });
+		return token;
+	} catch (error) {
+		const cleanup = await releaseVideoProxyOriginalLease(lease, NO_FAILURE);
+		if (cleanup !== NO_FAILURE) throw new AggregateError([error, cleanup], 'Adoption lease capture and cleanup failed.', { cause: error });
+		throw error;
+	}
+}
+/** @internal Reassert target, task, relationship, and held original generation. */
+export function assertVideoProxyRelationshipAdoptionCurrent(value: VideoProxyRelationshipAdoptionLease): void {
+	const state = adoptionState(value);
+	assertOperationCurrent(state.authority, state.task, state.signal, state.lease);
+	const current = recaptureTarget(state.authority, state.target.sourceId);
+	assertOperationCurrent(state.authority, state.task, state.signal, state.lease);
+	if (current.fingerprint !== state.target.fingerprint
+		|| current.fingerprint !== state.relationship.targetFingerprint) throw new Error('The adoption target is stale.');
+}
+/** @internal Release the fresh original generation exactly once. */
+export async function releaseVideoProxyRelationshipAdoptionLease(value: VideoProxyRelationshipAdoptionLease): Promise<void> {
+	const state = adoptionState(value); ADOPTIONS.delete(value); await state.lease.release();
 }
 async function proveVideoProxyRelationshipAsync(
 	authority: AuthorityState,
@@ -437,55 +493,6 @@ function captureOccurrences(
 		});
 	}
 }
-function timelineOwnership(
-	tracks: readonly unknown[],
-	sequences: readonly unknown[],
-): ReadonlyMap<string, readonly Record<string, string>[]> {
-	const sequencesByTrack = new Map<string, string[]>();
-	for (const sequenceValue of sequences) {
-		const sequence = dataRecord(sequenceValue, 'project sequence');
-		const sequenceId = nonEmptyString(dataProperty(sequence, 'id', 'project sequence'), 'sequence.id');
-		for (const trackId of dataArrayProperty(sequence, 'trackIds', 'project sequence.trackIds')) {
-			const id = nonEmptyString(trackId, 'project sequence trackId');
-			const values = sequencesByTrack.get(id) ?? [];
-			values.push(sequenceId); sequencesByTrack.set(id, values);
-		}
-	}
-	const result = new Map<string, Record<string, string>[]>();
-	for (const trackValue of tracks) {
-		const track = dataRecord(trackValue, 'project track');
-		const trackId = nonEmptyString(dataProperty(track, 'id', 'project track'), 'project track.id');
-		for (const clipIdValue of dataArrayProperty(track, 'clipIds', 'project track.clipIds')) {
-			const clipId = nonEmptyString(clipIdValue, 'project track clipId');
-			const owners = result.get(clipId) ?? [];
-			for (const sequenceId of sequencesByTrack.get(trackId) ?? []) owners.push({ trackId, sequenceId });
-			result.set(clipId, owners);
-		}
-	}
-	return result;
-}
-function timingFingerprint(timing: BoundVideoSourceTimingView): string {
-	const info = boundVideoSourceTimingViewInfo(timing);
-	const digest = sha256.create();
-	digest.update(textEncoder.encode(`${info.kind}:${String(info.frameCount)};`));
-	const last = info.kind === 'cfr' ? 1 : info.frameCount;
-	for (let boundary = 0; boundary <= last; boundary += 1) {
-		const exact = videoSourceFrameTime(timing, {
-			numerator: BigInt(boundary),
-			denominator: 1n,
-		});
-		digest.update(textEncoder.encode(`${exact.numerator.toString()}/${exact.denominator.toString()};`));
-	}
-	return bytesToHex(digest.digest());
-}
-function scalarFingerprint(...values: readonly string[]): string {
-	const digest = sha256.create();
-	for (const value of values) {
-		digest.update(textEncoder.encode(value));
-		digest.update(Uint8Array.of(0));
-	}
-	return bytesToHex(digest.digest());
-}
 function assertOriginalMatchesTarget(lease: CapturedVideoProxyOriginalLease, target: TargetSnapshot): void {
 	lease.assertCurrent();
 	const identity = lease.fingerprint;
@@ -558,6 +565,12 @@ function relationshipState(value: unknown): RelationshipState {
 	}
 	const state = RELATIONSHIPS.get(value);
 	if (!state) throw new TypeError('An authenticated video proxy relationship proof is required.');
+	return state;
+}
+function adoptionState(value: unknown): AdoptionState {
+	if (!value || typeof value !== 'object') throw new TypeError('An authentic adoption lease is required.');
+	const state = ADOPTIONS.get(value);
+	if (!state) throw new TypeError('The adoption lease is foreign or already released.');
 	return state;
 }
 function sha256Digest(value: unknown): string {

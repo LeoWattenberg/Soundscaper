@@ -77,6 +77,7 @@ export class VideoProxyClaimStagingRepository {
 	readonly #now: () => number;
 	readonly #maximumClaims: number;
 	readonly #createGeneration: () => string;
+	readonly #issued = new WeakMap<object, Readonly<{ database: IDBDatabase; claim: Readonly<VideoProxyClaimRecord> }>>();
 
 	constructor(
 		port: StorageRepositoryPort,
@@ -105,7 +106,9 @@ export class VideoProxyClaimStagingRepository {
 		const state = await this.#createUnverified(database, input);
 		try {
 			await this.#verifyBody(state, options.signal);
-			return await this.#markVerified(state);
+			const claim = await this.#markVerified(state);
+			this.#issued.set(claim, Object.freeze({ database, claim }));
+			return claim;
 		} catch (error) {
 			try {
 				await this.#releaseIfCurrent(state);
@@ -118,6 +121,28 @@ export class VideoProxyClaimStagingRepository {
 			}
 			throw error;
 		}
+	}
+
+	/** Release one authenticated reused-body claim without touching its immutable owned body. */
+	async releaseVerifiedClaimIfCurrent(value: Readonly<VideoProxyClaimRecord>): Promise<boolean> {
+		if (!value || typeof value !== 'object') throw new TypeError('An authentic verified video proxy claim is required.');
+		const issued = this.#issued.get(value);
+		if (!issued) throw new TypeError('The verified video proxy claim is foreign or already released.');
+		this.#issued.delete(value);
+		return transact(
+			issued.database,
+			MEDIA_ASSET_STAGING_STORE_NAME,
+			'readwrite',
+			async ({ mediaAssetStaging }) => {
+				const stored = await request(mediaAssetStaging.get(issued.claim.key));
+				if (stored === undefined) return false;
+				if (!sameClaim(stored, issued.claim)) {
+					throw new Error('The verified video proxy claim changed before release.');
+				}
+				await request(mediaAssetStaging.delete(issued.claim.key));
+				return true;
+			},
+		);
 	}
 
 	async #createUnverified(

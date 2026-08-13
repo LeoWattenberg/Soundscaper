@@ -16,6 +16,9 @@ import {
 	type VideoProxyPreservationPlan,
 } from '../common/editor/storage/video-proxy-claim-repository.ts';
 import type { VideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
+import {
+	reconcileFramescaperProjectFeatureRequirementsV18,
+} from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
 	cloneFramescaperProjectV18,
@@ -189,6 +192,7 @@ function normalizePublication(
 	}
 	const attachments = new Map(attachedSources.map(({ sourceId, attachment }) => [sourceId, attachment]));
 	const plans = normalizePlans(raw.plans, attachments);
+	assertExactAttachmentTransition(profile, expected, project, plans);
 	return {
 		expected,
 		project,
@@ -199,6 +203,43 @@ function normalizePublication(
 		baseRevision,
 		nextRevision,
 	};
+}
+
+function assertExactAttachmentTransition(
+	profile: EditorProjectRuntimeProfile,
+	expected: FramescaperProjectV18,
+	project: FramescaperProjectV18,
+	plans: readonly FramescaperProjectV18PreservationPlan[],
+): void {
+	if (plans.length !== 1 || collectAttachedSources(expected).length !== 0) {
+		throw new Error('V18 pointer publication requires one attachment from an exact all-null base.');
+	}
+	const sourceId = plans[0]!.sourceId;
+	const attachment = collectAttachedSources(project).find((source) => source.sourceId === sourceId)?.attachment;
+	if (!attachment) throw new Error('The V18 pointer publication target attachment is missing.');
+	const timestamp = new Date(String(project.updatedAt));
+	const baseTimestamp = new Date(String(expected.updatedAt));
+	if (Number.isNaN(timestamp.getTime()) || Number.isNaN(baseTimestamp.getTime())
+		|| timestamp.toISOString() !== project.updatedAt
+		|| timestamp.getTime() < baseTimestamp.getTime()
+		|| project.updatedAt === expected.updatedAt) {
+		throw new Error('V18 pointer publication requires one fresh canonical updatedAt.');
+	}
+	const candidate = structuredClone(expected) as unknown as Record<string, unknown>;
+	candidate.revision = project.revision;
+	candidate.updatedAt = project.updatedAt;
+	const sources = candidate.sources as Record<string, unknown>[];
+	const matching = sources.filter((source) => source.id === sourceId);
+	if (matching.length !== 1 || matching[0]!.kind !== 'video'
+		|| matching[0]!.proxyAttachment !== null) {
+		throw new Error('The V18 pointer publication source is not the exact all-null video target.');
+	}
+	matching[0]!.proxyAttachment = attachment;
+	candidate.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(profile, candidate);
+	const normalized = cloneFramescaperProjectV18(profile, candidate);
+	if (!sameProject(normalized, project)) {
+		throw new Error('V18 pointer publication may change only its target attachment, owned requirement, revision, and timestamp.');
+	}
 }
 
 function normalizePlans(

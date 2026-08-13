@@ -154,7 +154,8 @@ test('unknown persistence or quota hard-stops before either immutable body is st
 	assert.deepEqual(await environment.store.loadProject(base.id), base);
 	assert.equal(await environment.store.getMediaAssetMetadata(`video-proxy-sha256:${candidateDigest}`), null);
 	assert.equal(session.getSnapshot().tabs[0]?.readOnly, false);
-	assert.equal(session.dispose().disposed, true);
+	session.dispose();
+	assert.equal(session.getSnapshot().disposed, true);
 });
 
 async function createEnvironment(
@@ -184,5 +185,9 @@ function v18Base(
 	environment: Readonly<FramescaperEditorProjectEnvironmentV18>,
 	v17: Record<string, unknown>,
 ): FramescaperProjectV18 {
-	return environment.runtime.createProject(v17 as never);
+	return environment.runtime.createProject({
+		...v17,
+		sources: (v17.sources as Record<string, unknown>[]).filter((source) => source.kind === 'video'),
+		takeGroups: [],
+	} as never);
 }

@@ -247,6 +247,29 @@ export function createAudioEditorSessionController(options = {}) {
 		return finishMutation(beforeCounts, 'history-update', { history: clone(tab.history) });
 	}
 
+	/** Atomically install an already committed history and its intrinsic read-only tab state. */
+	function installCommittedReadOnlyProjectHistory(projectId, history, installOptions = {}) {
+		activationReservations.assertInstall(projectId, installOptions);
+		const tab = requireTab(projectId);
+		const beforeCounts = countsFor(tabs, clipboard);
+		const nextHistory = createHistory(tab.history.present, history);
+		if (nextHistory.present.schemaVersion !== tab.history.present.schemaVersion) {
+			throw new RangeError('Committed project history cannot change schema version.');
+		}
+		tab.history = nextHistory;
+		tab.historyToken = Object.freeze({});
+		tab.sourceIds = collectHistorySourceIds(nextHistory);
+		tab.readOnly = true;
+		tab.readOnlyReason = String(installOptions.reason || 'intrinsic-read-only');
+		tab.dirty = Boolean(installOptions.dirty);
+		if (Object.hasOwn(installOptions, 'metadata')) {
+			tab.metadata = freezeProjectFeatureReportMetadata(clone(installOptions.metadata || {}));
+		}
+		return finishMutation(beforeCounts, 'committed-read-only-history-install', {
+			history: clone(tab.history), project: clone(tab.history.present), readOnly: true,
+		});
+	}
+
 	function renameProject(projectId, title, renameOptions = {}) {
 		const normalizedTitle = nonEmptyString(String(title || '').trim(), 'project title');
 		const now = renameOptions.now ?? new Date();
@@ -265,6 +288,7 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	function setProjectReadOnly(projectId, value = {}) {
+		activationReservations.assertExclusiveMutable();
 		const tab = requireTab(projectId);
 		const readOnly = typeof value === 'boolean' ? value : Boolean(value.readOnly);
 		tab.readOnly = readOnly;
@@ -277,6 +301,7 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	function updateProjectMetadata(projectId, update, metadataOptions = {}) {
+		activationReservations.assertExclusiveMutable();
 		const tab = requireTab(projectId);
 		const candidate = typeof update === 'function' ? update(clone(tab.metadata)) : update;
 		if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
@@ -288,6 +313,7 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	function markProjectSaved(projectId) {
+		activationReservations.assertExclusiveMutable();
 		const tab = requireTab(projectId);
 		if (!tab.dirty) return false;
 		tab.dirty = false;
@@ -445,6 +471,7 @@ export function createAudioEditorSessionController(options = {}) {
 
 	function dispose() {
 		if (disposed) return { disposed: true, releasedSourceIds: [] };
+		activationReservations.assertRestorable();
 		const beforeCounts = countsFor(tabs, clipboard);
 		activationReservations.clear();
 		tabs = [];
@@ -461,6 +488,7 @@ export function createAudioEditorSessionController(options = {}) {
 		switchProject,
 		updateProject,
 		updateProjectHistory,
+		installCommittedReadOnlyProjectHistory,
 		renameProject,
 		setProjectReadOnly,
 		updateProjectMetadata,
