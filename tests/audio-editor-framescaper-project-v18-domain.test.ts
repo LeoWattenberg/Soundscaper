@@ -82,7 +82,9 @@ test('V18 raw validation requires exact source attachment ownership and detached
 	assert.notStrictEqual(clone.sources[0], attached.sources[0]);
 	assert.notStrictEqual(clone.sources[0]?.proxyAttachment, attached.sources[0]?.proxyAttachment);
 	assert.equal(Object.isFrozen(clone.sources[0]?.proxyAttachment), true);
-	assert.equal(Object.isFrozen(clone.sources[0]?.proxyAttachment?.timingAsset), true);
+	assert.equal(Object.isFrozen(
+		(clone.sources[0]?.proxyAttachment as Readonly<{ timingAsset: object }>).timingAsset,
+	), true);
 
 	const missing = structuredClone(project) as Record<string, unknown>;
 	delete ((missing.sources as Record<string, unknown>[])[0]!).proxyAttachment;
@@ -123,6 +125,12 @@ test('attached V18 validates source, occurrence, timing, retime, collision, and 
 	orphan.clips = [];
 	orphan.tracks = [{ ...orphan.tracks[0], clipIds: [] }];
 	assert.throws(() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, orphan), /occurrence/iu);
+	const collision = withAttachment(project, attachment());
+	collision.sources[0]!.storageKey = `video-proxy-sha256:${PROXY_SHA}`;
+	assert.throws(
+		() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, collision),
+		/collides with canonical source identity/iu,
+	);
 });
 
 test('V18 load and migration distinguish all-null, attached, prior, and opaque future schemas', () => {
@@ -152,6 +160,18 @@ test('V18 load and migration distinguish all-null, attached, prior, and opaque f
 			&& error.currentSchemaVersion === 18,
 	);
 	assert.equal(nestedTraps, 0);
+
+	let futureGetterCalls = 0;
+	const hostileFuture = { schemaVersion: 19 } as Record<string, unknown>;
+	Object.defineProperty(hostileFuture, 'future', {
+		enumerable: true,
+		get() { futureGetterCalls += 1; return true; },
+	});
+	assert.throws(
+		() => loadFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, hostileFuture),
+		/own enumerable data property/iu,
+	);
+	assert.equal(futureGetterCalls, 0);
 });
 
 test('V18 runtime and command projections preserve attachment authority and reconcile all-null drafts', () => {
@@ -171,6 +191,18 @@ test('V18 runtime and command projections preserve attachment authority and reco
 	assert.equal(draft.schemaVersion, 18);
 	assert.equal((draft.sources as Record<string, unknown>[])[0]?.proxyAttachment, null);
 	assert.equal(validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, draft), true);
+
+	const attached = withAttachment(project, attachment());
+	const attachedCommand = framescaperProjectForCommandConsumersV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		attached,
+	) as unknown as Record<string, unknown>;
+	((attachedCommand.sources as Record<string, unknown>[])[0]!).proxyAttachment = null;
+	assert.throws(() => prepareFramescaperPersistedProjectCommandDraftV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		attachedCommand,
+		attached,
+	), /changed.*proxy attachment authority/iu);
 });
 
 function options(): Record<string, unknown> {
@@ -192,7 +224,7 @@ function options(): Record<string, unknown> {
 	};
 }
 
-function attachment(): Record<string, any> {
+function attachment(): Record<string, unknown> {
 	return {
 		kind: 'video-proxy-attachment', version: 1,
 		rule: 'exact-original-generation-proxy-content-and-timing-v1',
@@ -202,9 +234,9 @@ function attachment(): Record<string, any> {
 		timingBackendId: 'ffprobe', timingRule: 'exact-presentation-boundaries-v1',
 		frameCount: 10, boundaryCount: 11,
 		timingAsset: {
-			encoding: 'video-timing-v1', storageKey: `video-timing-sha256:${TIMING_SHA}`,
-			sha256: TIMING_SHA, sourceSha256: PROXY_SHA, byteLength: 96, frameCount: 10,
-			timescale: 10, finalFrameDurationTicks: 1,
+			encoding: 'soundscaper-video-timing-v1', storageKey: `video-timing-sha256:${TIMING_SHA}`,
+			sha256: TIMING_SHA, sourceSha256: PROXY_SHA, byteLength: 112, frameCount: 10,
+			timescale: 10, finalFrameDurationTicks: '1',
 		},
 		audioPolicy: 'ignore-proxy-container-audio-v1',
 	};
@@ -213,8 +245,16 @@ function attachment(): Record<string, any> {
 function withAttachment(
 	project: ReturnType<typeof createFramescaperProjectV18>,
 	value: Record<string, unknown>,
-): any {
-	const result = structuredClone(project) as any;
+): Record<string, unknown> & {
+	sources: Record<string, unknown>[];
+	clips: Record<string, unknown>[];
+	tracks: Record<string, unknown>[];
+} {
+	const result = structuredClone(project) as unknown as Record<string, unknown> & {
+		sources: Record<string, unknown>[];
+		clips: Record<string, unknown>[];
+		tracks: Record<string, unknown>[];
+	};
 	result.sources[0].proxyAttachment = value;
 	return result;
 }
