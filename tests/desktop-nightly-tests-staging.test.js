@@ -285,6 +285,31 @@ test('nightly test staging drops browser links that packaging cannot materialize
 	assert.equal((await lstat(join(framework, 'Versions/A/Modules/nested'))).isDirectory(), true);
 });
 
+test('nightly test staging drops framework headers no packaged browser reads', async (context) => {
+	const fixture = await createFixture(context);
+	await stageDesktopNightlyTests({
+		repositoryRoot: fixture.repositoryRoot,
+		outputRoot: fixture.outputRoot,
+		browserSourceRoot: fixture.browserSourceRoot,
+	});
+
+	const browsers = join(fixture.outputRoot, '.local-browsers');
+	const framework = join(browsers, 'webkit-103/WebKit.framework');
+	for (const dropped of ['Versions/A/Headers', 'Versions/A/PrivateHeaders', 'Headers', 'PrivateHeaders']) {
+		await assert.rejects(() => lstat(join(framework, dropped)), /ENOENT/u, dropped);
+	}
+	assert.equal((await lstat(join(framework, 'Versions/A/WebKit'))).isFile(), true);
+	assert.equal(
+		(await lstat(join(framework, 'Versions/A/Resources/Info.plist'))).isFile(),
+		true,
+	);
+	assert.equal(
+		(await lstat(join(browsers, 'webkit-103/Headers/keep.h'))).isFile(),
+		true,
+		'headers outside a framework bundle stay',
+	);
+});
+
 test('nightly test staging refuses destructive or self-referential paths', async (context) => {
 	const fixture = await createFixture(context);
 	for (const [outputRoot, browserSourceRoot] of [
@@ -388,13 +413,16 @@ async function createFixture(context) {
 	const framework = join(browserSourceRoot, 'webkit-103/WebKit.framework');
 	await writeFixtureFile(framework, 'Versions/A/WebKit', 'fixture');
 	await writeFixtureFile(framework, 'Versions/A/Resources/Info.plist', 'fixture');
+	await writeFixtureFile(framework, 'Versions/A/Headers/WebKit.h', 'fixture');
+	await writeFixtureFile(framework, 'Versions/A/PrivateHeaders/VideoTarget.h', 'fixture');
 	for (const hollow of ['Versions/A/Frameworks', 'Versions/A/Modules/nested']) {
 		await mkdir(join(framework, hollow), { recursive: true });
 	}
 	await symlink('A', join(framework, 'Versions/Current'));
-	for (const name of ['WebKit', 'Resources', 'Frameworks', 'Modules']) {
+	for (const name of ['WebKit', 'Resources', 'Frameworks', 'Modules', 'Headers', 'PrivateHeaders']) {
 		await symlink(`Versions/Current/${name}`, join(framework, name));
 	}
+	await writeFixtureFile(browserSourceRoot, 'webkit-103/Headers/keep.h', 'fixture');
 	return { temporaryRoot, repositoryRoot, outputRoot, browserSourceRoot };
 }
 

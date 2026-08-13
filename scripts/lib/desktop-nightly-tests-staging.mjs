@@ -16,6 +16,11 @@ import {
 } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import {
+	pruneFrameworkDevelopmentHeaders,
+	pruneUnpackableSymlinks,
+} from './desktop-nightly-tests-browser-pruning.mjs';
+
 export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 	'@axe-core/playwright',
 	'@echogarden/pffft-wasm',
@@ -92,6 +97,7 @@ export async function stageDesktopNightlyTests({
 		await copyTree(browsers, join(temporaryOutput, '.local-browsers'), {
 			excludedRootNames: new Set(['.links']),
 		});
+		await pruneFrameworkDevelopmentHeaders(join(temporaryOutput, '.local-browsers'));
 		await pruneUnpackableSymlinks(join(temporaryOutput, '.local-browsers'));
 		await stageLicenses(root, temporaryOutput, runtimePackages);
 		await writeJson(join(temporaryOutput, 'package.json'), nightlyTestsPackage(projectPackage.version));
@@ -359,39 +365,6 @@ async function copyTree(source, destination, options = {}) {
 			return !excludedRootNames.has(relativePath.split(sep)[0]);
 		},
 	});
-}
-
-/**
- * electron-builder copies only files and symbolic links, creating destination
- * directories on demand as the parents of what it copies, so a directory whose
- * subtree holds nothing copyable never reaches the packaged application. Playwright's
- * macOS WebKit.framework aims its `Frameworks` link at exactly such an empty
- * directory; packaged as-is the link dangles and the macOS signing walk stats it and
- * fails. Drop those links here, where nothing can resolve through them anyway.
- */
-async function pruneUnpackableSymlinks(root) {
-	const doomed = [];
-	await visit(root);
-	for (const path of doomed) await rm(path);
-
-	async function visit(path) {
-		const metadata = await lstat(path);
-		if (metadata.isSymbolicLink()) {
-			if (!(await holdsPackableEntry(await realpath(path)))) doomed.push(path);
-			return;
-		}
-		if (!metadata.isDirectory()) return;
-		for (const entry of await readdir(path)) await visit(join(path, entry));
-	}
-}
-
-async function holdsPackableEntry(path) {
-	if (!(await lstat(path)).isDirectory()) return true;
-	for (const entry of await readdir(path, { withFileTypes: true })) {
-		if (!entry.isDirectory()) return true;
-		if (await holdsPackableEntry(join(path, entry.name))) return true;
-	}
-	return false;
 }
 
 async function describePayload(path, manifestPath) {

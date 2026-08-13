@@ -393,7 +393,23 @@ jobs:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
 
+      # macOS ships a 256-descriptor soft limit, and signing this bundle walks the
+      # whole embedded Playwright browser matrix, so the build dies with EMFILE
+      # part-way through. Raise the soft limit to whatever the kernel already allows.
+      - name: Package nightly-with-tests mac ${{ matrix.target.arch }}
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          hard="$(ulimit -Hn)"
+          if [ "$hard" = "unlimited" ]; then ulimit -n 65536; else ulimit -n "$hard"; fi
+          echo "File-descriptor limit for packaging: $(ulimit -n)"
+          npx electron-builder --config electron-builder.nightly-tests.config.cjs \
+            --mac --${{ matrix.target.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
       - name: Package nightly-with-tests ${{ matrix.target.platform }} ${{ matrix.target.arch }}
+        if: runner.os != 'macOS'
         run: >-
           npx electron-builder --config electron-builder.nightly-tests.config.cjs
           --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
