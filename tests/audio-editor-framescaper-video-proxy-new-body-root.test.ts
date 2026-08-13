@@ -73,6 +73,39 @@ test('a failed claim put rolls back the new media row and its staged chunks', as
 	assert.equal(await recordCount(database, MEDIA_ASSET_CHUNK_STORE_NAME), 0);
 });
 
+test('a stale claim root reserves its missing body key against a new generation', async (context) => {
+	const fixture = await createFixture(context);
+	const bytes = Uint8Array.of(3, 1, 4, 1, 5);
+	const bodyKey = `video-proxy-sha256:${digest(bytes)}`;
+	const first = await newBodyWriter(fixture.environment, bodyKey, bytes);
+	const rooted = await first.commitVideoProxyClaim(claimInput(bodyKey, bytes.byteLength));
+	const database = await fixture.authority.port.database();
+	assert.ok(database);
+	await transact(
+		database,
+		['mediaAssets', MEDIA_ASSET_CHUNK_STORE_NAME],
+		'readwrite',
+		async ({ mediaAssets, mediaAssetChunks }) => {
+			await request(mediaAssets.delete(bodyKey));
+			await request(mediaAssetChunks.clear());
+		},
+	);
+
+	const replacement = await newBodyWriter(fixture.environment, bodyKey, bytes);
+	await assert.rejects(
+		replacement.commitVideoProxyClaim(claimInput(
+			bodyKey,
+			bytes.byteLength,
+			'atomic-new-body-replacement-operation',
+		)),
+		/already has a durable claim root/iu,
+	);
+
+	assert.equal(await mediaRow(database, bodyKey), undefined);
+	assert.deepEqual(await claims(database), [rooted.claim]);
+	assert.equal(await recordCount(database, MEDIA_ASSET_CHUNK_STORE_NAME), 0);
+});
+
 interface InstrumentedIndexedDB extends IDBFactory {
 	failNextPutForStore(storeName: string, error?: Error): void;
 }
@@ -118,9 +151,9 @@ async function newBodyWriter(
 	return writer as VideoProxyClaimedMediaAssetWriter;
 }
 
-function claimInput(bodyKey: string, byteLength: number) {
+function claimInput(bodyKey: string, byteLength: number, operationId = OPERATION_ID) {
 	return {
-		operationId: OPERATION_ID,
+		operationId,
 		projectId: PROJECT_ID,
 		sourceId: SOURCE_ID,
 		baseFingerprint: BASE_FINGERPRINT,
