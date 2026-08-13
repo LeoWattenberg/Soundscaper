@@ -125,6 +125,22 @@ test('desktop rejects local-only delete and duplication and delegates non-projec
 	assert.deepEqual(await fixture.store.listProjects(), []);
 });
 
+test('desktop V10 main JSON and the exact V18 shadow preserve a nonempty subsequence graph', async (context) => {
+	const fixture = await lifecycleFixture(context);
+	const current = projectFixture({ id: 'nested-main-shadow', revision: 0, nested: true });
+	fixture.main.seed(current);
+	assert.deepEqual(await fixture.store.loadProject(String(current.id)), current);
+	assert.deepEqual((await fixture.localStore.loadProject(String(current.id)) as FramescaperProjectV18).subsequences,
+		current.subsequences);
+
+	const next = { ...structuredClone(current), revision: 1, title: 'Nested main and shadow' };
+	assert.deepEqual(await fixture.store.saveProject(next), next);
+	assert.deepEqual(await fixture.store.loadProject(String(current.id)), next);
+	assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), next);
+	assert.deepEqual((fixture.main.lastBegin?.project as FramescaperProjectV18).subsequences,
+		current.subsequences);
+});
+
 type LocalStore = ReturnType<typeof createFramescaperProjectStoreV18>;
 
 interface BaseLifecycleFixture {
@@ -279,9 +295,30 @@ function installBridge(context: TestContext, api: unknown): void {
 	});
 }
 
-function projectFixture(options: Readonly<{ id: string; revision: number; title?: string }>): FramescaperProjectV18 {
+function projectFixture(options: Readonly<{
+	id: string;
+	revision: number;
+	title?: string;
+	nested?: boolean;
+}>): FramescaperProjectV18 {
 	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
 		id: options.id, title: options.title ?? options.id, now: '2026-08-13T12:00:00.000Z',
+		...(options.nested ? {
+			sequences: [
+				{ id: 'main-sequence', rate: { num: 30, den: 1 }, trackIds: [] },
+				{ id: 'nested-source-sequence', rate: { num: 30, den: 1 }, trackIds: [] },
+			],
+			primarySequenceId: 'main-sequence',
+			subsequences: [{
+				id: 'desktop-nested-placement',
+				sequenceId: 'main-sequence',
+				sourceSequenceId: 'nested-source-sequence',
+				sequenceStartFrame: 0,
+				sequenceFrameCount: 30,
+				sourceInFrame: 0,
+				sourceFrameCount: 30,
+			}],
+		} : {}),
 	});
 	return { ...project, revision: options.revision };
 }

@@ -7,6 +7,7 @@ import {
 	BlobReader,
 	BlobWriter,
 	TextReader,
+	TextWriter,
 	Uint8ArrayReader,
 	Uint8ArrayWriter,
 	ZipReader,
@@ -15,10 +16,24 @@ import {
 
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
+import {
+	createCurrentAudioEditorProject,
+	loadCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
+import { createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import type { ScapeArchiveReader } from '../src/common/editor/scape-archive-reader.ts';
 import { request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
+import {
+	reconcileFramescaperProjectFeatureRequirementsV18,
+} from '../src/framescaper/editor-project-feature-requirements-v18.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
+import {
+	createFramescaperSessionClipboardV18,
+	prepareFramescaperNestedSequenceCrossProductCopyV18,
+} from '../src/framescaper/editor-project-v18-interchange.ts';
+import type { FramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
 import {
 	FramescaperScapeProjectFileV18,
 } from '../src/framescaper/scape-project-file-v18.ts';
@@ -29,6 +44,7 @@ import {
 	ARCHIVE_PROJECT_ID,
 	ARCHIVE_PROXY_BYTES,
 	ARCHIVE_TIMING,
+	archiveCopy,
 	archiveManifest,
 	archiveProject,
 	createFramescaperV18ArchiveFixture,
@@ -206,6 +222,105 @@ test('format-1 import uses the same product-owned canonical stage and archive pu
 	});
 });
 
+test('nonempty subsequences survive complete format-1 and format-2 JSON, ZIP, and publication roundtrips', async (context) => {
+	for (const attached of [false, true]) {
+		const fixture = await setup(context);
+		await seedFramescaperV18ArchiveBodies(fixture.storage, attached);
+		const project = nestedArchiveProject({ attached });
+		const exported = await fixture.file.exportProject(project);
+		assert.ok(exported.blob);
+		assert.equal(exported.manifest.formatVersion, attached ? 2 : 1);
+		assert.deepEqual(await zipProjectDocument(exported.blob), project);
+		assert.deepEqual((await fixture.file.inspectScapeProject(
+			exported.blob, null, { signal: new AbortController().signal }, { retain() {} },
+		)).project, project);
+
+		const imported = await fixture.file.importProject(exported.blob, {
+			decision: 'continue',
+			operationId: `nested-${attached ? 'format-2' : 'format-1'}-create`,
+			publication: { mode: 'create' },
+		});
+		assert.deepEqual(imported.project, project);
+		assert.deepEqual(
+			await storedValue(fixture.storage.database, 'projects', String(project.id)),
+			project,
+		);
+	}
+});
+
+test('nested V18 cross-product transfer is explicit copy-only preservation and V17 never authors or activates it', async (context) => {
+	const fixture = await setup(context);
+	await seedFramescaperV18ArchiveBodies(fixture.storage, false);
+	const project = nestedArchiveProject({ attached: false });
+	const exported = await fixture.file.exportProject(project);
+	assert.ok(exported.blob);
+	const copy = archiveCopy(project, 'nested-copy-only-preservation');
+	const imported = await fixture.file.importProject(exported.blob, {
+		decision: 'continue',
+		operationId: 'nested-copy-only-preservation',
+		publication: { mode: 'copy', project: copy },
+	});
+	assert.equal(imported.publicationMode, 'copy');
+	assert.deepEqual(imported.project.subsequences, project.subsequences);
+
+	const transfer = prepareFramescaperNestedSequenceCrossProductCopyV18(PROFILE, project, {
+		targetProduct: 'soundscaper',
+		mode: 'copy-only-preservation',
+	});
+	assert.deepEqual(transfer, {
+		kind: 'framescaper-nested-sequence-cross-product-copy',
+		targetProduct: 'soundscaper',
+		mode: 'copy-only-preservation',
+		activation: 'forbidden',
+		editable: false,
+		project,
+	});
+	assert.notEqual(transfer.project, project);
+	assert.equal(Object.isFrozen(transfer), true);
+	assert.throws(() => prepareFramescaperNestedSequenceCrossProductCopyV18(PROFILE, project, {
+		targetProduct: 'framescaper',
+		mode: 'copy-only-preservation',
+	} as never), /cross-product.*soundscaper/iu);
+
+	const loadedByDefault = loadCurrentAudioEditorProject(transfer.project);
+	assert.deepEqual(loadedByDefault, {
+		project,
+		readOnly: true,
+		reason: 'newer-schema',
+	});
+	assert.throws(() => validateCurrentAudioEditorProject(transfer.project), /schema version|schemaVersion/iu);
+	const authored = (createCurrentAudioEditorProject as (
+		options: Readonly<Record<string, unknown>>,
+	) => Record<string, unknown>)({
+		id: 'soundscaper-default-v17',
+		title: 'Default V17',
+		now: '2026-08-13T12:00:00.000Z',
+		subsequences: project.subsequences,
+	});
+	assert.equal(authored.schemaVersion, 17);
+	assert.equal(Object.hasOwn(authored, 'subsequences'), false);
+});
+
+test('the V18 session clipboard refuses a nested graph before generic clipboard projection can drop it', () => {
+	const project = nestedArchiveProject({ attached: false });
+	let optionReads = 0;
+	const options = new Proxy({}, {
+		get() { optionReads += 1; throw new Error('clipboard option read'); },
+	});
+	assert.throws(
+		() => createFramescaperSessionClipboardV18(PROFILE, project, options),
+		/session clipboard.*cannot preserve.*nested.*\.scape/iu,
+	);
+	assert.equal(optionReads, 0);
+
+	const flat = archiveProject({ attached: false });
+	const clipboard = createFramescaperSessionClipboardV18(PROFILE, flat, {
+		descriptor: archiveClipboardDescriptor(),
+	});
+	assert.equal(clipboard.originProjectId, flat.id);
+	assert.deepEqual(clipboard.sources.map(({ id }) => id), [ARCHIVE_SOURCE_ID]);
+});
+
 test('cancel reads only metadata, skips storage and stage hooks, and closes its reader', async (context) => {
 	const fixture = await setup(context);
 	await seedFramescaperV18ArchiveBodies(fixture.storage);
@@ -309,6 +424,69 @@ async function zipPayloads(blob: Blob): Promise<Map<string, number[] | null>> {
 	} finally {
 		await reader.close();
 	}
+}
+
+async function zipProjectDocument(blob: Blob): Promise<unknown> {
+	const reader = new ZipReader(new BlobReader(blob), { useWebWorkers: false, strictness: 'strict' });
+	try {
+		const entry = (await reader.getEntries()).find(({ filename }) => filename === 'project.json') as
+			| { getData?: (writer: TextWriter) => Promise<string> }
+			| undefined;
+		assert.ok(entry?.getData);
+		return JSON.parse(await entry.getData(new TextWriter()));
+	} finally {
+		await reader.close();
+	}
+}
+
+function nestedArchiveProject(
+	options: Readonly<{ attached: boolean }>,
+): FramescaperProjectV18 {
+	const project = structuredClone(archiveProject(options)) as unknown as Record<string, unknown>;
+	(project.clips as Record<string, unknown>[]).push({
+		kind: 'video', id: 'nested-source-clip', sourceId: ARCHIVE_SOURCE_ID, title: 'Nested source',
+		sequenceId: 'nested-source-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+		sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+	});
+	(project.tracks as Record<string, unknown>[]).push(createVideoTrackV10({
+		id: 'nested-source-track', name: 'Nested source', clipIds: ['nested-source-clip'], locked: true,
+	}) as unknown as Record<string, unknown>);
+	(project.sequences as Record<string, unknown>[]).push({
+		id: 'nested-source-sequence', rate: { num: 10, den: 1 }, trackIds: ['nested-source-track'],
+	});
+	project.subsequences = [{
+		id: 'nested-placement',
+		sequenceId: 'main-sequence',
+		sourceSequenceId: 'nested-source-sequence',
+		sequenceStartFrame: 10,
+		sequenceFrameCount: 10,
+		sourceInFrame: 0,
+		sourceFrameCount: 10,
+	}];
+	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, project);
+	return project as unknown as FramescaperProjectV18;
+}
+
+function archiveClipboardDescriptor(): Readonly<Record<string, unknown>> {
+	return {
+		schemaVersion: 2,
+		sampleRate: 48_000,
+		durationFrames: 10,
+		tracks: [{
+			sourceTrackId: 'video-track',
+			sourceTrackName: 'Video',
+			sourceTrackType: 'video',
+			sourceLaneGroupId: null,
+			clips: [{
+				key: 'archive-clip:0:10',
+				kind: 'video',
+				sourceId: ARCHIVE_SOURCE_ID,
+				offsetFrame: 0,
+				sourceStartFrame: 0,
+				durationFrames: 10,
+			}],
+		}],
+	};
 }
 
 function trackingReaderFactory(
