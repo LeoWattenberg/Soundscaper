@@ -372,6 +372,7 @@ test('keeps the product token statically dormant and out of common and Soundscap
 	}
 	assert.deepEqual(runtimeReferences, [PRODUCT_MODULE, TEST_MODULE]);
 	assert.deepEqual(runtimeModulePathReferences, [
+		'tests/audio-editor-framescaper-project-feature-' + 'capability-profile.test.ts',
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
 	]);
