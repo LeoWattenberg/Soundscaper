@@ -15,6 +15,10 @@ import {
 	validateFramescaperProjectFeatureRequirementsV18,
 } from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
+import {
+	validateFramescaperSubsequencesV18,
+	type FramescaperSubsequenceV18,
+} from './editor-project-v18-subsequence.ts';
 
 export const FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION = 18 as const;
 
@@ -23,8 +27,18 @@ export interface FramescaperProjectV18 extends Record<string, unknown> {
 	readonly title: string;
 	readonly revision: number;
 	readonly schemaVersion: 18;
+	readonly sampleRate: number;
 	readonly featureRequirements: ProjectFeatureRequirementsManifest;
 	readonly sources: readonly FramescaperProjectSourceV18[];
+	readonly clips: readonly Readonly<Record<string, unknown>>[];
+	readonly tracks: readonly Readonly<Record<string, unknown>>[];
+	readonly sequences: readonly (Readonly<Record<string, unknown>> & {
+		readonly id: string;
+		readonly rate: Readonly<{ readonly num: number; readonly den: number }>;
+		readonly trackIds: readonly string[];
+	})[];
+	readonly primarySequenceId: string;
+	readonly subsequences: readonly FramescaperSubsequenceV18[];
 }
 
 export type FramescaperProjectSourceV18 = Readonly<Record<string, unknown>> & (
@@ -79,6 +93,7 @@ export function validateFramescaperProjectV18(
 	);
 	validateAttachmentRelationships(candidate, sources, normalizedAttachments);
 	validateAudioEditorProjectV17(v17Project, options);
+	validateFramescaperSubsequencesV18(profile, candidate);
 	validateFramescaperProjectFeatureRequirementsV18(profile, candidate);
 	return true;
 }

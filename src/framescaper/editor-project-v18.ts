@@ -10,6 +10,7 @@ import {
 	reconcileFramescaperProjectFeatureRequirementsV18,
 } from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
+import type { FramescaperSubsequenceV18 } from './editor-project-v18-subsequence.ts';
 import {
 	FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
 	framescaperProjectV18HasProxyAttachment,
@@ -23,7 +24,9 @@ export {
 	type FramescaperProjectV18,
 } from './editor-project-v18-validation.ts';
 
-export type FramescaperProjectV18Options = AudioEditorProjectV17Options;
+export type FramescaperProjectV18Options = AudioEditorProjectV17Options & Readonly<{
+	readonly subsequences?: readonly FramescaperSubsequenceV18[];
+}>;
 
 export interface LoadedFramescaperProjectV18 {
 	readonly project: FramescaperProjectV18 | Readonly<Record<string, unknown>>;
@@ -38,6 +41,7 @@ export function createFramescaperProjectV18(
 	options: FramescaperProjectV18Options = {},
 ): FramescaperProjectV18 {
 	assertFramescaperProjectV18Profile(profile);
+	const subsequences = subsequenceInput(options);
 	const foundation = createAudioEditorProjectV17(options) as unknown as Record<string, unknown>;
 	const sources = (foundation.sources as readonly Record<string, unknown>[]).map((source) => {
 		const result = { ...source };
@@ -49,10 +53,23 @@ export function createFramescaperProjectV18(
 		...foundation,
 		schemaVersion: FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
 		sources,
+		subsequences,
 	};
 	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(profile, project);
 	validateFramescaperProjectV18(profile, project);
 	return project as unknown as FramescaperProjectV18;
+}
+
+function subsequenceInput(options: FramescaperProjectV18Options | unknown): unknown {
+	if (!options || typeof options !== 'object' || Array.isArray(options)) {
+		throw new TypeError('Framescaper V18 project options must be an object.');
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(options, 'subsequences');
+	if (!descriptor) return [];
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError('Framescaper V18 project subsequences must be an own enumerable data property.');
+	}
+	return snapshotClone(descriptor.value, 'Framescaper V18 project subsequences');
 }
 
 /** Validate and detach an exact V18 document, including normalized frozen attachments. */

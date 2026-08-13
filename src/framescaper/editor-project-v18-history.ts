@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
-import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
@@ -13,10 +12,11 @@ import {
 	validateFramescaperProjectV18,
 	type FramescaperProjectV18,
 } from './editor-project-v18.ts';
+import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
 
 export interface FramescaperProjectHistoryEntryV18 {
 	readonly project: FramescaperProjectV18;
-	readonly command: AudioEditorCommand;
+	readonly command: FramescaperProjectCommandV18;
 }
 
 export interface FramescaperProjectHistoryV18 {
@@ -97,7 +97,7 @@ export function cloneFramescaperProjectHistoryV18(
 export function executeFramescaperProjectCommandV18(
 	profile: EditorProjectRuntimeProfile | unknown,
 	history: FramescaperProjectHistoryV18 | unknown,
-	command: AudioEditorCommand,
+	command: FramescaperProjectCommandV18,
 	options: FramescaperProjectCommandOptionsV18 = {},
 ): FramescaperProjectHistoryV18 {
 	validateFramescaperProjectHistoryV18(profile, history);

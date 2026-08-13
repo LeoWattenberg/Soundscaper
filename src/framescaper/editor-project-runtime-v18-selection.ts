@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { createAudioEditorSessionController } from '../common/editor/session.js';
@@ -37,6 +36,7 @@ import {
 import {
 	FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
 } from './editor-project-v18-validation.ts';
+import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
 
 type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<unknown>;
 type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
@@ -60,12 +60,12 @@ export interface EditorProjectRuntimeV18Selection {
 	readonly createHistory: (project: unknown) => FramescaperProjectHistoryV18;
 	readonly applyCommand: (
 		project: unknown,
-		command: AudioEditorCommand,
+		command: FramescaperProjectCommandV18,
 		options?: Readonly<{ now?: Date | string }>,
 	) => FramescaperProjectV18;
 	readonly executeCommand: (
 		history: FramescaperProjectHistoryV18,
-		command: AudioEditorCommand,
+		command: FramescaperProjectCommandV18,
 		options?: Readonly<{ now?: Date | string }>,
 	) => FramescaperProjectHistoryV18;
 	readonly undo: (
