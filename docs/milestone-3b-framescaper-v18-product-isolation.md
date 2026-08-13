@@ -1,18 +1,15 @@
 # Milestone 3B-6c-c1: Framescaper V18 product isolation
 
-> **Contract only — production selection is not authorized.** Dormant c-c0
-> supplies an exact physical namespace token, implemented dormant c1a freezes
-> the non-capability runtime identity around it, and implemented dormant c1b
-> supplies the authenticated capability identity. Implemented dormant c1c
-> composes those exact identities without selecting them. Every maintained
-> project, archive, controller, compatibility, and desktop owner still uses the
-> shared exact-V17 runtime. This packet defines the indivisible Framescaper
-> transition that must precede durable proxy storage. Soundscaper remains exact
-> V17 and is not modified by this packet.
+> **Production selection is implemented.** The maintained Framescaper bootstrap
+> selects the exact c1a/c1b/c1c runtime identity before constructing its V18
+> schema, storage, archive, controller, compatibility, retention, and desktop
+> owners. The separate V10 desktop handshake and exact V18 local shadow are
+> composed for desktop create/load/save. Soundscaper remains exact V17, and V18
+> cross-product transfer is copy-only preservation rather than activation.
 
 ## Stop condition and atomicity law
 
-Today the web bootstrap passes only `productId`; the controller always creates
+At contract review time the web bootstrap passed only `productId`; the controller always created
 the default store and injects the global V17 constructor and migration owners.
 The current schema aliases, command/history validation, session admission,
 retention, `.scape` format 1, and product-neutral desktop v9 library are shared.
@@ -20,11 +17,10 @@ Selecting only c-c0 storage would therefore create a V18-named store driven by
 V17 semantics. Raising any global current constant would instead change
 Soundscaper.
 
-**There is no safe schema-first or storage-first production rollout.** Only an
-unreachable opaque profile token may land independently. Its first maintained
-selection must atomically bind V18 project semantics, c-c0 storage, archive,
-compatibility, retention, repository, controller, and desktop v10. If that
-composition cannot land and fail closed together, stop before selection.
+**There is no safe schema-first or storage-first production rollout.** The
+implemented first maintained selection therefore binds V18 project semantics,
+c-c0 storage, archive, compatibility, retention, repository, controller, and
+desktop V10 together. Mismatched composition still stops before operational I/O.
 
 ## One authenticated runtime profile
 
@@ -66,23 +62,22 @@ schema, archive, storage, and desktop contract literals are authenticated at
 both endpoints before either side performs non-handshake operational I/O or
 mutates state.
 
-The independently landable contract-first precursor is the
-[dormant Framescaper runtime-profile
+The independently landed contract-first precursor was the
+[Framescaper runtime-profile
 prerequisite](milestone-3b-framescaper-runtime-profile-prerequisite.md),
 implemented in `13f80172` on 2026-08-12. It freezes the fields above except
-`capabilityProfile` around the exact c-c0 token, but remains a separate
-non-selectable type with no maintained consumer. The authenticated Framescaper
-capability owner is implemented through `c1c70639`, but remains dormant and
-separately non-selectable. The final runtime profile is implemented through
-`ace30ac1` and remains unreachable. It authenticates and retains the exact
-prerequisite and capability-token identities; a copied or reparsed definition
-grants no authority.
-The dormant
+`capabilityProfile` around the exact c-c0 token. The authenticated Framescaper
+capability owner followed through `c1c70639`, and the final profile through
+`ace30ac1`. Those precursor commits granted no production authority by
+themselves; the maintained composition now selects their exact identities, and
+a copied or reparsed definition still grants no authority.
+The
 [Framescaper runtime capability
-profile](milestone-3b-framescaper-runtime-capability-profile.md) authorizes no
-production or selector. Its implemented successor is the dormant
+profile](milestone-3b-framescaper-runtime-capability-profile.md) remains an
+authenticated child rather than an independent selector. Its successor is the
 [final runtime-profile composition](milestone-3b-framescaper-runtime-profile.md),
-which authenticates the exact c1a and c1b identities but remains unreachable.
+which authenticates the exact c1a and c1b identities and is selected only by
+the Framescaper composition root.
 
 ## Selection and non-interference
 
@@ -105,12 +100,14 @@ only the bounded version-handshake IPC needed to discover it; after refusal it
 has made zero operational IPC calls and no document, body, file, store, or
 controller mutation. Internal copies retain the same token identity.
 
-Do not change the meaning or value of the global
+The implementation does not change the meaning or value of the global
 `AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION`, `project-current.ts` aliases,
 `migrateAudioEditorProject`, `SCAPE_FORMAT_VERSION`, global project-feature
-capability map, desktop v9 constants, or existing `[mvt]` managed-media
-grammar. A proxy capability enters only the authenticated Framescaper
-capability profile; adding it globally would make it known in Soundscaper.
+schema owner, desktop v9 constants, or existing `[mvt]` managed-media grammar.
+Nested-sequence and multicamera IDs are deliberately global known capabilities
+with product-specific availability. The proxy capability remains only in the
+authenticated Framescaper profile and is unavailable; adding it globally would
+make it known in Soundscaper.
 
 ## Exact Framescaper V18 semantics
 
@@ -132,14 +129,12 @@ Framescaper V17 activation after the V18 selector lands. Selected Framescaper
 returns typed `REIMPORT_REQUIRED` for exact V17 before nested traversal, and
 desktop v10 rejects V17 entirely.
 
-Cross-product V18 transfer is copy-only preservation until a later reviewed
-contract qualifies activation. Neither Soundscaper's future-schema read-only
+Cross-product V18 transfer is copy-only preservation. Neither Soundscaper's future-schema read-only
 handling nor a byte-preserving archive copy grants edit, save, migration,
 history, media activation, or desktop-library adoption authority. The closure
-register, compatibility rules, and the legacy browser witness carry this exact
-boundary. With that reviewed decision recorded, c-c RED decomposition is
-authorized; production selection still requires the indivisible transition and
-all strict proofs below.
+register, compatibility rules, and the browser witness carry this exact
+boundary. Production selection uses the indivisible transition and its strict
+proofs below.
 
 Every maintained V18 consumer in one JS realm receives the same authenticated
 profile:
@@ -228,14 +223,13 @@ focused lint, dependency/file-size checks, roadmap/local-link checks, canonical
 `npm run check`, and focused Framescaper Chromium preservation evidence when
 the first selector lands.
 
-## Hard stops
+## Remaining hard stops
 
-This contract authorizes no V18 validator or reachable runtime profile.
-Implemented c1c adds only the unreachable final runtime token, its generic
-owner, and focused proof. This contract authorizes no profile
-selector, capability registration, archive format, storage claim, controller
-wiring, desktop v10 path, UI, menu, preview, or Soundscaper change. Dormant c1a,
-c1b, and c1c are implemented. The next executable step is the reviewed policy
-decision above, followed by strict RED decomposition of the full atomic c-c
-transition. The first reachable selector remains that transition. Durable proxy
-storage, attachment authoring, and 3B-6d remain blocked until it is green.
+The atomic selection, V18 validator/runtime, registered nested and multicamera
+capabilities, archive formats, claim-bound storage, controller wiring, desktop
+V10 path, and their menu-reached editorial workflows are implemented.
+Soundscaper remains unchanged at exact V17. This boundary still authorizes no
+retime capability flip without the reviewed exact executor, and it does not
+turn proxy preservation metadata into trusted pictures. Proxy generation,
+attach/detach lifecycle, proxy-consuming preview/playback, offline handling, and
+relink remain unavailable until separately implemented and qualified.

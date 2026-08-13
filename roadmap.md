@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-12. Milestones are ordered by
+> Grounded against the repository on 2026-08-13. Milestones are ordered by
 > dependency and close only when their exit gates pass. They are not release-date
 > promises.
 
@@ -517,58 +517,28 @@ Packet boundaries, dependencies, and acceptance are owned by
   [`docs/milestone-3b-uniform-rate-stretch.md`](docs/milestone-3b-uniform-rate-stretch.md),
   and
   [`docs/milestone-3b-canonical-trim-keyboard.md`](docs/milestone-3b-canonical-trim-keyboard.md).
-- **Shared / Web Core — In progress:** the exact schema-neutral retime curve
-  algebra, [V16 persistence and preservation](docs/milestone-3b-video-retime-v16.md),
-  [exact clip-bound runtime mapping](docs/milestone-3b-video-retime-runtime-mapping.md),
-  [native retime dispatch](docs/milestone-3b-native-video-retime-workflow.md),
-  and [dormant exact output cadence and isolated preview
-  execution](docs/milestone-3b-video-retime-output-preview.md), plus the dormant
-  backend-neutral intent in [3B-5g's split export
-  contract](docs/milestone-3b-video-retime-export-plan.md), are implemented.
-  The exact executor half, atomic maintained adoption, and capability flip are
-  hard-stopped pending a reviewed exact backend or narrower-domain proof;
-  maintained retime workflows, nested sequences, subsequence time mapping, and
-  flattening remain later slices.
-- **Web Core — In progress:** [dormant exact proxy timing
-  conformance](docs/milestone-3b-video-proxy-timing-conformance.md) and the
-  [exact proxy relationship proof](docs/milestone-3b-video-proxy-relationship.md)
-  are implemented through `937e52bf`. The dormant 3B-6c-a1
-  [current-target preparation material](docs/milestone-3b-video-proxy-v18.md)
-  is implemented through `c195a8c1`: exact V17 relationship admission retains
-  the already validated timing publication behind a private one-use WeakMap.
-  The pure dormant
-  [V18 attachment normalizer](docs/milestone-3b-video-proxy-attachment-normalization.md)
-  is implemented through production `189e901f` and proof hardening `692fee74`
-  on 2026-08-12. These Framescaper-only slices add no maintained proxy consumer,
-  UI, schema/project owner, durable proxy storage, preparation consumption,
-  capability, Soundscaper change, or browser row. Shared V17 is already owned
-  by take/comp state; c-a2 is folded into c-c, and durable storage/c-c remain
-  hard-stopped on V18 product isolation. A standalone V17 proof lease cannot
-  authenticate the future V18 settlement boundary. The dormant
-  [opaque Framescaper V18 storage profile](docs/milestone-3b-framescaper-storage-profile.md),
-  implemented through `cc164b67` on 2026-08-12, threads exact opt-in database,
-  OPFS directory/worker, and project-lock identities while retaining every
-  default. No app, product, or bootstrap selects it, so no maintained
-  Framescaper flow opens its store and it grants no persistence authority. Body
-  staging or adoption is not authorized; Soundscaper
-  product work is owned elsewhere. Adaptive preview,
-  offline/relink, and synchronized multicamera groups follow the separately
-  reviewed durable transition. The reviewed
-  [Framescaper V18 product-isolation boundary](docs/milestone-3b-framescaper-v18-product-isolation.md)
-  pins one atomic schema/storage/archive/controller/desktop selection and
-  authorizes no production. Its non-selectable
-  [dormant runtime-profile
-  prerequisite](docs/milestone-3b-framescaper-runtime-profile-prerequisite.md),
-  implemented through `13f80172` on 2026-08-12, retains the exact c-c0 identity
-  and static V18 contract literals while explicitly deferring capability
-  authority. The dormant [capability
-  profile](docs/milestone-3b-framescaper-runtime-capability-profile.md) and
-  [final composition](docs/milestone-3b-framescaper-runtime-profile.md),
-  implemented through `c1c70639` and `ace30ac1` on 2026-08-13, remain
-  unreachable and change no maintained product or global registry. Atomic c-c
-  is the first reachable boundary, but its V17 re-import law conflicts with the
-  implemented Milestone 2 editable cross-product handoff. Resolve that policy
-  before c-c REDs; no selector, proxy behavior, capability flip, or Soundscaper change is authorized.
+- **Shared / Web Core — Split status:** Nested sequences are **Implemented** in
+  Framescaper V18. Their registered owned requirement, strict cycle/depth/rate
+  model, lazy Tracks-menu commands, history, deterministic playback and
+  delivery flattening, format-1/format-2 `.scape`, desktop V10, clipboard
+  refusal, and Soundscaper copy-only preservation boundary are maintained.
+  Retiming remains **In progress**: exact algebra, V16 preservation, clip-bound
+  mapping, dormant frame dispatch and preview, and backend-neutral export intent
+  exist, but exact execution, maintained adoption, and the `videoRetime`
+  capability remain hard-stopped pending a reviewed exact backend or narrower
+  admitted domain. See the [retime export plan](docs/milestone-3b-video-retime-export-plan.md).
+- **Web Core — Split status:** Multicamera is **Implemented** in Framescaper V18
+  with stable group/member identity, sample-canonical offsets, stale-safe lazy
+  menu commands, history, nested composition, and original-authoritative
+  playback and delivery. CFR mapping requires exact source boundaries; VFR also
+  requires verified timing evidence and refuses an in-between presentation
+  time. Proxy V18 preservation is implemented across claim-bound storage,
+  retention, format-2 `.scape`, and desktop V10. Existing attachments have a
+  bounded re-attestation primitive and preview-only trust selector, but no
+  maintained playback route consumes it. Proxy generation remains unavailable,
+  as do attach/detach menu lifecycle, adaptive proxy preview, offline handling,
+  and relink; export and delivery remain original-authoritative. Soundscaper
+  stays exact V17 and receives V18 only through copy-only preservation.
 
 ### Shared exit gate
 

@@ -204,8 +204,8 @@ canonical keyboard coverage and the focused Alt access-key regression each
 passed 1/1. The final canonical gate passed with 5,274 tests total, 5,272 passed
 and 2 skipped, 90.08% statement and line coverage, 81.97% branch coverage,
 90.6% function coverage, and a 388,318-byte largest production JavaScript
-chunk. Packet 3B-4 is complete; the immediate next packet is **3B-5 — Retiming,
-ramps, and nested sequences**.
+chunk. Packet 3B-4 is complete; packet 3B-5's current split status is recorded
+below.
 
 - **Outcome:** J/K/L shuttle, edit-point navigation, roll, ripple, slip, slide,
   and rate-stretch tools, track lock and visibility, linked-audio controls, and
@@ -219,7 +219,16 @@ ramps, and nested sequences**.
 
 ## 3B-5 — Retiming, ramps, and nested sequences
 
-**Status: In progress.** The delivered first slice is
+**Status: Split.** The nested-sequence half of 3B-5 is implemented in the
+maintained Framescaper V18 product: exact persisted subsequence graphs, owned
+capability requirements, cycle/depth/rate validation, lazy menu commands,
+history, deterministic playback and delivery flattening, format-1/format-2
+Scape and desktop V10 persistence, clipboard refusal, and Soundscaper copy-only
+preservation are active. Retiming remains **In progress** and hard-stopped at
+3B-5g-b: no exact maintained backend proves the complete admitted V16 ordinal
+domain, so 3B-5h and the `videoRetime` capability remain unavailable.
+
+The historical retime implementation ledger begins with
 [3B-5a — exact video-retime curve algebra](milestone-3b-exact-video-retime-algebra.md):
 one schema-neutral pure compiler, closed-form evaluator, and discrete exact
 inverse contract before any persisted ramp revision or maintained workflow.
@@ -295,21 +304,36 @@ complete admitted V16 ordinal domain; 3B-5h, every maintained retime consumer,
 and the capability flip remain blocked pending a reviewed exact backend or
 narrower-domain proof.
 
-- **Outcome:** Explicit retiming and speed ramps over the shared breakpoint
-  model, reverse and freeze frames, nested sequences with subsequence time
-  mapping, and deterministic flattening. The persisted ramp-curve revision lands
-  here.
-- **Invariants:** Nested sequences reject cycles and bound depth; composed rate
-  conversions reduce before evaluation; ramps integrate in closed form.
-- **Acceptance:** The revision fixture set, composed-mapping exactness, and
-  flattening determinism.
+- **Implemented outcome:** Nested sequences with exact subsequence time mapping
+  and deterministic flattening through maintained playback and delivery.
+- **Remaining outcome:** Explicit retiming and speed ramps over the shared
+  breakpoint model, including reverse and freeze, only after the exact-executor
+  hard stop is resolved.
+- **Invariants:** Nested sequences reject cycles, bound depth, and require exact
+  grid mappings; future ramps must still integrate and execute exactly.
+- **Acceptance:** Nested persistence, menu, history, playback/delivery,
+  interchange, and cross-product preservation are current; retime adoption and
+  capability evidence remain absent by design.
 - **Non-goals:** No optical flow, no audio warp.
 - **Stop condition:** Stop if a ramp requires interpolation the shared evaluator
   cannot invert.
 
 ## 3B-6 — Proxies, relink, and multicamera
 
-**Status: In progress.** Contract `1d93145b` and implementation `a7f14a47`
+**Status: Split.** Multicamera is implemented in maintained Framescaper V18,
+including registered owned state, exact persisted groups, sample-canonical
+offsets, stale-safe lazy menu commands, history, nested composition, and
+original-authoritative playback and delivery. Exact CFR mapping and
+verified-timing VFR exact-boundary fixtures are maintained; automatic sync is
+not. Proxy V18 preservation is implemented across claim-bound storage,
+retention and cleanup, format-2 Scape, and desktop V10. Existing-attachment
+re-attestation and a preview-only trust selector are implemented as isolated
+primitives. Proxy generation and every proxy-consuming maintained route remain
+unavailable: there is no attach/detach menu, adaptive proxy playback, offline
+substitution, or relink workflow, and export/delivery always select originals.
+Packet 3B-6 therefore remains **In progress**.
+
+The historical proxy implementation ledger starts with contract `1d93145b` and implementation `a7f14a47`
 delivered
 [3B-6a exact video-proxy timing conformance](milestone-3b-video-proxy-timing-conformance.md),
 then contract `ce9c4782` and implementation `937e52bf` delivered the dormant
@@ -382,51 +406,34 @@ dependencies, and the build retained 115 chunks with a 428,990-byte maximum.
 c-a2 is folded into c-c rather than implemented independently: a
 standalone V17 proof lease cannot fence the future all-null V18 base or
 authenticate the coordinator's storage-settlement outcome.
-The durable pointer moves to V18 because merged take/comp state already owns
-V17. Project Bin menu and adaptive-preview lifecycle, then multicamera, follow
-the separately reviewed persistence slices.
+The durable pointer moved to V18 because merged take/comp state already owns
+V17. The later maintained composition delivered V18 preservation and
+multicamera; Project Bin proxy generation and adaptive preview did not follow.
 
-The reviewed
+The maintained
 [3B-6c durable V18 video-proxy attachment](milestone-3b-video-proxy-v18.md)
-has delivered its schema-neutral dormant c-a1 preparation slice and pure
-dormant
-[V18 attachment normalizer](milestone-3b-video-proxy-attachment-normalization.md).
-The normalizer consumes no preparation and touches no storage. Dormant c-c0's
-[opaque Framescaper V18 storage profile](milestone-3b-framescaper-storage-profile.md)
-is implemented through `cc164b67`, but no production selector imports it;
-durable body staging remains blocked on the product-isolated c-c composition.
-The remaining design requires
-content-addressed proxy and timing bodies,
-atomic pointer publication/rollback, V18 preservation and unavailable
-capability, Framescaper-selected `.scape` format 2, and fresh Framescaper
-desktop isolation.
-The merged shared V17 take/comp wire remains immutable; durable proxy state is
-reserved for V18. Soundscaper receives no
-profile, capability, UI, browser, or desktop integration in these slices. The
-packet explicitly adds no proxy consumer, menu, playback, offline, relink,
-delivery, export, or audio behavior. Only the schema-neutral dormant c-a1,
-c-b1, c-c0, c1a, c1b, and c1c slices are implemented; c-a2 is folded into
-c-c, and
-durable proxy storage plus c-c remain unauthorized. The storage and runtime
-prerequisite profiles add no production selector or persistence authority.
-Persistence remains subject to the refreshed V18 blocker review. The reviewed
-[Framescaper V18 product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md)
-defines the indivisible transition that must precede durable c-c work. The
-dormant runtime-profile prerequisite, capability profile, and final composition
-are implemented through `13f80172`, `c1c70639`, and `ace30ac1`. The first
-reachable selection remains atomic c-c. The reviewed V18 policy decision
-classifies the frozen shared-schema-17 handoff evidence as legacy, makes
-cross-product V18 transfer copy-only preservation, and records that exact V17
-requires re-import in Framescaper. The c-c REDs are authorized; production
-selection remains indivisible and must satisfy the product-isolation contract.
+now composes the earlier preparation, attachment, storage-profile, and runtime
+contracts into the selected Framescaper V18 owner. Content-addressed proxy and
+timing rows, claim-aware atomic publication and cleanup, format-2 Scape,
+retention, and desktop V10 preserve nonnull attachments. The unavailable
+private proxy capability keeps that state intrinsically read-only, and ordinary
+save cannot introduce or change it. Soundscaper remains exact V17; explicit
+cross-product V18 transfer is copy-only preservation. The compatibility and
+security registers own the exact maintained claims. This packet still adds no
+maintained generator, attach/detach menu, proxy-consuming playback, offline
+substitution, relink, or original-replacing delivery behavior.
 
-- **Outcome:** Proxy attachment with adaptive preview, offline and relink
-  handling, and synchronized multicamera groups with sub-frame sync offsets.
-- **Invariants:** A proxy never becomes the authoritative source; the planned
-  `video-proxy-fallback` compatibility rule flips when proxies land; multicam
-  offsets stay sample-canonical.
-- **Acceptance:** Proxy lifecycle, offline degradation, relink identity, and
-  multicam sync fixtures.
+- **Implemented outcome:** Durable preservation of proxy attachments and their
+  exact bodies, plus synchronized multicamera groups with sample-canonical
+  offsets and exact maintained playback/delivery selection.
+- **Remaining outcome:** Proxy generation, attach/detach lifecycle, adaptive
+  proxy preview integration, offline handling, and relink.
+- **Invariants:** A proxy never becomes the authoritative source; persisted
+  attachment metadata alone never authorizes pictures; multicamera offsets stay
+  sample-canonical and map only to exact active-source boundaries.
+- **Acceptance:** Multicamera domain, persistence, menu, history,
+  CFR/verified-VFR playback and delivery, and proxy preservation are current.
+  Proxy generation, consumer, offline, and relink acceptance remain absent.
 - **Non-goals:** No cloud media, no automatic sync detection beyond the
   recorded offsets.
 - **Stop condition:** Stop if relink cannot prove source identity.

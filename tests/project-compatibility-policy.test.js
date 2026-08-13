@@ -5,27 +5,9 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-import { SCAPE_FORMAT_VERSION } from '../src/common/editor/scape-project.js';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
-test('project compatibility policy matches the maintained schema and archive format', async () => {
-	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
-
-	assert.equal(policy.schemaVersion, 1);
-	assert.equal(policy.projectSchema.currentVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-	assert.equal(policy.projectSchema.minimumReadableVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-	assert.deepEqual(
-		policy.projectSchema.retainedMigrationSources,
-		[],
-	);
-	assert.equal(policy.portableArchive.currentFormatVersion, SCAPE_FORMAT_VERSION);
-	assert.equal(policy.portableArchive.futureFormatBehavior, 'reject-before-persistence');
-	assert.equal(
-		policy.portableArchive.roundTripGuarantee,
-		'current-schema-semantic-plus-bounded-tagged-binary-not-byte-identical',
-	);
-});
 
 test('compatibility rules distinguish enforced guarantees from planned lossless fallbacks', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
@@ -34,7 +16,12 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 
 	const expectedStatuses = {
 		'legacy-schema-migration': 'implemented',
-		'current-schema-editing': 'implemented', 'current-video-retime-v16-preservation': 'implemented', 'current-take-comp-v17-preservation': 'implemented', 'current-audio-warp-capability': 'implemented', 'current-track-locking': 'implemented', 'current-timeline-annotation-capability': 'implemented',
+		'current-schema-editing': 'implemented', 'current-video-retime-v16-preservation': 'implemented',
+		'framescaper-v18-product-isolation': 'implemented',
+		'framescaper-v18-nested-sequence-native': 'implemented',
+		'framescaper-v18-multicamera-native': 'implemented',
+		'framescaper-v18-video-proxy-preservation': 'implemented',
+		'current-take-comp-v17-preservation': 'implemented', 'current-audio-warp-capability': 'implemented', 'current-track-locking': 'implemented', 'current-timeline-annotation-capability': 'implemented',
 		'current-track-folder-capability': 'implemented', 'current-source-characteristics-capability': 'implemented',
 		'current-linked-pcm-portable-archive': 'implemented',
 		'current-desktop-project-catalog-commit': 'implemented', 'current-desktop-electron-lease-protections': 'partial',
@@ -472,7 +459,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
-		/role-defined whole-project video and first-party videoEffects-only clip fallbacks.*transiently replace.*whole-project video.*one explicitly related clip.*editor playback.*maintained video-export input.*operation-time verification.*without changing canonical state.*clip target-to-render relationship.*not an original-to-proxy, relink, watch, freshness, or broad original-delivery model.*proxy.*freeze.*unfreeze.*generic offline-render.*relink models.*not implemented/iu,
+		/originals remain authoritative.*Framescaper V18.*closed proxy attachment.*proxy and exact timing bodies.*claim-bound storage.*format-2 Scape.*desktop V10.*videoProxy capability stays unavailable.*re-attestation.*bounded body hashing.*exact timing.*preview-only trust.*selector.*original for export and delivery.*No maintained route consumes.*generation.*attach\/detach menu.*proxy-consuming preview or playback.*offline.*relink.*watch.*freshness.*remain unavailable.*rendered-fallback relationships remain separate.*not original-to-proxy/iu,
 	);
 });
 

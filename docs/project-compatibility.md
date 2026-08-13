@@ -89,6 +89,95 @@ post-bind Electron linked-PCM source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
 
+## Framescaper V18 product isolation
+
+<!-- policy-narrative:framescaper-v18-product-isolation -->
+The maintained Framescaper bootstrap selects one authenticated runtime profile
+before constructing its project environment. That exact Framescaper V18 owner
+supplies create, clone, validation, commands, history, session, repository,
+maintenance, playback, compatibility, format-1/format-2 Scape, and
+product-isolated storage services; exact V17 fails with typed REIMPORT_REQUIRED
+before nested traversal and V19 remains opaque read-only. Soundscaper keeps the
+shared exact V17 owner and treats V18 as a future read-only document.
+Framescaper web storage uses the V18 namespace, and the desktop composition
+selects the separately handshaken desktop V10/schema-18 renderer plus an exact
+V18 local shadow for create, latest/revision load, and main-first save
+reconciliation. The shared V9/schema-17 library is not selected by that
+composition. Cross-product V18 transfer grants copy-only preservation and never
+edit, activation, migration, or native feature authority.
+<!-- /policy-narrative:framescaper-v18-product-isolation -->
+
+## Framescaper V18 nested-sequence compatibility
+
+<!-- policy-narrative:framescaper-v18-nested-sequence-native -->
+Exact V18 requires one dense subsequences collection. Its validator proves
+stable identities, exact sequence ownership, bounded depth, cycle rejection,
+canonical aliases, positive frame ranges, and exact composed rate mappings.
+Nonempty state owns framescaper.nested-sequences for
+org.soundscaper.capability.nested-sequences with bypass and no fallback;
+Framescaper registers it native while Soundscaper registers it known
+unavailable. Framescaper exposes add, update, and remove through a lazy
+Tracks-menu subsequence menu, and its controller, commands, and history provide
+one-step undo and redo. The runtime deterministically flattens shared aliases
+into detached exact-V17 primary-sequence material, maps video and audio trims
+only when their target grids are exact, preserves mixer routes, and feeds the
+same result to playback and both rendered-fallback delivery projections. Clone,
+local persistence, desktop V10, and Scape format 1 or 2 preserve the graph. The
+session clipboard refuses a nonempty graph rather than flattening it, while
+explicit Framescaper-to-Soundscaper transfer is copy-only preservation with
+activation and editing forbidden; Soundscaper treats the V18 document as
+newer-schema read-only and cannot author the field.
+<!-- /policy-narrative:framescaper-v18-nested-sequence-native -->
+
+## Framescaper V18 multicamera compatibility
+
+<!-- policy-narrative:framescaper-v18-multicamera-native -->
+Exact V18 requires one dense multicameraGroups collection. Each closed group
+binds the project, one sequence, one unretimed output video clip and track, at
+least two canonical video-source members, a stable active member, and signed
+safe-integer sample-canonical sync offsets; duplicate output ownership,
+unsupported automatic sync, retime, stale revisions, and stale active-member
+fences reject. Nonempty state owns framescaper.multicamera for
+org.soundscaper.capability.multicamera with bypass and no fallback; Framescaper
+registers it native while Soundscaper registers it known unavailable. Create,
+update, switch, nudge, and remove are reachable through the lazy Tracks-menu
+multicamera submenu and route through controller history. Runtime selection
+keeps the persisted output placement fixed and substitutes only the active
+canonical original source. Exact CFR source boundaries are admitted directly;
+verified timing evidence is mandatory for VFR, and even verified VFR refuses a
+mapped time between exact presentation boundaries. Multicamera materialization
+composes before nested flattening and feeds the same projection to playback and
+both rendered-fallback delivery paths. Clone, history, local persistence, Scape,
+and explicit copy-only cross-product preservation retain the groups; the session
+clipboard refuses them rather than losing their ownership graph. Automatic sync
+detection and proxy-source selection are not implemented.
+<!-- /policy-narrative:framescaper-v18-multicamera-native -->
+
+## Framescaper V18 video-proxy preservation
+
+<!-- policy-narrative:framescaper-v18-video-proxy-preservation -->
+Exact V18 validates one nullable proxyAttachment on every video source,
+reconciles nonnull state to the private unavailable framescaper.video-proxy
+requirement, and makes an attached document intrinsically read-only. Claim-bound
+repository publication, retention, startup maintenance, cleanup tombstones,
+archive format 2, and desktop V10 preserve each exact proxy/timing pair while
+ordinary save cannot introduce or change a pointer. New body publication writes
+the media row, durable unverified claim root, and completed write lease in one
+IndexedDB transaction before bounded verification, preventing an unrooted-body
+gap. Scape format 2 validates and stages canonical originals plus proxy and
+timing bodies, while format 1 remains available only for attachment-free V18.
+Desktop V10 transfers exact bounded chunks through its Framescaper/schema-18
+handshake and reconciles the exact V18 shadow. A private re-attestation
+primitive can rehash the bounded proxy and timing bodies, validate timing
+reference and summary, bind an ephemeral timing view, rerun exact conformance
+against the current original, and mint process-local preview-only trust; its
+pure selector always chooses the original for export and delivery. This is
+preservation-only policy evidence: there is no maintained proxy generator,
+attachment menu, or proxy-consuming playback route, no attach/detach or relink
+workflow, and no proxy capability availability. Desktop delete and duplicate
+remain fail-closed until main owns their exact CAS/catalog channels.
+<!-- /policy-narrative:framescaper-v18-video-proxy-preservation -->
+
 ## Timeline annotation compatibility
 
 <!-- policy-narrative:timeline-annotation-capability -->
@@ -2268,13 +2357,15 @@ separately qualified for fresh-recipient managed acquisition and activation.
 The maintained role-defined whole-project video render and one closed
 videoEffects-only clip-target render relationship are separately qualified for
 controller activation and bounded video delivery after their independent
-route-specific relationship, source, and digest admissions. Other video fallback
-and proxy relationships remain unqualified.
+route-specific relationship, source, and digest admissions. Framescaper V18
+proxy attachment preservation and its isolated re-attestation primitive are
+qualified under the product-specific rules above; proxy-consuming presentation,
+generation, offline, and relink relationships remain unqualified.
 
 Posters and thumbnails are not editorial proxies. They provide no relink,
 watch, freeze, export, decoder-isolation, browser-heap, or process-RSS guarantee;
-those original/proxy relationships and decoder qualifications remain later
-milestone work.
+they are unrelated to the preserved V18 proxy attachment and do not satisfy its
+still-missing generator, consumer, or resource qualification.
 
 ## Freeze and proxy fallback
 
@@ -2298,11 +2389,13 @@ unfreeze, relink, watch, or refresh a fallback, and the bypass slices do not
 generalize to unknown or third-party effects. Fallback authoring and selection
 beyond the closed audio and maintained video roles, simultaneous fallback
 delivery beyond the exact one-audio/one-video final-video composition, and
-authored proxy workflows remain planned;
+authored proxy workflows remain planned; proxy-consuming workflows also remain
+unavailable;
 broad video-export and offline-render parity remain outside the bounded
 video-delivery projection.
 
-Video proxy relationships are owned by milestone 3. Canonical audio freeze,
+Video proxy preservation is implemented in milestone 3, while proxy generation,
+maintained use, offline handling, and relink remain open there. Canonical audio freeze,
 unfreeze, commit, relink, and freshness semantics are owned by milestone 4. The
 narrow playback and delivery relationships above do not supply those broader
 document models, and their absence must not be hidden behind a compatibility

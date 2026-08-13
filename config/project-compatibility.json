@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-12",
+	"groundedAt": "2026-08-13",
 	"projectSchema": {
 		"currentVersion": 17,
 		"minimumReadableVersion": 17,
@@ -97,6 +97,93 @@
 				"tests/audio-editor-video-retime-preservation-admission.test.ts",
 				"tests/desktop-project-library-v16-video-retime-roundtrip.test.ts",
 				"tests/browser/audio-editor-scape-open-compatibility.spec.js"
+			]
+		},
+		{
+			"id": "framescaper-v18-product-isolation",
+			"status": "implemented",
+			"requiredOutcome": "Framescaper selects one authenticated exact-V18 project, storage, archive, controller, compatibility, retention, and desktop boundary without changing Soundscaper's exact-V17 owner or treating cross-product preservation as activation authority.",
+			"currentBehavior": "The maintained Framescaper bootstrap selects one authenticated runtime profile before constructing its project environment. That exact Framescaper V18 owner supplies create, clone, validation, commands, history, session, repository, maintenance, playback, compatibility, format-1/format-2 Scape, and product-isolated storage services; exact V17 fails with typed REIMPORT_REQUIRED before nested traversal and V19 remains opaque read-only. Soundscaper keeps the shared exact V17 owner and treats V18 as a future read-only document. Framescaper web storage uses the V18 namespace, and the desktop composition selects the separately handshaken desktop V10/schema-18 renderer plus an exact V18 local shadow for create, latest/revision load, and main-first save reconciliation. The shared V9/schema-17 library is not selected by that composition. Cross-product V18 transfer grants copy-only preservation and never edit, activation, migration, or native feature authority.",
+			"evidence": [
+				"src/framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx",
+				"src/framescaper/editor-controller-v18.ts",
+				"src/framescaper/editor-project-environment-v18.ts",
+				"src/framescaper/editor-project-runtime-profile-v18.ts",
+				"src/framescaper/editor-project-v18.ts",
+				"src/framescaper/editor-project-v18-migration.ts",
+				"src/framescaper/editor-project-store-v18.ts",
+				"src/framescaper/scape-project-file-v18.ts",
+				"src/framescaper/desktop-project-library-v10-store-adapter.ts",
+				"tests/audio-editor-framescaper-web-bootstrap-v18.test.tsx",
+				"tests/audio-editor-framescaper-controller-v18.test.ts",
+				"tests/audio-editor-framescaper-project-environment-v18.test.ts",
+				"tests/audio-editor-framescaper-project-v18-domain.test.ts",
+				"tests/audio-editor-framescaper-scape-file-v18.test.ts",
+				"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts"
+			]
+		},
+		{
+			"id": "framescaper-v18-nested-sequence-native",
+			"status": "implemented",
+			"requiredOutcome": "Nonempty Framescaper V18 nested-sequence state is exact, bounded, cycle-free, capability-declared, menu-reachable, undoable, deterministic in playback and delivery, and preserved without lossy activation across every maintained V18 interchange boundary.",
+			"currentBehavior": "Exact V18 requires one dense subsequences collection. Its validator proves stable identities, exact sequence ownership, bounded depth, cycle rejection, canonical aliases, positive frame ranges, and exact composed rate mappings. Nonempty state owns framescaper.nested-sequences for org.soundscaper.capability.nested-sequences with bypass and no fallback; Framescaper registers it native while Soundscaper registers it known unavailable. Framescaper exposes add, update, and remove through a lazy Tracks-menu subsequence menu, and its controller, commands, and history provide one-step undo and redo. The runtime deterministically flattens shared aliases into detached exact-V17 primary-sequence material, maps video and audio trims only when their target grids are exact, preserves mixer routes, and feeds the same result to playback and both rendered-fallback delivery projections. Clone, local persistence, desktop V10, and Scape format 1 or 2 preserve the graph. The session clipboard refuses a nonempty graph rather than flattening it, while explicit Framescaper-to-Soundscaper transfer is copy-only preservation with activation and editing forbidden; Soundscaper treats the V18 document as newer-schema read-only and cannot author the field.",
+			"evidence": [
+				"src/framescaper/editor-project-v18-subsequence.ts",
+				"src/framescaper/editor-project-v18-nested-sequence.ts",
+				"src/framescaper/editor-project-v18-nested-playback.ts",
+				"src/framescaper/editor-project-v18-interchange.ts",
+				"src/framescaper/editor-project-feature-requirements-v18.ts",
+				"src/common/editor/ui/framescaper-nested-sequence-menu.ts",
+				"tests/audio-editor-framescaper-project-v18-domain.test.ts",
+				"tests/audio-editor-framescaper-project-v18-history.test.ts",
+				"tests/audio-editor-framescaper-nested-playback-v18.test.ts",
+				"tests/audio-editor-framescaper-nested-sequence-menu.test.ts",
+				"tests/audio-editor-framescaper-scape-file-v18.test.ts",
+				"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts"
+			]
+		},
+		{
+			"id": "framescaper-v18-multicamera-native",
+			"status": "implemented",
+			"requiredOutcome": "Framescaper V18 multicamera groups retain exact ownership, stable member identity, sample-canonical synchronization, stale-safe menu commands, deterministic nested composition, and original-authoritative playback and delivery under the exact source timing boundary.",
+			"currentBehavior": "Exact V18 requires one dense multicameraGroups collection. Each closed group binds the project, one sequence, one unretimed output video clip and track, at least two canonical video-source members, a stable active member, and signed safe-integer sample-canonical sync offsets; duplicate output ownership, unsupported automatic sync, retime, stale revisions, and stale active-member fences reject. Nonempty state owns framescaper.multicamera for org.soundscaper.capability.multicamera with bypass and no fallback; Framescaper registers it native while Soundscaper registers it known unavailable. Create, update, switch, nudge, and remove are reachable through the lazy Tracks-menu multicamera submenu and route through controller history. Runtime selection keeps the persisted output placement fixed and substitutes only the active canonical original source. Exact CFR source boundaries are admitted directly; verified timing evidence is mandatory for VFR, and even verified VFR refuses a mapped time between exact presentation boundaries. Multicamera materialization composes before nested flattening and feeds the same projection to playback and both rendered-fallback delivery paths. Clone, history, local persistence, Scape, and explicit copy-only cross-product preservation retain the groups; the session clipboard refuses them rather than losing their ownership graph. Automatic sync detection and proxy-source selection are not implemented.",
+			"evidence": [
+				"src/framescaper/editor-project-v18-multicam.ts",
+				"src/framescaper/editor-project-v18-multicam-playback.ts",
+				"src/framescaper/editor-project-v18-multicam-actions.ts",
+				"src/framescaper/editor-project-v18-interchange.ts",
+				"src/framescaper/editor-project-feature-requirements-v18.ts",
+				"src/common/editor/ui/framescaper-multicamera-menu.ts",
+				"tests/audio-editor-framescaper-multicamera-v18.test.ts",
+				"tests/audio-editor-framescaper-multicamera-persistence-v18.test.ts",
+				"tests/audio-editor-framescaper-multicamera-playback-v18.test.ts",
+				"tests/audio-editor-framescaper-multicamera-menu.test.ts",
+				"tests/audio-editor-framescaper-scape-file-v18.test.ts"
+			]
+		},
+		{
+			"id": "framescaper-v18-video-proxy-preservation",
+			"status": "implemented",
+			"requiredOutcome": "A Framescaper V18 proxy attachment, immutable proxy body, and exact timing body survive maintained V18 persistence atomically without becoming an authoritative source or authorizing proxy pictures from persisted metadata alone.",
+			"currentBehavior": "Exact V18 validates one nullable proxyAttachment on every video source, reconciles nonnull state to the private unavailable framescaper.video-proxy requirement, and makes an attached document intrinsically read-only. Claim-bound repository publication, retention, startup maintenance, cleanup tombstones, archive format 2, and desktop V10 preserve each exact proxy/timing pair while ordinary save cannot introduce or change a pointer. New body publication writes the media row, durable unverified claim root, and completed write lease in one IndexedDB transaction before bounded verification, preventing an unrooted-body gap. Scape format 2 validates and stages canonical originals plus proxy and timing bodies, while format 1 remains available only for attachment-free V18. Desktop V10 transfers exact bounded chunks through its Framescaper/schema-18 handshake and reconciles the exact V18 shadow. A private re-attestation primitive can rehash the bounded proxy and timing bodies, validate timing reference and summary, bind an ephemeral timing view, rerun exact conformance against the current original, and mint process-local preview-only trust; its pure selector always chooses the original for export and delivery. This is preservation-only policy evidence: there is no maintained proxy generator, attachment menu, or proxy-consuming playback route, no attach/detach or relink workflow, and no proxy capability availability. Desktop delete and duplicate remain fail-closed until main owns their exact CAS/catalog channels.",
+			"evidence": [
+				"src/framescaper/editor-project-v18-validation.ts",
+				"src/framescaper/editor-project-feature-requirements-v18.ts",
+				"src/framescaper/editor-project-v18-preservation-repository.ts",
+				"src/framescaper/editor-project-v18-retention.ts",
+				"src/framescaper/editor-project-v18-maintenance.ts",
+				"src/framescaper/scape-project-preservation-v18.ts",
+				"src/framescaper/editor-video-proxy-attachment-coordinator-v18.ts",
+				"src/framescaper/editor-video-proxy-reattestation-v18.ts",
+				"src/framescaper/editor-video-proxy-selection-v18.ts",
+				"src/framescaper/desktop-project-library-v10-renderer.ts",
+				"src/framescaper/desktop-project-library-v10-store-adapter.ts",
+				"tests/audio-editor-framescaper-video-proxy-attachment-coordinator-v18.test.ts",
+				"tests/audio-editor-framescaper-video-proxy-new-body-root.test.ts",
+				"tests/audio-editor-framescaper-video-proxy-reattestation-v18.test.ts",
+				"tests/audio-editor-framescaper-scape-file-v18.test.ts",
+				"tests/audio-editor-framescaper-desktop-v10-renderer.test.ts",
+				"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts"
 			]
 		},
 		{
@@ -1368,9 +1455,15 @@
 			"status": "planned",
 			"milestone": "3",
 			"requiredOutcome": "Video originals and reproducible proxies retain an explicit relationship, and proxy use never changes editorial time or original delivery semantics.",
-			"currentBehavior": "Video source originals are retained, and exact-schema-17 role-defined whole-project video and first-party videoEffects-only clip fallbacks can transiently replace whole-project video or one explicitly related clip for editor playback and the maintained video-export input after operation-time verification without changing canonical state. The clip target-to-render relationship is not an original-to-proxy, relink, watch, freshness, or broad original-delivery model; the roadmap proxy, freeze, unfreeze, generic offline-render, and relink models are not implemented.",
+			"currentBehavior": "Video source originals remain authoritative. Framescaper V18 now preserves a closed proxy attachment plus immutable proxy and exact timing bodies through claim-bound storage, format-2 Scape, and desktop V10 while its private videoProxy capability stays unavailable. An isolated existing-attachment re-attestation primitive performs bounded body hashing, validates and binds exact timing evidence, rechecks current original identity and timing conformance, and yields process-local preview-only trust; its pure selector always selects the original for export and delivery. No maintained route consumes that trust for pictures. Proxy generation, attach/detach menu and lifecycle, proxy-consuming preview or playback, offline handling, relink, watch, freshness, and broad original-delivery orchestration remain unavailable. The exact-schema-17 rendered-fallback relationships remain separate and are not original-to-proxy relationships.",
 			"evidence": [
-				"src/common/editor/video-media.js",
+				"src/framescaper/editor-project-v18-validation.ts",
+				"src/framescaper/editor-project-v18-preservation-repository.ts",
+				"src/framescaper/scape-project-preservation-v18.ts",
+				"src/framescaper/editor-video-proxy-reattestation-v18.ts",
+				"src/framescaper/editor-video-proxy-selection-v18.ts",
+				"tests/audio-editor-framescaper-video-proxy-reattestation-v18.test.ts",
+				"tests/audio-editor-framescaper-scape-file-v18.test.ts",
 				"roadmap.md#3-parallel-editorial-foundations"
 			]
 		},

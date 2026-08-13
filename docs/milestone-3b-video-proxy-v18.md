@@ -1,16 +1,13 @@
 # Milestone 3B-6c: durable V18 video-proxy attachment
 
-> **Reviewed split contract — 3B-6c-a1, dormant c-b1, and dormant c-c0 are
-> implemented; durable proxy storage and c-c remain unauthorized.** 3B-6a and
-> 3B-6b prove exact timing and one uninterrupted original-to-candidate
-> relationship, but intentionally persist nothing. This packet owns the first
-> durable proxy state: an exact V18 source attachment, its immutable proxy and
-> timing bodies, preservation and transport, and unavailable-capability
-> admission for the Framescaper milestone-3B track. Soundscaper product work is
-> explicitly out of scope and remains owned by its separate track. This packet
-> adds no menu, preview selection, playback, source-monitor,
-> offline substitution, relink, delivery, export, proxy audio, adaptive policy,
-> or multicamera behavior.
+> **Implemented preservation boundary.** Durable Framescaper V18 attachment,
+> claim-bound proxy/timing storage, retention, format-2 Scape, desktop V10, and
+> unavailable-capability admission are implemented. Existing-attachment
+> re-attestation and a preview-only selector are also implemented as isolated
+> primitives. Proxy generation and every proxy-consuming maintained menu,
+> playback, source-monitor, offline, relink, or delivery route remain
+> unavailable; export and delivery stay original-authoritative. Soundscaper
+> remains exact V17 and receives V18 only as copy-only preservation.
 
 ## Outcome and dependency order
 
@@ -38,47 +35,43 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    attachment compare-and-swap, holds it through the authoritative outcome and
    required reconciliation, releases it exactly once, and exposes no raw
    repository token or general callback seam.
-3. **3B-6c-b1 — dormant attachment wire — implemented in `189e901f`, with
+3. **3B-6c-b1 — attachment-wire precursor — implemented in `189e901f`, with
    proof hardening in `692fee74`, on 2026-08-12:** add
-   the pure dormant [V18 attachment
+   the initially dormant [V18 attachment
    normalizer](milestone-3b-video-proxy-attachment-normalization.md) without
    consuming preparation or touching storage. Durable staging remains folded
-   behind c-c's isolated repository. The module has no maintained consumer and
-   adds no project/schema owner, capability, UI, browser row, or Soundscaper
-   change. That later owner verifies both bodies, holds currentness, and
-   discards only new exact publications while retaining opaque full-row claims
-   and roots.
-4. **3B-6c-c0 — dormant storage-profile prerequisite — implemented in
+   behind c-c's isolated repository. The maintained V18 attachment coordinator
+   now consumes that wire; the precursor itself added no Soundscaper change.
+4. **3B-6c-c0 — storage-profile prerequisite — implemented in
    `cc164b67` on 2026-08-12:** add only the [opaque shared
    `EditorProjectStorageProfile` capability and exact
-   product-owned dormant Framescaper V18
+   product-owned Framescaper V18
    token](milestone-3b-framescaper-storage-profile.md), with opt-in generic
-   database, OPFS directory/worker, and project-lock threading. No app or
-   product selects it, and it authorizes no persistence or adoption.
-5. **3B-6c-c — atomic V18 adoption:** in one separately reviewed semantic transition,
-   add a Framescaper-selected current-schema/archive/repository profile after V17,
+   database, OPFS directory/worker, and project-lock threading. It remained
+   inactive until the atomic product selection.
+5. **3B-6c-c — atomic V18 adoption — implemented:** the maintained semantic transition
+   selects a Framescaper current-schema/archive/repository profile after V17,
    requirements/capabilities, preservation, retention, conditional `.scape`
    format 2 for attached projects,
    fresh Framescaper desktop persistence/handoff, policy evidence, and the
-   dedicated pointer-publication path. It remains unauthorized and hard-stopped
-   on the reviewed product-isolation transition. No earlier commit
-   may load, save, or transfer a non-null project attachment.
+   dedicated pointer-publication path. Ordinary persistence cannot introduce or
+   change an attachment; only claim-authenticated adoption or preservation may.
 
-The dormant
+The maintained
 [Framescaper runtime-profile composition](milestone-3b-framescaper-runtime-profile.md)
-is implemented through `ace30ac1`; it authenticates only the exact c1a and c1b
-identities and authorizes no production. The reviewed
+began as the inactive `ace30ac1` precursor and now authenticates the selected
+exact c1a and c1b identities. The reviewed
 [product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md)
-still requires the first reachable selection to bind schema, storage, archive,
-controller, and desktop behavior atomically.
+is implemented by the first reachable composition of schema, storage, archive,
+controller, and desktop behavior.
 
 The merged milestone-3A work already owns shared V17 for take/comp state,
 desktop library metadata 9/project 17/database 11, and `.scape` format 1. This
-packet must not redefine or mutate that released wire. Slice c-a1 therefore
+packet does not redefine or mutate that released wire. Slice c-a1 therefore
 updated only the dormant proxy authority to accept exact V17, including its
 canonical `takeGroups`, and retained no take/comp state. Durable attachment is a
-future exact V18 layer; fresh desktop and archive numbers are reserved only by
-the separately reviewed c-c transition.
+separate exact V18 layer; fresh desktop and archive numbers are owned only by
+the selected c-c transition.
 
 3B-6b proof admission moved in c-a1 from exact V16 to exact V17. The final c-c
 transition gives the Framescaper-selected profile exact-current V18 and requires
@@ -91,17 +84,17 @@ Only the attachment coordinator may author a new non-null pointer, while
 authenticated import, handoff, duplicate, and preservation transactions may
 reproduce an already validated pointer.
 
-The user's implementation scope is Framescaper. c-c requires a selected-profile
+The implemented product scope is Framescaper. c-c uses a selected-profile
 prerequisite injected through every Framescaper V18 constructor, migration,
 compatibility, archive, controller, retention, and repository boundary; it may
 not rebind a global current constant or a Soundscaper entrypoint. Shared domain/storage changes
 may land only when unavoidable for Framescaper preservation; no Soundscaper
 menu, authoring, playback, proxy selection, capability enablement, policy
 outcome, or browser workflow is part of this packet. Because schema and portable
-formats are shared today, c-c remains hard-stopped until the reviewed
-product-isolation and preservation behavior is implemented atomically.
+formats remain product-owned: Framescaper uses format 1 or 2 under V18 while
+Soundscaper keeps its shared V17 format-1 behavior.
 
-That isolation is physical as well as semantic. The future Framescaper V18
+That isolation is physical as well as semantic. The selected Framescaper V18
 profile owns IndexedDB and degraded-memory key
 `kw-media-framescaper-editor-v18`, OPFS directory
 `framescaper-editor-v18-sources`, project-lock prefix
@@ -112,8 +105,9 @@ prunes, reconciles, or publishes through the existing
 memory key, or audio-editor lock namespace. A same-origin product switch and
 either product's clear or maintenance path cannot enumerate or delete the
 other profile's records or payloads. The exact injected-name seam is
-implemented by dormant c-c0, but selecting its Framescaper token remains a c-c
-prerequisite; c-a1 and c-c0 create or open no store by themselves.
+implemented by c-c0 and selected only by the maintained Framescaper V18
+composition; the historical c-a1 and c-c0 precursors create or open no store by
+themselves.
 
 ## Exact V18 wire
 
@@ -498,20 +492,19 @@ transaction family.
 
 The merged V17 work already owns desktop schema/metadata 9, project schema 17,
 scope `kw.media/scape-project-library/v9`, and database `user_version` 11.
-Future c-c therefore requires a separate Framescaper-selected v10
-contract/bootstrap with schema/metadata 10,
+Selected c-c uses a separate Framescaper v10 contract/bootstrap with metadata 10,
 exact project schema 18, scope `kw.media/scape-project-library/v10`, and database
 `user_version` 12; it rejects every non-Framescaper owner, while the existing
-product-neutral/Soundscaper v9 remains untouched. Add a distinct managed
+product-neutral/Soundscaper v9 remains untouched. Its distinct managed
 `video-proxy-v1` media role and exact proxy namespace:
 `bindingId = 'p' + sha256(UTF8(JSON.stringify(['video-proxy-v1', projectId,
 projectRevision, projectSha256, storageKey])))`, physical path
 `proxy/${bindingId.slice(1, 3)}/${bindingId}.bin`, and category `proxy`.
 This is the v10 proxy-specific counterpart of the existing managed-media
 derivation; the digest is the project/revision/document/storage binding digest,
-not the attachment content digest. Extend v10 inventory, IPC/preload, service
-types, and SQL checks with that encoding, canonical proxy MIME, and binding
-grammar rather than widening the existing `[mvt]` v9 namespace. The role flows
+not the attachment content digest. V10 inventory, IPC/preload, service types,
+and SQL checks own that encoding, canonical proxy MIME, and binding grammar
+rather than widening the existing `[mvt]` v9 namespace. The role flows
 through inventory, IPC/preload, sender, acquisition, capacity, retention,
 digest verification, and shadow publication. It is neither original video nor
 video timing. Its closed descriptor is exactly `kind: video-proxy`,
@@ -522,22 +515,20 @@ created and verified by the managed-media owner and is never project wire. The
 nested timing body retains its canonical timing descriptor. If any host cannot
 transfer both proxy and timing bodies, it must refuse before document/body
 mutation; no dangling descriptor or silent drop.
-Desktop publication is not the renderer IndexedDB transaction: the main owner
-must stage managed bodies and commit its document/revision CAS plus media
-journal atomically, then the renderer reconciles its local shadow. Until that
-exact main-owned path exists, desktop attachment publication hard-stops even
-though read-only preservation/transfer may be qualified.
+Desktop publication is not the renderer IndexedDB transaction: the implemented
+main owner stages managed bodies and commits its document/revision CAS plus
+media journal atomically, then the renderer reconciles its local shadow.
 Renderer shadow creation uses the same claim-bound one-use preservation plan as
 archive import; ordinary `shadow.save` cannot introduce the attachment.
 
-## Dormancy and later-use law
+## Preservation and later-use law
 
-No Project Bin card/panel/menu, action facade, visual resolver, source monitor,
-program preview, transport/engine, derivative cache, video export/delivery,
-offline placeholder, relink UI, or proxy-audio path imports or reads the V18
-attachment in 3B-6c. There is no attach/detach menu yet because the capability
-is unavailable; 3B-6d will place opt-in actions only in the existing Project
-Bin overflow menu.
+V18 persistence, archive, retention, maintenance, desktop, and re-attestation
+owners read the attachment. No Project Bin generator or attach/detach menu,
+visual resolver, source monitor, program preview, transport/engine integration,
+offline placeholder, relink UI, or proxy-audio path consumes it for pictures.
+The capability remains unavailable, so no proxy lifecycle entry point is
+exposed.
 
 Before any later consumer selects a locally trusted proxy, it must verify the proxy body's
 length and digest, load and digest/summary-validate the exact timing bytes,
@@ -548,17 +539,16 @@ persisted counts. Persisted digests prove integrity, not publisher identity; a
 project/archive/handoff attachment and its generator/rule strings therefore
 remain preservation-only and cannot authorize pictures. Ordinary 3B-6b cannot
 re-attest an already attached source because its target attachment must be
-null. Before selection, 3B-6d must add a closed private existing-attachment
-re-attestation authority that binds the exact persisted proxy SHA-256, byte
-length, MIME, and current original identity/generation. Regeneration qualifies
-only when its canonical candidate digest, length, and MIME exactly equal the
-stored attachment; a different candidate never authorizes the pointer. The
-authority must also load and validate the persisted timing reference/body,
-bind its ephemeral proxy timing view, and rerun 3B-6a against current original
-timing. Imported or handed-off state remains preservation-only until that
-succeeds. A later collaboration threat model may additionally require a fresh
-byte probe, but neither probe nor attestation can replace durable timing
-evidence.
+null. The implemented closed private existing-attachment re-attestation
+authority binds the exact persisted proxy SHA-256, byte length, MIME, and
+current original identity/generation, loads and validates the persisted timing
+reference/body, binds an ephemeral timing view, and reruns 3B-6a against
+current original timing. Its trust is process-local and preview-only. Imported
+or handed-off state remains preservation-only until that succeeds, and no
+maintained preview consumer currently requests that trust. A future generator
+may qualify only when its canonical candidate digest, length, and MIME exactly
+equal the stored attachment; a different candidate never authorizes the
+pointer. Neither probing nor attestation can replace durable timing evidence.
 
 ## Reds and acceptance
 
@@ -581,44 +571,29 @@ c-b1 normalization was implemented in `189e901f`, with proof hardening in
 (5,742 passed and 2 skipped), 90.17% statement and line coverage, 81.69% branch
 coverage, and 91.3% function coverage; architecture covered 1,011 modules,
 2,790 dependencies, and 2,189 maintained files; and the build emitted 115
-JavaScript chunks with a 428,990-byte largest chunk. The exact three-export
-module remains dormant, with no maintained consumer, persistence, preparation
-consumption, project/schema owner, capability, UI, browser row, or Soundscaper
-change.
+JavaScript chunks with a 428,990-byte largest chunk. That pure normalizer was
+dormant at delivery and is now consumed only by the maintained Framescaper V18
+coordinator.
 
-Dormant c-c0 storage-profile threading was implemented in `cc164b67` on
+The c-c0 storage-profile precursor was implemented in `cc164b67` on
 2026-08-12. Its 15 focused tests, four TypeScript configurations, targeted
 ESLint, architecture/file-size gate, and diff check passed during
-implementation; the final canonical rerun stopped in unrelated concurrent
-test-only TypeScript diagnostics and reported no c-c0 diagnostic. No app,
-product, or bootstrap selects the token, so durable proxy storage and c-c remain
-hard-stopped, and a2 is folded into c-c. No
-generic callback is an adoption boundary, and no pre-c-c slice may claim
-settlement or own the original lease. Dormant c1c composition is implemented;
-production storage or adoption work remains unauthorized until the
-product-isolation contract's V17 handoff policy conflict is resolved and full
-c-c REDs are reviewed.
-For eventual c-c, prove the full Framescaper cross-surface/platform set. Prove exact/null/deep-freeze wire validation; every binding and
-cap boundary; unchanged V17 under the shared/Soundscaper profile, Framescaper
-V17 re-import, V18 current, V19 read-only; forged and twice-consumed preparations; same candidate/timing objects and one-use
-retention; missing/corrupt/substituted bodies; one interior PTS or final-duration
-change; equivalent rescaled timing acceptance; and original/task/cancellation
-drift with exact two-body rollback and no pointer.
+implementation; that precursor is now selected only through the authenticated
+Framescaper V18 composition. No generic callback is an adoption boundary: the
+coordinator owns exact original and project currentness through claim-bound
+settlement and reconciliation.
 
-Crash/interleaving reds prove detach-then-crash reserves the storage key/path
-and blocks republish until restart cleanup settles, restart cleanup cannot
-delete a newer generation, and a shared timing body or second claim/root is
-never tombstoned.
-
-Also prove owned requirement/substitution and the one false Framescaper profile; clone,
-history, duplication, retention, clipboard stripping, direct/nested protected
-closure, and relink/reprobe/replace refusal; format-1 compatibility plus
-format-2 proxy/timing import/export/tamper/orphan/rollback/future rejection;
-same-origin IndexedDB/memory/OPFS/lock/worker isolation and independent clear,
-fresh Framescaper desktop isolation and exact proxy-binding derivation/body
-handoff; and static
-dormancy/source audits that prove Framescaper owns every reachable V18 route
-without changing a Soundscaper entrypoint.
+The maintained c-c evidence covers exact/null/deep-freeze wire validation,
+profile and capability authentication, unchanged Soundscaper V17 behavior,
+Framescaper V17 re-import, V18 current and V19 read-only behavior, one-use
+preparation, missing/corrupt/substituted bodies, timing changes, original/task/
+cancellation drift, and rollback. Claim and cleanup fixtures cover restart
+reservation, newer-generation protection, and shared roots. Repository,
+retention, Scape, and desktop fixtures cover preservation plans, protected
+commands, format-1 attachment-free compatibility, format-2 proxy/timing
+integrity and rollback, and fresh Framescaper V10 isolation without changing a
+Soundscaper entry point. Desktop V10 delete and duplicate remain unavailable
+until main owns their exact CAS/catalog operations.
 
 A focused Framescaper Chromium row opens a fixed V18/format-2 proxy archive:
 Cancel preserves the active tab and performs zero body/storage work;
@@ -627,9 +602,10 @@ read-only with the unavailable bypass declaration, shows no proxy UI/use, and
 Save a copy round-trips both exact bodies. It makes no codec, picture, playback,
 offline, relink, or export claim.
 
-For each later authorized slice, run focused Node/browser tests, every
+For each later slice, run focused Node/browser tests, every
 TypeScript configuration, lint,
 architecture/file-size, local-link/roadmap/policy checks, narrative sync,
 runtime-evidence repinning, and canonical `npm run check`. Packet 3B-6 stays
-**In progress**; 3B-6d menu/lifecycle work remains blocked until all of 3B-6c
-is green.
+**In progress** because proxy generation, menu/lifecycle, adaptive preview,
+offline, and relink work is still unavailable; 3B-6c preservation itself is
+implemented.
