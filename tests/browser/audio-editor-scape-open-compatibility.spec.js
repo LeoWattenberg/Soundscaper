@@ -486,6 +486,7 @@ async function captureScapeArchive(page, editor) {
 			}),
 		});
 	});
+	await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 	await chooseFileAction(page, editor, 'Export project file (.scape)');
 	await expect.poll(() => page.evaluate(() => globalThis.__scapeCompatibilitySave.closes)).toBe(1);
 	const chunks = await page.evaluate(() => globalThis.__scapeCompatibilitySave.chunks.map((chunk) => [...chunk]));
