@@ -99,12 +99,18 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 	assert.doesNotMatch(source, /BrowserWindow/u);
 });
 
-test('desktop CI exposes one push-and-dispatch six-target nightly-with-tests artifact matrix', async () => {
+test('desktop CI exposes one quality-gated six-target nightly-with-tests artifact matrix', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+artifact_variant:/u);
-	// The tested package is built for every main commit, so the workflow has to
-	// observe branch pushes as well as the beta tags it already released from.
-	assert.match(workflow, /push:\s+branches: \[main\]\s+tags:/u);
+	// The tested package is built for every main commit, but off the Quality run
+	// that already verified it so the shared jobs are never run twice.
+	assert.match(workflow, /workflow_run:\s+workflows: \[Quality\]\s+types: \[completed\]\s+branches: \[main\]/u);
+	assert.doesNotMatch(workflow, /push:\s+branches:/u);
+	for (const shared of ['  quality:', '  browser:', '  firefox:']) {
+		const at = workflow.indexOf(`\n${shared}`);
+		assert.ok(at >= 0, `${shared} is missing`);
+		assert.match(workflow.slice(at, at + 200), /if: github\.event_name != 'workflow_run'/u);
+	}
 	assert.match(workflow, /artifact_variant:[\s\S]*type: choice[\s\S]*options:\s+- nightly\s+- nightly-with-tests/u);
 
 	const normalStart = workflow.indexOf('\n  package:');
@@ -115,7 +121,7 @@ test('desktop CI exposes one push-and-dispatch six-target nightly-with-tests art
 	const testJob = workflow.slice(testStart, nextStart);
 
 	// The ordinary package stays on tags, schedules and an explicit nightly
-	// dispatch; only the tested variant follows main pushes.
+	// dispatch; only the tested variant follows verified main commits.
 	assert.match(normalJob, new RegExp(
 		String.raw`if: >-\s+\(github\.event_name == 'push' && github\.ref_type == 'tag'\)`
 		+ String.raw`\s+\|\| github\.event_name == 'schedule'`
@@ -123,10 +129,13 @@ test('desktop CI exposes one push-and-dispatch six-target nightly-with-tests art
 		'u',
 	));
 	assert.match(testJob, new RegExp(
-		String.raw`if: >-\s+\(github\.event_name == 'push' && github\.ref_type == 'branch'\)`
-		+ String.raw`\s+\|\| \(github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly-with-tests'\)`,
+		String.raw`if: >-\s+!cancelled\(\)`
+		+ String.raw`\s+&& \(\s+\(github\.event_name == 'workflow_run'`
+		+ String.raw` && github\.event\.workflow_run\.conclusion == 'success'\)`,
 		'u',
 	));
+	// The packaged commit must be the verified one, not whatever main moved to.
+	assert.match(testJob, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);
 	assert.equal(testJob.match(/- runner:/gu)?.length, 5);
 	for (const target of [

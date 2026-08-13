@@ -6,9 +6,14 @@ on:
     # the heavy load GitHub Actions commonly sees at the top of the hour.
     - cron: '17 2 * * *'
   push:
-    branches: [main]
     tags:
       - 'v*-beta.*'
+  # Main commits are packaged off the Quality run that already verified them,
+  # so the shared quality, browser and Firefox jobs are never run twice.
+  workflow_run:
+    workflows: [Quality]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       artifact_variant:
@@ -26,10 +31,10 @@ permissions:
 
 concurrency:
   group: desktop-preview-and-nightly-${{ github.ref }}
-  # Branch pushes supersede each other: only the newest main commit is worth
-  # packaging, and the matrix is too long to let a queue build up. Tag, schedule
-  # and dispatch runs still always finish.
-  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+  # Main commits supersede each other: only the newest one is worth packaging,
+  # and the matrix is too long to let a queue build up. Tag, schedule and
+  # dispatch runs still always finish.
+  cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
 
 env:
   PUBLIC_FFMPEG_CORE_BASE_URL: https://assets.soundscaper.org/runtime/ffmpeg/0.12.10
@@ -37,6 +42,7 @@ env:
 
 jobs:
   quality:
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -81,6 +87,7 @@ jobs:
 
   browser:
     name: Browser / ${{ matrix.project }}
+    if: github.event_name != 'workflow_run'
     needs: quality
     strategy:
       fail-fast: false
@@ -133,6 +140,7 @@ jobs:
 
   firefox:
     name: Browser / firefox
+    if: github.event_name != 'workflow_run'
     needs: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -336,8 +344,17 @@ jobs:
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
-      (github.event_name == 'push' && github.ref_type == 'branch')
-      || (github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly-with-tests')
+      !cancelled()
+      && (
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+        || (
+          github.event_name == 'workflow_dispatch'
+          && inputs.artifact_variant == 'nightly-with-tests'
+          && needs.quality.result == 'success'
+          && needs.browser.result == 'success'
+          && needs.firefox.result == 'success'
+        )
+      )
     needs: [quality, browser, firefox]
     timeout-minutes: 90
     strategy:
@@ -370,6 +387,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          # A workflow_run checkout defaults to the branch head, which may have
+          # moved on. Package the exact commit the Quality run verified.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
