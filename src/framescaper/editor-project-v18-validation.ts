@@ -9,6 +9,7 @@ import {
 	type AudioEditorProjectV17ValidationOptions,
 } from '../common/editor/project-v17-validation.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import type { ProjectFeatureRequirementsManifest } from '../common/editor/project-feature-requirements.ts';
 import {
 	framescaperProjectFeatureRequirementsForV17Foundation,
 	validateFramescaperProjectFeatureRequirementsV18,
@@ -19,6 +20,7 @@ export const FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION = 18 as const;
 
 export interface FramescaperProjectV18 extends Record<string, unknown> {
 	readonly schemaVersion: 18;
+	readonly featureRequirements: ProjectFeatureRequirementsManifest;
 	readonly sources: readonly FramescaperProjectSourceV18[];
 }
 

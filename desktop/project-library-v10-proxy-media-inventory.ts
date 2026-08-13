@@ -65,7 +65,7 @@ export class FramescaperDesktopProjectLibraryV10ProxyMediaInventory {
 		return Object.freeze(new FramescaperDesktopProjectLibraryV10ProxyMediaInventory(
 			createFramescaperDesktopProjectLibraryV10Paths(options.appDataPath),
 			validateFramescaperDesktopProjectLibraryV10Owner(options.owner),
-		));
+		)) as FramescaperDesktopProjectLibraryV10ProxyMediaInventory;
 	}
 
 	handshakeState(): FramescaperDesktopProjectLibraryV10HandshakeState {

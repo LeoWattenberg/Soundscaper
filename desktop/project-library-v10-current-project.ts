@@ -20,5 +20,5 @@ export function validateFramescaperDesktopCurrentProjectV18(
 		throw new TypeError('The exact Framescaper V18 runtime profile is required.');
 	}
 	validateFramescaperProjectV18(profile, value, options);
-	return value;
+	return value as FramescaperProjectV18;
 }
