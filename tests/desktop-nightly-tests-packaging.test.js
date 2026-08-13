@@ -128,12 +128,16 @@ test('desktop CI exposes one quality-gated six-target nightly-with-tests artifac
 		+ String.raw`\s+\|\| \(github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly'\)`,
 		'u',
 	));
+	// A red Quality run still packages: a failing suite is when a hand-testable
+	// build is worth most. Cancelled and skipped runs are superseded source.
 	assert.match(testJob, new RegExp(
 		String.raw`if: >-\s+!cancelled\(\)`
-		+ String.raw`\s+&& \(\s+\(github\.event_name == 'workflow_run'`
-		+ String.raw` && github\.event\.workflow_run\.conclusion == 'success'\)`,
+		+ String.raw`\s+&& \(\s+\(\s+github\.event_name == 'workflow_run'`
+		+ String.raw`\s+&& github\.event\.workflow_run\.conclusion != 'cancelled'`
+		+ String.raw`\s+&& github\.event\.workflow_run\.conclusion != 'skipped'`,
 		'u',
 	));
+	assert.doesNotMatch(testJob, /workflow_run\.conclusion == 'success'/u);
 	// The packaged commit must be the verified one, not whatever main moved to.
 	assert.match(testJob, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);

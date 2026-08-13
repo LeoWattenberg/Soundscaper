@@ -8,8 +8,8 @@ on:
   push:
     tags:
       - 'v*-beta.*'
-  # Main commits are packaged off the Quality run that already verified them,
-  # so the shared quality, browser and Firefox jobs are never run twice.
+  # Main commits are packaged off their Quality run rather than off the push, so
+  # the shared quality, browser and Firefox jobs are never run twice.
   workflow_run:
     workflows: [Quality]
     types: [completed]
@@ -343,10 +343,18 @@ jobs:
 
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    # A failing suite is exactly when a package to test by hand is worth most, so
+    # a red Quality run still produces one. Cancelled and skipped runs do not:
+    # Quality cancels superseded runs, and packaging a commit that has already
+    # been replaced would spend the whole matrix on dead source.
     if: >-
       !cancelled()
       && (
-        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+        (
+          github.event_name == 'workflow_run'
+          && github.event.workflow_run.conclusion != 'cancelled'
+          && github.event.workflow_run.conclusion != 'skipped'
+        )
         || (
           github.event_name == 'workflow_dispatch'
           && inputs.artifact_variant == 'nightly-with-tests'
