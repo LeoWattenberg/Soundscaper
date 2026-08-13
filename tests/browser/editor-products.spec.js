@@ -41,6 +41,8 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await soundscaper.getByRole('menuitem', { name: 'Tracks', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
 			.getByRole('menuitem', { name: /^Nested sequences(?:\s|$)/u })).toHaveCount(0);
+		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
+			.getByRole('menuitem', { name: /^Multicamera(?:\s|$)/u })).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Soundscaper', exact: true })).toBeVisible();
@@ -54,6 +56,8 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await framescaper.getByRole('menuitem', { name: 'Tracks', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
 			.getByRole('menuitem', { name: /^Nested sequences(?:\s|$)/u })).toBeVisible();
+		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
+			.getByRole('menuitem', { name: /^Multicamera(?:\s|$)/u })).toBeVisible();
 		await page.keyboard.press('Escape');
 		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
