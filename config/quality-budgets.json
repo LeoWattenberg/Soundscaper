@@ -806,6 +806,23 @@
 			]
 		},
 		{
+			"id": "m3-framescaper-v18-exit-2h-v1",
+			"milestones": ["3"],
+			"status": "provisional",
+			"kind": "deterministic-framescaper-v18-exit-project-generator",
+			"specification": {
+				"schemaVersion": 18,
+				"durationSeconds": 7200,
+				"sampleRate": 48000,
+				"contains": ["attached-proxy", "nested-sequence", "multicamera", "verified-vfr", "source-timecode"]
+			},
+			"limitation": "This exact V18 cohort is deterministic structural and zero-drift oracle input. It does not qualify the unavailable proxy generator, the reviewed retime hard stop, GPU performance, packaged Electron, or operating-system durability.",
+			"evidence": [
+				"src/framescaper/quality/m3-framescaper-v18-exit-workload.ts",
+				"tests/audio-editor-m3-framescaper-v18-exit-workload.test.ts"
+			]
+		},
+		{
 			"id": "m4-production-parity-v1",
 			"milestones": ["4"],
 			"status": "planned",
@@ -1019,6 +1036,23 @@
 				"tests/browser/audio-editor-longform-editorial-benchmark.spec.js",
 				"scripts/collect-m3-longform-editorial-quality.mjs",
 				"tests/quality-budget-longform-editorial-collector.test.ts"
+			]
+		},
+		{
+			"id": "m3-framescaper-v18-exit",
+			"milestone": "3",
+			"status": "provisional",
+			"fixtureIds": ["m3-framescaper-v18-exit-2h-v1"],
+			"environmentIds": ["reference-linux-gpu-01"],
+			"thresholds": [
+				{ "metricId": "framescaperV18.audioPositionErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
+				{ "metricId": "framescaperV18.videoPositionErrorFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "framescaperV18.nestedPositionErrorFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "framescaperV18.multicameraSyncErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" }
+			],
+			"evidence": [
+				"src/framescaper/quality/m3-framescaper-v18-exit-workload.ts",
+				"tests/audio-editor-m3-framescaper-v18-exit-workload.test.ts"
 			]
 		},
 		{
