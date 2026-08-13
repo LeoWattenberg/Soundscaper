@@ -35,6 +35,7 @@ const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const FIXTURE_ID = 'm4-production-parity-v1';
 const VIDEO_FIXTURE_ID = 'video-effect-parity-rgba-v1';
 const PROFILE = 'deterministic-production-parity-v1';
+const DIAGNOSTIC_MARKER = 'SOUNDSCAPER_M4_PRODUCTION_PARITY ';
 const BROWSER_SPEC = 'tests/browser/audio-editor-m4-production-parity.spec.js';
 const METRIC_IDS = Object.freeze([
 	'parity.audioMaximumAbsoluteSampleError',
@@ -81,18 +82,24 @@ export function parseM4ProductionParityDiagnostic(output) {
 	if (typeof output !== 'string') throw new TypeError('Browser diagnostic output must be a string.');
 	const matches = [];
 	for (const line of output.split(/\r?\n/u)) {
-		const jsonStart = line.indexOf('{');
-		if (jsonStart < 0) continue;
+		if (!line.startsWith(DIAGNOSTIC_MARKER)) continue;
+		const payload = line.slice(DIAGNOSTIC_MARKER.length);
+		if (!payload.length || payload.trim() !== payload) {
+			throw new Error('M4 browser diagnostic marker has a malformed payload.');
+		}
 		let candidate;
 		try {
-			candidate = JSON.parse(line.slice(jsonStart));
-		} catch {
-			continue;
+			candidate = JSON.parse(payload);
+		} catch (error) {
+			throw new Error('M4 browser diagnostic marker has malformed JSON.', { cause: error });
 		}
-		if (isRecord(candidate)
-			&& candidate.profile === PROFILE
-			&& candidate.workloadId === WORKLOAD_ID
-			&& candidate.fixtureId === FIXTURE_ID) matches.push(candidate);
+		if (!isRecord(candidate)
+			|| candidate.profile !== PROFILE
+			|| candidate.workloadId !== WORKLOAD_ID
+			|| candidate.fixtureId !== FIXTURE_ID) {
+			throw new Error('Marked M4 browser diagnostic does not match the frozen identity.');
+		}
+		matches.push(candidate);
 	}
 	if (matches.length !== 1) {
 		throw new Error(`Expected exactly one ${WORKLOAD_ID} browser diagnostic; received ${matches.length}.`);

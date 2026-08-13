@@ -261,6 +261,26 @@ test('the diagnostic parser admits exactly one matching structured record', () =
 	assert.deepEqual(parseM4ProductionParityDiagnostic(`noise\n${line}\n`), diagnostic);
 	assert.throws(() => parseM4ProductionParityDiagnostic('no diagnostic'), /exactly one/iu);
 	assert.throws(() => parseM4ProductionParityDiagnostic(`${line}\n${line}\n`), /exactly one/iu);
+	assert.throws(
+		() => parseM4ProductionParityDiagnostic(JSON.stringify(diagnostic)),
+		/exactly one/iu,
+	);
+	assert.throws(
+		() => parseM4ProductionParityDiagnostic(`arbitrary prefix ${JSON.stringify(diagnostic)}`),
+		/exactly one/iu,
+	);
+	assert.throws(
+		() => parseM4ProductionParityDiagnostic(
+			`SOUNDSCAPER_M4_PRODUCTION_PARITY {not-json\n${line}`,
+		),
+		/malformed/iu,
+	);
+	assert.throws(
+		() => parseM4ProductionParityDiagnostic(
+			`SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify({ unrelated: true })}\n${line}`,
+		),
+		/does not match/iu,
+	);
 });
 
 test('matching provisioned evidence writes verified files once and never overwrites', async () => {
