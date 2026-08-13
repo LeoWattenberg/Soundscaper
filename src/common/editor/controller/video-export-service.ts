@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { prepareBrowserExportBlob } from '../browser-export-output.ts';
+import { getVideoExportFormat } from '../video-export.js';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -19,6 +20,11 @@ import {
 	validateDirectVideoOutput,
 	type DirectVideoDestination,
 } from './direct-video-export.ts';
+import {
+	captureProductVideoExportActiveSourceIds,
+	resolveProductVideoExportStrategy,
+	type ProductVideoExportPlan,
+} from './product-video-export-strategy.ts';
 import { acquireVideoExportTimingIndexes } from './video-export-timing.ts';
 
 export interface VideoExportServiceRuntime {
@@ -55,16 +61,23 @@ export function createEditorVideoExportAction(
 		sourceBuffers, sourceChunkProviders, state, store, throwIfAborted, toggleExport, taskProgress,
 		verifyProjectFallbackIntegrity,
 	} = runtime;
+	const productStrategy = resolveProductVideoExportStrategy(runtime.options);
 
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
 		if (state.exportAbort) return null;
 		const canonicalProject = getProject();
 		const delivery = projectForVideoRenderedFallbackExport(canonicalProject, playbackProjects);
 		const deliveredProject = projectTrackFolderMediaStateV12(delivery.project);
-		const exportProject = inheritTrackFolderMediaStateProjectionV12(
-			deliveredProject,
-			cloneProject(deliveredProject),
-		);
+		const productExportProject = productStrategy?.createExportProject({
+			canonicalProject,
+			delivery,
+		}) ?? null;
+		const exportProject = productExportProject
+			? productExportProject
+			: inheritTrackFolderMediaStateProjectionV12(
+				deliveredProject,
+				cloneProject(deliveredProject),
+			);
 		const hasTimelineVideo = exportProject.tracks.some((track: RuntimeValue) => (
 			track.type === 'video'
 			&& track.hidden !== true
@@ -96,30 +109,60 @@ export function createEditorVideoExportAction(
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectVideoDestination | null = null;
+		let keyedTimingIndexes: Awaited<ReturnType<typeof acquireVideoExportTimingIndexes>> | null = null;
 		const browserMaximumOutputBytes = requestedSettings.maximumOutputBytes;
 		try {
 			const admittedFallbacks = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
 			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
-			const format = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
+			const formatValue = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
+			const descriptor = getVideoExportFormat(formatValue) as Readonly<{ id: 'mp4' | 'webm' }>;
+			const format = descriptor.id;
 			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind !== 'video');
-			const timingIndexes = await acquireVideoExportTimingIndexes(
+			const requestedRange = requestedSettings.range || 'project';
+			assertVideoExportCurrent();
+			const productPlan = productStrategy?.createPlan({
+				canonicalProject,
 				exportProject,
-				store,
-				{ findClip, findSource },
-				{ signal: abort.signal, assertCurrent: assertVideoExportCurrent },
-			);
+				format,
+				range: requestedRange,
+				includeAudio,
+				canvas: requestedSettings.canvas,
+			}) ?? null;
+			const productActiveSourceIds = productPlan
+				? captureProductVideoExportActiveSourceIds(productPlan)
+				: null;
 			let plan: RuntimeValue;
-			try {
-				assertVideoExportCurrent();
-				plan = createVideoExportPlan(exportProject, {
-					format,
-					range: requestedSettings.range || 'project',
-					includeAudio,
-					canvas: requestedSettings.canvas,
-				});
-			} finally {
-				timingIndexes.release();
+			if (productPlan) {
+				keyedTimingIndexes = await acquireVideoExportTimingIndexes(
+					exportProject,
+					store,
+					{ findClip, findSource },
+					{
+						signal: abort.signal,
+						assertCurrent: assertVideoExportCurrent,
+						requiredSourceIds: productActiveSourceIds!,
+					},
+				);
+				plan = productPlan;
+			} else {
+				const timingIndexes = await acquireVideoExportTimingIndexes(
+					exportProject,
+					store,
+					{ findClip, findSource },
+					{ signal: abort.signal, assertCurrent: assertVideoExportCurrent },
+				);
+				try {
+					assertVideoExportCurrent();
+					plan = createVideoExportPlan(exportProject, {
+						format,
+						range: requestedRange,
+						includeAudio,
+						canvas: requestedSettings.canvas,
+					});
+				} finally {
+					timingIndexes.release();
+				}
 			}
 			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
 			const directPreparation = await prepareDirectVideoDestination(
@@ -194,16 +237,25 @@ export function createEditorVideoExportAction(
 			let encoded;
 			if (pendingDirectDestination) {
 				try {
-					encoded = await ffmpeg.encodeVideoToSink(
-						videoBlobs,
-						audioMixBlob,
-						plan,
-						pendingDirectDestination,
-						{
-							signal: abort.signal, assertCurrent: assertVideoExportCurrent,
-							maximumOutputBytes: browserMaximumOutputBytes,
-						},
-					);
+					encoded = productPlan
+						? await productStrategy!.encodeToSink(
+							productEncodeRequest(
+								canonicalProject, exportProject, productPlan, keyedTimingIndexes,
+								videoBlobs, audioMixBlob, ffmpeg, abort.signal,
+								assertVideoExportCurrent, browserMaximumOutputBytes,
+							),
+							pendingDirectDestination,
+						)
+						: await ffmpeg.encodeVideoToSink(
+							videoBlobs,
+							audioMixBlob,
+							plan,
+							pendingDirectDestination,
+							{
+								signal: abort.signal, assertCurrent: assertVideoExportCurrent,
+								maximumOutputBytes: browserMaximumOutputBytes,
+							},
+						);
 				} catch (error) {
 					const cancellation = directVideoCancellation(error);
 					if (cancellation) {
@@ -213,9 +265,15 @@ export function createEditorVideoExportAction(
 					throw error;
 				}
 			} else {
-				encoded = await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
-					signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
-				});
+				encoded = productPlan
+					? await productStrategy!.encode(productEncodeRequest(
+						canonicalProject, exportProject, productPlan, keyedTimingIndexes,
+						videoBlobs, audioMixBlob, ffmpeg, abort.signal,
+						assertVideoExportCurrent, browserMaximumOutputBytes,
+					))
+					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
+						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
+					});
 			}
 			assertVideoExportCurrent();
 			if (pendingDirectDestination) {
@@ -300,6 +358,7 @@ export function createEditorVideoExportAction(
 			if ((error as Readonly<{ name?: string }>)?.name !== 'AbortError') handleError(error);
 			return null;
 		} finally {
+			keyedTimingIndexes?.release();
 			if (generation === state.exportGeneration) {
 				state.exportAbort = null;
 				toggleExport(false);
@@ -308,4 +367,31 @@ export function createEditorVideoExportAction(
 			exportTask.finish();
 		}
 	};
+}
+
+function productEncodeRequest(
+	canonicalProject: RuntimeValue,
+	exportProject: RuntimeValue,
+	plan: ProductVideoExportPlan,
+	timingIndexes: Awaited<ReturnType<typeof acquireVideoExportTimingIndexes>> | null,
+	videoBlobs: ReadonlyMap<string, Blob>,
+	audioMix: Blob | null,
+	editorFfmpeg: RuntimeValue,
+	signal: AbortSignal,
+	assertCurrent: () => void,
+	maximumOutputBytes: unknown,
+) {
+	if (!timingIndexes) throw new Error('Keyed video export lost its exact timing lease.');
+	return Object.freeze({
+		canonicalProject,
+		exportProject,
+		plan,
+		timingBySourceId: timingIndexes.timingBySourceId,
+		videoBlobs,
+		audioMix,
+		editorFfmpeg,
+		signal,
+		assertCurrent,
+		maximumOutputBytes,
+	});
 }

@@ -9,6 +9,7 @@ import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-mul
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
 import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
 import { createFramescaperScapeNativeRuntimeV20 } from './editor-scape-native-v20.ts';
+import { createFramescaperVideoExportStrategyV20 } from './video-export-strategy-v20.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -46,6 +47,7 @@ export function createFramescaperAudioEditorControllerV20(
 		createProjectIfAbsent: environment.createProjectIfAbsent,
 		scapeProjectRuntime,
 		productSequenceActions,
+		productVideoExportStrategy: createFramescaperVideoExportStrategyV20(environment.runtime.profile),
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
