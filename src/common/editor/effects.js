@@ -25,6 +25,30 @@ export const PARAMETRIC_EQ_BAND_TYPES = Object.freeze([
 export const PARAMETRIC_EQ_SLOPES = Object.freeze([12, 24, 36, 48]);
 export const PARAMETRIC_EQ_MAXIMUM_BANDS = 12;
 
+const PARAMETRIC_EQ_BAND_DEFAULTS = Object.freeze({
+	enabled: true,
+	type: 'peaking',
+	frequency: 1_000,
+	gain: 0,
+	q: 1,
+	slope: 12,
+});
+
+const PARAMETRIC_EQ_BAND_PARAMETER_METADATA = Object.freeze({
+	enabled: Object.freeze({
+		unit: 'boolean', step: 1, taper: 'discrete', automatable: false,
+		automationBlockReason: 'Changing band topology is not sample-offset safe.',
+	}),
+	type: Object.freeze({
+		unit: 'enum', step: 1, taper: 'discrete', automatable: false,
+		automationBlockReason: 'Changing filter topology is not sample-offset safe.',
+	}),
+	slope: Object.freeze({
+		unit: 'dB/oct', step: 12, taper: 'discrete', automatable: false,
+		automationBlockReason: 'Changing filter topology is not sample-offset safe.',
+	}),
+});
+
 const PARAMETRIC_EQ_BAND_TYPE_SET = new Set(PARAMETRIC_EQ_BAND_TYPES);
 const PARAMETRIC_EQ_SLOPE_SET = new Set(PARAMETRIC_EQ_SLOPES);
 const PARAMETRIC_EQ_EFFECT_ALIASES = new Set(['eq', 'parametric-eq', 'parametric_eq']);
@@ -32,12 +56,8 @@ const PARAMETRIC_EQ_DEFAULTS = Object.freeze({
 	outputGain: 0,
 	bands: Object.freeze(EQ_FREQUENCIES.map((frequency, index) => Object.freeze({
 		id: `band-${index + 1}`,
-		enabled: true,
-		type: 'peaking',
+		...PARAMETRIC_EQ_BAND_DEFAULTS,
 		frequency,
-		gain: 0,
-		q: 1,
-		slope: 12,
 	}))),
 });
 
@@ -80,6 +100,8 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 		bandTypes: PARAMETRIC_EQ_BAND_TYPES,
 		slopes: PARAMETRIC_EQ_SLOPES,
 		maximumBands: PARAMETRIC_EQ_MAXIMUM_BANDS,
+		bandDefaults: PARAMETRIC_EQ_BAND_DEFAULTS,
+		bandParameterMetadata: PARAMETRIC_EQ_BAND_PARAMETER_METADATA,
 	},
 	compressor: {
 		defaults: { threshold: -24, knee: 30, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },

@@ -102,6 +102,49 @@ test('effect and element IDs keep descriptors stable across reorder and reload',
 	assert.ok(slopes.every((descriptor) => descriptor.step === 12));
 });
 
+test('compound descriptor defaults and topology metadata come from owning definitions', () => {
+	const definition = AUDIO_EFFECT_DEFINITIONS.eq;
+	const effect = createEffect('eq', {
+		id: 'eq-owned-metadata',
+		params: {
+			outputGain: 2,
+			bands: [{
+				id: 'owned-band', enabled: true, type: 'peaking', frequency: 250,
+				gain: 3, q: 2, slope: 24,
+			}],
+		},
+	});
+	const inventory = effectParameterInventory(TRACK, effect);
+	const owned = (parameterId: string) => parameterDescriptor(inventory, parameterId);
+	assert.equal(owned('outputGain').defaultValue, definition.defaults.outputGain);
+	assert.equal(owned('enabled').defaultValue, definition.bandDefaults.enabled ? 1 : 0);
+	assert.equal(
+		owned('type').defaultValue,
+		definition.bandTypes.indexOf(definition.bandDefaults.type),
+	);
+	for (const parameterId of ['frequency', 'gain', 'q'] as const) {
+		assert.equal(owned(parameterId).defaultValue, definition.bandDefaults[parameterId]);
+	}
+	assert.equal(owned('slope').defaultValue, definition.bandDefaults.slope);
+	assert.equal(owned('slope').step, definition.bandParameterMetadata.slope.step);
+	assert.equal(
+		owned('enabled').automationBlockReason,
+		definition.bandParameterMetadata.enabled.automationBlockReason,
+	);
+
+	const graphicDefinition = AUDACITY_EFFECT_DEFINITIONS['audacity-graphic-eq'].params.gains;
+	const graphic = effectParameterInventory(
+		TRACK, createEffect('audacity-graphic-eq', { id: 'graphic-owned-metadata' }),
+	);
+	assert.ok(Array.isArray(graphicDefinition.default));
+	assert.deepEqual(
+		graphic.descriptors.filter(({ address }) => (
+			address.kind === 'effect' && address.parameterId === 'gains'
+		)).map(({ defaultValue }) => defaultValue),
+		graphicDefinition.default,
+	);
+});
+
 test('Audacity scalar descriptors retain manifest ranges and block latency-changing parameters', () => {
 	const effect = createEffect('audacity-compressor', { id: 'compressor-1' });
 	const inventory = effectParameterInventory(TRACK, effect, { sampleRate: 48_000 });

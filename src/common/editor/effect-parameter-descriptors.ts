@@ -123,20 +123,31 @@ export function effectParameterInventory(
 	if (type === 'eq') {
 		const definition = AUDIO_EFFECT_DEFINITIONS.eq;
 		const outputRange = numericRange(definition.ranges.outputGain);
-		add('outputGain', outputRange.metadata, outputRange.minimum, outputRange.maximum, 0);
+		add(
+			'outputGain', outputRange.metadata, outputRange.minimum, outputRange.maximum,
+			finiteNumber(definition.defaults.outputGain, 'eq.outputGain.default'),
+		);
 		for (const band of Array.isArray(effect.params.bands) ? effect.params.bands : []) {
 			const value = band as Readonly<Record<string, unknown>>;
 			const elementId = stableElementId(value.id, 'Parametric EQ band');
-			add('enabled', discreteMetadata('boolean', false, 'Changing band topology is not sample-offset safe.'), 0, 1, 1, elementId);
-			add('type', discreteMetadata('enum', false, 'Changing filter topology is not sample-offset safe.'), 0, PARAMETRIC_EQ_BAND_TYPES.length - 1, 0, elementId);
+			const bandDefaults = definition.bandDefaults;
+			const bandMetadata = definition.bandParameterMetadata;
+			add('enabled', bandMetadata.enabled, 0, 1, bandDefaults.enabled ? 1 : 0, elementId);
+			add(
+				'type', bandMetadata.type, 0, PARAMETRIC_EQ_BAND_TYPES.length - 1,
+				Math.max(0, PARAMETRIC_EQ_BAND_TYPES.indexOf(bandDefaults.type)), elementId,
+			);
 			for (const parameterId of ['frequency', 'gain', 'q'] as const) {
 				const range = numericRange(definition.ranges[parameterId]);
-				const fallback = parameterId === 'frequency' ? 1_000 : parameterId === 'q' ? 1 : 0;
-				add(parameterId, range.metadata, range.minimum, range.maximum, fallback, elementId);
+				add(
+					parameterId, range.metadata, range.minimum, range.maximum,
+					finiteNumber(bandDefaults[parameterId], `eq.${parameterId}.default`), elementId,
+				);
 			}
-			add('slope', discreteMetadata(
-				'dB/oct', false, 'Changing filter topology is not sample-offset safe.', 12,
-			), Math.min(...PARAMETRIC_EQ_SLOPES), Math.max(...PARAMETRIC_EQ_SLOPES), PARAMETRIC_EQ_SLOPES[0], elementId);
+			add(
+				'slope', bandMetadata.slope, Math.min(...PARAMETRIC_EQ_SLOPES),
+				Math.max(...PARAMETRIC_EQ_SLOPES), bandDefaults.slope, elementId,
+			);
 		}
 		return frozenInventory(descriptors, revisionInputs);
 	}
@@ -159,13 +170,17 @@ export function effectParameterInventory(
 				add(parameterId, discreteDefinition(descriptor, 'enum'), 0, Math.max(0, options.length - 1), index);
 			} else if (descriptor.kind === 'bands') {
 				const frequencies = descriptor.frequencies || [];
+				const defaults = Array.isArray(descriptor.default) ? descriptor.default : [];
+				if (defaults.length !== frequencies.length) {
+					throw new TypeError(`${type}.${parameterId}.default must cover every band.`);
+				}
 				for (let index = 0; index < frequencies.length; index += 1) {
 					add(
 						'gains',
 						descriptor,
 						finiteNumber(descriptor.minimum, `${type}.${parameterId}.minimum`),
 						finiteNumber(descriptor.maximum, `${type}.${parameterId}.maximum`),
-						0,
+						finiteNumber(defaults[index], `${type}.${parameterId}.default[${index}]`),
 						`frequency:${String(frequencies[index])}`,
 					);
 				}
@@ -255,15 +270,6 @@ function numericRange(value: unknown): Readonly<{
 			? value[2] as NumericMetadata
 			: {},
 	};
-}
-
-function discreteMetadata(
-	unit: string,
-	automatable = true,
-	automationBlockReason?: string,
-	step = 1,
-): NumericMetadata {
-	return { unit, step, taper: 'discrete', automatable, automationBlockReason };
 }
 
 function discreteDefinition(
