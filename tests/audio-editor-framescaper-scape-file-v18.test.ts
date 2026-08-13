@@ -31,6 +31,7 @@ import {
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
 	createFramescaperSessionClipboardV18,
+	prepareFramescaperMulticameraCrossProductCopyV18,
 	prepareFramescaperNestedSequenceCrossProductCopyV18,
 } from '../src/framescaper/editor-project-v18-interchange.ts';
 import type { FramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
@@ -322,6 +323,40 @@ test('the V18 session clipboard refuses a nested graph before generic clipboard 
 	assert.deepEqual(clipboard.sources.map(({ id }) => id), [ARCHIVE_SOURCE_ID]);
 });
 
+test('multicamera interchange is copy-only for Soundscaper and refuses lossy session clipboard projection', () => {
+	const project = multicameraArchiveProject({ attached: false });
+	const transfer = prepareFramescaperMulticameraCrossProductCopyV18(PROFILE, project, {
+		targetProduct: 'soundscaper',
+		mode: 'copy-only-preservation',
+	});
+	assert.deepEqual(transfer, {
+		kind: 'framescaper-multicamera-cross-product-copy',
+		targetProduct: 'soundscaper',
+		mode: 'copy-only-preservation',
+		activation: 'forbidden',
+		editable: false,
+		project,
+	});
+	assert.notEqual(transfer.project, project);
+	assert.equal(Object.isFrozen(transfer), true);
+	assert.deepEqual(loadCurrentAudioEditorProject(transfer.project), {
+		project,
+		readOnly: true,
+		reason: 'newer-schema',
+	});
+	assert.throws(() => validateCurrentAudioEditorProject(transfer.project), /schema version|schemaVersion/iu);
+
+	let optionReads = 0;
+	const options = new Proxy({}, {
+		get() { optionReads += 1; throw new Error('clipboard option read'); },
+	});
+	assert.throws(
+		() => createFramescaperSessionClipboardV18(PROFILE, project, options),
+		/session clipboard.*cannot preserve.*multicamera.*\.scape/iu,
+	);
+	assert.equal(optionReads, 0);
+});
+
 test('cancel reads only metadata, skips storage and stage hooks, and closes its reader', async (context) => {
 	const fixture = await setup(context);
 	await seedFramescaperV18ArchiveBodies(fixture.storage);
@@ -474,6 +509,35 @@ function nestedArchiveProject(
 		sequenceFrameCount: 10,
 		sourceInFrame: 0,
 		sourceFrameCount: 10,
+	}];
+	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, project);
+	return project as unknown as FramescaperProjectV18;
+}
+
+function multicameraArchiveProject(
+	options: Readonly<{ attached: boolean }>,
+): FramescaperProjectV18 {
+	const project = structuredClone(archiveProject(options)) as unknown as Record<string, unknown>;
+	const sources = project.sources as Record<string, unknown>[];
+	sources.push({
+		...structuredClone(sources[0]!),
+		id: 'archive-video-b',
+		name: 'Video B',
+		storageKey: 'archive-video-b',
+	});
+	project.multicameraGroups = [{
+		id: 'archive-multicamera-group',
+		projectId: project.id,
+		sequenceId: 'main-sequence',
+		outputClipId: 'archive-clip',
+		activeMemberId: 'archive-camera-a',
+		members: [{
+			id: 'archive-camera-a', groupId: 'archive-multicamera-group',
+			sourceId: ARCHIVE_SOURCE_ID, syncOffsetSamples: 0,
+		}, {
+			id: 'archive-camera-b', groupId: 'archive-multicamera-group',
+			sourceId: 'archive-video-b', syncOffsetSamples: 0,
+		}],
 	}];
 	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, project);
 	return project as unknown as FramescaperProjectV18;
