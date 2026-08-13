@@ -190,6 +190,9 @@ test('exact video canvas preserves canonical rational rates before applying the 
 	assert.deepEqual(resolveExactVideoExportCanvas(project, {
 		frameRate: { num: 24_000, den: 1_001 },
 	}).frameRate, { num: 24_000, den: 1_001 });
+	assert.deepEqual(resolveExactVideoExportCanvas(project, {
+		frameRate: 24_000 / 1_001,
+	}).frameRate, { num: 24_000, den: 1_001 });
 });
 
 test('video export range authority is shared without changing V6 plan range shape', () => {

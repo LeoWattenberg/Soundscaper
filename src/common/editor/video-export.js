@@ -5,6 +5,7 @@ import {
 } from './video-timeline.js';
 import { normalizeVideoEffects } from './video-effects.js';
 import { assertStaticVideoKeyframesForExport } from './video-keyframe-export-admission.ts';
+import { approximatePositiveRational } from './rational-approximation.ts';
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
@@ -460,7 +461,9 @@ function optionalPositiveExactRate(value, name) {
 function positiveExactRate(value, name) {
 	let normalized;
 	try {
-		normalized = normalizeRational(value, { maximumDenominator: Number.MAX_SAFE_INTEGER });
+		normalized = typeof value === 'number'
+			? approximatePositiveRational(value)
+			: normalizeRational(value, { maximumDenominator: Number.MAX_SAFE_INTEGER });
 	} catch (cause) {
 		throw new RangeError(`${name} must be a positive exact rational.`, { cause });
 	}
