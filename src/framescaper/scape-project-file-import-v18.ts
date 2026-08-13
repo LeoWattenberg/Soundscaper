@@ -33,7 +33,6 @@ import type {
 import type { FramescaperScapeArchivePublicationRequestV18 } from './scape-project-preservation-v18.ts';
 
 const AUDIO_ENCODING = 'audio-f32le-chunks-v1';
-const TIMING_MIME_TYPE = 'application/vnd.soundscaper.video-timing';
 
 interface AudioWriter {
 	write(channels: readonly Float32Array[], options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown>;
