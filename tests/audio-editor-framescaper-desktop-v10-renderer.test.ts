@@ -187,6 +187,17 @@ function bridgeFixture(initial: TransferBundle, events: string[], options: Bridg
 			return options.handshake ?? createFramescaperDesktopProjectLibraryV10Handshake();
 		},
 		handshakeState: () => 'admitted',
+		async listProjects() {
+			return {
+				metadataRevision: current.metadataRevision,
+				projects: [{
+					id: current.project.projectId,
+					title: current.project.name,
+					revision: current.project.projectRevision,
+					updatedAt: new Date(current.project.updatedAtMs).toISOString(),
+				}],
+			};
+		},
 		async readProjectBundle(projectId: string) {
 			events.push(`bundle:${projectId}`);
 			return projectId === current.project.projectId ? current : null;
@@ -235,6 +246,8 @@ function bridgeFixture(initial: TransferBundle, events: string[], options: Bridg
 			assert.equal(request.publicationId, PUBLICATION_ID);
 			return true;
 		},
+		async deleteProject() { throw new Error('unused renderer delete fixture'); },
+		async duplicateProject() { throw new Error('unused renderer duplicate fixture'); },
 	});
 	return {
 		api,

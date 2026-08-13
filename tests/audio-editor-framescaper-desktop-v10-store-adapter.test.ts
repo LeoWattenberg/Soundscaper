@@ -114,16 +114,28 @@ test('create is main-first, collision-safe, and consumes its absence witness onc
 	assert.deepEqual(fixture.main.reads, ['desktop-create', 'desktop-create']);
 });
 
-test('desktop rejects local-only delete and duplication and delegates non-project ownership', async (context) => {
+test('desktop lists, duplicates, and deletes through main before reconciling the exact local shadow', async (context) => {
 	const fixture = await lifecycleFixture(context);
-	await assert.rejects(fixture.store.deleteProject('project'), /V10.*delete.*unavailable/iu);
-	await assert.rejects(fixture.store.duplicateProject('project'), /V10.*duplication.*unavailable/iu);
+	const source = projectFixture({ id: 'desktop-lifecycle-source', revision: 0, multicamera: true });
+	fixture.main.seed(source);
+	await fixture.store.loadProject(String(source.id));
+	assert.deepEqual((await fixture.store.listProjects()).map(({ id }) => id), [source.id]);
+	const copy = await fixture.store.duplicateProject(String(source.id), {
+		id: 'desktop-lifecycle-copy',
+		title: 'Desktop lifecycle copy',
+	}) as FramescaperProjectV18;
+	assert.equal(copy.id, 'desktop-lifecycle-copy');
+	assert.equal(copy.revision, 0);
+	assert.equal(copy.multicameraGroups[0]?.projectId, 'desktop-lifecycle-copy');
+	assert.deepEqual(await fixture.localStore.loadProject(String(copy.id)), copy);
+	await fixture.store.deleteProject(String(source.id));
+	assert.equal(await fixture.localStore.loadProject(String(source.id)), null);
+	assert.deepEqual((await fixture.store.listProjects()).map(({ id }) => id), [copy.id]);
 	assert.deepEqual(fixture.store.getStatus(), fixture.localStore.getStatus());
 	assert.equal(await fixture.store.saveSetting('desktop-adapter', 'value'), 'value');
 	assert.equal(await fixture.localStore.loadSetting('desktop-adapter', null), 'value');
 	assert.equal(fixture.store.preservesProjectsOnClear(), true);
 	assert.equal(fixture.store.prepareProjectHandoff, undefined);
-	assert.deepEqual(await fixture.store.listProjects(), []);
 });
 
 test('desktop V10 main JSON and the exact V18 shadow preserve a nonempty subsequence graph', async (context) => {
@@ -229,6 +241,13 @@ class MainFixture {
 		this.api = Object.freeze({
 			connect: async () => { this.#connected = true; return createFramescaperDesktopProjectLibraryV10Handshake(); },
 			handshakeState: () => this.#connected ? 'admitted' : 'pending',
+			listProjects: async () => ({
+				metadataRevision: this.#metadataRevision,
+				projects: [...this.#projects.values()].map((project) => ({
+					id: String(project.id), title: String(project.title), revision: Number(project.revision),
+					updatedAt: String(project.updatedAt),
+				})),
+			}),
 			readProjectBundle: async (projectId: string) => {
 				this.reads.push(projectId);
 				const project = this.#projects.get(projectId);
@@ -239,6 +258,8 @@ class MainFixture {
 			writePublicationChunk: async () => { throw new Error('Format-1 fixture has no upload bodies.'); },
 			finishPublication: async (request: Record<string, unknown>) => this.#finish(request),
 			abortPublication: async () => { this.#active = null; return true; },
+			deleteProject: async (request: Record<string, unknown>) => this.#delete(request),
+			duplicateProject: async (request: Record<string, unknown>) => this.#duplicate(request),
 		});
 	}
 
@@ -281,6 +302,41 @@ class MainFixture {
 		this.#metadataRevision += 1;
 		this.#publications += 1;
 		return bundle(project, this.#metadataRevision);
+	}
+
+	#delete(request: Record<string, unknown>) {
+		const projectId = String(request.projectId);
+		const current = this.#projects.get(projectId);
+		assert.ok(current);
+		assert.equal(request.expectedMetadataRevision, this.#metadataRevision);
+		const expected = request.expectedProject as { projectRevision: number; projectSha256: string };
+		assert.equal(expected.projectRevision, current.revision);
+		assert.equal(expected.projectSha256, digest(new TextEncoder().encode(JSON.stringify(current))));
+		this.#projects.delete(projectId);
+		this.#metadataRevision += 1;
+		return { projectId, metadataRevision: this.#metadataRevision, deleted: true };
+	}
+
+	#duplicate(request: Record<string, unknown>) {
+		const sourceId = String(request.sourceProjectId);
+		const copyId = String(request.copyProjectId);
+		const source = this.#projects.get(sourceId);
+		assert.ok(source);
+		assert.equal(this.#projects.has(copyId), false);
+		assert.equal(request.expectedMetadataRevision, this.#metadataRevision);
+		const expected = request.expectedSource as { projectRevision: number; projectSha256: string };
+		assert.equal(expected.projectRevision, source.revision);
+		assert.equal(expected.projectSha256, digest(new TextEncoder().encode(JSON.stringify(source))));
+		const copy = structuredClone(source) as unknown as MutableFramescaperProject & FramescaperProjectV18;
+		copy.id = copyId;
+		copy.title = String(request.title);
+		copy.revision = 0;
+		copy.createdAt = String(request.timestamp);
+		copy.updatedAt = String(request.timestamp);
+		for (const group of copy.multicameraGroups) group.projectId = copyId;
+		this.#projects.set(copyId, copy);
+		this.#metadataRevision += 1;
+		return bundle(copy, this.#metadataRevision);
 	}
 }
 
@@ -385,10 +441,14 @@ function projectFixture(options: Readonly<{
 }
 
 interface MutableFramescaperProject extends Record<string, unknown> {
+	id: string;
 	revision: number;
 	title: string;
+	createdAt: string;
+	updatedAt: string;
 	multicameraGroups: Array<{
 		activeMemberId: string;
+		projectId: string;
 	}>;
 }
 
