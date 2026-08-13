@@ -155,7 +155,7 @@ test('videoProxy remains absent and unknown to both products and every current V
 
 test('creates fresh opaque identities over detached deeply frozen snapshots', () => {
 	const input = definition(EXPECTED.map((item) => ({ ...item })));
-	const inputRows = input.registrations as MutableRecord[];
+	const inputRows = input.registrations as unknown as MutableRecord[];
 	const first = createEditorProjectFeatureCapabilityProfile(input);
 	const second = createEditorProjectFeatureCapabilityProfile(definition());
 	const snapshot = editorProjectFeatureCapabilityProfileDefinition(first);
