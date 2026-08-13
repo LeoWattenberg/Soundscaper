@@ -195,10 +195,22 @@ test('propagates definition traps and refuses nonconforming proxy results', () =
 test('authenticates children in order without observing forged identities', () => {
 	const badPrerequisite = zeroTrapProxy({});
 	const badCapability = zeroTrapProxy({});
-	assert.throws(() => createEditorProjectRuntimeProfile(definition({
+	const events: string[] = [];
+	const badDefinition = new Proxy(definition({
 		prerequisite: badPrerequisite.proxy as EditorProjectRuntimeProfilePrerequisite,
 		capabilityProfile: badCapability.proxy as EditorProjectFeatureCapabilityProfile,
-	})), /prerequisite/iu);
+	}), {
+		getPrototypeOf(value) { events.push('prototype'); return Reflect.getPrototypeOf(value); },
+		ownKeys(value) { events.push('keys'); return Reflect.ownKeys(value); },
+		getOwnPropertyDescriptor(value, key) {
+			events.push(`descriptor:${String(key)}`);
+			return Reflect.getOwnPropertyDescriptor(value, key);
+		},
+	});
+	assert.throws(() => createEditorProjectRuntimeProfile(badDefinition), /prerequisite/iu);
+	assert.deepEqual(events, [
+		'prototype', 'keys', 'descriptor:prerequisite', 'descriptor:capabilityProfile',
+	]);
 	assert.deepEqual(badPrerequisite.hits, [0, 0, 0, 0]);
 	assert.deepEqual(badCapability.hits, [0, 0, 0, 0]);
 
@@ -217,6 +229,19 @@ test('authenticates children in order without observing forged identities', () =
 		capabilityProfile: wrappedCapability.proxy,
 	})), /capability/iu);
 	assert.deepEqual(wrappedCapability.hits, [0, 0, 0, 0]);
+
+	for (const target of [
+		{ ...FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE_PREREQUISITE },
+		structuredClone(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE_PREREQUISITE),
+	]) assert.throws(() => createEditorProjectRuntimeProfile(definition({
+		prerequisite: target as EditorProjectRuntimeProfilePrerequisite,
+	})), /prerequisite/iu);
+	for (const target of [
+		{ ...FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE },
+		structuredClone(FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE),
+	]) assert.throws(() => createEditorProjectRuntimeProfile(definition({
+		capabilityProfile: target as EditorProjectFeatureCapabilityProfile,
+	})), /capability/iu);
 });
 
 test('admits authentic same-owner children but owner and singleton authority stay exact', () => {
@@ -263,7 +288,9 @@ test('keeps the final singleton and module statically dormant outside its proof'
 	const genericPathReferences: string[] = [];
 	for (const file of files) {
 		const source = await readSource(file);
-		if (source.includes(PRODUCT_EXPORT)) exportReferences.push(file);
+		if (/\bFRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE\b/u.test(source)) {
+			exportReferences.push(file);
+		}
 		if (source.includes(PRODUCT_MODULE_STEM)) productPathReferences.push(file);
 		if (source.includes(GENERIC_MODULE_STEM)) genericPathReferences.push(file);
 	}
