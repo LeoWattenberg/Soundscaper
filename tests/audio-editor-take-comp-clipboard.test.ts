@@ -12,7 +12,11 @@ import {
 	collectAudioEditorClipboardSourceIds,
 	normalizeAudioEditorClipboardDescriptor,
 } from '../src/common/editor/commands/clipboard-codec.ts';
-import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import type { AudioEditorClipboard, AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import {
+	prepareTakeCompClipboardPasteIds,
+	stageTakeCompClipboardPaste,
+} from '../src/common/editor/commands/take-comp-clipboard.ts';
 import { createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { createAudioEditorSessionClipboard } from '../src/common/editor/session-clipboard-codec.ts';
@@ -131,6 +135,47 @@ test('one serializable paste restores a canonical, independently identified take
 		],
 	});
 	assert.deepEqual(source.takeGroups.map(({ id }) => id), ['group-a']);
+});
+
+test('downscaled cross-rate paste keeps every take boundary positive and ordered', () => {
+	const target = structuredClone(project()) as unknown as Record<string, unknown>;
+	const clipboard = {
+		schemaVersion: 4,
+		takeGroups: [{
+			key: 'group-a', sourceSequenceId: 'main-sequence', sourceTrackId: 'track-a',
+			startOffsetFrame: 0, endOffsetFrame: 5,
+			laneOrder: ['lane-a'],
+			lanes: [{ key: 'lane-a' }],
+			takes: [{
+				key: 'take-a', laneKey: 'lane-a', sourceId: 'take-source-a',
+				startOffsetFrame: 0, endOffsetFrame: 5, sourceStartFrame: 0,
+			}],
+			compRegions: [
+				{ key: 'region-a', takeKey: 'take-a', startOffsetFrame: 0, endOffsetFrame: 3 },
+				{ key: 'region-b', takeKey: 'take-a', startOffsetFrame: 3, endOffsetFrame: 5 },
+			],
+		}],
+	} as unknown as AudioEditorClipboard;
+	const command: Record<string, unknown> = {};
+	prepareTakeCompClipboardPasteIds(clipboard, command, idFactory());
+	const commit = stageTakeCompClipboardPaste(target, clipboard, command, 'reject', 1 / 12, {
+		placementFrameBySequenceId: new Map([['main-sequence', 600]]),
+	});
+	commit();
+	assert.deepEqual((target.takeGroups as readonly Record<string, unknown>[])[1], {
+		id: 'take-group-copy-1', sequenceId: 'main-sequence', trackId: 'track-a',
+		startSample: 600, endSample: 602,
+		laneOrder: ['take-lane-copy-1'],
+		lanes: [{ id: 'take-lane-copy-1' }],
+		takes: [{
+			id: 'take-copy-1', laneId: 'take-lane-copy-1', sourceId: 'take-source-a',
+			startSample: 600, endSample: 602, sourceStartSample: 0,
+		}],
+		compRegions: [
+			{ id: 'comp-region-copy-1', takeId: 'take-copy-1', startSample: 600, endSample: 601 },
+			{ id: 'comp-region-copy-2', takeId: 'take-copy-1', startSample: 601, endSample: 602 },
+		],
+	});
 });
 
 test('V4 normalization is closed, bounded, and refuses incomplete identity authority', () => {

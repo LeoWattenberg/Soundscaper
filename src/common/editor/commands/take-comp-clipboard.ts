@@ -356,29 +356,51 @@ function pastedGroup(
 	if (typeof anchor !== 'number' || !Number.isSafeInteger(anchor) || anchor < 0) {
 		throw new RangeError(`Target take sequence ${sequenceId} has no paste anchor.`);
 	}
-	const scaled = (value: number, label: string): number => {
-		const result = anchor + Math.round(value * scale);
-		if (!Number.isSafeInteger(result) || result < 0) throw new RangeError(`${label} exceeds the target timeline.`);
-		return result;
-	};
+	const scaled = scaledTakeBoundaries(group, anchor, scale);
+	const at = (value: number): number => scaled.get(value)!;
 	return {
 		id: maps.takeGroupIds[group.key], sequenceId, trackId,
-		startSample: scaled(group.startOffsetFrame, 'take group start'),
-		endSample: scaled(group.endOffsetFrame, 'take group end'),
+		startSample: at(group.startOffsetFrame),
+		endSample: at(group.endOffsetFrame),
 		laneOrder: group.laneOrder.map((key) => maps.takeLaneIds[key]),
 		lanes: group.lanes.map(({ key }) => ({ id: maps.takeLaneIds[key] })),
 		takes: group.takes.map((take) => ({
 			id: maps.takeIds[take.key], laneId: maps.takeLaneIds[take.laneKey], sourceId: take.sourceId,
-			startSample: scaled(take.startOffsetFrame, 'take start'),
-			endSample: scaled(take.endOffsetFrame, 'take end'),
+			startSample: at(take.startOffsetFrame),
+			endSample: at(take.endOffsetFrame),
 			sourceStartSample: take.sourceStartFrame,
 		})),
 		compRegions: group.compRegions.map((region) => ({
 			id: maps.compRegionIds[region.key], takeId: maps.takeIds[region.takeKey],
-			startSample: scaled(region.startOffsetFrame, 'comp region start'),
-			endSample: scaled(region.endOffsetFrame, 'comp region end'),
+			startSample: at(region.startOffsetFrame),
+			endSample: at(region.endOffsetFrame),
 		})),
 	};
+}
+
+/**
+ * Scale every boundary of one group through a single strictly increasing map so a
+ * downscaling paste keeps the minimum one-frame extent that plain clips already keep.
+ */
+function scaledTakeBoundaries(
+	group: ClipboardTakeGroup,
+	anchor: number,
+	scale: number,
+): ReadonlyMap<number, number> {
+	const offsets = [...new Set([
+		group.startOffsetFrame, group.endOffsetFrame,
+		...group.takes.flatMap(({ startOffsetFrame, endOffsetFrame }) => [startOffsetFrame, endOffsetFrame]),
+		...group.compRegions.flatMap(({ startOffsetFrame, endOffsetFrame }) => [startOffsetFrame, endOffsetFrame]),
+	])].sort((left, right) => left - right);
+	const scaled = new Map<number, number>();
+	let previous = -1;
+	for (const offset of offsets) {
+		const result = Math.max(anchor + Math.round(offset * scale), previous + 1);
+		if (!Number.isSafeInteger(result) || result < 0) throw new RangeError('Pasted take geometry exceeds the target timeline.');
+		scaled.set(offset, result);
+		previous = result;
+	}
+	return scaled;
 }
 
 function existingTargetGroups(
