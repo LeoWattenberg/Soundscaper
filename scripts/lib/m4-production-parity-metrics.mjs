@@ -48,7 +48,7 @@ export function compareM4ParityAudio(actual, reference, specification) {
 			);
 		}
 		const expected = impulseFrames[channel];
-		const observed = strongestFrame(actual[channel], expected, 64);
+		const observed = strongestFrame(actual[channel]);
 		pdcErrorSamples = Math.max(pdcErrorSamples, Math.abs(observed - expected));
 	}
 	return Object.freeze({ maximumAbsoluteSampleError, pdcErrorSamples });
@@ -179,10 +179,10 @@ function luminance(bytes, offset) {
 	) / 255;
 }
 
-function strongestFrame(channel, center, radius) {
-	let strongest = center;
+function strongestFrame(channel) {
+	let strongest = 0;
 	let magnitude = -1;
-	for (let frame = Math.max(0, center - radius); frame <= Math.min(channel.length - 1, center + radius); frame += 1) {
+	for (let frame = 0; frame < channel.length; frame += 1) {
 		const candidate = Math.abs(channel[frame]);
 		if (candidate > magnitude) {
 			strongest = frame;

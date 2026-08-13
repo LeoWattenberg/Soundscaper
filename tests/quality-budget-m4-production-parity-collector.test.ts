@@ -160,6 +160,27 @@ test('the M4 collector independently recomputes exactly five parity metrics', ()
 	assert.equal(Object.keys(result.metrics).length, 5);
 });
 
+test('the M4 collector reports gross PDC shifts outside the former local search window', () => {
+	const diagnostic = makeDiagnostic();
+	const audio = createM4ProductionParityAudioFixture();
+	const shifted = audio.reference.map((channel) => channel.slice());
+	const expected = diagnostic.fixture.outputImpulseFrames[0];
+	shifted[0]![expected] = 0.001;
+	shifted[0]![expected + 100] = 1;
+	diagnostic.audio.previewBase64 = toBase64(encodeM4ProductionParityAudio(shifted));
+
+	const result = createPendingM4ProductionParityResult(diagnostic, config);
+	assert.equal(result.metrics['parity.pdcErrorSamples'], 100);
+	assert.equal(result.status, 'failed');
+	shifted[0]![expected + 110] = -1;
+	diagnostic.audio.previewBase64 = toBase64(encodeM4ProductionParityAudio(shifted));
+	assert.equal(
+		createPendingM4ProductionParityResult(diagnostic, config)
+			.metrics['parity.pdcErrorSamples'],
+		100,
+	);
+});
+
 test('one deliberately unreported effect produces one omission and fails the zero budget', () => {
 	const result = createPendingM4ProductionParityResult(
 		makeDiagnostic('m4-deliberately-omitted-effect'),

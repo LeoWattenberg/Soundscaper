@@ -44,6 +44,24 @@ test('audio comparison reports maximum error and exact PDC impulse positions', (
 	assert.ok(compareM4ProductionParityAudio(shifted, fixture.reference).maximumAbsoluteSampleError >= 0.01);
 });
 
+test('audio comparison finds gross impulse shifts outside the former local search window', () => {
+	const fixture = createM4ProductionParityAudioFixture();
+	const shifted = fixture.reference.map((channel) => channel.slice());
+	const expected = M4_PRODUCTION_PARITY_SPECIFICATION.outputImpulseFrames[0];
+	shifted[0]![expected] = 0.001;
+	shifted[0]![expected + 100] = 1;
+
+	assert.equal(compareM4ProductionParityAudio(
+		shifted,
+		fixture.reference,
+	).pdcErrorSamples, 100);
+	shifted[0]![expected + 110] = -1;
+	assert.equal(compareM4ProductionParityAudio(
+		shifted,
+		fixture.reference,
+	).pdcErrorSamples, 100);
+});
+
 test('production PDC and gain scheduling plans are metric-sensitive', () => {
 	const fixture = createM4ProductionParityAudioFixture();
 	const plan = compileM4ProductionParityAudioPlan();

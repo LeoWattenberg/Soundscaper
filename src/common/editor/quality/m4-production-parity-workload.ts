@@ -206,18 +206,16 @@ export function compareM4ProductionParityAudio(
 	let pdcErrorSamples = 0;
 	for (let channel = 0; channel < CHANNEL_COUNT; channel += 1) {
 		const expectedFrame = OUTPUT_IMPULSE_FRAMES[channel]!;
-		const observedFrame = strongestFrame(actual[channel]!, expectedFrame, 64);
+		const observedFrame = strongestFrame(actual[channel]!);
 		pdcErrorSamples = Math.max(pdcErrorSamples, Math.abs(observedFrame - expectedFrame));
 	}
 	return Object.freeze({ maximumAbsoluteSampleError, pdcErrorSamples });
 }
 
-function strongestFrame(channel: Float32Array, center: number, radius: number): number {
-	let strongest = center;
+function strongestFrame(channel: Float32Array): number {
+	let strongest = 0;
 	let magnitude = -1;
-	const start = Math.max(0, center - radius);
-	const end = Math.min(channel.length - 1, center + radius);
-	for (let frame = start; frame <= end; frame += 1) {
+	for (let frame = 0; frame < channel.length; frame += 1) {
 		const candidate = Math.abs(channel[frame]!);
 		if (candidate > magnitude) {
 			strongest = frame;
