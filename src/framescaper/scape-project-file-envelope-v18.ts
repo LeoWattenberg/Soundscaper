@@ -14,6 +14,7 @@ import { ScapeExpandedByteBudget } from '../common/editor/scape-expanded-byte-bu
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { normalizeVideoTimingAssetReference } from '../common/editor/video-timing-asset.ts';
 import type { FramescaperProjectV18 } from './editor-project-v18.ts';
+import { assertFramescaperScapeFallbackAssetsV18 } from './scape-project-file-fallback-v18.ts';
 import {
 	inspectFramescaperScapeProjectEnvelopeV18,
 	type FramescaperScapeProjectEnvelopeInspectionV18,
@@ -87,6 +88,7 @@ export async function readFramescaperScapeFileEnvelopeV18(
 		profile, manifest, projectValue, 'continue',
 	);
 	validateCanonicalAssets(inspection.project, manifest.assets, inspection.proxyAssets);
+	assertFramescaperScapeFallbackAssetsV18(profile, inspection.project, manifest.assets);
 	throwIfScapeAborted(signal);
 	return Object.freeze({
 		entries,

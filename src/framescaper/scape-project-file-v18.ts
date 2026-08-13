@@ -248,7 +248,13 @@ export class FramescaperScapeProjectFileV18 {
 		project: unknown,
 		options: FramescaperScapeFileExportOptionsV18 = {},
 	): Promise<Readonly<FramescaperScapeFileExportResultV18>> => (
-		exportFramescaperScapeProjectFileV18(project, this.#store, this.#archive, options)
+		exportFramescaperScapeProjectFileV18(
+			this.#profile,
+			project,
+			this.#store,
+			this.#archive,
+			options,
+		)
 	);
 
 	async #readEnvelope(

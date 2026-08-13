@@ -25,6 +25,7 @@ import {
 import { FramescaperScapeArchiveV18 } from '../src/framescaper/scape-project-preservation-v18.ts';
 import {
 	ARCHIVE_ORIGINAL_BYTES,
+	ARCHIVE_ORIGINAL_SHA,
 	ARCHIVE_PROJECT_ID,
 	ARCHIVE_PROXY_BYTES,
 	ARCHIVE_TIMING,
@@ -89,6 +90,11 @@ test('V18 export writes complete format-1 and format-2 ZIPs that its inspector a
 	assert.equal((await fixture.file.inspectScapeProject(
 		allNull.blob!, null, { signal: new AbortController().signal }, { retain() {} },
 	)).readOnly, false);
+
+	await assert.rejects(
+		fixture.file.exportProject(videoFallbackProject('ff'.repeat(32))),
+		/fallback.*(?:binding|digest)|descriptor.*fallback/iu,
+	);
 });
 
 test('V18 import keeps the exact inspected envelope alive through canonical staging and atomic publication', async (context) => {
@@ -337,4 +343,25 @@ async function rawArchive(project: unknown, manifest: unknown): Promise<Blob> {
 	await writer.add('media/archive-video/original', new Uint8ArrayReader(ARCHIVE_ORIGINAL_BYTES), { level: 0 });
 	await writer.add('manifest.json', new TextReader(JSON.stringify(manifest)), { level: 0 });
 	return writer.close();
+}
+
+function videoFallbackProject(sha256 = ARCHIVE_ORIGINAL_SHA): unknown {
+	const project = structuredClone(archiveProject({ attached: false })) as unknown as Record<string, unknown>;
+	const manifest = project.featureRequirements as { schemaVersion: 2; requirements: unknown[] };
+	project.featureRequirements = {
+		schemaVersion: manifest.schemaVersion,
+		requirements: [...manifest.requirements, {
+			id: 'test.future-video-render',
+			featureId: 'org.example.future-video-render',
+			displayName: 'Future video render',
+			disposition: 'rendered-fallback',
+			fallback: {
+				role: 'project-video-render-v1',
+				kind: 'video',
+				sourceId: 'archive-video',
+				sha256,
+			},
+		}],
+	};
+	return project;
 }

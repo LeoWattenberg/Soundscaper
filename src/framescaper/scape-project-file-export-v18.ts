@@ -28,6 +28,9 @@ import {
 } from '../common/editor/scape-export-plan.ts';
 import { assertScapeProjectFallbackAssets } from '../common/editor/scape-project-assets.ts';
 import { canonicalMediaContentBlob } from '../common/editor/storage/media-content-digest.ts';
+import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { assertFramescaperScapeFallbackAssetsV18 } from './scape-project-file-fallback-v18.ts';
+import { cloneFramescaperProjectV18 } from './editor-project-v18.ts';
 import type {
 	FramescaperScapeArchiveBodyStoreV18,
 	FramescaperScapeArchiveExportAssetV18,
@@ -75,6 +78,7 @@ const EMPTY_DIGEST = '0'.repeat(64);
 const TEXT_ENCODER = new TextEncoder();
 
 export async function exportFramescaperScapeProjectFileV18(
+	profile: EditorProjectRuntimeProfile | unknown,
 	project: unknown,
 	store: FramescaperScapeFileExportStoreV18,
 	archive: ArchiveExportOwner,
@@ -82,13 +86,14 @@ export async function exportFramescaperScapeProjectFileV18(
 ): Promise<Readonly<FramescaperScapeFileExportResultV18>> {
 	const normalized = exportOptions(options);
 	const { signal } = normalized;
+	const snapshot = cloneFramescaperProjectV18(profile, project);
 	throwIfScapeAborted(signal);
-	const plan = await prepareScapeExport(project, store, {
+	const plan = await prepareScapeExport(snapshot, store, {
 		maximumBlobBytes: normalized.maximumBlobBytes,
 		output: normalized.writable || normalized.createWritable ? 'stream' : 'blob',
 		...(signal ? { signal } : {}),
 	});
-	const extension = await archive.exportProject(project, signal ? { signal } : {});
+	const extension = await archive.exportProject(snapshot, signal ? { signal } : {});
 	const merged = mergeDescriptors(plan.assets, extension.assets);
 	const placeholderManifest = manifestValue(
 		extension.formatVersion,
@@ -148,6 +153,7 @@ export async function exportFramescaperScapeProjectFileV18(
 			plan.fallbackClaims,
 			new Map(canonicalAssets.map((asset) => [asset.sourceId, asset])),
 		);
+		assertFramescaperScapeFallbackAssetsV18(profile, snapshot, canonicalAssets);
 		manifest = manifestValue(extension.formatVersion, plan.createdAt, plan.projectDescriptor, assets);
 		const manifestText = JSON.stringify(manifest);
 		if (TEXT_ENCODER.encode(manifestText).byteLength !== manifestBytes) {
