@@ -40,6 +40,7 @@ test('all-null V18 stays format 1 without retained-body reads', async (context) 
 test('format-2 export authenticates exact row roles and both immutable bodies', async (context) => {
 	const fixture = await setup(context);
 	await seedBodies(fixture.storage);
+	fixture.storage.store.calls.metadata = 0;
 	const result = await fixture.archive.exportProject(archiveProject());
 
 	assert.equal(result.formatVersion, 2);

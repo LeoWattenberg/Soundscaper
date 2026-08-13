@@ -175,7 +175,7 @@ test('rejects descriptor accessors without running them and cancellation exposes
 		/\b(?:getData|readBody|writeBody|beginMediaAssetWrite|loadMediaAsset|saveProject|store|repository|Blob|ReadableStream|WritableStream)\b/u);
 });
 
-test('stays dormant in Framescaper and leaves the V17 archive envelope unchanged', async () => {
+test('stays within the dormant V18 preservation path and leaves the V17 archive envelope unchanged', async () => {
 	const references: string[] = [];
 	for (const file of await sourceFiles(['src', 'desktop', 'scripts', 'tests'])) {
 		if ((await readFile(resolve(ROOT, file), 'utf8')).includes('scape-project-envelope-v18')) {
@@ -183,6 +183,7 @@ test('stays dormant in Framescaper and leaves the V17 archive envelope unchanged
 		}
 	}
 	assert.deepEqual(references, [
+		'src/framescaper/scape-project-preservation-v18.ts',
 		'tests/audio-editor-framescaper-project-runtime-profile.test.ts',
 		TEST_MODULE,
 		'tests/audio-editor-scape-video-proxy-archive-plan-v2.test.ts',

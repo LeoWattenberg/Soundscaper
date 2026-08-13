@@ -193,13 +193,15 @@ test('enforces proxy identity, body bounds, timing binding, and the archive entr
 	assert.throws(() => planScapeVideoProxyArchiveAssetsV2(references), /entry|asset|limit|many/iu);
 });
 
-test('remains dormant outside its focused proof and cannot change the V17 archive owner', async () => {
+test('has only closed dormant V18 consumers and cannot change the V17 archive owner', async () => {
 	const references: string[] = [];
 	for (const file of await sourceFiles(['src', 'desktop', 'scripts', 'tests'])) {
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
 	assert.deepEqual(references, [
 		'src/framescaper/scape-project-envelope-v18.ts',
+		'src/framescaper/scape-project-preservation-v18-support.ts',
+		'src/framescaper/scape-project-preservation-v18.ts',
 		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
 		TEST_MODULE,
 	]);

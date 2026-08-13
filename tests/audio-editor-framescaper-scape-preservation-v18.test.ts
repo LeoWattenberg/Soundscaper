@@ -13,7 +13,6 @@ import {
 import {
 	ARCHIVE_PROJECT_ID,
 	ARCHIVE_PROXY_SHA,
-	ARCHIVE_SOURCE_ID,
 	ARCHIVE_TIMING,
 	archiveCopy,
 	archiveEntries,
@@ -45,7 +44,17 @@ test('Cancel completes after metadata inspection with zero entry, store, or clai
 	assert.equal(entryGets, 0);
 	assert.deepEqual(fixture.storage.store.calls, { metadata: 0, load: 0, begin: 0 });
 	assert.deepEqual(await claimInventory(fixture.storage.database), []);
-	assert.equal(await storedValue(fixture.storage.database, 'projects', project.id), undefined);
+	assert.equal(await storedValue(fixture.storage.database, 'projects', String(project.id)), undefined);
+
+	const allNull = archiveProject({ attached: false });
+	const format1Manifest = { ...archiveManifest(allNull), formatVersion: 1, assets: [
+		(archiveManifest(allNull).assets as unknown[])[0],
+	] };
+	assert.equal((await fixture.archive.importProject({
+		manifest: format1Manifest, project: allNull, decision: 'cancel', entries,
+		operationId: 'archive-cancel-format-1', publication: { mode: 'create' },
+	})).formatVersion, 1);
+	assert.equal(entryGets, 0);
 });
 
 test('create verifies and stages both bodies before one claim-authenticated publication', async (context) => {
@@ -66,10 +75,10 @@ test('create verifies and stages both bodies before one claim-authenticated publ
 		`proxy/${ARCHIVE_PROXY_SHA}/body`,
 		`timing/${ARCHIVE_TIMING.reference.sha256}.scti`,
 	]);
-	assert.deepEqual(await storedValue(fixture.storage.database, 'projects', project.id), project);
+	assert.deepEqual(await storedValue(fixture.storage.database, 'projects', String(project.id)), project);
 	assert.deepEqual(
-		await storedValue(fixture.storage.database, 'revisions', revisionKey(project.id, 3)),
-		{ key: revisionKey(project.id, 3), projectId: project.id, revision: 3, project },
+		await storedValue(fixture.storage.database, 'revisions', revisionKey(String(project.id), 3)),
+		{ key: revisionKey(String(project.id), 3), projectId: project.id, revision: 3, project },
 	);
 	assert.deepEqual(await claimInventory(fixture.storage.database), []);
 	for (const key of [
@@ -92,11 +101,11 @@ test('collision copy preserves exact attachments and bodies under a fresh projec
 	});
 	assert.equal(result.status, 'published');
 	assert.deepEqual(result.project, copy);
-	assert.equal(await storedValue(fixture.storage.database, 'projects', origin.id), undefined);
-	assert.deepEqual(await storedValue(fixture.storage.database, 'projects', copy.id), copy);
+	assert.equal(await storedValue(fixture.storage.database, 'projects', String(origin.id)), undefined);
+	assert.deepEqual(await storedValue(fixture.storage.database, 'projects', String(copy.id)), copy);
 	assert.deepEqual(
-		await storedValue(fixture.storage.database, 'revisions', revisionKey(copy.id, 0)),
-		{ key: revisionKey(copy.id, 0), projectId: copy.id, revision: 0, project: copy },
+		await storedValue(fixture.storage.database, 'revisions', revisionKey(String(copy.id), 0)),
+		{ key: revisionKey(String(copy.id), 0), projectId: copy.id, revision: 0, project: copy },
 	);
 });
 
@@ -192,7 +201,7 @@ function replacement(
 	expected: FramescaperProjectV18,
 ): FramescaperProjectV18 {
 	return {
-		...structuredClone(origin), id: expected.id, revision: expected.revision + 1,
+		...structuredClone(origin), id: expected.id, revision: Number(expected.revision) + 1,
 		createdAt: expected.createdAt, updatedAt: '2026-08-13T12:00:00.000Z',
 	};
 }
@@ -201,7 +210,7 @@ async function seedProject(database: IDBDatabase, project: FramescaperProjectV18
 	await transact(database, ['projects', 'revisions'], 'readwrite', ({ projects, revisions }) => {
 		projects.put(project);
 		revisions.put({
-			key: revisionKey(project.id, project.revision), projectId: project.id,
+			key: revisionKey(String(project.id), Number(project.revision)), projectId: project.id,
 			revision: project.revision, project,
 		});
 	});

@@ -170,6 +170,7 @@ export async function createFramescaperV18ArchiveFixture(
 ): Promise<FramescaperV18ArchiveFixture> {
 	const databaseName = 'kw-media-framescaper-editor-v18';
 	const database = await openDatabase(createInstrumentedIndexedDB() as unknown as IDBFactory, databaseName);
+	if (database.name === undefined) Object.defineProperty(database, 'name', { value: databaseName });
 	context.after(() => database.close());
 	const port: StorageRepositoryPort = {
 		memory: getMemoryDatabase(`${databaseName}-${Math.random().toString(36).slice(2)}`),
@@ -236,7 +237,7 @@ export function archiveManifest(project: FramescaperProjectV18): Record<string, 
 	return {
 		format: 'scape-project', formatVersion: 2, createdAt: '2026-08-13T10:00:00.000Z',
 		project: {
-			entry: 'project.json', mimeType: 'application/json', schemaVersion: 18,
+			entry: 'project.json', mimeType: 'application/json', schemaVersion: project.schemaVersion,
 			size: 4_096, sha256: '78'.repeat(32),
 		},
 		assets: [{
