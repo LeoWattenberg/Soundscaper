@@ -19,6 +19,10 @@ const enabled: EditorCommandCapabilities = {
 	trackFolders: true,
 	videoEffects: true,
 };
+const authoredWarpMap = { feature: 'audio-warp', points: [
+	{ outer: 0, source: 0, mode: 'forward' },
+	{ outer: 1, source: 1, mode: 'forward' },
+] };
 
 test('command capability policy accepts unrestricted commands and recursively validates batches', () => {
 	assert.doesNotThrow(() => assertEditorCommandCapabilities(
@@ -83,6 +87,13 @@ test('command capability policy covers every product-sensitive payload path', ()
 		{ capability: 'takeComp', command: { type: 'take-comp/group-remove', groupId: 'group' } },
 		{ capability: 'audioWarp', command: { type: 'audio-warp/clear', clipId: 'clip', expectedClipAuthority: {} } },
 		{ capability: 'audioWarp', command: { type: 'audio-warp/quantize', clipId: 'clip', expectedClipAuthority: {}, transientSources: [], options: {} } },
+		{ capability: 'audioWarp', command: { type: 'clip/add', trackId: 'track', clip: { id: 'clip', warpMap: authoredWarpMap } } },
+		{ capability: 'audioWarp', command: { type: 'project-bin/add', clip: { id: 'clip', warpMap: authoredWarpMap } } },
+		{ capability: 'audioWarp', command: { type: 'clip/overwrite', clipId: 'clip', changes: { warpMap: authoredWarpMap } } },
+		{ capability: 'audioWarp', command: {
+			type: 'take-comp/flatten', groupId: 'group', operationId: 'operation', outputId: 'output',
+			preFlattenSnapshot: {}, source: {}, clip: { id: 'clip', warpMap: authoredWarpMap },
+		} },
 	];
 
 	for (const { capability, command } of cases) {
@@ -92,6 +103,49 @@ test('command capability policy covers every product-sensitive payload path', ()
 			`${command.type} must require ${capability}`,
 		);
 	}
+});
+
+test('capability policy inspects clipboard clip warp maps across every supported schema', () => {
+	for (const schemaVersion of [1, 2, 3, 4] as const) {
+		const clipboard = {
+			schemaVersion,
+			sampleRate: 48_000,
+			durationFrames: 1,
+			tracks: [{
+				sourceTrackId: 'track', sourceTrackName: 'Track', sourceTrackType: 'audio' as const,
+				sourceSequenceId: 'main', clips: [{ id: 'clip', warpMap: authoredWarpMap }],
+			}],
+			...(schemaVersion >= 3 ? { annotations: [] } : {}),
+			...(schemaVersion === 4 ? { takeGroups: [] } : {}),
+		} as unknown as AudioEditorClipboard;
+		assert.throws(
+			() => assertEditorCommandCapabilities(
+				{ type: 'clipboard/paste', clipboard, atFrame: 0 },
+				{ ...enabled, audioWarp: false },
+				'Framescaper',
+			),
+			/Framescaper does not support audioWarp\./u,
+			`clipboard V${String(schemaVersion)} must not introduce audio warp state`,
+		);
+	}
+});
+
+test('capability policy refuses disguised warp maps without invoking accessors', () => {
+	let gets = 0;
+	const clip = { id: 'clip' } as Record<string, unknown>;
+	Object.defineProperty(clip, 'warpMap', {
+		enumerable: true,
+		get() { gets += 1; return authoredWarpMap; },
+	});
+	assert.throws(
+		() => assertEditorCommandCapabilities(
+			{ type: 'clip/add', trackId: 'track', clip } as AudioEditorCommand,
+			{ ...enabled, audioWarp: false },
+			'Framescaper',
+		),
+		/Framescaper does not support audioWarp\./u,
+	);
+	assert.equal(gets, 0);
 });
 
 test('capability policy inspects V4 take group payloads and permits take-free V4 media', () => {

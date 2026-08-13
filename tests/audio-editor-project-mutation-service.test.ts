@@ -116,6 +116,27 @@ test('read-only mutation fails before command execution', () => {
 	assert.equal(executed, 0);
 });
 
+test('disabled audio warp rejects authored clip state before command execution', () => {
+	let executed = 0;
+	const fixture = mutationFixture({
+		capabilities: {
+			audioEffects: true, audioRecording: false, audioSpectralEditing: false,
+			audioWarp: false, takeComp: false, timelineAnnotations: false,
+			videoEffects: true, trackFolders: false,
+		},
+		executeHistory: (history) => { executed += 1; return history; },
+	});
+	assert.throws(
+		() => fixture.service.commit({
+			type: 'clip/add', trackId: 'track-a', clip: {
+				id: 'warped', warpMap: { feature: 'audio-warp', points: [] },
+			},
+		}),
+		/Test editor does not support audioWarp\./u,
+	);
+	assert.equal(executed, 0);
+});
+
 test('pending take cycle recovery fails every command mutation before execution', () => {
 	let executed = 0;
 	const fixture = mutationFixture({
@@ -254,6 +275,11 @@ interface FixtureOverrides {
 	readonly assertProject?: (token: Readonly<{ projectId: string; generation: number }>) => void;
 	readonly handleError?: (error: unknown) => void;
 	readonly synchronizeAnnotationFocus?: () => void;
+	readonly capabilities?: Readonly<{
+		audioEffects: boolean; audioRecording: boolean; audioSpectralEditing: boolean;
+		audioWarp: boolean; takeComp: boolean; timelineAnnotations: boolean;
+		videoEffects: boolean; trackFolders: boolean;
+	}>;
 }
 
 function mutationFixture(overrides: FixtureOverrides = {}) {
@@ -279,7 +305,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		},
 		state,
 		productName: 'Test editor',
-		capabilities: {
+		capabilities: overrides.capabilities || {
 			audioEffects: true, audioRecording: true, audioSpectralEditing: true,
 			audioWarp: true, takeComp: true,
 			timelineAnnotations: true, videoEffects: true, trackFolders: true,
