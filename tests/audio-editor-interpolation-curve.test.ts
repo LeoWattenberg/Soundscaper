@@ -104,6 +104,17 @@ test('inverse returns exact rational roots, plateau ranges, and enclosing intege
 	assert.deepEqual(invertInterpolationCurve(eased, -4), [{
 		kind: 'bracket', lower: rational(1), upper: rational(2),
 	}], 'a non-exact smoothstep root remains an authoritative integer-cell bracket');
+
+	const exactEased = compileInterpolationCurve({
+		anchors: [
+			{ position: rational(0), value: 0 },
+			{ position: rational(1), value: 1 },
+		],
+		segments: [{ kind: 'eased' }],
+	});
+	assert.deepEqual(invertInterpolationCurve(exactEased, 0.5), [{
+		kind: 'point', position: rational(1, 2),
+	}]);
 });
 
 test('Bézier inversion supports monotone values and rejects nonmonotone value handles without blocking evaluation', () => {
@@ -120,6 +131,37 @@ test('Bézier inversion supports monotone values and rejects nonmonotone value h
 	});
 	assert.ok(Math.abs(evaluateInterpolationCurve(monotone, 5) - 5) <= 1e-12);
 	assert.deepEqual(invertInterpolationCurve(monotone, 5), [{ kind: 'point', position: rational(5) }]);
+	const identity = compileInterpolationCurve({
+		anchors: [
+			{ position: rational(0), value: 0 },
+			{ position: rational(1), value: 1 },
+		],
+		segments: [{
+			kind: 'bezier',
+			control1: { position: rational(1, 3), value: 1 / 3 },
+			control2: { position: rational(2, 3), value: 2 / 3 },
+		}],
+	});
+	assert.equal(evaluateInterpolationCurve(identity, rational(1, 2)), 0.5);
+	assert.deepEqual(invertInterpolationCurve(identity, 0.5), [{
+		kind: 'point', position: rational(1, 2),
+	}]);
+
+	const derivativeMonotone = compileInterpolationCurve({
+		anchors: [
+			{ position: rational(0), value: 0 },
+			{ position: rational(1), value: 2 },
+		],
+		segments: [{
+			kind: 'bezier',
+			control1: { position: rational(1, 3), value: 1 },
+			control2: { position: rational(2, 3), value: 0.9 },
+		}],
+	});
+	const derivativeTarget = evaluateInterpolationCurve(derivativeMonotone, rational(1, 2));
+	assert.deepEqual(invertInterpolationCurve(derivativeMonotone, derivativeTarget), [{
+		kind: 'point', position: rational(1, 2),
+	}], 'actual cubic derivative monotonicity admits an unordered but strictly increasing control polygon');
 
 	const nonmonotone = compileInterpolationCurve({
 		anchors: [
@@ -259,13 +301,42 @@ test('generated exact rational linear roots remain points instead of integer-cel
 	}], 'a rational algebra candidate is not promoted when evaluator rechecking differs');
 });
 
-test('compile admits 4096 segments, rejects the next one, and bounds hostile rational inputs', () => {
+test('generated eased and Bézier rational roots are recovered before irrational brackets', () => {
+	const shapes = [{ kind: 'eased' as const }, {
+		kind: 'bezier' as const,
+		control1: { position: rational(1, 3), value: 1 / 3 },
+		control2: { position: rational(2, 3), value: 2 / 3 },
+	}];
+	for (const shape of shapes) {
+		const curve = compileInterpolationCurve({
+			anchors: [
+				{ position: rational(0), value: 0 },
+				{ position: rational(1), value: 1 },
+			],
+			segments: [shape],
+		});
+		for (const denominator of [3, 5, 7, 11]) {
+			for (let numerator = 1; numerator < denominator; numerator += 1) {
+				const position = rational(numerator, denominator);
+				const target = evaluateInterpolationCurve(curve, position);
+				assert.deepEqual(invertInterpolationCurve(curve, target), [{ kind: 'point', position }]);
+			}
+		}
+	}
+});
+
+test('compiler admits legacy synthetic segments while retaining a hostile-input ceiling', () => {
 	const maximum = linearInput(4_096);
 	const compiled = compileInterpolationCurve(maximum);
 	assert.deepEqual(invertInterpolationCurve(compiled, 2_048), [{
 		kind: 'point', position: rational(2_048),
 	}]);
-	assert.throws(() => compileInterpolationCurve(linearInput(4_097)), /4096|segment|maximum|through/iu);
+	assert.doesNotThrow(() => compileInterpolationCurve(linearInput(4_097)),
+		'legacy envelope adapters may add two synthetic endpoints around 4096 admitted points');
+	assert.throws(() => compileInterpolationCurve({
+		anchors: baseInput().anchors,
+		segments: Array.from({ length: 100_001 }, () => ({ kind: 'linear' })),
+	}), /100000|segment|maximum|through/iu);
 	assert.throws(() => compileInterpolationCurve({
 		...baseInput(),
 		anchors: [
@@ -277,6 +348,26 @@ test('compile admits 4096 segments, rejects the next one, and bounds hostile rat
 		num: Number.MAX_SAFE_INTEGER,
 		den: Number.MAX_SAFE_INTEGER - 1,
 	}), /1000000|denominator|rational/iu);
+});
+
+test('non-exact inversion at the maximum-safe endpoint never creates an unsafe sentinel', () => {
+	const maximum = Number.MAX_SAFE_INTEGER;
+	const curve = compileInterpolationCurve({
+		anchors: [
+			{ position: rational(0), value: 0 },
+			{ position: rational(maximum), value: 1 },
+		],
+		segments: [{ kind: 'eased' }],
+	});
+	const occurrences = invertInterpolationCurve(curve, 0.25);
+	assert.equal(occurrences.length, 1);
+	const occurrence = occurrences[0];
+	assert.equal(occurrence?.kind, 'bracket');
+	if (occurrence?.kind !== 'bracket') return;
+	assert.equal(Number.isSafeInteger(occurrence.lower.num), true);
+	assert.equal(Number.isSafeInteger(occurrence.upper.num), true);
+	assert.equal(occurrence.upper.num <= maximum, true);
+	assert.equal(occurrence.upper.num - occurrence.lower.num, 1);
 });
 
 test('44.1 kHz by 24 fps half-frame ties remain exact until one named rounding policy is chosen', () => {
@@ -295,6 +386,30 @@ test('44.1 kHz by 24 fps half-frame ties remain exact until one named rounding p
 	assert.equal(roundRational(3_675, 2, 'point'), 1_838);
 	assert.equal(roundRational(3_675, 2, 'enclosingStart'), 1_837);
 	assert.equal(roundRational(3_675, 2, 'enclosingEnd'), 1_838);
+});
+
+test('finite extreme values evaluate finitely for every interpolation shape', () => {
+	const maximum = Number.MAX_VALUE;
+	const shapes = [{ kind: 'linear' as const }, { kind: 'eased' as const }, {
+		kind: 'bezier' as const,
+		control1: { position: rational(1, 3), value: maximum },
+		control2: { position: rational(2, 3), value: -maximum },
+	}];
+	for (const shape of shapes) {
+		const curve = compileInterpolationCurve({
+			anchors: [
+				{ position: rational(0), value: maximum },
+				{ position: rational(1), value: -maximum },
+			],
+			segments: [shape],
+		});
+		for (let step = 0; step <= 64; step += 1) {
+			const value = evaluateInterpolationCurve(curve, rational(step, 64));
+			assert.equal(Number.isFinite(value), true, `${shape.kind} step ${String(step)}`);
+			assert.ok(value <= maximum && value >= -maximum);
+		}
+		assert.equal(evaluateInterpolationCurve(curve, rational(1, 2)), 0);
+	}
 });
 
 function baseInput() {

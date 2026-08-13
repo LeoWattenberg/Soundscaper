@@ -7,7 +7,9 @@ import { createEnvelopeValueEvaluator } from '../src/common/editor/automation.js
 import {
 	compileBreakpointInterpolationCurve,
 	compileEnvelopeInterpolationCurve,
+	compileVideoRetimeInterpolationAdapter,
 	compileVideoRetimeInterpolationCurve,
+	evaluateVideoRetimeInterpolationAdapter,
 } from '../src/common/editor/interpolation-adapters.ts';
 import { evaluateInterpolationCurve } from '../src/common/editor/interpolation-curve.ts';
 import { evaluateBreakpointMap } from '../src/common/editor/timeline-time.ts';
@@ -34,6 +36,21 @@ test('legacy envelope interpolation is a linear vocabulary subset with unity end
 	assert.equal(evaluateInterpolationCurve(unity, 0), 1);
 	assert.equal(evaluateInterpolationCurve(unity, 10), 1);
 	assert.equal(evaluateInterpolationCurve(unity, 20), 1);
+});
+
+test('legacy envelope adapter preserves 4096 interior points plus its two implicit endpoints', () => {
+	const duration = 4_097;
+	const points = Array.from({ length: 4_096 }, (_, index) => ({
+		frame: index + 1,
+		value: (index % 16) / 16,
+	}));
+	const expected = createEnvelopeValueEvaluator(points, duration);
+	const curve = compileEnvelopeInterpolationCurve(points, duration);
+	assert.equal(curve.anchors.length, 4_098);
+	assert.equal(curve.segments.length, 4_097);
+	for (const frame of [0, 1, 2_047, 4_095, 4_096, 4_097]) {
+		assert.equal(evaluateInterpolationCurve(curve, frame), expected(frame));
+	}
 });
 
 test('audio-warp and video-breakpoint maps retain exact linear/freeze behavior through the adapter', () => {
@@ -99,4 +116,39 @@ test('V2 retime constants, freeze, reverse, and exact ramps map to vocabulary se
 		) <= 1e-11, `outer ${String(numerator)}/2`);
 	}
 	assert.deepEqual(input, before, 'the adapter must not rewrite the existing wire');
+});
+
+test('V2 maximum-safe ramps use exact integer origins and bounded local Rational handles', () => {
+	const maximum = Number.MAX_SAFE_INTEGER;
+	const input = {
+		version: 2 as const,
+		outerFrameCount: maximum,
+		sourceStartFrame: 0,
+		sourceFrameCount: 1,
+		points: [
+			{ outerFrame: 0, sourceFrame: rational(0) },
+			{ outerFrame: maximum, sourceFrame: rational(1) },
+		],
+		segments: [{
+			mode: 'ramp-forward' as const,
+			startVelocity: rational(0),
+			endVelocity: rational(2, maximum),
+		}],
+	};
+	const retime = compileVideoRetimeCurve(input);
+	assert.throws(() => compileVideoRetimeInterpolationCurve(input), /absolute|handle|rational domain/iu,
+		'a single absolute curve reports its truthful Rational handle limit');
+	const adapter = compileVideoRetimeInterpolationAdapter(input);
+	assert.equal(adapter.pieces.length, 2);
+	assert.deepEqual(adapter.pieces.map((piece) => piece.origin), [rational(0), rational(maximum - 1)]);
+	for (const piece of adapter.pieces) {
+		assert.equal(piece.curve.segments[0]?.kind, 'bezier');
+		assert.doesNotThrow(() => JSON.stringify(piece), 'piece metadata and local curves remain JSON-compatible');
+	}
+	for (const outer of [rational(0), rational(1, 2), rational(1), rational(1_000_001, 2),
+		rational(Math.floor(maximum / 2)), rational(maximum - 1), rational(maximum)]) {
+		const expected = evaluateVideoRetimeCurve(retime, outer);
+		const actual = evaluateVideoRetimeInterpolationAdapter(adapter, outer);
+		assert.ok(Math.abs(actual - Number(expected.numerator) / Number(expected.denominator)) <= 1e-15);
+	}
 });

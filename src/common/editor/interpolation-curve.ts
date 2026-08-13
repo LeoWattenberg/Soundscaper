@@ -6,6 +6,26 @@ import {
 	readClosedDomainRecord,
 } from './closed-domain-value.ts';
 import {
+	addFractions,
+	approximateBoundedFraction,
+	compareFractions,
+	cubicFraction,
+	cubicValueDirection,
+	divideFractions,
+	exactFraction,
+	fractionNumber,
+	integerFraction,
+	interpolateFraction,
+	multiplyFractions,
+	numberFraction,
+	publicFraction,
+	stableCubic,
+	stableInterpolate,
+	subtractFractions,
+	ZERO_FRACTION,
+	type ExactInterpolationFraction,
+} from './interpolation-curve-math.ts';
+import {
 	normalizeRational,
 	roundRational,
 	type Rational,
@@ -37,12 +57,11 @@ export type InverseOccurrence = Readonly<
 	| { kind: 'bracket'; lower: Rational; upper: Rational }
 >;
 
-interface Fraction { readonly numerator: bigint; readonly denominator: bigint }
-interface InternalAnchor { readonly position: Fraction; readonly value: number }
+interface InternalAnchor { readonly position: ExactInterpolationFraction; readonly value: number }
 interface InternalShape {
 	readonly kind: InterpolationShape['kind'];
-	readonly control1Position: Fraction | null;
-	readonly control2Position: Fraction | null;
+	readonly control1Position: ExactInterpolationFraction | null;
+	readonly control2Position: ExactInterpolationFraction | null;
 	readonly control1Value: number | null;
 	readonly control2Value: number | null;
 }
@@ -59,9 +78,9 @@ interface InternalCurve {
 	readonly segments: readonly InternalSegment[];
 }
 
-// Preserve the admitted V2 retime ceiling. Persisted 4A lanes apply their
-// separate 4,096-point wire cap before they reach this schema-neutral module.
-const MAXIMUM_SEGMENTS = 4_096;
+// This hostile-input ceiling mirrors the project traversal ceiling while admitting
+// synthetic legacy-envelope endpoints. 4A lanes retain a separate 4,096-point wire cap.
+const MAXIMUM_SEGMENTS = 100_000;
 const BISECTION_STEPS = 64;
 const COMPILED_CURVES = new WeakMap<CompiledInterpolationCurve, InternalCurve>();
 
@@ -87,10 +106,10 @@ export function compileInterpolationCurve(value: unknown): CompiledInterpolation
 		const record = readClosedDomainRecord(candidate, name, ['position', 'value']);
 		const position = inputPosition(readClosedDomainField(record, 'position', name), `${name}.position`);
 		const value = finiteValue(readClosedDomainField(record, 'value', name), `${name}.value`);
-		if (index === 0 && compare(position.exact, ZERO) < 0) {
+		if (index === 0 && compareFractions(position.exact, ZERO_FRACTION) < 0) {
 			throw new RangeError('Interpolation curve positions must be non-negative clip-relative values.');
 		}
-		if (index > 0 && compare(nonNullable(anchors[index - 1]).position, position.exact) >= 0) {
+		if (index > 0 && compareFractions(nonNullable(anchors[index - 1]).position, position.exact) >= 0) {
 			throw new RangeError('Interpolation curve anchor positions must be strictly increasing.');
 		}
 		publicAnchors.push(Object.freeze({ position: position.public, value }));
@@ -136,8 +155,8 @@ export function evaluateInterpolationCurve(
 	const position = queryPosition(positionValue, 'position');
 	const first = nonNullable(curve.anchors[0]);
 	const last = nonNullable(curve.anchors.at(-1));
-	if (compare(position, first.position) <= 0) return first.value;
-	if (compare(position, last.position) >= 0) return last.value;
+	if (compareFractions(position, first.position) <= 0) return first.value;
+	if (compareFractions(position, last.position) >= 0) return last.value;
 	return evaluateSegment(segmentAt(curve, position), position);
 }
 
@@ -207,9 +226,9 @@ function inputShape(
 	const bezier = readClosedDomainRecord(value, name, ['kind', 'control1', 'control2']);
 	const first = inputControl(readClosedDomainField(bezier, 'control1', name), `${name}.control1`);
 	const second = inputControl(readClosedDomainField(bezier, 'control2', name), `${name}.control2`);
-	if (compare(start.position, first.exact) > 0
-		|| compare(first.exact, second.exact) > 0
-		|| compare(second.exact, end.position) > 0) {
+	if (compareFractions(start.position, first.exact) > 0
+		|| compareFractions(first.exact, second.exact) > 0
+		|| compareFractions(second.exact, end.position) > 0) {
 		throw new RangeError('Bézier control positions must satisfy start <= control1 <= control2 <= end.');
 	}
 	return Object.freeze({
@@ -230,7 +249,7 @@ function inputShape(
 
 function inputControl(value: unknown, name: string): Readonly<{
 	public: Rational;
-	exact: Fraction;
+	exact: ExactInterpolationFraction;
 	value: number;
 }> {
 	const record = readClosedDomainRecord(value, name, ['position', 'value']);
@@ -242,7 +261,10 @@ function inputControl(value: unknown, name: string): Readonly<{
 	});
 }
 
-function inputPosition(value: unknown, name: string): Readonly<{ public: Rational; exact: Fraction }> {
+function inputPosition(value: unknown, name: string): Readonly<{
+	public: Rational;
+	exact: ExactInterpolationFraction;
+}> {
 	let normalized: Rational;
 	if (typeof value === 'number') {
 		if (!Number.isFinite(value)) throw new RangeError(`${name} must be finite.`);
@@ -257,33 +279,33 @@ function inputPosition(value: unknown, name: string): Readonly<{ public: Rationa
 	return Object.freeze({ public: normalized, exact: exactFraction(normalized) });
 }
 
-function queryPosition(value: RationalInput, name: string): Fraction {
+function queryPosition(value: RationalInput, name: string): ExactInterpolationFraction {
 	return inputPosition(value, name).exact;
 }
 
-function segmentAt(curve: InternalCurve, position: Fraction): InternalSegment {
+function segmentAt(curve: InternalCurve, position: ExactInterpolationFraction): InternalSegment {
 	let low = 0;
 	let high = curve.anchors.length;
 	while (low < high) {
 		const middle = low + Math.floor((high - low) / 2);
-		if (compare(nonNullable(curve.anchors[middle]).position, position) <= 0) low = middle + 1;
+		if (compareFractions(nonNullable(curve.anchors[middle]).position, position) <= 0) low = middle + 1;
 		else high = middle;
 	}
 	return nonNullable(curve.segments[Math.min(Math.max(0, low - 1), curve.segments.length - 1)]);
 }
 
-function evaluateSegment(segment: InternalSegment, position: Fraction): number {
-	if (compare(position, segment.start.position) === 0) return segment.start.value;
-	if (compare(position, segment.end.position) === 0) return segment.end.value;
+function evaluateSegment(segment: InternalSegment, position: ExactInterpolationFraction): number {
+	if (compareFractions(position, segment.start.position) === 0) return segment.start.value;
+	if (compareFractions(position, segment.end.position) === 0) return segment.end.value;
 	if (segment.shape.kind === 'hold') return segment.start.value;
 	const amount = normalizedTime(segment.start.position, segment.end.position, position);
-	if (segment.shape.kind === 'linear') return interpolate(segment.start.value, segment.end.value, amount);
+	if (segment.shape.kind === 'linear') return stableInterpolate(segment.start.value, segment.end.value, amount);
 	if (segment.shape.kind === 'eased') {
 		const eased = amount * amount * (3 - 2 * amount);
-		return interpolate(segment.start.value, segment.end.value, eased);
+		return stableInterpolate(segment.start.value, segment.end.value, eased);
 	}
 	const parameter = invertBezierTime(amount, segment.control1Time, segment.control2Time);
-	return deCasteljau(
+	return stableCubic(
 		segment.start.value,
 		nonNullable(segment.shape.control1Value),
 		nonNullable(segment.shape.control2Value),
@@ -299,7 +321,7 @@ function invertBezierTime(target: number, control1: number, control2: number): n
 	let high = 1;
 	for (let iteration = 0; iteration < BISECTION_STEPS; iteration += 1) {
 		const middle = low + (high - low) / 2;
-		if (deCasteljau(0, control1, control2, 1, middle) < target) low = middle;
+		if (stableCubic(0, control1, control2, 1, middle) < target) low = middle;
 		else high = middle;
 	}
 	return high;
@@ -310,7 +332,7 @@ function invertMovingSegment(
 	target: number,
 	direction: -1 | 1,
 ): InverseOccurrence {
-	const rationalCandidate = exactLinearCandidate(segment, target);
+	const rationalCandidate = exactRationalCandidate(segment, target, direction);
 	if (rationalCandidate !== null) return pointOccurrence(rationalCandidate);
 	const minimum = roundRational(
 		segment.start.position.numerator, segment.start.position.denominator, 'enclosingEnd',
@@ -318,8 +340,9 @@ function invertMovingSegment(
 	const maximum = roundRational(
 		segment.end.position.numerator, segment.end.position.denominator, 'enclosingStart',
 	);
+	if (minimum > maximum) return integerBracket(minimum);
 	let low = minimum;
-	let high = maximum + 1;
+	let high = maximum;
 	while (low < high) {
 		const middle = low + Math.floor((high - low) / 2);
 		const evaluated = evaluateSegment(segment, integerFraction(middle));
@@ -327,42 +350,96 @@ function invertMovingSegment(
 		if ((direction === 1 && evaluated < target) || (direction === -1 && evaluated > target)) low = middle + 1;
 		else high = middle;
 	}
+	if (evaluateSegment(segment, integerFraction(low)) === target) return pointOccurrence(integerFraction(low));
+	return integerBracket(low);
+}
+
+function integerBracket(upper: number): InverseOccurrence {
 	return Object.freeze({
 		kind: 'bracket',
-		lower: normalizeRational(Math.max(0, low - 1)),
-		upper: normalizeRational(low),
+		lower: normalizeRational(Math.max(0, upper - 1)),
+		upper: normalizeRational(upper),
 	});
 }
 
-function exactLinearCandidate(segment: InternalSegment, target: number): Fraction | null {
-	if (segment.shape.kind !== 'linear') return null;
-	const valueSpan = subtract(numberFraction(segment.end.value), numberFraction(segment.start.value));
-	const amount = divide(
-		subtract(numberFraction(target), numberFraction(segment.start.value)),
+function exactRationalCandidate(
+	segment: InternalSegment,
+	target: number,
+	direction: -1 | 1,
+): ExactInterpolationFraction | null {
+	if (segment.shape.kind === 'linear') return exactLinearCandidate(segment, target);
+	const parameter = inverseValueParameter(segment, target, direction);
+	const exactParameter = numberFraction(parameter);
+	const exactPosition = segment.shape.kind === 'eased'
+		? interpolateFraction(segment.start.position, segment.end.position, exactParameter)
+		: cubicFraction(
+			segment.start.position,
+			nonNullable(segment.shape.control1Position),
+			nonNullable(segment.shape.control2Position),
+			segment.end.position,
+			exactParameter,
+		);
+	const admitted = admittedCandidate(exactPosition);
+	if (admitted !== null && evaluateSegment(segment, admitted) === target) return admitted;
+	const approximate = approximateBoundedFraction(fractionNumber(exactPosition));
+	return approximate !== null && evaluateSegment(segment, approximate) === target ? approximate : null;
+}
+
+function exactLinearCandidate(
+	segment: InternalSegment,
+	target: number,
+): ExactInterpolationFraction | null {
+	const valueSpan = subtractFractions(numberFraction(segment.end.value), numberFraction(segment.start.value));
+	const amount = divideFractions(
+		subtractFractions(numberFraction(target), numberFraction(segment.start.value)),
 		valueSpan,
 	);
-	const candidate = add(
+	const candidate = addFractions(
 		segment.start.position,
-		multiply(subtract(segment.end.position, segment.start.position), amount),
+		multiplyFractions(subtractFractions(segment.end.position, segment.start.position), amount),
 	);
-	let admitted: Fraction;
-	try {
-		admitted = exactFraction(normalizeRational(publicFraction(candidate)));
-	} catch (error) {
+	const admitted = admittedCandidate(candidate);
+	if (admitted === null) return null;
+	return evaluateSegment(segment, admitted) === target ? admitted : null;
+}
+
+function inverseValueParameter(segment: InternalSegment, target: number, direction: -1 | 1): number {
+	let low = 0;
+	let high = 1;
+	for (let iteration = 0; iteration < BISECTION_STEPS; iteration += 1) {
+		const middle = low + (high - low) / 2;
+		const value = segment.shape.kind === 'eased'
+			? stableInterpolate(segment.start.value, segment.end.value, middle * middle * (3 - 2 * middle))
+			: stableCubic(
+				segment.start.value,
+				nonNullable(segment.shape.control1Value),
+				nonNullable(segment.shape.control2Value),
+				segment.end.value,
+				middle,
+			);
+		if (value === target) return middle;
+		if ((direction === 1 && value < target) || (direction === -1 && value > target)) low = middle;
+		else high = middle;
+	}
+	return high;
+}
+
+function admittedCandidate(value: ExactInterpolationFraction): ExactInterpolationFraction | null {
+	try { return exactFraction(publicFraction(value)); } catch (error) {
 		if (error instanceof RangeError) return null;
 		throw error;
 	}
-	return evaluateSegment(segment, admitted) === target ? admitted : null;
 }
 
 function valueDirection(start: number, end: number, shape: InternalShape): -1 | 0 | 1 | null {
 	if (shape.kind === 'hold') return 0;
 	if (shape.kind !== 'bezier') return start < end ? 1 : start > end ? -1 : 0;
-	const first = nonNullable(shape.control1Value);
-	const second = nonNullable(shape.control2Value);
-	if (start <= first && first <= second && second <= end) return start === end ? 0 : 1;
-	if (start >= first && first >= second && second >= end) return start === end ? 0 : -1;
-	return null;
+	return cubicValueDirection(
+		start,
+		nonNullable(shape.control1Value),
+		nonNullable(shape.control2Value),
+		end,
+	);
 }
 
 function normalizeOccurrences(values: readonly InverseOccurrence[]): InverseOccurrence[] {
@@ -377,29 +454,33 @@ function normalizeOccurrences(values: readonly InverseOccurrence[]): InverseOccu
 		const previousEnd = occurrenceEnd(previous);
 		const currentStart = occurrenceStart(occurrence);
 		const currentEnd = occurrenceEnd(occurrence);
-		if (compare(currentStart, previousEnd) > 0) {
+		if (compareFractions(currentStart, previousEnd) > 0) {
 			result.push(occurrence);
 			continue;
 		}
 		if (previous.kind === 'point' && occurrence.kind === 'point') continue;
 		result[result.length - 1] = Object.freeze({
 			kind: 'range', start: publicFraction(previousStart), end: publicFraction(
-				compare(currentEnd, previousEnd) > 0 ? currentEnd : previousEnd,
+				compareFractions(currentEnd, previousEnd) > 0 ? currentEnd : previousEnd,
 			),
 		});
 	}
 	return result;
 }
 
-function occurrenceStart(value: Exclude<InverseOccurrence, { kind: 'bracket' }>): Fraction {
+function occurrenceStart(
+	value: Exclude<InverseOccurrence, { kind: 'bracket' }>,
+): ExactInterpolationFraction {
 	return exactFraction(value.kind === 'point' ? value.position : value.start);
 }
 
-function occurrenceEnd(value: Exclude<InverseOccurrence, { kind: 'bracket' }>): Fraction {
+function occurrenceEnd(
+	value: Exclude<InverseOccurrence, { kind: 'bracket' }>,
+): ExactInterpolationFraction {
 	return exactFraction(value.kind === 'point' ? value.position : value.end);
 }
 
-function pointOccurrence(position: Fraction): InverseOccurrence {
+function pointOccurrence(position: ExactInterpolationFraction): InverseOccurrence {
 	return Object.freeze({ kind: 'point', position: publicFraction(position) });
 }
 
@@ -407,19 +488,15 @@ function between(target: number, start: number, end: number, direction: -1 | 1):
 	return direction === 1 ? target >= start && target <= end : target <= start && target >= end;
 }
 
-function normalizedTime(start: Fraction, end: Fraction, position: Fraction): number {
-	return fractionNumber(divide(subtract(position, start), subtract(end, start)));
-}
-
-function deCasteljau(start: number, control1: number, control2: number, end: number, amount: number): number {
-	const first = interpolate(start, control1, amount);
-	const second = interpolate(control1, control2, amount);
-	const third = interpolate(control2, end, amount);
-	return interpolate(interpolate(first, second, amount), interpolate(second, third, amount), amount);
-}
-
-function interpolate(start: number, end: number, amount: number): number {
-	return start + (end - start) * amount;
+function normalizedTime(
+	start: ExactInterpolationFraction,
+	end: ExactInterpolationFraction,
+	position: ExactInterpolationFraction,
+): number {
+	return fractionNumber(divideFractions(
+		subtractFractions(position, start),
+		subtractFractions(end, start),
+	));
 }
 
 function compiledCurve(value: unknown): InternalCurve {
@@ -434,85 +511,7 @@ function finiteValue(value: unknown, name: string): number {
 	return value;
 }
 
-function exactFraction(value: Rational): Fraction {
-	return normalizeFraction(BigInt(value.num), BigInt(value.den));
-}
-
-function publicFraction(value: Fraction): Rational {
-	const num = Number(value.numerator);
-	const den = Number(value.denominator);
-	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den)) {
-		throw new RangeError('The interpolation position is outside the safe rational domain.');
-	}
-	return Object.freeze({ num, den });
-}
-
-function integerFraction(value: number): Fraction {
-	return Object.freeze({ numerator: BigInt(value), denominator: 1n });
-}
-
-function numberFraction(value: number): Fraction {
-	if (Number.isSafeInteger(value)) return integerFraction(value);
-	const match = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/iu.exec(String(value));
-	if (!match) throw new RangeError('A finite interpolation value could not be represented exactly.');
-	const decimals = match[3] ?? '';
-	const exponent = Number(match[4] ?? 0) - decimals.length;
-	let numerator = BigInt(`${match[1] ?? ''}${match[2] ?? ''}${decimals}`);
-	let denominator = 1n;
-	if (exponent >= 0) numerator *= 10n ** BigInt(exponent);
-	else denominator = 10n ** BigInt(-exponent);
-	return normalizeFraction(numerator, denominator);
-}
-
-function normalizeFraction(numerator: bigint, denominator: bigint): Fraction {
-	if (denominator === 0n) throw new RangeError('An interpolation position denominator cannot be zero.');
-	if (denominator < 0n) { numerator = -numerator; denominator = -denominator; }
-	const divisor = gcd(absolute(numerator), denominator);
-	return Object.freeze({ numerator: numerator / divisor, denominator: denominator / divisor });
-}
-
-function subtract(left: Fraction, right: Fraction): Fraction {
-	return normalizeFraction(
-		left.numerator * right.denominator - right.numerator * left.denominator,
-		left.denominator * right.denominator,
-	);
-}
-
-function add(left: Fraction, right: Fraction): Fraction {
-	return normalizeFraction(
-		left.numerator * right.denominator + right.numerator * left.denominator,
-		left.denominator * right.denominator,
-	);
-}
-
-function multiply(left: Fraction, right: Fraction): Fraction {
-	return normalizeFraction(left.numerator * right.numerator, left.denominator * right.denominator);
-}
-
-function divide(left: Fraction, right: Fraction): Fraction {
-	if (right.numerator === 0n) throw new RangeError('Cannot divide by zero.');
-	return normalizeFraction(left.numerator * right.denominator, left.denominator * right.numerator);
-}
-
-function compare(left: Fraction, right: Fraction): -1 | 0 | 1 {
-	const difference = left.numerator * right.denominator - right.numerator * left.denominator;
-	return difference < 0n ? -1 : difference > 0n ? 1 : 0;
-}
-
-function fractionNumber(value: Fraction): number {
-	return Number(value.numerator) / Number(value.denominator);
-}
-
-function gcd(left: bigint, right: bigint): bigint {
-	while (right !== 0n) { const remainder = left % right; left = right; right = remainder; }
-	return left || 1n;
-}
-
-function absolute(value: bigint): bigint { return value < 0n ? -value : value; }
-
 function nonNullable<Value>(value: Value | null | undefined): Value {
 	if (value == null) throw new RangeError('Expected a bounded interpolation value.');
 	return value;
 }
-
-const ZERO = Object.freeze({ numerator: 0n, denominator: 1n });
