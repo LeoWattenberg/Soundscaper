@@ -22,6 +22,7 @@ export const FRAMESCAPER_PROFILE = {
 		audioSampleEditing: false,
 		videoEffects: true,
 		videoCompositing: true,
+		multicamera: true,
 		musicalTimeline: false,
 		nestedSequences: true,
 		timelineAnnotations: false,

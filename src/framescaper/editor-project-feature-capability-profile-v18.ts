@@ -20,6 +20,7 @@ export const FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'audioSpectralEditing', featureId: 'org.soundscaper.capability.audio-spectral-editing', available: false },
 			{ key: 'audioTimelineEditing', featureId: 'org.soundscaper.capability.audio-timeline-editing', available: true },
 			{ key: 'audioWarp', featureId: 'org.soundscaper.capability.audio-warp', available: false },
+			{ key: 'multicamera', featureId: 'org.soundscaper.capability.multicamera', available: true },
 			{ key: 'musicalTimeline', featureId: 'org.soundscaper.capability.musical-timeline', available: false },
 			{ key: 'nestedSequences', featureId: 'org.soundscaper.capability.nested-sequences', available: true },
 			{ key: 'project', featureId: 'org.soundscaper.capability.project', available: true },

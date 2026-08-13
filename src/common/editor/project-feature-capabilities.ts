@@ -20,6 +20,7 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	audioSampleEditing: 'org.soundscaper.capability.audio-sample-editing',
 	videoEffects: 'org.soundscaper.capability.video-effects',
 	videoCompositing: 'org.soundscaper.capability.video-compositing',
+	multicamera: 'org.soundscaper.capability.multicamera',
 	musicalTimeline: 'org.soundscaper.capability.musical-timeline',
 	nestedSequences: 'org.soundscaper.capability.nested-sequences',
 	timelineAnnotations: 'org.soundscaper.capability.timeline-annotations',

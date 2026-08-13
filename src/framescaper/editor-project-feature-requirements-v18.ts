@@ -17,6 +17,17 @@ import {
 } from '../common/editor/project-runtime-profile.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 
+export const FRAMESCAPER_MULTICAMERA_FEATURE_ID =
+	'org.soundscaper.capability.multicamera' as const;
+
+export const FRAMESCAPER_MULTICAMERA_REQUIREMENT_V18 = Object.freeze({
+	id: 'framescaper.multicamera',
+	featureId: FRAMESCAPER_MULTICAMERA_FEATURE_ID,
+	displayName: 'Multicamera groups',
+	disposition: 'bypass',
+	fallback: null,
+} satisfies ProjectFeatureRequirement);
+
 export const FRAMESCAPER_NESTED_SEQUENCES_FEATURE_ID =
 	'org.soundscaper.capability.nested-sequences' as const;
 
@@ -52,6 +63,13 @@ interface OwnedFeatureV18 {
 }
 
 const OWNED_FEATURES_V18: readonly OwnedFeatureV18[] = Object.freeze([
+	Object.freeze({
+		requirement: FRAMESCAPER_MULTICAMERA_REQUIREMENT_V18,
+		statePresent: projectHasMulticameraGroups,
+		missingMessage: 'A multicamera Framescaper V18 project requires framescaper.multicamera.',
+		strayMessage: 'A non-multicamera Framescaper V18 project must not retain framescaper.multicamera.',
+		conflictName: 'multicamera',
+	}),
 	Object.freeze({
 		requirement: FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18,
 		statePresent: projectHasNestedSequences,
@@ -221,6 +239,10 @@ function ownedRequirementMatches(
 
 function projectHasNestedSequences(project: Record<string, unknown>): boolean {
 	return dataArray(project, 'subsequences', 'Framescaper V18 project').length > 0;
+}
+
+function projectHasMulticameraGroups(project: Record<string, unknown>): boolean {
+	return dataArray(project, 'multicameraGroups', 'Framescaper V18 project').length > 0;
 }
 
 function projectHasProxyAttachment(project: Record<string, unknown>): boolean {
