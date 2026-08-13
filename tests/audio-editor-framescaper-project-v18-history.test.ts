@@ -40,7 +40,7 @@ test('V18 commands execute through the V17 projection and restore exact all-null
 	);
 	assert.equal(edited.schemaVersion, 18);
 	assert.equal(edited.title, 'After');
-	assert.equal(edited.revision, project.revision + 1);
+	assert.equal(edited.revision, Number(project.revision) + 1);
 });
 
 test('generic V18 commands cannot introduce, remove, or change proxy attachment authority', () => {
