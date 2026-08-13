@@ -145,6 +145,7 @@ test('selection clear settles through the production current-project cycle path 
 			state, productName: 'Soundscaper',
 			capabilities: {
 				audioEffects: true, audioRecording: true, audioSpectralEditing: true,
+				audioWarp: true, takeComp: true,
 				timelineAnnotations: true, videoEffects: true, trackFolders: true,
 			},
 			projectReadOnlyMessage: 'Project is read-only.',

@@ -281,6 +281,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		productName: 'Test editor',
 		capabilities: {
 			audioEffects: true, audioRecording: true, audioSpectralEditing: true,
+			audioWarp: true, takeComp: true,
 			timelineAnnotations: true, videoEffects: true, trackFolders: true,
 		},
 		projectReadOnlyMessage: 'Project is read-only.',

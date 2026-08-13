@@ -387,7 +387,7 @@ test('cross-rate paste keeps positive sample regions and rejects minimum-span ov
 
 test('capability policy inspects V3 annotation payloads in every mode and permits empty V3 media', () => {
 	const disabled = {
-		audioEffects: true, audioRecording: true, audioSpectralEditing: true,
+		audioEffects: true, audioRecording: true, audioSpectralEditing: true, audioWarp: true, takeComp: true,
 		timelineAnnotations: false, videoEffects: true, trackFolders: true,
 	};
 	for (const mode of ['reject', 'overlap', 'insert-track', 'insert-all'] as const) {

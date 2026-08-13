@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import type { AudioEditorClipboard, AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import {
 	assertEditorCommandCapabilities,
 	type EditorCommandCapabilities,
@@ -13,6 +13,8 @@ const enabled: EditorCommandCapabilities = {
 	audioEffects: true,
 	audioRecording: true,
 	audioSpectralEditing: true,
+	audioWarp: true,
+	takeComp: true,
 	timelineAnnotations: true,
 	trackFolders: true,
 	videoEffects: true,
@@ -77,6 +79,10 @@ test('command capability policy covers every product-sensitive payload path', ()
 		{ capability: 'trackFolders', command: { type: 'track-folder/update', folderId: 'folder', changes: { name: 'Renamed' } } },
 		{ capability: 'trackFolders', command: { type: 'track-folder/remove', folderId: 'folder', disposition: 'promote' } },
 		{ capability: 'trackFolders', command: { type: 'track-node/move', sequenceId: 'main', nodeId: 'folder', parentFolderId: null, index: 0 } },
+		{ capability: 'takeComp', command: { type: 'take-comp/group-add', group: { id: 'group' } } },
+		{ capability: 'takeComp', command: { type: 'take-comp/group-remove', groupId: 'group' } },
+		{ capability: 'audioWarp', command: { type: 'audio-warp/clear', clipId: 'clip', expectedClipAuthority: {} } },
+		{ capability: 'audioWarp', command: { type: 'audio-warp/quantize', clipId: 'clip', expectedClipAuthority: {}, transientSources: [], options: {} } },
 	];
 
 	for (const { capability, command } of cases) {
@@ -86,6 +92,35 @@ test('command capability policy covers every product-sensitive payload path', ()
 			`${command.type} must require ${capability}`,
 		);
 	}
+});
+
+test('capability policy inspects V4 take group payloads and permits take-free V4 media', () => {
+	const clipboard: AudioEditorClipboard = {
+		schemaVersion: 4, sampleRate: 48_000, durationFrames: 100, tracks: [], annotations: [], takeGroups: [],
+	};
+	const disabled = { ...enabled, takeComp: false };
+	assert.throws(
+		() => assertEditorCommandCapabilities(
+			{ type: 'clipboard/paste', clipboard: { ...clipboard, takeGroups: [{ id: 'group' }] }, atFrame: 0 },
+			disabled,
+			'Framescaper',
+		),
+		/Framescaper does not support takeComp\./u,
+	);
+	const { takeGroups: _takeGroups, ...withoutTakeGroups } = clipboard;
+	assert.throws(
+		() => assertEditorCommandCapabilities(
+			{ type: 'clipboard/paste', clipboard: withoutTakeGroups, atFrame: 0 },
+			disabled,
+			'Framescaper',
+		),
+		/Framescaper does not support takeComp\./u,
+	);
+	assert.doesNotThrow(() => assertEditorCommandCapabilities(
+		{ type: 'clipboard/paste', clipboard, atFrame: 0 },
+		disabled,
+		'Framescaper',
+	));
 });
 
 test('empty effect stacks remain compatible with products that disable effect editing', () => {

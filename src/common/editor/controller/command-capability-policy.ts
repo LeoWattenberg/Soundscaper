@@ -1,12 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
-import { clipboardRequiresTimelineAnnotationCapability } from '../commands/clipboard-codec.ts';
+import {
+	AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION,
+	clipboardRequiresTimelineAnnotationCapability,
+} from '../commands/clipboard-codec.ts';
 
 export interface EditorCommandCapabilities {
 	readonly audioEffects: boolean;
 	readonly audioRecording: boolean;
 	readonly audioSpectralEditing: boolean;
+	readonly audioWarp: boolean;
+	readonly takeComp: boolean;
 	readonly timelineAnnotations: boolean;
 	readonly trackFolders: boolean;
 	readonly videoEffects: boolean;
@@ -52,6 +57,16 @@ export function assertEditorCommandCapabilities(
 	if (!capabilities.timelineAnnotations && command.type === 'clipboard/paste'
 		&& clipboardRequiresTimelineAnnotationCapability(command.clipboard)) {
 		unsupported(productName, 'timelineAnnotations');
+	}
+	if (!capabilities.takeComp && command.type.startsWith('take-comp/')) {
+		unsupported(productName, 'takeComp');
+	}
+	if (!capabilities.audioWarp && command.type.startsWith('audio-warp/')) {
+		unsupported(productName, 'audioWarp');
+	}
+	if (!capabilities.takeComp && command.type === 'clipboard/paste'
+		&& clipboardRequiresTakeCompCapability(command.clipboard)) {
+		unsupported(productName, 'takeComp');
 	}
 	if (!capabilities.audioEffects && command.type.startsWith('effect/')) {
 		unsupported(productName, 'audioEffects');
@@ -101,6 +116,17 @@ export function assertEditorCommandCapabilities(
 		&& hasOwn(command.changes, 'armed')) {
 		unsupported(productName, 'audioRecording');
 	}
+}
+
+/** Fail closed when a V4 paste contains, or disguises, take group content. */
+function clipboardRequiresTakeCompCapability(value: unknown): boolean {
+	if (!value || typeof value !== 'object') return false;
+	const schema = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
+	if (!schema?.enumerable || !Object.hasOwn(schema, 'value')) return Object.hasOwn(value, 'takeGroups');
+	if (schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
+	const takeGroups = Object.getOwnPropertyDescriptor(value, 'takeGroups');
+	if (!takeGroups?.enumerable || !Object.hasOwn(takeGroups, 'value')) return true;
+	return !Array.isArray(takeGroups.value) || takeGroups.value.length > 0;
 }
 
 function hasOwn(value: CommandObject, key: string): boolean {
