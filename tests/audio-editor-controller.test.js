@@ -1949,7 +1949,6 @@ test('parametric EQ gestures preview live and commit one history entry without r
 	await Promise.resolve();
 	await Promise.resolve();
 	engine.appliedProjects.length = 0;
-
 	const before = controller.getSnapshot();
 	const original = before.project.tracks[0].effects.find((effect) => effect.id === effectId).params;
 	const preview = structuredClone(original);
@@ -1966,7 +1965,6 @@ test('parametric EQ gestures preview live and commit one history entry without r
 	assert.equal(committed.project.tracks[0].effects[0].params.bands[0].gain, 12);
 	assert.equal(committed.history.undoEntries.length, before.history.undoEntries.length + 1);
 	assert.equal(engine.appliedProjects.length, 0);
-
 	controller.actions.effects.beginParametricEqGesture('track', trackId, effectId);
 	const cancelled = structuredClone(finalParams);
 	cancelled.bands[0].gain = -18;
