@@ -250,6 +250,34 @@ test('nonempty subsequences survive complete format-1 and format-2 JSON, ZIP, an
 	}
 });
 
+test('nonempty multicamera groups survive complete format-1 and format-2 JSON, ZIP, and publication roundtrips', async (context) => {
+	for (const attached of [false, true]) {
+		const fixture = await setup(context);
+		await seedFramescaperV18ArchiveBodies(fixture.storage, attached);
+		await seedMulticameraArchiveOriginal(fixture.storage);
+		const project = multicameraArchiveProject({ attached });
+		const exported = await fixture.file.exportProject(project);
+		assert.ok(exported.blob);
+		assert.equal(exported.manifest.formatVersion, attached ? 2 : 1);
+		assert.deepEqual(await zipProjectDocument(exported.blob), project);
+		const inspected = await fixture.file.inspectScapeProject(
+			exported.blob, null, { signal: new AbortController().signal }, { retain() {} },
+		);
+		assert.deepEqual(inspected.project.multicameraGroups, project.multicameraGroups);
+
+		const imported = await fixture.file.importProject(exported.blob, {
+			decision: 'continue',
+			operationId: `multicamera-${attached ? 'format-2' : 'format-1'}-create`,
+			publication: { mode: 'create' },
+		});
+		assert.deepEqual(imported.project, project);
+		assert.deepEqual(
+			await storedValue(fixture.storage.database, 'projects', String(project.id)),
+			project,
+		);
+	}
+});
+
 test('nested V18 cross-product transfer is explicit copy-only preservation and V17 never authors or activates it', async (context) => {
 	const fixture = await setup(context);
 	await seedFramescaperV18ArchiveBodies(fixture.storage, false);
@@ -524,6 +552,7 @@ function multicameraArchiveProject(
 		id: 'archive-video-b',
 		name: 'Video B',
 		storageKey: 'archive-video-b',
+		proxyAttachment: null,
 	});
 	project.multicameraGroups = [{
 		id: 'archive-multicamera-group',
@@ -541,6 +570,22 @@ function multicameraArchiveProject(
 	}];
 	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, project);
 	return project as unknown as FramescaperProjectV18;
+}
+
+async function seedMulticameraArchiveOriginal(
+	fixture: FramescaperV18ArchiveFixture,
+): Promise<void> {
+	const writer = await fixture.store.beginMediaAssetWrite('archive-video-b', {
+		name: 'media/archive-video-b/original',
+		kind: 'video',
+		encoding: 'original',
+		mimeType: 'video/mp4',
+	}, {
+		expectedBytes: ARCHIVE_ORIGINAL_BYTES.byteLength,
+		expectedSha256: ARCHIVE_ORIGINAL_SHA,
+	});
+	await writer.write(ARCHIVE_ORIGINAL_BYTES);
+	await writer.commitOwned();
 }
 
 function archiveClipboardDescriptor(): Readonly<Record<string, unknown>> {

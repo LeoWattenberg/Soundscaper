@@ -16,6 +16,7 @@ import {
 	createFramescaperDesktopProjectStoreV10Adapter,
 	type FramescaperDesktopProjectStoreV10Adapter,
 } from '../src/framescaper/desktop-project-library-v10-store-adapter.ts';
+import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
 	createFramescaperProjectStoreV18,
 	framescaperProjectStoreAuthorityV18,
@@ -139,6 +140,26 @@ test('desktop V10 main JSON and the exact V18 shadow preserve a nonempty subsequ
 	assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), next);
 	assert.deepEqual((fixture.main.lastBegin?.project as FramescaperProjectV18).subsequences,
 		current.subsequences);
+});
+
+test('desktop V10 main JSON and the exact V18 shadow preserve a nonempty multicamera graph', async (context) => {
+	const fixture = await lifecycleFixture(context);
+	const current = projectFixture({ id: 'multicamera-main-shadow', revision: 0, multicamera: true });
+	fixture.main.seed(current);
+	assert.deepEqual(await fixture.store.loadProject(String(current.id)), current);
+	assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), current);
+
+	const next = structuredClone(current) as unknown as MutableFramescaperProject;
+	next.revision = 1;
+	next.title = 'Multicamera main and shadow';
+	next.multicameraGroups[0]!.activeMemberId = 'desktop-camera-b';
+	assert.deepEqual(await fixture.store.saveProject(next), next);
+	assert.deepEqual(await fixture.store.loadProject(String(current.id)), next);
+	assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), next);
+	assert.deepEqual(
+		(fixture.main.lastBegin?.project as FramescaperProjectV18).multicameraGroups,
+		next.multicameraGroups,
+	);
 });
 
 type LocalStore = ReturnType<typeof createFramescaperProjectStoreV18>;
@@ -300,13 +321,53 @@ function projectFixture(options: Readonly<{
 	revision: number;
 	title?: string;
 	nested?: boolean;
+	multicamera?: boolean;
 }>): FramescaperProjectV18 {
+	const multicamera = options.multicamera === true;
+	const rate = { num: 30, den: 1 };
 	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
 		id: options.id, title: options.title ?? options.id, now: '2026-08-13T12:00:00.000Z',
+		...(multicamera ? {
+			sources: [
+				createVideoSourceV10({
+					id: 'desktop-camera-source-a', name: 'Camera A', storageKey: 'camera-a',
+					mimeType: 'video/mp4', contentSha256: '12'.repeat(32), sampleFrameCount: 480_000,
+					sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
+				}),
+				createVideoSourceV10({
+					id: 'desktop-camera-source-b', name: 'Camera B', storageKey: 'camera-b',
+					mimeType: 'video/mp4', contentSha256: '34'.repeat(32), sampleFrameCount: 480_000,
+					sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
+				}),
+			],
+			clips: [{
+				kind: 'video', id: 'desktop-multicamera-output', sourceId: 'desktop-camera-source-a',
+				title: 'Multicamera output', sequenceId: 'main-sequence', sequenceStartFrame: 0,
+				sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
+			}],
+			tracks: [createVideoTrackV10({
+				id: 'desktop-video-track', name: 'Video',
+				clipIds: ['desktop-multicamera-output'], locked: false,
+			})],
+			sequences: [{ id: 'main-sequence', rate, trackIds: ['desktop-video-track'] }],
+			primarySequenceId: 'main-sequence',
+			multicameraGroups: [{
+				id: 'desktop-multicamera-group', projectId: options.id,
+				sequenceId: 'main-sequence', outputClipId: 'desktop-multicamera-output',
+				activeMemberId: 'desktop-camera-a',
+				members: [{
+					id: 'desktop-camera-a', groupId: 'desktop-multicamera-group',
+					sourceId: 'desktop-camera-source-a', syncOffsetSamples: 0,
+				}, {
+					id: 'desktop-camera-b', groupId: 'desktop-multicamera-group',
+					sourceId: 'desktop-camera-source-b', syncOffsetSamples: 0,
+				}],
+			}],
+		} : {}),
 		...(options.nested ? {
 			sequences: [
-				{ id: 'main-sequence', rate: { num: 30, den: 1 }, trackIds: [] },
-				{ id: 'nested-source-sequence', rate: { num: 30, den: 1 }, trackIds: [] },
+				{ id: 'main-sequence', rate, trackIds: [] },
+				{ id: 'nested-source-sequence', rate, trackIds: [] },
 			],
 			primarySequenceId: 'main-sequence',
 			subsequences: [{
@@ -321,6 +382,14 @@ function projectFixture(options: Readonly<{
 		} : {}),
 	});
 	return { ...project, revision: options.revision };
+}
+
+interface MutableFramescaperProject extends Record<string, unknown> {
+	revision: number;
+	title: string;
+	multicameraGroups: Array<{
+		activeMemberId: string;
+	}>;
 }
 
 function digest(bytes: Uint8Array): string { return bytesToHex(sha256(bytes)); }
