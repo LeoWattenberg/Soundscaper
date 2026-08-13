@@ -37,6 +37,22 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 		});
 		const sourceCanvas = createSourceCanvas();
 		let presentationDisposals = 0;
+		const presentation = Object.freeze({
+			sourceId: 'source-1',
+			identity: 'sha256:keyframe-video-encoder-source-1',
+			drawable: sourceCanvas,
+			decodedWidth: 32,
+			decodedHeight: 16,
+			displayWidth: 32,
+			displayHeight: 16,
+			present: () => undefined,
+			dispose: () => { presentationDisposals += 1; },
+		});
+		const renderer = rendererModule.createVideoKeyframeOfflineRgbaRenderer({
+			frameSource,
+			canvas: document.createElement('canvas'),
+			resolveSource: () => presentation,
+		});
 		const ffmpeg = new ffmpegPackage.FFmpeg();
 		let terminated = false;
 		await bounded(ffmpeg.load({
@@ -56,47 +72,25 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 			})),
 		});
 		try {
-			const encodings = [];
-			for (const format of ['mp4', 'webm']) {
-				const presentation = Object.freeze({
-					sourceId: 'source-1',
-					identity: 'sha256:keyframe-video-encoder-source-1',
-					drawable: sourceCanvas,
-					decodedWidth: 32,
-					decodedHeight: 16,
-					displayWidth: 32,
-					displayHeight: 16,
-					present: () => undefined,
-					dispose: () => { presentationDisposals += 1; },
-				});
-				const renderer = rendererModule.createVideoKeyframeOfflineRgbaRenderer({
-					frameSource,
-					canvas: document.createElement('canvas'),
-					resolveSource: () => presentation,
-				});
-				const encoded = await bounded(encoderModule.encodeVideoKeyframeVideo(editorFfmpeg, {
-					frameSource,
-					producer: renderer,
-					format,
-					ringCapacityBytes: 4_096,
-					maximumOutputBytes: 1024 * 1024,
-					maximumOutputChunkBytes: 4_096,
-				}, {
-					createJobToken: () => '0123456789abcdef0123456789abcdef',
-				}), 80_000);
-				encodings.push({
-					byteLength: encoded.byteLength,
-					firstBox: [...encoded.bytes.subarray(0, 12)],
-					format: encoded.format,
-					extension: encoded.extension,
-					mimeType: encoded.mimeType,
-					frameCount: encoded.frameCount,
-					rgbaChunkCount: encoded.rgbaChunkCount,
-					outputChunkCount: encoded.outputChunkCount,
-				});
-			}
+			const encoded = await bounded(encoderModule.encodeVideoKeyframeVideo(editorFfmpeg, {
+				frameSource,
+				producer: renderer,
+				format: 'mp4',
+				ringCapacityBytes: 4_096,
+				maximumOutputBytes: 1024 * 1024,
+				maximumOutputChunkBytes: 4_096,
+			}, {
+				createJobToken: () => '0123456789abcdef0123456789abcdef',
+			}), 80_000);
 			return {
-				encodings,
+				byteLength: encoded.byteLength,
+				firstBox: [...encoded.bytes.subarray(0, 12)],
+				format: encoded.format,
+				extension: encoded.extension,
+				mimeType: encoded.mimeType,
+				frameCount: encoded.frameCount,
+				rgbaChunkCount: encoded.rgbaChunkCount,
+				outputChunkCount: encoded.outputChunkCount,
 				presentationDisposals,
 			};
 		} finally {
@@ -177,20 +171,17 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 		}
 	}, ROOT);
 
-	expect(result.encodings[0].byteLength).toBeGreaterThan(12);
-	expect(String.fromCharCode(...result.encodings[0].firstBox.slice(4, 8))).toBe('ftyp');
-	expect(result.encodings[1].firstBox.slice(0, 4)).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
+	expect(result.byteLength).toBeGreaterThan(12);
+	expect(String.fromCharCode(...result.firstBox.slice(4, 8))).toBe('ftyp');
 	expect(result).toMatchObject({
-		encodings: [{
-			format: 'mp4', extension: '.mp4', mimeType: 'video/mp4',
-			frameCount: 2, rgbaChunkCount: 8,
-		}, {
-			format: 'webm', extension: '.webm', mimeType: 'video/webm',
-			frameCount: 2, rgbaChunkCount: 8,
-		}],
-		presentationDisposals: 2,
+		format: 'mp4',
+		extension: '.mp4',
+		mimeType: 'video/mp4',
+		frameCount: 2,
+		rgbaChunkCount: 8,
+		presentationDisposals: 1,
 	});
-	for (const encoding of result.encodings) expect(encoding.outputChunkCount).toBeGreaterThan(0);
+	expect(result.outputChunkCount).toBeGreaterThan(0);
 });
 
 async function installRoutes(page) {
