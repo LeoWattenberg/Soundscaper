@@ -61,7 +61,12 @@ export interface TransientAnalysisPcmAccess {
 interface DigestMemoEntry {
 	readonly fingerprint: string;
 	readonly abort: AbortController;
-	readonly promise: Promise<string>;
+	readonly promise: Promise<CanonicalSourceDigest>;
+}
+
+interface CanonicalSourceDigest {
+	readonly sha256: string;
+	readonly authority: StorageRecord;
 }
 
 /** Controller-local, streaming PCM identity and exact bounded-range access. */
@@ -88,17 +93,27 @@ export function createTransientAnalysisPcmAccess(
 		if (isMediaContentSha256(source.contentSha256)) return source.contentSha256;
 		const key = `${projectId}\u0000${source.id}`;
 		const fingerprint = sourceFingerprint(source);
-		const current = memo.get(key);
-		if (current?.fingerprint === fingerprint) return awaitForCaller(current.promise, signal);
-		current?.abort.abort(new Error('The PCM digest source authority was replaced.'));
-		const abort = new AbortController();
-		const promise = digestCanonicalSource(options.store, source, abort.signal);
-		const entry = Object.freeze({ fingerprint, abort, promise });
-		memo.set(key, entry);
-		void promise.catch(() => {
-			if (memo.get(key) === entry) memo.delete(key);
-		});
-		return awaitForCaller(promise, signal);
+		for (;;) {
+			assertUsable(signal);
+			const current = memo.get(key);
+			if (current?.fingerprint === fingerprint) {
+				const memoized = await awaitForCaller(current.promise, signal);
+				const latest = await sourceMetadata(options.store, source, signal);
+				if (sameStoredSourceAuthority(latest, memoized.authority)) return memoized.sha256;
+				// A changed-content relink replaces the stored bytes under an unchanged geometry.
+				if (memo.get(key) !== current) continue;
+				memo.delete(key);
+			}
+			current?.abort.abort(new Error('The PCM digest source authority was replaced.'));
+			const abort = new AbortController();
+			const promise = digestCanonicalSource(options.store, source, abort.signal);
+			const entry = Object.freeze({ fingerprint, abort, promise });
+			memo.set(key, entry);
+			void promise.catch(() => {
+				if (memo.get(key) === entry) memo.delete(key);
+			});
+			return (await awaitForCaller(promise, signal)).sha256;
+		}
 	}
 
 	async function readSourceRange(
@@ -189,7 +204,7 @@ async function digestCanonicalSource(
 	store: TransientAnalysisPcmStore,
 	source: TransientAnalysisPcmSource,
 	signal: AbortSignal,
-): Promise<string> {
+): Promise<CanonicalSourceDigest> {
 	const expected = await sourceMetadata(store, source, signal);
 	const digest = createScapeDigest();
 	const stream = scapeAudioSourceStream(store, source, digest, () => undefined, signal);
@@ -201,7 +216,7 @@ async function digestCanonicalSource(
 	}
 	const current = await sourceMetadata(store, source, signal);
 	if (!sameStoredSourceAuthority(current, expected)) throw generationChangedError();
-	return scapeHex(digest.digest());
+	return Object.freeze({ sha256: scapeHex(digest.digest()), authority: current });
 }
 
 async function sourceMetadata(

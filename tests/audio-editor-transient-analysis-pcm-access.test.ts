@@ -61,6 +61,28 @@ test('digest rejects storage generation replacement and does not memoize the fai
 	access.dispose();
 });
 
+test('memoized digest is revalidated against the stored content authority', async () => {
+	const fixture = pcmFixture();
+	const access = createTransientAnalysisPcmAccess({ store: fixture.store });
+
+	const first = await access.resolveSourceSha256(
+		'project-a', fixture.source, new AbortController().signal,
+	);
+	fixture.metadata = { ...fixture.metadata, sourceToken: 'generation-b' };
+	fixture.chunks[0]!.channels[0]![0] = 42;
+	const relinked = await access.resolveSourceSha256(
+		'project-a', fixture.source, new AbortController().signal,
+	);
+
+	assert.equal(fixture.streamReads, 2, 'changed-content relink invalidates the memoized digest');
+	assert.notEqual(relinked, first);
+	assert.equal(await access.resolveSourceSha256(
+		'project-a', fixture.source, new AbortController().signal,
+	), relinked);
+	assert.equal(fixture.streamReads, 2);
+	access.dispose();
+});
+
 test('bounded range reading opens only intersecting exact-generation chunks', async () => {
 	const fixture = pcmFixture();
 	const access = createTransientAnalysisPcmAccess({ store: fixture.store, maximumRangePcmBytes: 64 });
@@ -109,8 +131,9 @@ function pcmFixture(overrides: Readonly<{ contentSha256?: string }> = {}) {
 	];
 	const fixture = {
 		source,
+		chunks,
 		metadata: Object.freeze({
-			id: source.storageKey, storage: 'indexeddb', sourceToken: 'generation-a',
+			id: source.storageKey, storage: 'indexeddb', sourceToken: 'generation-a' as string,
 			frameCount: source.frameCount, channelCount: source.channelCount,
 			chunkFrames: source.chunkFrames, sampleRate: source.sampleRate,
 		}),
