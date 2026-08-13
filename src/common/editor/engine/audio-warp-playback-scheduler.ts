@@ -10,6 +10,7 @@ import { prepareExactAudioWarpPlayback } from './audio-warp-fallback.ts';
 import { clampFrame } from './buffer-math.ts';
 import { createAnalyser } from './effect-rack.ts';
 import type { ProjectGraph } from './project-graph.ts';
+import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import {
 	ENGINE_EMIT_POSITION,
 	ENGINE_ENSURE_MASTER_LOUDNESS_METER,
@@ -201,6 +202,7 @@ function exactGraph(nodes: AudioNode[], masterAnalyser: AnalyserNode | null): Pr
 		trackInputs: new Map(),
 		trackGainParams: new Map(),
 		projectGainParams: { tracks: new Map(), groups: new Map(), sends: new Map(), master: null },
+		parameterRegistry: new ScheduledParameterRegistry(),
 		trackAnalysers: new Map(), groupAnalysers: new Map(), sendAnalysers: new Map(), masterAnalyser,
 		effectNodes: new Map(), effectAnalysers: new Map(), effectMessageSequences: new Map(), latencyFrames: 0,
 	};

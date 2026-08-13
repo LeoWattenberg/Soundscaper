@@ -27,7 +27,12 @@ import {
 	isDynamicsWorkletLoaded,
 	isParametricEqWorkletLoaded,
 } from './effect-worklets.ts';
+import {
+	registerEffectAudioParam,
+	registerEffectMessageParameters,
+} from './effect-parameter-bindings.ts';
 import { isParametricEqType } from './project-effects.ts';
+import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
 
 export const PARAMETRIC_EQ_SPECTRUM_FFT_SIZE = 4_096;
@@ -66,6 +71,9 @@ export interface EffectRackOptions {
 	readonly parametricEqWasmModule?: WebAssembly.Module | null;
 	readonly parametricEqChannelCount?: unknown;
 	readonly onParametricEqError?: (error: Readonly<UnknownRecord>) => void;
+	readonly parameterRegistry?: ScheduledParameterRegistry;
+	readonly baseParameterLatencyFrames?: unknown;
+	readonly parameterLatencyFrames?: unknown;
 }
 
 export interface EffectMessageGraph {
@@ -123,6 +131,7 @@ export function applyEffectRack(
 		output = applyEffect(context, output, effect, nodes, {
 			...options,
 			sidechainDelayFrames: nonNegativeInteger(options.baseSidechainDelayFrames, 0) + upstreamLatencyFrames,
+			parameterLatencyFrames: nonNegativeInteger(options.baseParameterLatencyFrames, 0) + upstreamLatencyFrames,
 		});
 		upstreamLatencyFrames += effectLatencyFrames(effect, context.sampleRate || DEFAULT_SAMPLE_RATE);
 	}
@@ -177,9 +186,10 @@ export function applyEffect(
 				setParam(delay.delayTime, delaySeconds, context.currentTime);
 				connect(controlInput, delay);
 				connect(delay, processor, 0, 1);
-			} else connect(controlInput, processor, 0, 1);
-		}
-		return processor;
+				} else connect(controlInput, processor, 0, 1);
+			}
+			registerEffectMessageParameters(effect, processor.port, options);
+			return processor;
 	}
 	if ((type === 'limiter' || type === 'gate') && isDynamicsWorkletLoaded(context)) {
 		const WorkletNode = audioWorkletNodeConstructor();
@@ -189,9 +199,10 @@ export function applyEffect(
 				numberOfOutputs: 1,
 				outputChannelCount: [clamp(positiveInteger(options.effectChannelCount, 2), 1, 32)],
 				processorOptions: { type, params },
-			}));
-			connect(input, dynamics);
-			return dynamics;
+				}));
+				connect(input, dynamics);
+				registerEffectMessageParameters(effect, dynamics.port, options);
+				return dynamics;
 		}
 	}
 	if (isParametricEqType(type)) {
@@ -219,21 +230,27 @@ export function applyEffect(
 		}));
 		connect(processorInput, processor);
 		const outputAnalyser = options.effectAnalysis ? createSpectrumAnalyser(context, nodes) : null;
-		if (outputAnalyser) connect(processor, outputAnalyser);
-		registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options);
-		return outputAnalyser || processor;
-	}
-	if (['highpass', 'lowpass', 'bandpass', 'notch', 'peaking', 'lowshelf', 'highshelf'].includes(type)) {
-		return connectBiquad(context, input, { ...params, type }, nodes);
+			if (outputAnalyser) connect(processor, outputAnalyser);
+			registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options);
+			registerEffectMessageParameters(effect, processor.port, options);
+			return outputAnalyser || processor;
+		}
+		if (['highpass', 'lowpass', 'bandpass', 'notch', 'peaking', 'lowshelf', 'highshelf'].includes(type)) {
+			return connectBiquad(context, input, effect, { ...params, type }, nodes, options);
 	}
 	if (type === 'compressor' || type === 'limiter') {
 		if (typeof context.createDynamicsCompressor !== 'function') return input;
 		const compressor = addNode(nodes, context.createDynamicsCompressor());
 		setParam(compressor.threshold, finite(params.threshold ?? params.ceiling, type === 'limiter' ? -1 : -24), context.currentTime);
 		setParam(compressor.knee, finite(params.knee, type === 'limiter' ? 0 : 30), context.currentTime);
-		setParam(compressor.ratio, finite(params.ratio, type === 'limiter' ? 20 : 4), context.currentTime);
-		setParam(compressor.attack, finite(params.attack, type === 'limiter' ? 0.003 : 0.01), context.currentTime);
-		setParam(compressor.release, finite(params.release, type === 'limiter' ? 0.1 : 0.25), context.currentTime);
+			setParam(compressor.ratio, finite(params.ratio, type === 'limiter' ? 20 : 4), context.currentTime);
+			setParam(compressor.attack, finite(params.attack, type === 'limiter' ? 0.003 : 0.01), context.currentTime);
+			setParam(compressor.release, finite(params.release, type === 'limiter' ? 0.1 : 0.25), context.currentTime);
+			registerEffectAudioParam(effect, 'threshold', compressor.threshold, options);
+			registerEffectAudioParam(effect, 'knee', compressor.knee, options);
+			registerEffectAudioParam(effect, 'ratio', compressor.ratio, options);
+			registerEffectAudioParam(effect, 'attack', compressor.attack, options);
+			registerEffectAudioParam(effect, 'release', compressor.release, options);
 		connect(input, compressor);
 		if (type === 'compressor' && finite(params.makeupGain, 0) !== 0) {
 			const makeup = addNode(nodes, context.createGain());
@@ -312,8 +329,10 @@ function registerEffectGraphNodes(
 function connectBiquad(
 	context: BaseAudioContext,
 	input: AudioNode,
+	effect: EngineEffect,
 	params: UnknownRecord,
 	nodes: AudioNodeCollection,
+	options: EffectRackOptions,
 ): AudioNode {
 	if (typeof context.createBiquadFilter !== 'function') return input;
 	const filter = addNode(nodes, context.createBiquadFilter());
@@ -321,6 +340,9 @@ function connectBiquad(
 	setParam(filter.frequency, clamp(finite(params.frequency, 1_000), 10, 24_000), context.currentTime);
 	setParam(filter.Q, Math.max(0.0001, finite(params.q ?? params.Q, 0.707)), context.currentTime);
 	setParam(filter.gain, finite(params.gain, 0), context.currentTime);
+	registerEffectAudioParam(effect, 'frequency', filter.frequency, options);
+	registerEffectAudioParam(effect, 'q', filter.Q, options);
+	registerEffectAudioParam(effect, 'gain', filter.gain, options);
 	connect(input, filter);
 	return filter;
 }
@@ -351,6 +373,7 @@ function connectDelay(
 		}));
 		connect(input, delay);
 		registerEffectNode(effect, delay, options);
+		registerEffectMessageParameters(effect, delay.port, options);
 		return delay;
 	}
 	if (typeof context.createDelay !== 'function') return input;
@@ -363,6 +386,8 @@ function connectDelay(
 	setParam(wet.gain, mix, context.currentTime);
 	setParam(delay.delayTime, clamp(finite(params.time ?? params.delayTime, 0.25), 0, MAX_DELAY_SECONDS), context.currentTime);
 	setParam(feedback.gain, clamp(finite(params.feedback, 0.25), 0, 0.95), context.currentTime);
+	registerEffectAudioParam(effect, 'time', delay.delayTime, options);
+	registerEffectAudioParam(effect, 'feedback', feedback.gain, options);
 	connect(input, dry); connect(dry, output);
 	connect(input, delay); connect(delay, wet); connect(wet, output);
 	connect(delay, feedback); connect(feedback, delay);

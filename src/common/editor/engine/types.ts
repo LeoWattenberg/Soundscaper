@@ -14,7 +14,7 @@ export interface EngineEffect {
 	readonly enabled?: boolean;
 	readonly bypassed?: boolean;
 	readonly params?: UnknownRecord;
-	readonly context?: UnknownRecord;
+	readonly context?: UnknownRecord | null;
 }
 
 export interface EngineGainOwner {
