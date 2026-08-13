@@ -8,6 +8,17 @@ import {
 	type InterpolationShape,
 } from './interpolation-curve.ts';
 import {
+	addFractions,
+	compareFractions,
+	divideFractions,
+	exactFraction,
+	fractionNumber,
+	multiplyFractions,
+	numberFraction,
+	subtractFractions,
+	type ExactInterpolationFraction,
+} from './interpolation-curve-math.ts';
+import {
 	compareRationals,
 	normalizeRational,
 	subtractRationals,
@@ -16,6 +27,7 @@ import {
 	type Rational,
 	type RationalInput,
 } from './timeline-time.ts';
+import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 import {
 	compileVideoRetimeCurve,
 	evaluateVideoRetimeCurve,
@@ -29,6 +41,24 @@ export interface LegacyEnvelopePoint {
 	readonly value: number;
 }
 
+export interface BreakpointInterpolationPiece {
+	readonly origin: Rational;
+	readonly end: Rational;
+	readonly curve: CompiledInterpolationCurve;
+}
+
+export interface BreakpointInterpolationAdapter {
+	readonly pieces: readonly Readonly<BreakpointInterpolationPiece>[];
+}
+
+interface InternalBreakpointPiece {
+	readonly origin: ExactInterpolationFraction;
+	readonly end: ExactInterpolationFraction;
+	readonly sourceStart: ExactInterpolationFraction;
+	readonly sourceEnd: ExactInterpolationFraction;
+	readonly mode: 'forward' | 'freeze' | 'reverse';
+}
+
 export interface VideoRetimeInterpolationPiece {
 	readonly origin: Rational;
 	readonly end: Rational;
@@ -40,6 +70,10 @@ export interface VideoRetimeInterpolationAdapter {
 }
 
 const RETIME_ADAPTERS = new WeakSet<VideoRetimeInterpolationAdapter>();
+const BREAKPOINT_ADAPTERS = new WeakMap<
+	BreakpointInterpolationAdapter,
+	readonly Readonly<InternalBreakpointPiece>[]
+>();
 
 /** Express one admitted legacy envelope without changing its persisted wire. */
 export function compileEnvelopeInterpolationCurve(
@@ -76,7 +110,7 @@ export function compileEnvelopeInterpolationCurve(
 	return compileInterpolationCurve({ anchors, segments });
 }
 
-/** Express the shared V15-style linear/freeze breakpoint evaluator. */
+/** Express a breakpoint map when every absolute coordinate is in the core Rational domain. */
 export function compileBreakpointInterpolationCurve(map: BreakpointMap): CompiledInterpolationCurve {
 	validateBreakpointMap(map);
 	const anchors = map.points.map((point) => anchor(point.outer, rationalNumber(point.source)));
@@ -84,6 +118,67 @@ export function compileBreakpointInterpolationCurve(map: BreakpointMap): Compile
 		kind: point.mode === 'freeze' ? 'hold' : 'linear',
 	}));
 	return compileInterpolationCurve({ anchors, segments });
+}
+
+/** Express every Rational breakpoint map through signed/high-denominator origins and local curves. */
+export function compileBreakpointInterpolationAdapter(map: BreakpointMap): BreakpointInterpolationAdapter {
+	validateBreakpointMap(map);
+	const internal: InternalBreakpointPiece[] = [];
+	const pieces = map.points.slice(0, -1).map((point, index): BreakpointInterpolationPiece => {
+		const next = nonNullable(map.points[index + 1]);
+		internal.push(Object.freeze({
+			origin: adapterFraction(point.outer),
+			end: adapterFraction(next.outer),
+			sourceStart: adapterFraction(point.source),
+			sourceEnd: adapterFraction(next.source),
+			mode: point.mode,
+		}));
+		return Object.freeze({
+			origin: adapterRational(point.outer),
+			end: adapterRational(next.outer),
+			curve: compileInterpolationCurve({
+				anchors: [anchor(0, rationalNumber(point.source)), anchor(1, rationalNumber(next.source))],
+				segments: [Object.freeze({ kind: point.mode === 'freeze' ? 'hold' : 'linear' })],
+			}),
+		});
+	});
+	const adapter = Object.freeze({ pieces: Object.freeze(pieces) });
+	BREAKPOINT_ADAPTERS.set(adapter, Object.freeze(internal));
+	return adapter;
+}
+
+/** Evaluate after exact origin/span normalization, before one native-value conversion. */
+export function evaluateBreakpointInterpolationAdapter(
+	adapter: BreakpointInterpolationAdapter,
+	position: RationalInput,
+): number {
+	const pieces = BREAKPOINT_ADAPTERS.get(adapter);
+	if (pieces === undefined) {
+		throw new TypeError('A compiled breakpoint interpolation adapter is required.');
+	}
+	const query = adapterFraction(position);
+	const first = nonNullable(pieces[0]);
+	const last = nonNullable(pieces.at(-1));
+	if (compareFractions(query, first.origin) <= 0) return legacyBreakpointNumber(first.sourceStart);
+	if (compareFractions(query, last.end) >= 0) return legacyBreakpointNumber(last.sourceEnd);
+	let low = 0;
+	let high = pieces.length;
+	while (low < high) {
+		const middle = low + Math.floor((high - low) / 2);
+		const piece = nonNullable(pieces[middle]);
+		if (compareFractions(piece.end, query) <= 0) low = middle + 1;
+		else high = middle;
+	}
+	const piece = nonNullable(pieces[Math.min(low, pieces.length - 1)]);
+	if (piece.mode === 'freeze') return legacyBreakpointNumber(piece.sourceStart);
+	const interpolation = multiplyFractions(
+		subtractFractions(query, piece.origin),
+		divideFractions(
+			subtractFractions(piece.sourceEnd, piece.sourceStart),
+			subtractFractions(piece.end, piece.origin),
+		),
+	);
+	return legacyBreakpointNumber(addFractions(piece.sourceStart, interpolation));
 }
 
 /**
@@ -296,6 +391,24 @@ function anchor(position: RationalInput, value: number): InterpolationAnchor {
 		position: normalizeRational(position),
 		value,
 	});
+}
+
+function adapterRational(value: RationalInput): Rational {
+	return normalizeRational(value, {
+		maximumDenominator: AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR,
+	});
+}
+
+function adapterFraction(value: RationalInput): ExactInterpolationFraction {
+	return typeof value === 'number' ? numberFraction(value) : exactFraction(adapterRational(value));
+}
+
+function legacyBreakpointNumber(value: ExactInterpolationFraction): number {
+	if (!Number.isSafeInteger(Number(value.numerator))
+		|| !Number.isSafeInteger(Number(value.denominator))) {
+		throw new RangeError('The rational result is outside the safe integer domain.');
+	}
+	return fractionNumber(value);
 }
 
 function interpolatePosition(start: number, end: number, numerator: bigint | number, denominator: bigint | number): Rational {

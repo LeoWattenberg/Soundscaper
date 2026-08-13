@@ -164,11 +164,13 @@ export function approximateBoundedFraction(value: number): ExactInterpolationFra
 	return closest;
 }
 
-/** Convex interpolation cannot overflow solely because finite endpoints have opposite signs. */
+/** Preserve legacy finite arithmetic, using a convex fallback only on overflow. */
 export function stableInterpolate(start: number, end: number, amount: number): number {
-	const result = start * (1 - amount) + end * amount;
-	if (Number.isFinite(result)) return result;
-	return result < 0 ? Math.min(start, end) : Math.max(start, end);
+	const legacy = start + (end - start) * amount;
+	if (Number.isFinite(legacy)) return legacy;
+	const convex = start * (1 - amount) + end * amount;
+	if (Number.isFinite(convex)) return convex;
+	return convex < 0 ? Math.min(start, end) : Math.max(start, end);
 }
 
 export function stableCubic(
@@ -197,7 +199,7 @@ export function cubicValueDirection(
 ): -1 | 0 | 1 | null {
 	if (start === end) return start === control1 && control1 === control2 ? 0 : null;
 	const direction = start < end ? 1 : -1;
-	const values = [start, control1, control2, end].map(numberFraction);
+	const values = [start, control1, control2, end].map(exactFiniteDoubleFraction);
 	const directedDifference = (left: number, right: number): ExactInterpolationFraction => (
 		direction === 1
 			? subtractFractions(nonNullableFraction(values[right]), nonNullableFraction(values[left]))
@@ -214,6 +216,24 @@ export function cubicValueDirection(
 			multiplyFractions(first, last),
 		) <= 0) return direction;
 	return null;
+}
+
+function exactFiniteDoubleFraction(value: number): ExactInterpolationFraction {
+	if (!Number.isFinite(value)) throw new RangeError('An interpolation value must be finite.');
+	const view = new DataView(new ArrayBuffer(8));
+	view.setFloat64(0, value, false);
+	const high = view.getUint32(0, false);
+	const low = view.getUint32(4, false);
+	const negative = (high >>> 31) === 1;
+	const exponent = (high >>> 20) & 0x7ff;
+	const fraction = (BigInt(high & 0x000f_ffff) << 32n) | BigInt(low);
+	if (exponent === 0 && fraction === 0n) return ZERO_FRACTION;
+	let numerator = exponent === 0 ? fraction : (1n << 52n) | fraction;
+	const power = exponent === 0 ? -1_074 : exponent - 1_023 - 52;
+	let denominator = 1n;
+	if (power >= 0) numerator <<= BigInt(power);
+	else denominator <<= BigInt(-power);
+	return normalizeFraction(negative ? -numerator : numerator, denominator);
 }
 
 function nonNullableFraction(

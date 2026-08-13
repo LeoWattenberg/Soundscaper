@@ -5,10 +5,12 @@ import test from 'node:test';
 
 import { createEnvelopeValueEvaluator } from '../src/common/editor/automation.js';
 import {
+	compileBreakpointInterpolationAdapter,
 	compileBreakpointInterpolationCurve,
 	compileEnvelopeInterpolationCurve,
 	compileVideoRetimeInterpolationAdapter,
 	compileVideoRetimeInterpolationCurve,
+	evaluateBreakpointInterpolationAdapter,
 	evaluateVideoRetimeInterpolationAdapter,
 } from '../src/common/editor/interpolation-adapters.ts';
 import { evaluateInterpolationCurve } from '../src/common/editor/interpolation-curve.ts';
@@ -53,6 +55,29 @@ test('legacy envelope adapter preserves 4096 interior points plus its two implic
 	}
 });
 
+test('legacy envelope adapter retains finite interpolation operation ordering exactly', () => {
+	const seed = [{ frame: 0, value: 0.00012522190815080977 }, {
+		frame: 4, value: 4.440201567690913,
+	}];
+	const curve = compileEnvelopeInterpolationCurve(seed, 4);
+	const legacy = createEnvelopeValueEvaluator(seed, 4);
+	assert.equal(evaluateInterpolationCurve(curve, 2), legacy(2));
+
+	let state = 0x75_21_88_43;
+	const random = () => {
+		state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+		return state / 0x1_00_00_00_00;
+	};
+	for (let fixture = 0; fixture < 256; fixture += 1) {
+		const points = [{ frame: 0, value: random() * 16 }, { frame: 4, value: random() * 16 }];
+		const generated = compileEnvelopeInterpolationCurve(points, 4);
+		const expected = createEnvelopeValueEvaluator(points, 4);
+		for (const frame of [1, 2, 3]) {
+			assert.equal(evaluateInterpolationCurve(generated, frame), expected(frame));
+		}
+	}
+});
+
 test('audio-warp and video-breakpoint maps retain exact linear/freeze behavior through the adapter', () => {
 	const maps = [{
 		feature: 'audio-warp' as const,
@@ -77,6 +102,78 @@ test('audio-warp and video-breakpoint maps retain exact linear/freeze behavior t
 			assert.ok(Math.abs(
 				evaluateInterpolationCurve(curve, outer) - expected.num / expected.den,
 			) <= Number.EPSILON * 8);
+		}
+	}
+});
+
+test('breakpoint piece adapter preserves signed and maximum-denominator maps', () => {
+	const maximum = Number.MAX_SAFE_INTEGER;
+	const maps = [{
+		feature: 'video-retime' as const,
+		points: [
+			{ outer: rational(-7, 3), source: rational(-5, 7), mode: 'forward' as const },
+			{ outer: rational(-1, 3), source: rational(9, 7), mode: 'freeze' as const },
+			{ outer: rational(5, 3), source: rational(9, 7), mode: 'reverse' as const },
+			{ outer: rational(8, 3), source: rational(-2, 7), mode: 'forward' as const },
+		],
+	}, {
+		feature: 'audio-warp' as const,
+		points: [
+			{ outer: rational(0), source: rational(0), mode: 'forward' as const },
+			{ outer: rational(1, maximum), source: rational(1, maximum), mode: 'forward' as const },
+			{ outer: rational(1, 1_000_001), source: rational(1, 1_000_001), mode: 'forward' as const },
+			{ outer: rational(1), source: rational(1), mode: 'forward' as const },
+		],
+	}];
+	const queries = [[rational(-3), rational(-7, 3), rational(-4, 3), rational(-1, 3),
+		rational(2, 3), rational(5, 3), rational(2), rational(3)], [
+		rational(0), rational(1, maximum),
+		rational(1, 2_000_002), rational(1, 1_000_001), rational(1),
+	]];
+	for (const [index, map] of maps.entries()) {
+		assert.throws(() => compileBreakpointInterpolationCurve(map), /non-negative|denominator|rational/iu,
+			'the absolute single-curve convenience retains truthful core-domain limits');
+		const before = structuredClone(map);
+		const adapter = compileBreakpointInterpolationAdapter(map);
+		assert.deepEqual(map, before);
+		assert.equal(adapter.pieces.length, map.points.length - 1);
+		assert.doesNotThrow(() => JSON.stringify(adapter));
+		for (const query of queries[index] ?? []) {
+			const expected = evaluateBreakpointMap(map, query);
+			const actual = evaluateBreakpointInterpolationAdapter(adapter, query);
+			const expectedNumber = expected.num / expected.den;
+			assert.equal(actual, expectedNumber,
+				`${String(query.num)}/${String(query.den)} preserves the exact observable Number`);
+		}
+	}
+});
+
+test('breakpoint piece adapter preserves generated exact evaluator Number results', () => {
+	let state = 0x31_05_a7_19;
+	const randomInteger = (maximum: number) => {
+		state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+		return state % maximum;
+	};
+	for (let fixture = 0; fixture < 256; fixture += 1) {
+		const outerStart = randomInteger(41) - 20;
+		const outerMiddle = outerStart + 1 + randomInteger(20);
+		const outerEnd = outerMiddle + 1 + randomInteger(20);
+		const sourceStart = randomInteger(41) - 20;
+		const sourceMiddle = sourceStart + 1 + randomInteger(20);
+		const sourceEnd = sourceMiddle + 1 + randomInteger(20);
+		const map = {
+			feature: 'audio-warp' as const,
+			points: [
+				{ outer: rational(outerStart, 7), source: rational(sourceStart, 11), mode: 'forward' as const },
+				{ outer: rational(outerMiddle, 7), source: rational(sourceMiddle, 11), mode: 'forward' as const },
+				{ outer: rational(outerEnd, 7), source: rational(sourceEnd, 11), mode: 'forward' as const },
+			],
+		};
+		const adapter = compileBreakpointInterpolationAdapter(map);
+		for (let queryIndex = 0; queryIndex < 32; queryIndex += 1) {
+			const query = rational(outerStart * 13 + randomInteger((outerEnd - outerStart) * 13 + 1), 91);
+			const expected = evaluateBreakpointMap(map, query);
+			assert.equal(evaluateBreakpointInterpolationAdapter(adapter, query), expected.num / expected.den);
 		}
 	}
 });

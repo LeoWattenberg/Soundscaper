@@ -253,7 +253,7 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		id: 'interpolation-inverse-cells',
 		file: 'src/common/editor/interpolation-curve.ts',
 		behavior: 'Interpolation inversion encloses a non-exact root in its authoritative whole-coordinate cell while retaining rational anchors until a consumer deliberately chooses that bracket.',
-		conversions: [{ helper: 'roundRational', policies: ['enclosingEnd', 'enclosingStart'] }],
+		conversions: [{ helper: 'roundRational', policies: ['enclosingEnd'] }],
 	},
 	{
 		id: 'monotonic-tempo-projection',

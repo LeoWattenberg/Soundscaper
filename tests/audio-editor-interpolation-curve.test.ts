@@ -177,26 +177,32 @@ test('Bézier inversion supports monotone values and rejects nonmonotone value h
 	assert.equal(Number.isFinite(evaluateInterpolationCurve(nonmonotone, 5)), true);
 	assert.throws(() => invertInterpolationCurve(nonmonotone, 5), /monotone|invert|control/iu);
 
-	const underflowNonmonotone = compileInterpolationCurve({
-		anchors: [
-			{ position: rational(0), value: 0 },
-			{ position: rational(1), value: 0.5e-200 },
-		],
-		segments: [{
-			kind: 'bezier',
-			control1: { position: rational(1, 3), value: 1e-200 },
-			control2: { position: rational(2, 3), value: 0 },
-		}],
-	});
-	assert.throws(
-		() => invertInterpolationCurve(underflowNonmonotone, 0.25e-200),
-		/monotone|invert|control/iu,
-		'derivative products must not underflow into a false monotone classification',
-	);
-	assert.equal(
-		Number.isFinite(evaluateInterpolationCurve(underflowNonmonotone, rational(1, 2))),
-		true,
-	);
+	for (const [start, control1, control2, end] of [[
+		0, 1e-200, 0, 0.5e-200,
+	], [
+		9.872123081887626e40,
+		1.3355965254117724e41,
+		1.040965961248771e41,
+		1.2901367475460187e41,
+	]] as const) {
+		const exactDoubleNonmonotone = compileInterpolationCurve({
+			anchors: [
+				{ position: rational(0), value: start },
+				{ position: rational(1), value: end },
+			],
+			segments: [{
+				kind: 'bezier',
+				control1: { position: rational(1, 3), value: control1 },
+				control2: { position: rational(2, 3), value: control2 },
+			}],
+		});
+		assert.throws(
+			() => invertInterpolationCurve(exactDoubleNonmonotone, (start + end) / 2),
+			/monotone|invert|control/iu,
+			'exact IEEE-754 derivative products must not underflow or cross a decimal boundary',
+		);
+		assert.equal(Number.isFinite(evaluateInterpolationCurve(exactDoubleNonmonotone, rational(1, 2))), true);
+	}
 });
 
 test('compile rejects malformed curves, nonfinite values, unordered anchors, and invalid absolute handles', () => {
@@ -400,9 +406,7 @@ test('irrational inversion brackets enclose roots inside sub-integer segments', 
 			anchors: [{ position: start, value: 0 }, { position: end, value: 1 }],
 			segments: [{ kind: 'eased' }],
 		});
-		assert.deepEqual(invertInterpolationCurve(curve, 0.25), [{
-			kind: 'bracket', ...expected,
-		}]);
+		assert.deepEqual(invertInterpolationCurve(curve, 0.25), [{ kind: 'bracket', ...expected }]);
 	}
 });
 
