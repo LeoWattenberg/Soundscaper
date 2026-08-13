@@ -255,7 +255,7 @@ test('product store injection accepts only the exact out-of-band binding without
 				FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 				probe.options,
 			),
-			/authentic.*project store|exact.*storage profile|bound.*profile/iu,
+			/authentic.*project store|exact.*storage profile|bound.*profile|product-created.*V18 project store/iu,
 		);
 		assert.deepEqual(hostileStore.hits, [0, 0, 0, 0]);
 		assert.equal(probe.sideEffects(), 0);

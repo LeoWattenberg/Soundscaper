@@ -11,12 +11,25 @@ import {
 } from '../common/editor/storage/project-store-profile-binding.ts';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import {
+	createStorageRepositories,
+	type StorageRepositories,
+	type StorageRepositoryFactory,
+} from '../common/editor/storage/repositories.ts';
+import {
 	AudioEditorProjectStore,
 	createProjectStore,
 } from '../common/editor/storage.js';
+import { FramescaperProjectRepositoryV18 } from './editor-project-repository-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 
-const AUTHORITY_FIELDS = ['projectStorageProfile', 'databaseName', 'store'] as const;
+const AUTHORITY_FIELDS = [
+	'projectStorageProfile',
+	'databaseName',
+	'store',
+	'repositoryFactory',
+	'desktopProjectBridge',
+] as const;
+const PRODUCT_CREATED_STORES = new WeakSet<AudioEditorProjectStore>();
 
 export interface FramescaperProjectStoreV18Options extends AudioEditorProjectStoreOptions {
 	readonly store?: AudioEditorProjectStore;
@@ -29,22 +42,78 @@ export function createFramescaperProjectStoreV18(
 ): AudioEditorProjectStore {
 	assertFramescaperProjectV18Profile(profile);
 	const storageProfile = storageProfileFor(profile);
-	const authority = snapshotAuthorities(options);
-	if (authority.projectStorageProfile.present
-		&& authority.projectStorageProfile.value !== storageProfile) {
+	const projectStorageProfile = snapshotAuthority(options, 'projectStorageProfile');
+	const databaseName = snapshotAuthority(options, 'databaseName');
+	const injectedStore = snapshotAuthority(options, 'store');
+	if (projectStorageProfile.present && projectStorageProfile.value !== storageProfile) {
 		throw new TypeError('The exact Framescaper V18 project storage profile is required.');
 	}
-	if (authority.databaseName.present) {
+	if (databaseName.present) {
 		throw new TypeError('databaseName cannot be combined with the Framescaper V18 storage profile.');
 	}
-	if (authority.store.present) {
-		assertEditorProjectStoreProfile(authority.store.value, storageProfile);
-		return authority.store.value as AudioEditorProjectStore;
+	if (injectedStore.present) {
+		const store = injectedStore.value;
+		if ((typeof store !== 'object' && typeof store !== 'function')
+			|| store === null
+			|| !PRODUCT_CREATED_STORES.has(store as AudioEditorProjectStore)) {
+			throw new TypeError('Only a product-created Framescaper V18 project store can be injected.');
+		}
+		assertEditorProjectStoreProfile(store, storageProfile);
+		return store as AudioEditorProjectStore;
 	}
-	return createProjectStore({
-		...(options as AudioEditorProjectStoreOptions),
+	const desktopProjectBridge = snapshotAuthority(options, 'desktopProjectBridge');
+	if (desktopProjectBridge.present) {
+		throw new TypeError('A generic desktop project bridge cannot bypass the Framescaper V18 repository firewall.');
+	}
+	const repositoryFactory = snapshotAuthority(options, 'repositoryFactory');
+	const delegateFactory = repositoryFactory.present
+		? repositoryFactory.value
+		: createStorageRepositories;
+	if (typeof delegateFactory !== 'function') {
+		throw new TypeError('The V18 storage repository factory must be a function.');
+	}
+	const store = createProjectStore({
+		...copyCreationOptions(options),
 		projectStorageProfile: storageProfile,
+		repositoryFactory: framescaperRepositoryFactory(
+			profile,
+			delegateFactory as StorageRepositoryFactory,
+		),
 	});
+	PRODUCT_CREATED_STORES.add(store);
+	return store;
+}
+
+function framescaperRepositoryFactory(
+	profile: EditorProjectRuntimeProfile,
+	delegateFactory: StorageRepositoryFactory,
+): StorageRepositoryFactory {
+	return (port, options) => {
+		const repositories = delegateFactory(port, options);
+		if (repositories === null || typeof repositories !== 'object') {
+			throw new TypeError('The V18 storage repository factory returned an invalid repository set.');
+		}
+		return Object.freeze({
+			...repositories,
+			projects: new FramescaperProjectRepositoryV18(profile, repositories.projects),
+		}) as StorageRepositories;
+	};
+}
+
+function copyCreationOptions(value: unknown): AudioEditorProjectStoreOptions {
+	if (value === null || (typeof value !== 'object' && typeof value !== 'function')) return {};
+	const output: Record<string, unknown> = {};
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== 'string') throw new TypeError('V18 store options cannot contain symbol properties.');
+		if (AUTHORITY_FIELDS.includes(key as (typeof AUTHORITY_FIELDS)[number])) continue;
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor?.enumerable) continue;
+		if (!Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${key} must be an own data property.`);
+		}
+		output[key] = descriptor.value;
+	}
+	return output as AudioEditorProjectStoreOptions;
 }
 
 function storageProfileFor(profile: EditorProjectRuntimeProfile): EditorProjectStorageProfile {
@@ -59,22 +128,19 @@ interface AuthorityValue {
 	readonly value: unknown;
 }
 
-function snapshotAuthorities(
+function snapshotAuthority(
 	value: unknown,
-): Readonly<Record<(typeof AUTHORITY_FIELDS)[number], AuthorityValue>> {
+	field: (typeof AUTHORITY_FIELDS)[number],
+): AuthorityValue {
 	const candidate = value !== null && (typeof value === 'object' || typeof value === 'function')
 		? value
 		: {};
-	const output = Object.create(null) as Record<(typeof AUTHORITY_FIELDS)[number], AuthorityValue>;
-	for (const field of AUTHORITY_FIELDS) {
-		const descriptor = Object.getOwnPropertyDescriptor(candidate, field);
-		if (descriptor && !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`${field} must be an own data property.`);
-		}
-		output[field] = Object.freeze({
-			present: descriptor !== undefined,
-			value: descriptor?.value,
-		});
+	const descriptor = Object.getOwnPropertyDescriptor(candidate, field);
+	if (descriptor && !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(`${field} must be an own data property.`);
 	}
-	return Object.freeze(output);
+	return Object.freeze({
+		present: descriptor !== undefined,
+		value: descriptor?.value,
+	});
 }
