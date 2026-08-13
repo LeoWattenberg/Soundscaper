@@ -411,6 +411,7 @@ function firstVisibleTimelineVideo(project, options) {
 	const clipById = new Map((project?.clips || []).map((clip) => [clip.id, clip]));
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
 	const visible = videoTrackVisibility(project, options.isTrackVisible);
+	const range = options.range == null ? null : resolveVideoExportRange(project, options.range);
 	const candidates = [];
 	for (const [trackIndex, track] of (project?.tracks || []).entries()) {
 		if (!visible(track)) continue;
@@ -418,6 +419,10 @@ function firstVisibleTimelineVideo(project, options) {
 			const clip = clipById.get(clipId);
 			if (!clip) throw new ReferenceError(`Video track ${track.id} references missing clip ${clipId}.`);
 			if (clip.kind !== 'video') throw new TypeError(`Video track ${track.id} contains non-video clip ${clip.id}.`);
+			if (range && (
+				videoClipEndFrame(clip) <= range.startFrame
+				|| clip.timelineStartFrame >= range.endFrame
+			)) continue;
 			const source = sourceById.get(clip.sourceId);
 			if (!source) throw new ReferenceError(`Video clip ${clip.id} references missing source ${clip.sourceId}.`);
 			if (source.kind !== 'video') throw new TypeError(`Video clip ${clip.id} references non-video source ${source.id}.`);

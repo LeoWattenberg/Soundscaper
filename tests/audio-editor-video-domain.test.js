@@ -195,6 +195,19 @@ test('exact video canvas preserves canonical rational rates before applying the 
 	}).frameRate, { num: 24_000, den: 1_001 });
 });
 
+test('exact video canvas selects its reference from the requested export range', () => {
+	const project = layeredProject();
+	const lower = project.clips.find((clip) => clip.id === 'lower-clip');
+	lower.durationFrames = 5_000;
+	const exact = resolveExactVideoExportCanvas(project, {
+		range: { startFrame: 5_000, endFrame: 15_000 },
+	});
+	assert.equal(exact.referenceClipId, 'top-clip');
+	assert.equal(exact.referenceSourceId, 'top-source');
+	assert.deepEqual({ width: exact.width, height: exact.height }, { width: 1_280, height: 720 });
+	assert.deepEqual(exact.frameRate, { num: 24, den: 1 });
+});
+
 test('video export range authority is shared without changing V6 plan range shape', () => {
 	const project = layeredProject();
 	project.selection = { startFrame: 123, endFrame: 456 };
