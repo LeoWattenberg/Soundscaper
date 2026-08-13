@@ -129,8 +129,8 @@ export function createVideoKeyframeExportFrameSource(
 	);
 	if (endFrame <= startFrame) throw new RangeError('Video keyframe export range must be positive.');
 	const durationFrames = endFrame - startFrame;
-	const frameCount = safeCeilProduct(
-		durationFrames, canvas.frameRate.num, sampleRate, canvas.frameRate.den,
+	const frameCount = resolveVideoKeyframeExportFrameCount(
+		durationFrames, sampleRate, canvas.frameRate,
 	);
 	assertFramePositionDomain(startFrame, frameCount, sampleRate, canvas.frameRate);
 	const provider = optionalDataProperty(
@@ -262,6 +262,18 @@ function normalizeCanvas(value: unknown): VideoKeyframeExportCanvas {
 		height: positiveSafeInteger(dataProperty(canvas, 'height', 'canvas'), 'canvas.height'),
 		frameRate: positiveRational(dataProperty(canvas, 'frameRate', 'canvas'), 'canvas.frameRate'),
 	});
+}
+
+/** Share the exact terminal-exclusive CFR frame domain with planning and encoding. */
+export function resolveVideoKeyframeExportFrameCount(
+	durationFramesValue: number,
+	sampleRateValue: number,
+	frameRateValue: RationalInput,
+): number {
+	const durationFrames = positiveSafeInteger(durationFramesValue, 'durationFrames');
+	const sampleRate = positiveSafeInteger(sampleRateValue, 'sampleRate');
+	const frameRate = positiveRational(frameRateValue, 'frameRate');
+	return safeCeilProduct(durationFrames, frameRate.num, sampleRate, frameRate.den);
 }
 
 function safeCeilProduct(left: number, right: number, ...divisors: number[]): number {

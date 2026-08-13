@@ -1,36 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../ffmpeg-output-stream.ts';
-import { getVideoExportFormat } from '../video-export.js';
+import {
+	captureDirectVideoContract,
+	type DirectVideoContract,
+	type DirectVideoPlan,
+	type VideoFormatDescriptor,
+} from './direct-video-plan-contract.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
-
-interface VideoFormatDescriptor {
-	readonly audioCodec: string;
-	readonly audioEncoder: string;
-	readonly container: string;
-	readonly extension: string;
-	readonly id: 'mp4' | 'webm';
-	readonly mimeType: 'video/mp4' | 'video/webm';
-	readonly pixelFormat: string;
-	readonly videoCodec: string;
-	readonly videoEncoder: string;
-}
-
-interface DirectVideoPlan extends Readonly<Record<string, unknown>> {
-	readonly canvas?: unknown;
-	readonly codecs?: unknown;
-	readonly container?: unknown;
-	readonly durationSeconds?: unknown;
-	readonly extension?: unknown;
-	readonly filterPlan?: unknown;
-	readonly format?: unknown;
-	readonly inputs?: unknown;
-	readonly mimeType?: unknown;
-	readonly outputFrameCount?: unknown;
-	readonly range?: unknown;
-	readonly version?: unknown;
-}
 
 interface PreparedVideoStream {
 	readonly mode: 'stream';
@@ -45,12 +23,6 @@ interface DirectVideoFileService {
 	readonly prepareSave?: (
 		request: Readonly<Record<string, unknown>>,
 	) => Awaitable<unknown>;
-}
-
-interface DirectVideoContract {
-	readonly descriptor: VideoFormatDescriptor;
-	readonly fileName: string;
-	readonly fingerprint: string;
 }
 
 interface DirectVideoEncodedResult {
@@ -89,7 +61,7 @@ export async function prepareDirectVideoDestination(
 	requestedSettings: Readonly<Record<string, unknown>> | null | undefined,
 	signal: AbortSignal,
 ): Promise<DirectVideoPreparation> {
-	const contract = captureContract(plan, fileName);
+	const contract = captureDirectVideoContract(plan, fileName);
 	if (!contract || typeof fileService.prepareSave !== 'function') return emptyPreparation();
 	const prepare = () => fileService.prepareSave!(saveRequest(
 		contract,
@@ -307,85 +279,6 @@ async function prepareLateVideoTarget(
 	return selected as PreparedVideoStream;
 }
 
-function captureContract(
-	plan: DirectVideoPlan,
-	fileName: string,
-): DirectVideoContract | null {
-	try {
-		if (!isRecord(plan) || plan.version !== 6 || !Array.isArray(plan.inputs)) return null;
-		const descriptor = getVideoExportFormat(String(plan.format || '')) as VideoFormatDescriptor;
-		if ((descriptor.id !== 'mp4' && descriptor.id !== 'webm')
-			|| plan.format !== descriptor.id
-			|| plan.container !== descriptor.container
-			|| plan.extension !== descriptor.extension
-			|| plan.mimeType !== descriptor.mimeType
-			|| !canonicalVideoGeometry(plan, descriptor)
-			|| !canonicalVideoInputs(plan, descriptor)
-			|| !canonicalFileName(fileName, descriptor.extension)) return null;
-		const fingerprint = JSON.stringify(plan);
-		if (typeof fingerprint !== 'string' || !fingerprint) return null;
-		return Object.freeze({ descriptor, fileName, fingerprint });
-	} catch {
-		return null;
-	}
-}
-
-function canonicalVideoGeometry(
-	plan: DirectVideoPlan,
-	descriptor: VideoFormatDescriptor,
-): boolean {
-	const canvas = isRecord(plan.canvas) ? plan.canvas : null;
-	const codecs = isRecord(plan.codecs) ? plan.codecs : null;
-	const range = isRecord(plan.range) ? plan.range : null;
-	if (!canvas || !codecs || !range
-		|| !positiveEvenInteger(canvas.width) || !positiveEvenInteger(canvas.height)
-		|| !positiveNumber(canvas.frameRate)
-		|| canvas.pixelFormat !== descriptor.pixelFormat
-		|| codecs.pixelFormat !== descriptor.pixelFormat
-		|| codecs.video !== descriptor.videoCodec
-		|| codecs.videoEncoder !== descriptor.videoEncoder
-		|| !positiveNumber(plan.durationSeconds)
-		|| !positiveSafeInteger(plan.outputFrameCount)
-		|| !nonNegativeSafeInteger(range.startFrame)
-		|| !positiveSafeInteger(range.endFrame)
-		|| !positiveSafeInteger(range.durationFrames)
-		|| Number(range.endFrame) - Number(range.startFrame) !== range.durationFrames) return false;
-	return true;
-}
-
-function canonicalVideoInputs(
-	plan: DirectVideoPlan,
-	descriptor: VideoFormatDescriptor,
-): boolean {
-	const inputs = plan.inputs as readonly unknown[];
-	const codecs = plan.codecs as Readonly<Record<string, unknown>>;
-	let audioInputs = 0;
-	let videoInputs = 0;
-	const videoSourceIds = new Set<string>();
-	for (const [index, input] of inputs.entries()) {
-		if (!isRecord(input) || input.inputIndex !== index) return false;
-		if (input.kind === 'staged-audio-mix') audioInputs += 1;
-		else if (input.kind === 'video-source') {
-			if (typeof input.sourceId !== 'string' || !input.sourceId
-				|| input.sourceId.includes('\0') || videoSourceIds.has(input.sourceId)) return false;
-			videoSourceIds.add(input.sourceId);
-			videoInputs += 1;
-		} else return false;
-	}
-	const finalInput = inputs.at(-1);
-	if (videoInputs === 0 || audioInputs > 1
-		|| (audioInputs === 1 && (!isRecord(finalInput) || finalInput.kind !== 'staged-audio-mix'))) return false;
-	const filterPlan = isRecord(plan.filterPlan) ? plan.filterPlan : null;
-	const filterAudio = filterPlan && isRecord(filterPlan.audio) ? filterPlan.audio : null;
-	return audioInputs === 1
-		? codecs.audio === descriptor.audioCodec
-			&& codecs.audioEncoder === descriptor.audioEncoder
-			&& filterAudio?.strategy === 'staged-mix'
-		: codecs.audio === null
-			&& codecs.audioEncoder === null
-			&& filterAudio?.strategy === 'none';
-}
-
 function saveRequest(
 	contract: DirectVideoContract,
 	settings: Readonly<Record<string, unknown>>,
@@ -417,7 +310,7 @@ function assertPreparedPlan(
 	fileName: string,
 ): DirectVideoContract {
 	const expected = preparedContracts.get(destination);
-	const current = captureContract(plan, fileName);
+	const current = captureDirectVideoContract(plan, fileName);
 	if (!expected || !current || !sameContract(expected, current)) {
 		throw new Error('The direct video export plan changed after its destination was selected.');
 	}
@@ -425,7 +318,7 @@ function assertPreparedPlan(
 }
 
 function assertSamePlan(contract: DirectVideoContract, plan: DirectVideoPlan): void {
-	const current = captureContract(plan, contract.fileName);
+	const current = captureDirectVideoContract(plan, contract.fileName);
 	if (!current || !sameContract(contract, current)) {
 		throw new Error('The direct video export plan changed after its destination was selected.');
 	}
@@ -454,40 +347,11 @@ function assertExactCounts(prepared: PreparedVideoStream, emitted: number, exact
 	}
 }
 
-function canonicalFileName(fileName: string, extension: string): boolean {
-	return typeof fileName === 'string'
-		&& fileName.length > extension.length + 1
-		&& fileName.toLowerCase().endsWith(`.${extension}`)
-		&& !fileName.includes('\0')
-		&& !fileName.includes('/')
-		&& !fileName.includes('\\');
-}
-
 function safeByteLength(value: unknown, field: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 0) {
 		throw new RangeError(`${field} byte length must be a non-negative safe integer.`);
 	}
 	return Number(value);
-}
-
-function positiveEvenInteger(value: unknown): boolean {
-	return Number.isSafeInteger(value) && Number(value) >= 2 && Number(value) % 2 === 0;
-}
-
-function positiveSafeInteger(value: unknown): boolean {
-	return Number.isSafeInteger(value) && Number(value) > 0;
-}
-
-function nonNegativeSafeInteger(value: unknown): boolean {
-	return Number.isSafeInteger(value) && Number(value) >= 0;
-}
-
-function positiveNumber(value: unknown): boolean {
-	return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-	return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
 function emptyPreparation(): DirectVideoPreparation {
