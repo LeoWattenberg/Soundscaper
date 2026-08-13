@@ -2,9 +2,10 @@ import { expect, test } from '@playwright/test';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import {
+	assertAccessibleBasics,
+	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseFileAction,
-	chooseNestedCommandAction,
 	getMenuItem,
 	importFiles,
 	registerAudioEditorHooks,
@@ -18,22 +19,44 @@ test.describe('Framescaper V19 video composition authoring', () => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 	});
 
-	test('reaches composition from Edit, preserves it through history, and reopens it', async ({ page }) => {
-		test.setTimeout(90_000);
+	test('authors by keyboard with announced validation, accessible colors, history, reset, and reopen', async ({ page }) => {
+		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1_280, height: 1_000 });
 		const editor = await bootEditor(page, '/framescaper/en/');
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
 		await importFiles(editor, [createDeterministicAvFixture('composition-source.webm')]);
 
 		await selectOnlyVideoClip(editor);
-		await openCompositionDialog(page, editor);
+		await page.emulateMedia({ forcedColors: 'active' });
+		const editMenuTrigger = await openCompositionDialog(page, editor, { inspectMenu: true });
 
 		let dialog = compositionDialog(page);
-		await expect(numberField(dialog, 'Left (%)')).toHaveValue('0');
-		await expect(numberField(dialog, 'Position X offset (%)')).toHaveValue('0');
-		await expect(numberField(dialog, 'Scale X (%)')).toHaveValue('100');
-		await expect(numberField(dialog, 'Opacity (%)')).toHaveValue('100');
-		await expect(dialog.getByRole('combobox', { name: 'Blend mode', exact: true })).toHaveValue('normal');
+		await expect(numberField(dialog, 'Left (%)')).toBeFocused();
+		await expect(dialog).toHaveAttribute('aria-modal', 'true');
+		await expect(dialog).toHaveAttribute('aria-describedby', 'video-composition-description');
+		await expect(dialog.locator('#video-composition-description')).toBeVisible();
+		const status = dialog.getByRole('status');
+		await expect(status).toHaveAttribute('aria-live', 'polite');
+		await expect(status).toHaveAttribute('aria-atomic', 'true');
+		await assertAccessibleBasics(dialog);
+		await expect(dialog).toHaveCSS('forced-color-adjust', 'auto');
+		await expect(dialog).toHaveCSS('border-top-width', '1px');
+		await expect(numberField(dialog, 'Left (%)')).toHaveCSS('forced-color-adjust', 'auto');
+		await page.emulateMedia({ forcedColors: 'none' });
+		await assertNoSeriousAxeViolations(page, '[data-video-composition-dialog]');
+
+		await expectDefaultComposition(dialog);
+		await numberField(dialog, 'Left (%)').fill('60');
+		await numberField(dialog, 'Right (%)').fill('40');
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).press('Enter');
+		const invalidMessage = 'Check that every composition value is within its displayed range.';
+		await expect(status).toHaveText(invalidMessage);
+		await expect(dialog.getByRole('alert')).toHaveText(invalidMessage);
+		await closeCompositionDialog(page, dialog, editMenuTrigger);
+
+		await openCompositionDialog(page, editor);
+		dialog = compositionDialog(page);
+		await expectDefaultComposition(dialog);
 
 		await numberField(dialog, 'Left (%)').fill('12.5');
 		await numberField(dialog, 'Position X offset (%)').fill('20');
@@ -43,18 +66,34 @@ test.describe('Framescaper V19 video composition authoring', () => {
 		await numberField(dialog, 'Opacity (%)').fill('65');
 		await dialog.getByRole('combobox', { name: 'Blend mode', exact: true }).selectOption('screen');
 		await numberField(dialog, 'Layer order').fill('7');
-		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).press('Enter');
 		await expect(dialog.getByRole('status')).toContainText('Composition applied.');
-		await closeCompositionDialog(dialog);
+		await closeCompositionDialog(page, dialog, editMenuTrigger);
 
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		const redo = editor.getByRole('button', { name: 'Redo', exact: true });
 		await expect(redo).toBeEnabled();
+		await openCompositionDialog(page, editor);
+		dialog = compositionDialog(page);
+		await expectDefaultComposition(dialog);
+		await closeCompositionDialog(page, dialog, editMenuTrigger);
+
 		await redo.click();
+		await expect(redo).toBeDisabled();
 		await openCompositionDialog(page, editor);
 		dialog = compositionDialog(page);
 		await expectAuthoredComposition(dialog);
-		await closeCompositionDialog(dialog);
+		await dialog.getByRole('button', { name: 'Reset', exact: true }).press('Enter');
+		await expect(dialog.getByRole('status')).toContainText('Composition reset.');
+		await expectDefaultComposition(dialog);
+		await closeCompositionDialog(page, dialog, editMenuTrigger);
+
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(redo).toBeEnabled();
+		await openCompositionDialog(page, editor);
+		dialog = compositionDialog(page);
+		await expectAuthoredComposition(dialog);
+		await closeCompositionDialog(page, dialog, editMenuTrigger);
 
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
@@ -75,8 +114,11 @@ test.describe('Framescaper V19 video composition authoring', () => {
 		await expect(editor).toHaveAttribute('data-product', 'soundscaper');
 
 		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
-		await menubar.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+		const edit = menubar.getByRole('menuitem', { name: 'Edit', exact: true });
+		await edit.focus();
+		await edit.press('Enter');
 		const editMenu = page.getByRole('menu', { name: 'Edit', exact: true });
+		await expect(editMenu).toBeVisible();
 		const clipBoundaries = getMenuItem(editMenu, 'Audio clips');
 		await clipBoundaries.focus();
 		await page.keyboard.press('ArrowRight');
@@ -89,12 +131,35 @@ test.describe('Framescaper V19 video composition authoring', () => {
 	});
 });
 
-async function openCompositionDialog(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'Edit', [
-		'Audio clips',
-		'Transform and compositing',
-	]);
+async function openCompositionDialog(page, editor, { inspectMenu = false } = {}) {
+	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
+	const edit = menubar.getByRole('menuitem', { name: 'Edit', exact: true });
+	await edit.focus();
+	await edit.press('Enter');
+	const editMenu = page.getByRole('menu', { name: 'Edit', exact: true });
+	await expect(editMenu).toBeVisible();
+	const clipBoundaries = getMenuItem(editMenu, 'Audio clips');
+	await clipBoundaries.focus();
+	await page.keyboard.press('ArrowRight');
+	const clipBoundariesMenu = clipBoundaries.getByRole('menu');
+	await expect(clipBoundariesMenu).toBeVisible();
+	const composition = clipBoundariesMenu.getByRole('menuitem', {
+		name: 'Transform and compositing',
+		exact: true,
+	});
+	await expect(composition).toBeEnabled();
+	await composition.focus();
+	if (inspectMenu) {
+		await clipBoundariesMenu.evaluate((element) => {
+			element.id = 'framescaper-video-composition-accessibility-menu';
+		});
+		await assertAccessibleBasics(clipBoundariesMenu);
+		await assertNoSeriousAxeViolations(page, '#framescaper-video-composition-accessibility-menu');
+		await expect(composition).toHaveCSS('forced-color-adjust', 'auto');
+	}
+	await composition.press('Enter');
 	await expect(compositionDialog(page)).toBeVisible();
+	return edit;
 }
 
 async function selectOnlyVideoClip(editor) {
@@ -109,9 +174,21 @@ function compositionDialog(page) {
 	return page.getByRole('dialog', { name: 'Transform and compositing', exact: true });
 }
 
-async function closeCompositionDialog(dialog) {
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+async function closeCompositionDialog(page, dialog, returnTarget) {
+	await page.keyboard.press('Escape');
 	await expect(dialog).toBeHidden();
+	await expect(returnTarget).toBeFocused();
+}
+
+async function expectDefaultComposition(dialog) {
+	await expect(numberField(dialog, 'Left (%)')).toHaveValue('0');
+	await expect(numberField(dialog, 'Right (%)')).toHaveValue('0');
+	await expect(numberField(dialog, 'Position X offset (%)')).toHaveValue('0');
+	await expect(numberField(dialog, 'Scale X (%)')).toHaveValue('100');
+	await expect(dialog.getByRole('checkbox', { name: 'Flip horizontally', exact: true })).not.toBeChecked();
+	await expect(numberField(dialog, 'Opacity (%)')).toHaveValue('100');
+	await expect(dialog.getByRole('combobox', { name: 'Blend mode', exact: true })).toHaveValue('normal');
+	await expect(numberField(dialog, 'Layer order')).toHaveValue('0');
 }
 
 async function expectAuthoredComposition(dialog) {

@@ -45,6 +45,8 @@ interface VideoCompositionDialogProps {
 type TextDraftKey = Exclude<keyof VideoCompositionDraft,
 	'flipHorizontal' | 'flipVertical' | 'blendMode'>;
 
+const COMPOSITION_FIELD_STYLE = Object.freeze({ color: 'var(--kw-editor-text)' });
+
 export default function VideoCompositionDialog({
 	productId,
 	capability,
@@ -178,7 +180,7 @@ export default function VideoCompositionDialog({
 					<legend>{label(copy, 'videoCompositionCompositing', 'Compositing')}</legend>
 					<div className="audio-editor-field-grid">
 						<NumberField field="opacity" label={label(copy, 'videoCompositionOpacity', 'Opacity (%)')} value={draft.opacityPercent} minimum={0} maximum={100} onChange={(value) => updateText('opacityPercent', value)} />
-						<label className="audio-editor-field">
+						<label className="audio-editor-field" style={COMPOSITION_FIELD_STYLE}>
 							<span>{label(copy, 'videoCompositionBlendMode', 'Blend mode')}</span>
 							<select data-video-composition-field="blend-mode" value={draft.blendMode} onChange={(event) => {
 								const blendMode = event.currentTarget.value;
@@ -223,7 +225,7 @@ function NumberField({
 	step?: string;
 	onChange(value: string): void;
 }>) {
-	return <label className="audio-editor-field">
+	return <label className="audio-editor-field" style={COMPOSITION_FIELD_STYLE}>
 		<span>{fieldLabel}</span>
 		<input
 			type="number"
@@ -248,7 +250,7 @@ function CheckField({
 	checked: boolean;
 	onChange(checked: boolean): void;
 }>) {
-	return <label className="audio-editor-field">
+	return <label className="audio-editor-field" style={COMPOSITION_FIELD_STYLE}>
 		<input
 			type="checkbox"
 			data-video-composition-field={field}
