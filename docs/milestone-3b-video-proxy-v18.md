@@ -592,8 +592,16 @@ reservation, newer-generation protection, and shared roots. Repository,
 retention, Scape, and desktop fixtures cover preservation plans, protected
 commands, format-1 attachment-free compatibility, format-2 proxy/timing
 integrity and rollback, and fresh Framescaper V10 isolation without changing a
-Soundscaper entry point. Desktop V10 delete and duplicate remain unavailable
-until main owns their exact CAS/catalog operations.
+Soundscaper entry point. Desktop V10 delete and duplicate are implemented as
+main-first exact CAS/catalog operations with alias-aware shadow reconciliation,
+durable delete-intent restart reconciliation of exact local shadow and binding
+rows, authoritative recovery after ambiguous IPC outcomes, and one
+rejection-based mutation slot for publication, delete, and duplicate. They
+retain immutable revisions and bodies, perform no physical reclamation, and
+never reuse a deleted project ID. The intent does not durably capture pre-delete
+locator references, so abrupt process death can retain main-private locator
+metadata for later cleanup; it never deletes external files, and crash- or
+power-loss locator release remains unqualified.
 
 A focused Framescaper Chromium row opens a fixed V18/format-2 proxy archive:
 Cancel preserves the active tab and performs zero body/storage work;

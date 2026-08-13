@@ -79,7 +79,13 @@ test('production capability and security registers describe only the qualified V
 		'framescaper-v18-desktop-v10-isolation');
 	assert.match(desktop.summary, /V10.*schema 18.*Framescaper/isu);
 	assert.match(desktop.summary, /proxy.*timing.*body/isu);
-	assert.match(desktop.summary, /delete.*duplicate.*unavailable/isu);
+	assert.match(desktop.summary, /delete.*duplicate.*main-first.*compare-and-swap/isu);
+	assert.match(desktop.summary, /delete-intent.*(?:restart|resumes).*shadow.*binding/isu);
+	assert.match(desktop.summary, /does not durably capture.*locator.*crash-.*power-loss.*unqualified/isu);
+	assert.match(desktop.summary, /no physical reclamation.*never reuses.*project ID/isu);
+	assert.match(desktop.summary, /ambiguous IPC.*authoritative/isu);
+	assert.match(desktop.summary, /Windows x64.*Linux x64.*pending-external/isu);
+	assert.match(desktop.summary, /source-free.*does not qualify.*delete.*duplicate/isu);
 
 	for (const item of [projectAdmission, proxyAdmission, desktop]) {
 		for (const reference of item.evidence) await evidenceExists(reference.path);

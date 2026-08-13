@@ -19,7 +19,7 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.match(claim, /Framescaper.*session.*recovery/isu);
 	assert.match(claim, /cross-product.*(?:physical|storage).*isolation.*not.*shared mutable catalog/isu);
 	assert.match(claim, /historical.*eight.*V9.*V17/isu);
-	assert.match(claim, /does not authorize.*Framescaper V17/isu);
+	assert.match(claim, /do(?:es)? not authorize.*Framescaper V17/isu);
 	for (const product of ['Soundscaper V9', 'Framescaper V10']) {
 		for (const target of ['Windows x64', 'Linux x64']) {
 			assert.match(claim, new RegExp(`${product}.*${target}.*pending-external`, 'isu'));
@@ -60,7 +60,7 @@ test('roadmap preserves the frozen M2 inventory as history without re-admitting 
 
 	const roadmap = await text('roadmap.md');
 	assert.match(roadmap, /eight.*workflow.*frozen historical.*V9.*V17/isu);
-	assert.match(roadmap, /current executable qualification.*Soundscaper V9.*Framescaper V10/isu);
+	assert.match(roadmap, /current executable\s+qualification.*Soundscaper V9.*Framescaper V10/isu);
 	assert.match(roadmap, /does not.*re-admit.*Framescaper V17/isu);
 	assert.match(roadmap, /Windows x64.*Linux x64.*accepted packaged results.*absent.*Partial/isu);
 });
@@ -91,10 +91,20 @@ test('current capability inventory separates V9 and V10 package evidence', async
 	]) assert.ok(soundscaper.evidence.includes(path), path);
 	for (const path of [
 		'desktop/project-library-v10-main.ts',
+		'desktop/project-library-v10-main-preload.ts',
 		'desktop/project-library-v10-main-session.ts',
 		'desktop/project-library-v10-lifecycle-host.ts',
+		'desktop/project-library-v10-publication-transport.ts',
 		'desktop/framescaper-v18-artifact-smoke.js',
+		'src/framescaper/desktop-project-library-v10-delete-intents.ts',
+		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
+		'src/framescaper/desktop-project-library-v10-renderer-catalog.ts',
+		'src/framescaper/desktop-project-library-v10-renderer-lifecycle.ts',
+		'tests/audio-editor-framescaper-desktop-v10-ipc-recovery.test.ts',
+		'tests/audio-editor-framescaper-desktop-v10-lifecycle-recovery.test.ts',
+		'tests/desktop-project-library-v10-lifecycle-host.test.ts',
 		'tests/desktop-project-library-v10-main.test.ts',
+		'tests/desktop-project-library-v10-publication-host.test.ts',
 		'tests/desktop-smoke.test.js',
 	]) assert.ok(framescaper.evidence.includes(path), path);
 	assert.doesNotMatch(JSON.stringify(framescaper.evidence),
@@ -103,6 +113,12 @@ test('current capability inventory separates V9 and V10 package evidence', async
 
 test('retired V9/V17 packaged handoff claims remain historical only', async () => {
 	const compatibility = await json('config/project-compatibility.json');
+	const sourceFreeRule = compatibility.rules.find(
+		({ id }) => id === 'current-desktop-project-catalog-commit',
+	);
+	assert.match(sourceFreeRule.currentBehavior, /historical.*pre-V18.*V9.*schema 17/isu);
+	assert.match(sourceFreeRule.currentBehavior, /current CI.*retired|no longer runs/isu);
+	assert.equal(sourceFreeRule.evidence.includes('.github/workflows/desktop-preview.yml'), false);
 	const rule = compatibility.rules.find(
 		({ id }) => id === 'current-desktop-packaged-source-bearing-handoff',
 	);

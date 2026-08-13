@@ -149,7 +149,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	);
 	assert.match(
 		documentation,
-		/dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer[- ]ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 17.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*higher fencing token.*increasing catalog revisions?.*preferred product.*process exit.*lease release.*combined with.*composed editor.*closes only.*generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap/isu,
+		/historical.*pre-V18.*V9.*schema 17.*dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*current CI.*retired.*no longer runs.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer[- ]ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 17.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*higher fencing token.*increasing catalog revisions?.*preferred product.*process exit.*lease release.*combined with.*composed editor.*closes only.*generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap/isu,
 	);
 	assert.match(
 		documentation,

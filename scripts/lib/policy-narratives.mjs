@@ -216,10 +216,7 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		controlId: 'packaged-linux-x64-source-bearing-project-library-handoff',
 		field: 'summary',
 		document: 'docs/production-threat-model.md',
-		intro: Object.freeze([
-			'A maintained Linux x64 CI job runs',
-			'A separate maintained Linux x64 CI job runs',
-		]),
+		intro: null,
 	}),
 	Object.freeze({
 		marker: 'chromium-scape-mixed-media-handoff',
@@ -236,10 +233,7 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		ruleId: 'current-desktop-packaged-source-bearing-handoff',
 		field: 'currentBehavior',
 		document: 'docs/project-compatibility.md',
-		intro: Object.freeze([
-			'A maintained Linux x64 CI job runs',
-			'A second maintained Linux x64 CI job runs',
-		]),
+		intro: null,
 		wrap: 80,
 	}),
 ]);

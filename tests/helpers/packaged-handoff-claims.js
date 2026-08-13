@@ -39,7 +39,6 @@ export const PACKAGED_HANDOFF_EVIDENCE = Object.freeze([
 	['test', 'tests/desktop-project-library-smoke-evidence.test.js'],
 	['test', 'tests/desktop-project-library-packaging.test.js'],
 	['implementation', 'package.json'],
-	['workflow', '.github/workflows/desktop-preview.yml'],
 ].map(([kind, path]) => Object.freeze({ kind, path })));
 
 export function claimChain(fragments, flags) {
@@ -49,9 +48,15 @@ export function claimChain(fragments, flags) {
 // The security-matrix summary narrative; the threat-model paragraph is its
 // derived policy narrative, so the identical fragments pin both documents.
 const HANDOFF_NARRATIVE_FRAGMENTS = Object.freeze([
-	'Linux x64 CI',
+	'Historical pre-V18',
+	'desktop-library V9',
+	'shared schema 17',
+	'evidence ran',
 	'two frozen Electron workflow IDs',
 	'six sequential packaged Soundscaper and Framescaper UI processes',
+	'current CI job',
+	'retired',
+	'no longer runs',
 	'isolated shared appData',
 	'separate product profiles',
 	'origin profile',
@@ -119,9 +124,15 @@ const HANDOFF_QUALIFICATION_FRAGMENTS = Object.freeze([
 // its derived, 80-column-wrapped policy narrative, so the doc chains reuse
 // these fragments with every space made wrap-tolerant.
 const RULE_BEHAVIOR_NARRATIVE_FRAGMENTS = Object.freeze([
-	'Linux x64',
+	'Historical pre-V18',
+	'desktop-library V9',
+	'shared schema 17',
+	'evidence ran',
 	'two frozen Electron workflows',
 	'six sequential packaged executable processes',
+	'current CI job',
+	'retired',
+	'no longer runs',
 	'isolated shared appData',
 	'separate product profiles',
 	'origin profile',
@@ -195,9 +206,6 @@ export const PACKAGED_HANDOFF_CLAIMS = Object.freeze({
 	], 'isu'),
 	compatibilityRuleBehavior: claimChain(RULE_BEHAVIOR_NARRATIVE_FRAGMENTS, 'iu'),
 	compatibilityRuleQualification: claimChain(RULE_BEHAVIOR_QUALIFICATION_FRAGMENTS, 'iu'),
-	compatibilityDocWorkflow: claimChain(wrapTolerant([
-		'second maintained Linux x64 CI job',
-		...RULE_BEHAVIOR_NARRATIVE_FRAGMENTS.slice(1),
-	]), 'isu'),
+	compatibilityDocWorkflow: claimChain(wrapTolerant(RULE_BEHAVIOR_NARRATIVE_FRAGMENTS), 'isu'),
 	compatibilityDocQualification: claimChain(wrapTolerant(RULE_BEHAVIOR_QUALIFICATION_FRAGMENTS), 'isu'),
 });

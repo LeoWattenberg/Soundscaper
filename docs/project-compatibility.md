@@ -1365,10 +1365,13 @@ an empty shared media catalog. This composes the real controller, default
 Soundscaper desktop-store selection, renderer repository, main service, and
 host.
 
-A maintained dedicated Linux x64 CI job builds two separate unpacked packages
-and runs them sequentially as Soundscaper → Framescaper → Soundscaper. The
-processes share only one isolated appData root, use separate product profiles,
-and the final process reuses the original Soundscaper profile. After the
+Historical pre-V18 desktop-library V9 and shared schema 17 evidence used a
+dedicated Linux x64 CI job to build two separate unpacked packages and run them
+sequentially as Soundscaper → Framescaper → Soundscaper. The current CI job is
+retired and no longer runs this incompatible V9/V17 source-free handoff against
+Framescaper V18/V10. Those historical processes share only one isolated appData
+root, use separate product profiles, and the final process reuses the original
+Soundscaper profile. After the
 renderer-ready signal, each packaged executable drives the bounded pathless
 preload IPC, exact-SHA-256 verifies its expected canonical source-free schema 17
 document, commits revisions 1, 2, and 3, and checks both the renderer summary
@@ -1387,49 +1390,65 @@ activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
 <!-- policy-narrative:desktop-electron-lease-protections -->
-The main host now starts as an observer even while another process owns the
-lease and obtains a bounded writer session only around mutations. Writer
-sessions recover pending journals and tracked stages before work, renew while
-admitted work drains, abort and fence immediately on renewal loss, release only
-their exact lease, and retain pathless last-writer fencing and recovery
-evidence. Project commits carry an expected authoritative revision: null is
-create-only, an update must match the current revision even when its new
-document revision jumps, and an identical published document is an idempotent
-retry; stale, lower, equal-divergent, and losing commits return conflict before
-project or managed-media advertisement. Renderer ownership uses one
-AbortController across ordinary reads, commits, deletes, bundle/source reads,
-and the complete upload finish/publication lifetime; revocation and global
-disposal fence admission, abort synchronously, and drain. Unexpected renderer
-loss drains the old owner before loading the trusted editor URL with a fresh
-owner, while cleanup or reload failure exits nonzero. Focused tests cover
-concurrent observer starts, same- and cross-product serialization, transfer,
-stale takeover, monotonic fencing, renewal loss, expected-base conflicts,
-renderer loss during publication, disposal fencing, reload recovery, and real
-child termination at prepared and committed journal checkpoints. A closed
-packaged smoke runner and five-target CI matrix now encode the exact eight
-workflow IDs in both product orderings and require the winning document digest
-plus no losing managed-media descriptor. The control remains partial because no
-accepted packaged result for the qualified Windows x64 and Linux x64 targets is
-checked in; closure scope revision 2 defers ARM64 validation and retires the
-deprecated macOS x64 target; m2-electron-lease-matrix and its gate therefore
-remain partial.
+Soundscaper V9 starts as a lease-free observer even while another Soundscaper
+process owns its lease and obtains a short-lived writer session only around
+mutations. Its writer sessions recover pending journals and tracked stages
+before work, renew while admitted work drains, abort and fence immediately on
+renewal loss, release only their exact lease, and retain pathless last-writer
+fencing and recovery evidence. Its project commits compare the expected
+authoritative revision, and renderer ownership carries one abort signal through
+admitted operations and drains on renderer loss or disposal. The current closed
+Soundscaper V9 runner executes seven workflows:
+`same-project-simultaneous-open`, `writer-lease-transfer`,
+`stale-lease-takeover`, `conflicting-canonical-commit`,
+`renderer-loss-during-operation`, `orderly-process-restart`, and
+`crash-restart-recovery`. The `cross-product-simultaneous-open` workflow and the
+complete historical eight-workflow V9/V17 set remain frozen evidence and are not
+run against current Framescaper packages. Framescaper V10 instead starts one
+process-lifetime main-owned lease in its separate V10 scope and database,
+recovers pending metadata or body journals before opening authenticated
+sessions, renews the exact lease while the process is live, fences new session
+admission on renewal loss, aborts pre-prepare work, and drains any
+recovery-owned prepared publication to settlement; shutdown drains sessions,
+settles recovery-owned prepared publication, recovers again, and releases only
+its exact lease before closing the database. V10 delete and duplicate use
+main-first exact catalog compare-and-swap with alias-aware shadow
+reconciliation, durable delete-intent restart reconciliation of exact local
+shadow and binding rows, retained immutable revisions and bodies without
+physical reclamation or project-ID reuse, one rejection-based mutation slot for
+publication, delete, and duplicate, and authoritative recovery after ambiguous
+IPC outcomes. The delete intent does not durably capture pre-delete locator
+references: abrupt process death before outer linked-original cleanup can retain
+main-private locator metadata for later cleanup, external files are never
+deleted, and crash- or power-loss locator release remains unqualified. The
+maintained package artifact smoke proves only fresh source-free V18 creation,
+main persistence, preload activation, and UI activation; it does not qualify
+lease concurrency, restart recovery, delete, duplicate, proxy or timing bodies,
+or accepted packaged target results. The products' distinct V9 and V10 storage
+roots are cross-product physical isolation, not a shared mutable catalog.
+Soundscaper V9 Windows x64 is pending-external. Soundscaper V9 Linux x64 is
+pending-external. Framescaper V10 Windows x64 is pending-external. Framescaper
+V10 Linux x64 is pending-external. No accepted packaged result exists for any of
+the four rows, so this rule and m2-electron-lease-matrix remain Partial.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 
 <!-- policy-narrative:desktop-packaged-source-bearing-handoff -->
-A second maintained Linux x64 CI job runs the two frozen Electron workflows as
-six sequential packaged executable processes: Soundscaper → Framescaper →
-Soundscaper and Framescaper → Soundscaper → Framescaper. Each workflow owns
-isolated shared appData and separate product profiles, then returns to its
-origin profile. Its fixed exact schema 17 project contains one canonical PCM
-audio track and clip plus one retained-original VP8 WebM video track and clip
-that is also represented in the Project Bin. The origin publishes both exact
-managed bodies. A fresh recipient follows the normal project route into editor
-activation, hashes the exact Project Bin Blob, starts and stops transport, edits
-the audio track name through native input, waits for the shared revision 2 save,
-and invokes the visible Edit in the other product action. The origin return
-reactivates the exact edited revision and both media bindings. Before the
-editable recipient project, each fresh recipient also activates two additional
-exact-schema-17 role witnesses from the same shared library. The
+Historical pre-V18 desktop-library V9 and shared schema 17 evidence ran the two
+frozen Electron workflows as six sequential packaged executable processes:
+Soundscaper → Framescaper → Soundscaper and Framescaper → Soundscaper →
+Framescaper. The current CI job is retired and no longer runs these incompatible
+workflows against Framescaper V18/V10. In that historical evidence, each
+workflow owns isolated shared appData and separate product profiles, then
+returns to its origin profile. Its fixed exact schema 17 project contains one
+canonical PCM audio track and clip plus one retained-original VP8 WebM video
+track and clip that is also represented in the Project Bin. The origin publishes
+both exact managed bodies. A fresh recipient follows the normal project route
+into editor activation, hashes the exact Project Bin Blob, starts and stops
+transport, edits the audio track name through native input, waits for the shared
+revision 2 save, and invokes the visible Edit in the other product action. The
+origin return reactivates the exact edited revision and both media bindings.
+Before the editable recipient project, each fresh recipient also activates two
+additional exact-schema-17 role witnesses from the same shared library. The
 Soundscaper-to-Framescaper workflow witnesses `project-audio-mix-v1` and
 `audio-track-render-v1`; the reverse workflow witnesses
 `project-video-render-v1` and `video-clip-render-v1`. Each witness carries one

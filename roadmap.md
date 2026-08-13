@@ -299,11 +299,14 @@ update an item's status only after its listed acceptance conditions pass.
 
 - `m2-electron-lease-matrix`
 
-Its eight lease workflows must pass for Soundscaper and Framescaper packages
-on the qualified `windows-x64` and `linux-x64` desktop targets with
-monotonically increasing fencing tokens and no losing writer publishing a
-project or managed-media descriptor; the exact workflow IDs and acceptance
-conditions are named in the inventory.
+Its eight workflow IDs remain frozen historical desktop-library V9 and
+Framescaper V17 evidence in the closure inventory. Current executable
+qualification is product-appropriate: Soundscaper V9 exercises the seven
+compatible short-lived writer-session workflows, while Framescaper V10
+exercises its process-lifetime main-owned lease, authenticated sessions, and
+recovery contract in separate storage. This does not re-admit Framescaper V17.
+Windows x64 and Linux x64 accepted packaged results remain absent, so the gate
+remains **Partial**.
 
 The closed compatibility items fix the fallback role set at exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`,

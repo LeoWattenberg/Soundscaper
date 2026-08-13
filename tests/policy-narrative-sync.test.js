@@ -40,12 +40,16 @@ test('rendering backticks qualification IDs exactly once', () => {
 });
 
 test('rendering swaps the register intro for the document intro and rejects a mismatch', () => {
+	assert.equal(HANDOFF_BINDING.intro, null, 'historical handoff prose no longer needs an active-CI alias');
+	const binding = {
+		intro: ['Register intro', 'Document intro'],
+	};
 	assert.equal(
-		renderPolicyNarrative('A maintained Linux x64 CI job runs the workflows.', HANDOFF_BINDING),
-		'A separate maintained Linux x64 CI job runs the workflows.',
+		renderPolicyNarrative('Register intro for the workflows.', binding),
+		'Document intro for the workflows.',
 	);
 	assert.throws(
-		() => renderPolicyNarrative('Something else entirely.', HANDOFF_BINDING),
+		() => renderPolicyNarrative('Something else entirely.', binding),
 		/must start with/u,
 	);
 });

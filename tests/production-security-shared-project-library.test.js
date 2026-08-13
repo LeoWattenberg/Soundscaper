@@ -398,14 +398,13 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		['test', 'tests/desktop-smoke-probe.test.js'],
 		['test', 'tests/desktop-project-library-handoff-smoke.test.js'],
 		['test', 'tests/desktop-project-library-handoff-workflow.test.js'],
-		['workflow', '.github/workflows/desktop-preview.yml'],
 	]) assert.ok(
 		packagedSourceFreeControl.evidence.some((item) => item.kind === kind && item.path === path),
 		`${kind}:${path}`,
 	);
 	assert.match(
 		packagedSourceFreeControl.summary,
-		/dedicated Linux x64 CI.*two separate unpacked.*Soundscaper.*Framescaper.*sequential Soundscaper.*Framescaper.*Soundscaper.*only.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer.*ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 17.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*higher fencing tokens.*increasing catalog revisions.*preferred product.*awaits process exit.*lease release/isu,
+		/historical.*pre-V18.*V9.*schema 17.*dedicated Linux x64 CI.*two separate unpacked.*Soundscaper.*Framescaper.*sequential Soundscaper.*Framescaper.*Soundscaper.*current CI.*retired.*no longer runs.*only.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer.*ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 17.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*higher fencing tokens.*increasing catalog revisions.*preferred product.*awaits process exit.*lease release/isu,
 	);
 	assert.match(
 		packagedSourceFreeControl.summary,
