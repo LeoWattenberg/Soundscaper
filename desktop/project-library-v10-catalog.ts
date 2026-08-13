@@ -273,6 +273,10 @@ export class FramescaperDesktopProjectLibraryV10Catalog {
 			SELECT 1 AS pending FROM metadata_journal
 			WHERE state IN ('prepared', 'committed') LIMIT 1
 		`).get()) throw new Error('Framescaper desktop V10 metadata recovery is required before publishing');
+		if (this.#database.prepare(`
+			SELECT 1 AS pending FROM publication_journal
+			WHERE state IN ('prepared', 'materialized', 'committed') LIMIT 1
+		`).get()) throw new Error('Framescaper desktop V10 body publication recovery is required before publishing');
 		const previous = this.#validatedMetadataRow().row;
 		if (previous.revision !== expectedRevision) {
 			throw new Error('Framescaper desktop V10 metadata failed its expected revision compare-and-swap');

@@ -20,7 +20,7 @@ export function initializeFramescaperDesktopProjectLibraryV10Database(
 	if (userVersion !== 0 && userVersion !== DESKTOP_PROJECT_LIBRARY_V10_DATABASE_VERSION) {
 		throw new Error('Unsupported Framescaper desktop V10 database version');
 	}
-	database.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA trusted_schema = OFF;');
+	database.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA trusted_schema = OFF; PRAGMA foreign_keys = ON;');
 	database.exec('BEGIN IMMEDIATE');
 	try {
 		database.exec(`
@@ -52,6 +52,73 @@ export function initializeFramescaperDesktopProjectLibraryV10Database(
 			next_revision INTEGER NOT NULL CHECK (next_revision > 0),
 			next_json TEXT NOT NULL,
 			next_digest TEXT NOT NULL,
+			lease_id TEXT NOT NULL,
+			fencing_token INTEGER NOT NULL CHECK (fencing_token > 0),
+			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
+			completed_at_ms INTEGER
+		) STRICT;
+		CREATE TABLE IF NOT EXISTS project_revisions (
+			project_id TEXT NOT NULL,
+			project_revision INTEGER NOT NULL CHECK (project_revision >= 0),
+			project_sha256 TEXT NOT NULL CHECK (length(project_sha256) = 64),
+			entry_id TEXT NOT NULL,
+			relative_file TEXT NOT NULL UNIQUE,
+			byte_length INTEGER NOT NULL CHECK (byte_length > 0),
+			document_json TEXT NOT NULL,
+			published_at_ms INTEGER NOT NULL CHECK (published_at_ms >= 0),
+			PRIMARY KEY (project_id, project_revision)
+		) STRICT;
+		CREATE TABLE IF NOT EXISTS managed_bodies (
+			body_id TEXT PRIMARY KEY,
+			kind TEXT NOT NULL CHECK (kind IN ('video-proxy', 'video-timing')),
+			encoding TEXT NOT NULL,
+			binding_id TEXT,
+			source_id TEXT NOT NULL,
+			storage_key TEXT NOT NULL,
+			relative_file TEXT NOT NULL UNIQUE,
+			mime_type TEXT NOT NULL,
+			byte_length INTEGER NOT NULL CHECK (byte_length > 0),
+			sha256 TEXT NOT NULL CHECK (length(sha256) = 64),
+			descriptor_json TEXT NOT NULL,
+			state TEXT NOT NULL CHECK (state = 'published'),
+			published_at_ms INTEGER NOT NULL CHECK (published_at_ms >= 0),
+			CHECK (source_id = storage_key),
+			CHECK (
+				(kind = 'video-proxy' AND encoding = 'video-proxy-v1'
+					AND binding_id IS NOT NULL AND body_id = binding_id)
+				OR
+				(kind = 'video-timing' AND encoding = 'soundscaper-video-timing-v1'
+					AND binding_id IS NULL AND body_id = 't' || sha256)
+			)
+		) STRICT;
+		CREATE TABLE IF NOT EXISTS project_revision_bodies (
+			project_id TEXT NOT NULL,
+			project_revision INTEGER NOT NULL CHECK (project_revision >= 0),
+			ordinal INTEGER NOT NULL CHECK (ordinal >= 0),
+			body_id TEXT NOT NULL,
+			PRIMARY KEY (project_id, project_revision, ordinal),
+			UNIQUE (project_id, project_revision, body_id),
+			FOREIGN KEY (project_id, project_revision)
+				REFERENCES project_revisions(project_id, project_revision),
+			FOREIGN KEY (body_id) REFERENCES managed_bodies(body_id)
+		) STRICT;
+		CREATE TABLE IF NOT EXISTS publication_journal (
+			transaction_id TEXT PRIMARY KEY,
+			state TEXT NOT NULL CHECK (state IN ('prepared', 'materialized', 'committed', 'complete')),
+			expected_metadata_revision INTEGER NOT NULL CHECK (expected_metadata_revision >= 0),
+			previous_metadata_json TEXT NOT NULL,
+			previous_metadata_digest TEXT NOT NULL CHECK (length(previous_metadata_digest) = 64),
+			next_metadata_json TEXT NOT NULL,
+			next_metadata_digest TEXT NOT NULL CHECK (length(next_metadata_digest) = 64),
+			project_id TEXT NOT NULL,
+			project_revision INTEGER NOT NULL CHECK (project_revision >= 0),
+			project_sha256 TEXT NOT NULL CHECK (length(project_sha256) = 64),
+			entry_id TEXT NOT NULL,
+			project_relative_file TEXT NOT NULL,
+			project_byte_length INTEGER NOT NULL CHECK (project_byte_length > 0),
+			project_json TEXT NOT NULL,
+			bodies_json TEXT NOT NULL,
+			stages_json TEXT NOT NULL,
 			lease_id TEXT NOT NULL,
 			fencing_token INTEGER NOT NULL CHECK (fencing_token > 0),
 			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
