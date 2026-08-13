@@ -336,7 +336,6 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'src/framescaper/editor-project-v18-commands.ts',
 		'src/framescaper/editor-project-v18-history.ts',
 		'src/framescaper/editor-project-v18-migration.ts',
-		'src/framescaper/editor-project-v18-preservation-repository.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
 		'src/framescaper/editor-project-v18-retention.ts',
 		'src/framescaper/editor-project-v18-runtime.ts',
