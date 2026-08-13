@@ -212,17 +212,32 @@ test('descriptor-snapshots and validates the complete nested timing reference', 
 	assert.throws(() => normalizeVideoProxyAttachmentV18(frameMismatch), /frame|timing/iu);
 });
 
-test('remains an isolated dormant scalar owner', () => {
+test('remains a closed scalar owner with only the reviewed V18 consumers', () => {
 	const sourceFile = 'src/common/editor/video-proxy-attachment-v18.ts';
 	const source = fs.readFileSync(path.join(ROOT, sourceFile), 'utf8');
 	assert.match(source, /from ['"]\.\/video-timing-asset-reference\.ts['"]/u);
 	assertExactExports(sourceFile, source);
 	assert.doesNotMatch(source,
 		/video-timing-asset\.ts|video-timing-storage|candidate-observation|proxy-relationship|project-|storage\/|controller\/|ui\/|repository|capabilit|scape-|desktop|app\./u);
+	const consumers = new Set([
+		'scripts/lib/desktop-project-library-runtime.mjs',
+		'src/framescaper/editor-project-v18-archive-repository.ts',
+		'src/framescaper/editor-project-v18-claim-cleanup-repository.ts',
+		'src/framescaper/editor-project-v18-preservation-repository.ts',
+		'src/framescaper/editor-project-v18-runtime.ts',
+		'src/framescaper/editor-project-v18-validation.ts',
+		'src/framescaper/editor-project-v18.ts',
+		'src/framescaper/editor-video-proxy-attachment-coordinator-v18.ts',
+		'src/framescaper/editor-video-proxy-reattestation-contract-v18.ts',
+		'src/framescaper/editor-video-proxy-reattestation-v18.ts',
+		'src/framescaper/scape-project-envelope-v18.ts',
+		'src/framescaper/scape-project-preservation-v18-support.ts',
+	]);
 	for (const root of ['src', 'desktop', 'scripts']) for (const file of sourceFiles(path.join(ROOT, root))) {
 		const relative = path.relative(ROOT, file).replaceAll(path.sep, '/');
 		if (relative === sourceFile) continue;
-		assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /video-proxy-attachment-v18/u, relative);
+		const references = /video-proxy-attachment-v18/u.test(fs.readFileSync(file, 'utf8'));
+		assert.equal(references, consumers.has(relative), relative);
 	}
 });
 

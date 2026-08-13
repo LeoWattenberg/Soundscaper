@@ -12,7 +12,8 @@ test('initial activation and later engine reapplies share the transient playback
 		app,
 		/import \{\s*createPlaybackProjectApplyService,\s*createPlaybackProjectService,\s*\} from '\.\/controller\/playback-project-service\.ts';/u,
 	);
-	assert.match(app, /const playbackProjectService = createPlaybackProjectService\(product\.capabilities\);/u);
+	assert.match(app,
+		/const playbackProjectService = options\.playbackProjectService \|\| createPlaybackProjectService\(product\.capabilities\);/u);
 	const taskOwner = app.match(/const playbackProjectApplyService = createPlaybackProjectApplyService\(\{(?<body>[\s\S]*?)\n\t\}\);/u);
 	assert.ok(taskOwner?.groups?.body, 'playback reapplies must have a replaceable task owner');
 	assert.match(taskOwner.groups.body, /lifetime.*projectForPlayback: playbackProjectService\.projectForPlayback/u);

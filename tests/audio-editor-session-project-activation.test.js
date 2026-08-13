@@ -126,8 +126,9 @@ test('an absent-project activation reservation admits only its matching open and
 	controller.openProject(next, { activate: false });
 	assert.equal(controller.getProject(next.id).title, next.title);
 	const disposalReservation = controller.beginProjectActivation('after-dispose', { requireAbsent: true });
-	controller.dispose();
-	assert.equal(disposalReservation.release(), false);
+	assertActivationBlocked(() => controller.dispose());
+	assert.equal(disposalReservation.release(), true);
+	assert.equal(controller.dispose().disposed, true);
 });
 
 test('a reservation remains held while switch publication invokes re-entrant subscribers', () => {
