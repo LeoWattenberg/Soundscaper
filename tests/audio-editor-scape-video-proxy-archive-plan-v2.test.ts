@@ -136,7 +136,7 @@ test('refuses open, sparse, accessor, exotic, and malformed reference input', ()
 		let gets = 0;
 		const accessor = make() as unknown as MutableRecord;
 		Object.defineProperty(accessor, field, { enumerable: true,
-			get() { gets += 1; return make()[field]; } });
+			get() { gets += 1; return (make() as unknown as MutableRecord)[field]; } });
 		assert.throws(() => consume(accessor), TypeError);
 		assert.equal(gets, 0);
 	}
@@ -202,7 +202,7 @@ test('remains dormant outside its focused proof and cannot change the V17 archiv
 	const source = await readSource(MODULE);
 	assert.deepEqual(importSpecifiers(source), ['./video-timing-asset-reference.ts']);
 	assert.doesNotMatch(source,
-		/project-runtime-profile|framescaper|soundscaper|scape-archive-envelope|SCAPE_FORMAT_VERSION|repository|storage\/|controller|desktop|productId|Blob|body/iu);
+		/project-runtime-profile|framescaper|soundscaper|scape-archive-envelope|SCAPE_FORMAT_VERSION|repository|storage\/|controller|desktop|productId|\bBlob\b|arrayBuffer|ReadableStream/iu);
 	const v17Envelope = await readSource('src/common/editor/scape-archive-envelope.ts');
 	assert.match(v17Envelope, /export const SCAPE_FORMAT_VERSION = 1;/u);
 	assert.doesNotMatch(v17Envelope, /video-proxy/iu);
