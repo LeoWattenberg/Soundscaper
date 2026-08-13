@@ -448,6 +448,7 @@ test('the exact Framescaper selector remains statically dormant and product-owne
 		'tests/audio-editor-framescaper-project-store-v18.test.ts',
 		'tests/desktop-project-library-v10-contract.test.ts',
 		'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
+		'tests/helpers/framescaper-v18-archive-fixture.ts',
 	]);
 	const genericSource = await readFile(resolve(ROOT, 'src/common/editor/storage/project-storage-profile.ts'), 'utf8');
 	assert.doesNotMatch(genericSource, /framescaper/iu);
