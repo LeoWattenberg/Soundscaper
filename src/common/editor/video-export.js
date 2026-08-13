@@ -18,6 +18,7 @@ import {
 	resolveVideoSourceDisplaySize,
 	resolveVideoSourcePresentation,
 } from './video-source-presentation.ts';
+import { compareRationals, normalizeRational } from './timeline-time.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -80,9 +81,24 @@ export function getVideoExportFormat(format = 'mp4') {
  */
 export function resolveVideoExportCanvas(project, options = {}) {
 	const runtimeProject = ensureRuntimeProject(project);
+	const exact = exactVideoExportCanvas(runtimeProject, options);
+	return Object.freeze({
+		...exact,
+		frameRate: exact.frameRate.num / exact.frameRate.den,
+		maximumFrameRate: exact.maximumFrameRate.num / exact.maximumFrameRate.den,
+	});
+}
+
+/** Resolve encoder canvas geometry while retaining the canonical rational rate. */
+export function resolveExactVideoExportCanvas(project, options = {}) {
+	const runtimeProject = ensureRuntimeProject(project);
+	return exactVideoExportCanvas(runtimeProject, options);
+}
+
+function exactVideoExportCanvas(runtimeProject, options) {
 	const maximumWidth = positiveEvenLimit(options.maximumWidth ?? DEFAULT_MAXIMUM_WIDTH, 'maximumWidth');
 	const maximumHeight = positiveEvenLimit(options.maximumHeight ?? DEFAULT_MAXIMUM_HEIGHT, 'maximumHeight');
-	const maximumFrameRate = positiveFiniteNumber(
+	const maximumFrameRate = positiveExactRate(
 		options.maximumFrameRate ?? DEFAULT_MAXIMUM_FRAME_RATE,
 		'maximumFrameRate',
 	);
@@ -97,10 +113,12 @@ export function resolveVideoExportCanvas(project, options = {}) {
 	const scale = Math.min(1, maximumWidth / sourceWidth, maximumHeight / sourceHeight);
 	const width = evenFloor(sourceWidth * scale);
 	const height = evenFloor(sourceHeight * scale);
-	const requestedFrameRate = optionalPositiveNumber(options.frameRate, 'frameRate')
-		?? optionalPositiveRate(reference?.source.frameRate, 'source.frameRate')
+	const requestedFrameRate = optionalPositiveExactRate(options.frameRate, 'frameRate')
+		?? optionalPositiveExactRate(reference?.source.frameRate, 'source.frameRate')
 		?? maximumFrameRate;
-	const frameRate = Math.min(maximumFrameRate, requestedFrameRate);
+	const frameRate = compareRationals(requestedFrameRate, maximumFrameRate) > 0
+		? maximumFrameRate
+		: requestedFrameRate;
 
 	return Object.freeze({
 		width,
@@ -125,7 +143,7 @@ export function createVideoExportPlan(project, options = {}) {
 	const runtimeProject = ensureRuntimeProject(project);
 	const projectSampleRate = positiveSafeInteger(runtimeProject.sampleRate, 'project.sampleRate');
 	const format = getVideoExportFormat(options.format || 'mp4');
-	const range = resolveExportRange(runtimeProject, options.range || 'project');
+	const range = resolveVideoExportRange(runtimeProject, options.range || 'project');
 	if (range.durationFrames <= 0) throw new RangeError('Video export range must contain at least one frame.');
 	const canvas = resolveVideoExportCanvas(runtimeProject, options.canvas || {});
 	const compositionIntervals = resolveVideoCompositionIntervals(runtimeProject, {
@@ -343,19 +361,21 @@ function createFilterPlan(intervals, canvas, projectSampleRate, options) {
 	};
 }
 
-function resolveExportRange(project, requested) {
+/** Resolve the canonical sample-frame range shared by legacy and exact video export. */
+export function resolveVideoExportRange(project, requested = 'project') {
+	const runtimeProject = ensureRuntimeProject(project);
 	let startFrame;
 	let endFrame;
 	if (requested === 'project') {
 		startFrame = 0;
-		endFrame = projectTimelineDurationFrames(project);
+		endFrame = projectTimelineDurationFrames(runtimeProject);
 	} else if (requested === 'selection') {
-		startFrame = project?.selection?.startFrame;
-		endFrame = project?.selection?.endFrame;
+		startFrame = runtimeProject?.selection?.startFrame;
+		endFrame = runtimeProject?.selection?.endFrame;
 	} else if (requested === 'loop') {
-		if (!project?.loop?.enabled) throw new RangeError('The project loop is not enabled.');
-		startFrame = project.loop.startFrame;
-		endFrame = project.loop.endFrame;
+		if (!runtimeProject?.loop?.enabled) throw new RangeError('The project loop is not enabled.');
+		startFrame = runtimeProject.loop.startFrame;
+		endFrame = runtimeProject.loop.endFrame;
 	} else if (requested && typeof requested === 'object' && !Array.isArray(requested)) {
 		startFrame = requested.startFrame;
 		endFrame = requested.endFrame;
@@ -432,19 +452,20 @@ function optionalPositiveInteger(value, name) {
 	return positiveSafeInteger(value, name);
 }
 
-function optionalPositiveNumber(value, name) {
+function optionalPositiveExactRate(value, name) {
 	if (value == null) return null;
-	return positiveFiniteNumber(value, name);
+	return positiveExactRate(value, name);
 }
 
-function optionalPositiveRate(value, name) {
-	if (value == null) return null;
-	if (typeof value === 'object' && !Array.isArray(value)) {
-		const num = positiveSafeInteger(value.num, `${name}.num`);
-		const den = positiveSafeInteger(value.den, `${name}.den`);
-		return num / den;
+function positiveExactRate(value, name) {
+	let normalized;
+	try {
+		normalized = normalizeRational(value, { maximumDenominator: Number.MAX_SAFE_INTEGER });
+	} catch (cause) {
+		throw new RangeError(`${name} must be a positive exact rational.`, { cause });
 	}
-	return positiveFiniteNumber(value, name);
+	if (normalized.num <= 0) throw new RangeError(`${name} must be positive.`);
+	return normalized;
 }
 
 function ensureRuntimeProject(project) {
@@ -460,12 +481,6 @@ function videoTrackVisibility(project, requested) {
 	if (typeof requested !== 'function') return isVisibleVideoTrack;
 	if (!isTrackFolderMediaStateProjectionV12(project)) return requested;
 	return (track) => isVisibleVideoTrack(track) && requested(track);
-}
-
-function positiveFiniteNumber(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number <= 0) throw new RangeError(`${name} must be positive.`);
-	return number;
 }
 
 function nonNegativeSafeInteger(value, name) {

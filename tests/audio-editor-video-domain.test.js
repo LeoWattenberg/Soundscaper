@@ -14,7 +14,9 @@ import {
 	VIDEO_EXPORT_FORMATS,
 	createVideoExportPlan,
 	getVideoExportFormat,
+	resolveExactVideoExportCanvas,
 	resolveVideoExportCanvas,
+	resolveVideoExportRange,
 } from '../src/common/editor/video-export.js';
 
 test('video time mapping treats source range as trim and duration as stretch', () => {
@@ -171,6 +173,40 @@ test('automatic video canvas preserves aspect ratio and caps dimensions and fram
 	assert.deepEqual({ width: portrait.width, height: portrait.height }, { width: 404, height: 720 });
 	assert.equal(portrait.width % 2, 0);
 	assert.equal(portrait.height % 2, 0);
+});
+
+test('exact video canvas preserves canonical rational rates before applying the exact cap', () => {
+	const project = layeredProject();
+	const reference = project.sources.find((source) => source.id === 'lower-source');
+	reference.frameRate = { num: 30_000, den: 1_001 };
+
+	const ntsc = resolveExactVideoExportCanvas(project);
+	assert.deepEqual(ntsc.frameRate, { num: 30_000, den: 1_001 });
+	assert.deepEqual(ntsc.maximumFrameRate, { num: 30, den: 1 });
+	assert.equal(resolveVideoExportCanvas(project).frameRate, 30_000 / 1_001);
+
+	reference.frameRate = { num: 60_000, den: 1_001 };
+	assert.deepEqual(resolveExactVideoExportCanvas(project).frameRate, { num: 30, den: 1 });
+	assert.deepEqual(resolveExactVideoExportCanvas(project, {
+		frameRate: { num: 24_000, den: 1_001 },
+	}).frameRate, { num: 24_000, den: 1_001 });
+});
+
+test('video export range authority is shared without changing V6 plan range shape', () => {
+	const project = layeredProject();
+	project.selection = { startFrame: 123, endFrame: 456 };
+	project.loop = { enabled: true, startFrame: 789, endFrame: 1_234 };
+
+	assert.deepEqual(resolveVideoExportRange(project, 'selection'), {
+		startFrame: 123, endFrame: 456, durationFrames: 333,
+	});
+	assert.deepEqual(resolveVideoExportRange(project, 'loop'), {
+		startFrame: 789, endFrame: 1_234, durationFrames: 445,
+	});
+	assert.deepEqual(createVideoExportPlan(project, {
+		includeAudio: false,
+		range: { startFrame: 12_000, endFrame: 14_000 },
+	}).range, resolveVideoExportRange(project, { startFrame: 12_000, endFrame: 14_000 }));
 });
 
 test('an anamorphic source sets the canvas and the graph from its display geometry', () => {
