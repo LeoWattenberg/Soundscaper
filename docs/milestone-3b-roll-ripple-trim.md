@@ -220,6 +220,18 @@ do not ripple in this slice.
   functions.
 - The production build guard passed with the largest JavaScript chunk at
   388,318 bytes. Focused Chromium NTSC roll/ripple coverage passed 1/1.
+- The focused workflow first shipped against a MediaRecorder capture taken live
+  in the page, so its clip lengths tracked whatever capture rate the runner
+  managed. Chromium happened to capture enough frames; Firefox settled near
+  7.7 fps, which left three-frame clips whose 12 px bodies rendered the two 7 px
+  trim handles on top of each other and left under one frame of source handle
+  past each mark. Firefox therefore hit-tested the right handle during a
+  left-edge drag, and the planner clamped the requested one- and two-frame
+  deltas to zero, so the run failed on every attempt from the moment the
+  workflow landed. The spec now imports the repository-owned deterministic A/V
+  fixture its slip/slide sibling already uses, which yields 28-frame clips with
+  generous handles. Firefox and Chromium each passed 3/3 under two parallel
+  workers; WebKit stays deferred for the same A/V import reason as slip/slide.
 
 ## Non-goals
 
