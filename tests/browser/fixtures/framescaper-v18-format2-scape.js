@@ -1,5 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	BlobReader,
+	Uint8ArrayReader,
+	Uint8ArrayWriter,
+	ZipReader,
+	ZipWriter,
+} from '@zip.js/zip.js';
+
 // Generated only from the repository-owned V18 archive fixture. The original,
 // proxy, and timing bodies are deterministic synthetic bytes with no
 // third-party media. Keeping the archive fixed makes browser acceptance catch
@@ -61,11 +69,30 @@ const FORMAT_2_SCAPE_BASE64 = [
 	'CivdAVBLBQYAAAAABQAFAJMCAAD4DAAAAAA=',
 ].join('');
 
-export const framescaperV18Format2Scape = Object.freeze({
-	name: 'framescaper-v18-format2.scape',
-	mimeType: 'application/vnd.soundscaper.scape+zip',
-	buffer: Buffer.from(FORMAT_2_SCAPE_BASE64, 'base64'),
-});
+export async function createFramescaperV18Format2Scape() {
+	const source = new ZipReader(
+		new BlobReader(new Blob([Buffer.from(FORMAT_2_SCAPE_BASE64, 'base64')])),
+		{ useWebWorkers: false },
+	);
+	const output = new ZipWriter(new Uint8ArrayWriter(), { useWebWorkers: false });
+	try {
+		for (const entry of await source.getEntries()) {
+			if (entry.directory) throw new Error('The fixed V18 archive cannot contain directories.');
+			const bytes = await entry.getData(new Uint8ArrayWriter());
+			await output.add(entry.filename, new Uint8ArrayReader(bytes), {
+				level: 0,
+				lastModDate: new Date('2026-08-13T10:00:00.000Z'),
+			});
+		}
+		return Object.freeze({
+			name: 'framescaper-v18-format2.scape',
+			mimeType: 'application/vnd.soundscaper.scape+zip',
+			buffer: Buffer.from(await output.close()),
+		});
+	} finally {
+		await source.close();
+	}
+}
 
 export const framescaperV18Format2Expectation = Object.freeze({
 	projectId: 'framescaper-v18-archive',

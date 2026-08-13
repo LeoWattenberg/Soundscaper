@@ -17,8 +17,8 @@ import {
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
 import {
+	createFramescaperV18Format2Scape,
 	framescaperV18Format2Expectation as expectedArchive,
-	framescaperV18Format2Scape as fixedArchive,
 } from './fixtures/framescaper-v18-format2-scape.js';
 
 test.describe('Framescaper V18 format-2 Scape preservation', () => {
@@ -31,6 +31,7 @@ test.describe('Framescaper V18 format-2 Scape preservation', () => {
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
 		const originalProjectId = await editor.getAttribute('data-project-id');
 		const input = editor.locator('[data-aup4-input]');
+		const fixedArchive = await createFramescaperV18Format2Scape();
 
 		await input.setInputFiles(fixedArchive);
 		const decision = page.getByRole('dialog', {
