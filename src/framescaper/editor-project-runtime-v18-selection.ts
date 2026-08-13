@@ -36,7 +36,11 @@ import {
 } from './editor-project-v18-validation.ts';
 
 type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<unknown>;
-type SessionFactory = (options?: Record<string, unknown>) => ReturnType<typeof createAudioEditorSessionController>;
+type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
+
+const STORE_AUTHORITY_FIELDS = [
+	'projectStorageProfile', 'databaseName', 'store', 'repositoryFactory', 'desktopProjectBridge',
+] as const;
 
 export interface EditorProjectRuntimeV18Selection {
 	readonly profile: EditorProjectRuntimeProfile;
@@ -104,12 +108,16 @@ export function createEditorProjectRuntimeV18Selection(
 		redo: (history, options = {}) => redoFramescaperProjectCommandV18(profile, history, options),
 		canUndo: (history) => history.undoStack.length > 0,
 		canRedo: (history) => history.redoStack.length > 0,
-		createSessionController: (options = {}) => createSelectedSession(
+		createSessionController(...args: unknown[]) {
+			if (args.length !== 0) {
+				throw new TypeError('The selected V18 session does not accept caller-owned session options.');
+			}
+			return createSelectedSession(profile, createAudioEditorSessionController);
+		},
+		createProjectStore: (options = {}) => createFramescaperProjectStoreV18(
 			profile,
-			createAudioEditorSessionController,
-			options,
+			selectedStoreOptions(options),
 		),
-		createProjectStore: (options = {}) => createFramescaperProjectStoreV18(profile, options),
 		acquireProjectLock: (projectId, options = {}) => acquireProjectLock(
 			projectId,
 			profiledLockOptions(options),
@@ -120,11 +128,9 @@ export function createEditorProjectRuntimeV18Selection(
 
 function createSelectedSession(
 	profile: EditorProjectRuntimeProfile,
-	createSession: SessionFactory,
-	options: Record<string, unknown>,
+	createSession: typeof createAudioEditorSessionController,
 ): ReturnType<typeof createAudioEditorSessionController> {
 	const delegate = createSession({
-		...options,
 		currentSchemaVersion: FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
 	});
 	return Object.freeze({
@@ -160,10 +166,30 @@ function profiledLockOptions(value: Record<string, unknown>): Record<string, unk
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Framescaper V18 project lock options must be a record.');
 	}
-	const profile = Object.getOwnPropertyDescriptor(value, 'projectStorageProfile');
-	if (profile && (!Object.hasOwn(profile, 'value')
-		|| profile.value !== FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE)) {
-		throw new TypeError('The exact Framescaper V18 project lock profile is required.');
+	if (Object.getOwnPropertyDescriptor(value, 'projectStorageProfile')) {
+		throw new TypeError('The selected V18 lock profile is internal and rejects authority overrides.');
 	}
-	return { ...value, projectStorageProfile: FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE };
+	const force = Object.getOwnPropertyDescriptor(value, 'force');
+	if (force && (!force.enumerable || !Object.hasOwn(force, 'value') || typeof force.value !== 'boolean')) {
+		throw new TypeError('The selected V18 lock force option must be an own boolean data property.');
+	}
+	if (Reflect.ownKeys(value).some((key) => key !== 'force')) {
+		throw new TypeError('The selected V18 lock accepts no environment or callback authority overrides.');
+	}
+	return {
+		...(force ? { force: force.value } : {}),
+		projectStorageProfile: FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE,
+	};
+}
+
+function selectedStoreOptions(value: AudioEditorProjectStoreOptions | unknown): AudioEditorProjectStoreOptions {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Selected V18 store options must be a record.');
+	}
+	for (const field of STORE_AUTHORITY_FIELDS) {
+		if (Object.getOwnPropertyDescriptor(value, field)) {
+			throw new TypeError(`The selected V18 store rejects the ${field} authority override.`);
+		}
+	}
+	return value as AudioEditorProjectStoreOptions;
 }

@@ -135,21 +135,10 @@ test('selected runtime derives exact storage and lock profiles without callback 
 	assert.equal(store.databaseName, editorProjectStorageProfileNames(runtime.storageProfile).databaseName);
 	await store.close();
 
-	const names: string[] = [];
-	const locks = {
-		request(name: string, _options: unknown, callback: (lock: object) => unknown) {
-			names.push(name);
-			return callback({ name });
-		},
-	};
-	const lock = await runtime.acquireProjectLock('project-v18', {
-		navigator: { locks }, BroadcastChannel: null,
-	}) as { release(): void; finished: Promise<unknown> };
-	lock.release();
-	await lock.finished;
-	assert.deepEqual(names, [
-		`${editorProjectStorageProfileNames(runtime.storageProfile).projectLockPrefix}project-v18`,
-	]);
+	assert.throws(
+		() => runtime.acquireProjectLock('project-v18', { navigator: {} }),
+		/environment|callback authority override/iu,
+	);
 });
 
 test('selected runtime exposes no store, desktop, repository, schema, or session authority override', () => {
