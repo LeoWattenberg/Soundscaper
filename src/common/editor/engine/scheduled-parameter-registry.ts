@@ -6,6 +6,7 @@ import {
 	type ParameterAddress,
 	type ParameterDescriptor,
 } from '../parameter-address.ts';
+import { roundRational } from '../timeline-time.ts';
 
 export const STALE_SCHEDULED_PARAMETER_TARGET_CODE = 'STALE_SCHEDULED_PARAMETER_TARGET' as const;
 
@@ -412,7 +413,11 @@ function normalizeScheduleOptions(value: ScheduledParameterScheduleOptions): Nor
 /**
  * Convert one project-domain frame into the worklet context-frame domain.
  * Fractional context frames round to the nearest integer, with exact halves
- * owned by the later frame. Latency is already declared in context frames.
+ * owned by the later frame. Integer inputs are evaluated as one exact BigInt
+ * ratio. A non-integer transport rate is interpreted through the canonical
+ * shortest decimal emitted by Number#toString so every positive finite rate
+ * remains accepted with deterministic rounding. Latency is already declared
+ * in context frames.
  */
 export function roundScheduledParameterContextFrameOffset(
 	frame: number,
@@ -422,15 +427,52 @@ export function roundScheduledParameterContextFrameOffset(
 	transportRate: number,
 	latencyFrames: number,
 ): number {
-	const projectFrameDelta = frame - fromFrame;
-	const scaledOffset = projectFrameDelta / sampleRate * contextSampleRate / transportRate;
-	if (!Number.isFinite(scaledOffset) || scaledOffset < 0
-		|| scaledOffset > Number.MAX_SAFE_INTEGER - latencyFrames) {
+	const normalizedFrame = nonNegativeSafeInteger(frame, 'frame');
+	const normalizedFromFrame = nonNegativeSafeInteger(fromFrame, 'fromFrame');
+	const normalizedSampleRate = positiveSafeInteger(sampleRate, 'sampleRate');
+	const normalizedContextSampleRate = positiveSafeInteger(
+		contextSampleRate,
+		'contextSampleRate',
+	);
+	const normalizedTransportRate = positiveFiniteNumber(transportRate, 'transportRate');
+	const normalizedLatencyFrames = nonNegativeSafeInteger(latencyFrames, 'latencyFrames');
+	if (normalizedFrame < normalizedFromFrame) {
 		throw new RangeError('A parameter frame offset is unsafe.');
 	}
-	const offset = latencyFrames + Math.floor(scaledOffset + 0.5);
+	const projectFrameDelta = normalizedFrame - normalizedFromFrame;
+	const transport = canonicalPositiveNumberRatio(normalizedTransportRate);
+	let roundedOffset: number;
+	try {
+		roundedOffset = roundRational(
+			BigInt(projectFrameDelta) * BigInt(normalizedContextSampleRate) * transport.denominator,
+			BigInt(normalizedSampleRate) * transport.numerator,
+			'point',
+		);
+	} catch (error) {
+		if (error instanceof RangeError) throw new RangeError('A parameter frame offset is unsafe.');
+		throw error;
+	}
+	const offset = normalizedLatencyFrames + roundedOffset;
 	if (!Number.isSafeInteger(offset) || offset < 0) throw new RangeError('A parameter frame offset is unsafe.');
 	return offset;
+}
+
+function canonicalPositiveNumberRatio(value: number): Readonly<{
+	readonly numerator: bigint;
+	readonly denominator: bigint;
+}> {
+	if (Number.isSafeInteger(value)) {
+		return { numerator: BigInt(value), denominator: 1n };
+	}
+	const match = /^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/iu.exec(value.toString());
+	if (!match) throw new RangeError('A transport rate cannot be represented as a finite ratio.');
+	const decimals = match[2] ?? '';
+	const exponent = Number(match[3] ?? 0) - decimals.length;
+	let numerator = BigInt(`${match[1]}${decimals}`);
+	let denominator = 1n;
+	if (exponent >= 0) numerator *= 10n ** BigInt(exponent);
+	else denominator = 10n ** BigInt(-exponent);
+	return { numerator, denominator };
 }
 
 function finiteNumber(value: unknown, name: string): number {

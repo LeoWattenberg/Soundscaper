@@ -189,6 +189,56 @@ test('message offsets convert project frames into context frames with named tie 
 	});
 	assert.deepEqual(packets[0]?.events.map(({ frameOffset }) => frameOffset), [37, 48_037]);
 	assert.equal(roundScheduledParameterContextFrameOffset(1, 0, 2, 1, 1, 0), 1);
+	assert.equal(
+		roundScheduledParameterContextFrameOffset(82_411_169, 0, 32_000, 48_000, 1, 0),
+		123_616_754,
+		'a hostile exact half owns the later context frame',
+	);
+	assert.equal(
+		roundScheduledParameterContextFrameOffset(
+			Number.MAX_SAFE_INTEGER,
+			Number.MAX_SAFE_INTEGER - 82_411_169,
+			32_000,
+			48_000,
+			1,
+			0,
+		),
+		123_616_754,
+		'large absolute frames are converted from their exact relative delta',
+	);
+	assert.equal(
+		roundScheduledParameterContextFrameOffset(3, 0, 48_000, 48_000, 1.2, 0),
+		3,
+		'a canonical decimal transport-rate ratio preserves later-frame tie ownership',
+	);
+	assert.equal(
+		roundScheduledParameterContextFrameOffset(0, 0, 48_000, 48_000, Number.MIN_VALUE, 7),
+		7,
+		'all positive finite transport rates remain valid when the resolved offset is safe',
+	);
+	assert.equal(
+		roundScheduledParameterContextFrameOffset(1, 0, 48_000, 48_000, Number.MAX_VALUE, 0),
+		0,
+	);
+	assert.equal(
+		roundScheduledParameterContextFrameOffset(
+			Number.MAX_SAFE_INTEGER,
+			0,
+			1,
+			1,
+			1,
+			0,
+		),
+		Number.MAX_SAFE_INTEGER,
+	);
+	assert.throws(
+		() => roundScheduledParameterContextFrameOffset(99, 100, 48_000, 48_000, 1, 0),
+		/unsafe/iu,
+	);
+	assert.throws(
+		() => roundScheduledParameterContextFrameOffset(0, -1, 48_000, 48_000, 1, 0),
+		/non-negative/iu,
+	);
 	assert.throws(
 		() => roundScheduledParameterContextFrameOffset(
 			Number.MAX_SAFE_INTEGER, 0, 1, Number.MAX_SAFE_INTEGER, 0.5, 1,
