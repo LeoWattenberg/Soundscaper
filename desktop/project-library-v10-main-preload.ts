@@ -7,7 +7,7 @@ import {
 } from './project-library-v10-contract.ts';
 import {
 	FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS,
-} from './project-library-v10-main-ipc.ts';
+} from './project-library-v10-main-channels.ts';
 import {
 	validateFramescaperDesktopProjectLibraryV10PublicationAbortResult,
 	validateFramescaperDesktopProjectLibraryV10PublicationAdmission,
@@ -49,7 +49,7 @@ export interface FramescaperDesktopProjectLibraryV10MainPreloadBridge {
 	abortPublication(value: unknown): Promise<boolean>;
 }
 
-/** Frozen pathless API for the future Framescaper-only preload composition. */
+/** Frozen pathless API for the Framescaper-only sandbox preload composition. */
 export function createFramescaperDesktopProjectLibraryV10MainPreloadBridge(
 	value: unknown,
 ): FramescaperDesktopProjectLibraryV10MainPreloadBridge {

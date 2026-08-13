@@ -300,7 +300,7 @@ test('recovery refuses corrupt journals, changed metadata, and stale leases with
 	}
 });
 
-test('stays dormant and isolated from V9, product entrypoints, project bodies, and IPC', async () => {
+test('stays isolated from V9, product entrypoints, project bodies, and IPC', async () => {
 	const source = await readSource(MODULE);
 	assert.deepEqual(importSpecifiers(source), [
 		'node:crypto',
@@ -319,6 +319,7 @@ test('stays dormant and isolated from V9, product entrypoints, project bodies, a
 	}
 	assert.deepEqual(references, [
 		'desktop/project-library-v10-main.ts',
+		'tests/desktop-project-library-packaging.test.js',
 		TEST_MODULE,
 	]);
 	assert.ok(source.split('\n').length <= 600, 'catalog source must stay under 600 lines');

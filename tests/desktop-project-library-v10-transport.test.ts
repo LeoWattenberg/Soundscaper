@@ -242,7 +242,7 @@ test('preload performs one handshake before operational IPC and revalidates ever
 	await assert.rejects(malformed.readProjectBundle(PROJECT_ID), /schema|document|digest/iu);
 });
 
-test('keeps the V10 transport dormant and leaves the V9 main, preload, and IPC owners untouched', async () => {
+test('keeps V10 transport owners isolated and leaves the V9 IPC and shared preload untouched', async () => {
 	for (const legacy of ['desktop/main.mjs', 'desktop/preload.mjs', 'desktop/project-library-ipc.js']) {
 		assert.doesNotMatch(await readFile(resolve(ROOT, legacy), 'utf8'), /framescaper:v10|project-library-v10-(?:ipc|preload|transfer)/iu);
 	}

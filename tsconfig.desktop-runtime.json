@@ -31,6 +31,7 @@
 		"desktop/project-library-writer-coordinator.ts",
 		"desktop/project-library-media.ts",
 		"desktop/project-library-persistence.ts",
+		"desktop/project-library-v10-main-ipc.ts",
 		"desktop/project-library-reclamation.ts",
 		"desktop/project-library-projects.ts",
 		"desktop/project-library-stage-inventory.ts",

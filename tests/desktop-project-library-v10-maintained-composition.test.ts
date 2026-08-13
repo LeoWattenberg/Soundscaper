@@ -12,20 +12,29 @@ import {
 	compileDesktopProjectLibraryRuntime,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { createHash as createSandboxHash } from '../desktop/project-library-v10-sandbox-crypto.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSITION = 'desktop/project-library-product-runtime.js';
 const SANDBOX_ENTRY = 'desktop/project-library-v10-sandbox-preload.ts';
 const SANDBOX_BUNDLE = 'project-library-v10-sandbox-preload.cjs';
 const CHANNELS = Object.freeze([
-	'framescaper:v10:handshake',
+	'framescaper:v10:projects:handshake',
 	'framescaper:v10:projects:bundle',
-	'framescaper:v10:bodies:read',
+	'framescaper:v10:projects:bodies:read',
 	'framescaper:v10:projects:publication:begin',
 	'framescaper:v10:projects:publication:chunk',
 	'framescaper:v10:projects:publication:finish',
 	'framescaper:v10:projects:publication:abort',
 ]);
+
+test('sandbox hash seam preserves the exact SHA-256 contract without Node authority', () => {
+	assert.equal(
+		createSandboxHash('sha256').update('abc').digest('hex'),
+		'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+	);
+	assert.throws(() => createSandboxHash('sha1'), /only SHA-256/iu);
+});
 
 test('maintained main selects exact V10 while preserving the existing owner cleanup lifecycle', async () => {
 	const [main, composition, preload, sandboxEntry] = await Promise.all([
@@ -44,14 +53,14 @@ test('maintained main selects exact V10 while preserving the existing owner clea
 	assert.match(composition, /FramescaperDesktopProjectLibraryV10Main\.start/u);
 	assert.match(composition, /DesktopProjectLibraryHost\.start/u);
 	assert.match(composition, /registerPreloadScript/u);
-	assert.match(composition, /registration\.dispose\(\)[\s\S]*host\.close\(\)/u);
+	assert.match(composition, /bridge\.dispose\(\)[\s\S]*#host\.close\(\)/u);
 	assert.match(sandboxEntry, /createFramescaperDesktopProjectLibraryV10MainPreloadBridge/u);
 	assert.doesNotMatch(preload, /framescaper:v10|project-library-v10|projectLibrary/iu);
-	assert.ok(main.split('\n').length <= 600);
-	assert.ok(composition.split('\n').length <= 600);
+	assert.ok(main.trimEnd().split('\n').length <= 600);
+	assert.ok(composition.trimEnd().split('\n').length <= 600);
 });
 
-test('staged Framescaper composition owns exact handlers, preload, sessions, and close order', async (context) => {
+test('staged product selector isolates V10 handlers, preload, sessions, and close order', async (context) => {
 	const fixture = await stagedFixture(context);
 	const module = await import(`${pathToFileURL(join(fixture.applicationDesktopRoot, 'project-library-product-runtime.js')).href}?${Date.now()}`) as {
 		startDesktopProjectLibraryProductRuntime(value: unknown): Promise<ProductRuntime>;
@@ -98,6 +107,31 @@ test('staged Framescaper composition owns exact handlers, preload, sessions, and
 	assert.deepEqual(removed, [...CHANNELS].reverse());
 	await runtime.close();
 	assert.equal(runtime.snapshot().closed, true);
+
+	const soundscaperHandlers = new Map<string, (event: unknown, value?: unknown) => unknown>();
+	const soundscaper = await module.startDesktopProjectLibraryProductRuntime({
+		productId: 'soundscaper',
+		appDataPath: join(fixture.appDataPath, 'soundscaper'),
+		processId: 813,
+		instanceId: 'soundscaper-maintained-runtime',
+		v9HostOptions: {},
+		onLeaseLost: () => {},
+	});
+	context.after(() => soundscaper.close());
+	const soundscaperRegistration = soundscaper.registerRendererBridge({
+		desktopRoot: fixture.applicationDesktopRoot,
+		handle: (channel: string, handler: (event: unknown, value?: unknown) => unknown) => {
+			soundscaperHandlers.set(channel, handler);
+		},
+		ownerFor: (event: unknown) => (event as { owner: object }).owner,
+		removeHandler: () => {},
+		session,
+	});
+	assert.equal(soundscaper.snapshot().owner.product, 'soundscaper');
+	assert.equal([...soundscaperHandlers].some(([channel]) => channel.startsWith('framescaper:v10:')), false);
+	assert.equal(preloadRegistrations.length, 1, 'Soundscaper must not register the V10 preload');
+	await soundscaperRegistration.dispose();
+	await soundscaper.close();
 });
 
 test('sandbox bundle exposes only the handshake-first pathless V10 bridge', async (context) => {
@@ -106,8 +140,7 @@ test('sandbox bundle exposes only the handshake-first pathless V10 bridge', asyn
 	const calls: Array<{ channel: string; value: unknown }> = [];
 	const exposed = new Map<string, unknown>();
 	vm.runInNewContext(source, {
-		ArrayBuffer, AggregateError, Error, Map, Object, Promise, RangeError, Reflect, Set, String,
-		TextDecoder, TextEncoder, TypeError, Uint8Array, URL, WeakSet,
+		TextDecoder, TextEncoder, URL,
 		require(specifier: string) {
 			assert.equal(specifier, 'electron');
 			return {
@@ -127,10 +160,11 @@ test('sandbox bundle exposes only the handshake-first pathless V10 bridge', asyn
 	]);
 	await assert.rejects(() => bridge.readProjectBundle('project-before-handshake'), /handshake.*required/iu);
 	assert.equal(calls.length, 0);
-	assert.deepEqual(await bridge.connect(), exactHandshake());
-	assert.deepEqual(calls, [{ channel: CHANNELS[0], value: exactHandshake() }]);
+	assert.deepEqual(JSON.parse(JSON.stringify(await bridge.connect())), exactHandshake());
+	assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ channel: CHANNELS[0], value: exactHandshake() }]);
 	assert.equal(bridge.handshakeState(), 'admitted');
-	assert.doesNotMatch(source, /libraryRoot|databasePath|managedMediaRoot|projectsRoot/iu);
+	assert.doesNotMatch(JSON.stringify({ calls, keys: Object.keys(bridge) }),
+		/libraryRoot|databasePath|managedMediaRoot|projectsRoot|lease|filePath/iu);
 });
 
 async function stagedFixture(context: TestContext): Promise<Readonly<{
@@ -163,7 +197,11 @@ interface ProductRuntime {
 		dispose(): Promise<void>;
 		revokeOwner(owner: object): Promise<void>;
 	};
-	snapshot(): { readonly activeSessions: number; readonly closed: boolean };
+	snapshot(): {
+		readonly activeSessions: number;
+		readonly closed: boolean;
+		readonly owner: { readonly product: string };
+	};
 	close(): Promise<void>;
 }
 

@@ -1,22 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS,
-} from './project-library-v10-ipc.ts';
-import {
 	FramescaperDesktopProjectLibraryV10Main,
 } from './project-library-v10-main.ts';
+import {
+	FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS,
+} from './project-library-v10-main-channels.ts';
 import type {
 	FramescaperDesktopProjectLibraryV10MainSession,
 } from './project-library-v10-main-session.ts';
 
-export const FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS = Object.freeze({
-	...FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS,
-	beginPublication: 'framescaper:v10:projects:publication:begin',
-	writePublicationChunk: 'framescaper:v10:projects:publication:chunk',
-	finishPublication: 'framescaper:v10:projects:publication:finish',
-	abortPublication: 'framescaper:v10:projects:publication:abort',
-} as const);
+export { FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS } from './project-library-v10-main-channels.ts';
 
 const OPTION_FIELDS = ['handle', 'removeHandler', 'ownerFor', 'main'] as const;
 
@@ -27,7 +21,7 @@ export interface FramescaperDesktopProjectLibraryV10MainIpcRegistration {
 	revokeOwner(owner: object): Promise<void>;
 }
 
-/** Dormant trusted Electron boundary for one product-owned V10 main instance. */
+/** Trusted Electron boundary for one product-owned V10 main instance. */
 export function registerFramescaperDesktopProjectLibraryV10MainIpc(
 	value: unknown,
 ): FramescaperDesktopProjectLibraryV10MainIpcRegistration {

@@ -53,6 +53,26 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-reclamation.js',
 		'desktop/project-library-sequential-upload.js',
 		'desktop/project-library-stage-inventory.js',
+		'desktop/project-library-v10-catalog.js',
+		'desktop/project-library-v10-contract.js',
+		'desktop/project-library-v10-current-project.js',
+		'desktop/project-library-v10-database.js',
+		'desktop/project-library-v10-handshake-gate.js',
+		'desktop/project-library-v10-ipc.js',
+		'desktop/project-library-v10-main-channels.js',
+		'desktop/project-library-v10-main-ipc.js',
+		'desktop/project-library-v10-main-session.js',
+		'desktop/project-library-v10-main.js',
+		'desktop/project-library-v10-media-binding.js',
+		'desktop/project-library-v10-metadata.js',
+		'desktop/project-library-v10-persistence-codecs.js',
+		'desktop/project-library-v10-publication-contract.js',
+		'desktop/project-library-v10-publication-files.js',
+		'desktop/project-library-v10-publication-host.js',
+		'desktop/project-library-v10-publication-persistence.js',
+		'desktop/project-library-v10-publication-transport.js',
+		'desktop/project-library-v10-transfer-contract.js',
+		'desktop/project-library-v10-transfer-service.js',
 		'desktop/project-library-writer-coordinator.js',
 		'desktop/project-library.js',
 		'src/common/editor/adm-project-metadata.js',
@@ -70,9 +90,12 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/persisted-audio-effect-validation.js',
 		'src/common/editor/project-bext-metadata.js',
 		'src/common/editor/project-feature-capabilities.js',
+		'src/common/editor/project-feature-capability-profile.js',
 		'src/common/editor/project-feature-requirement-types.js',
 		'src/common/editor/project-feature-requirements.js',
 		'src/common/editor/project-owned-feature-requirements.js',
+		'src/common/editor/project-runtime-profile-prerequisite.js',
+		'src/common/editor/project-runtime-profile.js',
 		'src/common/editor/project-schema-version.js',
 		'src/common/editor/project-v10-foundation-validation.js',
 		'src/common/editor/project-v12-validation.js',
@@ -90,6 +113,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/sequence-timecode.js',
 		'src/common/editor/source-characteristics-v14.js',
 		'src/common/editor/stable-id.js',
+		'src/common/editor/storage/project-storage-profile.js',
 		'src/common/editor/take-comp-document-v17.js',
 		'src/common/editor/take-comp-domain.js',
 		'src/common/editor/take-group-source-references.js',
@@ -103,6 +127,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/track-folder-v12.js',
 		'src/common/editor/track-hierarchy-v12.js',
 		'src/common/editor/video-effects.js',
+		'src/common/editor/video-proxy-attachment-v18.js',
 		'src/common/editor/video-retime-curve.js',
 		'src/common/editor/video-retime-v16.js',
 		'src/common/editor/video-source-characteristics.js',
@@ -110,6 +135,13 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/video-timeline.js',
 		'src/common/editor/video-timing-asset-reference.js',
 		'src/common/editor/wav-opaque-chunks.js',
+		'src/framescaper/editor-project-feature-capability-profile-v18.js',
+		'src/framescaper/editor-project-feature-requirements-v18.js',
+		'src/framescaper/editor-project-runtime-profile-v18-prerequisite.js',
+		'src/framescaper/editor-project-runtime-profile-v18.js',
+		'src/framescaper/editor-project-storage-profile-v18.js',
+		'src/framescaper/editor-project-v18-profile.js',
+		'src/framescaper/editor-project-v18-validation.js',
 	]);
 	for (const name of result.files) {
 		const source = await readFile(join(outputRoot, name), 'utf8');
@@ -220,6 +252,8 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'linked-video-locator-ipc.js'));
 	await access(join(applicationDesktopRoot, 'linked-video-locator-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
+	await access(join(applicationDesktopRoot, 'project-library-product-runtime.js'));
+	await access(join(applicationDesktopRoot, 'project-library-v10-sandbox-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
@@ -228,6 +262,8 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-video-locator-store.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-media-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v10-main.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v10-main-ipc.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-binding.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-body.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-capacity.js'));
@@ -273,16 +309,16 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	const readyIndex = mainSource.indexOf('await app.whenReady()');
 	const appDataIndex = mainSource.indexOf("app.getPath('appData')");
 	assert.ok(readyIndex >= 0 && appDataIndex > readyIndex, 'shared appData is resolved only after Electron is ready');
-	assert.match(mainSource, /DesktopProjectLibraryHost\.start/u);
-	assert.match(mainSource, /new DesktopSharedProjectLibraryService\(projectLibraryHost\)/u);
+	assert.match(mainSource, /startDesktopProjectLibraryProductRuntime/u);
+	assert.match(mainSource, /productId:\s*PRODUCT_ID/u);
 	assert.match(mainSource, /createDesktopSmokeProbe\(\{/u);
 	assert.match(mainSource, /projectLibraryEvidence: projectLibrarySmokeEvidence/u);
 	assert.match(mainSource, /desktopSmokeProbe\.attach\(mainWindow\)/u);
 	assert.match(mainSource, /on\(IPC\.rendererReady.*desktopSmokeProbe\.rendererReady\(\)/su);
-	assert.match(mainSource, /projectLibrarySmokeEvidence.*createDesktopProjectLibrarySmokeEvidence\(projectLibraryHost/su);
+	assert.match(mainSource, /projectLibrarySmokeEvidence.*projectLibraryRuntime\.smokeEvidence/su);
 	assert.doesNotMatch(mainSource, /webContents\.executeJavaScript/u);
-	assert.match(mainSource, /registerDesktopProjectLibraryIpc\(\{ handle, ownerFor: rendererSaveOwnerFor/u);
-	assert.match(mainSource, /owner: \{ product: PRODUCT_ID/u);
+	assert.match(mainSource, /projectLibraryRuntime\.registerRendererBridge\(\{/u);
+	assert.match(mainSource, /ownerFor:\s*rendererSaveOwnerFor/u);
 	assert.match(mainSource, /new DesktopApplicationShutdown/u);
 	assert.match(mainSource, /name: 'project library', run: closeProjectLibraryHost/u);
 	assert.match(mainSource, /name: 'read capabilities'.*readCapabilities\.dispose\(\)/su);

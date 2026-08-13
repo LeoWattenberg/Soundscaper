@@ -35,14 +35,9 @@ import { registerSelectedReadCapability } from './read-selection-service.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
-import { registerDesktopProjectLibraryIpc } from './project-library-ipc.js';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
+import { startDesktopProjectLibraryProductRuntime } from './project-library-product-runtime.js';
 import { attachDesktopMainWindowRecovery } from './project-library-runtime/desktop/main-window-recovery.js';
-import { DesktopSharedProjectLibraryService } from './project-library-runtime/desktop/project-library-editor-service.js';
-import { desktopSharedManagedSourceBindingKey } from './project-library-runtime/desktop/project-library-editor-media-service.js';
-import { DesktopProjectLibraryHost } from './project-library-runtime/desktop/project-library-host.js';
-import { createDesktopLibraryMediaBinding } from './project-library-runtime/desktop/project-library-media-binding.js';
-import { createDesktopProjectLibrarySmokeEvidence } from './project-library-smoke-evidence.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
 import { DesktopRendererOwnershipCleanup } from './renderer-ownership-cleanup.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
@@ -69,7 +64,7 @@ let settings = null;
 let releaseChecker = null;
 let rendererReady = false;
 let pendingClose = null;
-let projectLibraryHost = null;
+let projectLibraryRuntime = null;
 let projectLibraryStartup = null;
 let projectLibraryIpc = null;
 let linkedVideoLocators = null;
@@ -117,7 +112,7 @@ const desktopSmokeProbe = createDesktopSmokeProbe({
 	productId: PRODUCT_ID,
 	exit: exitApplication,
 	projectLibraryEvidence: projectLibrarySmokeEvidence,
-	projectLibrarySnapshot: () => projectLibraryHost?.snapshot(),
+	projectLibrarySnapshot: () => projectLibraryRuntime?.snapshot(),
 });
 
 app.setName(APP_NAME);
@@ -161,13 +156,15 @@ async function startApplication() {
 	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-v1.json') });
 	await linkedVideoLocators.ready();
 	if (applicationShutdown.requested) return;
-	const libraryStartup = DesktopProjectLibraryHost.start({
+	const libraryStartup = startDesktopProjectLibraryProductRuntime({
+		productId: PRODUCT_ID,
 		appDataPath: resolveDesktopProjectLibraryAppData({
 			applicationDataPath: app.getPath('appData'),
 			argv: process.argv,
 		}),
-		...desktopSmokeProbe.projectLibraryHostOptions(),
-		owner: { product: PRODUCT_ID, processId: process.pid, instanceId: randomUUID() },
+		processId: process.pid,
+		instanceId: randomUUID(),
+		v9HostOptions: desktopSmokeProbe.projectLibraryHostOptions(),
 		onLeaseLost: (error) => {
 			console.error('Shared desktop project library lease was lost:', cleanError(error));
 			void exitApplication(1);
@@ -175,7 +172,7 @@ async function startApplication() {
 	});
 	projectLibraryStartup = libraryStartup;
 	try {
-		projectLibraryHost = await libraryStartup;
+		projectLibraryRuntime = await libraryStartup;
 	} finally {
 		if (projectLibraryStartup === libraryStartup) projectLibraryStartup = null;
 	}
@@ -195,7 +192,7 @@ async function startApplication() {
 	}));
 	if (applicationShutdown.requested) return;
 	configureSessionSecurity(desktopSession);
-	registerIpcHandlers(new DesktopSharedProjectLibraryService(projectLibraryHost));
+	registerIpcHandlers(desktopSession);
 	installMenu();
 	await createWindow();
 	void checkForUpdates(false);
@@ -300,8 +297,14 @@ function isRendererSaveOwnerCurrent(owner) {
 	} catch { return false; }
 }
 
-function registerIpcHandlers(projectLibraryService) {
-	projectLibraryIpc = registerDesktopProjectLibraryIpc({ handle, ownerFor: rendererSaveOwnerFor, service: projectLibraryService });
+function registerIpcHandlers(desktopSession) {
+	projectLibraryIpc = projectLibraryRuntime.registerRendererBridge({
+		desktopRoot: __dirname,
+		handle,
+		ownerFor: rendererSaveOwnerFor,
+		removeHandler: (channel) => ipcMain.removeHandler(channel),
+		session: desktopSession,
+	});
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
@@ -577,11 +580,8 @@ function cleanError(error) {
 }
 
 function projectLibrarySmokeEvidence(projectId) {
-	if (!projectLibraryHost) throw new Error('Desktop project library is unavailable');
-	return createDesktopProjectLibrarySmokeEvidence(projectLibraryHost, projectId, {
-		createMediaBinding: createDesktopLibraryMediaBinding,
-		sourceBindingKey: desktopSharedManagedSourceBindingKey,
-	});
+	if (!projectLibraryRuntime) throw new Error('Desktop project library is unavailable');
+	return projectLibraryRuntime.smokeEvidence(projectId);
 }
 
 async function closeProjectLibraryHost() {
@@ -590,9 +590,9 @@ async function closeProjectLibraryHost() {
 	const registration = projectLibraryIpc;
 	await registration?.dispose();
 	if (projectLibraryIpc === registration) projectLibraryIpc = null;
-	const host = projectLibraryHost;
-	await host?.close();
-	if (projectLibraryHost === host) projectLibraryHost = null;
+	const runtime = projectLibraryRuntime;
+	await runtime?.close();
+	if (projectLibraryRuntime === runtime) projectLibraryRuntime = null;
 }
 
 function exitApplication(code) {

@@ -4,6 +4,10 @@ import { spawn } from 'node:child_process';
 import { cp, mkdir, readdir, readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
+import { build } from 'esbuild';
+
+const FRAMESCAPER_V10_PRELOAD_BUNDLE = 'project-library-v10-sandbox-preload.cjs';
+
 const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/application-lifecycle.js',
 	'desktop/linked-original-locator-validation.js',
@@ -35,6 +39,26 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-reclamation.js',
 	'desktop/project-library-sequential-upload.js',
 	'desktop/project-library-stage-inventory.js',
+	'desktop/project-library-v10-catalog.js',
+	'desktop/project-library-v10-contract.js',
+	'desktop/project-library-v10-current-project.js',
+	'desktop/project-library-v10-database.js',
+	'desktop/project-library-v10-handshake-gate.js',
+	'desktop/project-library-v10-ipc.js',
+	'desktop/project-library-v10-main-channels.js',
+	'desktop/project-library-v10-main-ipc.js',
+	'desktop/project-library-v10-main-session.js',
+	'desktop/project-library-v10-main.js',
+	'desktop/project-library-v10-media-binding.js',
+	'desktop/project-library-v10-metadata.js',
+	'desktop/project-library-v10-persistence-codecs.js',
+	'desktop/project-library-v10-publication-contract.js',
+	'desktop/project-library-v10-publication-files.js',
+	'desktop/project-library-v10-publication-host.js',
+	'desktop/project-library-v10-publication-persistence.js',
+	'desktop/project-library-v10-publication-transport.js',
+	'desktop/project-library-v10-transfer-contract.js',
+	'desktop/project-library-v10-transfer-service.js',
 	'desktop/project-library-writer-coordinator.js',
 	'desktop/project-library.js',
 	'src/common/editor/adm-project-metadata.js',
@@ -52,9 +76,12 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/persisted-audio-effect-validation.js',
 	'src/common/editor/project-bext-metadata.js',
 	'src/common/editor/project-feature-capabilities.js',
+	'src/common/editor/project-feature-capability-profile.js',
 	'src/common/editor/project-feature-requirement-types.js',
 	'src/common/editor/project-feature-requirements.js',
 	'src/common/editor/project-owned-feature-requirements.js',
+	'src/common/editor/project-runtime-profile-prerequisite.js',
+	'src/common/editor/project-runtime-profile.js',
 	'src/common/editor/project-schema-version.js',
 	'src/common/editor/project-v10-foundation-validation.js',
 	'src/common/editor/project-v12-validation.js',
@@ -72,6 +99,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/sequence-timecode.js',
 	'src/common/editor/source-characteristics-v14.js',
 	'src/common/editor/stable-id.js',
+	'src/common/editor/storage/project-storage-profile.js',
 	'src/common/editor/take-comp-document-v17.js',
 	'src/common/editor/take-comp-domain.js',
 	'src/common/editor/take-group-source-references.js',
@@ -85,6 +113,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/track-folder-v12.js',
 	'src/common/editor/track-hierarchy-v12.js',
 	'src/common/editor/video-effects.js',
+	'src/common/editor/video-proxy-attachment-v18.js',
 	'src/common/editor/video-retime-curve.js',
 	'src/common/editor/video-retime-v16.js',
 	'src/common/editor/video-source-characteristics.js',
@@ -92,6 +121,13 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-timeline.js',
 	'src/common/editor/video-timing-asset-reference.js',
 	'src/common/editor/wav-opaque-chunks.js',
+	'src/framescaper/editor-project-feature-capability-profile-v18.js',
+	'src/framescaper/editor-project-feature-requirements-v18.js',
+	'src/framescaper/editor-project-runtime-profile-v18-prerequisite.js',
+	'src/framescaper/editor-project-runtime-profile-v18.js',
+	'src/framescaper/editor-project-storage-profile-v18.js',
+	'src/framescaper/editor-project-v18-profile.js',
+	'src/framescaper/editor-project-v18-validation.js',
 ]);
 
 export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outputRoot }) {
@@ -128,6 +164,30 @@ export async function stageDesktopApplicationSources({
 		filter: (source) => extname(source) !== '.ts',
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
+	await bundleFramescaperV10SandboxPreload({
+		entryPoint: join(sourceRoot, 'project-library-v10-sandbox-preload.ts'),
+		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
+		outputPath: join(applicationRoot, FRAMESCAPER_V10_PRELOAD_BUNDLE),
+	});
+}
+
+async function bundleFramescaperV10SandboxPreload({ entryPoint, cryptoShim, outputPath }) {
+	await build({
+		entryPoints: [entryPoint],
+		outfile: outputPath,
+		bundle: true,
+		platform: 'node',
+		format: 'cjs',
+		target: 'node26',
+		external: ['electron'],
+		alias: { 'node:crypto': cryptoShim },
+		logLevel: 'silent',
+	});
+	const source = await readFile(outputPath, 'utf8');
+	const required = [...source.matchAll(/require\(["']([^"']+)["']\)/gu)].map((match) => match[1]);
+	if (required.length !== 1 || required[0] !== 'electron') {
+		throw new Error(`Framescaper V10 sandbox preload retained unsupported modules: ${required.join(', ')}`);
+	}
 }
 
 async function listRuntimeFiles(root, relativeRoot = '') {

@@ -47,7 +47,7 @@ interface StartOptions {
 	readonly handshake: FramescaperDesktopProjectLibraryV10Handshake;
 }
 
-/** Dormant product-owned V10 main composition. The maintained Electron main does not select it. */
+/** Product-owned V10 main composition selected only by the packaged Framescaper profile. */
 export class FramescaperDesktopProjectLibraryV10Main {
 	readonly localHandshake: Readonly<FramescaperDesktopProjectLibraryV10Handshake>;
 	readonly #catalog: FramescaperDesktopProjectLibraryV10Catalog;

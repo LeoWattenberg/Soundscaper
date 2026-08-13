@@ -314,7 +314,7 @@ test('a pre-journal digest failure cleans private stages and publishes nothing',
 	assert.equal((await stageFiles(fixture.paths.libraryRoot)).length, 0);
 });
 
-test('keeps publication unreachable from V9 and maintained Electron composition', async () => {
+test('keeps publication internals unreachable from V9 and the maintained Electron entrypoints', async () => {
 	for (const legacy of [
 		'desktop/main.mjs', 'desktop/preload.mjs', 'desktop/project-library-ipc.js',
 		'desktop/project-library-host.ts', 'desktop/project-library-database.ts',

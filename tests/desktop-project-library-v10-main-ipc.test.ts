@@ -132,7 +132,7 @@ test('preload refusal is sticky and performs no operational IPC after a remote m
 	assert.equal(bridge.handshakeState(), 'refused');
 });
 
-test('the composed main stays dormant and does not widen V9 or maintained Electron owners', async () => {
+test('the composed main stays product-owned and does not widen V9 or shared preload owners', async () => {
 	for (const legacy of ['desktop/main.mjs', 'desktop/preload.mjs', 'desktop/project-library-ipc.js']) {
 		assert.doesNotMatch(await readFile(resolve(ROOT, legacy), 'utf8'),
 			/framescaper:v10|project-library-v10-main|publication-transport/iu);
