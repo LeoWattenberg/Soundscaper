@@ -87,69 +87,35 @@ test('deferred MIDI and Framescaper capture capabilities are absent from maintai
 	assert.deepEqual(dependencyNames.filter((name) => /midi/u.test(name)), []);
 });
 
-test('Electron Enhanced inventory includes the shared mixed-media editor project boundary', async () => {
+test('Electron Enhanced inventory records product-owned current desktop boundaries', async () => {
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
-	for (const productId of PRODUCT_IDS) {
-		const platform = inventory.products[productId].platforms['electron-enhanced'];
-		const evidence = platform.evidence;
-		assert.equal(platform.status, 'partial');
-		for (const path of [
-			'desktop/desktop-smoke.js',
-			'desktop/project-library-editor-media-service.ts',
-			'desktop/project-library-editor-service.ts',
-			'desktop/project-library-ipc.js',
-			'desktop/project-library-media-binding.ts',
-			'desktop/project-library-media-capacity.ts',
-			'desktop/project-library-media-inventory-reclamation.ts',
-			'desktop/project-library-media-inventory-schema.ts',
-			'desktop/project-library-media-inventory-store.ts',
-			'desktop/project-library-media-inventory.ts',
-			'desktop/project-library-media-reclamation.ts',
-			'desktop/project-library-media-reuse.ts',
-			'desktop/project-library-media.ts',
-			'scripts/lib/desktop-project-library-handoff-smoke.mjs',
-			'scripts/lib/desktop-project-library-runtime.mjs',
-			'scripts/desktop-project-library-handoff-smoke.mjs',
-			'src/common/editor/storage/desktop-shared-project-media-acquisition.ts',
-			'src/common/editor/storage/desktop-shared-project-media-contract.ts',
-			'src/common/editor/storage/desktop-shared-project-media-sender.ts',
-			'src/common/editor/storage/desktop-shared-project-media-sources.ts',
-			'src/common/editor/storage/desktop-shared-project-media-transfer.ts',
-			'src/common/editor/storage/desktop-shared-project-repository.ts',
-			'src/common/editor/storage.js',
-			'src/common/editor/app.js',
-			'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts',
-			'tests/audio-editor-desktop-shared-project-media-transfer-budget.test.ts',
-			'tests/audio-editor-desktop-shared-project-media-transfer-ownership.test.ts',
-			'tests/audio-editor-desktop-shared-project-media-transfer.test.ts',
-			'tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts',
-			'tests/audio-editor-desktop-shared-project-repository-handoff.test.ts',
-			'tests/desktop-project-library-editor-service.test.ts',
-			'tests/desktop-project-library-editor-media-freshness.test.ts',
-			'tests/desktop-project-library-editor-media-reuse-fallback.test.ts',
-			'tests/desktop-project-library-editor-media-service.test.ts',
-			'tests/desktop-project-library-editor-video-media-service.test.ts',
-			'tests/desktop-project-library-ipc.test.js',
-			'tests/desktop-project-library-media-capacity.test.ts',
-			'tests/desktop-project-library-media-inventory-store.test.ts',
-			'tests/desktop-project-library-media-inventory.test.ts',
-			'tests/desktop-project-library-media-reclamation.test.ts',
-			'tests/desktop-project-library-media-reuse.test.ts',
-			'tests/desktop-project-library-media.test.ts',
-			'tests/desktop-project-library-mixed-media-roundtrip.test.ts',
-			'tests/desktop-project-library-packaging.test.js',
-			'tests/desktop-project-library-video-media.test.ts',
-			'tests/audio-editor-desktop-shared-project-repository.test.ts',
-			'tests/desktop-project-library-editor-handoff.test.ts',
-			'tests/desktop-smoke-probe.test.js',
-			'tests/desktop-project-library-handoff-smoke.test.js',
-			'tests/desktop-project-library-handoff-workflow.test.js',
-			'.github/workflows/desktop-preview.yml',
-		]) assert.ok(evidence.includes(path), `${productId} is missing ${path}`);
-	}
+	const soundscaper = inventory.products.soundscaper.platforms['electron-enhanced'];
+	const framescaper = inventory.products.framescaper.platforms['electron-enhanced'];
+	assert.equal(soundscaper.status, 'partial');
+	assert.equal(framescaper.status, 'partial');
+	for (const path of [
+		'desktop/desktop-smoke.js',
+		'desktop/project-library-host.ts',
+		'desktop/project-library-lease-smoke.js',
+		'scripts/lib/desktop-project-library-lease-matrix.mjs',
+		'tests/desktop-project-library-lease-matrix.test.js',
+		'.github/workflows/desktop-preview.yml',
+	]) assert.ok(soundscaper.evidence.includes(path), `soundscaper is missing ${path}`);
+	for (const path of [
+		'desktop/desktop-smoke.js',
+		'desktop/framescaper-v18-artifact-smoke.js',
+		'desktop/project-library-product-runtime.js',
+		'desktop/project-library-v10-main.ts',
+		'desktop/project-library-v10-main-session.ts',
+		'desktop/project-library-v10-lifecycle-host.ts',
+		'src/framescaper/desktop-project-library-v10-renderer.ts',
+		'tests/desktop-project-library-v10-main.test.ts',
+		'.github/workflows/desktop-preview.yml',
+	]) assert.ok(framescaper.evidence.includes(path), `framescaper is missing ${path}`);
+	assert.doesNotMatch(JSON.stringify(framescaper.evidence), /project-library-handoff-smoke/iu);
 });
 
-test('Linux x64 inventory pins the packaged source-free project-library handoff', async () => {
+test('Linux x64 inventory pins the current product-aware artifact smoke', async () => {
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 	const target = inventory.desktopTargets.find(
 		({ os, architecture }) => os === 'linux' && architecture === 'x64',
@@ -158,13 +124,13 @@ test('Linux x64 inventory pins the packaged source-free project-library handoff'
 	assert.ok(target);
 	for (const path of [
 		'desktop/desktop-smoke.js',
-		'scripts/lib/desktop-project-library-handoff-smoke.mjs',
-		'scripts/desktop-project-library-handoff-smoke.mjs',
+		'scripts/lib/desktop-smoke.mjs',
+		'scripts/desktop-smoke.mjs',
 		'tests/desktop-smoke-probe.test.js',
-		'tests/desktop-project-library-handoff-smoke.test.js',
-		'tests/desktop-project-library-handoff-workflow.test.js',
+		'tests/desktop-smoke.test.js',
 		'.github/workflows/desktop-preview.yml',
 	]) assert.ok(target.evidence.includes(path), `linux/x64 is missing ${path}`);
+	assert.doesNotMatch(JSON.stringify(target.evidence), /project-library-handoff-smoke/iu);
 	assert.equal(
 		target.evidence.includes('tests/desktop-project-library-mixed-media-roundtrip.test.ts'),
 		false,
