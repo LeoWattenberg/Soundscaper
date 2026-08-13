@@ -288,7 +288,7 @@ test('authenticates only creator-issued final identities without candidate obser
 	}
 });
 
-test('keeps the final singleton and module statically dormant outside its proof', async () => {
+test('keeps final-profile consumption within the closed isolated V18 domain set', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const exportReferences: string[] = [];
 	const productPathReferences: string[] = [];
@@ -301,10 +301,34 @@ test('keeps the final singleton and module statically dormant outside its proof'
 		if (source.includes(PRODUCT_MODULE_STEM)) productPathReferences.push(file);
 		if (source.includes(GENERIC_MODULE_STEM)) genericPathReferences.push(file);
 	}
-	assert.deepEqual(exportReferences, [PRODUCT_MODULE, TEST_MODULE]);
-	assert.deepEqual(productPathReferences, [TEST_MODULE]);
-	assert.deepEqual(genericPathReferences, [
+	assert.deepEqual(exportReferences, [
+		'desktop/project-library-v10-current-project.ts',
 		PRODUCT_MODULE,
+		'src/framescaper/editor-project-v18-profile.ts',
+		TEST_MODULE,
+		'tests/audio-editor-framescaper-project-v18-domain.test.ts',
+		'tests/audio-editor-framescaper-project-v18-history.test.ts',
+		'tests/desktop-project-library-v10-current-project.test.ts',
+	]);
+	assert.deepEqual(productPathReferences, [
+		'desktop/project-library-v10-current-project.ts',
+		'src/framescaper/editor-project-v18-profile.ts',
+		TEST_MODULE,
+		'tests/audio-editor-framescaper-project-v18-domain.test.ts',
+		'tests/audio-editor-framescaper-project-v18-history.test.ts',
+		'tests/desktop-project-library-v10-current-project.test.ts',
+	]);
+	assert.deepEqual(genericPathReferences, [
+		'desktop/project-library-v10-current-project.ts',
+		PRODUCT_MODULE,
+		'src/framescaper/editor-project-v18-commands.ts',
+		'src/framescaper/editor-project-v18-history.ts',
+		'src/framescaper/editor-project-v18-migration.ts',
+		'src/framescaper/editor-project-v18-profile.ts',
+		'src/framescaper/editor-project-v18-runtime.ts',
+		'src/framescaper/editor-project-v18-session.ts',
+		'src/framescaper/editor-project-v18-validation.ts',
+		'src/framescaper/editor-project-v18.ts',
 		'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts',
 		TEST_MODULE,
 	]);

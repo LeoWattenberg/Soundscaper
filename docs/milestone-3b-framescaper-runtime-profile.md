@@ -1,10 +1,12 @@
-# Milestone 3B-6c-c1c: dormant Framescaper runtime profile
+# Milestone 3B-6c-c1c: Framescaper runtime profile
 
-> **Implemented as a dormant runtime profile in `ace30ac1` on 2026-08-13; no
-> maintained production behavior or selection is authorized.** Contract
+> **Implemented as a dormant runtime profile in `ace30ac1` on 2026-08-13, then
+> admitted only by the reviewed isolated V18 domain during atomic c-c.** Contract
 > `90b66b61`, authority reviews `dbc9b807` and `39c02557`, strict RED
 > `a2e1ee03`, and proof hardening `6f82c3c2` and `758705ac` delivered one opaque,
-> unreachable Framescaper composition. It does not select V18, expose a
+> originally unreachable Framescaper composition. Its closed consumers are now
+> limited to isolated V18 project/command/history ownership, desktop v10
+> current-project admission, and their focused proofs. It does not expose a
 > structural profile, register a capability, or change Soundscaper.
 
 ## Dependency and boundary
@@ -150,29 +152,30 @@ Before production, add one strict TypeScript Node test below 600 lines proving:
   singleton tuple is still distinct from and cannot reproduce the exact
   Framescaper final singleton;
 - forged/cloned/wrapped runtime-token refusal with zero candidate traps; and
-- exhaustive source/path/reference dormancy, including no barrel, common,
-  Soundscaper, app, selector, product-profile, schema, storage consumer,
-  archive, repository, controller, desktop, UI, or ambient `productId` path.
+- exhaustive source/path/reference ownership: only the explicit isolated V18
+  project domain, desktop v10 current-project admission, and focused proofs may
+  consume the singleton; no barrel, common, Soundscaper, app, bootstrap,
+  product-profile, UI, or ambient `productId` path may import it.
 
 Run the focused c1a, c1b, and c1c tests, every TypeScript configuration,
 focused ESLint, architecture/file-size and dependency checks,
-`git diff --check`, then canonical `npm run check`. No browser row is required
-because the token remains unreachable and has no UI or behavior.
+`git diff --check`, then canonical `npm run check`. Browser qualification is
+owned by the later reachable product composition, not this isolated boundary.
 
 ## Hard stops
 
-The implemented slice contains only the generic opaque composition owner, the
-exact dormant Framescaper singleton, the focused proof, and the two narrow
-predecessor-dormancy allowlist updates. It authorizes no
-selector, bootstrap option, V18 constructor/validator/migration, c-c0 storage
-selection, capability registration or flip, compatibility change, archive
+The original c1c slice contained only the generic opaque composition owner and
+exact Framescaper singleton. Atomic c-c now authorizes its exact identity only
+through the closed isolated V18 project/command/history and desktop v10
+current-project boundaries. It still authorizes no app selector, bootstrap
+option, c-c0 storage selection, capability registration or flip, archive
 format 2, preservation, retention, repository claim, controller wiring,
-cross-realm handshake, desktop v10, proxy staging/attachment/use, UI/menu, or
+cross-realm operational handshake, proxy staging/attachment/use, UI/menu, or
 Soundscaper change.
 
-The first reachable use or selection remains the full atomic c-c transition.
-Stop if the token becomes selectable, if child authority is flattened or
-structural, or if any existing global V17/Soundscaper owner changes.
+Stop if the token reaches app/bootstrap selection outside the atomic c-c
+composition, if child authority is flattened or structural, or if any existing
+global V17/Soundscaper owner changes.
 
 ## Implementation evidence
 

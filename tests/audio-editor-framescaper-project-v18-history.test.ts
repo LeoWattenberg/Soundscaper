@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
@@ -62,8 +63,23 @@ test('generic V18 commands cannot introduce, remove, or change proxy attachment 
 	assert.equal(addedSource?.kind, 'video');
 	assert.equal(addedSource?.proxyAttachment, null);
 
-	const attached = structuredClone(project) as Record<string, unknown>;
-	(attached.sources as Record<string, unknown>[]).push({ ...hostileSource, proxyAttachment: attachment() });
+	const attachedSource = createVideoSourceV10({
+		...hostileSource, contentSha256: '12'.repeat(32),
+	});
+	delete attachedSource.proxyAttachment;
+	const attached = structuredClone(createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		id: 'v18-attached', title: 'Attached', now: CREATED,
+		sources: [attachedSource],
+		clips: [{
+			kind: 'video', id: 'video-clip', sourceId: 'new-video', title: 'Video',
+			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+		}],
+		tracks: [createVideoTrackV10({ id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true })],
+		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
+		primarySequenceId: 'main-sequence',
+	})) as unknown as Record<string, unknown>;
+	(attached.sources as Record<string, unknown>[])[0]!.proxyAttachment = attachment();
 	assert.throws(() => applyFramescaperProjectCommandV18(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 		attached,
