@@ -126,6 +126,23 @@ test('multicamera playback admits VFR coordinates only with verified exact bound
 	}
 });
 
+test('project activation admits V18 metadata before exact multicamera timing is registered', () => {
+	const fixture = vfrProject();
+	const service = createFramescaperPlaybackProjectServiceV18(PROFILE);
+	assert.equal(typeof service.projectForActivationAdmission, 'function');
+	const admission = service.projectForActivationAdmission!(fixture.project);
+	assert.strictEqual(admission.project, fixture.project);
+	assert.deepEqual(admission.requiredVideoSourceIds, []);
+	assert.throws(() => service.projectForPlayback(fixture.project), /no verified timing view/iu);
+	const index = validateVideoTimingAssetBytes(fixture.publication.reference, fixture.publication.bytes);
+	registerVideoTimingIndex(fixture.sourceB, index);
+	try {
+		assert.equal(service.projectForPlayback(fixture.project).project.schemaVersion, 17);
+	} finally {
+		unregisterVideoTimingIndex(fixture.sourceB);
+	}
+});
+
 test('verified VFR evidence still refuses an exact time between presentation boundaries', () => {
 	const fixture = vfrProject({ sourceInFrame: 2, sourceFrameCount: 1 });
 	const index = validateVideoTimingAssetBytes(fixture.publication.reference, fixture.publication.bytes);
