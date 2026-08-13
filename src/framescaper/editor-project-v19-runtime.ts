@@ -5,6 +5,7 @@ import {
 	type RuntimeProjectProjection,
 } from '../common/editor/runtime-clip-projection.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { cloneVideoClipComposition } from '../common/editor/video-clip-composition.ts';
 import {
 	framescaperProjectForPlaybackFoundationV18,
 	type FramescaperProjectRuntimeFoundationV17,
@@ -35,8 +36,33 @@ export function framescaperProjectForPlaybackFoundationV19(
 	const foundation = framescaperProjectV18FoundationV19(profile, project, {
 		retainComposition: true,
 	});
-	return framescaperProjectForPlaybackFoundationV18(
+	const playback = framescaperProjectForPlaybackFoundationV18(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 		foundation,
 	);
+	return detachPlaybackCompositionOccurrences(playback);
+}
+
+/** Nested aliases are distinct rendered occurrences and must not share nested authoring state. */
+function detachPlaybackCompositionOccurrences(
+	project: FramescaperProjectRuntimeFoundationV17,
+): FramescaperProjectRuntimeFoundationV17 {
+	const sourceClips = project.clips;
+	if (!sourceClips) throw new TypeError('The Framescaper playback foundation requires clips.');
+	const clips = sourceClips.map((clip, index) => {
+		const value = clip as unknown as Record<string, unknown>;
+		const composition = Object.getOwnPropertyDescriptor(value, 'videoComposition');
+		if (!composition) return clip;
+		if (!composition.enumerable || !Object.hasOwn(composition, 'value')) {
+			throw new TypeError(`Playback clip ${String(index)} videoComposition must be a data property.`);
+		}
+		return {
+			...clip,
+			videoComposition: cloneVideoClipComposition(
+				composition.value,
+				`Playback clip ${String(index)} videoComposition`,
+			),
+		};
+	});
+	return { ...project, clips } as FramescaperProjectRuntimeFoundationV17;
 }

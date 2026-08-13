@@ -59,6 +59,27 @@ test('V19 geometry remains available through its V17 playback foundation', () =>
 	assert.deepEqual(projection.requiredVideoSourceIds, []);
 });
 
+test('each nested playback occurrence owns a detached composition snapshot', () => {
+	const service = createFramescaperPlaybackProjectServiceV19(PROFILE);
+	const project = nestedVideoProject();
+	const persistedComposition = project.clips[0]?.videoComposition;
+	const clips = service.projectForPlayback(project).project.clips;
+
+	assert.equal(clips.length, 2);
+	assert.ok(clips.every((clip) => (
+		clip.videoComposition === undefined
+			? false
+			: JSON.stringify(clip.videoComposition) === JSON.stringify(persistedComposition)
+	)));
+	assert.notStrictEqual(clips[0]?.videoComposition, persistedComposition);
+	assert.notStrictEqual(clips[1]?.videoComposition, persistedComposition);
+	assert.notStrictEqual(clips[0]?.videoComposition, clips[1]?.videoComposition);
+	assert.notStrictEqual(
+		(clips[0]?.videoComposition as Readonly<{ transform: unknown }>).transform,
+		(clips[1]?.videoComposition as Readonly<{ transform: unknown }>).transform,
+	);
+});
+
 test('non-V19 projects stay opaque and produce no source requirements', () => {
 	const service = createFramescaperPlaybackProjectServiceV19(PROFILE);
 	let nestedReads = 0;
@@ -99,5 +120,48 @@ function videoProject() {
 		})],
 		sequences: [{ id: 'main', rate, trackIds: ['track'] }],
 		primarySequenceId: 'main',
+	});
+}
+
+function nestedVideoProject() {
+	const rate = { num: 30, den: 1 };
+	return createFramescaperProjectV19(PROFILE, {
+		id: 'nested-playback-v19',
+		title: 'Nested playback V19',
+		now: '2026-08-13T12:00:00.000Z',
+		sources: [createVideoSourceV10({
+			id: 'source', name: 'Source', storageKey: 'source', mimeType: 'video/mp4',
+			contentSha256: '34'.repeat(32), sampleFrameCount: 48_000,
+			sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
+		})],
+		clips: [{
+			kind: 'video', id: 'child-clip', sourceId: 'source', title: 'Child clip',
+			sequenceId: 'child', sequenceStartFrame: 0, sequenceFrameCount: 30,
+			sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
+			videoComposition: {
+				...structuredClone(DEFAULT_VIDEO_CLIP_COMPOSITION),
+				opacity: 0.4,
+			},
+		}],
+		tracks: [createVideoTrackV10({
+			id: 'child-track', name: 'Child video', clipIds: ['child-clip'], locked: false,
+		})],
+		sequences: [
+			{ id: 'main', rate, trackIds: [] },
+			{ id: 'child', rate, trackIds: ['child-track'] },
+		],
+		primarySequenceId: 'main',
+		subsequences: [
+			{
+				id: 'nested-a', sequenceId: 'main', sourceSequenceId: 'child',
+				sequenceStartFrame: 0, sequenceFrameCount: 30,
+				sourceInFrame: 0, sourceFrameCount: 30,
+			},
+			{
+				id: 'nested-b', sequenceId: 'main', sourceSequenceId: 'child',
+				sequenceStartFrame: 60, sequenceFrameCount: 30,
+				sourceInFrame: 0, sourceFrameCount: 30,
+			},
+		],
 	});
 }
