@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	ChunkStreamClient,
-	createChunkStreamAudioNode,
-} from '../chunk-stream-client.js';
+import { ChunkStreamClient } from '../chunk-stream-client.js';
+import { createChunkStreamAudioNode } from '../chunk-stream-worklet-node.js';
 import { createAudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import {
 	clearPreparedAudioWarpPlayback,

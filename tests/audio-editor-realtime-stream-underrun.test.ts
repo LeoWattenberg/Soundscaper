@@ -3,6 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {
+	AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS,
+	AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
+} from '../src/common/editor/chunk-stream.js';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { scheduleProjectClips } from '../src/common/editor/engine/clip-scheduler.ts';
 import type { WebAudioEditorEngine } from '../src/common/editor/engine/runtime-class.ts';
@@ -183,6 +187,7 @@ test('interactive scheduling retains silence-on-underrun behavior by default', a
 	const context = new MockRealtimeAudioContext();
 	const streams = new MockChunkStreamClient();
 	const trackInput = new MockNode();
+	const nodeOptions: Record<string, unknown>[] = [];
 	const scheduled = await scheduleProjectClips({
 		context: context as unknown as BaseAudioContext,
 		project: {
@@ -206,13 +211,76 @@ test('interactive scheduling retains silence-on-underrun behavior by default', a
 		allNodes: [] as AudioNode[],
 		mode: 'live',
 		chunkStreamClient: streams as never,
-		chunkAudioNodeFactory: async () => new MockChunkNode() as unknown as AudioWorkletNode,
+		chunkAudioNodeFactory: async (_context: unknown, options: Record<string, unknown>) => {
+			nodeOptions.push(options);
+			return new MockChunkNode() as unknown as AudioWorkletNode;
+		},
 	});
 
 	assert.equal(streams.options?.onUnderrun, null);
 	assert.equal(scheduled.streamedClips, 1);
+	assert.equal(streams.options?.highWaterMark, undefined, 'monitoring keeps the responsive default queue');
+	assert.deepEqual(nodeOptions, [{ channelCount: 1 }]);
 	streams.complete();
 	await scheduled.waitForStreamedClips();
+});
+
+test('a realtime render banks the deepest queue both stream ends admit', async () => {
+	const previousAudioContext = globalThis.AudioContext;
+	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
+	const context = new MockRealtimeAudioContext();
+	const streams = new MockChunkStreamClient();
+	const nodeOptions: Record<string, unknown>[] = [];
+	let engine: WebAudioEditorEngine | null = null;
+	globalThis.AudioContext = function MockAudioContextFactory() {
+		return context;
+	} as unknown as typeof AudioContext;
+	globalThis.AudioWorkletNode = MockCaptureNode as unknown as typeof AudioWorkletNode;
+	try {
+		engine = createAudioEditorEngine({
+			chunkStreamClient: streams as never,
+			chunkAudioNodeFactory: async (_context: unknown, options: Record<string, unknown>) => {
+				nodeOptions.push(options);
+				return new MockChunkNode() as unknown as AudioWorkletNode;
+			},
+		});
+		engine.loadProject(streamProject(), new Map(), {
+			chunkSources: new Map([['source-1', chunkSource()]]),
+		});
+		const rendering = engine.renderMixRealtime({
+			startFrame: 0,
+			endFrame: 1,
+			outputFrames: 1,
+			onChunk: () => {},
+		});
+		void rendering.catch(() => undefined);
+		await streams.opened.promise;
+		await context.captureDone.promise;
+		streams.complete();
+		await rendering.catch(() => undefined);
+
+		assert.equal(
+			streams.options?.highWaterMark,
+			AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
+			'the worker keeps a render-depth queue in flight',
+		);
+		assert.deepEqual(nodeOptions, [{
+			channelCount: 1,
+			maxQueuePackets: AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
+			prebufferPackets: AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS,
+		}]);
+		assert.ok(
+			AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS < AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
+			'the worklet primes below capacity so the worker can keep topping the queue up',
+		);
+	} finally {
+		streams.complete();
+		await engine?.dispose();
+		if (previousAudioContext === undefined) Reflect.deleteProperty(globalThis, 'AudioContext');
+		else globalThis.AudioContext = previousAudioContext;
+		if (previousAudioWorkletNode === undefined) Reflect.deleteProperty(globalThis, 'AudioWorkletNode');
+		else globalThis.AudioWorkletNode = previousAudioWorkletNode;
+	}
 });
 
 class MockChunkStreamClient {

@@ -7,10 +7,8 @@ import {
 	TransferableAudioChunkQueue,
 	transferListForAudioChannels,
 } from '../src/common/editor/chunk-stream.js';
-import {
-	ChunkStreamClient,
-	ensureChunkStreamWorklet,
-} from '../src/common/editor/chunk-stream-client.js';
+import { ChunkStreamClient } from '../src/common/editor/chunk-stream-client.js';
+import { ensureChunkStreamWorklet } from '../src/common/editor/chunk-stream-worklet-node.js';
 import {
 	ChunkStreamPlaybackProcessor,
 } from '../src/common/editor/chunk-stream-worklet.js';

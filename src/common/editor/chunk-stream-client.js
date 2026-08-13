@@ -1,9 +1,8 @@
 import {
 	AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION,
-	AUDIO_EDITOR_CHUNK_STREAM_WORKLET_NAME,
 	AUDIO_EDITOR_STORAGE_CHUNK_FRAMES,
 	AUDIO_EDITOR_STREAM_HIGH_WATER_PACKETS,
-	AUDIO_EDITOR_STREAM_MAX_QUEUE_PACKETS,
+	AUDIO_EDITOR_STREAM_QUEUE_PACKET_LIMIT,
 	AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
 	createChunkStreamAbortError,
 	deserializeChunkStreamError,
@@ -11,8 +10,6 @@ import {
 	transferListForAudioChannels,
 } from './chunk-stream.js';
 
-const loadedWorkletContexts = new WeakSet();
-const pendingWorkletLoads = new WeakMap();
 let nextStreamId = 1;
 
 export class ChunkStreamClient {
@@ -54,10 +51,12 @@ export class ChunkStreamClient {
 			: nonNegativeInteger(options.outputStartFrame ?? 0, 'outputStartFrame');
 		const endFrame = outputFrameCount == null ? sourceEndFrame : startFrame + outputFrameCount;
 		if (!Number.isSafeInteger(endFrame)) throw new RangeError('The output stream range is too large.');
+		// Monitoring keeps the shallow default; a caller that states a deeper queue may
+		// have it up to what the worklet and the worker already admit.
 		const highWaterMark = boundedInteger(
 			options.highWaterMark ?? AUDIO_EDITOR_STREAM_HIGH_WATER_PACKETS,
 			1,
-			AUDIO_EDITOR_STREAM_MAX_QUEUE_PACKETS,
+			AUDIO_EDITOR_STREAM_QUEUE_PACKET_LIMIT,
 			'highWaterMark',
 		);
 		const outputPort = normalizeMessagePort(options.outputPort);
@@ -432,54 +431,6 @@ export class ChunkStreamClient {
 		try { worker.terminate?.(); } catch {}
 		this.worker = null;
 	}
-}
-
-export async function ensureChunkStreamWorklet(audioContext) {
-	if (!audioContext?.audioWorklet?.addModule) throw new TypeError('An AudioContext with audioWorklet support is required.');
-	if (loadedWorkletContexts.has(audioContext)) return;
-	let load = pendingWorkletLoads.get(audioContext);
-	if (!load) {
-		load = Promise.resolve(chunkStreamWorkletUrl())
-			.then((url) => audioContext.audioWorklet.addModule(url));
-		pendingWorkletLoads.set(audioContext, load);
-	}
-	try {
-		await load;
-		loadedWorkletContexts.add(audioContext);
-		pendingWorkletLoads.delete(audioContext);
-	} catch (error) {
-		if (pendingWorkletLoads.get(audioContext) === load) pendingWorkletLoads.delete(audioContext);
-		throw error;
-	}
-}
-
-function chunkStreamWorkletUrl() {
-	// Vite copies generic `new URL(..., import.meta.url)` assets without
-	// bundling their relative imports. Emit a self-contained worker chunk so
-	// the worklet does not request a missing relative `chunk-stream.js` asset.
-	if (import.meta.env?.DEV || import.meta.env?.PROD) {
-		return import('./chunk-stream-worklet.js?worker&url')
-			.then((module) => module.default);
-	}
-	// Node tests do not run through Vite and use mocked AudioWorklet loading.
-	return new URL('./chunk-stream-worklet.js', import.meta.url);
-}
-
-export async function createChunkStreamAudioNode(audioContext, options = {}) {
-	await ensureChunkStreamWorklet(audioContext);
-	const NodeConstructor = options.AudioWorkletNode || globalThis.AudioWorkletNode;
-	if (typeof NodeConstructor !== 'function') throw new Error('AudioWorkletNode is not available in this browser.');
-	const channelCount = boundedInteger(options.channelCount ?? 2, 1, 64, 'channelCount');
-	return new NodeConstructor(audioContext, AUDIO_EDITOR_CHUNK_STREAM_WORKLET_NAME, {
-		numberOfInputs: 0,
-		numberOfOutputs: 1,
-		outputChannelCount: [channelCount],
-		processorOptions: {
-			channelCount,
-			maxQueuePackets: options.maxQueuePackets ?? AUDIO_EDITOR_STREAM_MAX_QUEUE_PACKETS,
-			prebufferPackets: options.prebufferPackets ?? 4,
-		},
-	});
 }
 
 export function createImmutablePcmStreamSource(pcm) {

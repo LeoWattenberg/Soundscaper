@@ -18,7 +18,6 @@
 		"src/common/editor/aup4-export.js": { "maxLines": 1092, "reason": "AUP4 exporter with interoperability fixtures and release audit." },
 		"src/common/editor/aup4-profile.js": { "maxLines": 964, "reason": "Audacity profile and plug-in metadata compatibility mapping." },
 		"src/common/editor/aup4-worker.js": { "maxLines": 787, "reason": "Legacy worker-side AUP4 database command boundary." },
-		"src/common/editor/chunk-stream-client.js": { "maxLines": 629, "reason": "Legacy bounded-stream worker client and lifecycle coordination." },
 		"src/common/editor/clip-time-pitch-cache.js": { "maxLines": 895, "reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery." },
 		"src/common/editor/nyquist/plugins/catalog.js": { "maxLines": 630, "reason": "Reviewed bundled Nyquist plug-in catalog." },
 		"src/common/editor/project.js": { "maxLines": 696, "reason": "Legacy shared project model helpers under schema migration." },

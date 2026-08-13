@@ -4,6 +4,17 @@ export const AUDIO_EDITOR_STORAGE_CHUNK_FRAMES = AUDIO_EDITOR_PCM_CHUNK_FRAMES;
 export const AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES = 1_024;
 export const AUDIO_EDITOR_STREAM_HIGH_WATER_PACKETS = 8;
 export const AUDIO_EDITOR_STREAM_MAX_QUEUE_PACKETS = 12;
+/** The deepest queue the worklet and the worker both accept. */
+export const AUDIO_EDITOR_STREAM_QUEUE_PACKET_LIMIT = 64;
+/**
+ * A realtime render is an export that happens to run on the audio clock, so a
+ * starved quantum voids the whole file rather than clicking once. It buys the
+ * deepest queue both ends allow — 64 packets is 1.37 s at 48 kHz against the
+ * 171 ms monitoring carries — because latency costs it nothing and a dropped
+ * packet costs it everything.
+ */
+export const AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS = AUDIO_EDITOR_STREAM_QUEUE_PACKET_LIMIT;
+export const AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS = 32;
 export const AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION = 1;
 export const AUDIO_EDITOR_CHUNK_STREAM_WORKLET_NAME = 'kw-audio-chunk-stream';
 

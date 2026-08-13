@@ -22,6 +22,10 @@ import {
 	sliceAudioBuffer,
 } from './buffer-math.ts';
 import {
+	AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS,
+	AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
+} from '../chunk-stream.js';
+import {
 	scheduleProjectClips,
 	type ScheduledChunkStreamUnderrun,
 } from './clip-scheduler.ts';
@@ -361,6 +365,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				chunkAudioNodeFactory: this.chunkAudioNodeFactory,
 				signal: graph.abortController.signal,
 				onStreamUnderrun,
+				streamQueuePackets: AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
+				streamPrebufferPackets: AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS,
 			});
 			waitForStreamedClips = scheduled.waitForStreamedClips;
 			streamedClips = scheduled.streamedClips;
