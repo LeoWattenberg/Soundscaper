@@ -142,8 +142,8 @@ function validatePlan(value) {
 		throw new TypeError('Desktop lease smoke plan has an invalid schema or mode');
 	}
 	if (!ACTIONS.has(record.action)) throw new TypeError('Desktop lease smoke action is unsupported');
-	if (record.productId !== 'soundscaper' && record.productId !== 'framescaper') {
-		throw new TypeError('Desktop lease smoke product is invalid');
+	if (record.productId !== 'soundscaper') {
+		throw new TypeError('Desktop lease smoke is restricted to the Soundscaper V9 contract');
 	}
 	if (typeof record.projectId !== 'string' || !record.projectId) {
 		throw new TypeError('Desktop lease smoke project id is invalid');

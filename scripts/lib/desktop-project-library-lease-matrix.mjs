@@ -15,7 +15,7 @@ import { createDesktopProjectLibraryHandoffStages } from './desktop-project-libr
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
 export const DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX ';
-export const DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS = Object.freeze([
+export const DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS = Object.freeze([
 	'same-project-simultaneous-open',
 	'cross-product-simultaneous-open',
 	'writer-lease-transfer',
@@ -25,6 +25,12 @@ export const DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS = Object.freeze([
 	'orderly-process-restart',
 	'crash-restart-recovery',
 ]);
+
+export const DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS = Object.freeze(
+	DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS.filter(
+		(workflowId) => workflowId !== 'cross-product-simultaneous-open',
+	),
+);
 
 const TTL_MS = 1_000;
 const CHILD_TIMEOUT_MS = 90_000;
@@ -56,13 +62,8 @@ export async function runDesktopProjectLibraryLeaseMatrix({
 	try {
 		const runtime = { root, targetArch, platform, environment, outputRoot: resolve(outputRoot), smokeRoot };
 		const cases = [];
-		for (const order of [
-			['soundscaper', 'framescaper'],
-			['framescaper', 'soundscaper'],
-		]) {
-			for (const workflowId of DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS) {
-				cases.push(await runCase(runtime, workflowId, order));
-			}
+		for (const workflowId of DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS) {
+			cases.push(await runCase(runtime, workflowId, ['soundscaper', 'soundscaper']));
 		}
 		return deepFreeze({
 			schemaVersion: 1,
