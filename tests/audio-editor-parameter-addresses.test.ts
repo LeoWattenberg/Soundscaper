@@ -57,6 +57,21 @@ test('parameter addresses reject unknown members and unstable identifiers', () =
 		}),
 		/edge parameter/iu,
 	);
+	assert.doesNotThrow(() => normalizeParameterAddress({
+		kind: 'effect', strip: { kind: 'master' }, effectId: 'effect', parameterId: 'gain',
+	}));
+	for (const elementId of [null, undefined, '', 7]) {
+		assert.throws(
+			() => normalizeParameterAddress({
+				kind: 'effect',
+				strip: { kind: 'master' },
+				effectId: 'effect',
+				elementId,
+				parameterId: 'gain',
+			}),
+			/stable effect element ID/iu,
+		);
+	}
 	const accessor = Object.defineProperty({}, 'kind', {
 		enumerable: true,
 		get: () => { throw new Error('hostile getter ran'); },

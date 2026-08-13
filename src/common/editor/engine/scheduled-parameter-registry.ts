@@ -341,9 +341,9 @@ function normalizeDescriptor(value: ParameterDescriptor): ParameterDescriptor {
 	if (typeof descriptor.automatable !== 'boolean') {
 		throw new TypeError('descriptor automatable must be a boolean.');
 	}
-	const automationBlockReason = descriptor.automationBlockReason === undefined
-		? undefined
-		: boundedString(descriptor.automationBlockReason, 'descriptor automation block reason');
+	const automationBlockReason = Object.hasOwn(descriptor, 'automationBlockReason')
+		? boundedString(descriptor.automationBlockReason, 'descriptor automation block reason')
+		: undefined;
 	if (!descriptor.automatable && !automationBlockReason) {
 		throw new RangeError('A nonautomatable parameter descriptor requires an automation block reason.');
 	}

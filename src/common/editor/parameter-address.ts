@@ -73,9 +73,9 @@ export function normalizeParameterAddress(value: unknown): ParameterAddress {
 	}
 	if (kind === 'effect') {
 		closed(address, ['kind', 'strip', 'effectId', 'elementId', 'parameterId'], 'effect parameter address');
-		const elementId = address.elementId == null
-			? undefined
-			: stableId(address.elementId, 'effect element');
+		const elementId = Object.hasOwn(address, 'elementId')
+			? stableId(address.elementId, 'effect element')
+			: undefined;
 		return Object.freeze({
 			kind,
 			strip: normalizeStripRef(address.strip),

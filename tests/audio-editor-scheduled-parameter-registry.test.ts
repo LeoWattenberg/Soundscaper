@@ -301,6 +301,10 @@ test('registry accepts only closed own-data descriptor snapshots', () => {
 	} as typeof descriptor, mockAudioParam()), /block reason/iu);
 	assert.throws(() => registry.registerAudioParam({
 		...descriptor,
+		automationBlockReason: undefined,
+	} as unknown as typeof descriptor, mockAudioParam()), /non-empty bounded string/iu);
+	assert.throws(() => registry.registerAudioParam({
+		...descriptor,
 		minimum: 0,
 		taper: 'logarithmic',
 	} as typeof descriptor, mockAudioParam()), /positive minimum/iu);
