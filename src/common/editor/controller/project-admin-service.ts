@@ -179,25 +179,58 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		if (!project || state.readOnly || recoveryBlocked()) return;
 		await stopRecording();
 		if (getProject() !== project) return null;
+		projectSaveService.cancelScheduled();
+		await projectSaveService.drain?.();
+		projectSaveService.cancelScheduled();
+		if (getProject() !== project) return null;
 		const id = project.id;
-		await releaseProjectLock();
-		await revokeVideoVisuals();
-		engine.stop();
-		await stopProjectBinPreview({ dispose: true });
-		await disposeRenderEngines();
-		sourceChunkProviders.clear();
-		await sourceChunkProviders.drain?.();
-		await store.deleteProject(id);
-		await persistSetting(recordingRoutingSettingKey(id), null, { policy: 'required' });
-		sessionController.closeProject(id, { force: true });
-		state.history = null;
+		const failures: unknown[] = [];
+		const attempt = async (operation: () => PromiseLike<unknown> | unknown): Promise<void> => {
+			try { await operation(); } catch (error) { failures.push(error); }
+		};
+		let deleteAttempted = false;
+		let deleteCommitted = false;
+
+		// Removing the active identity is the synchronous fence between drained saves and teardown.
 		setProject(null);
+		try {
+			await releaseProjectLock();
+			await revokeVideoVisuals();
+			engine.stop();
+			await stopProjectBinPreview({ dispose: true });
+			await disposeRenderEngines();
+			sourceChunkProviders.clear();
+			await sourceChunkProviders.drain?.();
+			deleteAttempted = true;
+			await store.deleteProject(id);
+			deleteCommitted = true;
+		} catch (error) {
+			failures.push(error);
+			deleteCommitted = deleteAttempted && isCommittedFailure(error);
+		}
+		if (deleteCommitted) {
+			await attempt(() => persistSetting(recordingRoutingSettingKey(id), null, { policy: 'required' }));
+		}
+		await attempt(() => {
+			const result = sessionController.closeProject(id, { force: true });
+			if (result?.closed === false) throw new Error('The deleted project session could not be closed.');
+		});
+		state.history = null;
 		state.selectedAnnotationId = null;
 		state.missingSourceIds.clear();
-		evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
-		await garbageCollectSources();
-		await newProject({ skipFlush: true });
-		await listProjects();
+		state.projects = Object.freeze([]);
+		if (deleteAttempted) {
+			await attempt(() => evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds()));
+			await attempt(() => garbageCollectSources());
+		}
+		await attempt(() => newProject({ skipFlush: true }));
+		let listed = false;
+		await attempt(async () => {
+			await listProjects();
+			listed = true;
+		});
+		if (!listed) await attempt(() => publishDocumentSnapshot());
+		throwProjectDeletionFailures(failures);
 	}
 
 	async function garbageCollectSources() {
@@ -289,4 +322,18 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		renameProject,
 		sessionHistoryProjects,
 	});
+}
+
+function isCommittedFailure(value: unknown): boolean {
+	return Boolean(value && typeof value === 'object' && (value as { readonly committed?: unknown }).committed === true);
+}
+
+function throwProjectDeletionFailures(failures: readonly unknown[]): void {
+	if (failures.length === 0) return;
+	if (failures.length === 1) throw failures[0];
+	throw new AggregateError(
+		failures,
+		'Project deletion failed and one or more teardown operations could not be completed.',
+		{ cause: failures[0] },
+	);
 }

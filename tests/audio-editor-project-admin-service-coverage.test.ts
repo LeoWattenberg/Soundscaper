@@ -365,18 +365,24 @@ test('project deletion aggregates the original failure with every finalization f
 	const deletionFailure = new Error('catalog CAS failed');
 	const nextProjectFailure = new Error('next project failed');
 	const listFailure = new Error('catalog list failed');
-	fixture.runtime.store.deleteProject = async () => { throw deletionFailure; };
-	fixture.runtime.newProject = async () => {
-		fixture.calls.push('new-project');
-		throw nextProjectFailure;
-	};
-	fixture.runtime.store.listProjects = async () => {
-		fixture.calls.push('list');
-		throw listFailure;
-	};
+	const runtime = {
+		...fixture.runtime,
+		newProject: async () => {
+			fixture.calls.push('new-project');
+			throw nextProjectFailure;
+		},
+		store: {
+			...fixture.runtime.store,
+			deleteProject: async () => { throw deletionFailure; },
+			listProjects: async () => {
+				fixture.calls.push('list');
+				throw listFailure;
+			},
+		},
+	} satisfies ProjectAdminServiceRuntime;
 
 	await assert.rejects(
-		() => createProjectAdminService(fixture.runtime).deleteProject(),
+		() => createProjectAdminService(runtime).deleteProject(),
 		(error: unknown) => error instanceof AggregateError
 			&& error.errors.length === 3
 			&& error.errors[0] === deletionFailure
