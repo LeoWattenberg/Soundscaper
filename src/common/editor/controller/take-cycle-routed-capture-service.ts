@@ -313,9 +313,13 @@ export function createTakeCycleRoutedCaptureService(
 				endFrame: project.loop.endFrame,
 			});
 			runtime.engine.seek(project.loop.startFrame);
-			await runtime.engine.playAt(scheduledTime, project.loop.startFrame);
+			const playbackStartTime = await runtime.engine.playAt(scheduledTime, project.loop.startFrame);
 			assertCaptureCurrent(pending);
-			const startFrame = Math.ceil(scheduledTime * captureSampleRate);
+			const startFrame = Math.ceil(captureSampleRate * (
+				typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
+					? playbackStartTime
+					: scheduledTime
+			));
 			for (const source of controlled) {
 				source.controller!.start({ startFrame });
 				assertCaptureCurrent(pending);

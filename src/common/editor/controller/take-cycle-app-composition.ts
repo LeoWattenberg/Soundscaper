@@ -128,8 +128,8 @@ export function createTakeCycleAppComposition(
 			),
 			preflightStorage: (bytes) => dependencies.preflightRecording(bytes),
 			releaseInputs: dependencies.releaseInputs,
-			monitor: dependencies.state.monitoring,
-			inputGain: dependencies.state.recordingInputGain,
+			get monitor() { return dependencies.state.monitoring; },
+			get inputGain() { return dependencies.state.recordingInputGain; },
 		},
 	});
 

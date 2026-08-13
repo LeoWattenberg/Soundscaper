@@ -114,6 +114,67 @@ test('live lane discard is session-owned, restart-invisible, and refuses a seale
 	await store.close();
 });
 
+test('a live seal that fails leaves its lane discardable so the surviving lane still finalizes', async () => {
+	for (const failing of ['seal', 'replaceData'] as const) {
+		const port = { memory: getMemoryDatabase(uniqueName(`cycle-${failing}-failure`)), database: async () => null };
+		const repository = new SealFaultRepository(
+			new KeyValueRepository(port, 'analysis'), new SourceRecordRepository(port), failing,
+		);
+		const live = createTakeCycleLiveCaptureSpool(repository);
+		let identity = 0;
+		const finalized: string[] = [];
+		const session = await beginTakeCycleLiveCaptureSession({
+			projectId: 'project-cycle', loopStartSample: 100, loopEndSample: 104,
+		}, {
+			spool: { allocateGeneration: live.allocateGeneration, beginLive: live.begin },
+			createId: (prefix) => `${prefix}-${String(++identity)}`,
+			onDraft() {},
+			finalizeDrafts: async (drafts) => {
+				finalized.push(...drafts.map(({ draftId }) => draftId));
+				return { kind: 'take-cycle-finalization' } as never;
+			},
+		});
+		const faulted = await session.beginLane(lane('group-a', 'track-a'));
+		await faulted.append({ startSample: 100, endSample: 104, channels: [PCM] });
+		const surviving = await session.beginLane(lane('group-b', 'track-b'));
+		await surviving.append({ startSample: 100, endSample: 104, channels: [PCM] });
+
+		await assert.rejects(faulted.seal(), /simulated failure/u, failing);
+		await faulted.discard();
+		await surviving.seal();
+		await session.finalize();
+
+		assert.deepEqual(finalized, [surviving.draftId], failing);
+		assert.equal(session.pendingLaneCount, 1, failing);
+		assert.equal(await repository.load('project-cycle', faulted.draftId), null, failing);
+	}
+});
+
+class SealFaultRepository extends RawPcmSpoolRepository {
+	readonly #failing: 'seal' | 'replaceData';
+
+	constructor(
+		values: ConstructorParameters<typeof RawPcmSpoolRepository>[0],
+		chunks: ConstructorParameters<typeof RawPcmSpoolRepository>[1],
+		failing: 'seal' | 'replaceData',
+	) {
+		super(values, chunks);
+		this.#failing = failing;
+	}
+
+	override async seal(record: RawPcmSpoolRecord, data: unknown): Promise<RawPcmSpoolRecord> {
+		if (this.#failing === 'seal' && record.spoolId === 'envelope-1') throw new Error('simulated failure before sealing');
+		return super.seal(record, data);
+	}
+
+	override async replaceData(record: RawPcmSpoolRecord, data: unknown): Promise<RawPcmSpoolRecord> {
+		if (this.#failing === 'replaceData' && record.spoolId === 'envelope-1') {
+			throw new Error('simulated failure after sealing');
+		}
+		return super.replaceData(record, data);
+	}
+}
+
 function rawFixture(prefix: string) {
 	const memory = getMemoryDatabase(uniqueName(prefix));
 	const port = { memory, database: async () => null };

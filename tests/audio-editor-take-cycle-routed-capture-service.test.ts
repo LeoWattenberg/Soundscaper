@@ -66,6 +66,15 @@ test('routed cycle capture pre-registers per-track groups then resamples into ex
 	]);
 });
 
+test('recorders anchor on the resolved playback start when priming defers the loop', async () => {
+	const fixture = captureFixture({ tracks: ['track-a'], captureSampleRate: 44_100, playbackStartTime: 3.9 });
+	const service = createTakeCycleRoutedCaptureService(fixture.runtime);
+	await service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope);
+
+	assert.deepEqual(fixture.startOptions, [{ startFrame: Math.ceil(3.9 * 44_100) }]);
+	await service.stop();
+});
+
 test('project-rate storage refusal happens before durable session or lane registration', async () => {
 	const fixture = captureFixture({
 		captureSampleRate: 44_100,
@@ -369,6 +378,7 @@ interface FixtureOptions {
 	readonly preflightError?: Error;
 	readonly append?: (trackId: string, call: number) => Promise<void>;
 	readonly playError?: Error;
+	readonly playbackStartTime?: number;
 	readonly acquireGate?: Promise<void>;
 	readonly lockedTracks?: readonly string[];
 	readonly takeGroups?: readonly Readonly<{
@@ -493,6 +503,7 @@ function captureFixture(options: FixtureOptions = {}) {
 			async playAt() {
 				events.push('play');
 				if (options.playError) throw options.playError;
+				return options.playbackStartTime;
 			},
 			pause() { pauses += 1; },
 		},

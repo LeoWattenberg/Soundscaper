@@ -109,7 +109,7 @@ export function createTakeCycleLiveCaptureSpool(
 			data: intent,
 		});
 		let busy = false;
-		let terminal: 'open' | 'sealed' | 'discarded' = 'open';
+		let terminal: 'open' | 'sealing' | 'sealed' | 'discarded' = 'open';
 		let discardPromise: Promise<void> | null = null;
 		return Object.freeze({
 			draftId: intent.envelopeId,
@@ -147,19 +147,35 @@ export function createTakeCycleLiveCaptureSpool(
 				if (busy) throw new Error('Take cycle live capture operations must be awaited serially.');
 				throwIfAborted(signal);
 				if (!intent.captureSpans.length) throw new RangeError('Take cycle capture requires at least one PCM span.');
-				terminal = 'sealed';
-				record = await repository.seal(record, intent);
-				return materialize(record, intent, seed.createPassIdentities, signal);
+				terminal = 'sealing';
+				try {
+					record = await repository.seal(record, intent);
+					const draft = await materialize(record, intent, seed.createPassIdentities, signal);
+					terminal = 'sealed';
+					return draft;
+				} catch (error) {
+					terminal = 'open';
+					throw error;
+				}
 			},
 			discard() {
 				if (discardPromise) return discardPromise;
 				if (terminal === 'sealed') return Promise.reject(new Error('Take cycle live capture is already sealed.'));
-				if (busy) return Promise.reject(new Error('Take cycle live capture operations must be awaited serially.'));
+				if (terminal === 'sealing' || busy) {
+					return Promise.reject(new Error('Take cycle live capture operations must be awaited serially.'));
+				}
 				terminal = 'discarded';
-				discardPromise = discardTakeCycleLiveCapture(repository, record, intent);
+				// A seal that failed after its durable transition can only be reclaimed by removal.
+				discardPromise = record.state === 'capturing'
+					? discardTakeCycleLiveCapture(repository, record, intent)
+					: reclaim(record);
 				return discardPromise;
 			},
 		});
+	}
+
+	async function reclaim(record: RawPcmSpoolRecord): Promise<void> {
+		if (!await repository.remove(record)) throw new Error('Take cycle live capture could not reclaim its settled prefix.');
 	}
 
 	async function persist(

@@ -93,6 +93,9 @@ export function createTakeCycleProductionComposition(
 	const routed = createTakeCycleRoutedCaptureService({
 		...dependencies.routed,
 		orchestrator,
+		// Monitoring and input gain follow live app state that the spread above would freeze.
+		get monitor() { return dependencies.routed.monitor; },
+		get inputGain() { return dependencies.routed.inputGain; },
 	});
 	return Object.freeze({
 		routed,
