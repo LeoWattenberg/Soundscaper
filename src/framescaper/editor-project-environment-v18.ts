@@ -13,6 +13,9 @@ import {
 	type FramescaperDesktopProjectLibraryV10ShadowStore,
 } from './desktop-project-library-v10-renderer.ts';
 import {
+	createFramescaperDesktopProjectStoreV10Adapter,
+} from './desktop-project-library-v10-store-adapter.ts';
+import {
 	createEditorProjectRuntimeV18Selection,
 	type EditorProjectRuntimeV18Selection,
 } from './editor-project-runtime-v18-selection.ts';
@@ -52,6 +55,7 @@ export interface FramescaperEditorProjectEnvironmentV18Options {
 export interface FramescaperEditorProjectEnvironmentV18 {
 	readonly runtime: Readonly<EditorProjectRuntimeV18Selection>;
 	readonly store: AudioEditorProjectStore;
+	readonly controllerStore: AudioEditorProjectStore;
 	readonly archive: FramescaperScapeArchiveV18;
 	readonly scapeProjectFile: FramescaperScapeProjectFileV18;
 	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV10Renderer | null;
@@ -112,6 +116,17 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 				archive,
 			},
 		);
+		let controllerStore: AudioEditorProjectStore = store;
+		let createProjectIfAbsent = (project: ProjectDocument) => exactProjectRepository(store)
+			.createIfAbsent(project);
+		if (desktopProjectLibrary !== null) {
+			const desktopStore = createFramescaperDesktopProjectStoreV10Adapter(
+				FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+				{ localStore: store, desktopProjectLibrary },
+			);
+			controllerStore = desktopStore;
+			createProjectIfAbsent = (project: ProjectDocument) => desktopStore.createProjectIfAbsent(project);
+		}
 		const scapeProjectFile = new FramescaperScapeProjectFileV18(
 			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			{
@@ -122,6 +137,7 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 		const environment = Object.freeze({
 			runtime,
 			store,
+			controllerStore,
 			archive,
 			desktopProjectLibrary,
 			scapeProjectFile,
@@ -130,7 +146,7 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 			),
 			claimCleanup,
 			initialCleanup,
-			createProjectIfAbsent: (project: ProjectDocument) => exactProjectRepository(store).createIfAbsent(project),
+			createProjectIfAbsent,
 			collectStorageRoots: (
 				scope: FramescaperProjectRetentionScopeV18 | unknown,
 				limits: FramescaperProjectRetentionLimitsV18 = {},
