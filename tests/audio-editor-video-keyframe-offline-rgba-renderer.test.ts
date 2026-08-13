@@ -68,6 +68,47 @@ test('offline renderer rejects forged and foreign frames before source work', as
 	await renderer.dispose();
 });
 
+test('offline renderer rejects a forged frame source before cache or GL work', () => {
+	const authentic = source();
+	const fixture = rendererFixture();
+	let compositorCreations = 0;
+	let resolutions = 0;
+	assert.throws(() => createVideoKeyframeOfflineRgbaRenderer({
+		frameSource: { ...authentic },
+		canvas: fixture.canvas,
+		resolveSource: () => { resolutions += 1; return presentation().value; },
+		createCompositor: () => {
+			compositorCreations += 1;
+			return fixture.createCompositor();
+		},
+	}), /authenticated video keyframe export frame source/u);
+	assert.equal(compositorCreations, 0);
+	assert.equal(resolutions, 0);
+});
+
+test('offline renderer rejects duplicate source IDs before presentation mutation', async () => {
+	const frameSource = source({ duplicateSource: true });
+	const fixture = rendererFixture();
+	const media = presentation();
+	let resolutions = 0;
+	const renderer = createVideoKeyframeOfflineRgbaRenderer({
+		frameSource,
+		canvas: fixture.canvas,
+		resolveSource: () => { resolutions += 1; return media.value; },
+		createCompositor: fixture.createCompositor,
+	});
+	const output = new Uint8Array(16).fill(55);
+	await assert.rejects(
+		renderer.produce(frameSource.frame(0), output, { signal: new AbortController().signal }),
+		/duplicate source ID/u,
+	);
+	assert.equal(resolutions, 0);
+	assert.equal(fixture.renderedEntries(), 0);
+	assert.deepEqual([...output], new Array(16).fill(0));
+	await renderer.dispose();
+	assert.equal(media.disposals(), 0);
+});
+
 test('offline renderer clears reusable output on omission and post-read GL failure', async () => {
 	for (const mode of ['fallback', 'read-error'] as const) {
 		const frameSource = source();
@@ -121,19 +162,30 @@ test('offline renderer refuses overlap, wrong reusable geometry, and active disp
 	await renderer.dispose();
 });
 
-function source() {
+function source(options: Readonly<{ duplicateSource?: boolean }> = {}) {
+	const trackIds = options.duplicateSource ? ['track-1', 'track-2'] : ['track-1'];
+	const clips = [{
+		id: 'clip-1', kind: 'video', sourceId: 'source-1', sequenceId: 'sequence-1',
+		timelineStartFrame: 0, durationFrames: 1, sourceStartFrame: 0, sourceDurationFrames: 1,
+		videoEffects: [],
+	}, ...(options.duplicateSource ? [{
+		id: 'clip-2', kind: 'video', sourceId: 'source-1', sequenceId: 'sequence-1',
+		timelineStartFrame: 0, durationFrames: 1, sourceStartFrame: 0, sourceDurationFrames: 1,
+		videoEffects: [],
+	}] : [])];
 	const project = {
 		schemaVersion: 9,
 		sampleRate: 1,
 		primarySequenceId: 'sequence-1',
-		sequences: [{ id: 'sequence-1', type: 'samples', trackIds: ['track-1'] }],
+		sequences: [{ id: 'sequence-1', type: 'samples', trackIds }],
 		sources: [{ id: 'source-1', kind: 'video', sampleRate: 1, width: 2, height: 2 }],
-		clips: [{
-			id: 'clip-1', kind: 'video', sourceId: 'source-1', sequenceId: 'sequence-1',
-			timelineStartFrame: 0, durationFrames: 1, sourceStartFrame: 0, sourceDurationFrames: 1,
-			videoEffects: [],
-		}],
-		tracks: [{ id: 'track-1', type: 'video', clipIds: ['clip-1'] }],
+		clips,
+		tracks: [
+			{ id: 'track-1', type: 'video', clipIds: ['clip-1'] },
+			...(options.duplicateSource
+				? [{ id: 'track-2', type: 'video', clipIds: ['clip-2'] }]
+				: []),
+		],
 		projectBin: { clips: [] },
 	};
 	return createVideoKeyframeExportFrameSource({

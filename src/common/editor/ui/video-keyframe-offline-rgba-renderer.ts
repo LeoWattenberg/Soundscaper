@@ -2,6 +2,7 @@
 
 import {
 	assertVideoKeyframeExportFrame,
+	assertVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrame,
 	type VideoKeyframeExportFrameSource,
 } from '../video-keyframe-export-frame-source.ts';
@@ -46,6 +47,11 @@ interface NormalizedVideoKeyframeOfflineRgbaRendererOptions {
 	readonly createCompositor: (canvas: OfflineCanvas) => OfflineVideoPreviewCompositor;
 }
 
+interface OfflineLayerSnapshot {
+	readonly layer: Readonly<Record<string, unknown>>;
+	readonly entries: readonly Readonly<Record<string, unknown>>[];
+}
+
 export interface VideoKeyframeOfflineRgbaRenderer {
 	readonly width: number;
 	readonly height: number;
@@ -64,13 +70,14 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 ): VideoKeyframeOfflineRgbaRenderer {
 	const options = snapshotOptions(optionsValue);
 	const frameSource = options.frameSource;
+	assertVideoKeyframeExportFrameSource(frameSource);
 	const plan = planVideoKeyframeOfflineRgba(frameSource.canvas);
 	const canvas = options.canvas;
 	const sourceCache = new VideoKeyframeOfflineSourceCache(options.resolveSource);
 	let compositor: OfflineVideoPreviewCompositor;
 	try {
 		compositor = options.createCompositor(canvas);
-		} catch (error) {
+	} catch (error) {
 		void sourceCache.dispose().catch(() => undefined);
 		throw error;
 	}
@@ -156,15 +163,12 @@ async function resolveDrawableLayers(
 	cache: VideoKeyframeOfflineSourceCache,
 	signal: AbortSignal,
 ): Promise<readonly Readonly<Record<string, unknown>>[]> {
-	if (!Array.isArray(layersValue)) throw new TypeError('An offline video frame requires layers.');
+	const snapshots = snapshotDrawableLayers(layersValue);
 	const layers: Readonly<Record<string, unknown>>[] = [];
-	for (const layerValue of layersValue) {
-		const layer = record(layerValue, 'offline video layer');
-		if (!Array.isArray(layer.clips)) throw new TypeError('An offline video layer requires clip entries.');
+	for (const { layer, entries: entrySnapshots } of snapshots) {
 		const entries: Readonly<Record<string, unknown>>[] = [];
-		for (const entryValue of layer.clips) {
+		for (const entry of entrySnapshots) {
 			throwIfAborted(signal);
-			const entry = record(entryValue, 'offline video layer entry');
 			const video = await cache.present(entry, signal);
 			const targetEntry = {
 				clipId: entry.clipId,
@@ -191,6 +195,32 @@ async function resolveDrawableLayers(
 		}));
 	}
 	return Object.freeze(layers);
+}
+
+function snapshotDrawableLayers(layersValue: readonly unknown[]): readonly OfflineLayerSnapshot[] {
+	if (!Array.isArray(layersValue)) throw new TypeError('An offline video frame requires layers.');
+	const sourceIds = new Set<string>();
+	const snapshots: OfflineLayerSnapshot[] = [];
+	for (const layerValue of layersValue) {
+		const layer = record(layerValue, 'offline video layer');
+		const clips = data(layer, 'clips', 'offline video layer');
+		if (!Array.isArray(clips)) throw new TypeError('An offline video layer requires clip entries.');
+		const entries: Readonly<Record<string, unknown>>[] = [];
+		for (const entryValue of clips) {
+			const entry = record(entryValue, 'offline video layer entry');
+			const sourceId = data(entry, 'sourceId', 'offline video layer entry');
+			if (typeof sourceId !== 'string' || sourceId.length < 1 || sourceId.length > 256) {
+				throw new TypeError('offline video layer entry.sourceId must be a bounded nonempty string.');
+			}
+			if (sourceIds.has(sourceId)) {
+				throw new Error('An offline video frame contains a duplicate source ID.');
+			}
+			sourceIds.add(sourceId);
+			entries.push(entry);
+		}
+		snapshots.push(Object.freeze({ layer, entries: Object.freeze(entries) }));
+	}
+	return Object.freeze(snapshots);
 }
 
 function snapshotOptions(value: unknown): NormalizedVideoKeyframeOfflineRgbaRendererOptions {
