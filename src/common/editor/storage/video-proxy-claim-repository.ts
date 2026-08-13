@@ -8,6 +8,7 @@ import {
 	isMediaContentSha256,
 	isMediaContentToken,
 } from './media-content-provenance.ts';
+import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 
 export const VIDEO_PROXY_CLAIM_SCHEMA_VERSION = 1 as const;
@@ -30,6 +31,7 @@ const CLAIM_FIELDS = [
 ] as const;
 const ROW_FIELDS = [
 	'sourceId', 'kind', 'encoding', 'storage', 'path', 'mediaChunkToken',
+	'mediaChunkBytes', 'mediaChunkCount',
 	'mediaContentDigestVersion', 'mediaContentToken', 'sha256', 'byteLength', 'mimeType',
 ] as const;
 const REQUEST_FIELDS = [
@@ -42,9 +44,11 @@ export interface VideoProxyClaimRowIdentity {
 	readonly sourceId: string;
 	readonly kind: 'video-proxy' | 'video-timing';
 	readonly encoding: 'video-proxy-v1' | typeof TIMING_ENCODING;
-	readonly storage: 'opfs' | 'indexeddb-chunks';
+	readonly storage: 'opfs' | typeof MEDIA_ASSET_CHUNK_STORAGE_TYPE;
 	readonly path: string | null;
 	readonly mediaChunkToken: string | null;
+	readonly mediaChunkBytes: number | null;
+	readonly mediaChunkCount: number | null;
 	readonly mediaContentDigestVersion: 1;
 	readonly mediaContentToken: string;
 	readonly sha256: string;
@@ -56,7 +60,7 @@ export interface VideoProxyClaimRecord {
 	readonly key: string;
 	readonly kind: typeof VIDEO_PROXY_CLAIM_KIND;
 	readonly schemaVersion: typeof VIDEO_PROXY_CLAIM_SCHEMA_VERSION;
-	readonly status: 'verified';
+	readonly status: 'unverified' | 'verified';
 	readonly operationId: string;
 	readonly projectId: string;
 	readonly sourceId: string;
@@ -194,8 +198,8 @@ export function normalizeVideoProxyClaimRecord(value: unknown): Readonly<VideoPr
 		throw new TypeError('The video proxy claim key does not match its operation and body.');
 	}
 	if (raw.kind !== VIDEO_PROXY_CLAIM_KIND || raw.schemaVersion !== VIDEO_PROXY_CLAIM_SCHEMA_VERSION
-		|| raw.status !== 'verified') {
-		throw new TypeError('A verified current video proxy claim is required.');
+		|| (raw.status !== 'unverified' && raw.status !== 'verified')) {
+		throw new TypeError('A current video proxy claim is required.');
 	}
 	const projectId = identifier(raw.projectId, 'claim project id');
 	const sourceId = identifier(raw.sourceId, 'claim source id');
@@ -210,7 +214,7 @@ export function normalizeVideoProxyClaimRecord(value: unknown): Readonly<VideoPr
 	const rowIdentity = normalizeRowIdentity(raw.rowIdentity, bodyKind, bodyKey);
 	return Object.freeze({
 		key, kind: VIDEO_PROXY_CLAIM_KIND, schemaVersion: VIDEO_PROXY_CLAIM_SCHEMA_VERSION,
-		status: 'verified', operationId, projectId, sourceId, baseFingerprint, bodyKind,
+		status: raw.status, operationId, projectId, sourceId, baseFingerprint, bodyKind,
 		bodyKey, generation, createdAt, updatedAt, expiresAt, rowIdentity,
 	});
 }
@@ -227,15 +231,24 @@ function normalizeRowIdentity(
 	if (raw.kind !== expectedKind || raw.encoding !== expectedEncoding) {
 		throw new TypeError('A claim row has the wrong body role or encoding.');
 	}
-	const storage = raw.storage === 'opfs' || raw.storage === 'indexeddb-chunks'
+	const storage = raw.storage === 'opfs' || raw.storage === MEDIA_ASSET_CHUNK_STORAGE_TYPE
 		? raw.storage
-		: invalid<'opfs' | 'indexeddb-chunks'>('A durable claim row storage kind is required.');
+		: invalid<'opfs' | typeof MEDIA_ASSET_CHUNK_STORAGE_TYPE>('A durable claim row storage kind is required.');
 	const path = raw.path === null ? null : string(raw.path, 'claim row path');
 	const mediaChunkToken = raw.mediaChunkToken === null
 		? null
 		: identifier(raw.mediaChunkToken, 'claim row chunk token');
+	const mediaChunkBytes = raw.mediaChunkBytes === null
+		? null
+		: positiveSafeInteger(raw.mediaChunkBytes, 'claim row chunk bytes');
+	const mediaChunkCount = raw.mediaChunkCount === null
+		? null
+		: positiveSafeInteger(raw.mediaChunkCount, 'claim row chunk count');
 	if ((storage === 'opfs' && (!path || mediaChunkToken !== null))
-		|| (storage === 'indexeddb-chunks' && (path !== null || !mediaChunkToken))) {
+		|| (storage === MEDIA_ASSET_CHUNK_STORAGE_TYPE && (path !== null || !mediaChunkToken))
+		|| (storage === 'opfs' && (mediaChunkBytes !== null || mediaChunkCount !== null))
+		|| (storage === MEDIA_ASSET_CHUNK_STORAGE_TYPE
+			&& (mediaChunkBytes === null || mediaChunkCount === null))) {
 		throw new TypeError('A claim row requires exactly its durable physical payload identity.');
 	}
 	if (raw.mediaContentDigestVersion !== 1 || !isMediaContentToken(raw.mediaContentToken)) {
@@ -253,7 +266,8 @@ function normalizeRowIdentity(
 	}
 	return Object.freeze({
 		sourceId: bodyKey, kind: expectedKind, encoding: expectedEncoding, storage, path,
-		mediaChunkToken, mediaContentDigestVersion: 1, mediaContentToken: raw.mediaContentToken,
+		mediaChunkToken, mediaChunkBytes, mediaChunkCount,
+		mediaContentDigestVersion: 1, mediaContentToken: raw.mediaContentToken,
 		sha256, byteLength, mimeType,
 	});
 }
@@ -281,6 +295,7 @@ function assertRequestedClaim(
 	key: string,
 ): void {
 	if (claim.key !== key || claim.bodyKind !== bodyKind
+		|| claim.status !== 'verified'
 		|| claim.operationId !== requestValue.operationId
 		|| claim.projectId !== requestValue.projectId
 		|| claim.sourceId !== requestValue.sourceId

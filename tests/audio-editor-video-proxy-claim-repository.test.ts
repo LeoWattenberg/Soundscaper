@@ -228,6 +228,8 @@ function claim(
 			storage: 'opfs',
 			path: `proxy/${bodyKind}-${sha256}.bin`,
 			mediaChunkToken: null,
+			mediaChunkBytes: null,
+			mediaChunkCount: null,
 			mediaContentDigestVersion: 1,
 			mediaContentToken: `media-content-${bodyKind}-0000000000000001`,
 			sha256,

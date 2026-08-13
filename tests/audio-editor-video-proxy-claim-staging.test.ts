@@ -229,7 +229,7 @@ async function seedChunkBody(
 			sourceId: bodyKey,
 			mediaChunkToken: token,
 			index: 0,
-			payload: new Blob([bytes]),
+			payload: new Blob([exactBuffer(bytes)]),
 			byteLength: bytes.byteLength,
 			createdAt: NOW,
 		});
@@ -245,7 +245,7 @@ async function seedOpfsBody(
 	const sha256 = digest(bytes);
 	const bodyKey = `${bodyKind === 'proxy' ? 'video-proxy' : 'video-timing'}-sha256:${sha256}`;
 	const path = `${bodyKind}-${sha256}.bin`;
-	fixture.files.set(path, new Blob([bytes]));
+	fixture.files.set(path, new Blob([exactBuffer(bytes)]));
 	const row = bodyRow(bodyKind, bodyKey, sha256, bytes.byteLength, { storage: 'opfs', path });
 	await transact(fixture.database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => {
 		mediaAssets.put(row);
@@ -301,6 +301,7 @@ function existingClaim(index: number) {
 		rowIdentity: {
 			sourceId: bodyKey, kind: 'video-proxy', encoding: 'video-proxy-v1',
 			storage: 'opfs', path: `proxy-${String(index)}.bin`, mediaChunkToken: null,
+			mediaChunkBytes: null, mediaChunkCount: null,
 			mediaContentDigestVersion: 1,
 			mediaContentToken: `media-content-existing-${String(index).padStart(16, '0')}`,
 			sha256: digestValue, byteLength: 1, mimeType: 'video/mp4',
@@ -339,6 +340,12 @@ function opfsRoot(files: Map<string, Blob>): FileSystemDirectoryHandle {
 
 function digest(bytes: Uint8Array): string {
 	return bytesToHex(sha256(bytes));
+}
+
+function exactBuffer(bytes: Uint8Array): ArrayBuffer {
+	const buffer = new ArrayBuffer(bytes.byteLength);
+	new Uint8Array(buffer).set(bytes);
+	return buffer;
 }
 
 function uniqueName(prefix: string): string {
