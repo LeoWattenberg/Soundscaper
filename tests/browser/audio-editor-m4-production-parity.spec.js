@@ -122,11 +122,11 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 			);
 		}
 		expect(rendered.renderReport.effects.omitted).toEqual([]);
-			videoCases.push({
-				name: parity.name,
-				fixtureArtifactId: parity.fixture,
-				fixtureBase64: Buffer.from(fixtureFrame.bytes).toString('base64'),
-				width: fixtureFrame.width,
+		videoCases.push({
+			name: parity.name,
+			fixtureArtifactId: parity.fixture,
+			fixtureBase64: Buffer.from(fixtureFrame.bytes).toString('base64'),
+			width: fixtureFrame.width,
 			height: fixtureFrame.height,
 			previewBase64: rendered.previewBase64,
 			exportBase64: rendered.exportBase64,
