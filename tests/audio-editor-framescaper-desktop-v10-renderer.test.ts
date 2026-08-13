@@ -129,7 +129,8 @@ test('publishes bounded pathless bodies in main before claim-bound shadow reconc
 
 	assert.deepEqual(published, project);
 	assert.equal(events[0], 'begin');
-	assert.ok(events.indexOf('finish') > events.findLastIndex((event) => event.startsWith('write:')));
+	const lastWrite = events.reduce((last, event, index) => event.startsWith('write:') ? index : last, -1);
+	assert.ok(events.indexOf('finish') > lastWrite);
 	assert.ok(events.findIndex((event) => event.startsWith('body:')) > events.indexOf('finish'));
 	assert.deepEqual(await fixture.store.loadProject(String(project.id)), project);
 	assert.deepEqual(Reflect.ownKeys(bridge.lastBegin!), [
