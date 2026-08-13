@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { randomBytes } from 'node:crypto';
-
 import type { FramescaperDesktopProjectLibraryV10Handshake } from './project-library-v10-contract.ts';
 import type {
 	FramescaperDesktopProjectLibraryV10CatalogSnapshot,
@@ -58,6 +56,7 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 	readonly #transfer: FramescaperDesktopProjectLibraryV10TransferService;
 	readonly #sessions = new Set<MainSession>();
 	#active: PublicationUpload | null = null;
+	#lifecycleActive = false;
 	#closed = false;
 	#fenced: unknown = null;
 
@@ -113,9 +112,11 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 	async begin(session: MainSession, value: unknown) {
 		this.#assertSession(session);
 		const request = validateFramescaperDesktopProjectLibraryV10PublicationBeginRequest(value);
-		if (this.#active) throw new RangeError('Framescaper V10 publication capacity is exhausted');
+		if (this.#active || this.#lifecycleActive) {
+			throw new RangeError('Framescaper V10 publication capacity is exhausted');
+		}
 		const upload = new PublicationUpload(
-			randomBytes(24).toString('hex'),
+			request.publicationId,
 			session,
 			this.#host,
 			this.#lease,
@@ -130,8 +131,8 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 				bodyCount: request.bodies.length,
 			}, request.bodies.length);
 		} catch (error) {
-			if (this.#active === upload) this.#active = null;
-			await upload.abort(error);
+			try { await upload.abort(error); }
+			finally { if (this.#active === upload) this.#active = null; }
 			throw error;
 		}
 	}
@@ -156,11 +157,14 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 	async abort(session: MainSession, value: unknown): Promise<boolean> {
 		this.#assertSession(session);
 		const request = validateFramescaperDesktopProjectLibraryV10PublicationCompletionRequest(value);
-		if (!this.#active) return false;
-		const upload = this.#ownedUpload(session, request.publicationId);
-		if (this.#active === upload) this.#active = null;
-		await upload.abort(new Error('Framescaper V10 renderer publication was aborted'));
-		return true;
+		const upload = this.#active;
+		if (!upload || upload.id !== request.publicationId || !upload.belongsTo(session)) return false;
+		try {
+			await upload.abort(new Error('Framescaper V10 renderer publication was aborted'));
+			return true;
+		} finally {
+			if (this.#active === upload) this.#active = null;
+		}
 	}
 
 	list(session: MainSession) {
@@ -170,20 +174,26 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 
 	delete(session: MainSession, value: unknown) {
 		this.#assertSession(session);
-		return Promise.resolve().then(() => this.#lifecycle.deleteProject(value));
+		this.#admitLifecycle();
+		return Promise.resolve().then(() => this.#lifecycle.deleteProject(value)).finally(() => {
+			this.#lifecycleActive = false;
+		});
 	}
 
 	duplicate(session: MainSession, value: unknown, signal: AbortSignal) {
 		this.#assertSession(session);
-		return this.#lifecycle.duplicateProject(value, signal);
+		this.#admitLifecycle();
+		return this.#lifecycle.duplicateProject(value, signal).finally(() => {
+			this.#lifecycleActive = false;
+		});
 	}
 
 	async detach(session: MainSession, reason: unknown): Promise<void> {
 		this.#sessions.delete(session);
 		const upload = this.#active;
 		if (!upload || !upload.belongsTo(session)) return;
-		this.#active = null;
-		await upload.abort(reason);
+		try { await upload.abort(reason); }
+		finally { if (this.#active === upload) this.#active = null; }
 	}
 
 	#ownedUpload(session: MainSession, publicationId: string): PublicationUpload {
@@ -192,6 +202,13 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 			throw new Error('Framescaper V10 publication does not belong to this main session');
 		}
 		return upload;
+	}
+
+	#admitLifecycle(): void {
+		if (this.#active || this.#lifecycleActive) {
+			throw new RangeError('Framescaper V10 publication capacity is exhausted');
+		}
+		this.#lifecycleActive = true;
 	}
 
 	#assertSession(session: MainSession): void {
@@ -292,6 +309,7 @@ class MainSession implements FramescaperDesktopProjectLibraryV10MainSession {
 }
 
 class PublicationUpload {
+	readonly #controller = new AbortController();
 	readonly id: string;
 	readonly #host: FramescaperDesktopProjectLibraryV10PublicationHost;
 	readonly #lease: FramescaperDesktopProjectLibraryV10Lease;
@@ -337,7 +355,7 @@ class PublicationUpload {
 				descriptor,
 				chunks: this.#streams[index]!,
 			})),
-		});
+		}, this.#controller.signal);
 		void this.#result.catch((error: unknown) => {
 			for (const stream of this.#streams) stream.fail(error);
 		});
@@ -381,6 +399,7 @@ class PublicationUpload {
 	}
 
 	async abort(reason: unknown): Promise<void> {
+		this.#controller.abort(reason);
 		for (const stream of this.#streams) stream.fail(reason);
 		await this.#result?.catch(() => undefined);
 	}

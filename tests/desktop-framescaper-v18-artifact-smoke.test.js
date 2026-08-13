@@ -108,8 +108,11 @@ function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project
 		abortPublication: async () => false,
 		beginPublication: async () => ({}),
 		connect: async () => { calls.push('connect'); return handshake; },
+		deleteProject: async () => ({}),
+		duplicateProject: async () => ({}),
 		finishPublication: async () => ({}),
 		handshakeState: () => { calls.push('handshakeState'); return 'admitted'; },
+		listProjects: async () => ({ metadataRevision: 1, projects: [] }),
 		readBodyChunk: async () => new Uint8Array(),
 		readProjectBundle: async () => {
 			calls.push('readProjectBundle');
@@ -180,8 +183,9 @@ function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project
 			saveOwnerReady: true,
 			framescaperV18: {
 				preloadBridge: [
-					'abortPublication', 'beginPublication', 'connect', 'finishPublication', 'handshakeState',
-					'readBodyChunk', 'readProjectBundle', 'writePublicationChunk',
+					'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
+					'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
+					'writePublicationChunk',
 				],
 				handshake,
 				ui: { projectId: project.projectId, title: project.title, trackCount: 1, clipCount: 0 },

@@ -7,6 +7,7 @@ import type { TestContext } from 'node:test';
 import { createVideoSourceV10, createVideoTrackV10 } from '../../src/common/editor/project-v10.ts';
 import type { ScapeArchiveEntry } from '../../src/common/editor/scape-archive-envelope.ts';
 import { openDatabase, request, transact } from '../../src/common/editor/storage/indexeddb-backend.ts';
+import { KeyValueRepository } from '../../src/common/editor/storage/key-value-repository.ts';
 import { getMemoryDatabase } from '../../src/common/editor/storage/memory-backend.ts';
 import { OpfsRepository } from '../../src/common/editor/storage/opfs-repository.ts';
 import {
@@ -60,6 +61,14 @@ export class FixtureArchiveStore {
 	readonly databaseName: string;
 	readonly memory;
 	readonly opfsRepository: OpfsRepository;
+	readonly projectRepository: Readonly<{
+		delete(projectId: string): Promise<void>;
+		deleteExact(project: Readonly<Record<string, unknown>>): Promise<boolean>;
+	}>;
+	readonly settingsRepository: KeyValueRepository;
+	readonly linkedOriginalStoreService = Object.freeze({
+		deleteProject: async <Value>(_projectId: string, operation: () => PromiseLike<Value> | Value) => operation(),
+	});
 	readonly calls = { metadata: 0, load: 0, begin: 0 };
 	readonly #database: IDBDatabase;
 	readonly #files: Map<string, Blob>;
@@ -77,11 +86,31 @@ export class FixtureArchiveStore {
 		this.opfsRepository = opfs;
 		this.#database = database;
 		this.#files = files;
+		this.settingsRepository = new KeyValueRepository(port, 'settings');
+		this.projectRepository = Object.freeze({
+			delete: async (projectId: string) => {
+				await transact(this.#database, 'projects', 'readwrite', ({ projects }) => {
+					projects.delete(projectId);
+				});
+			},
+			deleteExact: async (project) => {
+				const current = await this.loadProject(String(project.id));
+				if (JSON.stringify(current) !== JSON.stringify(project)) return false;
+				await transact(this.#database, 'projects', 'readwrite', ({ projects }) => {
+					projects.delete(String(project.id));
+				});
+				return true;
+			},
+		});
 		const runtime = editorProjectRuntimeProfileDefinition(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE);
 		const storageProfile = editorProjectRuntimeProfilePrerequisiteDefinition(
 			runtime.prerequisite,
 		).storageProfile;
 		bindEditorProjectStoreProfile(this, storageProfile);
+	}
+
+	getStatus() {
+		return Object.freeze({ state: 'indexeddb', persistent: true });
 	}
 
 	async getMediaAssetMetadata(sourceId: string): Promise<Record<string, unknown> | null> {

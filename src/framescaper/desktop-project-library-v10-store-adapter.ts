@@ -1,6 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { admitProjectPublication } from '../common/editor/storage/project-publication-options.ts';
+import {
+	ProjectDuplicationIndeterminateError,
+} from '../common/editor/storage/project-duplication.ts';
+import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
+import {
+	createProjectStoreId,
+	reportDesktopSharedProjectLocalCleanupError,
+} from '../common/editor/storage/project-store-defaults.ts';
+import type { LinkedOriginalStoreService } from '../common/editor/storage/linked-original-store-service.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import { framescaperProjectStoreAuthorityV18 } from './editor-project-store-v18.ts';
@@ -10,6 +19,8 @@ import type {
 } from './desktop-project-library-v10-renderer.ts';
 import {
 	assertFramescaperDesktopProjectLibraryV10RendererComposition,
+	FramescaperDesktopProjectLibraryV10CommittedError,
+	FramescaperDesktopProjectLibraryV10IndeterminateError,
 } from './desktop-project-library-v10-renderer.ts';
 
 export interface FramescaperDesktopProjectStoreV10Composition {
@@ -25,6 +36,7 @@ export interface FramescaperDesktopProjectStoreV10Local {
 	loadProject(projectId: string, options?: Readonly<{ revision?: number; signal?: AbortSignal }> | unknown):
 		PromiseLike<unknown> | unknown;
 	listProjects(): PromiseLike<readonly unknown[]> | readonly unknown[];
+	readonly linkedOriginalStoreService: Pick<LinkedOriginalStoreService, 'deleteProject' | 'duplicateProject'>;
 }
 
 export type FramescaperDesktopProjectStoreV10Adapter<Store> = Store & Readonly<{
@@ -36,6 +48,7 @@ const LOAD_FIELDS = ['revision', 'signal'] as const;
 const SAVE_FIELDS = [
 	'admitProjectPublication', 'protectedLinkedOriginalSourceReferences', 'protectedLinkedVideoSourceIds',
 ] as const;
+const DUPLICATE_FIELDS = ['id', 'title'] as const;
 
 /** Keep web on the exact local identity; desktop receives a closed project-lifecycle overlay only. */
 export function createFramescaperDesktopProjectStoreV10Adapter<Store extends FramescaperDesktopProjectStoreV10Local>(
@@ -66,7 +79,16 @@ export function createFramescaperDesktopProjectStoreV10Adapter<Store extends Fra
 	const renderer = composition.desktopProjectLibrary;
 	if (renderer === null) return localStore;
 	assertFramescaperDesktopProjectLibraryV10RendererComposition(profileValue, localStore, renderer);
-	return new Proxy(localStore, proxyHandler(profileValue, localStore, renderer)) as
+	const lifecycle = ownData(localStore, 'linkedOriginalStoreService', 'Framescaper V18 local store');
+	if (!lifecycle || typeof lifecycle !== 'object'
+		|| typeof inheritedData(lifecycle, 'deleteProject') !== 'function'
+		|| typeof inheritedData(lifecycle, 'duplicateProject') !== 'function') {
+		throw new TypeError('The exact Framescaper V18 linked-original lifecycle is required.');
+	}
+	return new Proxy(localStore, proxyHandler(
+		profileValue, localStore, renderer,
+		lifecycle as FramescaperDesktopProjectStoreV10Local['linkedOriginalStoreService'],
+	)) as
 		FramescaperDesktopProjectStoreV10Adapter<Store>;
 }
 
@@ -74,12 +96,27 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreV10Local>(
 	profile: EditorProjectRuntimeProfile,
 	localStore: Store,
 	renderer: FramescaperDesktopProjectLibraryV10Renderer,
+	lifecycle: FramescaperDesktopProjectStoreV10Local['linkedOriginalStoreService'],
 ): ProxyHandler<Store> {
+	const pendingDeleteCleanup = new Set<string>();
 	const overrides = Object.freeze({
-		loadProject: (projectId: string, optionsValue: unknown = {}) => {
+		listProjects: () => renderer.listProjects(),
+		loadProject: async (projectId: string, optionsValue: unknown = {}) => {
 			const options = loadOptions(optionsValue);
 			if (options.revision !== undefined) return localStore.loadProject(projectId, options);
-			return renderer.readProject(projectId, options.signal ? { signal: options.signal } : {});
+			const project = await renderer.readProject(projectId, options.signal ? { signal: options.signal } : {});
+			if (project !== null) return project;
+			if (!pendingDeleteCleanup.has(projectId)) return null;
+			await lifecycle.deleteProject(projectId, async () => {
+				if (!await renderer.cleanupDeletedProject(projectId)) {
+					throw new Error('The definite desktop V10 delete cleanup tombstone is unavailable.');
+				}
+			});
+			if (!await renderer.settleDeletedProject(projectId)) {
+				throw new Error('The definite desktop V10 delete cleanup could not be settled.');
+			}
+			pendingDeleteCleanup.delete(projectId);
+			return null;
 		},
 		saveProject: async (projectValue: unknown, optionsValue: unknown = {}) => {
 			const options = saveOptions(optionsValue);
@@ -96,11 +133,59 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreV10Local>(
 			if (existing !== null) return null;
 			return renderer.publishProject({ project });
 		},
-		deleteProject: async () => {
-			throw new Error('Framescaper desktop V10 project delete is unavailable until main owns a CAS delete channel.');
+		deleteProject: async (projectId: string) => {
+			try {
+				await lifecycle.deleteProject(projectId, () => renderer.deleteProject(projectId));
+				try {
+					if (await renderer.settleDeletedProject(projectId)) return;
+					throw new FramescaperDesktopProjectLibraryV10CommittedError(
+						'delete', projectId, new Error('The durable delete intent could not be settled.'),
+					);
+				} catch (error) {
+					if (error instanceof FramescaperDesktopProjectLibraryV10CommittedError) throw error;
+					throw new FramescaperDesktopProjectLibraryV10CommittedError('delete', projectId, error);
+				}
+			} catch (error) {
+				if (error instanceof FramescaperDesktopProjectLibraryV10CommittedError
+					&& error.operation === 'delete') {
+					pendingDeleteCleanup.add(projectId);
+					reportDesktopSharedProjectLocalCleanupError();
+					return;
+				}
+				throw error;
+			}
 		},
-		duplicateProject: async () => {
-			throw new Error('Framescaper desktop V10 project duplication is unavailable until main owns catalog discovery.');
+		duplicateProject: async (sourceProjectId: string, optionsValue: unknown = {}) => {
+			const options = duplicateOptions(optionsValue);
+			const copyProjectId = options.id ?? createProjectStoreId('project');
+			const timestamp = new Date().toISOString();
+			await assertLocalDuplicateDestinationAbsent(localStore, copyProjectId);
+			return lifecycle.duplicateProject({
+				loadProject: (projectId) => renderer.readProject(projectId),
+				listProjects: () => renderer.listProjects(),
+				createProjectIfAbsent: async (copy: ProjectDocument) => {
+					try {
+						await assertLocalDuplicateDestinationAbsent(localStore, copyProjectId);
+						return await renderer.duplicateProject(sourceProjectId, {
+							id: String(copy.id),
+							title: String(copy.title),
+							timestamp: String(copy.createdAt),
+						});
+					} catch (error) {
+						if ((error instanceof FramescaperDesktopProjectLibraryV10CommittedError
+							|| error instanceof FramescaperDesktopProjectLibraryV10IndeterminateError)
+							&& error.operation === 'duplicate') {
+							throw new ProjectDuplicationIndeterminateError(copyProjectId, error);
+						}
+						throw error;
+					}
+				},
+			}, {
+				sourceProjectId,
+				copyProjectId,
+				...(options.title === undefined ? {} : { title: options.title }),
+				timestamp,
+			});
 		},
 		preservesProjectsOnClear: () => true,
 	});
@@ -113,6 +198,15 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreV10Local>(
 		},
 		set: (target, property, value, receiver) => Reflect.set(target, property, value, receiver),
 	};
+}
+
+async function assertLocalDuplicateDestinationAbsent(
+	store: FramescaperDesktopProjectStoreV10Local,
+	projectId: string,
+): Promise<void> {
+	if (await store.loadProject(projectId) !== null) {
+		throw new Error('Framescaper desktop V10 duplicate destination has an occupied local shadow.');
+	}
 }
 
 function assertLocalStore(value: unknown): asserts value is FramescaperDesktopProjectStoreV10Local {
@@ -142,6 +236,17 @@ function loadOptions(value: unknown): Readonly<{ revision?: number; signal?: Abo
 
 function saveOptions(value: unknown): Record<string, unknown> {
 	return allowedRecord(value, SAVE_FIELDS, 'Framescaper desktop V10 save options');
+}
+
+function duplicateOptions(value: unknown): Readonly<{ readonly id?: string; readonly title?: unknown }> {
+	const raw = allowedRecord(value, DUPLICATE_FIELDS, 'Framescaper desktop V10 duplicate options');
+	if (raw.id !== undefined && (typeof raw.id !== 'string' || !raw.id)) {
+		throw new TypeError('The Framescaper desktop V10 duplicate project id is invalid.');
+	}
+	return Object.freeze({
+		...(raw.id === undefined ? {} : { id: raw.id }),
+		...(raw.title === undefined ? {} : { title: raw.title }),
+	});
 }
 
 function allowedRecord<const Field extends string>(value: unknown, fields: readonly Field[], name: string) {

@@ -94,6 +94,11 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		return remove ? remove.call(this.#delegate, project) : Promise.resolve(false);
 	}
 
+	deleteExact(project: ProjectDocument): Promise<boolean> {
+		const remove = this.#delegate.deleteExact;
+		return remove ? remove.call(this.#delegate, project) : Promise.resolve(false);
+	}
+
 	delete(projectId: string): Promise<void> {
 		return this.#delegate.delete(projectId);
 	}

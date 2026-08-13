@@ -16,6 +16,10 @@ import {
 } from '../src/framescaper/desktop-project-library-v10-renderer.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import type { FramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
+import {
+	createFramescaperProjectStoreV18,
+	framescaperProjectStoreAuthorityV18,
+} from '../src/framescaper/editor-project-store-v18.ts';
 import { FramescaperScapeArchiveV18 } from '../src/framescaper/scape-project-preservation-v18.ts';
 import {
 	ARCHIVE_NOW,
@@ -28,8 +32,35 @@ import {
 	type FramescaperV18ArchiveFixture,
 } from './helpers/framescaper-v18-archive-fixture.ts';
 
-const PUBLICATION_ID = 'ab'.repeat(24);
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
+
+test('web memory stays local-only while an admitted desktop bridge refuses ephemeral shadowing', async (context) => {
+	const store = createFramescaperProjectStoreV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		indexedDB: null,
+		preferOpfs: false,
+	});
+	await store.ready();
+	context.after(() => store.close());
+	const authority = framescaperProjectStoreAuthorityV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, store);
+	assert.ok(authority.opfs);
+	const archive = new FramescaperScapeArchiveV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		store,
+		port: authority.port,
+		opfs: authority.opfs,
+	});
+	assert.equal(await connectFramescaperDesktopProjectLibraryV10Renderer(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		{ store, archive },
+	), null);
+
+	const events: string[] = [];
+	installBridge(context, bridgeFixture(transferBundle(archiveProject(), 0), events).api);
+	await assert.rejects(connectFramescaperDesktopProjectLibraryV10Renderer(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		{ store, archive },
+	), /durable IndexedDB V18 shadow/iu);
+	assert.deepEqual(events, []);
+});
 
 test('connects and authenticates before reading or mutating the exact V18 shadow', async (context) => {
 	const fixture = await createFramescaperV18ArchiveFixture(context);
@@ -127,7 +158,7 @@ test('publishes bounded pathless bodies in main before claim-bound shadow reconc
 	assert.ok(events.findIndex((event) => event.startsWith('body:')) > events.indexOf('finish'));
 	assert.deepEqual(await fixture.store.loadProject(String(project.id)), project);
 	assert.deepEqual(Reflect.ownKeys(bridge.lastBegin!), [
-		'expectedMetadataRevision', 'expectedProject', 'project', 'bodies',
+		'publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies',
 	]);
 	assertNoRendererAuthority(bridge.lastBegin);
 	assert.deepEqual(bridge.uploaded.map(({ storageKey, bytes }) => ({ storageKey, bytes: [...bytes] })), [
@@ -218,13 +249,17 @@ function bridgeFixture(initial: TransferBundle, events: string[], options: Bridg
 			activeBodies = request.bodies as readonly Readonly<TransferBody>[];
 			offsets = activeBodies.map(() => 0);
 			uploads = activeBodies.map(() => []);
-			return { publicationId: PUBLICATION_ID, maximumChunkBytes: MAXIMUM_CHUNK_BYTES, bodyCount: activeBodies.length };
+			return {
+				publicationId: request.publicationId,
+				maximumChunkBytes: MAXIMUM_CHUNK_BYTES,
+				bodyCount: activeBodies.length,
+			};
 		},
 		async writePublicationChunk(request: Record<string, unknown>) {
 			const index = Number(request.bodyIndex);
 			const chunk = Uint8Array.from(request.bytes as Uint8Array);
 			events.push(`write:${String(index)}:${String(request.offset)}`);
-			assert.equal(request.publicationId, PUBLICATION_ID);
+			assert.equal(request.publicationId, lastBegin?.publicationId);
 			assert.equal(request.offset, offsets[index]);
 			uploads[index]!.push(chunk);
 			offsets[index]! += chunk.byteLength;
@@ -232,7 +267,7 @@ function bridgeFixture(initial: TransferBundle, events: string[], options: Bridg
 		},
 		async finishPublication(request: Record<string, unknown>) {
 			events.push('finish');
-			assert.equal(request.publicationId, PUBLICATION_ID);
+			assert.equal(request.publicationId, lastBegin?.publicationId);
 			await options.beforeFinish?.();
 			const project = (lastBegin as { project: FramescaperProjectV18 }).project;
 			const next = transferBundle(project, Number(lastBegin!.expectedMetadataRevision) + 1);
@@ -243,7 +278,7 @@ function bridgeFixture(initial: TransferBundle, events: string[], options: Bridg
 		},
 		async abortPublication(request: Record<string, unknown>) {
 			events.push('abort');
-			assert.equal(request.publicationId, PUBLICATION_ID);
+			assert.equal(request.publicationId, lastBegin?.publicationId);
 			return true;
 		},
 		async deleteProject() { throw new Error('unused renderer delete fixture'); },

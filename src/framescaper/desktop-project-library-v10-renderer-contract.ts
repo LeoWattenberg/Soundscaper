@@ -65,21 +65,37 @@ export interface FramescaperDesktopV10BundleSnapshot {
 	readonly assets: readonly Readonly<ScapeVideoProxyArchiveAssetDescriptorV2>[];
 }
 
+export interface FramescaperDesktopV10ProjectSummary {
+	readonly id: string;
+	readonly title: string;
+	readonly revision: number;
+	readonly updatedAt: string;
+}
+
+export interface FramescaperDesktopV10CatalogSnapshot {
+	readonly metadataRevision: number;
+	readonly projects: readonly Readonly<FramescaperDesktopV10ProjectSummary>[];
+}
+
 export interface FramescaperDesktopV10RendererBridge {
 	connect(): Promise<unknown>;
 	handshakeState(): unknown;
+	listProjects(): Promise<unknown>;
 	readProjectBundle(projectId: string): Promise<unknown>;
 	readBodyChunk(request: unknown): Promise<unknown>;
 	beginPublication(request: unknown): Promise<unknown>;
 	writePublicationChunk(request: unknown): Promise<unknown>;
 	finishPublication(request: unknown): Promise<unknown>;
 	abortPublication(request: unknown): Promise<unknown>;
+	deleteProject(request: unknown): Promise<unknown>;
+	duplicateProject(request: unknown): Promise<unknown>;
 }
 
 const GLOBAL_NAME = 'framescaperProjectLibraryDesktop';
 const API_FIELDS = [
-	'connect', 'handshakeState', 'readProjectBundle', 'readBodyChunk',
+	'connect', 'handshakeState', 'listProjects', 'readProjectBundle', 'readBodyChunk',
 	'beginPublication', 'writePublicationChunk', 'finishPublication', 'abortPublication',
+	'deleteProject', 'duplicateProject',
 ] as const;
 const HANDSHAKE_FIELDS = [
 	'kind', 'version', 'owner', 'projectSchemaVersion', 'scapeFormatVersions',
@@ -87,6 +103,9 @@ const HANDSHAKE_FIELDS = [
 	'desktopDatabaseUserVersion', 'desktopLibraryScope',
 ] as const;
 const BUNDLE_FIELDS = ['metadataRevision', 'project', 'document', 'bodies'] as const;
+const CATALOG_FIELDS = ['metadataRevision', 'projects'] as const;
+const SUMMARY_FIELDS = ['id', 'title', 'revision', 'updatedAt'] as const;
+const DELETE_RESULT_FIELDS = ['projectId', 'metadataRevision', 'deleted'] as const;
 const PROJECT_FIELDS = [
 	'id', 'projectId', 'name', 'metadataFile', 'preferredProduct', 'updatedAtMs',
 	'projectSchemaVersion', 'projectRevision', 'byteLength', 'sha256',
@@ -103,6 +122,8 @@ const ENTRY_ID = /^[A-Za-z0-9_-]{8,128}$/u;
 const PUBLICATION_ID = /^[a-f0-9]{48}$/u;
 const MAXIMUM_PROJECT_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_BODIES = 4_094;
+const MAXIMUM_PROJECTS = 10_000;
+const MAXIMUM_TITLE_BYTES = 1_024;
 
 export function resolveFramescaperDesktopV10RendererBridge(): FramescaperDesktopV10RendererBridge | null {
 	const descriptor = Object.getOwnPropertyDescriptor(globalThis, GLOBAL_NAME);
@@ -123,6 +144,7 @@ export function resolveFramescaperDesktopV10RendererBridge(): FramescaperDesktop
 	return Object.freeze({
 		connect: () => (api.connect as () => Promise<unknown>).call(apiValue),
 		handshakeState: () => (api.handshakeState as () => unknown).call(apiValue),
+		listProjects: () => (api.listProjects as () => Promise<unknown>).call(apiValue),
 		readProjectBundle: (projectId: string) => (
 			(api.readProjectBundle as (value: string) => Promise<unknown>).call(apiValue, projectId)
 		),
@@ -141,6 +163,12 @@ export function resolveFramescaperDesktopV10RendererBridge(): FramescaperDesktop
 		abortPublication: (request: unknown) => (
 			(api.abortPublication as (value: unknown) => Promise<unknown>).call(apiValue, request)
 		),
+		deleteProject: (request: unknown) => (
+			(api.deleteProject as (value: unknown) => Promise<unknown>).call(apiValue, request)
+		),
+		duplicateProject: (request: unknown) => (
+			(api.duplicateProject as (value: unknown) => Promise<unknown>).call(apiValue, request)
+		),
 	});
 }
 
@@ -154,6 +182,37 @@ export function validateFramescaperDesktopV10RendererHandshake(value: unknown, d
 	}
 	exactTuple(handshake.scapeFormatVersions, [1, 2], 'Scape format versions');
 	exactTuple(handshake.desktopLibraryScope, ['kw.media', 'scape-project-library', 'v10'], 'library scope');
+}
+
+export function validateFramescaperDesktopV10CatalogSnapshot(
+	value: unknown,
+): Readonly<FramescaperDesktopV10CatalogSnapshot> {
+	const raw = exactRecord(value, CATALOG_FIELDS, 'Framescaper desktop V10 catalog');
+	const projects = denseArray(raw.projects, 'Framescaper desktop V10 project summaries', MAXIMUM_PROJECTS)
+		.map(projectSummary);
+	if (new Set(projects.map(({ id }) => id)).size !== projects.length) {
+		throw new TypeError('The Framescaper desktop V10 catalog contains duplicate project identities.');
+	}
+	return Object.freeze({
+		metadataRevision: nonNegative(raw.metadataRevision, 'metadata revision'),
+		projects: Object.freeze(projects),
+	});
+}
+
+export function validateFramescaperDesktopV10DeleteResult(
+	value: unknown,
+	expectedProjectId: string,
+): Readonly<{ readonly projectId: string; readonly metadataRevision: number; readonly deleted: true }> {
+	const raw = exactRecord(value, DELETE_RESULT_FIELDS, 'Framescaper desktop V10 delete result');
+	const projectId = validateFramescaperDesktopV10ProjectId(raw.projectId);
+	if (projectId !== validateFramescaperDesktopV10ProjectId(expectedProjectId) || raw.deleted !== true) {
+		throw new Error('The Framescaper desktop V10 delete acknowledgement changed its project identity.');
+	}
+	return Object.freeze({
+		projectId,
+		metadataRevision: nonNegative(raw.metadataRevision, 'metadata revision'),
+		deleted: true,
+	});
 }
 
 export function validateFramescaperDesktopV10Bundle(
@@ -290,6 +349,20 @@ function projectRow(value: unknown, expectedProjectId: string): Readonly<Framesc
 	});
 }
 
+function projectSummary(value: unknown): Readonly<FramescaperDesktopV10ProjectSummary> {
+	const raw = exactRecord(value, SUMMARY_FIELDS, 'Framescaper desktop V10 project summary');
+	if (typeof raw.title !== 'string' || !raw.title.trim()
+		|| new TextEncoder().encode(raw.title).byteLength > MAXIMUM_TITLE_BYTES) {
+		throw new TypeError('The Framescaper desktop V10 project title is invalid.');
+	}
+	return Object.freeze({
+		id: validateFramescaperDesktopV10ProjectId(raw.id),
+		title: raw.title,
+		revision: nonNegative(raw.revision, 'project revision'),
+		updatedAt: canonicalTimestamp(raw.updatedAt),
+	});
+}
+
 function bodiesForAssets(
 	project: Pick<FramescaperDesktopV10ProjectRow, 'projectId' | 'projectRevision' | 'sha256'>,
 	assets: readonly Readonly<ScapeVideoProxyArchiveAssetDescriptorV2>[],
@@ -376,6 +449,15 @@ function exactTuple(value: unknown, expected: readonly unknown[], name: string):
 
 function identity(value: unknown, name: string): string {
 	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`The Framescaper desktop V10 ${name} is invalid.`);
+	return value;
+}
+
+function canonicalTimestamp(value: unknown): string {
+	if (typeof value !== 'string') throw new TypeError('The Framescaper desktop V10 timestamp is invalid.');
+	const time = Date.parse(value);
+	if (!Number.isFinite(time) || new Date(time).toISOString() !== value) {
+		throw new TypeError('The Framescaper desktop V10 timestamp is invalid.');
+	}
 	return value;
 }
 

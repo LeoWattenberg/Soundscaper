@@ -130,6 +130,13 @@ export function createFramescaperDesktopProjectLibraryV10MainPreloadBridge(
 		async beginPublication(value: unknown) {
 			assertOperational();
 			const request = validateFramescaperDesktopProjectLibraryV10PublicationBeginRequest(value);
+			if (publications.has(request.publicationId)) {
+				throw new Error('Framescaper V10 preload received a duplicate publication id');
+			}
+			publications.set(
+				request.publicationId,
+				String((request.project as { readonly id: unknown }).id),
+			);
 			const result = validateFramescaperDesktopProjectLibraryV10PublicationAdmission(
 				await invoke(
 					FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.beginPublication,
@@ -137,13 +144,9 @@ export function createFramescaperDesktopProjectLibraryV10MainPreloadBridge(
 				),
 				request.bodies.length,
 			);
-			if (publications.has(result.publicationId)) {
-				throw new Error('Framescaper V10 preload received a duplicate publication id');
+			if (result.publicationId !== request.publicationId) {
+				throw new Error('Framescaper V10 preload admission changed its publication id');
 			}
-			publications.set(
-				result.publicationId,
-				String((request.project as { readonly id: unknown }).id),
-			);
 			return result;
 		},
 		async writePublicationChunk(value: unknown) {

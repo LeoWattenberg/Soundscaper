@@ -139,6 +139,69 @@ test('sessions expose main-owned catalog, duplicate, and exact delete lifecycle 
 	assert.ok(await session.readProjectBundle('framescaper-v10-main-copy'));
 });
 
+test('one global mutation slot rejects lifecycle overlap and leaves no pending journal', async (context) => {
+	const appDataPath = await temporaryRoot(context);
+	const main = await startMain(appDataPath);
+	context.after(() => main.close());
+	const session = main.openSession(createFramescaperDesktopProjectLibraryV10Handshake());
+	const source = await uploadV10MainPublication(session);
+	const fixture = v10MainPublication(2);
+	const admission = await session.beginPublication(fixture.request);
+	await assert.rejects(session.deleteProject({
+		projectId: V10_MAIN_PROJECT_ID,
+		expectedMetadataRevision: source.metadataRevision,
+		expectedProject: {
+			projectRevision: source.project.projectRevision,
+			projectSha256: source.project.sha256,
+		},
+	}), /capacity/iu);
+	await assert.rejects(session.duplicateProject({
+		sourceProjectId: V10_MAIN_PROJECT_ID,
+		copyProjectId: 'framescaper-v10-overlap-copy',
+		title: 'Must wait',
+		timestamp: '2026-08-13T18:00:00.000Z',
+		expectedMetadataRevision: source.metadataRevision,
+		expectedSource: {
+			projectRevision: source.project.projectRevision,
+			projectSha256: source.project.sha256,
+		},
+	}), /capacity/iu);
+	await session.abortPublication({ publicationId: admission.publicationId });
+
+	const outcomes = await Promise.allSettled([
+		session.duplicateProject({
+			sourceProjectId: V10_MAIN_PROJECT_ID,
+			copyProjectId: 'framescaper-v10-one-winner-copy',
+			title: 'One winner',
+			timestamp: '2026-08-13T18:00:00.000Z',
+			expectedMetadataRevision: source.metadataRevision,
+			expectedSource: {
+				projectRevision: source.project.projectRevision,
+				projectSha256: source.project.sha256,
+			},
+		}),
+		session.deleteProject({
+			projectId: V10_MAIN_PROJECT_ID,
+			expectedMetadataRevision: source.metadataRevision,
+			expectedProject: {
+				projectRevision: source.project.projectRevision,
+				projectSha256: source.project.sha256,
+			},
+		}),
+	]);
+	assert.equal(outcomes.filter(({ status }) => status === 'fulfilled').length, 1);
+	assert.equal(outcomes.filter(({ status }) => status === 'rejected').length, 1);
+	const database = openDatabase(appDataPath);
+	try {
+		assert.deepEqual(database.prepare(
+			"SELECT state FROM publication_journal WHERE state != 'complete'",
+		).all(), []);
+		assert.deepEqual(database.prepare(
+			"SELECT state FROM metadata_journal WHERE state != 'complete'",
+		).all(), []);
+	} finally { database.close(); }
+});
+
 test('startup takes a released fence and rolls a prepared body journal forward', async (context) => {
 	const appDataPath = await temporaryRoot(context);
 	await seedPreparedPublication(appDataPath);
@@ -234,8 +297,10 @@ async function seedPreparedPublication(appDataPath: string): Promise<void> {
 	host.acceptHandshake(createFramescaperDesktopProjectLibraryV10Handshake());
 	const fixture = v10MainPublication();
 	await assert.rejects(host.publish({
-		...fixture.request,
 		lease,
+		expectedMetadataRevision: fixture.request.expectedMetadataRevision,
+		expectedProject: fixture.request.expectedProject,
+		project: fixture.request.project,
 		bodies: fixture.request.bodies.map((descriptor, index) => ({
 			descriptor,
 			chunks: (async function* () { yield fixture.bodies[index]!; })(),

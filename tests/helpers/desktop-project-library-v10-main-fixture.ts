@@ -33,6 +33,7 @@ export function v10MainPublication(revision = 1): V10MainPublicationFixture {
 	});
 	return {
 		request: {
+			publicationId: publicationId(revision),
 			expectedMetadataRevision: revision - 1,
 			expectedProject: revision === 1 ? null : expectedProject(project, revision - 1),
 			project,
@@ -40,6 +41,10 @@ export function v10MainPublication(revision = 1): V10MainPublicationFixture {
 		},
 		bodies: [ARCHIVE_PROXY_BYTES, ARCHIVE_TIMING.bytes],
 	};
+}
+
+function publicationId(revision: number): string {
+	return revision.toString(16).padStart(2, '0').repeat(24);
 }
 
 export async function uploadV10MainPublication(

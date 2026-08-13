@@ -120,9 +120,13 @@ export class FramescaperDesktopProjectLibraryV10PublicationHost {
 		return this.#gate.accept(value);
 	}
 
-	async publish(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle>> {
+	async publish(
+		value: unknown,
+		signal?: AbortSignal,
+	): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle>> {
 		this.#assertOperational();
 		return this.#exclusive(async () => {
+			throwIfAborted(signal);
 			const now = this.#timestamp();
 			assertFramescaperDesktopProjectLibraryV10DatabaseIdentity(this.#database);
 			const current = readFramescaperDesktopProjectLibraryV10MetadataSnapshot(this.#database);
@@ -144,9 +148,11 @@ export class FramescaperDesktopProjectLibraryV10PublicationHost {
 				this.paths,
 				transactionId,
 				plan,
+				signal,
 			);
 			let prepared = false;
 			try {
+				throwIfAborted(signal);
 				prepareFramescaperDesktopProjectLibraryV10Publication(
 					this.#database,
 					transactionId,
@@ -161,7 +167,9 @@ export class FramescaperDesktopProjectLibraryV10PublicationHost {
 			}
 			if (!prepared) throw new Error('Framescaper V10 publication did not prepare');
 			this.#checkpoint('prepared');
-			await materializeFramescaperDesktopProjectLibraryV10Publication(this.paths.libraryRoot, stages);
+			await materializeFramescaperDesktopProjectLibraryV10Publication(
+				this.paths.libraryRoot, stages,
+			);
 			markFramescaperDesktopProjectLibraryV10PublicationMaterialized(
 				this.#database,
 				transactionId,
@@ -447,3 +455,5 @@ function positiveInteger(value: unknown, label: string): number {
 	if (result === 0) throw new RangeError(`Framescaper V10 ${label} must be positive`);
 	return result;
 }
+
+function throwIfAborted(signal?: AbortSignal): void { signal?.throwIfAborted(); }

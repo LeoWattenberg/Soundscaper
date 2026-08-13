@@ -17,6 +17,7 @@ export interface FramescaperDesktopProjectLibraryV10PublicationExpectedProject {
 }
 
 export interface FramescaperDesktopProjectLibraryV10PublicationBeginRequest {
+	readonly publicationId: string;
 	readonly expectedMetadataRevision: number;
 	readonly expectedProject: Readonly<FramescaperDesktopProjectLibraryV10PublicationExpectedProject> | null;
 	readonly project: unknown;
@@ -46,7 +47,7 @@ export interface FramescaperDesktopProjectLibraryV10PublicationCompletionRequest
 	readonly publicationId: string;
 }
 
-const BEGIN_FIELDS = ['expectedMetadataRevision', 'expectedProject', 'project', 'bodies'] as const;
+const BEGIN_FIELDS = ['publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies'] as const;
 const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
 const ADMISSION_FIELDS = ['publicationId', 'maximumChunkBytes', 'bodyCount'] as const;
 const CHUNK_FIELDS = ['publicationId', 'bodyIndex', 'offset', 'bytes'] as const;
@@ -73,6 +74,7 @@ export function validateFramescaperDesktopProjectLibraryV10PublicationBeginReque
 		MAXIMUM_BODY_DESCRIPTORS,
 	).map(validateFramescaperDesktopProjectLibraryV10TransferBody);
 	return Object.freeze({
+		publicationId: publicationId(record.publicationId),
 		expectedMetadataRevision: nonNegativeInteger(
 			record.expectedMetadataRevision,
 			'expected metadata revision',

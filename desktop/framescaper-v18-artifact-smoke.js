@@ -4,8 +4,11 @@ const PRELOAD_BRIDGE = Object.freeze([
 	'abortPublication',
 	'beginPublication',
 	'connect',
+	'deleteProject',
+	'duplicateProject',
 	'finishPublication',
 	'handshakeState',
+	'listProjects',
 	'readBodyChunk',
 	'readProjectBundle',
 	'writePublicationChunk',
@@ -71,8 +74,9 @@ export async function runFramescaperV18ArtifactRendererSmoke(scope, expected) {
 
 	const preload = scope?.framescaperProjectLibraryDesktop?.v10;
 	const preloadKeys = Object.keys(exactKeys(preload, [
-		'abortPublication', 'beginPublication', 'connect', 'finishPublication', 'handshakeState',
-		'readBodyChunk', 'readProjectBundle', 'writePublicationChunk',
+		'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
+		'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
+		'writePublicationChunk',
 	], 'V10 preload bridge')).sort();
 	if (preloadKeys.some((key) => typeof preload[key] !== 'function')) {
 		fail('requires callable exact V10 preload bridge methods');

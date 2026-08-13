@@ -1,35 +1,22 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 
-import {
-	createFramescaperDesktopProjectLibraryV10Handshake,
-} from '../desktop/project-library-v10-contract.ts';
-import {
-	connectFramescaperDesktopProjectLibraryV10Renderer,
-	type FramescaperDesktopProjectLibraryV10ShadowStore,
-} from '../src/framescaper/desktop-project-library-v10-renderer.ts';
 import {
 	createFramescaperDesktopProjectStoreV10Adapter,
-	type FramescaperDesktopProjectStoreV10Adapter,
 } from '../src/framescaper/desktop-project-library-v10-store-adapter.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
-import {
-	createFramescaperProjectStoreV18,
-	framescaperProjectStoreAuthorityV18,
-} from '../src/framescaper/editor-project-store-v18.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
-import { createFramescaperProjectV18, type FramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
-import { FramescaperScapeArchiveV18 } from '../src/framescaper/scape-project-preservation-v18.ts';
-import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
-
-const PUBLICATION_ID = 'cd'.repeat(24);
+import type { FramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
+import {
+	lifecycleFixture,
+	projectFixture,
+	webLifecycleFixture,
+	type MutableFramescaperProject,
+} from './helpers/framescaper-desktop-v10-store-fixture.ts';
 
 test('web composition returns the exact local V18 store with no wrapper authority', async (context) => {
-	const fixture = await lifecycleFixture(context, false);
+	const fixture = await webLifecycleFixture(context);
 	assert.equal(createFramescaperDesktopProjectStoreV10Adapter(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 		{ localStore: fixture.localStore, desktopProjectLibrary: null },
@@ -78,7 +65,7 @@ test('save commits in main before exact local shadow reconciliation', async (con
 	assert.deepEqual(fixture.main.events.slice(-2), ['begin', 'finish']);
 	assert.deepEqual(await fixture.localStore.loadProject(String(project.id)), project);
 	assert.deepEqual(Reflect.ownKeys(fixture.main.lastBegin!), [
-		'expectedMetadataRevision', 'expectedProject', 'project', 'bodies',
+		'publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies',
 	]);
 	assert.equal(JSON.stringify(fixture.main.lastBegin).includes('lease'), false);
 	assert.equal(JSON.stringify(fixture.main.lastBegin).includes('path'), false);
@@ -139,6 +126,7 @@ test('desktop lists, duplicates, and deletes through main before reconciling the
 	assert.equal(copy.revision, 0);
 	assert.equal(copy.multicameraGroups[0]?.projectId, 'desktop-lifecycle-copy');
 	assert.deepEqual(await fixture.localStore.loadProject(String(copy.id)), copy);
+	await fixture.store.loadProject(String(source.id));
 	await fixture.store.deleteProject(String(source.id));
 	assert.equal(await fixture.localStore.loadProject(String(source.id)), null);
 	assert.deepEqual((await fixture.store.listProjects()).map(({ id }) => id), [copy.id]);
@@ -184,283 +172,3 @@ test('desktop V10 main JSON and the exact V18 shadow preserve a nonempty multica
 		next.multicameraGroups,
 	);
 });
-
-type LocalStore = ReturnType<typeof createFramescaperProjectStoreV18>;
-
-interface BaseLifecycleFixture {
-	readonly localStore: LocalStore;
-	readonly main: MainFixture;
-}
-
-interface LifecycleFixture extends BaseLifecycleFixture {
-	readonly store: FramescaperDesktopProjectStoreV10Adapter<LocalStore>;
-	readonly main: MainFixture;
-}
-
-interface WebLifecycleFixture extends BaseLifecycleFixture {
-	readonly store: LocalStore;
-	readonly main: MainFixture;
-}
-
-function lifecycleFixture(context: TestContext): Promise<LifecycleFixture>;
-function lifecycleFixture(context: TestContext, desktop: false): Promise<WebLifecycleFixture>;
-async function lifecycleFixture(
-	context: TestContext,
-	desktop = true,
-): Promise<LifecycleFixture | WebLifecycleFixture> {
-	const localStore = createFramescaperProjectStoreV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
-		indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
-		preferOpfs: false,
-	});
-	await localStore.ready();
-	context.after(() => localStore.close());
-	const authority = framescaperProjectStoreAuthorityV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, localStore);
-	assert.ok(authority.opfs);
-	const archive = new FramescaperScapeArchiveV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
-		store: localStore as unknown as FramescaperDesktopProjectLibraryV10ShadowStore,
-		port: authority.port,
-		opfs: authority.opfs,
-	});
-	const main = new MainFixture();
-	if (!desktop) return { localStore, store: localStore, main };
-	installBridge(context, main.api);
-	const renderer = await connectFramescaperDesktopProjectLibraryV10Renderer(
-		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-		{ store: localStore as unknown as FramescaperDesktopProjectLibraryV10ShadowStore, archive },
-	);
-	assert.ok(renderer);
-	const store = createFramescaperDesktopProjectStoreV10Adapter(
-		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-		{ localStore, desktopProjectLibrary: renderer },
-	);
-	return { localStore, store, main };
-}
-
-class MainFixture {
-	readonly events: string[] = [];
-	readonly reads: string[] = [];
-	readonly api;
-	beforeFinish: (() => Promise<void>) | null = null;
-	lastBegin: Record<string, unknown> | null = null;
-	#metadataRevision = 0;
-	#projects = new Map<string, FramescaperProjectV18>();
-	#active: FramescaperProjectV18 | null = null;
-	#connected = false;
-	#publications = 0;
-
-	constructor() {
-		this.api = Object.freeze({
-			connect: async () => { this.#connected = true; return createFramescaperDesktopProjectLibraryV10Handshake(); },
-			handshakeState: () => this.#connected ? 'admitted' : 'pending',
-			listProjects: async () => ({
-				metadataRevision: this.#metadataRevision,
-				projects: [...this.#projects.values()].map((project) => ({
-					id: String(project.id), title: String(project.title), revision: Number(project.revision),
-					updatedAt: String(project.updatedAt),
-				})),
-			}),
-			readProjectBundle: async (projectId: string) => {
-				this.reads.push(projectId);
-				const project = this.#projects.get(projectId);
-				return project ? bundle(project, this.#metadataRevision) : null;
-			},
-			readBodyChunk: async () => { throw new Error('Format-1 fixture has no desktop bodies.'); },
-			beginPublication: async (request: Record<string, unknown>) => this.#begin(request),
-			writePublicationChunk: async () => { throw new Error('Format-1 fixture has no upload bodies.'); },
-			finishPublication: async (request: Record<string, unknown>) => this.#finish(request),
-			abortPublication: async () => { this.#active = null; return true; },
-			deleteProject: async (request: Record<string, unknown>) => this.#delete(request),
-			duplicateProject: async (request: Record<string, unknown>) => this.#duplicate(request),
-		});
-	}
-
-	get publications(): number { return this.#publications; }
-
-	seed(project: FramescaperProjectV18): void {
-		const prior = this.#projects.get(String(project.id));
-		if (!prior || JSON.stringify(prior) !== JSON.stringify(project)) this.#metadataRevision += 1;
-		this.#projects.set(String(project.id), structuredClone(project));
-	}
-
-	#begin(request: Record<string, unknown>) {
-		this.events.push('begin');
-		this.lastBegin = structuredClone(request);
-		const project = structuredClone(request.project) as FramescaperProjectV18;
-		const current = this.#projects.get(String(project.id));
-		if (request.expectedMetadataRevision !== this.#metadataRevision) throw new Error('metadata CAS stale');
-		const expected = request.expectedProject as { projectRevision: number; projectSha256: string } | null;
-		if (expected === null) {
-			if (current) throw new Error('project already exists');
-		} else {
-			if (!current || Number(current.revision) !== expected.projectRevision
-				|| digest(new TextEncoder().encode(JSON.stringify(current))) !== expected.projectSha256) {
-				throw new Error('project CAS stale');
-			}
-		}
-		assert.deepEqual(request.bodies, []);
-		this.#active = project;
-		return { publicationId: PUBLICATION_ID, maximumChunkBytes: 4 * 1024 * 1024, bodyCount: 0 };
-	}
-
-	async #finish(request: Record<string, unknown>) {
-		this.events.push('finish');
-		assert.equal(request.publicationId, PUBLICATION_ID);
-		assert.ok(this.#active);
-		await this.beforeFinish?.();
-		const project = this.#active;
-		this.#active = null;
-		this.#projects.set(String(project.id), structuredClone(project));
-		this.#metadataRevision += 1;
-		this.#publications += 1;
-		return bundle(project, this.#metadataRevision);
-	}
-
-	#delete(request: Record<string, unknown>) {
-		const projectId = String(request.projectId);
-		const current = this.#projects.get(projectId);
-		assert.ok(current);
-		assert.equal(request.expectedMetadataRevision, this.#metadataRevision);
-		const expected = request.expectedProject as { projectRevision: number; projectSha256: string };
-		assert.equal(expected.projectRevision, current.revision);
-		assert.equal(expected.projectSha256, digest(new TextEncoder().encode(JSON.stringify(current))));
-		this.#projects.delete(projectId);
-		this.#metadataRevision += 1;
-		return { projectId, metadataRevision: this.#metadataRevision, deleted: true };
-	}
-
-	#duplicate(request: Record<string, unknown>) {
-		const sourceId = String(request.sourceProjectId);
-		const copyId = String(request.copyProjectId);
-		const source = this.#projects.get(sourceId);
-		assert.ok(source);
-		assert.equal(this.#projects.has(copyId), false);
-		assert.equal(request.expectedMetadataRevision, this.#metadataRevision);
-		const expected = request.expectedSource as { projectRevision: number; projectSha256: string };
-		assert.equal(expected.projectRevision, source.revision);
-		assert.equal(expected.projectSha256, digest(new TextEncoder().encode(JSON.stringify(source))));
-		const copy = structuredClone(source) as unknown as MutableFramescaperProject & FramescaperProjectV18;
-		copy.id = copyId;
-		copy.title = String(request.title);
-		copy.revision = 0;
-		copy.createdAt = String(request.timestamp);
-		copy.updatedAt = String(request.timestamp);
-		for (const group of copy.multicameraGroups) group.projectId = copyId;
-		this.#projects.set(copyId, copy);
-		this.#metadataRevision += 1;
-		return bundle(copy, this.#metadataRevision);
-	}
-}
-
-function bundle(project: FramescaperProjectV18, metadataRevision: number) {
-	const document = JSON.stringify(project);
-	const bytes = new TextEncoder().encode(document);
-	const sha = digest(bytes);
-	const id = 'desktop_entry_01';
-	return {
-		metadataRevision,
-		project: {
-			id, projectId: String(project.id), name: String(project.title),
-			metadataFile: `${id}/${String(project.revision)}-${sha}.json`,
-			preferredProduct: 'framescaper', updatedAtMs: 1_786_550_400_000,
-			projectSchemaVersion: 18, projectRevision: Number(project.revision),
-			byteLength: bytes.byteLength, sha256: sha,
-		},
-		document,
-		bodies: [],
-	};
-}
-
-function installBridge(context: TestContext, api: unknown): void {
-	const name = 'framescaperProjectLibraryDesktop';
-	const prior = Object.getOwnPropertyDescriptor(globalThis, name);
-	Object.defineProperty(globalThis, name, {
-		configurable: true, enumerable: true, writable: false,
-		value: Object.freeze({ v10: api }),
-	});
-	context.after(() => {
-		if (prior) Object.defineProperty(globalThis, name, prior);
-		else Reflect.deleteProperty(globalThis, name);
-	});
-}
-
-function projectFixture(options: Readonly<{
-	id: string;
-	revision: number;
-	title?: string;
-	nested?: boolean;
-	multicamera?: boolean;
-}>): FramescaperProjectV18 {
-	const multicamera = options.multicamera === true;
-	const rate = { num: 30, den: 1 };
-	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
-		id: options.id, title: options.title ?? options.id, now: '2026-08-13T12:00:00.000Z',
-		...(multicamera ? {
-			sources: [
-				createVideoSourceV10({
-					id: 'desktop-camera-source-a', name: 'Camera A', storageKey: 'camera-a',
-					mimeType: 'video/mp4', contentSha256: '12'.repeat(32), sampleFrameCount: 480_000,
-					sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
-				}),
-				createVideoSourceV10({
-					id: 'desktop-camera-source-b', name: 'Camera B', storageKey: 'camera-b',
-					mimeType: 'video/mp4', contentSha256: '34'.repeat(32), sampleFrameCount: 480_000,
-					sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
-				}),
-			],
-			clips: [{
-				kind: 'video', id: 'desktop-multicamera-output', sourceId: 'desktop-camera-source-a',
-				title: 'Multicamera output', sequenceId: 'main-sequence', sequenceStartFrame: 0,
-				sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
-			}],
-			tracks: [createVideoTrackV10({
-				id: 'desktop-video-track', name: 'Video',
-				clipIds: ['desktop-multicamera-output'], locked: false,
-			})],
-			sequences: [{ id: 'main-sequence', rate, trackIds: ['desktop-video-track'] }],
-			primarySequenceId: 'main-sequence',
-			multicameraGroups: [{
-				id: 'desktop-multicamera-group', projectId: options.id,
-				sequenceId: 'main-sequence', outputClipId: 'desktop-multicamera-output',
-				activeMemberId: 'desktop-camera-a',
-				members: [{
-					id: 'desktop-camera-a', groupId: 'desktop-multicamera-group',
-					sourceId: 'desktop-camera-source-a', syncOffsetSamples: 0,
-				}, {
-					id: 'desktop-camera-b', groupId: 'desktop-multicamera-group',
-					sourceId: 'desktop-camera-source-b', syncOffsetSamples: 0,
-				}],
-			}],
-		} : {}),
-		...(options.nested ? {
-			sequences: [
-				{ id: 'main-sequence', rate, trackIds: [] },
-				{ id: 'nested-source-sequence', rate, trackIds: [] },
-			],
-			primarySequenceId: 'main-sequence',
-			subsequences: [{
-				id: 'desktop-nested-placement',
-				sequenceId: 'main-sequence',
-				sourceSequenceId: 'nested-source-sequence',
-				sequenceStartFrame: 0,
-				sequenceFrameCount: 30,
-				sourceInFrame: 0,
-				sourceFrameCount: 30,
-			}],
-		} : {}),
-	});
-	return { ...project, revision: options.revision };
-}
-
-interface MutableFramescaperProject extends Record<string, unknown> {
-	id: string;
-	revision: number;
-	title: string;
-	createdAt: string;
-	updatedAt: string;
-	multicameraGroups: Array<{
-		activeMemberId: string;
-		projectId: string;
-	}>;
-}
-
-function digest(bytes: Uint8Array): string { return bytesToHex(sha256(bytes)); }

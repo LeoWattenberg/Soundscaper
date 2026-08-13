@@ -163,7 +163,7 @@ export class FramescaperDesktopProjectLibraryV10LifecycleHost {
 				descriptor,
 				chunks: this.#bodyChunks(sourceBodies[index]!, signal),
 			})),
-		});
+		}, signal);
 	}
 
 	async *#bodyChunks(

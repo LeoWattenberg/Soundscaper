@@ -222,8 +222,9 @@ function validFramescaperV18Payload() {
 		url: 'framescaper-app://bundle/',
 		framescaperV18: {
 			preloadBridge: [
-				'abortPublication', 'beginPublication', 'connect', 'finishPublication', 'handshakeState',
-				'readBodyChunk', 'readProjectBundle', 'writePublicationChunk',
+				'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
+				'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
+				'writePublicationChunk',
 			],
 			handshake: {
 				kind: 'framescaper-project-library-handshake',

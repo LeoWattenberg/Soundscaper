@@ -140,6 +140,16 @@ test('deletes only the exact current catalog row and preserves immutable duplica
 	assert.deepEqual(copyAfter.bodies, copy.bodies);
 	assert.equal(rows(fixture.database, 'SELECT * FROM project_revisions').length, 2);
 	assert.equal(rows(fixture.database, 'SELECT * FROM managed_bodies').length, 3);
+	const deletedProject = JSON.parse(source.document) as FramescaperProjectV18;
+	await assert.rejects(fixture.host.publish({
+		lease: fixture.lease,
+		expectedMetadataRevision: 3,
+		expectedProject: null,
+		project: deletedProject,
+		bodies: publicationBodies(deletedProject),
+	}), /revision.*occupied|occupied.*revision/iu);
+	assert.equal(await fixture.host.readProjectBundle(SOURCE_ID), null);
+	assert.equal(fixture.lifecycle.listProjects().projects.some(({ id }) => id === SOURCE_ID), false);
 });
 
 test('recovers duplicate and delete crashes without partial catalog or body state', async (context) => {

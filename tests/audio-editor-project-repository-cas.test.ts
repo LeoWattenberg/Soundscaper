@@ -39,6 +39,20 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 	});
 }
 
+test('exact project deletion refuses memory storage before mutation', async () => {
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: uniqueName('project-exact-delete-memory'),
+	});
+	const projects = store.projectRepository as ProjectRepositoryPort;
+	const project = createAudioEditorProjectV17({ id: 'project-exact-delete', title: 'Exact', now: NOW });
+	await projects.save(project);
+	assert.equal(typeof projects.deleteExact, 'function');
+	await assert.rejects(() => projects.deleteExact!(project), /requires durable IndexedDB storage/iu);
+	assert.deepEqual(await projects.load(project.id), project);
+});
+
 function uniqueName(prefix: string): string {
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

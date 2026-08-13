@@ -114,6 +114,11 @@ export class FramescaperProjectRepositoryV18 implements ProjectRepositoryPort {
 		return this.#delegate.deleteIfCurrent(project);
 	}
 
+	async deleteExact(project: ProjectDocument): Promise<boolean> {
+		if (typeof this.#delegate.deleteExact !== 'function') return false;
+		return this.#delegate.deleteExact(this.#snapshot(project));
+	}
+
 	async delete(projectId: string): Promise<void> {
 		await this.#delegate.delete(projectId);
 	}

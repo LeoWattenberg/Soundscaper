@@ -16,12 +16,31 @@ import {
 	validateFramescaperDesktopV10Admission,
 	validateFramescaperDesktopV10BodyChunk,
 	validateFramescaperDesktopV10Bundle,
+	validateFramescaperDesktopV10CatalogSnapshot,
 	validateFramescaperDesktopV10ProjectId,
 	validateFramescaperDesktopV10RendererHandshake,
 	type FramescaperDesktopV10Body,
 	type FramescaperDesktopV10BundleSnapshot,
+	type FramescaperDesktopV10ProjectSummary,
 	type FramescaperDesktopV10RendererBridge,
 } from './desktop-project-library-v10-renderer-contract.ts';
+import {
+	FramescaperDesktopProjectLibraryV10CommittedError,
+	FramescaperDesktopProjectLibraryV10IndeterminateError,
+	FramescaperDesktopV10RendererCatalog,
+	type FramescaperDesktopV10RawShadowProjectStore,
+} from './desktop-project-library-v10-renderer-catalog.ts';
+import {
+	createFramescaperDesktopV10PublicationId,
+	createFramescaperDesktopV10RendererOperationId,
+	FramescaperDesktopV10WitnessLedger,
+	type FramescaperDesktopV10DuplicateOptions,
+} from './desktop-project-library-v10-renderer-lifecycle.ts';
+import {
+	FramescaperDesktopV10DeleteIntents,
+	reconcileFramescaperDesktopV10DeleteIntents,
+	type FramescaperDesktopV10DeleteIntentStore,
+} from './desktop-project-library-v10-delete-intents.ts';
 import {
 	FramescaperScapeArchiveV18,
 	type FramescaperScapeArchiveBodyStoreV18,
@@ -32,14 +51,28 @@ export interface FramescaperDesktopProjectLibraryV10RendererComposition {
 	readonly archive: FramescaperScapeArchiveV18;
 }
 
-export interface FramescaperDesktopProjectLibraryV10ShadowStore extends FramescaperScapeArchiveBodyStoreV18 {
+export interface FramescaperDesktopProjectLibraryV10ShadowStore extends
+	FramescaperScapeArchiveBodyStoreV18, FramescaperDesktopV10RawShadowProjectStore {
 	loadProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown;
+	getStatus(): unknown;
+	readonly settingsRepository: FramescaperDesktopV10DeleteIntentStore;
+	readonly linkedOriginalStoreService: Readonly<{
+		deleteProject<Value>(projectId: string, operation: () => PromiseLike<Value> | Value): Promise<Value>;
+	}>;
 }
 
 export interface FramescaperDesktopProjectLibraryV10Renderer {
+	listProjects(): Promise<readonly Readonly<FramescaperDesktopV10ProjectSummary>[]>;
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<FramescaperProjectV18 | null>;
 	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
 		Promise<FramescaperProjectV18>;
+	deleteProject(projectId: string): Promise<void>;
+	cleanupDeletedProject(projectId: string): Promise<boolean>;
+	settleDeletedProject(projectId: string): Promise<boolean>;
+	duplicateProject(
+		sourceProjectId: string,
+		options: Readonly<FramescaperDesktopV10DuplicateOptions>,
+	): Promise<FramescaperProjectV18>;
 }
 
 const RENDERER_COMPOSITIONS = new WeakMap<object, Readonly<{
@@ -47,14 +80,10 @@ const RENDERER_COMPOSITIONS = new WeakMap<object, Readonly<{
 	readonly store: FramescaperDesktopProjectLibraryV10ShadowStore;
 }>>();
 
-export class FramescaperDesktopProjectLibraryV10CommittedError extends Error {
-	readonly committed = true;
-
-	constructor(cause: unknown) {
-		super('The Framescaper desktop V10 publication committed, but renderer shadow reconciliation failed.', { cause });
-		this.name = 'FramescaperDesktopProjectLibraryV10CommittedError';
-	}
-}
+export {
+	FramescaperDesktopProjectLibraryV10CommittedError,
+	FramescaperDesktopProjectLibraryV10IndeterminateError,
+} from './desktop-project-library-v10-renderer-catalog.ts';
 
 const COMPOSITION_FIELDS = ['store', 'archive'] as const;
 const PUBLICATION_REQUIRED_FIELDS = ['project'] as const;
@@ -77,11 +106,30 @@ export async function connectFramescaperDesktopProjectLibraryV10Renderer(
 		throw new TypeError('The exact Framescaper V18 archive is required for desktop reconciliation.');
 	}
 	archive.assertComposition(profile, store);
-	if (typeof store.loadProject !== 'function') {
+	const rawRepository = ownData(store, 'projectRepository', 'Framescaper V18 shadow store');
+	if (typeof store.loadProject !== 'function' || !rawRepository || typeof rawRepository !== 'object'
+		|| typeof inheritedData(rawRepository, 'deleteExact') !== 'function') {
 		throw new TypeError('The exact Framescaper V18 shadow project store is required.');
 	}
 	const bridge = resolveFramescaperDesktopV10RendererBridge();
 	if (!bridge) return null;
+	const settingsRepository = ownData(store, 'settingsRepository', 'Framescaper V18 shadow store');
+	const lifecycle = ownData(store, 'linkedOriginalStoreService', 'Framescaper V18 shadow store');
+	if (!settingsRepository || typeof settingsRepository !== 'object'
+		|| !lifecycle || typeof lifecycle !== 'object'
+		|| typeof inheritedData(lifecycle, 'deleteProject') !== 'function'
+		|| typeof inheritedData(store, 'getStatus') !== 'function') {
+		throw new TypeError('The exact Framescaper V18 shadow project store is required.');
+	}
+	for (const method of ['putIfAbsent', 'deleteIfCurrent', 'listByPrefix'] as const) {
+		if (typeof inheritedData(settingsRepository, method) !== 'function') {
+			throw new TypeError('The exact durable Framescaper V18 settings repository is required.');
+		}
+	}
+	const status = store.getStatus() as Readonly<Record<string, unknown>>;
+	if (!status || status.state !== 'indexeddb' || status.persistent !== true) {
+		throw new Error('The desktop V10 lifecycle requires a durable IndexedDB V18 shadow.');
+	}
 	const handshake = await bridge.connect();
 	const databaseName = ownData(store, 'databaseName', 'Framescaper V18 shadow store');
 	if (typeof databaseName !== 'string') throw new TypeError('The exact V18 shadow database identity is required.');
@@ -89,7 +137,11 @@ export async function connectFramescaperDesktopProjectLibraryV10Renderer(
 	if (bridge.handshakeState() !== 'admitted') {
 		throw new TypeError('The Framescaper desktop V10 bridge did not retain its admitted handshake.');
 	}
-	const renderer = Object.freeze(new Renderer(profile, store, archive, bridge));
+	const intents = new FramescaperDesktopV10DeleteIntents(
+		settingsRepository as FramescaperDesktopV10DeleteIntentStore,
+	);
+	await reconcileFramescaperDesktopV10DeleteIntents({ profile, bridge, shadow: store, intents });
+	const renderer = Object.freeze(new Renderer(profile, store, archive, bridge, intents));
 	RENDERER_COMPOSITIONS.set(renderer, Object.freeze({ profile, store }));
 	return renderer;
 }
@@ -112,7 +164,8 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 	readonly #store: FramescaperDesktopProjectLibraryV10ShadowStore;
 	readonly #archive: FramescaperScapeArchiveV18;
 	readonly #bridge: FramescaperDesktopV10RendererBridge;
-	readonly #witnesses = new Map<string, Witness>();
+	readonly #ledger: FramescaperDesktopV10WitnessLedger;
+	readonly #catalog: FramescaperDesktopV10RendererCatalog;
 	#tail: Promise<void> = Promise.resolve();
 
 	constructor(
@@ -120,11 +173,25 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 		store: FramescaperDesktopProjectLibraryV10ShadowStore,
 		archive: FramescaperScapeArchiveV18,
 		bridge: FramescaperDesktopV10RendererBridge,
+		intents: FramescaperDesktopV10DeleteIntents,
 	) {
 		this.#profile = profile;
 		this.#store = store;
 		this.#archive = archive;
 		this.#bridge = bridge;
+		this.#ledger = new FramescaperDesktopV10WitnessLedger(profile);
+		this.#catalog = new FramescaperDesktopV10RendererCatalog({
+			profile,
+			store,
+			bridge,
+			ledger: this.#ledger,
+			intents,
+			reconcile: (snapshot) => this.#reconcile(snapshot),
+		});
+	}
+
+	listProjects(): Promise<readonly Readonly<FramescaperDesktopV10ProjectSummary>[]> {
+		return this.#exclusive(() => this.#catalog.listProjects());
 	}
 
 	readProject(projectIdValue: string, optionsValue: Readonly<{ signal?: AbortSignal }> = {}) {
@@ -135,19 +202,17 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 			const raw = await this.#bridge.readProjectBundle(projectId);
 			throwIfScapeAborted(signal);
 			if (raw === null) {
-				this.#witnesses.set(projectId, Object.freeze({ kind: 'absent', expectedMetadataRevision: 0 }));
+				const catalog = validateFramescaperDesktopV10CatalogSnapshot(await this.#bridge.listProjects());
+				throwIfScapeAborted(signal);
+				if (catalog.projects.some(({ id }) => id === projectId)) {
+					throw new Error('The desktop V10 project bundle is absent from a catalog that still owns it.');
+				}
+				this.#ledger.rememberAbsent(projectId, catalog.metadataRevision);
 				return null;
 			}
 			const snapshot = validateFramescaperDesktopV10Bundle(this.#profile, raw, projectId);
 			const project = await this.#reconcile(snapshot, signal);
-			this.#witnesses.set(projectId, Object.freeze({
-				kind: 'current',
-				expectedMetadataRevision: snapshot.bundle.metadataRevision,
-				expectedProject: Object.freeze({
-					projectRevision: snapshot.bundle.project.projectRevision,
-					projectSha256: snapshot.bundle.project.sha256,
-				}),
-			}));
+			this.#ledger.rememberCurrent(snapshot);
 			return project;
 		});
 	}
@@ -157,10 +222,29 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 		return this.#exclusive(() => this.#publishFromWitness(request));
 	}
 
+	deleteProject(projectIdValue: string): Promise<void> {
+		return this.#exclusive(() => this.#catalog.deleteProject(projectIdValue));
+	}
+
+	cleanupDeletedProject(projectIdValue: string): Promise<boolean> {
+		return this.#exclusive(() => this.#catalog.cleanupDeletedProject(projectIdValue));
+	}
+
+	settleDeletedProject(projectIdValue: string): Promise<boolean> {
+		return this.#exclusive(() => this.#catalog.settleDeletedProject(projectIdValue));
+	}
+
+	duplicateProject(
+		sourceProjectIdValue: string,
+		optionsValue: Readonly<FramescaperDesktopV10DuplicateOptions>,
+	): Promise<FramescaperProjectV18> {
+		return this.#exclusive(() => this.#catalog.duplicateProject(sourceProjectIdValue, optionsValue));
+	}
+
 	async #publishFromWitness(request: RendererPublication): Promise<FramescaperProjectV18> {
 		const projectId = validateFramescaperDesktopV10ProjectId(String(request.project.id));
-		const witness = this.#witnesses.get(projectId);
-		if (!witness) throw new Error('An authoritative desktop V10 load witness is required before publication.');
+		await this.#catalog.observeCatalog();
+		const witness = this.#ledger.take(projectId);
 		if (witness.kind === 'absent') {
 			if (Number(request.project.revision) !== 0) {
 				throw new Error('The desktop V10 absence witness can publish only fresh revision zero.');
@@ -174,8 +258,9 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 				expectedMetadataRevision: witness.expectedMetadataRevision,
 				expectedProject: witness.kind === 'absent' ? null : witness.expectedProject,
 			}));
-		} finally {
-			this.#witnesses.delete(projectId);
+		} catch (error) {
+			this.#ledger.clear();
+			throw error;
 		}
 	}
 
@@ -200,38 +285,59 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 			|| JSON.stringify(exported.assets.map(({ descriptor }) => descriptor)) !== JSON.stringify(planned.assets)) {
 			throw new Error('The V18 shadow export changed its exact proxy/timing publication plan.');
 		}
-		let publicationId: string | null = null;
+		const publicationId = createFramescaperDesktopV10PublicationId();
 		let committed = false;
 		try {
 			const admission = validateFramescaperDesktopV10Admission(await this.#bridge.beginPublication({
+				publicationId,
 				expectedMetadataRevision: request.expectedMetadataRevision,
 				expectedProject: request.expectedProject,
 				project: request.project,
 				bodies: planned.bodies,
 			}), planned.bodies.length);
-			publicationId = admission.publicationId;
+			if (admission.publicationId !== publicationId) {
+				throw new Error('The desktop V10 publication admission changed its renderer operation id.');
+			}
 			for (const [bodyIndex, asset] of exported.assets.entries()) {
 				await this.#uploadBody(publicationId, bodyIndex, planned.bodies[bodyIndex]!, asset.body, request.signal);
 			}
 			throwIfScapeAborted(request.signal);
-			const raw = await this.#bridge.finishPublication({ publicationId });
-			committed = true;
-			const result = validateFramescaperDesktopV10Bundle(this.#profile, raw, projectId);
+			const result = validateFramescaperDesktopV10Bundle(
+				this.#profile,
+				await this.#bridge.finishPublication({ publicationId }),
+				projectId,
+			);
 			assertPublicationResult(request, result);
-			return await this.#reconcile(result, request.signal);
+			committed = true;
+			const reconciled = await this.#reconcile(result, request.signal);
+			this.#ledger.commitSnapshot(request.expectedMetadataRevision, result);
+			return reconciled;
 		} catch (error) {
-			if (committed) throw new FramescaperDesktopProjectLibraryV10CommittedError(error);
-			if (publicationId === null) throw error;
+			if (error instanceof FramescaperDesktopProjectLibraryV10IndeterminateError) throw error;
+			if (committed) {
+				throw new FramescaperDesktopProjectLibraryV10CommittedError('publication', projectId, error);
+			}
+			let primary = error;
 			try {
 				validateFramescaperDesktopV10Abort(await this.#bridge.abortPublication({ publicationId }));
 			} catch (cleanupError) {
-				throw new AggregateError(
+				primary = new AggregateError(
 					[error, cleanupError],
 					'Framescaper desktop V10 publication and abort both failed.',
 					{ cause: error },
 				);
 			}
-			throw error;
+			const recovered = await this.#catalog.recoverPublication(request, primary);
+			if (recovered === null) throw primary;
+			try {
+				const reconciled = await this.#reconcile(recovered, request.signal);
+				this.#ledger.commitSnapshot(request.expectedMetadataRevision, recovered);
+				return reconciled;
+			} catch (reconcileError) {
+				throw new FramescaperDesktopProjectLibraryV10CommittedError(
+					'publication', projectId, reconcileError,
+				);
+			}
 		}
 	}
 
@@ -281,7 +387,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 			project: snapshot.project,
 			decision: 'continue',
 			entries: snapshotEntries(snapshot, this.#bridge, signal),
-			operationId: operationId(),
+			operationId: createFramescaperDesktopV10RendererOperationId(),
 			publication,
 			...(signal ? { signal } : {}),
 		});
@@ -313,13 +419,6 @@ interface RendererPublication {
 	readonly documentSha256: string;
 	readonly signal?: AbortSignal;
 }
-
-type Witness = Readonly<{ readonly kind: 'absent'; readonly expectedMetadataRevision: 0 }>
-	| Readonly<{
-		readonly kind: 'current';
-		readonly expectedMetadataRevision: number;
-		readonly expectedProject: Readonly<{ readonly projectRevision: number; readonly projectSha256: string }>;
-	}>;
 
 function rendererPublicationRequest(profile: EditorProjectRuntimeProfile, value: unknown): RendererPublication {
 	const raw = allowedRecord(
@@ -447,13 +546,6 @@ async function transferBody(
 	}
 }
 
-function operationId(): string {
-	if (typeof globalThis.crypto?.randomUUID !== 'function') {
-		throw new Error('A cryptographic renderer operation identity is required for V18 reconciliation.');
-	}
-	return `desktop-v10:${globalThis.crypto.randomUUID()}`;
-}
-
 function sameProject(left: FramescaperProjectV18, right: FramescaperProjectV18): boolean {
 	return serializeScapeProjectDocument(left) === serializeScapeProjectDocument(right);
 }
@@ -493,4 +585,14 @@ function ownData(value: object, field: string, name: string): unknown {
 		throw new TypeError(`${name}.${field} must be an own data property.`);
 	}
 	return descriptor.value;
+}
+
+function inheritedData(value: object, field: string): unknown {
+	let candidate: object | null = value;
+	while (candidate) {
+		const descriptor = Object.getOwnPropertyDescriptor(candidate, field);
+		if (descriptor) return Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined;
+		candidate = Object.getPrototypeOf(candidate) as object | null;
+	}
+	return undefined;
 }

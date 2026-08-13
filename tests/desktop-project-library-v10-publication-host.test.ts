@@ -314,6 +314,39 @@ test('a pre-journal digest failure cleans private stages and publishes nothing',
 	assert.equal((await stageFiles(fixture.paths.libraryRoot)).length, 0);
 });
 
+test('abort is honored before prepare but ignored after the recovery journal owns roll-forward', async (context) => {
+	const before = await createFixture(context);
+	const prePrepare = new AbortController();
+	prePrepare.abort(new Error('cancel before prepare'));
+	await assert.rejects(before.host.publish({
+		lease: before.lease,
+		expectedMetadataRevision: 0,
+		expectedProject: null,
+		project: projectAt(1),
+		bodies: publicationBodies(projectAt(1)),
+	}, prePrepare.signal), /cancel before prepare|abort/iu);
+	assert.deepEqual(rows(before.database, 'SELECT state FROM publication_journal'), []);
+	assert.deepEqual(row(before.database, 'SELECT revision FROM library_metadata'), { revision: 0 });
+	assert.equal((await stageFiles(before.paths.libraryRoot)).length, 0);
+
+	const controller = new AbortController();
+	const after = await createFixture(context, {
+		checkpoint: (phase) => {
+			if (phase === 'prepared') controller.abort(new Error('cancel after prepare'));
+		},
+	});
+	const committed = await after.host.publish({
+		lease: after.lease,
+		expectedMetadataRevision: 0,
+		expectedProject: null,
+		project: projectAt(1),
+		bodies: publicationBodies(projectAt(1)),
+	}, controller.signal);
+	assert.equal(committed.metadataRevision, 1);
+	assert.deepEqual(rows(after.database, 'SELECT state FROM publication_journal'), [{ state: 'complete' }]);
+	assert.deepEqual(row(after.database, 'SELECT revision FROM library_metadata'), { revision: 1 });
+});
+
 test('keeps publication internals unreachable from V9 and the maintained Electron entrypoints', async () => {
 	for (const legacy of [
 		'desktop/main.mjs', 'desktop/preload.mjs', 'desktop/project-library-ipc.js',

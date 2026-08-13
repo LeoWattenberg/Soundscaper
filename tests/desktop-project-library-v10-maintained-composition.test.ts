@@ -27,6 +27,9 @@ const CHANNELS = Object.freeze([
 	'framescaper:v10:projects:handshake',
 	'framescaper:v10:projects:bundle',
 	'framescaper:v10:projects:bodies:read',
+	'framescaper:v10:projects:list',
+	'framescaper:v10:projects:delete',
+	'framescaper:v10:projects:duplicate',
 	'framescaper:v10:projects:publication:begin',
 	'framescaper:v10:projects:publication:chunk',
 	'framescaper:v10:projects:publication:finish',
@@ -111,13 +114,14 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 		revision: 0,
 		now: '2026-08-13T12:00:00.000Z',
 	});
-	const admission = await handlers.get(CHANNELS[3])!({ owner }, {
+	const admission = await handlers.get(CHANNELS[6])!({ owner }, {
+		publicationId: 'ab'.repeat(24),
 		expectedMetadataRevision: 0,
 		expectedProject: null,
 		project,
 		bodies: [],
 	}) as { publicationId: string };
-	const bundle = await handlers.get(CHANNELS[5])!({ owner }, {
+	const bundle = await handlers.get(CHANNELS[8])!({ owner }, {
 		publicationId: admission.publicationId,
 	}) as {
 		metadataRevision: number;
@@ -199,7 +203,12 @@ test('sandbox bundle exposes only the handshake-first pathless V10 bridge', asyn
 				contextBridge: { exposeInMainWorld: (name: string, value: unknown) => exposed.set(name, value) },
 				ipcRenderer: { invoke: (channel: string, value: unknown) => {
 					calls.push({ channel, value });
-					return Promise.resolve(value);
+					if (channel === CHANNELS[0]) return Promise.resolve(value);
+					if (channel === CHANNELS[3]) return Promise.resolve(Object.assign(Object.create(null), {
+						metadataRevision: 0,
+						projects: [],
+					}));
+					throw new Error(`Unexpected sandbox invocation: ${channel}`);
 				} },
 			};
 		},
@@ -207,10 +216,12 @@ test('sandbox bundle exposes only the handshake-first pathless V10 bridge', asyn
 	assert.deepEqual([...exposed.keys()], ['framescaperProjectLibraryDesktop']);
 	const bridge = (exposed.get('framescaperProjectLibraryDesktop') as { v10: PreloadBridge }).v10;
 	assert.deepEqual(Object.keys(bridge).sort(), [
-		'abortPublication', 'beginPublication', 'connect', 'finishPublication', 'handshakeState',
-		'readBodyChunk', 'readProjectBundle', 'writePublicationChunk',
+		'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
+		'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
+		'writePublicationChunk',
 	]);
 	await assert.rejects(() => bridge.readProjectBundle('project-before-handshake'), /handshake.*required/iu);
+	await assert.rejects(() => bridge.listProjects(), /handshake.*required/iu);
 	assert.equal(calls.length, 0);
 	assert.deepEqual(JSON.parse(JSON.stringify(await bridge.connect())), exactHandshake());
 	assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ channel: CHANNELS[0], value: exactHandshake() }]);
@@ -256,5 +267,8 @@ interface ProductRuntime {
 interface PreloadBridge {
 	connect(): Promise<Readonly<Record<string, unknown>>>;
 	handshakeState(): string;
+	listProjects(): Promise<unknown>;
 	readProjectBundle(projectId: string): Promise<unknown>;
+	deleteProject(value: unknown): Promise<unknown>;
+	duplicateProject(value: unknown): Promise<unknown>;
 }
