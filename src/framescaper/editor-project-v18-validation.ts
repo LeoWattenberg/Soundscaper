@@ -9,6 +9,10 @@ import {
 	type AudioEditorProjectV17ValidationOptions,
 } from '../common/editor/project-v17-validation.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import {
+	framescaperProjectFeatureRequirementsForV17Foundation,
+	validateFramescaperProjectFeatureRequirementsV18,
+} from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 
 export const FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION = 18 as const;
@@ -64,8 +68,13 @@ export function validateFramescaperProjectV18(
 	const v17Project = copyDataRecord(candidate, 'Framescaper project');
 	v17Project.schemaVersion = 17;
 	v17Project.sources = v17Sources;
+	v17Project.featureRequirements = framescaperProjectFeatureRequirementsForV17Foundation(
+		profile,
+		candidate,
+	);
 	validateAttachmentRelationships(candidate, sources, normalizedAttachments);
 	validateAudioEditorProjectV17(v17Project, options);
+	validateFramescaperProjectFeatureRequirementsV18(profile, candidate);
 	return true;
 }
 

@@ -61,19 +61,29 @@ test('all-null V18 creation and reconciliation remove the private proxy requirem
 		featureRequirements: manifest([FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18]),
 	});
 	assert.equal(project.sources[0]?.proxyAttachment, null);
-	assert.deepEqual(project.featureRequirements, manifest([]));
+	assert.equal(project.featureRequirements.requirements.some(
+		(requirement) => requirement.id === 'framescaper.video-proxy',
+	), false);
 
 	const retained = structuredClone(project) as Record<string, unknown>;
-	retained.featureRequirements = manifest([FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18]);
+	retained.featureRequirements = manifest([
+		...(retained.featureRequirements as { requirements: readonly unknown[] }).requirements,
+		FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
+	]);
 	assert.throws(() => validateFramescaperProjectV18(PROFILE, retained), /all-null.*must not retain/iu);
-	assert.deepEqual(reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, retained), manifest([]));
+	assert.equal(reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, retained).requirements.some(
+		(requirement) => requirement.id === 'framescaper.video-proxy',
+	), false);
 });
 
 test('an attached V18 project requires exactly the reserved bypass declaration', () => {
 	const project = attachedProject();
 	assert.throws(() => validateFramescaperProjectV18(PROFILE, project), /requires.*framescaper.video-proxy/iu);
 	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, project);
-	assert.deepEqual(project.featureRequirements, manifest([FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18]));
+	assert.deepEqual(
+		(project.featureRequirements as { requirements: readonly unknown[] }).requirements.at(-1),
+		FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
+	);
 	assert.equal(validateFramescaperProjectV18(PROFILE, project), true);
 
 	for (const [requirement, message] of [
@@ -84,7 +94,10 @@ test('an attached V18 project requires exactly the reserved bypass declaration',
 		[{ ...FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18, id: 'publisher.video-proxy' }, /publisher.*substitution/iu],
 	] as const) {
 		const invalid = attachedProject();
-		invalid.featureRequirements = manifest([requirement]);
+		invalid.featureRequirements = manifest([
+			...(invalid.featureRequirements as { requirements: readonly unknown[] }).requirements,
+			requirement,
+		]);
 		assert.throws(() => validateFramescaperProjectV18(PROFILE, invalid), message);
 	}
 });
@@ -92,20 +105,20 @@ test('an attached V18 project requires exactly the reserved bypass declaration',
 test('the V18 compatibility service reports the private capability known and unavailable', () => {
 	const service = createFramescaperProjectFeatureCompatibilityServiceV18(PROFILE);
 	const allNull = createFramescaperProjectV18(PROFILE, options());
-	assert.deepEqual(service.evaluate(allNull), {
-		schemaVersion: 1,
-		format: 'soundscaper-project',
-		compatible: true,
-		counts: { available: 0, unavailable: 0, unknown: 0 },
-		items: [],
-	});
+	const allNullReport = service.evaluate(allNull);
+	assert.equal(allNullReport?.compatible, true);
+	assert.equal(allNullReport?.items.some(
+		(item) => item.featureId === FRAMESCAPER_VIDEO_PROXY_FEATURE_ID,
+	), false);
 
 	const project = attachedProject();
 	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, project);
 	const report = service.evaluate(project);
 	assert.equal(report?.compatible, false);
-	assert.deepEqual(report?.counts, { available: 0, unavailable: 1, unknown: 0 });
-	assert.deepEqual(report?.items[0], {
+	assert.equal(report?.counts.unavailable, 1);
+	assert.deepEqual(report?.items.find(
+		(item) => item.featureId === FRAMESCAPER_VIDEO_PROXY_FEATURE_ID,
+	), {
 		requirementId: 'framescaper.video-proxy',
 		featureId: FRAMESCAPER_VIDEO_PROXY_FEATURE_ID,
 		displayName: 'Video proxy attachments',

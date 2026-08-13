@@ -13,6 +13,9 @@ import {
 } from '../src/common/editor/project-v10.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import {
+	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
+} from '../src/framescaper/editor-project-feature-requirements-v18.ts';
+import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
@@ -256,5 +259,10 @@ function withAttachment(
 		tracks: Record<string, unknown>[];
 	};
 	result.sources[0].proxyAttachment = value;
+	const requirements = (result.featureRequirements as { requirements: readonly unknown[] }).requirements;
+	result.featureRequirements = {
+		schemaVersion: 2,
+		requirements: [...requirements, FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18],
+	};
 	return result;
 }

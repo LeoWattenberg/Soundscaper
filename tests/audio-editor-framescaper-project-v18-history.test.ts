@@ -5,6 +5,9 @@ import test from 'node:test';
 
 import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
+	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
+} from '../src/framescaper/editor-project-feature-requirements-v18.ts';
+import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
@@ -80,6 +83,11 @@ test('generic V18 commands cannot introduce, remove, or change proxy attachment 
 		primarySequenceId: 'main-sequence',
 	})) as unknown as Record<string, unknown>;
 	(attached.sources as Record<string, unknown>[])[0]!.proxyAttachment = attachment();
+	const requirements = (attached.featureRequirements as { requirements: readonly unknown[] }).requirements;
+	attached.featureRequirements = {
+		schemaVersion: 2,
+		requirements: [...requirements, FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18],
+	};
 	assert.throws(() => applyFramescaperProjectCommandV18(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 		attached,

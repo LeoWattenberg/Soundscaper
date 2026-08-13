@@ -39,6 +39,8 @@ const FINAL_GENERIC_MODULE = 'src/common/editor/project-runtime-profile.ts';
 const FINAL_PRODUCT_MODULE = 'src/framescaper/editor-project-runtime-profile-' + 'v18.ts';
 const TEST_MODULE = 'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts';
 const FINAL_TEST_MODULE = 'tests/audio-editor-framescaper-project-runtime-profile.test.ts';
+const FEATURE_OWNER_MODULE = 'src/framescaper/editor-project-feature-requirements-v18.ts';
+const FEATURE_TEST_MODULE = 'tests/audio-editor-framescaper-project-v18-feature-requirements.test.ts';
 const PREREQUISITE_MODULE = 'src/framescaper/editor-project-runtime-profile-v18-prerequisite.ts';
 const PRODUCT_EXPORT = 'FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE';
 const PRODUCT_MODULE_STEM = 'editor-project-feature-capability-profile-v18';
@@ -307,7 +309,7 @@ test('authenticates only creator-issued identities without observing any forgery
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE);
 });
 
-test('keeps the product token and module path statically dormant outside its focused proof', async () => {
+test('keeps private capability ownership within the closed V18 domain set', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const exportReferences: string[] = [];
 	const pathReferences: string[] = [];
@@ -325,9 +327,12 @@ test('keeps the product token and module path statically dormant outside its foc
 	]);
 	assert.deepEqual(pathReferences, [FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE]);
 	assert.deepEqual(genericPathReferences, [
-		FINAL_GENERIC_MODULE, PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
+		FINAL_GENERIC_MODULE, PRODUCT_MODULE, FEATURE_OWNER_MODULE, FINAL_PRODUCT_MODULE,
+		TEST_MODULE, FINAL_TEST_MODULE,
 	]);
-	assert.deepEqual(privateIdReferences, [PRODUCT_MODULE, TEST_MODULE]);
+	assert.deepEqual(privateIdReferences, [
+		PRODUCT_MODULE, FEATURE_OWNER_MODULE, TEST_MODULE, FEATURE_TEST_MODULE,
+	]);
 	const generic = await readSource(GENERIC_MODULE);
 	assert.deepEqual(importSpecifiers(generic), []);
 	assert.doesNotMatch(generic, /^\s*import\b|\brequire\s*\(|\bimport\s*\(/gmu);

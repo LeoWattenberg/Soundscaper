@@ -6,6 +6,9 @@ import {
 	type AudioEditorProjectV17Options,
 } from '../common/editor/project-v17.ts';
 import { normalizeVideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
+import {
+	reconcileFramescaperProjectFeatureRequirementsV18,
+} from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
 	FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
@@ -42,11 +45,12 @@ export function createFramescaperProjectV18(
 		else delete result.proxyAttachment;
 		return result;
 	});
-	const project = {
+	const project: Record<string, unknown> = {
 		...foundation,
 		schemaVersion: FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
 		sources,
 	};
+	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(profile, project);
 	validateFramescaperProjectV18(profile, project);
 	return project as unknown as FramescaperProjectV18;
 }

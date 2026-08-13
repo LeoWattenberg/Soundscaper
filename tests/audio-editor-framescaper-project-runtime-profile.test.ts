@@ -307,7 +307,9 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'src/framescaper/editor-project-v18-profile.ts',
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-v18-domain.test.ts',
+		'tests/audio-editor-framescaper-project-v18-feature-requirements.test.ts',
 		'tests/audio-editor-framescaper-project-v18-history.test.ts',
+		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 	]);
 	assert.deepEqual(productPathReferences, [
@@ -315,11 +317,14 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'src/framescaper/editor-project-v18-profile.ts',
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-v18-domain.test.ts',
+		'tests/audio-editor-framescaper-project-v18-feature-requirements.test.ts',
 		'tests/audio-editor-framescaper-project-v18-history.test.ts',
+		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 	]);
 	assert.deepEqual(genericPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
+		'src/framescaper/editor-project-feature-requirements-v18.ts',
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-v18-commands.ts',
 		'src/framescaper/editor-project-v18-history.ts',
