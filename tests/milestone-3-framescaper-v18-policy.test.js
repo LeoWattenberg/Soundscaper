@@ -39,6 +39,12 @@ test('Framescaper V18 editorial compatibility claims match maintained scope', as
 		for (const claim of claims) assert.match(rule.currentBehavior, claim, id);
 		for (const reference of rule.evidence) await evidenceExists(reference);
 	}
+	assert.ok(rules.get('framescaper-v18-nested-sequence-native').evidence.includes(
+		'tests/browser/framescaper-v18-nested-authoring.spec.js',
+	));
+	assert.ok(rules.get('framescaper-v18-multicamera-native').evidence.includes(
+		'tests/browser/framescaper-v18-multicamera.spec.js',
+	));
 
 	const proxyUse = rules.get('video-proxy-fallback');
 	assert.equal(proxyUse.status, 'planned');
