@@ -26,6 +26,7 @@ import {
 	resolveM4ParityCollectionEnvironment,
 } from './lib/m4-production-parity-identity.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
+import { validateM4ParityVideoFixture } from './lib/m4-production-parity-video-fixture.mjs';
 import { verifyQualityBudgetResultFiles } from './verify-quality-budget-result.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -105,6 +106,7 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 	const config = snapshotStrictJsonData(inputConfig, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
+	const videoFixture = exactDescriptor(config.fixtures, VIDEO_FIXTURE_ID, 'fixture');
 	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 	assertIdentity(diagnostic);
@@ -139,7 +141,17 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 		expectedFixture,
 	);
 
-	const videoCases = boundedArray(diagnostic.videoCases, 1, 64, 'diagnostic.videoCases');
+	const registeredVideoFixture = validateM4ParityVideoFixture(
+		videoFixture,
+		expectedFixture.videoWidth,
+		expectedFixture.videoHeight,
+	);
+	const videoCases = boundedArray(
+		diagnostic.videoCases,
+		registeredVideoFixture.cases.length,
+		registeredVideoFixture.cases.length,
+		'diagnostic.videoCases',
+	);
 	const caseNames = new Set();
 	const requestedEffectIds = new Set();
 	const unrenderedEffectIds = new Set();
@@ -149,9 +161,15 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 	for (const [index, value] of videoCases.entries()) {
 		const path = `diagnostic.videoCases[${index}]`;
 		const videoCase = exactRecord(value, [
-			'exportBase64', 'height', 'name', 'previewBase64', 'renderReport', 'width',
+			'exportBase64', 'fixtureArtifactId', 'fixtureBase64', 'height', 'name',
+			'previewBase64', 'renderReport', 'width',
 		], path);
 		const name = boundedString(videoCase.name, 1, 160, `${path}.name`);
+		const registeredCase = registeredVideoFixture.cases[index];
+		if (name !== registeredCase.name
+			|| videoCase.fixtureArtifactId !== registeredCase.fixtureArtifactId) {
+			throw new Error(`${path} does not match the frozen M4 video case inventory.`);
+		}
 		if (caseNames.has(name)) throw new Error(`Duplicate M4 video parity case ${name}.`);
 		caseNames.add(name);
 		if (videoCase.width !== expectedFixture.videoWidth
@@ -159,6 +177,17 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 			throw new Error(`${path} does not use the frozen video geometry.`);
 		}
 		const byteLength = videoCase.width * videoCase.height * 4;
+		const fixtureBytes = decodeM4ParityRgba(
+			videoCase.fixtureBase64,
+			byteLength,
+			`${path} fixture`,
+		);
+		const registeredArtifact = registeredVideoFixture.artifacts.get(videoCase.fixtureArtifactId);
+		if (!registeredArtifact
+			|| registeredArtifact.byteLength !== fixtureBytes.byteLength
+			|| registeredArtifact.sha256 !== sha256(fixtureBytes)) {
+			throw new Error(`${path} fixture bytes do not match the registered RGBA golden.`);
+		}
 		const preview = decodeM4ParityRgba(videoCase.previewBase64, byteLength, `${path} preview`);
 		const exported = decodeM4ParityRgba(videoCase.exportBase64, byteLength, `${path} export`);
 		const metrics = compareM4ParityVideo(preview, exported, videoCase.width, videoCase.height);

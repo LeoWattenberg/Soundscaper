@@ -5,10 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import {
-	createM4ProductionParityAudioFixture,
-	encodeM4ProductionParityAudio,
-} from '../src/common/editor/quality/m4-production-parity-workload.ts';
+import { createM4ProductionParityAudioFixture, encodeM4ProductionParityAudio } from '../src/common/editor/quality/m4-production-parity-workload.ts';
 import {
 	collectM4ProductionParityDiagnostic,
 	createPendingM4ProductionParityResult,
@@ -21,7 +18,10 @@ import {
 	mergeM4ParityReferenceFingerprint,
 	readM4ParityReferenceHostObservation,
 } from '../scripts/lib/m4-production-parity-identity.mjs';
-import { createVideoEffectParityFixture } from './browser/video-effect-parity-helpers.js';
+import {
+	makeM4ProductionParityDiagnostic as makeDiagnostic,
+	toBase64,
+} from './helpers/m4-production-parity-fixture.ts';
 
 const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
@@ -64,76 +64,6 @@ type QualityConfig = {
 	}>;
 };
 
-function makeDiagnostic(omittedEffectId: string | null = null) {
-	const audio = createM4ProductionParityAudioFixture();
-	const video = createVideoEffectParityFixture('gradient');
-	const effectId = omittedEffectId ?? 'm4-parity-color-adjust';
-	const rendered: string[] = omittedEffectId === null ? [effectId] : [];
-	const omitted: string[] = omittedEffectId === null ? [] : [effectId];
-	return {
-		schemaVersion: 1,
-		profile: 'deterministic-production-parity-v1',
-		observationClass: 'complete-pcm-rgba-render-ledger-v1',
-		workloadId: 'm4-production-render-parity',
-		fixtureId: 'm4-production-parity-v1',
-		environmentId: 'local-browser-correctness',
-		rendererClass: 'hardware',
-		environmentFingerprint: {
-			browserVersion: 'Chromium 149.0.7827.55',
-			platform: 'linux',
-			architecture: 'x64',
-			osRelease: 'test-kernel',
-			webglVendor: 'diagnostic-vendor',
-			webglRenderer: 'diagnostic-gpu',
-		},
-		fixture: {
-			generatorRevision: 1,
-			seed: 1_294_994_497,
-			sampleRate: 48_000,
-			frameCount: 48_000,
-			channelCount: 2,
-			pdcLatencyFrames: 37,
-			automationChangeFrame: 24_000,
-			inputImpulseFrames: [1_024, 4_096],
-			outputImpulseFrames: [1_061, 4_133],
-			inputChannelSha256: [
-				'626e70475d9328e0026faac70afb036004ebaa4dfe0404f0da9fba84397a9884',
-				'7d2725992a5afeb23416a37f735bc4311589b89f97bb1e71c843ea0dbcad72b2',
-			],
-			referenceChannelSha256: [
-				'8704074d600c3331096c1505a8c22e2428ba2cb3a4e0682f3f432670c5479292',
-				'b7e68494b462e5ab8a3999349aacc1bb24919384b5fadb6e581a2a91c8865bf1',
-			],
-			videoFixtureId: 'video-effect-parity-rgba-v1',
-			videoWidth: 128,
-			videoHeight: 72,
-		},
-		audio: {
-			previewBase64: toBase64(encodeM4ProductionParityAudio(audio.reference)),
-			exportBase64: toBase64(encodeM4ProductionParityAudio(audio.reference)),
-			referenceBase64: toBase64(encodeM4ProductionParityAudio(audio.reference)),
-		},
-		videoCases: [{
-			name: 'gradient-color-adjust',
-			width: video.width,
-			height: video.height,
-			previewBase64: toBase64(video.bytes),
-			exportBase64: toBase64(video.bytes),
-			renderReport: {
-				status: omitted.length ? 'fallback' : 'rendered',
-				rendererStatus: 'available',
-				renderedEntryCount: 1,
-				effects: {
-					requested: [effectId],
-					rendered,
-					fallbackRendered: [] as string[],
-					omitted,
-				},
-			},
-		}],
-	};
-}
-
 test('the M4 collector independently recomputes exactly five parity metrics', () => {
 	const result = createPendingM4ProductionParityResult(makeDiagnostic(), config);
 	assert.equal(result.status, 'pending-external');
@@ -151,9 +81,9 @@ test('the M4 collector independently recomputes exactly five parity metrics', ()
 	assert.deepEqual(result.rawSampleCounts, {
 		audioChannels: 2,
 		audioFrames: 48_000,
-		videoCases: 1,
-		videoPixels: 9_216,
-		requestedEffectInstances: 1,
+		videoCases: 4,
+		videoPixels: 36_864,
+		requestedEffectInstances: 3,
 	});
 	assert.equal(result.evaluation.passed, false);
 	assert.match(result.evaluation.failures.join('\n'), /unprovisioned/iu);
@@ -235,6 +165,37 @@ test('fixture drift, truncated evidence, and dishonest ledgers fail closed', () 
 	);
 });
 
+test('video evidence requires the exact ordered four-golden inventory and registered digests', () => {
+	const missing = makeDiagnostic();
+	missing.videoCases.pop();
+	assert.throws(() => createPendingM4ProductionParityResult(missing, config), /4 through 4/iu);
+
+	const duplicate = makeDiagnostic();
+	duplicate.videoCases[1] = structuredClone(duplicate.videoCases[0]!);
+	assert.throws(() => createPendingM4ProductionParityResult(duplicate, config), /case inventory/iu);
+
+	const unknown = makeDiagnostic();
+	(unknown.videoCases[0]! as { fixtureArtifactId: string }).fixtureArtifactId = 'unknown';
+	assert.throws(() => createPendingM4ProductionParityResult(unknown, config), /case inventory/iu);
+
+	const reordered = makeDiagnostic();
+	[reordered.videoCases[0], reordered.videoCases[1]] = [
+		reordered.videoCases[1]!,
+		reordered.videoCases[0]!,
+	];
+	assert.throws(() => createPendingM4ProductionParityResult(reordered, config), /case inventory/iu);
+
+	const corrupt = makeDiagnostic();
+	const corruptBytes = Buffer.from(corrupt.videoCases[0]!.fixtureBase64, 'base64');
+	corruptBytes[0] ^= 1;
+	corrupt.videoCases[0]!.fixtureBase64 = toBase64(corruptBytes);
+	assert.throws(() => createPendingM4ProductionParityResult(corrupt, config), /registered RGBA golden/iu);
+
+	const wrongGeometry = makeDiagnostic();
+	wrongGeometry.videoCases[0]!.width = 127;
+	assert.throws(() => createPendingM4ProductionParityResult(wrongGeometry, config), /frozen video geometry/iu);
+});
+
 test('collector identity, specification, raw evidence, and config snapshots reject hostile data', () => {
 	let getterReads = 0;
 	const rawAccessor = makeDiagnostic();
@@ -281,7 +242,7 @@ test('collector identity, specification, raw evidence, and config snapshots reje
 	);
 
 	const sparseRawCases = makeDiagnostic();
-	sparseRawCases.videoCases.length = 2;
+	sparseRawCases.videoCases.length = 5;
 	assert.throws(
 		() => createPendingM4ProductionParityResult(sparseRawCases, config),
 		/dense own-data array/iu,
@@ -581,10 +542,6 @@ function activatedReferenceConfig(): QualityConfig {
 	reference.eligibleWorkloadIds = ['m4-production-render-parity'];
 	reference.fingerprint = referenceFingerprint();
 	return activated;
-}
-
-function toBase64(bytes: Uint8Array): string {
-	return Buffer.from(bytes).toString('base64');
 }
 
 function sha256(bytes: Uint8Array): string {
