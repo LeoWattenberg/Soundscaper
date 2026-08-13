@@ -106,7 +106,7 @@ test('desktop CI exposes one opt-in six-target nightly-with-tests artifact matri
 
 	const normalStart = workflow.indexOf('\n  package:');
 	const testStart = workflow.indexOf('\n  package-with-tests:');
-	const nextStart = workflow.indexOf('\n  project-library-handoff:', testStart);
+	const nextStart = workflow.indexOf('\n  soundscaper-project-library-lease-matrix:', testStart);
 	assert.ok(normalStart >= 0 && testStart > normalStart && nextStart > testStart);
 	const normalJob = workflow.slice(normalStart, testStart);
 	const testJob = workflow.slice(testStart, nextStart);
@@ -131,8 +131,8 @@ test('desktop CI exposes one opt-in six-target nightly-with-tests artifact matri
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.exe/u);
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.zip/u);
 	assert.match(testJob, /compression-level: 0/u);
-	const handoffJob = workflow.slice(nextStart);
-	assert.match(handoffJob, /project-library-handoff:\s+name: Packaged project-library handoff[^\n]*\s+if: github\.event_name != 'workflow_dispatch' \|\| inputs\.artifact_variant == 'nightly'/u);
+	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
+	assert.match(workflow.slice(nextStart), /soundscaper-project-library-lease-matrix:\s+name: Soundscaper V9 packaged lease matrix/iu);
 });
 
 function packagingContext(appOutDir) {

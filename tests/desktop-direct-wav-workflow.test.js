@@ -20,7 +20,7 @@ test('desktop package metadata exposes the packaged direct WAV, AIFF, BWF, and B
 test('desktop CI runs the direct WAV, AIFF, BWF, and BW64 smoke only for packaged Soundscaper Linux x64', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	const packageJobStart = workflow.indexOf('\n  package:');
-	const nextJobStart = workflow.indexOf('\n  project-library-handoff:', packageJobStart);
+	const nextJobStart = workflow.indexOf('\n  package-with-tests:', packageJobStart);
 	assert.ok(packageJobStart >= 0, 'missing desktop package matrix job');
 	assert.ok(nextJobStart > packageJobStart, 'could not isolate desktop package matrix job');
 

@@ -33,9 +33,10 @@ test('Playwright runs the maintained evergreen browser-engine matrix', async () 
 test('desktop verification isolates browser engines and qualifies packages with every engine', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
 	assertBrowserQualification(workflow, 'desktop');
-	for (const jobName of ['package', 'package-with-tests', 'project-library-handoff', 'project-library-lease-matrix']) {
+	for (const jobName of ['package', 'package-with-tests', 'soundscaper-project-library-lease-matrix']) {
 		assert.match(extractJob(workflow, jobName), /needs: \[quality, browser, firefox\]/u);
 	}
+	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
 });
 
 test('quality verification keeps Chromium and WebKit in the pinned container and gives Firefox real audio', async () => {
