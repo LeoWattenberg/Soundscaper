@@ -566,7 +566,7 @@ Packet boundaries, dependencies, and acceptance are owned by
 ## 4. Parallel production surfaces
 
 **Depends on:** milestone 3.
-
+**Status:** **In progress — shared 4.0 implemented provisionally; product tracks gated.** M3 remains open, so 4A/4B are planned; reference-GPU qualification is `pending-external`.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 

@@ -3,6 +3,8 @@
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
+import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
+import { legacySendEdgeId, type StripRef } from '../parameter-address.ts';
 import { createAdmBedRouter } from './adm-bed-routing.ts';
 import {
 	addNode,
@@ -19,11 +21,12 @@ import {
 import {
 	applyEffectRack,
 	createAnalyser,
-	effectRackLatencyFrames,
 	type EffectAnalyserEntry,
 	type EffectRackOptions,
 } from './effect-rack.ts';
 import { activeRackEffects } from './project-effects.ts';
+import { compileProjectPdcPlan } from './project-pdc-plan.ts';
+import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type {
 	EngineMixerBus,
 	EngineProject,
@@ -43,22 +46,7 @@ export function projectGraphLatencyFrames(
 		sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE,
 	}: ProjectGraphLatencyOptions = {},
 ): number {
-	const tracks = (project?.tracks || []).filter((track) => (
-		track.type !== 'label' && track.type !== 'video'
-			&& (trackId == null || String(track.id) === String(trackId))
-	));
-	const trackLatency = tracks.reduce((maximum, track) => Math.max(
-		maximum,
-		effectRackLatencyFrames(activeRackEffects(track), sampleRate),
-	), 0);
-	const masterLatency = includeMaster
-		? effectRackLatencyFrames(activeRackEffects(project?.master), sampleRate)
-		: 0;
-	const busLatency = Math.max(0, ...[
-		...(project?.mixer?.groups || []),
-		...(project?.mixer?.sends || []),
-	].map((bus) => effectRackLatencyFrames(activeRackEffects(bus), sampleRate)));
-	return trackLatency + busLatency + masterLatency;
+	return compileProjectPdcPlan(project, { trackId, includeMaster, sampleRate }).latencyFrames;
 }
 
 export interface ScheduledGainParam {
@@ -80,6 +68,7 @@ export interface ProjectGraph {
 	readonly trackInputs: Map<string, AudioNode>;
 	readonly trackGainParams: Map<string, ScheduledGainParam>;
 	readonly projectGainParams: ProjectGainParams;
+	readonly parameterRegistry: ScheduledParameterRegistry;
 	readonly trackAnalysers: Map<string, AnalyserNode>;
 	readonly groupAnalysers: Map<string, AnalyserNode>;
 	readonly sendAnalysers: Map<string, AnalyserNode>;
@@ -137,6 +126,7 @@ export function buildProjectGraph(
 	const effectNodes = new Map<string, AudioNode>();
 	const effectAnalysers = new Map<string, EffectAnalyserEntry>();
 	const effectMessageSequences = new Map<string, number>();
+	const parameterRegistry = new ScheduledParameterRegistry();
 	const tracks = Array.isArray(project?.tracks)
 		? project.tracks.filter((track) => track.type !== 'label' && track.type !== 'video')
 		: [];
@@ -150,9 +140,12 @@ export function buildProjectGraph(
 	for (const [index, track] of tracks.entries()) {
 		trackInputs.set(String(track.id ?? index), addNode(nodes, context.createGain()));
 	}
-	const renderedTracks = tracks.filter((track, index) => (
-		onlyTrackId == null || String(onlyTrackId) === String(track.id ?? index)
-	));
+	const pdcPlan = compileProjectPdcPlan(project, {
+		trackId: onlyTrackId,
+		includeMaster,
+		sampleRate: context.sampleRate || DEFAULT_SAMPLE_RATE,
+		fallbackTrackIndexIds: true,
+	});
 	const effectChannelCounts = new Map(tracks.map((track, index) => [
 		String(track.id ?? index),
 		terminalChannelWidths.tracks.get(String(track.id ?? index)) ?? 2,
@@ -162,10 +155,7 @@ export function buildProjectGraph(
 		positiveInteger(project?.masterChannels, 2),
 		...effectChannelCounts.values(),
 	), 1, 32);
-	const maximumTrackLatency = renderedTracks.reduce((maximum, track) => Math.max(
-		maximum,
-		effectRackLatencyFrames(activeRackEffects(track), context.sampleRate || DEFAULT_SAMPLE_RATE),
-	), 0);
+	const maximumTrackLatency = pdcPlan.maximumTrackLatencyFrames;
 	const masterInput = addNode(nodes, context.createGain());
 	const admMetadata = project.metadata?.adm;
 	const admMode = admMetadata && typeof admMetadata === 'object' && 'mode' in admMetadata
@@ -175,11 +165,8 @@ export function buildProjectGraph(
 	const preservesAdmChannels = admMode === 'authored' || admMode === 'passthrough';
 	const groupInputs = new Map(groups.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
 	const sendInputs = new Map(sends.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
-	const busLatencies = new Map([...groups, ...sends].map((bus) => [
-		String(bus.id),
-		effectRackLatencyFrames(activeRackEffects(bus), context.sampleRate || DEFAULT_SAMPLE_RATE),
-	]));
-	const maximumBusLatency = Math.max(0, ...busLatencies.values());
+	const busLatencies = pdcPlan.busLatencyFrames;
+	const maximumBusLatency = pdcPlan.maximumBusLatencyFrames;
 	const anySolo = respectMuteSolo && [...tracks, ...groups, ...sends].some((channel) => channel.solo);
 	const connectTerminal = (output: AudioNode, scope: 'track' | 'group' | 'send', id: string, channelCount: number): void => {
 		if (admBedRouter) admBedRouter.routeTerminal(scope, id, output, channelCount);
@@ -212,7 +199,7 @@ export function buildProjectGraph(
 		const input = trackInputs.get(trackId);
 		if (!input) continue;
 		const rackEffects = activeRackEffects(track);
-		const trackLatency = effectRackLatencyFrames(rackEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
+		const trackLatency = pdcPlan.trackLatencyFrames.get(trackId) ?? 0;
 		let output = applyEffectRack(context, input, rackEffects, nodes, {
 			sidechainInputs: trackInputs,
 			scope: 'track',
@@ -220,6 +207,8 @@ export function buildProjectGraph(
 			effectAnalysis,
 			effectNodes,
 			effectAnalysers,
+			parameterRegistry,
+			baseParameterLatencyFrames: 0,
 			effectChannelCount: effectChannelCounts.get(trackId),
 			parametricEqWasmModule,
 			parametricEqChannelCount: effectChannelCounts.get(trackId),
@@ -228,12 +217,14 @@ export function buildProjectGraph(
 		const gain = addNode(nodes, context.createGain());
 		setParam(gain.gain, finite(track.gain, 1), context.currentTime);
 		trackGainParams.set(trackId, { param: gain.gain, latencyFrames: trackLatency });
+		registerStripParam(parameterRegistry, { kind: 'track', id: trackId }, 'gain', gain.gain, trackLatency);
 		connect(output, gain);
 		output = gain;
 		const trackChannels = effectChannelCounts.get(trackId) ?? 2;
 		if (includeTrackPan && !preservesAdmChannels && typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(finite(track.pan, 0), -1, 1), context.currentTime);
+			registerStripParam(parameterRegistry, { kind: 'track', id: trackId }, 'pan', panner.pan, trackLatency);
 			connect(output, panner);
 			output = panner;
 		}
@@ -259,6 +250,14 @@ export function buildProjectGraph(
 		const trackAudible = !respectMuteSolo || (!track.mute && (!anySolo || track.solo || group?.solo));
 		const directGate = addNode(nodes, context.createGain());
 		setParam(directGate.gain, trackAudible ? 1 : 0, context.currentTime);
+		registerStripParam(
+			parameterRegistry,
+			{ kind: 'track', id: trackId },
+			'mute',
+			directGate.gain,
+			trackLatency,
+			(value) => 1 - value,
+		);
 		connect(output, directGate);
 		if (group) connect(directGate, groupInputs.get(String(group.id)));
 		else connectCompensated(directGate, 0, 'track', trackId, trackChannels);
@@ -268,6 +267,14 @@ export function buildProjectGraph(
 			const sendAudible = !respectMuteSolo || (!track.mute && (!anySolo || track.solo || send.solo));
 			const sendGain = addNode(nodes, context.createGain());
 			setParam(sendGain.gain, sendAudible ? finite(requestedGain, 0) : 0, context.currentTime);
+			if (isSchedulableAudioParam(sendGain.gain)) {
+				parameterRegistry.registerAudioParam(stripParameterDescriptor({
+					kind: 'edge',
+					// Runtime-only V17 identity; 4A retains it when materializing the edge.
+					edgeId: legacySendEdgeId(trackId, String(send.id)),
+					parameterId: 'level',
+				}, trackLatency), sendGain.gain);
+			}
 			connect(output, sendGain);
 			connect(sendGain, sendInputs.get(String(send.id)));
 		}
@@ -283,11 +290,13 @@ export function buildProjectGraph(
 		let output = applyEffectRack(context, input, activeRackEffects(bus), nodes, {
 			sidechainInputs: trackInputs,
 			baseSidechainDelayFrames: maximumTrackLatency,
+			baseParameterLatencyFrames: maximumTrackLatency,
 			scope,
 			targetId: String(bus.id),
 			effectAnalysis,
 			effectNodes,
 			effectAnalysers,
+			parameterRegistry,
 			effectChannelCount: mixEffectChannelCount,
 			parametricEqWasmModule,
 			parametricEqChannelCount: mixEffectChannelCount,
@@ -299,6 +308,9 @@ export function buildProjectGraph(
 			param: gain.gain,
 			latencyFrames: maximumTrackLatency + (busLatencies.get(String(bus.id)) || 0),
 		});
+		const busLatency = maximumTrackLatency + (busLatencies.get(String(bus.id)) || 0);
+		const busRef = { kind: 'mixer-node' as const, id: String(bus.id) };
+		registerStripParam(parameterRegistry, busRef, 'gain', gain.gain, busLatency);
 		connect(output, gain);
 		output = gain;
 		const busWidths = scope === 'group' ? terminalChannelWidths.groups : terminalChannelWidths.sends;
@@ -306,6 +318,7 @@ export function buildProjectGraph(
 		if (!preservesAdmChannels && typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(finite(bus.pan, 0), -1, 1), context.currentTime);
+			registerStripParam(parameterRegistry, busRef, 'pan', panner.pan, busLatency);
 			connect(output, panner);
 			output = panner;
 		}
@@ -317,6 +330,7 @@ export function buildProjectGraph(
 		}
 		const mute = addNode(nodes, context.createGain());
 		setParam(mute.gain, !respectMuteSolo || !bus.mute ? 1 : 0, context.currentTime);
+		registerStripParam(parameterRegistry, busRef, 'mute', mute.gain, busLatency, (value) => 1 - value);
 		connect(output, mute);
 		connectCompensated(mute, busLatencies.get(String(bus.id)) || 0, scope, String(bus.id), busChannels);
 	};
@@ -324,15 +338,17 @@ export function buildProjectGraph(
 	for (const bus of sends) processBus(bus, sendInputs.get(String(bus.id))!, sendAnalysers, sendGainParams, 'send');
 
 	const masterEffects = includeMaster ? activeRackEffects(project?.master) : [];
-	const masterLatency = effectRackLatencyFrames(masterEffects, context.sampleRate || DEFAULT_SAMPLE_RATE);
+	const masterLatency = pdcPlan.masterLatencyFrames;
 	const masterOutput = applyEffectRack(context, masterInput, masterEffects, nodes, {
 		sidechainInputs: trackInputs,
 		baseSidechainDelayFrames: maximumTrackLatency + maximumBusLatency,
+		baseParameterLatencyFrames: maximumTrackLatency + maximumBusLatency,
 		scope: 'master',
 		targetId: null,
 		effectAnalysis,
 		effectNodes,
 		effectAnalysers,
+		parameterRegistry,
 		effectChannelCount: mixEffectChannelCount,
 		parametricEqWasmModule,
 		parametricEqChannelCount: mixEffectChannelCount,
@@ -344,17 +360,30 @@ export function buildProjectGraph(
 		param: masterGain.gain,
 		latencyFrames: maximumTrackLatency + maximumBusLatency + masterLatency,
 	} : null;
+	const masterLatencyOffset = maximumTrackLatency + maximumBusLatency + masterLatency;
+	if (includeMaster) {
+		registerStripParam(parameterRegistry, { kind: 'master' }, 'gain', masterGain.gain, masterLatencyOffset);
+	}
 	connect(masterOutput, masterGain);
 	let finalOutput: AudioNode = masterGain;
 	if (includeMaster && !preservesAdmChannels && finite(project?.master?.pan, 0) !== 0 && typeof context.createStereoPanner === 'function') {
 		const masterPanner = addNode(nodes, context.createStereoPanner());
 		setParam(masterPanner.pan, clamp(finite(project?.master?.pan, 0), -1, 1), context.currentTime);
+		registerStripParam(parameterRegistry, { kind: 'master' }, 'pan', masterPanner.pan, masterLatencyOffset);
 		connect(finalOutput, masterPanner);
 		finalOutput = masterPanner;
 	}
 	if (includeMaster && project?.master?.mute) {
 		const masterMute = addNode(nodes, context.createGain());
 		setParam(masterMute.gain, 0, context.currentTime);
+		registerStripParam(
+			parameterRegistry,
+			{ kind: 'master' },
+			'mute',
+			masterMute.gain,
+			masterLatencyOffset,
+			(value) => 1 - value,
+		);
 		connect(finalOutput, masterMute);
 		finalOutput = masterMute;
 	}
@@ -386,6 +415,7 @@ export function buildProjectGraph(
 			sends: sendGainParams,
 			master: masterGainParam,
 		},
+		parameterRegistry,
 		trackAnalysers,
 		groupAnalysers,
 		sendAnalysers,
@@ -395,4 +425,28 @@ export function buildProjectGraph(
 		effectMessageSequences,
 		latencyFrames: maximumTrackLatency + maximumBusLatency + masterLatency,
 	};
+}
+
+function registerStripParam(
+	registry: ScheduledParameterRegistry,
+	strip: StripRef,
+	parameterId: 'gain' | 'pan' | 'mute',
+	param: AudioParam,
+	latencyFrames: number,
+	transformValue?: (value: number) => number,
+): void {
+	// Lightweight render/test contexts may expose only the static AudioParam
+	// surface used by the existing graph. A lane-free graph must keep working
+	// without upgrading those parameters into scheduled targets.
+	if (!isSchedulableAudioParam(param)) return;
+	registry.registerAudioParam(
+		stripParameterDescriptor({ kind: 'strip', strip, parameterId }, latencyFrames),
+		param,
+		transformValue ? { transformValue } : {},
+	);
+}
+
+function isSchedulableAudioParam(param: AudioParam | null | undefined): param is AudioParam {
+	return typeof param?.setValueAtTime === 'function'
+		&& typeof param.linearRampToValueAtTime === 'function';
 }

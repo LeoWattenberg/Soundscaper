@@ -53,6 +53,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		timelineWidth: timelineMinimumSeconds * defaultPixelsPerSecond,
 		timelineView: 'waveform',
 		readOnly: false,
+		writeAuthorityGeneration: 0,
 		takeCycleRecovery: null as TakeCyclePendingOpenRecovery | null,
 		takeCycleRecoveryInspecting: false,
 		projectLock: null,

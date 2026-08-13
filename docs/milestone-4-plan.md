@@ -4,9 +4,9 @@
 > mixer-graph decisions, their invariants, and the bounded work packets.
 > The [roadmap](../roadmap.md#4-parallel-production-surfaces) owns scope
 > and status; the compatibility, security, and licensing policies own
-> their claims. Grounded against the repository on 2026-08-11 (two repo
-> briefs with file:line verification, taken on a working tree carrying
-> the uncommitted 3B-5b V16 revision — re-verify line numbers at pickup).
+> their claims. Re-grounded on 2026-08-13 against committed revision
+> `6706f844`: schema V17 is current, 3A-1 through 3A-6 are implemented,
+> and the Framescaper 3B track plus external qualification remain open.
 
 ## Goals and ordering principle
 
@@ -32,19 +32,40 @@ transition curve, and caption timing decision after them; they land
 first, once, under review, schema-neutral, before any dependent schema
 revision.
 
-## Prerequisites and pickup state (grounded 2026-08-11)
+## Prerequisites and pickup state (grounded 2026-08-13)
 
-Milestone 4 depends on milestone 3 (roadmap.md:505). At grounding time
-milestone 3 is still open: 3B-4 is complete, 3B-5 is in progress with
-the V16 retime revision materially complete in the working tree but
-uncommitted (docs/milestone-3b-work-packets.md:220-238;
-`src/common/editor/project-schema-version.ts:8-9` reads 16 while HEAD
-reads 15), 3B-6/3B-7 are unstarted, and 3A-1/2/4/5/6/7 are open. This
-plan assumes the milestone-3 foundation it names (tempo maps for
-tempo-addressable automation → 3A-1; the shared breakpoint model and
-exact retime algebra for keyframe timing → 3B-5) and must be re-grounded
-at pickup. Features whose prerequisite packet is still open state that
-dependency in their slice doc rather than approximating it.
+Milestone 4 depends on milestone 3. The shared exact-time foundation and
+Soundscaper packets 3A-1 through 3A-6 now exist on schema V17, but roadmap
+milestone 3 remains **In progress**: 3A-7 awaits external qualification,
+3B-5 and 3B-6 still contain maintained-work blockers, and the 3B exit gate is
+open. The schema-neutral 4.0 foundation is explicitly permitted to proceed
+against this committed base; no 4A or 4B schema, command, engine, or UI work
+may begin until milestone 3 is recorded complete and every 4.0 gate passes.
+
+The pickup uses an isolated worktree and leaves concurrent milestone-3 work
+untouched. At `6706f844`, Node 26.5.0/npm 12.0.1 `npm test` is green with
+5,820 passing and two skipped tests. Schema revisions after the gate are named
+`V-next` until the post-milestone-3 rebase resolves their actual numbers.
+
+## 2026-08-13 implementation decisions
+
+- This pickup implements serialized 4.0 and the Soundscaper 4A track only;
+  Framescaper 4B and the overall milestone-4 exit gate remain open.
+- Automation uses one timebase per lane, a 4,096-point persisted cap, and
+  deterministic adaptive thinning that preserves endpoints, discontinuities,
+  mode boundaries, and the highest-error extrema.
+- Bézier segments store two absolute clip-relative rational-time/native-value
+  handles. Handle time is monotone; evaluation is defined for nonmonotone
+  values, while inversion rejects them.
+- Freeze is audio-track-only and captures through the track insert rack before
+  strip controls and downstream routing. Commit bakes that track-local result,
+  remains undoable while bounded history retains it, and preserves strip
+  automation and routing.
+- Reviewed packages trust only the release-pinned catalog. Pure WASM may run in
+  both the dedicated offline worker and, when separately realtime-approved, a
+  static first-party AudioWorklet host. The repository-owned Utility Gain
+  package is the first shipped conformance surface; no user trust override or
+  arbitrary package URL exists.
 
 ## Decisions
 
@@ -358,7 +379,10 @@ per the standing duties (roadmap.md:844-846).
 | 4A | Parallel track | Soundscaper production: automation lanes and modes, mixer graph, per-path PDC, freeze, restoration/metering, reviewed effect packages |
 | 4B | Parallel track | Framescaper finishing: transforms/keyframes, transitions, new kinds and inspector, color/motion, styled captions, Framescaper audio finishing |
 
-4A and 4B must not begin until every 4.0 acceptance check passes.
+**Implementation status (2026-08-13):** shared phase 4.0 is implemented and
+its hosted correctness acceptance is green. Reference-GPU qualification remains
+`pending-external`. Milestone 3 is still recorded **In progress**, so neither 4A
+nor 4B has started and their slice documents have deliberately not been written.
 
 ## Work packets
 
@@ -368,6 +392,7 @@ before code (docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.0 — Interpolation vocabulary (schema-neutral)
 
+- **Status:** implemented.
 - **Outcome:** the shared segment evaluator (hold, linear, eased,
   Bézier) beside the shared time module, with closed-form evaluation,
   documented monotonicity/inversion rules, clip-relative anchoring and
@@ -386,6 +411,9 @@ before code (docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.1 — Parameter address space (schema-neutral)
 
+- **Status:** implemented. The first-party worklet packet contract is a
+  producer-only foundation until the named 4A consumer revision lands; no
+  current worklet is falsely registered as a consumer.
 - **Outcome:** parameter descriptors with the id-stability contract
   over strips and effect instances; the scheduled-parameter registry
   generalizing `ProjectGainParams` to pan, mute, send level, and effect
@@ -404,21 +432,39 @@ before code (docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.2 — Production parity harness
 
-- **Outcome:** the `m4-production-parity-v1` fixture implemented
-  (48 kHz deterministic audio vectors plus calibrated 128×72 golden
-  frames, config/quality-budgets.json:782-793) with collectors for all
-  five thresholds of `m4-production-render-parity`
-  (config/quality-budgets.json:992-1006), extending the existing pinned
-  parity fixture and helpers
-  (config/quality-budgets.json:256-282;
-  tests/browser/video-effect-parity-helpers.js:1-4); the
-  silently-omitted-work observable that converts the compositor's `-1`
-  failure return into a reported, counted fallback.
+- **Status:** implemented and provisional. Reference-GPU qualification is
+  pending external provisioning.
+- **Outcome:** `m4-production-parity-v1` now pins one second of 48 kHz stereo
+  Float32 input/reference vectors and exact impulse, PDC, and automation
+  landmarks beside the existing calibrated 128×72 RGBA fixture. The focused
+  browser workload records complete PCM, RGBA pairs, and structured
+  requested/rendered/fallback-rendered/omitted effect ledgers. The collector
+  independently recomputes exactly the five `m4-production-render-parity`
+  thresholds and publishes only no-retry, digest-bound evidence. Its audio
+  paths consume the engine-owned PDC and gain-event planners used by live and
+  offline project graphs; perturbation tests prove either planner changes a
+  registered metric.
+- **Fallback report:** the compositor returns a frozen structured report
+  instead of the old integer/`-1` sentinel. The existing contextual warning
+  displays bounded omitted effect-instance IDs. The zero parity gate counts
+  each unique requested active effect absent from `rendered`, including a
+  visibly reported fallback, so fallback observability cannot hide missing
+  production work. Renderer failure remains an independent report field, and
+  effect fallback does not stop a healthy compositor's playback loop.
 - **Invariants:** fixtures deterministic and digest-pinned before any
   4A/4B feature cites them; hosted-CI runs remain correctness evidence
-  only (docs/quality-budgets.md:29-31).
-- **Acceptance:** harness runs green against today's features;
-  deliberately omitting one effect trips the counter.
+  only. Local/hosted diagnostics never claim the reference id. Explicit
+  reference mode assembles the complete runtime hardware, OS, display, power,
+  browser, and runner identity from browser observations and an independently
+  captured `m4-reference-host-observation-v1` JSON record named by
+  `SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH`,
+  then matches it exactly to the provisioned descriptor; expected data is never
+  echoed as observation. Accepted evidence pins both the full budget config and
+  the exact registered workload descriptor through its digest-bound raw record.
+- **Acceptance:** the focused Chromium/FFmpeg harness passes against today's
+  features; a deliberately unsupported effect is the sole omitted ID, and
+  collector tests prove one omitted or fallback-rendered effect trips the
+  zero counter.
 - **Non-goals:** no new product behavior beyond the fallback report.
 - **Stop condition:** stop if a threshold would need loosening to pass
   on existing behavior — that is a defect to fix, not a baseline to

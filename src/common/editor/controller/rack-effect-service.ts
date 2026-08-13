@@ -4,6 +4,12 @@ import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts'
 import type { EngineEffectScope } from '../engine/public-api.ts';
 import type { EditorProjectToken } from './lifecycle.ts';
 import { EffectGestureTargetChangedError, effectParametersMatch } from './effect-gesture-safety.ts';
+import {
+	ParameterGestureAuthorityChangedError,
+	createParameterGestureAdapter,
+	type ParameterGestureSession,
+	type ParameterGestureTarget,
+} from './parameter-gesture-adapter.ts';
 import { audioEffectTypes, createEffect, normalizeEffect } from '../effects.js';
 import { createStableId } from '../stable-id.js';
 import { serializeAudacityNoiseProfile } from './source-audio.ts';
@@ -43,15 +49,12 @@ export interface AudacityNoiseProfile extends Record<string, unknown> {
 	readonly meanPowers?: ArrayLike<number> | Iterable<number>;
 }
 
-export interface RackEffectGestureSession {
-	readonly project: EditorProjectToken;
-	readonly effectType: string;
-	readonly original: EffectParameters;
-}
+export type RackEffectGestureSession = ParameterGestureSession<EffectParameters, number>;
 
 export interface RackEffectControllerState {
 	selectedTrackId: string | null;
 	readOnly: boolean;
+	writeAuthorityGeneration: number;
 	effectClipboard: ControllerRackEffect[] | null;
 	readonly rackEffectGestures: Map<string, RackEffectGestureSession>;
 	readonly parametricEqGestures: Map<string, RackEffectGestureSession>;
@@ -137,7 +140,7 @@ export function effectGestureKey(
 	targetId: string | null,
 	effectId: string,
 ): string {
-	return `${scope || 'track'}:${targetId == null ? '' : targetId}:${effectId}`;
+	return JSON.stringify([scope || 'track', targetId, effectId]);
 }
 
 export function createRackEffectService(runtime: RackEffectServiceRuntime) {
@@ -246,82 +249,138 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		return result;
 	}
 
-	function assertGestureTarget(
+	function createRackGestureAdapter(
 		gestures: Map<string, RackEffectGestureSession>,
-		key: string,
-		gesture: RackEffectGestureSession,
-		effect: ControllerRackEffect,
-	): void {
-		try {
-			assertProject(gesture.project);
-		} catch (error) {
-			gestures.delete(key);
-			throw error;
-		}
-		if (
-			effect.type !== gesture.effectType
-			|| !effectParametersMatch(effect.params, gesture.original)
-		) {
-			gestures.delete(key);
-			throw new EffectGestureTargetChangedError();
-		}
-	}
-
-	function beginGesture(
-		gestures: Map<string, RackEffectGestureSession>,
-		scope: string,
-		targetId: string | null,
-		effectId: string,
 		expectedType: 'eq' | 'not-eq',
-	): EffectParameters {
-		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
-		const allowed = expectedType === 'eq'
-			? effect?.type === 'eq'
-			: Boolean(effect && effect.type !== 'missing' && effect.type !== 'eq');
-		if (!effect || !allowed) throw new Error(copy.rackEffectNotFound);
-		const key = effectGestureKey(scope, targetId, effectId);
-		const current = gestures.get(key);
-		if (current) assertGestureTarget(gestures, key, current, effect);
-		else {
-			gestures.set(key, {
-				project: captureProject(),
-				effectType: effect.type,
-				original: structuredClone(effect.params),
+		configure: (
+			scope: RackEffectScope,
+			targetId: string | null,
+			effectId: string,
+			params: EffectParameters,
+		) => number | false,
+		restore = configure,
+	) {
+		const resolveLocation = (identity: string) => {
+			const location = parseEffectGestureKey(identity);
+			let effect: ControllerRackEffect | undefined;
+			try {
+				effect = effectStack(location.scope, location.targetId)
+					.find((candidate) => candidate.id === location.effectId);
+			} catch {
+				return null;
+			}
+			const allowed = expectedType === 'eq'
+				? effect?.type === 'eq'
+				: Boolean(effect && effect.type !== 'missing' && effect.type !== 'eq');
+			return effect && allowed ? { effect, ...location } : null;
+		};
+		const resolveTarget = (identity: string): ParameterGestureTarget<EffectParameters> | null => {
+			const resolved = resolveLocation(identity);
+			if (!resolved) return null;
+			return Object.freeze({
+				identity,
+				revision: JSON.stringify([resolved.effect.type, resolved.effect.params]),
+				value: resolved.effect.params,
 			});
-		}
-		return structuredClone(gestures.get(key)!.original);
+		};
+		return createParameterGestureAdapter<EffectParameters, RackEffectProject, number>({
+			sessions: gestures,
+			captureProject,
+			assertProject,
+			captureAuthority: () => state.writeAuthorityGeneration,
+			assertAuthority: (generation) => {
+				if (generation !== state.writeAuthorityGeneration) {
+					throw new ParameterGestureAuthorityChangedError();
+				}
+			},
+			resolveTarget,
+			normalize: (target, params) => {
+				const resolved = resolveLocation(target.identity);
+				if (!resolved) throw new EffectGestureTargetChangedError();
+				return normalizeRackEffect({
+					...resolved.effect,
+					params: expectedType === 'eq'
+						? params
+						: { ...resolved.effect.params, ...params },
+				}).params;
+			},
+			valuesEqual: effectParametersMatch,
+			applyPreview: (target, params) => {
+				const resolved = resolveLocation(target.identity);
+				if (!resolved) throw new EffectGestureTargetChangedError();
+				return configure(resolved.scope, resolved.targetId, resolved.effectId, params);
+			},
+			restorePreview: (target, params) => {
+				const resolved = resolveLocation(target.identity);
+				if (!resolved) throw new EffectGestureTargetChangedError();
+				return restore(resolved.scope, resolved.targetId, resolved.effectId, params);
+			},
+			commitValue: (target, params, { adopted }) => {
+				const resolved = resolveLocation(target.identity);
+				if (!resolved) throw new EffectGestureTargetChangedError();
+				return commit(
+					rackCommand('effect/update', resolved.scope, resolved.targetId, {
+						effectId: resolved.effectId,
+						changes: { params },
+					}),
+					{},
+					{ skipPlaybackEngine: adopted },
+				);
+			},
+			currentValue: requireProject,
+			createTargetMissingError: () => new Error(copy.rackEffectNotFound),
+			createTargetChangedError: () => new EffectGestureTargetChangedError(),
+		});
 	}
 
-	function currentGestureEffect(
-		gestures: Map<string, RackEffectGestureSession>,
-		scope: string,
-		targetId: string | null,
-		effectId: string,
-		expectedType: 'eq' | 'not-eq',
-	): { effect: ControllerRackEffect; gesture: RackEffectGestureSession; key: string } {
-		const key = effectGestureKey(scope, targetId, effectId);
-		if (!gestures.has(key)) beginGesture(gestures, scope, targetId, effectId, expectedType);
-		const gesture = gestures.get(key)!;
-		try {
-			assertProject(gesture.project);
-		} catch (error) {
-			gestures.delete(key);
-			throw error;
+	const rackGestureAdapter = createRackGestureAdapter(
+		state.rackEffectGestures,
+		'not-eq',
+		(scope, targetId, effectId, params) => (
+			engine.configureRackEffect?.(scope, targetId, effectId, params) ?? false
+		),
+	);
+	const parametricEqGestureAdapter = createRackGestureAdapter(
+		state.parametricEqGestures,
+		'eq',
+		(scope, targetId, effectId, params) => (
+			engine.configureParametricEq?.(scope, targetId, effectId, params) ?? false
+		),
+		(scope, targetId, effectId, params) => (
+			engine.configureParametricEq?.(
+				scope, targetId, effectId, params, { transitionFrames: 0 },
+			) ?? false
+		),
+	);
+
+	function requireWritableGesture(
+		adapter: ReturnType<typeof createRackGestureAdapter>,
+		identity: string,
+	): void {
+		if (!state.readOnly) return;
+		adapter.revoke(identity);
+		throw new Error(copy.projectReadOnly);
+	}
+
+	function revokeWriteAuthority(): void {
+		const errors: unknown[] = [];
+		for (const adapter of [rackGestureAdapter, parametricEqGestureAdapter]) {
+			try {
+				adapter.revokeAll();
+			} catch (error) {
+				errors.push(error);
+			}
 		}
-		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
-		const allowed = expectedType === 'eq'
-			? effect?.type === 'eq'
-			: Boolean(effect && effect.type !== 'missing' && effect.type !== 'eq');
-		if (!effect || !allowed) {
-			gestures.delete(key);
-			throw new EffectGestureTargetChangedError();
-		}
-		assertGestureTarget(gestures, key, gesture, effect);
-		return { effect, gesture, key };
+		const generation = state.writeAuthorityGeneration + 1;
+		if (!Number.isSafeInteger(generation)) throw new RangeError('Write authority generation exhausted.');
+		state.writeAuthorityGeneration = generation;
+		if (errors.length) handleError(new AggregateError(errors, 'Rack gesture rollback failed.'));
 	}
 
 	function beginRackEffectGesture(scope: string, targetId: string | null, effectId: string): EffectParameters {
-		return beginGesture(state.rackEffectGestures, scope, targetId, effectId, 'not-eq');
+		const identity = effectGestureKey(scope, targetId, effectId);
+		requireWritableGesture(rackGestureAdapter, identity);
+		return rackGestureAdapter.begin(identity);
 	}
 
 	function previewRackEffect(
@@ -330,14 +389,9 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		effectId: string,
 		params: EffectParameters,
 	): number | false {
-		const { effect } = currentGestureEffect(
-			state.rackEffectGestures, scope, targetId, effectId, 'not-eq',
-		);
-		const normalized = normalizeRackEffect({
-			...effect,
-			params: { ...effect.params, ...params },
-		}).params;
-		return engine.configureRackEffect?.(rackScope(scope), targetId, effectId, normalized) ?? false;
+		const identity = effectGestureKey(scope, targetId, effectId);
+		requireWritableGesture(rackGestureAdapter, identity);
+		return rackGestureAdapter.preview(identity, params);
 	}
 
 	function commitRackEffectGesture(
@@ -346,62 +400,9 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		effectId: string,
 		params: EffectParameters,
 	): RackEffectProject {
-		if (state.readOnly) throw new Error(copy.projectReadOnly);
-		const { effect, gesture, key } = currentGestureEffect(
-			state.rackEffectGestures, scope, targetId, effectId, 'not-eq',
-		);
-		const normalized = normalizeRackEffect({
-			...effect,
-			params: { ...effect.params, ...params },
-		}).params;
-		const unchanged = effectParametersMatch(
-			normalizeRackEffect({ ...effect, params: gesture.original }).params,
-			normalized,
-		);
-		state.rackEffectGestures.delete(key);
-		if (unchanged) return requireProject();
-		const adopted = engine.configureRackEffect?.(rackScope(scope), targetId, effectId, normalized) ?? false;
-		try {
-			return commit(
-				rackCommand('effect/update', rackScope(scope), targetId, {
-					effectId,
-					changes: { params: normalized },
-				}),
-				{},
-				{ skipPlaybackEngine: adopted !== false },
-			);
-		} catch (error) {
-			if (adopted !== false) {
-				engine.configureRackEffect?.(rackScope(scope), targetId, effectId, gesture.original);
-			}
-			throw error;
-		}
-	}
-
-	function cancelGesture(
-		gestures: Map<string, RackEffectGestureSession>,
-		scope: string,
-		targetId: string | null,
-		effectId: string,
-		expectedType: 'eq' | 'not-eq',
-		configure: (params: EffectParameters) => number | false,
-	): number | false {
-		const key = effectGestureKey(scope, targetId, effectId);
-		const gesture = gestures.get(key);
-		gestures.delete(key);
-		if (!gesture) return false;
-		try {
-			assertProject(gesture.project);
-		} catch {
-			return false;
-		}
-		const effect = effectStack(scope, targetId).find((candidate) => candidate.id === effectId);
-		const allowed = expectedType === 'eq'
-			? effect?.type === 'eq'
-			: Boolean(effect && effect.type !== 'missing' && effect.type !== 'eq');
-		if (!effect || !allowed || effect.type !== gesture.effectType) return false;
-		if (!effectParametersMatch(effect.params, gesture.original)) return false;
-		return configure(gesture.original);
+		const identity = effectGestureKey(scope, targetId, effectId);
+		requireWritableGesture(rackGestureAdapter, identity);
+		return rackGestureAdapter.commit(identity, params);
 	}
 
 	function cancelRackEffectGesture(
@@ -409,18 +410,13 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		targetId: string | null,
 		effectId: string,
 	): number | false {
-		return cancelGesture(
-			state.rackEffectGestures,
-			scope,
-			targetId,
-			effectId,
-			'not-eq',
-			(params) => engine.configureRackEffect?.(rackScope(scope), targetId, effectId, params) ?? false,
-		);
+		return rackGestureAdapter.cancel(effectGestureKey(scope, targetId, effectId));
 	}
 
 	function beginParametricEqGesture(scope: string, targetId: string | null, effectId: string): EffectParameters {
-		return beginGesture(state.parametricEqGestures, scope, targetId, effectId, 'eq');
+		const identity = effectGestureKey(scope, targetId, effectId);
+		requireWritableGesture(parametricEqGestureAdapter, identity);
+		return parametricEqGestureAdapter.begin(identity);
 	}
 
 	function previewParametricEq(
@@ -429,11 +425,9 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		effectId: string,
 		params: EffectParameters,
 	): number | false {
-		const { effect } = currentGestureEffect(
-			state.parametricEqGestures, scope, targetId, effectId, 'eq',
-		);
-		const normalized = normalizeRackEffect({ ...effect, params }).params;
-		return engine.configureParametricEq?.(rackScope(scope), targetId, effectId, normalized) ?? false;
+		const identity = effectGestureKey(scope, targetId, effectId);
+		requireWritableGesture(parametricEqGestureAdapter, identity);
+		return parametricEqGestureAdapter.preview(identity, params);
 	}
 
 	function commitParametricEqGesture(
@@ -442,35 +436,9 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		effectId: string,
 		params: EffectParameters,
 	): RackEffectProject {
-		if (state.readOnly) throw new Error(copy.projectReadOnly);
-		const { effect, gesture, key } = currentGestureEffect(
-			state.parametricEqGestures, scope, targetId, effectId, 'eq',
-		);
-		const normalized = normalizeRackEffect({ ...effect, params }).params;
-		const unchanged = effectParametersMatch(
-			normalizeRackEffect({ ...effect, params: gesture.original }).params,
-			normalized,
-		);
-		state.parametricEqGestures.delete(key);
-		if (unchanged) return requireProject();
-		const adopted = engine.configureParametricEq?.(rackScope(scope), targetId, effectId, normalized) ?? false;
-		try {
-			return commit(
-				rackCommand('effect/update', rackScope(scope), targetId, {
-					effectId,
-					changes: { params: normalized },
-				}),
-				{},
-				{ skipPlaybackEngine: adopted !== false },
-			);
-		} catch (error) {
-			if (adopted !== false) {
-				engine.configureParametricEq?.(
-					rackScope(scope), targetId, effectId, gesture.original, { transitionFrames: 0 },
-				);
-			}
-			throw error;
-		}
+		const identity = effectGestureKey(scope, targetId, effectId);
+		requireWritableGesture(parametricEqGestureAdapter, identity);
+		return parametricEqGestureAdapter.commit(identity, params);
 	}
 
 	function cancelParametricEqGesture(
@@ -478,14 +446,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		targetId: string | null,
 		effectId: string,
 	): number | false {
-		return cancelGesture(
-			state.parametricEqGestures,
-			scope,
-			targetId,
-			effectId,
-			'eq',
-			(params) => engine.configureParametricEq?.(rackScope(scope), targetId, effectId, params) ?? false,
-		);
+		return parametricEqGestureAdapter.cancel(effectGestureKey(scope, targetId, effectId));
 	}
 
 	function copyEffectStack(scope: string, trackId: string | null = state.selectedTrackId): ControllerRackEffect[] {
@@ -580,6 +541,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		pasteEffectStack,
 		previewParametricEq,
 		previewRackEffect,
+		revokeWriteAuthority,
 		updateRackEffect,
 	});
 }
@@ -597,4 +559,36 @@ function rackCommand(
 		busId: targetId,
 		...payload,
 	} as unknown as AudioEditorCommand;
+}
+
+function parseEffectGestureKey(value: string): Readonly<{
+	scope: RackEffectScope;
+	targetId: string | null;
+	effectId: string;
+}> {
+	let parts: unknown;
+	try {
+		parts = JSON.parse(value);
+	} catch {
+		throw new TypeError('An effect gesture target identity is invalid.');
+	}
+	if (!Array.isArray(parts) || parts.length !== 3) {
+		throw new TypeError('An effect gesture target identity is invalid.');
+	}
+	const scope = rackScopeValue(parts[0]);
+	const targetId = scope === 'master' ? null : stableGestureId(parts[1], `${scope} target`);
+	const effectId = stableGestureId(parts[2], 'effect');
+	return Object.freeze({ scope, targetId, effectId });
+}
+
+function rackScopeValue(value: unknown): RackEffectScope {
+	if (value === 'track' || value === 'master' || value === 'group' || value === 'send') return value;
+	throw new RangeError('Effect stack scope must be track, master, group, or send.');
+}
+
+function stableGestureId(value: unknown, name: string): string {
+	if (typeof value !== 'string' || !value || value.length > 1_024) {
+		throw new TypeError(`A stable ${name} ID is required.`);
+	}
+	return value;
 }

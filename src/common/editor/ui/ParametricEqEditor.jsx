@@ -163,12 +163,12 @@ export function ParametricEqEditor({
 		return next;
 	};
 
-	const commit = (next = draft) => {
+	const commit = (next = draft, begin = false) => {
 		const value = normalizeParametricEqParams(next, effectId);
+		if (begin) onGestureBegin?.(draft);
 		setDraft(value);
 		onCommit?.(value);
 	};
-
 	const beginDrag = (event, band) => {
 		if (disabled || event.button !== 0) return;
 		event.preventDefault();
@@ -262,7 +262,7 @@ export function ParametricEqEditor({
 		const next = normalizeParametricEqParams({ ...draft, bands: [...draft.bands, band] }, effectId);
 		setDraft(next);
 		setSelectedId(id);
-		commit(next);
+		commit(next, true);
 	};
 
 	const removeSelected = () => {
@@ -277,7 +277,7 @@ export function ParametricEqEditor({
 			setAuditionedId(null);
 			onAudition?.(null);
 		}
-		commit(next);
+		commit(next, true);
 	};
 
 	const reset = () => {
@@ -286,7 +286,7 @@ export function ParametricEqEditor({
 			bands: draft.bands.map((band) => ({ ...band, enabled: true, gain: 0, q: 1 })),
 		}, effectId);
 		setDraft(next);
-		commit(next);
+		commit(next, true);
 	};
 
 	const finishOutputGain = (event) => {
@@ -305,7 +305,7 @@ export function ParametricEqEditor({
 		if (!selectedBand) return;
 		const value = key === 'type' || key === 'enabled' ? rawValue : Number(rawValue);
 		const next = replaceBand(selectedBand.id, { [key]: value });
-		commit(next);
+		commit(next, true);
 	};
 
 	const handleBandKeyDown = (event, band) => {
@@ -318,7 +318,7 @@ export function ParametricEqEditor({
 				bands: draft.bands.filter((candidate) => candidate.id !== band.id),
 			}, effectId);
 			setDraft(next);
-			commit(next);
+			commit(next, true);
 			return;
 		}
 		if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
@@ -333,7 +333,7 @@ export function ParametricEqEditor({
 			changes.q = band.q * 2 ** ((event.key === 'ArrowUp' ? 1 : -1) * fine / 12);
 		}
 		const next = replaceBand(band.id, changes);
-		commit(next);
+		commit(next, true);
 	};
 
 	const handleBandWheel = (event, band) => {
@@ -342,7 +342,7 @@ export function ParametricEqEditor({
 		setSelectedId(band.id);
 		const factor = 2 ** (-Math.sign(event.deltaY) * (event.shiftKey ? 1 / 48 : 1 / 12));
 		const next = replaceBand(band.id, { q: clamp(band.q * factor, MIN_Q, MAX_Q) });
-		commit(next);
+		commit(next, true);
 	};
 
 	return (
@@ -414,7 +414,7 @@ export function ParametricEqEditor({
 					}, effectId);
 					setDraft(next);
 					setSelectedId(id);
-					commit(next);
+					commit(next, true);
 				}}>{copy.eqAddBand || 'Add band'}</Button>
 				<Button variant="secondary" disabled={disabled || !selectedBand} onClick={removeSelected}>{copy.eqDeleteBand || 'Delete band'}</Button>
 				<Button variant="secondary" disabled={disabled} onClick={reset}>{copy.reset || 'Reset'}</Button>
@@ -468,7 +468,7 @@ export function ParametricEqEditor({
 				<NumericCommitInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onCommit={(value) => {
 					const next = normalizeParametricEqParams({ ...draft, outputGain: value }, effectId);
 					setDraft(next);
-					commit(next);
+					commit(next, true);
 				}} />
 			</label>
 		</div>

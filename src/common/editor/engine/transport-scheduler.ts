@@ -27,6 +27,7 @@ import {
 import {
 	buildProjectGraph,
 } from './project-graph.ts';
+import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import {
 	ENGINE_CANCEL_SCRUB,
 	ENGINE_EMIT_METERS,
@@ -86,6 +87,7 @@ interface DisposableAudioGraph {
 	readonly effectNodes?: { clear(): void };
 	readonly effectAnalysers?: { clear(): void };
 	readonly effectMessageSequences?: { clear(): void };
+	readonly parameterRegistry?: { clear(): void };
 }
 
 export function disposeGraph(graph: DisposableAudioGraph, stopSources: boolean): void {
@@ -108,6 +110,7 @@ export function disposeGraph(graph: DisposableAudioGraph, stopSources: boolean):
 	graph.effectNodes?.clear?.();
 	graph.effectAnalysers?.clear?.();
 	graph.effectMessageSequences?.clear?.();
+	graph.parameterRegistry?.clear?.();
 }
 
 export const engineTransportSchedulerMethods = {
@@ -184,6 +187,7 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 				sends: new Map(),
 				master: null,
 			},
+			parameterRegistry: new ScheduledParameterRegistry(),
 			trackAnalysers: new Map(),
 			groupAnalysers: new Map(),
 			sendAnalysers: new Map(),

@@ -23,7 +23,6 @@
 		"src/common/editor/project.js": { "maxLines": 696, "reason": "Legacy shared project model helpers under schema migration." },
 		"src/common/editor/recording.js": { "maxLines": 676, "reason": "Legacy recording graph and device lifecycle implementation." },
 		"src/common/editor/ui/ParametricEqEditor.jsx": { "maxLines": 604, "reason": "Legacy graph editor just above the limit; extract controls before extending it." },
-		"src/common/editor/ui/video-preview-compositor.js": { "maxLines": 655, "reason": "Legacy WebGL compositor with deterministic fallback paths." },
 		"src/common/editor/video-ffmpeg.js": { "maxLines": 710, "reason": "Legacy FFmpeg video composition and validation boundary." },
 		"src/common/i18n/catalogs.js": { "maxLines": 2097, "reason": "Reviewed canonical fallback catalog." },
 		"tests/audio-editor-controller.test.js": { "maxLines": 3404, "reason": "Legacy controller regression suite; place new subsystem tests in focused files." },

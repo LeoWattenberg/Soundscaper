@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Knob } from '@dilsonspickles/components';
-import { AUDIO_EFFECT_DEFINITIONS, audioEffectParamRange } from '../../effects.js';
+import { audioEffectParamRange } from '../../effects.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectOptionLabel,
@@ -84,7 +84,6 @@ export default function EffectParameterEditor({
 				</div>
 			);
 		}
-		const ranges = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges || {};
 		const parameterNames = Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name]) => name);
 		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
 		const renderNativeParameter = (name) => {
@@ -92,7 +91,7 @@ export default function EffectParameterEditor({
 				<ParameterNumber
 					label={effectParameterLabel(name, copy)}
 					value={effect.params?.[name]}
-					range={ranges[name]}
+					range={audioEffectParamRange(effect.type, name)}
 					copy={copy}
 					disabled={disabled}
 					hook={name}

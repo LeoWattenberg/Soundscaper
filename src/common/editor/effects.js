@@ -25,6 +25,30 @@ export const PARAMETRIC_EQ_BAND_TYPES = Object.freeze([
 export const PARAMETRIC_EQ_SLOPES = Object.freeze([12, 24, 36, 48]);
 export const PARAMETRIC_EQ_MAXIMUM_BANDS = 12;
 
+const PARAMETRIC_EQ_BAND_DEFAULTS = Object.freeze({
+	enabled: true,
+	type: 'peaking',
+	frequency: 1_000,
+	gain: 0,
+	q: 1,
+	slope: 12,
+});
+
+const PARAMETRIC_EQ_BAND_PARAMETER_METADATA = Object.freeze({
+	enabled: Object.freeze({
+		unit: 'boolean', step: 1, taper: 'discrete', automatable: false,
+		automationBlockReason: 'Changing band topology is not sample-offset safe.',
+	}),
+	type: Object.freeze({
+		unit: 'enum', step: 1, taper: 'discrete', automatable: false,
+		automationBlockReason: 'Changing filter topology is not sample-offset safe.',
+	}),
+	slope: Object.freeze({
+		unit: 'dB/oct', step: 12, taper: 'discrete', automatable: false,
+		automationBlockReason: 'Changing filter topology is not sample-offset safe.',
+	}),
+});
+
 const PARAMETRIC_EQ_BAND_TYPE_SET = new Set(PARAMETRIC_EQ_BAND_TYPES);
 const PARAMETRIC_EQ_SLOPE_SET = new Set(PARAMETRIC_EQ_SLOPES);
 const PARAMETRIC_EQ_EFFECT_ALIASES = new Set(['eq', 'parametric-eq', 'parametric_eq']);
@@ -32,12 +56,8 @@ const PARAMETRIC_EQ_DEFAULTS = Object.freeze({
 	outputGain: 0,
 	bands: Object.freeze(EQ_FREQUENCIES.map((frequency, index) => Object.freeze({
 		id: `band-${index + 1}`,
-		enabled: true,
-		type: 'peaking',
+		...PARAMETRIC_EQ_BAND_DEFAULTS,
 		frequency,
-		gain: 0,
-		q: 1,
-		slope: 12,
 	}))),
 });
 
@@ -57,45 +77,76 @@ const PARAMETRIC_EQ_DEFAULTS = Object.freeze({
 export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 	highpass: {
 		defaults: { frequency: 80, q: 0.707 },
-		ranges: { frequency: [10, 20_000], q: [0.1, 30] },
+		ranges: {
+			frequency: [10, 20_000, { unit: 'Hz', step: 1, taper: 'logarithmic' }],
+			q: [0.1, 30, { unit: 'Q', step: 0.01, taper: 'logarithmic' }],
+		},
 	},
 	lowpass: {
 		defaults: { frequency: 18_000, q: 0.707 },
-		ranges: { frequency: [10, 24_000], q: [0.1, 30] },
+		ranges: {
+			frequency: [10, 24_000, { unit: 'Hz', step: 1, taper: 'logarithmic' }],
+			q: [0.1, 30, { unit: 'Q', step: 0.01, taper: 'logarithmic' }],
+		},
 	},
 	eq: {
 		defaults: PARAMETRIC_EQ_DEFAULTS,
 		ranges: {
-			outputGain: [-24, 24],
-			frequency: [10, 24_000],
-			gain: [-24, 24],
-			q: [0.1, 30],
+			outputGain: [-24, 24, { unit: 'dB', step: 0.1, taper: 'decibel' }],
+			frequency: [10, 24_000, { unit: 'Hz', step: 1, taper: 'logarithmic' }],
+			gain: [-24, 24, { unit: 'dB', step: 0.1, taper: 'decibel' }],
+			q: [0.1, 30, { unit: 'Q', step: 0.01, taper: 'logarithmic' }],
 		},
 		bandTypes: PARAMETRIC_EQ_BAND_TYPES,
 		slopes: PARAMETRIC_EQ_SLOPES,
 		maximumBands: PARAMETRIC_EQ_MAXIMUM_BANDS,
+		bandDefaults: PARAMETRIC_EQ_BAND_DEFAULTS,
+		bandParameterMetadata: PARAMETRIC_EQ_BAND_PARAMETER_METADATA,
 	},
 	compressor: {
 		defaults: { threshold: -24, knee: 30, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
 		ranges: {
-			threshold: [-100, 0], knee: [0, 40], ratio: [1, 20], attack: [0, 1], release: [0.01, 2], makeupGain: [-24, 24],
+			threshold: [-100, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
+			knee: [0, 40, { unit: 'dB', step: 0.1, taper: 'linear' }],
+			ratio: [1, 20, { unit: ':1', step: 0.1, taper: 'logarithmic' }],
+			attack: [0, 1, { unit: 's', step: 0.001, taper: 'linear' }],
+			release: [0.01, 2, { unit: 's', step: 0.001, taper: 'logarithmic' }],
+			makeupGain: [-24, 24, { unit: 'dB', step: 0.1, taper: 'decibel', automatable: false, automationBlockReason: 'Makeup gain currently changes the native effect graph topology.' }],
 		},
 	},
 	limiter: {
 		defaults: { ceiling: -1, lookahead: 0.005, release: 0.1 },
-		ranges: { ceiling: [-24, 0], lookahead: [0, 0.1], release: [0.01, 2] },
+		ranges: {
+			ceiling: [-24, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
+			lookahead: [0, 0.1, { unit: 's', step: 0.001, taper: 'linear' }],
+			release: [0.01, 2, { unit: 's', step: 0.001, taper: 'logarithmic' }],
+		},
 	},
 	gate: {
 		defaults: { threshold: -50, attack: 0.005, hold: 0.05, release: 0.1, rangeDb: -80 },
-		ranges: { threshold: [-100, 0], attack: [0, 1], hold: [0, 2], release: [0.01, 3], rangeDb: [-100, 0] },
+		ranges: {
+			threshold: [-100, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
+			attack: [0, 1, { unit: 's', step: 0.001, taper: 'linear' }],
+			hold: [0, 2, { unit: 's', step: 0.001, taper: 'linear' }],
+			release: [0.01, 3, { unit: 's', step: 0.001, taper: 'logarithmic' }],
+			rangeDb: [-100, 0, { unit: 'dB', step: 0.1, taper: 'decibel' }],
+		},
 	},
 	reverb: {
 		defaults: { mix: 0.2, decay: 2, preDelay: 0.01 },
-		ranges: { mix: [0, 1], decay: [0.1, 10], preDelay: [0, 1] },
+		ranges: {
+			mix: [0, 1, { unit: 'ratio', step: 0.01, taper: 'linear', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
+			decay: [0.1, 10, { unit: 's', step: 0.01, taper: 'logarithmic', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
+			preDelay: [0, 1, { unit: 's', step: 0.001, taper: 'linear', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
+		},
 	},
 	delay: {
 		defaults: { time: 0.25, feedback: 0.3, mix: 0.2 },
-		ranges: { time: [0.001, 5], feedback: [0, 0.95], mix: [0, 1] },
+		ranges: {
+			time: [0.001, 5, { unit: 's', step: 0.001, taper: 'logarithmic' }],
+			feedback: [0, 0.95, { unit: 'ratio', step: 0.01, taper: 'linear' }],
+			mix: [0, 1, { unit: 'ratio', step: 0.01, taper: 'linear' }],
+		},
 	},
 });
 
@@ -187,7 +238,7 @@ export function audioEffectParamRange(type, name) {
 		return descriptor?.kind === 'number' ? [descriptor.minimum, descriptor.maximum] : null;
 	}
 	const range = AUDIO_EFFECT_DEFINITIONS[type]?.ranges?.[name];
-	return range ? [...range] : null;
+	return range ? range.slice(0, 2) : null;
 }
 
 /** @returns {AudioEditorEffect} */

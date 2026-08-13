@@ -114,11 +114,11 @@ const GRAPHIC_EQ_FREQUENCIES = Object.freeze([
 const number = (defaultValue, minimum, maximum, options = {}) => ({
 	kind: 'number', default: defaultValue, minimum, maximum, ...options,
 });
-const checkbox = (defaultValue = false) => ({
-	kind: 'boolean', default: defaultValue,
+const checkbox = (defaultValue = false, options = {}) => ({
+	kind: 'boolean', default: defaultValue, ...options,
 });
-const select = (defaultValue, options) => ({
-	kind: 'enum', default: defaultValue, options,
+const select = (defaultValue, options, metadata = {}) => ({
+	kind: 'enum', default: defaultValue, options, ...metadata,
 });
 const option = (value) => ({ value });
 
@@ -234,8 +234,14 @@ const definitions = {
 				option('leveller'),
 				option('rectifier'),
 				option('hard-limiter'),
-			]),
-			dcBlock: checkbox(),
+			], {
+				automatable: false,
+				automationBlockReason: 'Distortion mode changes the nonlinear processor topology.',
+			}),
+			dcBlock: checkbox(false, {
+				automatable: false,
+				automationBlockReason: 'DC blocking changes the distortion processor state topology and tail.',
+			}),
 			thresholdDb: number(-6, -100, 0, { unit: 'dB', step: 0.1 }),
 			noiseFloorDb: number(-70, -80, -20, { unit: 'dB', step: 0.1 }),
 			parameter1: number(50, 0, 100, { unit: '%', step: 1 }),
@@ -324,7 +330,13 @@ const definitions = {
 	'audacity-phaser': {
 		category: 'modulation',
 		params: {
-			stages: number(2, 2, 24, { integer: true, even: true, step: 2 }),
+			stages: number(2, 2, 24, {
+				integer: true,
+				even: true,
+				step: 2,
+				automatable: false,
+				automationBlockReason: 'Phaser stages change the processor state topology.',
+			}),
 			dryWet: number(128, 0, 255, { integer: true, step: 1 }),
 			frequency: number(0.4, 0.001, 4, { unit: 'Hz', step: 0.001 }),
 			phaseDegrees: number(0, 0, 360, { unit: '°', step: 0.1 }),
@@ -356,9 +368,24 @@ const definitions = {
 	'audacity-classic-filters': {
 		category: 'eq',
 		params: {
-			family: select('butterworth', [option('butterworth'), option('chebyshev-i'), option('chebyshev-ii')]),
-			direction: select('lowpass', [option('lowpass'), option('highpass')]),
-			order: number(1, 1, 10, { integer: true, step: 1 }),
+			family: select(
+				'butterworth',
+				[option('butterworth'), option('chebyshev-i'), option('chebyshev-ii')],
+				{
+					automatable: false,
+					automationBlockReason: 'Filter family changes the processor section topology.',
+				},
+			),
+			direction: select('lowpass', [option('lowpass'), option('highpass')], {
+				automatable: false,
+				automationBlockReason: 'Filter direction changes the processor section topology.',
+			}),
+			order: number(1, 1, 10, {
+				integer: true,
+				step: 1,
+				automatable: false,
+				automationBlockReason: 'Filter order changes the processor section topology.',
+			}),
 			cutoffHz: number(1_000, 1, 23_999, { unit: 'Hz', step: 1 }),
 			passbandRippleDb: number(1, 0, 100, { unit: 'dB', step: 0.1 }),
 			stopbandAttenuationDb: number(30, 0, 100, { unit: 'dB', step: 0.1 }),

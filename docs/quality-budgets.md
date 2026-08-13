@@ -23,6 +23,27 @@ fixture, environment, metric, and threshold identifiers.
   itself a Safari release qualification.
 - The four 128x72 video-effect parity frames are deterministic and SHA-256
   pinned. Their full FFmpeg/WebGL audit is still opt-in.
+- The milestone-4 production-parity fixture adds one second of digest-pinned
+  48 kHz stereo Float32 vectors, exact impulse/PDC and automation landmarks,
+  and a focused four-frame FFmpeg/WebGL workload. Run its one-worker,
+  no-retry collector with `npm run quality:collect:m4-production-parity`.
+  Local and hosted runs identify themselves as local/hosted correctness and
+  remain `pending-external` while their five metrics pass. A metric failure is
+  recorded as `failed`, independently of environment qualification. After the
+  reference descriptor is provisioned, `npm run
+  quality:collect:m4-production-parity -- --reference <output-directory>`
+  enables explicit qualification. The provisioned runner must set
+  `SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH` to an independently captured
+  `m4-reference-host-observation-v1` JSON record. Browser observations and that
+  host-owned record
+  assemble the complete OS/update-policy, CPU/RAM, GPU/VRAM/driver/WebGL,
+  display/refresh/pixel-ratio, power-policy, browser-binary/launch-flag, and
+  runner-label fingerprint. The collector requires a byte-exact descriptor
+  match before publishing accepted evidence; the configured expected value is
+  never used as observed evidence. A reference-mode identity or fingerprint
+  mismatch aborts collection before writing either pending or accepted files.
+  Accepted evidence pins the complete budget-config digest and, through its
+  digest-bound raw artifact, the exact registered workload descriptor digest.
 - The 12-effect 1280x720 preview test records timing and heap data, but its media
   file is generated with `MediaRecorder` for each run. It therefore remains a
   provisional fixture.
@@ -527,8 +548,10 @@ and environment contract.
 The safe progression is:
 
 1. Keep the contract/evaluator tests in the canonical Node suite.
-2. Enable deterministic FFmpeg/WebGL parity in a one-worker, no-retry nightly
-   browser job and retain its JSON metrics.
+2. Run the deterministic M4 PCM/RGBA parity collector in a one-worker,
+   no-retry browser job and retain its complete raw evidence. The collector
+   recomputes exactly the five registered metrics and refuses ambiguous,
+   truncated, non-finite, retried, or overwrite-prone evidence.
 3. Keep Chromium, Firefox, and WebKit functional/fallback jobs green without
    treating their hosted timing as performance qualification.
 4. Provision the fixed GPU host, add an exact environment check, replace the
