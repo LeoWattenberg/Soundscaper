@@ -19,6 +19,7 @@ import {
 	createFramescaperProjectStoreV18,
 } from '../src/framescaper/editor-project-store-v18.ts';
 import * as framescaperStoreModule from '../src/framescaper/editor-project-store-v18.ts';
+import { FramescaperProjectRepositoryV18 } from '../src/framescaper/editor-project-repository-v18.ts';
 import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
@@ -192,6 +193,7 @@ test('product factory creates the exact isolated store and authenticates injecti
 	);
 	const storageProfile = editorProjectStoreProfile(store);
 	assert.ok(storageProfile);
+	assert.ok(store.projectRepository instanceof FramescaperProjectRepositoryV18);
 	assert.deepEqual(editorProjectStorageProfileNames(storageProfile), FRAME_NAMES);
 	assert.equal(store.databaseName, FRAME_NAMES.databaseName);
 	assert.equal(repositoryCalls, 1);
@@ -217,6 +219,22 @@ test('product factory creates the exact isolated store and authenticates injecti
 });
 
 test('product store injection accepts only the exact out-of-band binding without traps', () => {
+	const productStore = createFramescaperProjectStoreV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		{ indexedDB: null, repositoryFactory: fixtureFactory() },
+	);
+	const forgedExactStore = createProjectStore({
+		indexedDB: null,
+		projectStorageProfile: editorProjectStoreProfile(productStore),
+		repositoryFactory: fixtureFactory(),
+	});
+	assert.throws(
+		() => createFramescaperProjectStoreV18(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+			{ store: forgedExactStore },
+		),
+		/product-created|V18 project store/iu,
+	);
 	for (const store of [
 		{},
 		createProjectStore({ indexedDB: null, repositoryFactory: fixtureFactory() }),
@@ -271,7 +289,16 @@ function fixtureFactory(): StorageRepositoryFactory {
 
 function repositoryFixture(): StorageRepositories {
 	return {
-		projects: {}, settings: {}, analysis: {}, sources: {}, media: {}, retention: {},
+		projects: {
+			async createIfAbsent(project: unknown) { return project; },
+			async save(project: unknown) { return project; },
+			async saveIfCurrent(_expected: unknown, project: unknown) { return project; },
+			async load() { return null; },
+			async list() { return []; },
+			async listRevisions() { return []; },
+			async delete() {},
+		},
+		settings: {}, analysis: {}, sources: {}, media: {}, retention: {},
 	} as unknown as StorageRepositories;
 }
 
