@@ -30,6 +30,12 @@ export interface ProjectAdminServiceRuntime {
 	readonly openProject: LegacyPort;
 	readonly persistSetting: LegacyPort;
 	readonly projectSaveService: any;
+	readonly projectMaintenanceRuntime?: Readonly<{
+		reconcileAndCollectStorageRoots(request: Readonly<{
+			currentProject: unknown;
+			pendingSaveSnapshots: unknown;
+		}>): PromiseLike<Readonly<{ storageRoots: readonly string[] }>>;
+	}>;
 	readonly projectSessionService: any;
 	readonly publishDocumentSnapshot: LegacyPort;
 	readonly recordingRoutingSettingKey: LegacyPort;
@@ -57,7 +63,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		evictUnreferencedSourceCaches, flushProject, getProject, handleError,
 		liveSessionClipIds, liveSessionLinkedOriginalSourceReferences,
 		liveSessionSourceIds, newProject, openProject, persistSetting,
-		projectSaveService, projectSessionService, publishDocumentSnapshot,
+		projectSaveService, projectMaintenanceRuntime, projectSessionService, publishDocumentSnapshot,
 		recordingRoutingSettingKey, releaseProjectLock, revokeVideoVisuals, saveNow,
 		scheduleTimer, sessionController, sessionTab, setProject, sourceBuffers,
 		sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store, switchProject,
@@ -206,6 +212,15 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		await sourceChunkProviders.drain?.();
 		for (const sourceId of sourceBuffers.keys()) protectedSourceIds.add(sourceId);
 		for (const sourceId of sourcePeaks.keys()) protectedSourceIds.add(sourceId);
+		if (projectMaintenanceRuntime) {
+			const currentProject = getProject();
+			if (!currentProject) return;
+			const maintenance = await projectMaintenanceRuntime.reconcileAndCollectStorageRoots({
+				currentProject,
+				pendingSaveSnapshots: projectSaveService.pendingSnapshots,
+			});
+			for (const storageRoot of maintenance.storageRoots) protectedSourceIds.add(storageRoot);
+		}
 		const result = await store.pruneUnreferencedSources({
 			protectedProjects: [
 				...sessionHistoryProjects(),

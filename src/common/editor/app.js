@@ -722,7 +722,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		clipTimePitchCache, commit, copy, currentTimeMs, editorHistoryProjects, engine,
 		evictUnreferencedSourceCaches, flushProject, getProject: () => project, handleError,
 		liveSessionClipIds, liveSessionLinkedOriginalSourceReferences: projectRetentionService.liveSessionLinkedOriginalSourceReferences, liveSessionSourceIds, newProject, openProject, persistSetting,
-		projectSaveService, projectSessionService, publishDocumentSnapshot,
+		projectSaveService, projectMaintenanceRuntime: options.projectMaintenanceRuntime, projectSessionService, publishDocumentSnapshot,
 		recordingRoutingSettingKey, releaseProjectLock, revokeVideoVisuals, saveNow,
 		scheduleTimer: globalThis.setTimeout.bind(globalThis), sessionController, sessionTab,
 		setProject: (nextProject) => { project = nextProject; },
