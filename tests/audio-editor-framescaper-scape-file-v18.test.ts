@@ -43,6 +43,7 @@ import {
 	ARCHIVE_ORIGINAL_SHA,
 	ARCHIVE_PROJECT_ID,
 	ARCHIVE_PROXY_BYTES,
+	ARCHIVE_SOURCE_ID,
 	ARCHIVE_TIMING,
 	archiveCopy,
 	archiveManifest,
@@ -443,16 +444,27 @@ function nestedArchiveProject(
 	options: Readonly<{ attached: boolean }>,
 ): FramescaperProjectV18 {
 	const project = structuredClone(archiveProject(options)) as unknown as Record<string, unknown>;
+	const sourceClip = structuredClone(
+		(project.clips as Record<string, unknown>[])[0]!,
+	);
 	(project.clips as Record<string, unknown>[]).push({
-		kind: 'video', id: 'nested-source-clip', sourceId: ARCHIVE_SOURCE_ID, title: 'Nested source',
-		sequenceId: 'nested-source-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
-		sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+		...sourceClip,
+		id: 'nested-source-clip',
+		title: 'Nested source',
+		sequenceId: 'nested-source-sequence',
 	});
 	(project.tracks as Record<string, unknown>[]).push(createVideoTrackV10({
 		id: 'nested-source-track', name: 'Nested source', clipIds: ['nested-source-clip'], locked: true,
 	}) as unknown as Record<string, unknown>);
+	const sourceSequence = structuredClone(
+		(project.sequences as Record<string, unknown>[])[0]!,
+	);
 	(project.sequences as Record<string, unknown>[]).push({
-		id: 'nested-source-sequence', rate: { num: 10, den: 1 }, trackIds: ['nested-source-track'],
+		...sourceSequence,
+		id: 'nested-source-sequence',
+		name: 'Nested source',
+		trackIds: ['nested-source-track'],
+		trackNodes: [{ kind: 'track', id: 'nested-source-track', parentFolderId: null }],
 	});
 	project.subsequences = [{
 		id: 'nested-placement',
