@@ -7,13 +7,15 @@ import {
 	type VideoClipComposition,
 } from '../common/editor/video-clip-composition.ts';
 import {
-	AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION,
 	normalizeAudioEditorClipboardDescriptor,
 } from '../common/editor/commands/clipboard-codec.ts';
+import { snapshotInertEditorCommand } from '../common/editor/commands/editor-command-snapshot.ts';
 import {
+	readClosedDomainArray,
 	readClosedDomainField,
 	readClosedDomainRecord,
 } from '../common/editor/closed-domain-value.ts';
+import { AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS } from '../common/editor/project-v9-validation-budget.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import {
 	applyFramescaperProjectCommandV18,
@@ -98,11 +100,7 @@ export function snapshotFramescaperProjectCommandV19(
 	if (isFramescaperVideoCompositionCommandV19(command)) {
 		return normalizeFramescaperProjectCommandV19(command);
 	}
-	if (!command || typeof command !== 'object' || Array.isArray(command)
-		|| typeof (command as { readonly type?: unknown }).type !== 'string') {
-		throw new TypeError('A serializable Framescaper V19 project command is required.');
-	}
-	return structuredClone(command);
+	return snapshotInertEditorCommand(command, 'Framescaper V19 command') as FramescaperProjectCommandV19;
 }
 
 /** Replace one timeline or Project Bin video's complete composition by optimistic equality. */
@@ -118,15 +116,16 @@ export function applyFramescaperProjectCommandV19(
 	if (framescaperProjectV19HasProxyAttachment(persisted)) {
 		throw new RangeError('A proxy-attached Framescaper V19 project is intrinsically read-only.');
 	}
-	if (!isFramescaperVideoCompositionCommandV19(command)) {
-		assertCurrentVideoClipboardV19(command);
+	const normalizedCommand = snapshotFramescaperProjectCommandV19(command);
+	if (!isFramescaperVideoCompositionCommandV19(normalizedCommand)) {
+		assertCurrentVideoClipboardV19(normalizedCommand);
 		const foundation = framescaperProjectV18FoundationV19(profile, persisted, {
 			retainComposition: true,
 		});
 		const commanded = applyFramescaperProjectCommandV18(
 			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			foundation,
-			command,
+			normalizedCommand,
 			options,
 		) as unknown as Record<string, unknown>;
 		commanded.schemaVersion = 19;
@@ -135,7 +134,7 @@ export function applyFramescaperProjectCommandV19(
 		validateFramescaperProjectV19(profile, commanded);
 		return commanded as FramescaperProjectV19;
 	}
-	const normalized = normalizeFramescaperProjectCommandV19(command);
+	const normalized = normalizedCommand;
 	const current = findClip(persisted, normalized.clipId);
 	if (current.kind !== 'video') {
 		throw new RangeError(`Clip ${normalized.clipId} is not a video clip and cannot carry video composition.`);
@@ -177,11 +176,40 @@ function assertClipTrackUnlocked(project: FramescaperProjectV19, clipId: string)
 }
 
 function assertCurrentVideoClipboardV19(command: FramescaperProjectCommandV19): void {
-	if (command.type !== 'clipboard/paste') return;
-	const clipboard = normalizeAudioEditorClipboardDescriptor(command.clipboard);
-	if (clipboard.schemaVersion === AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return;
-	if (clipboard.tracks.some((track) => track.sourceTrackType === 'video')) {
-		throw new RangeError('Framescaper V19 video clipboard content requires V5 recopy.');
+	const limits = AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS;
+	const stack: Array<Readonly<{ command: unknown; depth: number }>> = [{ command, depth: 0 }];
+	let nodes = 0;
+	while (stack.length > 0) {
+		const work = stack.pop()!;
+		nodes += 1;
+		if (nodes > limits.maximumTraversalNodes) {
+			throw new RangeError('Framescaper V19 clipboard command traversal exceeds its structural limit.');
+		}
+		if (work.depth > limits.maximumTraversalDepth) {
+			throw new RangeError('Framescaper V19 clipboard command nesting exceeds its structural limit.');
+		}
+		const candidate = dataRecord(work.command, 'Framescaper V19 inherited command');
+		const type = dataProperty(candidate, 'type', 'Framescaper V19 inherited command');
+		if (type === 'batch') {
+			const children = readClosedDomainArray(
+				dataProperty(candidate, 'commands', 'Framescaper V19 batch command'),
+				'Framescaper V19 batch command.commands',
+				0,
+				limits.maximumTraversalNodes,
+			);
+			for (let index = children.length - 1; index >= 0; index -= 1) {
+				stack.push({ command: children[index], depth: work.depth + 1 });
+			}
+			continue;
+		}
+		if (type !== 'clipboard/paste') continue;
+		const clipboard = normalizeAudioEditorClipboardDescriptor(
+			dataProperty(candidate, 'clipboard', 'Framescaper V19 clipboard paste'),
+		);
+		if (clipboard.schemaVersion !== 5
+			&& clipboard.tracks.some((track) => track.sourceTrackType === 'video')) {
+			throw new RangeError('Framescaper V19 video clipboard content requires V5 recopy.');
+		}
 	}
 }
 

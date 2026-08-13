@@ -22,6 +22,10 @@ import {
 } from '../timeline-time.ts';
 import { resolveAudioWarpEditFrame } from '../audio-warp-clip-edit.ts';
 import { videoCompositionCarriersEqual } from './video-composition-carrier.ts';
+import {
+	joinVideoKeyframeCarrierSequenceFields,
+	videoKeyframeCarriersJoinable,
+} from './video-keyframe-carrier.ts';
 
 // foundation-edit-matrix: split
 
@@ -291,7 +295,7 @@ export function joinClips(project, clipIds) {
 	const last = clips.at(-1);
 	const joinedDurationFrames = clipEndFrame(last) - first.timelineStartFrame;
 	const joinedSourceDurationFrames = clips.reduce((sum, clip) => sum + (clip.sourceDurationFrames ?? clip.durationFrames), 0);
-	const joined = normalizeClipForProject(project, {
+	let joined = normalizeClipForProject(project, {
 		...first,
 		durationFrames: joinedDurationFrames,
 		sourceDurationFrames: joinedSourceDurationFrames,
@@ -300,6 +304,10 @@ export function joinClips(project, clipIds) {
 		envelope: joinClipEnvelopes(clips),
 		id: first.id,
 	});
+	joined = {
+		...joined,
+		...joinVideoKeyframeCarrierSequenceFields(clips, joined, `Joined clip ${first.id}`),
+	};
 	const removedIds = new Set(clips.slice(1).map((clip) => clip.id));
 	project.clips = project.clips
 		.filter((clip) => !removedIds.has(clip.id))
@@ -319,6 +327,7 @@ function clipsHaveContiguousSource(left, right) {
 		|| Boolean(left.stretchToTempo) !== Boolean(right.stretchToTempo)
 		|| !videoEffectStacksEquivalent(left.videoEffects, right.videoEffects)
 		|| !videoCompositionCarriersEqual(left, right)
+		|| !videoKeyframeCarriersJoinable(left, right)
 	) return false;
 	const leftDuration = left.sourceDurationFrames ?? left.durationFrames;
 	const rightDuration = right.sourceDurationFrames ?? right.durationFrames;

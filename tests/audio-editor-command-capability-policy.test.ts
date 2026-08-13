@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorClipboard, AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import { snapshotInertEditorCommand } from '../src/common/editor/commands/editor-command-snapshot.ts';
 import {
 	assertEditorCommandCapabilities,
 	type EditorCommandCapabilities,
@@ -79,6 +80,60 @@ test('command capability policy accepts unrestricted commands and recursively va
 			'Framescaper',
 		),
 		/Framescaper does not support timelineAnnotations\./u,
+	);
+});
+
+test('command capability admission rejects inherited and accessor-backed roots without invocation', () => {
+	let gets = 0;
+	const accessorType: Record<string, unknown> = {};
+	Object.defineProperty(accessorType, 'type', {
+		enumerable: true,
+		get() { gets += 1; return 'project/rename'; },
+	});
+	const accessorPayload: Record<string, unknown> = { type: 'project/rename' };
+	Object.defineProperty(accessorPayload, 'title', {
+		enumerable: true,
+		get() { gets += 1; return 'Unsafe'; },
+	});
+	const accessorChildren: Record<string, unknown> = { type: 'batch' };
+	Object.defineProperty(accessorChildren, 'commands', {
+		enumerable: true,
+		get() { gets += 1; return []; },
+	});
+	const inheritedType = Object.assign(Object.create({ type: 'project/rename' }) as Record<string, unknown>, {
+		title: 'Inherited type',
+	});
+	const inheritedPayload = Object.assign(Object.create({ title: 'Inherited payload' }) as Record<string, unknown>, {
+		type: 'project/rename',
+	});
+	const cyclic: Record<string, unknown> = { type: 'project/rename', title: 'Cycle' };
+	cyclic.self = cyclic;
+	for (const command of [
+		accessorType,
+		accessorPayload,
+		accessorChildren,
+		inheritedType,
+		inheritedPayload,
+		{ type: 'batch', commands: [accessorType] },
+		cyclic,
+	]) {
+		assert.throws(
+			() => assertEditorCommandCapabilities(command as AudioEditorCommand, enabled, 'Soundscaper'),
+			/plain|own enumerable data property|cycle/iu,
+		);
+	}
+	assert.equal(gets, 0);
+});
+
+test('recursive command capability admission shares one aggregate inspection budget', () => {
+	const leaf: AudioEditorCommand = { type: 'project/rename', title: 'Bounded' };
+	const shared = Array.from({ length: 50_001 }, () => leaf);
+	const nested = { type: 'batch', commands: shared } as AudioEditorCommand;
+	assert.throws(
+		() => assertEditorCommandCapabilities({
+			type: 'batch', commands: Array.from({ length: 50_001 }, () => nested),
+		}, enabled, 'Soundscaper'),
+		/inspection budget|structural limit/iu,
 	);
 });
 
@@ -199,7 +254,7 @@ test('command capability policy covers every product-sensitive payload path', ()
 });
 
 test('capability policy inspects clipboard clip warp maps across every supported schema', () => {
-	for (const schemaVersion of [1, 2, 3, 4, 5] as const) {
+	for (const schemaVersion of [1, 2, 3, 4, 5, 6] as const) {
 		const clipboard = {
 			schemaVersion,
 			sampleRate: 48_000,
@@ -224,7 +279,7 @@ test('capability policy inspects clipboard clip warp maps across every supported
 });
 
 test('capability policy inspects clipboard video composition across every supported schema', () => {
-	for (const schemaVersion of [1, 2, 3, 4, 5] as const) {
+	for (const schemaVersion of [1, 2, 3, 4, 5, 6] as const) {
 		const clipboard = {
 			schemaVersion,
 			sampleRate: 48_000,
@@ -250,15 +305,41 @@ test('capability policy inspects clipboard video composition across every suppor
 	}
 });
 
-test('capability policy refuses disguised keyframes in current clipboard clips', () => {
+test('capability policy refuses disguised keyframes in legacy V5 and current V6 clipboard clips', () => {
+	for (const schemaVersion of [5, 6] as const) {
+		const clipboard = {
+			schemaVersion,
+			sampleRate: 48_000,
+			durationFrames: 1,
+			tracks: [{
+				sourceTrackId: 'track', sourceTrackName: 'Track', sourceTrackType: 'video' as const,
+				sourceSequenceId: 'main', clips: [{ id: 'clip', videoKeyframes: authoredVideoKeyframes }],
+			}],
+			annotations: [],
+			takeGroups: [],
+		} as unknown as AudioEditorClipboard;
+		assert.throws(
+			() => assertEditorCommandCapabilities(
+				{ type: 'clipboard/paste', clipboard, atFrame: 0 },
+				{ ...enabled, videoKeyframes: false },
+				'Soundscaper',
+			),
+			/Soundscaper does not support videoKeyframes\./u,
+		);
+	}
+});
+
+test('clipboard capability inspection applies one aggregate budget to shared clip arrays', () => {
+	const clips = Array.from({ length: 50_001 }, (_, index) => ({ id: `clip-${String(index)}` }));
+	const track = {
+		sourceTrackId: 'track', sourceTrackName: 'Track', sourceTrackType: 'video' as const,
+		sourceSequenceId: 'main', clips,
+	};
 	const clipboard = {
-		schemaVersion: 5,
+		schemaVersion: 6 as const,
 		sampleRate: 48_000,
 		durationFrames: 1,
-		tracks: [{
-			sourceTrackId: 'track', sourceTrackName: 'Track', sourceTrackType: 'video' as const,
-			sourceSequenceId: 'main', clips: [{ id: 'clip', videoKeyframes: authoredVideoKeyframes }],
-		}],
+		tracks: Array.from({ length: 50_001 }, () => track),
 		annotations: [],
 		takeGroups: [],
 	} as unknown as AudioEditorClipboard;
@@ -268,7 +349,7 @@ test('capability policy refuses disguised keyframes in current clipboard clips',
 			{ ...enabled, videoKeyframes: false },
 			'Soundscaper',
 		),
-		/Soundscaper does not support videoKeyframes\./u,
+		/aggregate inspection budget/iu,
 	);
 });
 
@@ -285,38 +366,56 @@ test('capability policy refuses disguised warp maps without invoking accessors',
 			{ ...enabled, audioWarp: false },
 			'Framescaper',
 		),
-		/Framescaper does not support audioWarp\./u,
+		/warpMap.*data property/iu,
 	);
 	assert.equal(gets, 0);
 });
 
-test('capability policy inspects V4 take group payloads and permits take-free V4 media', () => {
-	const clipboard: AudioEditorClipboard = {
-		schemaVersion: 4, sampleRate: 48_000, durationFrames: 100, tracks: [], annotations: [], takeGroups: [],
-	};
+test('command capability admission preserves supported detached binary payloads', () => {
+	const bytes = new Uint8Array([1, 2, 3]);
+	const command = {
+		type: 'project/rename',
+		title: 'Binary-safe',
+		bytes,
+		alias: bytes,
+		buffer: new Uint8Array([4, 5]).buffer,
+	} as unknown as AudioEditorCommand;
+	assert.doesNotThrow(() => assertEditorCommandCapabilities(command, enabled, 'Soundscaper'));
+	const snapshot = snapshotInertEditorCommand(command) as unknown as Record<string, unknown>;
+	assert.notStrictEqual(snapshot.bytes, bytes);
+	assert.strictEqual(snapshot.bytes, snapshot.alias);
+	assert.deepEqual(snapshot.bytes, bytes);
+});
+
+test('capability policy inspects V4 through V6 take groups and permits take-free media', () => {
 	const disabled = { ...enabled, takeComp: false };
-	assert.throws(
-		() => assertEditorCommandCapabilities(
-			{ type: 'clipboard/paste', clipboard: { ...clipboard, takeGroups: [{ id: 'group' }] }, atFrame: 0 },
+	for (const schemaVersion of [4, 5, 6] as const) {
+		const clipboard: AudioEditorClipboard = {
+			schemaVersion, sampleRate: 48_000, durationFrames: 100, tracks: [], annotations: [], takeGroups: [],
+		};
+		assert.throws(
+			() => assertEditorCommandCapabilities(
+				{ type: 'clipboard/paste', clipboard: { ...clipboard, takeGroups: [{ id: 'group' }] }, atFrame: 0 },
+				disabled,
+				'Framescaper',
+			),
+			/Framescaper does not support takeComp\./u,
+		);
+		const { takeGroups: _takeGroups, ...withoutTakeGroups } = clipboard;
+		assert.throws(
+			() => assertEditorCommandCapabilities(
+				{ type: 'clipboard/paste', clipboard: withoutTakeGroups, atFrame: 0 },
+				disabled,
+				'Framescaper',
+			),
+			/Framescaper does not support takeComp\./u,
+		);
+		assert.doesNotThrow(() => assertEditorCommandCapabilities(
+			{ type: 'clipboard/paste', clipboard, atFrame: 0 },
 			disabled,
 			'Framescaper',
-		),
-		/Framescaper does not support takeComp\./u,
-	);
-	const { takeGroups: _takeGroups, ...withoutTakeGroups } = clipboard;
-	assert.throws(
-		() => assertEditorCommandCapabilities(
-			{ type: 'clipboard/paste', clipboard: withoutTakeGroups, atFrame: 0 },
-			disabled,
-			'Framescaper',
-		),
-		/Framescaper does not support takeComp\./u,
-	);
-	assert.doesNotThrow(() => assertEditorCommandCapabilities(
-		{ type: 'clipboard/paste', clipboard, atFrame: 0 },
-		disabled,
-		'Framescaper',
-	));
+		));
+	}
 });
 
 test('empty effect stacks remain compatible with products that disable effect editing', () => {

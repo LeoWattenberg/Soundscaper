@@ -228,7 +228,7 @@ export type AudioEditorClipboardAnnotation =
 	}>;
 
 export interface AudioEditorClipboard {
-	readonly schemaVersion: 1 | 2 | 3 | 4 | 5;
+	readonly schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
 	readonly sampleRate: number;
 	readonly durationFrames: number;
 	readonly tracks: readonly AudioEditorClipboardTrack[];

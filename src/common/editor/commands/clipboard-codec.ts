@@ -16,12 +16,13 @@ import {
 	normalizeTakeCompClipboardGroups,
 } from './take-comp-clipboard.ts';
 import { cloneVideoClipComposition } from '../video-clip-composition.ts';
+import { normalizeVideoKeyframeCurves } from '../video-keyframe-curves.ts';
 import type {
 	AudioEditorClipboard,
 	AudioEditorClipboardAnnotation,
 } from './protocol.ts';
 
-export const AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION = 5;
+export const AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION = 6;
 
 type DataRecord = Record<string, unknown>;
 
@@ -51,7 +52,8 @@ export function collectAudioEditorClipboardSourceIds(
 			if (typeof clip?.sourceId === 'string' && clip.sourceId) ids.add(clip.sourceId);
 		}
 	}
-	if (descriptor?.schemaVersion === 4 || descriptor?.schemaVersion === 5) {
+	if (descriptor?.schemaVersion === 4 || descriptor?.schemaVersion === 5
+		|| descriptor?.schemaVersion === AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
 		for (const sourceId of collectTakeCompClipboardSourceIds(
 			normalizeTakeCompClipboardGroups(descriptor.takeGroups),
 		)) ids.add(sourceId);
@@ -59,28 +61,28 @@ export function collectAudioEditorClipboardSourceIds(
 	return [...ids].sort();
 }
 
-/** Fail closed when a V3/V4/V5 paste contains, or disguises, annotation content. */
+/** Fail closed when a V3..V6 paste contains, or disguises, annotation content. */
 export function clipboardRequiresTimelineAnnotationCapability(value: unknown): boolean {
 	if (!isRecord(value)) return false;
 	const schema = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
 	if (!schema?.enumerable || !Object.hasOwn(schema, 'value')) return Object.hasOwn(value, 'annotations');
-	if (schema.value !== 3 && schema.value !== 4
+	if (schema.value !== 3 && schema.value !== 4 && schema.value !== 5
 		&& schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
 	const annotations = Object.getOwnPropertyDescriptor(value, 'annotations');
 	if (!annotations?.enumerable || !Object.hasOwn(annotations, 'value')) return true;
 	return !Array.isArray(annotations.value) || annotations.value.length > 0;
 }
 
-/** Validate and detach one legacy V1/V2/V3/V4 or current V5 command descriptor. */
+/** Validate and detach one legacy V1..V5 or current V6 command descriptor. */
 export function normalizeAudioEditorClipboardDescriptor(descriptor: unknown): AudioEditorClipboard {
 	if (!isRecord(descriptor)) throw new TypeError('An audio editor clipboard descriptor is required.');
 	let candidate = descriptor;
 	const schemaValue = ownDataValue(candidate, 'schemaVersion', 'clipboard');
-	if (schemaValue !== 1 && schemaValue !== 2 && schemaValue !== 3 && schemaValue !== 4
+	if (schemaValue !== 1 && schemaValue !== 2 && schemaValue !== 3 && schemaValue !== 4 && schemaValue !== 5
 		&& schemaValue !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported clipboard schema version: ${String(schemaValue)}.`);
 	}
-	const schemaVersion = schemaValue as 1 | 2 | 3 | 4 | 5;
+	const schemaVersion = schemaValue as 1 | 2 | 3 | 4 | 5 | 6;
 	if (schemaVersion >= 3) {
 		assertClosedRecord(
 			candidate,
@@ -120,7 +122,7 @@ export function normalizeAudioEditorClipboardDescriptor(descriptor: unknown): Au
 	return normalized as unknown as AudioEditorClipboard;
 }
 
-function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3 | 4 | 5): void {
+function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3 | 4 | 5 | 6): void {
 	const laneGroups = new Map<string, Array<{ index: number; type: 'audio' | 'video'; sequenceId: string | null }>>();
 	const avLinks = new Map<string, Array<{
 		kind: 'audio' | 'video';
@@ -164,6 +166,9 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3 | 4 | 5): vo
 			if (schemaVersion < 5 && Object.hasOwn(clip, 'videoComposition')) {
 				throw new RangeError(`${clipName}.videoComposition requires clipboard V5 recopy.`);
 			}
+			if (schemaVersion < 6 && Object.hasOwn(clip, 'videoKeyframes')) {
+				throw new RangeError(`${clipName}.videoKeyframes requires clipboard V6 recopy.`);
+			}
 			nonEmptyString(clip.key, `${clipName}.key`);
 			nonEmptyString(clip.sourceId, `${clipName}.sourceId`);
 			nonNegativeInteger(clip.offsetFrame, `${clipName}.offsetFrame`);
@@ -172,7 +177,8 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3 | 4 | 5): vo
 			if (schemaVersion < 2) continue;
 			if (clip.kind !== 'audio' && clip.kind !== 'video') throw new RangeError(`${clipName}.kind must be audio or video.`);
 			if (clip.kind !== sourceTrackType) throw new RangeError(`${trackName} cannot contain a ${String(clip.kind)} clip.`);
-			if (schemaVersion === 5) normalizeClipVideoComposition(clip, clipName);
+			if (schemaVersion >= 5) normalizeClipVideoComposition(clip, clipName);
+			if (schemaVersion === 6) normalizeClipVideoKeyframes(clip, clipName);
 			if (schemaVersion >= 3 && clip.kind === 'video' && clip.sequenceId !== sourceSequenceId) {
 				throw new RangeError(`${clipName}.sequenceId must match its source sequence context.`);
 			}
@@ -206,6 +212,23 @@ function validateTracks(tracks: unknown[], schemaVersion: 1 | 2 | 3 | 4 | 5): vo
 			throw new RangeError(`Clipboard A/V link ${avLinkId} must contain one aligned video/audio pair.`);
 		}
 	}
+}
+
+function normalizeClipVideoKeyframes(clip: DataRecord, name: string): void {
+	const descriptor = Object.getOwnPropertyDescriptor(clip, 'videoKeyframes');
+	if (clip.kind === 'audio') {
+		if (descriptor) throw new TypeError(`${name} is audio and must not carry videoKeyframes.`);
+		return;
+	}
+	if (!descriptor) return;
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(`${name}.videoKeyframes must be an own enumerable data property.`);
+	}
+	clip.videoKeyframes = normalizeVideoKeyframeCurves(descriptor.value, {
+		duration: { num: positiveInteger(clip.sequenceFrameCount, `${name}.sequenceFrameCount`), den: 1 },
+		composition: clip.videoComposition,
+		videoEffects: clip.videoEffects,
+	}, `${name}.videoKeyframes`);
 }
 
 function normalizeClipVideoComposition(clip: DataRecord, name: string): void {

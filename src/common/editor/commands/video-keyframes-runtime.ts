@@ -14,6 +14,8 @@ import {
 	snapshotVideoKeyframesSetCommand,
 	type VideoKeyframesCommandHandlers,
 } from './video-keyframes.ts';
+import { isRuntimeProjectProjection } from '../runtime-clip-projection.ts';
+import { VIDEO_KEYFRAME_CARRIER_EDITED } from './command-projection-transients.ts';
 
 type DataRecord = Record<string, unknown>;
 const MAXIMUM_CLIP_COLLECTION_LENGTH = 100_000;
@@ -47,6 +49,9 @@ function setVideoKeyframes(
 		context,
 		`video clip ${command.clipId}.nextVideoKeyframes`,
 	);
+	if (isRuntimeProjectProjection(projectValue as never)) {
+		(clip as Record<PropertyKey, unknown>)[VIDEO_KEYFRAME_CARRIER_EDITED] = true;
+	}
 }
 
 function normalizationContext(clip: DataRecord, clipId: string): Readonly<Record<string, unknown>> {

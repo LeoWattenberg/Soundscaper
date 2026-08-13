@@ -191,7 +191,7 @@ export function prepareTakeCompClipboardPasteIds(
 	command: MutablePasteCommand,
 	idFactory: IdFactory,
 ): void {
-	if (clipboard.schemaVersion !== 4 && clipboard.schemaVersion !== 5) return;
+	if (clipboard.schemaVersion !== 4 && clipboard.schemaVersion !== 5 && clipboard.schemaVersion !== 6) return;
 	const groups = normalizeTakeCompClipboardGroups(clipboard.takeGroups);
 	const takeGroupIds = nullRecord();
 	const takeLaneIds = nullRecord();
@@ -220,7 +220,7 @@ export function stageTakeCompClipboardPaste(
 ): () => void {
 	const project = record(projectValue, 'project');
 	const command = record(commandValue, 'clipboard paste command') as MutablePasteCommand;
-	if (clipboard.schemaVersion !== 4 && clipboard.schemaVersion !== 5) {
+	if (clipboard.schemaVersion !== 4 && clipboard.schemaVersion !== 5 && clipboard.schemaVersion !== 6) {
 		for (const field of PASTE_MAP_FIELDS) {
 			if (Object.hasOwn(command, field)) throw new TypeError(`Legacy clipboard paste cannot contain ${field}.`);
 		}

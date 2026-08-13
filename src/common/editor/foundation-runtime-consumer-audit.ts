@@ -174,6 +174,14 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'Shared command helpers resolve individual clips while converting command results between runtime and wire domains.',
 	},
 	{
+		file: 'src/common/editor/commands/video-keyframes-runtime.ts',
+		reason: 'Keyframe command mutation checks the transient command-projection brand only to mark ordered carrier ownership; it is an edit adapter rather than a runtime media consumer.',
+	},
+	{
+		file: 'src/common/editor/commands/video-keyframe-segment-carrier.ts',
+		reason: 'Keyframe segment preservation checks the transient command-projection brand and converts edit boundaries without becoming a playback or media consumer.',
+	},
+	{
 		file: 'src/common/editor/commands/timeline-annotation-runtime.ts',
 		reason: 'Timeline annotation command reconciliation restores authoritative wire coordinates from a branded command projection; it is an edit adapter rather than a runtime consumer.',
 	},

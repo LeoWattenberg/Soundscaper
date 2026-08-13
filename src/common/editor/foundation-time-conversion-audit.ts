@@ -147,6 +147,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'video-keyframe-carrier-boundaries',
+		file: 'src/common/editor/commands/video-keyframe-carrier.ts',
+		behavior: 'Keyframe segment boundaries convert resolved absolute sample instants to nearest sequence-frame points before exact authored-view trimming.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['point'] }],
+	},
+	{
 		id: 'overwrite-video-collision-conformance',
 		file: 'src/common/editor/commands/clip-transform-runtime.js',
 		behavior: 'Video overwrite collision cuts conform the active clip endpoints to nearest sequence frames before segmenting inactive material.',

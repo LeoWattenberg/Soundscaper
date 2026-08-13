@@ -35,6 +35,8 @@ import {
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
 import { applyCanonicalVideoTransformPlacement } from './canonical-video-transform-placement.ts';
+import { transformVideoKeyframeCarrier } from './video-keyframe-carrier.ts';
+import { finalizeVideoKeyframeSegmentCarrier, markVideoKeyframeCarrierEdited, transformVideoKeyframeCarrierForOverwrite } from './video-keyframe-segment-carrier.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -232,7 +234,13 @@ function buildClipTransformState(project, transforms) {
 			: applyCanonicalVideoTransformPlacement(
 				project, clip, track, updated, transform.sequencePlacement,
 			);
-		if (sequencePlacement) updated = sequencePlacement.updated;
+		if (sequencePlacement) {
+			updated = transformVideoKeyframeCarrier(
+				sequencePlacement.updated, clip, sequencePlacement.updated, changes,
+				`Transformed clip ${clip.id}`,
+			);
+			markVideoKeyframeCarrierEdited(project, updated);
+		}
 		assertClipSourceBounds(project, updated);
 		return {
 			clip, oldTrack, track, updated, changes: { ...changes },
@@ -436,7 +444,7 @@ export function overwriteClip(project, command) {
 		timelineStartFrame,
 		durationFrames,
 	);
-	const updated = normalizeClipForProject(project, {
+	let updated = normalizeClipForProject(project, {
 		...clip,
 		...requestedChanges,
 		...(warpSegment ? warpSegmentFields(warpSegment) : {}),
@@ -445,6 +453,8 @@ export function overwriteClip(project, command) {
 		} : {}),
 		id: clip.id,
 	});
+	updated = transformVideoKeyframeCarrierForOverwrite(project, updated, clip, requestedChanges, `Overwritten clip ${clip.id}`);
+	markVideoKeyframeCarrierEdited(project, updated);
 	assertClipSourceBounds(project, updated);
 	const overwriteCut = conformedOverwriteCut(project, { clip, updated, track: targetTrack });
 
@@ -552,7 +562,7 @@ export function trimClip(project, command) {
 			1,
 			Math.round((clip.sourceDurationFrames ?? clip.durationFrames) * durationFrames / clip.durationFrames),
 		);
-	const updated = normalizeClipForProject(project, {
+	let updated = normalizeClipForProject(project, {
 		...clip,
 		timelineStartFrame,
 		sourceStartFrame,
@@ -562,12 +572,27 @@ export function trimClip(project, command) {
 		trimStartFrames: command.trimStartFrames ?? clip.trimStartFrames,
 		trimEndFrames: command.trimEndFrames ?? clip.trimEndFrames,
 		envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
-		fadeInFrames: command.fadeInFrames ?? Math.min(clip.fadeInFrames, command.durationFrames ?? clip.durationFrames),
-		fadeOutFrames: command.fadeOutFrames ?? Math.min(clip.fadeOutFrames, command.durationFrames ?? clip.durationFrames),
+		...optionalTrimmedFade('fadeInFrames', command, clip, durationFrames),
+		...optionalTrimmedFade('fadeOutFrames', command, clip, durationFrames),
 		id: clip.id,
 	});
+	updated = finalizeVideoKeyframeSegmentCarrier(
+		project,
+		updated,
+		clip,
+		timelineStartFrame,
+		clipEndFrame(updated),
+		false,
+		`Trimmed clip ${clip.id}`,
+	);
+	markVideoKeyframeCarrierEdited(project, updated);
 	assertClipSourceBounds(project, updated);
 	assertClipSpace(project, track, updated, clip.id);
 	replaceClip(project, updated);
 	sortTrack(project, track);
+}
+
+function optionalTrimmedFade(field, command, clip, durationFrames) {
+	const value = command[field] ?? clip[field];
+	return Number.isSafeInteger(value) ? { [field]: Math.min(value, durationFrames) } : {};
 }

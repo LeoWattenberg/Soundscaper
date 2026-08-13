@@ -5,6 +5,7 @@ import {
 	AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION,
 	clipboardRequiresTimelineAnnotationCapability,
 } from '../commands/clipboard-codec.ts';
+import { snapshotInertEditorCommand } from '../commands/editor-command-snapshot.ts';
 
 export interface EditorCommandCapabilities {
 	readonly audioEffects: boolean;
@@ -19,6 +20,9 @@ export interface EditorCommandCapabilities {
 	readonly videoKeyframes?: boolean;
 }
 
+interface CapabilityInspectionBudget { remaining: number }
+const MAXIMUM_CAPABILITY_INSPECTION_NODES = 100_000;
+
 /**
  * Guards the low-level command entry point as well as the grouped action
  * facade. This matters for callers (including coding agents and tests) that
@@ -30,9 +34,20 @@ export function assertEditorCommandCapabilities(
 	productName: string,
 ): void {
 	if (!command) return;
+	assertCommandCapabilities(snapshotInertEditorCommand(command), capabilities, productName, new Set());
+}
+
+function assertCommandCapabilities(
+	command: AudioEditorCommand,
+	capabilities: EditorCommandCapabilities,
+	productName: string,
+	seen: Set<object>,
+): void {
+	if (seen.has(command)) return;
+	seen.add(command);
 	if (command.type === 'batch') {
 		for (const child of command.commands) {
-			assertEditorCommandCapabilities(child, capabilities, productName);
+			assertCommandCapabilities(child, capabilities, productName, seen);
 		}
 		return;
 	}
@@ -218,16 +233,17 @@ function clipboardClipHasField(value: unknown, field: string): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const schemaVersion = ownEnumerableDataValue(value, 'schemaVersion');
 	if (schemaVersion === INVALID_DATA_VALUE) return Object.hasOwn(value, 'tracks');
-	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3 && schemaVersion !== 4
+	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3 && schemaVersion !== 4 && schemaVersion !== 5
 		&& schemaVersion !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
 	const tracksValue = ownEnumerableDataValue(value, 'tracks');
 	if (tracksValue === INVALID_DATA_VALUE) return true;
-	const tracks = denseArrayDataValues(tracksValue, 100_000);
+	const budget: CapabilityInspectionBudget = { remaining: MAXIMUM_CAPABILITY_INSPECTION_NODES };
+	const tracks = denseArrayDataValues(tracksValue, MAXIMUM_CAPABILITY_INSPECTION_NODES, budget);
 	if (!tracks) return true;
 	for (const track of tracks) {
 		const clipsValue = ownEnumerableDataValue(track, 'clips');
 		if (clipsValue === INVALID_DATA_VALUE) return true;
-		const clips = denseArrayDataValues(clipsValue, 100_000);
+		const clips = denseArrayDataValues(clipsValue, MAXIMUM_CAPABILITY_INSPECTION_NODES, budget);
 		if (!clips) return true;
 		if (clips.some((clip) => hasPossiblyDisguisedOwnField(clip, field))) return true;
 	}
@@ -265,21 +281,22 @@ function hasWarpMapMutation(value: unknown): boolean {
 	return Object.getOwnPropertyDescriptor(value, 'warpMap') !== undefined;
 }
 
-/** Inspect V1..V4 clip payloads through descriptors so accessors cannot disguise a map. */
+/** Inspect V1..V6 clip payloads through descriptors so accessors cannot disguise a map. */
 function clipboardRequiresAudioWarpCapability(value: unknown): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const schemaVersion = ownEnumerableDataValue(value, 'schemaVersion');
 	if (schemaVersion === INVALID_DATA_VALUE) return Object.hasOwn(value, 'tracks');
-	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3 && schemaVersion !== 4
+	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3 && schemaVersion !== 4 && schemaVersion !== 5
 		&& schemaVersion !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
 	const tracksValue = ownEnumerableDataValue(value, 'tracks');
 	if (tracksValue === INVALID_DATA_VALUE) return true;
-	const tracks = denseArrayDataValues(tracksValue, 100_000);
+	const budget: CapabilityInspectionBudget = { remaining: MAXIMUM_CAPABILITY_INSPECTION_NODES };
+	const tracks = denseArrayDataValues(tracksValue, MAXIMUM_CAPABILITY_INSPECTION_NODES, budget);
 	if (!tracks) return true;
 	for (const track of tracks) {
 		const clipsValue = ownEnumerableDataValue(track, 'clips');
 		if (clipsValue === INVALID_DATA_VALUE) return true;
-		const clips = denseArrayDataValues(clipsValue, 100_000);
+		const clips = denseArrayDataValues(clipsValue, MAXIMUM_CAPABILITY_INSPECTION_NODES, budget);
 		if (!clips) return true;
 		if (clips.some(hasAuthoredWarpMap)) return true;
 	}
@@ -295,14 +312,21 @@ function ownEnumerableDataValue(value: unknown, key: string): unknown | typeof I
 	return descriptor.value;
 }
 
-function denseArrayDataValues(value: unknown, maximumLength: number): readonly unknown[] | null {
+function denseArrayDataValues(
+	value: unknown,
+	maximumLength: number,
+	budget?: CapabilityInspectionBudget,
+): readonly unknown[] | null {
 	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return null;
 	const lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
 	if (!lengthDescriptor || lengthDescriptor.enumerable || !Object.hasOwn(lengthDescriptor, 'value')
 		|| !Number.isSafeInteger(lengthDescriptor.value)
 		|| Number(lengthDescriptor.value) < 0 || Number(lengthDescriptor.value) > maximumLength) return null;
+	const length = Number(lengthDescriptor.value);
+	if (budget && length > budget.remaining) return null;
+	if (budget) budget.remaining -= length;
 	const values: unknown[] = [];
-	for (let index = 0; index < Number(lengthDescriptor.value); index += 1) {
+	for (let index = 0; index < length; index += 1) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return null;
 		values.push(descriptor.value);
@@ -310,12 +334,13 @@ function denseArrayDataValues(value: unknown, maximumLength: number): readonly u
 	return values;
 }
 
-/** Fail closed when a V4 paste contains, or disguises, take group content. */
+/** Fail closed when a V4..V6 paste contains, or disguises, take group content. */
 function clipboardRequiresTakeCompCapability(value: unknown): boolean {
 	if (!value || typeof value !== 'object') return false;
 	const schema = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
 	if (!schema?.enumerable || !Object.hasOwn(schema, 'value')) return Object.hasOwn(value, 'takeGroups');
-	if (schema.value !== 4 && schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
+	if (schema.value !== 4 && schema.value !== 5
+		&& schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
 	const takeGroups = Object.getOwnPropertyDescriptor(value, 'takeGroups');
 	if (!takeGroups?.enumerable || !Object.hasOwn(takeGroups, 'value')) return true;
 	return !Array.isArray(takeGroups.value) || takeGroups.value.length > 0;

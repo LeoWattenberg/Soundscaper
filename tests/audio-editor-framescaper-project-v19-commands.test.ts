@@ -220,6 +220,80 @@ test('V19 rejects legacy video clipboard content instead of inventing neutral co
 	);
 });
 
+test('V19 accepts exact V5 video clipboard and rejects V6 directly or inside a batch', () => {
+	const clipboard = currentVideoClipboard();
+	assert.doesNotThrow(() => applyFramescaperProjectCommandV19(
+		FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+		projectFixture(),
+		currentVideoPaste(clipboard) as unknown as FramescaperProjectCommandV19,
+	));
+	const v6 = { ...clipboard, schemaVersion: 6 as const };
+	for (const command of [
+		currentVideoPaste(v6),
+		{ type: 'batch', commands: [currentVideoPaste(v6)] },
+	]) {
+		assert.throws(
+			() => applyFramescaperProjectCommandV19(
+				FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+				projectFixture(),
+				command as unknown as FramescaperProjectCommandV19,
+			),
+			/V5 recopy/iu,
+		);
+	}
+});
+
+test('the V19 video clipboard fence never invokes hostile command discriminant accessors', () => {
+	let calls = 0;
+	const hostile: Record<string, unknown> = {};
+	Object.defineProperty(hostile, 'type', {
+		enumerable: true,
+		get() { calls += 1; return 'clipboard/paste'; },
+	});
+	for (const command of [hostile, { type: 'batch', commands: [hostile] }]) {
+		assert.throws(
+			() => applyFramescaperProjectCommandV19(
+				FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+				projectFixture(),
+				command as unknown as FramescaperProjectCommandV19,
+			),
+			/type.*data property/iu,
+		);
+	}
+	assert.equal(calls, 0);
+});
+
+test('V19 snapshots complete inherited commands before direct or batched execution', () => {
+	let calls = 0;
+	const rename: Record<string, unknown> = { type: 'project/rename' };
+	Object.defineProperty(rename, 'title', {
+		enumerable: true,
+		get() { calls += 1; return 'Unsafe'; },
+	});
+	for (const command of [rename, { type: 'batch', commands: [rename] }]) {
+		assert.throws(
+			() => applyFramescaperProjectCommandV19(
+				FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+				projectFixture(),
+				command as unknown as FramescaperProjectCommandV19,
+			),
+			/title.*data property/iu,
+		);
+	}
+	assert.equal(calls, 0);
+
+	const cyclic: Record<string, unknown> = { type: 'project/rename', title: 'Cycle' };
+	cyclic.self = cyclic;
+	assert.throws(
+		() => applyFramescaperProjectCommandV19(
+			FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+			projectFixture(),
+			cyclic as unknown as FramescaperProjectCommandV19,
+		),
+		/cycle/iu,
+	);
+});
+
 test('a V19 composition batch publishes all stale-safe children in one revision', () => {
 	const project = projectFixture();
 	const composition = authoredComposition();
@@ -460,6 +534,32 @@ function authoredComposition() {
 		blendMode: 'multiply',
 		compositingOrder: 2,
 	});
+}
+
+function currentVideoClipboard() {
+	return {
+		schemaVersion: 5 as const, sampleRate: 48_000, durationFrames: 48_000,
+		tracks: [{
+			sourceTrackId: 'video-track', sourceTrackName: 'Video', sourceTrackType: 'video' as const,
+			sourceLaneGroupId: null, sourceSequenceId: 'main-sequence', clips: [{
+				key: 'video-copy', kind: 'video', sourceId: 'video-source', offsetFrame: 0,
+				sourceStartFrame: 0, sourceDurationFrames: 10, durationFrames: 48_000,
+				sequenceId: 'main-sequence', sequenceFrameCount: 10,
+				videoEffects: [], videoComposition: DEFAULT_VIDEO_CLIP_COMPOSITION,
+			}],
+		}], annotations: [], takeGroups: [],
+	};
+}
+
+function currentVideoPaste(clipboard: ReturnType<typeof currentVideoClipboard> | Readonly<Record<string, unknown>>) {
+	return {
+		type: 'clipboard/paste', clipboard, atFrame: 48_000,
+		mode: 'reject', trackMap: { 'video-track': 'video-track' },
+		clipIds: { 'video-copy': 'pasted-video' }, groupIds: {}, avLinkIds: {},
+		videoEffectIds: { 'video-copy': [] }, splitClipIds: {}, splitAvLinkIds: {},
+		sequenceMap: { 'main-sequence': 'main-sequence' }, annotationIds: {}, annotationBatchIds: {},
+		takeGroupIds: {}, takeLaneIds: {}, takeIds: {}, compRegionIds: {},
+	};
 }
 
 function setCommand(

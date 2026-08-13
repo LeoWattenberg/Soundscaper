@@ -27,13 +27,17 @@ import {
 } from './clipboard-codec.ts';
 import {
 	clipboardContainsVideo,
-	conformClipboardVideoPlacement,
 	conformedPasteAnchors,
 	pasteSpanForSequence,
 	pasteSpanForTrack,
 	pasteTrackGroups,
 	sequenceForTrack,
 } from './clipboard-time-runtime.js';
+import {
+	cloneBreakpointMap,
+	cloneRational,
+	scaleClipboardClip,
+} from './clipboard-clip-scaling-runtime.js';
 import {
 	createTimelineAnnotationClipboardDescriptors,
 	stageTimelineAnnotationClipboardPaste,
@@ -54,7 +58,6 @@ import {
 	assertClipSourceBounds,
 	assertClipSpace,
 	assertUnusedClipId,
-	cloneVideoEffectsWithCommandIds,
 	normalizeClipForProject,
 	prepareVideoEffectIds,
 	requireClip,
@@ -64,6 +67,7 @@ import {
 	sortTrack,
 } from './shared-runtime.js';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
+import { cloneVideoKeyframeCarrierFields } from './video-keyframe-carrier.ts';
 
 // foundation-edit-matrix: paste
 // foundation-edit-matrix: duplicate
@@ -102,13 +106,15 @@ export function createClipboardDescriptor(project, options = {}) {
 	}
 	const currentClipboard = isTimelineAnnotationProjectSchema(project.schemaVersion);
 	const takeClipboard = isTakeCompProjectSchema(project.schemaVersion);
+	const keyframeClipboard = [...project.clips, ...(project.projectBin?.clips || [])]
+		.some((clip) => clip.kind === 'video' && Object.hasOwn(clip, 'videoKeyframes'));
 	const compositionClipboard = [...project.clips, ...(project.projectBin?.clips || [])]
 		.some((clip) => clip.kind === 'video' && Object.hasOwn(clip, 'videoComposition'));
 	const sourceSequenceIds = currentClipboard
 		? [...new Set(trackIds.map((trackId) => sequenceForTrack(project, trackId).id))]
 		: [];
 	const descriptor = {
-		schemaVersion: compositionClipboard ? 5 : takeClipboard ? 4 : currentClipboard ? 3 : 2,
+		schemaVersion: keyframeClipboard ? 6 : compositionClipboard ? 5 : takeClipboard ? 4 : currentClipboard ? 3 : 2,
 		sampleRate: project.sampleRate,
 		durationFrames: range.durationFrames,
 		tracks: trackIds.map((trackId) => {
@@ -167,6 +173,7 @@ export function createClipboardDescriptor(project, options = {}) {
 						videoEffects: cloneVideoEffects(segment.videoEffects),
 					} : {}),
 					...cloneVideoCompositionCarrierFields(segment, `Clipboard clip ${segment.id}`),
+					...cloneVideoKeyframeCarrierFields(segment, `Clipboard clip ${segment.id}`),
 				}];
 			});
 			return {
@@ -514,85 +521,4 @@ function insertSpaceOnTrack(
 	track.clipIds = replacements
 		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id))
 		.map((clip) => clip.id);
-}
-
-function scaleClipboardClip(
-	descriptor,
-	scale,
-	atFrame,
-	id,
-	groupIds,
-	avLinkIds,
-	videoEffectIds = undefined,
-	targetSequence = null,
-	conformedAnchor = null,
-) {
-	const durationFrames = Math.max(1, Math.round(descriptor.durationFrames * scale));
-	const videoPlacement = descriptor.kind === 'video' && targetSequence && conformedAnchor
-		? conformClipboardVideoPlacement(descriptor, scale, targetSequence, conformedAnchor)
-		: null;
-	const timelineStartFrame = videoPlacement?.timelineStartFrame
-		?? atFrame + Math.round(descriptor.offsetFrame * scale) + (conformedAnchor?.sampleDelta ?? 0);
-	const timelineDurationFrames = videoPlacement?.durationFrames ?? durationFrames;
-	return {
-		...descriptor,
-		kind: descriptor.kind || 'audio',
-		id,
-		binItemId: null,
-		groupId: descriptor.groupId ? groupIds[descriptor.groupId] || null : null,
-		avLinkId: descriptor.avLinkId ? avLinkIds[descriptor.avLinkId] || null : null,
-		timelineStartFrame,
-		durationFrames: timelineDurationFrames,
-		...(videoPlacement || {}),
-		fadeInFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeInFrames || 0) * scale)),
-		fadeOutFrames: Math.min(timelineDurationFrames, Math.round((descriptor.fadeOutFrames || 0) * scale)),
-		...(descriptor.kind === 'video' && Array.isArray(descriptor.videoEffects) ? {
-			videoEffects: cloneVideoEffectsWithCommandIds(
-				descriptor.videoEffects,
-				videoEffectIds,
-				`Pasted clip ${descriptor.key}`,
-			),
-		} : {}),
-		...cloneVideoCompositionCarrierFields(descriptor, `Pasted clip ${descriptor.key}`),
-		...(Array.isArray(descriptor.envelope) ? {
-			envelope: descriptor.envelope.map((point) => ({
-				...point,
-				frame: Math.min(durationFrames, Math.max(0, Math.round(point.frame * scale))),
-			})).filter((point, index, values) => !index || point.frame > values[index - 1].frame),
-		} : {}),
-	};
-}
-
-function cloneRational(value) {
-	return value && typeof value === 'object'
-		? { num: value.num, den: value.den }
-		: value ?? null;
-}
-
-function cloneBreakpointMap(value) {
-	if (value?.feature === 'video-retime' && value?.version === 2
-		&& Array.isArray(value.points) && Array.isArray(value.segments)) {
-		return {
-			...value,
-			points: value.points.map((point) => ({
-				...point,
-				sourceFrame: cloneRational(point.sourceFrame),
-			})),
-			segments: value.segments.map((segment) => ({
-				...segment,
-				...(segment.startVelocity ? { startVelocity: cloneRational(segment.startVelocity) } : {}),
-				...(segment.endVelocity ? { endVelocity: cloneRational(segment.endVelocity) } : {}),
-			})),
-		};
-	}
-	return value && typeof value === 'object' && Array.isArray(value.points)
-		? {
-			...value,
-			points: value.points.map((point) => ({
-				...point,
-				outer: cloneRational(point.outer),
-				source: cloneRational(point.source),
-			})),
-		}
-		: value ?? null;
 }

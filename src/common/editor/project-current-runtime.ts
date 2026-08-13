@@ -11,6 +11,7 @@ import {
 	projectV10ForCommand,
 	reconcileProjectV10CommandResult,
 } from './project-v10-command-projection.ts';
+import { reconcileVideoKeyframeCarriersAfterCommand } from './commands/video-keyframe-command-reconcile.ts';
 import {
 	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
 	validateAudioEditorProjectV10,
@@ -51,6 +52,7 @@ export function projectForCommandConsumers<Project extends DataRecord | null | u
 export function preparePersistedProjectCommandDraft(draft: DataRecord, persistedBase: DataRecord): void {
 	if (isFoundationProject(draft)) {
 		reconcileProjectV10CommandResult(draft, persistedBase);
+		reconcileVideoKeyframeCarriersAfterCommand(draft, persistedBase);
 	}
 	if (isSourceCharacteristicsProjectSchema(draft.schemaVersion)) {
 		reconcileVideoSourceCharacteristicsV14(draft);

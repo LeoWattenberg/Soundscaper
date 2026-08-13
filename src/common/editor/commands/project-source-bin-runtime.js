@@ -36,6 +36,9 @@ import {
 	sortTrack,
 } from './shared-runtime.js';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
+import {
+	rebindVideoKeyframeCarrierEffects,
+} from './video-keyframe-carrier.ts';
 
 function setSelection(project, command) {
 	const startFrame = assertFrame(command.startFrame, 'selection.startFrame');
@@ -282,7 +285,7 @@ function placeProjectBinClip(project, command) {
 				`Project Bin placement ${itemClip.id}`,
 			)
 			: undefined;
-		const clip = normalizeClipForProject(project, {
+		let candidate = {
 			...itemClip,
 			...cloneVideoCompositionCarrierFields(itemClip, `Placed Project Bin clip ${itemClip.id}`),
 			id: clipId,
@@ -290,7 +293,14 @@ function placeProjectBinClip(project, command) {
 			groupId: null,
 			...(videoEffects ? { videoEffects } : {}),
 			...(project.schemaVersion >= 4 ? { avLinkId, binItemId: null } : {}),
-		});
+		};
+		candidate = rebindVideoKeyframeCarrierEffects(
+			candidate,
+			itemClip,
+			candidate,
+			`Placed Project Bin clip ${itemClip.id}`,
+		);
+		const clip = normalizeClipForProject(project, candidate);
 		assertClipSourceBounds(project, clip);
 		assertClipSpace(project, track, clip);
 		project.clips.push(clip);

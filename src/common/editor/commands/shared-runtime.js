@@ -40,6 +40,10 @@ import {
 } from '../video-effects.js';
 import { trimAudioWarpClipToTimelineRange } from '../audio-warp-clip-edit.ts';
 import { detachVideoCompositionCarrier } from './video-composition-carrier.ts';
+import {
+	detachVideoKeyframeCarrier,
+} from './video-keyframe-carrier.ts';
+import { finalizeVideoKeyframeSegmentCarrier } from './video-keyframe-segment-carrier.ts';
 
 export function pruneMissingProjectSelections(project) {
 	const trackIds = new Set(project.tracks.map((track) => track.id));
@@ -116,7 +120,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 			.filter((point) => point.frame >= offsetFrames && point.frame <= offsetFrames + durationFrames)
 			.map((point) => ({ ...point, frame: point.frame - offsetFrames }))
 		: undefined;
-	const value = detachVideoCompositionCarrier({
+	let value = detachVideoKeyframeCarrier(detachVideoCompositionCarrier({
 		...clip,
 		id,
 		timelineStartFrame,
@@ -137,7 +141,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 				? Math.min(clip.fadeOutFrames, durationFrames)
 				: 0,
 		} : {}),
-	}, clip, `Segment ${id}`);
+	}, clip, `Segment ${id}`), clip, `Segment ${id}`);
 	if (!clip.kind) return normalizeClipValue(value);
 	if (clip.kind === 'video' && id !== clip.id && clip.videoEffects?.length) {
 		value.videoEffects = cloneVideoEffectsWithCommandIds(
@@ -146,6 +150,15 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 			`Segment ${id}`,
 		);
 	}
+	value = finalizeVideoKeyframeSegmentCarrier(
+		project,
+		value,
+		clip,
+		segmentStartFrame,
+		segmentEndFrame,
+		clip.kind === 'video' && id !== clip.id && Boolean(clip.videoEffects?.length),
+		`Segment ${id}`,
+	);
 	if (clip.anchor != null || clip.sequenceId != null) return value;
 	return Array.isArray(clip.videoEffects) ? createMediaClipV5(value) : createMediaClipV4(value);
 }
@@ -441,11 +454,11 @@ export function normalizeClipForProject(project, value) {
 			const durationFrames = Number(value.durationFrames);
 			const sourceStartFrame = Number(value.sourceStartFrame);
 			const sourceDurationFrames = Number(value.sourceDurationFrames);
-			return detachVideoCompositionCarrier({
+			return detachVideoKeyframeCarrier(detachVideoCompositionCarrier({
 				...value,
 				timelineEndFrame: timelineStartFrame + durationFrames,
 				sourceEndFrame: sourceStartFrame + sourceDurationFrames,
-			}, value, `Clip ${String(value?.id ?? '')}`);
+			}, value, `Clip ${String(value?.id ?? '')}`), value, `Clip ${String(value?.id ?? '')}`);
 		}
 		const source = requireSource(project, value.sourceId);
 		const sequenceId = value.sequenceId || project.primarySequenceId;
@@ -462,11 +475,11 @@ export function normalizeClipForProject(project, value) {
 			sequence,
 			source,
 		});
-		return detachVideoCompositionCarrier(
+		return detachVideoKeyframeCarrier(detachVideoCompositionCarrier(
 			resolveRuntimeClipProjection(project, clip),
 			value,
 			`Clip ${String(value?.id ?? '')}`,
-		);
+		), value, `Clip ${String(value?.id ?? '')}`);
 	}
 	const clip = project.schemaVersion >= 8
 		? createMediaClipV8({
@@ -490,5 +503,9 @@ export function normalizeClipForProject(project, value) {
 			avLinkId: value?.avLinkId ?? null,
 		})
 		: createAudioClipV2(value);
-	return detachVideoCompositionCarrier(clip, value, `Clip ${String(value?.id ?? '')}`);
+	return detachVideoKeyframeCarrier(
+		detachVideoCompositionCarrier(clip, value, `Clip ${String(value?.id ?? '')}`),
+		value,
+		`Clip ${String(value?.id ?? '')}`,
+	);
 }

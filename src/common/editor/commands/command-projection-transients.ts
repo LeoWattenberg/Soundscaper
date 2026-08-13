@@ -11,3 +11,6 @@ export const LEGACY_TRACK_STRUCTURE_EDIT: unique symbol = Symbol('legacy-track-s
 
 /** Records that a command draft received a folder-aware structural track mutation. */
 export const FOLDER_AWARE_TRACK_STRUCTURE_EDIT: unique symbol = Symbol('folder-aware-track-structure-edit');
+
+/** Marks a carrier already transformed or explicitly replaced by the latest child edit. */
+export const VIDEO_KEYFRAME_CARRIER_EDITED: unique symbol = Symbol('video-keyframe-carrier-edited');
