@@ -225,6 +225,20 @@ export function sameFramescaperDesktopProjectLibraryV10TransferBody(
 	return JSON.stringify(left) === JSON.stringify(right);
 }
 
+/** Derive the exact pathless body descriptors for one canonical V18 document digest. */
+export function createFramescaperDesktopProjectLibraryV10TransferBodies(
+	projectValue: unknown,
+	projectSha256Value: unknown,
+): readonly Readonly<FramescaperDesktopProjectLibraryV10TransferBody>[] {
+	const project = validateFramescaperDesktopCurrentProjectV18(projectValue);
+	const projectSha256 = digest(projectSha256Value, 'project');
+	return expectedBodies(project, {
+		projectId: String(project.id),
+		projectRevision: Number(project.revision),
+		sha256: projectSha256,
+	});
+}
+
 function validatedBundle(
 	metadataRevision: number,
 	project: Readonly<FramescaperDesktopLibraryV10Project>,
@@ -274,7 +288,7 @@ function validatedBundle(
 
 function expectedBodies(
 	project: ReturnType<typeof validateFramescaperDesktopCurrentProjectV18>,
-	catalog: Readonly<FramescaperDesktopLibraryV10Project>,
+	catalog: Readonly<Pick<FramescaperDesktopLibraryV10Project, 'projectId' | 'projectRevision' | 'sha256'>>,
 ): readonly Readonly<FramescaperDesktopProjectLibraryV10TransferBody>[] {
 	const bodies: Readonly<FramescaperDesktopProjectLibraryV10TransferBody>[] = [];
 	const byStorageKey = new Map<string, Readonly<FramescaperDesktopProjectLibraryV10TransferBody>>();

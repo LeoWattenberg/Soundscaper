@@ -77,8 +77,20 @@ test('lists sanitized catalog summaries and duplicates exact V18 proxy/timing ow
 	assert.equal(copiedProject.updatedAt, TIMESTAMP);
 	assert.deepEqual(copiedProject.sources, (JSON.parse(source.document) as FramescaperProjectV18).sources);
 	assert.equal(duplicated.metadataRevision, 2);
-	assert.deepEqual(await fixture.host.readProjectBundle(SOURCE_ID), source);
-	assert.deepEqual(await fixture.host.readProjectBundle(COPY_ID), duplicated);
+	const sourceAfter = await fixture.host.readProjectBundle(SOURCE_ID) as {
+		readonly metadata: Readonly<{ readonly revision: number }>;
+		readonly document: string;
+		readonly bodies: readonly unknown[];
+	};
+	assert.equal(sourceAfter.metadata.revision, 2);
+	assert.equal(sourceAfter.document, source.document);
+	assert.deepEqual(sourceAfter.bodies, source.bodies);
+	const copyAfter = await fixture.host.readProjectBundle(COPY_ID) as {
+		readonly document: string;
+		readonly bodies: readonly unknown[];
+	};
+	assert.equal(copyAfter.document, duplicated.document);
+	assert.deepEqual(copyAfter.bodies, duplicated.bodies);
 	assert.deepEqual(rows(fixture.database, `
 		SELECT kind, count(*) AS count FROM managed_bodies GROUP BY kind ORDER BY kind
 	`), [
@@ -118,7 +130,14 @@ test('deletes only the exact current catalog row and preserves immutable duplica
 		expectedProject: expected(source),
 	}), { projectId: SOURCE_ID, metadataRevision: 3, deleted: true });
 	assert.equal(await fixture.host.readProjectBundle(SOURCE_ID), null);
-	assert.deepEqual(await fixture.host.readProjectBundle(COPY_ID), copy);
+	const copyAfter = await fixture.host.readProjectBundle(COPY_ID) as {
+		readonly metadata: Readonly<{ readonly revision: number }>;
+		readonly document: string;
+		readonly bodies: readonly unknown[];
+	};
+	assert.equal(copyAfter.metadata.revision, 3);
+	assert.equal(copyAfter.document, copy.document);
+	assert.deepEqual(copyAfter.bodies, copy.bodies);
 	assert.equal(rows(fixture.database, 'SELECT * FROM project_revisions').length, 2);
 	assert.equal(rows(fixture.database, 'SELECT * FROM managed_bodies').length, 3);
 });
