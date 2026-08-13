@@ -43,6 +43,13 @@ test('requested CFR export timing is bound exactly without loading unrelated VFR
 			() => (lease.timingBySourceId as Map<string, unknown>).set('forged', Object.freeze({})),
 			/immutable/iu,
 		);
+		assert.throws(
+			() => Map.prototype.set.call(
+				lease.timingBySourceId, 'intrinsic-forgery', timing,
+			),
+			/(?:incompatible|Map)/iu,
+		);
+		assert.deepEqual([...lease.timingBySourceId.keys()], ['camera-cfr']);
 	} finally {
 		lease.release();
 	}

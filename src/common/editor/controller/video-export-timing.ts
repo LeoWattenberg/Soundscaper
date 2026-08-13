@@ -12,6 +12,7 @@ import {
 	type VideoSourceTimingView,
 } from '../video-source-timing-view.ts';
 import type { VideoTimingAssetReference } from '../video-timing-asset.ts';
+import { createVideoExportTimingMap } from '../video-export-timing-map.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 type ProjectLookup = (project: unknown, id: string) => unknown;
@@ -106,7 +107,7 @@ export async function acquireVideoExportTimingIndexes(
 				bindVideoSourceTimingView(timingViews, source),
 			]));
 		}
-		const timingBySourceId = new ImmutableTimingTokenMap(boundEntries);
+		const timingBySourceId = createVideoExportTimingMap(boundEntries);
 		let released = false;
 		return Object.freeze({
 			timingBySourceId,
@@ -239,24 +240,4 @@ function deepFreeze<Value>(value: Value): Value {
 	if (!value || typeof value !== 'object') return value;
 	for (const nested of Object.values(value)) deepFreeze(nested);
 	return Object.isFrozen(value) ? value : Object.freeze(value);
-}
-
-class ImmutableTimingTokenMap extends Map<string, BoundVideoSourceTimingView> {
-	constructor(entries: readonly (readonly [string, BoundVideoSourceTimingView])[]) {
-		super();
-		for (const [sourceId, timing] of entries) super.set(sourceId, timing);
-		Object.freeze(this);
-	}
-
-	override set(_key: string, _value: BoundVideoSourceTimingView): this {
-		throw new TypeError('Video export timing tokens are immutable.');
-	}
-
-	override delete(_key: string): boolean {
-		throw new TypeError('Video export timing tokens are immutable.');
-	}
-
-	override clear(): void {
-		throw new TypeError('Video export timing tokens are immutable.');
-	}
 }
