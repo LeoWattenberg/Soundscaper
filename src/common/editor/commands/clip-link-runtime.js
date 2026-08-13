@@ -20,7 +20,7 @@ import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
-import { splitAudioWarpClipAtTimelineFrame } from '../audio-warp-clip-edit.ts';
+import { resolveAudioWarpEditFrame } from '../audio-warp-clip-edit.ts';
 
 // foundation-edit-matrix: split
 
@@ -70,7 +70,14 @@ export function prepareSplitCommand(clipId, atFrame, idFactory = createStableId,
 
 export function prepareLinkedSplitCommand(project, clipId, atFrame, idFactory = createStableId) {
 	const clip = requireClip(project, clipId);
-	if (!clip.avLinkId) return prepareSplitCommand(clipId, atFrame, idFactory, clip.videoEffects || []);
+	if (!clip.avLinkId) {
+		return prepareSplitCommand(
+			clipId,
+			editableSplitFrame(project, clip, [clip], atFrame),
+			idFactory,
+			clip.videoEffects || [],
+		);
+	}
 	const linkedClip = project.clips.find((candidate) => (
 		candidate.id !== clip.id && candidate.avLinkId === clip.avLinkId
 	));
@@ -78,7 +85,7 @@ export function prepareLinkedSplitCommand(project, clipId, atFrame, idFactory = 
 	return {
 		type: 'clip/split',
 		clipId,
-		atFrame,
+		atFrame: editableSplitFrame(project, clip, [clip, linkedClip], atFrame),
 		rightClipId: idFactory('clip'),
 		linkedRightClipId: idFactory('clip'),
 		rightAvLinkId: idFactory('av-link'),
@@ -91,13 +98,31 @@ export function prepareLinkedSplitCommand(project, clipId, atFrame, idFactory = 
 	};
 }
 
+/**
+ * Land a requested split on a frame every warped participant can cut exactly.
+ * Only a boundary whose evaluated source position is a whole sample keeps the
+ * child maps lossless, so an interactive split resolves the nearest one instead
+ * of asking the runtime to refuse. A request no clip can satisfy is preserved
+ * so the runtime reports which frames are editable.
+ */
+function editableSplitFrame(project, clip, participants, atFrame) {
+	let frame = atFrame;
+	for (const participant of participants) {
+		const resolved = resolveAudioWarpEditFrame(project, participant, frame);
+		if (resolved === null) return atFrame;
+		frame = resolved;
+	}
+	if (frame <= clip.timelineStartFrame || frame >= clipEndFrame(clip)) return atFrame;
+	return participants.every((participant) => (
+		resolveAudioWarpEditFrame(project, participant, frame) === frame
+	)) ? frame : atFrame;
+}
+
 function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = null, rightVideoEffectIds = undefined) {
 	const track = requireClipTrack(project, clip.id);
-	const warpSplit = clip.kind === 'audio' && clip.warpMap != null
-		? splitAudioWarpClipAtTimelineFrame(project, clip, atFrame)
-		: null;
-	let left = segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id);
-	let right = segmentOfClip(
+	const left = segmentOfClip(project, clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id);
+	const right = segmentOfClip(
+		project,
 		clip,
 		atFrame,
 		clipEndFrame(clip),
@@ -105,10 +130,6 @@ function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = nu
 		rightClipId,
 		rightVideoEffectIds,
 	);
-	if (warpSplit) {
-		left = { ...left, ...warpSplit.left };
-		right = { ...right, ...warpSplit.right };
-	}
 	if (rightAvLinkId) right.avLinkId = rightAvLinkId;
 	replaceClip(project, left);
 	project.clips.push(right);

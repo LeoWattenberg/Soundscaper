@@ -25,6 +25,7 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 const NOW = '2026-08-09T12:00:00.000Z';
 const SAMPLE_RATE = 44_100;
 const RATE = { num: 24_000, den: 1_001 } as const;
+const PROJECT = { schemaVersion: 10, sampleRate: SAMPLE_RATE, clips: [], tracks: [] };
 
 test('slow video splits retain one positive in-bounds source frame at every internal boundary', () => {
 	for (const boundary of [2, 3]) {
@@ -146,7 +147,7 @@ test('ordinary video segmentation keeps exact contiguous source-frame authority'
 });
 
 test('non-collapsed fractional-speed source segmentation preserves established mapping', () => {
-	const audio = segmentOfClip({
+	const audio = segmentOfClip(PROJECT, {
 		id: 'audio',
 		kind: 'audio',
 		anchor: 'sample',
@@ -157,7 +158,7 @@ test('non-collapsed fractional-speed source segmentation preserves established m
 		trimStartFrames: 0,
 		trimEndFrames: 0,
 	}, 2, 5, 2, 'audio-segment');
-	const video = segmentOfClip({
+	const video = segmentOfClip(PROJECT, {
 		id: 'video',
 		kind: 'video',
 		sequenceId: 'main',

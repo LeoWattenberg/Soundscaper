@@ -116,7 +116,7 @@ export function createClipboardDescriptor(project, options = {}) {
 				const startFrame = Math.max(range.startFrame, clip.timelineStartFrame);
 				const endFrame = Math.min(range.endFrame, clipEndFrame(clip));
 				if (endFrame <= startFrame) return [];
-				const segment = segmentOfClip(clip, startFrame, endFrame, startFrame - range.startFrame, clip.id);
+				const segment = segmentOfClip(project, clip, startFrame, endFrame, startFrame - range.startFrame, clip.id);
 				return [{
 					key: `${clip.id}:${startFrame}:${endFrame}`,
 					kind: segment.kind || 'audio',
@@ -488,8 +488,9 @@ function insertSpaceOnTrack(
 		const rightId = splitClipIds[clip.id];
 		if (!rightId) throw new TypeError(`A stable split clip ID is required for ${clip.id}.`);
 		assertUnusedClipId(project, rightId);
-		replacements.push(segmentOfClip(clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id));
+		replacements.push(segmentOfClip(project, clip, clip.timelineStartFrame, atFrame, clip.timelineStartFrame, clip.id));
 		let right = segmentOfClip(
+			project,
 			clip,
 			atFrame,
 			clipEndFrame(clip),

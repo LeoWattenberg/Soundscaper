@@ -18,7 +18,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
-		prepareRangeDeleteCommand, prepareSplitCommand, getProject, projectChanged,
+		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject, projectChanged,
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard,
 		state, undoEditorCommand,
 	} = runtime;
@@ -161,15 +161,19 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				const sourceTrack = clip ? findClipTrack(getProject(), clip.id) : null;
 				if (!clip || !sourceTrack) return;
 				if (clip.avLinkId || clip.kind === 'video') return;
-				const atFrame = engine.getPositionFrames();
-				const split = prepareSplitCommand(clip.id, atFrame);
+				const split = prepareLinkedSplitCommand(
+					getProject(),
+					clip.id,
+					engine.getPositionFrames(),
+					createStableId,
+				);
 				const trackId = createStableId('track');
 				commit({
 					type: 'batch',
 					commands: [
 						createAddTrackCommand({ ...sourceTrack, schemaVersion: getProject().schemaVersion, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }),
 						split,
-						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: atFrame },
+						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: split.atFrame },
 					],
 				}, { selectTrackId: trackId, selectClipId: split.rightClipId });
 				return;

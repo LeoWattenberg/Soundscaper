@@ -38,6 +38,7 @@ import {
 import {
 	cloneVideoEffects,
 } from '../video-effects.js';
+import { trimAudioWarpClipToTimelineRange } from '../audio-warp-clip-edit.ts';
 
 export function pruneMissingProjectSelections(project) {
 	const trackIds = new Set(project.tracks.map((track) => track.id));
@@ -90,7 +91,7 @@ export function requireMixerBus(project, type, busId) {
 	return bus;
 }
 
-export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timelineStartFrame, id, videoEffectIds = undefined) {
+export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame, timelineStartFrame, id, videoEffectIds = undefined) {
 	const offsetFrames = segmentStartFrame - clip.timelineStartFrame;
 	const durationFrames = segmentEndFrame - segmentStartFrame;
 	const sourceDuration = clip.sourceDurationFrames ?? clip.durationFrames;
@@ -103,6 +104,12 @@ export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timeline
 	const sourceStartFrame = clip.reversed
 		? clip.sourceStartFrame + sourceDuration - sourceOffsetFrames - segmentSourceDuration
 		: clip.sourceStartFrame + sourceOffsetFrames;
+	// A full-extent segment keeps the clip's own map, so only a narrowed segment
+	// re-derives one; that also leaves pre-authority schema maps untouched.
+	const warpSegment = clip.kind === 'audio' && clip.warpMap != null
+		&& (segmentStartFrame !== clip.timelineStartFrame || segmentEndFrame !== clipEndFrame(clip))
+		? trimAudioWarpClipToTimelineRange(project, clip, segmentStartFrame, segmentEndFrame)
+		: null;
 	const envelope = Array.isArray(clip.envelope)
 		? clip.envelope
 			.filter((point) => point.frame >= offsetFrames && point.frame <= offsetFrames + durationFrames)
@@ -112,11 +119,12 @@ export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timeline
 		...clip,
 		id,
 		timelineStartFrame,
-		sourceStartFrame,
+		sourceStartFrame: warpSegment ? warpSegment.sourceStartFrame : sourceStartFrame,
 		durationFrames,
-		sourceDurationFrames: segmentSourceDuration,
+		sourceDurationFrames: warpSegment ? warpSegment.sourceDurationFrames : segmentSourceDuration,
 		trimStartFrames: segmentStartFrame === clip.timelineStartFrame ? clip.trimStartFrames : 0,
 		trimEndFrames: segmentEndFrame === clipEndFrame(clip) ? clip.trimEndFrames : 0,
+		...(warpSegment ? { warpMap: warpSegment.warpMap } : {}),
 		...(envelope ? { envelope } : {}),
 		...(Number.isSafeInteger(clip.fadeInFrames) ? {
 			fadeInFrames: segmentStartFrame === clip.timelineStartFrame
@@ -139,6 +147,44 @@ export function segmentOfClip(clip, segmentStartFrame, segmentEndFrame, timeline
 	}
 	if (clip.anchor != null || clip.sequenceId != null) return value;
 	return Array.isArray(clip.videoEffects) ? createMediaClipV5(value) : createMediaClipV4(value);
+}
+
+/**
+ * A warped clip owns its source range through its map, so a changed timeline
+ * extent re-derives one exact child map instead of keeping the full-extent one.
+ * Outer positions are relative to the clip's own anchor, so an extent that only
+ * moves keeps its map; a boundary the map cannot cut exactly is refused here,
+ * and interactive producers snap the requested edge before they ask.
+ */
+export function warpSegmentForExtent(project, clip, changes, timelineStartFrame, durationFrames) {
+	if (durationFrames === clip.durationFrames) return null;
+	return warpSegmentForTimelineRange(project, clip, changes, timelineStartFrame, durationFrames);
+}
+
+export function warpSegmentForTimelineRange(project, clip, changes, timelineStartFrame, durationFrames) {
+	if (clip.kind !== 'audio' || clip.warpMap == null) return null;
+	const segment = trimAudioWarpClipToTimelineRange(
+		project,
+		clip,
+		timelineStartFrame,
+		timelineStartFrame + durationFrames,
+	);
+	if (Object.hasOwn(changes, 'sourceStartFrame') && changes.sourceStartFrame !== segment.sourceStartFrame) {
+		throw new RangeError('Audio warp trim source start must match the exact map boundary.');
+	}
+	if (Object.hasOwn(changes, 'sourceDurationFrames')
+		&& changes.sourceDurationFrames !== segment.sourceDurationFrames) {
+		throw new RangeError('Audio warp trim source duration must match the exact map boundaries.');
+	}
+	return segment;
+}
+
+export function warpSegmentFields(segment) {
+	return {
+		sourceStartFrame: segment.sourceStartFrame,
+		sourceDurationFrames: segment.sourceDurationFrames,
+		warpMap: segment.warpMap,
+	};
 }
 
 function sourceRangeForSegment(clip, segmentStartFrame, segmentEndFrame, sourceDuration) {

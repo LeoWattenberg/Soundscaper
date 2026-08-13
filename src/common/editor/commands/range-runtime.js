@@ -120,7 +120,7 @@ export function processTrackRange(
 
 		const hasLeft = start < range.startFrame;
 		const hasRight = end > range.endFrame;
-		if (hasLeft) replacements.push(segmentOfClip(clip, start, range.startFrame, start, clip.id));
+		if (hasLeft) replacements.push(segmentOfClip(project, clip, start, range.startFrame, start, clip.id));
 		if (hasRight) {
 			const rightId = hasLeft ? splitClipIds[clip.id] : clip.id;
 			if (!rightId) throw new TypeError(`A stable split clip ID is required for ${clip.id}.`);
@@ -131,6 +131,7 @@ export function processTrackRange(
 					? Math.max(start, range.startFrame)
 					: range.endFrame;
 			let right = segmentOfClip(
+				project,
 				clip,
 				range.endFrame,
 				end,
@@ -172,7 +173,7 @@ export function keepRange(project, command) {
 			const start = Math.max(range.startFrame, clip.timelineStartFrame);
 			const end = Math.min(range.endFrame, clipEndFrame(clip));
 			if (end <= start) continue;
-			replacements.push(segmentOfClip(clip, start, end, start, clip.id));
+			replacements.push(segmentOfClip(project, clip, start, end, start, clip.id));
 		}
 		project.clips = project.clips.filter((clip) => !deletedIds.has(clip.id));
 		project.clips.push(...replacements);
@@ -414,13 +415,14 @@ export function replaceRange(project, command) {
 
 		const hasLeft = startFrame < range.startFrame;
 		const hasRight = endFrame > range.endFrame;
-		if (hasLeft) replacements.push(segmentOfClip(clip, startFrame, range.startFrame, startFrame, clip.id));
+		if (hasLeft) replacements.push(segmentOfClip(project, clip, startFrame, range.startFrame, startFrame, clip.id));
 		if (hasRight) {
 			const rightId = hasLeft
 				? requireStableCommandId(command.splitClipIds?.[clip.id], `right segment for ${clip.id}`)
 				: clip.id;
 			if (hasLeft) reserveReplacementClipId(project, rightId, generatedClipIds);
 			replacements.push(segmentOfClip(
+				project,
 				clip,
 				range.endFrame,
 				endFrame,

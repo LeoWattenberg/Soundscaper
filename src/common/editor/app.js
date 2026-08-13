@@ -14,11 +14,11 @@ import {
 	prepareDisjointRangeDeleteCommand,
 	prepareGroupClipsCommand,
 	prepareKeepRangeCommand,
+	prepareLinkedSplitCommand,
 	preparePasteCommand,
 	preparePunchCommand,
 	prepareRangeDeleteCommand,
 	prepareRangeReplacementCommand,
-	prepareSplitCommand,
 	resolveEditingSelection,
 } from './commands.js';
 import {
@@ -1461,7 +1461,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
-		prepareRangeDeleteCommand, prepareSplitCommand, getProject: getCommandProject, projectChanged,
+		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject: getCommandProject, projectChanged,
 		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard: clipboardEditService.setSessionClipboard,
 		state, undoEditorCommand,
 	});

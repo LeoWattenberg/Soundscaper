@@ -11,14 +11,21 @@ import {
 import { normalizeAudioWarpRational } from './audio-groove-template.ts';
 import {
 	resolveRuntimeClipProjection,
+	type RuntimeClipProjection,
 	type RuntimePersistedClip,
 } from './runtime-clip-projection.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
 	compareRationals,
+	evaluateBreakpointMap,
 	subtractRationals,
+	type BreakpointMap,
 	type Rational,
 } from './timeline-time.ts';
+
+// A whole-source-sample boundary recurs at the period of the local map rate, so
+// a candidate further out than this is never the frame the editor asked for.
+const MAXIMUM_EDIT_FRAME_SEARCH = 1_024;
 
 export interface AudioWarpClipSegment {
 	readonly sourceStartFrame: number;
@@ -26,9 +33,11 @@ export interface AudioWarpClipSegment {
 	readonly warpMap: Readonly<AudioWarpMap>;
 }
 
-export interface AudioWarpClipSplit {
-	readonly left: Readonly<AudioWarpClipSegment>;
-	readonly right: Readonly<AudioWarpClipSegment>;
+interface AudioWarpEditContext {
+	readonly project: AudioWarpAuthorityProject;
+	readonly clip: RuntimePersistedClip;
+	readonly runtime: RuntimeClipProjection;
+	readonly map: Readonly<AudioWarpMap>;
 }
 
 /** Derive one exact child map and integer persisted source clamp from a timeline range. */
@@ -38,19 +47,19 @@ export function trimAudioWarpClipToTimelineRange(
 	startFrameValue: number,
 	endFrameValue: number,
 ): Readonly<AudioWarpClipSegment> {
-	const runtime = resolveRuntimeClipProjection(project, clip);
+	const context = audioWarpEditContext(project, clip);
 	const startFrame = safeInteger(startFrameValue, 'audio warp trim timeline start');
 	const endFrame = safeInteger(endFrameValue, 'audio warp trim timeline end');
-	if (startFrame < runtime.timelineStartFrame || endFrame > runtime.timelineEndFrame
+	if (startFrame < context.runtime.timelineStartFrame || endFrame > context.runtime.timelineEndFrame
 		|| endFrame <= startFrame) {
 		throw new RangeError('Audio warp trim range must be positive and remain within the clip extent.');
 	}
-	const map = normalizeAudioWarpMapForClip(project, clip, (clip as Record<string, unknown>).warpMap);
-	const startOuter = outerAtTimelineFrame(project, clip, runtime, map, startFrame);
-	const endOuter = outerAtTimelineFrame(project, clip, runtime, map, endFrame);
-	const trimmed = trimAudioWarpMap(map, { startOuter, endOuter });
-	const sourceStartFrame = wholeSourceFrame(trimmed.points[0]!.source);
-	const sourceEndFrame = wholeSourceFrame(trimmed.points.at(-1)!.source);
+	const trimmed = trimAudioWarpMap(context.map, {
+		startOuter: outerAtTimelineFrame(context, startFrame),
+		endOuter: outerAtTimelineFrame(context, endFrame),
+	});
+	const sourceStartFrame = wholeSourceFrame(context, trimmed.points[0]!.source, startFrame);
+	const sourceEndFrame = wholeSourceFrame(context, trimmed.points.at(-1)!.source, endFrame);
 	if (sourceEndFrame <= sourceStartFrame) {
 		throw new RangeError('Audio warp trim must retain a positive source extent.');
 	}
@@ -61,33 +70,48 @@ export function trimAudioWarpClipToTimelineRange(
 	});
 }
 
-export function splitAudioWarpClipAtTimelineFrame(
+/**
+ * Resolve the timeline frame nearest a requested boundary that a warp edit can
+ * actually cut on, so an interactive edge or playhead lands on exact material
+ * instead of being refused. Clips without a map keep the requested frame; null
+ * means the clip carries no reachable whole-source-sample boundary.
+ */
+export function resolveAudioWarpEditFrame(
 	project: AudioWarpAuthorityProject,
 	clip: RuntimePersistedClip,
-	atFrameValue: number,
-): Readonly<AudioWarpClipSplit> {
-	const runtime = resolveRuntimeClipProjection(project, clip);
-	const atFrame = safeInteger(atFrameValue, 'audio warp split timeline frame');
-	if (atFrame <= runtime.timelineStartFrame || atFrame >= runtime.timelineEndFrame) {
-		throw new RangeError('An audio warp split must be inside the clip.');
-	}
+	requestedFrameValue: number,
+): number | null {
+	const requestedFrame = safeInteger(requestedFrameValue, 'audio warp edit frame');
+	if (clip.kind !== 'audio' || (clip as Record<string, unknown>).warpMap == null) return requestedFrame;
+	return nearestWholeSourceFrame(audioWarpEditContext(project, clip), requestedFrame);
+}
+
+function audioWarpEditContext(
+	project: AudioWarpAuthorityProject,
+	clip: RuntimePersistedClip,
+): AudioWarpEditContext {
 	return Object.freeze({
-		left: trimAudioWarpClipToTimelineRange(
-			project, clip, runtime.timelineStartFrame, atFrame,
-		),
-		right: trimAudioWarpClipToTimelineRange(
-			project, clip, atFrame, runtime.timelineEndFrame,
-		),
+		project,
+		clip,
+		runtime: resolveRuntimeClipProjection(project, clip),
+		map: normalizeAudioWarpMapForClip(project, clip, (clip as Record<string, unknown>).warpMap),
 	});
 }
 
-function outerAtTimelineFrame(
-	project: AudioWarpAuthorityProject,
-	clip: RuntimePersistedClip,
-	runtime: ReturnType<typeof resolveRuntimeClipProjection>,
-	map: Readonly<AudioWarpMap>,
-	timelineFrame: number,
-): Rational {
+function nearestWholeSourceFrame(context: AudioWarpEditContext, requestedFrame: number): number | null {
+	for (let offset = 0; offset <= MAXIMUM_EDIT_FRAME_SEARCH; offset += 1) {
+		const candidates = offset === 0 ? [requestedFrame] : [requestedFrame - offset, requestedFrame + offset];
+		for (const frame of candidates) {
+			if (frame < context.runtime.timelineStartFrame || frame > context.runtime.timelineEndFrame) continue;
+			const source = evaluateBreakpointMap(context.map as BreakpointMap, outerAtTimelineFrame(context, frame));
+			if (source.num % source.den === 0) return frame;
+		}
+	}
+	return null;
+}
+
+function outerAtTimelineFrame(context: AudioWarpEditContext, timelineFrame: number): Rational {
+	const { clip, map, runtime } = context;
 	if (timelineFrame === runtime.timelineStartFrame) return map.points[0]!.outer;
 	if (timelineFrame === runtime.timelineEndFrame) return map.points.at(-1)!.outer;
 	if (clip.anchor !== 'musical') {
@@ -100,7 +124,7 @@ function outerAtTimelineFrame(
 		throw new RangeError('Musical audio warp maps require a beat extent.');
 	}
 	const outer = subtractRationals(
-		sampleFrameToBeat(timelineFrame, project.tempoMap, project.sampleRate),
+		sampleFrameToBeat(timelineFrame, context.project.tempoMap, context.project.sampleRate),
 		normalizeAudioWarpRational(clip.musicalStartBeat, 'audio warp musical start'),
 	);
 	if (compareRationals(outer, 0) <= 0) {
@@ -109,9 +133,14 @@ function outerAtTimelineFrame(
 	return outer;
 }
 
-function wholeSourceFrame(value: Rational): number {
+function wholeSourceFrame(context: AudioWarpEditContext, value: Rational, timelineFrame: number): number {
 	if (value.num % value.den !== 0) {
-		throw new RangeError('Audio warp trims and splits require a whole source-sample boundary.');
+		const nearest = nearestWholeSourceFrame(context, timelineFrame);
+		throw new RangeError([
+			'Audio warp trims and splits require a whole source-sample boundary:',
+			` timeline frame ${String(timelineFrame)} resolves inside a source sample`,
+			nearest === null ? '.' : `; the nearest editable frame is ${String(nearest)}.`,
+		].join(''));
 	}
 	const frame = value.num / value.den;
 	if (!Number.isSafeInteger(frame) || frame < 0) {

@@ -15,6 +15,7 @@ import {
 	planExactAudioWarpWindow,
 } from '../src/common/editor/engine/audio-warp-fallback.ts';
 import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import { ENGINE_SCHEDULE_PLAYBACK } from '../src/common/editor/engine/runtime-symbols.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 
 test('engine reports the actual realtime and exact-offline warp facilities it owns', async () => {
@@ -301,7 +302,77 @@ test('exact public render route enforces packet bounds without recursion', async
 	await engine.dispose();
 });
 
-function warpProject(middleSource = 2, durationFrames = 4, sampleRate = 48_000, masterChannels = 1) {
+test('seeking outside the prepared window re-prepares exact PCM at the requested frame', async () => {
+	const context = audioContext([], []);
+	let renders = 0;
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context as never,
+		offlineAudioContextFactory: null,
+		audioWarpRealtimeAcceleration: false,
+		softwareRenderer: ({ captureStartFrame, endFrame }) => {
+			renders += 1;
+			return { channels: [new Float32Array(Number(endFrame) - Number(captureStartFrame))], sampleRate: 8_000 };
+		},
+	});
+	engine.loadProject(warpProject(40_000, 80_000, 8_000, 1));
+	engine.seek(40_000);
+	await engine.play();
+	assert.equal(renders, 1);
+
+	engine.seek(0);
+	await settleMacrotask();
+	assert.equal(engine.getState().positionFrame, 0, 'a seek must not clamp into the stale prepared window');
+	assert.ok(renders > 1, 'the requested position needs its own bounded window');
+
+	const rendered = renders;
+	engine.seek(120_000);
+	await settleMacrotask();
+	assert.equal(engine.getState().state, 'stopped', 'the silent editor tail holds no exact warp content');
+	assert.equal(engine.getState().positionFrame, 120_000);
+	assert.equal(renders, rendered);
+	await engine.dispose();
+});
+
+test('scheduled exact warp starts snap into the active loop instead of rejecting', async () => {
+	const events: string[] = [];
+	const context = audioContext(events, []);
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context as never,
+		offlineAudioContextFactory: null,
+		audioWarpRealtimeAcceleration: false,
+		softwareRenderer: ({ captureStartFrame, endFrame }) => ({
+			channels: [new Float32Array(Number(endFrame) - Number(captureStartFrame))], sampleRate: 48_000,
+		}),
+	});
+	engine.loadProject(warpProject());
+	engine.setLoop({ enabled: true, startFrame: 0, endFrame: 2 });
+
+	await engine.playAt(0, 3);
+	assert.equal(engine.getState().positionFrame, 0);
+	assert.deepEqual(events.filter((event) => event.startsWith('start:')), ['start:0:0']);
+	await engine.dispose();
+});
+
+test('play() keeps a cursor parked in the silent editor timeline tail', async () => {
+	const context = audioContext([], []);
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context as never,
+		offlineAudioContextFactory: null,
+	});
+	engine.loadProject(warpProject(2, 4, 8_000, 1, false));
+	const scheduled: number[] = [];
+	(engine as unknown as Record<symbol, unknown>)[ENGINE_SCHEDULE_PLAYBACK] = (frame: number) => {
+		scheduled.push(frame);
+		return Promise.resolve(0);
+	};
+	assert.equal(engine.seek(6_000), 6_000);
+
+	await engine.play();
+	assert.deepEqual(scheduled, [6_000], 'the extended editor timeline tail is a legal play position');
+	await engine.dispose();
+});
+
+function warpProject(middleSource = 2, durationFrames = 4, sampleRate = 48_000, masterChannels = 1, warped = true) {
 	const source = createAudioSourceV10({
 		id: 'source', storageKey: 'source', frameCount: durationFrames,
 		channelCount: masterChannels, sampleRate,
@@ -309,11 +380,11 @@ function warpProject(middleSource = 2, durationFrames = 4, sampleRate = 48_000, 
 	const clip = createAudioClipV10({
 			id: 'clip', kind: 'audio', sourceId: 'source', anchor: 'sample',
 		timelineStartFrame: 0, durationFrames, sourceStartFrame: 0, sourceDurationFrames: durationFrames,
-		warpMap: { feature: 'audio-warp', points: [
+		warpMap: warped ? { feature: 'audio-warp', points: [
 			{ outer: 0, source: 0, mode: 'forward' },
 			{ outer: Math.floor(durationFrames / 2), source: middleSource, mode: 'forward' },
 			{ outer: durationFrames, source: durationFrames, mode: 'forward' },
-		] },
+		] } : undefined,
 		});
 	return createAudioEditorProjectV17({
 		id: 'warp-project', title: 'Warp project', now: '2026-08-12T12:00:00.000Z',

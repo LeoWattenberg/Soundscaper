@@ -279,6 +279,11 @@ export async function renderExactAudioWarpToSink(
 		}
 		cursor = range.endFrame;
 	}
+	// A window plan that reaches endFrame without the tail budget would end the
+	// loop with the requested tail unrendered.
+	if (frameOffset !== expectedFrames) {
+		throw new Error(`Exact audio warp streaming rendered ${String(frameOffset)} frames where ${String(expectedFrames)} were requested.`);
+	}
 	return Object.freeze({
 		sampleRate: engine.sampleRate,
 		channelCount: renderedChannelCount ?? 0,

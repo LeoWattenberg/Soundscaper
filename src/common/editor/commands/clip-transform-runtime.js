@@ -25,6 +25,9 @@ import {
 	reserveReplacementClipId,
 	segmentOfClip,
 	sortTrack,
+	warpSegmentFields,
+	warpSegmentForExtent,
+	warpSegmentForTimelineRange,
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
 import {
@@ -32,7 +35,6 @@ import {
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
 import { applyCanonicalVideoTransformPlacement } from './canonical-video-transform-placement.ts';
-import { trimAudioWarpClipToTimelineRange } from '../audio-warp-clip-edit.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -147,6 +149,7 @@ export function transformClips(project, command) {
 			const ids = [clip.id, ...(command.splitClipIds?.[clip.id] || [])];
 			replacementsById.set(clip.id, ranges.map(([startFrame, endFrame], index) => {
 				let segment = segmentOfClip(
+					project,
 					clip,
 					startFrame,
 					endFrame,
@@ -211,9 +214,11 @@ function buildClipTransformState(project, transforms) {
 		const timelineStartFrame = Object.hasOwn(changes, 'timelineStartFrame')
 			? assertFrame(changes.timelineStartFrame, 'clip transform destination')
 			: clip.timelineStartFrame;
+		const warpSegment = warpSegmentForExtent(project, clip, changes, timelineStartFrame, durationFrames);
 		let updated = normalizeClipForProject(project, {
 			...clip,
 			...changes,
+			...(warpSegment ? warpSegmentFields(warpSegment) : {}),
 			...(Object.hasOwn(changes, 'preserveFormants') ? {
 				opaqueExtensions: withoutImportedPitchPreset(clip.opaqueExtensions),
 			} : {}),
@@ -424,9 +429,17 @@ export function overwriteClip(project, command) {
 		? assertFrame(requestedChanges.timelineStartFrame, 'clip overwrite destination')
 		: clip.timelineStartFrame;
 	const durationFrames = requestedChanges.durationFrames ?? clip.durationFrames;
+	const warpSegment = warpSegmentForExtent(
+		project,
+		clip,
+		requestedChanges,
+		timelineStartFrame,
+		durationFrames,
+	);
 	const updated = normalizeClipForProject(project, {
 		...clip,
 		...requestedChanges,
+		...(warpSegment ? warpSegmentFields(warpSegment) : {}),
 		...(!Object.hasOwn(requestedChanges, 'envelope') && durationFrames !== clip.durationFrames ? {
 			envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
 		} : {}),
@@ -452,13 +465,14 @@ export function overwriteClip(project, command) {
 		const hasLeadingSegment = inactiveStart < activeStart;
 		const hasTrailingSegment = inactiveEnd > activeEnd;
 		if (hasLeadingSegment) {
-			replacements.push(segmentOfClip(inactiveClip, inactiveStart, activeStart, inactiveStart, inactiveClip.id));
+			replacements.push(segmentOfClip(project, inactiveClip, inactiveStart, activeStart, inactiveStart, inactiveClip.id));
 		}
 		if (hasTrailingSegment) {
 			const id = hasLeadingSegment ? command.splitClipIds?.[inactiveClip.id] : inactiveClip.id;
 			if (!id) throw new TypeError(`A stable split clip ID is required for ${inactiveClip.id}.`);
 			if (hasLeadingSegment) assertUnusedClipId(project, id);
 			replacements.push(segmentOfClip(
+				project,
 				inactiveClip,
 				activeEnd,
 				inactiveEnd,
@@ -522,14 +536,13 @@ export function trimClip(project, command) {
 		? clip.timelineStartFrame
 		: assertFrame(command.timelineStartFrame, 'clip trim destination');
 	const durationFrames = command.durationFrames ?? clip.durationFrames;
-	const warpSegment = clip.kind === 'audio' && clip.warpMap != null
-		? trimAudioWarpClipToTimelineRange(
-			project,
-			clip,
-			timelineStartFrame,
-			timelineStartFrame + durationFrames,
-		)
-		: null;
+	const warpSegment = warpSegmentForTimelineRange(
+		project,
+		clip,
+		command,
+		timelineStartFrame,
+		durationFrames,
+	);
 	const sourceStartFrame = warpSegment?.sourceStartFrame
 		?? command.sourceStartFrame
 		?? clip.sourceStartFrame;
@@ -539,14 +552,6 @@ export function trimClip(project, command) {
 			1,
 			Math.round((clip.sourceDurationFrames ?? clip.durationFrames) * durationFrames / clip.durationFrames),
 		);
-	if (warpSegment && Object.hasOwn(command, 'sourceStartFrame')
-		&& command.sourceStartFrame !== sourceStartFrame) {
-		throw new RangeError('Audio warp trim source start must match the exact map boundary.');
-	}
-	if (warpSegment && Object.hasOwn(command, 'sourceDurationFrames')
-		&& command.sourceDurationFrames !== sourceDurationFrames) {
-		throw new RangeError('Audio warp trim source duration must match the exact map boundaries.');
-	}
 	const updated = normalizeClipForProject(project, {
 		...clip,
 		timelineStartFrame,

@@ -23,6 +23,10 @@ import type {
 	PreparedAudioWarpPlayback,
 } from './runtime-types.ts';
 
+// Every entry supersedes the windows an earlier entry is still awaiting, so a
+// seek that arrives mid-preparation cannot schedule the position it replaced.
+const exactWarpScheduleGenerations = new WeakMap<EngineRuntimeHost, number>();
+
 export async function scheduleExactWarpPlayback(
 	engine: EngineRuntimeHost,
 	prepared: PreparedAudioWarpPlayback,
@@ -31,11 +35,16 @@ export async function scheduleExactWarpPlayback(
 ): Promise<void> {
 	const context = engine.context;
 	if (!context || !engine.project) return;
+	const generation = (exactWarpScheduleGenerations.get(engine) ?? 0) + 1;
+	exactWarpScheduleGenerations.set(engine, generation);
 	if (engine.meterListeners.size && !engine.masterLoudnessMeter && !engine.masterLoudnessMeterError) {
 		await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 	}
+	const activeWindow = await exactWindowAt(engine, prepared, fromFrame);
+	if (!activeWindow || engine.context !== context || !engine.project
+		|| exactWarpScheduleGenerations.get(engine) !== generation) return;
 	engine[ENGINE_HALT_GRAPH]();
-	const frame = clampFrame(fromFrame, prepared.startFrame, prepared.endFrame);
+	const frame = clampFrame(fromFrame, activeWindow.startFrame, activeWindow.endFrame);
 	const nodes: AudioNode[] = [];
 	let masterAnalyser = null;
 	const meterDestination = engine.masterLoudnessMeter?.node || context.destination;
@@ -53,15 +62,33 @@ export async function scheduleExactWarpPlayback(
 	const current = scheduleWindow(
 		engine,
 		graph,
-		prepared,
+		activeWindow,
 		scheduledTime,
-		frame - prepared.startFrame,
+		frame - activeWindow.startFrame,
 	);
 	current.prefetchFollowing();
 	engine[ENGINE_SET_STATE]('playing');
 	engine.masterLoudnessMeter?.setRunning(!engine.loudnessMeasurementManuallyPaused);
 	engine[ENGINE_START_TICKER]();
 	engine[ENGINE_EMIT_POSITION]();
+}
+
+/** A seek or loop change can request a frame the prepared window cannot answer. */
+async function exactWindowAt(
+	engine: EngineRuntimeHost,
+	prepared: PreparedAudioWarpPlayback,
+	fromFrame: number,
+): Promise<PreparedAudioWarpPlayback | null> {
+	if (fromFrame >= prepared.startFrame && fromFrame < prepared.endFrame) return prepared;
+	const boundary = engine.loop.enabled ? engine.loop.endFrame : engine.durationFrames;
+	const requestedFrame = clampFrame(fromFrame, 0, engine.durationFrames);
+	if (requestedFrame >= boundary) {
+		engine[ENGINE_HALT_GRAPH]();
+		engine[ENGINE_SET_STATE]('stopped');
+		engine[ENGINE_EMIT_POSITION]();
+		return null;
+	}
+	return prepareExactAudioWarpPlayback(engine, requestedFrame, boundary);
 }
 
 function scheduleWindow(

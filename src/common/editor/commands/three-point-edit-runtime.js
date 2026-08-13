@@ -165,8 +165,9 @@ function openTrackRange(project, track, range, splitClipIds, splitAvLinkIds, vid
 		const rightId = splitClipIds[clip.id];
 		if (!rightId) throw new TypeError(`A stable split clip ID is required for ${clip.id}.`);
 		assertUnusedClipId(project, rightId);
-		replacements.push(segmentOfClip(clip, start, range.startFrame, start, clip.id));
+		replacements.push(segmentOfClip(project, clip, start, range.startFrame, start, clip.id));
 		let right = segmentOfClip(
+			project,
 			clip,
 			range.startFrame,
 			end,

@@ -71,10 +71,13 @@ async play() {
 		this.playbackRate = 1;
 		this.preparedSpeedPlayback = null;
 		const context = await this.getAudioContext();
-		if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
+		if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
 		if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
 		if (projectHasAuthoredAudioWarp(this.project)
 			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+			// Bounded exact windows exist over authored content only, never over
+			// the silent extended editor timeline.
+			if (this.positionFrame >= this.durationFrames) this.positionFrame = 0;
 			await prepareExactAudioWarpPlayback(
 				this,
 				this.positionFrame,
@@ -181,7 +184,10 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		const context = await this.getAudioContext();
 		if (projectHasAuthoredAudioWarp(this.project)
 			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
-			const scheduledFrame = clampFrame(fromFrame, 0, this.durationFrames);
+			let scheduledFrame = clampFrame(fromFrame, 0, this.durationFrames);
+			if (this.loop.enabled && (scheduledFrame < this.loop.startFrame || scheduledFrame >= this.loop.endFrame)) {
+				scheduledFrame = this.loop.startFrame;
+			}
 			if (scheduledFrame >= this.durationFrames) {
 				return Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 			}
