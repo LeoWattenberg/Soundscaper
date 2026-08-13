@@ -88,6 +88,7 @@ function createFixture() {
 	};
 	const projectSaveService = {
 		cancelScheduled: () => { calls.push('cancel-save'); },
+		drain: async () => { calls.push('drain-save'); },
 		pendingSnapshots: [{ id: 'pending' }],
 	};
 	const sessionController = {
@@ -304,6 +305,88 @@ test('project deletion validates ownership and then clears project-specific stat
 	const replaced = createFixture();
 	replaced.setStopRecording(async () => { replaced.setProject({ id: 'replacement', title: 'Other', revision: 1 }); });
 	assert.equal(await createProjectAdminService(replaced.runtime).deleteProject(), null);
+});
+
+test('project deletion cancels and drains queued saves before irreversible teardown', async () => {
+	const fixture = createFixture();
+	const drainStarted = deferred();
+	const drainGate = deferred();
+	fixture.runtime.projectSaveService.drain = async () => {
+		fixture.calls.push('drain-save:start');
+		drainStarted.resolve();
+		await drainGate.promise;
+		fixture.calls.push('drain-save:done');
+	};
+	const pending = createProjectAdminService(fixture.runtime).deleteProject();
+	await new Promise<void>((resolve) => { setImmediate(resolve); });
+	try {
+		assert.equal(fixture.calls.includes('cancel-save'), true);
+		assert.equal(fixture.calls.includes('drain-save:start'), true);
+		assert.equal(fixture.calls.includes('release'), false);
+		assert.equal(fixture.calls.includes('delete:project-a'), false);
+	} finally {
+		drainGate.resolve();
+		await pending;
+	}
+	await drainStarted.promise;
+	assert.ok(fixture.calls.indexOf('cancel-save') < fixture.calls.indexOf('drain-save:start'));
+	assert.ok(fixture.calls.indexOf('drain-save:done') < fixture.calls.indexOf('release'));
+	assert.ok(fixture.calls.indexOf('release') < fixture.calls.indexOf('delete:project-a'));
+});
+
+test('project deletion failures still retire the torn-down session without a zombie tab', async () => {
+	for (const committed of [false, true]) {
+		const fixture = createFixture();
+		const failure = Object.assign(new Error(committed ? 'committed cleanup failed' : 'catalog CAS failed'), {
+			committed,
+		});
+		fixture.runtime.store.deleteProject = async (projectId: string) => {
+			fixture.calls.push(`delete:${projectId}`);
+			throw failure;
+		};
+
+		await assert.rejects(
+			() => createProjectAdminService(fixture.runtime).deleteProject(),
+			(error: unknown) => error === failure,
+		);
+		assert.equal(fixture.calls.includes('close:project-a'), true);
+		assert.equal(fixture.calls.includes('new-project'), true);
+		assert.equal(fixture.calls.includes('list'), true);
+		assert.equal(fixture.project(), null);
+		assert.equal(fixture.state.history, null);
+		assert.equal(fixture.state.selectedAnnotationId, null);
+		assert.equal(fixture.state.missingSourceIds.size, 0);
+		assert.deepEqual(fixture.state.projects, [{ id: 'listed', title: 'Listed', revision: 1 }]);
+	}
+});
+
+test('project deletion aggregates the original failure with every finalization failure', async () => {
+	const fixture = createFixture();
+	const deletionFailure = new Error('catalog CAS failed');
+	const nextProjectFailure = new Error('next project failed');
+	const listFailure = new Error('catalog list failed');
+	fixture.runtime.store.deleteProject = async () => { throw deletionFailure; };
+	fixture.runtime.newProject = async () => {
+		fixture.calls.push('new-project');
+		throw nextProjectFailure;
+	};
+	fixture.runtime.store.listProjects = async () => {
+		fixture.calls.push('list');
+		throw listFailure;
+	};
+
+	await assert.rejects(
+		() => createProjectAdminService(fixture.runtime).deleteProject(),
+		(error: unknown) => error instanceof AggregateError
+			&& error.errors.length === 3
+			&& error.errors[0] === deletionFailure
+			&& error.errors[1] === nextProjectFailure
+			&& error.errors[2] === listFailure,
+	);
+	assert.equal(fixture.calls.includes('close:project-a'), true);
+	assert.equal(fixture.calls.includes('new-project'), true);
+	assert.equal(fixture.calls.includes('list'), true);
+	assert.equal(fixture.project(), null);
 });
 
 test('project deletion and local reset drain video visuals before storage mutation', async () => {
