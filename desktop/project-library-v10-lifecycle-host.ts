@@ -8,6 +8,16 @@ import {
 import {
 	validateFramescaperDesktopCurrentProjectV18,
 } from './project-library-v10-current-project.ts';
+import {
+	validateFramescaperDesktopProjectLibraryV10CatalogSnapshot,
+	validateFramescaperDesktopProjectLibraryV10DeleteRequest,
+	validateFramescaperDesktopProjectLibraryV10DeleteResult,
+	validateFramescaperDesktopProjectLibraryV10DuplicateRequest,
+	type FramescaperDesktopProjectLibraryV10CatalogSnapshot,
+	type FramescaperDesktopProjectLibraryV10DeleteResult,
+	type FramescaperDesktopProjectLibraryV10DuplicateRequest,
+	type FramescaperDesktopProjectLibraryV10ExpectedProject,
+} from './project-library-v10-lifecycle-contract.ts';
 import type {
 	FramescaperDesktopLibraryV10Metadata,
 	FramescaperDesktopLibraryV10Project,
@@ -23,59 +33,11 @@ import {
 	createFramescaperDesktopProjectLibraryV10TransferBodies,
 	MAXIMUM_FRAMESCAPER_V10_TRANSFER_CHUNK_BYTES,
 	validateFramescaperDesktopProjectLibraryV10HostBundle,
-	validateFramescaperDesktopProjectLibraryV10ProjectId,
 	type FramescaperDesktopProjectLibraryV10TransferBody,
 	type FramescaperDesktopProjectLibraryV10TransferBundle,
 } from './project-library-v10-transfer-contract.ts';
 
 const CREATE_FIELDS = ['catalog', 'host', 'lease'] as const;
-const DELETE_FIELDS = [
-	'projectId', 'expectedMetadataRevision', 'expectedProject',
-] as const;
-const DUPLICATE_FIELDS = [
-	'sourceProjectId', 'copyProjectId', 'title', 'timestamp',
-	'expectedMetadataRevision', 'expectedSource',
-] as const;
-const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
-const MAXIMUM_TITLE_BYTES = 1_024;
-
-export interface FramescaperDesktopProjectLibraryV10ProjectSummary {
-	readonly id: string;
-	readonly title: string;
-	readonly revision: number;
-	readonly updatedAt: string;
-}
-
-export interface FramescaperDesktopProjectLibraryV10CatalogSnapshot {
-	readonly metadataRevision: number;
-	readonly projects: readonly Readonly<FramescaperDesktopProjectLibraryV10ProjectSummary>[];
-}
-
-export interface FramescaperDesktopProjectLibraryV10ExpectedProject {
-	readonly projectRevision: number;
-	readonly projectSha256: string;
-}
-
-export interface FramescaperDesktopProjectLibraryV10DeleteRequest {
-	readonly projectId: string;
-	readonly expectedMetadataRevision: number;
-	readonly expectedProject: Readonly<FramescaperDesktopProjectLibraryV10ExpectedProject>;
-}
-
-export interface FramescaperDesktopProjectLibraryV10DeleteResult {
-	readonly projectId: string;
-	readonly metadataRevision: number;
-	readonly deleted: true;
-}
-
-export interface FramescaperDesktopProjectLibraryV10DuplicateRequest {
-	readonly sourceProjectId: string;
-	readonly copyProjectId: string;
-	readonly title: string;
-	readonly timestamp: string;
-	readonly expectedMetadataRevision: number;
-	readonly expectedSource: Readonly<FramescaperDesktopProjectLibraryV10ExpectedProject>;
-}
 
 interface CreateOptions {
 	readonly catalog: FramescaperDesktopProjectLibraryV10Catalog;
@@ -87,7 +49,7 @@ interface CreateOptions {
 export class FramescaperDesktopProjectLibraryV10LifecycleHost {
 	readonly #catalog: FramescaperDesktopProjectLibraryV10Catalog;
 	readonly #host: FramescaperDesktopProjectLibraryV10PublicationHost;
-	readonly #lease: FramescaperDesktopProjectLibraryV10Lease;
+	#lease: FramescaperDesktopProjectLibraryV10Lease;
 
 	private constructor(options: CreateOptions) {
 		this.#catalog = options.catalog;
@@ -111,6 +73,18 @@ export class FramescaperDesktopProjectLibraryV10LifecycleHost {
 		})) as FramescaperDesktopProjectLibraryV10LifecycleHost;
 	}
 
+	updateLease(value: unknown): void {
+		const next = validateFramescaperDesktopProjectLibraryV10LeaseToken(
+			value as FramescaperDesktopProjectLibraryV10Lease,
+		);
+		if (next.leaseId !== this.#lease.leaseId || next.fencingToken !== this.#lease.fencingToken
+			|| JSON.stringify(next.owner) !== JSON.stringify(this.#lease.owner)
+			|| next.acquiredAtMs !== this.#lease.acquiredAtMs || next.expiresAtMs < this.#lease.expiresAtMs) {
+			throw new Error('Framescaper V10 lifecycle lease renewal changed its main-owned fence');
+		}
+		this.#lease = next;
+	}
+
 	listProjects(): Readonly<FramescaperDesktopProjectLibraryV10CatalogSnapshot> {
 		const metadata = this.#catalog.readMetadata();
 		const projects = metadata.projects.map((project) => Object.freeze({
@@ -121,14 +95,14 @@ export class FramescaperDesktopProjectLibraryV10LifecycleHost {
 		})).sort((left, right) => (
 			right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id)
 		));
-		return Object.freeze({
+		return validateFramescaperDesktopProjectLibraryV10CatalogSnapshot({
 			metadataRevision: metadata.revision,
-			projects: Object.freeze(projects),
+			projects,
 		});
 	}
 
 	deleteProject(value: unknown): Readonly<FramescaperDesktopProjectLibraryV10DeleteResult> {
-		const request = deleteRequest(value);
+		const request = validateFramescaperDesktopProjectLibraryV10DeleteRequest(value);
 		const metadata = this.#catalog.readMetadata();
 		assertMetadataRevision(metadata, request.expectedMetadataRevision);
 		const current = exactProject(metadata, request.projectId);
@@ -143,7 +117,7 @@ export class FramescaperDesktopProjectLibraryV10LifecycleHost {
 				media: metadata.media,
 			},
 		});
-		return Object.freeze({
+		return validateFramescaperDesktopProjectLibraryV10DeleteResult({
 			projectId: request.projectId,
 			metadataRevision: published.revision,
 			deleted: true,
@@ -154,7 +128,7 @@ export class FramescaperDesktopProjectLibraryV10LifecycleHost {
 		value: unknown,
 		signal?: AbortSignal,
 	): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle>> {
-		const request = duplicateRequest(value);
+		const request = validateFramescaperDesktopProjectLibraryV10DuplicateRequest(value);
 		throwIfAborted(signal);
 		const metadata = this.#catalog.readMetadata();
 		assertMetadataRevision(metadata, request.expectedMetadataRevision);
@@ -245,36 +219,6 @@ function sameBodyContent(
 		&& left.sha256 === right.sha256;
 }
 
-function deleteRequest(value: unknown): Readonly<FramescaperDesktopProjectLibraryV10DeleteRequest> {
-	const raw = closedRecord(value, DELETE_FIELDS, 'Framescaper V10 delete request');
-	return Object.freeze({
-		projectId: validateFramescaperDesktopProjectLibraryV10ProjectId(raw.projectId),
-		expectedMetadataRevision: nonNegativeInteger(raw.expectedMetadataRevision, 'expected metadata revision'),
-		expectedProject: expectedProject(raw.expectedProject),
-	});
-}
-
-function duplicateRequest(value: unknown): Readonly<FramescaperDesktopProjectLibraryV10DuplicateRequest> {
-	const raw = closedRecord(value, DUPLICATE_FIELDS, 'Framescaper V10 duplicate request');
-	const timestamp = canonicalTimestamp(raw.timestamp);
-	return Object.freeze({
-		sourceProjectId: validateFramescaperDesktopProjectLibraryV10ProjectId(raw.sourceProjectId),
-		copyProjectId: validateFramescaperDesktopProjectLibraryV10ProjectId(raw.copyProjectId),
-		title: boundedTitle(raw.title),
-		timestamp,
-		expectedMetadataRevision: nonNegativeInteger(raw.expectedMetadataRevision, 'expected metadata revision'),
-		expectedSource: expectedProject(raw.expectedSource),
-	});
-}
-
-function expectedProject(value: unknown): Readonly<FramescaperDesktopProjectLibraryV10ExpectedProject> {
-	const raw = closedRecord(value, EXPECTED_FIELDS, 'Framescaper V10 expected project');
-	return Object.freeze({
-		projectRevision: nonNegativeInteger(raw.projectRevision, 'expected project revision'),
-		projectSha256: digest(raw.projectSha256, 'expected project'),
-	});
-}
-
 function exactProject(
 	metadata: Readonly<FramescaperDesktopLibraryV10Metadata>,
 	projectId: string,
@@ -321,37 +265,6 @@ function closedRecord<const Field extends string>(value: unknown, fields: readon
 		result[field] = descriptor.value;
 	}
 	return result;
-}
-
-function boundedTitle(value: unknown): string {
-	if (typeof value !== 'string' || !value.trim()
-		|| new TextEncoder().encode(value).byteLength > MAXIMUM_TITLE_BYTES) {
-		throw new TypeError('Framescaper V10 duplicate title is invalid');
-	}
-	return value;
-}
-
-function canonicalTimestamp(value: unknown): string {
-	if (typeof value !== 'string') throw new TypeError('Framescaper V10 duplicate timestamp is invalid');
-	const time = Date.parse(value);
-	if (!Number.isFinite(time) || new Date(time).toISOString() !== value) {
-		throw new TypeError('Framescaper V10 duplicate timestamp is invalid');
-	}
-	return value;
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-		throw new RangeError(`Framescaper V10 ${label} must be a non-negative safe integer`);
-	}
-	return value;
-}
-
-function digest(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) {
-		throw new TypeError(`Framescaper V10 ${label} digest is invalid`);
-	}
-	return value;
 }
 
 function increment(value: number, label: string): number {

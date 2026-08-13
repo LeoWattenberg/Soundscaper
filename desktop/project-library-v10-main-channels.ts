@@ -7,6 +7,9 @@ import {
 /** Complete product-owned V10 channel inventory shared by main and sandbox preload. */
 export const FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS = Object.freeze({
 	...FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS,
+	listProjects: 'framescaper:v10:projects:list',
+	deleteProject: 'framescaper:v10:projects:delete',
+	duplicateProject: 'framescaper:v10:projects:duplicate',
 	beginPublication: 'framescaper:v10:projects:publication:begin',
 	writePublicationChunk: 'framescaper:v10:projects:publication:chunk',
 	finishPublication: 'framescaper:v10:projects:publication:finish',

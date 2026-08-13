@@ -3,6 +3,13 @@
 import { randomBytes } from 'node:crypto';
 
 import type { FramescaperDesktopProjectLibraryV10Handshake } from './project-library-v10-contract.ts';
+import type {
+	FramescaperDesktopProjectLibraryV10CatalogSnapshot,
+	FramescaperDesktopProjectLibraryV10DeleteResult,
+} from './project-library-v10-lifecycle-contract.ts';
+import type {
+	FramescaperDesktopProjectLibraryV10LifecycleHost,
+} from './project-library-v10-lifecycle-host.ts';
 import type { FramescaperDesktopProjectLibraryV10PublicationHost } from './project-library-v10-publication-host.ts';
 import type { FramescaperDesktopProjectLibraryV10Lease } from './project-library-v10-persistence-codecs.ts';
 import {
@@ -28,6 +35,7 @@ import {
 const MAXIMUM_ACTIVE_SESSIONS = 16;
 
 export interface FramescaperDesktopProjectLibraryV10MainSession {
+	listProjects(): Promise<Readonly<FramescaperDesktopProjectLibraryV10CatalogSnapshot>>;
 	readProjectBundle(projectId: string): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle> | null>;
 	readBodyChunk(value: unknown): Promise<Uint8Array>;
 	beginPublication(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10PublicationAdmission>>;
@@ -36,6 +44,8 @@ export interface FramescaperDesktopProjectLibraryV10MainSession {
 	): Promise<Readonly<FramescaperDesktopProjectLibraryV10PublicationChunkAcknowledgement>>;
 	finishPublication(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle>>;
 	abortPublication(value: unknown): Promise<boolean>;
+	deleteProject(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10DeleteResult>>;
+	duplicateProject(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle>>;
 	close(): Promise<void>;
 }
 
@@ -43,7 +53,8 @@ export interface FramescaperDesktopProjectLibraryV10MainSession {
 export class FramescaperDesktopProjectLibraryV10MainSessionService {
 	readonly localHandshake: Readonly<FramescaperDesktopProjectLibraryV10Handshake>;
 	readonly #host: FramescaperDesktopProjectLibraryV10PublicationHost;
-	readonly #lease: FramescaperDesktopProjectLibraryV10Lease;
+	readonly #lifecycle: FramescaperDesktopProjectLibraryV10LifecycleHost;
+	#lease: FramescaperDesktopProjectLibraryV10Lease;
 	readonly #transfer: FramescaperDesktopProjectLibraryV10TransferService;
 	readonly #sessions = new Set<MainSession>();
 	#active: PublicationUpload | null = null;
@@ -52,14 +63,20 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 
 	constructor(
 		host: FramescaperDesktopProjectLibraryV10PublicationHost,
+		lifecycle: FramescaperDesktopProjectLibraryV10LifecycleHost,
 		lease: FramescaperDesktopProjectLibraryV10Lease,
 		transfer: FramescaperDesktopProjectLibraryV10TransferService,
 	) {
 		this.#host = host;
+		this.#lifecycle = lifecycle;
 		this.#lease = lease;
 		this.#transfer = transfer;
 		this.localHandshake = transfer.localHandshake;
 		Object.freeze(this);
+	}
+
+	updateLease(lease: FramescaperDesktopProjectLibraryV10Lease): void {
+		this.#lease = lease;
 	}
 
 	get activeSessions(): number {
@@ -146,6 +163,21 @@ export class FramescaperDesktopProjectLibraryV10MainSessionService {
 		return true;
 	}
 
+	list(session: MainSession) {
+		this.#assertSession(session);
+		return Promise.resolve(this.#lifecycle.listProjects());
+	}
+
+	delete(session: MainSession, value: unknown) {
+		this.#assertSession(session);
+		return Promise.resolve().then(() => this.#lifecycle.deleteProject(value));
+	}
+
+	duplicate(session: MainSession, value: unknown, signal: AbortSignal) {
+		this.#assertSession(session);
+		return this.#lifecycle.duplicateProject(value, signal);
+	}
+
 	async detach(session: MainSession, reason: unknown): Promise<void> {
 		this.#sessions.delete(session);
 		const upload = this.#active;
@@ -195,6 +227,10 @@ class MainSession implements FramescaperDesktopProjectLibraryV10MainSession {
 		return this.#admit(() => this.#transfer.readProjectBundle(projectId, this.#controller.signal));
 	}
 
+	listProjects() {
+		return this.#admit(() => this.#service.list(this));
+	}
+
 	readBodyChunk(value: unknown): Promise<Uint8Array> {
 		return this.#admit(() => {
 			const request = validateFramescaperDesktopProjectLibraryV10BodyReadRequest(value);
@@ -216,6 +252,14 @@ class MainSession implements FramescaperDesktopProjectLibraryV10MainSession {
 
 	abortPublication(value: unknown) {
 		return this.#admit(() => this.#service.abort(this, value));
+	}
+
+	deleteProject(value: unknown) {
+		return this.#admit(() => this.#service.delete(this, value));
+	}
+
+	duplicateProject(value: unknown) {
+		return this.#admit(() => this.#service.duplicate(this, value, this.#controller.signal));
 	}
 
 	close(): Promise<void> {

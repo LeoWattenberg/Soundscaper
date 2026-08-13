@@ -75,6 +75,12 @@ export function registerFramescaperDesktopProjectLibraryV10MainIpc(
 			(event, projectId) => connection(event).readProjectBundle(projectId as string));
 		register(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.readBodyChunk,
 			(event, request) => connection(event).readBodyChunk(request));
+		register(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.listProjects,
+			(event) => connection(event).listProjects());
+		register(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.deleteProject,
+			(event, request) => connection(event).deleteProject(request));
+		register(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.duplicateProject,
+			(event, request) => connection(event).duplicateProject(request));
 		register(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.beginPublication,
 			(event, request) => connection(event).beginPublication(request));
 		register(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.writePublicationChunk,

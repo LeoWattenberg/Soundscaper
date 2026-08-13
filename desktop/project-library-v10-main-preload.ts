@@ -9,6 +9,14 @@ import {
 	FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS,
 } from './project-library-v10-main-channels.ts';
 import {
+	validateFramescaperDesktopProjectLibraryV10CatalogSnapshot,
+	validateFramescaperDesktopProjectLibraryV10DeleteRequest,
+	validateFramescaperDesktopProjectLibraryV10DeleteResult,
+	validateFramescaperDesktopProjectLibraryV10DuplicateRequest,
+	type FramescaperDesktopProjectLibraryV10CatalogSnapshot,
+	type FramescaperDesktopProjectLibraryV10DeleteResult,
+} from './project-library-v10-lifecycle-contract.ts';
+import {
 	validateFramescaperDesktopProjectLibraryV10PublicationAbortResult,
 	validateFramescaperDesktopProjectLibraryV10PublicationAdmission,
 	validateFramescaperDesktopProjectLibraryV10PublicationBeginRequest,
@@ -37,6 +45,7 @@ export type FramescaperDesktopProjectLibraryV10MainPreloadHandshakeState =
 export interface FramescaperDesktopProjectLibraryV10MainPreloadBridge {
 	connect(): Promise<Readonly<FramescaperDesktopProjectLibraryV10Handshake>>;
 	handshakeState(): FramescaperDesktopProjectLibraryV10MainPreloadHandshakeState;
+	listProjects(): Promise<Readonly<FramescaperDesktopProjectLibraryV10CatalogSnapshot>>;
 	readProjectBundle(
 		projectId: string,
 	): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle> | null>;
@@ -47,6 +56,8 @@ export interface FramescaperDesktopProjectLibraryV10MainPreloadBridge {
 	): Promise<Readonly<FramescaperDesktopProjectLibraryV10PublicationChunkAcknowledgement>>;
 	finishPublication(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle>>;
 	abortPublication(value: unknown): Promise<boolean>;
+	deleteProject(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10DeleteResult>>;
+	duplicateProject(value: unknown): Promise<Readonly<FramescaperDesktopProjectLibraryV10TransferBundle>>;
 }
 
 /** Frozen pathless API for the Framescaper-only sandbox preload composition. */
@@ -90,6 +101,12 @@ export function createFramescaperDesktopProjectLibraryV10MainPreloadBridge(
 			return connection;
 		},
 		handshakeState: () => state,
+		async listProjects() {
+			assertOperational();
+			return validateFramescaperDesktopProjectLibraryV10CatalogSnapshot(await invoke(
+				FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.listProjects,
+			));
+		},
 		async readProjectBundle(projectIdValue: string) {
 			assertOperational();
 			const projectId = validateFramescaperDesktopProjectLibraryV10ProjectId(projectIdValue);
@@ -172,6 +189,28 @@ export function createFramescaperDesktopProjectLibraryV10MainPreloadBridge(
 			);
 			publications.delete(request.publicationId);
 			return result;
+		},
+		async deleteProject(value: unknown) {
+			assertOperational();
+			const request = validateFramescaperDesktopProjectLibraryV10DeleteRequest(value);
+			return validateFramescaperDesktopProjectLibraryV10DeleteResult(
+				await invoke(
+					FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.deleteProject,
+					request,
+				),
+				request.projectId,
+			);
+		},
+		async duplicateProject(value: unknown) {
+			assertOperational();
+			const request = validateFramescaperDesktopProjectLibraryV10DuplicateRequest(value);
+			return validateFramescaperDesktopProjectLibraryV10TransferBundle(
+				await invoke(
+					FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_MAIN_CHANNELS.duplicateProject,
+					request,
+				),
+				request.copyProjectId,
+			);
 		},
 	});
 }

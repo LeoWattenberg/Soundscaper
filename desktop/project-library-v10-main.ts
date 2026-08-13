@@ -23,6 +23,9 @@ import {
 	type FramescaperDesktopProjectLibraryV10MainSession,
 } from './project-library-v10-main-session.ts';
 import {
+	FramescaperDesktopProjectLibraryV10LifecycleHost,
+} from './project-library-v10-lifecycle-host.ts';
+import {
 	FramescaperDesktopProjectLibraryV10PublicationHost,
 } from './project-library-v10-publication-host.ts';
 import {
@@ -53,6 +56,7 @@ export class FramescaperDesktopProjectLibraryV10Main {
 	readonly #catalog: FramescaperDesktopProjectLibraryV10Catalog;
 	readonly #database: DatabaseSync;
 	readonly #host: FramescaperDesktopProjectLibraryV10PublicationHost;
+	readonly #lifecycle: FramescaperDesktopProjectLibraryV10LifecycleHost;
 	readonly #owner: Readonly<FramescaperDesktopProjectLibraryV10Owner>;
 	readonly #paths: Readonly<FramescaperDesktopProjectLibraryV10Paths>;
 	readonly #sessions: FramescaperDesktopProjectLibraryV10MainSessionService;
@@ -68,6 +72,7 @@ export class FramescaperDesktopProjectLibraryV10Main {
 		database: DatabaseSync,
 		catalog: FramescaperDesktopProjectLibraryV10Catalog,
 		host: FramescaperDesktopProjectLibraryV10PublicationHost,
+		lifecycle: FramescaperDesktopProjectLibraryV10LifecycleHost,
 		lease: FramescaperDesktopProjectLibraryV10Lease,
 		owner: Readonly<FramescaperDesktopProjectLibraryV10Owner>,
 	) {
@@ -75,10 +80,16 @@ export class FramescaperDesktopProjectLibraryV10Main {
 		this.#database = database;
 		this.#catalog = catalog;
 		this.#host = host;
+		this.#lifecycle = lifecycle;
 		this.#lease = lease;
 		this.#owner = owner;
 		const transfer = FramescaperDesktopProjectLibraryV10TransferService.create({ host });
-		this.#sessions = new FramescaperDesktopProjectLibraryV10MainSessionService(host, lease, transfer);
+		this.#sessions = new FramescaperDesktopProjectLibraryV10MainSessionService(
+			host,
+			lifecycle,
+			lease,
+			transfer,
+		);
 		this.localHandshake = transfer.localHandshake;
 		this.#renewTimer = setInterval(() => { this.#renewLease(); }, RENEW_INTERVAL_MS);
 		this.#renewTimer.unref?.();
@@ -112,11 +123,17 @@ export class FramescaperDesktopProjectLibraryV10Main {
 			host.acceptHandshake(options.handshake);
 			lease = catalog.acquireLease({ ttlMs: LEASE_TTL_MS });
 			await recoverPending(database, catalog, host, lease);
+			const lifecycle = FramescaperDesktopProjectLibraryV10LifecycleHost.create({
+				catalog,
+				host,
+				lease,
+			});
 			return new FramescaperDesktopProjectLibraryV10Main(
 				paths,
 				database,
 				catalog,
 				host,
+				lifecycle,
 				lease,
 				options.owner,
 			);
@@ -174,6 +191,8 @@ export class FramescaperDesktopProjectLibraryV10Main {
 		if (this.#closed || this.#fenced !== null) return;
 		try {
 			this.#lease = this.#catalog.renewLease(this.#lease, { ttlMs: LEASE_TTL_MS });
+			this.#lifecycle.updateLease(this.#lease);
+			this.#sessions.updateLease(this.#lease);
 		} catch (error) {
 			this.#fenced = error;
 			this.#fencePromise = this.#sessions.fence(error);
