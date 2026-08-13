@@ -53,6 +53,7 @@ export type ProjectPostCommitMaintenance = () => PromiseLike<void> | void;
 /** Structural project seam implemented by local and desktop-shared repositories. */
 export interface ProjectRepositoryPort {
 	createIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
+	createForScapeImportIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
 	save(project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument>;
 	saveIfCurrent?(expected: ProjectDocument, project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument | null>;
 	maintainCurrentProject?(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void>;
@@ -107,6 +108,47 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				request(projects.put(snapshot)),
 				request(revisions.put(revisionRecord)),
 			]);
+			return true;
+		});
+		return created ? this.#rememberCreation(snapshot, creationFence) : null;
+	}
+
+	/** Atomically create an imported project and publish only its referenced staged sources. */
+	async createForScapeImportIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
+		const creationFence = createProjectCreationFence();
+		const { snapshot, revisionRecord } = projectPublication(project, creationFence);
+		const database = await this.#port.database();
+		if (!database) {
+			const memory = this.#port.memory;
+			if (memory.projects.has(snapshot.id) || memory.revisions.has(revisionRecord.key)
+				|| memoryHasProjectRevision(memory.revisions, snapshot.id)) return null;
+			const mutations: MemoryMutation[] = [
+				setMemoryMutation(memory.projects, snapshot.id, snapshot),
+				setMemoryMutation(memory.revisions, revisionRecord.key, revisionRecord),
+			];
+			for (const sourceId of collectProjectStorageKeys(snapshot)) {
+				const source = asRecord(memory.sources.get(sourceId));
+				if (source?.pendingProjectUntil) mutations.push(setMemoryMutation(memory.sources, sourceId, publishSource(source)));
+				const media = asRecord(memory.mediaAssets.get(sourceId));
+				if (media?.pendingProjectUntil) mutations.push(setMemoryMutation(memory.mediaAssets, sourceId, publishSource(media)));
+			}
+			applyMemoryMutations(mutations);
+			return this.#rememberCreation(snapshot, creationFence);
+		}
+		const created = await transact(database, ['projects', 'revisions', 'sources', 'mediaAssets'], 'readwrite', async (stores) => {
+			const { projects, revisions, sources, mediaAssets } = stores;
+			const [current, currentRevision, revisionCount] = await Promise.all([
+				request(projects.get(snapshot.id)), request(revisions.get(revisionRecord.key)),
+				request(revisions.index('projectId').count(snapshot.id)),
+			]);
+			if (current !== undefined || currentRevision !== undefined || revisionCount > 0) return false;
+			await Promise.all([request(projects.put(snapshot)), request(revisions.put(revisionRecord))]);
+			for (const sourceId of collectProjectStorageKeys(snapshot)) {
+				const source = asRecord(await request(sources.get(sourceId)));
+				if (source?.pendingProjectUntil) await request(sources.put(publishSource(source)));
+				const media = asRecord(await request(mediaAssets.get(sourceId)));
+				if (media?.pendingProjectUntil) await request(mediaAssets.put(publishSource(media)));
+			}
 			return true;
 		});
 		return created ? this.#rememberCreation(snapshot, creationFence) : null;

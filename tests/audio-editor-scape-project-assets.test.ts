@@ -41,6 +41,28 @@ test('current Scape video assets bind archive bytes to source.contentSha256', ()
 	);
 });
 
+test('a product-owned current Scape schema binds video bytes to source.contentSha256', () => {
+	const sourceSha256 = '3'.repeat(64);
+	const project = {
+		schemaVersion: 19,
+		sources: [{ id: 'video-source', kind: 'video', contentSha256: sourceSha256 }],
+	};
+	const video = { ...descriptor('video-source', 'video'), sha256: sourceSha256 };
+	assert.equal(indexScapeProjectAssets(
+		project,
+		{ assets: [video] },
+		{ currentProjectSchemaVersion: 19 },
+	).get(video.sourceId), video);
+	assert.throws(
+		() => indexScapeProjectAssets(
+			project,
+			{ assets: [{ ...video, sha256: '4'.repeat(64) }] },
+			{ currentProjectSchemaVersion: 19 },
+		),
+		/source content|content SHA-256|original.*digest/iu,
+	);
+});
+
 test('current Scape projects bind every rendered fallback digest to its canonical asset', () => {
 	const audio = descriptor('audio-source', 'audio');
 	const video = descriptor('video-source', 'video');

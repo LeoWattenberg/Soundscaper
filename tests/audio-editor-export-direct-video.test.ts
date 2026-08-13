@@ -116,8 +116,8 @@ test('direct video rejects plan drift and count disagreement with one rollback a
 	assert.equal(counts.events.includes('commit'), false);
 });
 
-test('direct video declines aliased and underspecified plans before target preparation', async () => {
-	for (const invalidPlan of ['alias', 'underspecified'] as const) {
+test('direct video declines stale, aliased, and underspecified plans before target preparation', async () => {
+	for (const invalidPlan of ['legacy', 'alias', 'underspecified'] as const) {
 		const fixture = createFixture({ invalidPlan });
 		const result = await fixture.exportVideo();
 		assert.equal(result?.method, 'object-url');
@@ -196,7 +196,7 @@ interface FixtureOptions {
 	readonly desktop?: boolean;
 	readonly emittedByteLength?: number;
 	readonly format?: Format;
-	readonly invalidPlan?: 'alias' | 'underspecified';
+	readonly invalidPlan?: 'legacy' | 'alias' | 'underspecified';
 	readonly onCommit?: () => void;
 	readonly prepared?: Readonly<Record<string, unknown>>;
 	readonly priorOutput?: boolean;
@@ -217,6 +217,7 @@ function createFixture(options: FixtureOptions = {}) {
 	const canonical = project(false);
 	const projected = project(true);
 	const plan = videoPlan(format, options.renderedFallback ? 'fallback-video' : 'original-video');
+	if (options.invalidPlan === 'legacy') plan.version = 5;
 	if (options.invalidPlan === 'alias') {
 		(plan as { format: string }).format = format === 'mp4' ? 'h264' : 'vp9';
 	}
@@ -386,7 +387,7 @@ function preparedStream(events: string[], options: FixtureOptions) {
 function videoPlan(format: Format, sourceId = 'original-video') {
 	const mp4 = format === 'mp4';
 	return {
-		version: 5,
+		version: 6,
 		format,
 		container: format,
 		extension: format,

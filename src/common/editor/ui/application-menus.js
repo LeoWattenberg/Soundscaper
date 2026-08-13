@@ -19,6 +19,7 @@ import {
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
+import { createVideoCompositionApplicationMenuItems } from './video-composition-application-menu.ts';
 import { createApplicationMenuProductTrackItems } from './application-menu-product-items.js';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
@@ -103,6 +104,7 @@ export default function createApplicationMenus({
 		productId, selectedClipId: selectedClip?.id ?? null, editingBlocked: editBlocked,
 		copy, currentPlayheadSample: actions.currentVideoPlayheadSample,
 	}, actions);
+	const videoCompositionItems = createVideoCompositionApplicationMenuItems({ productId, capability: Boolean(capabilities.videoGeometry), project, selectedClipId: selectedClip?.id ?? null, editingBlocked: editBlocked, copy, open: actions.openVideoComposition });
 	const productTrackItems = createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions });
 	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
@@ -270,6 +272,7 @@ export default function createApplicationMenus({
 						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !groupedSelectedClips, onClick: () => actions.executeEdit('ungroup') },
 						...framescaperVideoTrimItems,
 						...(framescaperEditControls.link ? [framescaperEditControls.link] : []),
+						...videoCompositionItems,
 						{ id: 'clip-properties', label: copy.clipPropertiesCommand, disabled: !selectedClip, onClick: actions.openClipProperties },
 					],
 				},

@@ -92,19 +92,21 @@ neither transferred nor reconstructed.
 ## Framescaper V18 product isolation
 
 <!-- policy-narrative:framescaper-v18-product-isolation -->
-The maintained Framescaper bootstrap selects one authenticated runtime profile
-before constructing its project environment. That exact Framescaper V18 owner
-supplies create, clone, validation, commands, history, session, repository,
-maintenance, playback, compatibility, format-1/format-2 Scape, and
-product-isolated storage services; exact V17 fails with typed REIMPORT_REQUIRED
-before nested traversal and V19 remains opaque read-only. Soundscaper keeps the
-shared exact V17 owner and treats V18 as a future read-only document.
-Framescaper web storage uses the V18 namespace, and the desktop composition
-selects the separately handshaken desktop V10/schema-18 renderer plus an exact
-V18 local shadow for create, latest/revision load, and main-first save
-reconciliation. The shared V9/schema-17 library is not selected by that
-composition. Cross-product V18 transfer grants copy-only preservation and never
-edit, activation, migration, or native feature authority.
+The maintained Framescaper bootstrap authenticates a product-owned runtime
+profile before constructing its project environment. Browser routes without a
+desktop bridge select exact V19 create, clone, validation, commands, history,
+session, repository, playback, compatibility, format-1/format-2 Scape,
+product-isolated storage, and native video-geometry services; exact V18 requires
+re-import there and V20 or newer remains opaque read-only. Packaged desktop
+routes deliberately retain the qualified exact V18 environment, proxy and timing
+archive, claim cleanup, retention, and separately handshaken desktop
+V10/schema-18 renderer until a complete V19/V11 desktop authority exists, so V19
+geometry is unavailable rather than silently downgraded. The exact Framescaper
+V18 desktop owner remains distinct from Soundscaper V17. Soundscaper keeps the
+shared exact V17 owner and treats newer product schemas as read-only. The shared
+V9/schema-17 library is not selected by the Framescaper desktop composition.
+Cross-product preservation never grants edit, activation, migration, or native
+feature authority.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
 ## Framescaper V18 nested-sequence compatibility

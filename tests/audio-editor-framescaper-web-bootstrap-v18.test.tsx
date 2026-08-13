@@ -68,18 +68,19 @@ test('Framescaper bootstrap accepts presentation only and has no always-visible 
 	assert.doesNotMatch(markup, /<(?:button|input|select|textarea)\b/iu);
 });
 
-test('the shared Main route selects the product bootstrap while Soundscaper stays exact V17', async () => {
+test('the shared Main route selects the current product bootstrap while Soundscaper stays exact V17', async () => {
 	const [main, soundscaperBootstrap, framescaperBootstrap] = await Promise.all([
 		readSource('src/common/site/App.jsx'),
 		readSource('src/common/editor/ui/AudioEditorBootstrap.jsx'),
-		readSource('src/framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx'),
+		readSource('src/framescaper/ui/FramescaperAudioEditorBootstrapV19.tsx'),
 	]);
-	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrapV18\.tsx'\)\)/u);
-	assert.match(main, /productId\s*===\s*'framescaper'[^?]*\?\s*FramescaperAudioEditorBootstrapV18\s*:\s*AudioEditorBootstrap/su);
+	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrapV19\.tsx'\)\)/u);
+	assert.match(main, /FramescaperAudioEditorBootstrapV18\.tsx/u);
+	assert.match(main, /hasFramescaperDesktopBridge\(\)[^?]*\?\s*FramescaperAudioEditorBootstrapV18\s*:\s*FramescaperAudioEditorBootstrapV19/su);
 	assert.doesNotMatch(soundscaperBootstrap,
-		/FRAMESCAPER_V18|createFramescaper|editor-project-runtime-profile-v18|framescaper\/ui/iu);
-	assert.match(framescaperBootstrap, /createFramescaperEditorProjectEnvironmentV18/u);
-	assert.match(framescaperBootstrap, /createFramescaperAudioEditorControllerV18/u);
+		/FRAMESCAPER_V19|createFramescaper|editor-project-runtime-profile-v19|framescaper\/ui/iu);
+	assert.match(framescaperBootstrap, /createFramescaperEditorProjectEnvironmentV19/u);
+	assert.match(framescaperBootstrap, /createFramescaperAudioEditorControllerV19/u);
 	assert.doesNotMatch(framescaperBootstrap,
 		/from\s+['"]\.\.\/\.\.\/common\/editor\/app\.js|createAudioEditorController\s*\(/u);
 

@@ -185,13 +185,13 @@ export function collectTakeCompClipboardSourceIds(groups: readonly ClipboardTake
 	return [...new Set(groups.flatMap(({ takes }) => takes.map(({ sourceId }) => sourceId)))].sort(compareText);
 }
 
-/** Allocate all persistent identities before a V4 command crosses history. */
+/** Allocate all persistent identities before a V4/V5 command crosses history. */
 export function prepareTakeCompClipboardPasteIds(
 	clipboard: AudioEditorClipboard,
 	command: MutablePasteCommand,
 	idFactory: IdFactory,
 ): void {
-	if (clipboard.schemaVersion !== 4) return;
+	if (clipboard.schemaVersion !== 4 && clipboard.schemaVersion !== 5) return;
 	const groups = normalizeTakeCompClipboardGroups(clipboard.takeGroups);
 	const takeGroupIds = nullRecord();
 	const takeLaneIds = nullRecord();
@@ -209,7 +209,7 @@ export function prepareTakeCompClipboardPasteIds(
 	command.compRegionIds = { ...compRegionIds };
 }
 
-/** Validate and stage a V4 take paste beside its media and annotation mutations. */
+/** Validate and stage a V4/V5 take paste beside its media and annotation mutations. */
 export function stageTakeCompClipboardPaste(
 	projectValue: unknown,
 	clipboard: AudioEditorClipboard,
@@ -220,7 +220,7 @@ export function stageTakeCompClipboardPaste(
 ): () => void {
 	const project = record(projectValue, 'project');
 	const command = record(commandValue, 'clipboard paste command') as MutablePasteCommand;
-	if (clipboard.schemaVersion !== 4) {
+	if (clipboard.schemaVersion !== 4 && clipboard.schemaVersion !== 5) {
 		for (const field of PASTE_MAP_FIELDS) {
 			if (Object.hasOwn(command, field)) throw new TypeError(`Legacy clipboard paste cannot contain ${field}.`);
 		}

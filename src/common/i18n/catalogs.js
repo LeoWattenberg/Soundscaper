@@ -5,7 +5,7 @@ import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js';
 import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js';
-import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js';
+import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js'; import { VIDEO_COMPOSITION_COPY_BY_LOCALE } from './video-composition-copy.js';
 // Canonical bundled catalogs. Audacity-sourced overrides are merged at runtime.
 // User-visible copy intentionally omits ellipsis punctuation.
 export const COPY_BY_LOCALE = deepFreeze({
@@ -179,7 +179,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		videoPreviewEffectsUnavailable: 'Videoeffekte können gerade nicht per GPU dargestellt werden. Die Vorschau zeigt das unbearbeitete Video; beim Export werden die Effekte weiterhin angewendet.',
 		videoTrack: 'Videospur',
 		videoClip: 'Videoclip',
-		...VIDEO_EFFECT_COPY_BY_LOCALE.de,
+		...VIDEO_EFFECT_COPY_BY_LOCALE.de, ...VIDEO_COMPOSITION_COPY_BY_LOCALE.de,
 		videoHidden: 'Video ausblenden',
 		videoVisible: 'Video einblenden',
 		videoHasAudio: 'Mit Audio',
@@ -1216,7 +1216,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		videoPreviewEffectsUnavailable: 'Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.',
 		videoTrack: 'Video track',
 		videoClip: 'Video clip',
-		...VIDEO_EFFECT_COPY_BY_LOCALE.en,
+		...VIDEO_EFFECT_COPY_BY_LOCALE.en, ...VIDEO_COMPOSITION_COPY_BY_LOCALE.en,
 		videoHidden: 'Hide video',
 		videoVisible: 'Show video',
 		videoHasAudio: 'With audio',

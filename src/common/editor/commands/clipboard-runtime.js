@@ -63,6 +63,7 @@ import {
 	segmentOfClip,
 	sortTrack,
 } from './shared-runtime.js';
+import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
 
 // foundation-edit-matrix: paste
 // foundation-edit-matrix: duplicate
@@ -101,11 +102,13 @@ export function createClipboardDescriptor(project, options = {}) {
 	}
 	const currentClipboard = isTimelineAnnotationProjectSchema(project.schemaVersion);
 	const takeClipboard = isTakeCompProjectSchema(project.schemaVersion);
+	const compositionClipboard = [...project.clips, ...(project.projectBin?.clips || [])]
+		.some((clip) => clip.kind === 'video' && Object.hasOwn(clip, 'videoComposition'));
 	const sourceSequenceIds = currentClipboard
 		? [...new Set(trackIds.map((trackId) => sequenceForTrack(project, trackId).id))]
 		: [];
 	const descriptor = {
-		schemaVersion: takeClipboard ? 4 : currentClipboard ? 3 : 2,
+		schemaVersion: compositionClipboard ? 5 : takeClipboard ? 4 : currentClipboard ? 3 : 2,
 		sampleRate: project.sampleRate,
 		durationFrames: range.durationFrames,
 		tracks: trackIds.map((trackId) => {
@@ -163,6 +166,7 @@ export function createClipboardDescriptor(project, options = {}) {
 					...(segment.kind === 'video' && Array.isArray(segment.videoEffects) ? {
 						videoEffects: cloneVideoEffects(segment.videoEffects),
 					} : {}),
+					...cloneVideoCompositionCarrierFields(segment, `Clipboard clip ${segment.id}`),
 				}];
 			});
 			return {
@@ -549,6 +553,7 @@ function scaleClipboardClip(
 				`Pasted clip ${descriptor.key}`,
 			),
 		} : {}),
+		...cloneVideoCompositionCarrierFields(descriptor, `Pasted clip ${descriptor.key}`),
 		...(Array.isArray(descriptor.envelope) ? {
 			envelope: descriptor.envelope.map((point) => ({
 				...point,

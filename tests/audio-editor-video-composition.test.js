@@ -6,6 +6,9 @@ import {
 	resolveVideoCompositionIntervals,
 	validateVideoTrackComposition,
 } from '../src/common/editor/video-timeline.js';
+import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
+
+const RENDER_CANVAS = Object.freeze({ width: 640, height: 360 });
 
 test('video composition validation permits only proper two-clip edge overlaps', () => {
 	const clips = [
@@ -85,6 +88,78 @@ test('active video layers are frozen, bottom-to-top, and expose complementary cr
 	assert.ok(layers.every((layer) => Object.isFrozen(layer.clips)));
 	assert.ok(layers.flatMap((layer) => layer.clips).every(Object.isFrozen));
 	assert.equal(layers.some((layer) => layer.trackId === 'hidden-track'), false);
+	assert.equal('renderDescription' in layers[0].clips[0], false, 'the canvas opt-in preserves legacy shape');
+});
+
+test('a render canvas resolves frozen identity descriptions without changing legacy painter order', () => {
+	const layers = resolveActiveVideoLayers(layeredProject(), 80, { renderCanvas: RENDER_CANVAS });
+	assert.deepEqual(layers.map((layer) => layer.trackId), ['lower-track', 'top-track']);
+	assert.deepEqual(layers[0].clips[0].renderDescription, {
+		crop: {
+			normalized: { left: 0, top: 0, right: 0, bottom: 0 },
+			sourcePixels: { x: 0, y: 0, width: 1_280, height: 720 },
+		},
+		sourceDisplayToCanvas: [0.5, 0, 0, 0.5, 0, 0],
+		opacityStart: 1,
+		opacityEnd: 1,
+		blendMode: 'normal',
+		compositingOrder: 0,
+	});
+	assert.equal(Object.isFrozen(layers[0].clips[0].renderDescription), true);
+	assert.equal(Object.isFrozen(layers[0].clips[0].renderDescription.crop), true);
+});
+
+test('authored composition controls effective opacity and stable painter ordering', () => {
+	const project = layeredProject();
+	project.clips.find((clip) => clip.id === 'lower').videoComposition = composition({
+		opacity: 0.25,
+		blendMode: 'multiply',
+		compositingOrder: 5,
+	});
+	for (const id of ['outgoing', 'incoming']) {
+		project.clips.find((clip) => clip.id === id).videoComposition = composition({
+			opacity: 0.4,
+			blendMode: 'screen',
+			compositingOrder: -2,
+		});
+	}
+
+	const layers = resolveActiveVideoLayers(project, 80, { renderCanvas: RENDER_CANVAS });
+	assert.deepEqual(layers.map((layer) => layer.trackId), ['top-track', 'lower-track']);
+	assert.deepEqual(layers[0].clips.map((clip) => ({
+		clipId: clip.clipId,
+		opacity: clip.opacity,
+		descriptorOpacity: clip.renderDescription.opacityStart,
+		blendMode: clip.renderDescription.blendMode,
+		order: clip.renderDescription.compositingOrder,
+	})), [
+		{ clipId: 'outgoing', opacity: 0.2, descriptorOpacity: 0.2, blendMode: 'screen', order: -2 },
+		{ clipId: 'incoming', opacity: 0.2, descriptorOpacity: 0.2, blendMode: 'screen', order: -2 },
+	]);
+	assert.equal(layers[1].clips[0].opacity, 0.25);
+	assert.equal(layers[1].clips[0].renderDescription.opacityStart, 0.25);
+});
+
+test('authored same-track transitions require one blend mode and compositing order', () => {
+	const project = layeredProject();
+	project.clips.find((clip) => clip.id === 'outgoing').videoComposition = composition({ blendMode: 'screen' });
+	assert.throws(
+		() => resolveActiveVideoLayers(project, 80, { renderCanvas: RENDER_CANVAS }),
+		/same-track transition.*blend mode/iu,
+	);
+	project.clips.find((clip) => clip.id === 'incoming').videoComposition = composition({ blendMode: 'screen' });
+	project.clips.find((clip) => clip.id === 'outgoing').videoComposition = composition({
+		blendMode: 'screen',
+		compositingOrder: 2,
+	});
+	assert.throws(
+		() => resolveVideoCompositionIntervals(project, {
+			startFrame: 70,
+			endFrame: 90,
+			renderCanvas: RENDER_CANVAS,
+		}),
+		/same-track transition.*compositing order/iu,
+	);
 });
 
 test('composition intervals preserve absolute opacity and source ranges when starting mid-fade', () => {
@@ -145,6 +220,42 @@ test('composition intervals preserve absolute opacity and source ranges when sta
 	assert.ok(intervals.every((interval) => Object.isFrozen(interval.layers)));
 });
 
+test('composition interval descriptions multiply authored opacity by absolute transition endpoints', () => {
+	const project = layeredProject();
+	for (const id of ['outgoing', 'incoming']) {
+		project.clips.find((clip) => clip.id === id).videoComposition = composition({ opacity: 0.4 });
+	}
+	const intervals = resolveVideoCompositionIntervals(project, {
+		startFrame: 70,
+		endFrame: 100,
+		renderCanvas: RENDER_CANVAS,
+	});
+	const transition = intervals[0].layers.at(-1).clips;
+	assert.deepEqual(transition.map((clip) => ({
+		clipId: clip.clipId,
+		opacityStart: clip.opacityStart,
+		opacityEnd: clip.opacityEnd,
+		descriptorStart: clip.renderDescription.opacityStart,
+		descriptorEnd: clip.renderDescription.opacityEnd,
+	})), [
+		{
+			clipId: 'outgoing',
+			opacityStart: 0.30000000000000004,
+			opacityEnd: 0,
+			descriptorStart: 0.30000000000000004,
+			descriptorEnd: 0,
+		},
+		{
+			clipId: 'incoming',
+			opacityStart: 0.1,
+			opacityEnd: 0.4,
+			descriptorStart: 0.1,
+			descriptorEnd: 0.4,
+		},
+	]);
+	assert.equal(Object.isFrozen(transition[0].renderDescription), true);
+});
+
 function layeredProject() {
 	return {
 		sampleRate: 100,
@@ -198,6 +309,8 @@ function videoSource(options = {}) {
 		kind: 'video',
 		id: options.id,
 		sampleRate: 100,
+		width: options.width ?? 1_280,
+		height: options.height ?? 720,
 	};
 }
 
@@ -219,5 +332,20 @@ function videoTrack(options = {}) {
 		id: options.id || 'video-track',
 		clipIds: options.clipIds || [],
 		hidden: Boolean(options.hidden),
+	};
+}
+
+function composition(changes = {}) {
+	return {
+		...structuredClone(DEFAULT_VIDEO_CLIP_COMPOSITION),
+		...changes,
+		crop: {
+			...DEFAULT_VIDEO_CLIP_COMPOSITION.crop,
+			...(changes.crop || {}),
+		},
+		transform: {
+			...DEFAULT_VIDEO_CLIP_COMPOSITION.transform,
+			...(changes.transform || {}),
+		},
 	};
 }

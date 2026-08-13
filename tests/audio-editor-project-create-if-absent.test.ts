@@ -34,6 +34,16 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 		assert.equal(fixture.mediaRecord()?.pendingProjectUntil, PENDING_UNTIL);
 	});
 
+	test(`${backend} Scape create-if-absent atomically publishes referenced staged records`, async (context) => {
+		const fixture = await repositoryFixture(context, backend);
+		fixture.seedPendingRecords();
+
+		assert.deepEqual(await fixture.repository.createForScapeImportIfAbsent(sourceProject()), sourceProject());
+		assert.deepEqual(await fixture.repository.load(PROJECT_ID), sourceProject());
+		assert.equal(fixture.sourceRecord()?.pendingProjectUntil, undefined);
+		assert.equal(fixture.mediaRecord()?.pendingProjectUntil, undefined);
+	});
+
 	test(`${backend} create-if-absent preserves an occupied current project`, async (context) => {
 		const fixture = await repositoryFixture(context, backend);
 		const existing = sourceFreeProject(PROJECT_ID, 4, 'Existing project');

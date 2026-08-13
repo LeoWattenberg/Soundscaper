@@ -22,6 +22,7 @@ export const SOUNDSCAPER_PROFILE = {
 		audioSampleEditing: true,
 		videoEffects: false,
 		videoCompositing: false,
+		videoGeometry: false,
 		multicamera: false,
 		musicalTimeline: true,
 		nestedSequences: false,

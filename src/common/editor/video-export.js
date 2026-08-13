@@ -133,6 +133,7 @@ export function createVideoExportPlan(project, options = {}) {
 		blackColor: canvas.backgroundColor,
 		isTrackVisible: options.isTrackVisible,
 		topTrackFirst: options.topTrackFirst,
+		renderCanvas: canvas,
 	});
 	const inputs = [];
 	const inputIndexBySourceId = new Map();
@@ -195,6 +196,7 @@ export function createVideoExportPlan(project, options = {}) {
 				playbackRate: clip.playbackRate,
 				opacityStart: clip.opacityStart,
 				opacityEnd: clip.opacityEnd,
+				renderDescription: clip.renderDescription,
 				videoEffects: normalizeVideoEffects(
 					clip.clip?.videoEffects ?? [],
 					`clip ${clip.clipId}.videoEffects`,
@@ -209,7 +211,7 @@ export function createVideoExportPlan(project, options = {}) {
 	const durationSeconds = range.durationFrames / projectSampleRate;
 
 	return deepFreeze({
-		version: 5,
+		version: 6,
 		format: format.id,
 		container: format.container,
 		extension: format.extension,
@@ -256,6 +258,7 @@ function createFilterPlan(intervals, canvas, projectSampleRate, options) {
 				role: clip.role,
 				opacityStart: clip.opacityStart,
 				opacityEnd: clip.opacityEnd,
+				renderDescription: clip.renderDescription,
 				outputLabel: `video_interval_${interval.index}_track_${layerIndex}_clip_${clipIndex}`,
 				operations: [
 					{

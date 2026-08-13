@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { VIDEO_PREVIEW_GEOMETRY_VERTEX_SHADER_SOURCE } from './video-preview-geometry-shader.ts';
+
 export const MAX_GAUSSIAN_BLUR_PAIR_COUNT = 30;
 export const EFFECT_PROGRAM_COUNT = 18;
 // Calibrated default pass scale that retains the strict FFmpeg golden-frame gates.
@@ -27,15 +29,6 @@ export const EFFECT_CODES = Object.freeze({
 	outline: 13,
 	'drop-shadow': 14,
 });
-
-const VERTEX_SHADER_SOURCE = `#version 300 es
-in vec2 a_position;
-out vec2 v_uv;
-
-void main() {
-	v_uv = a_position * 0.5 + 0.5;
-	gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
 
 const FRAGMENT_SHADER_SOURCE = `#version 300 es
 precision highp float;
@@ -558,7 +551,7 @@ function compileShader(gl, type, source) {
 }
 
 export function createProgram(gl, effectCode) {
-	const vertexShader = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE);
+	const vertexShader = compileShader(gl, gl.VERTEX_SHADER, VIDEO_PREVIEW_GEOMETRY_VERTEX_SHADER_SOURCE);
 	const fragmentSource = FRAGMENT_SHADER_SOURCE.replace(
 		'uniform int u_effect;',
 		`const int u_effect = ${effectCode};`,
@@ -580,6 +573,8 @@ export function createProgram(gl, effectCode) {
 export function programLocations(gl, program) {
 	return {
 		position: gl.getAttribLocation(program, 'a_position'),
+		positionTransform: gl.getUniformLocation(program, 'u_position_transform'),
+		textureTransform: gl.getUniformLocation(program, 'u_texture_transform'),
 		texture: gl.getUniformLocation(program, 'u_texture'),
 		auxTexture: gl.getUniformLocation(program, 'u_aux_texture'),
 		resolution: gl.getUniformLocation(program, 'u_resolution'),

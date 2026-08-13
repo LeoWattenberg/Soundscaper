@@ -38,6 +38,12 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		return create.call(this.#delegate, project);
 	}
 
+	createForScapeImportIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
+		const create = this.#delegate.createForScapeImportIfAbsent;
+		if (!create) throw new Error('Atomic Scape project creation is unavailable.');
+		return create.call(this.#delegate, project);
+	}
+
 	save(project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument> {
 		return this.#delegate.save(project, postCommit);
 	}

@@ -39,6 +39,7 @@ import {
 	cloneVideoEffects,
 } from '../video-effects.js';
 import { trimAudioWarpClipToTimelineRange } from '../audio-warp-clip-edit.ts';
+import { detachVideoCompositionCarrier } from './video-composition-carrier.ts';
 
 export function pruneMissingProjectSelections(project) {
 	const trackIds = new Set(project.tracks.map((track) => track.id));
@@ -115,7 +116,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 			.filter((point) => point.frame >= offsetFrames && point.frame <= offsetFrames + durationFrames)
 			.map((point) => ({ ...point, frame: point.frame - offsetFrames }))
 		: undefined;
-	const value = {
+	const value = detachVideoCompositionCarrier({
 		...clip,
 		id,
 		timelineStartFrame,
@@ -136,7 +137,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 				? Math.min(clip.fadeOutFrames, durationFrames)
 				: 0,
 		} : {}),
-	};
+	}, clip, `Segment ${id}`);
 	if (!clip.kind) return normalizeClipValue(value);
 	if (clip.kind === 'video' && id !== clip.id && clip.videoEffects?.length) {
 		value.videoEffects = cloneVideoEffectsWithCommandIds(
@@ -440,11 +441,11 @@ export function normalizeClipForProject(project, value) {
 			const durationFrames = Number(value.durationFrames);
 			const sourceStartFrame = Number(value.sourceStartFrame);
 			const sourceDurationFrames = Number(value.sourceDurationFrames);
-			return {
+			return detachVideoCompositionCarrier({
 				...value,
 				timelineEndFrame: timelineStartFrame + durationFrames,
 				sourceEndFrame: sourceStartFrame + sourceDurationFrames,
-			};
+			}, value, `Clip ${String(value?.id ?? '')}`);
 		}
 		const source = requireSource(project, value.sourceId);
 		const sequenceId = value.sequenceId || project.primarySequenceId;
@@ -461,9 +462,13 @@ export function normalizeClipForProject(project, value) {
 			sequence,
 			source,
 		});
-		return resolveRuntimeClipProjection(project, clip);
+		return detachVideoCompositionCarrier(
+			resolveRuntimeClipProjection(project, clip),
+			value,
+			`Clip ${String(value?.id ?? '')}`,
+		);
 	}
-	return project.schemaVersion >= 8
+	const clip = project.schemaVersion >= 8
 		? createMediaClipV8({
 			...value,
 			kind: value?.kind || 'audio',
@@ -485,4 +490,5 @@ export function normalizeClipForProject(project, value) {
 			avLinkId: value?.avLinkId ?? null,
 		})
 		: createAudioClipV2(value);
+	return detachVideoCompositionCarrier(clip, value, `Clip ${String(value?.id ?? '')}`);
 }

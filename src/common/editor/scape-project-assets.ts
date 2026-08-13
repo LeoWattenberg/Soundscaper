@@ -36,6 +36,10 @@ export interface ScapeProjectFallbackSnapshot {
 	readonly claims: readonly ScapeProjectFallbackClaim[];
 }
 
+export interface ScapeProjectAssetIndexOptions {
+	readonly currentProjectSchemaVersion?: number;
+}
+
 /**
  * Validates the source identity boundary after project migration and returns
  * the manifest descriptors keyed by their canonical project source IDs.
@@ -43,8 +47,10 @@ export interface ScapeProjectFallbackSnapshot {
 export function indexScapeProjectAssets(
 	project: unknown,
 	manifest: ScapeManifestAssets,
+	options: ScapeProjectAssetIndexOptions = {},
 ): ReadonlyMap<string, ScapeAssetDescriptor> {
 	const sources = projectSources(project);
+	const currentProjectSchemaVersion = scapeAssetSchemaVersion(options);
 	const sourceAssets = manifest.assets.filter(({ kind }) => kind !== 'video-timing');
 	if (sources.length !== sourceAssets.length) {
 		throw new Error('The .scape project sources and manifest assets do not form a one-to-one mapping.');
@@ -78,7 +84,7 @@ export function indexScapeProjectAssets(
 		if (source.kind !== asset.kind) {
 			throw new Error(`Source ${source.id} has an incompatible asset kind.`);
 		}
-		if ((project as ScapeProjectWithSources).schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		if ((project as ScapeProjectWithSources).schemaVersion === currentProjectSchemaVersion
 			&& source.kind === 'video' && source.contentSha256 !== undefined) {
 			if (typeof source.contentSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(source.contentSha256)) {
 				throw new TypeError(`Source ${source.id} has an invalid source content SHA-256.`);
@@ -91,6 +97,14 @@ export function indexScapeProjectAssets(
 	assertScapeProjectFallbackAssets(snapshotScapeProjectFallbackIntegrity(project).claims, assetBySourceId);
 	indexScapeProjectTimingAssets(project, manifest);
 	return assetBySourceId;
+}
+
+function scapeAssetSchemaVersion(options: ScapeProjectAssetIndexOptions): number {
+	const value = options.currentProjectSchemaVersion ?? AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+	if (!Number.isSafeInteger(value) || value < 1) {
+		throw new TypeError('The current Scape project schema version must be a positive safe integer.');
+	}
+	return value;
 }
 
 export function indexScapeProjectTimingAssets(

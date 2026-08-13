@@ -40,6 +40,9 @@ export interface ScapeImportStore {
 			signal?: AbortSignal;
 		}>,
 	): PromiseLike<ScapeVideoWriter>;
+	createScapeProjectIfAbsent?(project: ScapeProjectDocument): PromiseLike<ScapeProjectDocument | null>;
+	createProjectIfAbsent?(project: ScapeProjectDocument): PromiseLike<ScapeProjectDocument | null>;
+	deleteProjectIfCurrent?(project: ScapeProjectDocument): PromiseLike<boolean>;
 	saveProject(project: ScapeProjectDocument): PromiseLike<unknown>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
 	deleteSource(sourceId: string): PromiseLike<unknown>;
@@ -58,6 +61,8 @@ export class ScapeImportTransaction {
 	readonly #mediaPublications: OwnedMediaAssetPublication[] = [];
 	#projectId: string | null = null;
 	#projectSnapshot: ProjectSnapshot | null = null;
+	#createdProject: ScapeProjectDocument | null = null;
+	#createOnlyPublicationAttempted = false;
 	#projectWriteAttempted = false;
 	#complete = false;
 
@@ -95,6 +100,24 @@ export class ScapeImportTransaction {
 		}
 		throwIfScapeAborted(this.#signal);
 		this.#projectWriteAttempted = true;
+		const createExactly = this.#store.createScapeProjectIfAbsent ?? this.#store.createProjectIfAbsent;
+		const canCreateExactly = typeof createExactly === 'function';
+		const canDeleteExactly = typeof this.#store.deleteProjectIfCurrent === 'function';
+		if (this.#projectSnapshot.current === null && canCreateExactly !== canDeleteExactly) {
+			throw new TypeError('Create-only .scape publication requires exact-current rollback.');
+		}
+		if (this.#projectSnapshot.current === null && canCreateExactly) {
+			this.#createOnlyPublicationAttempted = true;
+			const created = await createExactly.call(this.#store, project);
+			if (created === null) throw new Error('The .scape target project was created concurrently.');
+			if (created.id !== project.id) {
+				throw new Error('Create-only .scape publication changed the target project identity.');
+			}
+			// Retain the repository's creation-fence token before observing cancellation.
+			this.#createdProject = created;
+			throwIfScapeAborted(this.#signal);
+			return;
+		}
 		await this.#store.saveProject(project);
 		throwIfScapeAborted(this.#signal);
 	}
@@ -107,36 +130,49 @@ export class ScapeImportTransaction {
 	async rollback(primary: unknown): Promise<never> {
 		if (this.#complete) throw primary;
 		const cleanupErrors: unknown[] = [];
+		let mayDiscardProjectAssets = true;
 		if (this.#projectWriteAttempted && this.#projectId && this.#projectSnapshot) {
 			try {
-				await this.#restoreProject(this.#projectId, this.#projectSnapshot);
+				mayDiscardProjectAssets = await this.#restoreProject(this.#projectId, this.#projectSnapshot);
 			} catch (error) {
 				cleanupErrors.push(error);
+				mayDiscardProjectAssets = false;
 			}
 		}
-		for (const publication of [...this.#mediaPublications].reverse()) {
-			try {
-				await publication.discardIfCurrent();
-			} catch (error) {
-				cleanupErrors.push(error);
+		if (mayDiscardProjectAssets) {
+			for (const publication of [...this.#mediaPublications].reverse()) {
+				try {
+					await publication.discardIfCurrent();
+				} catch (error) {
+					cleanupErrors.push(error);
+				}
 			}
-		}
-		for (const sourceId of [...this.#sourceIds].reverse()) {
-			try {
-				await this.#store.deleteSource(sourceId);
-			} catch (error) {
-				cleanupErrors.push(error);
+			for (const sourceId of [...this.#sourceIds].reverse()) {
+				try {
+					await this.#store.deleteSource(sourceId);
+				} catch (error) {
+					cleanupErrors.push(error);
+				}
 			}
 		}
 		throw aggregateScapeErrors(primary, cleanupErrors, 'The .scape import and rollback both failed.');
 	}
 
-	async #restoreProject(projectId: string, snapshot: ProjectSnapshot): Promise<void> {
+	async #restoreProject(projectId: string, snapshot: ProjectSnapshot): Promise<boolean> {
+		if (this.#createdProject) {
+			if (typeof this.#store.deleteProjectIfCurrent !== 'function') {
+				throw new TypeError('Create-only .scape publication lost its exact-current rollback capability.');
+			}
+			return this.#store.deleteProjectIfCurrent(this.#createdProject);
+		}
+		// A failed create-only comparison did not publish the captured absent target.
+		if (snapshot.current === null && this.#createOnlyPublicationAttempted) return true;
 		await this.#store.deleteProject(projectId);
 		const revisions = [...snapshot.revisions]
 			.sort((left, right) => left.revision - right.revision);
 		for (const revision of revisions) await this.#store.saveProject(revision.project);
 		if (snapshot.current) await this.#store.saveProject(snapshot.current);
+		return true;
 	}
 }
 

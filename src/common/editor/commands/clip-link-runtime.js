@@ -21,6 +21,7 @@ import {
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
 import { resolveAudioWarpEditFrame } from '../audio-warp-clip-edit.ts';
+import { videoCompositionCarriersEqual } from './video-composition-carrier.ts';
 
 // foundation-edit-matrix: split
 
@@ -295,7 +296,7 @@ export function joinClips(project, clipIds) {
 		durationFrames: joinedDurationFrames,
 		sourceDurationFrames: joinedSourceDurationFrames,
 		trimEndFrames: last.trimEndFrames,
-		fadeOutFrames: last.fadeOutFrames,
+		...(Number.isSafeInteger(last.fadeOutFrames) ? { fadeOutFrames: last.fadeOutFrames } : {}),
 		envelope: joinClipEnvelopes(clips),
 		id: first.id,
 	});
@@ -317,6 +318,7 @@ function clipsHaveContiguousSource(left, right) {
 		|| Boolean(left.preserveFormants) !== Boolean(right.preserveFormants)
 		|| Boolean(left.stretchToTempo) !== Boolean(right.stretchToTempo)
 		|| !videoEffectStacksEquivalent(left.videoEffects, right.videoEffects)
+		|| !videoCompositionCarriersEqual(left, right)
 	) return false;
 	const leftDuration = left.sourceDurationFrames ?? left.durationFrames;
 	const rightDuration = right.sourceDurationFrames ?? right.durationFrames;

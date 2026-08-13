@@ -902,7 +902,7 @@ test('video export API and generic export dispatch stage raw media and audio for
 	assert.equal(ffmpeg.videoCalls[0].plan.mimeType, 'video/mp4');
 	assert.equal(ffmpeg.videoCalls[0].plan.canvas.width, 640);
 	assert.equal(ffmpeg.videoCalls[0].plan.canvas.height, 360);
-	assert.equal(ffmpeg.videoCalls[0].plan.version, 5);
+	assert.equal(ffmpeg.videoCalls[0].plan.version, 6);
 	assert.equal(
 		ffmpeg.videoCalls[0].plan.intervals[0].layers[0].clips[0].clipId,
 		'persisted-timeline-video',

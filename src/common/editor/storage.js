@@ -8,7 +8,7 @@ import { DEFAULT_OPFS_WORKER_NAME } from './storage/opfs-sync-worker-client.ts';
 import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
 import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-coordinator.ts';
 import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
-import { admitProjectPublication } from './storage/project-publication-options.ts';
+import { createStoreProjectIfAbsent, createStoreScapeProjectIfAbsent, deleteStoreProjectIfCurrent } from './storage/project-create-only-publication.ts';
 import { createProjectStoreId, reportDesktopSharedProjectLocalCleanupError } from './storage/project-store-defaults.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
@@ -149,6 +149,9 @@ export class AudioEditorProjectStore {
 	async saveProject(project, options = {}) {
 		return this.linkedOriginalStoreService.saveProject(this, this.projectRepository, project, options);
 	}
+	createProjectIfAbsent(project, options = {}) { return createStoreProjectIfAbsent(this, this.projectRepository, project, options); }
+	createScapeProjectIfAbsent(project, options = {}) { return createStoreScapeProjectIfAbsent(this, this.projectRepository, project, options); }
+	deleteProjectIfCurrent(project) { return deleteStoreProjectIfCurrent(this.linkedOriginalStoreService, this.projectRepository, project); }
 
 	/**
 	 * @param {string} projectId
@@ -191,12 +194,7 @@ export class AudioEditorProjectStore {
 				? this.projectRepository.loadProjectForDuplication(requestedId)
 				: this.loadProject(requestedId),
 			listProjects: () => this.listProjects(),
-			createProjectIfAbsent: async (project) => {
-				await admitProjectPublication(this, project);
-				const create = this.projectRepository.createIfAbsent;
-				if (typeof create !== 'function') throw new Error('Create-only project storage is unavailable.');
-				return create.call(this.projectRepository, project);
-			},
+			createProjectIfAbsent: (project) => this.createProjectIfAbsent(project),
 		}, {
 			sourceProjectId: projectId,
 			copyProjectId: id || createProjectStoreId('project'),

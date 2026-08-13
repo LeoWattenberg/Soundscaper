@@ -172,7 +172,7 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 		getCurrentProject: () => ({
 			id: 'project', selection: { startFrame: 12, endFrame: 12 },
 		}),
-		projectForPlayback: () => assert.fail('compatible projects do not need a video preview projection'),
+		projectForPlayback: (candidate) => candidate,
 		getProjectTabs: () => [],
 		getCurrentTabMetadata: () => ({}),
 		recordingPreviewSnapshot: () => null,

@@ -12,6 +12,12 @@ import {
 	videoClipPlaybackRate,
 	videoSourceCoordinateRate,
 } from './video-source-time.ts';
+import {
+	DEFAULT_VIDEO_CLIP_COMPOSITION,
+	normalizeVideoClipComposition,
+} from './video-clip-composition.ts';
+import { resolveVideoRenderDescription } from './video-render-description.ts';
+import { resolveVideoSourceDisplaySize } from './video-source-presentation.ts';
 export {
 	mapVideoSourceFrameToTimeline,
 	mapVideoTimelineFrameToSource,
@@ -85,8 +91,9 @@ export function validateVideoTrackComposition(track, clipById) {
 					`Video clips overlap on track ${track.id}; overlapping clips must form a proper edge transition.`,
 				);
 			}
+			assertCompatibleVideoTransitionComposition(earlier.clip, clip, track.id);
 		}
-		active.push({ startFrame, endFrame });
+		active.push({ clip, startFrame, endFrame });
 	}
 
 	return true;
@@ -118,6 +125,9 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 		const transition = activeClips.length === 2
 			? videoTransition(activeClips[0], activeClips[1])
 			: null;
+		if (options.renderCanvas != null && activeClips.length === 2) {
+			assertCompatibleVideoTransitionComposition(activeClips[0], activeClips[1], track.id);
+		}
 		const clips = activeClips.map((clip, clipIndex) => {
 			const source = videoSourceForClip(sourceById, clip);
 			const sourceCoordinateRate = videoSourceCoordinateRate(clip, source);
@@ -129,6 +139,12 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 			const role = transition == null
 				? 'single'
 				: clipIndex === 0 ? 'outgoing' : 'incoming';
+			const transitionOpacity = transition == null
+				? 1
+				: videoTransitionOpacity(transition, role, frame);
+			const renderDescription = options.renderCanvas == null
+				? null
+				: resolveClipRenderDescription(clip, source, options.renderCanvas, transitionOpacity);
 			return Object.freeze({
 				kind: 'video',
 				role,
@@ -139,9 +155,8 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceFrame: mapping.sourceFrame,
 				sourceTimeSeconds: mapping.sourceTimeSeconds,
 				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source),
-				opacity: transition == null
-					? 1
-					: videoTransitionOpacity(transition, role, frame),
+				opacity: renderDescription?.opacityStart ?? transitionOpacity,
+				...(renderDescription == null ? {} : { renderDescription }),
 			});
 		});
 		layers.push(Object.freeze({
@@ -153,6 +168,13 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 			trackIndex,
 			clips: Object.freeze(clips),
 		}));
+	}
+	if (options.renderCanvas != null) {
+		layers.sort((left, right) => (
+			left.clips[0].renderDescription.compositingOrder
+				- right.clips[0].renderDescription.compositingOrder
+			|| right.trackIndex - left.trackIndex
+		));
 	}
 
 	return Object.freeze(layers);
@@ -216,6 +238,21 @@ export function resolveVideoCompositionIntervals(project, options = {}) {
 				const transition = layer.clips.length === 2
 					? videoTransition(layer.clips[0].clip, layer.clips[1].clip)
 					: null;
+				const transitionOpacityStart = transition == null
+					? 1
+					: videoTransitionOpacity(transition, activeClip.role, intervalStart);
+				const transitionOpacityEnd = transition == null
+					? 1
+					: videoTransitionOpacity(transition, activeClip.role, intervalEnd);
+				const renderDescription = options.renderCanvas == null
+					? null
+					: resolveClipRenderDescription(
+						activeClip.clip,
+						activeClip.source,
+						options.renderCanvas,
+						transitionOpacityStart,
+						transitionOpacityEnd,
+					);
 				return Object.freeze({
 					kind: 'video',
 					role: activeClip.role,
@@ -229,12 +266,9 @@ export function resolveVideoCompositionIntervals(project, options = {}) {
 					sourceStartTimeSeconds: sourceStart.sourceTimeSeconds,
 					sourceEndTimeSeconds: sourceEnd.sourceTimeSeconds,
 					playbackRate: activeClip.playbackRate,
-					opacityStart: transition == null
-						? 1
-						: videoTransitionOpacity(transition, activeClip.role, intervalStart),
-					opacityEnd: transition == null
-						? 1
-						: videoTransitionOpacity(transition, activeClip.role, intervalEnd),
+					opacityStart: renderDescription?.opacityStart ?? transitionOpacityStart,
+					opacityEnd: renderDescription?.opacityEnd ?? transitionOpacityEnd,
+					...(renderDescription == null ? {} : { renderDescription }),
 				});
 			})),
 		}));
@@ -460,6 +494,41 @@ function videoTransitionOpacity(transition, role, frame) {
 		(frame - transition.startFrame) / (transition.endFrame - transition.startFrame),
 	));
 	return role === 'outgoing' ? 1 - progress : progress;
+}
+
+function clipComposition(clip) {
+	return Object.hasOwn(clip, 'videoComposition')
+		? normalizeVideoClipComposition(clip.videoComposition, `clip ${clip.id}.videoComposition`)
+		: DEFAULT_VIDEO_CLIP_COMPOSITION;
+}
+
+function assertCompatibleVideoTransitionComposition(outgoing, incoming, trackId) {
+	const outgoingComposition = clipComposition(outgoing);
+	const incomingComposition = clipComposition(incoming);
+	if (outgoingComposition.blendMode !== incomingComposition.blendMode) {
+		throw new RangeError(
+			`A same-track transition on ${trackId} requires one blend mode across both clips.`,
+		);
+	}
+	if (outgoingComposition.compositingOrder !== incomingComposition.compositingOrder) {
+		throw new RangeError(
+			`A same-track transition on ${trackId} requires one compositing order across both clips.`,
+		);
+	}
+}
+
+function resolveClipRenderDescription(clip, source, renderCanvas, opacityStart, opacityEnd = opacityStart) {
+	const sourceDisplaySize = resolveVideoSourceDisplaySize(source);
+	if (!sourceDisplaySize) {
+		throw new RangeError(`Video source ${source.id} has no resolvable display size.`);
+	}
+	return resolveVideoRenderDescription({
+		composition: clipComposition(clip),
+		sourceDisplaySize,
+		canvas: renderCanvas,
+		opacityStart,
+		opacityEnd,
+	});
 }
 
 function sameVisual(segment, active) {

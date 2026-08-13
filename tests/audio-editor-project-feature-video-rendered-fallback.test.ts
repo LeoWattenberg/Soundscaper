@@ -112,6 +112,9 @@ test('every registered first-party video capability can bind one full-render fal
 		assert.equal(projected.metadata?.sourceId, 'fallback-video');
 		assert.equal((projected.project as typeof input).clips[1]?.sourceId, 'fallback-video');
 	}
+	assert.equal(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS.includes(
+		PROJECT_FEATURE_CAPABILITY_IDS.videoGeometry as never,
+	), false, 'geometry has no rendered-fallback publication contract');
 });
 
 test('an admitted first-party video-effects render becomes one neutral full-length preview clip', () => {

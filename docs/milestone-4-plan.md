@@ -4,9 +4,10 @@
 > mixer-graph decisions, their invariants, and the bounded work packets.
 > The [roadmap](../roadmap.md#4-parallel-production-surfaces) owns scope
 > and status; the compatibility, security, and licensing policies own
-> their claims. Re-grounded on 2026-08-13 against committed revision
-> `6706f844`: schema V17 is current, 3A-1 through 3A-6 are implemented,
-> and the Framescaper 3B track plus external qualification remain open.
+> their claims. Re-grounded on 2026-08-13 against the maintained exact
+> Framescaper V18 base: milestone 3 and external qualification remain open,
+> while the project owner has explicitly cleared the implementation sequencing
+> gate for Framescaper 4B. That clearance does not relabel evidence.
 
 ## Goals and ordering principle
 
@@ -34,23 +35,31 @@ revision.
 
 ## Prerequisites and pickup state (grounded 2026-08-13)
 
-Milestone 4 depends on milestone 3. The shared exact-time foundation and
-Soundscaper packets 3A-1 through 3A-6 now exist on schema V17, but roadmap
-milestone 3 remains **In progress**: 3A-7 awaits external qualification,
-3B-5 and 3B-6 still contain maintained-work blockers, and the 3B exit gate is
-open. The schema-neutral 4.0 foundation is explicitly permitted to proceed
-against this committed base; no 4A or 4B schema, command, engine, or UI work
-may begin until milestone 3 is recorded complete and every 4.0 gate passes.
+Milestone 4 depends on milestone 3. The shared exact-time foundation and the
+maintained Soundscaper and Framescaper editorial base now exist, but roadmap
+milestone 3 remains **In progress** and its manual and packaged-runtime
+qualification rows remain open or `pending-external`. Shared 4.0 hosted
+correctness is green; its reference-GPU qualification is also
+`pending-external`.
 
-The pickup uses an isolated worktree and leaves concurrent milestone-3 work
-untouched. At `6706f844`, Node 26.5.0/npm 12.0.1 `npm test` is green with
-5,820 passing and two skipped tests. Schema revisions after the gate are named
-`V-next` until the post-milestone-3 rebase resolves their actual numbers.
+On 2026-08-13 the project owner explicitly cleared the milestone-3
+implementation sequencing gate for the Framescaper 4B track against that
+maintained base. This authorizes 4B pickup and implementation without claiming
+milestone-3 completion, waiving a manual or external row, or changing an
+observed result. It does not authorize the Soundscaper 4A track, which remains
+unstarted, and it does not close the milestone-4 exit gate.
+
+The pickup leaves concurrent milestone-3 work and its evidence state untouched.
+Framescaper's selected exact schema is V18, so 4B-1 owns the next bounded
+product revision, V19, under the unchanged pre-release no-migration policy.
 
 ## 2026-08-13 implementation decisions
 
-- This pickup implements serialized 4.0 and the Soundscaper 4A track only;
-  Framescaper 4B and the overall milestone-4 exit gate remain open.
+- Serialized 4.0 is implemented provisionally. Framescaper 4B-1 is in progress
+  under the explicit sequencing clearance and is decomposed in
+  [`docs/milestone-4b-framescaper-finishing.md`](milestone-4b-framescaper-finishing.md).
+  Soundscaper 4A is unstarted; both track exit gates and the overall
+  milestone-4 exit gate remain open.
 - Automation uses one timebase per lane, a 4,096-point persisted cap, and
   deterministic adaptive thinning that preserves endpoints, discontinuities,
   mode boundaries, and the highest-error extrema.
@@ -381,14 +390,18 @@ per the standing duties (roadmap.md:844-846).
 
 **Implementation status (2026-08-13):** shared phase 4.0 is implemented and
 its hosted correctness acceptance is green. Reference-GPU qualification remains
-`pending-external`. Milestone 3 is still recorded **In progress**, so neither 4A
-nor 4B has started and their slice documents have deliberately not been written.
+`pending-external`, and milestone 3 remains recorded **In progress** with its
+manual/external evidence unchanged. The project owner explicitly cleared the
+Framescaper implementation sequencing gate: 4B-1 is **In progress** under its
+[pickup contract](milestone-4b-framescaper-finishing.md). 4A is unstarted.
 
 ## Work packets
 
-The 4.0 packets are decomposed here; 4A/4B packets are summarized
-against the five fields and decomposed into slice docs at pickup,
-before code (docs/milestone-3-plan.md:467-470).
+The 4.0 packets are decomposed here; 4A packets remain summarized against the
+five fields until pickup. The complete 4B decomposition and detailed 4B-1
+contract are maintained in
+[`docs/milestone-4b-framescaper-finishing.md`](milestone-4b-framescaper-finishing.md),
+written at pickup before feature publication (docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.0 — Interpolation vocabulary (schema-neutral)
 
@@ -522,7 +535,11 @@ before code (docs/milestone-3-plan.md:467-470).
   workload and registered budgets, recorded without relabeling
   unprovisioned rows.
 
-### 4B packets (Framescaper track; slice docs at pickup)
+### 4B packets (Framescaper track; pickup contract active)
+
+The owning decomposition, exact 4B-1 wire/render contract, preservation matrix,
+and acceptance suite are in
+[`docs/milestone-4b-framescaper-finishing.md`](milestone-4b-framescaper-finishing.md).
 
 - **4B-1 — Transform, crop, and compositing controls.** Outcome: the
   shared geometry/blend description persisted per clip and consumed by
@@ -604,8 +621,10 @@ gates.
 
 ## Known constraints this plan absorbs
 
-- **Milestone 3 is open at grounding time** — see "Prerequisites";
-  every packet re-grounds and names its milestone-3 dependency.
+- **Milestone 3 and its manual/external evidence remain open** — see
+  "Prerequisites". The explicit 4B implementation clearance changes sequencing
+  authority only; every packet still re-grounds and names its dependency, and
+  no unobserved qualification is promoted.
 - **The node ceiling and history deep clones bound automation scale**;
   the per-lane caps and thinning rules above are the response, and the
   external-asset escape hatch is declared, not improvised.

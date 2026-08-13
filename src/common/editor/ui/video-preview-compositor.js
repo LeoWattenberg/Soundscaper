@@ -13,6 +13,8 @@ import {
 	completeVideoPreviewRenderLedger,
 	createVideoPreviewFallbackReport,
 	createVideoPreviewSafeFallbackReport,
+	decodableVideoPreviewEntry,
+	decodableVideoPreviewLayers,
 	recordVideoPreviewEntryFallback,
 	recordVideoPreviewEntryRendered,
 } from './video-preview-render-ledger.js';
@@ -20,6 +22,24 @@ import {
 	videoPreviewBlurViewport,
 	videoPreviewViewports,
 } from './video-preview-viewports.js';
+import {
+	createVideoPreviewCompositionBlendRuntime,
+	disposeVideoPreviewCompositionBlendRuntime,
+	drawVideoPreviewCompositionBlend,
+} from './video-preview-composition-blend.ts';
+import {
+	VIDEO_PREVIEW_IDENTITY_POSITION_TRANSFORM,
+	VIDEO_PREVIEW_IDENTITY_TEXTURE_TRANSFORM,
+} from './video-preview-geometry-shader.ts';
+import {
+	videoPreviewRenderGeometry,
+	videoPreviewRenderQuad,
+	videoPreviewRenderQuadUniforms,
+} from './video-preview-render-description.ts';
+import {
+	createVideoPreviewRenderTargets,
+	deleteVideoPreviewRenderTargets,
+} from './video-preview-render-target.js';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
@@ -37,32 +57,6 @@ const EMPTY_EFFECTS = Object.freeze([]);
 const ZERO_VECTOR_2 = Object.freeze([0, 0]);
 const ZERO_VECTOR_4 = Object.freeze([0, 0, 0, 0]);
 const SUPPORTED_EFFECT_TYPES = new Set(Object.keys(EFFECT_CODES));
-
-function createRenderTarget(gl, width, height) {
-	const texture = gl.createTexture();
-	const framebuffer = gl.createFramebuffer();
-	if (!texture || !framebuffer) throw new Error('Unable to allocate a WebGL render target.');
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-	if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-		gl.deleteFramebuffer(framebuffer);
-		gl.deleteTexture(texture);
-		throw new Error('The WebGL video render target is incomplete.');
-	}
-	return { framebuffer, height, texture, width };
-}
-
-function deleteRenderTarget(gl, target) {
-	if (!target) return;
-	gl.deleteFramebuffer(target.framebuffer);
-	gl.deleteTexture(target.texture);
-}
 
 /**
  * Small WebGL2 compositor used only by the interactive video preview. Export
@@ -127,6 +121,7 @@ export class VideoPreviewCompositor {
 			(_, effectCode) => createProgram(this.gl, effectCode),
 		);
 		this.programLocations = this.programs.map((program) => programLocations(this.gl, program));
+		this.compositionBlend = createVideoPreviewCompositionBlendRuntime(this.gl);
 		this.positionBuffer = this.gl.createBuffer();
 		if (!this.positionBuffer) throw new Error('Unable to allocate the video preview geometry.');
 		this.program = this.programs[0];
@@ -167,6 +162,12 @@ export class VideoPreviewCompositor {
 			gl.vertexAttribPointer(locations.position, 2, gl.FLOAT, false, 0, 0);
 			gl.uniform1i(locations.texture, 0);
 			gl.uniform1i(locations.auxTexture, 1);
+			gl.uniformMatrix3fv(
+				locations.positionTransform, false, VIDEO_PREVIEW_IDENTITY_POSITION_TRANSFORM,
+			);
+			gl.uniformMatrix3fv(
+				locations.textureTransform, false, VIDEO_PREVIEW_IDENTITY_TEXTURE_TRANSFORM,
+			);
 		}
 		this.currentProgram = null;
 	}
@@ -182,24 +183,10 @@ export class VideoPreviewCompositor {
 		if (this.canvas.width === width && this.canvas.height === height && this.targets) return;
 		this.canvas.width = width;
 		this.canvas.height = height;
-		for (const target of Object.values(this.targets || {})) deleteRenderTarget(this.gl, target);
-		this.targets = {
-			ping: createRenderTarget(this.gl, width, height),
-			pong: createRenderTarget(this.gl, width, height),
-			layer: createRenderTarget(this.gl, width, height),
-			composition: createRenderTarget(this.gl, width, height),
-			anchor: createRenderTarget(this.gl, width, height),
-			blurPing: createRenderTarget(
-				this.gl,
-				Math.max(1, Math.round(width * GAUSSIAN_BLUR_RENDER_SCALE)),
-				Math.max(1, Math.round(height * GAUSSIAN_BLUR_RENDER_SCALE)),
-			),
-			blurPong: createRenderTarget(
-				this.gl,
-				Math.max(1, Math.round(width * GAUSSIAN_BLUR_RENDER_SCALE)),
-				Math.max(1, Math.round(height * GAUSSIAN_BLUR_RENDER_SCALE)),
-			),
-		};
+		deleteVideoPreviewRenderTargets(this.gl, this.targets);
+		this.targets = createVideoPreviewRenderTargets(
+			this.gl, width, height, GAUSSIAN_BLUR_RENDER_SCALE,
+		);
 	}
 
 	uploadVideo(video) {
@@ -264,6 +251,7 @@ export class VideoPreviewCompositor {
 		sourceTarget = null,
 		effectResolution = null,
 		auxiliaryTexture = null,
+		renderQuad = null,
 	) {
 		const gl = this.gl;
 		const targetWidth = target?.width || this.canvas.width;
@@ -335,6 +323,14 @@ export class VideoPreviewCompositor {
 			this.boundBlurKernel = blurKernel;
 		}
 		gl.uniform1f(locations.opacity, opacity);
+		const transforms = renderQuad == null
+			? {
+				positionTransform: VIDEO_PREVIEW_IDENTITY_POSITION_TRANSFORM,
+				textureTransform: VIDEO_PREVIEW_IDENTITY_TEXTURE_TRANSFORM,
+			}
+			: videoPreviewRenderQuadUniforms(renderQuad);
+		gl.uniformMatrix3fv(locations.positionTransform, false, transforms.positionTransform);
+		gl.uniformMatrix3fv(locations.textureTransform, false, transforms.textureTransform);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 	}
 
@@ -342,12 +338,16 @@ export class VideoPreviewCompositor {
 		if (this.disposed || this.contextLost) {
 			return createVideoPreviewFallbackReport(layers, SUPPORTED_EFFECT_TYPES);
 		}
-		const ledger = beginVideoPreviewRenderLedger(layers, SUPPORTED_EFFECT_TYPES);
+		const ledger = beginVideoPreviewRenderLedger(
+			decodableVideoPreviewLayers(layers), SUPPORTED_EFFECT_TYPES,
+		);
 		this.resizeToDisplaySize();
 		this.renderGeneration += 1;
 		const gl = this.gl;
 		gl.disable(gl.BLEND);
 		this.clearTarget(this.targets.composition, 0, 0, 0, 1);
+		let compositionTarget = this.targets.composition;
+		let compositionSwapTarget = this.targets.compositionSwap;
 		let renderedEntries = 0;
 		const referenceWidth = Math.max(1, finiteNumber(options.referenceWidth, this.canvas.width));
 		const referenceHeight = Math.max(1, finiteNumber(options.referenceHeight, this.canvas.height));
@@ -370,10 +370,7 @@ export class VideoPreviewCompositor {
 			let renderedLayerEntries = 0;
 			for (const entry of layer.entries || []) {
 				const video = entry.video;
-				if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
-					recordVideoPreviewEntryFallback(ledger, entry);
-					continue;
-				}
+				if (!decodableVideoPreviewEntry(entry)) continue;
 				let videoTexture;
 				try {
 					videoTexture = this.uploadVideo(video);
@@ -395,7 +392,20 @@ export class VideoPreviewCompositor {
 				const contentViewport = viewports.content;
 				previewScale.x = viewports.pixelScale;
 				previewScale.y = viewports.pixelScale;
-				const opacity = finiteNumber(entry.opacity, 1);
+				const geometry = entry.renderDescription == null
+					? null
+					: videoPreviewRenderGeometry(entry.renderDescription, {
+						canvasWidth: referenceWidth,
+						canvasHeight: referenceHeight,
+						intervalProgress: entry.intervalProgress,
+						sourceDisplayWidth: entry.displayWidth || video.videoWidth,
+						sourceDisplayHeight: entry.displayHeight || video.videoHeight,
+					});
+				const opacity = geometry?.opacity ?? finiteNumber(entry.opacity, 1);
+				const sourceQuad = geometry == null ? null : videoPreviewRenderQuad(geometry, {
+					canvasWidth: referenceWidth,
+					canvasHeight: referenceHeight,
+				});
 				const passes = this.passesForEffects(entry.effects || EMPTY_EFFECTS, previewScale);
 				if (!passes.length) {
 					gl.enable(gl.BLEND);
@@ -406,7 +416,8 @@ export class VideoPreviewCompositor {
 						this.targets.layer,
 						COPY_PASS,
 						opacity,
-						contentViewport,
+						geometry == null ? contentViewport : referenceViewport,
+						null, null, null, null, null, sourceQuad,
 					);
 					renderedEntries += 1;
 					renderedLayerEntries += 1;
@@ -423,9 +434,7 @@ export class VideoPreviewCompositor {
 					contentViewport,
 				);
 				let sourceTarget = this.targets.ping;
-				let entryComposited = false;
-				for (let passIndex = 0; passIndex < passes.length; passIndex += 1) {
-					const pass = passes[passIndex];
+				for (const pass of passes) {
 					if (pass.preserveSource) {
 						this.clearTarget(this.targets.anchor);
 						this.draw(
@@ -497,25 +506,6 @@ export class VideoPreviewCompositor {
 						}
 						continue;
 					}
-					if (passIndex === passes.length - 1) {
-						gl.enable(gl.BLEND);
-						gl.blendEquation(gl.FUNC_ADD);
-						gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
-						this.draw(
-							sourceTarget.texture,
-							this.targets.layer,
-							pass,
-							opacity,
-							null,
-							contentViewport,
-							null,
-							null,
-							null,
-							pass.auxiliary ? this.targets.anchor.texture : null,
-						);
-						entryComposited = true;
-						continue;
-					}
 					const destinationTarget = sourceTarget === this.targets.ping
 						? this.targets.pong
 						: this.targets.ping;
@@ -534,34 +524,50 @@ export class VideoPreviewCompositor {
 					);
 					sourceTarget = destinationTarget;
 				}
-				if (!entryComposited) {
-					gl.enable(gl.BLEND);
-					gl.blendEquation(gl.FUNC_ADD);
-					gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
-					this.draw(sourceTarget.texture, this.targets.layer, COPY_PASS, opacity);
-				}
+				gl.enable(gl.BLEND);
+				gl.blendEquation(gl.FUNC_ADD);
+				gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+				const effectedQuad = geometry == null ? null : videoPreviewRenderQuad(geometry, {
+					canvasWidth: referenceWidth,
+					canvasHeight: referenceHeight,
+					textureViewport: contentViewport,
+					textureWidth: sourceTarget.width,
+					textureHeight: sourceTarget.height,
+				});
+				this.draw(
+					sourceTarget.texture,
+					this.targets.layer,
+					COPY_PASS,
+					opacity,
+					geometry == null ? null : referenceViewport,
+					null, null, null, null, null, effectedQuad,
+				);
 				renderedEntries += 1;
 				renderedLayerEntries += 1;
 				recordVideoPreviewEntryRendered(ledger, entry);
 			}
 			if (!renderedLayerEntries) continue;
-			gl.enable(gl.BLEND);
-			gl.blendEquation(gl.FUNC_ADD);
-			gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-			this.draw(this.targets.layer.texture, this.targets.composition, COPY_PASS);
+			drawVideoPreviewCompositionBlend(gl, this.compositionBlend, {
+				backdropTexture: compositionTarget.texture,
+				sourceTexture: this.targets.layer.texture,
+				target: compositionSwapTarget,
+				blendMode: layer.blendMode || 'normal',
+			});
+			[compositionTarget, compositionSwapTarget] = [compositionSwapTarget, compositionTarget];
+			this.currentProgram = null;
 		}
 
 		gl.disable(gl.BLEND);
 		this.clearTarget(null, 0, 0, 0, 1);
 		this.draw(
-			this.targets.composition.texture,
+			compositionTarget.texture,
 			null,
 			FINAL_YUV420_PASS,
 			1,
 			referenceViewport,
 			null,
 			referenceViewport,
-			this.targets.composition,
+			compositionTarget,
 			this.finalEffectResolution,
 		);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -574,11 +580,12 @@ export class VideoPreviewCompositor {
 		this.disposed = true;
 		this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
 		this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
-		for (const target of Object.values(this.targets || {})) deleteRenderTarget(this.gl, target);
+		deleteVideoPreviewRenderTargets(this.gl, this.targets);
 		for (const record of this.videoTextures?.values() || []) this.gl.deleteTexture(record.texture);
 		this.videoTextures.clear();
 		this.gl.deleteBuffer(this.positionBuffer);
 		for (const program of this.programs) this.gl.deleteProgram(program);
+		disposeVideoPreviewCompositionBlendRuntime(this.gl, this.compositionBlend);
 	}
 }
 

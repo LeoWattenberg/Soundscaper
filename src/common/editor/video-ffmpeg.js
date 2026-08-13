@@ -1,10 +1,15 @@
 import { getVideoExportFormat } from './video-export.js';
 import {
-	normalizeVideoEffects,
 	serializeVideoEffectsToFfmpegOperations,
-	VIDEO_EFFECT_V5_TYPES,
 } from './video-effects.js';
 import { appendVideoEffectOperation } from './video-effect-ffmpeg.ts';
+import {
+	appendVideoFfmpegV6ClipFilters,
+	appendVideoFfmpegV6LayerBlend,
+	normalizeVideoFfmpegCompositionIntervals,
+	videoFfmpegV6ContainedSize,
+	videoFfmpegV6ContainFilter,
+} from './video-ffmpeg-render-description.ts';
 
 const DEFAULT_VIDEO_ENCODING_SETTINGS = Object.freeze({
 	mp4: Object.freeze({
@@ -201,13 +206,15 @@ function buildLayeredVideoFilterGraph(plan) {
 				const inputFilters = [
 					`trim=start=${start}:end=${end}`,
 					`setpts=(PTS-STARTPTS)/${playbackRate}`,
-					`scale=w=${plan.width}:h=${plan.height}:force_original_aspect_ratio=decrease`,
+					plan.version >= 6
+						? videoFfmpegV6ContainFilter(clip.renderDescription)
+						: `scale=w=${plan.width}:h=${plan.height}:force_original_aspect_ratio=decrease`,
 					'format=pix_fmts=rgba',
 					...(plan.version >= 3
 						? [`fps=fps=${ffmpegNumber(plan.frameRate, 'plan.canvas.frameRate')}`]
 						: []),
 				];
-				const outputFilters = [
+				const legacyOutputFilters = [
 					`pad=w=${plan.width}:h=${plan.height}:x=(ow-iw)/2:y=(oh-ih)/2:color=black@0`,
 					...(plan.version >= 3 ? ['premultiply=inplace=1'] : []),
 					...(plan.version >= 3
@@ -217,10 +224,39 @@ function buildLayeredVideoFilterGraph(plan) {
 					`trim=duration=${ffmpegNumber(interval.durationSeconds, `plan.intervals[${intervalIndex}].durationSeconds`)}`,
 					'setpts=PTS-STARTPTS',
 				];
-				if (effectOperations.length === 0) {
+				if (plan.version >= 6) {
+					let geometryInputLabel = `${clipLabel}_geometry_input`;
+					filters.push(
+						`[${inputLabelForClip(clip.inputIndex)}]${inputFilters.join(',')}[${geometryInputLabel}]`,
+					);
+					const effectSize = videoFfmpegV6ContainedSize(clip.renderDescription);
+					for (const [effectIndex, operation] of effectOperations.entries()) {
+						const effectOutputLabel = `${clipLabel}_effect_${effectIndex}`;
+						appendVideoEffectOperation({
+							filters,
+							inputLabel: geometryInputLabel,
+							outputLabel: effectOutputLabel,
+							operation,
+							width: effectSize.width,
+							height: effectSize.height,
+						});
+						geometryInputLabel = effectOutputLabel;
+					}
+					appendVideoFfmpegV6ClipFilters({
+						filters,
+						inputLabel: geometryInputLabel,
+						outputLabel: clipLabel,
+						description: clip.renderDescription,
+						canvasWidth: plan.width,
+						canvasHeight: plan.height,
+						frameRate: plan.frameRate,
+						durationSeconds: interval.durationSeconds,
+						applyStaticOpacity: track.clips.length === 1,
+					});
+				} else if (effectOperations.length === 0) {
 					filters.push(
 						`[${inputLabelForClip(clip.inputIndex)}]`
-						+ [...inputFilters, ...outputFilters].join(',')
+						+ [...inputFilters, ...legacyOutputFilters].join(',')
 						+ `[${clipLabel}]`,
 					);
 				} else {
@@ -238,7 +274,7 @@ function buildLayeredVideoFilterGraph(plan) {
 						});
 						effectInputLabel = effectOutputLabel;
 					}
-					filters.push(`[${effectInputLabel}]${outputFilters.join(',')}[${clipLabel}]`);
+					filters.push(`[${effectInputLabel}]${legacyOutputFilters.join(',')}[${clipLabel}]`);
 				}
 			}
 
@@ -262,11 +298,21 @@ function buildLayeredVideoFilterGraph(plan) {
 			}
 
 			const nextStackLabel = `${prefix}_stack_${trackIndex}`;
-			filters.push(
-				`[${stackLabel}][${trackLabel}]`
-				+ 'overlay=x=0:y=0:eof_action=pass:repeatlast=0:format=auto:alpha=premultiplied'
-				+ `[${nextStackLabel}]`,
-			);
+			if (plan.version >= 6) {
+				appendVideoFfmpegV6LayerBlend({
+					filters,
+					backdropLabel: stackLabel,
+					layerLabel: trackLabel,
+					outputLabel: nextStackLabel,
+					blendMode: track.clips[0].renderDescription.blendMode,
+				});
+			} else {
+				filters.push(
+					`[${stackLabel}][${trackLabel}]`
+					+ 'overlay=x=0:y=0:eof_action=pass:repeatlast=0:format=auto:alpha=premultiplied'
+					+ `[${nextStackLabel}]`,
+				);
+			}
 			stackLabel = nextStackLabel;
 		}
 
@@ -384,7 +430,7 @@ function normalizeVideoExportPlan(plan) {
 	if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
 		throw new TypeError('Expected a video export plan.');
 	}
-	if (![1, 2, 3, 4, 5].includes(plan.version)) {
+	if (![1, 2, 3, 4, 5, 6].includes(plan.version)) {
 		throw new RangeError(`Unsupported video export plan version: ${plan.version}.`);
 	}
 	const descriptor = getVideoExportFormat(plan.format);
@@ -409,7 +455,7 @@ function normalizeVideoExportPlan(plan) {
 		.map((input, index) => (input?.kind === 'video-source'
 			? {
 				...input,
-				// Only version 5 states a presentation; an older plan is presented
+				// Version 5 and later state a presentation; an older plan is presented
 				// exactly as its decoder decodes it.
 				presentation: plan.version >= 5
 					? normalizeVideoInputPresentation(input.presentation, `plan.inputs[${index}].presentation`)
@@ -452,10 +498,9 @@ function normalizeVideoExportPlan(plan) {
 	const content = plan.version === 1
 		? { segments: normalizeSequentialSegments(plan, inputs) }
 		: {
-			intervals: normalizeCompositionIntervals(plan, inputs, durationSeconds, {
-				allowVideoEffects: plan.version >= 3,
-				allowedVideoEffectTypes: plan.version === 3 ? VIDEO_EFFECT_V5_TYPES : undefined,
-			}),
+				intervals: normalizeVideoFfmpegCompositionIntervals(
+					plan, inputs, durationSeconds, { width, height },
+				),
 		};
 
 	return {
@@ -522,121 +567,6 @@ function normalizeSequentialSegments(plan, inputs) {
 	});
 }
 
-function normalizeCompositionIntervals(plan, inputs, durationSeconds, options = {}) {
-	if (!Array.isArray(plan.intervals) || plan.intervals.length === 0) {
-		throw new RangeError('Video export plan must contain at least one composition interval.');
-	}
-	const intervals = plan.intervals.map((interval, intervalIndex) => {
-		const name = `plan.intervals[${intervalIndex}]`;
-		const duration = positiveFiniteNumber(interval?.durationSeconds, `${name}.durationSeconds`);
-		if (!Array.isArray(interval?.layers)) {
-			throw new TypeError(`${name}.layers must be an array.`);
-		}
-		if (interval.kind === 'black') {
-			if (interval.layers.length !== 0) {
-				throw new RangeError(`${name} black intervals cannot contain video layers.`);
-			}
-			return {
-				kind: 'black',
-				color: interval.color,
-				durationSeconds: duration,
-				layers: [],
-			};
-		}
-		if (interval.kind !== 'composition') {
-			throw new TypeError(`Unsupported video composition interval kind: ${interval?.kind}.`);
-		}
-		if (interval.layers.length === 0) {
-			throw new RangeError(`${name} composition intervals must contain at least one video layer.`);
-		}
-
-		const trackIds = new Set();
-		const layers = interval.layers.map((track, trackIndex) => {
-			const trackName = `${name}.layers[${trackIndex}]`;
-			const trackId = nonEmptyString(track?.trackId, `${trackName}.trackId`);
-			if (trackIds.has(trackId)) throw new RangeError(`${name} contains duplicate track ${trackId}.`);
-			trackIds.add(trackId);
-			if (!Array.isArray(track.clips) || track.clips.length < 1 || track.clips.length > 2) {
-				throw new RangeError(`${trackName}.clips must contain one or two video clips.`);
-			}
-			const clips = track.clips.map((clip, clipIndex) => normalizeCompositionClip(
-				clip,
-				`${trackName}.clips[${clipIndex}]`,
-				inputs,
-				options,
-			));
-			if (clips.length === 1 && clips[0].role !== 'single') {
-				throw new TypeError(`${trackName} single-clip layers must use the single role.`);
-			}
-			if (clips.length === 2) {
-				if (clips[0].role !== 'outgoing' || clips[1].role !== 'incoming') {
-					throw new TypeError(`${trackName} crossfades must order outgoing then incoming clips.`);
-				}
-				if (
-					!nearlyEqual(clips[0].opacityStart + clips[1].opacityStart, 1)
-					|| !nearlyEqual(clips[0].opacityEnd + clips[1].opacityEnd, 1)
-				) {
-					throw new RangeError(`${trackName} crossfade opacities must be complementary.`);
-				}
-			}
-			return { trackId, clips };
-		});
-		return {
-			kind: 'composition',
-			color: interval.color,
-			durationSeconds: duration,
-			layers,
-		};
-	});
-	const totalDuration = intervals.reduce((total, interval) => total + interval.durationSeconds, 0);
-	if (!nearlyEqual(totalDuration, durationSeconds)) {
-		throw new RangeError('Video composition interval durations must equal plan.durationSeconds.');
-	}
-	return intervals;
-}
-
-function normalizeCompositionClip(clip, name, inputs, options = {}) {
-	const inputIndex = nonNegativeInteger(clip?.inputIndex, `${name}.inputIndex`);
-	const input = inputs[inputIndex];
-	if (input?.kind !== 'video-source' || input.sourceId !== clip.sourceId) {
-		throw new ReferenceError(`${name} references an incompatible input.`);
-	}
-	const sourceStartTimeSeconds = nonNegativeFiniteNumber(
-		clip.sourceStartTimeSeconds,
-		`${name}.sourceStartTimeSeconds`,
-	);
-	const sourceEndTimeSeconds = positiveFiniteNumber(
-		clip.sourceEndTimeSeconds,
-		`${name}.sourceEndTimeSeconds`,
-	);
-	if (sourceEndTimeSeconds <= sourceStartTimeSeconds) {
-		throw new RangeError(`${name} source range must have positive duration.`);
-	}
-	const role = String(clip.role || '');
-	if (!['single', 'outgoing', 'incoming'].includes(role)) {
-		throw new TypeError(`${name}.role must be single, outgoing, or incoming.`);
-	}
-	return {
-		role,
-		inputIndex,
-		sourceStartTimeSeconds,
-		sourceEndTimeSeconds,
-		playbackRate: positiveFiniteNumber(clip.playbackRate, `${name}.playbackRate`),
-		opacityStart: unitFiniteNumber(clip.opacityStart, `${name}.opacityStart`),
-		opacityEnd: unitFiniteNumber(clip.opacityEnd, `${name}.opacityEnd`),
-		videoEffects: options.allowVideoEffects
-			? normalizeVideoEffects(clip.videoEffects ?? [], `${name}.videoEffects`, {
-				allowedTypes: options.allowedVideoEffectTypes,
-			})
-			: [],
-	};
-}
-
-function nearlyEqual(left, right) {
-	const scale = Math.max(1, Math.abs(left), Math.abs(right));
-	return Math.abs(left - right) <= scale * 1e-9;
-}
-
 function mappedValue(mapping, key) {
 	if (mapping instanceof Map) return mapping.get(key);
 	if (mapping && typeof mapping === 'object' && Object.prototype.hasOwnProperty.call(mapping, key)) {
@@ -698,13 +628,5 @@ function nonNegativeFiniteNumber(value, name) {
 function positiveFiniteNumber(value, name) {
 	const number = Number(value);
 	if (!Number.isFinite(number) || number <= 0) throw new RangeError(`${name} must be positive.`);
-	return number;
-}
-
-function unitFiniteNumber(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number < 0 || number > 1) {
-		throw new RangeError(`${name} must be between zero and one.`);
-	}
 	return number;
 }

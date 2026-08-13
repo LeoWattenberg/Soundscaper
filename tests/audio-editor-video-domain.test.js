@@ -202,6 +202,9 @@ test('an anamorphic source sets the canvas and the graph from its display geomet
 		null,
 		'a source presented as it decodes states that it needs nothing',
 	);
+	const lower = plan.intervals[0].layers[0].clips[0].renderDescription;
+	assert.deepEqual(lower.crop.sourcePixels, { x: 0, y: 0, width: 1_024, height: 576 });
+	assert.deepEqual(lower.sourceDisplayToCanvas, [1, 0, 0, 1, 0, 0]);
 });
 
 test('video export plan describes layered composition, codecs, transparent fitting, and staged audio', () => {
@@ -210,7 +213,7 @@ test('video export plan describes layered composition, codecs, transparent fitti
 		format: 'webm',
 		range: { startFrame: 0, endFrame: 25_000 },
 	});
-	assert.equal(plan.version, 5);
+	assert.equal(plan.version, 6);
 	assert.equal(plan.format, 'webm');
 	assert.equal(plan.mimeType, 'video/webm');
 	assert.deepEqual(plan.codecs, {
@@ -314,7 +317,7 @@ test('video export plan carries ordered normalized effects and omits bypassed op
 		range: { startFrame: 0, endFrame: 1_000 },
 	});
 	const clip = plan.intervals[0].layers[0].clips[0];
-	assert.equal(plan.version, 5);
+	assert.equal(plan.version, 6);
 	assert.deepEqual(clip.videoEffects, [
 		{
 			id: 'pixelate-enabled',

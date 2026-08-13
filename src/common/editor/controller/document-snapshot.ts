@@ -10,6 +10,8 @@ import { createDocumentRecordingInputSnapshot } from './document-recording-input
 import type { SoundActivationPolicySnapshot } from './sound-activation-policy-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 
+const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
+
 interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 	readonly startFrame: number;
 	readonly endFrame: number;
@@ -172,9 +174,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 	const currentTabMetadata = currentProject
 		? runtime.getCurrentTabMetadata(currentProject.id)
 		: {};
-	const videoPreviewProject = currentProject && currentTabMetadata.featureRequirementsVideoRenderedFallback
-		? runtime.projectForPlayback(currentProject)
-		: currentProject;
+	const videoPreviewProject = resolveVideoPreviewProject(runtime, currentProject);
 	const selection = currentProject?.selection
 		&& currentProject.selection.endFrame > currentProject.selection.startFrame
 		? currentProject.selection
@@ -334,4 +334,28 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		missingSourceIds: Object.freeze([...state.missingSourceIds]),
 		disposed: state.disposed,
 	});
+}
+
+/**
+ * The preview composites what the runtime delivers: a multicamera angle or a
+ * rendered fallback exists only in the projection, never in the canonical
+ * document. One memoized projection per document keeps the compositor's
+ * identity-keyed caches valid, and a projection the runtime refuses leaves the
+ * canonical document published instead of failing every snapshot.
+ */
+function resolveVideoPreviewProject<Project extends SnapshotProject>(
+	runtime: EditorDocumentSnapshotRuntime<Project>,
+	project: Project | null,
+): Project | null {
+	if (!project) return null;
+	const cached = VIDEO_PREVIEW_PROJECTS.get(project);
+	if (cached) return cached as Project;
+	let projected: Project;
+	try {
+		projected = runtime.projectForPlayback(project);
+	} catch {
+		projected = project;
+	}
+	VIDEO_PREVIEW_PROJECTS.set(project, projected);
+	return projected;
 }

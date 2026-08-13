@@ -4,6 +4,7 @@ import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
 const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertiesDialog.jsx'));
+const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
 const SelectionEffectsDialog = React.lazy(() => import('../inspector/SelectionEffectsDialog.jsx'));
@@ -87,6 +88,21 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && capabilities.videoGeometry && activeSurface === 'video-composition' && (
+				<div data-editor-surface="video-composition">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<VideoCompositionDialog
+							productId={productId}
+							capability={Boolean(capabilities.videoGeometry)}
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							run={run}
 							onClose={() => setActiveSurface(null)}
 						/>
 					</React.Suspense>

@@ -111,6 +111,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 	}),
 	Object.freeze({
+		marker: 'exact-direct-mp4-webm-video-save',
+		register: 'config/production-security-matrix.json',
+		riskId: 'desktop-write-path-capabilities',
+		controlId: 'exact-direct-mp4-webm-video-save',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+	}),
+	Object.freeze({
 		marker: 'timeline-annotation-capability',
 		register: 'config/project-compatibility.json',
 		ruleId: 'current-timeline-annotation-capability',

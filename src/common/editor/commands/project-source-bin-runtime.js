@@ -35,6 +35,7 @@ import {
 	requireTrack,
 	sortTrack,
 } from './shared-runtime.js';
+import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
 
 function setSelection(project, command) {
 	const startFrame = assertFrame(command.startFrame, 'selection.startFrame');
@@ -189,6 +190,7 @@ function addProjectBinClip(project, value) {
 	const projectBin = requireProjectBin(project);
 	const clip = normalizeClipForProject(project, {
 		...value,
+		...cloneVideoCompositionCarrierFields(value, `Project Bin clip ${String(value?.id ?? '')}`),
 		groupId: null,
 		...(project.schemaVersion >= 4 ? {
 			avLinkId: null,
@@ -225,6 +227,7 @@ function moveTimelineClipsToProjectBin(project, clipIds) {
 		.filter((clip) => movedIds.has(clip.id))
 		.map((clip) => normalizeClipForProject(project, {
 			...clip,
+			...cloneVideoCompositionCarrierFields(clip, `Moved Project Bin clip ${clip.id}`),
 			groupId: null,
 			id: clip.id,
 			...(project.schemaVersion >= 4 ? {
@@ -281,6 +284,7 @@ function placeProjectBinClip(project, command) {
 			: undefined;
 		const clip = normalizeClipForProject(project, {
 			...itemClip,
+			...cloneVideoCompositionCarrierFields(itemClip, `Placed Project Bin clip ${itemClip.id}`),
 			id: clipId,
 			timelineStartFrame,
 			groupId: null,

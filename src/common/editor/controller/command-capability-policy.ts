@@ -15,6 +15,7 @@ export interface EditorCommandCapabilities {
 	readonly timelineAnnotations: boolean;
 	readonly trackFolders: boolean;
 	readonly videoEffects: boolean;
+	readonly videoGeometry?: boolean;
 }
 
 /**
@@ -37,6 +38,12 @@ export function assertEditorCommandCapabilities(
 
 	if (!capabilities.videoEffects && command.type.startsWith('video-effect/')) {
 		unsupported(productName, 'videoEffects');
+	}
+	if (!capabilities.videoGeometry && command.type.startsWith('video-composition/')) {
+		unsupported(productName, 'videoGeometry');
+	}
+	if (!capabilities.videoGeometry && commandRequiresVideoGeometryCapability(command)) {
+		unsupported(productName, 'videoGeometry');
 	}
 	if (!capabilities.timelineAnnotations && command.type.startsWith('timeline-annotation/')) {
 		unsupported(productName, 'timelineAnnotations');
@@ -118,6 +125,68 @@ export function assertEditorCommandCapabilities(
 	}
 }
 
+/** Cover generic carriers so an unavailable product cannot smuggle V19 geometry state. */
+function commandRequiresVideoGeometryCapability(command: AudioEditorCommand): boolean {
+	switch (command.type) {
+		case 'clip/add':
+		case 'project-bin/add':
+			return nestedPayloadHasField(command, 'clip', 'videoComposition');
+		case 'clip/update':
+		case 'project-bin/update':
+		case 'clip/overwrite':
+			return nestedPayloadHasField(command, 'changes', 'videoComposition');
+		case 'clip/transform-many':
+			return transformListHasField(command, 'videoComposition');
+		case 'clipboard/paste':
+			return clipboardRequiresVideoGeometryCapability(command.clipboard);
+		default:
+			return false;
+	}
+}
+
+function nestedPayloadHasField(value: unknown, payloadKey: string, field: string): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const payload = Object.getOwnPropertyDescriptor(value, payloadKey);
+	if (!payload) return false;
+	if (!payload.enumerable || !Object.hasOwn(payload, 'value')) return true;
+	return hasPossiblyDisguisedOwnField(payload.value, field);
+}
+
+function transformListHasField(value: unknown, field: string): boolean {
+	const transformsValue = ownEnumerableDataValue(value, 'transforms');
+	if (transformsValue === INVALID_DATA_VALUE) return true;
+	const transforms = denseArrayDataValues(transformsValue, 100_000);
+	if (!transforms) return true;
+	return transforms.some((transform) => nestedPayloadHasField(transform, 'changes', field));
+}
+
+function hasPossiblyDisguisedOwnField(value: unknown, field: string): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const descriptor = Object.getOwnPropertyDescriptor(value, field);
+	return descriptor !== undefined;
+}
+
+/** Inspect V1..V4 clip payloads without evaluating a disguised composition accessor. */
+function clipboardRequiresVideoGeometryCapability(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const schemaVersion = ownEnumerableDataValue(value, 'schemaVersion');
+	if (schemaVersion === INVALID_DATA_VALUE) return Object.hasOwn(value, 'tracks');
+	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3 && schemaVersion !== 4
+		&& schemaVersion !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
+	const tracksValue = ownEnumerableDataValue(value, 'tracks');
+	if (tracksValue === INVALID_DATA_VALUE) return true;
+	const tracks = denseArrayDataValues(tracksValue, 100_000);
+	if (!tracks) return true;
+	for (const track of tracks) {
+		const clipsValue = ownEnumerableDataValue(track, 'clips');
+		if (clipsValue === INVALID_DATA_VALUE) return true;
+		const clips = denseArrayDataValues(clipsValue, 100_000);
+		if (!clips) return true;
+		if (clips.some((clip) => hasPossiblyDisguisedOwnField(clip, 'videoComposition'))) return true;
+	}
+	return false;
+}
+
 /** Cover every generic command carrier that can publish authored audio-warp state. */
 function commandRequiresAudioWarpCapability(command: AudioEditorCommand): boolean {
 	if (command.type.startsWith('audio-warp/')) return true;
@@ -154,7 +223,7 @@ function clipboardRequiresAudioWarpCapability(value: unknown): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const schemaVersion = ownEnumerableDataValue(value, 'schemaVersion');
 	if (schemaVersion === INVALID_DATA_VALUE) return Object.hasOwn(value, 'tracks');
-	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3
+	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3 && schemaVersion !== 4
 		&& schemaVersion !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
 	const tracksValue = ownEnumerableDataValue(value, 'tracks');
 	if (tracksValue === INVALID_DATA_VALUE) return true;
@@ -199,7 +268,7 @@ function clipboardRequiresTakeCompCapability(value: unknown): boolean {
 	if (!value || typeof value !== 'object') return false;
 	const schema = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
 	if (!schema?.enumerable || !Object.hasOwn(schema, 'value')) return Object.hasOwn(value, 'takeGroups');
-	if (schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
+	if (schema.value !== 4 && schema.value !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
 	const takeGroups = Object.getOwnPropertyDescriptor(value, 'takeGroups');
 	if (!takeGroups?.enumerable || !Object.hasOwn(takeGroups, 'value')) return true;
 	return !Array.isArray(takeGroups.value) || takeGroups.value.length > 0;

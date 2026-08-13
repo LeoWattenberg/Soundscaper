@@ -288,7 +288,7 @@ test('authenticates only creator-issued final identities without candidate obser
 	}
 });
 
-test('keeps final-profile consumption within the closed maintained V18 product set', async () => {
+test('keeps final-profile consumption within the closed maintained Framescaper product set', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const exportReferences: string[] = [];
 	const productPathReferences: string[] = [];
@@ -304,8 +304,14 @@ test('keeps final-profile consumption within the closed maintained V18 product s
 	assert.deepEqual(exportReferences, [
 		'desktop/project-library-v10-current-project.ts',
 		'src/framescaper/editor-project-environment-v18.ts',
+		'src/framescaper/editor-project-feature-requirements-v19.ts',
 		PRODUCT_MODULE,
+		'src/framescaper/editor-project-runtime-v19-selection.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
+		'src/framescaper/editor-project-v19-commands.ts',
+		'src/framescaper/editor-project-v19-runtime.ts',
+		'src/framescaper/editor-project-v19-validation.ts',
+		'src/framescaper/editor-project-v19.ts',
 		'src/framescaper/editor-video-proxy-reattestation-store-prerequisite-v18.ts',
 		'tests/audio-editor-controller-project-runtime.test.ts',
 		'tests/audio-editor-framescaper-controller-v18.test.ts',
@@ -349,7 +355,13 @@ test('keeps final-profile consumption within the closed maintained V18 product s
 	assert.deepEqual(productPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
 		'src/framescaper/editor-project-environment-v18.ts',
+		'src/framescaper/editor-project-feature-requirements-v19.ts',
+		'src/framescaper/editor-project-runtime-v19-selection.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
+		'src/framescaper/editor-project-v19-commands.ts',
+		'src/framescaper/editor-project-v19-runtime.ts',
+		'src/framescaper/editor-project-v19-validation.ts',
+		'src/framescaper/editor-project-v19.ts',
 		'src/framescaper/editor-video-proxy-reattestation-store-prerequisite-v18.ts',
 		'tests/audio-editor-controller-project-runtime.test.ts',
 		'tests/audio-editor-framescaper-controller-v18.test.ts',
@@ -399,11 +411,17 @@ test('keeps final-profile consumption within the closed maintained V18 product s
 		'src/framescaper/desktop-project-library-v10-renderer.ts',
 		'src/framescaper/desktop-project-library-v10-store-adapter.ts',
 		'src/framescaper/editor-project-feature-requirements-v18.ts',
+		'src/framescaper/editor-project-feature-requirements-v19.ts',
 		'src/framescaper/editor-project-playback-v18.ts',
+		'src/framescaper/editor-project-playback-v19.ts',
 		'src/framescaper/editor-project-repository-v18.ts',
+		'src/framescaper/editor-project-repository-v19.ts',
 		PRODUCT_MODULE,
+		'src/framescaper/editor-project-runtime-profile-v19.ts',
 		'src/framescaper/editor-project-runtime-v18-selection.ts',
+		'src/framescaper/editor-project-runtime-v19-selection.ts',
 		'src/framescaper/editor-project-store-v18.ts',
+		'src/framescaper/editor-project-store-v19.ts',
 		'src/framescaper/editor-project-v18-archive-repository.ts',
 		'src/framescaper/editor-project-v18-claim-cleanup-repository.ts',
 		'src/framescaper/editor-project-v18-commands.ts',
@@ -418,7 +436,15 @@ test('keeps final-profile consumption within the closed maintained V18 product s
 		'src/framescaper/editor-project-v18-session.ts',
 		'src/framescaper/editor-project-v18-validation.ts',
 		'src/framescaper/editor-project-v18.ts',
+		'src/framescaper/editor-project-v19-commands.ts',
+		'src/framescaper/editor-project-v19-history.ts',
+		'src/framescaper/editor-project-v19-migration.ts',
+		'src/framescaper/editor-project-v19-profile.ts',
+		'src/framescaper/editor-project-v19-runtime.ts',
+		'src/framescaper/editor-project-v19-validation.ts',
+		'src/framescaper/editor-project-v19.ts',
 		'src/framescaper/editor-scape-native-v18.ts',
+		'src/framescaper/editor-scape-native-v19.ts',
 		'src/framescaper/editor-video-proxy-reattestation-contract-v18.ts',
 		'src/framescaper/editor-video-proxy-reattestation-v18.ts',
 		'src/framescaper/scape-project-envelope-v18.ts',

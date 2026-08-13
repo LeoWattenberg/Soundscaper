@@ -126,13 +126,16 @@ test('the exact Framescaper singleton owns 31 sorted registrations with 17 avail
 	assert.ok(snapshot.registrations.every((item: Registration) => Object.isFrozen(item)));
 });
 
-test('test-only parity exactly matches all 30 global IDs and strict Framescaper booleans', () => {
+test('the immutable V18 profile matches its 30 global IDs and predates V19 video geometry', () => {
 	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy');
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
 	assert.equal(parity.length, 30);
-	assert.deepEqual(parity.map(({ key }) => key).sort(), Object.keys(ids).sort());
-	assert.deepEqual(parity.map(({ key }) => key).sort(), Object.keys(availability).sort());
+	assert.deepEqual(
+		parity.map(({ key }) => key).sort(),
+		Object.keys(ids).filter((key) => key !== 'videoGeometry').sort(),
+	);
+	assert.deepEqual(Object.keys(ids).sort(), Object.keys(availability).sort());
 	for (const row of parity) {
 		assert.equal(ids[row.key], row.featureId, row.key);
 		assert.equal(typeof availability[row.key], 'boolean', row.key);
@@ -376,14 +379,19 @@ test('keeps private capability ownership within the closed V18 domain set', asyn
 		'scripts/lib/desktop-project-library-runtime.mjs',
 		FINAL_GENERIC_MODULE,
 		PRODUCT_MODULE,
+		'src/framescaper/editor-project-feature-capability-profile-v19.ts',
 		FEATURE_OWNER_MODULE,
+		'src/framescaper/editor-project-feature-requirements-v19.ts',
 		FINAL_PRODUCT_MODULE,
+		'src/framescaper/editor-project-runtime-profile-v19.ts',
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(privateIdReferences, [
-		PRODUCT_MODULE, FEATURE_OWNER_MODULE, TEST_MODULE, FEATURE_TEST_MODULE,
+		PRODUCT_MODULE,
+		'src/framescaper/editor-project-feature-capability-profile-v19.ts',
+		FEATURE_OWNER_MODULE, TEST_MODULE, FEATURE_TEST_MODULE,
 		'tests/browser/framescaper-v18-scape-preservation.spec.js',
 	]);
 	const generic = await readSource(GENERIC_MODULE);

@@ -124,6 +124,46 @@ test('completed reports are immutable snapshots', () => {
 	assert.throws(() => report.effects.requested.push('late'), TypeError);
 });
 
+test('render ledger reports canonical geometry and blend consumption explicitly', () => {
+	const source = {
+		...entry('clip-geometry', []),
+		renderDescription: { canonical: true },
+	};
+	const ledger = beginVideoPreviewRenderLedger(
+		[{ blendMode: 'multiply', entries: [source] }],
+		supportedEffectTypes,
+	);
+	recordVideoPreviewEntryRendered(ledger, source);
+	const report = completeVideoPreviewRenderLedger(ledger, 1);
+	assert.deepEqual(report.composition, {
+		requested: [{ clipId: 'clip-geometry', blendMode: 'multiply' }],
+		rendered: ['clip-geometry'],
+		fallbackRendered: [],
+		omitted: [],
+	});
+	assert.equal(Object.isFrozen(report.composition), true);
+	assert.equal(Object.isFrozen(report.composition.requested), true);
+});
+
+test('renderer fallback records authored composition as omitted, never raw-rendered', () => {
+	const source = {
+		...entry('clip-geometry', []),
+		renderDescription: { canonical: true },
+	};
+	const report = createVideoPreviewFallbackReport(
+		[{ blendMode: 'overlay', entries: [source] }],
+		supportedEffectTypes,
+	);
+
+	assert.deepEqual(report.composition, {
+		requested: [{ clipId: 'clip-geometry', blendMode: 'overlay' }],
+		rendered: [],
+		fallbackRendered: [],
+		omitted: ['clip-geometry'],
+	});
+	assert.equal(report.status, 'fallback');
+});
+
 function effect(id, type, enabled = true) {
 	return { id, type, enabled, params: {} };
 }

@@ -9,21 +9,25 @@ import {
 	createVideoPreviewCompositorFallbackReport,
 	shouldContinueVideoPreviewPlayback,
 } from '../video-preview-compositor.js';
-import { applyVideoPreviewDisplaySize } from './video-preview-display-size.ts';
 import { createVideoPreviewEffectBypass } from './video-preview-effect-bypass.ts';
 import { resolveVideoPreviewVisual } from './video-preview-visual.ts';
 import {
 	EMPTY_VIDEO_EFFECT_STACK,
-	clearVideoPreviewCompositorEntry,
-	clearVideoPreviewCompositorLayer,
+	findVideoPreviewTimelineInterval,
 	primeVideoPreviewCompositorPool,
 	releaseRetiredVideoPreviewElements,
+	synchronizeVideoPreviewCompositorLayers,
 } from './video-preview-compositor-pool.js';
+import {
+	createVideoPreviewFallbackLedgerLayers,
+	resolveVideoPreviewRenderIssue,
+	shouldHideVideoPreviewIdentityFallback,
+} from './video-preview-fallback.ts';
 
-function createVideoPreviewTimeline(project, controller, missingSourceIds, failedVideoSources) {
+function createVideoPreviewTimeline(project, controller, missingSourceIds, failedVideoSources, renderCanvas) {
 	if (!project) return { intervals: [], clipStateById: new Map(), maxLayerCount: 0 };
 	try {
-		const intervals = resolveVideoCompositionIntervals(project);
+		const intervals = resolveVideoCompositionIntervals(project, { renderCanvas });
 		const clipStateById = new Map();
 		for (const clip of project.clips || []) {
 			if (clip?.kind !== 'video') continue;
@@ -49,90 +53,6 @@ function createVideoPreviewTimeline(project, controller, missingSourceIds, faile
 	}
 }
 
-function findVideoPreviewTimelineInterval(intervals, timelineFrame) {
-	let startIndex = 0;
-	let endIndex = intervals.length - 1;
-	while (startIndex <= endIndex) {
-		const index = (startIndex + endIndex) >> 1;
-		const interval = intervals[index];
-		if (timelineFrame < interval.timelineStartFrame) endIndex = index - 1;
-		else if (timelineFrame >= interval.timelineEndFrame) startIndex = index + 1;
-		else return interval;
-	}
-	return null;
-}
-
-function synchronizeVideoPreviewCompositorLayers(
-	targetLayers,
-	layerPool,
-	timeline,
-	timelineFrame,
-	videoElements,
-	videoEffectBypass,
-	displaySizes,
-) {
-	const interval = findVideoPreviewTimelineInterval(timeline.intervals, timelineFrame);
-	if (!interval || interval.kind !== 'composition') {
-		for (let layerIndex = 0; layerIndex < layerPool.length; layerIndex += 1) {
-			clearVideoPreviewCompositorLayer(layerPool[layerIndex]);
-		}
-		targetLayers.length = 0;
-		return true;
-	}
-	for (let layerIndex = 0; layerIndex < interval.layers.length; layerIndex += 1) {
-		const layer = interval.layers[layerIndex];
-		for (let clipIndex = 0; clipIndex < layer.clips.length; clipIndex += 1) {
-			const clip = layer.clips[clipIndex];
-			if (!timeline.clipStateById.get(clip.clipId)?.available) continue;
-			const video = videoElements.get(clip.clipId);
-			if (
-				targetLayers.length
-				&& (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight)
-			) return false;
-		}
-	}
-	const intervalProgress = Math.max(0, Math.min(
-		1,
-		(timelineFrame - interval.timelineStartFrame)
-			/ Math.max(1, interval.timelineEndFrame - interval.timelineStartFrame),
-	));
-	let targetLayerCount = 0;
-	for (let layerIndex = 0; layerIndex < interval.layers.length; layerIndex += 1) {
-		const layer = interval.layers[layerIndex];
-		const targetLayer = layerPool[targetLayerCount];
-		targetLayers[targetLayerCount] = targetLayer;
-		targetLayer.trackId = layer.trackId;
-
-		let targetEntryCount = 0;
-		for (let clipIndex = 0; clipIndex < layer.clips.length; clipIndex += 1) {
-			const clip = layer.clips[clipIndex];
-			if (!timeline.clipStateById.get(clip.clipId)?.available) continue;
-			const targetEntry = targetLayer.entryPool[targetEntryCount];
-			targetLayer.entries[targetEntryCount] = targetEntry;
-			targetEntry.clipId = clip.clipId;
-			targetEntry.video = videoElements.get(clip.clipId) || null;
-			applyVideoPreviewDisplaySize(displaySizes, clip.source, targetEntry, targetEntry.video);
-			targetEntry.effects = videoEffectBypass.effectsFor(
-				clip.clipId,
-				clip.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK,
-			);
-			targetEntry.opacity = clip.opacityStart
-				+ (clip.opacityEnd - clip.opacityStart) * intervalProgress;
-			targetEntryCount += 1;
-		}
-		for (let entryIndex = targetEntryCount; entryIndex < targetLayer.entryPool.length; entryIndex += 1) {
-			clearVideoPreviewCompositorEntry(targetLayer.entryPool[entryIndex]);
-		}
-		targetLayer.entries.length = targetEntryCount;
-		targetLayerCount += 1;
-	}
-	for (let layerIndex = targetLayerCount; layerIndex < layerPool.length; layerIndex += 1) {
-		clearVideoPreviewCompositorLayer(layerPool[layerIndex]);
-	}
-	targetLayers.length = targetLayerCount;
-	return true;
-}
-
 export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const canvasRef = useRef(null);
 	const compositorRef = useRef(null);
@@ -156,7 +76,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	});
 	const animationFrameRef = useRef(0);
 	const [compositorState, setCompositorState] = useState('pending');
-	const [renderIssue, setRenderIssue] = useState(() => ({ requestedCount: 0, omitted: [] }));
+	const [renderIssue, setRenderIssue] = useState(() => resolveVideoPreviewRenderIssue(null));
 	const [mediaErrorRevision, setMediaErrorRevision] = useState(0);
 	const compositorStateRef = useRef('pending');
 	const renderIssueSignatureRef = useRef('');
@@ -220,11 +140,11 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const layers = useMemo(() => {
 		if (!project) return [];
 		try {
-			return resolveActiveVideoLayers(project, positionFrame);
+			return resolveActiveVideoLayers(project, positionFrame, { renderCanvas: referenceCanvas });
 		} catch {
 			return [];
 		}
-	}, [positionFrame, project]);
+	}, [positionFrame, project, referenceCanvas]);
 	const missingSourceIds = useMemo(
 		() => new Set(snapshot.missingSourceIds || []),
 		[snapshot.missingSourceIds],
@@ -237,9 +157,10 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 				controller,
 				missingSourceIds,
 				failedVideoSourcesRef.current,
+				referenceCanvas,
 			);
 		},
-		[controller, mediaErrorRevision, missingSourceIds, project],
+		[controller, mediaErrorRevision, missingSourceIds, project, referenceCanvas],
 	);
 	const resolvedLayers = useMemo(() => {
 		void mediaErrorRevision;
@@ -269,25 +190,26 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const activeEffectCount = activeEntries.reduce((count, entry) => (
 		count + videoEffectBypass.activeEffectCount(entry.clipId, entry.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK)
 	), 0);
-	const constructorFallbackLayers = useMemo(() => resolvedLayers.map((layer) => ({
-		entries: layer.clips.filter((entry) => entry.available).map((entry) => ({
-			effects: videoEffectBypass.effectsFor(
-				entry.clipId,
-				entry.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK,
-			),
-		})),
-	})), [resolvedLayers, videoEffectBypass]);
+	const constructorFallbackLayers = useMemo(() => createVideoPreviewFallbackLedgerLayers(
+		resolvedLayers,
+		(clipId, effects) => videoEffectBypass.effectsFor(clipId, effects),
+	), [resolvedLayers, videoEffectBypass]);
 	const updateCompositorState = useCallback((nextState) => {
 		if (compositorStateRef.current === nextState) return;
 		compositorStateRef.current = nextState;
 		setCompositorState(nextState);
 	}, []);
 	const updateRenderIssue = useCallback((report) => {
-		const omitted = report.effects.omitted;
-		const signature = `${report.effects.requested.length}:${omitted.join('\u0000')}`;
+		const issue = resolveVideoPreviewRenderIssue(report);
+		const signature = [
+			issue.requestedEffectCount,
+			issue.omittedEffectIds.join('\u0000'),
+			issue.requestedCompositionCount,
+			issue.omittedCompositionClipIds.join('\u0000'),
+		].join(':');
 		if (renderIssueSignatureRef.current === signature) return;
 		renderIssueSignatureRef.current = signature;
-		setRenderIssue({ requestedCount: report.effects.requested.length, omitted });
+		setRenderIssue(issue);
 	}, []);
 	const renderPreviewFrame = useCallback(function renderPreviewFrameCallback() {
 		animationFrameRef.current = 0;
@@ -373,7 +295,12 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		if (!canvas) return undefined;
 		try {
 			compositorRef.current = createVideoPreviewCompositor(canvas, {
-				onContextLost: () => updateCompositorState('fallback'),
+				onContextLost: () => {
+					updateRenderIssue(createVideoPreviewCompositorFallbackReport(
+						compositorLayersRef.current,
+					));
+					updateCompositorState('fallback');
+				},
 				onContextRestored: () => {
 					updateCompositorState('webgl');
 					requestPreviewFrame();
@@ -400,7 +327,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			compositorRef.current = null;
 			retiredVideoElements.length = 0;
 		};
-	}, [requestPreviewFrame, updateCompositorState]);
+	}, [requestPreviewFrame, updateCompositorState, updateRenderIssue]);
 	useEffect(() => {
 		if (compositorRef.current || compositorStateRef.current !== 'fallback') return;
 		updateRenderIssue(createVideoPreviewCompositorFallbackReport(constructorFallbackLayers));
@@ -437,9 +364,12 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			data-renderable-clip-count={renderableEntries.length}
 			data-unavailable-clip-count={unavailableCount}
 			data-active-video-effect-count={activeEffectCount}
-			data-video-preview-requested-effect-count={renderIssue.requestedCount}
-			data-video-preview-omitted-effect-count={renderIssue.omitted.length}
-			data-video-preview-omitted-effect-ids={renderIssue.omitted.join(' ')}
+			data-video-preview-requested-effect-count={renderIssue.requestedEffectCount}
+			data-video-preview-omitted-effect-count={renderIssue.omittedEffectIds.length}
+			data-video-preview-omitted-effect-ids={renderIssue.omittedEffectIds.join(' ')}
+			data-video-preview-requested-composition-count={renderIssue.requestedCompositionCount}
+			data-video-preview-omitted-composition-count={renderIssue.omittedCompositionClipIds.length}
+			data-video-preview-omitted-composition-clip-ids={renderIssue.omittedCompositionClipIds.join(' ')}
 			data-video-preview-renderer={compositorState}
 		>
 			{resolvedLayers.map((layer) => {
@@ -462,6 +392,10 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 								onVideoElement={registerVideoElement}
 								onFrameReady={requestPreviewFrame}
 								onMediaError={handleVideoMediaError}
+								hideIdentityFallback={shouldHideVideoPreviewIdentityFallback(
+									compositorState,
+									entry.renderDescription,
+								)}
 							/>
 						))}
 					</div>
@@ -488,15 +422,23 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 					{copy.videoPreviewUnavailable}
 				</div>
 			)}
-			{renderIssue.requestedCount > 0 && compositorState === 'fallback' && (
+			{(renderIssue.requestedEffectCount > 0
+				|| renderIssue.requestedCompositionCount > 0)
+				&& compositorState === 'fallback' && (
 				<div
 					className="kw-audio-editor__video-preview-status kw-audio-editor__video-preview-renderer-warning"
 					data-video-preview-renderer-warning
 					role="status"
 				>
-					{copy.videoPreviewEffectsUnavailable}
-					{renderIssue.omitted.length > 0 && (
-						<small>{boundedOmissionSummary(renderIssue.omitted)}</small>
+					{renderIssue.requestedCompositionCount > 0
+						? copy.videoPreviewCompositionUnavailable
+						: copy.videoPreviewEffectsUnavailable}
+					{(renderIssue.omittedEffectIds.length > 0
+						|| renderIssue.omittedCompositionClipIds.length > 0) && (
+						<small>{boundedOmissionSummary([
+							...renderIssue.omittedEffectIds,
+							...renderIssue.omittedCompositionClipIds,
+						])}</small>
 					)}
 				</div>
 			)}
@@ -519,6 +461,7 @@ function VideoPreviewClip({
 	onVideoElement,
 	onFrameReady,
 	onMediaError,
+	hideIdentityFallback,
 }) {
 	const videoRef = useRef(null);
 	const setVideoRef = useCallback((element) => {
@@ -576,14 +519,17 @@ function VideoPreviewClip({
 			data-clip-id={entry.clipId}
 			data-transition-role={entry.role || 'single'}
 			data-opacity={opacity}
+			data-identity-fallback-hidden={hideIdentityFallback ? 'true' : 'false'}
 			src={entry.sourceUrl}
 			muted
 			playsInline
 			preload="auto"
 			aria-label={`${copy.panelVideoPreview}: ${entry.clip?.title || entry.source?.name || copy.videoClip}`}
+			aria-hidden={hideIdentityFallback || undefined}
 			style={{
 				opacity,
 				mixBlendMode: entry.role === 'incoming' ? 'plus-lighter' : 'normal',
+				visibility: hideIdentityFallback ? 'hidden' : undefined,
 			}}
 			onLoadedMetadata={handleMediaReady}
 			onLoadedData={handleMediaReady}

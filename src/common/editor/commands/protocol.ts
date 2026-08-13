@@ -5,6 +5,7 @@ import type {
 	TimelineAnnotationV11,
 } from '../timeline-annotation.ts';
 import type { Rational } from '../timeline-time.ts';
+import type { VideoClipComposition } from '../video-clip-composition.ts';
 
 /**
  * Authoritative command discriminants. Adding a command starts here, then the
@@ -101,6 +102,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'video-effect/update',
 	'video-effect/remove',
 	'video-effect/reorder',
+	'video-composition/set',
 ] as const;
 
 export type AudioEditorCommandType = typeof AUDIO_EDITOR_COMMAND_TYPES[number];
@@ -224,7 +226,7 @@ export type AudioEditorClipboardAnnotation =
 	}>;
 
 export interface AudioEditorClipboard {
-	readonly schemaVersion: 1 | 2 | 3 | 4;
+	readonly schemaVersion: 1 | 2 | 3 | 4 | 5;
 	readonly sampleRate: number;
 	readonly durationFrames: number;
 	readonly tracks: readonly AudioEditorClipboardTrack[];
@@ -542,6 +544,11 @@ type NonBatchAudioEditorCommandPayloads = {
 	readonly 'video-effect/update': { readonly clipId: string; readonly effectId: string; readonly changes: CommandObject };
 	readonly 'video-effect/remove': { readonly clipId: string; readonly effectId: string };
 	readonly 'video-effect/reorder': { readonly clipId: string; readonly effectId: string; readonly toIndex: number };
+	readonly 'video-composition/set': {
+		readonly clipId: string;
+		readonly expectedComposition: VideoClipComposition;
+		readonly composition: VideoClipComposition;
+	};
 };
 
 export interface BatchAudioEditorCommand {

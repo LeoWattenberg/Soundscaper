@@ -185,12 +185,14 @@ export async function importScapeProject(input, store, options = {}) {
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
 			throwIfScapeAborted(signal);
-			const loaded = migrateAudioEditorProject(parseScapeProjectDocument(projectText));
+			const loaded = migrateScapeProjectDocument(projectText, options);
 			let project = structuredClone(loaded.project);
 			if (loaded.readOnly) {
 				return { project, manifest, readOnly: true, reason: loaded.reason, collision: null };
 			}
-			const assetBySourceId = indexScapeProjectAssets(project, manifest);
+			const assetBySourceId = indexScapeProjectAssets(project, manifest, {
+				currentProjectSchemaVersion: scapeCurrentProjectSchemaVersion(options),
+			});
 			const timingAssetByStorageKey = indexScapeProjectTimingAssets(project, manifest);
 			const timingReferenceByStorageKey = indexScapeTimingReferences(project.sources || []);
 			assertScapeImportStore(store);
@@ -302,7 +304,7 @@ export async function importScapeProject(input, store, options = {}) {
 				}
 			}
 			remapScapeProjectSourceReferences(project, sourceIdMap);
-			if (!loaded.readOnly && project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+			if (!loaded.readOnly && project.schemaVersion === scapeCurrentProjectSchemaVersion(options)) {
 				project.featureRequirements = remapProjectFeatureRequirementSourceIds(
 					project.featureRequirements,
 					sourceIdMap,
@@ -517,9 +519,11 @@ function joinScapeTimingChunks(chunks, expectedBytes) {
  *   projectId: string,
  *   options?: Readonly<{ signal?: AbortSignal }>,
  * ) => PromiseLike<unknown> | unknown } | null} store
- * @param {{ signal?: AbortSignal, projectFeatureCompatibility?: {
- *   evaluate: (project: unknown) => unknown,
- * } }} options
+ * @param {{ signal?: AbortSignal,
+ *   migrateProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
+ *   currentProjectSchemaVersion?: number,
+ *   projectFeatureCompatibility?: { evaluate: (project: unknown) => unknown },
+ * }} options
  * @param {{ retain?: (settlement: PromiseLike<unknown>) => void }} retention
  */
 export async function inspectScapeProject(input, store = null, options = {}, retention = {}) {
@@ -532,8 +536,10 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 		);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
-		const loaded = migrateAudioEditorProject(parseScapeProjectDocument(projectText));
-		indexScapeProjectAssets(loaded.project, manifest);
+		const loaded = migrateScapeProjectDocument(projectText, options);
+		indexScapeProjectAssets(loaded.project, manifest, {
+			currentProjectSchemaVersion: scapeCurrentProjectSchemaVersion(options),
+		});
 		const featureRequirementsCompatibility = options.projectFeatureCompatibility
 			? options.projectFeatureCompatibility.evaluate(loaded.project)
 			: null;
@@ -560,4 +566,28 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 		blob: options.archiveReaderFactory,
 		byteSource: options.archiveByteSourceReaderFactory,
 	});
+}
+
+/** Select a product-owned exact schema without changing the shared default. */
+function migrateScapeProjectDocument(projectText, options) {
+	const migrateProject = options?.migrateProject ?? migrateAudioEditorProject;
+	if (typeof migrateProject !== 'function') {
+		throw new TypeError('The .scape project migration owner must be a function.');
+	}
+	const loaded = migrateProject(parseScapeProjectDocument(projectText));
+	if (!loaded || typeof loaded !== 'object' || !loaded.project || typeof loaded.project !== 'object') {
+		throw new TypeError('The .scape project migration owner returned an invalid result.');
+	}
+	if (typeof loaded.readOnly !== 'boolean') {
+		throw new TypeError('The .scape project migration result requires a readOnly decision.');
+	}
+	return loaded;
+}
+
+function scapeCurrentProjectSchemaVersion(options) {
+	const value = options?.currentProjectSchemaVersion ?? AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+	if (!Number.isSafeInteger(value) || value < 1) {
+		throw new TypeError('The .scape current project schema version must be a positive safe integer.');
+	}
+	return value;
 }

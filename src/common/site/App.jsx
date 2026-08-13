@@ -6,13 +6,16 @@ import './site.css';
 
 const AudioEditorBootstrap = lazy(() => import('../editor/ui/AudioEditorBootstrap.jsx'));
 const FramescaperAudioEditorBootstrapV18 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx'));
+const FramescaperAudioEditorBootstrapV19 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV19.tsx'));
 
 export default function App({ route }) {
 	const { direction, embedded, locale, productId } = route;
 	const copy = bundledCopyForLocale(locale);
-	const EditorBootstrap = productId === 'framescaper'
-		? FramescaperAudioEditorBootstrapV18
-		: AudioEditorBootstrap;
+	const EditorBootstrap = productId !== 'framescaper'
+		? AudioEditorBootstrap
+		: hasFramescaperDesktopBridge()
+			? FramescaperAudioEditorBootstrapV18
+			: FramescaperAudioEditorBootstrapV19;
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,
 		title: copy.framescaperTitle,
@@ -41,6 +44,10 @@ export default function App({ route }) {
 			</main>
 		</div>
 	);
+}
+
+function hasFramescaperDesktopBridge() {
+	return typeof globalThis.framescaperDesktop?.v1 === 'object';
 }
 
 export function applyDocumentRoute(route) {

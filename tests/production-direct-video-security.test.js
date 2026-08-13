@@ -92,7 +92,7 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 
 	assert.match(
 		publication.summary,
-		/exact direct.*MP4.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`.*purpose `video`.*safe.*version-5.*descriptor.*fingerprint.*pre-commit admission/isu,
+		/exact direct.*MP4.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`.*purpose `video`.*safe.*version-6.*descriptor.*fingerprint.*pre-commit admission/isu,
 	);
 	assert.match(
 		publication.summary,
@@ -227,7 +227,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 		readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8'),
 		readFile(new URL('../docs/quality-budgets.md', import.meta.url), 'utf8'),
 	]);
-	const threatStart = threatModel.indexOf('The direct MP4 and WebM final-video slice');
+	const threatStart = threatModel.indexOf('The maintained exact direct MP4 route');
 	const threatEnd = threatModel.indexOf('\n### Electron renderer', threatStart);
 	assert.ok(threatStart >= 0 && threatEnd > threatStart);
 	const threatDocumentation = threatModel.slice(threatStart, threatEnd).replace(/\s+/gu, ' ');
@@ -238,11 +238,11 @@ test('the threat and quality documents limit direct video claims to the proved t
 
 	assert.match(
 		threatDocumentation,
-		/direct MP4 and WebM.*version 5.*browser.*before.*preflight.*desktop.*after.*stat.*900,000.*WORKERFS.*worker MEMFS.*one.*stat.*one[- ]MiB.*close.*commit.*no.*final.*`Blob`.*legacy/isu,
+		/direct MP4.*WebM.*version[- ]6.*browser.*before.*preflight.*desktop.*after.*stat.*900,000.*WORKERFS.*worker MEMFS.*one.*stat.*one[- ]MiB.*close.*commit.*no.*final.*`Blob`.*legacy/isu,
 	);
 	assert.match(
 		threatDocumentation,
-		/worker MEMFS.*Blob.*residency.*codec.*conformance.*memory.*heap.*RSS.*CPU.*elapsed time.*browser.*operating-system.*picker.*packaged.*reference-scale.*quota.*durability.*crash.*power-loss.*unqualified/isu,
+		/worker MEMFS.*Blob.*residency.*codec.*conformance.*memory.*heap.*RSS.*CPU.*elapsed time.*browser.*operating[- ]system.*picker.*packaged.*reference[- ]scale.*quota.*durability.*crash.*power[- ]loss.*unqualified/isu,
 	);
 	assert.match(
 		qualityDocumentation,

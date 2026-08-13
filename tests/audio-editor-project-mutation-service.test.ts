@@ -122,7 +122,7 @@ test('disabled audio warp rejects authored clip state before command execution',
 		capabilities: {
 			audioEffects: true, audioRecording: false, audioSpectralEditing: false,
 			audioWarp: false, takeComp: false, timelineAnnotations: false,
-			videoEffects: true, trackFolders: false,
+			videoEffects: true, videoGeometry: true, trackFolders: false,
 		},
 		executeHistory: (history) => { executed += 1; return history; },
 	});
@@ -278,7 +278,7 @@ interface FixtureOverrides {
 	readonly capabilities?: Readonly<{
 		audioEffects: boolean; audioRecording: boolean; audioSpectralEditing: boolean;
 		audioWarp: boolean; takeComp: boolean; timelineAnnotations: boolean;
-		videoEffects: boolean; trackFolders: boolean;
+		videoEffects: boolean; videoGeometry?: boolean; trackFolders: boolean;
 	}>;
 }
 
@@ -308,7 +308,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 		capabilities: overrides.capabilities || {
 			audioEffects: true, audioRecording: true, audioSpectralEditing: true,
 			audioWarp: true, takeComp: true,
-			timelineAnnotations: true, videoEffects: true, trackFolders: true,
+			timelineAnnotations: true, videoEffects: true, videoGeometry: true, trackFolders: true,
 		},
 		projectReadOnlyMessage: 'Project is read-only.',
 		getProject,

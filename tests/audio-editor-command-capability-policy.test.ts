@@ -18,11 +18,24 @@ const enabled: EditorCommandCapabilities = {
 	timelineAnnotations: true,
 	trackFolders: true,
 	videoEffects: true,
+	videoGeometry: true,
 };
 const authoredWarpMap = { feature: 'audio-warp', points: [
 	{ outer: 0, source: 0, mode: 'forward' },
 	{ outer: 1, source: 1, mode: 'forward' },
 ] };
+const authoredVideoComposition = {
+	schemaVersion: 1,
+	crop: { left: 0.1, top: 0, right: 0, bottom: 0 },
+	transform: {
+		anchorX: 0.5, anchorY: 0.5, positionX: 0.5, positionY: 0.5,
+		scaleX: 1, scaleY: 1, rotationDegrees: 0,
+		flipHorizontal: false, flipVertical: false,
+	},
+	opacity: 1,
+	blendMode: 'normal',
+	compositingOrder: 0,
+};
 
 test('command capability policy accepts unrestricted commands and recursively validates batches', () => {
 	assert.doesNotThrow(() => assertEditorCommandCapabilities(
@@ -65,6 +78,32 @@ test('command capability policy covers every product-sensitive payload path', ()
 		command: AudioEditorCommand;
 	}>> = [
 		{ capability: 'videoEffects', command: { type: 'video-effect/update', clipId: 'clip', effectId: 'effect', changes: {} } },
+		{ capability: 'videoGeometry', command: {
+			type: 'video-composition/set', clipId: 'clip',
+			expectedComposition: {} as never, composition: {} as never,
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'clip/add', trackId: 'track',
+			clip: { id: 'clip', kind: 'video', videoComposition: authoredVideoComposition },
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'project-bin/add',
+			clip: { id: 'clip', kind: 'video', videoComposition: authoredVideoComposition },
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'clip/update', clipId: 'clip', changes: { videoComposition: authoredVideoComposition },
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'project-bin/update', clipId: 'clip', changes: { videoComposition: authoredVideoComposition },
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'clip/overwrite', clipId: 'clip', changes: { videoComposition: authoredVideoComposition },
+		} },
+		{ capability: 'videoGeometry', command: {
+			type: 'clip/transform-many', transforms: [{
+				clipId: 'clip', changes: { videoComposition: authoredVideoComposition },
+			}],
+		} },
 		{ capability: 'videoEffects', command: { type: 'clip/update', clipId: 'clip', changes: { videoEffects: [] } } },
 		{ capability: 'videoEffects', command: { type: 'clip/add', trackId: 'track', clip: { videoEffects: [{ id: 'effect' }] } } },
 		{ capability: 'audioEffects', command: { type: 'effect/remove', scope: 'master', effectId: 'effect' } },
@@ -106,7 +145,7 @@ test('command capability policy covers every product-sensitive payload path', ()
 });
 
 test('capability policy inspects clipboard clip warp maps across every supported schema', () => {
-	for (const schemaVersion of [1, 2, 3, 4] as const) {
+	for (const schemaVersion of [1, 2, 3, 4, 5] as const) {
 		const clipboard = {
 			schemaVersion,
 			sampleRate: 48_000,
@@ -116,7 +155,7 @@ test('capability policy inspects clipboard clip warp maps across every supported
 				sourceSequenceId: 'main', clips: [{ id: 'clip', warpMap: authoredWarpMap }],
 			}],
 			...(schemaVersion >= 3 ? { annotations: [] } : {}),
-			...(schemaVersion === 4 ? { takeGroups: [] } : {}),
+			...(schemaVersion >= 4 ? { takeGroups: [] } : {}),
 		} as unknown as AudioEditorClipboard;
 		assert.throws(
 			() => assertEditorCommandCapabilities(
@@ -126,6 +165,33 @@ test('capability policy inspects clipboard clip warp maps across every supported
 			),
 			/Framescaper does not support audioWarp\./u,
 			`clipboard V${String(schemaVersion)} must not introduce audio warp state`,
+		);
+	}
+});
+
+test('capability policy inspects clipboard video composition across every supported schema', () => {
+	for (const schemaVersion of [1, 2, 3, 4, 5] as const) {
+		const clipboard = {
+			schemaVersion,
+			sampleRate: 48_000,
+			durationFrames: 1,
+			tracks: [{
+				sourceTrackId: 'track', sourceTrackName: 'Track', sourceTrackType: 'video' as const,
+				sourceSequenceId: 'main', clips: [{
+					id: 'clip', kind: 'video', videoComposition: authoredVideoComposition,
+				}],
+			}],
+			...(schemaVersion >= 3 ? { annotations: [] } : {}),
+			...(schemaVersion >= 4 ? { takeGroups: [] } : {}),
+		} as unknown as AudioEditorClipboard;
+		assert.throws(
+			() => assertEditorCommandCapabilities(
+				{ type: 'clipboard/paste', clipboard, atFrame: 0 },
+				{ ...enabled, videoGeometry: false },
+				'Soundscaper',
+			),
+			/Soundscaper does not support videoGeometry\./u,
+			`clipboard V${String(schemaVersion)} must not introduce video composition state`,
 		);
 	}
 });

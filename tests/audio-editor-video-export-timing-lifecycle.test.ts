@@ -168,7 +168,7 @@ function blobFromBytes(bytes: Uint8Array): Blob {
 
 function videoPlan() {
 	return {
-		version: 5,
+		version: 6,
 		format: 'mp4',
 		container: 'mp4',
 		extension: 'mp4',

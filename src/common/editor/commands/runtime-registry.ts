@@ -8,6 +8,7 @@ import { createSequenceTimingRuntimeHandlers } from './sequence-timing-runtime.t
 import { createTempoSignatureRuntimeHandlers } from './tempo-signature-runtime.ts';
 import { createTakeCompRuntimeHandlers } from './take-comp-runtime.ts';
 import { createTimelineAnnotationRuntimeHandlers } from './timeline-annotation-runtime.ts';
+import { createVideoCompositionRuntimeHandlers } from './video-composition-runtime.ts';
 import {
 	defineEditorCommandHandlerRegistry,
 } from './registry.ts';
@@ -38,5 +39,6 @@ export function createEditorCommandRuntime(
 		clipRangeClipboard: createClipRangeClipboardRuntimeHandlers(),
 		effectsVideo: createEffectsVideoRuntimeHandlers(),
 		timelineAnnotation: createTimelineAnnotationRuntimeHandlers(),
+		videoComposition: createVideoCompositionRuntimeHandlers(),
 	});
 }
