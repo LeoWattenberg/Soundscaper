@@ -8,7 +8,7 @@ import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.
 export type EffectParameterScope = 'track' | 'group' | 'send' | 'master';
 
 export interface EffectParameterBindingOptions {
-	readonly registry?: ScheduledParameterRegistry;
+	readonly parameterRegistry?: ScheduledParameterRegistry;
 	readonly scope?: string;
 	readonly targetId?: unknown;
 	readonly latencyFrames?: unknown;
@@ -30,7 +30,31 @@ export function registerEffectAudioParam(
 		&& candidate.address.elementId === elementId
 	));
 	if (!descriptor) return;
-	options.registry?.registerAudioParam(descriptor, param, {
+	options.parameterRegistry?.registerAudioParam(descriptor, param, {
+		latencyFrames: latencyFrames(options.latencyFrames),
+	});
+}
+
+export function registerEffectAudioParamGroup(
+	effect: EngineEffect,
+	parameterId: string,
+	bindings: readonly Readonly<{
+		param: AudioParam;
+		transformValue?: (value: number) => number;
+	}>[],
+	options: EffectParameterBindingOptions,
+	elementId?: string,
+): void {
+	const inventory = parameterInventory(effect, options);
+	if (!inventory) return;
+	const descriptor = inventory.descriptors.find((candidate) => (
+		candidate.automatable
+		&& candidate.address.kind === 'effect'
+		&& candidate.address.parameterId === parameterId
+		&& candidate.address.elementId === elementId
+	));
+	if (!descriptor) return;
+	options.parameterRegistry?.registerAudioParamGroup(descriptor, bindings, {
 		latencyFrames: latencyFrames(options.latencyFrames),
 	});
 }
@@ -45,7 +69,7 @@ export function registerEffectMessageParameters(
 	if (!inventory) return;
 	for (const descriptor of inventory.descriptors) {
 		if (!descriptor.automatable) continue;
-		options.registry?.registerMessageTarget(
+		options.parameterRegistry?.registerMessageTarget(
 			descriptor,
 			(message) => { port.postMessage(message); },
 			{ latencyFrames: latencyFrames(options.latencyFrames) },
@@ -57,7 +81,7 @@ function parameterInventory(
 	effect: EngineEffect,
 	options: EffectParameterBindingOptions,
 ): ReturnType<typeof effectParameterInventory> | null {
-	if (!options.registry || typeof effect?.id !== 'string' || !effect.id) return null;
+	if (!options.parameterRegistry || typeof effect?.id !== 'string' || !effect.id) return null;
 	const strip = effectStripRef(options.scope, options.targetId);
 	if (!strip) return null;
 	return effectParameterInventory(strip, effect);

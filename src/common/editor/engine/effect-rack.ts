@@ -29,6 +29,7 @@ import {
 } from './effect-worklets.ts';
 import {
 	registerEffectAudioParam,
+	registerEffectAudioParamGroup,
 	registerEffectMessageParameters,
 } from './effect-parameter-bindings.ts';
 import { isParametricEqType } from './project-effects.ts';
@@ -186,10 +187,10 @@ export function applyEffect(
 				setParam(delay.delayTime, delaySeconds, context.currentTime);
 				connect(controlInput, delay);
 				connect(delay, processor, 0, 1);
-				} else connect(controlInput, processor, 0, 1);
-			}
-			registerEffectMessageParameters(effect, processor.port, options);
-			return processor;
+			} else connect(controlInput, processor, 0, 1);
+		}
+		registerEffectMessageParameters(effect, processor.port, options);
+		return processor;
 	}
 	if ((type === 'limiter' || type === 'gate') && isDynamicsWorkletLoaded(context)) {
 		const WorkletNode = audioWorkletNodeConstructor();
@@ -199,10 +200,10 @@ export function applyEffect(
 				numberOfOutputs: 1,
 				outputChannelCount: [clamp(positiveInteger(options.effectChannelCount, 2), 1, 32)],
 				processorOptions: { type, params },
-				}));
-				connect(input, dynamics);
-				registerEffectMessageParameters(effect, dynamics.port, options);
-				return dynamics;
+			}));
+			connect(input, dynamics);
+			registerEffectMessageParameters(effect, dynamics.port, options);
+			return dynamics;
 		}
 	}
 	if (isParametricEqType(type)) {
@@ -230,27 +231,29 @@ export function applyEffect(
 		}));
 		connect(processorInput, processor);
 		const outputAnalyser = options.effectAnalysis ? createSpectrumAnalyser(context, nodes) : null;
-			if (outputAnalyser) connect(processor, outputAnalyser);
-			registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options);
-			registerEffectMessageParameters(effect, processor.port, options);
-			return outputAnalyser || processor;
-		}
-		if (['highpass', 'lowpass', 'bandpass', 'notch', 'peaking', 'lowshelf', 'highshelf'].includes(type)) {
-			return connectBiquad(context, input, effect, { ...params, type }, nodes, options);
+		if (outputAnalyser) connect(processor, outputAnalyser);
+		registerEffectGraphNodes(context, effect, processor, inputAnalyser, outputAnalyser, options);
+		registerEffectMessageParameters(effect, processor.port, options);
+		return outputAnalyser || processor;
+	}
+	if (['highpass', 'lowpass', 'bandpass', 'notch', 'peaking', 'lowshelf', 'highshelf'].includes(type)) {
+		return connectBiquad(context, input, effect, { ...params, type }, nodes, options);
 	}
 	if (type === 'compressor' || type === 'limiter') {
 		if (typeof context.createDynamicsCompressor !== 'function') return input;
 		const compressor = addNode(nodes, context.createDynamicsCompressor());
 		setParam(compressor.threshold, finite(params.threshold ?? params.ceiling, type === 'limiter' ? -1 : -24), context.currentTime);
 		setParam(compressor.knee, finite(params.knee, type === 'limiter' ? 0 : 30), context.currentTime);
-			setParam(compressor.ratio, finite(params.ratio, type === 'limiter' ? 20 : 4), context.currentTime);
-			setParam(compressor.attack, finite(params.attack, type === 'limiter' ? 0.003 : 0.01), context.currentTime);
-			setParam(compressor.release, finite(params.release, type === 'limiter' ? 0.1 : 0.25), context.currentTime);
-			registerEffectAudioParam(effect, 'threshold', compressor.threshold, options);
-			registerEffectAudioParam(effect, 'knee', compressor.knee, options);
-			registerEffectAudioParam(effect, 'ratio', compressor.ratio, options);
-			registerEffectAudioParam(effect, 'attack', compressor.attack, options);
-			registerEffectAudioParam(effect, 'release', compressor.release, options);
+		setParam(compressor.ratio, finite(params.ratio, type === 'limiter' ? 20 : 4), context.currentTime);
+		setParam(compressor.attack, finite(params.attack, type === 'limiter' ? 0.003 : 0.01), context.currentTime);
+		setParam(compressor.release, finite(params.release, type === 'limiter' ? 0.1 : 0.25), context.currentTime);
+		registerEffectAudioParam(
+			effect, type === 'limiter' ? 'ceiling' : 'threshold', compressor.threshold, options,
+		);
+		registerEffectAudioParam(effect, 'knee', compressor.knee, options);
+		registerEffectAudioParam(effect, 'ratio', compressor.ratio, options);
+		registerEffectAudioParam(effect, 'attack', compressor.attack, options);
+		registerEffectAudioParam(effect, 'release', compressor.release, options);
 		connect(input, compressor);
 		if (type === 'compressor' && finite(params.makeupGain, 0) !== 0) {
 			const makeup = addNode(nodes, context.createGain());
@@ -388,6 +391,10 @@ function connectDelay(
 	setParam(feedback.gain, clamp(finite(params.feedback, 0.25), 0, 0.95), context.currentTime);
 	registerEffectAudioParam(effect, 'time', delay.delayTime, options);
 	registerEffectAudioParam(effect, 'feedback', feedback.gain, options);
+	registerEffectAudioParamGroup(effect, 'mix', [
+		{ param: dry.gain, transformValue: (value) => 1 - value },
+		{ param: wet.gain },
+	], options);
 	connect(input, dry); connect(dry, output);
 	connect(input, delay); connect(delay, wet); connect(wet, output);
 	connect(delay, feedback); connect(feedback, delay);

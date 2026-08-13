@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { stripParameterDescriptor } from '../src/common/editor/effect-parameter-descriptors.ts';
+import {
+	effectParameterInventory,
+	stripParameterDescriptor,
+} from '../src/common/editor/effect-parameter-descriptors.ts';
 import {
 	registerEffectAudioParam,
 	registerEffectMessageParameters,
@@ -12,7 +15,11 @@ import {
 	ScheduledParameterRegistry,
 	StaleScheduledParameterTargetError,
 } from '../src/common/editor/engine/scheduled-parameter-registry.ts';
-import { createEffect } from '../src/common/editor/effects.js';
+import {
+	AUDIO_EFFECT_DEFINITIONS,
+	AUDACITY_RACK_EFFECT_TYPES,
+	createEffect,
+} from '../src/common/editor/effects.js';
 
 const TRACK = Object.freeze({ kind: 'track' as const, id: 'track-1' });
 
@@ -70,6 +77,36 @@ test('native targets apply exact per-target latency and remain inert without a l
 		{ kind: 'cancel', time: 1.001 },
 		{ kind: 'set', value: 0.5, time: 1.001 },
 		{ kind: 'linear', value: 1.5, time: 1.002 },
+	]);
+});
+
+test('composite native targets schedule each AudioParam from one authoritative value', () => {
+	const registry = new ScheduledParameterRegistry();
+	const descriptor = stripParameterDescriptor({
+		kind: 'strip', strip: TRACK, parameterId: 'gain',
+	});
+	const dry = mockAudioParam();
+	const wet = mockAudioParam();
+	const target = registry.registerAudioParamGroup(descriptor, [
+		{ param: dry, transformValue: (value) => 1 - value },
+		{ param: wet },
+	]);
+	assert.deepEqual(dry.calls, []);
+	assert.deepEqual(wet.calls, []);
+
+	target.schedule([
+		{ kind: 'set', frame: 0, value: 0.25 },
+		{ kind: 'linear', frame: 48, value: 0.75 },
+	], scheduleOptions());
+	assert.deepEqual(dry.calls, [
+		{ kind: 'cancel', time: 0 },
+		{ kind: 'set', value: 0.75, time: 0 },
+		{ kind: 'linear', value: 0.25, time: 0.001 },
+	]);
+	assert.deepEqual(wet.calls, [
+		{ kind: 'cancel', time: 0 },
+		{ kind: 'set', value: 0.25, time: 0 },
+		{ kind: 'linear', value: 0.75, time: 0.001 },
 	]);
 });
 
@@ -162,6 +199,31 @@ test('registry rejects duplicate targets, malformed schedules, and stale leases'
 	);
 });
 
+test('registry accepts only closed own-data descriptor snapshots', () => {
+	const registry = new ScheduledParameterRegistry();
+	const descriptor = stripParameterDescriptor({
+		kind: 'strip', strip: TRACK, parameterId: 'gain',
+	});
+	assert.throws(() => registry.registerAudioParam({
+		...descriptor,
+		unexpected: true,
+	} as typeof descriptor, mockAudioParam()), /unknown member/iu);
+
+	const accessor = { ...descriptor };
+	Object.defineProperty(accessor, 'unit', {
+		enumerable: true,
+		get() { throw new Error('descriptor getter executed'); },
+	});
+	assert.throws(
+		() => registry.registerAudioParam(accessor, mockAudioParam()),
+		/own data/iu,
+	);
+	assert.throws(() => registry.registerAudioParam({
+		...descriptor,
+		automatable: false,
+	} as typeof descriptor, mockAudioParam()), /block reason/iu);
+});
+
 test('effect bindings expose stable native and worklet targets without posting eagerly', () => {
 	const nativeRegistry = new ScheduledParameterRegistry();
 	const frequency = mockAudioParam();
@@ -169,7 +231,7 @@ test('effect bindings expose stable native and worklet targets without posting e
 		createEffect('highpass', { id: 'filter-1' }),
 		'frequency',
 		frequency,
-		{ registry: nativeRegistry, scope: 'track', targetId: 'track-1', latencyFrames: 96 },
+		{ parameterRegistry: nativeRegistry, scope: 'track', targetId: 'track-1', latencyFrames: 96 },
 	);
 	const nativeTarget = nativeRegistry.get({
 		kind: 'effect', strip: TRACK, effectId: 'filter-1', parameterId: 'frequency',
@@ -183,7 +245,7 @@ test('effect bindings expose stable native and worklet targets without posting e
 	registerEffectMessageParameters(
 		createEffect('delay', { id: 'delay-1' }),
 		{ postMessage: (message: unknown) => { messages.push(structuredClone(message)); } } as MessagePort,
-		{ registry: messageRegistry, scope: 'master', targetId: null, latencyFrames: 64 },
+		{ parameterRegistry: messageRegistry, scope: 'master', targetId: null, latencyFrames: 64 },
 	);
 	assert.equal(messageRegistry.size, 3);
 	assert.deepEqual(messages, []);
@@ -194,6 +256,29 @@ test('effect bindings expose stable native and worklet targets without posting e
 	feedback.schedule([{ kind: 'set', frame: 0, value: 0.5 }], scheduleOptions());
 	assert.equal(messages.length, 1);
 	assert.equal((messages[0] as { events: readonly { frameOffset: number }[] }).events[0]?.frameOffset, 64);
+});
+
+test('worklet receiver contracts cover every automatable scalar without eager packets', () => {
+	const types = [...Object.keys(AUDIO_EFFECT_DEFINITIONS), ...AUDACITY_RACK_EFFECT_TYPES];
+	for (const type of types) {
+		const registry = new ScheduledParameterRegistry();
+		const messages: unknown[] = [];
+		const effect = createEffect(type, { id: `${type}-binding-inventory` });
+		registerEffectMessageParameters(
+			effect,
+			{ postMessage: (message: unknown) => { messages.push(message); } } as MessagePort,
+			{ parameterRegistry: registry, scope: 'track', targetId: 'track-1' },
+		);
+		const expected = effectParameterInventory(TRACK, effect).descriptors
+			.filter((descriptor) => descriptor.automatable)
+			.map((descriptor) => descriptor.id);
+		assert.deepEqual(
+			registry.entries().map((target) => target.descriptor.id),
+			expected,
+			type,
+		);
+		assert.deepEqual(messages, [], type);
+	}
 });
 
 function scheduleOptions() {

@@ -57,6 +57,11 @@ export interface ScheduledParameterMessage {
 	readonly events: readonly ScheduledParameterMessageEvent[];
 }
 
+/**
+ * Schema-neutral frame-offset queue receiver contract. Registering a receiver
+ * allocates no packets or signal nodes; a future lane scheduler must call
+ * ScheduledParameterTarget.schedule before any message is emitted.
+ */
 export type ScheduledParameterMessageReceiver = (
 	message: ScheduledParameterMessage,
 ) => boolean | void;
@@ -64,8 +69,10 @@ export type ScheduledParameterMessageReceiver = (
 export type ScheduledParameterBinding =
 	| Readonly<{
 		kind: 'audio-param';
-		param: AudioParam;
-		transformValue: (value: number) => number;
+		params: readonly Readonly<{
+			param: AudioParam;
+			transformValue: (value: number) => number;
+		}>[];
 	}>
 	| Readonly<{ kind: 'message'; receive: ScheduledParameterMessageReceiver }>;
 
@@ -152,21 +159,21 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 		events: readonly ScheduledParameterEvent[],
 		options: NormalizedScheduleOptions,
 	): void {
-		const param = this.binding.kind === 'audio-param' ? this.binding.param : null;
-		if (!param) return;
+		const bindings = this.binding.kind === 'audio-param' ? this.binding.params : [];
+		if (!bindings.length) return;
 		const latencySeconds = this.latencyFrames / options.contextSampleRate;
 		const scheduleStart = options.contextStartTime + latencySeconds;
-		param.cancelScheduledValues?.(scheduleStart);
+		for (const { param } of bindings) param.cancelScheduledValues?.(scheduleStart);
 		for (const event of events) {
 			const time = options.contextStartTime + (
 				latencySeconds
 				+ (event.frame - options.fromFrame) / (options.sampleRate * options.transportRate)
 			);
-			const value = this.binding.kind === 'audio-param'
-				? finite(this.binding.transformValue(event.value), 'transformed parameter value')
-				: event.value;
-			if (event.kind === 'set') param.setValueAtTime(value, time);
-			else param.linearRampToValueAtTime(value, time);
+			for (const { param, transformValue } of bindings) {
+				const value = finite(transformValue(event.value), 'transformed parameter value');
+				if (event.kind === 'set') param.setValueAtTime(value, time);
+				else param.linearRampToValueAtTime(value, time);
+			}
 		}
 	}
 
@@ -187,17 +194,41 @@ export class ScheduledParameterRegistry {
 		param: AudioParam,
 		options: ScheduledParameterTargetOptions = {},
 	): ScheduledParameterTarget {
-		if (!param || typeof param.setValueAtTime !== 'function'
-			|| typeof param.linearRampToValueAtTime !== 'function') {
-			throw new TypeError('A schedulable AudioParam is required.');
-		}
+		assertAudioParam(param);
 		const transformValue = options.transformValue ?? identity;
 		if (typeof transformValue !== 'function') throw new TypeError('A parameter value transform must be a function.');
 		return this.#register(
 			descriptor,
-			Object.freeze({ kind: 'audio-param', param, transformValue }),
+			Object.freeze({
+				kind: 'audio-param',
+				params: Object.freeze([Object.freeze({ param, transformValue })]),
+			}),
 			options,
 		);
+	}
+
+	registerAudioParamGroup(
+		descriptor: ParameterDescriptor,
+		bindings: readonly Readonly<{
+			param: AudioParam;
+			transformValue?: (value: number) => number;
+		}>[],
+		options: ScheduledParameterTargetOptions = {},
+	): ScheduledParameterTarget {
+		if (!Array.isArray(bindings) || bindings.length < 2 || bindings.length > 8) {
+			throw new RangeError('A composite parameter target requires between two and eight AudioParams.');
+		}
+		const normalized = bindings.map(({ param, transformValue = identity }) => {
+			assertAudioParam(param);
+			if (typeof transformValue !== 'function') {
+				throw new TypeError('A parameter value transform must be a function.');
+			}
+			return Object.freeze({ param, transformValue });
+		});
+		return this.#register(descriptor, Object.freeze({
+			kind: 'audio-param',
+			params: Object.freeze(normalized),
+		}), options);
 	}
 
 	registerMessageTarget(
@@ -264,19 +295,73 @@ interface NormalizedScheduleOptions {
 }
 
 function normalizeDescriptor(value: ParameterDescriptor): ParameterDescriptor {
-	if (!value || typeof value !== 'object') throw new TypeError('A parameter descriptor is required.');
-	const address = normalizeParameterAddress(value.address);
+	const descriptor = ownDataRecord(value, 'A parameter descriptor');
+	closedRecord(descriptor, [
+		'id',
+		'address',
+		'unit',
+		'minimum',
+		'maximum',
+		'defaultValue',
+		'step',
+		'taper',
+		'automationTolerance',
+		'automatable',
+		'automationBlockReason',
+		'latencyFrames',
+		'tailFrames',
+	], 'parameter descriptor');
+	const address = normalizeParameterAddress(descriptor.address);
 	const id = canonicalParameterAddressKey(address);
-	if (value.id !== id) throw new RangeError('A parameter descriptor ID must equal its canonical address key.');
-	const minimum = finite(value.minimum, 'descriptor minimum');
-	const maximum = finite(value.maximum, 'descriptor maximum');
-	const defaultValue = finite(value.defaultValue, 'descriptor default');
+	if (descriptor.id !== id) throw new RangeError('A parameter descriptor ID must equal its canonical address key.');
+	const unit = boundedString(descriptor.unit, 'descriptor unit');
+	const minimum = finiteNumber(descriptor.minimum, 'descriptor minimum');
+	const maximum = finiteNumber(descriptor.maximum, 'descriptor maximum');
+	const defaultValue = finiteNumber(descriptor.defaultValue, 'descriptor default');
 	if (minimum > maximum || defaultValue < minimum || defaultValue > maximum) {
 		throw new RangeError('A parameter descriptor default must be inside its ordered range.');
 	}
-	const latencyFrames = nonNegativeSafeInteger(value.latencyFrames, 'descriptor latencyFrames');
-	const tailFrames = nonNegativeSafeInteger(value.tailFrames, 'descriptor tailFrames');
-	return Object.freeze({ ...value, id, address, minimum, maximum, defaultValue, latencyFrames, tailFrames });
+	const step = descriptor.step === null
+		? null
+		: positiveFiniteNumber(descriptor.step, 'descriptor step');
+	const taper = descriptor.taper;
+	if (taper !== 'linear' && taper !== 'logarithmic'
+		&& taper !== 'decibel' && taper !== 'discrete') {
+		throw new RangeError('A descriptor taper must be linear, logarithmic, decibel, or discrete.');
+	}
+	const automationTolerance = nonNegativeFiniteNumber(
+		descriptor.automationTolerance,
+		'descriptor automationTolerance',
+	);
+	if (typeof descriptor.automatable !== 'boolean') {
+		throw new TypeError('descriptor automatable must be a boolean.');
+	}
+	const automationBlockReason = descriptor.automationBlockReason === undefined
+		? undefined
+		: boundedString(descriptor.automationBlockReason, 'descriptor automation block reason');
+	if (!descriptor.automatable && !automationBlockReason) {
+		throw new RangeError('A nonautomatable parameter descriptor requires an automation block reason.');
+	}
+	if (descriptor.automatable && automationBlockReason) {
+		throw new RangeError('An automatable parameter descriptor cannot have an automation block reason.');
+	}
+	const latencyFrames = nonNegativeSafeInteger(descriptor.latencyFrames, 'descriptor latencyFrames');
+	const tailFrames = nonNegativeSafeInteger(descriptor.tailFrames, 'descriptor tailFrames');
+	return Object.freeze({
+		id,
+		address,
+		unit,
+		minimum,
+		maximum,
+		defaultValue,
+		step,
+		taper,
+		automationTolerance,
+		automatable: descriptor.automatable,
+		...(automationBlockReason === undefined ? {} : { automationBlockReason }),
+		latencyFrames,
+		tailFrames,
+	});
 }
 
 function normalizeEvents(
@@ -333,6 +418,63 @@ function finite(value: unknown, name: string): number {
 	return number;
 }
 
+function finiteNumber(value: unknown, name: string): number {
+	if (typeof value !== 'number' || !Number.isFinite(value)) {
+		throw new TypeError(`${name} must be a finite number.`);
+	}
+	return value;
+}
+
+function nonNegativeFiniteNumber(value: unknown, name: string): number {
+	const number = finiteNumber(value, name);
+	if (number < 0) throw new RangeError(`${name} must be non-negative.`);
+	return number;
+}
+
+function positiveFiniteNumber(value: unknown, name: string): number {
+	const number = finiteNumber(value, name);
+	if (!(number > 0)) throw new RangeError(`${name} must be positive.`);
+	return number;
+}
+
+function boundedString(value: unknown, name: string): string {
+	if (typeof value !== 'string' || !value || value.length > 4_096) {
+		throw new TypeError(`${name} must be a non-empty bounded string.`);
+	}
+	return value;
+}
+
+function ownDataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError(`${name} must be an object.`);
+	}
+	const prototype = Object.getPrototypeOf(value);
+	if (prototype !== Object.prototype && prototype !== null) {
+		throw new TypeError(`${name} must be a plain object.`);
+	}
+	if (Object.getOwnPropertySymbols(value).length) {
+		throw new TypeError(`${name} must contain only named own data properties.`);
+	}
+	const snapshot: Record<string, unknown> = {};
+	for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
+		if (!Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name} must contain only own data properties.`);
+		}
+		snapshot[key] = descriptor.value;
+	}
+	return Object.freeze(snapshot);
+}
+
+function closedRecord(
+	value: Readonly<Record<string, unknown>>,
+	allowed: readonly string[],
+	name: string,
+): void {
+	const allowedSet = new Set(allowed);
+	const unknown = Object.keys(value).find((key) => !allowedSet.has(key));
+	if (unknown) throw new TypeError(`${name} has an unknown member: ${unknown}.`);
+}
+
 function positive(value: unknown, name: string): number {
 	const number = finite(value, name);
 	if (!(number > 0)) throw new RangeError(`${name} must be positive.`);
@@ -349,4 +491,11 @@ function nonNegativeSafeInteger(value: unknown, name: string): number {
 
 function identity(value: number): number {
 	return value;
+}
+
+function assertAudioParam(param: AudioParam): void {
+	if (!param || typeof param.setValueAtTime !== 'function'
+		|| typeof param.linearRampToValueAtTime !== 'function') {
+		throw new TypeError('A schedulable AudioParam is required.');
+	}
 }

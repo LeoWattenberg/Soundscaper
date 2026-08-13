@@ -7,7 +7,12 @@ import {
 	effectParameterInventory,
 	stripParameterDescriptor,
 } from '../src/common/editor/effect-parameter-descriptors.ts';
-import { createEffect } from '../src/common/editor/effects.js';
+import { AUDACITY_EFFECT_DEFINITIONS } from '../src/common/editor/audacity-effects/manifest.js';
+import {
+	AUDIO_EFFECT_DEFINITIONS,
+	AUDACITY_RACK_EFFECT_TYPES,
+	createEffect,
+} from '../src/common/editor/effects.js';
 
 const TRACK = Object.freeze({ kind: 'track' as const, id: 'track-1' });
 
@@ -127,3 +132,90 @@ test('compound parameters without stable element IDs become explicit 4A revision
 		reason: 'Curve points need persisted stable element IDs before they can be automated.',
 	}]);
 });
+
+test('descriptor inventory exactly covers every rack scalar owned by built-in and Audacity definitions', () => {
+	const builtIns = Object.entries(AUDIO_EFFECT_DEFINITIONS) as Array<[
+		string,
+		{ readonly ranges: Readonly<Record<string, unknown>> },
+	]>;
+	for (const [type, definition] of builtIns) {
+		const effect = createEffect(type, { id: `${type}-inventory` });
+		const inventory = effectParameterInventory(TRACK, effect);
+		const expected = type === 'eq'
+			? [
+				'outputGain',
+				...effect.params.bands.flatMap((band: { id: string }) => [
+					'enabled', 'type', 'frequency', 'gain', 'q', 'slope',
+				].map((parameterId) => `${band.id}:${parameterId}`)),
+			]
+			: Object.keys(definition.ranges);
+		const actual = inventory.descriptors.map((descriptor) => {
+			assert.equal(descriptor.address.kind, 'effect');
+			if (descriptor.address.kind !== 'effect') return '';
+			return descriptor.address.elementId
+				? `${descriptor.address.elementId}:${descriptor.address.parameterId}`
+				: descriptor.address.parameterId;
+		});
+		assert.deepEqual(actual, expected, type);
+		assert.equal(inventory.revisionInputs.length, 0, type);
+		for (const descriptor of inventory.descriptors.filter((candidate) => !candidate.automatable)) {
+			assert.ok(descriptor.automationBlockReason, `${type} ${descriptor.id}`);
+		}
+	}
+
+	for (const type of AUDACITY_RACK_EFFECT_TYPES) {
+		const effect = createEffect(type, { id: `${type}-inventory` });
+		const inventory = effectParameterInventory(TRACK, effect);
+		const definition = AUDACITY_EFFECT_DEFINITIONS[type];
+		const expected: string[] = [];
+		const expectedRevisionInputs: string[] = [];
+		const definitions = Object.entries(definition.params) as Array<[
+			string,
+			{ readonly kind?: unknown; readonly frequencies?: readonly unknown[] },
+		]>;
+		for (const [parameterId, descriptor] of definitions) {
+			if (descriptor.kind === 'curve') expectedRevisionInputs.push(parameterId);
+			else if (descriptor.kind === 'bands') {
+				expected.push(...(descriptor.frequencies || []).map(
+					(frequency) => `frequency:${String(frequency)}:${parameterId}`,
+				));
+			} else expected.push(parameterId);
+		}
+		const actual = inventory.descriptors.map((descriptor) => {
+			assert.equal(descriptor.address.kind, 'effect');
+			if (descriptor.address.kind !== 'effect') return '';
+			return descriptor.address.elementId
+				? `${descriptor.address.elementId}:${descriptor.address.parameterId}`
+				: descriptor.address.parameterId;
+		});
+		assert.deepEqual(actual, expected, type);
+		assert.deepEqual(
+			inventory.revisionInputs.map((input) => input.parameterId),
+			expectedRevisionInputs,
+			type,
+		);
+		for (const descriptor of inventory.descriptors.filter((candidate) => !candidate.automatable)) {
+			assert.ok(descriptor.automationBlockReason, `${type} ${descriptor.id}`);
+		}
+	}
+
+	const limiter = effectParameterInventory(TRACK, createEffect('limiter', { id: 'limiter' }));
+	const reverb = effectParameterInventory(TRACK, createEffect('reverb', { id: 'reverb' }));
+	const graphic = effectParameterInventory(
+		TRACK, createEffect('audacity-graphic-eq', { id: 'graphic' }),
+	);
+	assert.match(blockReason(limiter, 'lookahead'), /latency/iu);
+	assert.match(blockReason(reverb, 'decay'), /graph/iu);
+	assert.match(blockReason(graphic, 'filterLength'), /latency/iu);
+});
+
+function blockReason(
+	inventory: ReturnType<typeof effectParameterInventory>,
+	parameterId: string,
+): string {
+	const descriptor = inventory.descriptors.find((candidate) => (
+		candidate.address.kind === 'effect' && candidate.address.parameterId === parameterId
+	));
+	assert.equal(descriptor?.automatable, false);
+	return descriptor?.automationBlockReason || '';
+}
