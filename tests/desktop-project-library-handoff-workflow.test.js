@@ -33,7 +33,7 @@ test('desktop package metadata preserves the historical V9/V17 handoff runners',
 
 test('desktop CI does not run historical V9/V17 handoff against current Framescaper', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
-	assert.doesNotMatch(workflow, /^  project-library-handoff:/mu);
+	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
 	assert.doesNotMatch(workflow, /npm run desktop:smoke:project-library-handoff/u);
 	assert.doesNotMatch(workflow, /npm run desktop:smoke:project-library-source-bearing-handoff/u);
 	assert.doesNotMatch(workflow, /release\/desktop-handoff\/framescaper/u);
