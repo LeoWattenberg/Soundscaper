@@ -174,8 +174,18 @@ against the current original, and mint process-local preview-only trust; its
 pure selector always chooses the original for export and delivery. This is
 preservation-only policy evidence: there is no maintained proxy generator,
 attachment menu, or proxy-consuming playback route, no attach/detach or relink
-workflow, and no proxy capability availability. Desktop delete and duplicate
-remain fail-closed until main owns their exact CAS/catalog channels.
+workflow, and no proxy capability availability. Desktop V10 delete and duplicate
+are implemented as main-first exact catalog compare-and-swap operations with
+alias-aware local-shadow reconciliation. Duplicate retains the exact proxy and
+timing bodies through the V18 shadow. Delete tombstones only catalog ownership
+and retains immutable revisions and bodies; there is no physical reclamation,
+and it never reuses a project ID. Durable delete intents resume exact local
+shadow and binding-row reconciliation after restart. They do not durably capture
+pre-delete locator references: abrupt process death before the outer
+linked-original drain can leave main-private locator metadata for later cleanup,
+external files are never deleted, and crash- or power-loss locator release
+remains unqualified. The maintained package artifact smoke remains source-free
+and does not qualify packaged delete or duplicate.
 <!-- /policy-narrative:framescaper-v18-video-proxy-preservation -->
 
 ## Timeline annotation compatibility

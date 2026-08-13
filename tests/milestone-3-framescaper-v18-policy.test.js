@@ -45,6 +45,15 @@ test('Framescaper V18 editorial compatibility claims match maintained scope', as
 	assert.ok(rules.get('framescaper-v18-multicamera-native').evidence.includes(
 		'tests/browser/framescaper-v18-multicamera.spec.js',
 	));
+	const proxyPreservation = rules.get('framescaper-v18-video-proxy-preservation');
+	assert.doesNotMatch(proxyPreservation.currentBehavior,
+		/delete and duplicate remain fail-closed/iu);
+	assert.match(proxyPreservation.currentBehavior,
+		/desktop V10.*delete.*duplicate.*main-first.*(?:CAS|compare-and-swap)/isu);
+	assert.match(proxyPreservation.currentBehavior,
+		/retains immutable.*(?:revisions|bodies).*no physical reclamation.*never reuses.*project ID/isu);
+	assert.match(proxyPreservation.currentBehavior,
+		/package.*source-free.*does not qualify.*delete.*duplicate/isu);
 
 	const proxyUse = rules.get('video-proxy-fallback');
 	assert.equal(proxyUse.status, 'planned');
