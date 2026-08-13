@@ -403,9 +403,10 @@ Persistence remains subject to the refreshed V18 blocker review. The reviewed
 defines the indivisible transition that must precede durable c-c work. The
 dormant runtime-profile prerequisite and capability profile are implemented
 through `13f80172` and `c1c70639`. The next contract-first boundary is a
-separately reviewed strict-RED decomposition of the atomic c-c transition,
+separately reviewed dormant
+[final runtime-profile composition](milestone-3b-framescaper-runtime-profile.md),
 still without an independently landable selector or partial production
-behavior.
+behavior. The first reachable selection remains the atomic c-c transition.
 
 - **Outcome:** Proxy attachment with adaptive preview, offline and relink
   handling, and synchronized multicamera groups with sub-frame sync offsets.

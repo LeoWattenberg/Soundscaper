@@ -183,7 +183,10 @@ c1a/final-profile composition, selector, V18 schema or archive behavior,
 requirement registration, compatibility change, proxy storage/attachment/use,
 desktop v10, UI/menu, or Soundscaper change. The first reachable token
 composition and selector remain the full atomic c-c transition, whose strict
-RED must be separately reviewed and decomposed before production changes.
+RED must be separately reviewed and decomposed before production changes. The
+next contract-first decomposition is the dormant final
+[Framescaper runtime profile](milestone-3b-framescaper-runtime-profile.md),
+which remains unreachable and grants no selection authority.
 
 ## Implementation evidence
 

@@ -21,8 +21,8 @@ unreachable Framescaper capability token. The global structural map in
 This slice therefore owns a **prerequisite token**, not
 `EditorProjectRuntimeProfile`. It contains every currently authentic static
 field and the exact c-c0 child token, but no `capabilityProfile` field. The
-later atomic c-c transition must create the final runtime profile from the
-exact c1a prerequisite and c1b capability-token identities. That final creator
+dormant c1c transition must create the final runtime profile from the exact c1a
+prerequisite and c1b capability-token identities. That final creator
 authenticates and retains both token identities; it does not accept, reparse,
 copy, or reconstruct authority from the prerequisite definition snapshot. An
 equal definition, `null`, `undefined`, a boolean, a callback, or a structural
@@ -200,6 +200,9 @@ separately reviewed dormant
 [Framescaper runtime capability
 profile](milestone-3b-framescaper-runtime-capability-profile.md) is implemented
 through `c1c70639`, without composition, selection, or production authority.
+The next contract-first boundary is the dormant
+[final runtime-profile composition](milestone-3b-framescaper-runtime-profile.md),
+which may retain only the exact c1a and c1b identities and remains unreachable.
 
 ## Hard stops
 

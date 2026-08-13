@@ -61,14 +61,16 @@ Delivery is ordered without ever admitting a dangling persisted pointer:
    format 2 for attached projects,
    fresh Framescaper desktop persistence/handoff, policy evidence, and the
    dedicated pointer-publication path. It remains unauthorized and hard-stopped
-   on the separately reviewed product-isolation transition. No earlier commit
+   on the reviewed product-isolation transition. No earlier commit
    may load, save, or transfer a non-null project attachment.
 
-The next contract-first step is the
-[Framescaper V18 product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md).
-It authorizes no production, but pins the one authenticated runtime profile and
-the atomic schema/storage/archive/controller/desktop selection law required
-before c-c can begin.
+The next contract-first step is the dormant
+[Framescaper runtime-profile composition](milestone-3b-framescaper-runtime-profile.md).
+It may authenticate only the exact c1a and c1b identities and authorizes no
+production. The reviewed
+[product-isolation boundary](milestone-3b-framescaper-v18-product-isolation.md)
+still requires the first reachable selection to bind schema, storage, archive,
+controller, and desktop behavior atomically.
 
 The merged milestone-3A work already owns shared V17 for take/comp state,
 desktop library metadata 9/project 17/database 11, and `.scape` format 1. This
@@ -96,8 +98,8 @@ not rebind a global current constant or a Soundscaper entrypoint. Shared domain/
 may land only when unavoidable for Framescaper preservation; no Soundscaper
 menu, authoring, playback, proxy selection, capability enablement, policy
 outcome, or browser workflow is part of this packet. Because schema and portable
-formats are shared today, c-c remains hard-stopped until a separate review owns
-the product-selected Framescaper isolation and preservation behavior.
+formats are shared today, c-c remains hard-stopped until the reviewed
+product-isolation and preservation behavior is implemented atomically.
 
 That isolation is physical as well as semantic. The future Framescaper V18
 profile owns IndexedDB and degraded-memory key
@@ -592,9 +594,9 @@ test-only TypeScript diagnostics and reported no c-c0 diagnostic. No app,
 product, or bootstrap selects the token, so durable proxy storage and c-c remain
 hard-stopped, and a2 is folded into c-c. No
 generic callback is an adoption boundary, and no pre-c-c slice may claim
-settlement or own the original lease. Later work needs its own contracts,
-including c-c's product-isolation review; production storage or adoption work
-is not authorized.
+settlement or own the original lease. Dormant c1c composition is the only next
+authorized contract-first boundary; production storage or adoption work is not
+authorized.
 For eventual c-c, prove the full Framescaper cross-surface/platform set. Prove exact/null/deep-freeze wire validation; every binding and
 cap boundary; unchanged V17 under the shared/Soundscaper profile, Framescaper
 V17 re-import, V18 current, V19 read-only; forged and twice-consumed preparations; same candidate/timing objects and one-use

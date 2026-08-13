@@ -35,25 +35,20 @@ null-prototype, zero-key objects held by a private `WeakMap`. The resolver does
 the private lookup before inspecting public data; clones, spreads,
 serialization, structured clones, and Proxy wrappers refuse with zero traps.
 
-The closed definition contains literals and authenticated child tokens, never
-generic callbacks or independently selectable booleans:
+The closed definition contains only authenticated child tokens, never copied
+literals, generic callbacks, or independently selectable booleans:
 
 ```ts
 {
-	owner: 'framescaper';
-	projectSchemaVersion: 18;
-	storageProfile: FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE;
-	priorSchemaPolicy: 'reimport-required';
-	futureSchemaPolicy: 'opaque-read-only';
-	scapeFormatVersions: readonly [1, 2];
-	attachedScapeFormatVersion: 2;
-	desktopLibrarySchemaVersion: 10;
-	desktopProjectSchemaVersion: 18;
-	desktopDatabaseUserVersion: 12;
-	desktopLibraryScope: readonly ['kw.media', 'scape-project-library', 'v10'];
-	capabilityProfile: /* authenticated Framescaper-only capability token */;
+	prerequisite: FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE_PREREQUISITE;
+	capabilityProfile: FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE;
 }
 ```
+
+The prerequisite's authenticated snapshot owns the exact owner, V18, archive,
+desktop, and c-c0 storage literals. Shared consumers may resolve those children
+only after authenticating the final profile; no flattened definition grants
+authority.
 
 The exact product-owned singleton lives under `src/framescaper/` and is not
 barrel-exported. It composes the exact c-c0 storage token. Equal definitions do
@@ -80,7 +75,10 @@ identities; a copied or reparsed prerequisite definition grants no authority.
 The dormant
 [Framescaper runtime capability
 profile](milestone-3b-framescaper-runtime-capability-profile.md) authorizes no
-production, c1a composition, or selector.
+production or selector. Its separately reviewed successor is the dormant
+[final runtime-profile composition](milestone-3b-framescaper-runtime-profile.md),
+which may authenticate the exact c1a and c1b identities but remains
+unreachable.
 
 ## Selection and non-interference
 
@@ -212,6 +210,7 @@ This contract authorizes no V18 validator, final runtime token, profile
 selector, capability registration, archive format, storage claim, controller
 wiring, desktop v10 path, UI, menu, preview, or Soundscaper change. Dormant c1a
 and c1b are implemented. The next executable step is a separately reviewed
-strict-RED decomposition of the complete atomic c-c transition. The first
-reachable selector remains that full transition. Durable proxy storage,
-attachment authoring, and 3B-6d remain blocked until it is green.
+strict RED for the dormant final runtime-profile composition. Its completion
+does not authorize a selector: the first reachable selector remains the full
+atomic c-c transition. Durable proxy storage, attachment authoring, and 3B-6d
+remain blocked until that transition is green.
