@@ -11,6 +11,9 @@ import {
 import { FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile-v18.ts';
 import { createFramescaperProjectStoreV18 } from './editor-project-store-v18.ts';
 import {
+	applyFramescaperProjectCommandV18,
+} from './editor-project-v18-commands.ts';
+import {
 	createFramescaperProjectHistoryV18,
 	executeFramescaperProjectCommandV18,
 	redoFramescaperProjectCommandV18,
@@ -53,6 +56,11 @@ export interface EditorProjectRuntimeV18Selection {
 	readonly projectForCommandConsumers: (project: unknown) => FramescaperProjectV18;
 	readonly projectForRuntimeConsumers: (project: unknown) => FramescaperProjectV18;
 	readonly createHistory: (project: unknown) => FramescaperProjectHistoryV18;
+	readonly applyCommand: (
+		project: unknown,
+		command: AudioEditorCommand,
+		options?: Readonly<{ now?: Date | string }>,
+	) => FramescaperProjectV18;
 	readonly executeCommand: (
 		history: FramescaperProjectHistoryV18,
 		command: AudioEditorCommand,
@@ -101,6 +109,9 @@ export function createEditorProjectRuntimeV18Selection(
 			framescaperProjectForRuntimeConsumersV18(profile, project)
 		),
 		createHistory: (project) => createFramescaperProjectHistoryV18(profile, project),
+		applyCommand: (project, command, options = {}) => (
+			applyFramescaperProjectCommandV18(profile, project, command, options)
+		),
 		executeCommand: (history, command, options = {}) => (
 			executeFramescaperProjectCommandV18(profile, history, command, options)
 		),

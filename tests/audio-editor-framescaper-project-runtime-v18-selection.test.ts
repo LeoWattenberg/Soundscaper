@@ -34,6 +34,10 @@ test('selected runtime creates, migrates, projects, commands, and histories exac
 	assert.equal(runtime.migrateProject(project).project.schemaVersion, 18);
 	assert.equal(runtime.projectForCommandConsumers(project).schemaVersion, 18);
 	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 18);
+	assert.equal(runtime.applyCommand(project, {
+		type: 'project/rename',
+		title: 'Applied V18',
+	}, { now: '2026-08-13T12:00:30.000Z' }).title, 'Applied V18');
 
 	const history = runtime.createHistory(project);
 	const commanded = runtime.executeCommand(history, {
