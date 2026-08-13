@@ -425,21 +425,36 @@ before code (docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.2 — Production parity harness
 
-- **Outcome:** the `m4-production-parity-v1` fixture implemented
-  (48 kHz deterministic audio vectors plus calibrated 128×72 golden
-  frames, config/quality-budgets.json:782-793) with collectors for all
-  five thresholds of `m4-production-render-parity`
-  (config/quality-budgets.json:992-1006), extending the existing pinned
-  parity fixture and helpers
-  (config/quality-budgets.json:256-282;
-  tests/browser/video-effect-parity-helpers.js:1-4); the
-  silently-omitted-work observable that converts the compositor's `-1`
-  failure return into a reported, counted fallback.
+- **Status:** implemented and provisional. Reference-GPU qualification is
+  pending external provisioning.
+- **Outcome:** `m4-production-parity-v1` now pins one second of 48 kHz stereo
+  Float32 input/reference vectors and exact impulse, PDC, and automation
+  landmarks beside the existing calibrated 128×72 RGBA fixture. The focused
+  browser workload records complete PCM, RGBA pairs, and structured
+  requested/rendered/fallback-rendered/omitted effect ledgers. The collector
+  independently recomputes exactly the five `m4-production-render-parity`
+  thresholds and publishes only no-retry, digest-bound evidence. Its audio
+  paths consume the engine-owned PDC and gain-event planners used by live and
+  offline project graphs; perturbation tests prove either planner changes a
+  registered metric.
+- **Fallback report:** the compositor returns a frozen structured report
+  instead of the old integer/`-1` sentinel. The existing contextual warning
+  displays bounded omitted effect-instance IDs. The zero parity gate counts
+  each unique requested active effect absent from `rendered`, including a
+  visibly reported fallback, so fallback observability cannot hide missing
+  production work. Renderer failure remains an independent report field, and
+  effect fallback does not stop a healthy compositor's playback loop.
 - **Invariants:** fixtures deterministic and digest-pinned before any
   4A/4B feature cites them; hosted-CI runs remain correctness evidence
-  only (docs/quality-budgets.md:29-31).
-- **Acceptance:** harness runs green against today's features;
-  deliberately omitting one effect trips the counter.
+  only. Local/hosted diagnostics never claim the reference id. Explicit
+  reference mode assembles the complete runtime hardware, OS, display, power,
+  browser, and runner identity from browser observations and a host-owned probe,
+  then matches it exactly to the provisioned descriptor; expected data is never
+  echoed as observation.
+- **Acceptance:** the focused Chromium/FFmpeg harness passes against today's
+  features; a deliberately unsupported effect is the sole omitted ID, and
+  collector tests prove one omitted or fallback-rendered effect trips the
+  zero counter.
 - **Non-goals:** no new product behavior beyond the fallback report.
 - **Stop condition:** stop if a threshold would need loosening to pass
   on existing behavior — that is a defect to fix, not a baseline to

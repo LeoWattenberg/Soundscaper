@@ -180,17 +180,23 @@
 			"rendererRequirement": "hardware",
 			"fingerprint": {
 				"osImage": null,
+				"osUpdatePolicy": null,
 				"cpuModel": null,
 				"logicalCpuCount": null,
 				"memoryBytes": null,
 				"gpuModel": null,
 				"gpuMemoryBytes": null,
 				"gpuDriver": null,
+				"webglVendor": null,
+				"webglRenderer": null,
 				"displayMode": null,
 				"displayRefreshHz": null,
+				"devicePixelRatio": null,
 				"powerProfile": null,
 				"browserVersion": null,
-				"browserBinarySha256": null
+				"browserBinarySha256": null,
+				"browserLaunchFlags": null,
+				"runnerLabels": null
 			},
 			"evidence": ["docs/quality-budgets.md#fixed-hardware-environments"]
 		},
@@ -808,14 +814,72 @@
 		{
 			"id": "m4-production-parity-v1",
 			"milestones": ["4"],
-			"status": "planned",
-			"kind": "planned-audio-vectors-and-video-golden-frames",
+			"status": "provisional",
+			"kind": "deterministic-audio-vectors-and-video-golden-frames",
 			"specification": {
+				"localDiagnosticCommand": "npm run quality:collect:m4-production-parity",
+				"routineBrowserTestBehavior": "skip-with-explicit-collector",
+				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification",
+				"generatorRevision": 1,
+				"seed": 1294994497,
 				"audioSampleRate": 48000,
+				"sampleRate": 48000,
+				"frameCount": 48000,
+				"channelCount": 2,
+				"pdcLatencyFrames": 37,
+				"automationChangeFrame": 24000,
+				"inputImpulseFrames": [1024, 4096],
+				"outputImpulseFrames": [1061, 4133],
+				"inputChannelSha256": [
+					"626e70475d9328e0026faac70afb036004ebaa4dfe0404f0da9fba84397a9884",
+					"7d2725992a5afeb23416a37f735bc4311589b89f97bb1e71c843ea0dbcad72b2"
+				],
+				"referenceChannelSha256": [
+					"8704074d600c3331096c1505a8c22e2428ba2cb3a4e0682f3f432670c5479292",
+					"b7e68494b462e5ab8a3999349aacc1bb24919384b5fadb6e581a2a91c8865bf1"
+				],
+				"videoFixtureId": "video-effect-parity-rgba-v1",
 				"videoGoldenWidth": 128,
-				"videoGoldenHeight": 72
+				"videoGoldenHeight": 72,
+				"videoWidth": 128,
+				"videoHeight": 72
 			},
-			"evidence": ["roadmap.md#4-parallel-production-surfaces"]
+			"artifacts": [
+				{
+					"id": "audio-input-left-f32le",
+					"byteLength": 192000,
+					"sha256": "626e70475d9328e0026faac70afb036004ebaa4dfe0404f0da9fba84397a9884"
+				},
+				{
+					"id": "audio-input-right-f32le",
+					"byteLength": 192000,
+					"sha256": "7d2725992a5afeb23416a37f735bc4311589b89f97bb1e71c843ea0dbcad72b2"
+				},
+				{
+					"id": "audio-reference-left-f32le",
+					"byteLength": 192000,
+					"sha256": "8704074d600c3331096c1505a8c22e2428ba2cb3a4e0682f3f432670c5479292"
+				},
+				{
+					"id": "audio-reference-right-f32le",
+					"byteLength": 192000,
+					"sha256": "b7e68494b462e5ab8a3999349aacc1bb24919384b5fadb6e581a2a91c8865bf1"
+				},
+				{
+					"id": "audio-reference-interleaved-f32le",
+					"byteLength": 384000,
+					"sha256": "a7a1230cdd711e15deaea68e0e5f58028eb684455fb42024e2aed624ad934701"
+				}
+			],
+			"limitation": "The deterministic PCM and RGBA artifacts establish correctness only. Hosted and local observations remain pending-external; qualification waits for an exact provisioned reference-linux-gpu-01 fingerprint and hardware renderer.",
+			"evidence": [
+				"package.json",
+				"src/common/editor/quality/m4-production-parity-workload.ts",
+				"tests/audio-editor-m4-production-parity-workload.test.ts",
+				"tests/browser/audio-editor-m4-production-parity.spec.js",
+				"scripts/collect-m4-production-parity-quality.mjs",
+				"tests/quality-budget-m4-production-parity-collector.test.ts"
+			]
 		},
 		{
 			"id": "m5-helper-fault-and-loopback-v1",
@@ -1024,7 +1088,7 @@
 		{
 			"id": "m4-production-render-parity",
 			"milestone": "4",
-			"status": "planned",
+			"status": "provisional",
 			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
 			"environmentIds": ["github-ubuntu-playwright-1.61.1", "reference-linux-gpu-01"],
 			"thresholds": [
@@ -1034,7 +1098,13 @@
 				{ "metricId": "parity.videoMaximumChannelMae", "comparison": "lte", "value": 0.023529411764705882, "unit": "ratio" },
 				{ "metricId": "parity.silentlyOmittedEffects", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["tests/browser/audio-editor-video-effects-parity.spec.js", "roadmap.md#4-parallel-production-surfaces"]
+			"evidence": [
+				"src/common/editor/quality/m4-production-parity-workload.ts",
+				"tests/browser/audio-editor-m4-production-parity.spec.js",
+				"scripts/collect-m4-production-parity-quality.mjs",
+				"tests/quality-budget-m4-production-parity-collector.test.ts",
+				"roadmap.md#4-parallel-production-surfaces"
+			]
 		},
 		{
 			"id": "m5-native-helper-and-audio",
