@@ -31,6 +31,7 @@ import {
 import {
 	createFramescaperProjectSessionV18,
 } from '../src/framescaper/editor-project-v18-session.ts';
+import type { FramescaperSequenceV18 } from '../src/framescaper/editor-project-v18-sequence.ts';
 
 const CREATED = '2026-08-13T10:00:00.000Z';
 const EDITED = '2026-08-13T10:01:00.000Z';
@@ -297,7 +298,7 @@ function emptySequence(
 	id: string,
 	name: string,
 	primary: Readonly<Record<string, unknown>>,
-): Readonly<Record<string, unknown>> {
+): FramescaperSequenceV18 {
 	return {
 		id, name,
 		rate: structuredClone(primary.rate),

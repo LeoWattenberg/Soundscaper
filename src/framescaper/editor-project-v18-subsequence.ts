@@ -3,6 +3,7 @@
 import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import type { FramescaperMulticameraCommandV18 } from './editor-project-v18-multicam.ts';
+import type { FramescaperSequenceCommandV18 } from './editor-project-v18-sequence.ts';
 
 export const FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH = 32;
 export const FRAMESCAPER_V18_MAXIMUM_SUBSEQUENCES = 4_096;
@@ -32,6 +33,7 @@ export type FramescaperSubsequenceCommandV18 =
 
 export type FramescaperProjectCommandV18 =
 	| AudioEditorCommand
+	| FramescaperSequenceCommandV18
 	| FramescaperSubsequenceCommandV18
 	| FramescaperMulticameraCommandV18;
 

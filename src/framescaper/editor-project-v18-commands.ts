@@ -17,6 +17,13 @@ import {
 	type FramescaperProjectV18,
 } from './editor-project-v18-validation.ts';
 import {
+	assertFramescaperSequenceDeletionV18,
+	framescaperSequenceIdV18,
+	isFramescaperSequenceCommandV18,
+	snapshotFramescaperSequenceV18,
+	type FramescaperSequenceCommandV18,
+} from './editor-project-v18-sequence.ts';
+import {
 	isFramescaperSubsequenceCommandV18,
 	type FramescaperProjectCommandV18,
 	type FramescaperSubsequenceCommandV18,
@@ -39,6 +46,9 @@ export function applyFramescaperProjectCommandV18(
 	if (framescaperProjectV18HasProxyAttachment(persisted)) {
 		throw new RangeError('A proxy-attached Framescaper V18 project is intrinsically read-only.');
 	}
+	if (isFramescaperSequenceCommandV18(command)) {
+		return applySequenceCommand(profile, persisted, command, options);
+	}
 	if (isFramescaperSubsequenceCommandV18(command)) {
 		return applySubsequenceCommand(profile, persisted, command, options);
 	}
@@ -57,6 +67,30 @@ export function applyFramescaperProjectCommandV18(
 	commanded.multicameraGroups = structuredClone(persisted.multicameraGroups);
 	validateFramescaperProjectV18(profile, commanded);
 	return commanded as FramescaperProjectV18;
+}
+
+function applySequenceCommand(
+	profile: EditorProjectRuntimeProfile | unknown,
+	project: FramescaperProjectV18,
+	command: FramescaperSequenceCommandV18,
+	options: FramescaperProjectCommandOptionsV18,
+): FramescaperProjectV18 {
+	const draft = structuredClone(project) as unknown as Record<string, unknown>;
+	const sequences = draft.sequences as Record<string, unknown>[];
+	if (command.type === 'sequence/create') {
+		const sequence = snapshotFramescaperSequenceV18(command.sequence);
+		if (project.sequences.some(({ id }) => id === sequence.id)) {
+			throw new RangeError(`Duplicate sequence ID: ${sequence.id}.`);
+		}
+		sequences.push(structuredClone(sequence));
+	} else {
+		const sequenceId = framescaperSequenceIdV18(command.sequenceId);
+		assertFramescaperSequenceDeletionV18(project, sequenceId);
+		const index = sequences.findIndex(({ id }) => id === sequenceId);
+		if (index < 0) throw new ReferenceError(`Sequence ${sequenceId} is missing.`);
+		sequences.splice(index, 1);
+	}
+	return finalizeDraft(profile, project, draft, options);
 }
 
 function applySubsequenceCommand(
