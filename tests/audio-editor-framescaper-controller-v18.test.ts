@@ -58,6 +58,42 @@ test('product-owned controller activates a fresh writable V18 project', async (c
 	assert.equal(controller.project.title, 'Framescaper V18');
 });
 
+test('product controller executes nested-sequence menu commands with undo and redo', async (context) => {
+	const environment = await createFramescaperEditorProjectEnvironmentV18({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	});
+	const controller = createFramescaperAudioEditorControllerV18(environment, { locale: 'en' });
+	context.after(async () => {
+		await controller.dispose();
+		await environment.close();
+	});
+	await controller.ready;
+	controller.actions.project.open(environment.runtime.createProject({
+		id: 'nested-controller', title: 'Nested controller', now: '2026-08-13T12:00:00.000Z',
+		sequences: [
+			{ id: 'main', rate: { num: 30, den: 1 }, trackIds: [] },
+			{ id: 'shared', rate: { num: 24, den: 1 }, trackIds: [] },
+		],
+		primarySequenceId: 'main',
+	}));
+	controller.actions.sequences.addNested({
+		id: 'nested-shared', sequenceId: 'main', sourceSequenceId: 'shared',
+		sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 24,
+	});
+	assert.equal((controller.project.subsequences as readonly unknown[]).length, 1);
+	controller.actions.sequences.updateNested('nested-shared', { sequenceStartFrame: 60 });
+	assert.equal((controller.project.subsequences as readonly { sequenceStartFrame: number }[])[0]?.sequenceStartFrame, 60);
+	controller.actions.edit.undo();
+	assert.equal((controller.project.subsequences as readonly { sequenceStartFrame: number }[])[0]?.sequenceStartFrame, 0);
+	controller.actions.edit.redo();
+	assert.equal((controller.project.subsequences as readonly { sequenceStartFrame: number }[])[0]?.sequenceStartFrame, 60);
+	controller.actions.sequences.removeNested('nested-shared');
+	assert.deepEqual(controller.project.subsequences, []);
+});
+
 test('product controller refuses cloned environments and authority options before effects', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV18({
 		storeOptions: {
