@@ -139,7 +139,8 @@
 				"tests/audio-editor-framescaper-nested-playback-v18.test.ts",
 				"tests/audio-editor-framescaper-nested-sequence-menu.test.ts",
 				"tests/audio-editor-framescaper-scape-file-v18.test.ts",
-				"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts"
+				"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts",
+				"tests/browser/framescaper-v18-nested-authoring.spec.js"
 			]
 		},
 		{
@@ -158,7 +159,8 @@
 				"tests/audio-editor-framescaper-multicamera-persistence-v18.test.ts",
 				"tests/audio-editor-framescaper-multicamera-playback-v18.test.ts",
 				"tests/audio-editor-framescaper-multicamera-menu.test.ts",
-				"tests/audio-editor-framescaper-scape-file-v18.test.ts"
+				"tests/audio-editor-framescaper-scape-file-v18.test.ts",
+				"tests/browser/framescaper-v18-multicamera.spec.js"
 			]
 		},
 		{
