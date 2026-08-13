@@ -5,6 +5,9 @@ import {
 	assertFramescaperEditorProjectEnvironmentV18,
 	type FramescaperEditorProjectEnvironmentV18,
 } from './editor-project-environment-v18.ts';
+import {
+	createFramescaperProjectMaintenanceRuntimeV18,
+} from './editor-project-v18-maintenance-runtime.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -25,15 +28,17 @@ export function createFramescaperAudioEditorControllerV18(
 ): ReturnType<typeof createAudioEditorController> {
 	const environment = assertFramescaperEditorProjectEnvironmentV18(environmentValue);
 	const presentation = snapshotPresentation(presentationValue);
+	const maintenance = createFramescaperProjectMaintenanceRuntimeV18(environment);
 	return createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
 		store: environment.store,
-		sessionController: environment.runtime.createSessionController(),
+		sessionController: maintenance.sessionController,
 		acquireProjectLock: environment.runtime.acquireProjectLock,
 		projectRuntime: environment.runtime,
 		playbackProjectService: environment.playback,
 		createProjectIfAbsent: environment.createProjectIfAbsent,
+		projectMaintenanceRuntime: maintenance,
 		...presentation,
 	});
 }

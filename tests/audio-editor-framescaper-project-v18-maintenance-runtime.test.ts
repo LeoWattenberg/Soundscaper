@@ -143,7 +143,7 @@ function project(
 			frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
 			timingAsset: {
-				encoding: 'soundscaper-video-timing-v1', storageKey: `timing/${root}`,
+				encoding: 'soundscaper-video-timing-v1', storageKey: timingKey(root),
 				sha256: timingDigest, sourceSha256: digest, byteLength: 112,
 				frameCount: 10, timescale: 10, finalFrameDurationTicks: '1',
 			},
@@ -167,7 +167,11 @@ function revision(projectValue: FramescaperProjectV18, value: number): Framescap
 }
 
 function rootPair(root: string): string[] {
-	return [`owned/${root}`, `timing/${root}`];
+	return [`owned/${root}`, timingKey(root)];
+}
+
+function timingKey(root: string): string {
+	return `video-timing-sha256:${rootDigest(`${root}-timing`)}`;
 }
 
 function rootDigest(value: string): string {

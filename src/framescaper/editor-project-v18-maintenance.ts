@@ -233,7 +233,10 @@ function assertSettledCleanup(
 	phase: 'maintenance' | 'prepublication',
 ): void {
 	if (result.status !== 'settled') {
-		throw new Error(`Framescaper V18 ${phase} claim cleanup is indeterminate.`);
+		const codes = result.issues.map(({ code }) => code).join(', ');
+		throw new Error(
+			`Framescaper V18 ${phase} claim cleanup is indeterminate${codes ? `: ${codes}` : ''}.`,
+		);
 	}
 }
 

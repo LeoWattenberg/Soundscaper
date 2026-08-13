@@ -489,7 +489,19 @@ function normalizeScope(
 }
 
 function revisionProject(profile: EditorProjectRuntimeProfile, value: unknown): FramescaperProjectV18 {
-	const raw = cleanupClosedRecord(value, ['key', 'projectId', 'revision', 'project'] as const, 'V18 revision record');
+	const required = ['key', 'projectId', 'revision', 'project'] as const;
+	const raw = cleanupOptionalClosedRecord(
+		value,
+		[...required, 'creationFence'],
+		required,
+		'V18 revision record',
+	);
+	if (raw.creationFence !== undefined && (
+		typeof raw.creationFence !== 'string'
+		|| !/^project_creation_[a-f0-9]{32}$/u.test(raw.creationFence)
+	)) {
+		throw new TypeError('A V18 revision creation fence is invalid.');
+	}
 	const project = cloneFramescaperProjectV18(profile, raw.project);
 	if (raw.projectId !== project.id || raw.revision !== project.revision
 		|| raw.key !== `${String(project.id)}:${String(project.revision).padStart(12, '0')}`) {
