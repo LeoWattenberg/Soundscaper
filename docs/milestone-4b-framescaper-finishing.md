@@ -8,7 +8,7 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-13:** the 4B-1 implementation candidate is complete apart
+**Status on 2026-08-14:** the 4B-1 implementation candidate is complete apart
 from manual/reference-GPU qualification. 4B-2 is **In progress**. 4B-3 through
 4B-8 are planned. The Soundscaper 4A track is unstarted.
 
@@ -24,15 +24,19 @@ nor milestone 4B is recorded complete by the implementation candidate.
 
 The 4B-2 candidate now includes the dormant exact V20 keyframe domain, bounded
 stale-safe commands/history, clipboard V6 and edit-carrier preservation,
-current-format `.scape` preservation, a shared lazy render-state provider,
-exact live WebGL preview evaluation, and a pre-I/O animated-export refusal.
+current-format `.scape` preservation, the menu-opened keyframe editor, a shared
+lazy render-state provider, exact live WebGL preview evaluation, isolated V20
+browser storage/runtime composition, and a pre-I/O static-export refusal. Its
+dormant export path owns an immutable random-access frame source, exact VFR
+presentation authority, occurrence-scoped HTML-video seeking, a bounded
+offline WebGL RGBA renderer, the SharedArrayBuffer FFmpeg input device, and a
+generation-fenced browser encoder/output collector. Real Chromium witnesses
+cover seeking, WebGL orientation/composition, backpressure, and MP4 output.
 Both product profiles still advertise the capability as unavailable and V20 is
-not selected. A dormant exact random-access frame source and bounded
-SharedArrayBuffer FFmpeg input device now prove byte-exact backpressured frame
-transport against the real browser/WASM core. Menu editing, selected
-storage/runtime routing, the offline WebGL frame producer, encoder
-orchestration, and the activation-time security/quality registration remain
-open.
+not selected. Exact range/rational-rate acquisition, staged audio muxing,
+direct-file streaming, product export dispatch, activation-time
+security/quality registration, and final preview/export parity qualification
+remain open.
 
 The project owner explicitly cleared the milestone-3 implementation sequencing
 gate for Framescaper 4B against the current maintained base. That clearance is
@@ -617,21 +621,26 @@ eased/Bezier segment, samples an endpoint, or persists a derived approximation.
 
 The present implementation includes the exact V20 model/domain, bounded
 stale-safe commands and history, exact edit/clipboard/Project-Bin carrier
-preservation, portable `.scape` preservation, and a dormant preview-consumer
-slice. A project-snapshot-scoped provider compiles keyed clips lazily and
-resolves their composition and effect state from the actual program preview
-sample through the exact visible-local mapping above; legacy clips do not enter
-that path, and invalid keyed state blanks the program preview with a localized
-error instead of rendering static state. Static export rejects animated state
-before media or FFmpeg I/O. Both product profiles still register
-`videoKeyframes` as known but unavailable, and the V20 model profile remains
-unselected; inspector, selected storage/playback routing, and export activation
-are not claimed here. The dormant export seam now owns an immutable bounded
-project snapshot, exact random-access frame positions, the shared lazy keyed
-state resolver, and a fixed-capacity/count SharedArrayBuffer character device.
-It has a real Chromium/WASM byte-exact backpressure witness, but no offline
-WebGL frame producer or selected encoder workflow yet. Capability availability
-must not flip until that integration, its workload admission, its dedicated
+preservation, portable `.scape` preservation, a menu-opened keyframe editor,
+and a dormant preview consumer. A project-snapshot-scoped provider compiles
+keyed clips lazily and resolves their composition and effect state from the
+actual program-preview sample through the exact visible-local mapping above;
+legacy clips do not enter that path, and invalid keyed state blanks the program
+preview with a localized error instead of rendering static state. Static export
+rejects animated state before media or FFmpeg I/O. Both product profiles still
+register `videoKeyframes` as known but unavailable, and the isolated V20
+browser environment and bootstrap remain unselected.
+
+The dormant offline path now authenticates one bounded immutable project and
+active-source inventory, carries exact CFR/VFR presentation descriptors into
+occurrence-scoped HTML-video seek ports, renders each frame through the shared
+WebGL compositor into one reused RGBA allocation, and streams it through a
+fixed-capacity SharedArrayBuffer device to a generation-fenced FFmpeg
+operation. It cleans and revalidates every browser/runtime owner before
+returning bounded MP4/WebM bytes, with real Chromium witnesses for VFR seeking,
+orientation/composition, backpressure, and MP4 encoding. Capability
+availability must not flip until exact rational-rate and timing acquisition,
+linked-audio muxing, direct-file delivery, product dispatch, dedicated
 security/quality registration, and preview/export parity evidence land.
 
 - **Outcome:** Add bounded keyframe curves to the numeric 4B-1 property IDs and
@@ -654,24 +663,429 @@ security/quality registration, and preview/export parity evidence land.
 
 ## 4B-3 — Explicit video transitions
 
-- **Outcome:** Replace inferred video overlap crossfades with one closed
-  transition object containing stable identity, type, alignment, duration, and
-  shared-vocabulary curve, behind an extensible first-party registry. Existing
-  proper overlaps normalize to the explicit default dissolve.
-- **Dependencies:** 4B-2 curve persistence and 4B-1 atomic track-layer
-  composition.
-- **Invariants:** One overlap has one transition owner; duration and alignment
-  agree exactly with clip edges; at most two active clips remain legal;
-  preview/export consume one resolved transition description; unknown types are
-  unavailable and visible, never a dissolve by accident.
-- **Acceptance:** Migration-free exact-current factory fixtures, overlap and
-  edge-alignment matrices, registry completeness, transition copy/paste and
-  edit-primitive survival, and parity for every maintained type.
-- **Non-goals:** Audio crossfades keep the existing engine-owned implicit model.
-  They do not share the video object in milestone 4B; an audio schema decision
-  belongs to the Soundscaper production track.
-- **Stop condition:** Stop if overlap validity is resolved differently by the
-  timeline, preview, and export, or if an unknown transition renders silently.
+### Outcome, dependency, and clean break
+
+Replace every inferred same-track video overlap crossfade with one explicit,
+track-owned transition object. The object carries stable identity, an open
+structural type slug, exact clip-pair ownership, alignment, duration, and one
+curve from the shared interpolation vocabulary. A static first-party registry
+initially maintains `dissolve`; future maintained types extend that registry
+rather than extending the wire shape or accepting project-supplied code.
+
+4B-3 depends on 4B-1's atomic track-layer composition and on 4B-2's exact curve
+and preview/export foundations. V21 implementation must start from a clean,
+selected, and fully qualified V20 activation boundary. It must not select V21,
+flip a transition capability, or mix a V20 activation repair into a transition
+schema change while the current V20 route, storage, export, or packaged
+authority remains dormant. The current 4B-2 work above therefore does not
+authorize an early V21 product selection.
+
+Exact V21 has no implicit-transition dialect. A version-gated adapter may
+continue to present inferred linear dissolves for schema versions at most 20,
+but it must construct a transient descriptor and call the same resolver as
+V21. It never writes V21 state. Exact-current validation never invents an
+object or an ID. A typed V20 re-import/factory adapter may convert a proper
+legacy overlap only when its caller supplies the explicit fresh transition ID;
+it creates the default dissolve below before strict V21 validation. Raw V20
+load remains a typed re-import refusal, not an in-place migration.
+
+### Exact V21 ownership and wire
+
+Every video track has one mandatory `videoTransitions` array. Audio and label
+tracks must not carry that property, no transition is clip-owned, and the
+Project Bin has no transition collection. A Project Bin video clip may carry
+composition and keyframes, but a transition exists only between two timeline
+occurrences on one sequence track.
+
+```ts
+interface VideoTransitionV1 {
+	readonly schemaVersion: 1;
+	readonly id: string;
+	readonly type: string;
+	readonly outgoingClipId: string;
+	readonly incomingClipId: string;
+	readonly alignment:
+		| 'start-at-cut'
+		| 'center-on-cut'
+		| 'end-at-cut';
+	readonly durationFrames: number;
+	readonly curve: {
+		readonly anchors: readonly InterpolationAnchor[];
+		readonly segments: readonly InterpolationShape[];
+	};
+}
+```
+
+The transition record and its curve, anchor, control, and segment records are
+closed values with ordinary or null prototypes and own enumerable data
+properties. Accessors, symbols, extra keys, arrays in record positions,
+negative zero, nonfinite numbers, binary values, functions, and noncanonical
+rationals reject before cloning. Normalization returns detached recursively
+frozen values and is idempotent.
+
+`id` is a canonical stable ID and is globally unique in the project, including
+against every source, clip, track, sequence, and other transition identity. A
+normalizer, validator, command handler, clipboard decoder, or edit runtime
+never allocates one. `type` is a canonical lowercase slug matching
+`[a-z][a-z0-9-]{0,63}`. That grammar is deliberately open: structural
+normalization accepts and preserves an unknown slug without consulting the
+first-party registry.
+
+`durationFrames` is a positive safe integer and must equal the owning proper
+overlap's exact sequence-frame duration. A curve has 2 through 4,096 anchors,
+exactly one fewer segment, and only the shared `hold`, `linear`, `eased`, and
+Bezier segment shapes. Positions are canonical exact rationals, strictly
+increase from exact `0` to exact `durationFrames`, and every Bezier control
+position obeys the shared within-segment ordering rules. The first anchor is
+exactly `(0, 0)` and the last is exactly `(durationFrames, 1)`. Every anchor
+value and every Bezier value control is finite and in `[0, 1]`. Values need not
+be monotone, so an authored maintained type may reverse progress without a
+second curve language; the resolver still range-checks every evaluated result.
+
+For one track, sort clips by the existing canonical sequence placement and ID
+tie rules. If outgoing clip `O` is followed by incoming clip `I`, define:
+
+```text
+S = I.sequenceStartFrame
+E = O.sequenceStartFrame + O.sequenceFrameCount
+D = E - S
+```
+
+`[S, E)` is a proper overlap only when
+`O.sequenceStartFrame < S < E < I.sequenceStartFrame + I.sequenceFrameCount`.
+Every proper overlap has exactly one transition whose outgoing and incoming
+IDs match those roles, and every transition names exactly one such overlap on
+its owning track and sequence. Its `durationFrames` equals `D`. The two clips
+retain the 4B-1 requirement for equal blend mode and compositing order. A
+disjoint or merely touching pair has no transition. Nested/equal-boundary
+overlaps, a reversed pair, a dangling or cross-track/cross-sequence reference,
+two objects for one pair, an unowned object, and any interval with three active
+clips reject.
+
+V21 TDD must freeze four deliberately unresolved protocol details before any
+schema implementation: deterministic `videoTransitions` array ordering;
+explicit per-track and project transition-count and duration ceilings; the
+closed field inventory of `CanonicalTransitionClipEdges` below; and the
+enclosing topology-allocation collection field/discriminant. The generic
+project node budget is not a substitute for transition-specific caps. The
+tests must also freeze the exact owned-requirement display-name literals. Stop
+before schema code if any of these remains implicit or if implementations
+choose different private shapes.
+
+### Default dissolve and cut alignment
+
+The explicit default for an overlap of duration `D` is a fresh-ID
+`type: 'dissolve'`, `alignment: 'center-on-cut'` transition with anchors
+`(0, 0)` and `(D, 1)` joined by one `linear` segment. The ID and clip references
+come from the owning factory, import planner, or edit command; they are not
+defaults. The curve is evaluated over the overlap regardless of alignment.
+Alignment owns editorial cut anchoring for a boundary edit; it does not move
+curve time, add a persisted cut field, or change render progress by itself.
+
+For current overlap `[S, E)` and duration `D`, derive the cut `C` from the
+current alignment. An alignment or duration edit keeps that exact `C`, then
+derives destination edges from requested alignment `A'` and duration `D'`:
+
+| Alignment | Current cut | Destination overlap around the preserved cut |
+| --- | --- | --- |
+| `start-at-cut` | `C = S` | `S' = C`; `E' = C + D'` |
+| `center-on-cut` | `C = S + floor(D / 2)` | `S' = C - floor(D' / 2)`; `E' = S' + D'` |
+| `end-at-cut` | `C = E` | `S' = C - D'`; `E' = C` |
+
+The centered rule deliberately puts `floor(D' / 2)` frames before the cut and
+`ceil(D' / 2)` after it, so an odd frame is biased after the cut. The planner
+sets the incoming start to `S'` and outgoing end to `E'`, preserving their
+outer edges and reconciling source in/out coordinates through the canonical
+edit geometry. It refuses insufficient source handles, nonpositive clip
+duration, sequence-boundary overflow, lock/read-only state, a three-way
+overlap, or any source/sequence coordinate outside the frozen V21 limits.
+
+Changing duration scales every curve anchor and Bezier control position by the
+exact rational `D' / D`; it never samples or approximates a curve. Values and
+segment kinds are unchanged. The complete candidate must still meet rational,
+point, transition, project, and clip/source bounds. A type or curve-only edit
+leaves the clip edges unchanged.
+
+### One resolution and registry authority
+
+`src/common/editor/video-transition-resolution.ts` owns transition geometry,
+cut derivation, exact local-position mapping, curve evaluation, type lookup,
+and the renderer-neutral result. At an exact sequence position `T`, it
+evaluates the transition curve at `T - S`, clamps neither malformed input nor a
+registry failure, and returns progress `p` plus complementary dissolve weights:
+
+```text
+outgoingWeight = 1 - p
+incomingWeight = p
+```
+
+The overlap is half-open for active-frame selection. An interval endpoint query
+at `E` may evaluate the exact terminal `p = 1` for an export description even
+though no preview frame at `E` belongs to the overlap. Transition weight
+multiplies the clip's keyframed/static opacity through the existing 4B-1/4B-2
+render-state path; it does not replace authored opacity. The pair remains one
+atomic same-track layer with one blend mode and compositing order.
+
+`video-timeline.js`, the live preview compositor pool, the keyframe render-state
+provider, interval/export planning, and offline frame production all consume
+that resolver's result. The existing `videoTransitionOpacity` and
+`previewTransitionWeight` calculations are removed. CFR, VFR, nested, preview,
+and export callers may map into the exact sequence position, but none may
+recalculate progress, infer a V21 pair, interpolate endpoint weights with a
+second formula, or substitute a backend transition primitive.
+
+The first-party registry is a frozen, side-effect-free inventory. Each entry
+binds one slug to its feature identity, localized label, renderer-neutral
+resolver contract, preview consumer, export consumer, and parity fixtures.
+Initial V21 contains only `dissolve`. Registry completeness tests require a
+one-to-one registration across capabilities, requirements, i18n, menu/dialog
+choices, preview, export, consumer ledgers, and golden evidence. Adding a type
+is a reviewed first-party code change; neither a project nor an extension may
+register executable behavior.
+
+Unknown slugs remain structurally valid and survive clone, storage, archive,
+desktop, clipboard, and copy-only cross-product preservation. Registry lookup
+is not part of wire normalization. Compatibility reports their deterministic
+unknown feature requirement and makes the project intrinsically read-only;
+the dialog shows the unavailable slug and consumers refuse before rendering or
+export I/O. Unknown, unavailable, or throwing types never become a dissolve,
+identity operation, black frame, or omitted ledger entry by accident.
+
+### Command, topology allocation, and history
+
+Register exactly one direct transition command in one focused domain:
+
+```ts
+{
+	readonly type: 'video-transition/set';
+	readonly trackId: string;
+	readonly transitionId: string;
+	readonly expectedTransition: VideoTransitionV1;
+	readonly transition: VideoTransitionV1;
+	readonly expectedEdges: CanonicalTransitionClipEdges;
+	readonly edges: CanonicalTransitionClipEdges;
+}
+```
+
+`CanonicalTransitionClipEdges` is a closed planner-owned exact snapshot of the
+two clips' boundary authority. Its concrete field inventory must be frozen by
+V21 protocol tests before the discriminant is registered; no implementation
+may replace it with a partial private object. `expectedTransition` and
+`transition` are non-null. Addition and removal belong to topology commands and
+their reconciliation, not a nullable interpretation of `video-transition/set`.
+
+The handler requires `transitionId`, both transition objects, both pair
+references, and the current canonical edge snapshot to agree with the target
+track and current project. The replacement keeps the same transition identity
+and pair ownership. It compares current state to `expectedTransition` and
+`expectedEdges`, validates the replacement object and `edges` as one complete
+V21 candidate, checks both transition capabilities and owning-track locks, and
+publishes both clip edges and the transition atomically. A stale object or edge,
+wrong pair, unavailable type, invalid curve/geometry, read-only project, or
+failed requirement reconciliation leaves the project, revision, timestamp,
+and history untouched. One accepted set is one controller commit, revision,
+undo item, and redo item through the common project mutation service.
+
+Every generic command that can create a new proper overlap carries one explicit
+replayable allocation record for it:
+
+```ts
+{
+	readonly trackId: string;
+	readonly outgoingClipId: string;
+	readonly incomingClipId: string;
+	readonly transitionId: string;
+}
+```
+
+The enclosing carrier name and command-field spelling are part of the pre-code
+TDD freeze above. Move, trim, roll, ripple, slide, split, join, paste,
+duplicate, Project Bin placement, insert, overwrite, replace, nested/product
+materialization, and mixed batches use this rule wherever they can create an
+overlap. Preparers allocate IDs before command publication; handlers never call
+an ID factory. A missing, duplicate, colliding, mismatched, or unused allocation
+rejects the entire command. Recursive batches remain one atomic history entry,
+and capability policy inspects both the direct command and every allocation-
+bearing generic carrier before mutation.
+
+Topology reconciliation follows pair identity, not array position. A surviving
+proper overlap between the same outgoing and incoming clip IDs retains its
+transition ID, type, alignment, values, and segment shapes, with exact curve
+time scaling if `D` changes. A destroyed overlap removes its object. A newly
+created pair consumes exactly one fresh allocation and starts as the explicit
+default dissolve unless the command carries another available canonical type.
+Changing either pair member is remove-plus-create, never identity reuse.
+
+### Edit, clipboard, nested, and preservation rules
+
+| Operation | Required transition behavior |
+| --- | --- |
+| Move, trim, roll, ripple, slip, slide, stretch, insert, overwrite, replace | Retain and exactly retime a same-pair surviving overlap; remove a destroyed overlap; consume an explicit fresh allocation for every new pair. Refuse before publication if reconciliation would become ambiguous. |
+| Split | A split outside `[S, E)` rebinds the transition reference to the one child retaining the participating edge and preserves transition identity. A split inside the overlap, or any split that would fork one transition across children or create a three-way interval, rejects. |
+| Join | Remove an overlap consumed by the join. Preserve any unaffected boundary transition by rebinding it to the joined clip only when pair roles and exact geometry remain unambiguous; otherwise reject rather than bake or sample the transition. |
+| Delete or remove from track | Remove each transition whose participant or proper overlap is destroyed and reconcile requirements in the same command. |
+| Move between tracks/sequences | A complete pair may retain its object only when it moves atomically and remains the same ordered pair with valid geometry. Moving one side destroys the object; a new destination pair requires a fresh allocation. |
+| Source replace, reprobe, relink, effects, keyframes, group, link, unlink | Preserve the exact transition when clip IDs and overlap edges survive; source-handle validation still applies to a later duration edit. |
+| Duplicate | A duplicated complete pair gets detached transition state with a fresh transition ID and remapped fresh clip IDs. A partial duplicate carries no dangling object. |
+| Project Bin | Store no transition. Placing clips is a topology operation and must explicitly allocate any transition created on the destination track. |
+| Multicamera switch | Preserve the output clips' track-owned transition; switching the active source does not rewrite type, curve, alignment, or pair identity. |
+
+The session clipboard advances to V7. It carries a detached complete transition
+only when both participant clips and their owning track relationship are in the
+copied fragment. Paste remaps both clip IDs, consumes the explicit fresh
+transition allocation, and validates the complete destination geometry before
+publication. A one-sided copy carries no dangling reference. V6 requires
+recopy when transition semantics would otherwise be lost; it is never upgraded
+by inferring a dissolve. Copy-only recipients preserve a structurally valid
+unknown type but cannot author or render it without the matching capabilities.
+
+Persisted transitions remain owned by the source sequence track during nested
+and subsequence use. Runtime materialization creates an occurrence-scoped,
+detached transient pair and an exact query mapping back to the source
+transition's authored curve. Trimming or rate mapping a nested occurrence does
+not persist sampled anchors, normalized progress, or a derived curve. The
+shared resolver evaluates through that exact mapping. Materialization refuses
+if it cannot retain both pair roles, half-open overlap geometry, at-most-two
+active clips, or canonical exact coordinates. No transient occurrence ID,
+resolved progress, cut, weight, or renderer description enters project JSON.
+
+Current-format `.scape`, browser storage, archive cloning, desktop handoff,
+history, and explicit cross-product handoff preserve the complete track-owned
+object. V21 advances every Framescaper runtime, repository, archive, desktop
+library, bootstrap, and fixture pin atomically; it never teaches an earlier
+selected authority to ignore `videoTransitions`.
+
+### Menu and dialog
+
+The only new surface is the Framescaper-only menu path:
+
+```text
+Edit > Clip boundaries > Video transition…
+```
+
+It opens one lazy product-owned dialog; no toolbar control, inline boundary
+handle, default inspector panel, badge, or side rail appears. Selection
+resolution accepts one or two selected video clips only when they identify one
+unambiguous existing transition or one unambiguous eligible adjacent boundary.
+One selected clip with two possible transition boundaries, two clips in the
+wrong order or on different tracks/sequences, a partial unknown pair, an
+unavailable capability, a locked owner, or insufficient source handles disables
+the command with a localized reason.
+
+The dialog exposes registered type, alignment, exact duration in sequence
+frames with localized time presentation, and the shared bounded curve editor.
+Creating a transition routes through a topology preparer with a fresh explicit
+allocation; editing routes through `video-transition/set`; removing it changes
+the clip topology so no proper overlap remains. Reset selects dissolve,
+center-on-cut, and the two-anchor linear curve for the current duration without
+changing identity. Unknown types are named visibly but remain read-only. Enter
+or an explicit Apply publishes one valid atomic command, Escape closes, focus
+returns to the menu invoker, invalid fields are announced without mutation,
+and undo/redo restore object and edges together. English and German catalogs
+cover every label, alignment, validation error, unavailable type, and ambiguity
+reason.
+
+### Capability and requirement ownership
+
+Add these exact capability registrations:
+
+| Key | Feature ID | Initial availability |
+| --- | --- | --- |
+| `videoTransitions` | `org.soundscaper.capability.video-transitions` | `false` in both products |
+| `videoTransitionDissolve` | `org.soundscaper.capability.video-transition.dissolve` | `false` in both products |
+
+Framescaper flips both only in the V21 activation change after the complete
+native workflow passes. Soundscaper keeps both known unavailable. The umbrella
+capability authorizes explicit transition ownership and editing; the type
+capability authorizes the maintained resolver and both render consumers. A
+future registered type gets its own reviewed capability and registry row.
+
+Any nonempty transition collection owns
+`framescaper.video-transitions` with feature ID
+`org.soundscaper.capability.video-transitions`. Each distinct authored type
+slug `x` additionally owns `framescaper.video-transition.x` with deterministic
+feature ID `org.soundscaper.capability.video-transition.x`; dissolve therefore
+owns `framescaper.video-transition.dissolve` and
+`org.soundscaper.capability.video-transition.dissolve`. These are bypass-only,
+null-fallback requirements. Empty collections own neither transition
+requirement. Missing, stray, reserved-ID-conflicting, same-feature publisher
+substitution, and rendered-fallback declarations reject. The exact known and
+opaque display-name literals are frozen in the pre-code requirement tests.
+
+An unregistered slug still derives and preserves that exact requirement. Its
+feature ID is unknown to the product capability profile, so the maintained
+compatibility decision is explicit read-only-or-cancel. Generic commands may
+preserve existing state but cannot introduce, remove, reset, retime, or replace
+it while either umbrella or type capability is unavailable. Transition
+capabilities are excluded from generic rendered-video fallback eligibility
+until a separate reviewed fallback/revert workflow exists.
+
+### Test-first implementation and activation gates
+
+1. Freeze the four pre-code protocol decisions above, requirement display
+   names, and lower-only test seams before writing V21 validators or commands.
+   Record one canonical default fixture and deterministic array/cap vectors.
+2. Unit-test closed hostile-input admission, slug grammar, global identity,
+   curve endpoint/control/rational bounds, freeze/detachment/idempotence,
+   unknown-type preservation, exact track ownership, and every missing,
+   duplicate, dangling, unowned, disjoint, touching, nested, equal-boundary,
+   cross-sequence, and three-way geometry case.
+3. Prove exact V21 create, validate, clone, selected load/save, history,
+   clipboard V7, Project Bin exclusion, `.scape`, browser repository, archive,
+   desktop library, copy-only transfer, typed V20 re-import refusal, and future
+   opaque-read-only behavior. No exact-current fixture relies on normalization
+   to synthesize a transition.
+4. Cover all three alignments with odd/even old and new durations, sequence
+   edges, insufficient handles, source mapping, safe-integer overflow, exact
+   curve scaling, and transactional refusal. Freeze expected edge snapshots as
+   golden command vectors.
+5. Cover stale object and edge CAS, wrong owner/pair, unavailable capability,
+   unknown type, lock/read-only state, batch recursion, undo/redo, and missing,
+   duplicate, colliding, mismatched, and unused topology allocations. Assert
+   that no handler invokes an ID factory and every failure publishes nothing.
+6. Execute the complete preservation table, including split on both sides and
+   inside an overlap, surviving/destroyed/new pair reconciliation, complete and
+   partial duplicate/copy, V6 recopy refusal, nested subrange/rate mappings,
+   multicamera switches, and detached remapped identities.
+7. Make a consumer audit fail while either current duplicate weight function
+   exists. Test the shared resolver at exact start, interior rational samples,
+   final active frame, and interval end; assert complementary weights and
+   authored-opacity multiplication for direct, nested, CFR, and VFR queries.
+8. Require registry-completeness tests and preview/offline-export parity for
+   every registered type. Dissolve must pass the maintained GPU/reference
+   matrix with zero missing, substituted, fallback-rendered, or omitted
+   transition operations. An unknown or unavailable type refuses before media,
+   WebGL, FFmpeg, file, or download I/O.
+9. Chromium covers menu-only reachability, one/two-selection ambiguity,
+   create/edit/remove/reset, keyboard and focus return, localized errors,
+   forced colors, serious axe checks, undo/redo, save/reopen, export, no
+   Soundscaper authoring entry, and no new default-visible surface.
+10. Keep V21 dormant and both capabilities unavailable until canonical tests,
+    full browser tests, build/chunk ceilings, security registration, quality
+    budgets, desktop/package transport, manual/reference-GPU rows, and the
+    complete V20-to-V21 clean activation rehearsal pass. Flip model, storage,
+    runtime, bootstrap, product capabilities, and menu selection in one atomic
+    activation change only after those gates.
+
+### Non-goals and stop conditions
+
+Audio crossfades keep the existing engine-owned implicit model. They do not
+share this video object in milestone 4B; an audio schema decision belongs to
+the Soundscaper production track. 4B-3 adds no transition plug-in loader,
+project-supplied executable type, mask/matte language, motion tracking,
+optical-flow interpolation, renderer-specific persisted expression, normalized
+curve time, default-visible timeline handle, or milestone-6 delivery workflow.
+
+Stop 4B-3 if V20 is not a clean selected base; a pre-code wire/cap decision is
+still private; a V21 overlap can exist without exactly one object; an object can
+exist without its exact pair; an edit handler allocates an ID; topology,
+timeline, preview, nested playback, and export disagree about geometry or
+progress; a curve is sampled during preservation; a clipboard or edit drops,
+aliases, or dangles state; an unknown type renders or disappears silently; a
+backend transition alias replaces the shared resolver; more than two clips can
+be active; an audio schema is pulled into V21; a new control is visible by
+default; or a route/capability flips before native, packaged, security, quality,
+manual, and reference-GPU evidence is honestly recorded.
 
 ## 4B-4 — Inspector and new visual kinds
 
