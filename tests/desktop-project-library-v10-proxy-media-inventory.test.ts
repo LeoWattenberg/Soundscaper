@@ -50,6 +50,7 @@ test('constructs an inert exact Framescaper V10 inventory owner', async (context
 	await assert.rejects(access(inventory.paths.libraryRoot), /ENOENT/u);
 	assert.equal(Object.isFrozen(inventory.paths), true);
 	assert.equal(Object.isFrozen(inventory.localHandshake), true);
+	assert.equal(Object.isFrozen(inventory), true);
 });
 
 test('refuses every non-Framescaper owner and open constructor shape before I/O', async (context) => {
