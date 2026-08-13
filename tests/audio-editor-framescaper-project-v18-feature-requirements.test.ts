@@ -7,6 +7,8 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
+	FRAMESCAPER_NESTED_SEQUENCES_FEATURE_ID,
+	FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18,
 	FRAMESCAPER_VIDEO_PROXY_FEATURE_ID,
 	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
 	createFramescaperProjectFeatureCompatibilityServiceV18,
@@ -52,6 +54,45 @@ test('the private proxy requirement is exact and never enters the V17 global reg
 	assert.equal(FRAMESCAPER_VIDEO_PROXY_FEATURE_ID, 'org.soundscaper.capability.video-proxy');
 	assert.equal(Object.values(PROJECT_FEATURE_CAPABILITY_IDS).includes(
 		FRAMESCAPER_VIDEO_PROXY_FEATURE_ID as never,
+	), false);
+});
+
+test('nonempty nested V18 state owns one native no-fallback requirement', () => {
+	assert.deepEqual(FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18, {
+		id: 'framescaper.nested-sequences',
+		featureId: 'org.soundscaper.capability.nested-sequences',
+		displayName: 'Nested sequences',
+		disposition: 'bypass',
+		fallback: null,
+	});
+	assert.equal(
+		PROJECT_FEATURE_CAPABILITY_IDS.nestedSequences,
+		FRAMESCAPER_NESTED_SEQUENCES_FEATURE_ID,
+	);
+	const project = createFramescaperProjectV18(PROFILE, nestedOptions());
+	assert.deepEqual(project.featureRequirements.requirements.at(-1),
+		FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18);
+	assert.equal(validateFramescaperProjectV18(PROFILE, project), true);
+	const report = createFramescaperProjectFeatureCompatibilityServiceV18(PROFILE).evaluate(project);
+	assert.deepEqual(report?.items.find(
+		(item) => item.featureId === FRAMESCAPER_NESTED_SEQUENCES_FEATURE_ID,
+	), {
+		requirementId: 'framescaper.nested-sequences',
+		featureId: FRAMESCAPER_NESTED_SEQUENCES_FEATURE_ID,
+		displayName: 'Nested sequences',
+		availability: 'available',
+		declaredDisposition: 'bypass',
+		disposition: 'native',
+		fallback: null,
+		message: 'Nested sequences is available natively.',
+	});
+	const missing = structuredClone(project);
+	missing.featureRequirements = manifest([]);
+	assert.throws(() => validateFramescaperProjectV18(PROFILE, missing),
+		/requires.*framescaper\.nested-sequences/iu);
+	const empty = createFramescaperProjectV18(PROFILE, options());
+	assert.equal(empty.featureRequirements.requirements.some(
+		(requirement) => requirement.id === 'framescaper.nested-sequences',
 	), false);
 });
 
@@ -186,6 +227,19 @@ function options(): Record<string, unknown> {
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
 		primarySequenceId: 'main-sequence',
 	};
+}
+
+function nestedOptions(): Record<string, unknown> {
+	const result = options();
+	result.sequences = [
+		{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] },
+		{ id: 'nested-sequence', rate: { num: 10, den: 1 }, trackIds: [] },
+	];
+	result.subsequences = [{
+		id: 'nested-placement', sequenceId: 'main-sequence', sourceSequenceId: 'nested-sequence',
+		sequenceStartFrame: 0, sequenceFrameCount: 10, sourceInFrame: 0, sourceFrameCount: 10,
+	}];
+	return result;
 }
 
 function attachment(): Readonly<Record<string, unknown>> {
