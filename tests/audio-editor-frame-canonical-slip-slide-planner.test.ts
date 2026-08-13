@@ -225,6 +225,7 @@ test('NTSC slide substitutes one frame delta into the complete touching triplet'
 			clipId: 'left-video', trackId: 'video-track',
 			changes: { durationFrames: boundary(2, NTSC), sourceDurationFrames: 20 },
 			sequencePlacement: { sequenceStartFrame: 0, sequenceFrameCount: 2 },
+			sequenceTrimRange: { startFrame: 0, endFrame: 2 },
 		},
 		{
 			clipId: 'center-video', trackId: 'video-track',
@@ -242,6 +243,7 @@ test('NTSC slide substitutes one frame delta into the complete touching triplet'
 				sourceStartFrame: 310, sourceDurationFrames: 10,
 			},
 			sequencePlacement: { sequenceStartFrame: 3, sequenceFrameCount: 1 },
+			sequenceTrimRange: { startFrame: 1, endFrame: 2 },
 		},
 	]);
 	assert.deepEqual(plan.previews.map((preview) => [

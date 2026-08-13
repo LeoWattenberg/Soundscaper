@@ -34,9 +34,7 @@ import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
-import { applyCanonicalVideoTransformPlacement } from './canonical-video-transform-placement.ts';
-import { transformVideoKeyframeCarrier } from './video-keyframe-carrier.ts';
-import { finalizeVideoKeyframeSegmentCarrier, markVideoKeyframeCarrierEdited, transformVideoKeyframeCarrierForOverwrite } from './video-keyframe-segment-carrier.ts';
+import { applyCanonicalVideoKeyframeTransform, finalizeVideoKeyframeSegmentCarrier, markVideoKeyframeCarrierEdited, transformVideoKeyframeCarrierForOverwrite } from './video-keyframe-segment-carrier.ts';
 
 // foundation-edit-matrix: move
 // foundation-edit-matrix: roll
@@ -91,6 +89,7 @@ export function prepareTransformClipsCommand(project, transforms, options = {}, 
 			...(item.sequencePlacement ? {
 				sequencePlacement: { ...item.sequencePlacement },
 			} : {}),
+			...(item.sequenceTrimRange ? { sequenceTrimRange: { ...item.sequenceTrimRange } } : {}),
 		})),
 		overwrite,
 		splitClipIds,
@@ -229,22 +228,19 @@ function buildClipTransformState(project, transforms) {
 			} : {}),
 			id: clip.id,
 		});
-		const sequencePlacement = transform.sequencePlacement === undefined
-			? null
-			: applyCanonicalVideoTransformPlacement(
-				project, clip, track, updated, transform.sequencePlacement,
-			);
+		const sequencePlacement = applyCanonicalVideoKeyframeTransform(
+			project, clip, track, updated, transform.sequencePlacement,
+			transform.sequenceTrimRange, changes, `Transformed clip ${clip.id}`,
+		);
 		if (sequencePlacement) {
-			updated = transformVideoKeyframeCarrier(
-				sequencePlacement.updated, clip, sequencePlacement.updated, changes,
-				`Transformed clip ${clip.id}`,
-			);
+			updated = sequencePlacement.updated;
 			markVideoKeyframeCarrierEdited(project, updated);
 		}
 		assertClipSourceBounds(project, updated);
 		return {
 			clip, oldTrack, track, updated, changes: { ...changes },
 			sequencePlacement: sequencePlacement?.sequencePlacement ?? null,
+			sequenceTrimRange: sequencePlacement?.sequenceTrimRange ?? null,
 		};
 	});
 }

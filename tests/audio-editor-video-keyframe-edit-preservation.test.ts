@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	applyEditorCommand,
 	prepareLinkedSplitCommand,
+	prepareTransformClipsCommand,
 } from '../src/common/editor/commands.js';
 import {
 	createClipboardDescriptor,
@@ -23,12 +24,10 @@ import {
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
-import {
-	DEFAULT_VIDEO_CLIP_COMPOSITION,
-} from '../src/common/editor/video-clip-composition.ts';
-import {
-	createVideoEffect,
-} from '../src/common/editor/video-effects.js';
+import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
+import { planFrameCanonicalEdgeTrim } from '../src/common/editor/frame-canonical-edge-trim-planner.ts';
+import { planFrameCanonicalRollRippleTrim } from '../src/common/editor/frame-canonical-roll-ripple-trim-planner.ts';
+import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
 const NOW = '2026-08-13T21:00:00.000Z';
 const FRAME_SAMPLES = 4_800;
@@ -140,19 +139,24 @@ test('stretch, move, slip, source replacement, and reprobe retain byte-equivalen
 
 test('equal-count canonical placement trims while an implicit source slip preserves the carrier', () => {
 	const base = projectFixture();
+	const changes = {
+		timelineStartFrame: 2 * FRAME_SAMPLES, durationFrames: 10 * FRAME_SAMPLES,
+		sourceStartFrame: 2, sourceDurationFrames: 10,
+	};
 	const equalCountTrimmed = apply(base, {
 		type: 'clip/transform-many', overwrite: false, transforms: [{
-			clipId: 'video-clip', trackId: 'video-track',
-			changes: {
-				timelineStartFrame: 2 * FRAME_SAMPLES,
-				durationFrames: 10 * FRAME_SAMPLES,
-				sourceStartFrame: 2,
-				sourceDurationFrames: 10,
-			},
+			clipId: 'video-clip', trackId: 'video-track', changes,
 			sequencePlacement: { sequenceStartFrame: 2, sequenceFrameCount: 10 },
+			sequenceTrimRange: { startFrame: 2, endFrame: 12 },
 		}],
 	});
 	assert.deepEqual(domain(timelineClip(equalCountTrimmed, 'video-clip')), domainValue(12, 2, 10));
+	assert.throws(() => apply(base, {
+		type: 'clip/transform-many', overwrite: false, transforms: [{
+			clipId: 'video-clip', trackId: 'video-track', changes,
+			sequencePlacement: { sequenceStartFrame: 2, sequenceFrameCount: 10 },
+		}],
+	}), /requires an exact sequence trim range/iu);
 
 	const slipped = apply(base, {
 		type: 'clip/transform-many', overwrite: false, transforms: [{
@@ -175,9 +179,33 @@ test('canonical placement keeps exact sequence bounds when rounded source bounds
 				sourceDurationFrames: 7,
 			},
 			sequencePlacement: { sequenceStartFrame: 1, sequenceFrameCount: 2 },
+			sequenceTrimRange: { startFrame: 1, endFrame: 3 },
 		}],
 	});
 	assert.deepEqual(domain(timelineClip(trimmed, 'video-clip')), domainValue(3, 1, 2));
+});
+
+test('planner trim survives unchanged rounded source bounds', () => {
+	const base = projectFixture({ sourceFrameCount: 1 });
+	const commandProject = projectForCommandConsumers(base as never);
+	const plan = planFrameCanonicalEdgeTrim(commandProject, {
+		activeClipId: 'video-clip', edge: 'left', requestedBoundarySample: FRAME_SAMPLES,
+	});
+	assert.equal(plan.kind, 'transform');
+	const command = prepareTransformClipsCommand(commandProject as never, plan.transforms as never);
+	const trimmed = apply(base, command);
+	assert.deepEqual(domain(timelineClip(trimmed, 'video-clip')), domainValue(10, 1, 9));
+});
+
+test('left ripple carries its old-local trim range', () => {
+	const base = projectFixture();
+	const commandProject = projectForCommandConsumers(base as never);
+	const plan = planFrameCanonicalRollRippleTrim(commandProject, { mode: 'ripple',
+		activeClipId: 'video-clip', edge: 'left', requestedBoundarySample: 2 * FRAME_SAMPLES });
+	assert.equal(plan.kind, 'transform');
+	const command = prepareTransformClipsCommand(commandProject as never, plan.transforms as never);
+	const trimmed = apply(base, command);
+	assert.deepEqual(domain(timelineClip(trimmed, 'video-clip')), domainValue(10, 2, 8));
 });
 
 test('overwrite derives trim and extension views from source-local intent across relocation', () => {
@@ -195,7 +223,8 @@ test('overwrite derives trim and extension views from source-local intent across
 		type: 'clip/overwrite', clipId: 'video-clip', trackId: 'video-track',
 		changes: { ...trimChanges, timelineStartFrame: 12 * FRAME_SAMPLES },
 	});
-	assert.deepEqual(keyframes(timelineClip(relocatedTrim, 'video-clip')), keyframes(timelineClip(inPlaceTrim, 'video-clip')));
+	assert.deepEqual(keyframes(timelineClip(relocatedTrim, 'video-clip')),
+		keyframes(timelineClip(inPlaceTrim, 'video-clip')));
 	assert.deepEqual(domain(timelineClip(relocatedTrim, 'video-clip')), domainValue(10, 2, 6));
 
 	const inset = projectFixture({ sequenceStartFrame: 5, sourceInFrame: 5 });
@@ -398,6 +427,7 @@ test('same-clip batches apply explicit keyframe sets and exact trims in command 
 				sourceDurationFrames: 6,
 			},
 			sequencePlacement: { sequenceStartFrame: 2, sequenceFrameCount: 6 },
+			sequenceTrimRange: { startFrame: 2, endFrame: 8 },
 		}],
 	};
 	const setThenCanonicalTrim = apply(base, {

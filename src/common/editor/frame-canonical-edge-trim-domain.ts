@@ -20,6 +20,7 @@ export interface FrameCanonicalEdgeTrimTransform {
 		readonly sequenceStartFrame: number;
 		readonly sequenceFrameCount: number;
 	}>;
+	readonly sequenceTrimRange?: Readonly<{ readonly startFrame: number; readonly endFrame: number }>;
 }
 
 export interface FrameCanonicalEdgeTrimPreview {

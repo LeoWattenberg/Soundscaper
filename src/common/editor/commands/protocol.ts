@@ -452,6 +452,7 @@ type NonBatchAudioEditorCommandPayloads = {
 			trackId?: string;
 			changes: CommandObject;
 			sequencePlacement?: CanonicalVideoPlacementCommandValue;
+			sequenceTrimRange?: Readonly<{ readonly startFrame: number; readonly endFrame: number }>;
 		}>[];
 		readonly overwrite?: boolean;
 		readonly splitClipIds?: StableIdListMap;

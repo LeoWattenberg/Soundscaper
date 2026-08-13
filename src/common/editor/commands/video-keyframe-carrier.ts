@@ -9,7 +9,6 @@ import {
 	type VideoKeyframeCurves,
 } from '../video-keyframe-curves.ts';
 import { multiplyDivideRationals, sampleFrameToVideoFrame } from '../timeline-time.ts';
-import { CONFORMED_SEQUENCE_PLACEMENT } from './command-projection-transients.ts';
 
 type DataRecord = Record<PropertyKey, unknown>;
 
@@ -125,9 +124,6 @@ export function transformVideoKeyframeCarrier<Result extends DataRecord>(
 	const sourceCount = positiveSafeInteger(sourceClip.sequenceFrameCount, `${name}.sequenceFrameCount`);
 	const targetCount = positiveSafeInteger(dataProperty(target, 'sequenceFrameCount', `${name} transform destination`), `${name} destination sequenceFrameCount`);
 	const sourceChanged = sourceBoundsChanged(sourceClip, target, name);
-	if (sourceChanged && hasConformedSequencePlacement(target)) {
-		return trimVideoKeyframeCarrierToDestination(result, sourceClip, target, name);
-	}
 	if (targetCount !== sourceCount && sourceChanged) {
 		return trimVideoKeyframeCarrierToDestination(result, sourceClip, target, name);
 	}
@@ -379,11 +375,6 @@ function sourceBoundsChanged(source: DataRecord, target: DataRecord, name: strin
 		if (before !== after) return true;
 	}
 	return false;
-}
-
-function hasConformedSequencePlacement(value: DataRecord): boolean {
-	const descriptor = Object.getOwnPropertyDescriptor(value, CONFORMED_SEQUENCE_PLACEMENT);
-	return Boolean(descriptor?.enumerable && Object.hasOwn(descriptor, 'value') && descriptor.value === true);
 }
 
 function cloneWithEffectIds(value: unknown, ids: ReadonlyMap<string, string>, name: string): unknown {

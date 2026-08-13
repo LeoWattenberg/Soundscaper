@@ -188,6 +188,10 @@ function planVideoSlide(
 				sequenceStartFrame: sequenceStart,
 				sequenceFrameCount: sequenceEnd - sequenceStart,
 			},
+			...(role === 'center' ? {} : { sequenceTrimRange: {
+				startFrame: sequenceStart - video.sequenceStart,
+				endFrame: sequenceEnd - video.sequenceStart,
+			} }),
 		},
 		preview,
 		sourceRange: { clipId: item.clipId, sourceStartFrame: sourceStart, sourceEndFrame: sourceEnd },

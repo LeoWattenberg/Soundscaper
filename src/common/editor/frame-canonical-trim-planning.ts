@@ -358,6 +358,10 @@ function planVideoParticipant(
 				sequenceStartFrame: sequenceStart,
 				sequenceFrameCount: sequenceEnd - sequenceStart,
 			},
+			sequenceTrimRange: {
+				startFrame: safeDifference(sequenceStart, video.sequenceStart, `video clip ${item.clipId} local trim start`),
+				endFrame: safeDifference(sequenceEnd, video.sequenceStart, `video clip ${item.clipId} local trim end`),
+			},
 		},
 		preview: frameCanonicalPreview(item, timelineStart, timelineEnd, sourceStart, sourceEnd),
 	};
