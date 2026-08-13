@@ -189,6 +189,17 @@ export class FramescaperScapeArchiveV18 {
 		});
 	}
 
+	/** Authenticate product-level composition without exposing either private authority. */
+	assertComposition(
+		profile: EditorProjectRuntimeProfile | unknown,
+		store: FramescaperScapeArchiveBodyStoreV18 | unknown,
+	): void {
+		assertFramescaperProjectV18Profile(profile);
+		if (profile !== this.#profile || store !== this.#store) {
+			throw new TypeError('The exact V18 archive composition is required.');
+		}
+	}
+
 	async exportProject(
 		projectValue: unknown,
 		options: Readonly<{ signal?: AbortSignal }> = {},

@@ -13,6 +13,8 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
+import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
+import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import type { ScapeArchiveReader } from '../src/common/editor/scape-archive-reader.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
@@ -57,7 +59,7 @@ test('V18 export writes complete format-1 and format-2 ZIPs that its inspector a
 	assert.deepEqual(await zipPayloads(attached.blob), new Map([
 		['project.json', null],
 		[`media/archive-video/original`, [...ARCHIVE_ORIGINAL_BYTES]],
-		[`proxy/${String((attached.manifest.assets as Record<string, unknown>[])[1]!.sha256)}/body`, [...ARCHIVE_PROXY_BYTES]],
+		[`proxy/${String((attached.manifest.assets as readonly Record<string, unknown>[])[1]!.sha256)}/body`, [...ARCHIVE_PROXY_BYTES]],
 		[`timing/${ARCHIVE_TIMING.reference.sha256}.scti`, [...ARCHIVE_TIMING.bytes]],
 		['manifest.json', null],
 	]));
@@ -77,7 +79,7 @@ test('V18 export writes complete format-1 and format-2 ZIPs that its inspector a
 		readOnly: true,
 		exists: false,
 		formatVersion: 2,
-		compatible: true,
+		compatible: false,
 	});
 
 	const allNull = await fixture.file.exportProject(archiveProject({ attached: false }));
@@ -128,6 +130,26 @@ test('V18 import keeps the exact inspected envelope alive through canonical stag
 		await storedValue(fixture.storage.database, 'projects', ARCHIVE_PROJECT_ID),
 		archiveProject(),
 	);
+});
+
+test('V18 inspector plugs into the shared file service without surrendering product compatibility', async (context) => {
+	const fixture = await setup(context);
+	await seedFramescaperV18ArchiveBodies(fixture.storage);
+	const exported = await fixture.file.exportProject(archiveProject());
+	const service = createScapeProjectFileService({
+		lifetime: new EditorControllerLifetime(),
+		store: null,
+		productCapabilities: {},
+		inspectScapeProject: fixture.file.inspectScapeProject,
+		openScape: () => { throw new Error('Inspection must not import the archive.'); },
+	});
+	const inspected = await service.inspectScape(exported.blob!, {
+		projectFeatureCompatibility: {
+			evaluate() { throw new Error('Caller compatibility must remain untrusted.'); },
+		},
+	});
+	assert.equal(inspected.schemaVersion, 18);
+	assert.equal(inspected.featureRequirementsCompatibility?.compatible, false);
 });
 
 test('format-1 import makes canonical publication ownership explicit', async (context) => {
@@ -214,7 +236,7 @@ test('project digest rejection closes the strict reader before any canonical bod
 			),
 		},
 		{ retain() {} },
-	), /project document.*digest|SHA-256.*project/iu);
+	), /project document.*SHA-256|SHA-256.*project/iu);
 	assert.equal(closeCalls, 1);
 	assert.deepEqual(bodyReads, []);
 });
