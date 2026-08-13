@@ -35,7 +35,10 @@ import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/edito
 const ROOT = resolve(import.meta.dirname, '..');
 const GENERIC_MODULE = 'src/common/editor/project-feature-capability-profile.ts';
 const PRODUCT_MODULE = 'src/framescaper/editor-project-feature-capability-profile-v18.ts';
+const FINAL_GENERIC_MODULE = 'src/common/editor/project-runtime-profile.ts';
+const FINAL_PRODUCT_MODULE = 'src/framescaper/editor-project-runtime-profile-' + 'v18.ts';
 const TEST_MODULE = 'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts';
+const FINAL_TEST_MODULE = 'tests/audio-editor-framescaper-project-runtime-profile.test.ts';
 const PREREQUISITE_MODULE = 'src/framescaper/editor-project-runtime-profile-v18-prerequisite.ts';
 const PRODUCT_EXPORT = 'FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE';
 const PRODUCT_MODULE_STEM = 'editor-project-feature-capability-profile-v18';
@@ -317,9 +320,13 @@ test('keeps the product token and module path statically dormant outside its foc
 		if (source.includes(GENERIC_MODULE_STEM)) genericPathReferences.push(file);
 		if (source.includes(VIDEO_PROXY_ID)) privateIdReferences.push(file);
 	}
-	assert.deepEqual(exportReferences, [PRODUCT_MODULE, TEST_MODULE]);
-	assert.deepEqual(pathReferences, [TEST_MODULE]);
-	assert.deepEqual(genericPathReferences, [PRODUCT_MODULE, TEST_MODULE]);
+	assert.deepEqual(exportReferences, [
+		PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
+	]);
+	assert.deepEqual(pathReferences, [FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE]);
+	assert.deepEqual(genericPathReferences, [
+		FINAL_GENERIC_MODULE, PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
+	]);
 	assert.deepEqual(privateIdReferences, [PRODUCT_MODULE, TEST_MODULE]);
 	const generic = await readSource(GENERIC_MODULE);
 	assert.deepEqual(importSpecifiers(generic), []);

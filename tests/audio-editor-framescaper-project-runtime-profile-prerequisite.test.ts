@@ -22,7 +22,9 @@ import type { EditorProjectStorageProfile } from '../src/common/editor/storage/p
 const ROOT = resolve(import.meta.dirname, '..');
 const GENERIC_MODULE = 'src/common/editor/project-runtime-profile-prerequisite.ts';
 const PRODUCT_MODULE = 'src/framescaper/editor-project-runtime-profile-v18-prerequisite.ts';
+const FINAL_PRODUCT_MODULE = 'src/framescaper/editor-project-runtime-profile-' + 'v18.ts';
 const TEST_MODULE = 'tests/audio-editor-framescaper-project-runtime-profile-prerequisite.test.ts';
+const FINAL_TEST_MODULE = 'tests/audio-editor-framescaper-project-runtime-profile.test.ts';
 const RUNTIME_EXPORT = 'FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE_PREREQUISITE';
 const STORAGE_EXPORT = 'FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE';
 const DEFINITION_FIELDS = [
@@ -370,10 +372,14 @@ test('keeps the product token statically dormant and out of common and Soundscap
 		}
 		if (source.includes(STORAGE_EXPORT)) storageReferences.push(file);
 	}
-	assert.deepEqual(runtimeReferences, [PRODUCT_MODULE, TEST_MODULE]);
+	assert.deepEqual(runtimeReferences, [
+		PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
+	]);
 	assert.deepEqual(runtimeModulePathReferences, [
+		FINAL_PRODUCT_MODULE,
 		'tests/audio-editor-framescaper-project-feature-' + 'capability-profile.test.ts',
 		TEST_MODULE,
+		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
 	]);
 	assert.deepEqual(storageReferences, [
