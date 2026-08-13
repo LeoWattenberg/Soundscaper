@@ -13,6 +13,7 @@ import {
 	WORKLET_PARAMETER_QUEUE_CONSUMER_REVISION_INPUT,
 } from '../src/common/editor/engine/effect-parameter-bindings.ts';
 import {
+	roundScheduledParameterContextFrameOffset,
 	ScheduledParameterRegistry,
 	StaleScheduledParameterTargetError,
 } from '../src/common/editor/engine/scheduled-parameter-registry.ts';
@@ -167,6 +168,35 @@ test('message targets emit bounded sample-offset packets with monotonic revision
 	]);
 });
 
+test('message offsets convert project frames into context frames with named tie rounding', () => {
+	const registry = new ScheduledParameterRegistry();
+	const descriptor = stripParameterDescriptor({
+		kind: 'strip', strip: TRACK, parameterId: 'pan',
+	}, 37);
+	const packets: Array<{ events: readonly { frameOffset: number }[] }> = [];
+	const target = registry.registerMessageTarget(descriptor, (packet) => {
+		packets.push(structuredClone(packet));
+	});
+	target.schedule([
+		{ kind: 'set', frame: 100, value: 0 },
+		{ kind: 'linear', frame: 44_200, value: 0.5 },
+	], {
+		fromFrame: 100,
+		contextStartTime: 0,
+		sampleRate: 44_100,
+		contextSampleRate: 48_000,
+		transportRate: 1,
+	});
+	assert.deepEqual(packets[0]?.events.map(({ frameOffset }) => frameOffset), [37, 48_037]);
+	assert.equal(roundScheduledParameterContextFrameOffset(1, 0, 2, 1, 1, 0), 1);
+	assert.throws(
+		() => roundScheduledParameterContextFrameOffset(
+			Number.MAX_SAFE_INTEGER, 0, 1, Number.MAX_SAFE_INTEGER, 0.5, 1,
+		),
+		/unsafe/iu,
+	);
+});
+
 test('registry rejects duplicate targets, malformed schedules, and stale leases', () => {
 	const registry = new ScheduledParameterRegistry();
 	const descriptor = stripParameterDescriptor({
@@ -197,6 +227,52 @@ test('registry rejects duplicate targets, malformed schedules, and stale leases'
 	assert.throws(
 		() => replacement.schedule([{ kind: 'set', frame: 10, value: 1 }], scheduleOptions()),
 		StaleScheduledParameterTargetError,
+	);
+});
+
+test('registry rejects coerced numeric schedule and latency boundaries', () => {
+	const registry = new ScheduledParameterRegistry();
+	const descriptor = stripParameterDescriptor({
+		kind: 'strip', strip: TRACK, parameterId: 'gain',
+	});
+	const target = registry.registerAudioParam(descriptor, mockAudioParam());
+	for (const event of [
+		{ kind: 'set', frame: '0', value: 1 },
+		{ kind: 'set', frame: null, value: 1 },
+		{ kind: 'set', frame: 0, value: '1' },
+		{ kind: 'set', frame: 0, value: null },
+	] as const) {
+		assert.throws(
+			() => target.schedule(
+				[event] as unknown as Parameters<typeof target.schedule>[0],
+				scheduleOptions(),
+			),
+			/(safe integer|finite number)/iu,
+		);
+	}
+	for (const options of [
+		{ ...scheduleOptions(), fromFrame: '0' },
+		{ ...scheduleOptions(), contextStartTime: null },
+		{ ...scheduleOptions(), sampleRate: '48000' },
+		{ ...scheduleOptions(), contextSampleRate: null },
+		{ ...scheduleOptions(), transportRate: null },
+	] as const) {
+		assert.throws(
+			() => target.schedule(
+				[{ kind: 'set', frame: 0, value: 1 }],
+				options as unknown as Parameters<typeof target.schedule>[1],
+			),
+			/(safe integer|finite number)/iu,
+		);
+	}
+	const otherRegistry = new ScheduledParameterRegistry();
+	assert.throws(
+		() => otherRegistry.registerAudioParam(
+			descriptor,
+			mockAudioParam(),
+			{ latencyFrames: null as unknown as number },
+		),
+		/safe integer/iu,
 	);
 });
 

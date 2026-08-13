@@ -138,11 +138,13 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 			sampleRate: options.sampleRate,
 			contextSampleRate: options.contextSampleRate,
 			transportRate: options.transportRate,
-			events: Object.freeze(events.map((event) => Object.freeze({
+				events: Object.freeze(events.map((event) => Object.freeze({
 				kind: event.kind,
-				frameOffset: messageFrameOffset(
+				frameOffset: roundScheduledParameterContextFrameOffset(
 					event.frame,
 					options.fromFrame,
+					options.sampleRate,
+					options.contextSampleRate,
 					options.transportRate,
 					this.latencyFrames,
 				),
@@ -170,7 +172,7 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 				+ (event.frame - options.fromFrame) / (options.sampleRate * options.transportRate)
 			);
 			for (const { param, transformValue } of bindings) {
-				const value = finite(transformValue(event.value), 'transformed parameter value');
+				const value = finiteNumber(transformValue(event.value), 'transformed parameter value');
 				if (event.kind === 'set') param.setValueAtTime(value, time);
 				else param.linearRampToValueAtTime(value, time);
 			}
@@ -275,7 +277,7 @@ export class ScheduledParameterRegistry {
 		}
 		const key = canonicalParameterAddressKey(descriptor.address);
 		if (this.#targets.has(key)) throw new RangeError(`Parameter target ${key} is already registered.`);
-		const latencyFrames = options.latencyFrames == null
+		const latencyFrames = options.latencyFrames === undefined
 			? descriptor.latencyFrames
 			: nonNegativeSafeInteger(options.latencyFrames, 'target latencyFrames');
 		const target = new RegisteredScheduledParameterTarget(
@@ -377,7 +379,7 @@ function normalizeEvents(
 		const frame = nonNegativeSafeInteger(event.frame, `scheduled parameter event ${index} frame`);
 		if (frame < previousFrame) throw new RangeError('Scheduled parameter events must be ordered by frame.');
 		previousFrame = frame;
-		const valueNumber = finite(event.value, `scheduled parameter event ${index} value`);
+		const valueNumber = finiteNumber(event.value, `scheduled parameter event ${index} value`);
 		if (valueNumber < descriptor.minimum || valueNumber > descriptor.maximum) {
 			throw new RangeError(
 				`Scheduled parameter values must be between ${descriptor.minimum} and ${descriptor.maximum}.`,
@@ -393,29 +395,39 @@ function normalizeEvents(
 function normalizeScheduleOptions(value: ScheduledParameterScheduleOptions): NormalizedScheduleOptions {
 	if (!value || typeof value !== 'object') throw new TypeError('Parameter schedule options are required.');
 	const fromFrame = nonNegativeSafeInteger(value.fromFrame, 'fromFrame');
-	const contextStartTime = finite(value.contextStartTime, 'contextStartTime');
+	const contextStartTime = finiteNumber(value.contextStartTime, 'contextStartTime');
 	if (contextStartTime < 0) throw new RangeError('contextStartTime must be non-negative.');
-	const sampleRate = positive(value.sampleRate, 'sampleRate');
-	const contextSampleRate = positive(value.contextSampleRate, 'contextSampleRate');
-	const transportRate = positive(value.transportRate ?? 1, 'transportRate');
+	const sampleRate = positiveSafeInteger(value.sampleRate, 'sampleRate');
+	const contextSampleRate = positiveSafeInteger(value.contextSampleRate, 'contextSampleRate');
+	const transportRate = positiveFiniteNumber(
+		value.transportRate === undefined ? 1 : value.transportRate,
+		'transportRate',
+	);
 	return Object.freeze({ fromFrame, contextStartTime, sampleRate, contextSampleRate, transportRate });
 }
 
-function messageFrameOffset(
+/**
+ * Convert one project-domain frame into the worklet context-frame domain.
+ * Fractional context frames round to the nearest integer, with exact halves
+ * owned by the later frame. Latency is already declared in context frames.
+ */
+export function roundScheduledParameterContextFrameOffset(
 	frame: number,
 	fromFrame: number,
+	sampleRate: number,
+	contextSampleRate: number,
 	transportRate: number,
 	latencyFrames: number,
 ): number {
-	const offset = latencyFrames + Math.round((frame - fromFrame) / transportRate);
+	const projectFrameDelta = frame - fromFrame;
+	const scaledOffset = projectFrameDelta / sampleRate * contextSampleRate / transportRate;
+	if (!Number.isFinite(scaledOffset) || scaledOffset < 0
+		|| scaledOffset > Number.MAX_SAFE_INTEGER - latencyFrames) {
+		throw new RangeError('A parameter frame offset is unsafe.');
+	}
+	const offset = latencyFrames + Math.floor(scaledOffset + 0.5);
 	if (!Number.isSafeInteger(offset) || offset < 0) throw new RangeError('A parameter frame offset is unsafe.');
 	return offset;
-}
-
-function finite(value: unknown, name: string): number {
-	const number = Number(value);
-	if (!Number.isFinite(number)) throw new TypeError(`${name} must be finite.`);
-	return number;
 }
 
 function finiteNumber(value: unknown, name: string): number {
@@ -475,18 +487,18 @@ function closedRecord(
 	if (unknown) throw new TypeError(`${name} has an unknown member: ${unknown}.`);
 }
 
-function positive(value: unknown, name: string): number {
-	const number = finite(value, name);
-	if (!(number > 0)) throw new RangeError(`${name} must be positive.`);
-	return number;
-}
-
 function nonNegativeSafeInteger(value: unknown, name: string): number {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 0) {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
 		throw new RangeError(`${name} must be a non-negative safe integer.`);
 	}
-	return number;
+	return value;
+}
+
+function positiveSafeInteger(value: unknown, name: string): number {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+		throw new RangeError(`${name} must be a positive safe integer.`);
+	}
+	return value;
 }
 
 function identity(value: number): number {
