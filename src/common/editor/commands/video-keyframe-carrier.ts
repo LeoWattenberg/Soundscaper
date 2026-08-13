@@ -9,8 +9,9 @@ import {
 	type VideoKeyframeCurves,
 } from '../video-keyframe-curves.ts';
 import { multiplyDivideRationals, sampleFrameToVideoFrame } from '../timeline-time.ts';
+import { CONFORMED_SEQUENCE_PLACEMENT } from './command-projection-transients.ts';
 
-type DataRecord = Record<string, unknown>;
+type DataRecord = Record<PropertyKey, unknown>;
 
 const NO_KEYFRAMES = Object.freeze({});
 
@@ -124,6 +125,9 @@ export function transformVideoKeyframeCarrier<Result extends DataRecord>(
 	const sourceCount = positiveSafeInteger(sourceClip.sequenceFrameCount, `${name}.sequenceFrameCount`);
 	const targetCount = positiveSafeInteger(dataProperty(target, 'sequenceFrameCount', `${name} transform destination`), `${name} destination sequenceFrameCount`);
 	const sourceChanged = sourceBoundsChanged(sourceClip, target, name);
+	if (sourceChanged && hasConformedSequencePlacement(target)) {
+		return trimVideoKeyframeCarrierToDestination(result, sourceClip, target, name);
+	}
 	if (targetCount !== sourceCount && sourceChanged) {
 		return trimVideoKeyframeCarrierToDestination(result, sourceClip, target, name);
 	}
@@ -148,30 +152,40 @@ export function transformVideoKeyframeCarrierFromSourceBounds<Result extends Dat
 		`${name} destination sequenceFrameCount`,
 	);
 	if (targetCount !== sourceCount && sourceBoundsChanged(sourceClip, target, name)) {
-		const sourceStart = nonNegativeSafeInteger(sourceClip.sourceStartFrame, `${name}.sourceStartFrame`);
-		const sourceDuration = positiveSafeInteger(sourceClip.sourceDurationFrames, `${name}.sourceDurationFrames`);
-		const targetStart = nonNegativeSafeInteger(
-			dataProperty(target, 'sourceStartFrame', `${name} transform destination`),
-			`${name} destination.sourceStartFrame`,
-		);
-		const targetDuration = positiveSafeInteger(
-			dataProperty(target, 'sourceDurationFrames', `${name} transform destination`),
-			`${name} destination.sourceDurationFrames`,
-		);
-		const targetEnd = safeAdd(targetStart, targetDuration, `${name} destination source range`);
-		return {
-			...result,
-			videoKeyframes: trimVideoKeyframeCurvesToRange(
-				sourceClip.videoKeyframes,
-				keyframeContext(sourceClip, name),
-				{
-					start: multiplyDivideRationals(targetStart - sourceStart, sourceCount, sourceDuration),
-					end: multiplyDivideRationals(targetEnd - sourceStart, sourceCount, sourceDuration),
-				},
-			),
-		};
+		return trimVideoKeyframeCarrierToSourceBounds(result, sourceClip, target, sourceCount, name);
 	}
 	return retainedOrStretchedCarrier(result, sourceClip, sourceCount, targetCount, name);
+}
+
+function trimVideoKeyframeCarrierToSourceBounds<Result extends DataRecord>(
+	result: Result,
+	sourceClip: DataRecord,
+	target: DataRecord,
+	sourceCount: number,
+	name: string,
+): Result {
+	const sourceStart = nonNegativeSafeInteger(sourceClip.sourceStartFrame, `${name}.sourceStartFrame`);
+	const sourceDuration = positiveSafeInteger(sourceClip.sourceDurationFrames, `${name}.sourceDurationFrames`);
+	const targetStart = nonNegativeSafeInteger(
+		dataProperty(target, 'sourceStartFrame', `${name} transform destination`),
+		`${name} destination.sourceStartFrame`,
+	);
+	const targetDuration = positiveSafeInteger(
+		dataProperty(target, 'sourceDurationFrames', `${name} transform destination`),
+		`${name} destination.sourceDurationFrames`,
+	);
+	const targetEnd = safeAdd(targetStart, targetDuration, `${name} destination source range`);
+	return {
+		...result,
+		videoKeyframes: trimVideoKeyframeCurvesToRange(
+			sourceClip.videoKeyframes,
+			keyframeContext(sourceClip, name),
+			{
+				start: multiplyDivideRationals(targetStart - sourceStart, sourceCount, sourceDuration),
+				end: multiplyDivideRationals(targetEnd - sourceStart, sourceCount, sourceDuration),
+			},
+		),
+	};
 }
 
 function retainedOrStretchedCarrier<Result extends DataRecord>(
@@ -365,6 +379,11 @@ function sourceBoundsChanged(source: DataRecord, target: DataRecord, name: strin
 		if (before !== after) return true;
 	}
 	return false;
+}
+
+function hasConformedSequencePlacement(value: DataRecord): boolean {
+	const descriptor = Object.getOwnPropertyDescriptor(value, CONFORMED_SEQUENCE_PLACEMENT);
+	return Boolean(descriptor?.enumerable && Object.hasOwn(descriptor, 'value') && descriptor.value === true);
 }
 
 function cloneWithEffectIds(value: unknown, ids: ReadonlyMap<string, string>, name: string): unknown {

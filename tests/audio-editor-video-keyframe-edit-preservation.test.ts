@@ -138,6 +138,48 @@ test('stretch, move, slip, source replacement, and reprobe retain byte-equivalen
 	assert.deepEqual(keyframes(timelineClip(reprobed, 'video-clip')), original);
 });
 
+test('equal-count canonical placement trims while an implicit source slip preserves the carrier', () => {
+	const base = projectFixture();
+	const equalCountTrimmed = apply(base, {
+		type: 'clip/transform-many', overwrite: false, transforms: [{
+			clipId: 'video-clip', trackId: 'video-track',
+			changes: {
+				timelineStartFrame: 2 * FRAME_SAMPLES,
+				durationFrames: 10 * FRAME_SAMPLES,
+				sourceStartFrame: 2,
+				sourceDurationFrames: 10,
+			},
+			sequencePlacement: { sequenceStartFrame: 2, sequenceFrameCount: 10 },
+		}],
+	});
+	assert.deepEqual(domain(timelineClip(equalCountTrimmed, 'video-clip')), domainValue(12, 2, 10));
+
+	const slipped = apply(base, {
+		type: 'clip/transform-many', overwrite: false, transforms: [{
+			clipId: 'video-clip', trackId: 'video-track',
+			changes: { sourceStartFrame: 2, sourceDurationFrames: 10 },
+		}],
+	});
+	assert.deepEqual(keyframes(timelineClip(slipped, 'video-clip')), keyframes(timelineClip(base, 'video-clip')));
+});
+
+test('canonical placement keeps exact sequence bounds when rounded source bounds are incommensurate', () => {
+	const base = projectFixture({ sequenceFrameCount: 3, sourceFrameCount: 10 });
+	const trimmed = apply(base, {
+		type: 'clip/transform-many', overwrite: false, transforms: [{
+			clipId: 'video-clip', trackId: 'video-track',
+			changes: {
+				timelineStartFrame: FRAME_SAMPLES,
+				durationFrames: 2 * FRAME_SAMPLES,
+				sourceStartFrame: 3,
+				sourceDurationFrames: 7,
+			},
+			sequencePlacement: { sequenceStartFrame: 1, sequenceFrameCount: 2 },
+		}],
+	});
+	assert.deepEqual(domain(timelineClip(trimmed, 'video-clip')), domainValue(3, 1, 2));
+});
+
 test('overwrite derives trim and extension views from source-local intent across relocation', () => {
 	const base = projectFixture();
 	const trimChanges = {
@@ -398,11 +440,15 @@ test('same-clip batches apply explicit keyframe sets and exact trims in command 
 
 function projectFixture(overrides: Readonly<{
 	sequenceStartFrame?: number;
+	sequenceFrameCount?: number;
 	sourceInFrame?: number;
+	sourceFrameCount?: number;
 }> = {}): AudioEditorProjectV17 {
 	const effect = createVideoEffect('color-adjust', { id: 'effect-original' });
 	const sequenceStartFrame = overrides.sequenceStartFrame ?? 0;
+	const sequenceFrameCount = overrides.sequenceFrameCount ?? 10;
 	const sourceInFrame = overrides.sourceInFrame ?? 0;
+	const sourceFrameCount = overrides.sourceFrameCount ?? 10;
 	return createAudioEditorProjectV17({
 		id: 'keyframe-edit-preservation', title: 'Keyframe edit preservation', now: NOW,
 		sources: [
@@ -411,10 +457,10 @@ function projectFixture(overrides: Readonly<{
 		],
 		clips: [{
 			kind: 'video', id: 'video-clip', sourceId: 'video-source-a', title: 'Video',
-			sequenceId: 'main-sequence', sequenceStartFrame, sequenceFrameCount: 10,
-			sourceInFrame, sourceFrameCount: 10, retimeMap: null,
+			sequenceId: 'main-sequence', sequenceStartFrame, sequenceFrameCount,
+			sourceInFrame, sourceFrameCount, retimeMap: null,
 			videoEffects: [effect], videoComposition: DEFAULT_VIDEO_CLIP_COMPOSITION,
-			videoKeyframes: authoredKeyframes(),
+			videoKeyframes: authoredKeyframes(sequenceFrameCount),
 		}],
 		tracks: [createVideoTrackV10({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
@@ -426,20 +472,24 @@ function projectFixture(overrides: Readonly<{
 	});
 }
 
-function authoredKeyframes(): Record<string, unknown> {
+function authoredKeyframes(duration = 10): Record<string, unknown> {
+	const firstControl = duration % 3 === 0 ? { num: duration / 3, den: 1 } : { num: duration, den: 3 };
+	const secondControl = (2 * duration) % 3 === 0
+		? { num: (2 * duration) / 3, den: 1 }
+		: { num: 2 * duration, den: 3 };
 	const path = {
 		anchors: [
 			{ position: { num: 0, den: 1 }, value: 0.25 },
-			{ position: { num: 10, den: 1 }, value: 0.75 },
+			{ position: { num: duration, den: 1 }, value: 0.75 },
 		],
 		segments: [{ kind: 'bezier',
-			control1: { position: { num: 3, den: 1 }, value: 0.4 },
-			control2: { position: { num: 7, den: 1 }, value: 0.6 },
+			control1: { position: firstControl, value: 0.4 },
+			control2: { position: secondControl, value: 0.6 },
 		}],
 	};
 	return {
 		schemaVersion: 1,
-		timeDomain: domainValue(10, 0, 10),
+		timeDomain: domainValue(duration, 0, duration),
 		curves: [
 			{ target: { kind: 'composition', parameterId: 'opacity' }, curve: path },
 			{

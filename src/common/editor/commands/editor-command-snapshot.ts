@@ -7,6 +7,28 @@ type DataRecord = Record<string, unknown>;
 type SnapshotTarget = DataRecord | unknown[] | null;
 type SnapshotClone = DataRecord | unknown[] | ArrayBuffer | Uint8Array;
 
+const INTRINSIC_GET_OWN_PROPERTY_DESCRIPTOR = Object.getOwnPropertyDescriptor;
+const INTRINSIC_GET_PROTOTYPE_OF = Object.getPrototypeOf;
+const INTRINSIC_OWN_KEYS = Reflect.ownKeys;
+const INTRINSIC_APPLY = Reflect.apply;
+const INTRINSIC_ARRAY_BUFFER = ArrayBuffer;
+const INTRINSIC_UINT8_ARRAY = Uint8Array;
+const INTRINSIC_ARRAY_BUFFER_PROTOTYPE = INTRINSIC_ARRAY_BUFFER.prototype;
+const INTRINSIC_UINT8_ARRAY_PROTOTYPE = INTRINSIC_UINT8_ARRAY.prototype;
+const INTRINSIC_TYPED_ARRAY_PROTOTYPE = INTRINSIC_GET_PROTOTYPE_OF(INTRINSIC_UINT8_ARRAY_PROTOTYPE);
+const INTRINSIC_ARRAY_BUFFER_BYTE_LENGTH = requiredGetter(
+	INTRINSIC_GET_OWN_PROPERTY_DESCRIPTOR(INTRINSIC_ARRAY_BUFFER_PROTOTYPE, 'byteLength'),
+	'ArrayBuffer byteLength',
+);
+const INTRINSIC_TYPED_ARRAY_LENGTH = requiredGetter(
+	INTRINSIC_GET_OWN_PROPERTY_DESCRIPTOR(INTRINSIC_TYPED_ARRAY_PROTOTYPE, 'length'),
+	'typed-array length',
+);
+const INTRINSIC_TYPED_ARRAY_SET = requiredValueFunction(
+	INTRINSIC_GET_OWN_PROPERTY_DESCRIPTOR(INTRINSIC_TYPED_ARRAY_PROTOTYPE, 'set'),
+	'typed-array set',
+);
+
 interface VisitWork {
 	readonly kind: 'visit';
 	readonly source: unknown;
@@ -67,14 +89,20 @@ function snapshotInertCommandGraph(value: unknown, name: string): unknown {
 			assignSnapshot(work, prior, (next) => { result = next; });
 			continue;
 		}
-		if (Object.getPrototypeOf(source) === ArrayBuffer.prototype) {
-			const clone = (source as ArrayBuffer).slice(0);
+		if (intrinsicLength(INTRINSIC_ARRAY_BUFFER_BYTE_LENGTH, source) !== null) {
+			if (INTRINSIC_GET_PROTOTYPE_OF(source) !== INTRINSIC_ARRAY_BUFFER_PROTOTYPE) {
+				throw new TypeError(`${work.name} must be an exact ArrayBuffer.`);
+			}
+			const clone = cloneArrayBuffer(source as ArrayBuffer, work.name);
 			clones.set(source, clone);
 			assignSnapshot(work, clone, (next) => { result = next; });
 			continue;
 		}
-		if (Object.getPrototypeOf(source) === Uint8Array.prototype) {
-			const clone = new Uint8Array(source as Uint8Array);
+		if (intrinsicLength(INTRINSIC_TYPED_ARRAY_LENGTH, source) !== null) {
+			if (INTRINSIC_GET_PROTOTYPE_OF(source) !== INTRINSIC_UINT8_ARRAY_PROTOTYPE) {
+				throw new TypeError(`${work.name} supports only exact Uint8Array binary views.`);
+			}
+			const clone = cloneUint8Array(source as Uint8Array, work.name);
 			clones.set(source, clone);
 			assignSnapshot(work, clone, (next) => { result = next; });
 			continue;
@@ -125,6 +153,50 @@ function snapshotInertCommandGraph(value: unknown, name: string): unknown {
 		}
 	}
 	return result;
+}
+
+function cloneArrayBuffer(source: ArrayBuffer, name: string): ArrayBuffer {
+	if (INTRINSIC_OWN_KEYS(source).length !== 0) {
+		throw new TypeError(`${name} binary value contains an unsupported own field.`);
+	}
+	const length = intrinsicLength(INTRINSIC_ARRAY_BUFFER_BYTE_LENGTH, source);
+	if (length === null) throw new TypeError(`${name} must be an ArrayBuffer.`);
+	const clone = new INTRINSIC_ARRAY_BUFFER(length);
+	const sourceBytes = new INTRINSIC_UINT8_ARRAY(source);
+	const targetBytes = new INTRINSIC_UINT8_ARRAY(clone);
+	INTRINSIC_APPLY(INTRINSIC_TYPED_ARRAY_SET, targetBytes, [sourceBytes]);
+	return clone;
+}
+
+function cloneUint8Array(source: Uint8Array, name: string): Uint8Array {
+	const length = intrinsicLength(INTRINSIC_TYPED_ARRAY_LENGTH, source);
+	if (length === null) throw new TypeError(`${name} must be a Uint8Array.`);
+	const clone = new INTRINSIC_UINT8_ARRAY(length);
+	INTRINSIC_APPLY(INTRINSIC_TYPED_ARRAY_SET, clone, [source]);
+	return clone;
+}
+
+function intrinsicLength(getter: () => unknown, value: object): number | null {
+	try {
+		const length = INTRINSIC_APPLY(getter, value, []);
+		return Number.isSafeInteger(length) && Number(length) >= 0 ? Number(length) : null;
+	} catch (error) {
+		if (error instanceof TypeError) return null;
+		throw error;
+	}
+}
+
+function requiredGetter(descriptor: PropertyDescriptor | undefined, name: string): () => unknown {
+	if (typeof descriptor?.get !== 'function') throw new Error(`Missing intrinsic ${name} getter.`);
+	return descriptor.get;
+}
+
+function requiredValueFunction(
+	descriptor: PropertyDescriptor | undefined,
+	name: string,
+): (...args: unknown[]) => unknown {
+	if (typeof descriptor?.value !== 'function') throw new Error(`Missing intrinsic ${name} function.`);
+	return descriptor.value as (...args: unknown[]) => unknown;
 }
 
 function assignSnapshot(work: VisitWork, value: unknown, setRoot: (value: unknown) => void): void {

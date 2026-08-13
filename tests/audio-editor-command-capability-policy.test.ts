@@ -387,6 +387,47 @@ test('command capability admission preserves supported detached binary payloads'
 	assert.deepEqual(snapshot.bytes, bytes);
 });
 
+test('binary command snapshots reject hostile own fields without invoking getters or species', () => {
+	let calls = 0;
+	const buffer = new ArrayBuffer(3);
+	Object.defineProperty(buffer, 'constructor', {
+		enumerable: true,
+		get() { calls += 1; return ArrayBuffer; },
+	});
+	assert.throws(
+		() => snapshotInertEditorCommand({
+			type: 'project/rename', title: 'Hostile binary', binary: buffer,
+		}),
+		/binary.*unsupported.*field/iu,
+	);
+	const bytes = new Uint8Array([1, 2, 3]);
+	Object.defineProperty(bytes, 'constructor', {
+		enumerable: true,
+		get() {
+			calls += 1;
+			return { get [Symbol.species]() { calls += 1; return Uint8Array; } };
+		},
+	});
+	const snapshot = snapshotInertEditorCommand({
+		type: 'project/rename', title: 'Opaque bytes', binary: bytes,
+	}) as unknown as { binary: Uint8Array };
+	assert.deepEqual([...snapshot.binary], [1, 2, 3]);
+	assert.equal(calls, 0);
+});
+
+test('binary command snapshots copy a maximum-size opaque payload without indexing every byte', () => {
+	const bytes = new Uint8Array(4 * 1_024 * 1_024);
+	bytes[0] = 1;
+	bytes[bytes.length - 1] = 2;
+	const snapshot = snapshotInertEditorCommand({
+		type: 'project/rename', title: 'Large binary', bytes,
+	}) as unknown as { bytes: Uint8Array };
+	assert.notStrictEqual(snapshot.bytes, bytes);
+	assert.equal(snapshot.bytes.byteLength, bytes.byteLength);
+	assert.equal(snapshot.bytes[0], 1);
+	assert.equal(snapshot.bytes[snapshot.bytes.length - 1], 2);
+});
+
 test('capability policy inspects V4 through V6 take groups and permits take-free media', () => {
 	const disabled = { ...enabled, takeComp: false };
 	for (const schemaVersion of [4, 5, 6] as const) {
