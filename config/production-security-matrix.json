@@ -2405,18 +2405,28 @@
 			"currentControls": [
 				{
 					"id": "framescaper-v18-desktop-v10-isolation",
-					"summary": "The separately named desktop V10 host, preload, renderer bridge, database, and metadata contract require schema 18 and Framescaper ownership before operational publication. The renderer validates one closed handshake, bounds project and sequential body geometry, transfers each proxy and timing body in at-most-4-MiB chunks, and publishes main-first before reconciling the exact claim-bound local V18 shadow. The store adapter uses main as authoritative for create, latest load, and save, keeps revision loads local, refuses stale or mismatched witnesses, and reports post-commit shadow failure as committed reconciliation rather than rollback. Main does not expose catalog listing yet, so delete and duplicate remain unavailable and fail closed. This control is isolated from the shared V9/schema-17 library and does not qualify packaged cross-platform execution or proxy use.",
+					"summary": "The separately named desktop V10 host, preload, renderer bridge, database, and metadata contract require schema 18 and Framescaper ownership before operational publication. The renderer validates one closed handshake, bounds project and sequential body geometry, transfers each proxy and timing body in at-most-4-MiB chunks, and publishes main-first before reconciling the exact claim-bound local V18 shadow. The store adapter uses main as authoritative for create, latest load, and save, keeps revision loads local, refuses stale or mismatched witnesses, and reports post-commit shadow failure as committed reconciliation rather than rollback. The maintained basic package smoke now defers Framescaper inspection until the controller signals renderer ready, requires one activated Framescaper UI project plus the exact V10 sandbox-preload surface and admitted schema-18 handshake, and reads that project back through both the preload and a separate main-owned V10 session. It requires canonical V18 JSON, matching identity, title, revision, byte length and SHA-256, matching UI track and clip counts, an empty body inventory, a live unfenced quiescent host, and exact renderer/main agreement; emitted main evidence omits documents, entry IDs, paths, process IDs, and instance IDs. A successful package process therefore witnesses only fresh source-free V18 creation through main persistence, preload activation, and UI activation. The repository wires this acceptance contract into the existing five-target package matrix but does not itself retain accepted external run results. It does not qualify restart or reopen, latest-load or revision-advance saves, proxy or timing body transfer or use, delete or duplicate, concurrent opens, crash or power-loss recovery, interruption durability, installers, file associations, or any package target without a successful external run. Main does not expose catalog listing yet, so delete and duplicate remain unavailable and fail closed. This control remains isolated from the shared V9/schema-17 library.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/project-library-v10-contract.ts" },
 						{ "kind": "implementation", "path": "desktop/project-library-v10-main.ts" },
 						{ "kind": "implementation", "path": "desktop/project-library-v10-transfer-service.ts" },
+						{ "kind": "implementation", "path": "desktop/project-library-product-runtime.js" },
+						{ "kind": "implementation", "path": "desktop/framescaper-v18-artifact-smoke.js" },
+						{ "kind": "implementation", "path": "desktop/desktop-smoke.js" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-smoke.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-smoke.mjs" },
 						{ "kind": "implementation", "path": "src/framescaper/desktop-project-library-v10-renderer-contract.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/desktop-project-library-v10-renderer.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/desktop-project-library-v10-store-adapter.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/editor-project-environment-v18.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-desktop-v10-renderer.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-project-library-v10-main.test.ts" }
+						{ "kind": "test", "path": "tests/desktop-project-library-v10-main.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-project-library-v10-maintained-composition.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-framescaper-v18-artifact-smoke.test.js" },
+						{ "kind": "test", "path": "tests/desktop-smoke.test.js" },
+						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
 				},
 				{
