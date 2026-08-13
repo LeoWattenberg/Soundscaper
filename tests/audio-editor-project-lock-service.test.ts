@@ -50,6 +50,7 @@ function createFixture(initialLock: TestLock | null = null) {
 	const statuses: Array<readonly [string, string]> = [];
 	const errors: unknown[] = [];
 	const cancelledTasks: string[] = [];
+	const authorityRevocations: Array<Readonly<{ reason: unknown; readOnly: boolean }>> = [];
 	let invalidations = 0;
 	const state = {
 		disposed: false,
@@ -68,6 +69,9 @@ function createFixture(initialLock: TestLock | null = null) {
 		setStatus: (message, status) => { statuses.push([message, status]); },
 		handleError: (error) => { errors.push(error); },
 		invalidateRecordingAuthority: async () => { invalidations += 1; },
+		revokeWriteAuthority: (reason) => {
+			authorityRevocations.push({ reason, readOnly: state.readOnly });
+		},
 		copy: {
 			ready: 'Ready',
 			projectOpenOtherTab: 'Open elsewhere',
@@ -83,6 +87,7 @@ function createFixture(initialLock: TestLock | null = null) {
 		clearTimer: (id) => { timers.delete(id); },
 	};
 	return {
+		authorityRevocations,
 		cancelledTasks,
 		get invalidations() { return invalidations; },
 		errors,
@@ -214,6 +219,9 @@ test('lock loss reacquires ownership and preserves intrinsic read-only metadata'
 		TAKE_CYCLE_RECORDING_TASK,
 	]);
 	assert.equal(fixture.invalidations, 1);
+	assert.equal(fixture.authorityRevocations.length, 1);
+	assert.equal(fixture.authorityRevocations[0]?.readOnly, false);
+	assert.equal((fixture.authorityRevocations[0]?.reason as DOMException).name, 'AbortError');
 	assert.equal(fixture.state.readOnly, true);
 	acquisition.resolve(next);
 	await fixture.publications.promise;
@@ -221,6 +229,7 @@ test('lock loss reacquires ownership and preserves intrinsic read-only metadata'
 	assert.equal(previous.releases, 1);
 	assert.equal(fixture.state.projectLock, next);
 	assert.equal(fixture.state.readOnly, true);
+	assert.equal(fixture.authorityRevocations.length, 1);
 	assert.deepEqual(fixture.statuses.at(-1), ['Imported read-only', 'error']);
 });
 

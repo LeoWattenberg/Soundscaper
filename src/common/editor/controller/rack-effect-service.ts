@@ -5,6 +5,7 @@ import type { EngineEffectScope } from '../engine/public-api.ts';
 import type { EditorProjectToken } from './lifecycle.ts';
 import { EffectGestureTargetChangedError, effectParametersMatch } from './effect-gesture-safety.ts';
 import {
+	ParameterGestureAuthorityChangedError,
 	createParameterGestureAdapter,
 	type ParameterGestureSession,
 	type ParameterGestureTarget,
@@ -48,11 +49,12 @@ export interface AudacityNoiseProfile extends Record<string, unknown> {
 	readonly meanPowers?: ArrayLike<number> | Iterable<number>;
 }
 
-export type RackEffectGestureSession = ParameterGestureSession<EffectParameters>;
+export type RackEffectGestureSession = ParameterGestureSession<EffectParameters, number>;
 
 export interface RackEffectControllerState {
 	selectedTrackId: string | null;
 	readOnly: boolean;
+	writeAuthorityGeneration: number;
 	effectClipboard: ControllerRackEffect[] | null;
 	readonly rackEffectGestures: Map<string, RackEffectGestureSession>;
 	readonly parametricEqGestures: Map<string, RackEffectGestureSession>;
@@ -281,10 +283,16 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 				value: resolved.effect.params,
 			});
 		};
-		return createParameterGestureAdapter<EffectParameters, RackEffectProject>({
+		return createParameterGestureAdapter<EffectParameters, RackEffectProject, number>({
 			sessions: gestures,
 			captureProject,
 			assertProject,
+			captureAuthority: () => state.writeAuthorityGeneration,
+			assertAuthority: (generation) => {
+				if (generation !== state.writeAuthorityGeneration) {
+					throw new ParameterGestureAuthorityChangedError();
+				}
+			},
 			resolveTarget,
 			normalize: (target, params) => {
 				const resolved = resolveLocation(target.identity);
@@ -350,8 +358,23 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		identity: string,
 	): void {
 		if (!state.readOnly) return;
-		adapter.cancel(identity);
+		adapter.revoke(identity);
 		throw new Error(copy.projectReadOnly);
+	}
+
+	function revokeWriteAuthority(): void {
+		const errors: unknown[] = [];
+		for (const adapter of [rackGestureAdapter, parametricEqGestureAdapter]) {
+			try {
+				adapter.revokeAll();
+			} catch (error) {
+				errors.push(error);
+			}
+		}
+		const generation = state.writeAuthorityGeneration + 1;
+		if (!Number.isSafeInteger(generation)) throw new RangeError('Write authority generation exhausted.');
+		state.writeAuthorityGeneration = generation;
+		if (errors.length) handleError(new AggregateError(errors, 'Rack gesture rollback failed.'));
 	}
 
 	function beginRackEffectGesture(scope: string, targetId: string | null, effectId: string): EffectParameters {
@@ -518,6 +541,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		pasteEffectStack,
 		previewParametricEq,
 		previewRackEffect,
+		revokeWriteAuthority,
 		updateRackEffect,
 	});
 }

@@ -781,7 +781,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishProjectState,
 		setStatus,
 		handleError,
-		invalidateRecordingAuthority: invalidateTakeCycleRecording,
+		invalidateRecordingAuthority: invalidateTakeCycleRecording, revokeWriteAuthority: () => rackEffectService.revokeWriteAuthority(),
 		copy,
 		retryMaximumMs: PROJECT_LOCK_RETRY_MAX_MS,
 		currentTimeMs: Date.now,

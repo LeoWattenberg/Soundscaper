@@ -7,6 +7,10 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import { EffectGestureTargetChangedError } from '../src/common/editor/controller/effect-gesture-safety.ts';
 import { EditorProjectChangedError, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import {
+	ParameterGestureAuthorityChangedError,
+	ParameterGesturePreviewSupersededError,
+} from '../src/common/editor/controller/parameter-gesture-adapter.ts';
+import {
 	createRackEffectService,
 	type ControllerRackEffect,
 	type EffectParameters,
@@ -57,6 +61,7 @@ function createHarness() {
 	const state: RackEffectControllerState = {
 		selectedTrackId: 'track-1',
 		readOnly: false,
+		writeAuthorityGeneration: 0,
 		effectClipboard: null,
 		rackEffectGestures: new Map(),
 		parametricEqGestures: new Map(),
@@ -71,6 +76,7 @@ function createHarness() {
 	let publications = 0;
 	let blocked = false;
 	let commitFailure: Error | null = null;
+	const rackAcknowledgements: Array<number | false> = [];
 
 	function updateEffect(command: Extract<AudioEditorCommand, { readonly type: 'effect/update' }>) {
 		project = {
@@ -98,7 +104,7 @@ function createHarness() {
 		engine: {
 			configureRackEffect: (scope, targetId, effectId, params) => {
 				rackConfigurations.push({ scope, targetId, effectId, params: structuredClone(params) });
-				return rackConfigurations.length;
+				return rackAcknowledgements.shift() ?? rackConfigurations.length;
 			},
 			configureParametricEq: (scope, targetId, effectId, params, options) => {
 				eqConfigurations.push({
@@ -131,6 +137,9 @@ function createHarness() {
 		get project() { return project; },
 		get publications() { return publications; },
 		rackConfigurations,
+		queueRackAcknowledgements(...values: Array<number | false>) {
+			rackAcknowledgements.push(...values);
+		},
 		service,
 		setBlocked(value: boolean) { blocked = value; },
 		setCommitFailure(error: Error | null) { commitFailure = error; },
@@ -310,6 +319,46 @@ test('rack gesture no-op, read-only, supersession, and commit rollback paths are
 		EditorProjectChangedError,
 	);
 	assert.equal(harness.state.rackEffectGestures.size, 0);
+});
+
+test('rack gestures restore the last accepted preview after a reset acknowledgement', () => {
+	const harness = createHarness();
+	harness.service.beginRackEffectGesture('track', 'track-1', 'delay-1');
+	harness.queueRackAcknowledgements(4);
+	harness.service.previewRackEffect('track', 'track-1', 'delay-1', { feedback: 0.6 });
+	harness.queueRackAcknowledgements(1, 2);
+	assert.throws(
+		() => harness.service.previewRackEffect('track', 'track-1', 'delay-1', { feedback: 0.8 }),
+		ParameterGesturePreviewSupersededError,
+	);
+	assert.equal(harness.rackConfigurations.at(-1)?.params.feedback, 0.6);
+	assert.equal(harness.state.rackEffectGestures.size, 0);
+	assert.equal(harness.commands.length, 0);
+});
+
+test('write-authority loss restores previews and fences the old gesture after recovery', () => {
+	const harness = createHarness();
+	const original = harness.service.beginRackEffectGesture('track', 'track-1', 'delay-1');
+	harness.service.previewRackEffect('track', 'track-1', 'delay-1', { feedback: 0.8 });
+	harness.service.revokeWriteAuthority();
+	assert.deepEqual(harness.rackConfigurations.at(-1)?.params, original);
+	assert.equal(harness.state.writeAuthorityGeneration, 1);
+	assert.equal(harness.state.rackEffectGestures.size, 0);
+
+	harness.state.readOnly = false;
+	assert.throws(
+		() => harness.service.commitRackEffectGesture('track', 'track-1', 'delay-1', {
+			time: 0.5, feedback: 0.8, mix: 0.2,
+		}),
+		ParameterGestureAuthorityChangedError,
+	);
+	assert.equal(harness.commands.length, 0);
+
+	harness.service.beginRackEffectGesture('track', 'track-1', 'delay-1');
+	harness.service.commitRackEffectGesture('track', 'track-1', 'delay-1', {
+		time: 0.5, feedback: 0.4, mix: 0.2,
+	});
+	assert.equal(harness.commands.length, 1);
 });
 
 test('rack stack validation and materialization preserve metadata and degraded effects', () => {

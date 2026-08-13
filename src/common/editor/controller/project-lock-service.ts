@@ -29,6 +29,7 @@ export interface ProjectLockServiceRuntime {
 	readonly setStatus: (message: string, state: 'error' | 'success') => void;
 	readonly handleError: (error: unknown) => void;
 	readonly invalidateRecordingAuthority?: (reason: unknown) => PromiseLike<unknown> | unknown;
+	readonly revokeWriteAuthority?: (reason: unknown) => void;
 	readonly copy: Readonly<{
 		ready: string;
 		projectOpenOtherTab: string;
@@ -103,7 +104,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		void lock.lost.then(async () => {
 			if (!ownsLock(projectId, lock)) return;
 			const reason = new DOMException('Project write access was lost.', 'AbortError');
-			runtime.state.readOnly = true;
+			enterReadOnly(reason);
 			runtime.setProjectReadOnly(projectId, {
 				readOnly: true, reason: 'project-lock', lockMethod: lock.method,
 			});
@@ -131,7 +132,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		}
 		runtime.state.projectLock = nextLock;
 		if (nextLock.readOnly) {
-			runtime.state.readOnly = true;
+			enterReadOnly(new DOMException('Project write access is unavailable.', 'AbortError'));
 			scheduleProjectLockRecovery(projectId, nextLock);
 			runtime.publishProjectState();
 			runtime.setStatus(runtime.copy.projectOpenOtherTab, 'error');
@@ -163,7 +164,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		if (previousLock !== nextLock && nextLock.handoffFrom !== previousLock) previousLock.release();
 		runtime.state.projectLock = nextLock;
 		if (nextLock.readOnly) {
-			runtime.state.readOnly = true;
+			enterReadOnly(new DOMException('Project write access is unavailable.', 'AbortError'));
 			runtime.setProjectReadOnly(projectId, {
 				readOnly: true,
 				reason: 'project-lock',
@@ -179,7 +180,11 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		const metadata = runtime.getProjectMetadata(projectId);
 		const intrinsicReadOnly = Boolean(metadata.intrinsicReadOnly);
 		const intrinsicReadOnlyReason = metadata.intrinsicReadOnlyReason || null;
-		runtime.state.readOnly = intrinsicReadOnly;
+		if (intrinsicReadOnly) {
+			enterReadOnly(new DOMException(intrinsicReadOnlyReason || runtime.copy.projectReadOnly, 'AbortError'));
+		} else {
+			runtime.state.readOnly = false;
+		}
 		runtime.setProjectReadOnly(projectId, {
 			readOnly: intrinsicReadOnly,
 			reason: intrinsicReadOnlyReason,
@@ -200,6 +205,17 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		if (!ownsLock(projectId, lock)) return;
 		scheduleProjectLockRecovery(projectId, lock);
 		runtime.handleError(error);
+	}
+
+	function enterReadOnly(reason: unknown): void {
+		if (!runtime.state.readOnly) {
+			try {
+				runtime.revokeWriteAuthority?.(reason);
+			} catch (error) {
+				runtime.handleError(error);
+			}
+		}
+		runtime.state.readOnly = true;
 	}
 
 	function ownsLock(projectId: string, lock: ProjectLifecycleLock): boolean {
