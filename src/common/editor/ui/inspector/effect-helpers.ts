@@ -5,6 +5,7 @@ import {
 	audioEffectTypes,
 } from '../../effects.js';
 import { AUDACITY_EFFECT_DEFINITIONS } from '../../audacity-effects/manifest.js';
+import { formatLocalizedTemplate } from '../localization-template.ts';
 
 type Copy = Readonly<Record<string, string>>;
 type CopyOrLocale = Copy | string | undefined;
@@ -78,8 +79,7 @@ export function safeEffectLabel(effectOrType: EffectLike | string | null | undef
 		const name = String(effectOrType.missing?.name || '').trim()
 			|| copy?.missingEffectUnknown
 			|| 'Unknown effect';
-		const template = copy?.missingEffectLabel || 'Missing: {name}';
-		return template.replace('{name}', name);
+		return formatLocalizedTemplate(copy?.missingEffectLabel || 'Missing: {name}', { name });
 	}
 	const type = typeof effectOrType === 'object' ? effectOrType?.type : effectOrType;
 	try {

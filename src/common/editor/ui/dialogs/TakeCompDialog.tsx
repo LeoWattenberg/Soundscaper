@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { formatLocalizedTemplate } from '../localization-template.ts';
 import {
 	createTakeCompDialogModel,
+	readTakeCompNumberEntry,
+	takeCompDialogDraftIdentity,
 	type TakeCompDialogGroupModel,
 } from '../take-comp-dialog-model.ts';
 
@@ -78,13 +81,17 @@ export default function TakeCompDialog({
 		if (groupId && model.groups.some(({ id }) => id === groupId)) return;
 		setGroupId(model.groups[0]?.id ?? null);
 	}, [groupId, model.groups]);
+	const draftIdentity = takeCompDialogDraftIdentity(group);
+	const draftedIdentity = useRef(draftIdentity);
 	useEffect(() => {
+		if (draftedIdentity.current === draftIdentity) return;
+		draftedIdentity.current = draftIdentity;
 		setTakeId(group?.takes[0]?.id ?? null);
 		setPromotionStart(group?.startSample ?? 0);
 		setPromotionEnd(group?.endSample ?? 1);
 		setBoundaries(boundaryDrafts(group));
 		setSharedBoundaries(sharedBoundaryDrafts(group));
-	}, [group?.id, group]);
+	}, [draftIdentity, group]);
 
 	const disabled = model.operationsBlocked || pending !== null;
 	const selectedTake = group?.takes.find(({ id }) => id === takeId) ?? null;
@@ -234,20 +241,20 @@ function TakeGroupEditor(props: TakeGroupEditorProps) {
 		<section aria-label={copy.takeCompSelectedTake}>
 			<div className="audio-editor-take-comp__lanes" role="list" aria-label={copy.takeCompTitle}>
 				{group.lanesView.map((lane, laneIndex) => <article key={lane.id} role="listitem" className="audio-editor-take-comp__lane">
-					<header><h3>{copy.takeCompLane.replace('{number}', String(laneIndex + 1))}</h3>
+					<header><h3>{formatLocalizedTemplate(copy.takeCompLane, { number: laneIndex + 1 })}</h3>
 						<button type="button" disabled={disabled} onClick={() => props.onAuditionLane(lane.id)}>{copy.takeCompAuditionLane}</button>
 					</header>
 					<ul>{lane.takes.map((take) => <li key={take.id}>
 						<button
 							type="button"
 							aria-pressed={props.takeId === take.id}
-							aria-label={copy.takeCompSelectTake.replace('{name}', take.sourceName)}
+							aria-label={formatLocalizedTemplate(copy.takeCompSelectTake, { name: take.sourceName })}
 							disabled={disabled}
 							onClick={() => props.onTakeChange(take.id)}
 						>{take.sourceName}</button>
 						<span>{formatExtent(copy, take.startSample, take.endSample)}</span>
 						<button type="button" disabled={disabled} onClick={() => props.onAuditionTake(take.id)}>
-							{copy.takeCompAuditionTake.replace('{name}', take.sourceName)}
+							{formatLocalizedTemplate(copy.takeCompAuditionTake, { name: take.sourceName })}
 						</button>
 					</li>)}</ul>
 				</article>)}
@@ -286,7 +293,7 @@ function RegionEditor(props: TakeGroupEditorProps) {
 			{sharedBoundaries(group).map(({ leftRegionId, rightRegionId, boundarySample }) => {
 				const key = sharedBoundaryKey(leftRegionId, rightRegionId);
 				return <label key={key}><span>{copy.takeCompSharedBoundary}: {leftRegionId} → {rightRegionId}</span>
-					<input type="number" step={1} value={props.sharedBoundaries[key] ?? boundarySample} disabled={disabled} onChange={(event) => props.onSharedBoundaryChange(key, Number(event.currentTarget.value))} />
+					<IntegerField value={props.sharedBoundaries[key] ?? boundarySample} disabled={disabled} onChange={(value) => props.onSharedBoundaryChange(key, value)} />
 					<button type="button" disabled={disabled} onClick={() => props.onApplySharedBoundary(leftRegionId, rightRegionId)}>{copy.takeCompApplySharedBoundary}</button>
 				</label>;
 			})}
@@ -298,13 +305,36 @@ function BoundaryField(props: Readonly<{
 	label: string; value: number; disabled: boolean; applyLabel: string;
 	onChange(value: number): void; onApply(): void;
 }>) {
-	return <label><span className="audio-editor-visually-hidden">{props.label}</span><input type="number" step={1} value={props.value} disabled={props.disabled} onChange={(event) => props.onChange(Number(event.currentTarget.value))} /><button type="button" disabled={props.disabled} onClick={props.onApply}>{props.applyLabel}</button></label>;
+	return <label><span className="audio-editor-visually-hidden">{props.label}</span><IntegerField value={props.value} disabled={props.disabled} onChange={props.onChange} /><button type="button" disabled={props.disabled} onClick={props.onApply}>{props.applyLabel}</button></label>;
 }
 
 function NumberField(props: Readonly<{
 	label: string; value: number; minimum: number; maximum: number; onChange(value: number): void;
 }>) {
-	return <label><span>{props.label}</span><input required type="number" min={props.minimum} max={props.maximum} step={1} value={props.value} onChange={(event) => props.onChange(Number(event.currentTarget.value))} /></label>;
+	return <label><span>{props.label}</span><IntegerField required value={props.value} minimum={props.minimum} maximum={props.maximum} onChange={props.onChange} /></label>;
+}
+
+/** Hold half-typed text locally so clearing the field never commits an entry the user did not make. */
+function IntegerField(props: Readonly<{
+	value: number; disabled?: boolean; required?: boolean; minimum?: number; maximum?: number;
+	onChange(value: number): void;
+}>) {
+	const [draft, setDraft] = useState<string | null>(null);
+	return <input
+		required={props.required}
+		type="number"
+		min={props.minimum}
+		max={props.maximum}
+		step={1}
+		value={draft ?? String(props.value)}
+		disabled={props.disabled}
+		onChange={(event) => {
+			const entry = readTakeCompNumberEntry(event.currentTarget.value);
+			setDraft(entry.draft);
+			if (entry.value !== null) props.onChange(entry.value);
+		}}
+		onBlur={() => { setDraft(null); }}
+	/>;
 }
 
 function boundaryDrafts(group: TakeCompDialogGroupModel | null): BoundaryDrafts {
@@ -346,5 +376,5 @@ function sharedBoundaryKey(leftRegionId: string, rightRegionId: string): string 
 }
 
 function formatExtent(copy: Readonly<Record<string, string>>, start: number, end: number): string {
-	return copy.takeCompExtent.replace('{start}', String(start)).replace('{end}', String(end));
+	return formatLocalizedTemplate(copy.takeCompExtent, { start, end });
 }

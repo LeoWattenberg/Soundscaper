@@ -41,6 +41,32 @@ export interface TakeCompDialogModel {
 	readonly blockReason: 'read-only' | 'busy' | 'locked' | null;
 }
 
+export interface TakeCompNumberEntry {
+	readonly draft: string | null;
+	readonly value: number | null;
+}
+
+/**
+ * Value identity of the take geometry a dialog holds drafts for. Every snapshot publication
+ * rebuilds the model objects, so drafts may only be discarded when this identity changes.
+ */
+export function takeCompDialogDraftIdentity(group: TakeCompDialogGroupModel | null): string {
+	if (!group) return '';
+	return JSON.stringify([
+		group.id, group.startSample, group.endSample,
+		group.takes.map(({ id, startSample, endSample }) => [id, startSample, endSample]),
+		group.compRegions.map(({ id, takeId, startSample, endSample }) => [id, takeId, startSample, endSample]),
+	]);
+}
+
+/** Resolve one integer-field edit, holding transient text rather than committing an unentered value. */
+export function readTakeCompNumberEntry(text: string): Readonly<TakeCompNumberEntry> {
+	const trimmed = text.trim();
+	const value = Number(trimmed);
+	if (!trimmed || !Number.isSafeInteger(value)) return Object.freeze({ draft: text, value: null });
+	return Object.freeze({ draft: null, value });
+}
+
 /** Validate and project V17 take state into one snapshot-owned dialog model. */
 export function createTakeCompDialogModel(input: TakeCompDialogModelInput): Readonly<TakeCompDialogModel> {
 	if (input.productId !== 'soundscaper') return emptyModel();

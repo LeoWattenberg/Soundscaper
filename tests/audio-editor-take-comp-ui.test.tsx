@@ -13,7 +13,11 @@ import {
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import TakeCompDialog from '../src/common/editor/ui/dialogs/TakeCompDialog.tsx';
 import { createTakeCompApplicationMenuItems } from '../src/common/editor/ui/take-comp-application-menu.ts';
-import { createTakeCompDialogModel } from '../src/common/editor/ui/take-comp-dialog-model.ts';
+import {
+	createTakeCompDialogModel,
+	readTakeCompNumberEntry,
+	takeCompDialogDraftIdentity,
+} from '../src/common/editor/ui/take-comp-dialog-model.ts';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from '../src/common/i18n/canonical-extras.js';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 
@@ -114,6 +118,53 @@ test('dialog exposes keyboard-native audition, promotion, boundary, flatten, and
 	assert.match(blocked, /<button type="button" disabled=""[^>]*>Audition lane<\/button>/u);
 });
 
+test('take names interpolate literally and drafts survive unrelated snapshot rebuilds', async () => {
+	const markup = renderToStaticMarkup(<TakeCompDialog
+		productId="soundscaper"
+		controller={{ actions: { takeComp: actionPorts() } }}
+		snapshot={{ project: project(false, 'Guitar $& $$ mix') }}
+		copy={ENGLISH_COPY}
+		run={(operation) => operation()}
+		onClose={() => undefined}
+	/>);
+	assert.ok(markup.includes('aria-label="Select Guitar $&amp; $$ mix"'), markup);
+	assert.ok(markup.includes('Audition Guitar $&amp; $$ mix'), markup);
+
+	const first = createTakeCompDialogModel({ productId: 'soundscaper', project: project(), snapshot: {} });
+	const second = createTakeCompDialogModel({ productId: 'soundscaper', project: project(), snapshot: {} });
+	assert.notEqual(first.selectedGroup, second.selectedGroup);
+	assert.equal(
+		takeCompDialogDraftIdentity(first.selectedGroup),
+		takeCompDialogDraftIdentity(second.selectedGroup),
+	);
+	assert.notEqual(takeCompDialogDraftIdentity(first.selectedGroup), takeCompDialogDraftIdentity(null));
+	const moved = structuredClone(project());
+	const movedRegions = moved.takeGroups[0]!.compRegions as unknown as Array<{ startSample: number; endSample: number }>;
+	movedRegions[0]!.endSample = 350;
+	movedRegions[1]!.startSample = 350;
+	assert.notEqual(
+		takeCompDialogDraftIdentity(createTakeCompDialogModel({
+			productId: 'soundscaper', project: moved, snapshot: {},
+		}).selectedGroup),
+		takeCompDialogDraftIdentity(first.selectedGroup),
+	);
+
+	const dialog = await readFile(new URL('../src/common/editor/ui/dialogs/TakeCompDialog.tsx', import.meta.url), 'utf8');
+	assert.doesNotMatch(dialog, /\}, \[group\?\.id, group\]\)/u);
+	assert.doesNotMatch(dialog, /Number\(event\.currentTarget\.value\)/u);
+	assert.doesNotMatch(dialog, /copy\.\w+\.replace\(/u);
+});
+
+test('integer field entries hold transient text instead of committing an unentered zero', () => {
+	assert.deepEqual(readTakeCompNumberEntry(''), { draft: '', value: null });
+	assert.deepEqual(readTakeCompNumberEntry('  '), { draft: '  ', value: null });
+	assert.deepEqual(readTakeCompNumberEntry('-'), { draft: '-', value: null });
+	assert.deepEqual(readTakeCompNumberEntry('1.5'), { draft: '1.5', value: null });
+	assert.deepEqual(readTakeCompNumberEntry('0'), { draft: null, value: 0 });
+	assert.deepEqual(readTakeCompNumberEntry(' 420 '), { draft: null, value: 420 });
+	assert.deepEqual(readTakeCompNumberEntry('-12'), { draft: null, value: -12 });
+});
+
 test('take comp copy is complete and localized in English and German', () => {
 	const required = [
 		'takeCompMenu', 'takeCompTitle', 'takeCompEmpty', 'takeCompAuditionLane',
@@ -143,12 +194,12 @@ function actionPorts() {
 	};
 }
 
-function project(locked = false) {
+function project(locked = false, takeAName = 'Take A') {
 	return createAudioEditorProjectV17({
 		id: 'take-ui-project', title: 'Take UI project', now: NOW,
 		sources: [
 			createAudioSourceV10({
-				id: 'source-a', storageKey: 'source-a', name: 'Take A',
+				id: 'source-a', storageKey: 'source-a', name: takeAName,
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
 			createAudioSourceV10({

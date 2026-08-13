@@ -52,3 +52,16 @@ test('effect helpers keep labels, presets, and conditional controls deterministi
 	}, 'peakDb'), false);
 	assert.equal(audacityParameterPresentation('audacity-amplify', 'gainDb'), 'slider');
 });
+
+test('a project-authored missing effect name cannot expand into its own label', () => {
+	const missingCopy = { missingEffectLabel: 'Missing: {name}', missingEffectUnknown: 'Unknown' };
+	assert.equal(
+		safeEffectLabel({ type: 'missing', missing: { name: 'Reverb $& x' } }, missingCopy),
+		'Missing: Reverb $& x',
+	);
+	assert.equal(
+		safeEffectLabel({ type: 'missing', missing: { name: "Delay $' $` $$" } }, missingCopy),
+		"Missing: Delay $' $` $$",
+	);
+	assert.equal(safeEffectLabel({ type: 'missing', missing: { name: '   ' } }, missingCopy), 'Missing: Unknown');
+});
