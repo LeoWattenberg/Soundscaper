@@ -55,6 +55,23 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		await videoClips.first().focus();
 		await videoClips.first().press('Enter');
 		await expect(videoClips.first().locator('.clip-display')).toHaveClass(/clip-display--selected/u);
+		// The synthetic WebM ends between nominal 15 fps frame boundaries. Trim
+		// that partial tail through the real canonical keyboard route so the
+		// camera group owns an exact one-to-one source interval.
+		const outputClipId = await videoClips.first().getAttribute('data-clip-id');
+		expect(outputClipId).toBeTruthy();
+		const beforeTrim = await storedProject(page, projectId);
+		const outputClip = beforeTrim.clips.find(({ id }) => id === outputClipId);
+		const linkedAudioClip = beforeTrim.clips.find(({ kind, avLinkId }) => (
+			kind === 'audio' && avLinkId && avLinkId === outputClip?.avLinkId
+		));
+		expect(linkedAudioClip?.id).toBeTruthy();
+		const linkedAudio = editor.locator(`[data-clip-id="${linkedAudioClip.id}"][role="group"]`);
+		await linkedAudio.focus();
+		await linkedAudio.press('Control+Shift+ArrowLeft');
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
+		await videoClips.first().focus();
+		await videoClips.first().press('Enter');
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Multicamera', 'Create from video sources']);
 		await expect.poll(() => editor.locator('[data-status]').textContent())
@@ -91,6 +108,19 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 });
 
 async function storedMulticamera(page, projectId) {
+	const latest = await storedProject(page, projectId);
+	const groups = latest?.multicameraGroups || [];
+	const group = groups[0] || null;
+	return {
+		groupCount: groups.length,
+		memberCount: group?.members?.length || 0,
+		activeMemberId: group?.activeMemberId || null,
+		requirementIds: (latest?.featureRequirements?.requirements || [])
+			.map(({ id: requirementId }) => requirementId),
+	};
+}
+
+async function storedProject(page, projectId) {
 	return page.evaluate(async ({ databaseName, id }) => {
 		const requestResult = (request) => new Promise((resolve, reject) => {
 			request.onsuccess = () => resolve(request.result);
@@ -106,15 +136,7 @@ async function storedMulticamera(page, projectId) {
 			const latest = revisions
 				.filter(({ projectId: revisionProjectId }) => revisionProjectId === id)
 				.sort((left, right) => right.revision - left.revision)[0]?.project || project;
-			const groups = latest?.multicameraGroups || [];
-			const group = groups[0] || null;
-			return {
-				groupCount: groups.length,
-				memberCount: group?.members?.length || 0,
-				activeMemberId: group?.activeMemberId || null,
-				requirementIds: (latest?.featureRequirements?.requirements || [])
-					.map(({ id: requirementId }) => requirementId),
-			};
+			return latest;
 		} finally {
 			database.close();
 		}
