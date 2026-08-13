@@ -346,6 +346,18 @@ async function writePendingResult(outputDirectory, result) {
 async function writeAccepted(outputDirectory, diagnostic, pending, config, dependencies) {
 	const sourceRevision = dependencies.sourceRevision ?? await currentSourceRevision();
 	const configBytes = dependencies.configBytes ?? await readFile(CONFIG_URL);
+	let configFromBytes;
+	try {
+		configFromBytes = snapshotStrictJsonData(
+			JSON.parse(Buffer.from(configBytes).toString('utf8')),
+			'accepted config bytes',
+		);
+	} catch (error) {
+		throw new Error('Accepted M4 config bytes are not strict JSON.', { cause: error });
+	}
+	if (!deepEqualJson(configFromBytes, config)) {
+		throw new Error('Accepted M4 config bytes do not match the evaluated config.');
+	}
 	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	if (!deepEqualJson(pending.environmentFingerprint, environment.fingerprint)) {

@@ -325,6 +325,37 @@ test('matching provisioned evidence writes verified files once and never overwri
 	);
 });
 
+test('accepted publication binds hashed config bytes to the evaluated config before writing', async () => {
+	const activated = activatedReferenceConfig();
+	const diagnostic = makeReferenceDiagnostic();
+	const result = createPendingM4ProductionParityResult(diagnostic, activated);
+	const mismatched = structuredClone(activated);
+	const workload = mismatched.workloads.find(({ id }) => id === 'm4-production-render-parity');
+	assert.ok(workload);
+	workload.status = 'different-config-bytes';
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m4-parity-mismatch-'));
+	let verificationCalls = 0;
+	await assert.rejects(
+		writeM4ProductionParityResult(directory, diagnostic, result, activated, {
+			configBytes: Buffer.from(JSON.stringify(mismatched)),
+			sourceRevision: 'd'.repeat(40),
+			verifyAccepted: async () => {
+				verificationCalls += 1;
+				return { passed: true, failures: [], verdicts: [] };
+			},
+		}),
+		/config bytes do not match/iu,
+	);
+	assert.equal(verificationCalls, 0);
+	await assert.rejects(
+		readFile(join(directory, 'm4-production-render-parity.raw.json')),
+		/ENOENT/iu,
+	);
+	await assert.rejects(readFile(
+		join(directory, 'm4-production-render-parity.accepted.json'),
+	), /ENOENT/iu);
+});
+
 test('hosted correctness stays pending and cannot publish qualification evidence', async () => {
 	const diagnostic = makeDiagnostic();
 	diagnostic.environmentId = 'github-ubuntu-playwright-1.61.1';
