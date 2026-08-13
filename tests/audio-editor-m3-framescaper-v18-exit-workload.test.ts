@@ -96,11 +96,16 @@ test('the provisional quality register names the V18 cohort separately from lega
 			durationSeconds: 7200,
 			sampleRate: 48000,
 			contains: ['attached-proxy', 'nested-sequence', 'multicamera', 'verified-vfr', 'source-timecode'],
+			localDiagnosticCommand: 'npm run quality:collect:m3-framescaper-v18-exit',
+			qualificationPublication: 'pending-external-only',
 		},
-		limitation: 'This exact V18 cohort is deterministic structural and zero-drift oracle input. It does not qualify the unavailable proxy generator, the reviewed retime hard stop, GPU performance, packaged Electron, or operating-system durability.',
+		limitation: 'This exact V18 cohort is deterministic structural and zero-drift oracle input. Its opt-in no-retry browser collector can publish pending-external observations only. It does not qualify the unavailable proxy generator, the reviewed retime hard stop, the unprovisioned reference GPU, packaged Electron, or operating-system durability; acceptance requires a separately reviewed external verifier.',
 		evidence: [
 			'src/framescaper/quality/m3-framescaper-v18-exit-workload.ts',
 			'tests/audio-editor-m3-framescaper-v18-exit-workload.test.ts',
+			'scripts/collect-m3-framescaper-v18-exit-quality.mjs',
+			'tests/browser/framescaper-v18-exit-observation.spec.js',
+			'tests/quality-budget-m3-framescaper-v18-exit-collector.test.ts',
 		],
 	});
 	assert.deepEqual(workload, {
@@ -118,6 +123,9 @@ test('the provisional quality register names the V18 cohort separately from lega
 		evidence: [
 			'src/framescaper/quality/m3-framescaper-v18-exit-workload.ts',
 			'tests/audio-editor-m3-framescaper-v18-exit-workload.test.ts',
+			'scripts/collect-m3-framescaper-v18-exit-quality.mjs',
+			'tests/browser/framescaper-v18-exit-observation.spec.js',
+			'tests/quality-budget-m3-framescaper-v18-exit-collector.test.ts',
 		],
 	});
 });
