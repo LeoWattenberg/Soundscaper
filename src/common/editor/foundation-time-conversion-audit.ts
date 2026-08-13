@@ -78,6 +78,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'scheduled-parameter-context-offset',
+		file: 'src/common/editor/engine/scheduled-parameter-registry.ts',
+		behavior: 'Scheduled worklet events convert one exact project-frame delta and transport-rate ratio to the nearest context frame with later-frame ownership at exact half ties.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
 		id: 'legacy-aup-timeline-import',
 		file: 'src/common/editor/aup-legacy-conversion.js',
 		behavior: 'Legacy label, selection, source, clip, and envelope timestamps become nearest sample instants during interchange import.',
