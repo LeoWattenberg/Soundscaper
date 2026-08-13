@@ -8,6 +8,7 @@ import {
 import {
 	createFramescaperProjectMaintenanceRuntimeV18,
 } from './editor-project-v18-maintenance-runtime.ts';
+import { createFramescaperScapeNativeRuntimeV18 } from './editor-scape-native-v18.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -29,6 +30,10 @@ export function createFramescaperAudioEditorControllerV18(
 	const environment = assertFramescaperEditorProjectEnvironmentV18(environmentValue);
 	const presentation = snapshotPresentation(presentationValue);
 	const maintenance = createFramescaperProjectMaintenanceRuntimeV18(environment);
+	const scapeProjectRuntime = createFramescaperScapeNativeRuntimeV18(
+		environment.runtime.profile,
+		environment.scapeProjectFile,
+	);
 	return createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
@@ -39,6 +44,7 @@ export function createFramescaperAudioEditorControllerV18(
 		playbackProjectService: environment.playback,
 		createProjectIfAbsent: environment.createProjectIfAbsent,
 		projectMaintenanceRuntime: maintenance,
+		scapeProjectRuntime,
 		...presentation,
 	});
 }

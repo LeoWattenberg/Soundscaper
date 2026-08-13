@@ -284,6 +284,7 @@ export interface NativeProjectServiceRuntime {
 		readOnlyReason?: string | null;
 		skipFlush?: boolean;
 		save?: boolean;
+		preserveScapeOpenRequest?: boolean;
 	}>) => PromiseLike<unknown> | unknown;
 	readonly editingBlocked: () => boolean;
 	readonly flushProject: () => PromiseLike<unknown> | unknown;

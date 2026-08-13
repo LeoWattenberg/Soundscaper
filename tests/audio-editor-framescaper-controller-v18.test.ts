@@ -98,15 +98,22 @@ test('product controller reaches exact V18 Scape inspection and read-only format
 		await environment.close();
 	});
 	await controller.ready;
-	const inspected = await controller.inspectScape(exported);
+	const inspected = await controller.actions.project.inspectScape(exported) as Readonly<{
+		schemaVersion: number;
+		readOnly: boolean;
+		manifest: Readonly<{ formatVersion: number }>;
+	}>;
 	assert.equal(inspected.schemaVersion, 18);
 	assert.equal(inspected.readOnly, true);
 	assert.equal(inspected.manifest.formatVersion, 2);
-	const opened = await controller.openScapeFile(exported, () => 'open-read-only');
+	const opened = await controller.actions.project.openScapeFile(
+		exported,
+		() => 'open-read-only',
+	) as Readonly<{ project: Readonly<{ schemaVersion: number }> }>;
 	assert.equal(opened.project.schemaVersion, 18);
 	assert.equal(controller.project.schemaVersion, 18);
 	assert.equal(controller.getSnapshot().readOnly, true);
-	assert.equal(controller.getSnapshot().intrinsicReadOnly, true);
+	assert.equal(environment.runtime.migrateProject(controller.project).intrinsicReadOnly, true);
 	assert.deepEqual(await environment.store.loadProject(String(controller.project.id)), controller.project);
 });
 
@@ -124,5 +131,7 @@ async function createFormat2Archive(context: TestContext): Promise<Blob> {
 	});
 	const exported = await file.exportProject(archiveProject());
 	assert.ok(exported.blob);
-	return exported.blob;
+	return new File([exported.blob], 'V18 proxy workflow.scape', {
+		type: exported.blob.type,
+	});
 }

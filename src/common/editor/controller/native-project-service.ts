@@ -113,6 +113,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				readOnly: imported.readOnly,
 				readOnlyReason: imported.readOnly ? runtime.copy.futureProjectReadOnly : null,
 				skipFlush: false,
+				preserveScapeOpenRequest: true,
 			});
 			signal.throwIfAborted();
 			operation.task.assertCurrent();

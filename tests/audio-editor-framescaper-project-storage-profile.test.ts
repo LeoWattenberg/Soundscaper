@@ -425,7 +425,7 @@ test('lock profile forgeries fail before navigator, lease, or channel observatio
 	assert.equal(getterReads, 0);
 });
 
-test('the exact Framescaper selector remains statically dormant and product-owned', async () => {
+test('the exact Framescaper selector remains isolated across maintained product owners', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const references: string[] = [];
 	const literalOwners = new Set<string>();
@@ -447,6 +447,7 @@ test('the exact Framescaper selector remains statically dormant and product-owne
 		PRODUCT_MODULE,
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-store-v18.test.ts',
+		'tests/browser/editor-products.spec.js',
 		'tests/desktop-project-library-v10-contract.test.ts',
 		'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',

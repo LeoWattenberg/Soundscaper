@@ -777,7 +777,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		scheduleTimer: (callback, delayMs) => Number(globalThis.setTimeout(callback, delayMs)),
 		clearTimer: (timer) => globalThis.clearTimeout(timer),
 	});
-	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape, productCapabilities: product.capabilities, scapeInspectionQuiescenceOptions: options.scapeInspectionQuiescenceOptions });
+	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape, productCapabilities: product.capabilities, inspectScapeProject: options.scapeProjectRuntime?.inspectScapeProject, scapeInspectionQuiescenceOptions: options.scapeInspectionQuiescenceOptions });
 	const projectSwitchService = createProjectSwitchService({
 		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 		getProject: () => project,
@@ -878,8 +878,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		initialAup4Client: options.aup4Client || null,
 		aup4Options: options.aup4 || {},
 		migrateProject: projectRuntime.migrateProject,
-		importScapeProject,
-		exportScapeProject,
+		importScapeProject: options.scapeProjectRuntime?.importScapeProject || importScapeProject,
+		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || exportScapeProject,
 		copyFutureScapeArchive,
 		normalizeCompatibilityReport: normalizeAup4CompatibilityReport,
 		reportHasMissingPcm: aup4ReportHasMissingPcm,

@@ -28,6 +28,7 @@ import {
 	FramescaperScapeArchiveV18,
 	type FramescaperScapeArchiveBodyStoreV18,
 } from './scape-project-preservation-v18.ts';
+import { FramescaperScapeProjectFileV18 } from './scape-project-file-v18.ts';
 
 const OPTION_FIELDS = ['storeOptions', 'now', 'createGeneration'] as const;
 const PRODUCT_ENVIRONMENTS = new WeakSet<object>();
@@ -47,6 +48,7 @@ export interface FramescaperEditorProjectEnvironmentV18 {
 	readonly runtime: Readonly<EditorProjectRuntimeV18Selection>;
 	readonly store: AudioEditorProjectStore;
 	readonly archive: FramescaperScapeArchiveV18;
+	readonly scapeProjectFile: FramescaperScapeProjectFileV18;
 	readonly playback: PlaybackProjectService;
 	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
 	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
@@ -97,10 +99,18 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 				...(options.createGeneration ? { createGeneration: options.createGeneration } : {}),
 			},
 		);
+		const scapeProjectFile = new FramescaperScapeProjectFileV18(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+			{
+				archive,
+				store: store as unknown as FramescaperScapeArchiveBodyStoreV18,
+			},
+		);
 		const environment = Object.freeze({
 			runtime,
 			store,
 			archive,
+			scapeProjectFile,
 			playback: createFramescaperPlaybackProjectServiceV18(
 				FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			),

@@ -34,7 +34,7 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 			queueMicrotask(() => {
 				let database = databases.get(name);
 				if (!database) {
-					database = new FakeDatabase(stats, requestFailures.take);
+					database = new FakeDatabase(name, stats, requestFailures.take);
 					databases.set(name, database);
 				}
 				const nextVersion = requestedVersion ?? (database.version || 1);
@@ -104,7 +104,8 @@ export function createInstrumentedIndexedDB({ supportsContinuePrimaryKey = true 
 }
 
 class FakeDatabase {
-	constructor(stats, takeRequestFailure) {
+	constructor(name, stats, takeRequestFailure) {
+		this.name = name;
 		this.stats = stats;
 		this.takeRequestFailure = takeRequestFailure;
 		this.version = 0;

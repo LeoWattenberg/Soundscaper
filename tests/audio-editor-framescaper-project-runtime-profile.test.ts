@@ -288,7 +288,7 @@ test('authenticates only creator-issued final identities without candidate obser
 	}
 });
 
-test('keeps final-profile consumption within the closed isolated V18 domain set', async () => {
+test('keeps final-profile consumption within the closed maintained V18 product set', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const exportReferences: string[] = [];
 	const productPathReferences: string[] = [];
@@ -307,6 +307,7 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-v18-profile.ts',
 		'tests/audio-editor-controller-project-runtime.test.ts',
+		'tests/audio-editor-framescaper-controller-v18.test.ts',
 		'tests/audio-editor-framescaper-playback-project-v18.test.ts',
 		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		'tests/audio-editor-framescaper-project-repository-v18.test.ts',
@@ -332,6 +333,7 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'src/framescaper/editor-project-environment-v18.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
 		'tests/audio-editor-controller-project-runtime.test.ts',
+		'tests/audio-editor-framescaper-controller-v18.test.ts',
 		'tests/audio-editor-framescaper-playback-project-v18.test.ts',
 		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		'tests/audio-editor-framescaper-project-repository-v18.test.ts',
@@ -372,10 +374,12 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'src/framescaper/editor-project-v18-session.ts',
 		'src/framescaper/editor-project-v18-validation.ts',
 		'src/framescaper/editor-project-v18.ts',
+		'src/framescaper/editor-scape-native-v18.ts',
 		'src/framescaper/scape-project-envelope-v18.ts',
 		'src/framescaper/scape-project-file-envelope-v18.ts',
 		'src/framescaper/scape-project-file-export-v18.ts',
 		'src/framescaper/scape-project-file-fallback-v18.ts',
+		'src/framescaper/scape-project-file-import-v18.ts',
 		'src/framescaper/scape-project-file-v18.ts',
 		'src/framescaper/scape-project-preservation-v18.ts',
 		'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts',

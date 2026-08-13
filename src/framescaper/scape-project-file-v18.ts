@@ -45,6 +45,7 @@ export interface FramescaperScapeProjectInspectionV18 {
 	readonly readOnly: boolean;
 	readonly exists: boolean;
 	readonly manifest: FramescaperScapeManifestV18;
+	readonly project: FramescaperProjectV18;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 }
 
@@ -140,6 +141,7 @@ export class FramescaperScapeProjectFileV18 {
 			readOnly: loaded.readOnly,
 			exists: Boolean(existing),
 			manifest: envelope.manifest,
+			project: envelope.project,
 			featureRequirementsCompatibility: compatibility,
 		});
 	};

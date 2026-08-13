@@ -78,10 +78,10 @@ export function createProjectSwitchService<
 		await switchProject(loaded.project, { readOnly, readOnlyReason });
 	}
 
-	function beginScapeInspectionFence(): ScapeInspectionFence {
+	function beginScapeInspectionFence(preserveOpenRequest = false): ScapeInspectionFence {
 		const reason = new DOMException('The editor task was superseded.', 'AbortError');
 		const fence = runtime.scapeInspectionQuiescence.beginFence(reason);
-		runtime.lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK, reason);
+		if (!preserveOpenRequest) runtime.lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK, reason);
 		runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK, reason);
 		return fence;
 	}
@@ -91,7 +91,7 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History> = {},
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
-		const fence = beginScapeInspectionFence();
+		const fence = beginScapeInspectionFence(options.preserveScapeOpenRequest === true);
 		const operation = runtime.state.projectQueue.then(async () => {
 			runtime.lifetime.assertActive(token);
 			await fence.wait();

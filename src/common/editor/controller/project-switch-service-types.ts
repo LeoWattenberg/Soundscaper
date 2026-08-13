@@ -28,6 +28,8 @@ export interface ProjectSwitchOptions<History> {
 	readonly readOnly?: boolean;
 	readonly readOnlyReason?: string | null;
 	readonly history?: History;
+	/** The native Scape owner is committing this request into its final activation. */
+	readonly preserveScapeOpenRequest?: boolean;
 }
 
 export interface NewProjectOptions {

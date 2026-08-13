@@ -359,7 +359,7 @@ test('authenticates only creator-issued prerequisite identities without observin
 	);
 });
 
-test('keeps the product token statically dormant and out of common and Soundscaper owners', async () => {
+test('keeps the product prerequisite within maintained Framescaper and packaging owners', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const runtimeReferences: string[] = [];
 	const runtimeModulePathReferences: string[] = [];
@@ -376,15 +376,19 @@ test('keeps the product token statically dormant and out of common and Soundscap
 		PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
 	]);
 	assert.deepEqual(runtimeModulePathReferences, [
+		'scripts/lib/desktop-project-library-runtime.mjs',
 		FINAL_PRODUCT_MODULE,
 		'tests/audio-editor-framescaper-project-feature-' + 'capability-profile.test.ts',
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
+		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(storageReferences, [
 		PRODUCT_MODULE,
+		'src/framescaper/editor-project-runtime-v18-selection.ts',
 		'src/framescaper/editor-project-storage-profile-v18.ts',
+		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
 	]);
