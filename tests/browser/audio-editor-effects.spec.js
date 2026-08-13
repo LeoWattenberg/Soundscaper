@@ -466,16 +466,24 @@ import {
 		// The blur commit reaches the stored macro asynchronously and Export
 		// serialises that stored macro, so read the delay back out of the slot
 		// before downloading. Polling the finished file cannot recover from an
-		// export that raced the commit.
-		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
-		await manager.getByRole('group', { name: 'Echo', exact: true })
-			.getByRole('button', { name: 'Select effect', exact: true }).click();
-		const echoCommitted = page.getByRole('dialog', { name: 'Echo', exact: true });
-		await expect(echoCommitted.locator('[data-effect-param="delaySeconds"] input')).toHaveValue('0.75');
-		await closeDialog(echoCommitted);
+		// export that raced the commit. The settings dialog latches its value when
+		// it opens, so the read has to reopen the slot on every attempt: polling a
+		// dialog that opened too early pins the stale delay and never recovers.
+		await expect.poll(async () => {
+			const macros = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+			await macros.getByRole('group', { name: 'Echo', exact: true })
+				.getByRole('button', { name: 'Select effect', exact: true }).click();
+			const echoCommitted = page.getByRole('dialog', { name: 'Echo', exact: true });
+			const committedDelay = await echoCommitted
+				.locator('[data-effect-param="delaySeconds"] input').inputValue();
+			await closeDialog(echoCommitted);
+			return committedDelay;
+		}).toBe('0.75');
 
 		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
-		await manager.getByLabel('Macro name', { exact: true }).fill('Browser chain');
+		// Export serialises the stored macro name, and the rename only reaches the
+		// store on blur, so a bare fill() leaves Export writing the imported name.
+		await commitInput(manager.getByLabel('Macro name', { exact: true }), 'Browser chain');
 		const [download] = await Promise.all([
 			page.waitForEvent('download'),
 			manager.getByRole('button', { name: 'Export macro', exact: true }).click(),
