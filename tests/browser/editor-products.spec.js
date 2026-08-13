@@ -38,6 +38,10 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(soundscaper).toHaveAttribute('data-workspace-preset', 'modern');
 		await expect(soundscaper.locator('[data-transport="record"]')).toBeVisible();
 		await expect(page.locator('[data-workspace-select] option[value="video-editor"]')).toHaveCount(0);
+		await soundscaper.getByRole('menuitem', { name: 'Tracks', exact: true }).click();
+		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
+			.getByRole('menuitem', { name: /^Nested sequences(?:\s|$)/u })).toHaveCount(0);
+		await page.keyboard.press('Escape');
 		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Soundscaper', exact: true })).toBeVisible();
 
@@ -47,6 +51,10 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(framescaper).toHaveAttribute('data-workspace-preset', 'video-editor');
 		await expect(framescaper.locator('[data-transport="record"]')).toHaveCount(0);
 		await expect(page.locator('[data-workspace-select] option[value="video-editor"]')).toHaveCount(1);
+		await framescaper.getByRole('menuitem', { name: 'Tracks', exact: true }).click();
+		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
+			.getByRole('menuitem', { name: /^Nested sequences(?:\s|$)/u })).toBeVisible();
+		await page.keyboard.press('Escape');
 		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
