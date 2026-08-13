@@ -187,6 +187,7 @@ test('V18 runtime and command projections preserve attachment authority and reco
 	const runtime = framescaperProjectForRuntimeConsumersV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, project);
 	const command = framescaperProjectForCommandConsumersV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, project);
 	assert.equal(runtime.schemaVersion, 17);
+	assert.equal(command.schemaVersion, 17);
 	const runtimeSources = runtime.sources as readonly Record<string, unknown>[];
 	assert.equal(Object.hasOwn(runtimeSources[0] ?? {}, 'proxyAttachment'), false);
 	assert.equal(command.sources[0]?.proxyAttachment, null);
