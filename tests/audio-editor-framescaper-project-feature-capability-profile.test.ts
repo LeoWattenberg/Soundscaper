@@ -47,6 +47,7 @@ const PRODUCT_MODULE_STEM = 'editor-project-feature-capability-profile-v18';
 const GENERIC_MODULE_STEM = 'project-feature-capability-profile';
 const VIDEO_PROXY_ID = 'org.soundscaper.capability.video-proxy';
 const NESTED_SEQUENCES_ID = 'org.soundscaper.capability.nested-sequences';
+const MULTICAMERA_ID = 'org.soundscaper.capability.multicamera';
 
 type Definition = EditorProjectFeatureCapabilityProfileDefinition;
 type Registration = Definition['registrations'][number];
@@ -68,6 +69,7 @@ const EXPECTED = Object.freeze([
 	registration('audioSpectralEditing', 'org.soundscaper.capability.audio-spectral-editing', false),
 	registration('audioTimelineEditing', 'org.soundscaper.capability.audio-timeline-editing', true),
 	registration('audioWarp', 'org.soundscaper.capability.audio-warp', false),
+	registration('multicamera', MULTICAMERA_ID, true),
 	registration('musicalTimeline', 'org.soundscaper.capability.musical-timeline', false),
 	registration('nestedSequences', NESTED_SEQUENCES_ID, true),
 	registration('project', 'org.soundscaper.capability.project', true),
@@ -106,7 +108,7 @@ test('owns two type declarations, two runtime exports, and one exact product exp
 	assert.doesNotMatch(source, /export\s+(?:type\s+)?\{/u);
 });
 
-test('the exact Framescaper singleton owns 30 sorted registrations with 16 available', () => {
+test('the exact Framescaper singleton owns 31 sorted registrations with 17 available', () => {
 	const token: EditorProjectFeatureCapabilityProfile =
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE;
 	assert.equal(Object.isFrozen(token), true);
@@ -115,8 +117,8 @@ test('the exact Framescaper singleton owns 30 sorted registrations with 16 avail
 	const snapshot = editorProjectFeatureCapabilityProfileDefinition(token);
 	assert.equal(snapshot.owner, 'framescaper');
 	assert.deepEqual(snapshot.registrations, EXPECTED);
-	assert.equal(snapshot.registrations.length, 30);
-	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 16);
+	assert.equal(snapshot.registrations.length, 31);
+	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 17);
 	assert.deepEqual(snapshot.registrations.find((item: Registration) => item.key === 'videoProxy'),
 		registration('videoProxy', VIDEO_PROXY_ID, false));
 	assert.equal(Object.isFrozen(snapshot), true);
@@ -124,11 +126,11 @@ test('the exact Framescaper singleton owns 30 sorted registrations with 16 avail
 	assert.ok(snapshot.registrations.every((item: Registration) => Object.isFrozen(item)));
 });
 
-test('test-only parity exactly matches all 29 global IDs and strict Framescaper booleans', () => {
+test('test-only parity exactly matches all 30 global IDs and strict Framescaper booleans', () => {
 	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy');
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
-	assert.equal(parity.length, 29);
+	assert.equal(parity.length, 30);
 	assert.deepEqual(parity.map(({ key }) => key).sort(), Object.keys(ids).sort());
 	assert.deepEqual(parity.map(({ key }) => key).sort(), Object.keys(availability).sort());
 	for (const row of parity) {
@@ -154,6 +156,24 @@ test('nested sequences are globally known, native only in Framescaper, and never
 	assert.equal(isProjectFeatureCapabilityId(NESTED_SEQUENCES_ID), true);
 	assert.equal(isProjectFeatureAudioCapabilityId(NESTED_SEQUENCES_ID), false);
 	assert.equal(isProjectFeatureVideoCapabilityId(NESTED_SEQUENCES_ID), false);
+});
+
+test('multicamera is globally known, native only in Framescaper, and never rendered fallback', () => {
+	assert.equal(PROJECT_FEATURE_CAPABILITY_IDS.multicamera, MULTICAMERA_ID);
+	assert.equal(FRAMESCAPER_PROFILE.capabilities.multicamera, true);
+	assert.equal(SOUNDSCAPER_PROFILE.capabilities.multicamera, false);
+	for (const product of [FRAMESCAPER_PROFILE, SOUNDSCAPER_PROFILE]) {
+		const snapshot = snapshotProjectFeatureCapabilities(product.capabilities);
+		assert.equal(snapshot.knownFeatureIds.includes(MULTICAMERA_ID), true, product.id);
+		assert.equal(
+			snapshot.availableFeatureIds.includes(MULTICAMERA_ID),
+			product.id === 'framescaper',
+			product.id,
+		);
+	}
+	assert.equal(isProjectFeatureCapabilityId(MULTICAMERA_ID), true);
+	assert.equal(isProjectFeatureAudioCapabilityId(MULTICAMERA_ID), false);
+	assert.equal(isProjectFeatureVideoCapabilityId(MULTICAMERA_ID), false);
 });
 
 test('videoProxy remains absent and unknown to both products and every current V17 global path', () => {

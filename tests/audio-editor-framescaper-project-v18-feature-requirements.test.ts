@@ -7,6 +7,8 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
+	FRAMESCAPER_MULTICAMERA_FEATURE_ID,
+	FRAMESCAPER_MULTICAMERA_REQUIREMENT_V18,
 	FRAMESCAPER_NESTED_SEQUENCES_FEATURE_ID,
 	FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18,
 	FRAMESCAPER_VIDEO_PROXY_FEATURE_ID,
@@ -98,6 +100,42 @@ test('nonempty nested V18 state owns one native no-fallback requirement', () => 
 	assert.equal(empty.featureRequirements.requirements.some(
 		(requirement) => requirement.id === 'framescaper.nested-sequences',
 	), false);
+});
+
+test('nonempty multicamera V18 state owns one native no-fallback requirement', () => {
+	assert.deepEqual(FRAMESCAPER_MULTICAMERA_REQUIREMENT_V18, {
+		id: 'framescaper.multicamera',
+		featureId: 'org.soundscaper.capability.multicamera',
+		displayName: 'Multicamera groups',
+		disposition: 'bypass',
+		fallback: null,
+	});
+	assert.equal(PROJECT_FEATURE_CAPABILITY_IDS.multicamera, FRAMESCAPER_MULTICAMERA_FEATURE_ID);
+	const project = createFramescaperProjectV18(PROFILE, multicameraOptions());
+	assert.deepEqual(project.featureRequirements.requirements.at(-1),
+		FRAMESCAPER_MULTICAMERA_REQUIREMENT_V18);
+	assert.equal(validateFramescaperProjectV18(PROFILE, project), true);
+	const report = createFramescaperProjectFeatureCompatibilityServiceV18(PROFILE).evaluate(project);
+	assert.deepEqual(report?.items.find(
+		(item) => item.featureId === FRAMESCAPER_MULTICAMERA_FEATURE_ID,
+	), {
+		requirementId: 'framescaper.multicamera',
+		featureId: FRAMESCAPER_MULTICAMERA_FEATURE_ID,
+		displayName: 'Multicamera groups',
+		availability: 'available',
+		declaredDisposition: 'bypass',
+		disposition: 'native',
+		fallback: null,
+		message: 'Multicamera groups is available natively.',
+	});
+	const missing = structuredClone(project) as unknown as Record<string, unknown> & {
+		featureRequirements: { requirements: readonly { id: string }[] };
+	};
+	missing.featureRequirements = manifest(missing.featureRequirements.requirements.filter(
+		(requirement) => requirement.id !== 'framescaper.multicamera',
+	)) as { requirements: readonly { id: string }[] };
+	assert.throws(() => validateFramescaperProjectV18(PROFILE, missing),
+		/requires.*framescaper\.multicamera/iu);
 });
 
 test('all-null V18 creation and reconciliation remove the private proxy requirement', () => {
@@ -242,6 +280,28 @@ function nestedOptions(): Record<string, unknown> {
 	result.subsequences = [{
 		id: 'nested-placement', sequenceId: 'main-sequence', sourceSequenceId: 'nested-sequence',
 		sequenceStartFrame: 0, sequenceFrameCount: 10, sourceInFrame: 0, sourceFrameCount: 10,
+	}];
+	return result;
+}
+
+function multicameraOptions(): Record<string, unknown> {
+	const result = options();
+	const firstSource = (result.sources as Record<string, unknown>[])[0]!;
+	const secondSource = { ...firstSource, id: 'video-source-b', storageKey: 'video-source-b',
+		contentSha256: '78'.repeat(32) };
+	result.sources = [firstSource, secondSource];
+	result.projectBin = { clips: [{
+		kind: 'video', id: 'video-source-b-bin', binItemId: 'video-source-b-item',
+		sourceId: 'video-source-b', title: 'Camera B', sequenceId: 'main-sequence',
+		sequenceStartFrame: 0, sequenceFrameCount: 10, sourceInFrame: 0,
+		sourceFrameCount: 10, retimeMap: null,
+	}] };
+	result.multicameraGroups = [{
+		id: 'multicamera-a', projectId: 'framescaper-v18-features', sequenceId: 'main-sequence',
+		outputClipId: 'video-clip', activeMemberId: 'member-a', members: [
+			{ id: 'member-a', groupId: 'multicamera-a', sourceId: 'video-source', syncOffsetSamples: 0 },
+			{ id: 'member-b', groupId: 'multicamera-a', sourceId: 'video-source-b', syncOffsetSamples: 0 },
+		],
 	}];
 	return result;
 }
