@@ -25,6 +25,20 @@ export interface FramescaperNestedSequenceCrossProductCopyV18 {
 	readonly project: FramescaperProjectV18;
 }
 
+export interface FramescaperMulticameraCrossProductCopyRequestV18 {
+	readonly targetProduct: 'soundscaper';
+	readonly mode: 'copy-only-preservation';
+}
+
+export interface FramescaperMulticameraCrossProductCopyV18 {
+	readonly kind: 'framescaper-multicamera-cross-product-copy';
+	readonly targetProduct: 'soundscaper';
+	readonly mode: 'copy-only-preservation';
+	readonly activation: 'forbidden';
+	readonly editable: false;
+	readonly project: FramescaperProjectV18;
+}
+
 const COPY_REQUEST_FIELDS = ['targetProduct', 'mode'] as const;
 
 /**
@@ -53,6 +67,31 @@ export function prepareFramescaperNestedSequenceCrossProductCopyV18(
 }
 
 /**
+ * Detach a V18 multicamera graph for opaque Soundscaper preservation. The
+ * recipient remains read-only and cannot activate the Framescaper graph.
+ */
+export function prepareFramescaperMulticameraCrossProductCopyV18(
+	profile: unknown,
+	projectValue: unknown,
+	requestValue: FramescaperMulticameraCrossProductCopyRequestV18 | unknown,
+): Readonly<FramescaperMulticameraCrossProductCopyV18> {
+	assertFramescaperProjectV18Profile(profile);
+	const project = cloneFramescaperProjectV18(profile, projectValue);
+	if (project.multicameraGroups.length === 0) {
+		throw new Error('A Framescaper multicamera cross-product copy requires a nonempty V18 graph.');
+	}
+	const request = copyRequest(requestValue);
+	return Object.freeze({
+		kind: 'framescaper-multicamera-cross-product-copy',
+		targetProduct: request.targetProduct,
+		mode: request.mode,
+		activation: 'forbidden',
+		editable: false,
+		project,
+	});
+}
+
+/**
  * Delegate flat V18 selections to the established session clipboard. Nested
  * graphs fail closed because that descriptor has no subsequence ownership.
  */
@@ -66,6 +105,12 @@ export function createFramescaperSessionClipboardV18(
 	if (project.subsequences.length > 0) {
 		throw new Error(
 			'The Framescaper V18 session clipboard cannot preserve a nested-sequence graph; '
+			+ 'use .scape copy-only preservation.',
+		);
+	}
+	if (project.multicameraGroups.length > 0) {
+		throw new Error(
+			'The Framescaper V18 session clipboard cannot preserve a multicamera graph; '
 			+ 'use .scape copy-only preservation.',
 		);
 	}
