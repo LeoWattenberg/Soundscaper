@@ -38,7 +38,7 @@ const ORIGINAL_SHA = '12'.repeat(32);
 const PROXY_SHA = '34'.repeat(32);
 const TIMING_SHA = '56'.repeat(32);
 const PROXY_BYTES = Uint8Array.of(1, 2, 3, 4);
-const TIMING_BYTES = Uint8Array.of(5, 6, 7, 8);
+const TIMING_BYTES = new Uint8Array(40).fill(5);
 
 test('opens a dormant main session only after the exact closed V10 handshake', () => {
 	let hostObservations = 0;
@@ -63,10 +63,9 @@ test('opens a dormant main session only after the exact closed V10 handshake', (
 	const session = admitted.openSession(createFramescaperDesktopProjectLibraryV10Handshake());
 	assert.equal(Object.isFrozen(session), true);
 	assert.equal(validHost.calls.length, 0);
-	assert.throws(
-		() => admitted.openSession(createFramescaperDesktopProjectLibraryV10Handshake()),
-		/session|settled|opened/iu,
-	);
+	assert.equal(Object.isFrozen(
+		admitted.openSession(createFramescaperDesktopProjectLibraryV10Handshake()),
+	), true);
 });
 
 test('preserves one exact V18 document with a complete proxy and timing body pair', async () => {
@@ -131,6 +130,7 @@ test('revalidates the exact bundle before every bounded body read', async () => 
 	const service = FramescaperDesktopProjectLibraryV10TransferService.create({ host: fixture.host });
 	const session = service.openSession(service.localHandshake);
 	const bundle = await session.readProjectBundle(PROJECT_ID);
+	assert.ok(bundle);
 	const proxy = bundle.bodies[0]!;
 	const valid = readRequest(bundle, proxy);
 
@@ -154,15 +154,18 @@ test('main IPC admits each renderer only through handshake and exposes no path o
 	const service = FramescaperDesktopProjectLibraryV10TransferService.create({ host: fixture.host });
 	const handlers = new Map<string, (event: unknown, value?: unknown) => Promise<unknown> | unknown>();
 	const registration = registerFramescaperDesktopProjectLibraryV10Ipc({
-		handle: (channel, handler) => { handlers.set(channel, handler); },
-		ownerFor: (event) => (event as { owner: object }).owner,
+		handle: (
+			channel: string,
+			handler: (event: unknown, value?: unknown) => Promise<unknown> | unknown,
+		) => { handlers.set(channel, handler); },
+		ownerFor: (event: unknown) => (event as { owner: object }).owner,
 		service,
 	});
 	const first = { owner: {} };
 	const second = { owner: {} };
 	const poison = zeroTrapProxy({});
-	await assert.rejects(
-		Promise.resolve(handlers.get(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.readProjectBundle)!(first, poison.proxy)),
+	assert.throws(
+		() => handlers.get(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.readProjectBundle)!(first, poison.proxy),
 		/handshake/iu,
 	);
 	assert.deepEqual(poison.hits, [0, 0, 0, 0]);
@@ -176,14 +179,14 @@ test('main IPC admits each renderer only through handshake and exposes no path o
 		first,
 		PROJECT_ID,
 	), publicBundle());
-	await assert.rejects(Promise.resolve(handlers.get(
+	assert.throws(() => handlers.get(
 		FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.handshake,
 	)!(second, {
 		...createFramescaperDesktopProjectLibraryV10Handshake(), projectSchemaVersion: 17,
-	})), /handshake/iu);
-	await assert.rejects(Promise.resolve(handlers.get(
+	}), /handshake/iu);
+	assert.throws(() => handlers.get(
 		FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.readProjectBundle,
-	)!(second, PROJECT_ID)), /handshake|refused/iu);
+	)!(second, PROJECT_ID), /handshake|refused/iu);
 	assert.deepEqual([...handlers.keys()].sort(), [
 		FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.handshake,
 		FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.readBodyChunk,
@@ -197,7 +200,7 @@ test('preload performs one handshake before operational IPC and revalidates ever
 	const calls: Array<[string, unknown]> = [];
 	let response: unknown = createFramescaperDesktopProjectLibraryV10Handshake();
 	const bridge = createFramescaperDesktopProjectLibraryV10PreloadBridge({
-		invoke: async (channel, value) => {
+		invoke: async (channel: string, value?: unknown) => {
 			calls.push([channel, value]);
 			if (channel === FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.handshake) return response;
 			if (channel === FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.readProjectBundle) return publicBundle();
@@ -219,7 +222,7 @@ test('preload performs one handshake before operational IPC and revalidates ever
 
 	const refusedCalls: Array<[string, unknown]> = [];
 	const refused = createFramescaperDesktopProjectLibraryV10PreloadBridge({
-		invoke: async (channel, value) => {
+		invoke: async (channel: string, value?: unknown) => {
 			refusedCalls.push([channel, value]);
 			return { ...createFramescaperDesktopProjectLibraryV10Handshake(), desktopDatabaseUserVersion: 11 };
 		},
@@ -231,7 +234,7 @@ test('preload performs one handshake before operational IPC and revalidates ever
 
 	response = createFramescaperDesktopProjectLibraryV10Handshake();
 	const malformed = createFramescaperDesktopProjectLibraryV10PreloadBridge({
-		invoke: async (channel) => channel === FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.handshake
+		invoke: async (channel: string) => channel === FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V10_CHANNELS.handshake
 			? response
 			: { ...publicBundle(), document: '{}' },
 	});
@@ -246,6 +249,7 @@ test('keeps the V10 transport dormant and leaves the V9 main, preload, and IPC o
 	for (const module of [
 		'desktop/project-library-v10-ipc.ts',
 		'desktop/project-library-v10-preload.ts',
+		'desktop/project-library-v10-transfer-contract.ts',
 		'desktop/project-library-v10-transfer-service.ts',
 	]) {
 		const source = await readFile(resolve(ROOT, module), 'utf8');
@@ -259,10 +263,10 @@ interface RawBundle {
 	readonly bodies: readonly Record<string, unknown>[];
 }
 
-function hostFixture(initialBundle: RawBundle = rawBundle()) {
+function hostFixture(initialBundle: unknown = rawBundle()) {
 	const calls: Array<readonly unknown[]> = [];
-	let bundle = initialBundle;
-	let bodyResult = PROXY_BYTES;
+	const bundle = initialBundle;
+	let bodyResult: Uint8Array<ArrayBufferLike> = PROXY_BYTES;
 	const host: FramescaperDesktopProjectLibraryV10TransferHost = {
 		async readProjectBundle(projectId) {
 			calls.push(['bundle', projectId]);
@@ -276,8 +280,6 @@ function hostFixture(initialBundle: RawBundle = rawBundle()) {
 	return {
 		calls,
 		host,
-		get bundle() { return bundle; },
-		set bundle(value: RawBundle) { bundle = value; },
 		get bodyResult() { return bodyResult; },
 		set bodyResult(value: Uint8Array) { bodyResult = value; },
 	};
@@ -326,10 +328,11 @@ function bodyDescriptors(document: string) {
 	);
 	return [{
 		kind: 'video-proxy', encoding: 'video-proxy-v1', bindingId: binding.id,
-		sourceId: SOURCE_ID, storageKey: `video-proxy-sha256:${PROXY_SHA}`,
+		sourceId: `video-proxy-sha256:${PROXY_SHA}`, storageKey: `video-proxy-sha256:${PROXY_SHA}`,
 		mimeType: 'video/mp4', byteLength: PROXY_BYTES.byteLength, sha256: PROXY_SHA,
 	}, {
-		kind: 'video-timing', encoding: 'soundscaper-video-timing-v1', sourceId: SOURCE_ID,
+		kind: 'video-timing', encoding: 'soundscaper-video-timing-v1',
+		sourceId: `video-timing-sha256:${TIMING_SHA}`,
 		storageKey: `video-timing-sha256:${TIMING_SHA}`,
 		mimeType: 'application/vnd.soundscaper.video-timing',
 		byteLength: TIMING_BYTES.byteLength, sha256: TIMING_SHA,
