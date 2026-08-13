@@ -15,6 +15,7 @@ import type {
 
 export interface VideoKeyframePreviewStateRequest {
 	readonly clip: unknown;
+	readonly source?: unknown;
 	/** Exact absolute project sample under the program playhead. */
 	readonly timelineSample: number;
 	readonly sourceDisplaySize: VideoRenderDisplaySize;

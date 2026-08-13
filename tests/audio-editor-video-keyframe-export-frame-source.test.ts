@@ -62,6 +62,60 @@ test('frame source retains wide exact frame positions and static composition par
 	assert.equal(active.clips[0].renderDescription.blendMode, DEFAULT_VIDEO_CLIP_COMPOSITION.blendMode);
 });
 
+test('frame source binds exact presentation descriptors to keyed and static clip entries', () => {
+	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const runtime = runtimeProject(project);
+	const calls: Array<Readonly<Record<string, unknown>>> = [];
+	const descriptor = Object.freeze({ authority: 'exact-presentation' });
+	const source = createVideoKeyframeExportFrameSource({
+		project: runtime,
+		canvas: { width: 320, height: 180, frameRate: 3 },
+		resolvePresentationDescriptor(request) {
+			calls.push(request as unknown as Readonly<Record<string, unknown>>);
+			return descriptor as never;
+		},
+	});
+	const frame = source.frame(1);
+	const entry = (frame.layers[0] as { clips: readonly [Readonly<Record<string, unknown>>] }).clips[0];
+	assert.equal(entry.presentationDescriptor, descriptor);
+	assert.equal(calls.length, 1);
+	assert.equal((calls[0]?.clip as { id: string }).id, entry.clipId);
+	assert.equal((calls[0]?.source as { id: string }).id, entry.sourceId);
+	assert.deepEqual(calls[0]?.localSequencePosition, { num: 10, den: 3 });
+
+	const keyedProject = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	(keyedProject.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();
+	const keyedSource = createVideoKeyframeExportFrameSource({
+		project: runtimeProject(keyedProject),
+		canvas: { width: 320, height: 180, frameRate: 3 },
+		resolvePresentationDescriptor: () => descriptor as never,
+	});
+	const keyedEntry = (keyedSource.frame(1).layers[0] as {
+		clips: readonly [Readonly<Record<string, unknown>>];
+	}).clips[0];
+	assert.equal(keyedEntry.presentationDescriptor, descriptor);
+	assert.ok(Array.isArray(keyedEntry.videoEffects));
+});
+
+test('frame source snapshots presentation authority without invoking accessors', () => {
+	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const runtime = runtimeProject(project);
+	let calls = 0;
+	const request: Record<string, unknown> = {
+		project: runtime,
+		canvas: { width: 320, height: 180, frameRate: 3 },
+	};
+	Object.defineProperty(request, 'resolvePresentationDescriptor', {
+		enumerable: true,
+		get() { calls += 1; return () => ({}); },
+	});
+	assert.throws(
+		() => createVideoKeyframeExportFrameSource(request as never),
+		/resolvePresentationDescriptor.*data property/u,
+	);
+	assert.equal(calls, 0);
+});
+
 test('frame source privately brands each lazy frame to its exact owning snapshot', () => {
 	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
 	const request = {

@@ -145,7 +145,7 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 			const keyframeState = options.renderCanvas == null || typeof options.resolveClipRenderState !== 'function'
 				? null
 				: options.resolveClipRenderState({
-					clip, timelineSample: frame,
+					clip, source, timelineSample: frame,
 					sourceDisplaySize: resolveVideoSourceDisplaySize(source),
 					canvas: options.renderCanvas, transitionWeight: transitionOpacity,
 				});
@@ -163,7 +163,9 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceTimeSeconds: mapping.sourceTimeSeconds,
 				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source),
 				opacity: renderDescription?.opacityStart ?? transitionOpacity,
-				...(keyframeState == null ? {} : { videoEffects: keyframeState.videoEffects }),
+				...(keyframeState?.videoEffects == null ? {} : { videoEffects: keyframeState.videoEffects }),
+				...(keyframeState?.presentationDescriptor == null
+					? {} : { presentationDescriptor: keyframeState.presentationDescriptor }),
 				...(renderDescription == null ? {} : { renderDescription }),
 			});
 		});

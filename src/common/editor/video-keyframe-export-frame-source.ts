@@ -9,6 +9,7 @@ import {
 	type VideoKeyframeRenderStateProvider,
 } from './video-keyframe-render-state-provider.ts';
 import type { VideoKeyframePreviewStateRequest } from './video-keyframe-preview-state.ts';
+import type { VideoRetimeFrameDescriptor } from './video-retime-frame-dispatch.ts';
 import {
 	normalizeRational,
 	type Rational,
@@ -36,7 +37,18 @@ export interface VideoKeyframeExportFrameRequest {
 	readonly startFrame?: number;
 	readonly endFrame?: number;
 	readonly provider?: VideoKeyframeRenderStateProvider;
+	readonly resolvePresentationDescriptor?: VideoKeyframeExportPresentationResolver;
 }
+
+export interface VideoKeyframeExportPresentationRequest {
+	readonly clip: Readonly<Record<string, unknown>>;
+	readonly source: Readonly<Record<string, unknown>>;
+	readonly localSequencePosition: Rational;
+}
+
+export type VideoKeyframeExportPresentationResolver = (
+	request: VideoKeyframeExportPresentationRequest,
+) => VideoRetimeFrameDescriptor;
 
 export interface VideoKeyframeExportFrame {
 	readonly index: number;
@@ -90,6 +102,7 @@ export function createVideoKeyframeExportFrameSource(
 ): VideoKeyframeExportFrameSource {
 	const requestRecord = closedRecord(request, new Set([
 		'project', 'canvas', 'startFrame', 'endFrame', 'provider',
+		'resolvePresentationDescriptor',
 	]), 'video keyframe export request');
 	const project = plainRecord(
 		dataProperty(requestRecord, 'project', 'video keyframe export request'),
@@ -123,6 +136,11 @@ export function createVideoKeyframeExportFrameSource(
 	const provider = optionalDataProperty(
 		requestRecord, 'provider', undefined, 'video keyframe export request',
 	) as VideoKeyframeRenderStateProvider | undefined ?? createVideoKeyframeRenderStateProvider();
+	const resolvePresentationDescriptor = optionalFunction(
+		requestRecord,
+		'resolvePresentationDescriptor',
+		'video keyframe export request',
+	) as VideoKeyframeExportPresentationResolver | undefined;
 	const source: VideoKeyframeExportFrameSource = Object.freeze({
 		frameCount,
 		startFrame,
@@ -138,7 +156,12 @@ export function createVideoKeyframeExportFrameSource(
 			const layers = resolveActiveVideoLayers(snapshot, timelineSample, {
 				renderCanvas: canvas,
 				resolveClipRenderState: (stateRequest: VideoKeyframePreviewStateRequest) => (
-					resolveVideoKeyframeExportState(provider, stateRequest, timelinePosition)
+					resolveVideoKeyframeExportState(
+						provider,
+						stateRequest,
+						timelinePosition,
+						resolvePresentationDescriptor,
+					)
 				),
 			});
 			const frame = Object.freeze({ index, timelineSample, timelinePosition, layers });
@@ -154,9 +177,9 @@ function resolveVideoKeyframeExportState(
 	provider: VideoKeyframeRenderStateProvider,
 	request: VideoKeyframePreviewStateRequest,
 	timelinePosition: Readonly<{ num: number; den: number }>,
+	resolvePresentationDescriptor: VideoKeyframeExportPresentationResolver | undefined,
 ) {
 	const clip = request.clip as Readonly<Record<string, unknown>>;
-	if (!Object.hasOwn(clip, 'videoKeyframes')) return null;
 	const timelineStartFrame = nonNegativeSafeInteger(
 		dataProperty(clip, 'timelineStartFrame', 'video keyframe export clip'),
 		'video keyframe export clip.timelineStartFrame',
@@ -172,8 +195,24 @@ function resolveVideoKeyframeExportState(
 	const localSequencePosition = mapLocalSequencePosition(
 		timelinePosition, timelineStartFrame, durationFrames, sequenceFrameCount,
 	);
+	const source = request.source === undefined
+		? undefined
+		: plainRecord(request.source, 'video keyframe export source');
+	if (resolvePresentationDescriptor !== undefined && source === undefined) {
+		throw new TypeError('Video keyframe export presentation resolution requires a canonical source.');
+	}
+	const presentationDescriptor = resolvePresentationDescriptor === undefined
+		? undefined
+		: plainRecord(Reflect.apply(resolvePresentationDescriptor, undefined, [Object.freeze({
+			clip,
+			source,
+			localSequencePosition,
+		})]), 'video keyframe export presentation descriptor') as unknown as VideoRetimeFrameDescriptor;
+	if (!Object.hasOwn(clip, 'videoKeyframes')) {
+		return presentationDescriptor === undefined ? null : Object.freeze({ presentationDescriptor });
+	}
 	const transitionWeight = request.transitionWeight ?? 1;
-	return provider.resolve({
+	const state = provider.resolve({
 		clip,
 		localSequencePosition,
 		sourceDisplaySize: request.sourceDisplaySize,
@@ -181,6 +220,9 @@ function resolveVideoKeyframeExportState(
 		transitionWeightStart: transitionWeight,
 		transitionWeightEnd: transitionWeight,
 	});
+	return presentationDescriptor === undefined
+		? state
+		: Object.freeze({ ...state, presentationDescriptor });
 }
 
 function mapLocalSequencePosition(
@@ -351,6 +393,17 @@ function optionalDataProperty(
 ): unknown {
 	if (!Object.hasOwn(value, key)) return fallback;
 	return dataProperty(value, key, name);
+}
+
+function optionalFunction(
+	value: object,
+	key: string,
+	name: string,
+): ((...args: unknown[]) => unknown) | undefined {
+	if (!Object.hasOwn(value, key)) return undefined;
+	const candidate = dataProperty(value, key, name);
+	if (typeof candidate !== 'function') throw new TypeError(`${name}.${key} must be a function.`);
+	return candidate as (...args: unknown[]) => unknown;
 }
 
 function nonNegativeSafeInteger(value: unknown, name: string): number {
