@@ -122,6 +122,24 @@ test('product controller refuses cloned environments and authority options befor
 	}
 });
 
+test('product controller consumes the environment-owned lifecycle store', async (context) => {
+	const environment = await createFramescaperEditorProjectEnvironmentV18({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	});
+	const controllerStore = environment.controllerStore as unknown as { loadProject: (...values: unknown[]) => unknown };
+	assert.equal(controllerStore, environment.store);
+	const controller = createFramescaperAudioEditorControllerV18(environment, { locale: 'en' });
+	context.after(async () => {
+		await controller.dispose();
+		await environment.close();
+	});
+	await controller.ready;
+	assert.equal(controller.project.schemaVersion, 18);
+});
+
 test('product controller reaches exact V18 Scape inspection and read-only format-2 import', async (context) => {
 	const exported = await createFormat2Archive(context);
 	const environment = await createFramescaperEditorProjectEnvironmentV18({

@@ -34,6 +34,7 @@ test('product environment composes one exact V18 authority after startup cleanup
 	assert.equal(environment.initialCleanup.status, 'settled');
 	assert.deepEqual(environment.initialCleanup.issues, []);
 	assert.equal(environment.desktopProjectLibrary, null);
+	assert.equal(environment.controllerStore, environment.store);
 	const project = environment.runtime.createProject({
 		id: 'environment-v18',
 		title: 'Environment V18',
