@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	ParameterGestureAuthorityChangedError,
+	ParameterGestureNotActiveError,
 	ParameterGesturePreviewSupersededError,
 	createParameterGestureAdapter,
 	type ParameterGestureTarget,
@@ -64,11 +65,25 @@ test('generic gestures reject switched projects, replaced targets, and stale ack
 	harness.generation.activate('project-b');
 	assert.throws(() => harness.adapter.preview('target-1', { amount: 2 }), EditorProjectChangedError);
 	assert.equal(harness.sessions.size, 0);
+	assert.throws(
+		() => harness.adapter.preview('target-1', { amount: 3 }),
+		ParameterGestureNotActiveError,
+	);
+	assert.throws(
+		() => harness.adapter.commit('target-1', { amount: 4 }),
+		ParameterGestureNotActiveError,
+	);
+	assert.equal(harness.commits, 0);
+	assert.deepEqual(harness.runtimeValue, { amount: 1 });
 
 	harness.adapter.begin('target-1');
 	harness.target = { ...harness.target, revision: 'revision-2' };
 	assert.throws(() => harness.adapter.preview('target-1', { amount: 2 }), /changed/iu);
 	assert.equal(harness.sessions.size, 0);
+	assert.throws(
+		() => harness.adapter.commit('target-1', { amount: 4 }),
+		ParameterGestureNotActiveError,
+	);
 
 	harness.target = { ...harness.target, revision: 'revision-3' };
 	harness.adapter.begin('target-1');
@@ -95,10 +110,19 @@ test('generic gestures revoke write authority without reviving stale sessions', 
 	assert.equal(harness.sessions.size, 0);
 	harness.advanceAuthority();
 	assert.throws(
+		() => harness.adapter.preview('target-1', { amount: 7 }),
+		ParameterGestureAuthorityChangedError,
+	);
+	assert.throws(
 		() => harness.adapter.commit('target-1', { amount: 8 }),
 		ParameterGestureAuthorityChangedError,
 	);
+	assert.throws(
+		() => harness.adapter.commit('target-1', { amount: 9 }),
+		ParameterGestureAuthorityChangedError,
+	);
 	assert.equal(harness.commits, 0);
+	assert.deepEqual(harness.runtimeValue, { amount: 1 });
 
 	harness.adapter.begin('target-1');
 	assert.deepEqual(harness.adapter.commit('target-1', { amount: 4 }), { amount: 4 });

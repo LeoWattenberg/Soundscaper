@@ -4,6 +4,7 @@ import type { EditorProjectToken } from './lifecycle.ts';
 
 export const PARAMETER_GESTURE_PREVIEW_SUPERSEDED_CODE = 'PARAMETER_GESTURE_PREVIEW_SUPERSEDED' as const;
 export const PARAMETER_GESTURE_AUTHORITY_CHANGED_CODE = 'PARAMETER_GESTURE_AUTHORITY_CHANGED' as const;
+export const PARAMETER_GESTURE_NOT_ACTIVE_CODE = 'PARAMETER_GESTURE_NOT_ACTIVE' as const;
 
 export class ParameterGestureAuthorityChangedError extends Error {
 	readonly code = PARAMETER_GESTURE_AUTHORITY_CHANGED_CODE;
@@ -20,6 +21,15 @@ export class ParameterGesturePreviewSupersededError extends Error {
 	constructor(options?: ErrorOptions) {
 		super('The parameter preview was superseded by a newer runtime revision.', options);
 		this.name = 'ParameterGesturePreviewSupersededError';
+	}
+}
+
+export class ParameterGestureNotActiveError extends Error {
+	readonly code = PARAMETER_GESTURE_NOT_ACTIVE_CODE;
+
+	constructor() {
+		super('The parameter gesture must begin before it can preview or commit.');
+		this.name = 'ParameterGestureNotActiveError';
 	}
 }
 
@@ -126,7 +136,7 @@ export function createParameterGestureAdapter<Value, Result, Authority>(
 
 	function preview(identityValue: string, value: Value): number | false {
 		const identity = stableIdentity(identityValue);
-		ensureSession(identity);
+		requireSession(identity);
 		const { session, target } = assertCurrent(identity, sessions.get(identity)!);
 		const normalized = clone(normalize(target, clone(value)));
 		return applyAndRecord(identity, session, target, normalized);
@@ -134,7 +144,7 @@ export function createParameterGestureAdapter<Value, Result, Authority>(
 
 	function commit(identityValue: string, value: Value): Result {
 		const identity = stableIdentity(identityValue);
-		ensureSession(identity);
+		requireSession(identity);
 		const { session, target } = assertCurrent(identity, sessions.get(identity)!);
 		const normalized = clone(normalize(target, clone(value)));
 		sessions.delete(identity);
@@ -206,10 +216,10 @@ export function createParameterGestureAdapter<Value, Result, Authority>(
 		return identities.length;
 	}
 
-	function ensureSession(identity: string): void {
+	function requireSession(identity: string): void {
 		if (sessions.has(identity)) return;
 		if (revokedIdentities.has(identity)) throw new ParameterGestureAuthorityChangedError();
-		begin(identity);
+		throw new ParameterGestureNotActiveError();
 	}
 
 	function assertCurrent(
