@@ -6,6 +6,7 @@ on:
     # the heavy load GitHub Actions commonly sees at the top of the hour.
     - cron: '17 2 * * *'
   push:
+    branches: [main]
     tags:
       - 'v*-beta.*'
   workflow_dispatch:
@@ -25,7 +26,10 @@ permissions:
 
 concurrency:
   group: desktop-preview-and-nightly-${{ github.ref }}
-  cancel-in-progress: false
+  # Branch pushes supersede each other: only the newest main commit is worth
+  # packaging, and the matrix is too long to let a queue build up. Tag, schedule
+  # and dispatch runs still always finish.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
 
 env:
   PUBLIC_FFMPEG_CORE_BASE_URL: https://assets.soundscaper.org/runtime/ffmpeg/0.12.10
@@ -186,7 +190,10 @@ jobs:
 
   package:
     name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
+    if: >-
+      (github.event_name == 'push' && github.ref_type == 'tag')
+      || github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly')
     needs: [quality, browser, firefox]
     timeout-minutes: 60
     strategy:
@@ -328,7 +335,9 @@ jobs:
 
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    if: github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly-with-tests'
+    if: >-
+      (github.event_name == 'push' && github.ref_type == 'branch')
+      || (github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly-with-tests')
     needs: [quality, browser, firefox]
     timeout-minutes: 90
     strategy:
@@ -430,7 +439,10 @@ jobs:
 
   soundscaper-project-library-lease-matrix:
     name: Soundscaper V9 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    if: github.event_name != 'workflow_dispatch' || inputs.artifact_variant == 'nightly'
+    if: >-
+      (github.event_name == 'push' && github.ref_type == 'tag')
+      || github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly')
     needs: [quality, browser, firefox]
     runs-on: ${{ matrix.target.runner }}
     timeout-minutes: 90

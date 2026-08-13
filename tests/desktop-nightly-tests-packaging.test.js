@@ -99,9 +99,12 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 	assert.doesNotMatch(source, /BrowserWindow/u);
 });
 
-test('desktop CI exposes one opt-in six-target nightly-with-tests artifact matrix', async () => {
+test('desktop CI exposes one push-and-dispatch six-target nightly-with-tests artifact matrix', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+artifact_variant:/u);
+	// The tested package is built for every main commit, so the workflow has to
+	// observe branch pushes as well as the beta tags it already released from.
+	assert.match(workflow, /push:\s+branches: \[main\]\s+tags:/u);
 	assert.match(workflow, /artifact_variant:[\s\S]*type: choice[\s\S]*options:\s+- nightly\s+- nightly-with-tests/u);
 
 	const normalStart = workflow.indexOf('\n  package:');
@@ -111,8 +114,19 @@ test('desktop CI exposes one opt-in six-target nightly-with-tests artifact matri
 	const normalJob = workflow.slice(normalStart, testStart);
 	const testJob = workflow.slice(testStart, nextStart);
 
-	assert.match(normalJob, /if: github\.event_name != 'workflow_dispatch' \|\| inputs\.artifact_variant == 'nightly'/u);
-	assert.match(testJob, /if: github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly-with-tests'/u);
+	// The ordinary package stays on tags, schedules and an explicit nightly
+	// dispatch; only the tested variant follows main pushes.
+	assert.match(normalJob, new RegExp(
+		String.raw`if: >-\s+\(github\.event_name == 'push' && github\.ref_type == 'tag'\)`
+		+ String.raw`\s+\|\| github\.event_name == 'schedule'`
+		+ String.raw`\s+\|\| \(github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly'\)`,
+		'u',
+	));
+	assert.match(testJob, new RegExp(
+		String.raw`if: >-\s+\(github\.event_name == 'push' && github\.ref_type == 'branch'\)`
+		+ String.raw`\s+\|\| \(github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly-with-tests'\)`,
+		'u',
+	));
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);
 	assert.equal(testJob.match(/- runner:/gu)?.length, 5);
 	for (const target of [
