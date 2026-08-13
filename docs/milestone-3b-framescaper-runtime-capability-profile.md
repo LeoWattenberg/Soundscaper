@@ -1,8 +1,9 @@
 # Milestone 3B-6c-c1b: dormant Framescaper runtime capability profile
 
-> **Contract only — no maintained production behavior or selection is
-> authorized.** After its reviewed RED, this slice may add one opaque,
-> unreachable Framescaper capability token. It freezes the current 28
+> **Implemented dormant authority — no maintained production behavior or
+> selection is authorized.** Contract `2f6b9a64`, RED `91bcb998`, production
+> `c1c70639`, and proof hardening `8a27e1df` and `cada0058` delivered one
+> opaque, unreachable Framescaper capability token. It freezes the current 28
 > Framescaper key-to-feature-ID availability decisions plus private
 > `videoProxy: false`; it does not register that capability globally, compose
 > c1a, select V18, or change Soundscaper.
@@ -175,11 +176,22 @@ canonical `npm run check`. No browser row is required.
 
 ## Hard stops
 
-After the reviewed strict RED, this contract authorizes only the generic opaque
-owner, exact dormant Framescaper singleton, and focused proof. It authorizes no
+The implemented slice contains only the generic opaque owner, exact dormant
+Framescaper singleton, and focused proof. It authorizes no
 maintained consumer or behavior, global registry or product-profile edit,
 c1a/final-profile composition, selector, V18 schema or archive behavior,
 requirement registration, compatibility change, proxy storage/attachment/use,
-desktop v10, UI/menu, or Soundscaper change. The next executable step is this
-contract's strict RED. The first reachable token composition and selector
-remain the full atomic c-c transition.
+desktop v10, UI/menu, or Soundscaper change. The first reachable token
+composition and selector remain the full atomic c-c transition, whose strict
+RED must be separately reviewed and decomposed before production changes.
+
+## Implementation evidence
+
+The focused TypeScript proof passes all 11 cases and keeps both production
+modules unreachable outside that proof. The final canonical `npm run check`
+passed 5,812 tests (5,810 passed and 2 reference-scale rows skipped), with
+90.22% statement and line coverage, 81.79% branch coverage, and 91.33%
+function coverage. The architecture gate covered 1,019 modules and 2,803
+dependencies. The production build emitted 115 JavaScript chunks; the largest
+was 428,990 bytes. No browser row was required because no maintained consumer,
+UI, or behavior imports either token.

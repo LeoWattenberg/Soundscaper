@@ -14,16 +14,15 @@ The reviewed
 requires one indivisible selected profile before durable c-c work. Most of that
 profile's literal identity can be frozen now, and c-c0 already supplies an
 authentic [Framescaper V18 storage token](milestone-3b-framescaper-storage-profile.md).
-There is not yet an authenticated Framescaper capability-profile owner:
-`project-feature-capabilities.ts` is a global structural map, and product
-metadata is not token authority.
+The separately implemented c1b profile now supplies an authenticated but
+unreachable Framescaper capability token. The global structural map in
+`project-feature-capabilities.ts` and product metadata remain non-authoritative.
 
 This slice therefore owns a **prerequisite token**, not
 `EditorProjectRuntimeProfile`. It contains every currently authentic static
 field and the exact c-c0 child token, but no `capabilityProfile` field. The
-later atomic c-c transition must first add a separately reviewed authenticated
-Framescaper capability token, then create the final runtime profile from the
-exact prerequisite and capability-token identities. That final creator
+later atomic c-c transition must create the final runtime profile from the
+exact c1a prerequisite and c1b capability-token identities. That final creator
 authenticates and retains both token identities; it does not accept, reparse,
 copy, or reconstruct authority from the prerequisite definition snapshot. An
 equal definition, `null`, `undefined`, a boolean, a callback, or a structural
@@ -197,9 +196,10 @@ the exact dormant Framescaper owner, and no common or Soundscaper owner imports
 the product token. The full Node suite passed 5,798 tests (5,796 passed and 2
 reference-scale rows skipped), and the canonical `npm run check` completed
 lint, typecheck, architecture, audits, coverage, and the production build. The
-next contract-first prerequisite is the separately reviewed dormant
+separately reviewed dormant
 [Framescaper runtime capability
-profile](milestone-3b-framescaper-runtime-capability-profile.md).
+profile](milestone-3b-framescaper-runtime-capability-profile.md) is implemented
+through `c1c70639`, without composition, selection, or production authority.
 
 ## Hard stops
 

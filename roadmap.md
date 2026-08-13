@@ -561,10 +561,14 @@ Packet boundaries, dependencies, and acceptance are owned by
   prerequisite](docs/milestone-3b-framescaper-runtime-profile-prerequisite.md),
   implemented through `13f80172` on 2026-08-12, retains the exact c-c0 identity
   and static V18 contract literals while explicitly deferring capability
-  authority. The next contract-first prerequisite is the dormant
+  authority. The dormant
   [Framescaper runtime capability
-  profile](docs/milestone-3b-framescaper-runtime-capability-profile.md); no c1a
-  composition, selector, or durable proxy behavior is authorized.
+  profile](docs/milestone-3b-framescaper-runtime-capability-profile.md),
+  implemented through `c1c70639` on 2026-08-13, freezes the exact private
+  29-row capability authority without changing the global registry or any
+  maintained product. The next reviewed boundary is the full atomic c-c
+  transition; no c1a/c1b composition, selector, durable proxy behavior,
+  capability flip, or Soundscaper change is independently authorized.
 
 ### Shared exit gate
 
