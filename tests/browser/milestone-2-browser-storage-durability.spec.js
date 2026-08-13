@@ -136,6 +136,12 @@ test.describe('milestone 2 browser storage durability', () => {
 		await recoveryPage.goto('/embed/en/');
 		editor = await bootedEditor(recoveryPage);
 		await expect(editor).toHaveAttribute('data-track-count', '1');
+		// The recovery boot is still running its own controller task when the editor
+		// binds. A Scape open started inside that window is superseded and silently
+		// cancelled, so wait for the boot to announce completion before importing.
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', {
+			timeout: 10_000,
+		});
 		await editor.locator('[data-aup4-input]').setInputFiles({
 			name: 'eviction-recovery.scape',
 			mimeType: SCAPE_MIME_TYPE,
