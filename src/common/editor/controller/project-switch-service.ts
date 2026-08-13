@@ -138,10 +138,19 @@ export function createProjectSwitchService<
 			signal: runtime.lifetime.signal,
 		}));
 		fallbackAdmission.assertCurrent(activationProject);
-		const playbackProjection = playbackProjects.projectForPlayback(activationProject);
-		const preparedFallbackSources = playbackProjection.requiredAudioSourceIds.length
+		if (playbackProjects.prepareProjectForActivation) {
+			await guard(playbackProjects.prepareProjectForActivation(activationProject, {
+				signal: runtime.lifetime.signal,
+			}));
+			fallbackAdmission.assertCurrent(activationProject);
+		}
+		const playbackAdmission = playbackProjects.projectForActivationAdmission
+			? playbackProjects.projectForActivationAdmission(activationProject)
+			: playbackProjects.projectForPlayback(activationProject);
+		let playbackProjection = playbackAdmission;
+		const preparedFallbackSources = playbackAdmission.requiredAudioSourceIds.length
 			? await guard(runtime.prepareRequiredProjectSources(activationProject, {
-				requiredAudioSourceIds: playbackProjection.requiredAudioSourceIds,
+				requiredAudioSourceIds: playbackAdmission.requiredAudioSourceIds,
 				signal: runtime.lifetime.signal,
 			}))
 			: null;
@@ -163,7 +172,7 @@ export function createProjectSwitchService<
 			}
 			throw error;
 		}
-		const featureRequirementsReport = playbackProjection.featureRequirementsReport;
+		const featureRequirementsReport = playbackAdmission.featureRequirementsReport;
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
 		let providerReplacement: SourceChunkProviderReplacement | null = null;
 		let providerReplacementFinalized = false;
@@ -246,10 +255,10 @@ export function createProjectSwitchService<
 					intrinsicReadOnlyReason,
 					featureRequirementsReadOnly,
 					featureRequirementsReport,
-					featureRequirementsAudioEffectPlaybackBypass: playbackProjection.audioEffectPlaybackBypass,
-					featureRequirementsAudioRenderedFallback: playbackProjection.audioRenderedFallback,
-					featureRequirementsVideoEffectPlaybackBypass: playbackProjection.videoEffectPlaybackBypass,
-					featureRequirementsVideoRenderedFallback: playbackProjection.videoRenderedFallback,
+					featureRequirementsAudioEffectPlaybackBypass: playbackAdmission.audioEffectPlaybackBypass,
+					featureRequirementsAudioRenderedFallback: playbackAdmission.audioRenderedFallback,
+					featureRequirementsVideoEffectPlaybackBypass: playbackAdmission.videoEffectPlaybackBypass,
+					featureRequirementsVideoRenderedFallback: playbackAdmission.videoRenderedFallback,
 				},
 			});
 			runtime.session.updateProjectMetadata(projectId, {
@@ -259,10 +268,10 @@ export function createProjectSwitchService<
 				intrinsicReadOnlyReason,
 				featureRequirementsReadOnly,
 				featureRequirementsReport,
-				featureRequirementsAudioEffectPlaybackBypass: playbackProjection.audioEffectPlaybackBypass,
-				featureRequirementsAudioRenderedFallback: playbackProjection.audioRenderedFallback,
-				featureRequirementsVideoEffectPlaybackBypass: playbackProjection.videoEffectPlaybackBypass,
-				featureRequirementsVideoRenderedFallback: playbackProjection.videoRenderedFallback,
+				featureRequirementsAudioEffectPlaybackBypass: playbackAdmission.audioEffectPlaybackBypass,
+				featureRequirementsAudioRenderedFallback: playbackAdmission.audioRenderedFallback,
+				featureRequirementsVideoEffectPlaybackBypass: playbackAdmission.videoEffectPlaybackBypass,
+				featureRequirementsVideoRenderedFallback: playbackAdmission.videoRenderedFallback,
 			});
 			runtime.session.setProjectReadOnly(projectId, {
 				readOnly: runtime.state.readOnly,
@@ -289,10 +298,13 @@ export function createProjectSwitchService<
 			await guard(runtime.revokeVideoVisuals());
 			runtime.clearWaveformPcmWindows();
 			const loadedSourceBuffers = await guard(runtime.loadProjectSources(activeProject, {
-				excludedAudioSourceIds: playbackProjection.requiredAudioSourceIds,
-				requiredVideoSourceIds: playbackProjection.requiredVideoSourceIds,
+				excludedAudioSourceIds: playbackAdmission.requiredAudioSourceIds,
+				requiredVideoSourceIds: playbackAdmission.requiredVideoSourceIds,
 				signal: runtime.lifetime.signal,
 			}));
+			if (playbackProjects.projectForActivationAdmission) {
+				playbackProjection = playbackProjects.projectForPlayback(activeProject);
+			}
 			runtime.retainLiveClipIds();
 			runtime.evictUnreferencedSourceCaches();
 			fallbackAdmission.assertCurrent(activeProject);

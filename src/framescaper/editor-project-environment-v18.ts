@@ -143,6 +143,7 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 			scapeProjectFile,
 			playback: createFramescaperPlaybackProjectServiceV18(
 				FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+				{ timingStore: store },
 			),
 			claimCleanup,
 			initialCleanup,

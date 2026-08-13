@@ -133,7 +133,7 @@ test('project activation loads verified multicamera timing before synchronous pr
 		timingStore: {
 			loadMediaAsset: async (storageKey: string) => {
 				loadedKeys.push(storageKey);
-				return new Blob([fixture.publication.bytes]);
+				return new Blob([Uint8Array.from(fixture.publication.bytes).buffer]);
 			},
 		},
 	});

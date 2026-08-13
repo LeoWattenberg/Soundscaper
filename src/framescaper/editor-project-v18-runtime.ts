@@ -84,15 +84,14 @@ export function framescaperProjectForPlaybackFoundationV18(
 export function framescaperProjectForCommandConsumersV18(
 	profile: EditorProjectRuntimeProfile | unknown,
 	project: FramescaperProjectV18 | unknown,
-): FramescaperProjectV18 {
+): FramescaperProjectRuntimeFoundationV17 {
 	assertFramescaperProjectV18Profile(profile);
 	validateFramescaperProjectV18(profile, project);
 	const projection = projectV10ForCommand({
 		...(project as FramescaperProjectV18),
 		schemaVersion: 17,
 	});
-	projection.schemaVersion = 18;
-	return projection as FramescaperProjectV18;
+	return projection as FramescaperProjectRuntimeFoundationV17;
 }
 
 /** Reconcile one command draft while retaining exact source attachment authority. */

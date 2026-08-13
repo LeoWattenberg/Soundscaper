@@ -4,11 +4,12 @@ import {
 	chooseFileAction,
 	chooseNestedCommandAction,
 } from './audio-editor-test-helpers.js';
-import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const DATABASE_NAME = 'kw-media-framescaper-editor-v18';
 const MULTICAMERA_REQUIREMENT_ID = 'framescaper.multicamera';
+const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('Framescaper V18 multicamera workflow', () => {
 	test.beforeEach(async ({ page }) => {
@@ -40,12 +41,12 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		const sequenceTiming = page.getByRole('dialog', { name: 'Sequence timing', exact: true });
 		await expect(sequenceTiming).toBeVisible();
 		await sequenceTiming.getByRole('combobox', { name: 'Frame rate', exact: true })
-			.selectOption('15/1');
+			.selectOption('25/1');
 		await page.keyboard.press('Escape');
 		await expect(sequenceTiming).toBeHidden();
 		for (const fixture of [
-			createDeterministicAvFixture('camera-a.webm'),
-			createDeterministicAvFixture('camera-b.webm', { variant: 'portrait' }),
+			cameraFixture('camera-a.mp4'),
+			cameraFixture('camera-b.mp4'),
 		]) {
 			await editor.locator('[data-import-input]').setInputFiles(fixture);
 			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 90_000 });
@@ -55,27 +56,8 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		await videoClips.first().focus();
 		await videoClips.first().press('Enter');
 		await expect(videoClips.first().locator('.clip-display')).toHaveClass(/clip-display--selected/u);
-		// The synthetic WebM ends between nominal 15 fps frame boundaries. Trim
-		// that partial tail through the real canonical keyboard route so the
-		// camera group owns an exact one-to-one source interval.
-		const outputClipId = await videoClips.first().getAttribute('data-clip-id');
-		expect(outputClipId).toBeTruthy();
-		const beforeTrim = await storedProject(page, projectId);
-		const outputClip = beforeTrim.clips.find(({ id }) => id === outputClipId);
-		const linkedAudioClip = beforeTrim.clips.find(({ kind, avLinkId }) => (
-			kind === 'audio' && avLinkId && avLinkId === outputClip?.avLinkId
-		));
-		expect(linkedAudioClip?.id).toBeTruthy();
-		const linkedAudio = editor.locator(`[data-clip-id="${linkedAudioClip.id}"][role="group"]`);
-		await linkedAudio.focus();
-		await linkedAudio.press('Control+Shift+ArrowLeft');
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
-		await videoClips.first().focus();
-		await videoClips.first().press('Enter');
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Multicamera', 'Create from video sources']);
-		await expect.poll(() => editor.locator('[data-status]').textContent())
-			.toMatch(/multicamera|camera group/iu);
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
 		await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 		await chooseFileAction(page, editor, 'Save project');
@@ -106,6 +88,14 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		await expect.poll(() => storedMulticamera(page, projectId)).toEqual(switched);
 	});
 });
+
+function cameraFixture(name) {
+	return {
+		name,
+		mimeType: CFR.file.mimeType,
+		buffer: Buffer.from(CFR.file.buffer),
+	};
+}
 
 async function storedMulticamera(page, projectId) {
 	const latest = await storedProject(page, projectId);

@@ -27,6 +27,7 @@ import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile
 import {
 	framescaperProjectForCommandConsumersV18,
 	framescaperProjectForRuntimeConsumersV18,
+	type FramescaperProjectRuntimeFoundationV17,
 } from './editor-project-v18-runtime.ts';
 import {
 	cloneFramescaperProjectV18,
@@ -55,7 +56,7 @@ export interface EditorProjectRuntimeV18Selection {
 	readonly cloneProject: (project: unknown) => FramescaperProjectV18;
 	readonly validateProject: (project: unknown) => project is FramescaperProjectV18;
 	readonly migrateProject: (project: unknown) => ReturnType<typeof migrateFramescaperProjectV18>;
-	readonly projectForCommandConsumers: (project: unknown) => FramescaperProjectV18;
+	readonly projectForCommandConsumers: (project: unknown) => FramescaperProjectRuntimeFoundationV17;
 	readonly projectForRuntimeConsumers: (
 		project: unknown,
 	) => ReturnType<typeof framescaperProjectForRuntimeConsumersV18>;

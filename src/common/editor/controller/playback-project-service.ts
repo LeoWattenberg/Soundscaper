@@ -52,6 +52,17 @@ export interface VideoRenderedFallbackDeliveryProjection<Project extends object>
 }
 
 export interface PlaybackProjectService {
+	/** Prepare private media evidence before project/session publication can expose a synchronous projection. */
+	prepareProjectForActivation?<Project extends object>(
+		project: Project,
+		options?: Readonly<{ readonly signal?: AbortSignal }>,
+	): PromiseLike<void> | void;
+	/**
+	 * Describe compatibility and sources that must be active before the final
+	 * synchronous playback projection is resolved. The project switch owns the
+	 * intervening source load; ordinary services can omit this two-phase seam.
+	 */
+	projectForActivationAdmission?<Project extends object>(project: Project): PlaybackProjectProjection<Project>;
 	projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project>;
 	projectForAudioRenderedFallbackDelivery<Project extends object>(
 		project: Project,
