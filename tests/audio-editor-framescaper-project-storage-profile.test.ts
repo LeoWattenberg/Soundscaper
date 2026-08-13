@@ -436,6 +436,7 @@ test('the exact Framescaper selector remains statically dormant and product-owne
 	}
 	assert.deepEqual(references, [
 		PREREQUISITE_MODULE,
+		'src/framescaper/editor-project-runtime-v18-selection.ts',
 		PRODUCT_MODULE,
 		PREREQUISITE_TEST_MODULE,
 		TEST_MODULE,

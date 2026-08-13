@@ -15,6 +15,7 @@ import {
 	createHistory,
 	nonEmptyString,
 	normalizeProject,
+	positiveInteger,
 	validateProject,
 } from './session-history.js';
 export const AUDIO_EDITOR_SESSION_SCHEMA_VERSION = 1;
@@ -107,6 +108,9 @@ export function createAudioEditorSessionController(options = {}) {
 	let disposed = false;
 	let snapshotCache = null;
 	const listeners = new Set();
+	const currentSchemaVersion = options.currentSchemaVersion === undefined
+		? AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		: positiveInteger(options.currentSchemaVersion, 'session current schema version');
 	const onSourcesReleased = typeof options.onSourcesReleased === 'function' ? options.onSourcesReleased : null;
 	const activationReservations = createProjectActivationReservations(
 		(projectId) => tabs.find((candidate) => candidate.projectId === projectId),
@@ -173,7 +177,7 @@ export function createAudioEditorSessionController(options = {}) {
 			return { projectId: existing.projectId, opened: false, activated: activates, releasedSourceIds: [] };
 		}
 		const schemaVersion = Number(candidateProject.schemaVersion);
-		const newerSchema = Number.isFinite(schemaVersion) && schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+		const newerSchema = Number.isFinite(schemaVersion) && schemaVersion > currentSchemaVersion;
 		const tab = normalizeTab({
 			project: candidateProject,
 			history: openOptions.history,

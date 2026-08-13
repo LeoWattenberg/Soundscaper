@@ -188,7 +188,10 @@ test('stays isolated from every V9 owner, product entrypoint, and runtime select
 	for (const file of await sourceFiles(['desktop', 'src', 'tests'])) {
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
-	assert.deepEqual(references, [TEST_MODULE]);
+	assert.deepEqual(references, [
+		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
+		TEST_MODULE,
+	]);
 	for (const legacy of [
 		'desktop/project-library-host.ts',
 		'desktop/project-library-contract.ts',
