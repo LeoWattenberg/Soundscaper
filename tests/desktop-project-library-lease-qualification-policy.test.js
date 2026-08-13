@@ -101,6 +101,36 @@ test('current capability inventory separates V9 and V10 package evidence', async
 		/project-library-host\.ts|project-library-handoff-smoke|project-library-source-bearing/iu);
 });
 
+test('retired V9/V17 packaged handoff claims remain historical only', async () => {
+	const compatibility = await json('config/project-compatibility.json');
+	const rule = compatibility.rules.find(
+		({ id }) => id === 'current-desktop-packaged-source-bearing-handoff',
+	);
+	assert.equal(rule.status, 'implemented');
+	assert.equal(rule.policyBoundary.authorizesFramescaperV17Activation, false);
+	assert.match(rule.currentBehavior, /historical.*pre-V18.*V9.*schema 17/isu);
+	assert.match(rule.currentBehavior, /current CI.*retired|no longer runs/isu);
+	assert.doesNotMatch(rule.currentBehavior, /maintained Linux x64 CI job runs/iu);
+
+	const security = await json('config/production-security-matrix.json');
+	const controls = new Map(security.risks.flatMap(({ currentControls }) => (
+		currentControls.map((control) => [control.id, control])
+	)));
+	for (const id of [
+		'packaged-linux-x64-source-free-project-library-handoff',
+		'packaged-linux-x64-source-bearing-project-library-handoff',
+	]) {
+		const control = controls.get(id);
+		assert.ok(control, id);
+		assert.match(control.summary, /historical.*V9.*schema 17/isu, id);
+		assert.match(control.summary, /current CI.*retired|no longer runs/isu, id);
+		assert.doesNotMatch(control.summary, /maintained.*CI job (?:builds|runs)/iu, id);
+		assert.equal(control.evidence.some(
+			({ kind, path }) => kind === 'workflow' && path === '.github/workflows/desktop-preview.yml',
+		), false, id);
+	}
+});
+
 async function json(path) {
 	return JSON.parse(await text(path));
 }
