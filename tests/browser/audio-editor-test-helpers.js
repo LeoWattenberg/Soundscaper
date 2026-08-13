@@ -286,6 +286,7 @@ export async function chooseNestedCommandAction(page, editor, menu, actions) {
 			// Firefox that can deliver mouseleave before click and detach the nested
 			// menu. Activating the already-visible item by keyboard also verifies the
 			// required accessible command path.
+			await expect(item).toBeEnabled();
 			await item.focus();
 			await page.keyboard.press('Enter');
 		}

@@ -79,12 +79,16 @@ test.describe('Framescaper V18 nested-sequence authoring', () => {
 });
 
 async function nestedAction(page, editor, action) {
+	await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 	await chooseNestedCommandAction(page, editor, 'Tracks', ['Nested sequences', action]);
+	await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 	await expect(editor.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
 }
 
 async function saveProject(page, editor) {
+	await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 	await chooseFileAction(page, editor, 'Save project');
+	await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 }
 
