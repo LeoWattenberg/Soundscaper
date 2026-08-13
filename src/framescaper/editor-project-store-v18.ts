@@ -6,6 +6,7 @@ import {
 	editorProjectRuntimeProfilePrerequisiteDefinition,
 } from '../common/editor/project-runtime-profile-prerequisite.ts';
 import type { EditorProjectStorageProfile } from '../common/editor/storage/project-storage-profile.ts';
+import type { OpfsRepository } from '../common/editor/storage/opfs-repository.ts';
 import {
 	assertEditorProjectStoreProfile,
 } from '../common/editor/storage/project-store-profile-binding.ts';
@@ -15,6 +16,7 @@ import {
 	type StorageRepositories,
 	type StorageRepositoryFactory,
 } from '../common/editor/storage/repositories.ts';
+import type { StorageRepositoryPort } from '../common/editor/storage/repository-port.ts';
 import {
 	AudioEditorProjectStore,
 	createProjectStore,
@@ -30,6 +32,12 @@ const AUTHORITY_FIELDS = [
 	'desktopProjectBridge',
 ] as const;
 const PRODUCT_CREATED_STORES = new WeakSet<AudioEditorProjectStore>();
+const PRODUCT_STORE_AUTHORITIES = new WeakMap<AudioEditorProjectStore, FramescaperProjectStoreAuthorityV18>();
+
+export interface FramescaperProjectStoreAuthorityV18 {
+	readonly port: StorageRepositoryPort;
+	readonly opfs: OpfsRepository | null;
+}
 
 export interface FramescaperProjectStoreV18Options extends AudioEditorProjectStoreOptions {
 	readonly store?: AudioEditorProjectStore;
@@ -72,31 +80,55 @@ export function createFramescaperProjectStoreV18(
 	if (typeof delegateFactory !== 'function') {
 		throw new TypeError('The V18 storage repository factory must be a function.');
 	}
+	let createdAuthority: FramescaperProjectStoreAuthorityV18 | null = null;
 	const store = createProjectStore({
 		...copyCreationOptions(options),
 		projectStorageProfile: storageProfile,
 		repositoryFactory: framescaperRepositoryFactory(
 			profile,
 			delegateFactory as StorageRepositoryFactory,
+			(authority) => { createdAuthority = authority; },
 		),
 	});
+	if (createdAuthority === null) {
+		throw new Error('The V18 repository factory did not publish its exact store authority.');
+	}
 	PRODUCT_CREATED_STORES.add(store);
+	PRODUCT_STORE_AUTHORITIES.set(store, createdAuthority);
 	return store;
+}
+
+/** Resolve the private backend identities only for a product-created exact V18 store. */
+export function framescaperProjectStoreAuthorityV18(
+	profile: EditorProjectRuntimeProfile | unknown,
+	store: unknown,
+): Readonly<FramescaperProjectStoreAuthorityV18> {
+	assertFramescaperProjectV18Profile(profile);
+	if (!PRODUCT_STORE_AUTHORITIES.has(store as AudioEditorProjectStore)) {
+		throw new TypeError('A product-created Framescaper V18 store authority is required.');
+	}
+	return PRODUCT_STORE_AUTHORITIES.get(store as AudioEditorProjectStore)!;
 }
 
 function framescaperRepositoryFactory(
 	profile: EditorProjectRuntimeProfile,
 	delegateFactory: StorageRepositoryFactory,
+	recordAuthority: (authority: Readonly<FramescaperProjectStoreAuthorityV18>) => void,
 ): StorageRepositoryFactory {
 	return (port, options) => {
 		const repositories = delegateFactory(port, options);
 		if (repositories === null || typeof repositories !== 'object') {
 			throw new TypeError('The V18 storage repository factory returned an invalid repository set.');
 		}
-		return Object.freeze({
+		const composed = Object.freeze({
 			...repositories,
 			projects: new FramescaperProjectRepositoryV18(profile, repositories.projects),
 		}) as StorageRepositories;
+		recordAuthority(Object.freeze({
+			port,
+			opfs: repositories.opfs ?? null,
+		}));
+		return composed;
 	};
 }
 
