@@ -92,6 +92,16 @@ export class FixtureArchiveStore {
 		return value && typeof value === 'object' ? structuredClone(value) as Record<string, unknown> : null;
 	}
 
+	async getSourceMetadata(): Promise<null> { return null; }
+
+	async *readSourceChunks(): AsyncGenerator<never> { return; }
+
+	async beginSourceWrite(): Promise<never> {
+		throw new Error('This video-only archive fixture does not stage audio.');
+	}
+
+	async discardSourceIfCurrent(): Promise<boolean> { return false; }
+
 	async loadProject(projectId: string): Promise<Record<string, unknown> | null> {
 		const value = await transact(this.#database, 'projects', 'readonly', ({ projects }) => (
 			request(projects.get(projectId))

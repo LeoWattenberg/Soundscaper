@@ -2,6 +2,7 @@
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
+import { collectProjectStorageKeys } from '../common/editor/retention.js';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from '../common/editor/storage/media-asset-staging-schema.ts';
 import { publishSource, type StorageRecord } from '../common/editor/storage/media-records.ts';
@@ -108,9 +109,9 @@ async function publishTransaction(
 ): Promise<boolean> {
 	return transact(
 		database,
-		['projects', 'revisions', 'mediaAssets', MEDIA_ASSET_STAGING_STORE_NAME],
+		['projects', 'revisions', 'sources', 'mediaAssets', MEDIA_ASSET_STAGING_STORE_NAME],
 		'readwrite',
-		async ({ projects, revisions, mediaAssets, mediaAssetStaging }) => {
+		async ({ projects, revisions, sources, mediaAssets, mediaAssetStaging }) => {
 			const projectId = publication.projectId;
 			const current = await request(projects.get(projectId));
 			if (publication.mode === 'compare-and-swap') {
@@ -141,6 +142,12 @@ async function publishTransaction(
 				assertClaims(consumed, publication, sourcePlan.sourceId, attachment);
 				await assertAndPublishBody(mediaAssets, consumed.proxy, attachment);
 				await assertAndPublishBody(mediaAssets, consumed.timing, attachment);
+			}
+			for (const storageKey of collectProjectStorageKeys(publication.project)) {
+				const source = record(await request(sources.get(storageKey)));
+				if (source?.pendingProjectUntil) sources.put(publishSource(source as StorageRecord));
+				const media = record(await request(mediaAssets.get(storageKey)));
+				if (media?.pendingProjectUntil) mediaAssets.put(publishSource(media as StorageRecord));
 			}
 			projects.put(publication.project);
 			revisions.put({
@@ -180,7 +187,6 @@ function normalizePublication(
 	}
 	assertSamePreservedAttachments(origin, project);
 	const attachments = attachedSources(project);
-	if (attachments.size === 0) throw new Error('Format-2 archive publication requires an attachment.');
 	const plans = normalizePlans(raw.plans, attachments);
 	return {
 		mode, origin, expected, project, plans, attachments,

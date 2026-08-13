@@ -6,12 +6,11 @@ import {
 	awaitScapeReadOperation,
 	throwIfScapeAborted,
 } from '../common/editor/scape-abort.ts';
-import type { ScapeArchiveEntry, ScapeArchiveLimits } from '../common/editor/scape-archive-envelope.ts';
+import type { ScapeArchiveLimits } from '../common/editor/scape-archive-envelope.ts';
 import type {
 	ScapeArchiveByteSourceReaderFactory,
 	ScapeArchiveReaderFactory,
 } from '../common/editor/scape-archive-reader.ts';
-import type { ScapeExpandedByteBudget } from '../common/editor/scape-expanded-byte-budget.ts';
 import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts';
 import { withScapeProjectInput } from '../common/editor/scape-project-input.ts';
 import {
@@ -19,7 +18,6 @@ import {
 } from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
-	cloneFramescaperProjectV18,
 	loadFramescaperProjectV18,
 	type FramescaperProjectV18,
 } from './editor-project-v18.ts';
@@ -33,6 +31,7 @@ import {
 	type FramescaperScapeFileExportResultV18,
 	type FramescaperScapeFileExportStoreV18,
 } from './scape-project-file-export-v18.ts';
+import { FramescaperScapeCanonicalImportV18 } from './scape-project-file-import-v18.ts';
 import {
 	FramescaperScapeArchiveV18,
 	type FramescaperScapeArchiveImportResultV18,
@@ -49,34 +48,10 @@ export interface FramescaperScapeProjectInspectionV18 {
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 }
 
-export interface FramescaperScapeCanonicalStageContextV18 {
-	readonly formatVersion: 1 | 2;
-	readonly manifest: FramescaperScapeManifestV18;
-	readonly project: FramescaperProjectV18;
-	readonly entries: readonly ScapeArchiveEntry[];
-	readonly entryByName: ReadonlyMap<string, ScapeArchiveEntry>;
-	readonly expandedByteBudget: ScapeExpandedByteBudget;
-	readonly operationId: string;
-	readonly publication: FramescaperScapeArchivePublicationRequestV18;
-	readonly signal?: AbortSignal;
-}
-
-export type FramescaperScapeCanonicalStageResultV18 =
-	| Readonly<{ readonly status: 'staged' }>
-	| Readonly<{
-		readonly status: 'published' | 'stale';
-		readonly project: unknown;
-	}>;
-
-export type FramescaperScapeCanonicalStageV18 = (
-	context: Readonly<FramescaperScapeCanonicalStageContextV18>,
-) => PromiseLike<FramescaperScapeCanonicalStageResultV18> | FramescaperScapeCanonicalStageResultV18;
-
 export interface FramescaperScapeProjectFileImportOptionsV18 {
 	readonly decision: 'continue' | 'cancel';
 	readonly operationId: string;
 	readonly publication: FramescaperScapeArchivePublicationRequestV18;
-	readonly stageCanonical?: FramescaperScapeCanonicalStageV18;
 	readonly signal?: AbortSignal;
 	readonly archiveLimits?: Partial<ScapeArchiveLimits>;
 	readonly archiveReaderFactory?: ScapeArchiveReaderFactory;
@@ -88,8 +63,8 @@ export interface FramescaperScapeProjectFileImportResultV18 {
 	readonly formatVersion: 1 | 2;
 	readonly project: FramescaperProjectV18;
 	readonly publicationMode: 'create' | 'copy' | 'compare-and-swap' | null;
-	readonly publicationOwner: 'canonical-stage' | 'framescaper-v18-archive' | null;
-	readonly canonicalStage: 'not-requested' | 'staged' | 'published' | 'stale';
+	readonly publicationOwner: 'framescaper-v18-archive' | null;
+	readonly canonicalStage: 'not-requested' | 'staged';
 }
 
 export interface FramescaperScapeProjectFileV18Dependencies {
@@ -197,47 +172,27 @@ export class FramescaperScapeProjectFileV18 {
 			}
 			const operationId = operationIdentifier(options.operationId);
 			const publication = publicationRequest(options.publication);
-			const stageCanonical = canonicalStage(options.stageCanonical);
 			const context = Object.freeze({
-				formatVersion: envelope.inspection.formatVersion,
 				manifest: envelope.manifest,
 				project: envelope.project,
-				entries: envelope.entries,
 				entryByName: envelope.entryByName,
 				expandedByteBudget: envelope.expandedByteBudget,
-				operationId,
 				publication,
 				...(signal ? { signal } : {}),
 			});
-			if (envelope.inspection.formatVersion === 1) {
-				const metadata = await this.#archive.importProject({
+			const canonical = new FramescaperScapeCanonicalImportV18(this.#profile, this.#store);
+			try {
+				await canonical.stage(context);
+				throwIfScapeAborted(signal);
+				const published = await this.#archive.importProject({
 					...archiveRequest, operationId, publication,
 				});
-				if (metadata.status !== 'metadata-only') {
-					throw new Error('The V18 format-1 archive owner returned an invalid state.');
-				}
-				const staged = stageResult(await stageCanonical(context));
-				if (staged.status === 'staged') {
-					throw new Error('The canonical stage must own format-1 project publication.');
-				}
-				return Object.freeze({
-					status: staged.status,
-					formatVersion: 1,
-					project: cloneFramescaperProjectV18(this.#profile, staged.project),
-					publicationMode: publication.mode,
-					publicationOwner: 'canonical-stage',
-					canonicalStage: staged.status,
-				});
+				if (published.status === 'stale') await canonical.discard();
+				else canonical.complete();
+				return fileResult(published, 'framescaper-v18-archive', 'staged');
+			} catch (error) {
+				return canonical.rollback(error);
 			}
-			const staged = stageResult(await stageCanonical(context));
-			if (staged.status !== 'staged') {
-				throw new Error('The canonical stage cannot publish a format-2 attached project.');
-			}
-			throwIfScapeAborted(signal);
-			const published = await this.#archive.importProject({
-				...archiveRequest, operationId, publication,
-			});
-			return fileResult(published, 'framescaper-v18-archive', 'staged');
 		}, {
 			blob: options.archiveReaderFactory,
 			byteSource: options.archiveByteSourceReaderFactory,
@@ -304,20 +259,6 @@ function publicationRequest(value: unknown): FramescaperScapeArchivePublicationR
 		closedKeys(raw, ['mode', 'expected', 'project'], 'V18 Scape replacement request');
 	} else throw new TypeError('A supported V18 Scape publication mode is required.');
 	return value as FramescaperScapeArchivePublicationRequestV18;
-}
-
-function stageResult(value: unknown): FramescaperScapeCanonicalStageResultV18 {
-	const raw = record(value, 'V18 Scape canonical stage result');
-	if (raw.status === 'staged') closedKeys(raw, ['status'], 'V18 Scape staged result');
-	else if (raw.status === 'published' || raw.status === 'stale') {
-		closedKeys(raw, ['status', 'project'], 'V18 Scape canonical publication result');
-	} else throw new TypeError('The V18 Scape canonical stage returned an unsupported status.');
-	return value as FramescaperScapeCanonicalStageResultV18;
-}
-
-function canonicalStage(value: unknown): FramescaperScapeCanonicalStageV18 {
-	if (typeof value !== 'function') throw new TypeError('V18 Scape import requires an explicit canonical stage.');
-	return value as FramescaperScapeCanonicalStageV18;
 }
 
 function operationIdentifier(value: unknown): string {

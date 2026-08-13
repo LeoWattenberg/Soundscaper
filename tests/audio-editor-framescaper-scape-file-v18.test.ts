@@ -21,7 +21,6 @@ import { request, transact } from '../src/common/editor/storage/indexeddb-backen
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
 	FramescaperScapeProjectFileV18,
-	type FramescaperScapeCanonicalStageContextV18,
 } from '../src/framescaper/scape-project-file-v18.ts';
 import { FramescaperScapeArchiveV18 } from '../src/framescaper/scape-project-preservation-v18.ts';
 import {
@@ -102,7 +101,6 @@ test('V18 import keeps the exact inspected envelope alive through canonical stag
 	const fixture = await setup(context);
 	await seedFramescaperV18ArchiveBodies(fixture.storage);
 	const exported = await fixture.file.exportProject(archiveProject());
-	let stageContext: FramescaperScapeCanonicalStageContextV18 | undefined;
 	let archiveRequest: Record<string, unknown> | undefined;
 	const archiveImport = fixture.archive.importProject.bind(fixture.archive);
 	Object.defineProperty(fixture.archive, 'importProject', {
@@ -116,23 +114,15 @@ test('V18 import keeps the exact inspected envelope alive through canonical stag
 		decision: 'continue',
 		operationId: 'file-import-create',
 		publication: { mode: 'create' },
-		stageCanonical: async (contextValue: FramescaperScapeCanonicalStageContextV18) => {
-			stageContext = contextValue;
-			const original = contextValue.entryByName.get('media/archive-video/original');
-			assert.ok(original);
-			assert.deepEqual(await entryBytes(original), ARCHIVE_ORIGINAL_BYTES);
-			return { status: 'staged' };
-		},
 	});
 
 	assert.equal(result.status, 'published');
 	assert.equal(result.publicationOwner, 'framescaper-v18-archive');
 	assert.equal(result.canonicalStage, 'staged');
-	assert.ok(stageContext);
-	assert.equal(archiveRequest?.manifest, stageContext.manifest);
-	assert.equal(archiveRequest?.project, stageContext.project);
-	assert.equal(archiveRequest?.entries, stageContext.entries);
-	assert.equal(archiveRequest?.publication, stageContext.publication);
+	assert.ok(archiveRequest?.manifest);
+	assert.deepEqual(archiveRequest?.project, archiveProject());
+	assert.ok(Array.isArray(archiveRequest?.entries));
+	assert.deepEqual(archiveRequest?.publication, { mode: 'create' });
 	assert.deepEqual(
 		await storedValue(fixture.storage.database, 'projects', ARCHIVE_PROJECT_ID),
 		archiveProject(),
@@ -196,30 +186,23 @@ test('V18 inspector plugs into the shared file service without surrendering prod
 	assert.equal(inspected.featureRequirementsCompatibility?.compatible, false);
 });
 
-test('format-1 import makes canonical publication ownership explicit', async (context) => {
+test('format-1 import uses the same product-owned canonical stage and archive publication', async (context) => {
 	const fixture = await setup(context);
 	await seedFramescaperV18ArchiveBodies(fixture.storage, false);
 	const project = archiveProject({ attached: false });
 	const exported = await fixture.file.exportProject(project);
-	let calls = 0;
 	const result = await fixture.file.importProject(exported.blob!, {
 		decision: 'continue',
 		operationId: 'file-format-1',
 		publication: { mode: 'create' },
-		stageCanonical: async ({ project: inspected }: FramescaperScapeCanonicalStageContextV18) => {
-			calls += 1;
-			assert.deepEqual(inspected, project);
-			return { status: 'published', project: inspected };
-		},
 	});
-	assert.equal(calls, 1);
 	assert.deepEqual(result, {
 		status: 'published',
 		formatVersion: 1,
 		project,
 		publicationMode: 'create',
-		publicationOwner: 'canonical-stage',
-		canonicalStage: 'published',
+		publicationOwner: 'framescaper-v18-archive',
+		canonicalStage: 'staged',
 	});
 });
 
@@ -236,7 +219,6 @@ test('cancel reads only metadata, skips storage and stage hooks, and closes its 
 		decision: 'cancel',
 		operationId: 'file-cancel',
 		publication: { mode: 'create' },
-		stageCanonical: async () => { throw new Error('stage must remain unreachable'); },
 		archiveReaderFactory: trackingReaderFactory(
 			() => { closeCalls += 1; },
 			(filename) => { bodyReads.push(filename); },
@@ -327,19 +309,6 @@ async function zipPayloads(blob: Blob): Promise<Map<string, number[] | null>> {
 	} finally {
 		await reader.close();
 	}
-}
-
-async function entryBytes(entry: ScapeArchiveEntry): Promise<Uint8Array> {
-	assert.ok(entry.getData);
-	const chunks: Uint8Array[] = [];
-	await entry.getData(new WritableStream({ write: (chunk) => { chunks.push(chunk.slice()); } }), {
-		strictness: 'strict',
-	});
-	const size = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-	const bytes = new Uint8Array(size);
-	let offset = 0;
-	for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-	return bytes;
 }
 
 function trackingReaderFactory(

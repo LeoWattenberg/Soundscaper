@@ -245,10 +245,22 @@ export class FramescaperScapeArchiveV18 {
 		if (inspection.status === 'cancelled') {
 			return importResult('cancelled', inspection.formatVersion, origin, null);
 		}
-		if (inspection.formatVersion === 1) return importResult('metadata-only', 1, origin, null);
-
 		const operationId = framescaperScapeOperationIdentifierV18(raw.operationId);
 		const target = normalizeTarget(this.#profile, origin, raw.publication);
+		if (inspection.formatVersion === 1) {
+			throwIfScapeAborted(signal);
+			await this.#assertDurableStore();
+			const published = await this.#repository.publish({
+				mode: target.mode,
+				origin,
+				expected: target.expected,
+				project: target.project,
+				plans: Object.freeze([]),
+			});
+			return published
+				? importResult('published', 1, published, target.mode)
+				: importResult('stale', 1, target.project, target.mode);
+		}
 		const entries = indexFramescaperScapeBodyEntriesV18(raw.entries, inspection.proxyAssets);
 		throwIfScapeAborted(signal);
 		await this.#assertDurableStore();
