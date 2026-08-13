@@ -35,8 +35,9 @@ test('maintenance authenticates the product environment before reading a scope',
 	const coordinator = createFramescaperProjectMaintenanceCoordinatorV18(fixture.environment);
 	await assert.rejects(
 		coordinator.reconcileAndCollectStorageRoots(scope),
-		/maintenance scope/iu,
+		/scope prototype|maintenance scope/iu,
 	);
+	assert.equal(scopeTraps > 0, true);
 });
 
 test('maintenance snapshots every runtime root category before cleanup and retention', async (context) => {
