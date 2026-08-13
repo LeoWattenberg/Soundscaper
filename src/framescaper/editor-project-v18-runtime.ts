@@ -14,6 +14,9 @@ import {
 import {
 	framescaperProjectFeatureRequirementsForV17Foundation,
 } from './editor-project-feature-requirements-v18.ts';
+import {
+	materializeFramescaperNestedPlaybackFoundationV18,
+} from './editor-project-v18-nested-playback.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
 	validateFramescaperProjectV18,
@@ -49,6 +52,9 @@ export function framescaperProjectForPlaybackFoundationV18(
 	assertFramescaperProjectV18Profile(profile);
 	validateFramescaperProjectV18(profile, project);
 	const canonical = project as FramescaperProjectV18;
+	if (canonical.subsequences.length > 0) {
+		return materializeFramescaperNestedPlaybackFoundationV18(profile, canonical);
+	}
 	const sources = canonical.sources.map((source) => {
 		const foundationSource: Record<string, unknown> = { ...source };
 		delete foundationSource.proxyAttachment;

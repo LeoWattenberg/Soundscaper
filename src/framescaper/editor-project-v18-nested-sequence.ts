@@ -28,6 +28,8 @@ export interface FramescaperFlattenedSequenceClipV18 {
 	readonly leafSequenceId: string;
 	readonly sequencePath: readonly string[];
 	readonly subsequencePath: readonly string[];
+	readonly leafStartFrame: FramescaperExactSequenceFrameV18;
+	readonly leafEndFrame: FramescaperExactSequenceFrameV18;
 	readonly startFrame: FramescaperExactSequenceFrameV18;
 	readonly endFrame: FramescaperExactSequenceFrameV18;
 }
@@ -140,6 +142,8 @@ export function flattenFramescaperSequenceV18(
 				leafSequenceId: sequenceId,
 				sequencePath: [...sequencePath],
 				subsequencePath: [...subsequencePath],
+				leafStartFrame: exactFrame(start),
+				leafEndFrame: exactFrame(end),
 				startFrame: exactFrame(applyTransform(transform, start)),
 				endFrame: exactFrame(applyTransform(transform, end)),
 			});
@@ -340,6 +344,8 @@ function freezeFlattened(value: FramescaperFlattenedSequenceClipV18): Readonly<F
 		...value,
 		sequencePath: Object.freeze([...value.sequencePath]),
 		subsequencePath: Object.freeze([...value.subsequencePath]),
+		leafStartFrame: exactFrame(value.leafStartFrame),
+		leafEndFrame: exactFrame(value.leafEndFrame),
 		startFrame: exactFrame(value.startFrame),
 		endFrame: exactFrame(value.endFrame),
 	});

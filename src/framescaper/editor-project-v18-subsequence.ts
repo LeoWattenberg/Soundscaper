@@ -60,8 +60,7 @@ export function validateFramescaperSubsequencesV18(
 		});
 	}
 	const subsequencesDescriptor = Object.getOwnPropertyDescriptor(project, 'subsequences');
-	if (!subsequencesDescriptor) return [];
-	if (!subsequencesDescriptor.enumerable || !Object.hasOwn(subsequencesDescriptor, 'value')) {
+	if (!subsequencesDescriptor?.enumerable || !Object.hasOwn(subsequencesDescriptor, 'value')) {
 		throw new TypeError('Framescaper V18 project.subsequences must be an own enumerable data property.');
 	}
 	const values = denseArray(subsequencesDescriptor.value, 'Framescaper V18 project.subsequences');

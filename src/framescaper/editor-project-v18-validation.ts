@@ -60,6 +60,7 @@ export function validateFramescaperProjectV18(
 	if (schemaVersion !== FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported Framescaper project schema version: ${String(schemaVersion)}.`);
 	}
+	validateFramescaperSubsequencesV18(profile, candidate);
 	const sources = dataArrayProperty(candidate, 'sources', 'Framescaper project.sources');
 	const normalizedAttachments = new Map<string, Readonly<VideoProxyAttachmentV18>>();
 	const v17Sources = sources.map((value, index) => {
@@ -93,7 +94,6 @@ export function validateFramescaperProjectV18(
 	);
 	validateAttachmentRelationships(candidate, sources, normalizedAttachments);
 	validateAudioEditorProjectV17(v17Project, options);
-	validateFramescaperSubsequencesV18(profile, candidate);
 	validateFramescaperProjectFeatureRequirementsV18(profile, candidate);
 	return true;
 }

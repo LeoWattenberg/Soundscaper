@@ -5,6 +5,9 @@ import test from 'node:test';
 
 import { validateAudioEditorProjectV17 } from '../src/common/editor/project-v17-validation.ts';
 import {
+	createAudioClipV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
 	createVideoSourceV10,
 	createVideoTrackV10,
 } from '../src/common/editor/project-v10.ts';
@@ -104,6 +107,46 @@ test('maintained playback and runtime consume the same primary-sequence material
 	]);
 });
 
+test('nested audio trims and mixer routes materialize by exact leaf and primary rates', () => {
+	const project = audioProject();
+	const persisted = structuredClone(project);
+	const foundation = materializeFramescaperNestedPlaybackFoundationV18(PROFILE, project);
+	assert.deepEqual(project, persisted);
+	assert.equal(validateAudioEditorProjectV17(foundation), true);
+	assert.equal(foundation.clips.length, 1);
+	assert.deepEqual({
+		timelineStartFrame: foundation.clips[0]?.timelineStartFrame,
+		durationFrames: foundation.clips[0]?.durationFrames,
+		sourceStartFrame: foundation.clips[0]?.sourceStartFrame,
+		sourceDurationFrames: foundation.clips[0]?.sourceDurationFrames,
+		anchor: foundation.clips[0]?.anchor,
+	}, {
+		timelineStartFrame: 48_000,
+		durationFrames: 16_000,
+		sourceStartFrame: 4_100,
+		sourceDurationFrames: 8_000,
+		anchor: 'sample',
+	});
+	const trackId = String(foundation.tracks[0]?.id);
+	const mixer = foundation.mixer as Readonly<Record<string, unknown>>;
+	const routes = mixer.routes as Readonly<Record<string, unknown>>;
+	assert.deepEqual(Object.keys(routes), [trackId]);
+	assert.deepEqual(routes[trackId], { groupId: null, sends: {} });
+
+	const runtime = framescaperProjectForRuntimeConsumersV18(PROFILE, project);
+	assert.deepEqual({
+		timelineStartFrame: runtime.clips[0]?.timelineStartFrame,
+		timelineEndFrame: runtime.clips[0]?.timelineEndFrame,
+		sourceStartFrame: runtime.clips[0]?.sourceStartFrame,
+		sourceEndFrame: runtime.clips[0]?.sourceEndFrame,
+	}, {
+		timelineStartFrame: 48_000,
+		timelineEndFrame: 64_000,
+		sourceStartFrame: 4_100,
+		sourceEndFrame: 12_100,
+	});
+});
+
 test('materialization refuses video boundaries that do not align exactly to the primary frame grid', () => {
 	const project = aliasesProject();
 	const draft = structuredClone(project) as unknown as Record<string, unknown>;
@@ -124,6 +167,13 @@ test('materialization refuses trims that cannot map exactly to integer source fr
 	assert.throws(
 		() => materializeFramescaperNestedPlaybackFoundationV18(PROFILE, project),
 		/source.*frame grid|source.*align/iu,
+	);
+});
+
+test('materialization refuses nested audio boundaries between project samples', () => {
+	assert.throws(
+		() => materializeFramescaperNestedPlaybackFoundationV18(PROFILE, inexactAudioGridProject()),
+		/audio.*sample grid|sample grid.*align/iu,
 	);
 });
 
@@ -181,6 +231,70 @@ function fractionalSourceProject(): FramescaperProjectV18 {
 			sequenceStartFrame: 10, sequenceFrameCount: 1,
 			sourceInFrame: 1, sourceFrameCount: 1,
 		}],
+	});
+}
+
+function audioProject(): FramescaperProjectV18 {
+	const project = createFramescaperProjectV18(PROFILE, {
+		id: 'nested-playback-audio', title: 'Nested playback audio', now: NOW,
+		sources: [audioSource('nested-audio-source', 40_000)],
+		clips: [createAudioClipV10({
+			id: 'child-audio-clip', sourceId: 'nested-audio-source', title: 'Child audio',
+			timelineStartFrame: 8_000, durationFrames: 24_000,
+			sourceStartFrame: 100, sourceDurationFrames: 12_000,
+			anchor: 'sample', avLinkId: null,
+		})],
+		tracks: [createAudioTrackV10({
+			id: 'child-audio-track', name: 'Child audio', clipIds: ['child-audio-clip'], locked: false,
+		})],
+		sequences: [
+			{ id: 'root', rate: { num: 30, den: 1 }, trackIds: [] },
+			{ id: 'child', rate: { num: 24, den: 1 }, trackIds: ['child-audio-track'] },
+		],
+		primarySequenceId: 'root',
+		subsequences: [{
+			id: 'audio-placement', sequenceId: 'root', sourceSequenceId: 'child',
+			sequenceStartFrame: 30, sequenceFrameCount: 10,
+			sourceInFrame: 8, sourceFrameCount: 8,
+		}],
+	});
+	const mixer = project.mixer as Record<string, unknown>;
+	mixer.routes = { 'child-audio-track': { groupId: null, sends: {} } };
+	validateFramescaperProjectV18(PROFILE, project);
+	return project;
+}
+
+function inexactAudioGridProject(): FramescaperProjectV18 {
+	return createFramescaperProjectV18(PROFILE, {
+		id: 'nested-playback-inexact-audio', title: 'Inexact audio grid', now: NOW,
+		sources: [audioSource('inexact-audio-source', 4_000)],
+		clips: [createAudioClipV10({
+			id: 'inexact-audio-clip', sourceId: 'inexact-audio-source', title: 'Inexact audio',
+			timelineStartFrame: 0, durationFrames: 2_000,
+			sourceStartFrame: 0, sourceDurationFrames: 2_000,
+			anchor: 'sample', avLinkId: null,
+		})],
+		tracks: [createAudioTrackV10({
+			id: 'inexact-audio-track', name: 'Inexact audio', clipIds: ['inexact-audio-clip'], locked: false,
+		})],
+		sequences: [
+			{ id: 'root', rate: { num: 30_000, den: 1_001 }, trackIds: [] },
+			{ id: 'child', rate: { num: 30_000, den: 1_001 }, trackIds: ['inexact-audio-track'] },
+		],
+		primarySequenceId: 'root',
+		subsequences: [{
+			id: 'inexact-audio-placement', sequenceId: 'root', sourceSequenceId: 'child',
+			sequenceStartFrame: 1, sequenceFrameCount: 1,
+			sourceInFrame: 0, sourceFrameCount: 1,
+		}],
+	});
+}
+
+function audioSource(id: string, frameCount: number): Record<string, unknown> {
+	return createAudioSourceV10({
+		id, name: id, storageKey: id, mimeType: 'audio/wav', frameCount,
+		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
+		sampleFormat: 'float32', chunkFrames: 4_096,
 	});
 }
 
