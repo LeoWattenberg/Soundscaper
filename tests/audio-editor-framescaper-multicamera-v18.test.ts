@@ -53,6 +53,21 @@ test('V18 multicamera groups are closed, bounded, detached, and sample-canonical
 		mutate(candidate);
 		assert.throws(() => validateFramescaperMulticameraGroupsV18(PROFILE, project, [candidate]), pattern);
 	}
+	const sparse = [multicameraGroup()];
+	sparse.length = 2;
+	assert.throws(
+		() => validateFramescaperMulticameraGroupsV18(PROFILE, project, sparse),
+		/dense data array|own enumerable data property/iu,
+	);
+	const tooManyMembers = multicameraGroup();
+	tooManyMembers.members = Array.from({ length: 65 }, (_, index) => ({
+		id: `camera-${String(index)}`, groupId: 'group-a', sourceId: `source-${String(index)}`,
+		syncOffsetSamples: 0,
+	}));
+	assert.throws(
+		() => validateFramescaperMulticameraGroupsV18(PROFILE, project, [tooManyMembers]),
+		/between 2 and 64/iu,
+	);
 });
 
 test('V18 multicamera validation proves exact project, sequence, clip, track, and source ownership', () => {
@@ -78,7 +93,7 @@ test('V18 multicamera validation proves exact project, sequence, clip, track, an
 	unowned.tracks[0]!.clipIds = [];
 	assert.throws(
 		() => validateFramescaperMulticameraGroupsV18(PROFILE, unowned, [multicameraGroup()]),
-		/output clip.*exactly one|clip ownership/iu,
+		/output clip.*exactly one|clip ownership|exactly one media track/iu,
 	);
 	const retimed = structuredClone(project) as unknown as MutableProject;
 	retimed.clips[0]!.retimeMap = { feature: 'not-admitted' };
@@ -112,6 +127,11 @@ test('V18 multicamera planners create, update, switch, and remove without mutati
 		},
 	});
 	assert.equal(planned.after[0]?.members[0]?.syncOffsetSamples, -900);
+	assert.throws(() => plan(project, planned.after, {
+		type: 'multicamera/update', projectId: project.id,
+		expectedProjectRevision: project.revision, groupId: 'group-a',
+		expectedActiveMemberId: 'camera-a', group: { ...multicameraGroup(), activeMemberId: 'camera-b' },
+	}), /cannot bypass.*member-switch/iu);
 
 	planned = plan(project, planned.after, {
 		type: 'multicamera/switch', projectId: project.id,
@@ -176,6 +196,11 @@ test('V18 runtime selection maps the output clip to the active canonical source 
 		selection,
 	);
 	assert.equal(Object.hasOwn(selection, 'proxyAttachment'), false);
+	const moved = structuredClone(project) as unknown as MutableProject;
+	moved.clips[0]!.sequenceStartFrame = 2;
+	const movedSelection = selectFramescaperMulticameraRuntimeV18(PROFILE, moved, groups, request);
+	assert.deepEqual(movedSelection.timelineStartSample, { numerator: 16_016n, denominator: 5n });
+	assert.deepEqual(movedSelection.sourceStartSample, selection.sourceStartSample);
 });
 
 test('V18 runtime selection refuses stale fences and source-bound violations', () => {
@@ -252,7 +277,7 @@ function multicameraProject() {
 		clips: [{
 			kind: 'video', id: 'output-clip', sourceId: 'source-a', title: 'Multicamera output',
 			sequenceId: 'main-sequence', sequenceStartFrame: 1, sequenceFrameCount: 10,
-			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+			sourceInFrame: 1, sourceFrameCount: 10, retimeMap: null,
 		}],
 		tracks: [createVideoTrackV10({
 			id: 'video-track', name: 'Video', clipIds: ['output-clip'], locked: false,
