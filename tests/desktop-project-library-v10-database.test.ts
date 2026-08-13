@@ -29,9 +29,9 @@ test('initializes a fresh V10 database with an exact independent identity', () =
 		assert.doesNotThrow(() => assertFramescaperDesktopProjectLibraryV10DatabaseIdentity(database));
 		assert.equal(pragma(database, 'application_id'), DESKTOP_PROJECT_LIBRARY_V10_APPLICATION_ID);
 		assert.equal(pragma(database, 'user_version'), DESKTOP_PROJECT_LIBRARY_V10_DATABASE_VERSION);
-		assert.deepEqual(database.prepare(
+		assert.deepEqual({ ...database.prepare(
 			'SELECT revision, json FROM library_metadata WHERE singleton = 1',
-		).get(), {
+		).get() }, {
 			revision: 0,
 			json: JSON.stringify(emptyFramescaperDesktopLibraryV10Metadata()),
 		});
