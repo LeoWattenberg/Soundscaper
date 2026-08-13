@@ -23,6 +23,7 @@ export const SOUNDSCAPER_PROFILE = {
 		videoEffects: false,
 		videoCompositing: false,
 		musicalTimeline: true,
+		nestedSequences: false,
 		timelineAnnotations: true,
 		trackFolders: true,
 		takeComp: true,

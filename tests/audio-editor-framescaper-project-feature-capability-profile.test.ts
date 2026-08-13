@@ -345,13 +345,26 @@ test('keeps private capability ownership within the closed V18 domain set', asyn
 	assert.deepEqual(exportReferences, [
 		PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
 	]);
-	assert.deepEqual(pathReferences, [FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE]);
+	assert.deepEqual(pathReferences, [
+		'scripts/lib/desktop-project-library-runtime.mjs',
+		FINAL_PRODUCT_MODULE,
+		TEST_MODULE,
+		FINAL_TEST_MODULE,
+		'tests/desktop-project-library-packaging.test.js',
+	]);
 	assert.deepEqual(genericPathReferences, [
-		FINAL_GENERIC_MODULE, PRODUCT_MODULE, FEATURE_OWNER_MODULE, FINAL_PRODUCT_MODULE,
-		TEST_MODULE, FINAL_TEST_MODULE,
+		'scripts/lib/desktop-project-library-runtime.mjs',
+		FINAL_GENERIC_MODULE,
+		PRODUCT_MODULE,
+		FEATURE_OWNER_MODULE,
+		FINAL_PRODUCT_MODULE,
+		TEST_MODULE,
+		FINAL_TEST_MODULE,
+		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(privateIdReferences, [
 		PRODUCT_MODULE, FEATURE_OWNER_MODULE, TEST_MODULE, FEATURE_TEST_MODULE,
+		'tests/browser/framescaper-v18-scape-preservation.spec.js',
 	]);
 	const generic = await readSource(GENERIC_MODULE);
 	assert.deepEqual(importSpecifiers(generic), []);

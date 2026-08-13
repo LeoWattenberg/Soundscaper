@@ -23,6 +23,7 @@ export const FRAMESCAPER_PROFILE = {
 		videoEffects: true,
 		videoCompositing: true,
 		musicalTimeline: false,
+		nestedSequences: true,
 		timelineAnnotations: false,
 		trackFolders: false,
 		takeComp: false,

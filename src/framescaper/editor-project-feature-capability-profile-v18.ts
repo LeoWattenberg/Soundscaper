@@ -21,6 +21,7 @@ export const FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'audioTimelineEditing', featureId: 'org.soundscaper.capability.audio-timeline-editing', available: true },
 			{ key: 'audioWarp', featureId: 'org.soundscaper.capability.audio-warp', available: false },
 			{ key: 'musicalTimeline', featureId: 'org.soundscaper.capability.musical-timeline', available: false },
+			{ key: 'nestedSequences', featureId: 'org.soundscaper.capability.nested-sequences', available: true },
 			{ key: 'project', featureId: 'org.soundscaper.capability.project', available: true },
 			{ key: 'projectBin', featureId: 'org.soundscaper.capability.project-bin', available: true },
 			{ key: 'sequenceTiming', featureId: 'org.soundscaper.capability.sequence-timing', available: true },
