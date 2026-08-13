@@ -17,6 +17,7 @@ import { EditorControllerLifetime } from '../src/common/editor/controller/lifecy
 import { createScapeProjectFileService } from '../src/common/editor/controller/scape-project-file-service.ts';
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import type { ScapeArchiveReader } from '../src/common/editor/scape-archive-reader.ts';
+import { request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
 	FramescaperScapeProjectFileV18,
@@ -136,6 +137,43 @@ test('V18 import keeps the exact inspected envelope alive through canonical stag
 		await storedValue(fixture.storage.database, 'projects', ARCHIVE_PROJECT_ID),
 		archiveProject(),
 	);
+});
+
+test('V18 file import owns canonical body staging and roots it with format-2 publication', async (context) => {
+	const fixture = await setup(context);
+	await seedFramescaperV18ArchiveBodies(fixture.storage);
+	const exported = await fixture.file.exportProject(archiveProject());
+	const original = await storedValue(
+		fixture.storage.database,
+		'mediaAssets',
+		'archive-video',
+	) as Record<string, unknown>;
+	await transact(fixture.storage.database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => (
+		request(mediaAssets.delete('archive-video'))
+	));
+	if (typeof original.path === 'string') fixture.storage.files.delete(original.path);
+	fixture.storage.store.calls.metadata = 0;
+	fixture.storage.store.calls.load = 0;
+	fixture.storage.store.calls.begin = 0;
+
+	const result = await fixture.file.importProject(exported.blob!, {
+		decision: 'continue',
+		operationId: 'file-owned-canonical-stage',
+		publication: { mode: 'create' },
+	});
+
+	assert.equal(result.status, 'published');
+	assert.equal(result.publicationOwner, 'framescaper-v18-archive');
+	assert.equal(result.canonicalStage, 'staged');
+	const storedOriginal = await storedValue(
+		fixture.storage.database,
+		'mediaAssets',
+		'archive-video',
+	) as Record<string, unknown>;
+	assert.equal(storedOriginal.sha256, ARCHIVE_ORIGINAL_SHA);
+	assert.equal(storedOriginal.size, ARCHIVE_ORIGINAL_BYTES.byteLength);
+	assert.equal(Object.hasOwn(storedOriginal, 'pendingProjectUntil'), false);
+	assert.equal(fixture.storage.store.calls.begin, 1);
 });
 
 test('V18 inspector plugs into the shared file service without surrendering product compatibility', async (context) => {
