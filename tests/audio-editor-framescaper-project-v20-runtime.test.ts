@@ -43,19 +43,23 @@ test('V20 command and runtime projections retain detached authored keyframes', (
 	const command = framescaperProjectForCommandConsumersV20(PROFILE, project);
 	const runtime = framescaperProjectForRuntimeConsumersV20(PROFILE, project);
 	for (const projected of [command, runtime]) {
+		const clips = projectClips(projected);
 		assert.equal(projected.schemaVersion, 17);
-		assert.deepEqual(videoKeyframes(projected.clips[0]), persisted);
-		assert.notStrictEqual(videoKeyframes(projected.clips[0]), persisted);
-		assert.equal(Object.isFrozen(videoKeyframes(projected.clips[0])), true);
-		assert.equal(projected.clips.slice(1).some((clip) => Object.hasOwn(clip, 'videoKeyframes')), false);
+		assert.deepEqual(videoKeyframes(clips[0]), persisted);
+		assert.notStrictEqual(videoKeyframes(clips[0]), persisted);
+		assert.equal(Object.isFrozen(videoKeyframes(clips[0])), true);
+		assert.equal(clips.slice(1).some((clip) => Object.hasOwn(clip as object, 'videoKeyframes')), false);
 	}
-	assert.notStrictEqual(videoKeyframes(command.clips[0]), videoKeyframes(runtime.clips[0]));
+	assert.notStrictEqual(
+		videoKeyframes(projectClips(command)[0]),
+		videoKeyframes(projectClips(runtime)[0]),
+	);
 });
 
 test('each nested V20 playback occurrence owns independently detached curves', () => {
 	const project = nestedVideoProject();
 	const persisted = videoKeyframes(project.clips[0]);
-	const clips = framescaperProjectForPlaybackFoundationV20(PROFILE, project).clips;
+	const clips = projectClips(framescaperProjectForPlaybackFoundationV20(PROFILE, project));
 	assert.equal(clips.length, 2);
 	for (const clip of clips) {
 		assert.deepEqual(videoKeyframes(clip), persisted);
@@ -136,4 +140,9 @@ function videoKeyframes(value: unknown): Readonly<{ curves: readonly Readonly<{ 
 	const descriptor = Object.getOwnPropertyDescriptor(value as object, 'videoKeyframes');
 	assert.ok(descriptor && Object.hasOwn(descriptor, 'value'));
 	return descriptor.value as Readonly<{ curves: readonly Readonly<{ curve: unknown }>[] }>;
+}
+
+function projectClips(value: { readonly clips?: readonly unknown[] }): readonly unknown[] {
+	assert.ok(Array.isArray(value.clips));
+	return value.clips;
 }
