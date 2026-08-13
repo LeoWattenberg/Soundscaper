@@ -6,6 +6,8 @@ import test from 'node:test';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
 import {
+	assertVideoKeyframeExportFrame,
+	assertVideoKeyframeExportFrameSource,
 	createVideoKeyframeExportFrameSource,
 } from '../src/common/editor/video-keyframe-export-frame-source.ts';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
@@ -58,6 +60,31 @@ test('frame source retains wide exact frame positions and static composition par
 	};
 	assert.equal(active.clips[0].renderDescription.opacityStart, DEFAULT_VIDEO_CLIP_COMPOSITION.opacity);
 	assert.equal(active.clips[0].renderDescription.blendMode, DEFAULT_VIDEO_CLIP_COMPOSITION.blendMode);
+});
+
+test('frame source privately brands each lazy frame to its exact owning snapshot', () => {
+	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const request = {
+		project: runtimeProject(project),
+		canvas: { width: 320, height: 180, frameRate: 3 },
+	} as const;
+	const first = createVideoKeyframeExportFrameSource(request);
+	const second = createVideoKeyframeExportFrameSource(request);
+	const frame = first.frame(0);
+	assert.doesNotThrow(() => assertVideoKeyframeExportFrameSource(first));
+	assert.throws(
+		() => assertVideoKeyframeExportFrameSource({ ...first }),
+		/authenticated.*frame source/u,
+	);
+	assert.doesNotThrow(() => assertVideoKeyframeExportFrame(first, frame));
+	assert.throws(
+		() => assertVideoKeyframeExportFrame(second, frame),
+		/owned by the requested.*frame source/u,
+	);
+	assert.throws(
+		() => assertVideoKeyframeExportFrame(first, structuredClone(frame)),
+		/owned by the requested.*frame source/u,
+	);
 });
 
 test('frame source owns an immutable project snapshot', () => {

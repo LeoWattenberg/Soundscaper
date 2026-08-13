@@ -101,3 +101,21 @@ test('keeps rendering the decodable entries while a sibling entry buffers', () =
 	assert.equal(report.renderedEntryCount, 1);
 	compositor.dispose();
 });
+
+test('keeps preview YUV simulation by default and exposes one raw RGBA final pass offline', () => {
+	const compositor = createVideoPreviewCompositor(createStubCanvas());
+	const finalPasses = [];
+	compositor.draw = (_texture, target, pass) => {
+		if (target === null) finalPasses.push(pass.code ?? null);
+	};
+	compositor.render([], { referenceWidth: 640, referenceHeight: 360 });
+	compositor.render([], {
+		referenceWidth: 640,
+		referenceHeight: 360,
+		outputWidth: 640,
+		outputHeight: 360,
+		outputColorModel: 'rgba',
+	});
+	assert.deepEqual(finalPasses, [7, null]);
+	compositor.dispose();
+});

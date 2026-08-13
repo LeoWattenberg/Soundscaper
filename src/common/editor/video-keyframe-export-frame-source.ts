@@ -54,6 +54,29 @@ export interface VideoKeyframeExportFrameSource {
 	frame(index: number): VideoKeyframeExportFrame;
 }
 
+const VIDEO_KEYFRAME_EXPORT_FRAME_OWNERS = new WeakMap<object, VideoKeyframeExportFrameSource>();
+const VIDEO_KEYFRAME_EXPORT_FRAME_SOURCES = new WeakSet<object>();
+
+/** Refuse a forged source before any decoder, renderer, or encoder work begins. */
+export function assertVideoKeyframeExportFrameSource(
+	value: unknown,
+): asserts value is VideoKeyframeExportFrameSource {
+	if (!value || typeof value !== 'object' || !VIDEO_KEYFRAME_EXPORT_FRAME_SOURCES.has(value)) {
+		throw new TypeError('An authenticated video keyframe export frame source is required.');
+	}
+}
+
+/** Refuse a forged frame or a frame resolved by a different export snapshot. */
+export function assertVideoKeyframeExportFrame(
+	source: VideoKeyframeExportFrameSource,
+	frame: unknown,
+): asserts frame is VideoKeyframeExportFrame {
+	if (!frame || typeof frame !== 'object'
+		|| VIDEO_KEYFRAME_EXPORT_FRAME_OWNERS.get(frame) !== source) {
+		throw new TypeError('An export frame owned by the requested video keyframe frame source is required.');
+	}
+}
+
 /**
  * Resolve an exact, random-access export frame without retaining a frame table.
  *
@@ -118,9 +141,12 @@ export function createVideoKeyframeExportFrameSource(
 					resolveVideoKeyframeExportState(provider, stateRequest, timelinePosition)
 				),
 			});
-			return Object.freeze({ index, timelineSample, timelinePosition, layers });
+			const frame = Object.freeze({ index, timelineSample, timelinePosition, layers });
+			VIDEO_KEYFRAME_EXPORT_FRAME_OWNERS.set(frame, source);
+			return frame;
 		},
 	});
+	VIDEO_KEYFRAME_EXPORT_FRAME_SOURCES.add(source);
 	return source;
 }
 

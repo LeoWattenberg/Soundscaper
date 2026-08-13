@@ -40,6 +40,7 @@ import {
 	createVideoPreviewRenderTargets,
 	deleteVideoPreviewRenderTargets,
 } from './video-preview-render-target.js';
+import { resolveVideoPreviewCompositorSize } from './video-preview-compositor-size.js';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
@@ -49,7 +50,6 @@ export {
 export { videoPreviewBlurViewport, videoPreviewViewports } from './video-preview-viewports.js';
 export { shouldContinueVideoPreviewPlayback } from './video-preview-render-ledger.js';
 
-const MAX_RENDER_DIMENSION = 4096;
 const COPY_PASS = Object.freeze({});
 const RECT_COPY_PASS = Object.freeze({ code: 8 });
 const FINAL_YUV420_PASS = Object.freeze({ code: 7 });
@@ -172,14 +172,8 @@ export class VideoPreviewCompositor {
 		this.currentProgram = null;
 	}
 
-	resizeToDisplaySize() {
-		const rect = this.canvas.getBoundingClientRect();
-		const pixelRatio = Math.max(1, Number(globalThis.devicePixelRatio) || 1);
-		let width = Math.max(1, Math.round(rect.width * pixelRatio));
-		let height = Math.max(1, Math.round(rect.height * pixelRatio));
-		const scale = Math.min(1, MAX_RENDER_DIMENSION / Math.max(width, height));
-		width = Math.max(1, Math.round(width * scale));
-		height = Math.max(1, Math.round(height * scale));
+	resizeToDisplaySize(options = {}) {
+		const { width, height } = resolveVideoPreviewCompositorSize(this.canvas, options);
 		if (this.canvas.width === width && this.canvas.height === height && this.targets) return;
 		this.canvas.width = width;
 		this.canvas.height = height;
@@ -191,6 +185,7 @@ export class VideoPreviewCompositor {
 
 	uploadVideo(video) {
 		const gl = this.gl;
+		const drawable = video.drawable || video;
 		let record = this.videoTextures.get(video);
 		if (!record) {
 			const texture = gl.createTexture();
@@ -209,10 +204,10 @@ export class VideoPreviewCompositor {
 		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 		gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
 		if (record.width !== video.videoWidth || record.height !== video.videoHeight) {
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, drawable);
 			record.width = video.videoWidth;
 			record.height = video.videoHeight;
-		} else gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
+		} else gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, drawable);
 		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 		return record.texture;
 	}
@@ -341,7 +336,7 @@ export class VideoPreviewCompositor {
 		const ledger = beginVideoPreviewRenderLedger(
 			decodableVideoPreviewLayers(layers), SUPPORTED_EFFECT_TYPES,
 		);
-		this.resizeToDisplaySize();
+		this.resizeToDisplaySize(options);
 		this.renderGeneration += 1;
 		const gl = this.gl;
 		gl.disable(gl.BLEND);
@@ -562,7 +557,7 @@ export class VideoPreviewCompositor {
 		this.draw(
 			compositionTarget.texture,
 			null,
-			FINAL_YUV420_PASS,
+			options.outputColorModel === 'rgba' ? COPY_PASS : FINAL_YUV420_PASS,
 			1,
 			referenceViewport,
 			null,
