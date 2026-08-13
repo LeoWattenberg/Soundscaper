@@ -13,6 +13,9 @@ import {
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { createHash as createSandboxHash } from '../desktop/project-library-v10-sandbox-crypto.ts';
+import {
+	createFramescaperDesktopProjectLibraryV10Handshake,
+} from '../desktop/project-library-v10-contract.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSITION = 'desktop/project-library-product-runtime.js';
@@ -183,13 +186,8 @@ async function stagedFixture(context: TestContext): Promise<Readonly<{
 }
 
 function exactHandshake(): Readonly<Record<string, unknown>> {
-	return Object.freeze({
-		kind: 'framescaper-project-library-handshake', version: 1, owner: 'framescaper',
-		projectSchemaVersion: 18, scapeFormatVersions: Object.freeze([1, 2]),
-		attachedScapeFormatVersion: 2, storageDatabaseName: 'kw-media-framescaper-editor-v18',
-		desktopLibrarySchemaVersion: 10, desktopDatabaseUserVersion: 12,
-		desktopLibraryScope: Object.freeze(['kw.media', 'scape-project-library', 'v10']),
-	});
+	return createFramescaperDesktopProjectLibraryV10Handshake() as unknown as
+		Readonly<Record<string, unknown>>;
 }
 
 interface ProductRuntime {
