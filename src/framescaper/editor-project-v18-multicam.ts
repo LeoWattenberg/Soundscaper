@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	validateFramescaperProjectV18,
-	type FramescaperProjectV18,
-} from './editor-project-v18-validation.ts';
+import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
+import type { FramescaperProjectV18 } from './editor-project-v18-validation.ts';
 
 export const FRAMESCAPER_V18_MAXIMUM_MULTICAMERA_GROUPS = 1_024;
 export const FRAMESCAPER_V18_MAXIMUM_MULTICAMERA_MEMBERS = 64;
@@ -107,8 +105,8 @@ export function validateFramescaperMulticameraGroupsV18(
 	projectValue: FramescaperProjectV18 | unknown,
 	groupsValue: unknown,
 ): readonly FramescaperMulticameraGroupV18[] {
-	validateFramescaperProjectV18(profile, projectValue);
-	const index = indexProject(projectValue as FramescaperProjectV18);
+	assertFramescaperProjectV18Profile(profile);
+	const index = indexProject(projectEnvelope(projectValue));
 	const values = denseArray(groupsValue, 'Framescaper V18 multicamera groups');
 	if (values.length > FRAMESCAPER_V18_MAXIMUM_MULTICAMERA_GROUPS) {
 		throw new RangeError('Framescaper V18 multicamera groups exceed the maintained limit.');
@@ -148,6 +146,21 @@ export function validateFramescaperMulticameraGroupsV18(
 	});
 	groups.sort((left, right) => compareStrings(left.id, right.id));
 	return freezeGroups(groups);
+}
+
+export function isFramescaperMulticameraCommandV18(
+	value: unknown,
+): value is FramescaperMulticameraCommandV18 {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'type');
+	return Boolean(
+		descriptor?.enumerable
+		&& Object.hasOwn(descriptor, 'value')
+		&& (descriptor.value === 'multicamera/create'
+			|| descriptor.value === 'multicamera/update'
+			|| descriptor.value === 'multicamera/remove'
+			|| descriptor.value === 'multicamera/switch'),
+	);
 }
 
 /** Plan a fenced mutation; the caller owns revision increment and history persistence. */
@@ -386,6 +399,17 @@ function indexProject(project: FramescaperProjectV18): ProjectIndex {
 		clips: new Map(project.clips.map((value) => [String(value.id), value])),
 		sequences: new Map(project.sequences.map((value) => [String(value.id), value])),
 	};
+}
+
+function projectEnvelope(value: unknown): FramescaperProjectV18 {
+	const project = dataRecord(value, 'Framescaper V18 multicamera project');
+	if (dataProperty(project, 'schemaVersion', 'Framescaper V18 multicamera project') !== 18) {
+		throw new RangeError('Multicamera groups require an exact schema-18 project.');
+	}
+	for (const field of ['id', 'revision', 'sampleRate', 'sources', 'clips', 'tracks', 'sequences']) {
+		dataProperty(project, field, 'Framescaper V18 multicamera project');
+	}
+	return project as FramescaperProjectV18;
 }
 
 function runtimeRequest(value: unknown): FramescaperMulticameraRuntimeRequestV18 {

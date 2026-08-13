@@ -10,6 +10,7 @@ import {
 	reconcileFramescaperProjectFeatureRequirementsV18,
 } from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
+import type { FramescaperMulticameraGroupV18 } from './editor-project-v18-multicam.ts';
 import type { FramescaperSubsequenceV18 } from './editor-project-v18-subsequence.ts';
 import {
 	FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
@@ -26,6 +27,7 @@ export {
 
 export type FramescaperProjectV18Options = AudioEditorProjectV17Options & Readonly<{
 	readonly subsequences?: readonly FramescaperSubsequenceV18[];
+	readonly multicameraGroups?: readonly FramescaperMulticameraGroupV18[];
 }>;
 
 export interface LoadedFramescaperProjectV18 {
@@ -41,7 +43,8 @@ export function createFramescaperProjectV18(
 	options: FramescaperProjectV18Options = {},
 ): FramescaperProjectV18 {
 	assertFramescaperProjectV18Profile(profile);
-	const subsequences = subsequenceInput(options);
+	const subsequences = collectionInput(options, 'subsequences');
+	const multicameraGroups = collectionInput(options, 'multicameraGroups');
 	const foundation = createAudioEditorProjectV17(options) as unknown as Record<string, unknown>;
 	const sources = (foundation.sources as readonly Record<string, unknown>[]).map((source) => {
 		const result = { ...source };
@@ -54,22 +57,26 @@ export function createFramescaperProjectV18(
 		schemaVersion: FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
 		sources,
 		subsequences,
+		multicameraGroups,
 	};
 	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(profile, project);
 	validateFramescaperProjectV18(profile, project);
 	return project as unknown as FramescaperProjectV18;
 }
 
-function subsequenceInput(options: FramescaperProjectV18Options | unknown): unknown {
+function collectionInput(
+	options: FramescaperProjectV18Options | unknown,
+	key: 'subsequences' | 'multicameraGroups',
+): unknown {
 	if (!options || typeof options !== 'object' || Array.isArray(options)) {
 		throw new TypeError('Framescaper V18 project options must be an object.');
 	}
-	const descriptor = Object.getOwnPropertyDescriptor(options, 'subsequences');
+	const descriptor = Object.getOwnPropertyDescriptor(options, key);
 	if (!descriptor) return [];
 	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError('Framescaper V18 project subsequences must be an own enumerable data property.');
+		throw new TypeError(`Framescaper V18 project ${key} must be an own enumerable data property.`);
 	}
-	return snapshotClone(descriptor.value, 'Framescaper V18 project subsequences');
+	return snapshotClone(descriptor.value, `Framescaper V18 project ${key}`);
 }
 
 /** Validate and detach an exact V18 document, including normalized frozen attachments. */

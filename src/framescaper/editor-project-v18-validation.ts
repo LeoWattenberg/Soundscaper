@@ -16,6 +16,10 @@ import {
 } from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import {
+	validateFramescaperMulticameraGroupsV18,
+	type FramescaperMulticameraGroupV18,
+} from './editor-project-v18-multicam.ts';
+import {
 	validateFramescaperSubsequencesV18,
 	type FramescaperSubsequenceV18,
 } from './editor-project-v18-subsequence.ts';
@@ -39,6 +43,7 @@ export interface FramescaperProjectV18 extends Record<string, unknown> {
 	})[];
 	readonly primarySequenceId: string;
 	readonly subsequences: readonly FramescaperSubsequenceV18[];
+	readonly multicameraGroups: readonly FramescaperMulticameraGroupV18[];
 }
 
 export type FramescaperProjectSourceV18 = Readonly<Record<string, unknown>> & (
@@ -88,12 +93,19 @@ export function validateFramescaperProjectV18(
 	const v17Project = copyDataRecord(candidate, 'Framescaper project');
 	v17Project.schemaVersion = 17;
 	v17Project.sources = v17Sources;
+	delete v17Project.subsequences;
+	delete v17Project.multicameraGroups;
 	v17Project.featureRequirements = framescaperProjectFeatureRequirementsForV17Foundation(
 		profile,
 		candidate,
 	);
 	validateAttachmentRelationships(candidate, sources, normalizedAttachments);
 	validateAudioEditorProjectV17(v17Project, options);
+	validateFramescaperMulticameraGroupsV18(
+		profile,
+		candidate,
+		dataProperty(candidate, 'multicameraGroups', 'Framescaper project'),
+	);
 	validateFramescaperProjectFeatureRequirementsV18(profile, candidate);
 	return true;
 }

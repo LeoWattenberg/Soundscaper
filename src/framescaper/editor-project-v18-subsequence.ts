@@ -2,6 +2,7 @@
 
 import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
+import type { FramescaperMulticameraCommandV18 } from './editor-project-v18-multicam.ts';
 
 export const FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH = 32;
 export const FRAMESCAPER_V18_MAXIMUM_SUBSEQUENCES = 4_096;
@@ -29,7 +30,10 @@ export type FramescaperSubsequenceCommandV18 =
 	}>
 	| Readonly<{ readonly type: 'subsequence/remove'; readonly subsequenceId: string }>;
 
-export type FramescaperProjectCommandV18 = AudioEditorCommand | FramescaperSubsequenceCommandV18;
+export type FramescaperProjectCommandV18 =
+	| AudioEditorCommand
+	| FramescaperSubsequenceCommandV18
+	| FramescaperMulticameraCommandV18;
 
 interface SequenceRate {
 	readonly num: number;

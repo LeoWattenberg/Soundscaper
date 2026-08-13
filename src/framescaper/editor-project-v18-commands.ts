@@ -2,7 +2,15 @@
 
 import { applyEditorCommand } from '../common/editor/commands.js';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import {
+	reconcileFramescaperProjectFeatureRequirementsV18,
+} from './editor-project-feature-requirements-v18.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
+import {
+	isFramescaperMulticameraCommandV18,
+	planFramescaperMulticameraCommandV18,
+	type FramescaperMulticameraCommandV18,
+} from './editor-project-v18-multicam.ts';
 import {
 	framescaperProjectV18HasProxyAttachment,
 	validateFramescaperProjectV18,
@@ -34,6 +42,9 @@ export function applyFramescaperProjectCommandV18(
 	if (isFramescaperSubsequenceCommandV18(command)) {
 		return applySubsequenceCommand(profile, persisted, command, options);
 	}
+	if (isFramescaperMulticameraCommandV18(command)) {
+		return applyMulticameraCommand(profile, persisted, command, options);
+	}
 	const v17Project = structuredClone(persisted) as unknown as Record<string, unknown>;
 	v17Project.schemaVersion = 17;
 	for (const source of v17Project.sources as Record<string, unknown>[]) delete source.proxyAttachment;
@@ -43,6 +54,7 @@ export function applyFramescaperProjectCommandV18(
 		if (source.kind === 'video') source.proxyAttachment = null;
 		else delete source.proxyAttachment;
 	}
+	commanded.multicameraGroups = structuredClone(persisted.multicameraGroups);
 	validateFramescaperProjectV18(profile, commanded);
 	return commanded as FramescaperProjectV18;
 }
@@ -67,10 +79,37 @@ function applySubsequenceCommand(
 			...snapshotChanges(command.changes),
 		};
 	}
+	return finalizeDraft(profile, project, draft, options);
+}
+
+function applyMulticameraCommand(
+	profile: EditorProjectRuntimeProfile | unknown,
+	project: FramescaperProjectV18,
+	command: FramescaperMulticameraCommandV18,
+	options: FramescaperProjectCommandOptionsV18,
+): FramescaperProjectV18 {
+	const plan = planFramescaperMulticameraCommandV18(
+		profile,
+		project,
+		project.multicameraGroups,
+		command,
+	);
+	const draft = structuredClone(project) as unknown as Record<string, unknown>;
+	draft.multicameraGroups = structuredClone(plan.after);
+	return finalizeDraft(profile, project, draft, options);
+}
+
+function finalizeDraft(
+	profile: EditorProjectRuntimeProfile | unknown,
+	project: FramescaperProjectV18,
+	draft: Record<string, unknown>,
+	options: FramescaperProjectCommandOptionsV18,
+): FramescaperProjectV18 {
 	const revision = Number(project.revision) + 1;
 	if (!Number.isSafeInteger(revision)) throw new RangeError('Framescaper V18 project revision overflowed.');
 	draft.revision = revision;
 	draft.updatedAt = timestamp(options.now);
+	draft.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(profile, draft);
 	validateFramescaperProjectV18(profile, draft);
 	return draft as FramescaperProjectV18;
 }
