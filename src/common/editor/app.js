@@ -1448,7 +1448,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const handleEdit = createEditorEditService({
 		activeSelection, commit, commitSplitAtFrames: clipboardEditService.commitSplitAtFrames, compactLiveSourceState,
-		copy, createAddTrackCommand, createClipboardDescriptor, createStableId,
+		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(project, createClipboardDescriptor(commandProject, descriptorOptions)), createStableId,
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,

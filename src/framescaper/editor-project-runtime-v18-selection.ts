@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { acquireProjectLock } from '../common/editor/project-lock.js';
+import type { AudioEditorClipboard } from '../common/editor/commands/protocol.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { createAudioEditorSessionController } from '../common/editor/session.js';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import {
 	createFramescaperProjectFeatureCompatibilityServiceV18,
 } from './editor-project-feature-requirements-v18.ts';
+import { createFramescaperSessionClipboardV18 } from './editor-project-v18-interchange.ts';
 import { FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile-v18.ts';
 import { createFramescaperProjectStoreV18 } from './editor-project-store-v18.ts';
 import {
@@ -57,6 +59,10 @@ export interface EditorProjectRuntimeV18Selection {
 	readonly projectForRuntimeConsumers: (
 		project: unknown,
 	) => ReturnType<typeof framescaperProjectForRuntimeConsumersV18>;
+	readonly prepareEditClipboardDescriptor: (
+		project: unknown,
+		descriptor: AudioEditorClipboard,
+	) => AudioEditorClipboard;
 	readonly createHistory: (project: unknown) => FramescaperProjectHistoryV18;
 	readonly applyCommand: (
 		project: unknown,
@@ -109,6 +115,9 @@ export function createEditorProjectRuntimeV18Selection(
 		),
 		projectForRuntimeConsumers: (project) => (
 			framescaperProjectForRuntimeConsumersV18(profile, project)
+		),
+		prepareEditClipboardDescriptor: (project, descriptor) => (
+			createFramescaperSessionClipboardV18(profile, project, { descriptor }).descriptor
 		),
 		createHistory: (project) => createFramescaperProjectHistoryV18(profile, project),
 		applyCommand: (project, command, options = {}) => (

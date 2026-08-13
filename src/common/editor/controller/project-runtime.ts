@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand } from '../commands/protocol.ts';
+import type { AudioEditorClipboard, AudioEditorCommand } from '../commands/protocol.ts';
 import { applyEditorCommand } from '../commands.js';
 import {
 	canRedo,
@@ -17,7 +17,7 @@ import { projectForCommandConsumers, projectForRuntimeConsumers } from '../proje
 
 const METHOD_NAMES = [
 	'createProject', 'cloneProject', 'migrateProject', 'projectForCommandConsumers',
-	'projectForRuntimeConsumers',
+	'projectForRuntimeConsumers', 'prepareEditClipboardDescriptor',
 	'createHistory', 'executeCommand', 'applyCommand', 'undo', 'redo', 'canUndo', 'canRedo',
 ] as const;
 
@@ -43,6 +43,10 @@ export interface ControllerProjectRuntime {
 	}>;
 	readonly projectForCommandConsumers: (project: unknown) => ControllerRuntimeProject;
 	readonly projectForRuntimeConsumers: (project: unknown) => ControllerRuntimeProject;
+	readonly prepareEditClipboardDescriptor: (
+		project: unknown,
+		descriptor: AudioEditorClipboard,
+	) => AudioEditorClipboard;
 	readonly createHistory: (project: unknown) => ControllerRuntimeHistory;
 	readonly executeCommand: (
 		history: ControllerRuntimeHistory,
@@ -74,6 +78,7 @@ const DEFAULT_RUNTIME = Object.freeze({
 	projectForRuntimeConsumers: (project: ControllerRuntimeProject) => (
 		projectForRuntimeConsumers(project as never) as ControllerRuntimeProject
 	),
+	prepareEditClipboardDescriptor: (_project: unknown, descriptor: AudioEditorClipboard) => descriptor,
 	createHistory: createEditorHistory,
 	executeCommand: executeEditorCommand,
 	applyCommand: applyEditorCommand,
