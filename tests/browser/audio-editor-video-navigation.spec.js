@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { chooseNestedCommandAction, getMenuItem } from './audio-editor-test-helpers.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const TRANSPORT_MENU = 'Playback and recording';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');

@@ -9,8 +9,9 @@ import {
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 
 test.describe('Framescaper linked audio and video visibility menus', () => {
 	test.beforeEach(async ({ page }) => {

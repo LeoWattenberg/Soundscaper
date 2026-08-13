@@ -2,8 +2,11 @@ import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixt
 import { bootEditor, chooseCommandAction, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+// The workflow reads a Framescaper timeline and, for the legacy fallback, a
+// Soundscaper project it imports at /de/ — each from its own product database.
+const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
@@ -296,5 +299,5 @@ async function persistedAudioOnlyClip(page, projectId) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, id: projectId });
+	}, { databaseName: SOUNDSCAPER_DATABASE_NAME, id: projectId });
 }

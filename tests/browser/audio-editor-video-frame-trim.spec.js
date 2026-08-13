@@ -7,8 +7,9 @@ import {
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRIM_LEFT = 'Trim left edge to playhead';
 const TRIM_RIGHT = 'Trim right edge to playhead';
 

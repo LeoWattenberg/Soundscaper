@@ -8,8 +8,9 @@ import {
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 const LABELS = Object.freeze({
 	left: 'Linke Kante bis zur Abspielposition zeitlich strecken',

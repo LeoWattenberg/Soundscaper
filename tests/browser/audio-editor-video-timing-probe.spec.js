@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test.describe('WP-0.3 browser timing-probe qualification', () => {

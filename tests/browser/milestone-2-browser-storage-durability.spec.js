@@ -11,8 +11,9 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 
 test.describe('milestone 2 browser storage durability', () => {
@@ -249,5 +250,5 @@ async function persistedSourceStorageKinds(page) {
 		} finally {
 			database.close();
 		}
-	}, DATABASE_NAME);
+	}, FRAMESCAPER_DATABASE_NAME);
 }

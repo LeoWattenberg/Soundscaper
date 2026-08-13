@@ -10,8 +10,8 @@ import {
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 const TRANSPORT_MENU = 'Playback and recording';
 
@@ -36,18 +36,18 @@ test.describe('persisted shared track locking', () => {
 		});
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
-		const trackId = await selectedTrackId(page, projectId);
+		const trackId = await selectedTrackId(page, projectId, SOUNDSCAPER_DATABASE_NAME);
 		expect(trackId).toBeTruthy();
 
 		await expectNoVisibleLockControl(editor);
 		await chooseCommandAction(page, editor, 'Tracks', 'Lock track');
-		await expectPersistedLock(page, projectId, trackId, true);
+		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
 		await expectNoVisibleLockControl(editor);
 
 		await clickHistory(editor, 'Undo');
-		await expectPersistedLock(page, projectId, trackId, false);
+		await expectPersistedLock(page, projectId, trackId, false, SOUNDSCAPER_DATABASE_NAME);
 		await clickHistory(editor, 'Redo');
-		await expectPersistedLock(page, projectId, trackId, true);
+		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 			timeout: 15_000,
 		});
@@ -56,7 +56,7 @@ test.describe('persisted shared track locking', () => {
 		let restored = await waitForEditor(page);
 		await selectAudioTrack(restored, toneA.name);
 		await expectTrackMenuItem(page, restored, 'Unlock track', true);
-		await expectPersistedLock(page, projectId, trackId, true);
+		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
 
 		await chooseCommandAction(page, restored, 'File', 'Edit in Framescaper');
 		await page.waitForURL((url) => (
@@ -66,7 +66,7 @@ test.describe('persisted shared track locking', () => {
 		await selectAudioTrack(restored, toneA.name);
 		await expectTrackMenuItem(page, restored, 'Unlock track', true);
 		await chooseCommandAction(page, restored, 'Tracks', 'Unlock track');
-		await expectPersistedLock(page, projectId, trackId, false);
+		await expectPersistedLock(page, projectId, trackId, false, FRAMESCAPER_DATABASE_NAME);
 		await expectNoVisibleLockControl(restored);
 	});
 
@@ -86,13 +86,13 @@ test.describe('persisted shared track locking', () => {
 		});
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
-		const state = await videoState(page, projectId);
+		const state = await videoState(page, projectId, FRAMESCAPER_DATABASE_NAME);
 		expect(state).not.toBeNull();
 		expect(state.video.sequenceFrameCount).toBeGreaterThan(2);
 		await setProgramFrame(editor, state.sequence.rate.num, 1);
 
 		await chooseCommandAction(page, editor, 'Tracks', 'Lock track');
-		await expectPersistedLock(page, projectId, state.track.id, true);
+		await expectPersistedLock(page, projectId, state.track.id, true, FRAMESCAPER_DATABASE_NAME);
 		await expectNoVisibleLockControl(editor);
 		await expectTrimItemsDisabled(page, editor);
 
@@ -106,7 +106,7 @@ test.describe('persisted shared track locking', () => {
 			.toHaveAttribute('data-sequence-timecode', before);
 
 		await chooseCommandAction(page, editor, 'Tracks', 'Unlock track');
-		await expectPersistedLock(page, projectId, state.track.id, false);
+		await expectPersistedLock(page, projectId, state.track.id, false, FRAMESCAPER_DATABASE_NAME);
 		await expectTrimItemsEnabled(page, editor);
 	});
 });
@@ -186,11 +186,11 @@ async function clickHistory(editor, label) {
 	await button.click();
 }
 
-async function expectPersistedLock(page, projectId, trackId, locked) {
-	await expect.poll(() => persistedLock(page, projectId, trackId)).toBe(locked);
+async function expectPersistedLock(page, projectId, trackId, locked, databaseName) {
+	await expect.poll(() => persistedLock(page, projectId, trackId, databaseName)).toBe(locked);
 }
 
-async function persistedLock(page, projectId, trackId) {
+async function persistedLock(page, projectId, trackId, databaseName) {
 	return page.evaluate(async ({ databaseName, id, selectedTrackId: target }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
@@ -205,10 +205,10 @@ async function persistedLock(page, projectId, trackId) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, id: projectId, selectedTrackId: trackId });
+	}, { databaseName, id: projectId, selectedTrackId: trackId });
 }
 
-async function selectedTrackId(page, projectId) {
+async function selectedTrackId(page, projectId, databaseName) {
 	return page.evaluate(async ({ databaseName, id }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
@@ -223,10 +223,10 @@ async function selectedTrackId(page, projectId) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, id: projectId });
+	}, { databaseName, id: projectId });
 }
 
-async function videoState(page, projectId) {
+async function videoState(page, projectId, databaseName) {
 	return page.evaluate(async ({ databaseName, id }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
@@ -244,5 +244,5 @@ async function videoState(page, projectId) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, id: projectId });
+	}, { databaseName, id: projectId });
 }

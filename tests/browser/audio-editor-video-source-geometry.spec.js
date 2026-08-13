@@ -7,8 +7,9 @@ import {
 import { videoSourceGeometryMedia } from './fixtures/video-source-geometry-media.js';
 import { chooseDropdown, openExportDialog } from './audio-editor-test-helpers.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const ROTATED_ANAMORPHIC = videoSourceGeometryMedia.find(
 	({ id }) => id === 'geometry-rotated-anamorphic-mp4-v1',
