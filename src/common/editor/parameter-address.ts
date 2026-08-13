@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-const MAX_STABLE_ID_CODE_UNITS = 1_024;
-
 export type StripRef =
 	| Readonly<{ kind: 'track'; id: string }>
 	| Readonly<{ kind: 'mixer-node'; id: string }>
@@ -150,7 +148,7 @@ function record(value: unknown, name: string): UnknownRecord {
 		throw new TypeError(`${name} must contain only named own data properties.`);
 	}
 	const descriptors = Object.getOwnPropertyDescriptors(value);
-	const snapshot: Record<string, unknown> = {};
+	const snapshot: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
 	for (const [key, descriptor] of Object.entries(descriptors)) {
 		if (!Object.hasOwn(descriptor, 'value')) {
 			throw new TypeError(`${name} must contain only own data properties.`);
@@ -167,7 +165,9 @@ function closed(value: UnknownRecord, allowed: readonly string[], name: string):
 }
 
 function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value || value.length > MAX_STABLE_ID_CODE_UNITS) {
+	// Existing project schemas admit every non-empty JavaScript string as an ID.
+	// Parameter addressing must not introduce a narrower compatibility boundary.
+	if (typeof value !== 'string' || !value) {
 		throw new TypeError(`A stable ${name} ID is required.`);
 	}
 	return value;

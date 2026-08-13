@@ -223,6 +223,15 @@ test('registry accepts only closed own-data descriptor snapshots', () => {
 		...descriptor,
 		automatable: false,
 	} as typeof descriptor, mockAudioParam()), /block reason/iu);
+	const serialized = JSON.stringify(descriptor);
+	const parsed = JSON.parse(
+		`${serialized.slice(0, -1)},"__proto__":{"automatable":false}}`,
+	) as Record<string, unknown>;
+	assert.throws(
+		() => registry.registerAudioParam(parsed as unknown as typeof descriptor, mockAudioParam()),
+		/unknown member: __proto__/iu,
+	);
+	assert.equal(({} as { automatable?: unknown }).automatable, undefined);
 });
 
 test('effect bindings expose stable native and worklet targets without posting eagerly', () => {

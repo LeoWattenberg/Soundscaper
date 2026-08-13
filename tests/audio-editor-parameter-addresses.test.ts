@@ -68,6 +68,11 @@ test('parameter addresses reject unknown members and unstable identifiers', () =
 		})),
 		/plain object/iu,
 	);
+	const protoAddress = JSON.parse(
+		'{"kind":"strip","strip":{"kind":"master"},"parameterId":"gain","__proto__":{"polluted":true}}',
+	) as unknown;
+	assert.throws(() => normalizeParameterAddress(protoAddress), /unknown member: __proto__/iu);
+	assert.equal(({} as { polluted?: unknown }).polluted, undefined);
 });
 
 test('legacy send edge identities survive reload and delimiter-heavy IDs', () => {
@@ -79,4 +84,21 @@ test('legacy send edge identities survive reload and delimiter-heavy IDs', () =>
 	assert.equal(first, reloaded);
 	assert.deepEqual(JSON.parse(first), ['legacy-send-v1', 'track:one', 'send,[one]']);
 	assert.notEqual(first, legacySendEdgeId('track', 'one:send,[one]'));
+});
+
+test('parameter identities retain project-compatible long IDs without narrowing the wire', () => {
+	const trackId = `track-${'t'.repeat(8_192)}`;
+	const effectId = `effect-${'e'.repeat(8_192)}`;
+	const sendId = `send-${'s'.repeat(8_192)}`;
+	const edgeId = legacySendEdgeId(trackId, sendId);
+	assert.deepEqual(JSON.parse(edgeId), ['legacy-send-v1', trackId, sendId]);
+	assert.doesNotThrow(() => normalizeParameterAddress({
+		kind: 'effect',
+		strip: { kind: 'track', id: trackId },
+		effectId,
+		parameterId: 'mix',
+	}));
+	assert.doesNotThrow(() => normalizeParameterAddress({
+		kind: 'edge', edgeId, parameterId: 'level',
+	}));
 });

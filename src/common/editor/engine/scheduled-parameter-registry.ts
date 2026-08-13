@@ -455,7 +455,7 @@ function ownDataRecord(value: unknown, name: string): Readonly<Record<string, un
 	if (Object.getOwnPropertySymbols(value).length) {
 		throw new TypeError(`${name} must contain only named own data properties.`);
 	}
-	const snapshot: Record<string, unknown> = {};
+	const snapshot: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
 	for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
 		if (!Object.hasOwn(descriptor, 'value')) {
 			throw new TypeError(`${name} must contain only own data properties.`);

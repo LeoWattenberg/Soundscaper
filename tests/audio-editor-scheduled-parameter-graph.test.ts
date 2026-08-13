@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createEffect } from '../src/common/editor/effects.js';
-import type { ParameterAddress } from '../src/common/editor/parameter-address.ts';
+import {
+	legacySendEdgeId,
+	type ParameterAddress,
+} from '../src/common/editor/parameter-address.ts';
 import { applyEffect } from '../src/common/editor/engine/effect-rack.ts';
 import { scheduleProjectGains } from '../src/common/editor/engine/clip-gain.ts';
 import { buildProjectGraph } from '../src/common/editor/engine/project-graph.ts';
@@ -201,6 +204,51 @@ test('native limiter and delay bindings cover the owning automatable descriptors
 			[['set', 0.25, 0], ['cancel', 0], ['set', 0.8, 0]],
 		],
 	);
+});
+
+test('a no-lane graph accepts existing long track, effect, bus, and send IDs', () => {
+	const context = new MockContext();
+	const trackId = `track-${'t'.repeat(8_192)}`;
+	const effectId = `effect-${'e'.repeat(8_192)}`;
+	const groupId = `group-${'g'.repeat(8_192)}`;
+	const sendId = `send-${'s'.repeat(8_192)}`;
+	const project: EngineProject = {
+		sampleRate: 48_000,
+		tracks: [{
+			type: 'audio', id: trackId, gain: 1, pan: 0, mute: false, solo: false,
+			effects: [createEffect('delay', {
+				id: effectId,
+				params: { time: 0.25, feedback: 0.3, mix: 0.2 },
+			})],
+		}],
+		mixer: {
+			groups: [{ id: groupId, gain: 1, pan: 0, mute: false, solo: false, effects: [] }],
+			sends: [{ id: sendId, gain: 1, pan: 0, mute: false, solo: false, effects: [] }],
+			routes: { [trackId]: { groupId, sends: { [sendId]: 0.5 } } },
+		},
+		master: { gain: 1, pan: 0, mute: false, effects: [] },
+	};
+	const graph = buildProjectGraph(
+		context as unknown as BaseAudioContext,
+		context.destination as unknown as AudioNode,
+		project,
+		{ metering: false },
+	);
+	assert.equal(graph.parameterRegistry.has({
+		kind: 'strip', strip: { kind: 'track', id: trackId }, parameterId: 'gain',
+	}), true);
+	assert.equal(graph.parameterRegistry.has({
+		kind: 'effect', strip: { kind: 'track', id: trackId }, effectId, parameterId: 'mix',
+	}), true);
+	assert.equal(graph.parameterRegistry.has({
+		kind: 'strip', strip: { kind: 'mixer-node', id: groupId }, parameterId: 'gain',
+	}), true);
+	assert.equal(graph.parameterRegistry.has({
+		kind: 'strip', strip: { kind: 'mixer-node', id: sendId }, parameterId: 'gain',
+	}), true);
+	assert.equal(graph.parameterRegistry.has({
+		kind: 'edge', edgeId: legacySendEdgeId(trackId, sendId), parameterId: 'level',
+	}), true);
 });
 
 function paramEvents(context: MockContext): Array<readonly [string, string, number, number?]> {
