@@ -10,6 +10,9 @@ import {
 	createVideoKeyframeOfflineRgbaRenderer,
 } from '../src/common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import {
+	VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES,
+	VIDEO_KEYFRAME_OFFLINE_MAXIMUM_RETAINED_RGBA_BYTES,
+	VideoKeyframeOfflineSourceCache,
 	type VideoKeyframeOfflineSourcePresentation,
 } from '../src/common/editor/ui/video-keyframe-offline-rgba-source.ts';
 
@@ -86,27 +89,138 @@ test('offline renderer rejects a forged frame source before cache or GL work', (
 	assert.equal(resolutions, 0);
 });
 
-test('offline renderer rejects duplicate source IDs before presentation mutation', async () => {
+test('offline renderer renders distinct clip occurrences of one source', async () => {
 	const frameSource = source({ duplicateSource: true });
 	const fixture = rendererFixture();
-	const media = presentation();
+	const media = new Map([
+		['clip-1', presentation()],
+		['clip-2', presentation()],
+	]);
 	let resolutions = 0;
 	const renderer = createVideoKeyframeOfflineRgbaRenderer({
 		frameSource,
 		canvas: fixture.canvas,
-		resolveSource: () => { resolutions += 1; return media.value; },
+		resolveSource: (entry) => {
+			resolutions += 1;
+			return media.get(String(entry.clipId))!.value;
+		},
 		createCompositor: fixture.createCompositor,
 	});
 	const output = new Uint8Array(16).fill(55);
-	await assert.rejects(
-		renderer.produce(frameSource.frame(0), output, { signal: new AbortController().signal }),
-		/duplicate source ID/u,
-	);
-	assert.equal(resolutions, 0);
-	assert.equal(fixture.renderedEntries(), 0);
-	assert.deepEqual([...output], new Array(16).fill(0));
+	await renderer.produce(frameSource.frame(0), output, { signal: new AbortController().signal });
+	assert.equal(resolutions, 2);
+	assert.equal(fixture.renderedEntries(), 2);
 	await renderer.dispose();
-	assert.equal(media.disposals(), 0);
+	assert.deepEqual([...media.values()].map((value) => value.disposals()), [1, 1]);
+});
+
+test('offline source cache pins exact occurrences and bounds retained decoder work', async () => {
+	assert.equal(VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES, 32);
+	assert.equal(VIDEO_KEYFRAME_OFFLINE_MAXIMUM_RETAINED_RGBA_BYTES, 256 * 1024 * 1024);
+	const disposals = new Map<string, number>();
+	let resolutions = 0;
+	const cache = new VideoKeyframeOfflineSourceCache((entry) => {
+		resolutions += 1;
+		const clipId = String(entry.clipId);
+		const sourceId = String(entry.sourceId);
+		return Object.freeze({
+			sourceId,
+			identity: `sha256:${sourceId}`,
+			drawable: Object.freeze({ clipId }) as unknown as TexImageSource,
+			decodedWidth: 4_096,
+			decodedHeight: 4_096,
+			displayWidth: 4_096,
+			displayHeight: 4_096,
+			present() {},
+			dispose() { disposals.set(clipId, (disposals.get(clipId) ?? 0) + 1); },
+		});
+	});
+	const signal = new AbortController().signal;
+	cache.beginFrame();
+	for (let index = 0; index < 4; index += 1) {
+		await cache.present(entry(`clip-${String(index)}`, `source-${String(index)}`), signal);
+	}
+	await assert.rejects(
+		cache.present(entry('clip-4', 'source-4'), signal),
+		/aggregate decoded RGBA|pinned/iu,
+	);
+	assert.equal(disposals.get('clip-4'), 1);
+	cache.finishFrame();
+	cache.beginFrame();
+	await cache.present(entry('clip-4', 'source-4'), signal);
+	cache.finishFrame();
+	assert.equal(disposals.get('clip-0'), 1);
+	assert.equal(resolutions, 6);
+	await cache.dispose();
+});
+
+test('offline source cache rejects duplicate frame occurrences before resolving again', async () => {
+	let resolutions = 0;
+	const media = presentation();
+	const cache = new VideoKeyframeOfflineSourceCache(() => {
+		resolutions += 1;
+		return media.value;
+	});
+	const signal = new AbortController().signal;
+	cache.beginFrame();
+	await cache.present(entry('clip-1', 'source-1'), signal);
+	await assert.rejects(
+		cache.present(entry('clip-1', 'source-1'), signal),
+		/duplicate.*occurrence/iu,
+	);
+	assert.equal(resolutions, 1);
+	assert.throws(() => cache.beginFrame(), /active frame|overlap/iu);
+	cache.finishFrame();
+	await cache.dispose();
+});
+
+test('offline source cache aggregates cleanup and retries failed presentation disposal', async () => {
+	const primary = new Error('presentation failed');
+	const cleanup = new Error('presentation cleanup failed');
+	let disposeCalls = 0;
+	const cache = new VideoKeyframeOfflineSourceCache(() => Object.freeze({
+		sourceId: 'source-1',
+		identity: 'sha256:source-1',
+		drawable: Object.freeze({}) as TexImageSource,
+		decodedWidth: 2,
+		decodedHeight: 2,
+		displayWidth: 2,
+		displayHeight: 2,
+		present() { throw primary; },
+		dispose() {
+			disposeCalls += 1;
+			if (disposeCalls === 1) throw cleanup;
+		},
+	}));
+	cache.beginFrame();
+	await assert.rejects(
+		cache.present(entry('clip-1', 'source-1'), new AbortController().signal),
+		(error: unknown) => error instanceof AggregateError
+			&& error.errors[0] === primary && error.errors[1] === cleanup,
+	);
+	cache.finishFrame();
+	await cache.dispose();
+	assert.equal(disposeCalls, 2);
+});
+
+test('offline source cache disposes a resolver result rejected during snapshot admission', async () => {
+	const admission = new Error('cleanup failed');
+	let disposeCalls = 0;
+	const cache = new VideoKeyframeOfflineSourceCache(() => Object.freeze({
+		sourceId: 'source-1', identity: 'sha256:source-1', drawable: Object.freeze({}),
+		decodedWidth: 16_384, decodedHeight: 16_384,
+		displayWidth: 16_384, displayHeight: 16_384,
+		present() {},
+		dispose() { disposeCalls += 1; throw admission; },
+	}) as unknown as VideoKeyframeOfflineSourcePresentation);
+	cache.beginFrame();
+	await assert.rejects(
+		cache.present(entry('clip-1', 'source-1'), new AbortController().signal),
+		(error: unknown) => error instanceof AggregateError && error.errors.includes(admission),
+	);
+	cache.finishFrame();
+	assert.equal(disposeCalls, 1);
+	await cache.dispose();
 });
 
 test('offline renderer clears reusable output on omission and post-read GL failure', async () => {
@@ -208,6 +322,10 @@ function presentation(options: Readonly<{ present?: () => PromiseLike<void> | vo
 		dispose: () => { disposeCalls += 1; },
 	});
 	return { value, disposals: () => disposeCalls };
+}
+
+function entry(clipId: string, sourceId: string): Readonly<Record<string, unknown>> {
+	return Object.freeze({ clipId, sourceId });
 }
 
 function rendererFixture(mode: 'rendered' | 'fallback' | 'read-error' = 'rendered') {

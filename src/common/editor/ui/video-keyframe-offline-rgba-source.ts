@@ -32,9 +32,12 @@ export type VideoKeyframeOfflineSourceResolver = (
 ) => PromiseLike<VideoKeyframeOfflineSourcePresentation> | VideoKeyframeOfflineSourcePresentation;
 
 interface SourceRecord {
+	readonly occurrenceKey: string;
+	readonly sourceId: string;
 	readonly identity: string;
 	readonly presentation: VideoKeyframeOfflineSourcePresentation;
 	readonly drawable: VideoKeyframeOfflineDrawableSource;
+	readonly decodedRgbaBytes: number;
 }
 
 interface SourceAuthority {
@@ -45,12 +48,33 @@ interface SourceAuthority {
 	readonly displayHeight: number;
 }
 
-/** Own and authenticate one stable presentation lifecycle per canonical source ID. */
+interface PresentationSnapshot extends SourceAuthority {
+	readonly sourceId: string;
+	readonly drawable: TexImageSource;
+	readonly original: VideoKeyframeOfflineSourcePresentation;
+	readonly decodedRgbaBytes: number;
+	readonly present: VideoKeyframeOfflineSourcePresentation['present'];
+	readonly dispose: VideoKeyframeOfflineSourcePresentation['dispose'];
+}
+
+type CleanupResult = Readonly<{ readonly ok: true }>
+	| Readonly<{ readonly ok: false; readonly error: unknown }>;
+
+export const VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES = 32;
+export const VIDEO_KEYFRAME_OFFLINE_MAXIMUM_RETAINED_RGBA_BYTES = 256 * 1024 * 1024;
+export const VIDEO_KEYFRAME_OFFLINE_MAXIMUM_SOURCE_AUTHORITIES = 4_096;
+
+/** Own bounded occurrence lifecycles while retaining immutable per-source authority. */
 export class VideoKeyframeOfflineSourceCache {
 	readonly #records = new Map<string, SourceRecord>();
 	readonly #authorities = new Map<string, SourceAuthority>();
+	readonly #pins = new Set<string>();
+	#retainedRgbaBytes = 0;
 	#active = false;
+	#frameActive = false;
+	#disposeRequested = false;
 	#disposed = false;
+	#disposePromise: Promise<void> | null = null;
 
 	constructor(readonly resolveSource: VideoKeyframeOfflineSourceResolver) {
 		if (typeof resolveSource !== 'function') {
@@ -58,103 +82,196 @@ export class VideoKeyframeOfflineSourceCache {
 		}
 	}
 
+	beginFrame(): void {
+		if (this.#disposeRequested || this.#disposed) {
+			throw new Error('The offline video source cache is closed.');
+		}
+		if (this.#frameActive || this.#active) {
+			throw new Error('The offline video source cache already has an active frame.');
+		}
+		this.#pins.clear();
+		this.#frameActive = true;
+	}
+
+	/** Frame cleanup is deliberately synchronous and cannot mask render failures. */
+	finishFrame(): void {
+		this.#pins.clear();
+		this.#frameActive = false;
+	}
+
 	async present(
 		entryValue: unknown,
 		signal: AbortSignal,
 	): Promise<VideoKeyframeOfflineDrawableSource> {
-		if (this.#disposed) throw new Error('The offline video source cache is closed.');
+		if (this.#disposeRequested || this.#disposed) {
+			throw new Error('The offline video source cache is closed.');
+		}
+		if (!this.#frameActive) throw new Error('The offline video source cache requires an active frame.');
 		if (this.#active) throw new Error('The offline video source cache cannot overlap presentations.');
+		const entry = record(entryValue, 'offline video layer entry');
+		const sourceId = boundedId(
+			data(entry, 'sourceId', 'offline video layer entry'),
+			'offline video layer entry.sourceId',
+		);
+		const clipId = boundedId(
+			data(entry, 'clipId', 'offline video layer entry'),
+			'offline video layer entry.clipId',
+		);
+		const occurrenceKey = occurrenceIdentity(clipId, sourceId);
+		if (this.#pins.has(occurrenceKey)) {
+			throw new Error('The offline video frame contains a duplicate source occurrence.');
+		}
+		if (this.#pins.size >= VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES) {
+			throw new RangeError('The offline video frame exceeds its pinned source occurrence limit.');
+		}
+		this.#pins.add(occurrenceKey);
 		this.#active = true;
+		let resolved: unknown;
+		let hasResolved = false;
+		let incomingOwned = true;
+		let failureRecord: SourceRecord | null = null;
 		try {
 			throwIfAborted(signal);
-			const entry = record(entryValue, 'offline video layer entry');
-			const sourceId = boundedId(entry.sourceId, 'offline video layer entry.sourceId');
-			const resolved = await this.resolveSource(entry, Object.freeze({ signal }));
+			resolved = await this.resolveSource(entry, Object.freeze({ signal }));
+			hasResolved = true;
 			const presentation = snapshotPresentation(resolved);
-			let cacheOwned = false;
-			let retained = false;
-			try {
-				throwIfAborted(signal);
-				const current = this.#records.get(sourceId);
-				cacheOwned = current?.presentation === presentation.original;
-				if (presentation.sourceId !== sourceId) {
-					throw new RangeError('The offline video source resolver returned a different source ID.');
-				}
-				const authority = this.#authorities.get(sourceId);
-				if (authority !== undefined && (
-					authority.identity !== presentation.identity
-					|| authority.decodedWidth !== presentation.decodedWidth
-					|| authority.decodedHeight !== presentation.decodedHeight
-					|| authority.displayWidth !== presentation.displayWidth
-					|| authority.displayHeight !== presentation.displayHeight
-				)) {
-					throw new Error('An offline video source identity changed during the export snapshot.');
-				}
-				if (current !== undefined) {
-					if (cacheOwned) {
-						await current.presentation.present(entry, Object.freeze({ signal }));
-						throwIfAborted(signal);
-						return current.drawable;
-					}
-					if (current.identity !== presentation.identity
-						|| current.presentation.drawable !== presentation.drawable
-						|| current.drawable.videoWidth !== presentation.decodedWidth
-						|| current.drawable.videoHeight !== presentation.decodedHeight
-						|| current.drawable.displayWidth !== presentation.displayWidth
-						|| current.drawable.displayHeight !== presentation.displayHeight) {
-						throw new Error('An offline video source identity changed during the export snapshot.');
-					}
-					throw new Error('The offline video source resolver replaced a source lifecycle during export.');
-				}
-				const drawable = createDrawableSource(presentation);
-				if (authority === undefined) this.#authorities.set(sourceId, Object.freeze({
-					identity: presentation.identity,
-					decodedWidth: presentation.decodedWidth,
-					decodedHeight: presentation.decodedHeight,
-					displayWidth: presentation.displayWidth,
-					displayHeight: presentation.displayHeight,
-				}));
-				const stored = Object.freeze({
-					identity: presentation.identity,
-					presentation: presentation.original,
-					drawable,
-				});
-				this.#records.set(sourceId, stored);
-				retained = true;
-				await presentation.present(entry, Object.freeze({ signal }));
-				throwIfAborted(signal);
-				return drawable;
-			} catch (error) {
-				if (retained) {
-					this.#records.delete(sourceId);
-					await disposeIgnoringFailure(presentation.dispose);
-				} else if (cacheOwned) {
-					this.#records.delete(sourceId);
-					await disposeIgnoringFailure(presentation.dispose);
-				} else await disposeIgnoringFailure(presentation.dispose);
-				throw error;
+			throwIfAborted(signal);
+			const current = this.#records.get(occurrenceKey);
+			if (current?.presentation === presentation.original) {
+				incomingOwned = false;
+				failureRecord = current;
 			}
+			if (presentation.sourceId !== sourceId) {
+				throw new RangeError('The offline video source resolver returned a different source ID.');
+			}
+			const authority = this.#assertAuthority(sourceId, presentation);
+			if (current !== undefined) {
+				if (current.presentation !== presentation.original) {
+					throw new Error('The offline video source resolver replaced a source occurrence lifecycle.');
+				}
+				assertCurrentRecord(current, presentation);
+				await current.presentation.present(entry, Object.freeze({ signal }));
+				throwIfAborted(signal);
+				this.#touch(current);
+				failureRecord = null;
+				return current.drawable;
+			}
+			this.#assertDistinctDrawable(occurrenceKey, presentation.drawable);
+			await this.#makeCapacity(presentation.decodedRgbaBytes);
+			if (authority === undefined) this.#authorities.set(sourceId, authorityFor(presentation));
+			const stored: SourceRecord = Object.freeze({
+				occurrenceKey,
+				sourceId,
+				identity: presentation.identity,
+				presentation: presentation.original,
+				drawable: createDrawableSource(presentation),
+				decodedRgbaBytes: presentation.decodedRgbaBytes,
+			});
+			this.#records.set(occurrenceKey, stored);
+			this.#retainedRgbaBytes += stored.decodedRgbaBytes;
+			incomingOwned = false;
+			failureRecord = stored;
+			await presentation.present(entry, Object.freeze({ signal }));
+			throwIfAborted(signal);
+			failureRecord = null;
+			return stored.drawable;
+		} catch (error) {
+			if (failureRecord !== null) throw await this.#failureWithRecordCleanup(error, failureRecord);
+			if (hasResolved && incomingOwned) throw await failureWithRejectedCleanup(error, resolved);
+			throw error;
 		} finally {
 			this.#active = false;
 		}
 	}
 
-	async dispose(): Promise<void> {
-		if (this.#disposed) return;
-		if (this.#active) throw new Error('The offline video source cache is rendering a presentation.');
-		this.#disposed = true;
-		const records = [...this.#records.values()];
-		this.#records.clear();
-		this.#authorities.clear();
-		const failures: unknown[] = [];
-		for (const { presentation } of records) {
-			try { await presentation.dispose(); } catch (error) { failures.push(error); }
+	dispose(): Promise<void> {
+		if (this.#disposed) return Promise.resolve();
+		if (this.#active || this.#frameActive) {
+			return Promise.reject(new Error('The offline video source cache is rendering a presentation.'));
 		}
-		if (failures.length > 0) throw new AggregateError(failures, 'Offline video source cleanup failed.');
+		if (this.#disposePromise !== null) return this.#disposePromise;
+		this.#disposeRequested = true;
+		const operation = (async () => {
+			const failures: unknown[] = [];
+			for (const record of [...this.#records.values()]) {
+				const cleanup = await attemptCleanup(record.presentation.dispose.bind(record.presentation));
+				if (cleanup.ok) this.#remove(record);
+				else failures.push(cleanup.error);
+			}
+			if (failures.length > 0) {
+				throw new AggregateError(failures, 'Offline video source cleanup failed.');
+			}
+			this.#authorities.clear();
+			this.#pins.clear();
+			this.#disposed = true;
+		})();
+		this.#disposePromise = operation.catch((error: unknown) => {
+			this.#disposePromise = null;
+			throw error;
+		});
+		return this.#disposePromise;
+	}
+
+	#assertAuthority(sourceId: string, presentation: PresentationSnapshot): SourceAuthority | undefined {
+		const authority = this.#authorities.get(sourceId);
+		if (authority === undefined) {
+			if (this.#authorities.size >= VIDEO_KEYFRAME_OFFLINE_MAXIMUM_SOURCE_AUTHORITIES) {
+				throw new RangeError('Offline video source authorities exceed their hard limit.');
+			}
+			return undefined;
+		}
+		if (!sameAuthority(authority, presentation)) {
+			throw new Error('An offline video source identity changed during the export snapshot.');
+		}
+		return authority;
+	}
+
+	#assertDistinctDrawable(occurrenceKey: string, drawable: TexImageSource): void {
+		for (const record of this.#records.values()) {
+			if (record.occurrenceKey !== occurrenceKey && record.presentation.drawable === drawable) {
+				throw new Error('Offline video source occurrences must own distinct drawable lifecycles.');
+			}
+		}
+	}
+
+	async #makeCapacity(incomingBytes: number): Promise<void> {
+		while (this.#records.size >= VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES
+			|| this.#retainedRgbaBytes + incomingBytes > VIDEO_KEYFRAME_OFFLINE_MAXIMUM_RETAINED_RGBA_BYTES) {
+			const victim = [...this.#records.values()].find(
+				(record) => !this.#pins.has(record.occurrenceKey),
+			);
+			if (victim === undefined) {
+				throw new RangeError('Offline video pinned occurrences exceed aggregate decoded RGBA capacity.');
+			}
+			const cleanup = await attemptCleanup(victim.presentation.dispose.bind(victim.presentation));
+			if (!cleanup.ok) throw cleanup.error;
+			this.#remove(victim);
+		}
+	}
+
+	async #failureWithRecordCleanup(primary: unknown, record: SourceRecord): Promise<unknown> {
+		const cleanup = await attemptCleanup(record.presentation.dispose.bind(record.presentation));
+		if (cleanup.ok) {
+			this.#remove(record);
+			return primary;
+		}
+		return aggregateFailure(primary, cleanup.error);
+	}
+
+	#touch(record: SourceRecord): void {
+		if (this.#records.get(record.occurrenceKey) !== record) return;
+		this.#records.delete(record.occurrenceKey);
+		this.#records.set(record.occurrenceKey, record);
+	}
+
+	#remove(record: SourceRecord): void {
+		if (this.#records.get(record.occurrenceKey) !== record) return;
+		this.#records.delete(record.occurrenceKey);
+		this.#retainedRgbaBytes -= record.decodedRgbaBytes;
 	}
 }
 
-function snapshotPresentation(value: unknown) {
+function snapshotPresentation(value: unknown): PresentationSnapshot {
 	const candidate = record(value, 'offline video source presentation');
 	const keys = new Set([
 		'sourceId', 'identity', 'drawable', 'decodedWidth', 'decodedHeight',
@@ -165,30 +282,49 @@ function snapshotPresentation(value: unknown) {
 			throw new TypeError('The offline video source presentation has an unsupported field.');
 		}
 	}
-	const sourceId = boundedId(data(candidate, 'sourceId'), 'offline video source presentation.sourceId');
-	const identity = boundedId(data(candidate, 'identity'), 'offline video source presentation.identity');
-	const drawable = data(candidate, 'drawable') as TexImageSource;
+	const sourceId = boundedId(
+		data(candidate, 'sourceId', 'offline video source presentation'),
+		'offline video source presentation.sourceId',
+	);
+	const identity = boundedId(
+		data(candidate, 'identity', 'offline video source presentation'),
+		'offline video source presentation.identity',
+	);
+	const drawable = data(candidate, 'drawable', 'offline video source presentation') as TexImageSource;
 	if (!drawable || (typeof drawable !== 'object' && typeof drawable !== 'function')) {
 		throw new TypeError('The offline video source presentation requires a drawable source.');
 	}
-	const decodedWidth = dimension(data(candidate, 'decodedWidth'), 'decodedWidth');
-	const decodedHeight = dimension(data(candidate, 'decodedHeight'), 'decodedHeight');
-	const displayWidth = dimension(data(candidate, 'displayWidth'), 'displayWidth');
-	const displayHeight = dimension(data(candidate, 'displayHeight'), 'displayHeight');
+	const decodedWidth = dimension(
+		data(candidate, 'decodedWidth', 'offline video source presentation'), 'decodedWidth',
+	);
+	const decodedHeight = dimension(
+		data(candidate, 'decodedHeight', 'offline video source presentation'), 'decodedHeight',
+	);
+	const displayWidth = dimension(
+		data(candidate, 'displayWidth', 'offline video source presentation'), 'displayWidth',
+	);
+	const displayHeight = dimension(
+		data(candidate, 'displayHeight', 'offline video source presentation'), 'displayHeight',
+	);
+	const decodedRgbaBig = BigInt(decodedWidth) * BigInt(decodedHeight) * 4n;
+	if (decodedRgbaBig > BigInt(VIDEO_KEYFRAME_OFFLINE_MAXIMUM_RETAINED_RGBA_BYTES)) {
+		throw new RangeError('Offline video source decoded RGBA bytes exceed their hard limit.');
+	}
 	planVideoPreviewCapture({ sourceWidth: decodedWidth, sourceHeight: decodedHeight });
 	const present = functionValue<VideoKeyframeOfflineSourcePresentation['present']>(
-		data(candidate, 'present'), 'present',
+		data(candidate, 'present', 'offline video source presentation'), 'present',
 	).bind(value);
 	const dispose = functionValue<VideoKeyframeOfflineSourcePresentation['dispose']>(
-		data(candidate, 'dispose'), 'dispose',
+		data(candidate, 'dispose', 'offline video source presentation'), 'dispose',
 	).bind(value);
-	return {
+	return Object.freeze({
 		sourceId, identity, drawable, decodedWidth, decodedHeight, displayWidth, displayHeight,
+		decodedRgbaBytes: Number(decodedRgbaBig),
 		present, dispose, original: value as VideoKeyframeOfflineSourcePresentation,
-	};
+	});
 }
 
-function createDrawableSource(presentation: ReturnType<typeof snapshotPresentation>) {
+function createDrawableSource(presentation: PresentationSnapshot) {
 	return Object.freeze(Object.create(null, {
 		readyState: { enumerable: true, value: 4 },
 		videoWidth: { enumerable: true, value: presentation.decodedWidth },
@@ -199,19 +335,88 @@ function createDrawableSource(presentation: ReturnType<typeof snapshotPresentati
 	})) as VideoKeyframeOfflineDrawableSource;
 }
 
-async function disposeIgnoringFailure(dispose: () => PromiseLike<void> | void): Promise<void> {
-	try { await dispose(); } catch { /* Preserve the primary admission or render failure. */ }
+function authorityFor(presentation: PresentationSnapshot): SourceAuthority {
+	return Object.freeze({
+		identity: presentation.identity,
+		decodedWidth: presentation.decodedWidth,
+		decodedHeight: presentation.decodedHeight,
+		displayWidth: presentation.displayWidth,
+		displayHeight: presentation.displayHeight,
+	});
+}
+
+function sameAuthority(left: SourceAuthority, right: SourceAuthority): boolean {
+	return left.identity === right.identity
+		&& left.decodedWidth === right.decodedWidth
+		&& left.decodedHeight === right.decodedHeight
+		&& left.displayWidth === right.displayWidth
+		&& left.displayHeight === right.displayHeight;
+}
+
+function assertCurrentRecord(record: SourceRecord, presentation: PresentationSnapshot): void {
+	if (record.sourceId !== presentation.sourceId
+		|| record.identity !== presentation.identity
+		|| record.presentation.drawable !== presentation.drawable
+		|| record.drawable.videoWidth !== presentation.decodedWidth
+		|| record.drawable.videoHeight !== presentation.decodedHeight
+		|| record.drawable.displayWidth !== presentation.displayWidth
+		|| record.drawable.displayHeight !== presentation.displayHeight
+		|| record.decodedRgbaBytes !== presentation.decodedRgbaBytes) {
+		throw new Error('An offline video source occurrence changed during the export snapshot.');
+	}
+}
+
+function occurrenceIdentity(clipId: string, sourceId: string): string {
+	return `${String(clipId.length)}:${clipId}${sourceId}`;
+}
+
+async function failureWithRejectedCleanup(primary: unknown, value: unknown): Promise<unknown> {
+	const dispose = candidateDisposer(value);
+	if (dispose === null) return primary;
+	const cleanup = await attemptCleanup(dispose);
+	return cleanup.ok ? primary : aggregateFailure(primary, cleanup.error);
+}
+
+function candidateDisposer(value: unknown): (() => PromiseLike<void> | void) | null {
+	if (!value || (typeof value !== 'object' && typeof value !== 'function')) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'dispose');
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+		|| typeof descriptor.value !== 'function') return null;
+	return descriptor.value.bind(value) as () => PromiseLike<void> | void;
+}
+
+async function attemptCleanup(dispose: () => PromiseLike<void> | void): Promise<CleanupResult> {
+	try {
+		await dispose();
+		return Object.freeze({ ok: true });
+	} catch (error) {
+		return Object.freeze({ ok: false, error });
+	}
+}
+
+function aggregateFailure(primary: unknown, cleanup: unknown): AggregateError {
+	return new AggregateError(
+		[primary, cleanup],
+		'Offline video source operation and cleanup did not both succeed.',
+		{ cause: primary },
+	);
 }
 
 function record(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a record.`);
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError(`${name} must be a record.`);
+	}
+	const prototype = Object.getPrototypeOf(value) as unknown;
+	if (prototype !== Object.prototype && prototype !== null) {
+		throw new TypeError(`${name} must be a plain record.`);
+	}
 	return value as Readonly<Record<string, unknown>>;
 }
 
-function data(value: Readonly<Record<string, unknown>>, key: string): unknown {
+function data(value: Readonly<Record<string, unknown>>, key: string, name: string): unknown {
 	const descriptor = Object.getOwnPropertyDescriptor(value, key);
 	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`offline video source presentation.${key} must be an enumerable data property.`);
+		throw new TypeError(`${name}.${key} must be an enumerable data property.`);
 	}
 	return descriptor.value;
 }

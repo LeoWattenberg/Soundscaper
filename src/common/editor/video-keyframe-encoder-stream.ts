@@ -120,25 +120,30 @@ export async function encodeVideoKeyframeFrames(
 		dataProperty(request, 'producer', 'video keyframe encoder request'),
 		workload,
 	);
-	const ffmpeg = validateFfmpeg(
-		dataProperty(request, 'ffmpeg', 'video keyframe encoder request'),
-	);
-	const signal = optionalSignal(request, 'signal', 'video keyframe encoder request');
-	const assertCurrent = optionalFunction(request, 'assertCurrent', 'video keyframe encoder request');
+	let ffmpeg: VideoKeyframeEncoderFfmpegPort | null = null;
+	let signal: AbortSignal | undefined;
+	let assertCurrent: (() => void) | undefined;
 	let target: Uint8Array<ArrayBuffer> | null = null;
+	let returnedStream: unknown = null;
 	let stream: VideoKeyframeFfmpegInputStream | null = null;
 	let result: VideoKeyframeEncoderResult | null = null;
 	let primary: unknown;
 	let hasPrimary = false;
 	const cleanupFailures: unknown[] = [];
 	try {
+		ffmpeg = validateFfmpeg(
+			dataProperty(request, 'ffmpeg', 'video keyframe encoder request'),
+		);
+		signal = optionalSignal(request, 'signal', 'video keyframe encoder request');
+		assertCurrent = optionalFunction(request, 'assertCurrent', 'video keyframe encoder request');
 		assertReady(signal, assertCurrent);
 		target = new Uint8Array(workload.frameBytes);
-		stream = validateInputStream(await ffmpeg.createInputStream(
+		returnedStream = await ffmpeg.createInputStream(
 			workload.inputPath,
 			workload.ringCapacityBytes,
 			signalOptions(signal),
-		), workload);
+		);
+		stream = validateInputStream(returnedStream, workload);
 		assertReady(signal, assertCurrent);
 		result = await executeAndProduce(
 			ffmpeg, stream, frameSource, producer, target, workload, signal, assertCurrent,
@@ -146,12 +151,19 @@ export async function encodeVideoKeyframeFrames(
 	} catch (error) {
 		primary = error;
 		hasPrimary = true;
-		if (stream) {
-			try { stream.abort(error); } catch (cleanup) { cleanupFailures.push(cleanup); }
-		}
+		abortInputStreamCandidate(stream ?? returnedStream, error, cleanupFailures);
 	} finally {
 		target = null;
-		if (stream) await cleanupStep(() => stream?.dispose(), cleanupFailures);
+		const cleanupTarget = stream ?? returnedStream;
+		if (cleanupTarget !== null) {
+			const streamCleaned = await disposeInputStreamCandidate(cleanupTarget, cleanupFailures);
+			if (!streamCleaned && ffmpeg !== null) {
+				await cleanupStep(
+					() => ffmpeg?.terminateExecution(hasPrimary ? primary : cleanupFailures[0]),
+					cleanupFailures,
+				);
+			}
+		}
 		await cleanupStep(() => producer.dispose(), cleanupFailures);
 	}
 	if (hasPrimary) {
@@ -438,6 +450,28 @@ async function cleanupStep(
 	failures: unknown[],
 ): Promise<void> {
 	try { await step(); } catch (error) { failures.push(error); }
+}
+
+function abortInputStreamCandidate(value: unknown, reason: unknown, failures: unknown[]): void {
+	const abort = candidateMethod(value, 'abort');
+	if (abort === null) return;
+	try { Reflect.apply(abort, value, [reason]); } catch (error) { failures.push(error); }
+}
+
+async function disposeInputStreamCandidate(value: unknown, failures: unknown[]): Promise<boolean> {
+	const dispose = candidateMethod(value, 'dispose');
+	if (dispose === null) return false;
+	const failuresBefore = failures.length;
+	await cleanupStep(() => Reflect.apply(dispose, value, []), failures);
+	return failures.length === failuresBefore;
+}
+
+function candidateMethod(value: unknown, key: string): ((...args: unknown[]) => unknown) | null {
+	if (!value || (typeof value !== 'object' && typeof value !== 'function')) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+		|| typeof descriptor.value !== 'function') return null;
+	return descriptor.value as (...args: unknown[]) => unknown;
 }
 
 function optionalSignal(record: object, key: string, name: string): AbortSignal | undefined {

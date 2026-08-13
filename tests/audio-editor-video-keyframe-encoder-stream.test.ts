@@ -295,6 +295,77 @@ test('pre-abort avoids FFmpeg media I/O but still releases the admitted producer
 	assert.equal(disposed, 1);
 });
 
+test('encoder closes accepted producer and malformed stream ownership on boundary failures', async () => {
+	const frameSource = source({ width: 4, height: 4, frameRate: 1 });
+	let producerDisposals = 0;
+	const producer = exactProducer(
+		frameSource, (_frame, target) => { target.fill(1); }, () => { producerDisposals += 1; },
+	);
+	await assert.rejects(encodeVideoKeyframeFrames({
+		frameSource,
+		producer,
+		ffmpeg: Object.freeze({ exec() { return 0; }, terminateExecution() {} }) as never,
+		format: 'webm',
+		inputPath: '/frames.rgba',
+		outputPath: '/encoded.webm',
+	}), /createInputStream/u);
+	assert.equal(producerDisposals, 1);
+
+	let aborts = 0;
+	let streamDisposals = 0;
+	let terminations = 0;
+	const malformed = Object.freeze({
+		path: '/different.rgba',
+		capacityBytes: 4_096,
+		async write() {},
+		async close() {},
+		abort() { aborts += 1; },
+		async dispose() { streamDisposals += 1; },
+	});
+	await assert.rejects(encodeVideoKeyframeFrames({
+		frameSource,
+		producer: exactProducer(frameSource, () => undefined),
+		ffmpeg: Object.freeze({
+			async createInputStream() { return malformed; },
+			exec() { return 0; },
+			terminateExecution() { terminations += 1; },
+		}),
+		format: 'webm',
+		inputPath: '/frames.rgba',
+		outputPath: '/encoded.webm',
+		ringCapacityBytes: 4_096,
+	}), /does not match its admitted reservation/u);
+	assert.equal(aborts, 1);
+	assert.equal(streamDisposals, 1);
+	assert.equal(terminations, 0);
+});
+
+test('encoder terminates its leased runtime when exact stream cleanup fails', async () => {
+	const frameSource = source({ width: 4, height: 4, frameRate: 1 });
+	const cleanup = new Error('stream cleanup failed');
+	let resolveExecution: ((code: number) => void) | null = null;
+	let terminations = 0;
+	const ffmpeg = Object.freeze({
+		async createInputStream(path: string, capacityBytes: number) {
+			return Object.freeze({
+				path,
+				capacityBytes,
+				async write() {},
+				async close() { resolveExecution?.(0); },
+				abort() {},
+				async dispose() { throw cleanup; },
+			});
+		},
+		exec() { return new Promise<number>((resolve) => { resolveExecution = resolve; }); },
+		terminateExecution() { terminations += 1; },
+	});
+	await assert.rejects(
+		encode(frameSource, producerFor(frameSource), ffmpeg as never),
+		(error: unknown) => error === cleanup,
+	);
+	assert.equal(terminations, 1);
+});
+
 test('active cancellation settles production before renderer disposal', async () => {
 	const frameSource = source({ width: 4, height: 4, frameRate: 1 });
 	const controller = new AbortController();

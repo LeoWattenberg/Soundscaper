@@ -11,6 +11,7 @@ import {
 	planVideoKeyframeOfflineRgba,
 } from './video-keyframe-offline-rgba-admission.ts';
 import {
+	VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES,
 	VideoKeyframeOfflineSourceCache,
 	type VideoKeyframeOfflineSourceResolver,
 } from './video-keyframe-offline-rgba-source.ts';
@@ -103,27 +104,33 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 			assertReusableBuffer(reusable, plan.byteLength);
 			outputAccepted = true;
 			reusable.fill(0);
-			const layers = await resolveDrawableLayers(frame.layers, sourceCache, signal);
-			throwIfAborted(signal);
-			const report = compositor.render([...layers], {
-				referenceWidth: plan.width,
-				referenceHeight: plan.height,
-				outputWidth: plan.width,
-				outputHeight: plan.height,
-				outputColorModel: 'rgba',
-			});
-			if (report.status !== 'rendered'
-				|| report.rendererStatus !== 'available'
-				|| report.renderedEntryCount !== entryCount(layers)) {
-				throw new Error('The offline video compositor omitted requested frame content.');
+			const snapshots = snapshotDrawableLayers(frame.layers);
+			sourceCache.beginFrame();
+			try {
+				const layers = await resolveDrawableLayers(snapshots, sourceCache, signal);
+				throwIfAborted(signal);
+				const report = compositor.render([...layers], {
+					referenceWidth: plan.width,
+					referenceHeight: plan.height,
+					outputWidth: plan.width,
+					outputHeight: plan.height,
+					outputColorModel: 'rgba',
+				});
+				if (report.status !== 'rendered'
+					|| report.rendererStatus !== 'available'
+					|| report.renderedEntryCount !== entryCount(layers)) {
+					throw new Error('The offline video compositor omitted requested frame content.');
+				}
+				throwIfAborted(signal);
+				gl.finish();
+				assertGlReady(gl);
+				gl.readPixels(0, 0, plan.width, plan.height, gl.RGBA, gl.UNSIGNED_BYTE, reusable);
+				assertGlReady(gl);
+				flipRowsInPlace(reusable, rowScratch, plan.height);
+				throwIfAborted(signal);
+			} finally {
+				sourceCache.finishFrame();
 			}
-			throwIfAborted(signal);
-			gl.finish();
-			assertGlReady(gl);
-			gl.readPixels(0, 0, plan.width, plan.height, gl.RGBA, gl.UNSIGNED_BYTE, reusable);
-			assertGlReady(gl);
-			flipRowsInPlace(reusable, rowScratch, plan.height);
-			throwIfAborted(signal);
 		} catch (error) {
 			if (outputAccepted) reusable.fill(0);
 			throw error;
@@ -137,7 +144,7 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 		if (disposePromise !== null) return disposePromise;
 		if (active) return Promise.reject(new Error('The offline video RGBA renderer is rendering a frame.'));
 		disposed = true;
-		disposePromise = (async () => {
+		const operation = (async () => {
 			const failures: unknown[] = [];
 			try { compositor.dispose(); } catch (error) { failures.push(error); }
 			try { await sourceCache.dispose(); } catch (error) { failures.push(error); }
@@ -146,6 +153,10 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 				throw new AggregateError(failures, 'Offline video RGBA renderer cleanup failed.');
 			}
 		})();
+		disposePromise = operation.catch((error: unknown) => {
+			disposePromise = null;
+			throw error;
+		});
 		return disposePromise;
 	}
 
@@ -159,11 +170,10 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 }
 
 async function resolveDrawableLayers(
-	layersValue: readonly unknown[],
+	snapshots: readonly OfflineLayerSnapshot[],
 	cache: VideoKeyframeOfflineSourceCache,
 	signal: AbortSignal,
 ): Promise<readonly Readonly<Record<string, unknown>>[]> {
-	const snapshots = snapshotDrawableLayers(layersValue);
 	const layers: Readonly<Record<string, unknown>>[] = [];
 	for (const { layer, entries: entrySnapshots } of snapshots) {
 		const entries: Readonly<Record<string, unknown>>[] = [];
@@ -199,7 +209,7 @@ async function resolveDrawableLayers(
 
 function snapshotDrawableLayers(layersValue: readonly unknown[]): readonly OfflineLayerSnapshot[] {
 	if (!Array.isArray(layersValue)) throw new TypeError('An offline video frame requires layers.');
-	const sourceIds = new Set<string>();
+	const occurrences = new Set<string>();
 	const snapshots: OfflineLayerSnapshot[] = [];
 	for (const layerValue of layersValue) {
 		const layer = record(layerValue, 'offline video layer');
@@ -208,19 +218,29 @@ function snapshotDrawableLayers(layersValue: readonly unknown[]): readonly Offli
 		const entries: Readonly<Record<string, unknown>>[] = [];
 		for (const entryValue of clips) {
 			const entry = record(entryValue, 'offline video layer entry');
-			const sourceId = data(entry, 'sourceId', 'offline video layer entry');
-			if (typeof sourceId !== 'string' || sourceId.length < 1 || sourceId.length > 256) {
-				throw new TypeError('offline video layer entry.sourceId must be a bounded nonempty string.');
+			const sourceId = boundedEntryId(entry, 'sourceId');
+			const clipId = boundedEntryId(entry, 'clipId');
+			const occurrence = `${String(clipId.length)}:${clipId}${sourceId}`;
+			if (occurrences.has(occurrence)) {
+				throw new Error('An offline video frame contains a duplicate source occurrence.');
 			}
-			if (sourceIds.has(sourceId)) {
-				throw new Error('An offline video frame contains a duplicate source ID.');
+			occurrences.add(occurrence);
+			if (occurrences.size > VIDEO_KEYFRAME_OFFLINE_MAXIMUM_PINNED_OCCURRENCES) {
+				throw new RangeError('An offline video frame exceeds its source occurrence limit.');
 			}
-			sourceIds.add(sourceId);
 			entries.push(entry);
 		}
 		snapshots.push(Object.freeze({ layer, entries: Object.freeze(entries) }));
 	}
 	return Object.freeze(snapshots);
+}
+
+function boundedEntryId(entry: Readonly<Record<string, unknown>>, key: string): string {
+	const value = data(entry, key, 'offline video layer entry');
+	if (typeof value !== 'string' || value.length < 1 || value.length > 256) {
+		throw new TypeError(`offline video layer entry.${key} must be a bounded nonempty string.`);
+	}
+	return value;
 }
 
 function snapshotOptions(value: unknown): NormalizedVideoKeyframeOfflineRgbaRendererOptions {
