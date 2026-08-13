@@ -83,6 +83,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/broadcast-wave.js',
 		'src/common/editor/cart-metadata.js',
 		'src/common/editor/closed-domain-value.js',
+		'src/common/editor/commands/protocol.js',
 		'src/common/editor/folder-bus-v13.js',
 		'src/common/editor/indexed-tempo-projector.js',
 		'src/common/editor/ixml.js',
@@ -140,7 +141,10 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/framescaper/editor-project-runtime-profile-v18-prerequisite.js',
 		'src/framescaper/editor-project-runtime-profile-v18.js',
 		'src/framescaper/editor-project-storage-profile-v18.js',
+		'src/framescaper/editor-project-v18-multicam.js',
 		'src/framescaper/editor-project-v18-profile.js',
+		'src/framescaper/editor-project-v18-sequence.js',
+		'src/framescaper/editor-project-v18-subsequence.js',
 		'src/framescaper/editor-project-v18-validation.js',
 	]);
 	for (const name of result.files) {
@@ -243,6 +247,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	});
 	await access(join(applicationDesktopRoot, 'main.mjs'));
 	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
+	await access(join(applicationDesktopRoot, 'framescaper-v18-artifact-smoke.js'));
 	await access(join(applicationDesktopRoot, 'direct-wav-smoke.js'));
 	await access(join(applicationDesktopRoot, 'project-library-smoke-evidence.js'));
 	await access(join(applicationDesktopRoot, 'project-library-smoke-project.js'));

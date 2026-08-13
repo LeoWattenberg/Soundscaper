@@ -45,6 +45,7 @@ assertDesktopSmokePayload(payload, {
 	arch: TARGET_ARCH,
 	bridge: DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	platform: process.platform,
+	productId: PRODUCT_ID,
 	title: PRODUCT_NAME,
 	url: `${APP_SCHEME}://bundle/`,
 });

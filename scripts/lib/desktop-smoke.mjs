@@ -1,5 +1,7 @@
 import { resolve } from 'node:path';
 
+import { validateFramescaperV18ArtifactEvidence } from '../../desktop/framescaper-v18-artifact-smoke.js';
+
 const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 
 export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
@@ -96,6 +98,11 @@ export function assertDesktopSmokePayload(payload, expected) {
 		payload?.environment?.arch === expected.arch,
 		'Smoke reported an unexpected target architecture.',
 	);
+	if (expected.productId === 'framescaper') {
+		validateFramescaperV18ArtifactEvidence(payload?.framescaperV18);
+	} else {
+		assert(payload?.framescaperV18 === undefined, 'Soundscaper smoke emitted Framescaper V18 evidence.');
+	}
 }
 
 function assert(condition, message) {

@@ -69,6 +69,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/broadcast-wave.js',
 	'src/common/editor/cart-metadata.js',
 	'src/common/editor/closed-domain-value.js',
+	'src/common/editor/commands/protocol.js',
 	'src/common/editor/folder-bus-v13.js',
 	'src/common/editor/indexed-tempo-projector.js',
 	'src/common/editor/ixml.js',
@@ -126,7 +127,10 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/framescaper/editor-project-runtime-profile-v18-prerequisite.js',
 	'src/framescaper/editor-project-runtime-profile-v18.js',
 	'src/framescaper/editor-project-storage-profile-v18.js',
+	'src/framescaper/editor-project-v18-multicam.js',
 	'src/framescaper/editor-project-v18-profile.js',
+	'src/framescaper/editor-project-v18-sequence.js',
+	'src/framescaper/editor-project-v18-subsequence.js',
 	'src/framescaper/editor-project-v18-validation.js',
 ]);
 

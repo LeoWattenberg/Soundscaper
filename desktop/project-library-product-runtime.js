@@ -46,9 +46,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: () => {
-				throw new Error('Framescaper V10 packaged smoke evidence requires an exact V18 fixture');
-			},
+			smokeEvidence: (projectId) => createFramescaperV10SmokeEvidence(host, projectId),
 		});
 	}
 	const [{ registerDesktopProjectLibraryIpc }, { createDesktopProjectLibrarySmokeEvidence },
@@ -79,6 +77,46 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		smokeEvidence: (projectId) => createDesktopProjectLibrarySmokeEvidence(host, projectId, {
 			createMediaBinding: createDesktopLibraryMediaBinding,
 			sourceBindingKey: desktopSharedManagedSourceBindingKey,
+		}),
+	});
+}
+
+async function createFramescaperV10SmokeEvidence(host, projectId) {
+	const session = host.openSession(host.localHandshake);
+	let bundle = null;
+	let readFailure = null;
+	try { bundle = await session.readProjectBundle(projectId); }
+	catch (error) { readFailure = error; }
+	try { await session.close(); }
+	catch (error) {
+		if (readFailure) {
+			throw new AggregateError(
+				[readFailure, error],
+				'Framescaper V10 smoke readback cleanup failed',
+				{ cause: error },
+			);
+		}
+		throw error;
+	}
+	if (readFailure) throw readFailure;
+	if (!bundle) throw new Error('Framescaper V10 smoke project was not persisted by main');
+	const snapshot = host.snapshot();
+	return Object.freeze({
+		host: Object.freeze({
+			product: snapshot.owner.product,
+			closed: snapshot.closed,
+			fenced: snapshot.fenced,
+			activePublication: snapshot.activePublication,
+		}),
+		project: Object.freeze({
+			projectId: bundle.project.projectId,
+			title: bundle.project.name,
+			projectSchemaVersion: bundle.project.projectSchemaVersion,
+			projectRevision: bundle.project.projectRevision,
+			metadataRevision: bundle.metadataRevision,
+			byteLength: bundle.project.byteLength,
+			sha256: bundle.project.sha256,
+			bodyCount: bundle.bodies.length,
 		}),
 	});
 }

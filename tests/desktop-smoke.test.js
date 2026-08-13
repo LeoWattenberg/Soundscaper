@@ -121,6 +121,7 @@ test('desktop smoke validates the application-reported platform and target archi
 		arch: 'arm64',
 		bridge: EXPECTED_BRIDGE,
 		platform: 'win32',
+		productId: 'soundscaper',
 		title: 'Soundscaper',
 		url: 'soundscaper-app://bundle/',
 	};
@@ -152,10 +153,98 @@ test('desktop smoke validates the application-reported platform and target archi
 	);
 });
 
+test('desktop smoke validates the closed Framescaper V18 UI, preload, and main readback witness', () => {
+	const expected = {
+		arch: 'arm64',
+		bridge: EXPECTED_BRIDGE,
+		platform: 'darwin',
+		productId: 'framescaper',
+		title: 'Framescaper',
+		url: 'framescaper-app://bundle/',
+	};
+	const payload = validFramescaperV18Payload();
+	assert.doesNotThrow(() => assertDesktopSmokePayload(payload, expected));
+	assert.throws(
+		() => assertDesktopSmokePayload({
+			...payload,
+			framescaperV18: {
+				...payload.framescaperV18,
+				main: {
+					...payload.framescaperV18.main,
+					project: { ...payload.framescaperV18.main.project, sha256: 'cd'.repeat(32) },
+				},
+			},
+		}, expected),
+		/V18.*match|readback/iu,
+	);
+	assert.throws(
+		() => assertDesktopSmokePayload({
+			...payload,
+			framescaperV18: {
+				...payload.framescaperV18,
+				main: {
+					...payload.framescaperV18.main,
+					project: { ...payload.framescaperV18.main.project, metadataFile: 'private/file.json' },
+				},
+			},
+		}, expected),
+		/unsupported fields|closed/iu,
+	);
+});
+
 test('packaged desktop smoke isolates both Chromium and shared library data', async () => {
 	const source = await readFile(resolve(ROOT, 'scripts/desktop-smoke.mjs'), 'utf8');
 	assert.match(source, /bridge: DESKTOP_SMOKE_EXPECTED_BRIDGE/u);
 	assert.doesNotMatch(source, /const EXPECTED_BRIDGE/u);
 	assert.match(source, /--user-data-dir=\$\{profile\}/u);
 	assert.match(source, /--soundscaper-smoke-app-data=\$\{[^}]+\}/u);
+	assert.match(source, /productId:\s*PRODUCT_ID/u);
 });
+
+function validFramescaperV18Payload() {
+	const project = {
+		projectId: 'framescaper-artifact-v18',
+		title: 'Untitled project',
+		projectSchemaVersion: 18,
+		projectRevision: 0,
+		metadataRevision: 1,
+		byteLength: 4_096,
+		sha256: 'ab'.repeat(32),
+		bodyCount: 0,
+	};
+	return {
+		bridge: [...EXPECTED_BRIDGE],
+		environment: { arch: 'arm64', platform: 'darwin', version: '1.0.0' },
+		hasEditor: true,
+		nodeExposed: false,
+		saveOwnerReady: true,
+		title: 'Framescaper',
+		url: 'framescaper-app://bundle/',
+		framescaperV18: {
+			preloadBridge: [
+				'abortPublication', 'beginPublication', 'connect', 'finishPublication', 'handshakeState',
+				'readBodyChunk', 'readProjectBundle', 'writePublicationChunk',
+			],
+			handshake: {
+				kind: 'framescaper-project-library-handshake',
+				version: 1,
+				owner: 'framescaper',
+				projectSchemaVersion: 18,
+				scapeFormatVersions: [1, 2],
+				attachedScapeFormatVersion: 2,
+				storageDatabaseName: 'kw-media-framescaper-editor-v18',
+				desktopLibrarySchemaVersion: 10,
+				desktopDatabaseUserVersion: 12,
+				desktopLibraryScope: ['kw.media', 'scape-project-library', 'v10'],
+			},
+			ui: { projectId: project.projectId, title: project.title, trackCount: 1, clipCount: 0 },
+			project,
+			main: {
+				host: {
+					product: 'framescaper', closed: false, fenced: false, activePublication: false,
+				},
+				project: { ...project },
+			},
+		},
+	};
+}

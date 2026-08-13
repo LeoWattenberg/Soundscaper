@@ -32,6 +32,10 @@ import {
 	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX,
 } from './project-library-source-bearing-smoke.js';
 import {
+	joinFramescaperV18ArtifactEvidence,
+	runFramescaperV18ArtifactRendererSmoke,
+} from './framescaper-v18-artifact-smoke.js';
+import {
 	createDesktopProjectLibrarySourceBearingSmokeSession,
 } from './project-library-source-bearing-smoke-session.js';
 import { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke.js';
@@ -95,8 +99,9 @@ export function createDesktopSmokeProbe(options) {
 	const appOrigin = requiredText(options?.appOrigin, 'application origin');
 	const productId = requiredProduct(options?.productId);
 	const projectLibraryEvidence = options?.projectLibraryEvidence;
-	if ([PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
+	if (([PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
 		DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE].includes(configuration.mode)
+		|| (configuration.mode === 'artifact' && productId === 'framescaper'))
 		&& typeof projectLibraryEvidence !== 'function') {
 		throw new TypeError('Project-library smoke requires a main-process evidence callback');
 	}
@@ -160,7 +165,7 @@ export function createDesktopSmokeProbe(options) {
 		window.webContents.once('did-fail-load', (_event, code, description) => {
 			void fail(`${prefixFor(configuration.mode)} load failed: ${String(code)} ${String(description)}`);
 		});
-		if (configuration.mode === 'artifact') {
+		if (configuration.mode === 'artifact' && productId === 'soundscaper') {
 			window.webContents.once('did-finish-load', () => { void runArtifact(window); });
 		}
 	};
@@ -187,7 +192,23 @@ export function createDesktopSmokeProbe(options) {
 		if (started || finished) return;
 		started = true;
 		try {
-			const result = await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);
+			const execution = productId === 'framescaper'
+				? await window.webContents.executeJavaScript(
+					`(${runFramescaperV18ArtifactRendererSmoke.toString()})(globalThis, ${JSON.stringify({
+						appName,
+						appOrigin,
+					})})`,
+				)
+				: await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);
+			const result = productId === 'framescaper'
+				? {
+					...execution,
+					framescaperV18: joinFramescaperV18ArtifactEvidence(
+						execution?.framescaperV18,
+						await projectLibraryEvidence(execution?.framescaperV18?.project?.projectId),
+					),
+				}
+				: execution;
 			const valid = result?.url === `${appOrigin}/`
 				&& result?.title === appName
 				&& result?.hasEditor === true
@@ -205,6 +226,15 @@ export function createDesktopSmokeProbe(options) {
 	};
 
 	const rendererReady = async () => {
+		if (configuration.mode === 'artifact') {
+			if (productId !== 'framescaper' || finished || started) return;
+			if (!attachedWindow) {
+				await fail('SOUNDSCAPER_DESKTOP_SMOKE failed: Desktop smoke renderer became ready before window attachment');
+				return;
+			}
+			await runArtifact(attachedWindow);
+			return;
+		}
 		const sourceBearing = configuration.mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE;
 		if (![PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
 			DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,

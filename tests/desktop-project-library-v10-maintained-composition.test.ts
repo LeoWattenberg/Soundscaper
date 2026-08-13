@@ -16,6 +16,8 @@ import { createHash as createSandboxHash } from '../desktop/project-library-v10-
 import {
 	createFramescaperDesktopProjectLibraryV10Handshake,
 } from '../desktop/project-library-v10-contract.ts';
+import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
+import { createFramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSITION = 'desktop/project-library-product-runtime.js';
@@ -103,6 +105,53 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 	const handshake = await handlers.get(CHANNELS[0])!({ owner }, exactHandshake());
 	assert.deepEqual(handshake, exactHandshake());
 	assert.equal(runtime.snapshot().activeSessions, 1);
+	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		id: 'framescaper-v18-package-witness',
+		title: 'Framescaper V18 package witness',
+		revision: 0,
+		now: '2026-08-13T12:00:00.000Z',
+	});
+	const admission = await handlers.get(CHANNELS[3])!({ owner }, {
+		expectedMetadataRevision: 0,
+		expectedProject: null,
+		project,
+		bodies: [],
+	}) as { publicationId: string };
+	const bundle = await handlers.get(CHANNELS[5])!({ owner }, {
+		publicationId: admission.publicationId,
+	}) as {
+		metadataRevision: number;
+		project: {
+			projectId: string;
+			name: string;
+			projectSchemaVersion: number;
+			projectRevision: number;
+			byteLength: number;
+			sha256: string;
+		};
+		bodies: unknown[];
+	};
+	const evidence = await runtime.smokeEvidence(project.id);
+	assert.deepEqual(evidence, {
+		host: {
+			product: 'framescaper',
+			closed: false,
+			fenced: false,
+			activePublication: false,
+		},
+		project: {
+			projectId: project.id,
+			title: project.title,
+			projectSchemaVersion: 18,
+			projectRevision: project.revision,
+			metadataRevision: bundle.metadataRevision,
+			byteLength: bundle.project.byteLength,
+			sha256: bundle.project.sha256,
+			bodyCount: bundle.bodies.length,
+		},
+	});
+	assert.doesNotMatch(JSON.stringify(evidence),
+		/document|metadataFile|instanceId|processId|libraryRoot|databasePath|managedMediaRoot/iu);
 	await registration.revokeOwner(owner);
 	assert.equal(runtime.snapshot().activeSessions, 0);
 	await registration.dispose();
@@ -200,6 +249,7 @@ interface ProductRuntime {
 		readonly closed: boolean;
 		readonly owner: { readonly product: string };
 	};
+	smokeEvidence(projectId: string): Promise<unknown>;
 	close(): Promise<void>;
 }
 
