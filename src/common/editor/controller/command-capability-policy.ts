@@ -61,7 +61,7 @@ export function assertEditorCommandCapabilities(
 	if (!capabilities.takeComp && command.type.startsWith('take-comp/')) {
 		unsupported(productName, 'takeComp');
 	}
-	if (!capabilities.audioWarp && command.type.startsWith('audio-warp/')) {
+	if (!capabilities.audioWarp && commandRequiresAudioWarpCapability(command)) {
 		unsupported(productName, 'audioWarp');
 	}
 	if (!capabilities.takeComp && command.type === 'clipboard/paste'
@@ -116,6 +116,82 @@ export function assertEditorCommandCapabilities(
 		&& hasOwn(command.changes, 'armed')) {
 		unsupported(productName, 'audioRecording');
 	}
+}
+
+/** Cover every generic command carrier that can publish authored audio-warp state. */
+function commandRequiresAudioWarpCapability(command: AudioEditorCommand): boolean {
+	if (command.type.startsWith('audio-warp/')) return true;
+	switch (command.type) {
+		case 'clip/add':
+		case 'project-bin/add':
+			return hasAuthoredWarpMap(command.clip);
+		case 'clip/overwrite':
+			return hasWarpMapMutation(command.changes);
+		case 'clipboard/paste':
+			return clipboardRequiresAudioWarpCapability(command.clipboard);
+		case 'take-comp/flatten':
+			return hasAuthoredWarpMap(command.clip);
+		default:
+			return false;
+	}
+}
+
+function hasAuthoredWarpMap(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'warpMap');
+	if (!descriptor) return false;
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) return true;
+	return descriptor.value != null;
+}
+
+function hasWarpMapMutation(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	return Object.getOwnPropertyDescriptor(value, 'warpMap') !== undefined;
+}
+
+/** Inspect V1..V4 clip payloads through descriptors so accessors cannot disguise a map. */
+function clipboardRequiresAudioWarpCapability(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const schemaVersion = ownEnumerableDataValue(value, 'schemaVersion');
+	if (schemaVersion === INVALID_DATA_VALUE) return Object.hasOwn(value, 'tracks');
+	if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3
+		&& schemaVersion !== AUDIO_EDITOR_COMMAND_CLIPBOARD_SCHEMA_VERSION) return false;
+	const tracksValue = ownEnumerableDataValue(value, 'tracks');
+	if (tracksValue === INVALID_DATA_VALUE) return true;
+	const tracks = denseArrayDataValues(tracksValue, 100_000);
+	if (!tracks) return true;
+	for (const track of tracks) {
+		const clipsValue = ownEnumerableDataValue(track, 'clips');
+		if (clipsValue === INVALID_DATA_VALUE) return true;
+		const clips = denseArrayDataValues(clipsValue, 100_000);
+		if (!clips) return true;
+		if (clips.some(hasAuthoredWarpMap)) return true;
+	}
+	return false;
+}
+
+const INVALID_DATA_VALUE = Symbol('invalid command data value');
+
+function ownEnumerableDataValue(value: unknown, key: string): unknown | typeof INVALID_DATA_VALUE {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return INVALID_DATA_VALUE;
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return INVALID_DATA_VALUE;
+	return descriptor.value;
+}
+
+function denseArrayDataValues(value: unknown, maximumLength: number): readonly unknown[] | null {
+	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return null;
+	const lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
+	if (!lengthDescriptor || lengthDescriptor.enumerable || !Object.hasOwn(lengthDescriptor, 'value')
+		|| !Number.isSafeInteger(lengthDescriptor.value)
+		|| Number(lengthDescriptor.value) < 0 || Number(lengthDescriptor.value) > maximumLength) return null;
+	const values: unknown[] = [];
+	for (let index = 0; index < Number(lengthDescriptor.value); index += 1) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return null;
+		values.push(descriptor.value);
+	}
+	return values;
 }
 
 /** Fail closed when a V4 paste contains, or disguises, take group content. */
