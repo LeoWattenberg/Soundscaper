@@ -49,7 +49,7 @@ test('attached V18 reports the unavailable bypass and retains original-only play
 	);
 	assert.equal(projection.featureRequirementsReport?.compatible, false);
 	assert.equal(proxyItem?.availability, 'unavailable');
-	assert.equal(proxyItem?.resolution, 'bypassed');
+	assert.equal(proxyItem?.disposition, 'bypassed');
 	assert.deepEqual(projection.requiredVideoSourceIds, []);
 	assert.equal(projection.project.schemaVersion, 18);
 	assert.deepEqual(projection.project.sources[0]?.proxyAttachment, project.sources[0]?.proxyAttachment);
