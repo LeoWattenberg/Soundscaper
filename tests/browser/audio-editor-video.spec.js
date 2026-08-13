@@ -315,6 +315,8 @@ test.describe('audio editor video composition workflow', () => {
 
 		const preview = editor.locator('[data-video-preview]');
 		await expect(preview).toHaveAttribute('data-video-preview-renderer', 'fallback');
+		await expect(preview).toHaveAttribute('data-video-preview-requested-effect-count', '1');
+		await expect(preview).toHaveAttribute('data-video-preview-omitted-effect-count', '0');
 		await expect(preview.locator('[data-video-preview-canvas]')).toHaveCSS('opacity', '0');
 		await expect(preview.locator('[data-video-preview-clip]')).toBeVisible();
 		await expect(preview.locator('[data-video-preview-renderer-warning]')).toContainText(/export still applies/i);

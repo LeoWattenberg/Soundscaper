@@ -269,6 +269,14 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const activeEffectCount = activeEntries.reduce((count, entry) => (
 		count + videoEffectBypass.activeEffectCount(entry.clipId, entry.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK)
 	), 0);
+	const constructorFallbackLayers = useMemo(() => resolvedLayers.map((layer) => ({
+		entries: layer.clips.filter((entry) => entry.available).map((entry) => ({
+			effects: videoEffectBypass.effectsFor(
+				entry.clipId,
+				entry.clip?.videoEffects || EMPTY_VIDEO_EFFECT_STACK,
+			),
+		})),
+	})), [resolvedLayers, videoEffectBypass]);
 	const updateCompositorState = useCallback((nextState) => {
 		if (compositorStateRef.current === nextState) return;
 		compositorStateRef.current = nextState;
@@ -393,6 +401,10 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			retiredVideoElements.length = 0;
 		};
 	}, [requestPreviewFrame, updateCompositorState]);
+	useEffect(() => {
+		if (compositorRef.current || compositorStateRef.current !== 'fallback') return;
+		updateRenderIssue(createVideoPreviewCompositorFallbackReport(constructorFallbackLayers));
+	}, [constructorFallbackLayers, updateRenderIssue]);
 
 	useEffect(() => {
 		const playhead = playheadRef.current;
@@ -425,6 +437,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			data-renderable-clip-count={renderableEntries.length}
 			data-unavailable-clip-count={unavailableCount}
 			data-active-video-effect-count={activeEffectCount}
+			data-video-preview-requested-effect-count={renderIssue.requestedCount}
 			data-video-preview-omitted-effect-count={renderIssue.omitted.length}
 			data-video-preview-omitted-effect-ids={renderIssue.omitted.join(' ')}
 			data-video-preview-renderer={compositorState}
