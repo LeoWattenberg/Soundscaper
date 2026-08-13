@@ -1,10 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export function snapshotProductActionExtensions<Action extends (...args: never[]) => unknown>(
-	value: unknown,
+	scope: unknown,
+	property: string,
 	reservedNames: readonly string[],
 ): Readonly<Record<string, Action>> {
-	if (value === undefined) return Object.freeze({});
+	if (!scope || typeof scope !== 'object' || Array.isArray(scope)) {
+		throw new TypeError('The product action extension scope must be an object.');
+	}
+	const scopeDescriptor = Object.getOwnPropertyDescriptor(scope, property);
+	if (!scopeDescriptor) return Object.freeze({});
+	if (!scopeDescriptor.enumerable || !Object.hasOwn(scopeDescriptor, 'value')) {
+		throw new TypeError('Product action extensions must be an own enumerable data property.');
+	}
+	const value = scopeDescriptor.value;
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Product action extensions must be an object.');
 	}

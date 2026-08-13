@@ -75,7 +75,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	trimClips, updatePreferences, updateRackEffect, updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	selectionViewService, sequenceTimingService, sourceMonitorService, timelineAnnotationService,
 	regularIntervalAnnotationController, trackFolderService, trackStructuralOperations, videoEditService,
-	audioWarpService, productSequenceActions, takeCompService, videoNavigationService,
+	audioWarpService, takeCompService, videoNavigationService,
 	videoSourceReprobeService, videoTrimServices,
 	} = scope;
 	const restricted = (capability: RuntimeValue, action: RuntimeValue) => (...args: RuntimeValue) => {
@@ -121,7 +121,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		scope as RecordingActionScope,
 		restricted,
 	);
-	const sequenceExtensions = snapshotProductActionExtensions<RuntimeValue>(productSequenceActions, [
+	const sequenceExtensions = snapshotProductActionExtensions<RuntimeValue>(scope, 'productSequenceActions', [
 		'label', 'setActive', 'stepFrame', 'seekLabel',
 	]);
 	return Object.freeze({
