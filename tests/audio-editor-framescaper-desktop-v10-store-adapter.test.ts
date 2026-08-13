@@ -114,6 +114,17 @@ test('create is main-first, collision-safe, and consumes its absence witness onc
 	assert.deepEqual(fixture.main.reads, ['desktop-create', 'desktop-create']);
 });
 
+test('create binds destination absence to the exact nonempty main catalog revision', async (context) => {
+	const fixture = await lifecycleFixture(context);
+	fixture.main.seed(projectFixture({ id: 'existing-catalog-project', revision: 0 }));
+	const project = projectFixture({ id: 'second-desktop-create', revision: 0 });
+	assert.deepEqual(await fixture.store.createProjectIfAbsent(project), project);
+	assert.deepEqual((await fixture.store.listProjects()).map(({ id }) => id).sort(), [
+		'existing-catalog-project',
+		'second-desktop-create',
+	]);
+});
+
 test('desktop lists, duplicates, and deletes through main before reconciling the exact local shadow', async (context) => {
 	const fixture = await lifecycleFixture(context);
 	const source = projectFixture({ id: 'desktop-lifecycle-source', revision: 0, multicamera: true });
