@@ -184,7 +184,8 @@ registration, compatibility change, proxy storage/attachment/use, desktop v10,
 UI/menu, or Soundscaper change. Separately reviewed c1c may import and
 authenticate this exact token solely inside an unreachable final profile. The
 first reachable use and selector remain the full atomic c-c transition, whose
-strict RED must be separately reviewed before production changes. The next
+strict RED must be separately reviewed before reachable selection or maintained
+behavior changes. The next
 contract-first decomposition is the dormant final
 [Framescaper runtime profile](milestone-3b-framescaper-runtime-profile.md),
 which remains unreachable and grants no selection authority.

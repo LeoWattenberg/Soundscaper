@@ -145,6 +145,9 @@ Before production, add one strict TypeScript Node test below 600 lines proving:
 - fresh authentic same-owner children with equal definitions may create a
   generic profile but cannot reproduce or equal the exact Framescaper
   singleton;
+- a fresh authentic profile built from the exact Framescaper c1a and c1b
+  singleton tuple is still distinct from and cannot reproduce the exact
+  Framescaper final singleton;
 - forged/cloned/wrapped runtime-token refusal with zero candidate traps; and
 - exhaustive source/path/reference dormancy, including no barrel, common,
   Soundscaper, app, selector, product-profile, schema, storage consumer,

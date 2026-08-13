@@ -31,7 +31,7 @@ Add one generic strict owner at
 `src/common/editor/project-runtime-profile.ts`. It exports an opaque
 `EditorProjectRuntimeProfile`, a descriptor-snapshotting creator, and an
 identity-authenticating definition accessor. Tokens are fresh, frozen,
-null-prototype, zero-key objects held by a private `WeakMap`. The resolver does
+null-prototype, zero-key objects held by a private `WeakMap`. The accessor does
 the private lookup before inspecting public data; clones, spreads,
 serialization, structured clones, and Proxy wrappers refuse with zero traps.
 
