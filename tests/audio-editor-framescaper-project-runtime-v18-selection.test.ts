@@ -151,3 +151,33 @@ test('selected runtime derives exact storage and lock profiles without callback 
 		`${editorProjectStorageProfileNames(runtime.storageProfile).projectLockPrefix}project-v18`,
 	]);
 });
+
+test('selected runtime exposes no store, desktop, repository, schema, or session authority override', () => {
+	const runtime = createEditorProjectRuntimeV18Selection(PROFILE);
+	for (const field of [
+		'projectStorageProfile', 'databaseName', 'store', 'repositoryFactory', 'desktopProjectBridge',
+	]) {
+		let reads = 0;
+		const options = Object.defineProperty({}, field, {
+			enumerable: true,
+			get() { reads += 1; throw new Error('authority getter'); },
+		});
+		assert.throws(
+			() => runtime.createProjectStore(options),
+			/authority override|selected V18 store/iu,
+		);
+		assert.equal(reads, 0);
+	}
+	assert.throws(
+		() => (runtime.createSessionController as (options: unknown) => unknown)({
+			currentSchemaVersion: 17,
+		}),
+		/session options|does not accept/iu,
+	);
+	assert.throws(
+		() => runtime.acquireProjectLock('project-v18', {
+			projectStorageProfile: runtime.storageProfile,
+		}),
+		/lock profile.*internal|authority override/iu,
+	);
+});
