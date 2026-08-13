@@ -25,7 +25,19 @@ export function collectProjectSourceIds(project, target = new Set()) {
 			}
 		}
 	}
+	if (project?.schemaVersion === 18) collectMulticameraMemberSourceIds(project, target);
 	return target;
+}
+
+/** Preserve opaque Framescaper V18 member media without activating its graph. */
+function collectMulticameraMemberSourceIds(project, target) {
+	const groups = Array.isArray(project?.multicameraGroups) ? project.multicameraGroups : [];
+	for (const group of groups) {
+		const members = Array.isArray(group?.members) ? group.members : [];
+		for (const member of members) {
+			if (typeof member?.sourceId === 'string' && member.sourceId) target.add(member.sourceId);
+		}
+	}
 }
 
 /** Resolve durable logical references to the keys used by source/media stores. */
