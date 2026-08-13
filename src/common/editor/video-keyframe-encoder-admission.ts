@@ -4,6 +4,10 @@ import {
 	assertVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrameSource,
 } from './video-keyframe-export-frame-source.ts';
+import {
+	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
+	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
+} from './project-v10-foundation-validation.ts';
 
 const RGBA_BYTES_PER_PIXEL = 4;
 const DEFAULT_RING_CAPACITY_BYTES = 1024 * 1024;
@@ -14,8 +18,10 @@ const MAXIMUM_PATH_BYTES = 1_024;
 
 export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH = 1_280;
 export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT = 720;
+export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE = 30;
 export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT = 2_000_000;
 export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_TOTAL_RGBA_BYTES = 1024 ** 4;
+export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_AGGREGATE_RING_BYTES = 16 * 1024 * 1024;
 
 export type VideoKeyframeEncoderFormat = 'mp4' | 'webm';
 
@@ -23,8 +29,10 @@ export interface VideoKeyframeEncoderWorkloadRequest {
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly inputPath: string;
+	readonly audioInputPath?: string;
 	readonly outputPath: string;
 	readonly ringCapacityBytes?: number;
+	readonly audioRingCapacityBytes?: number;
 	readonly maximumWidth?: number;
 	readonly maximumHeight?: number;
 	readonly maximumFrameCount?: number;
@@ -44,14 +52,18 @@ export interface VideoKeyframeEncoderWorkload {
 	readonly extension: '.mp4' | '.webm';
 	readonly mimeType: 'video/mp4' | 'video/webm';
 	readonly inputPath: string;
+	readonly audioInputPath?: string;
 	readonly outputPath: string;
+	readonly audioRingCapacityBytes?: number;
+	readonly aggregateRingCapacityBytes?: number;
 	readonly ffmpegArguments: readonly string[];
 }
 
 interface VideoEncodingDescriptor {
 	readonly extension: '.mp4' | '.webm';
 	readonly mimeType: 'video/mp4' | 'video/webm';
-	arguments(frameRate: string): readonly string[];
+	readonly audioFrameSamples: 960 | 1_024;
+	arguments(frameRate: string, audioPadSamples: number | null): readonly string[];
 }
 
 const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, VideoEncodingDescriptor>> =
@@ -59,31 +71,41 @@ const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, Vi
 		mp4: Object.freeze({
 			extension: '.mp4' as const,
 			mimeType: 'video/mp4' as const,
-			arguments: (frameRate: string) => Object.freeze([
-				'-map', '0:v:0', '-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
+			audioFrameSamples: 1_024 as const,
+			arguments: (frameRate: string, audioPadSamples: number | null) => Object.freeze([
+				...(audioPadSamples === null ? [] : ['-filter:a', `apad=whole_len=${String(audioPadSamples)}`]),
+				'-map', '0:v:0', ...(audioPadSamples === null ? [] : ['-map', '1:a:0']),
+				'-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
 				'-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-				'-pix_fmt', 'yuv420p', '-r', frameRate, '-an',
+				'-pix_fmt', 'yuv420p', '-r', frameRate,
+				...(audioPadSamples === null ? ['-an'] : ['-c:a', 'aac', '-b:a', '192k']),
 				'-movflags', '+faststart', '-f', 'mp4',
 			]),
 		}),
 		webm: Object.freeze({
 			extension: '.webm' as const,
 			mimeType: 'video/webm' as const,
-			arguments: (frameRate: string) => Object.freeze([
-				'-map', '0:v:0', '-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
+			audioFrameSamples: 960 as const,
+			arguments: (frameRate: string, audioPadSamples: number | null) => Object.freeze([
+				...(audioPadSamples === null ? [] : ['-filter:a', `apad=whole_len=${String(audioPadSamples)}`]),
+				'-map', '0:v:0', ...(audioPadSamples === null ? [] : ['-map', '1:a:0']),
+				'-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
 				'-c:v', 'libvpx-vp9', '-crf', '31', '-b:v', '0',
 				'-deadline', 'good', '-cpu-used', '4',
-				'-pix_fmt', 'yuv420p', '-r', frameRate, '-an', '-f', 'webm',
+				'-pix_fmt', 'yuv420p', '-r', frameRate,
+				...(audioPadSamples === null ? ['-an'] : ['-c:a', 'libopus', '-b:a', '160k']),
+				'-f', 'webm',
 			]),
 		}),
 	});
 
 const WORKLOAD_FIELDS = new Set([
-	'frameSource', 'format', 'inputPath', 'outputPath', 'ringCapacityBytes',
+	'frameSource', 'format', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
+	'audioRingCapacityBytes',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 ]);
 
-/** Purely admit exact logical work and construct one finite video-only command. */
+/** Purely admit exact logical work and construct one finite video-only or A/V command. */
 export function admitVideoKeyframeEncoderWorkload(
 	requestValue: VideoKeyframeEncoderWorkloadRequest,
 ): VideoKeyframeEncoderWorkload {
@@ -137,6 +159,19 @@ export function admitVideoKeyframeEncoderWorkload(
 		dataProperty(request, 'outputPath', 'video keyframe encoder workload'), 'output path',
 	);
 	if (inputPath === outputPath) throw new TypeError('Video keyframe encoder input and output paths must differ.');
+	const hasAudio = Object.hasOwn(request, 'audioInputPath');
+	const audioInputPath = hasAudio
+		? canonicalPath(
+			dataProperty(request, 'audioInputPath', 'video keyframe encoder workload'),
+			'audio input path',
+		)
+		: undefined;
+	if (audioInputPath === inputPath || audioInputPath === outputPath) {
+		throw new TypeError('Video keyframe encoder video, audio, and output input paths must differ.');
+	}
+	if (!hasAudio && Object.hasOwn(request, 'audioRingCapacityBytes')) {
+		throw new TypeError('Video keyframe encoder audioRingCapacityBytes requires audioInputPath.');
+	}
 	if (!outputPath.endsWith(descriptor.extension)) {
 		throw new TypeError(`Video keyframe encoder ${format} output path must end with ${descriptor.extension}.`);
 	}
@@ -149,15 +184,69 @@ export function admitVideoKeyframeEncoderWorkload(
 		MAXIMUM_RING_CAPACITY_BYTES,
 		'Video keyframe encoder ringCapacityBytes',
 	);
+	const audioRingCapacityBytes = hasAudio
+		? boundedInteger(
+			optionalDataProperty(
+				request, 'audioRingCapacityBytes', DEFAULT_RING_CAPACITY_BYTES,
+				'video keyframe encoder workload',
+			),
+			MINIMUM_RING_CAPACITY_BYTES,
+			MAXIMUM_RING_CAPACITY_BYTES,
+			'Video keyframe encoder audioRingCapacityBytes',
+		)
+		: undefined;
+	const aggregateRingCapacityBytes = ringCapacityBytes + (audioRingCapacityBytes ?? 0);
+	if (aggregateRingCapacityBytes > VIDEO_KEYFRAME_ENCODER_MAXIMUM_AGGREGATE_RING_BYTES) {
+		throw new RangeError(
+			`Video keyframe encoder aggregate ring capacity cannot exceed ${String(VIDEO_KEYFRAME_ENCODER_MAXIMUM_AGGREGATE_RING_BYTES)} bytes.`,
+		);
+	}
 	const frameRate = source.canvas.frameRate;
+	if (hasAudio) {
+		if (source.sampleRate < AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE
+			|| source.sampleRate > AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE) {
+			throw new RangeError(
+				`Video keyframe A/V sample rate must be ${String(AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE)} through ${String(AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE)}.`,
+			);
+		}
+		const rateNum = BigInt(frameRate.num);
+		const rateDen = BigInt(frameRate.den);
+		if (rateNum < rateDen
+			|| rateNum > BigInt(VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE) * rateDen) {
+			throw new RangeError(
+				`Video keyframe A/V frame rate must be 1 through ${String(VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE)} frames per second.`,
+			);
+		}
+	}
 	const frameRateToken = `${String(frameRate.num)}/${String(frameRate.den)}`;
+	const durationToken = ffmpegDuration(
+		BigInt(frameCount) * BigInt(frameRate.den), BigInt(frameRate.num),
+	);
+	const requestedAudioSamples = BigInt(source.endFrame - source.startFrame);
+	const audioFrameSamples = BigInt(descriptor.audioFrameSamples);
+	const audioPadSamples = hasAudio ? maximumBigInt(
+		ceilDivide(
+			BigInt(frameCount) * BigInt(source.sampleRate) * BigInt(frameRate.den),
+			BigInt(frameRate.num),
+		),
+		ceilDivide(requestedAudioSamples, audioFrameSamples) * audioFrameSamples,
+	) : null;
+	if (audioPadSamples !== null && audioPadSamples > BigInt(Number.MAX_SAFE_INTEGER)) {
+		throw new RangeError('Video keyframe encoder padded audio samples exceed the safe integer limit.');
+	}
+	if (audioPadSamples !== null && audioPadSamples - requestedAudioSamples
+		> BigInt(source.sampleRate + descriptor.audioFrameSamples)) {
+		throw new RangeError('Video keyframe encoder padded audio exceeds its bounded CFR and codec tail.');
+	}
 	const ffmpegArguments = Object.freeze([
 		'-nostdin', '-y', '-f', 'rawvideo', '-pixel_format', 'rgba',
 		'-video_size', `${String(width)}x${String(height)}`,
 		'-framerate', frameRateToken,
 		'-i', inputPath,
-		'-frames:v', String(frameCount),
-		...descriptor.arguments(frameRateToken),
+		...(audioInputPath ? ['-i', audioInputPath] : []),
+		...(hasAudio ? [] : ['-frames:v', String(frameCount)]),
+		...descriptor.arguments(frameRateToken, audioPadSamples === null ? null : Number(audioPadSamples)),
+		...(hasAudio ? ['-t', durationToken] : []),
 		outputPath,
 	]);
 	return Object.freeze({
@@ -173,6 +262,11 @@ export function admitVideoKeyframeEncoderWorkload(
 		extension: descriptor.extension,
 		mimeType: descriptor.mimeType,
 		inputPath,
+		...(audioInputPath ? {
+			audioInputPath,
+			audioRingCapacityBytes,
+			aggregateRingCapacityBytes,
+		} : {}),
 		outputPath,
 		ffmpegArguments,
 	});
@@ -325,4 +419,21 @@ function greatestCommonDivisor(left: number, right: number): number {
 	let b = right;
 	while (b !== 0) [a, b] = [b, a % b];
 	return a;
+}
+
+function ffmpegDuration(numerator: bigint, denominator: bigint): string {
+	const nanosecondsPerSecond = 1_000_000_000n;
+	const seconds = numerator / denominator;
+	const remainder = numerator % denominator;
+	const nanoseconds = (remainder * nanosecondsPerSecond + denominator - 1n) / denominator;
+	if (nanoseconds === nanosecondsPerSecond) return `${String(seconds + 1n)}.000000000`;
+	return `${String(seconds)}.${String(nanoseconds).padStart(9, '0')}`;
+}
+
+function ceilDivide(numerator: bigint, denominator: bigint): bigint {
+	return (numerator + denominator - 1n) / denominator;
+}
+
+function maximumBigInt(left: bigint, right: bigint): bigint {
+	return left > right ? left : right;
 }

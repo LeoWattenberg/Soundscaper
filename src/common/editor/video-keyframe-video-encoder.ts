@@ -1,8 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	admitVideoKeyframeAudioInput,
+	VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES,
+} from './video-keyframe-audio-input.ts';
+import {
 	admitVideoKeyframeEncoderWorkload,
-	encodeVideoKeyframeFrames,
 	type VideoKeyframeEncoderFormat,
 	type VideoKeyframeEncoderResult,
 	type VideoKeyframeEncoderWorkloadRequest,
@@ -18,10 +21,17 @@ import type {
 	VideoKeyframeEncoderOperationOptions,
 	VideoKeyframeVideoEditorFfmpeg,
 } from './video-keyframe-ffmpeg-operation.ts';
+import type { FfmpegOutputSink } from './ffmpeg-output-stream.ts';
 import {
 	collectVideoKeyframeVideoOutput,
+	streamVideoKeyframeVideoOutput,
 	VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
 } from './video-keyframe-video-output.ts';
+import {
+	runVideoKeyframeVideoOperation,
+	type VideoKeyframeDeliveredOutput,
+} from './video-keyframe-video-operation.ts';
+import { manageVideoKeyframeOutputSink } from './video-keyframe-video-sink.ts';
 
 export { VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES } from './video-keyframe-video-output.ts';
 export type {
@@ -48,7 +58,10 @@ export interface VideoKeyframeVideoEncoderRequest {
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly producer: VideoKeyframeVideoRgbaProducer;
 	readonly format: VideoKeyframeEncoderFormat;
+	readonly audioMix?: Blob;
 	readonly ringCapacityBytes?: number;
+	readonly audioRingCapacityBytes?: number;
+	readonly maximumAudioBytes?: number;
 	readonly maximumWidth?: number;
 	readonly maximumHeight?: number;
 	readonly maximumFrameCount?: number;
@@ -67,6 +80,21 @@ export interface VideoKeyframeVideoEncoderResult {
 	readonly mimeType: 'video/mp4' | 'video/webm';
 	readonly frameCount: number;
 	readonly rgbaChunkCount: number;
+	readonly audioByteLength?: number;
+	readonly audioChunkCount?: number;
+	readonly outputChunkCount: number;
+}
+
+export interface VideoKeyframeVideoSinkEncoderResult<Output> {
+	readonly output: Output;
+	readonly byteLength: number;
+	readonly format: VideoKeyframeEncoderFormat;
+	readonly extension: '.mp4' | '.webm';
+	readonly mimeType: 'video/mp4' | 'video/webm';
+	readonly frameCount: number;
+	readonly rgbaChunkCount: number;
+	readonly audioByteLength?: number;
+	readonly audioChunkCount?: number;
 	readonly outputChunkCount: number;
 }
 
@@ -75,12 +103,13 @@ export interface VideoKeyframeVideoEncoderDependencies {
 }
 
 const REQUEST_FIELDS = new Set([
-	'frameSource', 'producer', 'format', 'ringCapacityBytes',
+	'frameSource', 'producer', 'format', 'audioMix', 'ringCapacityBytes',
+	'audioRingCapacityBytes', 'maximumAudioBytes',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 	'maximumOutputBytes', 'maximumOutputChunkBytes', 'signal', 'assertCurrent',
 ]);
 const WORKLOAD_OPTION_FIELDS = [
-	'ringCapacityBytes', 'maximumWidth', 'maximumHeight',
+	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes',
 ] as const;
 const DEFAULT_DEPENDENCIES: VideoKeyframeVideoEncoderDependencies = Object.freeze({
@@ -93,24 +122,141 @@ export async function encodeVideoKeyframeVideo(
 	requestValue: VideoKeyframeVideoEncoderRequest,
 	dependenciesValue: VideoKeyframeVideoEncoderDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<VideoKeyframeVideoEncoderResult> {
+	const result = await encodeManaged(
+		editorFfmpegValue,
+		requestValue,
+		dependenciesValue,
+		(request) => Object.freeze({
+			async deliver(lease: VideoKeyframeEncoderOperationLease, path: string) {
+				const output = await collectVideoKeyframeVideoOutput({
+					source: lease,
+					path,
+					format: request.format,
+					maximumBytes: request.maximumOutputBytes,
+					maximumChunkBytes: request.maximumOutputChunkBytes,
+					signal: request.signal,
+					assertCurrent: request.assertCurrent,
+				});
+				return Object.freeze({
+					output: output.bytes,
+					byteLength: output.byteLength,
+					chunkCount: output.chunkCount,
+				});
+			},
+			discard(output: Uint8Array<ArrayBuffer>) { output.fill(0); },
+		}),
+	);
+	return Object.freeze({
+		bytes: result.delivered.output,
+		...resultMetadata(result.encoded, result.delivered),
+	});
+}
+
+/** Deliver directly through bounded ranges before the generation-scoped lease is released. */
+export async function encodeVideoKeyframeVideoToSink<Output>(
+	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg,
+	requestValue: VideoKeyframeVideoEncoderRequest,
+	sinkValue: FfmpegOutputSink<Output>,
+	dependenciesValue: VideoKeyframeVideoEncoderDependencies = DEFAULT_DEPENDENCIES,
+): Promise<VideoKeyframeVideoSinkEncoderResult<Output>> {
+	const managedSink = manageVideoKeyframeOutputSink(sinkValue);
+	try {
+		const result = await encodeManaged(
+			editorFfmpegValue,
+			requestValue,
+			dependenciesValue,
+			(request) => Object.freeze({
+				async deliver(lease: VideoKeyframeEncoderOperationLease, path: string) {
+					return streamVideoKeyframeVideoOutput({
+						source: lease,
+						path,
+						format: request.format,
+						maximumBytes: request.maximumOutputBytes,
+						maximumChunkBytes: request.maximumOutputChunkBytes,
+						signal: request.signal,
+						assertCurrent: request.assertCurrent,
+					}, managedSink.value);
+				},
+			}),
+		);
+		return Object.freeze({
+			output: result.delivered.output,
+			...resultMetadata(result.encoded, result.delivered),
+		});
+	} catch (error) {
+		throw await managedSink.abort(error);
+	}
+}
+
+interface DeliveryStrategy<Output> {
+	deliver(
+		lease: VideoKeyframeEncoderOperationLease,
+		path: string,
+	): Promise<VideoKeyframeDeliveredOutput<Output>>;
+	discard?(output: Output): void;
+}
+
+async function encodeManaged<Output>(
+	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg,
+	requestValue: VideoKeyframeVideoEncoderRequest,
+	dependenciesValue: VideoKeyframeVideoEncoderDependencies,
+	createDelivery: (request: NormalizedRequest) => DeliveryStrategy<Output>,
+) {
 	const editorFfmpeg = validateEditorFfmpeg(editorFfmpegValue);
 	const request = normalizeRequest(requestValue);
 	const dependencies = normalizeDependencies(dependenciesValue);
+	const delivery = createDelivery(request);
 	const managedProducer = manageProducer(request.producer, request.frameSource);
-	let result: VideoKeyframeVideoEncoderResult | null = null;
+	let result: Awaited<ReturnType<typeof runVideoKeyframeVideoOperation<Output>>> | null = null;
 	let primary: unknown;
 	let hasPrimary = false;
 	try {
 		assertReady(request.signal, request.assertCurrent);
+		const audioSource = request.audioMix
+			? await admitVideoKeyframeAudioInput(request.audioMix, {
+				maximumBytes: request.maximumAudioBytes,
+				...(request.signal ? { signal: request.signal } : {}),
+				...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
+			})
+			: undefined;
+		if (audioSource) {
+			if (audioSource.sampleRate !== request.frameSource.sampleRate) {
+				throw new RangeError(
+					'Video keyframe float32 WAV sample rate must match the exact export project sample rate.',
+				);
+			}
+			if (audioSource.frameCount
+				!== request.frameSource.endFrame - request.frameSource.startFrame) {
+				throw new RangeError(
+					'Video keyframe float32 WAV frame count must match the exact export range.',
+				);
+			}
+		}
+		assertReady(request.signal, request.assertCurrent);
 		const token = jobToken(dependencies.createJobToken());
 		const paths = Object.freeze({
 			input: `/framescaper-keyframes-${token}.rgba`,
+			...(audioSource ? { audio: `/framescaper-keyframes-${token}.wav` } : {}),
 			output: `/framescaper-keyframes-${token}.${request.format}`,
 		});
 		const workloadRequest = encoderWorkloadRequest(request, paths);
 		admitVideoKeyframeEncoderWorkload(workloadRequest);
 		result = await editorFfmpeg.runVideoKeyframeEncoderOperation(
-			(lease) => encodeWithinLease(lease, request, managedProducer.value, paths),
+			(leaseValue) => {
+				const lease = validateLease(leaseValue);
+				return runVideoKeyframeVideoOperation({
+					lease,
+					workload: workloadRequest,
+					producer: managedProducer.value,
+					...(audioSource ? { audioSource } : {}),
+					outputPath: paths.output,
+					format: request.format,
+					...(request.signal ? { signal: request.signal } : {}),
+					...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
+					deliver: delivery.deliver,
+					...(delivery.discard ? { discard: delivery.discard } : {}),
+				});
+			},
 			operationOptions(request),
 		);
 	} catch (error) {
@@ -119,6 +265,11 @@ export async function encodeVideoKeyframeVideo(
 	}
 	if (!managedProducer.disposed()) {
 		try { await managedProducer.value.dispose(); } catch (error) {
+			if (result && delivery.discard) {
+				try { delivery.discard(result.delivered.output); } catch (discardError) {
+					error = new AggregateError([error, discardError], 'Producer and output cleanup failed.');
+				}
+			}
 			if (hasPrimary) {
 				throw new AggregateError(
 					[primary, error],
@@ -133,76 +284,27 @@ export async function encodeVideoKeyframeVideo(
 	return result;
 }
 
-async function encodeWithinLease(
-	leaseValue: VideoKeyframeEncoderOperationLease,
-	request: NormalizedRequest,
-	producer: VideoKeyframeRgbaFrameProducer,
-	paths: Readonly<{ input: string; output: string }>,
-): Promise<VideoKeyframeVideoEncoderResult> {
-	const lease = validateLease(leaseValue);
-	let encoded: VideoKeyframeEncoderResult | null = null;
-	let output: Awaited<ReturnType<typeof collectVideoKeyframeVideoOutput>> | null = null;
-	let primary: unknown;
-	let hasPrimary = false;
-	const cleanupFailures: unknown[] = [];
-	try {
-		encoded = await encodeVideoKeyframeFrames({
-			...encoderWorkloadRequest(request, paths),
-			producer,
-			ffmpeg: lease,
-			signal: request.signal,
-			assertCurrent: request.assertCurrent,
-		});
-		output = await collectVideoKeyframeVideoOutput({
-			source: lease,
-			path: paths.output,
-			format: request.format,
-			maximumBytes: request.maximumOutputBytes,
-			maximumChunkBytes: request.maximumOutputChunkBytes,
-			signal: request.signal,
-			assertCurrent: request.assertCurrent,
-		});
-	} catch (error) {
-		primary = error;
-		hasPrimary = true;
-	}
-	if (!lease.isExecutionTerminated()) {
-		try { await lease.deleteFile(paths.output); } catch (error) {
-			cleanupFailures.push(error);
-			try { lease.terminateExecution(error); } catch (terminationError) {
-				cleanupFailures.push(terminationError);
-			}
-		}
-	}
-	if (!hasPrimary && cleanupFailures.length === 0) {
-		try { assertReady(request.signal, request.assertCurrent); } catch (error) {
-			primary = error;
-			hasPrimary = true;
-		}
-	}
-	if (hasPrimary || cleanupFailures.length > 0) {
-		output?.bytes.fill(0);
-		if (hasPrimary && cleanupFailures.length === 0) throw primary;
-		if (!hasPrimary && cleanupFailures.length === 1) throw cleanupFailures[0];
-		throw new AggregateError(
-			hasPrimary ? [primary, ...cleanupFailures] : cleanupFailures,
-			'Video keyframe encoding and MEMFS cleanup did not both complete successfully.',
-		);
-	}
-	if (!encoded || !output) throw new Error('Video keyframe encoding produced no collected output.');
+function resultMetadata<Output>(
+	encoded: VideoKeyframeEncoderResult,
+	delivered: VideoKeyframeDeliveredOutput<Output>,
+) {
 	return Object.freeze({
-		bytes: output.bytes,
-		byteLength: output.byteLength,
+		byteLength: delivered.byteLength,
 		format: encoded.format,
 		extension: encoded.extension,
 		mimeType: encoded.mimeType,
 		frameCount: encoded.frameCount,
 		rgbaChunkCount: encoded.chunkCount,
-		outputChunkCount: output.chunkCount,
+		...(encoded.audioByteLength === undefined ? {} : {
+			audioByteLength: encoded.audioByteLength,
+			audioChunkCount: encoded.audioChunkCount,
+		}),
+		outputChunkCount: delivered.chunkCount,
 	});
 }
 
 interface NormalizedRequest extends VideoKeyframeVideoEncoderRequest {
+	readonly maximumAudioBytes: number;
 	readonly maximumOutputBytes: number;
 	readonly maximumOutputChunkBytes: number;
 }
@@ -226,12 +328,33 @@ function normalizeRequest(value: VideoKeyframeVideoEncoderRequest): NormalizedRe
 		1024 * 1024,
 		'maximumOutputChunkBytes',
 	);
+	const audioMix = Object.hasOwn(record, 'audioMix')
+		? data(record, 'audioMix', 'video keyframe video encoder request')
+		: undefined;
+	if (audioMix !== undefined && (typeof Blob !== 'function' || !(audioMix instanceof Blob))) {
+		throw new TypeError('video keyframe video encoder request.audioMix must be a Blob.');
+	}
+	if (audioMix === undefined && (
+		Object.hasOwn(record, 'audioRingCapacityBytes')
+		|| Object.hasOwn(record, 'maximumAudioBytes')
+	)) {
+		throw new TypeError(
+			'video keyframe video encoder audio options require audioMix.',
+		);
+	}
+	const maximumAudioBytes = boundedMaximum(
+		optional(record, 'maximumAudioBytes', VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES),
+		VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES,
+		'maximumAudioBytes',
+	);
 	const signal = optionalSignal(record, 'signal');
 	const assertCurrent = optionalFunction(record, 'assertCurrent');
 	const result: Record<string, unknown> = {
 		frameSource,
 		producer,
 		format,
+		...(audioMix ? { audioMix } : {}),
+		maximumAudioBytes,
 		maximumOutputBytes,
 		maximumOutputChunkBytes,
 		...(signal ? { signal } : {}),
@@ -245,12 +368,13 @@ function normalizeRequest(value: VideoKeyframeVideoEncoderRequest): NormalizedRe
 
 function encoderWorkloadRequest(
 	request: NormalizedRequest,
-	paths: Readonly<{ input: string; output: string }>,
+	paths: Readonly<{ input: string; audio?: string; output: string }>,
 ) {
 	const result: Record<string, unknown> = {
 		frameSource: request.frameSource,
 		format: request.format,
 		inputPath: paths.input,
+		...(paths.audio ? { audioInputPath: paths.audio } : {}),
 		outputPath: paths.output,
 	};
 	for (const key of WORKLOAD_OPTION_FIELDS) {

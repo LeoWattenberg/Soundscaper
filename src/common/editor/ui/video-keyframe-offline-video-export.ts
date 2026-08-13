@@ -14,21 +14,23 @@ import {
 import {
 	createVideoKeyframeExportPresentationAuthority,
 } from '../video-keyframe-export-presentation-authority.ts';
-import { FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES } from '../ffmpeg-output-stream.ts';
-import {
-	admitVideoKeyframeEncoderWorkload,
-	type VideoKeyframeEncoderFormat,
-	type VideoKeyframeEncoderWorkloadRequest,
-} from '../video-keyframe-encoder-stream.ts';
+import type { FfmpegOutputSink } from '../ffmpeg-output-stream.ts';
+import type { VideoKeyframeEncoderFormat } from '../video-keyframe-encoder-stream.ts';
 import {
 	encodeVideoKeyframeVideo,
-	VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
+	encodeVideoKeyframeVideoToSink,
 	type VideoKeyframeVideoEditorFfmpeg,
 	type VideoKeyframeVideoEncoderRequest,
 	type VideoKeyframeVideoEncoderResult,
+	type VideoKeyframeVideoSinkEncoderResult,
 } from '../video-keyframe-video-encoder.ts';
+import { manageVideoKeyframeOutputSink } from '../video-keyframe-video-sink.ts';
 import type { BoundVideoSourceTimingView } from '../video-source-timing-view.ts';
 import { boundVideoSourceTimingViewInfo } from '../video-source-timing-view.ts';
+import {
+	isVideoExportTimingMap,
+	videoExportTimingMapEntries,
+} from '../video-export-timing-map.ts';
 import {
 	createVideoKeyframeOfflineHtmlVideoSourceResolver,
 	type VideoKeyframeOfflineHtmlVideoSourceResolver,
@@ -41,6 +43,11 @@ import {
 import {
 	planVideoKeyframeOfflineVideoSources,
 } from './video-keyframe-offline-video-export-sources.ts';
+import {
+	createVideoKeyframeOfflineEncoderRequest,
+	preflightVideoKeyframeOfflineEncoder,
+} from './video-keyframe-offline-video-export-encoder.ts';
+import { runVideoKeyframeOfflineVideoResources } from './video-keyframe-offline-video-export-runner.ts';
 
 interface OfflineCanvas extends HTMLCanvasElement {
 	width: number;
@@ -61,7 +68,10 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly endFrame?: number;
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
+	readonly audioMix?: Blob;
 	readonly ringCapacityBytes?: number;
+	readonly audioRingCapacityBytes?: number;
+	readonly maximumAudioBytes?: number;
 	readonly maximumWidth?: number;
 	readonly maximumHeight?: number;
 	readonly maximumFrameCount?: number;
@@ -80,6 +90,11 @@ export interface VideoKeyframeOfflineVideoExportDependencies {
 	) => VideoKeyframeOfflineHtmlVideoSourceResolver;
 	readonly createRenderer: typeof createVideoKeyframeOfflineRgbaRenderer;
 	readonly encodeVideo: typeof encodeVideoKeyframeVideo;
+	readonly encodeVideoToSink?: (
+		editorFfmpeg: VideoKeyframeVideoEditorFfmpeg,
+		request: VideoKeyframeVideoEncoderRequest,
+		sink: FfmpegOutputSink<unknown>,
+	) => Promise<VideoKeyframeVideoSinkEncoderResult<unknown>>;
 }
 
 interface NormalizedRequest {
@@ -91,6 +106,7 @@ interface NormalizedRequest {
 	readonly endFrame?: number;
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
+	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
 	readonly sourceTimeoutMs?: number;
 	readonly signal: AbortSignal;
@@ -99,12 +115,14 @@ interface NormalizedRequest {
 
 const REQUEST_FIELDS = [
 	'project', 'timingBySourceId', 'sources', 'canvas', 'startFrame', 'endFrame',
-	'format', 'editorFfmpeg', 'ringCapacityBytes', 'maximumWidth', 'maximumHeight',
+	'format', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
+	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
 	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'signal', 'assertCurrent',
 ] as const;
 const ENCODER_OPTION_FIELDS = [
-	'ringCapacityBytes', 'maximumWidth', 'maximumHeight', 'maximumFrameCount',
+	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumAudioBytes',
+	'maximumWidth', 'maximumHeight', 'maximumFrameCount',
 	'maximumTotalRgbaBytes', 'maximumOutputBytes', 'maximumOutputChunkBytes',
 ] as const;
 const MAXIMUM_SOURCE_COUNT = 4_096;
@@ -119,6 +137,7 @@ const DEFAULT_DEPENDENCIES: VideoKeyframeOfflineVideoExportDependencies = Object
 	createResolver: createVideoKeyframeOfflineHtmlVideoSourceResolver,
 	createRenderer: createVideoKeyframeOfflineRgbaRenderer,
 	encodeVideo: encodeVideoKeyframeVideo,
+	encodeVideoToSink: encodeVideoKeyframeVideoToSink,
 });
 
 /** Authenticate and encode one dormant exact browser RGBA export, publishing only after cleanup. */
@@ -126,8 +145,46 @@ export async function encodeVideoKeyframeOfflineVideo(
 	requestValue: VideoKeyframeOfflineVideoExportRequest,
 	dependenciesValue: VideoKeyframeOfflineVideoExportDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<VideoKeyframeVideoEncoderResult> {
+	return executeOfflineVideo(requestValue, dependenciesValue, (dependencies, request) => (
+		(encoderRequest_) => dependencies.encodeVideo(request.editorFfmpeg, encoderRequest_)
+	)) as Promise<VideoKeyframeVideoEncoderResult>;
+}
+
+/** Stream an exact keyed export directly without retaining its complete video bytes. */
+export async function encodeVideoKeyframeOfflineVideoToSink<Output>(
+	requestValue: VideoKeyframeOfflineVideoExportRequest,
+	sink: FfmpegOutputSink<Output>,
+	dependenciesValue: VideoKeyframeOfflineVideoExportDependencies = DEFAULT_DEPENDENCIES,
+): Promise<VideoKeyframeVideoSinkEncoderResult<Output>> {
+	const managedSink = manageVideoKeyframeOutputSink(sink);
+	try {
+		return await executeOfflineVideo(requestValue, dependenciesValue, (dependencies, request) => (
+			(encoderRequest_) => dependencies.encodeVideoToSink
+				? dependencies.encodeVideoToSink(
+					request.editorFfmpeg, encoderRequest_, managedSink.value,
+				) as Promise<VideoKeyframeVideoSinkEncoderResult<Output>>
+				: encodeVideoKeyframeVideoToSink(
+					request.editorFfmpeg, encoderRequest_, managedSink.value,
+				)
+		)) as VideoKeyframeVideoSinkEncoderResult<Output>;
+	} catch (error) {
+		throw await managedSink.abort(error);
+	}
+}
+
+async function executeOfflineVideo<Output>(
+	requestValue: VideoKeyframeOfflineVideoExportRequest,
+	dependenciesValue: VideoKeyframeOfflineVideoExportDependencies,
+	createEncoder: (
+		dependencies: VideoKeyframeOfflineVideoExportDependencies,
+		request: NormalizedRequest,
+	) => (encoderRequest: VideoKeyframeVideoEncoderRequest) => Promise<
+		VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>
+	>,
+): Promise<VideoKeyframeVideoEncoderResult | VideoKeyframeVideoSinkEncoderResult<Output>> {
 	const request = normalizeRequest(requestValue);
 	const dependencies = normalizeDependencies(dependenciesValue);
+	const encode = createEncoder(dependencies, request);
 	assertReady(request);
 	const project = request.project;
 	const runtimeProject = projectForRuntimeConsumers(project);
@@ -146,134 +203,36 @@ export async function encodeVideoKeyframeOfflineVideo(
 		...(request.endFrame === undefined ? {} : { endFrame: request.endFrame }),
 		resolvePresentationDescriptor: authority.resolvePresentationDescriptor,
 	});
-	preflightEncoder(request, frameSource);
+	await preflightVideoKeyframeOfflineEncoder(request, frameSource);
 	const assets = await sourcePlan.authenticate(
 		request.sources,
 		authority.presentationForEntry,
 		Object.freeze({ signal: request.signal, assertCurrent: request.assertCurrent }),
 	);
 	assertReady(request);
-	let resolver: VideoKeyframeOfflineHtmlVideoSourceResolver | null = null;
-	let renderer: VideoKeyframeOfflineRgbaRenderer | null = null;
-	let result: VideoKeyframeVideoEncoderResult | null = null;
-	let primary: unknown;
-	let hasPrimary = false;
-	try {
-		resolver = dependencies.createResolver(Object.freeze({
+	const result = await runVideoKeyframeOfflineVideoResources(
+		() => dependencies.createResolver(Object.freeze({
 			sources: assets,
 			...(request.sourceTimeoutMs === undefined ? {} : { timeoutMs: request.sourceTimeoutMs }),
-		}));
-		const canvas = dependencies.createCanvas();
-		canvas.width = frameSource.canvas.width;
-		canvas.height = frameSource.canvas.height;
-		renderer = dependencies.createRenderer(Object.freeze({
-			frameSource,
-			canvas,
-			resolveSource: resolver.resolveSource,
-		}));
-		result = await dependencies.encodeVideo(
-			request.editorFfmpeg,
-			encoderRequest(request, frameSource, renderer),
-		);
-	} catch (error) {
-		primary = error;
-		hasPrimary = true;
-	}
-	const cleanupFailures: unknown[] = [];
-	if (renderer !== null) {
-		const failure = await retryCleanup(() => renderer!.dispose(), 'offline RGBA renderer');
-		if (failure !== null) cleanupFailures.push(failure);
-	}
-	if (resolver !== null) {
-		const failure = await retryCleanup(() => resolver!.dispose(), 'offline video source resolver');
-		if (failure !== null) cleanupFailures.push(failure);
-	}
-	if (!hasPrimary && cleanupFailures.length === 0) {
-		try { assertReady(request); } catch (error) { primary = error; hasPrimary = true; }
-	}
-	if (hasPrimary || cleanupFailures.length > 0) {
-		result?.bytes.fill(0);
-		if (hasPrimary && cleanupFailures.length === 0) throw primary;
-		if (!hasPrimary && cleanupFailures.length === 1) throw cleanupFailures[0];
-		throw new AggregateError(
-			hasPrimary ? [primary, ...cleanupFailures] : cleanupFailures,
-			'Offline video encoding and browser resource cleanup did not both complete successfully.',
-			{ ...(hasPrimary ? { cause: primary } : {}) },
-		);
-	}
-	if (!result) throw new Error('Offline video export produced no exact encoded result.');
+		})),
+		(resolver) => {
+			const canvas = dependencies.createCanvas();
+			canvas.width = frameSource.canvas.width;
+			canvas.height = frameSource.canvas.height;
+			const renderer = dependencies.createRenderer(Object.freeze({
+				frameSource,
+				canvas,
+				resolveSource: resolver.resolveSource,
+			}));
+			return Object.freeze({
+				renderer,
+				request: createVideoKeyframeOfflineEncoderRequest(request, frameSource, renderer),
+			});
+		},
+		encode,
+		() => assertReady(request),
+	);
 	return result;
-}
-
-async function retryCleanup(
-	dispose: () => PromiseLike<void> | void,
-	name: string,
-): Promise<unknown | null> {
-	try {
-		await dispose();
-		return null;
-	} catch (error) {
-		try {
-			await dispose();
-			return null;
-		} catch (retryError) {
-			return new AggregateError(
-				[error, retryError], `${name} cleanup failed twice.`, { cause: error },
-			);
-		}
-	}
-}
-
-function encoderRequest(
-	request: NormalizedRequest,
-	frameSource: ReturnType<typeof createVideoKeyframeExportFrameSource>,
-	renderer: VideoKeyframeOfflineRgbaRenderer,
-): VideoKeyframeVideoEncoderRequest {
-	return Object.freeze({
-		frameSource,
-		producer: renderer,
-		format: request.format,
-		...request.encoderOptions,
-		signal: request.signal,
-		assertCurrent: request.assertCurrent,
-	});
-}
-
-function preflightEncoder(
-	request: NormalizedRequest,
-	frameSource: ReturnType<typeof createVideoKeyframeExportFrameSource>,
-): void {
-	const workload: Record<string, unknown> = {
-		frameSource,
-		format: request.format,
-		inputPath: '/framescaper-keyframes-preflight.rgba',
-		outputPath: `/framescaper-keyframes-preflight.${request.format}`,
-	};
-	for (const key of [
-		'ringCapacityBytes', 'maximumWidth', 'maximumHeight',
-		'maximumFrameCount', 'maximumTotalRgbaBytes',
-	] as const) {
-		if (request.encoderOptions[key] !== undefined) workload[key] = request.encoderOptions[key];
-	}
-	admitVideoKeyframeEncoderWorkload(workload as unknown as VideoKeyframeEncoderWorkloadRequest);
-	preflightOutputMaximum(
-		request.encoderOptions.maximumOutputBytes,
-		VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
-		'maximumOutputBytes',
-	);
-	preflightOutputMaximum(
-		request.encoderOptions.maximumOutputChunkBytes,
-		FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES,
-		'maximumOutputChunkBytes',
-	);
-}
-
-function preflightOutputMaximum(value: number | undefined, maximum: number, name: string): void {
-	if (value !== undefined && (!Number.isSafeInteger(value) || value < 1 || value > maximum)) {
-		throw new RangeError(
-			`Offline video export ${name} must be a positive safe integer no greater than ${String(maximum)}.`,
-		);
-	}
 }
 
 function normalizeRequest(value: unknown): NormalizedRequest {
@@ -315,6 +274,10 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 	for (const key of ENCODER_OPTION_FIELDS) {
 		if (request[key] !== undefined) encoderOptions[key] = request[key] as number;
 	}
+	if (request.audioMix === undefined
+		&& (request.audioRingCapacityBytes !== undefined || request.maximumAudioBytes !== undefined)) {
+		throw new TypeError('Offline video export audio options require audioMix.');
+	}
 	return Object.freeze({
 		project,
 		timingBySourceId,
@@ -324,6 +287,9 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		...(endFrame === undefined ? {} : { endFrame }),
 		format: request.format,
 		editorFfmpeg: snapshotEditorFfmpeg(request.editorFfmpeg),
+		...(request.audioMix === undefined ? {} : {
+			audioMix: canonicalMediaContentBlob(request.audioMix),
+		}),
 		encoderOptions: Object.freeze(encoderOptions),
 		...(sourceTimeoutMs === undefined ? {} : { sourceTimeoutMs }),
 		signal: request.signal,
@@ -376,9 +342,13 @@ function isBinary(value: object): boolean {
 }
 
 function snapshotTiming(value: unknown): ReadonlyMap<string, BoundVideoSourceTimingView> {
-	if (!(value instanceof Map)) throw new TypeError('Offline video export timing must be a ReadonlyMap.');
+	if (!(value instanceof Map) && !isVideoExportTimingMap(value)) {
+		throw new TypeError('Offline video export timing must be a ReadonlyMap.');
+	}
 	const result = new Map<string, BoundVideoSourceTimingView>();
-	const iterator = Reflect.apply(Map.prototype.entries, value, []) as MapIterator<[unknown, unknown]>;
+	const iterator: Iterable<readonly [unknown, unknown]> = isVideoExportTimingMap(value)
+		? videoExportTimingMapEntries(value)
+		: Reflect.apply(Map.prototype.entries, value, []) as MapIterator<[unknown, unknown]>;
 	for (const [keyValue, timingValue] of iterator) {
 		const key = boundedId(keyValue, 'offline video export timing source ID');
 		if (result.size >= MAXIMUM_SOURCE_COUNT) throw new RangeError('Offline video export timing sources exceed their limit.');
@@ -412,12 +382,15 @@ function snapshotEditorFfmpeg(value: unknown): VideoKeyframeVideoEditorFfmpeg {
 
 function normalizeDependencies(value: unknown): VideoKeyframeOfflineVideoExportDependencies {
 	const dependencies = closedRecord(value, 'offline video export dependencies', [
-		'createCanvas', 'createResolver', 'createRenderer', 'encodeVideo',
+		'createCanvas', 'createResolver', 'createRenderer', 'encodeVideo', 'encodeVideoToSink',
 	]);
 	const createCanvas = ownFunction(dependencies, 'createCanvas', 'offline video export dependencies');
 	const createResolver = ownFunction(dependencies, 'createResolver', 'offline video export dependencies');
 	const createRenderer = ownFunction(dependencies, 'createRenderer', 'offline video export dependencies');
 	const encodeVideo = ownFunction(dependencies, 'encodeVideo', 'offline video export dependencies');
+	const encodeVideoToSink = Object.hasOwn(dependencies, 'encodeVideoToSink')
+		? ownFunction(dependencies, 'encodeVideoToSink', 'offline video export dependencies')
+		: undefined;
 	return Object.freeze({
 		createCanvas: () => Reflect.apply(createCanvas, value, []) as OfflineCanvas,
 		createResolver: (options: VideoKeyframeOfflineHtmlVideoSourceResolverOptions) => Reflect.apply(
@@ -429,6 +402,11 @@ function normalizeDependencies(value: unknown): VideoKeyframeOfflineVideoExportD
 		encodeVideo: ((...arguments_: Parameters<typeof encodeVideoKeyframeVideo>) => Reflect.apply(
 			encodeVideo, value, arguments_,
 		) as ReturnType<typeof encodeVideoKeyframeVideo>) as typeof encodeVideoKeyframeVideo,
+		...(encodeVideoToSink ? {
+			encodeVideoToSink: ((...arguments_: Parameters<typeof encodeVideoKeyframeVideoToSink<unknown>>) => Reflect.apply(
+				encodeVideoToSink, value, arguments_,
+			) as ReturnType<typeof encodeVideoKeyframeVideoToSink<unknown>>),
+		} : {}),
 	});
 }
 

@@ -443,7 +443,7 @@ export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeCon
 		id: 'offline-keyframe-video-export-assembly',
 		surface: 'video-export',
 		file: 'src/common/editor/ui/video-keyframe-offline-video-export.ts',
-		entryPoint: 'encodeVideoKeyframeOfflineVideo',
+		entryPoint: 'executeOfflineVideo',
 		inputIdentifier: 'project',
 		projectedIdentifier: 'runtimeProject',
 		boundary: 'projectForRuntimeConsumers',

@@ -6,11 +6,18 @@ import test from 'node:test';
 import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
 import {
 	encodeVideoKeyframeOfflineVideo,
+	encodeVideoKeyframeOfflineVideoToSink,
 	type VideoKeyframeOfflineVideoExportDependencies,
 } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
+import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 import type { VideoKeyframeOfflineHtmlVideoSourceResolver } from '../src/common/editor/ui/video-keyframe-offline-html-video-source-resolver.ts';
 import type { VideoKeyframeOfflineRgbaRenderer } from '../src/common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import type { VideoKeyframeVideoEditorFfmpeg } from '../src/common/editor/video-keyframe-video-encoder.ts';
+import type {
+	VideoKeyframeVideoEncoderRequest,
+	VideoKeyframeVideoSinkEncoderResult,
+} from '../src/common/editor/video-keyframe-video-encoder.ts';
 import {
 	bindVideoSourceTimingView,
 	type VideoSourceTimingView,
@@ -101,6 +108,132 @@ test('preflights encoder geometry, logical work, and output bounds before resolv
 			...override,
 		}, harnessDependencies(events)), /width|dimensions|logical RGBA work|maximumOutput/u);
 		assert.deepEqual(events, []);
+	}
+});
+
+test('authenticates exact float32 audio before resolver or GL and forwards its bounded options', async () => {
+	const fixture = await exportFixture();
+	const audioMix = floatWav(48_000);
+	const events: string[] = [];
+	let captured: VideoKeyframeVideoEncoderRequest | undefined;
+	const dependencies = harnessDependencies(events, {
+		encode: async (_editor, request) => {
+			events.push('encode');
+			captured = request;
+			return encodedResult();
+		},
+	});
+	await encodeVideoKeyframeOfflineVideo({
+		project: fixture.project,
+		timingBySourceId: fixture.timing,
+		sources: [{ sourceId: SOURCE_ID, blob: fixture.blob }],
+		canvas: { width: 64, height: 32, frameRate: RATE },
+		format: 'mp4',
+		editorFfmpeg: editorPort(),
+		audioMix,
+		ringCapacityBytes: 4_096,
+		audioRingCapacityBytes: 8_192,
+		maximumAudioBytes: audioMix.size,
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+	}, dependencies);
+	assert.equal(captured?.audioMix instanceof Blob, true);
+	assert.notEqual(captured?.audioMix, audioMix);
+	assert.equal(captured?.audioRingCapacityBytes, 8_192);
+	assert.equal(captured?.maximumAudioBytes, audioMix.size);
+	assert.ok(events.indexOf('resolver:create') < events.indexOf('encode'));
+
+	for (const mismatch of [floatWav(47_999), floatWav(48_000, 44_100)]) {
+		const mismatchEvents: string[] = [];
+		await assert.rejects(encodeVideoKeyframeOfflineVideo({
+			project: fixture.project,
+			timingBySourceId: fixture.timing,
+			sources: [{ sourceId: SOURCE_ID, blob: fixture.blob }],
+			canvas: { width: 64, height: 32, frameRate: RATE },
+			format: 'mp4',
+			editorFfmpeg: editorPort(),
+			audioMix: mismatch,
+			signal: new AbortController().signal,
+			assertCurrent: () => undefined,
+		}, harnessDependencies(mismatchEvents)), /float32 WAV (?:frame count|sample rate).*exact export|project sample rate/u);
+		assert.deepEqual(mismatchEvents, []);
+	}
+});
+
+test('offline direct entry forwards one managed sink and preserves browser cleanup ordering', async () => {
+	const fixture = await exportFixture();
+	const events: string[] = [];
+	const destination = Object.freeze({ kind: 'destination' });
+	let sinkIdentity: unknown;
+	const sink: FfmpegOutputSink<typeof destination> = Object.freeze({
+		async open() {}, async write() {}, async close() { return destination; }, async abort() {},
+	});
+	const dependencies: VideoKeyframeOfflineVideoExportDependencies = Object.freeze({
+		...harnessDependencies(events),
+		async encodeVideoToSink(
+			_editor: VideoKeyframeVideoEditorFfmpeg,
+			_request: VideoKeyframeVideoEncoderRequest,
+			receivedSink: FfmpegOutputSink<unknown>,
+		): Promise<VideoKeyframeVideoSinkEncoderResult<unknown>> {
+			events.push('encode-sink');
+			sinkIdentity = receivedSink;
+			return Object.freeze({
+				output: destination,
+				byteLength: 123,
+				format: 'mp4' as const,
+				extension: '.mp4' as const,
+				mimeType: 'video/mp4' as const,
+				frameCount: 1,
+				rgbaChunkCount: 1,
+				outputChunkCount: 1,
+			});
+		},
+	});
+	const result = await encodeVideoKeyframeOfflineVideoToSink({
+		project: fixture.project,
+		timingBySourceId: fixture.timing,
+		sources: [{ sourceId: SOURCE_ID, blob: fixture.blob }],
+		canvas: { width: 64, height: 32, frameRate: RATE },
+		format: 'mp4',
+		editorFfmpeg: editorPort(),
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+	}, sink, dependencies);
+	assert.equal(result.output, destination);
+	assert.notEqual(sinkIdentity, sink);
+	assert.deepEqual(events, [
+		'resolver:create', 'renderer:create', 'encode-sink',
+		'renderer:dispose', 'resolver:dispose',
+	]);
+});
+
+test('releases a created resolver when canvas or renderer creation fails', async () => {
+	const fixture = await exportFixture();
+	for (const throwAt of ['canvas', 'renderer'] as const) {
+		const events: string[] = [];
+		const base = harnessDependencies(events);
+		const dependencies: VideoKeyframeOfflineVideoExportDependencies = Object.freeze({
+			...base,
+			createCanvas: throwAt === 'canvas'
+				? () => { events.push('canvas:throw'); throw new Error('canvas failed'); }
+				: base.createCanvas,
+			createRenderer: throwAt === 'renderer'
+				? () => { events.push('renderer:throw'); throw new Error('renderer failed'); }
+				: base.createRenderer,
+		});
+		await assert.rejects(encodeVideoKeyframeOfflineVideo({
+			project: fixture.project,
+			timingBySourceId: fixture.timing,
+			sources: [{ sourceId: SOURCE_ID, blob: fixture.blob }],
+			canvas: { width: 64, height: 32, frameRate: RATE },
+			format: 'mp4',
+			editorFfmpeg: editorPort(),
+			signal: new AbortController().signal,
+			assertCurrent: () => undefined,
+		}, dependencies), new RegExp(`${throwAt} failed`, 'u'));
+		assert.deepEqual(events, [
+			'resolver:create', `${throwAt}:throw`, 'resolver:dispose',
+		]);
 	}
 });
 
@@ -360,6 +493,28 @@ function capturedAssets(
 	dependencies: VideoKeyframeOfflineVideoExportDependencies,
 ): readonly Readonly<Record<string, unknown>>[] {
 	return CAPTURED_ASSETS.get(dependencies) ?? [];
+}
+
+function encodedResult() {
+	const bytes = Uint8Array.of(9, 8, 7);
+	return Object.freeze({
+		bytes,
+		byteLength: bytes.byteLength,
+		format: 'mp4' as const,
+		extension: '.mp4' as const,
+		mimeType: 'video/mp4' as const,
+		frameCount: 1,
+		rgbaChunkCount: 1,
+		outputChunkCount: 1,
+	});
+}
+
+function floatWav(frameCount: number, sampleRate = 48_000): Blob {
+	const bytes = Uint8Array.from(encodeWav([
+		new Float32Array(frameCount),
+		new Float32Array(frameCount),
+	], { sampleRate, bitDepth: 32, float: true, dither: 'none' }));
+	return new Blob([bytes.buffer], { type: 'audio/wav' });
 }
 
 async function exportFixture(options_: Readonly<{

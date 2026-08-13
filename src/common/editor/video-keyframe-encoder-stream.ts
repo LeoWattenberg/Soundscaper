@@ -6,14 +6,22 @@ import {
 	type VideoKeyframeEncoderWorkloadRequest,
 } from './video-keyframe-encoder-admission.ts';
 import {
-	assertVideoKeyframeExportFrame,
+	assertVideoKeyframeAudioInputSource,
+	type VideoKeyframeAudioInputSource,
+} from './video-keyframe-audio-input.ts';
+import {
 	assertVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrame,
 	type VideoKeyframeExportFrameSource,
 } from './video-keyframe-export-frame-source.ts';
+import { executeVideoKeyframeEncoder } from './video-keyframe-encoder-execution.ts';
+
+export { VideoKeyframeEncoderExitError } from './video-keyframe-encoder-execution.ts';
 
 export {
 	admitVideoKeyframeEncoderWorkload,
+	VIDEO_KEYFRAME_ENCODER_MAXIMUM_AGGREGATE_RING_BYTES,
+	VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_TOTAL_RGBA_BYTES,
@@ -71,6 +79,7 @@ export interface VideoKeyframeEncoderFfmpegPort {
 
 export interface VideoKeyframeEncoderRequest extends VideoKeyframeEncoderWorkloadRequest {
 	readonly producer: VideoKeyframeRgbaFrameProducer;
+	readonly audioSource?: VideoKeyframeAudioInputSource;
 	readonly ffmpeg: VideoKeyframeEncoderFfmpegPort;
 	readonly signal?: AbortSignal;
 	readonly assertCurrent?: () => void;
@@ -82,22 +91,15 @@ export interface VideoKeyframeEncoderResult {
 	readonly frameBytes: number;
 	readonly totalRgbaBytes: number;
 	readonly chunkCount: number;
+	readonly audioByteLength?: number;
+	readonly audioChunkCount?: number;
 	readonly format: VideoKeyframeEncoderWorkload['format'];
 	readonly extension: VideoKeyframeEncoderWorkload['extension'];
 	readonly mimeType: VideoKeyframeEncoderWorkload['mimeType'];
 	readonly inputPath: string;
+	readonly audioInputPath?: string;
 	readonly outputPath: string;
 	readonly ffmpegArguments: readonly string[];
-}
-
-export class VideoKeyframeEncoderExitError extends Error {
-	readonly exitCode: number;
-
-	constructor(exitCode: number) {
-		super(`FFmpeg keyframe video encoding exited with code ${String(exitCode)}.`);
-		this.name = 'VideoKeyframeEncoderExitError';
-		this.exitCode = exitCode;
-	}
 }
 
 /**
@@ -124,8 +126,10 @@ export async function encodeVideoKeyframeFrames(
 	let signal: AbortSignal | undefined;
 	let assertCurrent: (() => void) | undefined;
 	let target: Uint8Array<ArrayBuffer> | null = null;
-	let returnedStream: unknown = null;
-	let stream: VideoKeyframeFfmpegInputStream | null = null;
+	let returnedVideoStream: unknown = null;
+	let videoStream: VideoKeyframeFfmpegInputStream | null = null;
+	let returnedAudioStream: unknown = null;
+	let audioStream: VideoKeyframeFfmpegInputStream | null = null;
 	let result: VideoKeyframeEncoderResult | null = null;
 	let primary: unknown;
 	let hasPrimary = false;
@@ -136,33 +140,86 @@ export async function encodeVideoKeyframeFrames(
 		);
 		signal = optionalSignal(request, 'signal', 'video keyframe encoder request');
 		assertCurrent = optionalFunction(request, 'assertCurrent', 'video keyframe encoder request');
+		const audioSource = Object.hasOwn(request, 'audioSource')
+			? dataProperty(request, 'audioSource', 'video keyframe encoder request')
+			: undefined;
+		if ((workload.audioInputPath === undefined) !== (audioSource === undefined)) {
+			throw new TypeError(
+				'Video keyframe encoder audioSource and audioInputPath must either both be present or both be absent.',
+			);
+		}
+		if (audioSource !== undefined) {
+			assertVideoKeyframeAudioInputSource(audioSource);
+			if (audioSource.sampleRate !== frameSource.sampleRate) {
+				throw new RangeError(
+					'Video keyframe audio source sample rate must match the exact frame source.',
+				);
+			}
+			if (audioSource.frameCount !== frameSource.endFrame - frameSource.startFrame) {
+				throw new RangeError(
+					'Video keyframe audio source frame count must match the exact export range.',
+				);
+			}
+		}
 		assertReady(signal, assertCurrent);
 		target = new Uint8Array(workload.frameBytes);
-		returnedStream = await ffmpeg.createInputStream(
+		returnedVideoStream = await ffmpeg.createInputStream(
 			workload.inputPath,
 			workload.ringCapacityBytes,
 			signalOptions(signal),
 		);
-		stream = validateInputStream(returnedStream, workload);
-		assertReady(signal, assertCurrent);
-		result = await executeAndProduce(
-			ffmpeg, stream, frameSource, producer, target, workload, signal, assertCurrent,
+		videoStream = validateInputStream(
+			returnedVideoStream, workload.inputPath, workload.ringCapacityBytes, 'video',
 		);
+		if (workload.audioInputPath && workload.audioRingCapacityBytes) {
+			returnedAudioStream = await ffmpeg.createInputStream(
+				workload.audioInputPath,
+				workload.audioRingCapacityBytes,
+				signalOptions(signal),
+			);
+			audioStream = validateInputStream(
+				returnedAudioStream,
+				workload.audioInputPath,
+				workload.audioRingCapacityBytes,
+				'audio',
+			);
+		}
+		assertReady(signal, assertCurrent);
+		result = await executeVideoKeyframeEncoder({
+			ffmpeg,
+			videoStream,
+			...(audioStream ? { audioStream } : {}),
+			...(audioSource ? { audioSource } : {}),
+			frameSource,
+			producer,
+			target,
+			workload,
+			...(signal ? { signal } : {}),
+			...(assertCurrent ? { assertCurrent } : {}),
+		});
 	} catch (error) {
 		primary = error;
 		hasPrimary = true;
-		abortInputStreamCandidate(stream ?? returnedStream, error, cleanupFailures);
+		abortInputStreamCandidate(videoStream ?? returnedVideoStream, error, cleanupFailures);
+		abortInputStreamCandidate(audioStream ?? returnedAudioStream, error, cleanupFailures);
 	} finally {
 		target = null;
-		const cleanupTarget = stream ?? returnedStream;
-		if (cleanupTarget !== null) {
-			const streamCleaned = await disposeInputStreamCandidate(cleanupTarget, cleanupFailures);
-			if (!streamCleaned && ffmpeg !== null) {
-				await cleanupStep(
-					() => ffmpeg?.terminateExecution(hasPrimary ? primary : cleanupFailures[0]),
-					cleanupFailures,
-				);
+		let allStreamsCleaned = true;
+		for (const cleanupTarget of [
+			videoStream ?? returnedVideoStream,
+			audioStream ?? returnedAudioStream,
+		]) {
+			if (cleanupTarget !== null) {
+				allStreamsCleaned = await disposeInputStreamCandidate(
+					cleanupTarget, cleanupFailures,
+				) && allStreamsCleaned;
 			}
+		}
+		if (!allStreamsCleaned && ffmpeg !== null) {
+			await cleanupStep(
+				() => ffmpeg?.terminateExecution(hasPrimary ? primary : cleanupFailures[0]),
+				cleanupFailures,
+			);
 		}
 		await cleanupStep(() => producer.dispose(), cleanupFailures);
 	}
@@ -185,164 +242,14 @@ export async function encodeVideoKeyframeFrames(
 	return result;
 }
 
-async function executeAndProduce(
-	ffmpeg: VideoKeyframeEncoderFfmpegPort,
-	stream: VideoKeyframeFfmpegInputStream,
-	frameSource: VideoKeyframeExportFrameSource,
-	producer: VideoKeyframeRgbaFrameProducer,
-	target: Uint8Array<ArrayBuffer>,
-	workload: VideoKeyframeEncoderWorkload,
-	signal: AbortSignal | undefined,
-	assertCurrent: (() => void) | undefined,
-): Promise<VideoKeyframeEncoderResult> {
-	let firstFailure: unknown;
-	let hasFailure = false;
-	const cleanupFailures: unknown[] = [];
-	let streamAborted = false;
-	let executionStarted = false;
-	let executionTerminated = false;
-	let writtenBytes = 0;
-	let chunkCount = 0;
-	const operationAbort = new AbortController();
-	let notifyFailure: ((outcome: OperationOutcome) => void) | null = null;
-	const failureOutcome = new Promise<OperationOutcome>((resolve) => { notifyFailure = resolve; });
-	const fail = (error: unknown): void => {
-		if (!hasFailure) {
-			firstFailure = error;
-			hasFailure = true;
-			notifyFailure?.({ kind: 'failure' });
-		}
-		if (!operationAbort.signal.aborted) operationAbort.abort(error);
-		if (!streamAborted) {
-			streamAborted = true;
-			try { stream.abort(error); } catch (abortFailure) { cleanupFailures.push(abortFailure); }
-		}
-		if (executionStarted && !executionTerminated) {
-			executionTerminated = true;
-			try { ffmpeg.terminateExecution(error); } catch (terminationFailure) {
-				cleanupFailures.push(terminationFailure);
-			}
-		}
-	};
-	const onAbort = (): void => fail(signal?.reason ?? abortError());
-	signal?.addEventListener('abort', onAbort, { once: true });
-	if (signal?.aborted) onAbort();
-	if (hasFailure) {
-		signal?.removeEventListener('abort', onAbort);
-		throw operationFailure(firstFailure, cleanupFailures);
-	}
-	let execution: Promise<number>;
-	executionStarted = true;
-	try {
-		execution = Promise.resolve(ffmpeg.exec(
-			workload.ffmpegArguments,
-			-1,
-			signalOptions(operationAbort.signal),
-		));
-	} catch (error) {
-		fail(error);
-		execution = Promise.reject(error);
-	}
-	const observedExecution: Promise<OperationOutcome> = execution.then((codeValue) => {
-		const code = exactExitCode(codeValue);
-		if (writtenBytes !== workload.totalRgbaBytes) {
-			const error = new Error(
-				'FFmpeg execution completed before every admitted RGBA frame was written.',
-			);
-			fail(error);
-			throw error;
-		}
-		if (code !== 0) {
-			const error = new VideoKeyframeEncoderExitError(code);
-			fail(error);
-			throw error;
-		}
-		return { kind: 'execution', code } as const;
-	}, (error: unknown) => {
-		fail(error);
-		throw error;
-	}).catch(() => ({ kind: 'failure' } as const));
-	const production: Promise<OperationOutcome> = (async () => {
-		for (let index = 0; index < workload.frameCount; index += 1) {
-			assertEncodingReady(signal, operationAbort.signal, assertCurrent);
-			const frame: unknown = frameSource.frame(index);
-			assertVideoKeyframeExportFrame(frameSource, frame);
-			const expectedBuffer = target.buffer;
-			const produced: unknown = await producer.produce(
-				frame,
-				target,
-				signalOptions(operationAbort.signal) ?? {},
-			);
-			if (produced !== undefined) {
-				throw new TypeError('Video keyframe RGBA producers must return void and cannot replace the target.');
-			}
-			if (target.buffer !== expectedBuffer || target.byteOffset !== 0
-				|| target.byteLength !== workload.frameBytes
-				|| expectedBuffer.byteLength !== workload.frameBytes) {
-				throw new Error('The video keyframe producer did not retain the exact reusable RGBA allocation.');
-			}
-			assertEncodingReady(signal, operationAbort.signal, assertCurrent);
-			for (let offset = 0; offset < workload.frameBytes; offset += workload.ringCapacityBytes) {
-				assertEncodingReady(signal, operationAbort.signal, assertCurrent);
-				const end = Math.min(workload.frameBytes, offset + workload.ringCapacityBytes);
-				const chunk = target.subarray(offset, end);
-				await stream.write(chunk, signalOptions(operationAbort.signal));
-				chunkCount += 1;
-				writtenBytes += chunk.byteLength;
-				assertEncodingReady(signal, operationAbort.signal, assertCurrent);
-			}
-		}
-		assertEncodingReady(signal, operationAbort.signal, assertCurrent);
-		await stream.close();
-		assertEncodingReady(signal, operationAbort.signal, assertCurrent);
-		return { kind: 'production' } as const;
-	})().catch((error: unknown) => {
-		fail(error);
-		return { kind: 'failure' } as const;
-	});
-	try {
-		const first = await Promise.race([production, observedExecution, failureOutcome]);
-		if (first.kind === 'failure') {
-			await production;
-			throw operationFailure(firstFailure, cleanupFailures);
-		}
-		if (first.kind === 'execution') {
-			const finalProduction = await Promise.race([production, failureOutcome]);
-			if (finalProduction.kind !== 'production' || hasFailure) {
-				throw operationFailure(firstFailure, cleanupFailures);
-			}
-		} else {
-			const finalExecution = await Promise.race([observedExecution, failureOutcome]);
-			if (finalExecution.kind !== 'execution' || hasFailure) {
-				throw operationFailure(firstFailure, cleanupFailures);
-			}
-		}
-		assertReady(signal, assertCurrent);
-		return Object.freeze({
-			exitCode: 0 as const,
-			frameCount: workload.frameCount,
-			frameBytes: workload.frameBytes,
-			totalRgbaBytes: workload.totalRgbaBytes,
-			chunkCount,
-			format: workload.format,
-			extension: workload.extension,
-			mimeType: workload.mimeType,
-			inputPath: workload.inputPath,
-			outputPath: workload.outputPath,
-			ffmpegArguments: workload.ffmpegArguments,
-		});
-	} finally {
-		signal?.removeEventListener('abort', onAbort);
-	}
-}
-
 const ENCODER_FIELDS = new Set([
-	'frameSource', 'format', 'inputPath', 'outputPath', 'ringCapacityBytes',
+	'frameSource', 'format', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
+	'audioRingCapacityBytes', 'audioSource',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 	'producer', 'ffmpeg', 'signal', 'assertCurrent',
 ]);
 const WORKLOAD_OPTION_FIELDS = [
-	'ringCapacityBytes', 'maximumWidth', 'maximumHeight',
+	'ringCapacityBytes', 'audioInputPath', 'audioRingCapacityBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes',
 ] as const;
 
@@ -361,19 +268,6 @@ function workloadRequest(
 		}
 	}
 	return result as unknown as VideoKeyframeEncoderWorkloadRequest;
-}
-
-type OperationOutcome =
-	| Readonly<{ readonly kind: 'production' }>
-	| Readonly<{ readonly kind: 'execution'; readonly code: 0 }>
-	| Readonly<{ readonly kind: 'failure' }>;
-
-function operationFailure(primary: unknown, cleanupFailures: readonly unknown[]): unknown {
-	if (cleanupFailures.length === 0) return primary;
-	return new AggregateError(
-		[primary, ...cleanupFailures],
-		'Video keyframe encoder operation and execution termination did not both succeed.',
-	);
 }
 
 function validateProducer(
@@ -408,41 +302,27 @@ function validateFfmpeg(value: unknown): VideoKeyframeEncoderFfmpegPort {
 
 function validateInputStream(
 	value: unknown,
-	workload: VideoKeyframeEncoderWorkload,
+	path: string,
+	capacityBytes: number,
+	kind: 'audio' | 'video',
 ): VideoKeyframeFfmpegInputStream {
 	const stream = closedRecord(
 		value, new Set(['path', 'capacityBytes', 'write', 'close', 'abort', 'dispose']),
-		'FFmpeg video keyframe input stream',
+		`FFmpeg video keyframe ${kind} input stream`,
 	);
-	if (dataProperty(stream, 'path', 'FFmpeg video keyframe input stream') !== workload.inputPath
-		|| dataProperty(stream, 'capacityBytes', 'FFmpeg video keyframe input stream') !== workload.ringCapacityBytes) {
-		throw new Error('FFmpeg video keyframe input stream does not match its admitted reservation.');
+	if (dataProperty(stream, 'path', `FFmpeg video keyframe ${kind} input stream`) !== path
+		|| dataProperty(stream, 'capacityBytes', `FFmpeg video keyframe ${kind} input stream`) !== capacityBytes) {
+		throw new Error(`FFmpeg video keyframe ${kind} input stream does not match its admitted reservation.`);
 	}
 	for (const key of ['write', 'close', 'abort', 'dispose']) {
-		requireFunction(stream, key, 'FFmpeg video keyframe input stream');
+		requireFunction(stream, key, `FFmpeg video keyframe ${kind} input stream`);
 	}
 	return stream as unknown as VideoKeyframeFfmpegInputStream;
-}
-
-function exactExitCode(value: unknown): number {
-	if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
-		throw new TypeError('FFmpeg keyframe video encoding returned an invalid exit code.');
-	}
-	return value;
 }
 
 function assertReady(signal: AbortSignal | undefined, assertCurrent: (() => void) | undefined): void {
 	if (signal?.aborted) throw signal.reason ?? abortError();
 	assertCurrent?.();
-}
-
-function assertEncodingReady(
-	signal: AbortSignal | undefined,
-	operationSignal: AbortSignal,
-	assertCurrent: (() => void) | undefined,
-): void {
-	if (operationSignal.aborted) throw operationSignal.reason ?? abortError();
-	assertReady(signal, assertCurrent);
 }
 
 async function cleanupStep(

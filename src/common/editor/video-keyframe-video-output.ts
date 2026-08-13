@@ -12,6 +12,12 @@ import {
 } from './ffmpeg-output-stream.ts';
 import type { VideoKeyframeEncoderFormat } from './video-keyframe-encoder-admission.ts';
 import { assertFiniteVideoKeyframeContainer } from './video-keyframe-video-container.ts';
+import {
+	assertFiniteVideoKeyframeContainerFile,
+	sinkForVideoKeyframeContainerEvidence,
+	sourceForVideoKeyframeContainerEvidence,
+} from './video-keyframe-video-container-stream.ts';
+import { manageVideoKeyframeOutputSink } from './video-keyframe-video-sink.ts';
 
 export const VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES = BROWSER_EXPORT_BLOB_MAXIMUM_BYTES;
 
@@ -27,6 +33,12 @@ export interface VideoKeyframeVideoOutputRequest {
 
 export interface VideoKeyframeVideoOutput {
 	readonly bytes: Uint8Array<ArrayBuffer>;
+	readonly byteLength: number;
+	readonly chunkCount: number;
+}
+
+export interface VideoKeyframeVideoSinkOutput<Output> {
+	readonly output: Output;
 	readonly byteLength: number;
 	readonly chunkCount: number;
 }
@@ -49,6 +61,37 @@ export async function collectVideoKeyframeVideoOutput(
 		byteLength: result.byteLength,
 		chunkCount: result.chunkCount,
 	});
+}
+
+/** Stream one admitted MEMFS video into a caller-owned sink without a file-sized allocation. */
+export async function streamVideoKeyframeVideoOutput<Output>(
+	requestValue: VideoKeyframeVideoOutputRequest,
+	sink: FfmpegOutputSink<Output>,
+): Promise<VideoKeyframeVideoSinkOutput<Output>> {
+	const request = normalizeRequest(requestValue);
+	const maximumBytes = normalizeMaximumBytes(request.maximumBytes);
+	const maximumChunkBytes = normalizeMaximumChunkBytes(request.maximumChunkBytes);
+	const managedSink = manageVideoKeyframeOutputSink(sink);
+	const evidence = await assertFiniteVideoKeyframeContainerFile(
+		request.source,
+		request.path,
+		request.format,
+		{
+			maximumBytes,
+			...(request.signal ? { signal: request.signal } : {}),
+			...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
+		},
+	);
+	return streamFfmpegOutputFile(
+		sourceForVideoKeyframeContainerEvidence(request.source, request.path, evidence),
+		request.path,
+		sinkForVideoKeyframeContainerEvidence(managedSink.value, evidence),
+		{
+			maximumChunkBytes,
+			signal: request.signal,
+			assertCurrent: request.assertCurrent,
+		},
+	);
 }
 
 function normalizeRequest(value: VideoKeyframeVideoOutputRequest): VideoKeyframeVideoOutputRequest {

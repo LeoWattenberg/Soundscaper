@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { admitVideoKeyframeAudioInput } from '../src/common/editor/video-keyframe-audio-input.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	createVideoKeyframeExportFrameSource,
@@ -18,6 +19,7 @@ import {
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH,
 	type VideoKeyframeRgbaFrameProducer,
 } from '../src/common/editor/video-keyframe-encoder-stream.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
 import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
@@ -396,6 +398,34 @@ test('active cancellation settles production before renderer disposal', async ()
 	await assert.rejects(encoding, (error: unknown) => error === cancelled);
 	assert.equal(disposed, 1);
 	assert.ok(ffmpeg.events.includes('terminate-execution'));
+});
+
+test('lower encoder binds authenticated audio timing before FFmpeg stream ownership', async () => {
+	const frameSource = source({ width: 4, height: 4, frameRate: 1 });
+	for (const [frameCount, sampleRate, match] of [
+		[47_999, 48_000, /frame count.*exact export range/u],
+		[48_000, 44_100, /sample rate.*exact frame source/u],
+	] as const) {
+		const bytes = Uint8Array.from(encodeWav(
+			[new Float32Array(frameCount)],
+			{ sampleRate, bitDepth: 32, float: true, dither: 'none' },
+		));
+		const audioSource = await admitVideoKeyframeAudioInput(
+			new Blob([bytes.buffer], { type: 'audio/wav' }),
+		);
+		const ffmpeg = fakeFfmpeg();
+		await assert.rejects(encodeVideoKeyframeFrames({
+			frameSource,
+			producer: producerFor(frameSource),
+			ffmpeg,
+			format: 'webm',
+			inputPath: '/frames.rgba',
+			audioInputPath: '/mix.wav',
+			outputPath: '/encoded.webm',
+			audioSource,
+		}), match);
+		assert.deepEqual(ffmpeg.events, []);
+	}
 });
 
 function admission(

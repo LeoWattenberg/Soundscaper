@@ -9,6 +9,7 @@ const ROOT = '/__video-keyframe-video-encoder__';
 const PACKAGE_FILES = [
 	'index.js', 'classes.js', 'const.js', 'errors.js', 'types.js', 'utils.js', 'worker.js',
 ];
+const NOBLE_HASH_FILES = ['sha2.js', '_md.js', '_u64.js', 'utils.js'];
 
 test('encodes exact offline WebGL frames through the bounded production FFmpeg stream', async ({
 	browserName,
@@ -72,25 +73,92 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 			})),
 		});
 		try {
+			const audioFrames = new Float32Array(48_000);
+			for (let index = 0; index < audioFrames.length; index += 1) {
+				audioFrames[index] = Math.sin((index / 48_000) * Math.PI * 880) * 0.125;
+			}
+			const audioMix = floatWav(audioFrames, 48_000);
 			const encoded = await bounded(encoderModule.encodeVideoKeyframeVideo(editorFfmpeg, {
 				frameSource,
 				producer: renderer,
 				format: 'mp4',
+				audioMix,
 				ringCapacityBytes: 4_096,
+				audioRingCapacityBytes: 4_096,
 				maximumOutputBytes: 1024 * 1024,
 				maximumOutputChunkBytes: 4_096,
 			}, {
 				createJobToken: () => '0123456789abcdef0123456789abcdef',
 			}), 80_000);
+			if (encoded.byteLength > 1024 * 1024) {
+				throw new Error('The encoded A/V probe exceeded its witnessed output bound.');
+			}
+			const firstBox = [...encoded.bytes.subarray(0, 12)];
+			const probePath = '/framescaper-keyframes-av-probe.mp4';
+			const decodedAudioPath = '/framescaper-keyframes-av-probe.f32le';
+			let probeWritten = false;
+			let decodedAudioWritten = false;
+			let probeExitCode;
+			let decodedAudioByteLength;
+			let authoredAudioPrefixError;
+			try {
+				await bounded(ffmpeg.writeFile(probePath, encoded.bytes), 10_000);
+				probeWritten = true;
+				probeExitCode = await bounded(ffmpeg.exec([
+					'-v', 'error', '-i', probePath,
+					'-map', '0:v:0', '-map', '0:a:0',
+					'-f', 'null', '-',
+				]), 20_000);
+				if (probeExitCode !== 0) {
+					throw new Error(`The encoded A/V probe exited with ${String(probeExitCode)}.`);
+				}
+				const decodeExitCode = await bounded(ffmpeg.exec([
+					'-v', 'error', '-i', probePath, '-map', '0:a:0',
+					'-f', 'f32le', '-acodec', 'pcm_f32le', decodedAudioPath,
+				]), 20_000);
+				if (decodeExitCode !== 0) {
+					throw new Error(`The encoded audio decode probe exited with ${String(decodeExitCode)}.`);
+				}
+				decodedAudioWritten = true;
+				const decodedAudio = await bounded(ffmpeg.readFile(decodedAudioPath), 10_000);
+				if (!(decodedAudio instanceof Uint8Array)) {
+					throw new Error('The encoded audio decode probe returned no bytes.');
+				}
+				decodedAudioByteLength = decodedAudio.byteLength;
+				if (decodedAudioByteLength < audioFrames.length * 4) {
+					throw new Error('The encoded audio decode probe truncated the authored sample range.');
+				}
+				const decodedSamples = new Float32Array(
+					decodedAudio.buffer, decodedAudio.byteOffset, Math.floor(decodedAudio.byteLength / 4),
+				);
+				let absoluteError = 0;
+				let authoredMagnitude = 0;
+				for (let index = 0; index < audioFrames.length; index += 1) {
+					absoluteError += Math.abs(decodedSamples[index] - audioFrames[index]);
+					authoredMagnitude += Math.abs(audioFrames[index]);
+				}
+				authoredAudioPrefixError = absoluteError / authoredMagnitude;
+				if (authoredAudioPrefixError > 0.2) {
+					throw new Error('The encoded audio decode probe did not preserve its authored prefix.');
+				}
+			} finally {
+				if (decodedAudioWritten) await bounded(ffmpeg.deleteFile(decodedAudioPath), 10_000);
+				if (probeWritten) await bounded(ffmpeg.deleteFile(probePath), 10_000);
+			}
 			return {
 				byteLength: encoded.byteLength,
-				firstBox: [...encoded.bytes.subarray(0, 12)],
+				firstBox,
 				format: encoded.format,
 				extension: encoded.extension,
 				mimeType: encoded.mimeType,
 				frameCount: encoded.frameCount,
 				rgbaChunkCount: encoded.rgbaChunkCount,
 				outputChunkCount: encoded.outputChunkCount,
+				audioByteLength: encoded.audioByteLength,
+				audioChunkCount: encoded.audioChunkCount,
+				probeExitCode,
+				decodedAudioByteLength,
+				authoredAudioPrefixError,
 				presentationDisposals,
 			};
 		} finally {
@@ -119,16 +187,44 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 			return canvas;
 		}
 
+		function floatWav(samples, sampleRate) {
+			const bytes = new Uint8Array(44 + samples.length * 4);
+			const view = new DataView(bytes.buffer);
+			ascii(view, 0, 'RIFF');
+			view.setUint32(4, bytes.length - 8, true);
+			ascii(view, 8, 'WAVE');
+			ascii(view, 12, 'fmt ');
+			view.setUint32(16, 16, true);
+			view.setUint16(20, 3, true);
+			view.setUint16(22, 1, true);
+			view.setUint32(24, sampleRate, true);
+			view.setUint32(28, sampleRate * 4, true);
+			view.setUint16(32, 4, true);
+			view.setUint16(34, 32, true);
+			ascii(view, 36, 'data');
+			view.setUint32(40, samples.length * 4, true);
+			for (let index = 0; index < samples.length; index += 1) {
+				view.setFloat32(44 + index * 4, samples[index], true);
+			}
+			return new Blob([bytes.buffer], { type: 'audio/wav' });
+		}
+
+		function ascii(view, offset, value) {
+			for (let index = 0; index < value.length; index += 1) {
+				view.setUint8(offset + index, value.charCodeAt(index));
+			}
+		}
+
 		function createProject() {
 			return {
 				schemaVersion: 9,
-				sampleRate: 64,
+				sampleRate: 48_000,
 				primarySequenceId: 'sequence-1',
 				sequences: [{
 					id: 'sequence-1', type: 'video', rate: { num: 2, den: 1 }, trackIds: ['track-1'],
 				}],
 				sources: [{
-					id: 'source-1', kind: 'video', sampleRate: 64,
+					id: 'source-1', kind: 'video', sampleRate: 48_000,
 					frameRate: { num: 2, den: 1 }, sourceFrameCount: 2, width: 32, height: 16,
 				}],
 				clips: [{
@@ -179,19 +275,32 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 		mimeType: 'video/mp4',
 		frameCount: 2,
 		rgbaChunkCount: 8,
+		audioByteLength: 192_044,
+		audioChunkCount: 47,
+		probeExitCode: 0,
 		presentationDisposals: 1,
 	});
 	expect(result.outputChunkCount).toBeGreaterThan(0);
+	expect(result.decodedAudioByteLength).toBeGreaterThanOrEqual(48_000 * 4);
+	expect(result.decodedAudioByteLength).toBeLessThanOrEqual((48_000 + 1_023) * 4);
+	expect(result.authoredAudioPrefixError).toBeLessThanOrEqual(0.2);
 });
 
 async function installRoutes(page) {
 	const editorModules = await transpileEditorModules();
 	const packageRoot = new URL('../../node_modules/@ffmpeg/ffmpeg/dist/esm/', import.meta.url);
 	const coreRoot = new URL('../../node_modules/@ffmpeg/core/dist/esm/', import.meta.url);
+	const nobleRoot = new URL('../../node_modules/@noble/hashes/', import.meta.url);
 	const routes = new Map(editorModules);
 	for (const name of PACKAGE_FILES) {
 		routes.set(`${ROOT}/ffmpeg/${name}`, {
 			body: await readFile(new URL(name, packageRoot)),
+			contentType: 'text/javascript',
+		});
+	}
+	for (const name of NOBLE_HASH_FILES) {
+		routes.set(`${ROOT}/noble/${name}`, {
+			body: await readFile(new URL(name, nobleRoot)),
 			contentType: 'text/javascript',
 		});
 	}
@@ -212,7 +321,7 @@ async function installRoutes(page) {
 				contentType: 'text/html',
 				headers: isolationHeaders(),
 				body: `<!doctype html><meta charset="utf-8">
-					<script type="importmap">{"imports":{"@ffmpeg/ffmpeg":"${ROOT}/ffmpeg/index.js"}}</script>
+					<script type="importmap">{"imports":{"@ffmpeg/ffmpeg":"${ROOT}/ffmpeg/index.js","@noble/hashes/sha2.js":"${ROOT}/noble/sha2.js"}}</script>
 					<title>video keyframe encoder</title>`,
 			});
 			return;
