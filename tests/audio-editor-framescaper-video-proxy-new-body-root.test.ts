@@ -48,6 +48,10 @@ test('a new proxy row and its unverified claim publish in one durable transactio
 	const staging = new VideoProxyClaimStagingRepository(fixture.authority.port, fixture.authority.opfs!);
 	const verified = await staging.verifyNewBodyClaim(publication.claim);
 	assert.equal(verified.status, 'verified');
+	await assert.rejects(
+		staging.releaseVerifiedClaimIfCurrent(verified),
+		/foreign or already released/iu,
+	);
 	assert.deepEqual(await claims(database), [verified]);
 });
 
