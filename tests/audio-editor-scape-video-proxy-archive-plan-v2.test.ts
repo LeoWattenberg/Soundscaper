@@ -198,7 +198,11 @@ test('remains dormant outside its focused proof and cannot change the V17 archiv
 	for (const file of await sourceFiles(['src', 'desktop', 'scripts', 'tests'])) {
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
-	assert.deepEqual(references, [TEST_MODULE]);
+	assert.deepEqual(references, [
+		'src/framescaper/scape-project-envelope-v18.ts',
+		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
+		TEST_MODULE,
+	]);
 	const source = await readSource(MODULE);
 	assert.deepEqual(importSpecifiers(source), ['./video-timing-asset-reference.ts']);
 	assert.doesNotMatch(source,

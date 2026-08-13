@@ -9,6 +9,9 @@ import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/
 import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
+import {
+	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
+} from '../src/framescaper/editor-project-feature-requirements-v18.ts';
 import { createFramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
 import {
 	inspectFramescaperScapeProjectEnvelopeV18,
@@ -142,6 +145,20 @@ test('rejects descriptor accessors without running them and cancellation exposes
 		attached,
 	), /data property|descriptor/iu);
 	assert.equal(getterCalls, 0);
+	const probedManifest = manifest(attached, 2, proxyAssets());
+	let ordinaryGets = 0;
+	probedManifest.assets = new Proxy(probedManifest.assets as unknown[], {
+		get(target, key, receiver) {
+			ordinaryGets += 1;
+			return Reflect.get(target, key, receiver);
+		},
+	});
+	assert.equal(inspectFramescaperScapeProjectEnvelopeV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		probedManifest,
+		attached,
+	).status, 'metadata-ready');
+	assert.equal(ordinaryGets, 0);
 
 	const coherent = proxyAssets();
 	const cancelled = inspectFramescaperScapeProjectEnvelopeV18(
@@ -165,7 +182,11 @@ test('stays dormant in Framescaper and leaves the V17 archive envelope unchanged
 			references.push(file);
 		}
 	}
-	assert.deepEqual(references, [TEST_MODULE]);
+	assert.deepEqual(references, [
+		'tests/audio-editor-framescaper-project-runtime-profile.test.ts',
+		TEST_MODULE,
+		'tests/audio-editor-scape-video-proxy-archive-plan-v2.test.ts',
+	]);
 	const source = await readFile(resolve(ROOT, MODULE), 'utf8');
 	assert.match(source, /assertFramescaperProjectV18Profile/u);
 	assert.match(source, /validateFramescaperProjectV18/u);
@@ -200,15 +221,13 @@ function project(): ReturnType<typeof createFramescaperProjectV18> {
 function attach(value: ReturnType<typeof project>): ReturnType<typeof project> {
 	const attached = structuredClone(value) as unknown as Record<string, unknown>;
 	((attached.sources as Record<string, unknown>[])[0]!).proxyAttachment = attachment();
+	const baselineRequirements = attached.featureRequirements as {
+		schemaVersion: 2;
+		requirements: Record<string, unknown>[];
+	};
 	attached.featureRequirements = {
-		schemaVersion: 2,
-		requirements: [{
-			id: 'framescaper.video-proxy',
-			featureId: 'org.soundscaper.capability.video-proxy',
-			displayName: 'Video proxy attachments',
-			disposition: 'bypass',
-			fallback: null,
-		}],
+		schemaVersion: baselineRequirements.schemaVersion,
+		requirements: [...baselineRequirements.requirements, FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18],
 	};
 	return attached as unknown as ReturnType<typeof project>;
 }
@@ -242,7 +261,7 @@ function manifest(
 			entry: 'project.json', mimeType: 'application/json', schemaVersion: value.schemaVersion,
 			size: 4_096, sha256: PROJECT_SHA,
 		},
-		assets: [originalAsset(), ...structuredClone(proxy)],
+		assets: [originalAsset(), ...proxy],
 	};
 }
 
