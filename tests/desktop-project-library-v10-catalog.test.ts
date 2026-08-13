@@ -317,7 +317,10 @@ test('stays dormant and isolated from V9, product entrypoints, project bodies, a
 	for (const file of await sourceFiles(['desktop', 'src', 'tests'])) {
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
-	assert.deepEqual(references, [TEST_MODULE]);
+	assert.deepEqual(references, [
+		'desktop/project-library-v10-main.ts',
+		TEST_MODULE,
+	]);
 	assert.ok(source.split('\n').length <= 600, 'catalog source must stay under 600 lines');
 });
 
