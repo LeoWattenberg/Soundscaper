@@ -6,6 +6,7 @@ import test from 'node:test';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import {
 	VideoKeyframeExportUnavailableError,
+	animatedVideoKeyframeClipIdsForExport,
 	assertStaticVideoKeyframesForExport,
 } from '../src/common/editor/video-keyframe-export-admission.ts';
 import {
@@ -44,6 +45,17 @@ test('V6 refuses authored keyframes before producing a static plan', () => {
 			&& error.code === 'VIDEO_KEYFRAME_EXPORT_UNAVAILABLE'
 			&& error.clipId === 'video-clip',
 	);
+});
+
+test('keyed export classification returns detached ordered active clip IDs', () => {
+	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const first = project.clips[0] as unknown as Record<string, unknown>;
+	first.videoKeyframes = opacityKeyframes();
+	const second = structuredClone(first);
+	second.id = 'second-video';
+	const ids = animatedVideoKeyframeClipIdsForExport([first, second, first]);
+	assert.deepEqual(ids, ['video-clip', 'second-video']);
+	assert.equal(Object.isFrozen(ids), true);
 });
 
 test('export admission rejects disguised keyframe state without invoking accessors', () => {

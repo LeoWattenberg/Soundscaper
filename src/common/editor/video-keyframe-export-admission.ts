@@ -22,7 +22,16 @@ export class VideoKeyframeExportUnavailableError extends Error {
  * Animated state refuses before any media or FFmpeg boundary is reached.
  */
 export function assertStaticVideoKeyframesForExport(clips: readonly unknown[]): void {
+	const animated = animatedVideoKeyframeClipIdsForExport(clips);
+	if (animated[0]) throw new VideoKeyframeExportUnavailableError(animated[0]);
+}
+
+/** Classify the exact active clip set without touching media or renderer state. */
+export function animatedVideoKeyframeClipIdsForExport(
+	clips: readonly unknown[],
+): readonly string[] {
 	const visited = new WeakSet<object>();
+	const animated: string[] = [];
 	for (const [index, value] of clips.entries()) {
 		const clip = dataRecord(value, `video export clip ${String(index)}`);
 		if (visited.has(clip)) continue;
@@ -45,8 +54,9 @@ export function assertStaticVideoKeyframesForExport(clips: readonly unknown[]): 
 			composition: dataProperty(clip, 'videoComposition', `video export clip ${id}`),
 			videoEffects: dataProperty(clip, 'videoEffects', `video export clip ${id}`),
 		}, `video export clip ${id}.videoKeyframes`);
-		if (keyframes.curves.length > 0) throw new VideoKeyframeExportUnavailableError(id);
+		if (keyframes.curves.length > 0) animated.push(id);
 	}
+	return Object.freeze(animated);
 }
 
 function dataRecord(value: unknown, name: string): Record<string, unknown> {
