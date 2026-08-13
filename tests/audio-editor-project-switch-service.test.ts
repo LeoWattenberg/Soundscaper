@@ -352,6 +352,14 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 	assert.equal(fixture.state.readOnly, true);
 	assert.equal(fixture.events.includes('maintain-opened:future-project'), false);
 });
+test('new selected-schema projects use create-only initial publication', async () => {
+	const fixture = createFixture(undefined, { createOnly: true });
+	await fixture.service.newProject({ title: 'Created once' });
+	assert.deepEqual(
+		fixture.events.filter((event) => event.startsWith('create-project:') || event.startsWith('save-project:')),
+		['create-project:created-1'],
+	);
+});
 test('feature compatibility transiently bypasses affected audio effects before engine activation', async () => {
 	const fixture = createFixture({ audioEffects: false, videoEffects: false });
 	const effect = { id: 'compressor-a', type: 'compressor', enabled: true, bypassed: false, params: { threshold: -24 } };

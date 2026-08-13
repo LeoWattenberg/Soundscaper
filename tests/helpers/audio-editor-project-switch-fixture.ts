@@ -43,7 +43,10 @@ export function lock(projectId: string, readOnly = false): TestLock {
 	};
 }
 
-export function createFixture(productCapabilities: Readonly<Record<string, unknown>> = { audioEffects: true, videoEffects: false }) {
+export function createFixture(
+	productCapabilities: Readonly<Record<string, unknown>> = { audioEffects: true, videoEffects: false },
+	options: Readonly<{ createOnly?: boolean }> = {},
+) {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
 	const scapeInspectionQuiescence = createScapeInspectionQuiescence();
@@ -223,6 +226,12 @@ export function createFixture(productCapabilities: Readonly<Record<string, unkno
 			if (isCurrentWritable()) events.push(`maintain-opened:${projectId}`);
 			throw new Error('planned report-only maintenance failure');
 		},
+		...(options.createOnly ? {
+			createProjectIfAbsent: async (value: TestProject) => {
+				events.push(`create-project:${value.id}`);
+				return value;
+			},
+		} : {}),
 		saveProject: async (value: TestProject) => { events.push(`save-project:${value.id}`); },
 		listProjects: async () => currentProject ? [currentProject] : [],
 		synchronizeMicrophoneMeterTarget: () => { events.push('sync-meter'); },

@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
-import { PLAYBACK_PROJECT_APPLY_TASK, createPlaybackProjectService } from './playback-project-service.ts';
+import {
+	PLAYBACK_PROJECT_APPLY_TASK,
+	createPlaybackProjectService,
+	type PlaybackProjectService,
+} from './playback-project-service.ts';
 import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from './project-bin-linked-video-relink-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './scape-inspection-service.ts';
@@ -112,6 +116,7 @@ export interface ProjectSwitchServiceRuntime<
 > {
 	readonly state: ProjectSwitchState<Project, History>;
 	readonly productCapabilities: Readonly<Record<string, unknown>>;
+	readonly playbackProjectService?: PlaybackProjectService;
 	readonly lifetime: ProjectSwitchLifetime;
 	readonly scapeInspectionQuiescence: Pick<ScapeInspectionQuiescence, 'beginFence'>;
 	readonly projectGeneration: Readonly<{
@@ -135,6 +140,8 @@ export interface ProjectSwitchServiceRuntime<
 	readonly migrateProject: (value: unknown) => Readonly<{
 		project: Project;
 		readOnly: boolean;
+		intrinsicReadOnly?: boolean;
+		reason?: string | null;
 	}>;
 	readonly verifyProjectFallbackIntegrity: (
 		project: Project,
@@ -192,6 +199,7 @@ export interface ProjectSwitchServiceRuntime<
 		projectId: string,
 		isCurrentWritable: () => boolean,
 	) => PromiseLike<unknown> | unknown;
+	readonly createProjectIfAbsent?: (project: Project) => PromiseLike<Project | null> | Project | null;
 	readonly saveProject: (project: Project) => Promise<unknown>;
 	readonly listProjects: () => Promise<readonly unknown[]>;
 	readonly synchronizeMicrophoneMeterTarget: () => void;
@@ -210,7 +218,8 @@ export function createProjectSwitchService<
 	Project extends ProjectLifecycleProject,
 	History extends ProjectLifecycleHistory<Project>,
 >(runtime: ProjectSwitchServiceRuntime<Project, History>) {
-	const playbackProjects = createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
+	const playbackProjects = runtime.playbackProjectService
+		?? createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
 	return Object.freeze({
 		newProject,
 		openProject,
@@ -239,8 +248,13 @@ export function createProjectSwitchService<
 
 	async function openProject(value: unknown): Promise<void> {
 		const loaded = runtime.migrateProject(value);
-		const readOnlyReason = loaded.readOnly ? runtime.copy.futureProjectReadOnly : null;
-		await switchProject(loaded.project, { readOnly: loaded.readOnly, readOnlyReason });
+		const readOnly = Boolean(loaded.readOnly || loaded.intrinsicReadOnly);
+		const readOnlyReason = !readOnly
+			? null
+			: loaded.reason === 'proxy-attached'
+				? runtime.copy.projectReadOnly
+				: runtime.copy.futureProjectReadOnly;
+		await switchProject(loaded.project, { readOnly, readOnlyReason });
 	}
 
 	function beginScapeInspectionFence(): ScapeInspectionFence {
@@ -482,7 +496,10 @@ export function createProjectSwitchService<
 				await guard(openRecovery.deferInitialSave(async () => {
 					const currentProject = runtime.getProject();
 					if (!currentProject || currentProject.id !== projectId) throw new Error('Deferred project save belongs to a stale project.');
-					await guard(runtime.saveProject(currentProject));
+					if (runtime.createProjectIfAbsent) {
+						const created = await guard(runtime.createProjectIfAbsent(currentProject));
+						if (created === null) throw new Error('The project already exists at create-only publication.');
+					} else await guard(runtime.saveProject(currentProject));
 					runtime.session.markProjectSaved(projectId);
 				}));
 			}

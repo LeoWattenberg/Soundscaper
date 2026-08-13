@@ -4,7 +4,6 @@ import { decodeLegacyAupProject } from './aup-legacy.js';
 import { convertLegacyAupToProject } from './aup-legacy-conversion.js';
 import { createAup4Client, requestAup4FileHandle, saveAup4Result } from './aup4-client.js';
 import {
-	applyEditorCommand,
 	collectRelatedClipIds,
 	createAddClipCommand,
 	createAddSourceCommand,
@@ -39,16 +38,7 @@ import {
 import { createExportPlan } from './export.js';
 import { selectAudioEditorControllerEditBlock } from './edit-blocking.ts';
 import { createAudioEditorFileService } from './file-service.js';
-import {
-	canRedo,
-	canUndo,
-	createEditorHistory,
-	executeEditorCommand,
-	redoEditorCommand,
-	undoEditorCommand,
-} from './history.js';
 import { applyMediaChannelMapping } from './media-export.js';
-import { migrateAudioEditorProject } from './migration.js';
 import {
 	AUDIO_EDITOR_DEFAULT_SHORTCUTS,
 	applyAudioEditorWorkspace,
@@ -64,7 +54,6 @@ import {
 import {
 	AUDIO_EDITOR_SAMPLE_RATE,
 	EDITOR_TIMELINE_MINIMUM_SECONDS,
-	cloneProject,
 	createStableId,
 	editorTimelineDurationFrames,
 	findClip,
@@ -76,8 +65,6 @@ import {
 } from './project.js';
 import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCountV2 } from './project-v2.js';
 import { verifyProjectFallbackIntegrity } from './project-fallback-integrity.ts';
-import { createCurrentAudioEditorProject } from './project-current.ts';
-import { projectForCommandConsumers } from './project-current-runtime.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import {
 	compactEditorHistorySourceMetadata,
@@ -193,6 +180,7 @@ import { createProjectSessionService } from './controller/project-session-servic
 import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts';
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
+import { resolveControllerProjectRuntime } from './controller/project-runtime.ts';
 import { SourceChunkProviderRegistry } from './controller/source-chunk-provider-registry.ts';
 import {
 	createPlaybackProjectApplyService,
@@ -354,6 +342,7 @@ const AUDIO_DEVICE_PREFERENCES_SETTING_KEY = 'audio-device-preferences-v1';
 export function createAudioEditorController(_root = null, options = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
+	const projectRuntime = resolveControllerProjectRuntime(options.projectRuntime);
 	const copy = Object.freeze({ ...ENGLISH_COPY, ...(options.copy || {}) });
 	const locale = normalizeBcp47Locale(options.locale);
 	const product = productProfile(options.productId || options.product?.id || 'soundscaper');
@@ -451,7 +440,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			formatBytes,
 		},
 	});
-	const playbackProjectService = createPlaybackProjectService(product.capabilities);
+	const playbackProjectService = options.playbackProjectService || createPlaybackProjectService(product.capabilities);
 	let videoNavigationService = null;
 	const documentSnapshotRuntime = {
 		state, product, productId, capabilities, locale, projectForPlayback: (candidate) => playbackProjectService.projectForPlayback(candidate).project,
@@ -461,8 +450,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingPreviewSnapshot,
 		getAudioDevicesSnapshot: audioDevicesSnapshot, getSoundActivationSnapshot: soundActivationPolicyService.getSnapshot,
 		sampleEditingAvailable,
-		canUndo,
-		canRedo,
+		canUndo: projectRuntime.canUndo,
+		canRedo: projectRuntime.canRedo,
 		historyEntrySummary,
 		getStorageStatus: () => store.getStatus?.() || {
 			state: 'indexeddb',
@@ -537,7 +526,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	let removeDeviceChangeListener = () => {};
 	let project = null;
-	const getCommandProject = () => projectForCommandConsumers(project);
+	const getCommandProject = () => projectRuntime.projectForCommandConsumers(project);
 	const projectVisualService = createProjectVisualService({
 		getProject: () => project, captureProject: (projectId) => projectGeneration.capture(projectId), assertProject: (token) => projectGeneration.assertCurrent(token),
 		missingSourceIds: state.missingSourceIds,
@@ -630,7 +619,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history),
 		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
-		cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
+		cloneProject: projectRuntime.cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
 			await persistSetting(lastProjectSettingKey, projectId);
@@ -690,8 +679,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setProject: (nextProject) => { project = nextProject; },
 		getHistory: () => state.history,
 		setHistory: (history) => { state.history = history; },
-		executeEditorCommand,
-		applyEditorCommand,
+		executeEditorCommand: projectRuntime.executeCommand,
+		applyEditorCommand: projectRuntime.applyCommand,
 		retention: projectRetentionService,
 		publisher: projectViewService,
 		saves: projectSaveService,
@@ -793,12 +782,13 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 		getProject: () => project,
 		setProject: (nextProject) => { project = nextProject; },
-		createProject: createCurrentAudioEditorProject,
+		createProject: projectRuntime.createProject,
 		normalizeProjectSampleRate,
 		createInitialAudioTrackCommand: createAddTrackCommand,
-		createHistory: createEditorHistory,
-		executeCommand: executeEditorCommand,
-		migrateProject: migrateAudioEditorProject,
+		createHistory: projectRuntime.createHistory,
+		executeCommand: projectRuntime.executeCommand,
+		migrateProject: projectRuntime.migrateProject,
+		playbackProjectService,
 		verifyProjectFallbackIntegrity: (activeProject, verifyOptions) => verifyProjectFallbackIntegrity(activeProject, store, verifyOptions),
 		assignPreferredInputToTrack: (trackId) => assignPreferredInputToTrack(trackId),
 		cancelTimedRecording,
@@ -831,6 +821,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		loadEngineProject: (activeProject, transientBuffers, preparedSources) => engine.loadProject(activeProject, preparedSources?.sourceBuffers
 				?? (transientBuffers?.size ? new Map([...sourceBuffers, ...transientBuffers]) : sourceBuffers), { chunkSources: preparedSources?.chunkSources ?? sourceChunkProviders }), openRecovery: takeCycleOpenRecovery,
 		recordOpenedProject: (projectId, guard) => projectSessionService.recordOpenedProject(projectId, guard), maintainOpenedProject: (projectId, isCurrentWritable) => store.maintainOpenedProject?.(projectId, () => isCurrentWritable() ? projectRetentionService.liveSessionLinkedOriginalSourceReferences() : null),
+		createProjectIfAbsent: options.createProjectIfAbsent,
 		saveProject: (activeProject) => store.saveProject(activeProject, { protectedLinkedOriginalSourceReferences: projectRetentionService.liveSessionLinkedOriginalSourceReferences() }),
 		listProjects: () => store.listProjects(),
 		synchronizeMicrophoneMeterTarget,
@@ -886,7 +877,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createAup4Client,
 		initialAup4Client: options.aup4Client || null,
 		aup4Options: options.aup4 || {},
-		migrateProject: migrateAudioEditorProject,
+		migrateProject: projectRuntime.migrateProject,
 		importScapeProject,
 		exportScapeProject,
 		copyFutureScapeArchive,
@@ -1160,7 +1151,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		handleExportAction,
 		renderSnapshot,
 	} = createEditorExportService({
-		abortError, applyMediaChannelMapping, audioBufferChannels, cloneProject,
+		abortError, applyMediaChannelMapping, audioBufferChannels, cloneProject: projectRuntime.cloneProject,
 		copy, createAiffStreamEncoder, createCacheAwareRenderEngine, createExportPlan,
 		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createVideoExportPlan, createWavStreamEncoder, encodeAiff, encodeWav,
@@ -1212,7 +1203,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const selectionViewService = createSelectionViewService({
 		DEFAULT_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND, MAX_TIMELINE_PIXELS,
-		activeSelection, audioBufferChannels, cloneProject, collectRelatedClipIds,
+		activeSelection, audioBufferChannels, cloneProject: projectRuntime.cloneProject, collectRelatedClipIds,
 		commit, copy, editorTimelineDurationFrames, engine, findClip, findClipTrack,
 		findNearestAudioZeroCrossing, findTrack, getProject: () => project, handleError,
 		normalizeTimelineFrame, persistSetting, productSettingKey, projectDurationFrames,
@@ -1275,7 +1266,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		estimateAudacityEffectPeakBytes,
 		audacityEffectMemoryError: () => audacityEffectMemoryError(copy),
 		preflightStorage,
-		cloneProject,
+		cloneProject: projectRuntime.cloneProject,
 		audacitySelectionChannelCount,
 		renderSnapshot,
 		prepareCommittedTimePitchCaches,
@@ -1361,7 +1352,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus,
 		publishDocumentSnapshot,
 		preflightStorage,
-		cloneProject,
+		cloneProject: projectRuntime.cloneProject,
 		renderSnapshot,
 		audioBufferChannels,
 		matchAudacitySelectionChannels,
@@ -1462,8 +1453,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
 		prepareLinkedSplitCommand, prepareRangeDeleteCommand, getProject: getCommandProject, projectChanged,
-		publishDocumentSnapshot, redoEditorCommand, resolveEditingSelection, setSessionClipboard: clipboardEditService.setSessionClipboard,
-		state, undoEditorCommand,
+		publishDocumentSnapshot, redoEditorCommand: projectRuntime.redo, resolveEditingSelection, setSessionClipboard: clipboardEditService.setSessionClipboard,
+		state, undoEditorCommand: projectRuntime.undo,
 	});
 	const {
 		importFile,
@@ -2796,7 +2787,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function renderAnalysisAudio(scope, range, signal = null) {
 		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
-		let snapshot = cloneProject(project);
+		let snapshot = projectRuntime.cloneProject(project);
 		if (scope === 'track') {
 			const selectedTrack = findTrack(snapshot, state.selectedTrackId);
 			if (!selectedTrack || selectedTrack.type !== 'audio') throw new Error(copy.audioTrackRequired);
