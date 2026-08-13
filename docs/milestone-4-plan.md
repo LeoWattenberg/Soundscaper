@@ -379,7 +379,10 @@ per the standing duties (roadmap.md:844-846).
 | 4A | Parallel track | Soundscaper production: automation lanes and modes, mixer graph, per-path PDC, freeze, restoration/metering, reviewed effect packages |
 | 4B | Parallel track | Framescaper finishing: transforms/keyframes, transitions, new kinds and inspector, color/motion, styled captions, Framescaper audio finishing |
 
-4A and 4B must not begin until every 4.0 acceptance check passes.
+**Implementation status (2026-08-13):** shared phase 4.0 is implemented and
+its hosted correctness acceptance is green. Reference-GPU qualification remains
+`pending-external`. Milestone 3 is still recorded **In progress**, so neither 4A
+nor 4B has started and their slice documents have deliberately not been written.
 
 ## Work packets
 
@@ -389,6 +392,7 @@ before code (docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.0 — Interpolation vocabulary (schema-neutral)
 
+- **Status:** implemented.
 - **Outcome:** the shared segment evaluator (hold, linear, eased,
   Bézier) beside the shared time module, with closed-form evaluation,
   documented monotonicity/inversion rules, clip-relative anchoring and
@@ -407,6 +411,9 @@ before code (docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.1 — Parameter address space (schema-neutral)
 
+- **Status:** implemented. The first-party worklet packet contract is a
+  producer-only foundation until the named 4A consumer revision lands; no
+  current worklet is falsely registered as a consumer.
 - **Outcome:** parameter descriptors with the id-stability contract
   over strips and effect instances; the scheduled-parameter registry
   generalizing `ProjectGainParams` to pan, mute, send level, and effect
