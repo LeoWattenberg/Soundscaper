@@ -86,12 +86,12 @@ test('owns the lease, publishes through one exact session, and closes the databa
 	assert.equal(main.snapshot().closed, true);
 	const database = openDatabase(appDataPath);
 	try {
-		assert.deepEqual(database.prepare(
+		assert.deepEqual({ ...database.prepare(
 			'SELECT active, owner_product AS owner FROM library_lease WHERE singleton = 1',
-		).get(), { active: 0, owner: 'framescaper' });
+		).get() }, { active: 0, owner: 'framescaper' });
 		assert.deepEqual(database.prepare(
 			'SELECT project_revision AS revision FROM project_revisions',
-		).all(), [{ revision: 1 }]);
+		).all().map((row) => ({ ...row })), [{ revision: 1 }]);
 	} finally { database.close(); }
 });
 
@@ -106,10 +106,10 @@ test('startup takes a released fence and rolls a prepared body journal forward',
 	try {
 		assert.deepEqual(database.prepare(
 			'SELECT state FROM publication_journal',
-		).all(), [{ state: 'complete' }]);
-		assert.deepEqual(database.prepare(
+		).all().map((row) => ({ ...row })), [{ state: 'complete' }]);
+		assert.deepEqual({ ...database.prepare(
 			'SELECT fencing_token AS fence FROM library_lease',
-		).get(), { fence: 2 });
+		).get() }, { fence: 2 });
 	} finally { database.close(); }
 });
 
@@ -118,15 +118,20 @@ test('close aborts and drains a body-starved publication before releasing its le
 	const main = await startMain(appDataPath);
 	const session = main.openSession(createFramescaperDesktopProjectLibraryV10Handshake());
 	const admission = await session.beginPublication(v10MainPublication().request);
+	await assert.rejects(
+		session.finishPublication({ publicationId: admission.publicationId }),
+		/incomplete/iu,
+	);
+	assert.equal(main.snapshot().activePublication, true);
 	await main.close();
 	await assert.rejects(session.finishPublication({ publicationId: admission.publicationId }), /closed|abort/iu);
 	const paths = createFramescaperDesktopProjectLibraryV10Paths(appDataPath);
 	assert.deepEqual(await readdir(join(paths.libraryRoot, 'stage')), []);
 	const database = openDatabase(appDataPath);
 	try {
-		assert.deepEqual(database.prepare(
+		assert.deepEqual({ ...database.prepare(
 			'SELECT active FROM library_lease WHERE singleton = 1',
-		).get(), { active: 0 });
+		).get() }, { active: 0 });
 		assert.deepEqual(database.prepare('SELECT state FROM publication_journal').all(), []);
 	} finally { database.close(); }
 });
@@ -180,7 +185,7 @@ async function seedPreparedPublication(appDataPath: string): Promise<void> {
 		appDataPath,
 		now: () => 100,
 		randomId: ids('a', 'b'),
-		checkpoint: (phase) => { if (phase === 'prepared') throw new Error('prepared crash'); },
+		checkpoint: (phase: string) => { if (phase === 'prepared') throw new Error('prepared crash'); },
 	});
 	host.acceptHandshake(createFramescaperDesktopProjectLibraryV10Handshake());
 	const fixture = v10MainPublication();

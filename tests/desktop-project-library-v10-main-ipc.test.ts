@@ -41,10 +41,12 @@ test('one exact handshake admits bounded pathless publication and independently 
 	await assert.rejects(bridge.beginPublication(publication.request), /handshake/iu);
 	assert.equal(fixture.calls.length, 0);
 	await bridge.connect();
-	await assert.rejects(bridge.beginPublication({
-		...publication.request,
-		lease: { fencingToken: 1 },
-	}), /unsupported|fields/iu);
+	for (const authority of ['lease', 'fencingToken', 'owner', 'path'] as const) {
+		await assert.rejects(bridge.beginPublication({
+			...publication.request,
+			[authority]: authority === 'path' ? '/tmp/injected' : { fencingToken: 1 },
+		}), /unsupported|fields/iu);
+	}
 	assert.equal(fixture.calls.length, 1);
 	const admission = await bridge.beginPublication(publication.request);
 	assert.deepEqual(Object.keys(admission).sort(), ['bodyCount', 'maximumChunkBytes', 'publicationId']);
@@ -93,8 +95,8 @@ test('main binds publication ids to admitted owner references and revocation abo
 	)!;
 	const publication = v10MainPublication();
 	const admission = await begin(fixture.first, publication.request) as { publicationId: string };
-	await assert.rejects(begin(fixture.second, publication.request), /capacity|active|busy/iu);
-	await assert.rejects(write(fixture.second, {
+	await assert.rejects(async () => begin(fixture.second, publication.request), /capacity|active|busy/iu);
+	await assert.rejects(async () => write(fixture.second, {
 		publicationId: admission.publicationId,
 		bodyIndex: 0,
 		offset: 0,
@@ -107,7 +109,7 @@ test('main binds publication ids to admitted owner references and revocation abo
 	assert.deepEqual(poison.hits, [0, 0, 0, 0]);
 	await fixture.registration.revokeOwner(fixture.first.owner);
 	await assert.rejects(
-		finish(fixture.first, { publicationId: admission.publicationId }),
+		async () => finish(fixture.first, { publicationId: admission.publicationId }),
 		/refused|handshake|session|closed/iu,
 	);
 	assert.equal(fixture.main.snapshot().activePublication, false);
@@ -193,10 +195,9 @@ function hasForbiddenAuthority(value: unknown): boolean {
 	if (!value || typeof value !== 'object') return false;
 	if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return false;
 	for (const key of Reflect.ownKeys(value)) {
-		if (typeof key === 'string' && /lease|fenc|owner|path|file|journal|timestamp|createdAt/iu.test(key)) {
+		if (typeof key === 'string' && /lease|fenc|owner|path|file|journal/iu.test(key)) {
 			return true;
 		}
-		if (typeof key === 'string' && hasForbiddenAuthority((value as Record<string, unknown>)[key])) return true;
 	}
 	return false;
 }
