@@ -197,13 +197,30 @@ export function cubicValueDirection(
 ): -1 | 0 | 1 | null {
 	if (start === end) return start === control1 && control1 === control2 ? 0 : null;
 	const direction = start < end ? 1 : -1;
-	const scale = Math.max(Math.abs(start), Math.abs(control1), Math.abs(control2), Math.abs(end), 1);
-	const first = direction * (control1 / scale - start / scale);
-	const middle = direction * (control2 / scale - control1 / scale);
-	const last = direction * (end / scale - control2 / scale);
-	if (first < 0 || last < 0) return null;
-	if (middle >= 0 || middle * middle <= first * last) return direction;
+	const values = [start, control1, control2, end].map(numberFraction);
+	const directedDifference = (left: number, right: number): ExactInterpolationFraction => (
+		direction === 1
+			? subtractFractions(nonNullableFraction(values[right]), nonNullableFraction(values[left]))
+			: subtractFractions(nonNullableFraction(values[left]), nonNullableFraction(values[right]))
+	);
+	const first = directedDifference(0, 1);
+	const middle = directedDifference(1, 2);
+	const last = directedDifference(2, 3);
+	if (compareFractions(first, ZERO_FRACTION) < 0
+		|| compareFractions(last, ZERO_FRACTION) < 0) return null;
+	if (compareFractions(middle, ZERO_FRACTION) >= 0
+		|| compareFractions(
+			multiplyFractions(middle, middle),
+			multiplyFractions(first, last),
+		) <= 0) return direction;
 	return null;
+}
+
+function nonNullableFraction(
+	value: ExactInterpolationFraction | undefined,
+): ExactInterpolationFraction {
+	if (value === undefined) throw new RangeError('Expected a cubic interpolation value.');
+	return value;
 }
 
 function normalizeFraction(numerator: bigint, denominator: bigint): ExactInterpolationFraction {

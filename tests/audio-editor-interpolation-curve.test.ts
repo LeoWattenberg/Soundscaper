@@ -176,6 +176,27 @@ test('Bézier inversion supports monotone values and rejects nonmonotone value h
 	});
 	assert.equal(Number.isFinite(evaluateInterpolationCurve(nonmonotone, 5)), true);
 	assert.throws(() => invertInterpolationCurve(nonmonotone, 5), /monotone|invert|control/iu);
+
+	const underflowNonmonotone = compileInterpolationCurve({
+		anchors: [
+			{ position: rational(0), value: 0 },
+			{ position: rational(1), value: 0.5e-200 },
+		],
+		segments: [{
+			kind: 'bezier',
+			control1: { position: rational(1, 3), value: 1e-200 },
+			control2: { position: rational(2, 3), value: 0 },
+		}],
+	});
+	assert.throws(
+		() => invertInterpolationCurve(underflowNonmonotone, 0.25e-200),
+		/monotone|invert|control/iu,
+		'derivative products must not underflow into a false monotone classification',
+	);
+	assert.equal(
+		Number.isFinite(evaluateInterpolationCurve(underflowNonmonotone, rational(1, 2))),
+		true,
+	);
 });
 
 test('compile rejects malformed curves, nonfinite values, unordered anchors, and invalid absolute handles', () => {
