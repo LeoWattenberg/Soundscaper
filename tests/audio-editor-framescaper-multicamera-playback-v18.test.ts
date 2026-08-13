@@ -126,17 +126,26 @@ test('multicamera playback admits VFR coordinates only with verified exact bound
 	}
 });
 
-test('project activation admits V18 metadata before exact multicamera timing is registered', () => {
+test('project activation loads verified multicamera timing before synchronous projection', async () => {
 	const fixture = vfrProject();
-	const service = createFramescaperPlaybackProjectServiceV18(PROFILE);
+	const loadedKeys: string[] = [];
+	const service = createFramescaperPlaybackProjectServiceV18(PROFILE, {
+		timingStore: {
+			loadMediaAsset: async (storageKey: string) => {
+				loadedKeys.push(storageKey);
+				return new Blob([fixture.publication.bytes]);
+			},
+		},
+	});
 	assert.equal(typeof service.projectForActivationAdmission, 'function');
+	assert.equal(typeof service.prepareProjectForActivation, 'function');
 	const admission = service.projectForActivationAdmission!(fixture.project);
 	assert.strictEqual(admission.project, fixture.project);
-	assert.deepEqual(admission.requiredVideoSourceIds, []);
+	assert.deepEqual(admission.requiredVideoSourceIds, ['source-a', 'source-b']);
 	assert.throws(() => service.projectForPlayback(fixture.project), /no verified timing view/iu);
-	const index = validateVideoTimingAssetBytes(fixture.publication.reference, fixture.publication.bytes);
-	registerVideoTimingIndex(fixture.sourceB, index);
 	try {
+		await service.prepareProjectForActivation!(fixture.project);
+		assert.deepEqual(loadedKeys, [fixture.publication.reference.storageKey]);
 		assert.equal(service.projectForPlayback(fixture.project).project.schemaVersion, 17);
 	} finally {
 		unregisterVideoTimingIndex(fixture.sourceB);
