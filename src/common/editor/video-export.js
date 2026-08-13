@@ -4,6 +4,7 @@ import {
 	videoClipEndFrame,
 } from './video-timeline.js';
 import { normalizeVideoEffects } from './video-effects.js';
+import { assertStaticVideoKeyframesForExport } from './video-keyframe-export-admission.ts';
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
@@ -135,6 +136,9 @@ export function createVideoExportPlan(project, options = {}) {
 		topTrackFirst: options.topTrackFirst,
 		renderCanvas: canvas,
 	});
+	assertStaticVideoKeyframesForExport(compositionIntervals.flatMap((interval) => (
+		interval.layers.flatMap((layer) => layer.clips.map((clip) => clip.clip))
+	)));
 	const inputs = [];
 	const inputIndexBySourceId = new Map();
 	for (const interval of compositionIntervals) {
