@@ -7,6 +7,7 @@ import test from 'node:test';
 import { createDesktopSmokeProbe, parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 import {
 	DESKTOP_VIDEO_TIMING_PROBE_MODE,
+	createDesktopVideoTimingProbeStorageProfile,
 	createDesktopVideoTimingProbePlan,
 	decodeDesktopVideoTimingProbePlan,
 	encodeDesktopVideoTimingProbePlan,
@@ -16,6 +17,23 @@ import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-med
 
 const PRODUCT_ID = 'soundscaper';
 const TOKEN = '0123456789abcdef0123456789abcdef';
+
+test('packaged timing-probe storage profiles preserve product-local isolation', () => {
+	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('soundscaper'), {
+		productId: 'soundscaper',
+		databaseName: 'kw-media-audio-editor',
+		opfsDirectoryName: 'audio-editor-sources',
+	});
+	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('framescaper'), {
+		productId: 'framescaper',
+		databaseName: 'kw-media-framescaper-editor-v18',
+		opfsDirectoryName: 'framescaper-editor-v18-sources',
+	});
+	assert.throws(
+		() => createDesktopVideoTimingProbeStorageProfile('Framescaper'),
+		/product.*invalid/iu,
+	);
+});
 
 test('packaged timing-probe plan is canonical, closed, and pins the browser fixtures', () => {
 	const plan = timingPlan();
@@ -98,15 +116,47 @@ test('desktop smoke routing admits the ordinary media chooser once and emits onl
 	await probe.rendererReady();
 	assert.equal(executions.length, 1);
 	assert.equal(executions[0].userGesture, true);
+	assert.ok(executions[0].source.endsWith(
+		`, ${JSON.stringify(createDesktopVideoTimingProbeStorageProfile(PRODUCT_ID))})`,
+	));
 	assert.match(logs[0], /^SOUNDSCAPER_DESKTOP_VIDEO_TIMING_PROBE /u);
 	assert.deepEqual(exits, [0]);
 });
 
-function timingPlan() {
+test('Framescaper packaged timing probe executes against the exact V18 storage profile', async () => {
+	const plan = timingPlan('framescaper');
+	const executions = [];
+	const probe = createDesktopSmokeProbe({
+		argv: smokeArgv(plan),
+		appName: 'Framescaper',
+		appOrigin: 'framescaper-app://bundle',
+		productId: 'framescaper',
+		exit: async () => undefined,
+		log: () => undefined,
+		setTimeout: () => 1,
+		clearTimeout: () => undefined,
+	});
+	probe.attach({
+		webContents: {
+			once: () => undefined,
+			async executeJavaScript(source) {
+				executions.push(source);
+				return structuredClone(timingResult(plan));
+			},
+		},
+	});
+	await probe.rendererReady();
+	assert.equal(executions.length, 1);
+	assert.ok(executions[0].endsWith(
+		`, ${JSON.stringify(createDesktopVideoTimingProbeStorageProfile('framescaper'))})`,
+	));
+});
+
+function timingPlan(productId = PRODUCT_ID) {
 	return createDesktopVideoTimingProbePlan({
 		schemaVersion: 1,
 		mode: DESKTOP_VIDEO_TIMING_PROBE_MODE,
-		productId: PRODUCT_ID,
+		productId,
 		token: TOKEN,
 		fixtures: videoTimingProbeMedia.map((fixture) => ({
 			id: fixture.id,
@@ -121,6 +171,15 @@ function timingPlan() {
 			timingSha256: fixture.timingSha256,
 		})),
 	});
+}
+
+function smokeArgv(plan) {
+	return [
+		'/opt/Soundscaper',
+		'--soundscaper-smoke',
+		`--soundscaper-smoke-mode=${DESKTOP_VIDEO_TIMING_PROBE_MODE}`,
+		`--soundscaper-smoke-plan=${encodeDesktopVideoTimingProbePlan(plan)}`,
+	];
 }
 
 function timingResult(plan) {
