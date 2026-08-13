@@ -247,7 +247,7 @@ function attachment(): Record<string, unknown> {
 		frameCount: 10, boundaryCount: 11,
 		timingAsset: {
 			encoding: 'soundscaper-video-timing-v1', storageKey: `video-timing-sha256:${TIMING_SHA}`,
-			sha256: TIMING_SHA, sourceSha256: PROXY_SHA, byteLength: 64, frameCount: 10,
+			sha256: TIMING_SHA, sourceSha256: PROXY_SHA, byteLength: 112, frameCount: 10,
 			timescale: 10, finalFrameDurationTicks: '1',
 		},
 		audioPolicy: 'ignore-proxy-container-audio-v1',
@@ -290,7 +290,7 @@ function bodyRow(bodyKind: 'proxy' | 'timing'): Record<string, unknown> {
 		storage: 'opfs', path: `${bodyKind}/${digest}.bin`,
 		mediaContentDigestVersion: 1,
 		mediaContentToken: `media-content-${bodyKind}-0000000000000001`,
-		sha256: digest, size: bodyKind === 'proxy' ? 4_096 : 64,
+		sha256: digest, size: bodyKind === 'proxy' ? 4_096 : 112,
 		mimeType: bodyKind === 'proxy' ? 'video/mp4' : 'application/vnd.soundscaper.video-timing',
 		committedAt: '2026-08-13T00:00:00.000Z',
 		pendingProjectUntil: '2026-08-14T00:00:00.000Z',
@@ -305,7 +305,10 @@ function seedBase(database: IDBDatabase, project: unknown): Promise<void> {
 }
 
 function replaceBase(database: IDBDatabase, project: unknown): Promise<void> {
-	return transact(database, 'projects', 'readwrite', ({ projects }) => { projects.put(project); });
+	return transact(database, ['projects', 'revisions'], 'readwrite', ({ projects, revisions }) => {
+		projects.put(project);
+		revisions.put({ key: revisionKey(PROJECT_ID, 0), projectId: PROJECT_ID, revision: 0, project });
+	});
 }
 
 function storedProject(database: IDBDatabase, projectId: string): Promise<unknown> {
