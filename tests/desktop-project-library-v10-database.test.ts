@@ -38,7 +38,10 @@ test('initializes a fresh V10 database with an exact independent identity', () =
 		const tables = database.prepare(
 			"SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name",
 		).all().map((row) => row.name);
-		assert.deepEqual(tables, ['library_lease', 'library_metadata', 'metadata_journal']);
+		assert.deepEqual(tables, [
+			'library_lease', 'library_metadata', 'managed_bodies', 'metadata_journal',
+			'project_revision_bodies', 'project_revisions', 'publication_journal',
+		]);
 	} finally {
 		database.close();
 	}
