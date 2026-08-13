@@ -303,9 +303,11 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 	}
 	assert.deepEqual(exportReferences, [
 		'desktop/project-library-v10-current-project.ts',
+		'src/framescaper/editor-project-environment-v18.ts',
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-v18-profile.ts',
 		'tests/audio-editor-framescaper-playback-project-v18.test.ts',
+		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		'tests/audio-editor-framescaper-project-repository-v18.test.ts',
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-runtime-v18-selection.test.ts',
@@ -318,6 +320,7 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'tests/audio-editor-framescaper-project-v18-retention.test.ts',
 		'tests/audio-editor-framescaper-scape-bodies-v18.test.ts',
 		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
+		'tests/audio-editor-framescaper-scape-file-v18.test.ts',
 		'tests/audio-editor-framescaper-scape-preservation-v18.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 		'tests/desktop-project-library-v10-transport.test.ts',
@@ -325,8 +328,10 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 	]);
 	assert.deepEqual(productPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
+		'src/framescaper/editor-project-environment-v18.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
 		'tests/audio-editor-framescaper-playback-project-v18.test.ts',
+		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		'tests/audio-editor-framescaper-project-repository-v18.test.ts',
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-runtime-v18-selection.test.ts',
@@ -339,6 +344,7 @@ test('keeps final-profile consumption within the closed isolated V18 domain set'
 		'tests/audio-editor-framescaper-project-v18-retention.test.ts',
 		'tests/audio-editor-framescaper-scape-bodies-v18.test.ts',
 		'tests/audio-editor-framescaper-scape-envelope-v18.test.ts',
+		'tests/audio-editor-framescaper-scape-file-v18.test.ts',
 		'tests/audio-editor-framescaper-scape-preservation-v18.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 		'tests/desktop-project-library-v10-transport.test.ts',

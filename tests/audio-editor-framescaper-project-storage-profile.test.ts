@@ -438,6 +438,7 @@ test('the exact Framescaper selector remains statically dormant and product-owne
 		PREREQUISITE_MODULE,
 		'src/framescaper/editor-project-runtime-v18-selection.ts',
 		PRODUCT_MODULE,
+		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		PREREQUISITE_TEST_MODULE,
 		TEST_MODULE,
 	]);

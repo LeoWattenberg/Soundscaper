@@ -34,7 +34,8 @@ test('product environment composes one exact V18 authority after startup cleanup
 	});
 	assert.equal(environment.playback.projectForPlayback(project).project.schemaVersion, 18);
 	assert.equal((await environment.archive.exportProject(project)).formatVersion, 1);
-	await environment.store.saveProject(project);
+	assert.deepEqual(await environment.createProjectIfAbsent(project), project);
+	await environment.store.saveProject({ ...project, title: 'Saved environment V18' });
 	assert.equal((await environment.store.loadProject(project.id))?.schemaVersion, 18);
 	assert.deepEqual(environment.collectStorageRoots({
 		currentProject: project,

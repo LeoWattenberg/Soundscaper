@@ -19,6 +19,9 @@ import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile
 export const FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION = 18 as const;
 
 export interface FramescaperProjectV18 extends Record<string, unknown> {
+	readonly id: string;
+	readonly title: string;
+	readonly revision: number;
 	readonly schemaVersion: 18;
 	readonly featureRequirements: ProjectFeatureRequirementsManifest;
 	readonly sources: readonly FramescaperProjectSourceV18[];
