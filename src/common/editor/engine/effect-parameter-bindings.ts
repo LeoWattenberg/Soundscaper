@@ -18,7 +18,9 @@ export interface EffectParameterBindingOptions {
 	readonly parameterRegistry?: ScheduledParameterRegistry;
 	readonly scope?: string;
 	readonly targetId?: unknown;
-	readonly latencyFrames?: unknown;
+	// Named exactly as the rack derives it, so a target cannot silently register
+	// at zero latency when the producing option is renamed on one side only.
+	readonly parameterLatencyFrames?: unknown;
 }
 
 export function registerEffectAudioParam(
@@ -39,7 +41,7 @@ export function registerEffectAudioParam(
 	));
 	if (!descriptor) return;
 	options.parameterRegistry?.registerAudioParam(descriptor, param, {
-		latencyFrames: latencyFrames(options.latencyFrames),
+		latencyFrames: latencyFrames(options.parameterLatencyFrames),
 	});
 }
 
@@ -64,7 +66,7 @@ export function registerEffectAudioParamGroup(
 	));
 	if (!descriptor) return;
 	options.parameterRegistry?.registerAudioParamGroup(descriptor, bindings, {
-		latencyFrames: latencyFrames(options.latencyFrames),
+		latencyFrames: latencyFrames(options.parameterLatencyFrames),
 	});
 }
 
@@ -87,7 +89,7 @@ export function registerEffectMessageParameterProducer(
 		options.parameterRegistry?.registerMessageTarget(
 			descriptor,
 			(message) => { port.postMessage(message); },
-			{ latencyFrames: latencyFrames(options.latencyFrames) },
+			{ latencyFrames: latencyFrames(options.parameterLatencyFrames) },
 		);
 	}
 }
