@@ -4,6 +4,7 @@ interface VideoPreviewFallbackClip {
 	readonly available?: unknown;
 	readonly clipId?: unknown;
 	readonly clip?: Readonly<{ videoEffects?: readonly unknown[] }>;
+	readonly videoEffects?: readonly unknown[];
 	readonly renderDescription?: unknown;
 }
 
@@ -47,7 +48,7 @@ export function createVideoPreviewFallbackLedgerLayers(
 				}
 				return Object.freeze({
 					clipId: clip.clipId,
-					effects: effectsFor(clip.clipId, clip.clip?.videoEffects ?? []),
+					effects: effectsFor(clip.clipId, clip.videoEffects ?? clip.clip?.videoEffects ?? []),
 					...(clip.renderDescription == null
 						? {}
 						: { renderDescription: clip.renderDescription }),

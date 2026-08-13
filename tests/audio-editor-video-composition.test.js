@@ -7,6 +7,11 @@ import {
 	validateVideoTrackComposition,
 } from '../src/common/editor/video-timeline.js';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
+import { createVideoKeyframeRenderStateProvider } from '../src/common/editor/video-keyframe-render-state-provider.ts';
+import {
+	isVideoKeyframePreviewStateError,
+	resolveVideoKeyframePreviewState,
+} from '../src/common/editor/video-keyframe-preview-state.ts';
 
 const RENDER_CANVAS = Object.freeze({ width: 640, height: 360 });
 
@@ -138,6 +143,47 @@ test('authored composition controls effective opacity and stable painter orderin
 	]);
 	assert.equal(layers[1].clips[0].opacity, 0.25);
 	assert.equal(layers[1].clips[0].renderDescription.opacityStart, 0.25);
+});
+
+test('active preview layers opt keyed clips into exact playhead state while legacy shapes stay unchanged', () => {
+	const project = layeredProject();
+	const legacy = resolveActiveVideoLayers(project, 50, { renderCanvas: RENDER_CANVAS });
+	const provider = createVideoKeyframeRenderStateProvider();
+	const resolveClipRenderState = (request) => resolveVideoKeyframePreviewState(provider, request);
+	assert.deepEqual(resolveActiveVideoLayers(project, 50, {
+		renderCanvas: RENDER_CANVAS,
+		resolveClipRenderState,
+	}), legacy);
+	assert.ok(legacy.flatMap((layer) => layer.clips).every((entry) => (
+		Object.hasOwn(entry, 'videoEffects') === false
+	)));
+	const lower = project.clips.find((clip) => clip.id === 'lower');
+	lower.sequenceFrameCount = 20;
+	lower.videoComposition = DEFAULT_VIDEO_CLIP_COMPOSITION;
+	lower.videoEffects = [];
+	lower.videoKeyframes = opacityKeyframes(20);
+	const layers = resolveActiveVideoLayers(project, 50, {
+		renderCanvas: RENDER_CANVAS,
+		resolveClipRenderState,
+	});
+	const keyed = layers.find((layer) => layer.trackId === 'lower-track').clips[0];
+	const legacyEntry = layers.find((layer) => layer.trackId === 'top-track').clips[0];
+	assert.equal(keyed.renderDescription.opacityStart, 0.25);
+	assert.deepEqual(keyed.videoEffects, []);
+	assert.equal(Object.hasOwn(legacyEntry, 'videoEffects'), false);
+
+	lower.videoKeyframes = null;
+	assert.throws(() => resolveActiveVideoLayers(project, 50, {
+		renderCanvas: RENDER_CANVAS,
+		resolveClipRenderState,
+	}), (error) => isVideoKeyframePreviewStateError(error));
+	lower.videoKeyframes = opacityKeyframes(20);
+	delete project.sources.find((source) => source.id === 'lower-source').width;
+	delete project.sources.find((source) => source.id === 'lower-source').height;
+	assert.throws(() => resolveActiveVideoLayers(project, 50, {
+		renderCanvas: RENDER_CANVAS,
+		resolveClipRenderState,
+	}), (error) => isVideoKeyframePreviewStateError(error));
 });
 
 test('authored same-track transitions require one blend mode and compositing order', () => {
@@ -347,5 +393,26 @@ function composition(changes = {}) {
 			...DEFAULT_VIDEO_CLIP_COMPOSITION.transform,
 			...(changes.transform || {}),
 		},
+	};
+}
+
+function opacityKeyframes(duration) {
+	return {
+		schemaVersion: 1,
+		timeDomain: {
+			authoredDuration: { num: duration, den: 1 },
+			viewStart: { num: 0, den: 1 },
+			viewDuration: { num: duration, den: 1 },
+		},
+		curves: [{
+			target: { kind: 'composition', parameterId: 'opacity' },
+			curve: {
+				anchors: [
+					{ position: { num: 0, den: 1 }, value: 0 },
+					{ position: { num: duration, den: 1 }, value: 1 },
+				],
+				segments: [{ kind: 'linear' }],
+			},
+		}],
 	};
 }

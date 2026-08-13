@@ -29,6 +29,7 @@ export const VIDEO_COMPOSITION_COPY_BY_LOCALE = Object.freeze({
 		videoCompositionBlendDarken: 'Abdunkeln', videoCompositionBlendLighten: 'Aufhellen',
 		videoCompositionBlendDifference: 'Differenz', videoCompositionBlendExclusion: 'Ausschluss',
 		videoPreviewCompositionUnavailable: 'Videotransformationen und Compositing können gerade nicht dargestellt werden. Betroffene Clips werden in der Vorschau ausgeblendet; beim Export wird das erstellte Ergebnis weiterhin angewendet.',
+		videoPreviewKeyframesUnavailable: 'Der Keyframe-Zustand des Videos ist ungültig. Die Programmvorschau wurde ausgeblendet.',
 	}),
 	en: Object.freeze({
 		videoCompositionMenu: 'Transform and compositing', videoCompositionTitle: 'Transform and compositing',
@@ -57,5 +58,6 @@ export const VIDEO_COMPOSITION_COPY_BY_LOCALE = Object.freeze({
 		videoCompositionBlendDarken: 'Darken', videoCompositionBlendLighten: 'Lighten',
 		videoCompositionBlendDifference: 'Difference', videoCompositionBlendExclusion: 'Exclusion',
 		videoPreviewCompositionUnavailable: 'Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.',
+		videoPreviewKeyframesUnavailable: 'The video keyframe state is invalid. The program preview has been hidden.',
 	}),
 });

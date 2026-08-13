@@ -598,12 +598,17 @@ cannot remain canonical within the persisted safe-integer and denominator
 limits. No trim, split, stretch, rejoin, or nested projection subdivides an
 eased/Bezier segment, samples an endpoint, or persists a derived approximation.
 
-The present implementation is the exact V20 model/domain slice only. Both
-product profiles register `videoKeyframes` as known but unavailable, and the
-V20 model profile remains unselected; command, inspector, playback, storage,
-and renderer activation are not claimed here. Exact animated export remains
-blocked on the bounded shared-frame encoder stream, so capability availability
-must not flip until that workflow and its preview/export parity evidence land.
+The present implementation includes the exact V20 model/domain and a dormant
+preview-consumer slice. A project-snapshot-scoped provider compiles keyed clips
+lazily and resolves their composition and effect state from the actual program
+preview sample through the exact visible-local mapping above; legacy clips do
+not enter that path, and invalid keyed state blanks the program preview with a
+localized error instead of rendering static state. Both product profiles still
+register `videoKeyframes` as known but unavailable, and the V20 model profile
+remains unselected; inspector, selected storage/playback routing, and export
+activation are not claimed here. Exact animated export remains blocked on the
+bounded shared-frame encoder stream, so capability availability must not flip
+until that workflow and its preview/export parity evidence land.
 
 - **Outcome:** Add bounded keyframe curves to the numeric 4B-1 property IDs and
   registered video-effect parameters, with copy/paste, preset, and stale-safe

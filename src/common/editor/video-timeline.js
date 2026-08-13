@@ -142,9 +142,16 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 			const transitionOpacity = transition == null
 				? 1
 				: videoTransitionOpacity(transition, role, frame);
-			const renderDescription = options.renderCanvas == null
+			const keyframeState = options.renderCanvas == null || typeof options.resolveClipRenderState !== 'function'
 				? null
-				: resolveClipRenderDescription(clip, source, options.renderCanvas, transitionOpacity);
+				: options.resolveClipRenderState({
+					clip, timelineSample: frame,
+					sourceDisplaySize: resolveVideoSourceDisplaySize(source),
+					canvas: options.renderCanvas, transitionWeight: transitionOpacity,
+				});
+			const renderDescription = keyframeState?.renderDescription ?? (options.renderCanvas == null
+				? null
+				: resolveClipRenderDescription(clip, source, options.renderCanvas, transitionOpacity));
 			return Object.freeze({
 				kind: 'video',
 				role,
@@ -156,6 +163,7 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceTimeSeconds: mapping.sourceTimeSeconds,
 				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source),
 				opacity: renderDescription?.opacityStart ?? transitionOpacity,
+				...(keyframeState == null ? {} : { videoEffects: keyframeState.videoEffects }),
 				...(renderDescription == null ? {} : { renderDescription }),
 			});
 		});
