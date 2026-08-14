@@ -45,17 +45,15 @@ test('independent PDC landmarks cover chains, diamonds, nested buses, sends, sid
 			mapEntries(reference.outputLatencyFrames),
 			`${name}: terminal offsets`,
 		);
-		assert.ok(reference.landmarks.length > 0, `${name}: reference landmarks`);
-		// Compare the two implementations against each other. A landmark's arrival is
-		// derived from its own compensation, so checking it against itself can only
-		// ever report zero; the production compiler is the independent authority.
-		for (const landmark of reference.landmarks) {
-			assert.equal(
-				landmark.compensationFrames,
-				production.edgeCompensationFrames.get(landmark.edgeId),
-				`${name}: ${landmark.edgeId} compensation`,
-			);
-		}
+		// A landmark's arrival is derived from its own compensation, so checking one
+		// against the other can only ever report zero. What the map comparisons above
+		// cannot see is whether the oracle reported a landmark for every edge at all,
+		// so assert coverage of exactly the enabled edges instead.
+		assert.deepEqual(
+			[...reference.landmarks].map(({ edgeId }) => edgeId).sort(),
+			project.mixer.edges.filter(({ enabled }) => enabled).map(({ id }) => id).sort(),
+			`${name}: landmark coverage`,
+		);
 	}
 });
 

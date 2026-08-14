@@ -274,31 +274,33 @@ function reconcileGraphAfterInheritedCommand(
 		if (strip.kind === 'mixer-node') return nodeEffects.get(strip.id)?.has(effectId) ?? false;
 		return masterEffects.has(effectId);
 	};
+	// Every product-authored assignment, not just track and master-output ones: a bus
+	// feeding master keeps its own map, so narrowing the master left it mapping more
+	// channels than the destination has and the graph could no longer be played.
+	const resolvedWidth = (
+		endpoint: CanonicalAssignmentEndpointV21,
+		widths: ResolvedGraphWidthsV21,
+	): number => {
+		if (endpoint.kind === 'track') return widths.tracks.get(endpoint.id) ?? widths.master;
+		if (endpoint.kind === 'mixer-node') return widths.nodes.get(endpoint.id) ?? widths.master;
+		if (endpoint.kind === 'output') return widths.outputs.get(endpoint.id) ?? widths.master;
+		return widths.master;
+	};
+	const nextWidths: ResolvedGraphWidthsV21 = {
+		tracks: trackWidths, nodes: nodeWidths, outputs: outputWidths, master: masterChannels,
+	};
+	const priorWidths: ResolvedGraphWidthsV21 = {
+		tracks: previousTrackWidths, nodes: previousNodeWidths,
+		outputs: previousOutputWidths, master: previousMasterChannels,
+	};
 	const edges = previous.edges.filter(edgeIsLive).map((edge) => {
 		const clone = structuredClone(edge);
-		let sourceChannels: number;
-		let destinationChannels: number;
-		let previousSourceChannels: number;
-		let previousDestinationChannels: number;
-		if (clone.source.kind === 'track' && canonicalTrackAssignment(clone)) {
-			sourceChannels = trackWidths.get(clone.source.id) ?? masterChannels;
-			destinationChannels = clone.destination.kind === 'mixer-node'
-				? nodeWidths.get(clone.destination.id) ?? masterChannels
-				: masterChannels;
-			previousSourceChannels = previousTrackWidths.get(clone.source.id)
-				?? previousMasterChannels;
-			previousDestinationChannels = clone.destination.kind === 'mixer-node'
-				? previousNodeWidths.get(clone.destination.id) ?? previousMasterChannels
-				: previousMasterChannels;
-		} else if (canonicalMasterOutputAssignment(clone)) {
-			sourceChannels = masterChannels;
-			destinationChannels = outputWidths.get(clone.destination.id) ?? masterChannels;
-			previousSourceChannels = previousMasterChannels;
-			previousDestinationChannels = previousOutputWidths.get(clone.destination.id)
-				?? previousMasterChannels;
-		} else return clone;
-		if (sourceChannels === previousSourceChannels
-			&& destinationChannels === previousDestinationChannels) return clone;
+		// An empty map means the edge never declared one, so there is nothing to restate.
+		if (!canonicalAssignment(clone) || clone.channelMap.length === 0) return clone;
+		const sourceChannels = resolvedWidth(clone.source, nextWidths);
+		const destinationChannels = resolvedWidth(clone.destination, nextWidths);
+		if (sourceChannels === resolvedWidth(clone.source, priorWidths)
+			&& destinationChannels === resolvedWidth(clone.destination, priorWidths)) return clone;
 		return {
 			...clone,
 			channelMap: defaultMixerChannelMapV21(sourceChannels, destinationChannels),
@@ -322,22 +324,30 @@ function reconcileGraphAfterInheritedCommand(
 	}));
 }
 
-function canonicalTrackAssignment(edge: MixerEdgeV21): boolean {
-	if (edge.kind !== 'assignment' || edge.source.kind !== 'track'
-		|| edge.destination.kind === 'effect-sidechain' || edge.destination.kind === 'output') return false;
-	const destination = edge.destination.kind === 'master'
-		? 'master'
-		: `mixer-node:${edge.destination.id}`;
-	return edge.id === `assignment:track:${edge.source.id}:${destination}`;
+type CanonicalAssignmentEndpointV21 =
+	| MixerEdgeV21['source']
+	| Exclude<MixerEdgeV21['destination'], { readonly kind: 'effect-sidechain' }>;
+
+interface ResolvedGraphWidthsV21 {
+	readonly tracks: ReadonlyMap<string, number>;
+	readonly nodes: ReadonlyMap<string, number>;
+	readonly outputs: ReadonlyMap<string, number>;
+	readonly master: number;
 }
 
-function canonicalMasterOutputAssignment(edge: MixerEdgeV21): edge is MixerEdgeV21 & {
-	readonly source: { readonly kind: 'master' };
-	readonly destination: { readonly kind: 'output'; readonly id: string };
+/**
+ * An assignment the product authored, identified by the ID convention every generator
+ * shares. A hand-authored edge keeps whatever map its author gave it.
+ */
+function canonicalAssignment(edge: MixerEdgeV21): edge is MixerEdgeV21 & {
+	readonly destination: Exclude<MixerEdgeV21['destination'], { readonly kind: 'effect-sidechain' }>;
 } {
-	return edge.kind === 'assignment' && edge.source.kind === 'master'
-		&& edge.destination.kind === 'output'
-		&& edge.id === `assignment:master:output:${edge.destination.id}`;
+	if (edge.kind !== 'assignment' || edge.destination.kind === 'effect-sidechain') return false;
+	return edge.id === `assignment:${endpointSegment(edge.source)}:${endpointSegment(edge.destination)}`;
+}
+
+function endpointSegment(endpoint: CanonicalAssignmentEndpointV21): string {
+	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`;
 }
 
 function defaultTrackAssignment(
