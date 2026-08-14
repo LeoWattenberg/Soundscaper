@@ -11,6 +11,7 @@ import {
 	type MixerStripV21,
 	type MixerVcaV21,
 } from '../mixer-graph-v21.ts';
+import { validateFolderMixerGraphV21 } from '../folder-mixer-graph-v21.ts';
 import type { StripRef } from '../parameter-address.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 
@@ -167,6 +168,13 @@ function validateGraph(projectValue: unknown, graph: MixerGraphV21): string | nu
 			strictChannelMapLength: true,
 			mixerNodeEffects: mixerNodeEffectsV21(graph),
 		});
+		// The stored-document validator applies the folder rules too, so pre-flight them
+		// here as well. Otherwise a draft that renames a folder-owned group reports
+		// success, keeps Apply enabled, and only fails once the user commits it. A
+		// projection carrying no folder authority has no such rule to answer to.
+		if (Array.isArray(own(project, 'trackFolders')) && Array.isArray(own(project, 'sequences'))) {
+			validateFolderMixerGraphV21(projectValue as never, graph);
+		}
 		return null;
 	} catch (error) {
 		return errorMessage(error);

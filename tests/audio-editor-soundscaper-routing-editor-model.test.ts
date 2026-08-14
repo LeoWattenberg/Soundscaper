@@ -4,10 +4,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { MixerEdgeV21 } from '../src/common/editor/mixer-graph-v21.ts';
+import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
 	createSoundscaperRoutingEditorModel,
 	editSoundscaperRoutingGraph,
 } from '../src/common/editor/ui/soundscaper-routing-editor-model.ts';
+import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+
+const NOW = '2026-08-14T13:00:00.000Z';
 
 test('routing editor model exposes structured graph collections and canonical endpoints', () => {
 	const model = createSoundscaperRoutingEditorModel(PROJECT, graphText(PROJECT.mixer));
@@ -116,6 +120,36 @@ test('outputs remain explicit placeholders and become applicable only after they
 	});
 	assert.equal(routed.validationError, null);
 	assert.equal(createSoundscaperRoutingEditorModel(PROJECT, routed.text).canApply, true);
+});
+
+test('a draft that breaks the folder rules is refused before Apply, not after', () => {
+	// Folder authority owns a folder-derived group's name. The stored-document validator
+	// enforces that, so the editor has to as well: reporting a draft valid and then
+	// failing the commit leaves the user with no way to see what is wrong.
+	const foldered = createSoundscaperProjectV21({
+		id: 'foldered', title: 'Foldered', now: NOW,
+		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		trackFolders: [{ id: 'stems', name: 'Stems' }],
+		sequences: [{
+			id: 'main-sequence', trackIds: ['voice'], trackNodes: [
+				{ kind: 'folder', id: 'stems', parentFolderId: null },
+				{ kind: 'track', id: 'voice', parentFolderId: 'stems' },
+			],
+		}],
+		primarySequenceId: 'main-sequence',
+	} as never);
+	const group = foldered.mixer.groups.find(({ id }) => id === 'stems');
+	assert.ok(group, 'the folder owns a group bus');
+
+	const renamed = editSoundscaperRoutingGraph(foldered, graphText(foldered.mixer), {
+		type: 'node/set', collection: 'groups', previousId: 'stems',
+		node: { ...group, name: 'Renamed by hand' },
+	} as never);
+	assert.match(renamed.validationError ?? '', /mirror its track folder name/u);
+	assert.equal(createSoundscaperRoutingEditorModel(foldered, renamed.text).canApply, false);
+
+	// An untouched folder-derived graph still opens cleanly.
+	assert.equal(createSoundscaperRoutingEditorModel(foldered, graphText(foldered.mixer)).canApply, true);
 });
 
 const PROJECT = Object.freeze({
