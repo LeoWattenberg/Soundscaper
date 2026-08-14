@@ -141,8 +141,13 @@ function validateGraph(projectValue: unknown, graph: MixerGraphV21): string | nu
 	try {
 		const project = record(projectValue);
 		// A track's channel width comes from its clip content, so resolve it here and
-		// let the graph rules check authored channel maps against the real source.
-		const trackWidths = resolveTerminalChannelWidths(projectValue as never).tracks;
+		// let the graph rules check authored channel maps against the real source. The
+		// master width is the fallback the graph reconciler itself uses for a track with
+		// no clips, so resolving without it would reject the graph the product authored.
+		const trackWidths = resolveTerminalChannelWidths(
+			projectValue as never,
+			positiveInteger(own(record(projectValue), 'masterChannels'), 2),
+		).tracks;
 		const tracks = records(own(project, 'tracks'))
 			.filter((track) => own(track, 'type') === 'audio')
 			.flatMap((track) => {

@@ -125,6 +125,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-v9-validation-budget.js',
 		'src/common/editor/project-v9-validation-primitives.js',
 		'src/common/editor/retention.js',
+		'src/common/editor/routing-cycle-v21.js',
 		'src/common/editor/runtime-clip-projection.js',
 		'src/common/editor/runtime-timeline-annotation-projection.js',
 		'src/common/editor/scape-project-document.js',

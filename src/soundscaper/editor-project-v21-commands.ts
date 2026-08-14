@@ -274,9 +274,9 @@ function reconcileGraphAfterInheritedCommand(
 		if (strip.kind === 'mixer-node') return nodeEffects.get(strip.id)?.has(effectId) ?? false;
 		return masterEffects.has(effectId);
 	};
-	// Every product-authored assignment, not just track and master-output ones: a bus
-	// feeding master keeps its own map, so narrowing the master left it mapping more
-	// channels than the destination has and the graph could no longer be played.
+	// Every product-authored route, not just track and master-output assignments: a bus
+	// feeding master, or a track feeding a send, kept its own map, so moving either
+	// width left it mapping channels that no longer exist and playback could not start.
 	const resolvedWidth = (
 		endpoint: CanonicalAssignmentEndpointV21,
 		widths: ResolvedGraphWidthsV21,
@@ -296,7 +296,7 @@ function reconcileGraphAfterInheritedCommand(
 	const edges = previous.edges.filter(edgeIsLive).map((edge) => {
 		const clone = structuredClone(edge);
 		// An empty map means the edge never declared one, so there is nothing to restate.
-		if (!canonicalAssignment(clone) || clone.channelMap.length === 0) return clone;
+		if (!canonicalRoute(clone) || clone.channelMap.length === 0) return clone;
 		const sourceChannels = resolvedWidth(clone.source, nextWidths);
 		const destinationChannels = resolvedWidth(clone.destination, nextWidths);
 		if (sourceChannels === resolvedWidth(clone.source, priorWidths)
@@ -336,14 +336,15 @@ interface ResolvedGraphWidthsV21 {
 }
 
 /**
- * An assignment the product authored, identified by the ID convention every generator
- * shares. A hand-authored edge keeps whatever map its author gave it.
+ * A route the product authored, identified by the ID convention every generator
+ * shares across assignment and send edges alike. A hand-authored edge keeps whatever
+ * map its author gave it.
  */
-function canonicalAssignment(edge: MixerEdgeV21): edge is MixerEdgeV21 & {
+function canonicalRoute(edge: MixerEdgeV21): edge is MixerEdgeV21 & {
 	readonly destination: Exclude<MixerEdgeV21['destination'], { readonly kind: 'effect-sidechain' }>;
 } {
-	if (edge.kind !== 'assignment' || edge.destination.kind === 'effect-sidechain') return false;
-	return edge.id === `assignment:${endpointSegment(edge.source)}:${endpointSegment(edge.destination)}`;
+	if (edge.destination.kind === 'effect-sidechain') return false;
+	return edge.id === `${edge.kind}:${endpointSegment(edge.source)}:${endpointSegment(edge.destination)}`;
 }
 
 function endpointSegment(endpoint: CanonicalAssignmentEndpointV21): string {
