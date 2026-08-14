@@ -127,13 +127,19 @@ test('freeze lifecycle enablement reflects selected-track ownership and freshnes
 		assert.deepEqual(menu?.items?.filter(({ disabled }) => !disabled).map(({ id }) => id), enabled, status);
 	}
 
-	const emptyTrack = project(null, []);
-	const menu = createSoundscaperProductionApplicationMenuItems({
-		productId: 'soundscaper', capabilities: CAPABILITIES, project: emptyTrack,
+	const noRealtimeEffects = createSoundscaperProductionApplicationMenuItems({
+		productId: 'soundscaper', capabilities: CAPABILITIES, project: project(null, [], []),
 		selectedTrackId: 'voice', automationMode: 'read', editingBlocked: false,
 		freezeStatus: 'none',
-	}, actions([])).tracks[1];
-	assert.equal(menu?.items?.[0]?.disabled, true);
+	}, actions([])).tracks;
+	assert.deepEqual(noRealtimeEffects.map(({ id }) => id), ['soundscaper-automation']);
+	const bypassedRealtimeEffects = createSoundscaperProductionApplicationMenuItems({
+		productId: 'soundscaper', capabilities: CAPABILITIES,
+		project: project(null, ['clip'], [{ enabled: true, bypassed: true }]),
+		selectedTrackId: 'voice', automationMode: 'read', editingBlocked: false,
+		freezeStatus: 'none',
+	}, actions([])).tracks;
+	assert.deepEqual(bypassedRealtimeEffects.map(({ id }) => id), ['soundscaper-automation']);
 });
 
 test('the dialog model derives bounded lane, graph, selection, and blocking state', () => {
@@ -451,12 +457,13 @@ function actions(calls: unknown[][]): Readonly<{
 function project(
 	audioFreeze: Readonly<Record<string, unknown>> | null = null,
 	clipIds: readonly string[] = ['clip'],
+	effects: readonly Readonly<Record<string, unknown>>[] = [{ id: 'voice-filter', enabled: true }],
 ) {
 	return {
 		schemaVersion: 21,
 		sampleRate: 48_000,
 		tracks: [{
-			id: 'voice', type: 'audio', name: 'Voice', locked: false, clipIds,
+			id: 'voice', type: 'audio', name: 'Voice', locked: false, clipIds, effects,
 			...(audioFreeze ? { audioFreeze } : {}),
 		}],
 		automationLanes: [{

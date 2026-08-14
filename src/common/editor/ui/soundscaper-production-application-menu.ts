@@ -119,7 +119,7 @@ export function createSoundscaperProductionApplicationMenuItems(
 			automationTargetAvailable, mode, actions,
 		}));
 	}
-	if (enabled(input.capabilities.audioTrackFreeze)) {
+	if (enabled(input.capabilities.audioTrackFreeze) && hasFreezableRealtimeEffects(selectedAudioTrack)) {
 		tracks.push(freezeMenu({
 			copy, exactProject, mutationBlocked: commonMutationBlocked || locked,
 			selectedAudioTrack, trackId,
@@ -283,6 +283,15 @@ function resolvedFreezeStatus(
 	if (!frozen) return value === undefined || value === 'none' ? 'none' : 'unknown';
 	if (value === 'fresh' || value === 'stale' || value === 'verifying') return value;
 	return 'unknown';
+}
+
+function hasFreezableRealtimeEffects(track: DataRecord | null): boolean {
+	if (track === null || own(track, 'effectsActive') === false) return false;
+	const effects = own(track, 'effects');
+	return Array.isArray(effects) && effects.some((effect) => {
+		const value = dataRecord(effect);
+		return value !== null && own(value, 'enabled') !== false && own(value, 'bypassed') !== true;
+	});
 }
 
 type DataRecord = Readonly<Record<string, unknown>>;
