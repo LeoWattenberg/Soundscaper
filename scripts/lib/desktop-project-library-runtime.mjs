@@ -9,12 +9,33 @@ import { build } from 'esbuild';
 const FRAMESCAPER_V10_PRELOAD_BUNDLE = 'project-library-v10-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 
+// Staged desktop sources may not import TypeScript specifiers: the packaged
+// application ships no `src/` tree and no TypeScript loader. Modules that need
+// a `src/common` member resolve it through a package-imports alias that the
+// repository maps to the TypeScript source and the staged application
+// manifest maps to the compiled runtime member that already ships.
+export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
+	'#desktop-runtime/ffmpeg-video-source-characteristics':
+		'./desktop/project-library-runtime/src/common/editor/ffmpeg-video-source-characteristics.js',
+	'#desktop-runtime/ffmpeg-video-timing-probe':
+		'./desktop/project-library-runtime/src/common/editor/ffmpeg-video-timing-probe.js',
+	'#desktop-runtime/helper-contract':
+		'./desktop/project-library-runtime/desktop/helper-contract.js',
+	'#desktop-runtime/video-source-characteristics':
+		'./desktop/project-library-runtime/src/common/editor/video-source-characteristics.js',
+	'#desktop-runtime/video-timing-asset':
+		'./desktop/project-library-runtime/src/common/editor/video-timing-asset.js',
+});
+
 const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/application-lifecycle.js',
 	'desktop/assistance-main-ipc.js',
 	'desktop/assistance-service.js',
 	'desktop/assistance-sherpa-recognizer.js',
 	'desktop/assistance-speech-runtime.js',
+	'desktop/helper-contract.js',
+	'desktop/helper-probe-service.js',
+	'desktop/helper-supervisor.js',
 	'desktop/linked-original-locator-validation.js',
 	'desktop/linked-video-locator-registry.js',
 	'desktop/linked-video-locator-store.js',
@@ -80,6 +101,8 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/cart-metadata.js',
 	'src/common/editor/closed-domain-value.js',
 	'src/common/editor/commands/protocol.js',
+	'src/common/editor/ffmpeg-video-source-characteristics.js',
+	'src/common/editor/ffmpeg-video-timing-probe.js',
 	'src/common/editor/folder-bus-v13.js',
 	'src/common/editor/frame-canonical-edge-trim-domain.js',
 	'src/common/editor/indexed-tempo-projector.js',
@@ -237,7 +260,7 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 	assertExpectedRuntime(files);
 	for (const name of files) {
 		const source = await readFile(join(output, name), 'utf8');
-		if (/from ['"].*\.ts['"]/u.test(source)) throw new Error(`Desktop runtime ${name} retained a TypeScript import`);
+		assertNoTypeScriptImportSpecifiers(`Desktop runtime ${name}`, source);
 	}
 	return Object.freeze({ files: Object.freeze(files) });
 }
@@ -283,6 +306,8 @@ export async function stageDesktopApplicationSources({
 		filter: (source) => extname(source) !== '.ts',
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
+	await assertNoStagedTypeScriptImports(applicationRoot);
+	assertRuntimePackageImportTargets();
 	await bundleV10SandboxPreload({
 		entryPoint: join(sourceRoot, 'project-library-v10-sandbox-preload.ts'),
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
@@ -295,6 +320,31 @@ export async function stageDesktopApplicationSources({
 		outputPath: join(applicationRoot, SOUNDSCAPER_V10_PRELOAD_BUNDLE),
 		productName: 'Soundscaper',
 	});
+}
+
+async function assertNoStagedTypeScriptImports(applicationRoot) {
+	const staged = await listRuntimeFiles(applicationRoot);
+	for (const name of staged) {
+		if (!/\.[cm]?js$/u.test(name)) continue;
+		const source = await readFile(join(applicationRoot, name), 'utf8');
+		assertNoTypeScriptImportSpecifiers(`Staged desktop source ${name}`, source);
+	}
+}
+
+function assertNoTypeScriptImportSpecifiers(label, source) {
+	if (/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"][^'"]*\.[cm]?tsx?['"]/u.test(source)) {
+		throw new Error(`${label} retained a TypeScript import`);
+	}
+}
+
+function assertRuntimePackageImportTargets() {
+	const runtimePrefix = './desktop/project-library-runtime/';
+	for (const [alias, target] of Object.entries(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
+		if (!target.startsWith(runtimePrefix)
+			|| !EXPECTED_RUNTIME_FILES.includes(target.slice(runtimePrefix.length))) {
+			throw new Error(`Desktop package import ${alias} does not resolve to a shipped runtime member`);
+		}
+	}
 }
 
 async function bundleV10SandboxPreload({ entryPoint, cryptoShim, outputPath, productName }) {

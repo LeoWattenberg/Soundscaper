@@ -9,6 +9,13 @@
 > repository on 2026-08-11 (repo brief with file:line verification,
 > taken on a dirty working tree — the threat model and security matrix
 > carry uncommitted edits; re-verify their line numbers at pickup).
+> Re-grounded 2026-08-14 while implementing the 5.0 foundation: the
+> policy citations below describe the pre-enactment tree (the
+> `native-helper-processes` narrative now sits at
+> docs/production-threat-model.md:998 as **partial**, the matrix entry
+> and boundary carry the enacted controls, and the m5 fixture, workload,
+> and environment sit at config/quality-budgets.json:952-962, 1220-1237,
+> and 203-218); see the 5.0 implementation record below for what landed.
 
 ## Goals and ordering principle
 
@@ -233,6 +240,81 @@ release-shaped (docs/milestone-9-plan.md).
 5A and 5B must not begin until every 5.0 acceptance check passes. The
 milestone-7 assistance helper, if it shipped first, is retrofitted onto
 the 5.0 contract inside 5.0, not deferred.
+
+## 5.0 implementation record (2026-08-14)
+
+- **WP-5.0.0 is implemented.** The two staged witnesses now reach
+  `createUnreportedVideoSourceCharacteristics` through the
+  `#desktop-runtime/video-source-characteristics` package-imports alias,
+  which the repository manifest maps to the TypeScript source and the
+  staged application manifest maps to the compiled runtime member that
+  already ships; the `.ts`-import guard now scans the entire staged
+  `desktop` tree before the preload bundle is built, and the packaging
+  test proves it fails on a deliberately reintroduced `.ts` import
+  (scripts/lib/desktop-project-library-runtime.mjs,
+  tests/desktop-project-library-packaging.test.js).
+- **WP-5.0.1 is implemented for the probe surface.** Contract v1 lives in
+  `desktop/helper-contract.ts` (versioned wire schema, typed rejections,
+  pathless-toward-renderer grants with captured file identity, lower-only
+  resource policy), supervision in `desktop/helper-supervisor.ts`
+  (verified spawn, 1 s heartbeat, ≤ 2 s crash detection, ≤ 1 s
+  cancellation acknowledgement, repeated-crash quarantine), and the
+  surface in `desktop/helper-probe-service.ts` +
+  `desktop/helper-registration.mjs` + `desktop/helper-probe-process.js` +
+  `desktop/helper-probe-engine.js`: an Electron utility process whose
+  engine is the digest-pinned FFmpeg wasm core the application already
+  ships, re-verified before every spawn and executed from the verified
+  bytes, probing one granted file per job in a per-job worker thread. The
+  renderer reaches it only by opaque read-capability id through
+  `src/common/editor/desktop-helper-video-timing-probe.ts`, ahead of the
+  wasm probe in the shared resolver, with failures recorded and the wasm
+  path visibly taking over; the surface is off by default behind the
+  desktop Tools menu. The `probe` task kind is registered and drives the
+  re-probe command. The threat model and security matrix were revised to
+  **partial** in this same change, and the 10,000-case malformed-message
+  suite, supervisor fault suites, probe-service suites, preload
+  validation suites, and wasm/native parity fixtures all run in ordinary
+  CI (tests/desktop-helper-*.test.*,
+  tests/desktop-preload-helper-probe.test.js,
+  tests/audio-editor-desktop-helper-video-timing-probe.test.ts).
+- **Milestone-7 assistance helper conformance disposition: not present.**
+  No assistance helper surface has shipped: the in-repo assistance job
+  host is an unwired in-process double excluded from the packaged runtime
+  build (`desktop/assistance-job-host.ts` is absent from
+  tsconfig.desktop-runtime.json), and the preload exposes only
+  model-management channels. Its protocol constants (protocol version 1,
+  30 s heartbeat, 2 000 ms cancellation budget under the milestone-7
+  assistance budget) are structurally convergent with contract v1; the
+  packet that first wires assistance into a packaged build must conform
+  it to this contract or revise the contract deliberately.
+- **WP-5.0.2 is enacted for the shipped surface.** The packaging decision
+  stands as designed: helper payloads execute only as verified
+  extraResources bytes (the probe helper's engine is the digest-pinned
+  FFmpeg runtime, re-verified at staging, at pack time, before every
+  spawn, and inside the engine thread), `asar` remains unbroken with no
+  `asarUnpack` and no rebuild step, and the runtime manifest now ships
+  inside the application archive so spawn-time verification reads its
+  pins from fuse-protected bytes. The per-format and per-codec licensing
+  rows exist as the fail-closed `nativeFormatPolicies` register
+  (config/production-licensing-matrix.json,
+  tests/production-licensing-matrix.test.js), each with a named blocker,
+  and the two blocked FFmpeg release gates are inherited unchanged by any
+  future native FFmpeg helper binary. The signing chain is enacted but
+  identity-gated in electron-builder.config.cjs: **the named blocker is
+  that no signing identity has been acquired** — providing
+  `SOUNDSCAPER_MAC_SIGNING_IDENTITY` (plus notarization credentials) or
+  the standard `CSC_*` variables turns the chain on without further
+  configuration change, and until then previews remain ad-hoc/unsigned
+  exactly as the threat model records.
+- **Recorded limits and follow-ups.** The probe helper reads the granted
+  file into the engine's in-memory filesystem, so probe admission bounds
+  input bytes (lower-only, 4 GiB hard ceiling) and oversized inputs
+  degrade to the renderer wasm probe; 5B's native media engine owns
+  removing that ceiling. A packaged desktop smoke mode for the helper
+  surface and the `native-os-lab-matrix` qualification rows remain open;
+  the fault-and-loopback fixture stays `planned` and unqualified until
+  that hardware exists. WP-5.0.2's licensing rows and signing enactment
+  are recorded in the licensing policy and matrix.
 
 ## Work packets
 

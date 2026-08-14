@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
 	compileDesktopProjectLibraryRuntime,
+	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
@@ -28,6 +29,9 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/assistance-service.js',
 		'desktop/assistance-sherpa-recognizer.js',
 		'desktop/assistance-speech-runtime.js',
+		'desktop/helper-contract.js',
+		'desktop/helper-probe-service.js',
+		'desktop/helper-supervisor.js',
 		'desktop/linked-original-locator-validation.js',
 		'desktop/linked-video-locator-registry.js',
 		'desktop/linked-video-locator-store.js',
@@ -93,6 +97,8 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/cart-metadata.js',
 		'src/common/editor/closed-domain-value.js',
 		'src/common/editor/commands/protocol.js',
+		'src/common/editor/ffmpeg-video-source-characteristics.js',
+		'src/common/editor/ffmpeg-video-timing-probe.js',
 		'src/common/editor/folder-bus-v13.js',
 		'src/common/editor/frame-canonical-edge-trim-domain.js',
 		'src/common/editor/indexed-tempo-projector.js',
@@ -416,6 +422,14 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	assert.match(mainSource, /ownerFor:\s*rendererSaveOwnerFor/u);
 	assert.match(mainSource, /new DesktopApplicationShutdown/u);
 	assert.match(mainSource, /name: 'project library', run: closeProjectLibraryHost/u);
+	assert.match(mainSource, /helperProbeService = registerDesktopHelperProbe\(\{ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings/u,
+		'the probe helper must register through the trusted IPC wrapper with main-owned seams');
+	assert.match(mainSource, /name: 'helper probe', run: \(\) => helperProbeService\?\.dispose\(\)/u,
+		'the probe helper must join the ordered shutdown barrier');
+	assert.match(mainSource, /helperProbes: \(\) => helperProbeService/u,
+		'renderer ownership cleanup must drain helper probes');
+	assert.match(mainSource, /\.\.\.desktopHelperProbeMenu\(\)/u,
+		'the helper surface must stay menu-reached');
 	assert.match(mainSource, /name: 'read capabilities'.*readCapabilities\.dispose\(\)/su);
 	assert.match(mainSource, /name: 'save sessions'.*saves\.dispose\(\)/su);
 	const startIndex = mainSource.indexOf('void startApplication()');
@@ -431,6 +445,8 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	assert.match(prepareSource, /compileDesktopProjectLibraryRuntime/u);
 	assert.match(prepareSource, /stageDesktopApplicationSources/u);
 	assert.match(prepareSource, /desktopRuntime/u);
+	assert.match(prepareSource, /imports: DESKTOP_RUNTIME_PACKAGE_IMPORTS/u,
+		'the staged application manifest must map the desktop package-imports aliases to shipped runtime members');
 	assert.equal(packageMetadata.scripts['desktop:dev'], 'npm run desktop:prepare && electron .desktop-build/app');
 });
 
@@ -480,6 +496,7 @@ test('desktop main owns file capabilities by committed renderer document', async
 		'revocation closes document admission synchronously before asynchronous cleanup',
 	);
 	assert.match(cleanupSource, /const owner = this\.#ownership\.revoke\(webContents\)/u);
+	assert.match(cleanupSource, /this\.#helperProbes\?\.\(\)\?\.revokeOwner\(owner\)/u);
 	assert.match(cleanupSource, /this\.#projectLibraryIpc\(\)\?\.revokeOwner\(owner\)/u);
 	assert.match(cleanupSource, /this\.#readCapabilities\.revokeOwner\(owner\)/u);
 	assert.match(cleanupSource, /this\.#saves\.revokeOwner\(owner\)/u);

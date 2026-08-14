@@ -17,6 +17,7 @@ import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 import { generateDesktopIcon } from './desktop-icons.mjs';
 import {
 	compileDesktopProjectLibraryRuntime,
+	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 	stageDesktopApplicationSources,
 } from './lib/desktop-project-library-runtime.mjs';
 import {
@@ -35,8 +36,11 @@ const DESKTOP_NOTICE_PATH = resolve(BUILD_ROOT, 'licenses/THIRD_PARTY_LICENSES.m
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 // The assistance service validates its catalog against the licensing register
-// at runtime, so both ship with the application rather than only the catalog.
+// at runtime, and the probe helper verifies its engine payload against the
+// runtime manifest's digest pins, so all three ship inside the application
+// archive rather than only the catalog.
 const ASSISTANCE_REGISTERS = Object.freeze([
+	'config/ffmpeg-runtime-manifest.json',
 	'config/local-model-catalog.json',
 	'config/production-licensing-matrix.json',
 ]);
@@ -223,10 +227,14 @@ async function stageApplication(projectPackage) {
 		description: PRODUCT_ID === 'framescaper' ? 'Local-first video editor' : 'Local-first multitrack audio editor',
 		main: 'desktop/main.mjs',
 		type: 'module',
+		imports: DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 		license: 'AGPL-3.0-only',
 		author: { name: 'kw.media', url: 'https://kw.media' },
 		homepage: `https://${PRODUCT_ID}.org`,
 	});
+	for (const target of Object.values(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
+		await assertFile(resolve(APP_ROOT, target), `staged desktop package import target ${target}`);
+	}
 }
 
 function translationBaseUrl() {

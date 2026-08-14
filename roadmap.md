@@ -185,7 +185,7 @@ Known architectural constraints that drive later work:
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **In progress — provisional candidates** | Complete automation, routing, compositing, captions, and finishing. |
-| 5. Electron-native services | **Planned** | Add isolated native media, audio, render, and plug-in services. |
+| 5. Electron-native services | **In progress — 5.0 foundation** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Planned** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **Blocked/Planned** | Add Framescaper recording, then MIDI after upstream design review. |
@@ -656,6 +656,13 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
+**Status:** **In progress — the serialized 5.0 foundation is implemented:**
+helper contract v1, the supervised off-by-default native probe helper
+surface, its threat-model/security-matrix enactment, and the packaged
+staging fix. The 5A and 5B tracks remain planned and must not begin
+until every 5.0 acceptance check passes; native-OS-lab qualification
+remains open.
+
 **Goal:** make Electron materially more capable without weakening the renderer
 sandbox or creating a second editor engine.
 
@@ -665,9 +672,11 @@ invariants, and the bounded work packets are owned by the
 
 ### Native service architecture
 
-- **Electron Enhanced — Planned:** versioned media, audio-device, render, and
+- **Electron Enhanced — In progress:** versioned media, audio-device, render, and
   plug-in helper processes with authenticated bounded IPC, explicit capabilities,
-  cancellation, heartbeats, and structured progress/errors.
+  cancellation, heartbeats, and structured progress/errors. Contract v1 and
+  the read-only probe helper are implemented; further helper tiers are 5A/5B
+  scope.
 - **Electron Enhanced — Planned:** per-job CPU, memory, file, duration,
   child-process, and network policy; helper failure cannot corrupt the last
   project revision.

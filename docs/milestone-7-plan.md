@@ -166,18 +166,20 @@ than one new runtime at a time:
   `exit` event, not a dead editor), and `MessagePortMain` wiring for
   progress streams. Today nothing in the application (`src/`, `desktop/`)
   uses utilityProcess or child processes — only build and test scripts
-  spawn them — and the threat model holds `native-helper-processes` as
-  planned and surface-disabled (docs/production-threat-model.md:1006).
+  spawn them. Since the milestone-5 foundation landed, the threat model
+  holds `native-helper-processes` as partial for the enacted probe
+  helper surface (docs/production-threat-model.md:998), and contract v1
+  exists in `desktop/helper-contract.ts`.
   The helper is therefore **milestone-7-owned scope**, legitimate under
   §7's own "Depends on: milestone 2" (roadmap.md:744), whose protocol is
   designed to converge with the future milestone-5 helper contract rather
   than fork from it: versioned bounded IPC, explicit capabilities,
   cancellation acknowledgement, heartbeats, structured progress and
   errors, per-job resource policy (roadmap.md:644-649), and crash
-  quarantine (docs/production-threat-model.md:1006). Milestone 5 remains
-  the owning contract for the general helper architecture; when it lands,
-  the assistance helper conforms to it or is revised, and the milestone-5
-  exit gate owns full qualification. WP-7.0.0's roadmap edit records this
+  quarantine (docs/production-threat-model.md:998). Milestone 5 owns the
+  now-enacted contract for the general helper architecture; the
+  assistance helper conforms to it or the contract is revised
+  deliberately, and the milestone-5 exit gate owns full qualification. WP-7.0.0's roadmap edit records this
   stance on the §7 dependency line; WP-7.0.2 revises the threat model and
   security matrix in the same change that enables the surface.
 - **IPC data discipline:** audio crosses the boundary as 16 kHz mono
@@ -378,7 +380,7 @@ This answers "how are we shipping them."
   pinned runtimes' network behavior is audited in supply-chain review,
   outbound blocking applies where an OS mechanism exists, and the
   residual — helper code is trusted code, not a sandbox
-  (docs/production-threat-model.md:1006) — is recorded in the WP-7.0.2
+  (docs/production-threat-model.md:998) — is recorded in the WP-7.0.2
   threat-model revision.
 
 ## Assistance results model
@@ -659,7 +661,7 @@ actually distributed, and this slice distributes none.
   in the same change that enables the surface — versioned protocol,
   binary verification, least-privilege platform policy, supervision,
   quarantine, malformed-message tests, and the new job channel claimed
-  under the renderer IPC boundary (docs/production-threat-model.md:1006).
+  under the renderer IPC boundary (docs/production-threat-model.md:998).
   Each runtime and per-platform binary lands with its licensing-matrix
   row, pinned provenance manifest (exact version, artifact hashes,
   upstream source), and third-party notices in the same change

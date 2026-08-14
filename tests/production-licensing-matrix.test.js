@@ -187,6 +187,33 @@ test('future third-party execution and model surfaces remain disabled behind exp
 	]) assert.ok(gates.get('web-effect-packages').evidence.includes(path));
 });
 
+test('native plug-in format and codec policy rows stay fail-closed with named blockers', async () => {
+	const matrix = await readJson(matrixUrl);
+
+	assert.deepEqual(matrix.nativeFormatPolicies.map(({ id }) => id), [
+		'plugin-format-vst3',
+		'plugin-format-clap',
+		'plugin-format-audio-units',
+		'plugin-format-lv2',
+		'plugin-format-ofx',
+		'codec-native-ffmpeg-current-set',
+		'codec-hardware-acceleration',
+		'codec-mezzanine-and-longform',
+	]);
+	for (const row of matrix.nativeFormatPolicies) {
+		assert.match(row.kind, /^(?:plugin-format|codec-capability)$/u, row.id);
+		assert.equal(row.status, 'blocked', `${row.id} must stay fail-closed until its review is recorded`);
+		assert.ok(row.blocker.length > 0, `${row.id} needs a named blocker`);
+		assert.ok(row.upstreamLicensing.length > 0, `${row.id} needs its upstream licensing form`);
+		assert.ok(row.agplCompatibilityDirection.length > 0, `${row.id} needs its compatibility direction`);
+		assert.ok(row.redistribution.length > 0, `${row.id} needs its redistribution posture`);
+		await assertEvidence(row.evidence);
+	}
+	const ffmpegRow = matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-native-ffmpeg-current-set');
+	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-library-corresponding-source/u);
+	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-codec-patent-review/u);
+});
+
 function productionClosure(lock, packageMetadata) {
 	const directDependencies = new Set(Object.keys(packageMetadata.dependencies || {}));
 	return Object.entries(lock.packages)

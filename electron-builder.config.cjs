@@ -1,5 +1,13 @@
 const framescaper = process.env.SCAPE_PRODUCT === 'framescaper';
 const productName = framescaper ? 'Framescaper' : 'Soundscaper';
+// The signing chain is enacted but identity-gated: with no acquired signing
+// identity (the named milestone-5 blocker), macOS stays ad-hoc-signed with the
+// hardened runtime off and Windows/Linux stay unsigned via the CI-wide
+// CSC_IDENTITY_AUTO_DISCOVERY=false. Providing SOUNDSCAPER_MAC_SIGNING_IDENTITY
+// (and Apple notarization credentials for SOUNDSCAPER_MAC_NOTARIZE=true) turns
+// the real chain on without any further configuration change.
+const macSigningIdentity = process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY || '-';
+const macSigned = macSigningIdentity !== '-';
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -61,8 +69,9 @@ module.exports = {
 	},
 	mac: {
 		icon: '.desktop-build/icons/icon.png',
-		identity: '-',
-		hardenedRuntime: false,
+		identity: macSigningIdentity,
+		hardenedRuntime: macSigned,
+		notarize: macSigned && process.env.SOUNDSCAPER_MAC_NOTARIZE === 'true',
 		gatekeeperAssess: false,
 		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',
 		target: ['dmg'],

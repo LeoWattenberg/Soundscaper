@@ -131,7 +131,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'shared-desktop-project-library-integrity': 'partial',
 		'nyquist-untrusted-code-runtime': 'enforced',
 		'reviewed-web-effect-packages': 'enforced',
-		'native-helper-processes': 'planned',
+		'native-helper-processes': 'partial',
 		'native-plugin-hosting': 'planned',
 		'long-job-cancellation': 'partial',
 		'runtime-supply-chain': 'partial',
@@ -176,11 +176,31 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 	const matrix = await readMatrix();
 	const risks = new Map(matrix.risks.map((risk) => [risk.id, risk]));
 
-	for (const riskId of ['native-helper-processes', 'native-plugin-hosting']) {
+	for (const riskId of ['native-plugin-hosting']) {
 		const risk = risks.get(riskId);
 		assert.equal(risk.status, 'planned');
 		assert.equal(risk.releaseDisposition, 'surface-disabled');
 	}
+
+	const helperProcesses = risks.get('native-helper-processes');
+	assert.equal(helperProcesses.status, 'partial');
+	assert.equal(helperProcesses.releaseDisposition, 'conditional');
+	assert.deepEqual(helperProcesses.currentControls.map(({ id }) => id), [
+		'pathless-probe-helper-bridge',
+		'helper-contract-v1-wire-validation',
+		'supervised-helper-lifecycle',
+		'verified-helper-engine-payload',
+	]);
+	for (const control of helperProcesses.currentControls) {
+		const kinds = new Set(control.evidence.map(({ kind }) => kind));
+		assert.ok(kinds.has('implementation'), `${control.id} needs implementation evidence`);
+		assert.ok(kinds.has('test'), `${control.id} needs test evidence`);
+	}
+	assert.match(
+		helperProcesses.residualRisks[0].acceptanceCriteria.join(' '),
+		/m5-helper-fault-and-loopback-v1/u,
+		'helper qualification stays tied to the registered fixture',
+	);
 
 	const archiveStructure = risks.get('scape-archive-structure-integrity');
 	assert.equal(archiveStructure.status, 'enforced');

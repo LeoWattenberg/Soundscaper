@@ -5,6 +5,13 @@
 	"private": true,
 	"type": "module",
 	"main": "desktop/main.mjs",
+	"imports": {
+		"#desktop-runtime/ffmpeg-video-source-characteristics": "./src/common/editor/ffmpeg-video-source-characteristics.ts",
+		"#desktop-runtime/ffmpeg-video-timing-probe": "./src/common/editor/ffmpeg-video-timing-probe.ts",
+		"#desktop-runtime/helper-contract": "./desktop/helper-contract.ts",
+		"#desktop-runtime/video-source-characteristics": "./src/common/editor/video-source-characteristics.ts",
+		"#desktop-runtime/video-timing-asset": "./src/common/editor/video-timing-asset.ts"
+	},
 	"author": "kw.media",
 	"homepage": "https://soundscaper.org",
 	"repository": {

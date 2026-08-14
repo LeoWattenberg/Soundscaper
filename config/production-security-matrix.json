@@ -248,7 +248,7 @@
 					"renderer-loss": { "outcome": "witnessed", "evidence": [
 						{ "kind": "test", "path": "tests/desktop-save-ownership.test.js" }
 					] },
-					"helper-loss": { "outcome": "inapplicable", "reason": "The .scape archive streams from the renderer over IPC; the desktop main process spawns no helper processes." },
+					"helper-loss": { "outcome": "inapplicable", "reason": "The .scape archive streams from the renderer over IPC; no helper process participates in this publication route." },
 					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
 						{ "kind": "test", "path": "tests/desktop-save-space-exhaustion.test.js" },
 						{ "kind": "test", "path": "tests/desktop-save-capacity.test.js" }
@@ -820,14 +820,17 @@
 		{
 			"id": "application-to-native-extension-surface",
 			"from": "Web or desktop application",
-			"to": "Future native helpers and third-party native plug-in hosts",
-			"data": "No current channel; the narrow preload bridge is the checked fence",
+			"to": "Supervised native helpers and future third-party native plug-in hosts",
+			"data": "Contract-v1 probe jobs addressed by opaque read-capability id; spawn, path, and binary authority stay in the main process",
 			"entryPoints": [
-				"desktop/preload.mjs"
+				"desktop/preload.mjs",
+				"desktop/helper-registration.mjs"
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "desktop/preload.mjs" },
-				{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+				{ "kind": "implementation", "path": "desktop/helper-contract.ts" },
+				{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
+				{ "kind": "test", "path": "tests/desktop-helper-contract.test.ts" }
 			]
 		},
 		{
@@ -3179,31 +3182,60 @@
 		},
 		{
 			"id": "native-helper-processes",
-			"title": "Future native media and render helpers compromise the UI process or remain alive after cancellation",
+			"title": "Native helper processes compromise the UI process or remain alive after cancellation",
 			"boundaryIds": ["application-to-native-extension-surface", "controller-task-to-io"],
 			"assets": ["UI process integrity", "project confidentiality", "host availability"],
 			"actor": "Malformed input, a compromised helper binary, or a protocol peer sends invalid messages or refuses shutdown.",
 			"impact": "critical",
-			"status": "planned",
-			"releaseDisposition": "surface-disabled",
+			"status": "partial",
+			"releaseDisposition": "conditional",
 			"ownerMilestone": "5",
 			"currentControls": [
 				{
-					"id": "no-native-helper-bridge",
-					"summary": "The current versioned preload bridge exposes no native helper, process-spawn, or plug-in-host channel.",
+					"id": "pathless-probe-helper-bridge",
+					"summary": "The renderer addresses the probe helper only by opaque read-capability id over four validated bridge channels; no spawn, filesystem-path, or binary authority crosses the renderer boundary, and the surface ships menu-reached and off by default.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/preload.mjs" },
-						{ "kind": "test", "path": "tests/desktop-protocol.test.js" }
+						{ "kind": "implementation", "path": "desktop/helper-registration.mjs" },
+						{ "kind": "test", "path": "tests/desktop-preload-helper-probe.test.js" },
+						{ "kind": "test", "path": "tests/desktop-helper-probe-service.test.ts" }
+					]
+				},
+				{
+					"id": "helper-contract-v1-wire-validation",
+					"summary": "Every helper wire message is validated against the versioned contract in both directions with typed rejections; a deterministic 10,000-case malformed-message suite runs as ordinary CI correctness evidence.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/helper-contract.ts" },
+						{ "kind": "test", "path": "tests/desktop-helper-contract.test.ts" }
+					]
+				},
+				{
+					"id": "supervised-helper-lifecycle",
+					"summary": "The supervisor spawns helpers only after payload verification and terminates them on heartbeat silence beyond the two-second crash-detection budget, on a missed one-second cancellation-acknowledgement budget, on contract violations, and on lower-only per-job input, duration, or peak-RSS policy overruns, quarantining repeated crashes until the user explicitly clears the surface.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/helper-supervisor.ts" },
+						{ "kind": "implementation", "path": "desktop/helper-probe-process.js" },
+						{ "kind": "test", "path": "tests/desktop-helper-supervisor.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-helper-probe-process.test.js" }
+					]
+				},
+				{
+					"id": "verified-helper-engine-payload",
+					"summary": "The helper's engine payload is digest-pinned by the fuse-protected manifest copy, re-verified before every spawn and again inside the engine thread, which executes the verified bytes themselves and re-verifies the granted file's captured identity after reopening it.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/helper-registration.mjs" },
+						{ "kind": "implementation", "path": "desktop/helper-probe-engine.js" },
+						{ "kind": "test", "path": "tests/desktop-helper-probe-parity.test.ts" }
 					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "native-helper-supervision",
-					"exposure": "No bounded helper protocol, process supervisor, sandbox policy, crash quarantine, or binary attestation exists.",
-					"requiredControl": "Define a versioned bounded IPC protocol and supervised process lifecycle with least-privilege OS policy and verified binaries.",
+					"exposure": "The probe helper is the only enacted surface; decode/encode, audio-device, render, and plug-in-host helpers remain undesigned, and the fault-and-loopback fixture is unqualified while the native OS lab matrix is unprovisioned.",
+					"requiredControl": "Extend the enacted contract to each further helper tier with its own crash, hang, malformed-message, oversized-payload, binary-mismatch, and cancellation suites, and qualify the helper fault and loopback fixture on the provisioned matrix.",
 					"ownerMilestone": "5",
-					"acceptanceCriteria": ["Crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests pass without exposing raw spawn authority to the renderer."]
+					"acceptanceCriteria": ["Crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests pass for every enacted helper surface without exposing raw spawn authority to the renderer, and m5-helper-fault-and-loopback-v1 qualifies on native-os-lab-matrix."]
 				}
 			]
 		},

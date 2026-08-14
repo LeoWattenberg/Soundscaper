@@ -1480,7 +1480,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		SOURCE_CHUNK_FRAMES, activateVideoSource, audioBufferChannels, audioEditorVideoThumbnailTimes,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
 		copy, createAddClipCommand, createAddSourceCommand, createAddTrackCommand,
-		createAudioEditorVideoFrameExtractor, createStableId, engine, ffmpeg,
+		createAudioEditorVideoFrameExtractor, createStableId, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe,
 		findTrack, fitAudioBufferToFrames, generateWaveformPeaks, inspectEncodedAudioSampleRate,
 		normalizeImportOptions, peakCacheKey, preflightStorage, getProject: () => project, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token),
 		projectSampleRate, revokeVideoVisual, sourceBuffers, sourcePeaks,
@@ -1830,7 +1830,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		audioWarpService, sourceMonitorService, takeCompService, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, ...productActionRuntime(options),
+		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, ...productActionRuntime(options),
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;

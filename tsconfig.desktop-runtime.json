@@ -16,6 +16,9 @@
 	},
 	"include": [
 		"desktop/application-lifecycle.ts",
+		"desktop/helper-contract.ts",
+		"desktop/helper-probe-service.ts",
+		"desktop/helper-supervisor.ts",
 		"desktop/assistance-main-ipc.ts",
 		"desktop/assistance-service.ts",
 		"desktop/assistance-sherpa-recognizer.ts",
@@ -44,6 +47,8 @@
 		"desktop/project-library-projects.ts",
 		"desktop/project-library-stage-inventory.ts",
 		"desktop/project-library.ts",
+		"src/common/editor/ffmpeg-video-source-characteristics.ts",
+		"src/common/editor/ffmpeg-video-timing-probe.ts",
 		"src/common/editor/project-schema-version.ts",
 		"src/common/editor/project-v12-validation.ts",
 		"src/common/editor/scape-project-document.ts"

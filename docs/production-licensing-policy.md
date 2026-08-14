@@ -157,6 +157,26 @@ requirements are implemented:
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
 
+### Native plug-in format and codec policy rows
+
+The matrix's `nativeFormatPolicies` register carries one fail-closed row per
+plug-in format (VST3, CLAP, Audio Units, LV2, OFX) and per native codec
+capability tier the milestone-5 tracks may ship. Each row records the
+upstream licensing form, the compatibility direction into this AGPL-3.0-only
+work (GPLv3 SDK code combines one-way via GPLv3 section 13; permissive SDKs
+combine trivially; operating-system APIs and platform encoder services are
+linkage, not combined source), the redistribution posture, and a named
+blocker stating exactly which review is missing. Every row is `blocked`
+today: no format or codec capability ships, and no build flag or helper
+capability may name one, until its row's review is recorded and the owning
+`native-plugins` or `native-codecs` gate clears. A native FFmpeg helper
+binary inherits the two blocked FFmpeg release gates for exactly the
+currently enabled library set — the enabled codec set does not grow because
+a native build would make growth easy. User-installed third-party plug-in
+binaries are never redistributed by this project, so their licenses never
+enter the production closure; the rows govern what the application itself
+may ship and host.
+
 ### Local assistance model evidence
 
 The four `local-models` enablement requirements are recorded per model in the

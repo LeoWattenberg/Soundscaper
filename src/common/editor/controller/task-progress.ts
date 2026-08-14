@@ -6,6 +6,7 @@ export type EditorTaskProgressKind =
 	| 'export'
 	| 'generate'
 	| 'import'
+	| 'probe'
 	| 'project-io'
 	| 'render'
 	| 'sample-edit'

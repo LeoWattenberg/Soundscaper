@@ -429,6 +429,88 @@
 			"evidence": ["roadmap.md#7-optional-local-assistance", "docs/production-licensing-policy.md", "docs/milestone-7-local-model-evidence.md", "scripts/lib/local-model-evidence.mjs", "tests/production-licensing-model-evidence.test.js"]
 		}
 	],
+	"nativeFormatPolicies": [
+		{
+			"id": "plugin-format-vst3",
+			"kind": "plugin-format",
+			"upstreamLicensing": "Dual: proprietary Steinberg VST 3 license or GPL-3.0-only",
+			"agplCompatibilityDirection": "GPLv3 SDK code combines one-way into this AGPL-3.0-only work via GPLv3 section 13; the proprietary arm is not usable here.",
+			"redistribution": "The SDK's GPL arm may ship with corresponding source; user-installed third-party plug-in binaries are never redistributed by this project.",
+			"status": "blocked",
+			"blocker": "No per-platform SDK review, redistribution policy, or notices are recorded; hosting also waits on the native-plugins gate and the milestone-5A sandbox review.",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "plugin-format-clap",
+			"kind": "plugin-format",
+			"upstreamLicensing": "MIT",
+			"agplCompatibilityDirection": "Permissive SDK code combines into this AGPL-3.0-only work trivially.",
+			"redistribution": "The SDK headers may ship with notices; user-installed third-party plug-in binaries are never redistributed by this project.",
+			"status": "blocked",
+			"blocker": "No per-platform SDK review or notices are recorded; hosting waits on the native-plugins gate and the milestone-5A sandbox review.",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "plugin-format-audio-units",
+			"kind": "plugin-format",
+			"upstreamLicensing": "Operating-system API on macOS; no redistributed SDK",
+			"agplCompatibilityDirection": "System-API linkage is used, not combined source; no license flows into the work.",
+			"redistribution": "Nothing is redistributed; hosting binds to the platform framework at runtime on macOS only.",
+			"status": "blocked",
+			"blocker": "No macOS hosting review is recorded; hosting waits on the native-plugins gate and the milestone-5A sandbox review.",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "plugin-format-lv2",
+			"kind": "plugin-format",
+			"upstreamLicensing": "ISC",
+			"agplCompatibilityDirection": "Permissive SDK code combines into this AGPL-3.0-only work trivially.",
+			"redistribution": "The SDK headers may ship with notices; user-installed third-party plug-in binaries are never redistributed by this project.",
+			"status": "blocked",
+			"blocker": "No per-platform SDK review or notices are recorded; hosting waits on the native-plugins gate and the milestone-5A sandbox review (Linux hosting scope).",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "plugin-format-ofx",
+			"kind": "plugin-format",
+			"upstreamLicensing": "BSD-3-Clause",
+			"agplCompatibilityDirection": "Permissive SDK code combines into this AGPL-3.0-only work trivially.",
+			"redistribution": "The SDK headers may ship with notices; user-installed third-party effect binaries are never redistributed by this project.",
+			"status": "blocked",
+			"blocker": "No per-platform SDK review or notices are recorded; hosting waits on the native-plugins gate and the milestone-5B isolated-OFX review.",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "codec-native-ffmpeg-current-set",
+			"kind": "codec-capability",
+			"upstreamLicensing": "FFmpeg GPL build with the thirteen enabled external libraries pinned by the ffmpeg register",
+			"agplCompatibilityDirection": "GPL-2.0-or-later build combines into this AGPL-3.0-only work under the existing runtime provenance row.",
+			"redistribution": "A native FFmpeg helper binary may not ship until the two blocked ffmpeg release gates clear for exactly this enabled set; the set does not grow because a native build makes growth easy.",
+			"status": "blocked",
+			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review are blocked; a native helper binary inherits both gates unchanged.",
+			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json"]
+		},
+		{
+			"id": "codec-hardware-acceleration",
+			"kind": "codec-capability",
+			"upstreamLicensing": "Platform encoder/decoder services (NVENC, Quick Sync, VideoToolbox, VAAPI) reached through their platform interfaces",
+			"agplCompatibilityDirection": "System-service linkage is used, not combined source; no license flows into the work.",
+			"redistribution": "Nothing is redistributed, but enablement is a per-codec, per-jurisdiction patent question first and a performance feature second.",
+			"status": "blocked",
+			"blocker": "No jurisdiction-specific patent review is recorded for any hardware-accelerated codec path; enablement waits on the native-codecs gate.",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "codec-mezzanine-and-longform",
+			"kind": "codec-capability",
+			"upstreamLicensing": "Per-format: long-GOP, 10-bit/HDR, image-sequence, alpha-master, and mezzanine codecs each carry their own license and patent posture",
+			"agplCompatibilityDirection": "Reviewed per format before any build flag or helper capability names it.",
+			"redistribution": "No such codec ships until its own row records the license inventory, corresponding-source disposition, and patent review.",
+			"status": "blocked",
+			"blocker": "No per-format inventory exists; every milestone-5B decode/encode tier lands its own row against the native-codecs gate before it is buildable.",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		}
+	],
 	"localModelEvidence": [
 		{
 			"id": "silero-vad-v6",

@@ -33,7 +33,8 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		assertProject, bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
 		copy, createAddClipCommand, createAddSourceCommand, createAddTrackCommand,
 		captureProject, createAudioEditorVideoFrameExtractor, createStableId, engine, ffmpeg,
-		findTrack, fitAudioBufferToFrames, generateWaveformPeaks, inspectEncodedAudioSampleRate,
+		findTrack, fitAudioBufferToFrames, generateWaveformPeaks, helperTimingProbe,
+		inspectEncodedAudioSampleRate,
 		normalizeImportOptions, peakCacheKey, preflightStorage, getProject,
 		projectSampleRate, revokeVideoVisual, sourceBuffers, sourcePeaks,
 		store, stripExtension, warnEnvelope, writeBuffer,
@@ -60,8 +61,12 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			extractor = await createAudioEditorVideoFrameExtractor(canonicalVideoFile);
 			const sampleRate = projectSampleRate();
 			const ffmpegTimingProbe = createFfmpegVideoTimingProbe(ffmpeg);
+			// The native helper probes by opaque capability id and its failure
+			// is recorded before the wasm probe takes over.
+			const preferredProbes = [helperTimingProbe, ffmpegTimingProbe]
+				.filter((probe: RuntimeValue) => Boolean(probe));
 			let timingProbe = canonicalVideoFile instanceof Blob
-				? await probeVideoTiming(canonicalVideoFile, { probes: ffmpegTimingProbe ? [ffmpegTimingProbe] : [] })
+				? await probeVideoTiming(canonicalVideoFile, { probes: preferredProbes })
 				: Object.freeze({
 					decision: 'conform-cfr-at-ingest' as const,
 					rate: Object.freeze({ num: 30, den: 1 }),

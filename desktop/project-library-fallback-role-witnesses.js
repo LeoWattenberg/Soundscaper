@@ -2,7 +2,7 @@
 
 import {
 	createUnreportedVideoSourceCharacteristics,
-} from '../src/common/editor/video-source-characteristics.ts';
+} from '#desktop-runtime/video-source-characteristics';
 
 import {
 	DESKTOP_SMOKE_PRIMARY_SEQUENCE_ID,

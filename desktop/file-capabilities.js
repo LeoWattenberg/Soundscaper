@@ -162,6 +162,26 @@ export class ReadCapabilityStore {
 		return entry ? readCapabilityDescriptor(entry) : null;
 	}
 
+	/**
+	 * Main-process-only: resolves the granted path, current size, and file
+	 * identity of a live, owner-matched capability so main can mint a narrower
+	 * helper-process grant. Neither this method nor its result may ever cross
+	 * IPC — the renderer keeps addressing media by opaque capability id only.
+	 */
+	async resolveHelperGrant(id, { owner } = {}) {
+		requireReadCapabilityOwner(owner);
+		const entry = this.#liveEntry(String(id || ''));
+		if (!entry || entry.owner !== owner) return null;
+		const details = await entry.handle.stat();
+		if (this.#entries.get(entry.id) !== entry) return null;
+		this.#renewExpiry(entry);
+		return Object.freeze({
+			path: entry.path,
+			size: safeReadFileSize(details.size),
+			identity: Object.freeze({ dev: details.dev, ino: details.ino }),
+		});
+	}
+
 	acquireRequest(id, expectedProfile) {
 		const entry = this.#liveEntry(id);
 		if (!entry || entry.request
@@ -252,6 +272,7 @@ export class ReadCapabilityStore {
 			const name = cleanReadCapabilityDisplayName(displayName || basename(filePath));
 			const entry = {
 				id,
+				path: filePath,
 				handle,
 				owner,
 				state,

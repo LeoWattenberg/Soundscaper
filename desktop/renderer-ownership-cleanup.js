@@ -3,6 +3,7 @@
 /** Drains every main-owned capability associated with one renderer identity. */
 export class DesktopRendererOwnershipCleanup {
 	#drains = new WeakMap();
+	#helperProbes;
 	#linkedVideoLocators;
 	#ownership;
 	#projectLibraryIpc;
@@ -10,7 +11,8 @@ export class DesktopRendererOwnershipCleanup {
 	#reportError;
 	#saves;
 
-	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, saves }) {
+	constructor({ helperProbes, linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, saves }) {
+		this.#helperProbes = helperProbes;
 		this.#linkedVideoLocators = linkedVideoLocators;
 		this.#ownership = ownership;
 		this.#projectLibraryIpc = projectLibraryIpc;
@@ -43,6 +45,7 @@ export class DesktopRendererOwnershipCleanup {
 
 	async #drainOwner(owner) {
 		const results = await Promise.allSettled([
+			this.#helperProbes?.()?.revokeOwner(owner),
 			this.#linkedVideoLocators()?.revokeOwner(owner),
 			this.#projectLibraryIpc()?.revokeOwner(owner),
 			this.#readCapabilities.revokeOwner(owner),

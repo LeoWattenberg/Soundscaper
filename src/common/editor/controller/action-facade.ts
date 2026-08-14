@@ -68,7 +68,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
 	setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 	snapTimelineFrame, splitAtFrame, splitStereoTrack,
-	state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache, store, stretchClip, swapTrackChannels, switchProject,
+	state, stopProjectBinPreview, cleanupDisposableStorage, cleanupDerivativeCache, store, stretchClip, swapTrackChannels, switchProject, taskProgress,
 	toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 	toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 	toggleStretchToTempo, toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
@@ -267,7 +267,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			// Re-read an already-imported source: the same bytes, probed again by
 			// the current build, with every edit cut against the old grid conformed.
 			reprobeSource: (sourceId: RuntimeValue, options: RuntimeValue) => (
-				videoSourceReprobeService.reprobe(sourceId, options)
+				taskProgress?.run
+					? taskProgress.run('probe', copy.probingVideoSource, () => videoSourceReprobeService.reprobe(sourceId, options))
+					: videoSourceReprobeService.reprobe(sourceId, options)
 			),
 			link: (videoClipId: RuntimeValue, audioClipId: RuntimeValue) => commit({
 				type: 'clip/link-av',

@@ -9,7 +9,7 @@ import {
 } from './project-library-smoke-project.js';
 import {
 	createUnreportedVideoSourceCharacteristics,
-} from '../src/common/editor/video-source-characteristics.ts';
+} from '#desktop-runtime/video-source-characteristics';
 
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE = 'project-library-source-bearing-handoff-v1';
 export const DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING ';

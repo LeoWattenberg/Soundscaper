@@ -13,7 +13,9 @@ import {
 	isDesktopReadProfile,
 } from './desktop-read-profile.ts';
 import { createDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
+import { createDesktopHelperVideoTimingProbe } from './desktop-helper-video-timing-probe.ts';
 import { createDesktopLinkedOriginalAccess } from './desktop-linked-original-port.ts';
+import { registerDesktopReadCapability } from './desktop-read-capability-registry.ts';
 import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
@@ -54,6 +56,7 @@ export function createAudioEditorFileService(options = {}) {
 		kind: isDesktop ? 'desktop' : 'browser',
 		isDesktop,
 		bridge,
+		helperTimingProbe: createDesktopHelperVideoTimingProbe({ bridge }),
 		linkedVideoOriginalsAvailable: linkedVideoOriginals.available,
 		linkedVideoOriginalPort,
 		chooseLinkedVideoOriginal: linkedVideoOriginals.choose,
@@ -434,11 +437,16 @@ function createNamedFile(blob, descriptor, scope) {
 		type: descriptor.mimeType || blob.type || 'application/octet-stream',
 		lastModified: Number(descriptor.lastModified) || Date.now(),
 	};
-	if (typeof FileConstructor === 'function') return new FileConstructor([blob], descriptor.name || 'desktop-file', options);
+	if (typeof FileConstructor === 'function') {
+		const file = new FileConstructor([blob], descriptor.name || 'desktop-file', options);
+		registerDesktopReadCapability(file, descriptor.id);
+		return file;
+	}
 	Object.defineProperties(blob, {
 		name: { value: descriptor.name || 'desktop-file', configurable: true },
 		lastModified: { value: options.lastModified, configurable: true },
 	});
+	registerDesktopReadCapability(blob, descriptor.id);
 	return blob;
 }
 

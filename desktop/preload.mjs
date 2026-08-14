@@ -32,6 +32,10 @@ const CHANNELS = Object.freeze({
 	finishSharedSourceWrite: 'soundscaper:v1:projects:sources:finish',
 	abortSharedSourceWrite: 'soundscaper:v1:projects:sources:abort',
 	readSharedSourceChunk: 'soundscaper:v1:projects:sources:read',
+	helperProbeAvailability: 'soundscaper:v1:helper:probe-availability',
+	helperProbeBegin: 'soundscaper:v1:helper:probe-begin',
+	helperProbeAwait: 'soundscaper:v1:helper:probe-await',
+	helperProbeCancel: 'soundscaper:v1:helper:probe-cancel',
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
 	installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove',
@@ -140,6 +144,19 @@ const api = Object.freeze({
 		requestId: text(response?.requestId, 64),
 		allow: response?.allow === true,
 	}),
+	probeHelperAvailability: () => ipcRenderer.invoke(CHANNELS.helperProbeAvailability).then((value) => Object.freeze({
+		enabled: value?.enabled === true,
+		quarantined: value?.quarantined === true,
+	})),
+	beginVideoSourceProbe: (request) => ipcRenderer.invoke(CHANNELS.helperProbeBegin, {
+		capabilityId: opaqueId(request?.capabilityId, 64),
+	}).then((value) => Object.freeze({ probeId: opaqueId(value?.probeId, 40) })),
+	awaitVideoSourceProbe: (request) => ipcRenderer.invoke(CHANNELS.helperProbeAwait, {
+		probeId: opaqueId(request?.probeId, 40),
+	}).then(helperProbeCompletion),
+	cancelVideoSourceProbe: (request) => ipcRenderer.invoke(CHANNELS.helperProbeCancel, {
+		probeId: opaqueId(request?.probeId, 40),
+	}).then((value) => Object.freeze({ cancelled: value?.cancelled === true })),
 	listAssistanceModels: () => ipcRenderer.invoke(CHANNELS.listAssistanceModels).then(assistanceStatus),
 	installAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.installAssistanceModel, assistanceModelId(modelId)).then(assistanceModel),
 	removeAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.removeAssistanceModel, assistanceModelId(modelId)).then(safeInteger),
@@ -606,6 +623,31 @@ function positiveSafeInteger(value) {
 	const number = safeInteger(value);
 	if (number === 0) throw new RangeError('Expected a positive safe integer');
 	return number;
+}
+function helperProbeCompletion(value) {
+	if (value?.status === 'probed') {
+		const timingAsset = binary(value.timingAsset);
+		if (timingAsset.byteLength < 32 || timingAsset.byteLength > 16_000_032) {
+			throw new RangeError('Helper probe timing asset is out of range');
+		}
+		const characteristics = JSON.stringify(value.characteristics ?? null);
+		if (utf8Bytes(characteristics, 65_536) > 65_536) {
+			throw new RangeError('Helper probe characteristics exceed their bound');
+		}
+		return Object.freeze({
+			status: 'probed',
+			timingAsset,
+			nominalRate: Object.freeze({
+				num: positiveSafeInteger(value.nominalRate?.num),
+				den: positiveSafeInteger(value.nominalRate?.den),
+			}),
+			characteristics: JSON.parse(characteristics),
+		});
+	}
+	if (value?.status === 'failed') {
+		return Object.freeze({ status: 'failed', code: text(value.code, 64), message: text(value.message, 2048) });
+	}
+	throw new TypeError('Desktop returned an unsupported helper probe completion');
 }
 function strictBoolean(value) {
 	if (typeof value !== 'boolean') throw new TypeError('Desktop shared-project delete result must be a boolean');

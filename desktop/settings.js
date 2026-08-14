@@ -11,6 +11,7 @@ const DEFAULTS = Object.freeze({
 	updatesEnabled: true,
 	lastUpdateCheck: null,
 	modelsDirectory: null,
+	nativeProbeHelperEnabled: false,
 });
 
 const MAX_MODELS_DIRECTORY_LENGTH = 4096;
@@ -73,6 +74,13 @@ export class DesktopSettingsStore {
 		return this.#settings.modelsDirectory;
 	}
 
+	/** The native probe helper stays off until the user turns it on. */
+	async setNativeProbeHelperEnabled(enabled) {
+		this.#settings.nativeProbeHelperEnabled = enabled === true;
+		await this.#write();
+		return this.#settings.nativeProbeHelperEnabled;
+	}
+
 	async recordUpdateCheck(timestamp = Date.now()) {
 		this.#settings.lastUpdateCheck = new Date(timestamp).toISOString();
 		await this.#write();
@@ -117,5 +125,6 @@ function validateSettings(value) {
 		updatesEnabled: value.updatesEnabled !== false,
 		lastUpdateCheck,
 		modelsDirectory,
+		nativeProbeHelperEnabled: value.nativeProbeHelperEnabled === true,
 	};
 }

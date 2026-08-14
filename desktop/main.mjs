@@ -27,6 +27,7 @@ import {
 } from './constants.js';
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
 import { registerAssistance } from './assistance-registration.mjs';
+import { desktopHelperProbeMenu, registerDesktopHelperProbe } from './helper-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
@@ -70,10 +71,12 @@ let projectLibraryRuntime = null;
 let projectLibraryStartup = null;
 let projectLibraryIpc = null;
 let linkedVideoLocators = null;
+let helperProbeService = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
+	helperProbes: () => helperProbeService,
 	linkedVideoLocators: () => linkedVideoLocators,
 	ownership: rendererSaveOwnership,
 	projectLibraryIpc: () => projectLibraryIpc,
@@ -99,6 +102,7 @@ const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
 		{ name: 'project library', run: closeProjectLibraryHost },
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
+		{ name: 'helper probe', run: () => helperProbeService?.dispose() },
 		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
@@ -308,6 +312,7 @@ function registerIpcHandlers(desktopSession) {
 		session: desktopSession,
 	});
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
+	helperProbeService = registerDesktopHelperProbe({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,
@@ -514,6 +519,7 @@ function installMenu() {
 			],
 		},
 		{ label: 'View', submenu: [{ role: 'reload', visible: !app.isPackaged }, { role: 'toggleDevTools', visible: !app.isPackaged }, { type: 'separator', visible: !app.isPackaged }, { role: 'togglefullscreen' }] },
+		...desktopHelperProbeMenu(),
 		{ label: 'Window', role: 'windowMenu' },
 		{
 			label: 'Help',
