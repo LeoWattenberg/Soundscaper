@@ -77,6 +77,12 @@ test.describe('milestone 2 browser storage durability', () => {
 		});
 
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
+		// Playwright's WebKit exposes no origin private file system at all, so the editor
+		// never reaches the OPFS writer this test refuses a quota for.
+		test.skip(
+			!await page.evaluate(() => typeof navigator.storage?.getDirectory === 'function'),
+			'OPFS quota refusal requires the origin private file system.',
+		);
 		const fixture = createDeterministicAvFixture('m2-opfs-quota.webm');
 		await editor.locator('[data-import-input]').setInputFiles(fixture);
 		await expect.poll(async () => {

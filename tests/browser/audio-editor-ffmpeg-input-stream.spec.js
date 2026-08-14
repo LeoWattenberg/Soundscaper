@@ -19,6 +19,14 @@ test('FFmpeg consumes a bounded raw-frame ring while exec is running', async ({ 
 	test.setTimeout(120_000);
 	await installRoutes(page);
 	await page.goto(`${ROOT}/index.html`);
+	// The fixture drives @ffmpeg/ffmpeg's SharedArrayBuffer ring, which only exists in a
+	// cross-origin-isolated context. Playwright's Firefox and WebKit do not reach that
+	// state from this served fixture, so there is no ring to exercise there.
+	test.skip(
+		!await page.evaluate(() => globalThis.crossOriginIsolated === true
+			&& typeof SharedArrayBuffer === 'function'),
+		'The FFmpeg input-stream ring requires cross-origin isolation.',
+	);
 	const result = await page.evaluate(async (root) => {
 		if (!globalThis.crossOriginIsolated || typeof SharedArrayBuffer !== 'function') {
 			throw new Error('The FFmpeg input-stream fixture requires cross-origin isolation.');
