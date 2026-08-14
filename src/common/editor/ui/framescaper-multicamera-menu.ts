@@ -162,19 +162,40 @@ function nextMemberCommand(project: DataRecord, group: DataRecord): FramescaperM
 function nudgeCommand(
 	project: DataRecord,
 	group: DataRecord,
-	delta: -1 | 1,
+	direction: -1 | 1,
 ): FramescaperMulticameraMenuCommand | null {
 	const fence = existingFence(project, group);
 	const members = records(group.members);
 	const activeIndex = members.findIndex(({ id }) => id === fence?.expectedActiveMemberId);
 	const activeOffset = integer(members[activeIndex]?.syncOffsetSamples, Number.MIN_SAFE_INTEGER);
-	if (!fence || activeIndex < 0 || activeOffset === null || !Number.isSafeInteger(activeOffset + delta)) return null;
+	const step = activeSourceFrameSamples(project, members[activeIndex]);
+	if (!fence || activeIndex < 0 || activeOffset === null || step === null) return null;
+	const syncOffsetSamples = activeOffset + direction * step;
+	if (!Number.isSafeInteger(syncOffsetSamples)) return null;
 	const snapshotMembers = members.map((member, index) => Object.freeze({
 		...member,
-		...(index === activeIndex ? { syncOffsetSamples: activeOffset + delta } : {}),
+		...(index === activeIndex ? { syncOffsetSamples } : {}),
 	}));
 	const replacement = Object.freeze({ ...group, members: Object.freeze(snapshotMembers) });
 	return Object.freeze({ type: 'multicamera/update', ...fence, group: replacement as MulticameraGroup });
+}
+
+/**
+ * A sync offset lands on the member source's own frame grid and is stored in samples, so
+ * one conformed source frame is the smallest legal step and a grid no whole sample count
+ * spans, such as 30000/1001 frames at 48 kHz, has no representable step at all.
+ */
+function activeSourceFrameSamples(project: DataRecord, member: DataRecord | undefined): number | null {
+	const sampleRate = integer(project.sampleRate, 1);
+	const source = records(project.sources)
+		.find(({ id, kind }) => kind === 'video' && id === member?.sourceId);
+	const rate = record(source?.frameRate);
+	const num = integer(rate?.num, 1);
+	const den = integer(rate?.den, 1);
+	if (sampleRate === null || num === null || den === null
+		|| record(source?.timingDecision)?.mode !== 'conform-cfr-at-ingest') return null;
+	const scaled = sampleRate * den;
+	return Number.isSafeInteger(scaled) && scaled % num === 0 ? scaled / num : null;
 }
 
 function removeCommand(project: DataRecord, group: DataRecord): FramescaperMulticameraMenuCommand | null {

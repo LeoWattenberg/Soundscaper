@@ -30,6 +30,10 @@ const ORIGINAL_SHA = '12'.repeat(32);
 const CANONICAL_TIMING_SHA = '23'.repeat(32);
 const CANONICAL_SOURCE_KEY = 'owned/video-source';
 const CANONICAL_TIMING_KEY = `video-timing-sha256:${CANONICAL_TIMING_SHA}`;
+const MEMBER_SOURCE_KEY = 'owned/member-source';
+const MEMBER_SHA = '34'.repeat(32);
+const RENDER_SOURCE_KEY = 'owned/render-source';
+const RENDER_SHA = '45'.repeat(32);
 
 test('V18 retention authenticates the exact profile before traversing its scope', () => {
 	let traps = 0;
@@ -55,6 +59,18 @@ test('all-null V18 roots preserve canonical source and timing bodies without pro
 	assert.deepEqual(roots, [CANONICAL_SOURCE_KEY, CANONICAL_TIMING_KEY].sort());
 	assert.equal(roots.some((key) => key.startsWith('video-proxy-sha256:')), false);
 	assert.equal(Object.isFrozen(roots), true);
+});
+
+test('V18 roots multicamera member and rendered-fallback media that no clip reaches', () => {
+	const project = dormantReferenceProject();
+	const roots = collectFramescaperProjectStorageRootsV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		scope(project),
+	);
+
+	assert.deepEqual(roots, [
+		CANONICAL_SOURCE_KEY, CANONICAL_TIMING_KEY, MEMBER_SOURCE_KEY, RENDER_SOURCE_KEY,
+	].sort());
 });
 
 test('retention covers retained revisions, every history snapshot, pending saves, and both claim states', () => {
@@ -216,6 +232,43 @@ function allNullProject(): FramescaperProjectV18 {
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
 		primarySequenceId: 'main-sequence',
+	});
+}
+
+function dormantReferenceProject(): FramescaperProjectV18 {
+	const project = allNullProject() as unknown as Record<string, unknown>;
+	return createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
+		id: project.id, title: project.title, now: NOW,
+		sources: [
+			...project.sources as readonly unknown[],
+			dormantSource('member-source', MEMBER_SOURCE_KEY, MEMBER_SHA),
+			dormantSource('render-source', RENDER_SOURCE_KEY, RENDER_SHA),
+		],
+		clips: project.clips, tracks: project.tracks, sequences: project.sequences,
+		primarySequenceId: project.primarySequenceId,
+		multicameraGroups: [{
+			id: 'multicamera-a', projectId: project.id, sequenceId: 'main-sequence',
+			outputClipId: 'video-clip', activeMemberId: 'member-a', members: [
+				{ id: 'member-a', groupId: 'multicamera-a', sourceId: 'video-source', syncOffsetSamples: 0 },
+				{ id: 'member-b', groupId: 'multicamera-a', sourceId: 'member-source', syncOffsetSamples: 0 },
+			],
+		}],
+		featureRequirements: { schemaVersion: 2, requirements: [{
+			id: 'publisher.film-grain', featureId: 'org.example.film-grain', displayName: 'Film grain',
+			disposition: 'rendered-fallback',
+			fallback: {
+				role: 'project-video-render-v1', kind: 'video',
+				sourceId: 'render-source', sha256: RENDER_SHA,
+			},
+		}] },
+	} as never);
+}
+
+function dormantSource(id: string, storageKey: string, contentSha256: string): unknown {
+	return createVideoSourceV10({
+		id, name: id, storageKey, mimeType: 'video/mp4', contentSha256,
+		frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10,
+		frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
 	});
 }
 

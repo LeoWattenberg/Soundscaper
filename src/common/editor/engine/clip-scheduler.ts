@@ -546,6 +546,6 @@ async function scheduleOfflineChunkPlan({
 		} catch {
 			// Provider errors report corrupt chunks; Web Audio range errors skip only this segment.
 		}
-			onChunkLoaded?.(rangeEnd - rangeStart);
-		}
+		onChunkLoaded?.(rangeEnd - rangeStart);
 	}
+}

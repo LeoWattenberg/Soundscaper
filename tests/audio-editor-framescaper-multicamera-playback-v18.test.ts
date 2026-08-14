@@ -23,6 +23,7 @@ import {
 } from '../src/framescaper/editor-project-v18-multicam-playback.ts';
 import {
 	createFramescaperProjectV18,
+	validateFramescaperProjectV18,
 	type FramescaperProjectV18,
 } from '../src/framescaper/editor-project-v18.ts';
 
@@ -97,7 +98,12 @@ test('multicamera selection composes before exact nested playback materializatio
 });
 
 test('multicamera playback refuses sample offsets between CFR source boundaries', () => {
-	const project = cfrProject({ syncOffsetSamples: 1 });
+	assert.throws(
+		() => cfrProject({ syncOffsetSamples: 1 }),
+		/exact.*source boundary|representable.*source/iu,
+	);
+	const project = structuredClone(cfrProject()) as unknown as MutableProject;
+	project.multicameraGroups[0]!.members[1]!.syncOffsetSamples = 1;
 	assert.throws(
 		() => materializeFramescaperMulticameraPlaybackProjectV18(PROFILE, project),
 		/exact.*source boundary|representable.*source/iu,
@@ -154,6 +160,7 @@ test('project activation loads verified multicamera timing before synchronous pr
 
 test('verified VFR evidence still refuses an exact time between presentation boundaries', () => {
 	const fixture = vfrProject({ sourceInFrame: 2, sourceFrameCount: 1 });
+	assert.equal(validateFramescaperProjectV18(PROFILE, fixture.project), true);
 	const index = validateVideoTimingAssetBytes(fixture.publication.reference, fixture.publication.bytes);
 	registerVideoTimingIndex(fixture.sourceB, index);
 	try {
@@ -276,6 +283,11 @@ function multicameraGroup(sequenceId: string, syncOffsetSamples: number) {
 			{ id: 'camera-b', groupId: 'group-a', sourceId: 'source-b', syncOffsetSamples },
 		],
 	};
+}
+
+interface MutableProject extends Record<string, unknown> {
+	clips: Record<string, unknown>[];
+	multicameraGroups: { members: { syncOffsetSamples: number }[] }[];
 }
 
 function videoSource(

@@ -40,7 +40,7 @@ test('exact V18 persistence owns one required detached multicamera collection', 
 		...projectOptions(), multicameraGroups: input,
 	});
 	input[0]!.members[0]!.syncOffsetSamples = 99;
-	assert.equal(project.multicameraGroups[0]?.members[0]?.syncOffsetSamples, -1_000);
+	assert.equal(project.multicameraGroups[0]?.members[0]?.syncOffsetSamples, 8_008);
 	assert.equal(validateFramescaperProjectV18(PROFILE, project), true);
 
 	const missing = structuredClone(project) as unknown as Record<string, unknown>;
@@ -75,14 +75,14 @@ test('V18 command ownership delegates create, update, switch, and remove with ex
 		expectedProjectRevision: initial.revision, group: input,
 	}, { now: UPDATED });
 	input.members[0]!.syncOffsetSamples = 99;
-	assert.equal(created.multicameraGroups[0]?.members[0]?.syncOffsetSamples, -1_000);
+	assert.equal(created.multicameraGroups[0]?.members[0]?.syncOffsetSamples, 8_008);
 	assert.equal(created.revision, initial.revision + 1);
 	assert.equal(created.updatedAt, UPDATED);
 
 	const replacement = {
 		...multicameraGroup(),
 		members: [
-			{ ...multicameraGroup().members[0]!, syncOffsetSamples: -900 },
+			{ ...multicameraGroup().members[0]!, syncOffsetSamples: 16_016 },
 			multicameraGroup().members[1]!,
 		],
 	};
@@ -91,7 +91,7 @@ test('V18 command ownership delegates create, update, switch, and remove with ex
 		expectedProjectRevision: created.revision, groupId: 'group-a',
 		expectedActiveMemberId: 'camera-a', group: replacement,
 	}, { now: SWITCHED });
-	assert.equal(updated.multicameraGroups[0]?.members[0]?.syncOffsetSamples, -900);
+	assert.equal(updated.multicameraGroups[0]?.members[0]?.syncOffsetSamples, 16_016);
 
 	const switched = applyFramescaperProjectCommandV18(PROFILE, updated, {
 		type: 'multicamera/switch', projectId: updated.id,
@@ -160,8 +160,8 @@ function multicameraGroup(): MutableGroup {
 		id: 'group-a', projectId: 'multicamera-persistence-v18', sequenceId: 'main-sequence',
 		outputClipId: 'output-clip', activeMemberId: 'camera-a',
 		members: [
-			{ id: 'camera-a', groupId: 'group-a', sourceId: 'source-a', syncOffsetSamples: -1_000 },
-			{ id: 'camera-b', groupId: 'group-a', sourceId: 'source-b', syncOffsetSamples: -500 },
+			{ id: 'camera-a', groupId: 'group-a', sourceId: 'source-a', syncOffsetSamples: 8_008 },
+			{ id: 'camera-b', groupId: 'group-a', sourceId: 'source-b', syncOffsetSamples: 0 },
 		],
 	};
 }

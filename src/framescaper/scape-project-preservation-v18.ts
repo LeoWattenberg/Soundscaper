@@ -37,6 +37,7 @@ import {
 } from '../common/editor/video-timing-asset.ts';
 import {
 	FramescaperProjectV18ArchiveRepository,
+	type FramescaperProjectV18ArchivePreservationPlan,
 	type FramescaperProjectV18ArchivePublicationMode,
 } from './editor-project-v18-archive-repository.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
@@ -105,6 +106,18 @@ export type FramescaperScapeArchivePublicationRequestV18 =
 		readonly project: unknown;
 	}>;
 
+export interface FramescaperScapeArchiveDocumentPublicationV18 {
+	readonly mode: FramescaperProjectV18ArchivePublicationMode;
+	readonly expected: FramescaperProjectV18 | null;
+	readonly project: FramescaperProjectV18;
+}
+
+export interface FramescaperScapeArchiveDocumentPublisherV18 {
+	publish(
+		publication: Readonly<FramescaperScapeArchiveDocumentPublicationV18>,
+	): Promise<FramescaperProjectV18 | null>;
+}
+
 export interface FramescaperScapeArchiveImportRequestV18 {
 	readonly manifest: unknown;
 	readonly project: unknown;
@@ -113,6 +126,7 @@ export interface FramescaperScapeArchiveImportRequestV18 {
 	readonly operationId: string;
 	readonly publication: FramescaperScapeArchivePublicationRequestV18;
 	readonly signal?: AbortSignal;
+	readonly publisher?: Readonly<FramescaperScapeArchiveDocumentPublisherV18>;
 }
 
 export interface FramescaperScapeArchiveImportResultV18 {
@@ -133,8 +147,9 @@ const DEPENDENCY_OPTIONAL_FIELDS = ['now', 'createGeneration'] as const;
 const IMPORT_REQUIRED_FIELDS = [
 	'manifest', 'project', 'decision', 'entries', 'operationId', 'publication',
 ] as const;
-const IMPORT_OPTIONAL_FIELDS = ['signal'] as const;
+const IMPORT_OPTIONAL_FIELDS = ['signal', 'publisher'] as const;
 const TIMING_MIME_TYPE = 'application/vnd.soundscaper.video-timing';
+const DOCUMENT_PUBLISHERS = new WeakMap<object, FramescaperScapeArchiveV18>();
 
 /** Dormant format-2 proxy/timing body owner. V17 archive code never imports it. */
 export class FramescaperScapeArchiveV18 {
@@ -193,11 +208,39 @@ export class FramescaperScapeArchiveV18 {
 	assertComposition(
 		profile: EditorProjectRuntimeProfile | unknown,
 		store: FramescaperScapeArchiveBodyStoreV18 | unknown,
+		publisher: Readonly<FramescaperScapeArchiveDocumentPublisherV18> | unknown = null,
 	): void {
 		assertFramescaperProjectV18Profile(profile);
-		if (profile !== this.#profile || store !== this.#store) {
+		if (profile !== this.#profile || store !== this.#store
+			|| (publisher !== null && DOCUMENT_PUBLISHERS.get(publisher as object) !== this)) {
 			throw new TypeError('The exact V18 archive composition is required.');
 		}
+	}
+
+	/**
+	 * Admit one external owner for imported documents. Bodies keep landing in this
+	 * archive's isolated V18 store, so only the document publication moves and the
+	 * catalog that owns the destination stays the single publication act.
+	 */
+	admitDocumentPublisher(
+		profile: EditorProjectRuntimeProfile | unknown,
+		store: FramescaperScapeArchiveBodyStoreV18 | unknown,
+		publish: (publication: Readonly<FramescaperScapeArchiveDocumentPublicationV18>) => unknown,
+	): Readonly<FramescaperScapeArchiveDocumentPublisherV18> {
+		this.assertComposition(profile, store);
+		if (typeof publish !== 'function') {
+			throw new TypeError('A V18 archive document publisher must be a function.');
+		}
+		const publisher = Object.freeze({
+			publish: async (publication: Readonly<FramescaperScapeArchiveDocumentPublicationV18>) => {
+				const published = await publish(publication);
+				return published === null || published === undefined
+					? null
+					: cloneFramescaperProjectV18(this.#profile, published);
+			},
+		});
+		DOCUMENT_PUBLISHERS.set(publisher, this);
+		return publisher;
 	}
 
 	async exportProject(
@@ -235,6 +278,7 @@ export class FramescaperScapeArchiveV18 {
 			'Framescaper V18 Scape import request',
 		);
 		const signal = raw.signal === undefined ? undefined : abortSignal(raw.signal);
+		const publisher = raw.publisher === undefined ? null : this.#admittedPublisher(raw.publisher);
 		const inspection = inspectFramescaperScapeProjectEnvelopeV18(
 			this.#profile,
 			raw.manifest,
@@ -250,16 +294,7 @@ export class FramescaperScapeArchiveV18 {
 		if (inspection.formatVersion === 1) {
 			throwIfScapeAborted(signal);
 			await this.#assertDurableStore();
-			const published = await this.#repository.publish({
-				mode: target.mode,
-				origin,
-				expected: target.expected,
-				project: target.project,
-				plans: Object.freeze([]),
-			});
-			return published
-				? importResult('published', 1, published, target.mode)
-				: importResult('stale', 1, target.project, target.mode);
+			return this.#publishDocument(publisher, 1, origin, target, Object.freeze([]));
 		}
 		const entries = indexFramescaperScapeBodyEntriesV18(raw.entries, inspection.proxyAssets);
 		throwIfScapeAborted(signal);
@@ -280,53 +315,47 @@ export class FramescaperScapeArchiveV18 {
 				if (created) newPublications.push(created);
 			}
 
-			const fingerprint = framescaperProjectFingerprintV18(this.#profile, origin);
-			const plans = [];
-			for (const [index, source] of targetInventory.attached.entries()) {
-				const claimOperationId = framescaperScapeSourceOperationIdV18(operationId, index);
-				const proxy = await this.#claimStaging.createVerifiedClaim({
-					operationId: claimOperationId,
-					projectId: framescaperScapeProjectIdentifierV18(target.project),
-					sourceId: source.sourceId,
-					baseFingerprint: fingerprint,
-					bodyKind: 'proxy',
-					bodyKey: source.attachment.storageKey,
-					byteLength: source.attachment.byteLength,
-					mimeType: source.attachment.mimeType,
-				}, signal ? { signal } : {});
-				verifiedClaimCount += 1;
-				const timing = await this.#claimStaging.createVerifiedClaim({
-					operationId: claimOperationId,
-					projectId: framescaperScapeProjectIdentifierV18(target.project),
-					sourceId: source.sourceId,
-					baseFingerprint: fingerprint,
-					bodyKind: 'timing',
-					bodyKey: source.attachment.timingAsset.storageKey,
-					byteLength: source.attachment.timingAsset.byteLength,
-					mimeType: TIMING_MIME_TYPE,
-				}, signal ? { signal } : {});
-				verifiedClaimCount += 1;
-				const plan = await this.#claims.preparePreservationPlan({
-					operationId: claimOperationId,
-					projectId: framescaperScapeProjectIdentifierV18(target.project),
-					sourceId: source.sourceId,
-					baseFingerprint: fingerprint,
-					proxyClaimKey: proxy.key,
-					timingClaimKey: timing.key,
-				});
-				plans.push(Object.freeze({ sourceId: source.sourceId, plan }));
+			if (publisher === null) {
+				const fingerprint = framescaperProjectFingerprintV18(this.#profile, origin);
+				const plans: FramescaperProjectV18ArchivePreservationPlan[] = [];
+				for (const [index, source] of targetInventory.attached.entries()) {
+					const claimOperationId = framescaperScapeSourceOperationIdV18(operationId, index);
+					const proxy = await this.#claimStaging.createVerifiedClaim({
+						operationId: claimOperationId,
+						projectId: framescaperScapeProjectIdentifierV18(target.project),
+						sourceId: source.sourceId,
+						baseFingerprint: fingerprint,
+						bodyKind: 'proxy',
+						bodyKey: source.attachment.storageKey,
+						byteLength: source.attachment.byteLength,
+						mimeType: source.attachment.mimeType,
+					}, signal ? { signal } : {});
+					verifiedClaimCount += 1;
+					const timing = await this.#claimStaging.createVerifiedClaim({
+						operationId: claimOperationId,
+						projectId: framescaperScapeProjectIdentifierV18(target.project),
+						sourceId: source.sourceId,
+						baseFingerprint: fingerprint,
+						bodyKind: 'timing',
+						bodyKey: source.attachment.timingAsset.storageKey,
+						byteLength: source.attachment.timingAsset.byteLength,
+						mimeType: TIMING_MIME_TYPE,
+					}, signal ? { signal } : {});
+					verifiedClaimCount += 1;
+					const plan = await this.#claims.preparePreservationPlan({
+						operationId: claimOperationId,
+						projectId: framescaperScapeProjectIdentifierV18(target.project),
+						sourceId: source.sourceId,
+						baseFingerprint: fingerprint,
+						proxyClaimKey: proxy.key,
+						timingClaimKey: timing.key,
+					});
+					plans.push(Object.freeze({ sourceId: source.sourceId, plan }));
+				}
+				throwIfScapeAborted(signal);
+				return await this.#publishDocument(null, 2, origin, target, plans);
 			}
 			throwIfScapeAborted(signal);
-			const published = await this.#repository.publish({
-				mode: target.mode,
-				origin,
-				expected: target.expected,
-				project: target.project,
-				plans,
-			});
-			return published
-				? importResult('published', 2, published, target.mode)
-				: importResult('stale', 2, target.project, target.mode);
 		} catch (error) {
 			if (verifiedClaimCount > 0) throw error;
 			const cleanupErrors: unknown[] = [];
@@ -342,6 +371,41 @@ export class FramescaperScapeArchiveV18 {
 			}
 			throw error;
 		}
+		// The delegate reconciles this shadow through its own import, so the staged
+		// bodies must outlive a refused or indeterminate external publication.
+		return this.#publishDocument(publisher, 2, origin, target, Object.freeze([]));
+	}
+
+	async #publishDocument(
+		publisher: Readonly<FramescaperScapeArchiveDocumentPublisherV18> | null,
+		formatVersion: 1 | 2,
+		origin: FramescaperProjectV18,
+		target: TargetPublication,
+		plans: readonly Readonly<FramescaperProjectV18ArchivePreservationPlan>[],
+	): Promise<Readonly<FramescaperScapeArchiveImportResultV18>> {
+		const published = publisher === null
+			? await this.#repository.publish({
+				mode: target.mode,
+				origin,
+				expected: target.expected,
+				project: target.project,
+				plans,
+			})
+			: await publisher.publish({
+				mode: target.mode,
+				expected: target.expected,
+				project: target.project,
+			});
+		return published
+			? importResult('published', formatVersion, published, target.mode)
+			: importResult('stale', formatVersion, target.project, target.mode);
+	}
+
+	#admittedPublisher(value: unknown): Readonly<FramescaperScapeArchiveDocumentPublisherV18> {
+		if (DOCUMENT_PUBLISHERS.get(value as object) !== this) {
+			throw new TypeError('The exact admitted V18 archive document publisher is required.');
+		}
+		return value as Readonly<FramescaperScapeArchiveDocumentPublisherV18>;
 	}
 
 	async #assertDurableStore(): Promise<void> {

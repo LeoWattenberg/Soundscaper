@@ -34,6 +34,7 @@ import {
 import { FramescaperScapeCanonicalImportV18 } from './scape-project-file-import-v18.ts';
 import {
 	FramescaperScapeArchiveV18,
+	type FramescaperScapeArchiveDocumentPublisherV18,
 	type FramescaperScapeArchiveImportResultV18,
 	type FramescaperScapeArchivePublicationRequestV18,
 } from './scape-project-preservation-v18.ts';
@@ -71,6 +72,7 @@ export interface FramescaperScapeProjectFileImportResultV18 {
 export interface FramescaperScapeProjectFileV18Dependencies {
 	readonly archive: FramescaperScapeArchiveV18;
 	readonly store: FramescaperScapeFileExportStoreV18;
+	readonly publisher?: Readonly<FramescaperScapeArchiveDocumentPublisherV18>;
 }
 
 interface InspectorStore {
@@ -96,6 +98,7 @@ export class FramescaperScapeProjectFileV18 {
 	readonly #profile: EditorProjectRuntimeProfile;
 	readonly #archive: FramescaperScapeArchiveV18;
 	readonly #store: FramescaperScapeFileExportStoreV18;
+	readonly #publisher: Readonly<FramescaperScapeArchiveDocumentPublisherV18> | null;
 	readonly #compatibility: ReturnType<typeof createFramescaperProjectFeatureCompatibilityServiceV18>;
 
 	constructor(
@@ -107,10 +110,12 @@ export class FramescaperScapeProjectFileV18 {
 		if (!(dependencies.archive instanceof FramescaperScapeArchiveV18)) {
 			throw new TypeError('The exact Framescaper V18 archive authority is required.');
 		}
-		dependencies.archive.assertComposition(profile, dependencies.store);
+		const publisher = dependencies.publisher ?? null;
+		dependencies.archive.assertComposition(profile, dependencies.store, publisher);
 		this.#profile = profile;
 		this.#archive = dependencies.archive;
 		this.#store = dependencies.store;
+		this.#publisher = publisher;
 		this.#compatibility = createFramescaperProjectFeatureCompatibilityServiceV18(profile);
 	}
 
@@ -167,6 +172,7 @@ export class FramescaperScapeProjectFileV18 {
 				operationId: options.operationId,
 				publication: options.publication,
 				...(signal ? { signal } : {}),
+				...(this.#publisher ? { publisher: this.#publisher } : {}),
 			});
 			if (decision === 'cancel') {
 				const cancelled = await this.#archive.importProject(archiveRequest);
@@ -249,7 +255,9 @@ function fileResult(
 }
 
 function dependenciesRecord(value: unknown): FramescaperScapeProjectFileV18Dependencies {
-	const raw = closedRecord(value, ['archive', 'store'], 'Framescaper V18 Scape file dependencies');
+	const raw = record(value, 'Framescaper V18 Scape file dependencies');
+	const fields = Object.hasOwn(raw, 'publisher') ? ['archive', 'store', 'publisher'] : ['archive', 'store'];
+	closedKeys(raw, fields, 'Framescaper V18 Scape file dependencies');
 	return raw as unknown as FramescaperScapeProjectFileV18Dependencies;
 }
 
@@ -283,12 +291,6 @@ function abortSignal(value: unknown): AbortSignal {
 function optionalAbortSignal(value: unknown): AbortSignal | undefined {
 	if (value === undefined) return undefined;
 	return abortSignal(value);
-}
-
-function closedRecord(value: unknown, fields: readonly string[], label: string): Record<string, unknown> {
-	const raw = record(value, label);
-	closedKeys(raw, fields, label);
-	return raw;
 }
 
 function closedKeys(raw: Record<string, unknown>, fields: readonly string[], label: string): void {

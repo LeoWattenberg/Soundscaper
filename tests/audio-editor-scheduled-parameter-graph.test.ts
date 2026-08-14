@@ -295,6 +295,50 @@ test('effect parameter targets carry the latency standing ahead of them', () => 
 	})?.latencyFrames, 480);
 });
 
+test('mute and send targets declare the latency of their own track only', () => {
+	const context = new MockContext();
+	const project: EngineProject = {
+		sampleRate: 48_000,
+		tracks: [
+			{ type: 'audio', id: 'track-dry', gain: 1, pan: 0, mute: false, solo: false, effects: [] },
+			{
+				type: 'audio', id: 'track-limited', gain: 1, pan: 0, mute: false, solo: false,
+				effects: [createEffect('limiter', { id: 'limiter-1', params: { lookahead: 0.01 } })],
+			},
+		],
+		mixer: {
+			groups: [],
+			sends: [{ id: 'send-1', gain: 1, pan: 0, mute: false, solo: false, effects: [] }],
+			routes: { 'track-dry': { sends: { 'send-1': 0.5 } } },
+		},
+		master: { gain: 1, pan: 0, mute: false, effects: [] },
+	};
+	const graph = buildProjectGraph(
+		context as unknown as BaseAudioContext,
+		context.destination as unknown as AudioNode,
+		project,
+		{ metering: false },
+	);
+	assert.equal(graph.latencyFrames, 480);
+	// Both of these targets sit downstream of the per-track delay that
+	// compensates maximumTrackLatency - trackLatency, so the latency standing
+	// ahead of them is the graph latency, not their own track's. Whoever
+	// schedules a lane onto mute or send level must revisit these declarations.
+	assert.equal(graph.parameterRegistry.get({
+		kind: 'strip', strip: { kind: 'track', id: 'track-dry' }, parameterId: 'mute',
+	})?.latencyFrames, 0);
+	assert.equal(graph.parameterRegistry.get({
+		kind: 'edge', edgeId: legacySendEdgeId('track-dry', 'send-1'), parameterId: 'level',
+	})?.latencyFrames, 0);
+	assert.equal(graph.parameterRegistry.get({
+		kind: 'strip', strip: { kind: 'track', id: 'track-limited' }, parameterId: 'mute',
+	})?.latencyFrames, 480);
+	// The strip gain target is upstream of that delay, so its declaration holds.
+	assert.equal(graph.parameterRegistry.get({
+		kind: 'strip', strip: { kind: 'track', id: 'track-dry' }, parameterId: 'gain',
+	})?.latencyFrames, 0);
+});
+
 function paramEvents(context: MockContext): Array<readonly [string, string, number, number?]> {
 	const events: Array<readonly [string, string, number, number?]> = [];
 	for (const node of context.created) {

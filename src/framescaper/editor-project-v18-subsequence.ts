@@ -8,6 +8,13 @@ import type { FramescaperSequenceCommandV18 } from './editor-project-v18-sequenc
 export const FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH = 32;
 export const FRAMESCAPER_V18_MAXIMUM_SUBSEQUENCES = 4_096;
 
+/**
+ * Bound the flattened expansion the subsequence and depth fences leave unbounded:
+ * a validated diamond graph enumerates one occurrence per distinct root-to-leaf path.
+ * The budget counts one unit per traversed sequence plus one per emitted occurrence.
+ */
+export const FRAMESCAPER_V18_MAXIMUM_FLATTENED_OCCURRENCES = 65_536;
+
 export interface FramescaperSubsequenceV18 extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly sequenceId: string;
@@ -56,6 +63,7 @@ export function validateFramescaperSubsequencesV18(
 	const project = dataRecord(projectValue, 'Framescaper V18 project');
 	const sequenceValues = denseArray(dataProperty(project, 'sequences', 'Framescaper V18 project'), 'sequences');
 	const sequenceRates = new Map<string, SequenceRate>();
+	const sequenceTrackIds = new Map<string, readonly string[]>();
 	for (const [index, value] of sequenceValues.entries()) {
 		const sequence = dataRecord(value, `sequence ${String(index)}`);
 		const id = nonEmptyString(dataProperty(sequence, 'id', `sequence ${String(index)}`), 'sequence ID');
@@ -64,6 +72,7 @@ export function validateFramescaperSubsequencesV18(
 			num: positiveSafeInteger(dataProperty(rate, 'num', `sequence ${id}.rate`), `sequence ${id}.rate.num`),
 			den: positiveSafeInteger(dataProperty(rate, 'den', `sequence ${id}.rate`), `sequence ${id}.rate.den`),
 		});
+		sequenceTrackIds.set(id, optionalStringArray(sequence, 'trackIds'));
 	}
 	const subsequencesDescriptor = Object.getOwnPropertyDescriptor(project, 'subsequences');
 	if (!subsequencesDescriptor?.enumerable || !Object.hasOwn(subsequencesDescriptor, 'value')) {
@@ -119,6 +128,11 @@ export function validateFramescaperSubsequencesV18(
 	}
 	assertAcyclic(sequenceRates.keys(), outgoing);
 	assertMaximumDepth(sequenceRates.keys(), outgoing);
+	assertFramescaperFlatteningBudgetV18(
+		sequenceRates.keys(),
+		outgoing,
+		sequenceClipCounts(project, sequenceTrackIds),
+	);
 	return result;
 }
 
@@ -134,6 +148,29 @@ export function isFramescaperSubsequenceCommandV18(
 			|| descriptor.value === 'subsequence/update'
 			|| descriptor.value === 'subsequence/remove'),
 	);
+}
+
+/** Fence the flattened expansion of an acyclic depth-fenced graph without enumerating its paths. */
+export function assertFramescaperFlatteningBudgetV18(
+	sequenceIds: Iterable<string>,
+	outgoing: ReadonlyMap<string, readonly string[]>,
+	clipCounts: ReadonlyMap<string, number>,
+): void {
+	const ceiling = FRAMESCAPER_V18_MAXIMUM_FLATTENED_OCCURRENCES + 1;
+	const costs = new Map<string, number>();
+	const cost = (sequenceId: string): number => {
+		const prior = costs.get(sequenceId);
+		if (prior !== undefined) return prior;
+		let result = 1 + (clipCounts.get(sequenceId) ?? 0);
+		for (const child of outgoing.get(sequenceId) ?? []) result = Math.min(result + cost(child), ceiling);
+		costs.set(sequenceId, result);
+		return result;
+	};
+	for (const sequenceId of sequenceIds) {
+		if (cost(sequenceId) > FRAMESCAPER_V18_MAXIMUM_FLATTENED_OCCURRENCES) {
+			throw new RangeError('Framescaper V18 nested flattening exceeds the maintained occurrence limit.');
+		}
+	}
 }
 
 function assertExactDuration(
@@ -179,6 +216,48 @@ function assertMaximumDepth(
 		return result;
 	};
 	for (const sequenceId of sequenceIds) depth(sequenceId);
+}
+
+/**
+ * Track and occurrence shape belongs to the V17 foundation, which runs after this fence:
+ * unresolved shapes contribute no occurrences here and are refused before anything persists.
+ */
+function sequenceClipCounts(
+	project: Record<string, unknown>,
+	sequenceTrackIds: ReadonlyMap<string, readonly string[]>,
+): ReadonlyMap<string, number> {
+	const trackClipCounts = new Map<string, number>();
+	for (const value of optionalArray(project, 'tracks')) {
+		const track = optionalRecord(value);
+		if (!track) continue;
+		const id = optionalValue(track, 'id');
+		if (typeof id === 'string') trackClipCounts.set(id, optionalArray(track, 'clipIds').length);
+	}
+	const counts = new Map<string, number>();
+	for (const [sequenceId, trackIds] of sequenceTrackIds) {
+		let count = 0;
+		for (const trackId of trackIds) count += trackClipCounts.get(trackId) ?? 0;
+		counts.set(sequenceId, count);
+	}
+	return counts;
+}
+
+function optionalStringArray(value: object, key: string): readonly string[] {
+	return optionalArray(value, key).filter((entry): entry is string => typeof entry === 'string');
+}
+
+function optionalArray(value: object, key: string): readonly unknown[] {
+	const candidate = optionalValue(value, key);
+	return Array.isArray(candidate) ? candidate : [];
+}
+
+function optionalValue(value: object, key: string): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined;
+}
+
+function optionalRecord(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 
 function exactDataRecord(value: unknown, fields: ReadonlySet<string>, name: string): Record<string, unknown> {

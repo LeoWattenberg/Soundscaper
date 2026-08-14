@@ -87,7 +87,7 @@ export function collectFramescaperProjectStorageRootsV18(
 
 	const roots = new Set<string>();
 	for (const project of projects) {
-		collectCanonicalProjectRoots(project, roots);
+		collectProjectStorageKeys(project, roots);
 		assertRootLimit(roots, limits.maximumRoots);
 		for (const source of project.sources) {
 			if (source.kind !== 'video' || source.proxyAttachment === null) continue;
@@ -191,10 +191,6 @@ function snapshotProject(
 	value: unknown,
 ): FramescaperProjectV18 {
 	return cloneFramescaperProjectV18(profile, value);
-}
-
-function collectCanonicalProjectRoots(project: FramescaperProjectV18, target: Set<string>): void {
-	collectProjectStorageKeys({ ...project, schemaVersion: 17 }, target);
 }
 
 function normalizeLimits(value: FramescaperProjectRetentionLimitsV18): Required<FramescaperProjectRetentionLimitsV18> {

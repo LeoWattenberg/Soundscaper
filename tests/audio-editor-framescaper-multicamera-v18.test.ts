@@ -38,7 +38,7 @@ test('V18 multicamera groups are closed, bounded, detached, and sample-canonical
 	assert.equal(Object.isFrozen(groups[0]?.members[0]), true);
 
 	input[0]!.members[0]!.syncOffsetSamples = 99;
-	assert.equal(groups[0]?.members[0]?.syncOffsetSamples, -1_000);
+	assert.equal(groups[0]?.members[0]?.syncOffsetSamples, 8_008);
 	for (const [mutate, pattern] of [
 		[(value: Record<string, unknown>) => {
 			((value.members as Record<string, unknown>[])[0]!).syncOffsetSamples = 0.5;
@@ -121,12 +121,12 @@ test('V18 multicamera planners create, update, switch, and remove without mutati
 		group: {
 			...multicameraGroup(),
 			members: [
-				{ ...multicameraGroup().members[0]!, syncOffsetSamples: -900 },
+				{ ...multicameraGroup().members[0]!, syncOffsetSamples: 16_016 },
 				multicameraGroup().members[1]!,
 			],
 		},
 	});
-	assert.equal(planned.after[0]?.members[0]?.syncOffsetSamples, -900);
+	assert.equal(planned.after[0]?.members[0]?.syncOffsetSamples, 16_016);
 	assert.throws(() => plan(project, planned.after, {
 		type: 'multicamera/update', projectId: project.id,
 		expectedProjectRevision: project.revision, groupId: 'group-a',
@@ -140,7 +140,7 @@ test('V18 multicamera planners create, update, switch, and remove without mutati
 	});
 	assert.equal(planned.before[0]?.activeMemberId, 'camera-a');
 	assert.equal(planned.after[0]?.activeMemberId, 'camera-b');
-	assert.equal(planned.after[0]?.members[0]?.syncOffsetSamples, -900);
+	assert.equal(planned.after[0]?.members[0]?.syncOffsetSamples, 16_016);
 
 	assert.throws(() => plan(project, planned.after, {
 		type: 'multicamera/switch', projectId: project.id,
@@ -181,11 +181,11 @@ test('V18 runtime selection maps the output clip to the active canonical source 
 		outputClipId: 'output-clip',
 		memberId: 'camera-a',
 		sourceId: 'source-a',
-		syncOffsetSamples: -1_000,
+		syncOffsetSamples: 8_008,
 		timelineStartSample: { numerator: 8_008n, denominator: 5n },
 		timelineEndSample: { numerator: 88_088n, denominator: 5n },
-		sourceStartSample: { numerator: 3_008n, denominator: 5n },
-		sourceEndSample: { numerator: 83_088n, denominator: 5n },
+		sourceStartSample: { numerator: 48_048n, denominator: 5n },
+		sourceEndSample: { numerator: 128_128n, denominator: 5n },
 	});
 	assert.equal(Object.isFrozen(selection), true);
 	assert.equal(Object.isFrozen(selection.sourceStartSample), true);
@@ -229,6 +229,53 @@ test('V18 runtime selection refuses stale fences and source-bound violations', (
 	);
 });
 
+test('V18 multicamera writes refuse offsets between the member source frame boundaries', () => {
+	const project = multicameraProject();
+	const offGrid = multicameraGroup();
+	offGrid.members[0]!.syncOffsetSamples = 8_007;
+	assert.throws(
+		() => validateFramescaperMulticameraGroupsV18(PROFILE, project, [offGrid]),
+		/camera-a start is not an exact canonical-source boundary/iu,
+	);
+	for (const command of [
+		{
+			type: 'multicamera/create', projectId: project.id,
+			expectedProjectRevision: project.revision, group: offGrid,
+		},
+		{
+			type: 'multicamera/update', projectId: project.id,
+			expectedProjectRevision: project.revision, groupId: 'group-a',
+			expectedActiveMemberId: 'camera-a', group: offGrid,
+		},
+	] as const) assert.throws(
+		() => plan(project, command.type === 'multicamera/create' ? [] : [multicameraGroup()], command),
+		/exact canonical-source boundary/iu,
+	);
+	const inactive = multicameraGroup();
+	inactive.members[1]!.syncOffsetSamples = 1;
+	assert.throws(
+		() => plan(project, [], {
+			type: 'multicamera/create', projectId: project.id,
+			expectedProjectRevision: project.revision, group: inactive,
+		}),
+		/camera-b start is not an exact canonical-source boundary/iu,
+	);
+});
+
+test('V18 multicamera refuses a member source grid that cannot host the group time', () => {
+	const mixed = structuredClone(multicameraProject()) as unknown as MutableProject;
+	const rate = { num: 24, den: 1 };
+	mixed.sources[1]!.frameRate = rate;
+	mixed.sources[1]!.timingDecision = { mode: 'conform-cfr-at-ingest', rate };
+	const aligned = multicameraGroup();
+	aligned.members[0]!.syncOffsetSamples = 0;
+	aligned.members[1]!.syncOffsetSamples = 0;
+	assert.throws(
+		() => validateFramescaperMulticameraGroupsV18(PROFILE, mixed, [aligned]),
+		/camera-b start is not an exact canonical-source boundary/iu,
+	);
+});
+
 test('V18 multicamera authenticates the runtime profile before traversing project input', () => {
 	let traps = 0;
 	const project = new Proxy({}, { get() { traps += 1; throw new Error('project trap'); } });
@@ -252,8 +299,8 @@ function multicameraGroup(): MutableGroup {
 		id: 'group-a', projectId: 'multicamera-v18', sequenceId: 'main-sequence',
 		outputClipId: 'output-clip', activeMemberId: 'camera-a',
 		members: [
-			{ id: 'camera-a', groupId: 'group-a', sourceId: 'source-a', syncOffsetSamples: -1_000 },
-			{ id: 'camera-b', groupId: 'group-a', sourceId: 'source-b', syncOffsetSamples: -500 },
+			{ id: 'camera-a', groupId: 'group-a', sourceId: 'source-a', syncOffsetSamples: 8_008 },
+			{ id: 'camera-b', groupId: 'group-a', sourceId: 'source-b', syncOffsetSamples: 0 },
 		],
 	};
 }
@@ -305,5 +352,6 @@ interface MutableMember {
 
 interface MutableProject extends Record<string, unknown> {
 	clips: Record<string, unknown>[];
+	sources: Record<string, unknown>[];
 	tracks: (Record<string, unknown> & { clipIds: string[] })[];
 }

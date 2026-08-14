@@ -19,10 +19,14 @@ import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
+	FRAMESCAPER_V18_MAXIMUM_FLATTENED_OCCURRENCES,
 	FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH,
 	flattenFramescaperSequenceV18,
 	mapFramescaperNestedSequenceFrameV18,
 } from '../src/framescaper/editor-project-v18-nested-sequence.ts';
+import {
+	FRAMESCAPER_V18_MAXIMUM_FLATTENED_OCCURRENCES as SUBSEQUENCE_OCCURRENCE_LIMIT,
+} from '../src/framescaper/editor-project-v18-subsequence.ts';
 import {
 	cloneFramescaperProjectV18,
 	createFramescaperProjectV18,
@@ -40,6 +44,7 @@ import {
 } from '../src/framescaper/editor-project-v18-runtime.ts';
 
 const NOW = '2026-08-13T10:00:00.000Z';
+const SAFE_DIAMOND_DEPTH = 10;
 const ORIGINAL_SHA = '12'.repeat(32);
 const PROXY_SHA = '34'.repeat(32);
 const TIMING_SHA = '56'.repeat(32);
@@ -301,6 +306,103 @@ test('V18 nested-sequence validation rejects inexact duration, cycles, and exces
 		})),
 	}), /depth/iu);
 });
+
+test('V18 refuses an exploding nested graph when it is authored, validated, and flattened', () => {
+	assert.equal(FRAMESCAPER_V18_MAXIMUM_FLATTENED_OCCURRENCES, SUBSEQUENCE_OCCURRENCE_LIMIT);
+	assert.throws(() => createFramescaperProjectV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		diamondSequenceOptions(FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH),
+	), /occurrence limit/iu);
+
+	const exploding = explodingDiamondProject();
+	const started = Date.now();
+	assert.throws(
+		() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, exploding),
+		/occurrence limit/iu,
+	);
+	assert.throws(() => flattenFramescaperSequenceV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		exploding,
+		'diamond-0',
+	), /occurrence limit/iu);
+	assert.ok(Date.now() - started < 2_000);
+
+	const clipFree = explodingDiamondProject();
+	for (const sequence of clipFree.sequences as Record<string, unknown>[]) sequence.trackIds = [];
+	assert.throws(
+		() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, clipFree),
+		/occurrence limit/iu,
+	);
+});
+
+test('V18 keeps legitimately large nesting valid, loadable, and flattenable', () => {
+	const diamond = createFramescaperProjectV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		diamondSequenceOptions(SAFE_DIAMOND_DEPTH),
+	);
+	assert.equal(validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, diamond), true);
+	assert.equal(loadFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, diamond).readOnly, false);
+	assert.equal(flattenFramescaperSequenceV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		diamond,
+		'diamond-0',
+	).length, 1_024);
+
+	const wide = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, wideSequenceOptions(200));
+	assert.equal(validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, wide), true);
+	assert.equal(flattenFramescaperSequenceV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		wide,
+		'root',
+	).length, 200);
+});
+
+function explodingDiamondProject(): Record<string, unknown> {
+	const project = structuredClone(createFramescaperProjectV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		diamondSequenceOptions(SAFE_DIAMOND_DEPTH),
+	)) as unknown as Record<string, unknown>;
+	const exploding = diamondSequenceOptions(FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH);
+	project.sequences = exploding.sequences;
+	project.subsequences = exploding.subsequences;
+	return project;
+}
+
+function wideSequenceOptions(count: number): Record<string, unknown> {
+	return {
+		...nestedSequenceOptions(),
+		id: 'wide-v18',
+		title: 'Wide V18',
+		sequences: [
+			{ id: 'root', rate: { num: 25, den: 1 }, trackIds: [] },
+			{ id: 'leaf', rate: { num: 25, den: 1 }, trackIds: ['leaf-track'] },
+		],
+		primarySequenceId: 'root',
+		subsequences: Array.from({ length: count }, (_, index) => ({
+			id: `wide-${String(index)}`, sequenceId: 'root', sourceSequenceId: 'leaf',
+			sequenceStartFrame: index * 20, sequenceFrameCount: 20, sourceInFrame: 0, sourceFrameCount: 20,
+		})),
+	};
+}
+
+function diamondSequenceOptions(depth: number): Record<string, unknown> {
+	const sequenceId = (index: number): string => (index === depth ? 'leaf' : `diamond-${String(index)}`);
+	return {
+		...nestedSequenceOptions(),
+		id: 'diamond-v18',
+		title: 'Diamond V18',
+		sequences: Array.from({ length: depth + 1 }, (_, index) => ({
+			id: sequenceId(index), rate: { num: 25, den: 1 },
+			trackIds: index === depth ? ['leaf-track'] : [],
+		})),
+		primarySequenceId: 'diamond-0',
+		subsequences: Array.from({ length: depth }, (_, index) => ['a', 'b'].map((branch) => ({
+			id: `diamond-${String(index)}-${branch}`,
+			sequenceId: sequenceId(index), sourceSequenceId: sequenceId(index + 1),
+			sequenceStartFrame: 0, sequenceFrameCount: 20, sourceInFrame: 0, sourceFrameCount: 20,
+		}))).flat(),
+	};
+}
 
 function nestedSequenceOptions(): Record<string, unknown> {
 	return {

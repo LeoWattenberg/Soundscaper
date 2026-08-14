@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	sourceTimeToVideoBoundary,
+	videoBoundaryTime,
+	videoSourceTimingView,
+	type VideoSourceTimingView,
+} from '../common/editor/video-source-timing-view.ts';
+import { resolveVideoSourceTimingViews } from '../common/editor/video-source-timing-views.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import type { FramescaperProjectV18 } from './editor-project-v18-validation.ts';
 
@@ -92,6 +99,8 @@ interface ProjectIndex {
 	readonly sources: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 	readonly clips: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 	readonly sequences: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
+	/** Verified frame grids, resolved once per validation and only where a group needs one. */
+	readonly timingViews: () => ReadonlyMap<string, VideoSourceTimingView>;
 }
 
 const GROUP_FIELDS = new Set([
@@ -389,15 +398,41 @@ function groupSampleRanges(
 	if (compare(sourceStart, integer(0)) < 0 || compare(sourceEnd, sourceLimit) > 0) {
 		throw new RangeError(`Multicamera member ${member.id} lies outside canonical source bounds.`);
 	}
+	assertSourceBoundaries(index, member, sourceStart, sourceEnd);
 	return { timelineStart, timelineEnd, sourceStart, sourceEnd };
 }
 
+/**
+ * The runtime projection replaces the output source only at an exact member boundary, so a
+ * member time between two source frames can never be persisted. Exact timing that is not yet
+ * verified is absent from the view map; those members refuse at the projection, not at rest.
+ */
+function assertSourceBoundaries(
+	index: ProjectIndex,
+	member: FramescaperMulticameraMemberV18,
+	sourceStart: ExactSample,
+	sourceEnd: ExactSample,
+): void {
+	const timingViews = index.timingViews();
+	if (!timingViews.has(member.sourceId)) return;
+	const view = videoSourceTimingView(timingViews, index.sources.get(member.sourceId)!);
+	const sampleRate = BigInt(Number(index.project.sampleRate));
+	for (const [edge, sample] of [['start', sourceStart], ['end', sourceEnd]] as const) {
+		const time = { numerator: sample.numerator, denominator: sample.denominator * sampleRate };
+		if (compare(videoBoundaryTime(view, sourceTimeToVideoBoundary(view, time)), time) !== 0) {
+			throw new RangeError(`Multicamera member ${member.id} ${edge} is not an exact canonical-source boundary.`);
+		}
+	}
+}
+
 function indexProject(project: FramescaperProjectV18): ProjectIndex {
+	let timingViews: ReadonlyMap<string, VideoSourceTimingView> | null = null;
 	return {
 		project,
 		sources: new Map(project.sources.map((value) => [String(value.id), value])),
 		clips: new Map(project.clips.map((value) => [String(value.id), value])),
 		sequences: new Map(project.sequences.map((value) => [String(value.id), value])),
+		timingViews: () => timingViews ??= resolveVideoSourceTimingViews(project),
 	};
 }
 

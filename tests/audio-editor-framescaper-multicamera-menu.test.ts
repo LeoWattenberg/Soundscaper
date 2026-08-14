@@ -15,8 +15,8 @@ const COPY = Object.freeze({
 	multicamera: 'Multicamera',
 	createMulticamera: 'Create from video sources',
 	switchMulticamera: 'Switch camera',
-	nudgeMulticameraEarlier: 'Move active camera one sample earlier',
-	nudgeMulticameraLater: 'Move active camera one sample later',
+	nudgeMulticameraEarlier: 'Move active camera one frame earlier',
+	nudgeMulticameraLater: 'Move active camera one frame later',
 	removeMulticamera: 'Remove multicamera group',
 });
 
@@ -81,7 +81,7 @@ test('the Tracks menu creates one bounded zero-offset group from explicit select
 	assert.equal(Object.isFrozen(commands[0]), true);
 });
 
-test('the Tracks menu switches, sample-nudges, and removes only the selected group', () => {
+test('the Tracks menu switches, frame-nudges, and removes only the selected group', () => {
 	const commands: FramescaperProjectCommandV18[] = [];
 	const input = project();
 	input.multicameraGroups = [multicameraGroup()];
@@ -97,14 +97,30 @@ test('the Tracks menu switches, sample-nudges, and removes only the selected gro
 	assert.equal(
 		(commands[1] as unknown as { group: ReturnType<typeof multicameraGroup> }).group.members[0]
 			?.syncOffsetSamples,
-		-1,
+		-1_920,
 	);
 	assert.equal(
 		(commands[2] as unknown as { group: ReturnType<typeof multicameraGroup> }).group.members[0]
 			?.syncOffsetSamples,
-		1,
+		1_920,
 	);
 	assert.equal(Object.isFrozen((commands[1] as { group: object }).group), true);
+});
+
+test('the Tracks menu offers no nudge where no whole sample count spans one source frame', () => {
+	const input = project({ num: 30_000, den: 1_001 });
+	input.multicameraGroups = [multicameraGroup()];
+	const menu = createFramescaperMulticameraMenuItems({
+		productId: 'framescaper', project: input, editingBlocked: false, copy: COPY,
+	}, { execute: () => assert.fail('disabled menu executed') });
+	assert.deepEqual(menu?.items.map(({ id, disabled }) => ({ id, disabled })), [
+		{ id: 'multicamera-create', disabled: true },
+		{ id: 'multicamera-switch', disabled: false },
+		{ id: 'multicamera-nudge-earlier', disabled: true },
+		{ id: 'multicamera-nudge-later', disabled: true },
+		{ id: 'multicamera-remove', disabled: false },
+	]);
+	for (const item of menu?.items.slice(2, 4) ?? []) item.onClick();
 });
 
 test('multicamera menu is Framescaper-only and fail-closed for stale or blocked selections', () => {
@@ -132,19 +148,22 @@ function multicameraGroup() {
 		id: 'group-a', projectId: 'project-a', sequenceId: 'main', outputClipId: 'output-clip',
 		activeMemberId: 'camera-a', members: [
 			{ id: 'camera-a', groupId: 'group-a', sourceId: 'camera-a', syncOffsetSamples: 0 },
-			{ id: 'camera-b', groupId: 'group-a', sourceId: 'camera-b', syncOffsetSamples: 4 },
+			{ id: 'camera-b', groupId: 'group-a', sourceId: 'camera-b', syncOffsetSamples: 1_920 },
 		],
 	};
 }
 
-function project(): Record<string, unknown> & { multicameraGroups: unknown[] } {
+function project(
+	rate: Readonly<{ num: number; den: number }> = { num: 25, den: 1 },
+): Record<string, unknown> & { multicameraGroups: unknown[] } {
+	const timingDecision = { mode: 'conform-cfr-at-ingest', rate };
 	return {
-		id: 'project-a', revision: 7, schemaVersion: 18, primarySequenceId: 'main',
+		id: 'project-a', revision: 7, schemaVersion: 18, primarySequenceId: 'main', sampleRate: 48_000,
 		selection: { clipIds: ['output-clip'] },
 		sources: [
-			{ id: 'camera-b', kind: 'video', sampleFrameCount: 48_000 },
+			{ id: 'camera-b', kind: 'video', sampleFrameCount: 48_000, frameRate: rate, timingDecision },
 			{ id: 'audio', kind: 'audio', sampleFrameCount: 48_000 },
-			{ id: 'camera-a', kind: 'video', sampleFrameCount: 48_000 },
+			{ id: 'camera-a', kind: 'video', sampleFrameCount: 48_000, frameRate: rate, timingDecision },
 		],
 		clips: [{
 			id: 'output-clip', kind: 'video', sourceId: 'camera-a', sequenceId: 'main',

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { spawn } from 'node:child_process';
-import { cp, mkdir, readdir, readFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
 import { build } from 'esbuild';
@@ -73,6 +73,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/closed-domain-value.js',
 	'src/common/editor/commands/protocol.js',
 	'src/common/editor/folder-bus-v13.js',
+	'src/common/editor/frame-canonical-edge-trim-domain.js',
 	'src/common/editor/indexed-tempo-projector.js',
 	'src/common/editor/ixml.js',
 	'src/common/editor/musical-map-contract.js',
@@ -125,8 +126,11 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-source-characteristics.js',
 	'src/common/editor/video-source-presentation.js',
 	'src/common/editor/video-source-time.js',
+	'src/common/editor/video-source-timing-view.js',
+	'src/common/editor/video-source-timing-views.js',
 	'src/common/editor/video-timeline.js',
 	'src/common/editor/video-timing-asset-reference.js',
+	'src/common/editor/video-timing-asset.js',
 	'src/common/editor/wav-opaque-chunks.js',
 	'src/framescaper/editor-project-feature-capability-profile-v18.js',
 	'src/framescaper/editor-project-feature-requirements-v18.js',
@@ -150,6 +154,7 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 		'--project', resolve(root, 'tsconfig.desktop-runtime.json'),
 		'--outDir', output,
 	], root);
+	await bundleVideoTimingAssetHash(root, output);
 	const files = await listRuntimeFiles(output);
 	assertExpectedRuntime(files);
 	for (const name of files) {
@@ -157,6 +162,24 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 		if (/from ['"].*\.ts['"]/u.test(source)) throw new Error(`Desktop runtime ${name} retained a TypeScript import`);
 	}
 	return Object.freeze({ files: Object.freeze(files) });
+}
+
+async function bundleVideoTimingAssetHash(root, output) {
+	const outputPath = join(output, 'src/common/editor/video-timing-asset.js');
+	const result = await build({
+		entryPoints: [outputPath],
+		bundle: true,
+		platform: 'node',
+		format: 'esm',
+		target: 'node26',
+		write: false,
+		nodePaths: [join(root, 'node_modules')],
+		logLevel: 'silent',
+	});
+	if (result.outputFiles?.length !== 1) {
+		throw new Error('Desktop timing asset hash bundling produced an unexpected output set');
+	}
+	await writeFile(outputPath, result.outputFiles[0].contents);
 }
 
 export async function stageDesktopApplicationSources({

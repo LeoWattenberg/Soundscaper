@@ -4,8 +4,22 @@
  * than from a project's `sources` array.
  */
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from './project-schema-version.ts';
 import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
+
+/** Product schemas are not importable from common, so V18 is named here. */
+const FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION = 18;
+
+/**
+ * A schema only ever adds reference kinds, so each walk is gated on the
+ * earliest schema that can carry it. Gating on one exact version leaves every
+ * later document unrooted, and compaction then deletes the media it names.
+ */
+const SOURCE_REFERENCE_WALKS = [
+	{ since: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, collect: collectTakeGroupSourceIds },
+	{ since: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, collect: collectFeatureFallbackSourceIds },
+	{ since: FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION, collect: collectMulticameraMemberSourceIds },
+];
 
 export function collectProjectSourceIds(project, target = new Set()) {
 	const clips = [
@@ -15,18 +29,21 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	for (const clip of clips) {
 		if (typeof clip?.sourceId === 'string' && clip.sourceId) target.add(clip.sourceId);
 	}
-	if (project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		collectTakeGroupSourceIds(project, target);
-		const requirements = project.featureRequirements?.requirements;
-		if (Array.isArray(requirements)) {
-			for (const requirement of requirements) {
-				const sourceId = requirement?.fallback?.sourceId;
-				if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
-			}
-		}
+	const schemaVersion = typeof project?.schemaVersion === 'number' ? project.schemaVersion : 0;
+	for (const { since, collect } of SOURCE_REFERENCE_WALKS) {
+		if (schemaVersion >= since) collect(project, target);
 	}
-	if (project?.schemaVersion === 18) collectMulticameraMemberSourceIds(project, target);
 	return target;
+}
+
+/** Rendered fallbacks own render media that no clip in the document reaches. */
+function collectFeatureFallbackSourceIds(project, target) {
+	const requirements = project?.featureRequirements?.requirements;
+	if (!Array.isArray(requirements)) return;
+	for (const requirement of requirements) {
+		const sourceId = requirement?.fallback?.sourceId;
+		if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
+	}
 }
 
 /** Preserve opaque Framescaper V18 member media without activating its graph. */

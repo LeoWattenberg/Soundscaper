@@ -14,6 +14,7 @@ import {
 } from './desktop-project-library-v10-renderer.ts';
 import {
 	createFramescaperDesktopProjectStoreV10Adapter,
+	type FramescaperDesktopProjectStoreV10Adapter,
 } from './desktop-project-library-v10-store-adapter.ts';
 import {
 	createEditorProjectRuntimeV18Selection,
@@ -35,6 +36,8 @@ import {
 import {
 	FramescaperScapeArchiveV18,
 	type FramescaperScapeArchiveBodyStoreV18,
+	type FramescaperScapeArchiveDocumentPublicationV18,
+	type FramescaperScapeArchiveDocumentPublisherV18,
 } from './scape-project-preservation-v18.ts';
 import { FramescaperScapeProjectFileV18 } from './scape-project-file-v18.ts';
 
@@ -119,6 +122,7 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 		let controllerStore: AudioEditorProjectStore = store;
 		let createProjectIfAbsent = (project: ProjectDocument) => exactProjectRepository(store)
 			.createIfAbsent(project);
+		let scapePublisher: Readonly<FramescaperScapeArchiveDocumentPublisherV18> | null = null;
 		if (desktopProjectLibrary !== null) {
 			const desktopStore = createFramescaperDesktopProjectStoreV10Adapter(
 				FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
@@ -126,12 +130,18 @@ export async function createFramescaperEditorProjectEnvironmentV18(
 			);
 			controllerStore = desktopStore;
 			createProjectIfAbsent = (project: ProjectDocument) => desktopStore.createProjectIfAbsent(project);
+			scapePublisher = archive.admitDocumentPublisher(
+				FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+				store as unknown as FramescaperScapeArchiveBodyStoreV18,
+				(publication) => publishImportedDesktopProject(desktopStore, publication),
+			);
 		}
 		const scapeProjectFile = new FramescaperScapeProjectFileV18(
 			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			{
 				archive,
 				store: store as unknown as FramescaperScapeArchiveBodyStoreV18,
+				...(scapePublisher ? { publisher: scapePublisher } : {}),
 			},
 		);
 		const environment = Object.freeze({
@@ -181,6 +191,21 @@ export function assertFramescaperEditorProjectEnvironmentV18(
 		throw new TypeError('An exact product-created Framescaper V18 environment is required.');
 	}
 	return value as Readonly<FramescaperEditorProjectEnvironmentV18>;
+}
+
+/**
+ * The main-owned V10 catalog admits a fresh project only at revision zero, so an
+ * imported document is normalized before its publication and never after. Its
+ * replacement revision stays the one the collision decision compared against;
+ * the renderer witness owns that compare-and-swap.
+ */
+function publishImportedDesktopProject(
+	store: FramescaperDesktopProjectStoreV10Adapter<AudioEditorProjectStore>,
+	publication: Readonly<FramescaperScapeArchiveDocumentPublicationV18>,
+): Promise<ProjectDocument | null> {
+	return publication.mode === 'compare-and-swap'
+		? store.saveProject(publication.project)
+		: store.createProjectIfAbsent({ ...publication.project, revision: 0 });
 }
 
 function exactProjectRepository(store: AudioEditorProjectStore): Readonly<{

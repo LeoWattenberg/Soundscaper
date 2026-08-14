@@ -4,10 +4,14 @@ import { resolveRuntimeClipProjection } from '../common/editor/runtime-clip-proj
 import { validateFramescaperProjectV18, type FramescaperProjectV18 } from './editor-project-v18-validation.ts';
 import {
 	FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH,
+	assertFramescaperFlatteningBudgetV18,
 	type FramescaperSubsequenceV18,
 } from './editor-project-v18-subsequence.ts';
 
-export { FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH } from './editor-project-v18-subsequence.ts';
+export {
+	FRAMESCAPER_V18_MAXIMUM_FLATTENED_OCCURRENCES,
+	FRAMESCAPER_V18_MAXIMUM_NESTING_DEPTH,
+} from './editor-project-v18-subsequence.ts';
 
 export interface FramescaperExactSequenceFrameV18 {
 	readonly numerator: bigint;
@@ -115,6 +119,11 @@ export function flattenFramescaperSequenceV18(
 		outgoing.set(subsequence.sequenceId, values);
 	}
 	const clips = clipBindings(project, sequences);
+	assertFramescaperFlatteningBudgetV18(
+		[rootSequenceId],
+		new Map([...outgoing].map(([id, values]) => [id, values.map((value) => value.sourceSequenceId)])),
+		new Map([...clips].map(([id, values]) => [id, values.length])),
+	);
 	const flattened: FramescaperFlattenedSequenceClipV18[] = [];
 	walk(rootSequenceId, identityTransform(), null, null, [rootSequenceId], []);
 	flattened.sort(compareFlattened);

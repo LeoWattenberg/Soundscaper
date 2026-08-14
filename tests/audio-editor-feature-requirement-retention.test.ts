@@ -72,8 +72,13 @@ test('project retention roots a rendered fallback source without a clip referenc
 	assert.deepEqual([...collectProjectSourceIds(project)], ['fallback-render']);
 });
 
-test('project retention does not traverse opaque future-schema feature requirements', () => {
-	const futureProject = {
+test('project retention roots rendered fallbacks for every later schema', () => {
+	const project = fallbackProject('later-schema', 'fallback-render');
+	const later = { ...project, schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1 };
+
+	assert.deepEqual([...collectProjectSourceIds(later)], ['fallback-render']);
+
+	const opaqueProject = {
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		clips: [],
 		projectBin: { clips: [] },
@@ -84,7 +89,16 @@ test('project retention does not traverse opaque future-schema feature requireme
 		},
 	};
 
-	assert.deepEqual([...collectProjectSourceIds(futureProject)], []);
+	assert.deepEqual([...collectProjectSourceIds(opaqueProject)], []);
+});
+
+test('a document without a schema version roots only its clip references', () => {
+	const project = fallbackProject('schemaless', 'fallback-render') as unknown as Record<string, unknown>;
+
+	assert.deepEqual(
+		[...collectProjectSourceIds({ ...project, schemaVersion: undefined })],
+		[],
+	);
 });
 
 test('source metadata compaction keeps fallback-only metadata and removes unrelated metadata', () => {

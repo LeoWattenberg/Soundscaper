@@ -100,6 +100,18 @@ export function sameCleanupBodyRow(value: unknown, claim: Readonly<VideoProxyCla
 		&& row.size === identity.byteLength && row.mimeType === identity.mimeType;
 }
 
+/** A claim is live while its owner renews the lease or the body row still holds its staging grace. */
+export function isLiveCleanupClaim(
+	claim: Readonly<VideoProxyClaimRecord>,
+	row: unknown,
+	now: number,
+): boolean {
+	if (claim.expiresAt > now) return true;
+	if (!row || typeof row !== 'object') return false;
+	const grace = Date.parse(String((row as Record<string, unknown>).pendingProjectUntil ?? ''));
+	return Number.isFinite(grace) && grace > now;
+}
+
 export function groupCleanupClaims(
 	claims: readonly Readonly<VideoProxyClaimRecord>[],
 ): Map<string, Readonly<VideoProxyClaimRecord>[]> {

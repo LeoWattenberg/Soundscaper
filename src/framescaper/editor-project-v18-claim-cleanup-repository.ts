@@ -40,6 +40,7 @@ import {
 	hasAnyCleanupPhysicalReference,
 	hasOnlyExactCleanupPhysicalReference,
 	isCleanupNotFound,
+	isLiveCleanupClaim,
 	normalizeCleanupOperation,
 	safeCleanupNow,
 	sameCleanupBodyRow,
@@ -153,7 +154,7 @@ export class FramescaperProjectV18ClaimCleanupRepository {
 	async reconcile(
 		scopeValue: FramescaperProjectV18ClaimCleanupScope | unknown,
 	): Promise<Readonly<FramescaperProjectV18ClaimCleanupResult>> {
-		return this.#run(scopeValue, () => true);
+		return this.#run(scopeValue, () => true, true);
 	}
 
 	async cleanupOperation(
@@ -164,12 +165,13 @@ export class FramescaperProjectV18ClaimCleanupRepository {
 		return this.#run(scopeValue, (claim) => claim.operationId === operation.operationId
 			&& claim.projectId === operation.projectId
 			&& claim.sourceId === operation.sourceId
-			&& claim.baseFingerprint === operation.baseFingerprint);
+			&& claim.baseFingerprint === operation.baseFingerprint, false);
 	}
 
 	async #run(
 		scopeValue: FramescaperProjectV18ClaimCleanupScope | unknown,
 		select: ClaimSelector,
+		requireLapsedClaims: boolean,
 	): Promise<Readonly<FramescaperProjectV18ClaimCleanupResult>> {
 		const scope = normalizeScope(this.#profile, scopeValue, this.#maximumInventory);
 		const database = await this.#port.database();
@@ -178,14 +180,8 @@ export class FramescaperProjectV18ClaimCleanupRepository {
 		}
 		let phase: MetadataPhase;
 		try {
-			phase = await reconcileMetadata(
-				database,
-				this.#profile,
-				scope,
-				this.#maximumInventory,
-				safeCleanupNow(this.#now()),
-				select,
-			);
+			phase = await reconcileMetadata(database, this.#profile, scope, this.#maximumInventory,
+				safeCleanupNow(this.#now()), select, requireLapsedClaims);
 		} catch (error) {
 			if (!(error instanceof CleanupInventoryError)) throw error;
 			return result([], [], [issue('inventory-invalid', null)]);
@@ -223,12 +219,8 @@ export class FramescaperProjectV18ClaimCleanupRepository {
 }
 
 async function reconcileMetadata(
-	database: IDBDatabase,
-	profile: EditorProjectRuntimeProfile,
-	scope: NormalizedScope,
-	maximum: number,
-	now: number,
-	select: ClaimSelector,
+	database: IDBDatabase, profile: EditorProjectRuntimeProfile, scope: NormalizedScope,
+	maximum: number, now: number, select: ClaimSelector, requireLapsedClaims: boolean,
 ): Promise<MetadataPhase> {
 	return transact(database, [
 		'projects', 'revisions', 'mediaAssets', MEDIA_ASSET_CHUNK_STORE_NAME,
@@ -263,6 +255,7 @@ async function reconcileMetadata(
 				}
 				continue;
 			}
+			if (requireLapsedClaims && isLiveCleanupClaim(claim, row, now)) continue;
 			if (inventory.roots.has(claim.bodyKey)
 				|| (claimsByBody.get(claim.bodyKey)?.length ?? 0) > 1
 				|| tombstonesByBody.has(claim.bodyKey)) {

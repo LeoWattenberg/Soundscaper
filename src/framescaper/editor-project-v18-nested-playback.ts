@@ -156,10 +156,12 @@ function materializeClipOccurrence(
 	});
 }
 
+/** Materialize transient tracks in authored order; V17 track order is foreground-first z-order. */
 function materializeTracks(
 	occurrences: readonly MaterializedClipOccurrence[],
 	byTrackId: ReadonlyMap<string, Readonly<Record<string, unknown>>>,
 ): readonly MaterializedTrackOccurrence[] {
+	const authoredOrder = new Map([...byTrackId.keys()].map((id, index) => [id, index]));
 	const groups = new Map<string, {
 		readonly sourceTrackId: string;
 		readonly clipIds: string[];
@@ -178,7 +180,10 @@ function materializeTracks(
 			clipIds: [String(occurrence.clip.id)],
 		});
 	}
-	return Object.freeze([...groups].map(([id, group]) => {
+	const ordered = [...groups].sort(([, left], [, right]) => (
+		authoredOrder.get(left.sourceTrackId)! - authoredOrder.get(right.sourceTrackId)!
+	));
+	return Object.freeze(ordered.map(([id, group]) => {
 		const sourceTrack = byTrackId.get(group.sourceTrackId);
 		if (!sourceTrack) throw new ReferenceError('A materialized nested track lost its source track.');
 		return Object.freeze({

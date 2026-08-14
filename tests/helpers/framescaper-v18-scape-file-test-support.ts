@@ -36,6 +36,7 @@ import {
 const PROFILE = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
 
 export interface FramescaperScapeFileFixtureV18 {
+	readonly profile: typeof PROFILE;
 	readonly storage: FramescaperV18ArchiveFixture;
 	readonly archive: FramescaperScapeArchiveV18;
 	readonly file: FramescaperScapeProjectFileV18;
@@ -54,6 +55,7 @@ export async function setupFramescaperScapeFileV18(
 		createGeneration: () => `file-generation-${String(++generation).padStart(4, '0')}`,
 	});
 	return {
+		profile: PROFILE,
 		storage,
 		archive,
 		file: new FramescaperScapeProjectFileV18(PROFILE, { archive, store: storage.store }),

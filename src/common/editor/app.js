@@ -1915,7 +1915,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
 			await cleanup(() => nativeProjectService.dispose());
 			clipTimePitchCache.dispose?.();
-			sessionController.dispose?.();
+			await cleanup(() => Promise.resolve(sessionController.dispose?.()));
 			await cleanup(() => Promise.resolve(engine.dispose()), true);
 			if (!sourceRetirementError) {
 				sourceBuffers.clear(); sourceChunkProviders.clear();

@@ -14,6 +14,7 @@ const assetLoader = `
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
+const { createAudioEditorSessionController } = await import('../src/common/editor/session.js');
 
 const COPY = Object.freeze({
 	ready: 'Ready',
@@ -322,6 +323,32 @@ test('best-effort settings report failures without unhandled rejections while re
 		store.saveSetting = saveSetting;
 		await controller.dispose();
 	}
+});
+
+test('a session that refuses disposal still releases the engine and the store', async () => {
+	const store = createStore();
+	const engine = createEngine();
+	let engineDisposals = 0;
+	engine.dispose = async () => { engineDisposals += 1; };
+	const session = createAudioEditorSessionController();
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		copy: COPY,
+		store,
+		engine,
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createCache(),
+		sessionController: {
+			...session,
+			dispose() { throw new DOMException('A project activation is still in flight.', 'AbortError'); },
+		},
+	});
+	await controller.ready;
+
+	await assert.rejects(() => controller.dispose(), { name: 'AbortError' });
+	assert.equal(engineDisposals, 1);
+	assert.equal(store.closeCalls, 1);
+	assert.equal(controller.getSnapshot().phase, 'disposed');
 });
 
 function createStore(overrides = {}) {

@@ -39,7 +39,7 @@ export function framescaperProjectForRuntimeConsumersV18(
 	profile: EditorProjectRuntimeProfile | unknown,
 	project: FramescaperProjectV18 | unknown,
 ): RuntimeProjectProjection<FramescaperProjectRuntimeFoundationV17> {
-	const foundation = framescaperProjectForPlaybackFoundationV18(profile, project);
+	const foundation = framescaperProjectForAuthoredFoundationV18(profile, project);
 	return resolveRuntimeProjectProjection(foundation);
 }
 
@@ -52,15 +52,42 @@ export function framescaperProjectForPlaybackFoundationV18(
 	profile: EditorProjectRuntimeProfile | unknown,
 	project: FramescaperProjectV18 | unknown,
 ): FramescaperProjectRuntimeFoundationV17 {
-	assertFramescaperProjectV18Profile(profile);
-	validateFramescaperProjectV18(profile, project);
-	const canonical = project as FramescaperProjectV18;
-	const playback = canonical.multicameraGroups.length > 0
-		? materializeFramescaperMulticameraPlaybackProjectV18(profile, canonical)
-		: canonical;
+	const playback = activeAngleProject(profile, project);
 	if (playback.subsequences.length > 0) {
 		return materializeFramescaperNestedPlaybackFoundationV18(profile, playback);
 	}
+	return v17Foundation(profile, playback);
+}
+
+/**
+ * Produce the same V17-shaped transient without the nested flattening. Command,
+ * timeline, and preview consumers address authored clips, tracks, and selection
+ * by their persisted identity, so only the identity-preserving active-angle
+ * substitution may cross this boundary.
+ */
+export function framescaperProjectForAuthoredFoundationV18(
+	profile: EditorProjectRuntimeProfile | unknown,
+	project: FramescaperProjectV18 | unknown,
+): FramescaperProjectRuntimeFoundationV17 {
+	return v17Foundation(profile, activeAngleProject(profile, project));
+}
+
+function activeAngleProject(
+	profile: EditorProjectRuntimeProfile | unknown,
+	project: FramescaperProjectV18 | unknown,
+): FramescaperProjectV18 {
+	assertFramescaperProjectV18Profile(profile);
+	validateFramescaperProjectV18(profile, project);
+	const canonical = project as FramescaperProjectV18;
+	return canonical.multicameraGroups.length > 0
+		? materializeFramescaperMulticameraPlaybackProjectV18(profile, canonical)
+		: canonical;
+}
+
+function v17Foundation(
+	profile: EditorProjectRuntimeProfile | unknown,
+	playback: FramescaperProjectV18,
+): FramescaperProjectRuntimeFoundationV17 {
 	const sources = playback.sources.map((source) => {
 		const foundationSource: Record<string, unknown> = { ...source };
 		delete foundationSource.proxyAttachment;

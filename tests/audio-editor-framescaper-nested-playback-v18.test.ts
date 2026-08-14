@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { validateAudioEditorProjectV17 } from '../src/common/editor/project-v17-validation.ts';
+import { resolveActiveVideoLayers } from '../src/common/editor/video-timeline.js';
 import {
 	createAudioClipV10,
 	createAudioSourceV10,
@@ -26,6 +27,8 @@ import {
 	validateFramescaperProjectV18,
 	type FramescaperProjectV18,
 } from '../src/framescaper/editor-project-v18.ts';
+
+type TrackedFoundation = Readonly<{ tracks: readonly Readonly<Record<string, unknown>>[] }>;
 
 const PROFILE = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
 const NOW = '2026-08-13T12:00:00.000Z';
@@ -92,19 +95,16 @@ test('nested aliases materialize deterministically on the primary frame grid wit
 	assert.ok(first.clips.every(Object.isFrozen));
 });
 
-test('maintained playback and runtime consume the same primary-sequence materialization', () => {
+test('playback materializes the primary sequence while runtime consumers keep authored occurrences', () => {
 	const project = aliasesProject();
 	const foundation = materializeFramescaperNestedPlaybackFoundationV18(PROFILE, project);
 	assert.deepEqual(framescaperProjectForPlaybackFoundationV18(PROFILE, project), foundation);
 
 	const runtime = framescaperProjectForRuntimeConsumersV18(PROFILE, project);
-	const clips = [...runtime.clips].sort((left, right) => left.timelineStartFrame - right.timelineStartFrame);
-	assert.deepEqual(clips.map(({ timelineStartFrame, timelineEndFrame, durationFrames }) => ({
+	assert.deepEqual(runtime.clips.map(({ id }) => id), ['child-clip']);
+	assert.deepEqual(runtime.clips.map(({ timelineStartFrame, timelineEndFrame, durationFrames }) => ({
 		timelineStartFrame, timelineEndFrame, durationFrames,
-	})), [
-		{ timelineStartFrame: 56_000, timelineEndFrame: 80_000, durationFrames: 24_000 },
-		{ timelineStartFrame: 152_000, timelineEndFrame: 176_000, durationFrames: 24_000 },
-	]);
+	})), [{ timelineStartFrame: 8_000, timelineEndFrame: 32_000, durationFrames: 24_000 }]);
 });
 
 test('nested audio trims and mixer routes materialize by exact leaf and primary rates', () => {
@@ -135,16 +135,40 @@ test('nested audio trims and mixer routes materialize by exact leaf and primary 
 
 	const runtime = framescaperProjectForRuntimeConsumersV18(PROFILE, project);
 	assert.deepEqual({
+		id: runtime.clips[0]?.id,
 		timelineStartFrame: runtime.clips[0]?.timelineStartFrame,
 		timelineEndFrame: runtime.clips[0]?.timelineEndFrame,
 		sourceStartFrame: runtime.clips[0]?.sourceStartFrame,
 		sourceEndFrame: runtime.clips[0]?.sourceEndFrame,
 	}, {
-		timelineStartFrame: 48_000,
-		timelineEndFrame: 64_000,
-		sourceStartFrame: 4_100,
+		id: 'child-audio-clip',
+		timelineStartFrame: 8_000,
+		timelineEndFrame: 32_000,
+		sourceStartFrame: 100,
 		sourceEndFrame: 12_100,
 	});
+});
+
+test('nested materialization keeps the authored foreground-first video track order', () => {
+	const nested = materializeFramescaperNestedPlaybackFoundationV18(PROFILE, layeredProject(true));
+	const flat = framescaperProjectForPlaybackFoundationV18(
+		PROFILE,
+		layeredProject(false),
+	) as unknown as TrackedFoundation;
+	assert.deepEqual(nested.tracks.map(({ name }) => name), ['V top', 'V bottom', 'V child']);
+	assert.deepEqual(nested.tracks.map(({ name }) => name), flat.tracks.map(({ name }) => name));
+	assert.deepEqual(
+		nested.sequences.find(({ id }) => id === 'root')?.trackIds,
+		nested.tracks.map(({ id }) => String(id)),
+	);
+
+	const foreground = (foundation: TrackedFoundation): unknown => {
+		const layers = resolveActiveVideoLayers(foundation, 15 * 48_000 / 24) as readonly { trackId: string }[];
+		const trackId = layers[layers.length - 1]?.trackId;
+		return foundation.tracks.find(({ id }) => id === trackId)?.name;
+	};
+	assert.equal(foreground(nested), 'V top');
+	assert.equal(foreground(flat), 'V top');
 });
 
 test('materialization refuses video boundaries that do not align exactly to the primary frame grid', () => {
@@ -206,6 +230,46 @@ function aliasesProject(): FramescaperProjectV18 {
 				sourceInFrame: 0, sourceFrameCount: 24,
 			},
 		],
+	});
+}
+
+function layeredProject(nested: boolean): FramescaperProjectV18 {
+	return createFramescaperProjectV18(PROFILE, {
+		id: 'nested-playback-layers', title: 'Nested playback layers', now: NOW,
+		sources: [videoSource('layer-source', 400, { num: 24, den: 1 })],
+		clips: [
+			{
+				kind: 'video', id: 'top-clip', sourceId: 'layer-source', title: 'Top clip',
+				sequenceId: 'root', sequenceStartFrame: 10, sequenceFrameCount: 10,
+				sourceInFrame: 10, sourceFrameCount: 10, retimeMap: null,
+			},
+			{
+				kind: 'video', id: 'bottom-clip', sourceId: 'layer-source', title: 'Bottom clip',
+				sequenceId: 'root', sequenceStartFrame: 0, sequenceFrameCount: 20,
+				sourceInFrame: 0, sourceFrameCount: 20, retimeMap: null,
+			},
+			{
+				kind: 'video', id: 'child-clip', sourceId: 'layer-source', title: 'Child clip',
+				sequenceId: 'child', sequenceStartFrame: 0, sequenceFrameCount: 30,
+				sourceInFrame: 100, sourceFrameCount: 30, retimeMap: null,
+			},
+		],
+		tracks: [
+			createVideoTrackV10({ id: 'v-top', name: 'V top', clipIds: ['top-clip'], locked: false }),
+			createVideoTrackV10({ id: 'v-bottom', name: 'V bottom', clipIds: ['bottom-clip'], locked: false }),
+			createVideoTrackV10({ id: 'v-child', name: 'V child', clipIds: ['child-clip'], locked: false }),
+		],
+		sequences: [
+			{ id: 'root', rate: { num: 24, den: 1 }, trackIds: ['v-top', 'v-bottom'] },
+			{ id: 'child', rate: { num: 24, den: 1 }, trackIds: ['v-child'] },
+		],
+		primarySequenceId: 'root',
+		subsequences: nested
+			? [{
+				id: 'layer-placement', sequenceId: 'root', sourceSequenceId: 'child',
+				sequenceStartFrame: 200, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 30,
+			}]
+			: [],
 	});
 }
 

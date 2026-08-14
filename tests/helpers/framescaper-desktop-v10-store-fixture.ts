@@ -53,7 +53,7 @@ export async function lifecycleFixture(
 	environment: FramescaperDesktopV10FixtureEnvironment = {},
 ): Promise<FramescaperDesktopV10LifecycleFixture> {
 	const base = await baseFixture(context, storeOptions, environment);
-	installBridge(context, base.main.api);
+	installFramescaperDesktopV10Bridge(context, base.main.api);
 	const renderer = await connectFramescaperDesktopProjectLibraryV10Renderer(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 		{ store: base.localStore as unknown as FramescaperDesktopProjectLibraryV10ShadowStore, archive: base.archive },
@@ -323,7 +323,7 @@ function bundle(project: FramescaperProjectV18, metadataRevision: number) {
 	};
 }
 
-function installBridge(context: TestContext, api: unknown): void {
+export function installFramescaperDesktopV10Bridge(context: TestContext, api: unknown): void {
 	const name = 'framescaperProjectLibraryDesktop';
 	const prior = Object.getOwnPropertyDescriptor(globalThis, name);
 	Object.defineProperty(globalThis, name, {
