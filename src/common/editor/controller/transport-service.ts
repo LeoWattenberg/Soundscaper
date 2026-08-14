@@ -8,6 +8,14 @@ export interface TransportServiceRuntime {
 
 type RuntimeValue = TransportServiceRuntime[string];
 
+/** Wake often enough that every pulse is queued well before the audio clock reaches it. */
+const METRONOME_TICK_MS = 25;
+const METRONOME_LOOKAHEAD_SECONDS = 0.15;
+/** A playhead this far from where the cursor expects it is a seek, not timer jitter. */
+const METRONOME_RESYNC_SECONDS = 0.25;
+/** A tempo map cannot legitimately pack more pulses than this into one lookahead. */
+const METRONOME_MAXIMUM_PULSES_PER_TICK = 64;
+
 export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	const {
 		AUDIO_EDITOR_SAMPLE_RATE, abortError, activeSelection, assertPlayAtSpeedStaffPadMemorySafe,
@@ -221,68 +229,122 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	function syncMetronome() {
 		stopMetronome();
 		if (!state.metronomeEnabled || !['playing', 'recording'].includes(state.transportState)) return;
-		void scheduleMetronomeClick();
+		void runMetronomeScheduler();
 	}
 
-	async function scheduleMetronomeClick() {
-		if (!state.metronomeEnabled || !['playing', 'recording'].includes(state.transportState) || state.disposed) return;
-		const project = getProject();
-		const sampleRate = projectSampleRate();
-		const position = Math.max(0, engine.getPositionFrames());
-		const playbackRate = state.transportState === 'playing'
-			? Number(engine.getState?.().playbackRate) || 1
-			: 1;
-		const {
-			beatIndex,
-			delaySeconds,
-			beatDurationSeconds,
-			accent,
-		} = calculateAudioEditorMetronomeSchedule({
-			bpm: project?.tempo?.bpm,
-			tempoMap: project?.tempoMap,
-			signatureMap: project?.signatureMap,
-			timeSignature: project?.tempo?.timeSignature,
-			sampleRate,
-			positionFrame: position,
-			playbackRate,
-		});
+	function metronomeRunning() {
+		return Boolean(state.metronomeEnabled)
+			&& ['playing', 'recording'].includes(state.transportState)
+			&& !state.disposed;
+	}
+
+	/**
+	 * Queue every pulse that falls inside a short lookahead on the audio clock, then wake
+	 * again on a fixed tick. The timer only decides when to look ahead; the audio clock
+	 * alone decides when a click sounds, so timer jitter cannot move a beat.
+	 *
+	 * Scheduling one pulse per wake-up and re-deriving the next from the live playhead made
+	 * the click pattern a-rhythmic: a timer that fired late read a playhead already past
+	 * the next pulse and dropped it, and one that fired early re-queued the pulse it had
+	 * just scheduled. Nothing carried a cursor between wake-ups, so the error never
+	 * corrected.
+	 */
+	async function runMetronomeScheduler() {
+		if (!metronomeRunning()) return;
 		try {
 			const context = await engine.getAudioContext?.({ resume: false });
 			if (context?.createOscillator && context?.createGain && context.destination) {
-				const oscillator = context.createOscillator();
-				const gain = context.createGain();
-				const when = context.currentTime + delaySeconds;
-				const normalizedAccent = accent ?? (beatIndex % 4 === 0 ? 'bar' : 'beat');
-				oscillator.frequency.setValueAtTime(
-					normalizedAccent === 'bar' ? 1320 : normalizedAccent === 'group' ? 1100 : 880,
-					when,
-				);
-				gain.gain.setValueAtTime(0.0001, when);
-				gain.gain.exponentialRampToValueAtTime(0.12, when + 0.002);
-				gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
-				oscillator.connect(gain);
-				gain.connect(context.destination);
-				oscillator.start(when);
-				oscillator.stop(when + 0.04);
-				oscillator.onended = () => {
-					try { oscillator.disconnect(); } catch { /* Already disconnected. */ }
-					try { gain.disconnect(); } catch { /* Already disconnected. */ }
-				};
+				scheduleMetronomeWindow(context);
 			}
 		} catch {
 			// A missing oscillator API must not interrupt transport or recording.
 		}
-		const delayMs = Math.max(10, (delaySeconds + beatDurationSeconds) * 1000);
+		if (!metronomeRunning()) return;
 		state.metronomeTimer = globalThis.setTimeout(() => {
 			state.metronomeTimer = 0;
-			void scheduleMetronomeClick();
-		}, delayMs);
+			void runMetronomeScheduler();
+		}, METRONOME_TICK_MS);
 		state.metronomeTimer?.unref?.();
+	}
+
+	function scheduleMetronomeWindow(context: RuntimeValue) {
+		const project = getProject();
+		const sampleRate = projectSampleRate();
+		const playbackRate = state.transportState === 'playing'
+			? Number(engine.getState?.().playbackRate) || 1
+			: 1;
+		const framesPerSecond = sampleRate * playbackRate;
+		if (!Number.isFinite(framesPerSecond) || framesPerSecond <= 0) return;
+		const position = Math.max(0, engine.getPositionFrames());
+		let anchor = state.metronomeAnchor;
+		// The cursor is only meaningful while the playhead keeps advancing from where it
+		// was anchored, so a seek, a rate change, or a fresh start re-anchors it.
+		const expectedFrame = anchor
+			? anchor.frame + (context.currentTime - anchor.contextTime) * framesPerSecond
+			: 0;
+		if (!anchor || anchor.playbackRate !== playbackRate
+			|| Math.abs(position - expectedFrame) > METRONOME_RESYNC_SECONDS * framesPerSecond) {
+			anchor = { contextTime: context.currentTime, frame: position, cursorFrame: position, playbackRate };
+			state.metronomeAnchor = anchor;
+		}
+		const horizonFrame = anchor.frame
+			+ (context.currentTime + METRONOME_LOOKAHEAD_SECONDS - anchor.contextTime) * framesPerSecond;
+		for (let queued = 0; queued < METRONOME_MAXIMUM_PULSES_PER_TICK; queued += 1) {
+			const cursorFrame = Math.max(0, Math.round(anchor.cursorFrame));
+			const { beatIndex, delaySeconds, accent } = calculateAudioEditorMetronomeSchedule({
+				bpm: project?.tempo?.bpm,
+				tempoMap: project?.tempoMap,
+				signatureMap: project?.signatureMap,
+				timeSignature: project?.tempo?.timeSignature,
+				sampleRate,
+				positionFrame: cursorFrame,
+				playbackRate,
+			});
+			const pulseFrame = Math.round(cursorFrame + delaySeconds * framesPerSecond);
+			if (pulseFrame > horizonFrame) return;
+			const when = anchor.contextTime + (pulseFrame - anchor.frame) / framesPerSecond;
+			// A pulse already behind the audio clock cannot be sounded, but the cursor still
+			// has to step past it so the window keeps moving forward.
+			if (when >= context.currentTime) {
+				emitMetronomeClick(context, when, accent ?? (beatIndex % 4 === 0 ? 'bar' : 'beat'));
+			}
+			anchor.cursorFrame = pulseFrame + 1;
+		}
+	}
+
+	function emitMetronomeClick(context: RuntimeValue, when: number, accent: string) {
+		const oscillator = context.createOscillator();
+		const gain = context.createGain();
+		// A click queued inside the lookahead has not sounded yet, so stopping the
+		// metronome has to reach it; otherwise the transport stops and the last window of
+		// clicks keeps playing after it.
+		state.metronomePending = [...(state.metronomePending ?? []), oscillator];
+		oscillator.frequency.setValueAtTime(
+			accent === 'bar' ? 1320 : accent === 'group' ? 1100 : 880,
+			when,
+		);
+		gain.gain.setValueAtTime(0.0001, when);
+		gain.gain.exponentialRampToValueAtTime(0.12, when + 0.002);
+		gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
+		oscillator.connect(gain);
+		gain.connect(context.destination);
+		oscillator.start(when);
+		oscillator.stop(when + 0.04);
+		oscillator.onended = () => {
+			state.metronomePending = (state.metronomePending ?? []).filter((pending: RuntimeValue) => pending !== oscillator);
+			try { oscillator.disconnect(); } catch { /* Already disconnected. */ }
+			try { gain.disconnect(); } catch { /* Already disconnected. */ }
+		};
 	}
 
 	function stopMetronome() {
 		globalThis.clearTimeout(state.metronomeTimer);
 		state.metronomeTimer = 0;
+		state.metronomeAnchor = null;
+		for (const oscillator of state.metronomePending ?? []) {
+			try { oscillator.stop(); } catch { /* Already stopped or never started. */ }
+		}
+		state.metronomePending = [];
 	}
 
 	function normalizeTimelineFrame(value: RuntimeValue) {
@@ -318,7 +380,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		commitLoopRange,
 		toggleMetronome,
 		syncMetronome,
-		scheduleMetronomeClick,
+		runMetronomeScheduler,
 		stopMetronome,
 		normalizeTimelineFrame,
 		normalizePlaybackFrame,

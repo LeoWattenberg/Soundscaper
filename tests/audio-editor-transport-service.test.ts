@@ -369,7 +369,7 @@ test('metronome scheduling drives and cleans up a Web Audio click without owning
 		createGain: () => gain,
 	});
 	fixture.state.transportState = 'playing';
-	await fixture.service.scheduleMetronomeClick();
+	await fixture.service.runMetronomeScheduler();
 	assert.ok(oscillatorCalls.some(([name]) => name === 'start'));
 	assert.deepEqual(oscillatorCalls.find(([name]) => name === 'frequency'), ['frequency', 1100, 1.01]);
 	const scheduleOptions = fixture.calls.metronomeSchedules.at(-1) as Record<string, unknown>;
@@ -383,7 +383,7 @@ test('metronome scheduling drives and cleans up a Web Audio click without owning
 	assert.equal(fixture.state.metronomeTimer, 0);
 
 	fixture.state.disposed = true;
-	await fixture.service.scheduleMetronomeClick();
+	await fixture.service.runMetronomeScheduler();
 	fixture.setProject({ ...fixture.project(), sampleRate: 0 });
 	assert.equal(fixture.service.projectSampleRate(), 44_100);
 	assert.throws(() => fixture.service.normalizePlaybackFrame(Number.NaN), /finite/u);

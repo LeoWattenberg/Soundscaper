@@ -171,6 +171,8 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		metronomeEnabled: false,
 		selectionFollowsLoop: false,
 		metronomeTimer: 0,
+		metronomeAnchor: null,
+		metronomePending: [],
 		positionFrame: 0,
 		durationFrames: 0,
 		transportState: 'stopped',
