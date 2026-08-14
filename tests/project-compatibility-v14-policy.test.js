@@ -47,22 +47,22 @@ test('the compatibility register binds exact V17 editing to current implementati
 	assert.equal(trackLocking.status, 'implemented');
 	assert.match(
 		trackLocking.requiredOutcome,
-		/exact-current audio, video, and label track.*required persisted editorial-lock fact.*both products preserve.*enforce at the shared command boundary.*toggle through the application menu.*without a capability or fallback/iu,
+		/exact-current audio, video, and label track.*required persisted editorial-lock fact.*both products preserve.*enforce at the shared command boundary.*toggle through the track control panel overflow menu.*without a capability or fallback/iu,
 	);
 	assert.match(
 		trackLocking.currentBehavior,
-		/Schema 17.*own boolean locked field.*audio, video, and label track.*Soundscaper and Framescaper.*default it false.*clone.*history.*browser and desktop persistence.*Tracks-menu Lock track and Unlock track.*shared low-level command boundary.*transaction-start lock authority.*arbitrary nested batches.*direct and indirect changes.*content.*timing.*media.*grouping.*lane and folder identity.*reconciled result.*before publication.*Selection.*header, mixer, view, and track-rack controls.*remain available.*does not hide, mute, bypass, or make a project read-only.*no capability ID.*owned requirement.*rendered fallback.*optional older-schema extension.*default-visible control/iu,
+		/Schema 17.*own boolean locked field.*audio, video, and label track.*Soundscaper and Framescaper.*default it false.*clone.*history.*browser and desktop persistence.*track control panel overflow Lock track and Unlock track.*shared low-level command boundary.*transaction-start lock authority.*arbitrary nested batches.*direct and indirect changes.*content.*timing.*media.*grouping.*lane and folder identity.*reconciled result.*before publication.*Selection.*header, mixer, view, and track-rack controls.*remain available.*does not hide, mute, bypass, or make a project read-only.*no capability ID.*owned requirement.*rendered fallback.*optional older-schema extension.*default-visible control/iu,
 	);
 	assert.deepEqual(trackLocking.evidence, [
 		'src/common/editor/project-v15.ts',
 		'src/common/editor/project-v15-validation.ts',
 		'src/common/editor/commands/track-lock-admission.ts',
 		'src/common/editor/commands.js',
-		'src/common/editor/ui/track-lock-menu-model.ts',
+		'src/common/editor/ui/timeline/timeline-menu-model.js',
 		'tests/audio-editor-project-v15.test.ts',
 		'tests/audio-editor-track-lock-admission.test.ts',
 		'tests/audio-editor-track-lock-batch.test.ts',
-		'tests/audio-editor-track-lock-application-menu.test.ts',
+		'tests/audio-editor-track-lock-overflow-menu.test.tsx',
 		'tests/audio-editor-scape-project.test.js',
 		'tests/desktop-project-library-v12-folder-roundtrip.test.ts',
 		'tests/browser/audio-editor-track-lock.spec.js',

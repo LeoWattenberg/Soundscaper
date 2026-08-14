@@ -318,18 +318,18 @@
 		{
 			"id": "current-track-locking",
 			"status": "implemented",
-			"requiredOutcome": "Every exact-current audio, video, and label track carries one required persisted editorial-lock fact that both products preserve, enforce at the shared command boundary, and can toggle through the application menu without a capability or fallback.",
-			"currentBehavior": "Schema 17 requires an own boolean locked field on every audio, video, and label track. Soundscaper and Framescaper both default it false, preserve it through clone, history, browser and desktop persistence, and expose Tracks-menu Lock track and Unlock track commands. The shared low-level command boundary retains transaction-start lock authority through arbitrary nested batches, blocks direct and indirect changes to protected track content, timing, media, grouping, lane and folder identity, and validates the reconciled result before publication. Selection plus established header, mixer, view, and track-rack controls remain available; lock does not hide, mute, bypass, or make a project read-only. This mandatory core behavior has no capability ID, owned requirement, rendered fallback, optional older-schema extension, or default-visible control.",
+			"requiredOutcome": "Every exact-current audio, video, and label track carries one required persisted editorial-lock fact that both products preserve, enforce at the shared command boundary, and can toggle through the track control panel overflow menu without a capability or fallback.",
+			"currentBehavior": "Schema 17 requires an own boolean locked field on every audio, video, and label track. Soundscaper and Framescaper both default it false, preserve it through clone, history, browser and desktop persistence, and expose track control panel overflow Lock track and Unlock track commands. The shared low-level command boundary retains transaction-start lock authority through arbitrary nested batches, blocks direct and indirect changes to protected track content, timing, media, grouping, lane and folder identity, and validates the reconciled result before publication. Selection plus established header, mixer, view, and track-rack controls remain available; lock does not hide, mute, bypass, or make a project read-only. This mandatory core behavior has no capability ID, owned requirement, rendered fallback, optional older-schema extension, or default-visible control.",
 			"evidence": [
 				"src/common/editor/project-v15.ts",
 				"src/common/editor/project-v15-validation.ts",
 				"src/common/editor/commands/track-lock-admission.ts",
 				"src/common/editor/commands.js",
-				"src/common/editor/ui/track-lock-menu-model.ts",
+				"src/common/editor/ui/timeline/timeline-menu-model.js",
 				"tests/audio-editor-project-v15.test.ts",
 				"tests/audio-editor-track-lock-admission.test.ts",
 				"tests/audio-editor-track-lock-batch.test.ts",
-				"tests/audio-editor-track-lock-application-menu.test.ts",
+				"tests/audio-editor-track-lock-overflow-menu.test.tsx",
 				"tests/audio-editor-scape-project.test.js",
 				"tests/desktop-project-library-v12-folder-roundtrip.test.ts",
 				"tests/browser/audio-editor-track-lock.spec.js"
