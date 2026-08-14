@@ -15,7 +15,14 @@ const ROUTES = new Map([
 	[`${ROOT}/core/ffmpeg-core.wasm`, route('node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm', 'application/wasm')],
 ]);
 
-test('FFmpeg consumes a bounded raw-frame ring while exec is running', async ({ page }) => {
+test('FFmpeg consumes a bounded raw-frame ring while exec is running', async ({ browserName, page }) => {
+	// Firefox creates @ffmpeg/ffmpeg's class worker and fetches worker.js, then never
+	// resolves the worker's own module imports: no further request is made, no ffmpeg log
+	// line is emitted, and load hangs until its bound. Chromium completes the same
+	// sequence in about a second. The fixture drives the third-party loader directly, so
+	// this is that loader's module-worker path under COEP credentialless, not the
+	// product's own ffmpeg runtime, which other specs cover on Firefox.
+	test.skip(browserName === 'firefox', 'The @ffmpeg/ffmpeg class worker never resolves its module imports on Firefox.');
 	test.setTimeout(120_000);
 	await installRoutes(page);
 	await page.goto(`${ROOT}/index.html`);
