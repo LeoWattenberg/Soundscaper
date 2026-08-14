@@ -9,6 +9,10 @@ import {
 import { VIDEO_CLIP_COMPOSITION_BLEND_MODES, type VideoClipCompositionBlendMode } from './video-clip-composition.ts';
 import type { VideoRenderDescription } from './video-render-description.ts';
 import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js';
+import {
+	nearlyEqualVideoFfmpegScalar,
+	withinAuthoredVideoFfmpegScale,
+} from './video-ffmpeg-scale-admission.ts';
 
 const DESCRIPTION_FIELDS = Object.freeze([
 	'crop', 'sourceDisplayToCanvas', 'opacityStart', 'opacityEnd', 'blendMode', 'compositingOrder',
@@ -19,8 +23,6 @@ const SOURCE_PIXEL_CROP_FIELDS = Object.freeze(['x', 'y', 'width', 'height']);
 const BLEND_MODES: ReadonlySet<string> = new Set(VIDEO_CLIP_COMPOSITION_BLEND_MODES);
 const MINIMUM_COMPOSITING_ORDER = -32_768;
 const MAXIMUM_COMPOSITING_ORDER = 32_767;
-const MAXIMUM_AUTHORED_SCALE = 100;
-const MINIMUM_AUTHORED_SCALE = 0.01;
 
 export interface VideoFfmpegCanvas {
 	readonly width: number;
@@ -107,8 +109,8 @@ export function normalizeVideoFfmpegCompositionIntervals(
 					throw new TypeError(`${trackName} crossfades must order outgoing then incoming clips.`);
 				}
 				if (version < 6 && (
-					!nearlyEqual(clips[0]!.opacityStart + clips[1]!.opacityStart, 1)
-					|| !nearlyEqual(clips[0]!.opacityEnd + clips[1]!.opacityEnd, 1)
+					!nearlyEqualVideoFfmpegScalar(clips[0]!.opacityStart + clips[1]!.opacityStart, 1)
+					|| !nearlyEqualVideoFfmpegScalar(clips[0]!.opacityEnd + clips[1]!.opacityEnd, 1)
 				)) throw new RangeError(`${trackName} crossfade opacities must be complementary.`);
 				if (version >= 6 && (
 					clips[0]!.renderDescription?.blendMode !== clips[1]!.renderDescription?.blendMode
@@ -131,7 +133,7 @@ export function normalizeVideoFfmpegCompositionIntervals(
 		return { kind: 'composition', color: interval.color, durationSeconds: duration, layers };
 	});
 	const totalDuration = intervals.reduce((total, interval) => total + Number(interval.durationSeconds), 0);
-	if (!nearlyEqual(totalDuration, durationSeconds)) {
+	if (!nearlyEqualVideoFfmpegScalar(totalDuration, durationSeconds)) {
 		throw new RangeError('Video composition interval durations must equal plan.durationSeconds.');
 	}
 	return intervals;
@@ -277,7 +279,7 @@ export function appendVideoFfmpegV6ClipFilters(request: AppendVideoFfmpegV6ClipF
 	const duration = numberToken(positiveNumber(request.durationSeconds, 'FFmpeg V6 duration'));
 	const frameRate = numberToken(positiveNumber(request.frameRate, 'FFmpeg V6 frame rate'));
 	const opacity = request.description.opacityStart;
-	if (request.applyStaticOpacity && !nearlyEqual(opacity, request.description.opacityEnd)) {
+	if (request.applyStaticOpacity && !nearlyEqualVideoFfmpegScalar(opacity, request.description.opacityEnd)) {
 		throw new RangeError('A static V6 layer must have equal opacity endpoints.');
 	}
 	const alpha = request.applyStaticOpacity && opacity !== 1
@@ -307,10 +309,10 @@ export function appendVideoFfmpegV6ClipFilters(request: AppendVideoFfmpegV6ClipF
 			+ `:x=iw*${numberToken(crop.left)}:y=ih*${numberToken(crop.top)}:exact=1`,
 		...(internals.flipHorizontal ? ['hflip'] : []),
 		...(internals.flipVertical ? ['vflip'] : []),
-		...(!nearlyEqual(internals.scaleX, 1) || !nearlyEqual(internals.scaleY, 1)
+		...(!nearlyEqualVideoFfmpegScalar(internals.scaleX, 1) || !nearlyEqualVideoFfmpegScalar(internals.scaleY, 1)
 			? [`scale=w=iw*${numberToken(internals.scaleX)}:h=ih*${numberToken(internals.scaleY)}:flags=bicubic`]
 			: []),
-		...(nearlyEqual(internals.rotationRadians, 0)
+		...(nearlyEqualVideoFfmpegScalar(internals.rotationRadians, 0)
 			? []
 			: [`rotate=a=${numberToken(internals.rotationRadians)}`
 				+ `:ow=rotw(${numberToken(internals.rotationRadians)})`
@@ -435,12 +437,11 @@ function renderInternals(
 	const linearD = d / baseScaleY;
 	const columnX = Math.hypot(linearA, linearB);
 	const columnY = Math.hypot(linearC, linearD);
-	if (columnX < MINIMUM_AUTHORED_SCALE || columnX > MAXIMUM_AUTHORED_SCALE
-		|| columnY < MINIMUM_AUTHORED_SCALE || columnY > MAXIMUM_AUTHORED_SCALE) {
+	if (!withinAuthoredVideoFfmpegScale(columnX) || !withinAuthoredVideoFfmpegScale(columnY)) {
 		throw new RangeError(`${name}.sourceDisplayToCanvas has an unsupported scale.`);
 	}
 	const dot = linearA * linearC + linearB * linearD;
-	if (!nearlyEqual(dot, 0)) {
+	if (!nearlyEqualVideoFfmpegScalar(dot, 0)) {
 		throw new RangeError(`${name}.sourceDisplayToCanvas must contain only scale, reflection, and rotation.`);
 	}
 	const determinant = linearA * linearD - linearB * linearC;
@@ -469,7 +470,7 @@ function renderInternals(
 		&& crop.normalized.top === 0
 		&& crop.normalized.right === 0
 		&& crop.normalized.bottom === 0
-		&& nearlyEqual(a, baseScaleX) && b === 0 && c === 0 && nearlyEqual(d, baseScaleY)
+		&& nearlyEqualVideoFfmpegScalar(a, baseScaleX) && b === 0 && c === 0 && nearlyEqualVideoFfmpegScalar(d, baseScaleY)
 		&& e === fittedX && f === fittedY;
 	return Object.freeze({
 		fittedWidth,
@@ -553,7 +554,7 @@ function nonNegativeSafeInteger(value: unknown, name: string): number {
 
 function nearPositiveSafeInteger(value: number, name: string): number {
 	const rounded = Math.round(value);
-	if (!Number.isSafeInteger(rounded) || rounded < 1 || !nearlyEqual(value, rounded)) {
+	if (!Number.isSafeInteger(rounded) || rounded < 1 || !nearlyEqualVideoFfmpegScalar(value, rounded)) {
 		throw new RangeError(`${name} must resolve to a positive safe integer.`);
 	}
 	return rounded;
@@ -567,13 +568,9 @@ function boundedSafeInteger(value: unknown, name: string, minimum: number, maxim
 }
 
 function assertNearly(actual: number, expected: number, name: string): void {
-	if (!nearlyEqual(actual, expected)) throw new RangeError(`${name} disagrees with the normalized aperture.`);
+	if (!nearlyEqualVideoFfmpegScalar(actual, expected)) throw new RangeError(`${name} disagrees with the normalized aperture.`);
 }
 
-function nearlyEqual(left: number, right: number): boolean {
-	const scale = Math.max(1, Math.abs(left), Math.abs(right));
-	return Math.abs(left - right) <= scale * 1e-9;
-}
 
 function numberToken(value: number): string {
 	if (!Number.isFinite(value)) throw new RangeError('An FFmpeg render scalar must be finite.');

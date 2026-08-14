@@ -223,6 +223,42 @@ test('the extracted interval normalizer preserves legacy V2-V5 numeric coercion'
 	});
 });
 
+test('a clip authored at the exact scale bounds still exports once rotation composes in', () => {
+	// The authored bounds are inclusive, but the normalizer recovers the scale from the
+	// composed affine, so rotation puts an exactly-bounded clip about one ULP outside
+	// and the whole export used to be refused.
+	for (const [scale, rotationDegrees] of [
+		[0.01, 0], [0.01, 10], [0.01, 37], [100, 0], [100, 1], [100, 45],
+	] as const) {
+		const description = descriptionFor({ transform: { scaleX: scale, scaleY: scale, rotationDegrees } });
+		const plan = v6Plan([{ trackId: 'video', clips: [singleClip(0, description)] }]);
+		assert.doesNotThrow(
+			() => normalizeVideoFfmpegCompositionIntervals(plan, plan.inputs, 1, CANVAS),
+			`scale ${String(scale)} at ${String(rotationDegrees)} degrees`,
+		);
+	}
+	// The authoring model refuses an out-of-range scale before a description exists, so
+	// drive the affine directly to prove the export guard still rejects a real overshoot
+	// rather than having been widened away.
+	for (const factor of [0.005, 250] as const) {
+		const description = descriptionFor({});
+		const matrix = description.sourceDisplayToCanvas as readonly number[];
+		const overshot = {
+			...description,
+			sourceDisplayToCanvas: Object.freeze([
+				matrix[0]! * factor, matrix[1]! * factor, matrix[2]! * factor,
+				matrix[3]! * factor, matrix[4]!, matrix[5]!,
+			]),
+		} as typeof description;
+		const plan = v6Plan([{ trackId: 'video', clips: [singleClip(0, overshot)] }]);
+		assert.throws(
+			() => normalizeVideoFfmpegCompositionIntervals(plan, plan.inputs, 1, CANVAS),
+			/unsupported scale/iu,
+			`affine scaled by ${String(factor)}`,
+		);
+	}
+});
+
 function descriptionFor(changes: Readonly<Record<string, unknown>>): VideoRenderDescription {
 	const crop = changes.crop as Readonly<Record<string, unknown>> | undefined;
 	const transform = changes.transform as Readonly<Record<string, unknown>> | undefined;
