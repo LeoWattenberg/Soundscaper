@@ -4,8 +4,13 @@
 // workflow that reads persisted state has to open the one its own product wrote.
 // Opening the other name does not fail loudly: indexedDB.open() without a version
 // creates an empty database, and the read then reports a missing object store.
+// The Framescaper name follows whichever storage profile its live bootstrap
+// mounts, so it moves with every product version that ships: dormant profiles
+// for later versions exist well before the app mounts them, and only the mounted
+// one owns real data. Confirm against the running page rather than the newest
+// profile in the tree when this needs updating again.
 export const SOUNDSCAPER_DATABASE_NAME = 'kw-media-audio-editor';
-export const FRAMESCAPER_DATABASE_NAME = 'kw-media-framescaper-editor-v18';
+export const FRAMESCAPER_DATABASE_NAME = 'kw-media-framescaper-editor-v19';
 
 export function editorDatabaseName(product) {
 	if (product === 'framescaper') return FRAMESCAPER_DATABASE_NAME;
