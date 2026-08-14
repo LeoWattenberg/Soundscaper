@@ -110,8 +110,9 @@ export async function applyReviewedUtilityGainSelectionOffline(
 	const parameters = normalizeUtilityGainParams(paramsValue);
 	const output = channels.map((channel) => new Float32Array(channel.length));
 	const maximumBlockFrames = UTILITY_GAIN_MANIFEST.resources.maximumBlockFrames;
-	for (let startFrame = 0; startFrame < channels[0]!.length; startFrame += maximumBlockFrames) {
-		const endFrame = Math.min(channels[0]!.length, startFrame + maximumBlockFrames);
+	const frameCount = channels[0]!.length;
+	for (let startFrame = 0; startFrame < frameCount; startFrame += maximumBlockFrames) {
+		const endFrame = Math.min(frameCount, startFrame + maximumBlockFrames);
 		const block = await processReviewedEffectOffline(REVIEWED_UTILITY_GAIN_PACKAGE_REFERENCE, {
 			sampleRate,
 			channels: channels.map((channel) => channel.subarray(startFrame, endFrame)),
@@ -120,6 +121,9 @@ export async function applyReviewedUtilityGainSelectionOffline(
 		for (let channelIndex = 0; channelIndex < output.length; channelIndex += 1) {
 			output[channelIndex]!.set(block[channelIndex]!, startFrame);
 		}
+		// One worker is constructed and terminated per admitted block, so a long selection
+		// is a long wall-clock apply. Report the block boundary the caller can render.
+		options.onProgress?.(endFrame / frameCount);
 	}
 	return Object.freeze(output);
 }

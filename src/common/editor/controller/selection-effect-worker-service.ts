@@ -144,7 +144,10 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 			try {
 				const channels = await (
 					runtime.applyReviewedSelectionEffect ?? applyReviewedUtilityGainSelectionOffline
-				)(request.channels, request.sampleRate, request.params, { signal: owner.signal });
+				)(request.channels, request.sampleRate, request.params, {
+					signal: owner.signal,
+					onProgress: options.onProgress ?? runtime.onProgress,
+				});
 				runtime.assertProject(projectToken);
 				throwIfAborted(options.signal);
 				return { channels: [...channels] };

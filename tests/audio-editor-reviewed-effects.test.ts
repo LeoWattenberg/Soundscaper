@@ -210,12 +210,14 @@ test('dedicated-worker-capable port returns bounded offline processing and termi
 
 test('selection integration splits long input across terminating dedicated workers', async () => {
 	const ports: FakeWorkerPort[] = [];
+	const progress: number[] = [];
 	const input = new Float32Array(UTILITY_GAIN_MANIFEST.resources.maximumBlockFrames + 2).fill(0.25);
 	const output = await applyReviewedUtilityGainSelectionOffline(
 		[input],
 		48_000,
 		{ gain: 3 },
 		{
+			onProgress: (value) => progress.push(value),
 			workerFactory: () => {
 				const port = new FakeWorkerPort((message, currentPort) => {
 					queueMicrotask(() => {
@@ -235,6 +237,11 @@ test('selection integration splits long input across terminating dedicated worke
 	assert.equal(output[0]?.length, input.length);
 	assert.equal(output[0]?.[0], 0.75);
 	assert.equal(output[0]?.at(-1), 0.75);
+	// One worker is built and torn down per block, so a real selection takes seconds.
+	// Without a per-block report the apply looked frozen for its whole duration.
+	assert.equal(progress.length, ports.length);
+	assert.equal(progress.at(-1), 1);
+	assert.deepEqual(progress, [...progress].sort((left, right) => left - right));
 });
 
 test('offline client rejects oversized worker output and terminates the port', async () => {

@@ -25,6 +25,8 @@ export interface ReviewedEffectOfflineOptions {
 	readonly signal?: AbortSignal;
 	/** A worker-compatible port seam for non-browser hosts and deterministic tests. */
 	readonly workerFactory?: () => ReviewedEffectWorkerPort;
+	/** Completed fraction of a multi-block selection, reported per admitted block. */
+	readonly onProgress?: (value: number) => void;
 }
 
 let requestSequence = 0;
