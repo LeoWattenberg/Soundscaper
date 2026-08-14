@@ -49,7 +49,6 @@ export interface M4ProductionParityAudioMetrics {
 
 export interface M4ProductionParityAudioPlan {
 	readonly pdcLatencyFrames: number;
-	readonly pdcErrorSamples: number;
 	readonly gainEvents: readonly Readonly<{
 		readonly kind: 'set' | 'linear';
 		readonly value: number;
@@ -162,7 +161,6 @@ export function compileM4ProductionParityAudioPlan(
 	});
 	return Object.freeze({
 		pdcLatencyFrames: pdcPlan.latencyFrames,
-		pdcErrorSamples: pdcPlan.pdcErrorSamples,
 		gainEvents: Object.freeze(gainEvents.map(({ kind, value, frame }) => Object.freeze({
 			kind,
 			value,

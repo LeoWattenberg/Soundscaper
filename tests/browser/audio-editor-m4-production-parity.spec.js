@@ -273,7 +273,6 @@ function productionPathEvidence(schedulerMode, monitoring) {
 		monitoring,
 		scheduledClipCount: 2,
 		latencyFrames: M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames,
-		pdcErrorSamples: 0,
 		programInputLatencyFrames: 7,
 		fastPathCompensationFrames: 10,
 	};

@@ -45,10 +45,16 @@ test('independent PDC landmarks cover chains, diamonds, nested buses, sends, sid
 			mapEntries(reference.outputLatencyFrames),
 			`${name}: terminal offsets`,
 		);
-		assert.equal(reference.pdcErrorSamples, 0, `${name}: reference PDC error`);
 		assert.ok(reference.landmarks.length > 0, `${name}: reference landmarks`);
+		// Compare the two implementations against each other. A landmark's arrival is
+		// derived from its own compensation, so checking it against itself can only
+		// ever report zero; the production compiler is the independent authority.
 		for (const landmark of reference.landmarks) {
-			assert.equal(landmark.errorSamples, 0, `${name}: ${landmark.edgeId}`);
+			assert.equal(
+				landmark.compensationFrames,
+				production.edgeCompensationFrames.get(landmark.edgeId),
+				`${name}: ${landmark.edgeId} compensation`,
+			);
 		}
 	}
 });

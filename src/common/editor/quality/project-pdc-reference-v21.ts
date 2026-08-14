@@ -45,7 +45,6 @@ interface ReferenceSolution {
 	readonly edgeCompensationFrames: ReadonlyMap<string, number>;
 	readonly outputLatencyFrames: ReadonlyMap<string, number>;
 	readonly latencyFrames: number;
-	readonly pdcErrorSamples: number;
 	readonly landmarks: readonly ProjectPdcReferenceLandmarkV21[];
 }
 
@@ -55,7 +54,6 @@ export interface ProjectPdcReferenceLandmarkV21 {
 	readonly compensationFrames: number;
 	readonly arrivalOffsetFrames: number;
 	readonly targetOffsetFrames: number;
-	readonly errorSamples: number;
 }
 
 export interface ProjectPdcReferenceConsumerOffsetsV21 {
@@ -71,7 +69,6 @@ export interface IndependentProjectPdcReferenceV21 {
 	readonly nodeOutputLatencyFrames: ReadonlyMap<string, number>;
 	readonly edgeCompensationFrames: ReadonlyMap<string, number>;
 	readonly outputLatencyFrames: ReadonlyMap<string, number>;
-	readonly pdcErrorSamples: number;
 	readonly landmarks: readonly ProjectPdcReferenceLandmarkV21[];
 	readonly consumerOffsets: ProjectPdcReferenceConsumerOffsetsV21;
 	automationLatencyFrames(address: unknown): number;
@@ -111,7 +108,6 @@ export function evaluateIndependentProjectPdcReferenceV21(
 		nodeOutputLatencyFrames: full.nodeOutputLatencyFrames,
 		edgeCompensationFrames: full.edgeCompensationFrames,
 		outputLatencyFrames: full.outputLatencyFrames,
-		pdcErrorSamples: full.pdcErrorSamples,
 		landmarks: full.landmarks,
 		consumerOffsets,
 		automationLatencyFrames: createAutomationReference(model, full),
@@ -314,7 +310,6 @@ function solveReferenceModel(model: ReferenceModel, includeMaster: boolean): Ref
 			compensationFrames,
 			arrivalOffsetFrames,
 			targetOffsetFrames,
-			errorSamples: Math.abs(arrivalOffsetFrames - targetOffsetFrames),
 		});
 	});
 	return Object.freeze({
@@ -323,7 +318,6 @@ function solveReferenceModel(model: ReferenceModel, includeMaster: boolean): Ref
 		edgeCompensationFrames: compensation,
 		outputLatencyFrames,
 		latencyFrames: Math.max(0, ...outputLatencyFrames.values()),
-		pdcErrorSamples: Math.max(0, ...landmarks.map(({ errorSamples }) => errorSamples)),
 		landmarks: Object.freeze(landmarks),
 	});
 }

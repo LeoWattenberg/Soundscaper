@@ -17,7 +17,6 @@ test('aligns every nested assignment path at every merge and reports exact zero 
 	assert.equal(plan.nodeInputLatencyFrames.get('master'), 816);
 	assert.equal(plan.nodeOutputLatencyFrames.get('master'), 864);
 	assert.equal(plan.outputLatencyFrames.get('main'), 864);
-	assert.equal(plan.pdcErrorSamples, 0);
 	assert.equal(plan.latencyFrames, 864);
 });
 
@@ -47,7 +46,6 @@ test('aligns an explicit sidechain at the addressed effect stage', () => {
 	assert.equal(plan.nodeOutputLatencyFrames.get('track:music'), 1_680);
 	assert.equal(plan.nodeInputLatencyFrames.get('mixer-node:stem'), 1_680);
 	assert.equal(plan.edgeCompensationFrames.get('dialogue-stem'), 960);
-	assert.equal(plan.pdcErrorSamples, 0);
 });
 
 test('disabled edges do not affect path compensation and unreachable output is rejected', () => {
@@ -57,7 +55,7 @@ test('disabled edges do not affect path compensation and unreachable output is r
 		destination: { kind: 'mixer-node', id: 'dialogue' }, position: 'post-fader', level: 1,
 		enabled: false, channelMap: [],
 	});
-	assert.equal(compileProjectPathPdcPlanV21(value).pdcErrorSamples, 0);
+	assert.equal(compileProjectPathPdcPlanV21(value).edgeCompensationFrames.get('disabled-loop'), 0);
 	value.mixer.edges = value.mixer.edges.filter(({ id }) => id !== 'master-main');
 	assert.throws(() => compileProjectPathPdcPlanV21(value), /output|reachable/iu);
 });
