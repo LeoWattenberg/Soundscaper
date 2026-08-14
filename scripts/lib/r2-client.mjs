@@ -50,13 +50,28 @@ export function strongEntityTag(etag, label) {
 }
 
 export class R2Client {
-	constructor() {
-		const accessKeyId = process.env.R2_TRANSLATIONS_ACCESS_KEY_ID;
-		const secretAccessKey = process.env.R2_TRANSLATIONS_SECRET_ACCESS_KEY;
-		const endpointValue = process.env.R2_TRANSLATIONS_ENDPOINT;
-		const bucket = process.env.R2_TRANSLATIONS_BUCKET ?? 'soundscaper-translations';
-		assert(accessKeyId && secretAccessKey && endpointValue, 'R2 translation S3 credentials and endpoint are required');
-		assert(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket), 'R2 translation bucket name is invalid');
+	/**
+	 * Defaults to the translation release credentials so existing callers are
+	 * unchanged. Another workflow with its own bucket and token passes its own
+	 * environment prefix rather than borrowing the translation credentials.
+	 */
+	constructor({ environmentPrefix = 'R2_TRANSLATIONS', defaultBucket = 'soundscaper-translations', label = 'translation' } = {}) {
+		const accessKeyId = process.env[`${environmentPrefix}_ACCESS_KEY_ID`];
+		const secretAccessKey = process.env[`${environmentPrefix}_SECRET_ACCESS_KEY`];
+		const endpointValue = process.env[`${environmentPrefix}_ENDPOINT`];
+		const bucket = process.env[`${environmentPrefix}_BUCKET`] ?? defaultBucket;
+		// Name the variables the process could not see. A generic message sends
+		// the reader hunting for a typo that may not exist, when the usual cause
+		// is an environment that never reached this process at all.
+		const missing = [
+			['ACCESS_KEY_ID', accessKeyId],
+			['SECRET_ACCESS_KEY', secretAccessKey],
+			['ENDPOINT', endpointValue],
+		].filter(([, value]) => !value).map(([suffix]) => `${environmentPrefix}_${suffix}`);
+		assert(missing.length === 0,
+			`R2 ${label} S3 credentials and endpoint are required. Not set in this process: ${missing.join(', ')}. `
+			+ 'Node does not read .env on its own; pass --env-file=.env or export the variables in the shell that runs the command.');
+		assert(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket), `R2 ${label} bucket name is invalid`);
 		const endpoint = new URL(endpointValue);
 		assert(endpoint.protocol === 'https:' && !endpoint.username && !endpoint.password && !endpoint.search && !endpoint.hash,
 			'R2 endpoint must be a bare HTTPS URL');
@@ -64,7 +79,7 @@ export class R2Client {
 		assert(endpoint.hostname.endsWith('.r2.cloudflarestorage.com'), 'R2 endpoint is not a Cloudflare S3 endpoint');
 		this.accessKeyId = accessKeyId;
 		this.secretAccessKey = secretAccessKey;
-		this.sessionToken = process.env.R2_TRANSLATIONS_SESSION_TOKEN;
+		this.sessionToken = process.env[`${environmentPrefix}_SESSION_TOKEN`];
 		this.endpoint = endpoint;
 		this.bucket = bucket;
 	}

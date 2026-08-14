@@ -211,6 +211,177 @@ The browser tools can distribute the following pinned browser-side packages as p
 - `scheduler` 0.27.0 — MIT; transitive React scheduler runtime; Copyright © Meta Platforms, Inc. and affiliates; source and license: <https://github.com/facebook/react/tree/v19.2.7/packages/scheduler>
 - `sql.js` 1.14.1 — MIT; source: <https://github.com/sql-js/sql.js> (retained for unrelated legacy tools; AUP4 uses the official SQLite WASM package)
 
+## Optional local assistance runtime
+
+The optional on-device assistance features load their speech runtime from
+`sherpa-onnx-node`, declared as an optional dependency so the editor installs,
+builds, and runs without it. It is not staged into any distributed package
+today; when a milestone-7 slice stages its platform binaries, the matrix rows
+gain their artifact surfaces and this notice gains the shipped file inventory.
+
+- `sherpa-onnx-node` 1.13.5 — Apache-2.0; Next-gen Kaldi speech runtime;
+  source and license: <https://github.com/k2-fsa/sherpa-onnx>
+- `sherpa-onnx-darwin-arm64` 1.13.5 — Apache-2.0; prebuilt platform binary;
+  source and license: <https://github.com/k2-fsa/sherpa-onnx>
+- `sherpa-onnx-darwin-x64` 1.13.5 — Apache-2.0; prebuilt platform binary;
+  source and license: <https://github.com/k2-fsa/sherpa-onnx>
+- `sherpa-onnx-linux-arm64` 1.13.5 — Apache-2.0; prebuilt platform binary;
+  source and license: <https://github.com/k2-fsa/sherpa-onnx>
+- `sherpa-onnx-linux-x64` 1.13.5 — Apache-2.0; prebuilt platform binary;
+  source and license: <https://github.com/k2-fsa/sherpa-onnx>
+- `sherpa-onnx-win-ia32` 1.13.5 — Apache-2.0; prebuilt platform binary;
+  source and license: <https://github.com/k2-fsa/sherpa-onnx>
+- `sherpa-onnx-win-x64` 1.13.5 — Apache-2.0; prebuilt platform binary;
+  source and license: <https://github.com/k2-fsa/sherpa-onnx>
+
+Upstream publishes no `win32-arm64` prebuild, so Windows on ARM reports the
+assistance models as unsupported rather than installing a binary that cannot
+load.
+
+Model weights are separately downloaded, never bundled, and each is recorded in
+`config/production-licensing-matrix.json`. A model is listed below only once its
+artifacts are mirrored and pinned; the rest remain undistributable and unlisted.
+
+### Mirrored assistance models
+
+Each model below is served from the product store at a versioned key and was verified byte for byte against these digests after publication.
+
+- Silero VAD 6.2.1 — MIT; Copyright © Silero Team; voice activity detection;
+  source and license: <https://github.com/snakers4/silero-vad/tree/7e30209a3e901f9842f81b225f3e93d8199902b1>.
+  Not to be confused with the `silero-models` repository, which is a separate project under different terms and is not a source here.
+  Mirrored artifacts:
+  - `silero_vad.onnx`, 2,327,524 bytes, SHA-256
+    `1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3`
+
+- NVIDIA Parakeet TDT 0.6b v2 — CC-BY-4.0 (weights), Apache-2.0 (NeMo code); Copyright © NVIDIA Corporation; English speech recognition with word timestamps;
+  source and license: <https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2>.
+  Attribution to NVIDIA is required by CC-BY-4.0. ONNX export mirrored from <https://huggingface.co/istupakov/parakeet-tdt-0.6b-v2-onnx>.
+  Mirrored artifacts:
+  - `encoder.int8.onnx`, 652,184,296 bytes, SHA-256
+    `a32b12d17bbbc309d0686fbbcc2987b5e9b8333a7da83fa6b089f0a2acd651ab`
+  - `decoder.int8.onnx`, 7,257,753 bytes, SHA-256
+    `b6bb64963457237b900e496ee9994b59294526439fbcc1fecf705b31a15c6b4e`
+  - `joiner.int8.onnx`, 1,739,080 bytes, SHA-256
+    `7946164367946e7f9f29a122407c3252b680dbae9a51343eb2488d057c3c43d2`
+  - `tokens.txt`, 9,384 bytes, SHA-256
+    `ec182b70dd42113aff6c5372c75cac58c952443eb22322f57bbd7f53977d497d`
+
+- NVIDIA Parakeet TDT 0.6b v3 — CC-BY-4.0 (weights), Apache-2.0 (NeMo code); Copyright © NVIDIA Corporation; speech recognition across 25 European languages;
+  source and license: <https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3>.
+  Attribution to NVIDIA is required by CC-BY-4.0. ONNX export mirrored from <https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx>.
+  Mirrored artifacts:
+  - `encoder.int8.onnx`, 652,184,281 bytes, SHA-256
+    `acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247`
+  - `decoder.int8.onnx`, 11,845,275 bytes, SHA-256
+    `179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e`
+  - `joiner.int8.onnx`, 6,355,277 bytes, SHA-256
+    `3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3`
+  - `tokens.txt`, 93,939 bytes, SHA-256
+    `d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d`
+
+- OpenAI Whisper large-v3-turbo (GGML q5_0) — MIT; Copyright © OpenAI; multilingual speech recognition;
+  source and license: <https://huggingface.co/openai/whisper-large-v3-turbo>.
+  GGML conversion mirrored from <https://huggingface.co/ggerganov/whisper.cpp> (MIT).
+  Mirrored artifacts:
+  - `ggml-large-v3-turbo-q5_0.bin`, 574,041,195 bytes, SHA-256
+    `394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2`
+
+- pyannote segmentation 3.0 — MIT; Copyright © Hervé Bredin and contributors; speaker segmentation for diarization;
+  source and license: <https://huggingface.co/pyannote/segmentation-3.0>.
+  The upstream repository is access-gated, so the artifact is mirrored from the redistributed ONNX conversion at <https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0>; its LICENSE file is mirrored beside the weights.
+  Mirrored artifacts:
+  - `model.onnx`, 5,992,913 bytes, SHA-256
+    `220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079`
+  - `LICENSE`, 1,061 bytes, SHA-256
+    `14d7016ad68e7394d6e6b78d96cc2ae431c905287b89674cfdf021e79e62b8ba`
+
+- 3D-Speaker ERes2Net (VoxCeleb, 16 kHz) — Apache-2.0; Copyright © Alibaba Group; speaker embeddings for diarization clustering;
+  source and license: <https://github.com/modelscope/3D-Speaker>.
+  ONNX export mirrored from <https://huggingface.co/csukuangfj/speaker-embedding-models>.
+  Mirrored artifacts:
+  - `3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx`, 26,485,263 bytes, SHA-256
+    `c59158379255ad66e161679cca6af8d52d51e389e3224ab7d7a7baae295c2db5`
+
+- DeepFilterNet3 — MIT OR Apache-2.0; Copyright © Hendrik Schröter and contributors; full-band speech denoise;
+  source and license: <https://github.com/Rikorose/DeepFilterNet>.
+  ONNX export mirrored from <https://huggingface.co/soniqo/DeepFilterNet3-ONNX>.
+  Mirrored artifacts:
+  - `deepfilter.onnx`, 8,608,859 bytes, SHA-256
+    `e1157049059434ae0d5857e32c812abea227b975e946b2eb64d001abbce156d3`
+  - `deepfilter-auxiliary.bin`, 126,976 bytes, SHA-256
+    `47e84480f823ab95bee69d9f8a2344074e3d8e7dbb4370d44785b91698a4dca1`
+  - `config.json`, 370 bytes, SHA-256
+    `0f1cbfa0a0a5b9770e905cbcacb7a03340daaf1498d34435a51916ef58439bb6`
+
+- YuNet (2026may) — MIT; Copyright © Shiqi Yu; face detection for reframe proposals;
+  source and license: <https://github.com/opencv/opencv_zoo/tree/47534e27c9851bb1128ccc0102f1145e27f23f98/models/face_detection_yunet>.
+  The model directory carries its own MIT license, which governs these weights; the repository-wide Apache-2.0 covers the zoo's harness code.
+  Used for detection only: no face recognition, identification, or clustering is built on it.
+  Mirrored artifacts:
+  - `face_detection_yunet_2026may.onnx`, 229,738 bytes, SHA-256
+    `ebafce4e3c118d6554634be5c27ab333b4c047a9a8c3faf1d7cf93101c22f0f0`
+
+- D-FINE-N (COCO) — Apache-2.0; Copyright © Yansong Peng and contributors; person and object detection;
+  source and license: <https://github.com/Peterande/D-FINE>.
+  Checkpoint conversion at <https://huggingface.co/ustc-community/dfine-nano-coco>; ONNX export mirrored from <https://huggingface.co/onnx-community/dfine_n_coco-ONNX>, which declares that conversion as its base model.
+  Mirrored artifacts:
+  - `model.onnx`, 15,258,358 bytes, SHA-256
+    `0f684f409618ee8a822410e754a29caa817d1aa16283ce89cad936d0a48e2f35`
+  - `config.json`, 6,597 bytes, SHA-256
+    `a5c7533f3b72be6bb102b93e1b34ca3643af4e0590408a7881543cbb0aa80c4c`
+  - `preprocessor_config.json`, 444 bytes, SHA-256
+    `cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1`
+
+- U²-Net-P — Apache-2.0; Copyright © Xuebin Qin and contributors; saliency fallback for reframe proposals;
+  source and license: <https://github.com/xuebinqin/U-2-Net>.
+  ONNX conversion redistributed by <https://github.com/danielgatis/rembg> (MIT), which credits the upstream work and adds no terms of its own to the weights.
+  Mirrored artifacts:
+  - `u2netp.onnx`, 4,574,861 bytes, SHA-256
+    `309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8`
+
+- PP-OCRv4 mobile — Apache-2.0; Copyright © PaddlePaddle Authors; on-screen text recognition;
+  source and license: <https://github.com/PaddlePaddle/PaddleOCR>.
+  ONNX conversions mirrored from <https://huggingface.co/SWHL/RapidOCR>; the character dictionary is taken from PaddleOCR at commit `2661c7c0ef5c613e8f93c6e93b2e052399f0f854`.
+  Mirrored artifacts:
+  - `text_detection.onnx`, 4,745,517 bytes, SHA-256
+    `d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9`
+  - `text_recognition.onnx`, 10,857,958 bytes, SHA-256
+    `48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b`
+  - `text_orientation.onnx`, 585,532 bytes, SHA-256
+    `e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c`
+  - `character_dictionary.txt`, 26,250 bytes, SHA-256
+    `a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492`
+
+- nomic-embed-text-v1.5 — Apache-2.0; Copyright © Nomic AI; transcript embeddings for semantic search;
+  source and license: <https://huggingface.co/nomic-ai/nomic-embed-text-v1.5>.
+  The ONNX export is published by the licence holder alongside the original weights.
+  Mirrored artifacts:
+  - `model_quantized.onnx`, 137,296,292 bytes, SHA-256
+    `b4342336debaea79de872370664b0aaeb67dea4605513d00ee236ea871a81f27`
+  - `tokenizer.json`, 711,396 bytes, SHA-256
+    `d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
+  - `tokenizer_config.json`, 1,191 bytes, SHA-256
+    `d7e0000bcc80134debd2222220427e6bf5fa20a669f40a0d0d1409cc18e0a9bc`
+  - `special_tokens_map.json`, 695 bytes, SHA-256
+    `5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a`
+  - `config.json`, 2,538 bytes, SHA-256
+    `9ab00bd92cee80a569f708140b7b6c1661a65891ff3765b1519e181ba2f2c92b`
+
+- SigLIP 2 base patch16-224 — Apache-2.0; Copyright © Google LLC; frame semantics and visual search;
+  source and license: <https://huggingface.co/google/siglip2-base-patch16-224>.
+  ONNX export mirrored from <https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX>, which declares the upstream repository as its base model.
+  Mirrored artifacts:
+  - `vision_model_int8.onnx`, 94,553,333 bytes, SHA-256
+    `0dd31785a2713f1113ef2272472165c69d580473dae38d7b47568ac587795e70`
+  - `text_model_int8.onnx`, 283,438,275 bytes, SHA-256
+    `3a0603d3a00c05a80a6ded4743c16aaac7b1e62cdcc7e362e7ce418659b96400`
+  - `tokenizer.json`, 34,363,039 bytes, SHA-256
+    `cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322`
+  - `config.json`, 435 bytes, SHA-256
+    `e43a9f7692d3819886a82cb2097048258d444f123c67d37ec825f9345b019cf2`
+  - `preprocessor_config.json`, 394 bytes, SHA-256
+    `9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc`
+
 The vendored design system bundles `MusescoreIcon.ttf` at
 `vendor/audacity-design-system/components/src/assets/fonts/MusescoreIcon.ttf`
 (SHA-256 `c96e13ba511bea3b12e809db0def48163a690f9e9439097d7867ae6bf04e8620`,

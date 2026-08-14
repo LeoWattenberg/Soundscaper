@@ -253,13 +253,13 @@ function validateManifestShape(manifest) {
 
 	assertPlainObject(manifest.publication, 'publication');
 	assertExactKeys(manifest.publication, [
-		'bucket', 'manifestName', 'noticeName', 'correspondingSourceName', 'corsOrigins', 'cors',
+		'bucket', 'jurisdiction', 'manifestName', 'noticeName', 'correspondingSourceName', 'corsOrigins', 'cors',
 	], 'publication');
 	assert(manifest.publication.bucket === 'soundscaper-assets', 'publication.bucket is invalid');
+	assert([null, 'eu', 'fedramp'].includes(manifest.publication.jurisdiction), 'publication.jurisdiction is invalid');
 	assert(manifest.publication.manifestName === 'manifest.json', 'publication.manifestName is invalid');
 	assert(manifest.publication.noticeName === 'THIRD_PARTY_LICENSES.md', 'publication.noticeName is invalid');
-	assert(manifest.publication.correspondingSourceName === 'ffmpeg-corresponding-source.json',
-		'publication.correspondingSourceName is invalid');
+	assert(manifest.publication.correspondingSourceName === 'ffmpeg-corresponding-source.json', 'publication.correspondingSourceName is invalid');
 	assert(Array.isArray(manifest.publication.corsOrigins) && manifest.publication.corsOrigins.length > 0,
 		'publication.corsOrigins must be a non-empty array');
 	assertSortedUnique(manifest.publication.corsOrigins, 'publication.corsOrigins');

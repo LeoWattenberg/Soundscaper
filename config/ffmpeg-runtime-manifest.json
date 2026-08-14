@@ -29,6 +29,7 @@
 	},
 	"publication": {
 		"bucket": "soundscaper-assets",
+		"jurisdiction": "eu",
 		"manifestName": "manifest.json",
 		"noticeName": "THIRD_PARTY_LICENSES.md",
 		"correspondingSourceName": "ffmpeg-corresponding-source.json",
@@ -58,8 +59,8 @@
 		},
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
-			"byteLength": 23189,
-			"sha256": "2aaae2cb0a3de445973d34469df1869a5b2e8895270035c88ac6fcef2350a6e5"
+			"byteLength": 34133,
+			"sha256": "6acadebe045a55eb4f160bf76e87cd77927466bd59a3413aa66adc6a558fb6cf"
 		},
 		"releaseSeverityPolicy": {
 			"path": "config/release-severity-policy.json",
@@ -68,13 +69,13 @@
 		},
 		"licensingPolicy": {
 			"path": "docs/production-licensing-policy.md",
-			"byteLength": 9245,
-			"sha256": "90401834b160c3b0dd0d7baab354827e20aaec6446d6f60ca05a3130ebf48464"
+			"byteLength": 10435,
+			"sha256": "f538b0051e9b88ae625294a398207e0b749b19e130654f99bf36df21aca3ecd0"
 		},
 		"licensingMatrix": {
 			"path": "config/production-licensing-matrix.json",
-			"byteLength": 13859,
-			"sha256": "f5b539b73904402d6b95b5b83dafb2908d4216175f17b7aec1b8e68538db4b1f"
+			"byteLength": 46692,
+			"sha256": "4b78e1aed13bfae73b7a62638aa9d69fd20933c1f811217285fbb6998217dc88"
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
@@ -122,6 +123,6 @@
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "e96676d369c0acdb93606ae75a95b0a6be8d4da4a851880c46027365f22dfac2"
+		"payloadSha256": "455c6df78ca60c3299f0042559b69d5673502a444101d0885b356ba239b12284"
 	}
 }

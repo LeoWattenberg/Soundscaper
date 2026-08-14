@@ -34,6 +34,12 @@ const DESKTOP_RUNTIME_ROOT = resolve(BUILD_ROOT, 'desktop-runtime');
 const DESKTOP_NOTICE_PATH = resolve(BUILD_ROOT, 'licenses/THIRD_PARTY_LICENSES.md');
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
+// The assistance service validates its catalog against the licensing register
+// at runtime, so both ship with the application rather than only the catalog.
+const ASSISTANCE_REGISTERS = Object.freeze([
+	'config/local-model-catalog.json',
+	'config/production-licensing-matrix.json',
+]);
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
@@ -205,6 +211,10 @@ async function stageApplication(projectPackage) {
 		runtimeRoot: DESKTOP_RUNTIME_ROOT,
 	});
 	await writeJson(resolve(APP_ROOT, 'desktop/product.json'), { id: PRODUCT_ID });
+	await mkdir(resolve(APP_ROOT, 'config'), { recursive: true });
+	for (const register of ASSISTANCE_REGISTERS) {
+		await cp(resolve(ROOT, register), resolve(APP_ROOT, register), { errorOnExist: true });
+	}
 	await writeJson(resolve(APP_ROOT, 'package.json'), {
 		name: `${PRODUCT_ID}-desktop`,
 		productName: PRODUCT_NAME,

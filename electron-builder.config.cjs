@@ -18,6 +18,7 @@ module.exports = {
 	},
 	files: [
 		'desktop/**/*',
+		'config/*.json',
 		'package.json',
 		'!node_modules/**/*',
 		'!desktop/**/*.test.*',

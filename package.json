@@ -135,5 +135,8 @@
 		"electron-winstaller@5.4.4": true,
 		"esbuild@0.28.1": true,
 		"workerd@1.20260722.1": true
+	},
+	"optionalDependencies": {
+		"sherpa-onnx-node": "^1.13.5"
 	}
 }

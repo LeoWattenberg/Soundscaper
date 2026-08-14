@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-07-29",
+	"groundedAt": "2026-08-13",
 	"policyDocument": "docs/production-licensing-policy.md",
 	"lockfile": {
 		"path": "package-lock.json",
@@ -194,6 +194,83 @@
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
 			"noticeMarker": "`scheduler` 0.27.0",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/sherpa-onnx-darwin-arm64",
+			"name": "sherpa-onnx-darwin-arm64",
+			"version": "1.13.5",
+			"license": "Apache-2.0",
+			"direct": false,
+			"role": "optional-native-assistance-runtime-platform-binary",
+			"artifactSurfaces": [],
+			"noticeMarker": "`sherpa-onnx-darwin-arm64` 1.13.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+		},
+		{
+			"lockPath": "node_modules/sherpa-onnx-darwin-x64",
+			"name": "sherpa-onnx-darwin-x64",
+			"version": "1.13.5",
+			"license": "Apache-2.0",
+			"direct": false,
+			"role": "optional-native-assistance-runtime-platform-binary",
+			"artifactSurfaces": [],
+			"noticeMarker": "`sherpa-onnx-darwin-x64` 1.13.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+		},
+		{
+			"lockPath": "node_modules/sherpa-onnx-linux-arm64",
+			"name": "sherpa-onnx-linux-arm64",
+			"version": "1.13.5",
+			"license": "Apache-2.0",
+			"direct": false,
+			"role": "optional-native-assistance-runtime-platform-binary",
+			"artifactSurfaces": [],
+			"noticeMarker": "`sherpa-onnx-linux-arm64` 1.13.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+		},
+		{
+			"lockPath": "node_modules/sherpa-onnx-linux-x64",
+			"name": "sherpa-onnx-linux-x64",
+			"version": "1.13.5",
+			"license": "Apache-2.0",
+			"direct": false,
+			"role": "optional-native-assistance-runtime-platform-binary",
+			"artifactSurfaces": [],
+			"noticeMarker": "`sherpa-onnx-linux-x64` 1.13.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+		},
+		{
+			"lockPath": "node_modules/sherpa-onnx-node",
+			"name": "sherpa-onnx-node",
+			"version": "1.13.5",
+			"license": "Apache-2.0",
+			"direct": false,
+			"role": "optional-native-assistance-runtime",
+			"artifactSurfaces": [],
+			"noticeMarker": "`sherpa-onnx-node` 1.13.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+		},
+		{
+			"lockPath": "node_modules/sherpa-onnx-win-ia32",
+			"name": "sherpa-onnx-win-ia32",
+			"version": "1.13.5",
+			"license": "Apache-2.0",
+			"direct": false,
+			"role": "optional-native-assistance-runtime-platform-binary",
+			"artifactSurfaces": [],
+			"noticeMarker": "`sherpa-onnx-win-ia32` 1.13.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+		},
+		{
+			"lockPath": "node_modules/sherpa-onnx-win-x64",
+			"name": "sherpa-onnx-win-x64",
+			"version": "1.13.5",
+			"license": "Apache-2.0",
+			"direct": false,
+			"role": "optional-native-assistance-runtime-platform-binary",
+			"artifactSurfaces": [],
+			"noticeMarker": "`sherpa-onnx-win-x64` 1.13.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
 		}
 	],
 	"shippedDevelopmentDependencies": [
@@ -339,7 +416,348 @@
 			"id": "local-models",
 			"status": "disabled",
 			"enableRequires": ["weights-and-code-license-review", "training-data-provenance-record", "model-card-and-use-restrictions", "versioned-download-notices-and-hashes"],
-			"evidence": ["roadmap.md#7-optional-local-assistance", "docs/production-licensing-policy.md"]
+			"evidence": ["roadmap.md#7-optional-local-assistance", "docs/production-licensing-policy.md", "docs/milestone-7-local-model-evidence.md", "scripts/lib/local-model-evidence.mjs", "tests/production-licensing-model-evidence.test.js"]
+		}
+	],
+	"localModelEvidence": [
+		{
+			"id": "silero-vad-v6",
+			"purpose": "Voice activity detection and silence segmentation for every speech pipeline stage.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "Upstream repository and the ONNX weights it ships are MIT at the pinned commit. The similarly named silero-models repository is a separate project under different terms and is not a source here." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream states the detector is trained on a large multi-domain speech corpus and does not publish a full dataset inventory; that absence is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Model card states no use restriction beyond the MIT terms." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
+			},
+			"provenanceSources": ["https://github.com/snakers4/silero-vad"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "parakeet-tdt-0.6b-v2",
+			"purpose": "English speech recognition with native word and segment timestamps.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "CC-BY-4.0",
+			"attributionRequired": true,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "NeMo framework code is Apache-2.0 and the published weights are CC-BY-4.0, which permits redistribution and commercial use with attribution." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The model card names the public speech corpora used for training; the card is retained as the provenance record." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Model card states no restriction beyond CC-BY-4.0 attribution, which the notice slice must satisfy." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }	},
+			"provenanceSources": ["https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "parakeet-tdt-0.6b-v3",
+			"purpose": "Speech recognition across 25 European languages with word timestamps.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "CC-BY-4.0",
+			"attributionRequired": true,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "Same Apache-2.0 code and CC-BY-4.0 weights terms as the English v2 model." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The model card names the multilingual speech corpora used for training and is retained as the provenance record." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Model card states no restriction beyond CC-BY-4.0 attribution. Filler retention is not claimed by the card and is measured per model in 7A-1 rather than assumed here." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }	},
+			"provenanceSources": ["https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "whisper-large-v3-turbo-ggml",
+			"purpose": "Long-tail multilingual speech recognition fallback covering roughly 99 languages.",
+			"runtimeFormat": "ggml",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "OpenAI released the Whisper weights under MIT and the whisper.cpp GGML conversions are MIT; both are redistributable." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream describes weakly supervised web audio at large scale without publishing a dataset manifest; that description is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Model card carries usage guidance rather than a licence restriction, and warns against high-stakes decision use without evaluation." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
+			"provenanceSources": ["https://huggingface.co/ggerganov/whisper.cpp", "https://huggingface.co/openai/whisper-large-v3-turbo"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "pyannote-segmentation-3.0",
+			"purpose": "Speaker segmentation feeding the diarization pipeline.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "Upstream weights are MIT, which permits mirroring. The upstream repository is access-gated, so the artifact must be taken from the redistributed ONNX conversion and never from the gated URL." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The model card names the public conversational corpora used for training and is retained as the provenance record." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "MIT terms carry no use restriction; the upstream access gate is a distribution obstacle answered by mirroring, not by an exception." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
+			"provenanceSources": ["https://huggingface.co/pyannote/segmentation-3.0"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "speech-3d-speaker-eres2net",
+			"purpose": "Speaker embeddings for diarization clustering.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The 3D-Speaker project publishes both code and pretrained embeddings under Apache-2.0." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The model card names the public speaker-verification corpora used for training and is retained as the provenance record." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Apache-2.0 terms carry no additional use restriction." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
+			"provenanceSources": ["https://github.com/modelscope/3D-Speaker"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "deepfilternet3",
+			"purpose": "Full-band speech denoise rendered as a derived source.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT OR Apache-2.0",
+			"weightsLicense": "MIT OR Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "Upstream dual-licenses code and models under MIT or Apache-2.0 at the licensee option." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The project documents training on public speech and noise challenge corpora; that documentation is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Neither offered licence adds a use restriction." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
+			"provenanceSources": ["https://github.com/Rikorose/DeepFilterNet"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "spleeter",
+			"purpose": "Stem separation offered as the default separation model.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "unresolved", "summary": "The repository is MIT and ships its pretrained models from its own releases, but the licence text addresses the code and upstream question deezer/spleeter#898 asks whether it covers the weights. Recorded as unresolved until upstream answers or a license review concludes otherwise." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream describes training on an internal music corpus it does not publish; that absence is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No use restriction is stated beyond the repository licence, which is the item under review." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
+			},
+			"provenanceSources": ["https://github.com/deezer/spleeter", "https://github.com/deezer/spleeter/issues/898"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "demucs-v4-htdemucs",
+			"purpose": "Higher-quality stem separation held back from the launch set.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "Unstated by upstream",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "unresolved", "summary": "Upstream code is MIT but the pretrained weights were never given explicit terms, and the repository was archived in January 2025, so no upstream clarification is expected. Recorded as unresolved rather than assumed to follow the code licence." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names a public music separation corpus plus additional unpublished data for the fine-tuned variants; that description is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No model card use restriction is published; the weights licence itself is the open item." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
+			},
+			"provenanceSources": ["https://github.com/facebookresearch/demucs"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+		},
+		{
+			"id": "yunet-face-detection-2026may",
+			"purpose": "Face detection feeding per-shot subject boxes for reframe proposals.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The model directory in opencv_zoo carries its own MIT licence naming the detector's author, and that per-model file governs the weights rather than the repository-wide Apache-2.0 that covers the zoo's own harness code. Both are redistributable and the narrower per-model grant is the one recorded here." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream documents training on a public face detection benchmark and publishes its evaluation on that benchmark; no further dataset inventory is published, and that is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The model documentation states no use restriction beyond the MIT terms. The product uses this detector for detection only; no face recognition, identification, or clustering is built on it, which is a product non-goal recorded in the milestone-7 plan rather than a licence condition." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
+			},
+			"provenanceSources": ["https://github.com/opencv/opencv_zoo"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		},
+		{
+			"id": "dfine-nano-coco",
+			"purpose": "Person and object detection supplying the non-face subject boxes for reframe proposals.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The detector's own repository is Apache-2.0, the checkpoint conversion published for the transformers library restates Apache-2.0, and the ONNX export declares that conversion as its base model in machine-readable metadata. The chain from the licensed weights to the exact bytes mirrored here is therefore complete and auditable, which is the distinction that separates this export from an anonymous re-upload." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream trains on a published general-purpose object detection corpus and names it; the export ships the eighty class labels of that corpus, which is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Apache-2.0 terms carry no additional use restriction, and the model card states none." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
+			},
+			"provenanceSources": ["https://github.com/Peterande/D-FINE", "https://huggingface.co/ustc-community/dfine-nano-coco", "https://huggingface.co/onnx-community/dfine_n_coco-ONNX"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		},
+		{
+			"id": "siglip2-base-patch16-224",
+			"purpose": "Frame embeddings and text-query embeddings for semantic tagging and visual search.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The originating model repository declares Apache-2.0 for the weights. The ONNX export republishes them without restating a licence of its own, but it declares the originating repository as its base model and its configuration names that same repository, so the export is a derivative work distributed under the upstream grant, which Apache-2.0 permits. The absence of a restated licence on the export is recorded here rather than treated as an absence of terms." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names the large public web image-text corpus the family is trained on and publishes the accompanying papers; that documentation is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Apache-2.0 terms carry no additional use restriction. The vision and text towers are separate graphs sharing one 768-dimension embedding space, so the text tower can be omitted by a user who wants tagging without free-text search." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
+			},
+			"provenanceSources": ["https://huggingface.co/google/siglip2-base-patch16-224", "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		},
+		{
+			"id": "nomic-embed-text-v1.5",
+			"purpose": "Transcript and caption embeddings backing semantic search over spoken content.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The model's own repository declares Apache-2.0 and publishes the ONNX export alongside the original weights, so the mirrored bytes come from the licence holder directly rather than from a third-party conversion." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream publishes the training corpus composition and the accompanying paper; that documentation is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Apache-2.0 terms carry no additional use restriction. The model requires task prefixes on its inputs and mean pooling over the token states, which the runtime supplies; neither is a licence condition." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
+			},
+			"provenanceSources": ["https://huggingface.co/nomic-ai/nomic-embed-text-v1.5"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		},
+		{
+			"id": "ppocr-v4-mobile",
+			"purpose": "On-screen text recognition over shot keyframes, making overlays and interface text searchable.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The originating recognition toolkit is Apache-2.0 and the ONNX conversions are republished under Apache-2.0 by the maintainer of the runtime that consumes them. The character dictionary is taken from the originating toolkit at a pinned revision under the same licence, so every shipped file traces to one Apache-2.0 project." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream describes training on a mixture of public and synthetic text corpora without publishing a full inventory; that description is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Apache-2.0 terms carry no additional use restriction. The recogniser emits 6625 classes, which the pinned dictionary's 6623 entries plus a blank and a space symbol account for exactly; a dictionary that did not match this width would decode to silent nonsense, so the pairing is part of the recorded evidence." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
+			},
+			"provenanceSources": ["https://github.com/PaddlePaddle/PaddleOCR", "https://huggingface.co/SWHL/RapidOCR"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		},
+		{
+			"id": "u2netp-saliency",
+			"purpose": "Saliency fallback that proposes a crop when no subject is detected in a shot.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The originating saliency repository is Apache-2.0 and states no separate terms for its weights. The ONNX conversion is redistributed by a widely used MIT-licensed background-removal tool that credits the originating work; the conversion adds no terms of its own, so the Apache-2.0 grant governs the mirrored bytes. That the converter is not the weights' author is recorded here rather than glossed over." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names the public salient-object-detection datasets it trains and evaluates on in its paper; that documentation is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Apache-2.0 terms carry no additional use restriction. This model is only consulted when detection finds no subject, and a centre crop remains the final fallback, so its absence degrades proposal quality without removing the feature." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
+			},
+			"provenanceSources": ["https://github.com/xuebinqin/U-2-Net", "https://github.com/danielgatis/rembg"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		},
+		{
+			"id": "transnetv2",
+			"purpose": "Accurate shot-boundary detection, held back from the launch set behind the ffmpeg scene-score mode.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "unresolved", "summary": "The originating repository is MIT and publishes its weights for the TensorFlow and PyTorch runtimes, neither of which this product can load. No ONNX build is published by the authors, and the only public redistribution of a converted build asserts GPL-3.0 over MIT upstream material and ships a CoreML package rather than ONNX, so its terms conflict with upstream and its bytes are unusable here regardless. Recorded as unresolved until an ONNX build with a licence traceable to the MIT upstream exists, whether published by upstream or produced and documented in this repository." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names the public shot-transition corpora it trains and evaluates on in its paper; that documentation is the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The MIT terms carry no use restriction; the open item is which converted bytes may be shipped, not what they may be used for." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet and none may be until the licence review resolves, so no byte length, SHA-256, or offline notice exists." }
+			},
+			"provenanceSources": ["https://github.com/soCzech/TransNetV2"],
+			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		}
+	],
+	"refusedLocalModels": [
+		{
+			"id": "crisperwhisper",
+			"license": "CC-BY-NC-4.0 or paid commercial licence",
+			"reason": "Verbatim transcription with filler-word timings is exactly the 7A-2 use case, but the weights forbid commercial use. Parakeet timing plus a filler lexicon replaces it."
+		},
+		{
+			"id": "mms-300m-1130-forced-aligner",
+			"license": "CC-BY-NC-4.0",
+			"reason": "The common forced aligner and every ONNX re-export inherit non-commercial terms from the upstream multilingual speech project. English realignment uses wav2vec2-base-960h instead."
+		},
+		{
+			"id": "nvidia-sortformer-diarization",
+			"license": "CC-BY-NC-4.0",
+			"reason": "End-to-end diarization with non-commercial weights; ONNX conversions inherit the restriction. The segmentation and embedding pipeline replaces it."
+		},
+		{
+			"id": "nvidia-canary-1b",
+			"license": "CC-BY-NC-4.0",
+			"reason": "The original Canary release is non-commercial. The later flash and v2 refreshes are CC-BY-4.0 but add nothing over Parakeet for these products."
+		},
+		{
+			"id": "madmom-models",
+			"license": "CC-BY-NC-SA-4.0",
+			"reason": "The madmom code is permissive but its trained models are non-commercial, which contaminates anything loading them. Beat This provides MIT beat and downbeat weights."
+		},
+		{
+			"id": "beatnet",
+			"license": "Unstated, and depends on madmom inference",
+			"reason": "Weight terms are not stated and offline inference depends on the non-commercial madmom models."
+		},
+		{
+			"id": "open-unmix-umxhq",
+			"license": "CC-BY-NC-SA-4.0",
+			"reason": "Separation weights are non-commercial despite permissive code."
+		},
+		{
+			"id": "ten-vad",
+			"license": "Apache-2.0 with additional conditions",
+			"reason": "The additional conditions forbid deployment that competes with the vendor and restrict onward redistribution, so it is not redistributable here. Silero VAD replaces it."
+		},
+		{
+			"id": "essentia-models",
+			"license": "CC-BY-NC weights",
+			"reason": "The pretrained models are non-commercial. The AGPL code alone would be compatible with this product, but the weights are not redistributable."
+		},
+		{
+			"id": "bs-roformer-community-checkpoints",
+			"license": "Unstated, varies per checkpoint",
+			"reason": "No community checkpoint carries per-file terms and training-data provenance is undocumented, so no record can be completed."
+		},
+		{
+			"id": "beats-audioset-checkpoints",
+			"license": "Unstated in practice",
+			"reason": "Checkpoints are published only through shared-drive links with no stable source, and the hosting repository has a history of per-model licence exceptions. PANNs CNN14 covers the same tagging need."
 		}
 	]
 }

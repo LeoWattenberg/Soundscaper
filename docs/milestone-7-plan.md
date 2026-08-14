@@ -21,7 +21,7 @@
    degradation of deterministic editing when assistance is absent, removed,
    or crashed.
 2. **Secondary: assistance never becomes a dependency.** Milestone 7 stays
-   `optional` (docs/quality-budgets.md:42) and skippable (roadmap.md:187).
+   `optional` (docs/quality-budgets.md:42) and skippable (roadmap.md:195).
    Every feature lands as a proposal surface over the ordinary command and
    derived-asset models; deleting every model leaves a complete editor.
 
@@ -70,17 +70,17 @@ milestone 7 is expected to be Electron-only in practice.
 
 Roadmap §7 claimed **Web Enhanced / Electron Enhanced — Optional** until
 2026-08-11, when the user approved this plan's re-scope and the
-re-tiering to **Electron Only — Optional** landed (roadmap.md:679).
+re-tiering to **Electron Only — Optional** landed (roadmap.md:754).
 Electron Enhanced is deliberately not claimed: that tier presupposes a
-web outcome a native adapter merely improves (roadmap.md:141), and this
+web outcome a native adapter merely improves (roadmap.md:149), and this
 plan ships no web inference at all:
 
 - Inference runs natively in an Electron helper process. No WASM inference
   ships in the web tier in milestone 7. The Web Enhanced obligation of a
-  documented Web Core fallback (roadmap.md:140) is deliberately dropped;
+  documented Web Core fallback (roadmap.md:148) is deliberately dropped;
   the Electron Only contract — "projects still open safely on web"
-  (roadmap.md:142) — is satisfied structurally, because accepted results
-  are ordinary commands and derived assets (roadmap.md:689-690) that the
+  (roadmap.md:150) — is satisfied structurally, because accepted results
+  are ordinary commands and derived assets (roadmap.md:764-765) that the
   web products read like any other project state. A web user sees the
   captions, labels, and cuts; they simply cannot run new analysis. (This
   leans on the availability rule in the assistance results model:
@@ -91,15 +91,15 @@ plan ships no web inference at all:
   outside sane browser-storage budgets. The kw.media post-mortem shows the
   browser path fails on speed and quality even when storage is solved.
 - **Roadmap edit, deliberate and bounded — landed 2026-08-11:** the tier
-  label (roadmap.md:679), the §7 dependency note recording the
+  label (roadmap.md:754), the §7 dependency note recording the
   helper-contract convergence stance below, and the plan-delegation
   lines in "How to use this roadmap" and §7 all landed with this plan,
   preserving the `#7-optional-local-assistance` anchor, which is
   referenced by `config/quality-budgets.json:828,1059` and
-  `config/production-licensing-matrix.json:342` (roadmap.md:883) and
+  `config/production-licensing-matrix.json:342` (roadmap.md:961) and
   verified by `tests/roadmap-guidance.test.js`. Dropping a promised
   platform tier is a scope revision and follows the milestone-2
-  precedent of an explicitly user-approved revision (roadmap.md:277-280);
+  precedent of an explicitly user-approved revision (roadmap.md:285-288);
   the user approved on 2026-08-11. WP-7.0.0 retains the licensing
   enactment.
 - A future web tier is not foreclosed: the threat model already templates
@@ -114,9 +114,9 @@ plan ships no web inference at all:
 | In-renderer WASM inference (whisper.cpp WASM, transformers.js, onnxruntime-web) | kw.media post-mortem: COI service-worker tax, no thread control, model double-buffering, tiny-model quality ceiling, CDN fetch at inference time. Fails the load-time, speed, and quality bars simultaneously. |
 | Python sidecar (faster-whisper, WhisperX, pyannote.audio) | A second language runtime to package, sign, and sandbox on three OSes; no repo precedent; every capability it uniquely offers has a native-or-ONNX equivalent. |
 | Native inference in `worker_threads` | A native crash in a worker thread kills the whole editor; Electron history is littered with context-aware addon failures. Helper processes contain crashes by construction. |
-| Bundling models into the installer | Violates the separately-downloaded rule (roadmap.md:685-686) and the bundle ceilings (roadmap.md:93-95); breaks the removable/opt-in contract; bloats auto-update. |
+| Bundling models into the installer | Violates the separately-downloaded rule (roadmap.md:760-761) and the bundle ceilings (roadmap.md:101-103); breaks the removable/opt-in contract; bloats auto-update. |
 | Browser storage as the model store | Rejected by the user 2026-08-11 ("not the black box that is localstorage"); quota- and eviction-bound; invisible to the user. |
-| Cloud inference as the default path | "Mandatory cloud accounts … or hosted AI" are outside completion requirements (roadmap.md:101); selected media must remain on-device (roadmap.md:689). Descript's cloud-only architecture is the counter-precedent, and its forums ask for exactly the local mode we are building. |
+| Cloud inference as the default path | "Mandatory cloud accounts … or hosted AI" are outside completion requirements (roadmap.md:109); selected media must remain on-device (roadmap.md:764). Descript's cloud-only architecture is the counter-precedent, and its forums ask for exactly the local mode we are building. |
 | One multimodal audio-LLM for everything (Voxtral-Mini class) | Below realtime on laptop CPU and emits no word-level timestamps — disqualifying for filler removal and caption karaoke. |
 | CrisperWhisper for verbatim/filler detection | Exactly our use case, but CC-BY-NC / paid commercial license. Replaced by Parakeet v2's community-verified filler retention and native word timestamps plus a filler lexicon, gated by a planted-filler fixture. |
 
@@ -169,11 +169,11 @@ than one new runtime at a time:
   spawn them — and the threat model holds `native-helper-processes` as
   planned and surface-disabled (docs/production-threat-model.md:1006).
   The helper is therefore **milestone-7-owned scope**, legitimate under
-  §7's own "Depends on: milestone 2" (roadmap.md:669), whose protocol is
+  §7's own "Depends on: milestone 2" (roadmap.md:744), whose protocol is
   designed to converge with the future milestone-5 helper contract rather
   than fork from it: versioned bounded IPC, explicit capabilities,
   cancellation acknowledgement, heartbeats, structured progress and
-  errors, per-job resource policy (roadmap.md:573-578), and crash
+  errors, per-job resource policy (roadmap.md:644-649), and crash
   quarantine (docs/production-threat-model.md:1006). Milestone 5 remains
   the owning contract for the general helper architecture; when it lands,
   the assistance helper conforms to it or is revised, and the milestone-5
@@ -190,7 +190,7 @@ than one new runtime at a time:
   read-capability discipline the desktop protocol already enforces
   (bounded, path-verified, user-mediated reads; `desktop/main.mjs:384-403`,
   `desktop/preload.mjs:269-279`) — satisfying "assistance consumes only
-  imported or persisted media" (roadmap.md:687-688) measurably:
+  imported or persisted media" (roadmap.md:762-763) measurably:
   `assistance.unselectedMediaBytesRead eq 0`
   (config/quality-budgets.json:1053-1057).
 - **Cancellation:** every model invocation must be abortable mid-run
@@ -256,17 +256,26 @@ output is needed from it.
 
 ### Vision and semantics (7B)
 
-| Task | Model | Disk | License |
-| --- | --- | --- | --- |
-| Shot cuts, fast mode | ffmpeg scene score (`scdet`) | 0 (pinned ffmpeg) | existing posture |
-| Shot cuts, accurate mode | TransNetV2 (ONNX) | 31 MB | MIT |
-| Face detection | YuNet 2023mar (ONNX) | 0.23 MB | MIT |
-| Person/object detection | D-FINE-N or -S (ONNX) | 14/40 MB | Apache-2.0 |
-| Track interpolation | ByteTrack/OC-SORT (algorithm port, no weights) | 0 | MIT code |
-| Saliency fallback | U²-Net-P (ONNX) | 4.7 MB | Apache-2.0 |
-| Semantic tags + frame search | SigLIP 2 base int8 (ONNX, ungated) | ~100 MB vision tower, ~350 MB with text encoder | Apache-2.0 |
-| On-screen text (overlays, game UI) | PP-OCRv4/v5 mobile via RapidOCR (ONNX) | ~16 MB | Apache-2.0 |
-| Transcript embeddings | nomic-embed-text-v1.5 (GGUF) | ~100–275 MB | Apache-2.0 |
+Reviewed, pinned and verified on 2026-08-13; the review, the departures
+from the candidates first listed here, and the verification method are in
+`docs/milestone-7-video-model-evidence.md`. Sizes below are the pinned
+upstream bytes, not estimates.
+
+| Task | Model | Disk | License | State |
+| --- | --- | --- | --- | --- |
+| Shot cuts, fast mode | ffmpeg scene score (`scdet`) | 0 (pinned ffmpeg) | existing posture | no model needed |
+| Shot cuts, accurate mode | TransNetV2 | — | MIT upstream | **blocked**: no ONNX build with a licence traceable to upstream |
+| Face detection | YuNet 2026may (ONNX) | 0.22 MiB | MIT | pinned |
+| Person/object detection | D-FINE-N COCO (ONNX) | 14.6 MiB | Apache-2.0 | pinned |
+| Track interpolation | ByteTrack/OC-SORT (algorithm port, no weights) | 0 | MIT code | no weights |
+| Saliency fallback | U²-Net-P (ONNX) | 4.4 MiB | Apache-2.0 | pinned |
+| Semantic tags + frame search | SigLIP 2 base patch16-224 int8 (ONNX, ungated) | 393.3 MiB both towers with tokenizer | Apache-2.0 | pinned |
+| On-screen text (overlays, game UI) | PP-OCRv4 mobile via RapidOCR (ONNX) | 15.5 MiB with dictionary | Apache-2.0 | pinned |
+| Transcript embeddings | nomic-embed-text-v1.5 (ONNX, not GGUF) | 131.6 MiB | Apache-2.0 | pinned |
+
+Pinning the first-party ONNX export of the embedding model rather than its
+GGUF build takes llama.cpp off the semantic-search path; the optional
+editorial LLM below still needs a GGUF runtime at 7B-4.
 
 ### Optional editorial LLM (7B-4, separate opt-in pack)
 
@@ -401,7 +410,7 @@ This answers "how are we shipping them."
   persisted document state registers a capability atomically with both
   product profiles initially unavailable, per the standing rule
   (docs/milestone-3b-work-packets.md:38-42; schema-addition duties at
-  roadmap.md:844-846). Availability of these document types is then
+  roadmap.md:922-924). Availability of these document types is then
   keyed to reading and editing the persisted results — a workflow both
   products can pass on both platforms — never to inference being
   runnable; otherwise assistance-touched projects would open read-only
@@ -409,7 +418,7 @@ This answers "how are we shipping them."
 - **Where results land today vs. later.** Transcription lands as label
   tracks now — labels already round-trip SRT/VTT/TXT
   (`src/common/editor/label-io.js`) — and re-targets the milestone-4
-  styled caption schema (roadmap.md:544-545) when it exists; word-level
+  styled caption schema (roadmap.md:611-612) when it exists; word-level
   timing and speakers ride the transcript derived asset either way, so no
   data is lost by landing before milestone 4. Shot markers use timeline
   annotations, which exist but are Soundscaper-only today
@@ -417,7 +426,7 @@ This answers "how are we shipping them."
   pickup contract for 7B-1 (the trackFolders per-product activation is
   the precedent). Reframe output stays proposal-side — no spatial
   transform primitive exists today ("transform, crop" is milestone-4
-  document scope, roadmap.md:534-535) — and drives the 7B-5 export crop
+  document scope, roadmap.md:601-602) — and drives the 7B-5 export crop
   stage directly; it migrates onto milestone-4 transforms and keyframes
   when those land.
 - **Discovery:** every assistance feature is reachable through menus,
@@ -467,7 +476,7 @@ Long VOD in, ranked short-clip proposals out, TikTok-shaped export.
    (≤720p, `src/common/editor/video-export.js:21-23`); the vertical
    canvas and crop stage are bought early by 7B-5, and caption burn-in
    and platform presets remain milestone-6 delivery scope
-   (roadmap.md:645-651).
+   (roadmap.md:720-726).
 
 ### Podcast filler and silence cleanup (7A-2)
 
@@ -494,7 +503,7 @@ Long VOD in, ranked short-clip proposals out, TikTok-shaped export.
   Spleeter/htdemucs stems render as ordinary derived sources the user
   swaps in — never destructive, and distinct from milestone-4's
   deterministic dialogue-cleanup chain, which remains complete without AI
-  (roadmap.md:546-547, 678-679).
+  (roadmap.md:613-614, 678-679).
 - **Semantic search (7A-5/7B-2):** "find where I said X / find the
   whiteboard shot" — transcript + frame embeddings in a local vector
   index (disposable derivative), fused into the existing palette search
@@ -502,9 +511,48 @@ Long VOD in, ranked short-clip proposals out, TikTok-shaped export.
 - **Beat suggestions (7A-6):** Beat This! beats/downbeats land as a label
   track for cut-to-music editing. No MIDI schema, no tempo-map rewrite by
   default — a tempo-map suggestion is a separate reviewed command, and
-  the MIDI fence stays intact (roadmap.md:109-122).
+  the MIDI fence stays intact (roadmap.md:117-130).
 - **Shot/silence detection (7B-1/7A-2):** the same VAD and shot stages,
   exposed directly as "mark silences / mark cuts" menu actions.
+
+## Delivered so far
+
+Implementation began 2026-08-13 on the audio track, in the worktree branch
+`worktree-m7-local-assistance-audio` off `334cea20`. Thirteen commits,
+eighty-seven focused tests, all green:
+
+| Area | Landed |
+| --- | --- |
+| WP-7.0.0 | The licensing enactment — [7.0.0a](milestone-7-local-model-evidence.md), commit `556fb258` |
+| WP-7.0.1 | Content-addressed model store and the user-settable directory setting (`c955b6b9`); resumable digest-verified downloads (`3783436b`); the catalog bound to the licensing register (`eeea6c4f`) |
+| WP-7.0.2 | The bounded job contract and its crash-contained supervisor (`861b1ba5`) |
+| 7A-1 | Transcript domain in canonical sample frames, the ingest boundary that conforms recognition seconds, and the label commit path (`6f2a412d`, `b93b3cb8`, `d6080a7f`) |
+| 7A-2 | Filler, repetition, and silence proposals, proved end to end into one ripple-delete batch (`6f2a412d`, `d6080a7f`) |
+
+Three external gates bound what can close here, and none is an
+implementation gap:
+
+1. **No artifact is mirrored.** Every evidence record is blocked on
+   `versioned-download-notices-and-hashes`, which needs the real files
+   fetched, hosted, and hashed. Until then the catalog reports every
+   model `pending-artifacts` and the gate stays shut.
+2. **The native runtimes are not adopted.** Adding them changes the
+   derived npm closure in the licensing matrix and ships per-platform
+   binaries, and inference cannot be proved without the artifacts from
+   (1). The job protocol and supervisor are written against an injected
+   channel so the adapter drops in without redesign.
+3. **`reference-linux-gpu-01` is intentionally unprovisioned**
+   (docs/quality-budgets.md:123-135), so the privacy workload can be run
+   for development evidence but not qualified.
+
+The base commit is also red for reasons outside this milestone: commit
+`768627f1` added two files to `tsconfig.desktop-runtime.json` without
+adding them to `EXPECTED_RUNTIME_FILES` in
+`scripts/lib/desktop-project-library-runtime.mjs`, so the compiled
+runtime emits 125 files against an expected 123 and desktop packaging
+fails. Several Framescaper V18 suites fail alongside it. Neither is
+caused by this work, verified by removing every file this milestone adds
+and re-running.
 
 ## Phase structure
 
@@ -529,6 +577,19 @@ before code, following the milestone-3 pattern
 
 ### WP-7.0.0 — Platform re-tiering and policy enactment
 
+The licensing half is delivered in
+[7.0.0a — local model evidence records](milestone-7-local-model-evidence.md),
+implemented in commit `556fb258` on 2026-08-13: the gate's four
+`enableRequires` slugs became the mandatory key set of a per-model
+record, `blockedBy` and `distributionStatus` are derived from the
+recorded statuses, the audio launch set and two upstream-ambiguous
+models are recorded, and eleven refused weights are named with reasons.
+Every record is blocked on `versioned-download-notices-and-hashes`
+because no artifact is mirrored yet, so the gate ships closed by
+arithmetic. Notice text and the About surface moved to the slice that
+first mirrors an artifact — a notice is an obligation attached to bytes
+actually distributed, and this slice distributes none.
+
 - **Outcome:** The roadmap re-tiering, dependency-note revision, and
   plan-delegation lines landed with this plan on 2026-08-11
   (user-approved). This packet owns the licensing enactment: the
@@ -541,14 +602,15 @@ before code, following the milestone-3 pattern
   authored for the launch set (Silero VAD, Parakeet v2/v3, Whisper
   turbo, pyannote segmentation, ERes2Net, DeepFilterNet3, Spleeter).
 - **Invariants:** The `#7-optional-local-assistance` anchor is preserved
-  (roadmap.md:883). The gate stays fail-closed: unknown, conflicting, or
+  (roadmap.md:961). The gate stays fail-closed: unknown, conflicting, or
   incomplete license evidence blocks the catalog entry, never warns
   (docs/production-licensing-policy.md:173-175). No loader or capability
   flag bypasses the gate (docs/production-licensing-policy.md:151-153).
 - **Acceptance:** Licensing matrix tests cover accept/reject paths for
   model evidence records; the landed roadmap edit keeps
   `tests/roadmap-guidance.test.js` green (verified 2026-08-11); notices
-  render for a cataloged model in the About surface offline.
+  render for a cataloged model in the About surface offline, which
+  7.0.0a defers to the first slice that mirrors an artifact.
 - **Non-goals:** No download code, no runtime, no UI beyond notices.
 - **Stop condition:** Stop if any launch-set model fails license review —
   the catalog shrinks; the schedule does not stretch to rescue a weight.
@@ -607,7 +669,7 @@ before code, following the milestone-3 pattern
   privacy workload, audited in runtime supply-chain review, and blocked
   at the OS where a mechanism exists, never merely asserted; it reads
   only job-granted media paths; a helper crash never corrupts the last
-  project revision (roadmap.md:576-578); renderer and main survive any helper
+  project revision (roadmap.md:647-649); renderer and main survive any helper
   death; native inference never runs in `worker_threads` or the renderer.
   Malformed helper output is rejected by wire validation, never trusted.
 - **Acceptance:** Malformed-input, timeout, cancel-under-load (p95
@@ -637,7 +699,7 @@ before code, following the milestone-3 pattern
   unprovisioned.
 - **Invariants:** `optional` status semantics hold: no other milestone's
   gate depends on any of this (status rule docs/quality-budgets.md:42;
-  never-blocks semantics roadmap.md:669). Evidence
+  never-blocks semantics roadmap.md:744). Evidence
   stays honest — the unprovisioned environment row is never relabeled
   (the milestone-3 pending-external precedent,
   docs/milestone-3b-work-packets.md:15-17).
@@ -705,7 +767,7 @@ before code, following the milestone-3 pattern
   downbeats as a label track; optional reviewed tempo-map suggestion
   command. Invariants: the MIDI fence is untouched; no automatic
   tempo-map rewrite. Acceptance: beat-grid fixture tolerance; label
-  round-trip. Non-goals: no MIDI anything (roadmap.md:109-116). Stop:
+  round-trip. Non-goals: no MIDI anything (roadmap.md:117-124). Stop:
   stop if any madmom-derived weight would enter the tree.
 - **7A-7 — Exit evidence.** The privacy workload run end-to-end on the
   full 7A surface, results recorded without relabeling pending rows.
@@ -737,7 +799,7 @@ before code, following the milestone-3 pattern
   crops persist as an assistance derived asset that drives the 7B-5
   export crop stage. Invariants: no spatial transform primitive exists
   today — "transform, crop" is milestone-4 document scope
-  (roadmap.md:534-535) — and this packet does not fabricate one: crops
+  (roadmap.md:601-602) — and this packet does not fabricate one: crops
   stay out of the project document until they migrate onto milestone-4
   transforms and keyframes when those land; every crop is user-editable
   before export. Acceptance: subject-retention metric on a fixture set;
@@ -771,7 +833,7 @@ before code, following the milestone-3 pattern
   acceptance ownership of canvas/aspect delivery. Invariants: plan versioning
   follows the export-plan pin discipline (the version is pinned in more
   places than the planner — the 3B-2b trap); no preset system is built
-  (milestone 6 owns presets, roadmap.md:660-661). Acceptance:
+  (milestone 6 owns presets, roadmap.md:735-736). Acceptance:
   crop-correct golden frames at 9:16; existing exports byte-stable when
   no crop is requested. Non-goals: no caption burn-in (milestone 6), no
   platform preset catalog. Stop: stop if this grows toward a preset
@@ -796,7 +858,7 @@ before code, following the milestone-3 pattern
   benchmark retry converts a failure into a pass
   (docs/quality-budgets.md:102-104).
 - Bundle gates are untouched by design: no model or runtime byte enters
-  the Pages bundle or any JS chunk (roadmap.md:93-95;
+  the Pages bundle or any JS chunk (roadmap.md:101-103;
   docs/quality-budgets.md:33-36). Desktop runtimes ship as verified
   extraResources like the existing ffmpeg core.
 - Every packet's browser-reachable UI keeps the canonical check green;
@@ -841,9 +903,9 @@ before code, following the milestone-3 pattern
   vertical presets and burn-in are milestone-6 Planned. The packets above
   land against today's primitives (labels, export-plan crop parameters,
   canvas options) and name their upgrade targets instead of waiting.
-- **Milestone 2 is the formal prerequisite** (roadmap.md:669) with one
+- **Milestone 2 is the formal prerequisite** (roadmap.md:744) with one
   open closure item; 7.0 starts after it closes unless the user
-  explicitly reprioritizes (roadmap.md:53-55).
+  explicitly reprioritizes (roadmap.md:61-63).
 - **ffmpeg.wasm decode speed** bounds long-VOD ingest until the
   milestone-5 native media helper exists; the clip maker's first fixture
   budgets honestly against wasm-speed extraction.
@@ -868,14 +930,14 @@ before code, following the milestone-3 pattern
 ## Non-goals and fences
 
 - The deferred-capability fences hold through milestone 7 in full
-  (roadmap.md:109-122): no MIDI schema, ports, flags, dependencies, or
+  (roadmap.md:117-130): no MIDI schema, ports, flags, dependencies, or
   UI — beat suggestions emit labels, nothing else; no Framescaper
   recording capability, command, schema, adapter, IPC, permission
   expansion, or UI — assistance consumes only imported or persisted
   media, and no helper gains capture authority of any kind.
 - No cloud or hosted AI, no accounts, no telemetry of media, transcripts,
   embeddings, or usage. Selected media and results remain on-device
-  (roadmap.md:689).
+  (roadmap.md:764).
 - No auto-apply mode for any proposal; no assistance result mutates a
   document without an explicit accept.
 - No face recognition or cross-project voice identification.
@@ -883,5 +945,5 @@ before code, following the milestone-3 pattern
   no gated-download URL (Hugging Face auth walls) is ever a distribution
   source.
 - Deterministic non-AI editing and delivery remain complete without this
-  milestone (roadmap.md:691-692); removing every model and the helper
+  milestone (roadmap.md:766-767); removing every model and the helper
   binary leaves a fully functional editor.

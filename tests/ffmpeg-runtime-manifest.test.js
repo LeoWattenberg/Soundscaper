@@ -516,6 +516,7 @@ async function createFixture(context) {
 		},
 		publication: {
 			bucket: 'soundscaper-assets',
+			jurisdiction: 'eu',
 			manifestName: 'manifest.json',
 			noticeName: 'THIRD_PARTY_LICENSES.md',
 			correspondingSourceName: 'ffmpeg-corresponding-source.json',

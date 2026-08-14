@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
 
 import { SETTINGS_SCHEMA_VERSION, SUPPORTED_LOCALES } from './constants.js';
 import { resolveLocale, validateLocale } from './validation.js';
@@ -10,7 +10,29 @@ const DEFAULTS = Object.freeze({
 	locale: null,
 	updatesEnabled: true,
 	lastUpdateCheck: null,
+	modelsDirectory: null,
 });
+
+const MAX_MODELS_DIRECTORY_LENGTH = 4096;
+
+/**
+ * The optional assistance models directory. `null` means the product-owned
+ * default under userData; any other value is an absolute path the user chose,
+ * so the models stay plain files they can inspect and delete themselves.
+ */
+export function validateModelsDirectory(value) {
+	if (value === null || value === undefined) return null;
+	if (typeof value !== 'string' || value.trim() === '') {
+		throw new TypeError('The models directory must be an absolute path or null.');
+	}
+	if (value.length > MAX_MODELS_DIRECTORY_LENGTH || value.includes('\0')) {
+		throw new RangeError('The models directory path is out of range.');
+	}
+	if (!isAbsolute(value)) {
+		throw new TypeError('The models directory must be an absolute path or null.');
+	}
+	return resolve(value);
+}
 
 export class DesktopSettingsStore {
 	#filePath;
@@ -45,6 +67,12 @@ export class DesktopSettingsStore {
 		return this.#settings.locale;
 	}
 
+	async setModelsDirectory(directory) {
+		this.#settings.modelsDirectory = validateModelsDirectory(directory);
+		await this.#write();
+		return this.#settings.modelsDirectory;
+	}
+
 	async recordUpdateCheck(timestamp = Date.now()) {
 		this.#settings.lastUpdateCheck = new Date(timestamp).toISOString();
 		await this.#write();
@@ -77,10 +105,17 @@ function validateSettings(value) {
 		locale = null;
 	}
 	const lastUpdateCheck = Number.isFinite(Date.parse(value.lastUpdateCheck)) ? new Date(value.lastUpdateCheck).toISOString() : null;
+	let modelsDirectory;
+	try {
+		modelsDirectory = validateModelsDirectory(value.modelsDirectory);
+	} catch {
+		modelsDirectory = null;
+	}
 	return {
 		...DEFAULTS,
 		locale,
 		updatesEnabled: value.updatesEnabled !== false,
 		lastUpdateCheck,
+		modelsDirectory,
 	};
 }

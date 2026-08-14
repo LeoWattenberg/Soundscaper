@@ -25,6 +25,7 @@ export async function publishFfmpegRuntime({
 	const basePrefix = release.manifest.runtime.publicPrefix;
 	const prefix = `${basePrefix}/releases/${release.manifestSha256}`;
 	const bucket = release.manifest.publication.bucket;
+	const jurisdiction = release.manifest.publication.jurisdiction ?? null;
 	const objects = [
 		...snapshot.runtimeFiles.map((file) => ({
 			key: `${prefix}/${file.name}`,
@@ -52,11 +53,12 @@ export async function publishFfmpegRuntime({
 		const corsPath = resolve(temporaryRoot, 'r2-cors.json');
 		await mkdir(temporaryRoot, { recursive: true });
 		await writeFile(corsPath, snapshot.corsBytes, { flag: 'wx' });
-		assertCommandSucceeded(execute({ kind: 'cors', bucket, file: corsPath }), 'apply runtime CORS policy');
+		assertCommandSucceeded(execute({ kind: 'cors', bucket, jurisdiction, file: corsPath }), 'apply runtime CORS policy');
 		for (const object of objects) {
 			assertCommandSucceeded(execute({
 				kind: 'put',
 				bucket,
+				jurisdiction,
 				...object,
 				cacheControl: release.manifest.runtime.cacheControl,
 			}), `upload ${object.key}`);
@@ -65,6 +67,7 @@ export async function publishFfmpegRuntime({
 		assertCommandSucceeded(execute({
 			kind: 'put',
 			bucket,
+			jurisdiction,
 			key: `${basePrefix}/latest.json`,
 			bytes: pointer,
 			contentType: 'application/json; charset=utf-8',
@@ -96,6 +99,9 @@ function runtimePointer(release, releasePrefix) {
 function createWranglerExecutor(repositoryRoot) {
 	const root = resolve(repositoryRoot);
 	const wrangler = resolve(root, 'node_modules/wrangler/bin/wrangler.js');
+	// A jurisdiction-scoped bucket is invisible to a request that does not name
+	// its jurisdiction, and reports itself as missing rather than as forbidden.
+	const jurisdictionArguments = (jurisdiction) => (jurisdiction ? ['--jurisdiction', jurisdiction] : []);
 	return (command) => {
 		if (command.kind === 'put') {
 			return spawnSync(process.execPath, [
@@ -104,6 +110,7 @@ function createWranglerExecutor(repositoryRoot) {
 				'--content-type', command.contentType,
 				'--cache-control', command.cacheControl,
 				'--remote',
+				...jurisdictionArguments(command.jurisdiction),
 			], {
 				cwd: root,
 				input: command.bytes,
@@ -113,6 +120,7 @@ function createWranglerExecutor(repositoryRoot) {
 		return spawnSync(process.execPath, [
 			wrangler, 'r2', 'bucket', 'cors', 'set', command.bucket,
 			'--file', command.file,
+			...jurisdictionArguments(command.jurisdiction),
 		], { cwd: root, stdio: 'inherit' });
 	};
 }

@@ -26,6 +26,8 @@ import {
 	UPDATE_TAG_PREFIX,
 } from './constants.js';
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
+import { registerAssistance } from './assistance-registration.mjs';
+import { registerHostAffordances } from './host-affordances.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
@@ -343,17 +345,8 @@ function registerIpcHandlers(desktopSession) {
 		return mainWindow.isFullScreen();
 	});
 	handle(IPC.checkForUpdates, () => checkForUpdates(true));
-	handle(IPC.openExternal, async (_event, destination) => {
-		const url = EXTERNAL_DESTINATIONS[String(destination || '')];
-		if (!url) throw new TypeError('Unsupported external destination');
-		await shell.openExternal(url);
-	});
-	handle(IPC.editText, (_event, value) => {
-		const command = String(value || '');
-		if (!['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll'].includes(command)) throw new TypeError('Unsupported text edit command');
-		mainWindow.webContents[command]();
-		return true;
-	});
+	registerAssistance({ channels: IPC, handle, sendToRenderer, app, settings });
+	registerHostAffordances({ channels: IPC, handle, mainWindow });
 	on(IPC.rendererReady, () => {
 		rendererReady = true;
 		void desktopSmokeProbe.rendererReady();

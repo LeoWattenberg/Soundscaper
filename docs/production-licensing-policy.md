@@ -148,6 +148,28 @@ are implemented:
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
 
+### Local assistance model evidence
+
+The four `local-models` enablement requirements are recorded per model in the
+matrix rather than asserted once for the gate. Every entry in
+`localModelEvidence` answers exactly those four requirement ids; a record that
+omits one, or invents another, is refused by
+`scripts/lib/local-model-evidence.mjs`.
+
+Each requirement is `recorded`, `pending`, or `unresolved`, and only `recorded`
+satisfies it. `pending` marks evidence this milestone cannot hold yet, naming
+the stage that will produce it; `unresolved` marks upstream evidence that is
+missing, conflicting, or unanswered and may never resolve. A model's
+`blockedBy` list and its `distributionStatus` are derived from those statuses
+and verified against the authored values, so an incomplete record cannot be
+converted into a distributable one.
+
+Recording a model does not enable the gate. Weights whose terms forbid
+redistribution or commercial use are refused by pattern, and models this
+product has already excluded are listed in `refusedLocalModels` with their
+reason so they are not reintroduced later. Upstream locations belong in
+`provenanceSources`; `evidence` holds repository paths only.
+
 Opaque placeholders for unavailable native features do not authorize shipping
 their implementation. Enabling a capability flag, adding a loader, or accepting
 user-provided binaries must not bypass the relevant distribution gate.

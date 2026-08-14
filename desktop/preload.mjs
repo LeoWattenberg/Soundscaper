@@ -32,6 +32,10 @@ const CHANNELS = Object.freeze({
 	finishSharedSourceWrite: 'soundscaper:v1:projects:sources:finish',
 	abortSharedSourceWrite: 'soundscaper:v1:projects:sources:abort',
 	readSharedSourceChunk: 'soundscaper:v1:projects:sources:read',
+	listAssistanceModels: 'soundscaper:v1:assistance:list',
+	installAssistanceModel: 'soundscaper:v1:assistance:install',
+	removeAssistanceModel: 'soundscaper:v1:assistance:remove',
+	assistanceInstallProgress: 'soundscaper:v1:event:assistance-progress',
 	setLocale: 'soundscaper:v1:locale:set',
 	setFullscreen: 'soundscaper:v1:fullscreen:set',
 	checkForUpdates: 'soundscaper:v1:updates:check',
@@ -136,6 +140,10 @@ const api = Object.freeze({
 		requestId: text(response?.requestId, 64),
 		allow: response?.allow === true,
 	}),
+	listAssistanceModels: () => ipcRenderer.invoke(CHANNELS.listAssistanceModels).then(assistanceStatus),
+	installAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.installAssistanceModel, assistanceModelId(modelId)).then(assistanceModel),
+	removeAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.removeAssistanceModel, assistanceModelId(modelId)).then(safeInteger),
+	onAssistanceInstallProgress: (listener) => subscribe(CHANNELS.assistanceInstallProgress, listener, assistanceProgress),
 	onOpenProject: (listener) => subscribe(CHANNELS.openProject, listener, sanitizeReadDescriptor),
 	onMenuCommand: (listener) => subscribe(CHANNELS.menuCommand, listener, (value) => Object.freeze({ command: text(value?.command, 64) })),
 	onCloseRequested: (listener) => subscribe(CHANNELS.closeRequested, listener, (value) => Object.freeze({
@@ -148,6 +156,37 @@ const bridge = Object.freeze({ v1: api });
 contextBridge.exposeInMainWorld('scapeDesktop', bridge);
 contextBridge.exposeInMainWorld('soundscaperDesktop', bridge);
 contextBridge.exposeInMainWorld('framescaperDesktop', bridge);
+const ASSISTANCE_AVAILABILITY = ['installed', 'installable', 'pending-artifacts', 'unsupported-platform', 'insufficient-memory'];
+function assistanceModelId(value) {
+	const modelId = text(value, 64);
+	if (!/^[a-z\d][a-z\d.-]*[a-z\d]$/u.test(modelId)) throw new TypeError('Unsupported assistance model id');
+	return modelId;
+}
+function optionalBytes(value) { return value === null || value === undefined ? null : safeInteger(value); }
+function assistanceModel(value) {
+	const availability = String(value?.availability || '');
+	if (!ASSISTANCE_AVAILABILITY.includes(availability)) throw new TypeError('Unsupported assistance availability');
+	return Object.freeze({
+		modelId: assistanceModelId(value?.modelId), version: text(value?.version, 64), task: text(value?.task, 64),
+		availability, downloadBytes: optionalBytes(value?.downloadBytes),
+		installedBytes: optionalBytes(value?.installedBytes), attributionRequired: value?.attributionRequired === true,
+	});
+}
+function assistanceStatus(value) {
+	if (!value || !Array.isArray(value.models)) throw new TypeError('Malformed assistance status');
+	return Object.freeze({
+		modelsDirectory: text(value.modelsDirectory, 4096), runtimeAvailable: value.runtimeAvailable === true,
+		runtimeReason: value.runtimeReason === null ? null : text(value.runtimeReason, 512),
+		models: Object.freeze(value.models.map(assistanceModel)),
+	});
+}
+function assistanceProgress(value) {
+	return Object.freeze({
+		modelId: assistanceModelId(value?.modelId), fileName: text(value?.fileName, 160),
+		completedBytes: safeInteger(value?.completedBytes), totalBytes: safeInteger(value?.totalBytes),
+	});
+}
+
 function subscribe(channel, listener, sanitize) {
 	if (typeof listener !== 'function') throw new TypeError('Event listener must be a function');
 	const handler = (_event, value) => listener(sanitize(value));

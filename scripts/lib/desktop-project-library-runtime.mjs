@@ -10,9 +10,16 @@ const FRAMESCAPER_V10_PRELOAD_BUNDLE = 'project-library-v10-sandbox-preload.cjs'
 
 const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/application-lifecycle.js',
+	'desktop/assistance-main-ipc.js',
+	'desktop/assistance-service.js',
+	'desktop/assistance-sherpa-recognizer.js',
+	'desktop/assistance-speech-runtime.js',
 	'desktop/linked-original-locator-validation.js',
 	'desktop/linked-video-locator-registry.js',
 	'desktop/linked-video-locator-store.js',
+	'desktop/local-model-catalog.js',
+	'desktop/local-model-download.js',
+	'desktop/local-model-store.js',
 	'desktop/main-window-recovery.js',
 	'desktop/project-library-abort.js',
 	'desktop/project-library-api.js',

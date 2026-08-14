@@ -1,0 +1,635 @@
+{
+	"schemaVersion": 1,
+	"publication": {
+		"bucket": "soundscaper-assets",
+		"prefix": "models",
+		"publicBaseUrl": "https://assets.soundscaper.org/models/",
+		"jurisdiction": "eu"
+	},
+	"entries": [
+		{
+			"modelId": "silero-vad-v6",
+			"version": "6.2.1",
+			"task": "voice-activity-detection",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://github.com/snakers4/silero-vad",
+				"revision": "7e30209a3e901f9842f81b225f3e93d8199902b1",
+				"artifacts": [
+					{
+						"fileName": "silero_vad.onnx",
+						"byteLength": 2327524,
+						"sha256": "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3",
+						"url": "https://raw.githubusercontent.com/snakers4/silero-vad/7e30209a3e901f9842f81b225f3e93d8199902b1/src/silero_vad/data/silero_vad.onnx"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "silero_vad.onnx",
+					"byteLength": 2327524,
+					"sha256": "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3",
+					"url": "https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/silero_vad.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "parakeet-tdt-0.6b-v2",
+			"version": "2.0.0",
+			"task": "speech-recognition",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 4294967296,
+			"upstream": {
+				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+				"revision": "1ab9323565ddb038682214b292f588070a538ce2",
+				"artifacts": [
+					{
+						"fileName": "encoder.int8.onnx",
+						"byteLength": 652184296,
+						"sha256": "a32b12d17bbbc309d0686fbbcc2987b5e9b8333a7da83fa6b089f0a2acd651ab",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/resolve/1ab9323565ddb038682214b292f588070a538ce2/encoder.int8.onnx"
+					},
+					{
+						"fileName": "decoder.int8.onnx",
+						"byteLength": 7257753,
+						"sha256": "b6bb64963457237b900e496ee9994b59294526439fbcc1fecf705b31a15c6b4e",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/resolve/1ab9323565ddb038682214b292f588070a538ce2/decoder.int8.onnx"
+					},
+					{
+						"fileName": "joiner.int8.onnx",
+						"byteLength": 1739080,
+						"sha256": "7946164367946e7f9f29a122407c3252b680dbae9a51343eb2488d057c3c43d2",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/resolve/1ab9323565ddb038682214b292f588070a538ce2/joiner.int8.onnx"
+					},
+					{
+						"fileName": "tokens.txt",
+						"byteLength": 9384,
+						"sha256": "ec182b70dd42113aff6c5372c75cac58c952443eb22322f57bbd7f53977d497d",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/resolve/1ab9323565ddb038682214b292f588070a538ce2/tokens.txt"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "encoder.int8.onnx",
+					"byteLength": 652184296,
+					"sha256": "a32b12d17bbbc309d0686fbbcc2987b5e9b8333a7da83fa6b089f0a2acd651ab",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v2/2.0.0/encoder.int8.onnx"
+				},
+				{
+					"fileName": "decoder.int8.onnx",
+					"byteLength": 7257753,
+					"sha256": "b6bb64963457237b900e496ee9994b59294526439fbcc1fecf705b31a15c6b4e",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v2/2.0.0/decoder.int8.onnx"
+				},
+				{
+					"fileName": "joiner.int8.onnx",
+					"byteLength": 1739080,
+					"sha256": "7946164367946e7f9f29a122407c3252b680dbae9a51343eb2488d057c3c43d2",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v2/2.0.0/joiner.int8.onnx"
+				},
+				{
+					"fileName": "tokens.txt",
+					"byteLength": 9384,
+					"sha256": "ec182b70dd42113aff6c5372c75cac58c952443eb22322f57bbd7f53977d497d",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v2/2.0.0/tokens.txt"
+				}
+			]
+		},
+		{
+			"modelId": "parakeet-tdt-0.6b-v3",
+			"version": "3.0.0",
+			"task": "speech-recognition",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 4294967296,
+			"upstream": {
+				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+				"revision": "2bda32ec70b097a55adaa07d9a7173915b43cc78",
+				"artifacts": [
+					{
+						"fileName": "encoder.int8.onnx",
+						"byteLength": 652184281,
+						"sha256": "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/encoder.int8.onnx"
+					},
+					{
+						"fileName": "decoder.int8.onnx",
+						"byteLength": 11845275,
+						"sha256": "179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/decoder.int8.onnx"
+					},
+					{
+						"fileName": "joiner.int8.onnx",
+						"byteLength": 6355277,
+						"sha256": "3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/joiner.int8.onnx"
+					},
+					{
+						"fileName": "tokens.txt",
+						"byteLength": 93939,
+						"sha256": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/tokens.txt"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "encoder.int8.onnx",
+					"byteLength": 652184281,
+					"sha256": "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v3/3.0.0/encoder.int8.onnx"
+				},
+				{
+					"fileName": "decoder.int8.onnx",
+					"byteLength": 11845275,
+					"sha256": "179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v3/3.0.0/decoder.int8.onnx"
+				},
+				{
+					"fileName": "joiner.int8.onnx",
+					"byteLength": 6355277,
+					"sha256": "3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v3/3.0.0/joiner.int8.onnx"
+				},
+				{
+					"fileName": "tokens.txt",
+					"byteLength": 93939,
+					"sha256": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d",
+					"url": "https://assets.soundscaper.org/models/parakeet-tdt-0.6b-v3/3.0.0/tokens.txt"
+				}
+			]
+		},
+		{
+			"modelId": "whisper-large-v3-turbo-ggml",
+			"version": "1.0.0",
+			"task": "speech-recognition",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64"],
+			"minimumMemoryBytes": 4294967296,
+			"upstream": {
+				"source": "https://huggingface.co/ggerganov/whisper.cpp",
+				"revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+				"artifacts": [
+					{
+						"fileName": "ggml-large-v3-turbo-q5_0.bin",
+						"byteLength": 574041195,
+						"sha256": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+						"url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "ggml-large-v3-turbo-q5_0.bin",
+					"byteLength": 574041195,
+					"sha256": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+					"url": "https://assets.soundscaper.org/models/whisper-large-v3-turbo-ggml/1.0.0/ggml-large-v3-turbo-q5_0.bin"
+				}
+			]
+		},
+		{
+			"modelId": "pyannote-segmentation-3.0",
+			"version": "3.0.0",
+			"task": "speaker-segmentation",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0",
+				"revision": "9403a6902bb58e3d5ae8c7e77c3422de279db2e0",
+				"artifacts": [
+					{
+						"fileName": "model.onnx",
+						"byteLength": 5992913,
+						"sha256": "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/9403a6902bb58e3d5ae8c7e77c3422de279db2e0/model.onnx"
+					},
+					{
+						"fileName": "LICENSE",
+						"byteLength": 1061,
+						"sha256": "14d7016ad68e7394d6e6b78d96cc2ae431c905287b89674cfdf021e79e62b8ba",
+						"url": "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/9403a6902bb58e3d5ae8c7e77c3422de279db2e0/LICENSE"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "model.onnx",
+					"byteLength": 5992913,
+					"sha256": "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+					"url": "https://assets.soundscaper.org/models/pyannote-segmentation-3.0/3.0.0/model.onnx"
+				},
+				{
+					"fileName": "LICENSE",
+					"byteLength": 1061,
+					"sha256": "14d7016ad68e7394d6e6b78d96cc2ae431c905287b89674cfdf021e79e62b8ba",
+					"url": "https://assets.soundscaper.org/models/pyannote-segmentation-3.0/3.0.0/LICENSE"
+				}
+			]
+		},
+		{
+			"modelId": "speech-3d-speaker-eres2net",
+			"version": "1.0.0",
+			"task": "speaker-embedding",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://huggingface.co/csukuangfj/speaker-embedding-models",
+				"revision": "0743f301363dec56491a490f6d6cbc9d67f9a3bf",
+				"artifacts": [
+					{
+						"fileName": "3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx",
+						"byteLength": 26485263,
+						"sha256": "c59158379255ad66e161679cca6af8d52d51e389e3224ab7d7a7baae295c2db5",
+						"url": "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/0743f301363dec56491a490f6d6cbc9d67f9a3bf/3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx",
+					"byteLength": 26485263,
+					"sha256": "c59158379255ad66e161679cca6af8d52d51e389e3224ab7d7a7baae295c2db5",
+					"url": "https://assets.soundscaper.org/models/speech-3d-speaker-eres2net/1.0.0/3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "deepfilternet3",
+			"version": "3.0.0",
+			"task": "speech-enhancement",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://huggingface.co/soniqo/DeepFilterNet3-ONNX",
+				"revision": "63d8ba442ba900143c468b798e94a04009b2f0c9",
+				"artifacts": [
+					{
+						"fileName": "deepfilter.onnx",
+						"byteLength": 8608859,
+						"sha256": "e1157049059434ae0d5857e32c812abea227b975e946b2eb64d001abbce156d3",
+						"url": "https://huggingface.co/soniqo/DeepFilterNet3-ONNX/resolve/63d8ba442ba900143c468b798e94a04009b2f0c9/deepfilter.onnx"
+					},
+					{
+						"fileName": "deepfilter-auxiliary.bin",
+						"byteLength": 126976,
+						"sha256": "47e84480f823ab95bee69d9f8a2344074e3d8e7dbb4370d44785b91698a4dca1",
+						"url": "https://huggingface.co/soniqo/DeepFilterNet3-ONNX/resolve/63d8ba442ba900143c468b798e94a04009b2f0c9/deepfilter-auxiliary.bin"
+					},
+					{
+						"fileName": "config.json",
+						"byteLength": 370,
+						"sha256": "0f1cbfa0a0a5b9770e905cbcacb7a03340daaf1498d34435a51916ef58439bb6",
+						"url": "https://huggingface.co/soniqo/DeepFilterNet3-ONNX/resolve/63d8ba442ba900143c468b798e94a04009b2f0c9/config.json"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "deepfilter.onnx",
+					"byteLength": 8608859,
+					"sha256": "e1157049059434ae0d5857e32c812abea227b975e946b2eb64d001abbce156d3",
+					"url": "https://assets.soundscaper.org/models/deepfilternet3/3.0.0/deepfilter.onnx"
+				},
+				{
+					"fileName": "deepfilter-auxiliary.bin",
+					"byteLength": 126976,
+					"sha256": "47e84480f823ab95bee69d9f8a2344074e3d8e7dbb4370d44785b91698a4dca1",
+					"url": "https://assets.soundscaper.org/models/deepfilternet3/3.0.0/deepfilter-auxiliary.bin"
+				},
+				{
+					"fileName": "config.json",
+					"byteLength": 370,
+					"sha256": "0f1cbfa0a0a5b9770e905cbcacb7a03340daaf1498d34435a51916ef58439bb6",
+					"url": "https://assets.soundscaper.org/models/deepfilternet3/3.0.0/config.json"
+				}
+			]
+		},
+		{
+			"modelId": "yunet-face-detection-2026may",
+			"version": "2026.5.0",
+			"task": "face-detection",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://github.com/opencv/opencv_zoo",
+				"revision": "47534e27c9851bb1128ccc0102f1145e27f23f98",
+				"artifacts": [
+					{
+						"fileName": "face_detection_yunet_2026may.onnx",
+						"byteLength": 229738,
+						"sha256": "ebafce4e3c118d6554634be5c27ab333b4c047a9a8c3faf1d7cf93101c22f0f0",
+						"url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models/face_detection_yunet/face_detection_yunet_2026may.onnx"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "face_detection_yunet_2026may.onnx",
+					"byteLength": 229738,
+					"sha256": "ebafce4e3c118d6554634be5c27ab333b4c047a9a8c3faf1d7cf93101c22f0f0",
+					"url": "https://assets.soundscaper.org/models/yunet-face-detection-2026may/2026.5.0/face_detection_yunet_2026may.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "dfine-nano-coco",
+			"version": "1.0.0",
+			"task": "object-detection",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://huggingface.co/onnx-community/dfine_n_coco-ONNX",
+				"revision": "380d2839c327efaf65dd0fe0c2c10ab7fadd5473",
+				"artifacts": [
+					{
+						"fileName": "model.onnx",
+						"byteLength": 15258358,
+						"sha256": "0f684f409618ee8a822410e754a29caa817d1aa16283ce89cad936d0a48e2f35",
+						"url": "https://huggingface.co/onnx-community/dfine_n_coco-ONNX/resolve/380d2839c327efaf65dd0fe0c2c10ab7fadd5473/onnx/model.onnx"
+					},
+					{
+						"fileName": "config.json",
+						"byteLength": 6597,
+						"sha256": "a5c7533f3b72be6bb102b93e1b34ca3643af4e0590408a7881543cbb0aa80c4c",
+						"url": "https://huggingface.co/onnx-community/dfine_n_coco-ONNX/resolve/380d2839c327efaf65dd0fe0c2c10ab7fadd5473/config.json"
+					},
+					{
+						"fileName": "preprocessor_config.json",
+						"byteLength": 444,
+						"sha256": "cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1",
+						"url": "https://huggingface.co/onnx-community/dfine_n_coco-ONNX/resolve/380d2839c327efaf65dd0fe0c2c10ab7fadd5473/preprocessor_config.json"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "model.onnx",
+					"byteLength": 15258358,
+					"sha256": "0f684f409618ee8a822410e754a29caa817d1aa16283ce89cad936d0a48e2f35",
+					"url": "https://assets.soundscaper.org/models/dfine-nano-coco/1.0.0/model.onnx"
+				},
+				{
+					"fileName": "config.json",
+					"byteLength": 6597,
+					"sha256": "a5c7533f3b72be6bb102b93e1b34ca3643af4e0590408a7881543cbb0aa80c4c",
+					"url": "https://assets.soundscaper.org/models/dfine-nano-coco/1.0.0/config.json"
+				},
+				{
+					"fileName": "preprocessor_config.json",
+					"byteLength": 444,
+					"sha256": "cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1",
+					"url": "https://assets.soundscaper.org/models/dfine-nano-coco/1.0.0/preprocessor_config.json"
+				}
+			]
+		},
+		{
+			"modelId": "u2netp-saliency",
+			"version": "1.0.0",
+			"task": "saliency-detection",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://github.com/danielgatis/rembg",
+				"revision": "v0.0.0",
+				"artifacts": [
+					{
+						"fileName": "u2netp.onnx",
+						"byteLength": 4574861,
+						"sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
+						"url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "u2netp.onnx",
+					"byteLength": 4574861,
+					"sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
+					"url": "https://assets.soundscaper.org/models/u2netp-saliency/1.0.0/u2netp.onnx"
+				}
+			]
+		},
+		{
+			"modelId": "ppocr-v4-mobile",
+			"version": "4.0.0",
+			"task": "optical-character-recognition",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 2147483648,
+			"upstream": {
+				"source": "https://huggingface.co/SWHL/RapidOCR",
+				"revision": "1cfba2e90fc938db55889873735088de210cc173",
+				"artifacts": [
+					{
+						"fileName": "text_detection.onnx",
+						"byteLength": 4745517,
+						"sha256": "d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9",
+						"url": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv4/ch_PP-OCRv4_det_infer.onnx"
+					},
+					{
+						"fileName": "text_recognition.onnx",
+						"byteLength": 10857958,
+						"sha256": "48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b",
+						"url": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx"
+					},
+					{
+						"fileName": "text_orientation.onnx",
+						"byteLength": 585532,
+						"sha256": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
+						"url": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv1/ch_ppocr_mobile_v2.0_cls_infer.onnx"
+					},
+					{
+						"fileName": "character_dictionary.txt",
+						"byteLength": 26250,
+						"sha256": "a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492",
+						"url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/2661c7c0ef5c613e8f93c6e93b2e052399f0f854/ppocr/utils/ppocr_keys_v1.txt"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "text_detection.onnx",
+					"byteLength": 4745517,
+					"sha256": "d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9",
+					"url": "https://assets.soundscaper.org/models/ppocr-v4-mobile/4.0.0/text_detection.onnx"
+				},
+				{
+					"fileName": "text_recognition.onnx",
+					"byteLength": 10857958,
+					"sha256": "48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b",
+					"url": "https://assets.soundscaper.org/models/ppocr-v4-mobile/4.0.0/text_recognition.onnx"
+				},
+				{
+					"fileName": "text_orientation.onnx",
+					"byteLength": 585532,
+					"sha256": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
+					"url": "https://assets.soundscaper.org/models/ppocr-v4-mobile/4.0.0/text_orientation.onnx"
+				},
+				{
+					"fileName": "character_dictionary.txt",
+					"byteLength": 26250,
+					"sha256": "a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492",
+					"url": "https://assets.soundscaper.org/models/ppocr-v4-mobile/4.0.0/character_dictionary.txt"
+				}
+			]
+		},
+		{
+			"modelId": "nomic-embed-text-v1.5",
+			"version": "1.5.0",
+			"task": "text-embedding",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 4294967296,
+			"upstream": {
+				"source": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5",
+				"revision": "e9b6763023c676ca8431644204f50c2b100d9aab",
+				"artifacts": [
+					{
+						"fileName": "model_quantized.onnx",
+						"byteLength": 137296292,
+						"sha256": "b4342336debaea79de872370664b0aaeb67dea4605513d00ee236ea871a81f27",
+						"url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/e9b6763023c676ca8431644204f50c2b100d9aab/onnx/model_quantized.onnx"
+					},
+					{
+						"fileName": "tokenizer.json",
+						"byteLength": 711396,
+						"sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+						"url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/e9b6763023c676ca8431644204f50c2b100d9aab/tokenizer.json"
+					},
+					{
+						"fileName": "tokenizer_config.json",
+						"byteLength": 1191,
+						"sha256": "d7e0000bcc80134debd2222220427e6bf5fa20a669f40a0d0d1409cc18e0a9bc",
+						"url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/e9b6763023c676ca8431644204f50c2b100d9aab/tokenizer_config.json"
+					},
+					{
+						"fileName": "special_tokens_map.json",
+						"byteLength": 695,
+						"sha256": "5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a",
+						"url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/e9b6763023c676ca8431644204f50c2b100d9aab/special_tokens_map.json"
+					},
+					{
+						"fileName": "config.json",
+						"byteLength": 2538,
+						"sha256": "9ab00bd92cee80a569f708140b7b6c1661a65891ff3765b1519e181ba2f2c92b",
+						"url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/e9b6763023c676ca8431644204f50c2b100d9aab/config.json"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "model_quantized.onnx",
+					"byteLength": 137296292,
+					"sha256": "b4342336debaea79de872370664b0aaeb67dea4605513d00ee236ea871a81f27",
+					"url": "https://assets.soundscaper.org/models/nomic-embed-text-v1.5/1.5.0/model_quantized.onnx"
+				},
+				{
+					"fileName": "tokenizer.json",
+					"byteLength": 711396,
+					"sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+					"url": "https://assets.soundscaper.org/models/nomic-embed-text-v1.5/1.5.0/tokenizer.json"
+				},
+				{
+					"fileName": "tokenizer_config.json",
+					"byteLength": 1191,
+					"sha256": "d7e0000bcc80134debd2222220427e6bf5fa20a669f40a0d0d1409cc18e0a9bc",
+					"url": "https://assets.soundscaper.org/models/nomic-embed-text-v1.5/1.5.0/tokenizer_config.json"
+				},
+				{
+					"fileName": "special_tokens_map.json",
+					"byteLength": 695,
+					"sha256": "5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a",
+					"url": "https://assets.soundscaper.org/models/nomic-embed-text-v1.5/1.5.0/special_tokens_map.json"
+				},
+				{
+					"fileName": "config.json",
+					"byteLength": 2538,
+					"sha256": "9ab00bd92cee80a569f708140b7b6c1661a65891ff3765b1519e181ba2f2c92b",
+					"url": "https://assets.soundscaper.org/models/nomic-embed-text-v1.5/1.5.0/config.json"
+				}
+			]
+		},
+		{
+			"modelId": "siglip2-base-patch16-224",
+			"version": "2.0.0",
+			"task": "image-text-embedding",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 8589934592,
+			"upstream": {
+				"source": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX",
+				"revision": "ba1f3b0843f24bc5417d38e19c37b287d719b2f4",
+				"artifacts": [
+					{
+						"fileName": "vision_model_int8.onnx",
+						"byteLength": 94553333,
+						"sha256": "0dd31785a2713f1113ef2272472165c69d580473dae38d7b47568ac587795e70",
+						"url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/onnx/vision_model_int8.onnx"
+					},
+					{
+						"fileName": "text_model_int8.onnx",
+						"byteLength": 283438275,
+						"sha256": "3a0603d3a00c05a80a6ded4743c16aaac7b1e62cdcc7e362e7ce418659b96400",
+						"url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/onnx/text_model_int8.onnx"
+					},
+					{
+						"fileName": "tokenizer.json",
+						"byteLength": 34363039,
+						"sha256": "cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322",
+						"url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/tokenizer.json"
+					},
+					{
+						"fileName": "config.json",
+						"byteLength": 435,
+						"sha256": "e43a9f7692d3819886a82cb2097048258d444f123c67d37ec825f9345b019cf2",
+						"url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/config.json"
+					},
+					{
+						"fileName": "preprocessor_config.json",
+						"byteLength": 394,
+						"sha256": "9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc",
+						"url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/preprocessor_config.json"
+					}
+				]
+			},
+			"artifacts": [
+				{
+					"fileName": "vision_model_int8.onnx",
+					"byteLength": 94553333,
+					"sha256": "0dd31785a2713f1113ef2272472165c69d580473dae38d7b47568ac587795e70",
+					"url": "https://assets.soundscaper.org/models/siglip2-base-patch16-224/2.0.0/vision_model_int8.onnx"
+				},
+				{
+					"fileName": "text_model_int8.onnx",
+					"byteLength": 283438275,
+					"sha256": "3a0603d3a00c05a80a6ded4743c16aaac7b1e62cdcc7e362e7ce418659b96400",
+					"url": "https://assets.soundscaper.org/models/siglip2-base-patch16-224/2.0.0/text_model_int8.onnx"
+				},
+				{
+					"fileName": "tokenizer.json",
+					"byteLength": 34363039,
+					"sha256": "cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322",
+					"url": "https://assets.soundscaper.org/models/siglip2-base-patch16-224/2.0.0/tokenizer.json"
+				},
+				{
+					"fileName": "config.json",
+					"byteLength": 435,
+					"sha256": "e43a9f7692d3819886a82cb2097048258d444f123c67d37ec825f9345b019cf2",
+					"url": "https://assets.soundscaper.org/models/siglip2-base-patch16-224/2.0.0/config.json"
+				},
+				{
+					"fileName": "preprocessor_config.json",
+					"byteLength": 394,
+					"sha256": "9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc",
+					"url": "https://assets.soundscaper.org/models/siglip2-base-patch16-224/2.0.0/preprocessor_config.json"
+				}
+			]
+		},
+		{
+			"modelId": "spleeter",
+			"version": "2.0.0",
+			"task": "source-separation",
+			"platforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"],
+			"minimumMemoryBytes": 4294967296,
+			"upstream": null,
+			"artifacts": null
+		}
+	]
+}

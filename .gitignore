@@ -15,3 +15,7 @@ release/desktop-nightly-tests/
 .env.*
 !.env.example
 private/
+# Model weights staged for mirroring. Hundreds of megabytes per model, already
+# digest-pinned in config/local-model-catalog.json and served from the object
+# store, so committing them would bloat the history for no recoverable value.
+.model-mirror/
