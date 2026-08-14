@@ -22,6 +22,7 @@ import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinua
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
 import { useSoundscaperProductionWorkspace } from './useSoundscaperProductionWorkspace.ts';
+import { useWorkspaceThemePreference } from './useWorkspaceThemePreference.js';
 import { createWorkspaceApplicationMenus } from './workspace-application-menu-runtime.js';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
@@ -87,6 +88,7 @@ export default function AudioEditorWorkspace({
 		project && projectForRuntimeConsumers ? projectForRuntimeConsumers(project) : null
 	), [project, projectForRuntimeConsumers]);
 	const preferences = snapshot.preferences;
+	useWorkspaceThemePreference(preferences?.appearance?.theme);
 	const isVideoEditorWorkspace = preferences?.workspace?.activeId === 'video-editor';
 	const projectBinPreferenceVisible = preferences?.workspace?.panels?.['project-bin']?.visible === true;
 	const projectBinEffectivelyOpen = projectBinPreferenceVisible

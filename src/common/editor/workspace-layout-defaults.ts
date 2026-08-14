@@ -22,6 +22,7 @@ export const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	'jump-start': true,
 	'jump-end': true,
 	loop: true,
+	metronome: false,
 	'split-tool': true,
 	'waveform-view': true,
 	'spectrogram-view': true,

@@ -101,7 +101,7 @@ export default function EditorToolToolbar({
 	const showSequenceTiming = Boolean(capabilities.sequenceTiming)
 		&& snapshot.preferences?.workspace?.activeId === 'video-editor'
 		&& Boolean(project?.sequences?.length);
-	const transportButtonsVisible = ['play', 'stop', ...(capabilities.audioRecording ? ['record'] : []), 'jump-start', 'jump-end', 'loop']
+	const transportButtonsVisible = ['play', 'stop', ...(capabilities.audioRecording ? ['record'] : []), 'jump-start', 'jump-end', 'loop', 'metronome']
 		.some(isToolbarButtonVisible);
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
@@ -113,6 +113,7 @@ export default function EditorToolToolbar({
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
+		{ id: 'metronome', label: copy.metronome, icon: 'metronome' },
 		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
 		{ id: 'volume-automation', label: copy.clipGain, icon: 'automation' },
 		...(capabilities.audioSpectralEditing ? [
@@ -213,6 +214,12 @@ export default function EditorToolToolbar({
 						onClick={() => run(() => controller.actions.transport.toggleLoop())}
 					/>
 					}
+					{isToolbarButtonVisible('metronome') && <ToggleToolButton
+						icon="metronome"
+						isActive={Boolean(snapshot.recordingOptions?.metronome)}
+						ariaLabel={copy.metronome}
+						onClick={() => run(() => controller.actions.transport.toggleMetronome())}
+					/>}
 				</ToolbarButtonGroup>
 				</WorkspaceToolbarSection>,
 

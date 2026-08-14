@@ -217,6 +217,14 @@
 	overflow-y: auto;
 }
 
+/* A scrolling submenu clips any nested menu it owns, presenting that third
+ * level as a scrollbar instead of a flyout. Nested menus need an unclipped
+ * containing block; leaf submenus retain their viewport-bounded scrolling. */
+#kw-audio-editor-design-system .kw-audio-editor__application-menu .context-menu-submenu:has(> .context-menu-item > .context-menu-item-content .context-menu-item-arrow) {
+	max-height: none;
+	overflow: visible;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__application-menu .context-menu-item-shortcut {
 	color: var(--kw-editor-muted);
 }

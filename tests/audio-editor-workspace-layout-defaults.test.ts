@@ -47,6 +47,7 @@ test('workspace presets retain their product-specific layout defaults', () => {
 	});
 	assert.equal(modern.workspace.toolbarButtons.copy, false);
 	assert.equal(modern.workspace.toolbarButtons['time-display'], true);
+	assert.equal(modern.workspace.toolbarButtons.metronome, false);
 	assert.deepEqual(video.workspace.panels['project-bin'], {
 		visible: true, dock: 'left', order: 0, size: 380,
 		x: 24, y: 24, width: 380, height: 520,

@@ -57,14 +57,9 @@ export function createApplicationMenuProductItems({
 	});
 }
 
-export function extendApplicationMenuProductPanelItem(panelId, item, productItems) {
-	if (panelId !== 'mixer' || !productItems.mixer.length) return item;
-	return {
-		id: item.id,
-		label: item.label,
-		items: [
-			{ ...item, id: `${item.id}-visibility` },
-			...productItems.mixer,
-		],
-	};
+export function extendApplicationMenuProductPanelItems(panelId, item, productItems) {
+	if (panelId !== 'mixer' || !productItems.mixer.length) return [item];
+	// Keep the panel toggle and its product commands as peers. Wrapping them in
+	// a second "Mixer" submenu made the first submenu row a duplicate of its parent.
+	return [item, ...productItems.mixer];
 }

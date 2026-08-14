@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	createApplicationMenuProductItems,
-	extendApplicationMenuProductPanelItem,
+	extendApplicationMenuProductPanelItems,
 } from '../src/common/editor/ui/application-menu-product-items.js';
 import type { SoundscaperProductionDialogOperation } from '../src/common/editor/ui/dialogs/SoundscaperProductionDialog.tsx';
 import {
@@ -46,17 +46,17 @@ test('the host product seam places each production entry without a default surfa
 	assert.deepEqual(items.effect.map(({ id }: { id: string }) => id), ['soundscaper-restoration']);
 	assert.deepEqual(items.analyze.map(({ id }: { id: string }) => id), ['soundscaper-production-meters']);
 	assert.deepEqual(items.tools.map(({ id }: { id: string }) => id), ['soundscaper-reviewed-effects']);
-	const mixer = extendApplicationMenuProductPanelItem('mixer', {
+	const mixer = extendApplicationMenuProductPanelItems('mixer', {
 		id: 'panel-mixer', label: 'Mixer', checked: false, onClick: () => calls.push(['mixer']),
 	}, items);
-	assert.deepEqual(mixer.items.map(({ id }: { id: string }) => id), [
-		'panel-mixer-visibility', 'soundscaper-routing-graph',
+	assert.deepEqual(mixer.map(({ id }: { id: string }) => id), [
+		'panel-mixer', 'soundscaper-routing-graph',
 	]);
 	const automation = requireProductionMenuItem(items.tracks, 'soundscaper-automation');
 	const mode = requireProductionMenuItem(automation.items, 'soundscaper-automation-mode');
 	requireProductionMenuItem(automation.items, 'soundscaper-automation-edit').onClick?.();
 	requireProductionMenuItem(mode.items, 'soundscaper-automation-mode-write').onClick?.();
-	mixer.items[1].onClick();
+	mixer[1].onClick();
 	const freeze = requireProductionMenuItem(items.tracks, 'soundscaper-freeze');
 	for (const item of freeze.items ?? []) item.onClick?.();
 	assert.deepEqual(calls, [

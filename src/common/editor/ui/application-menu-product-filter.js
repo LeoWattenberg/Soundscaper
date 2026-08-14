@@ -15,9 +15,6 @@ export function filterProductMenus(menus, capabilities, productId) {
 			if (menu.id === 'tools' && !capabilities.audioMacros) {
 				return { ...menu, items: menu.items.filter((item) => !['manage-macros', 'nyquist-prompt'].includes(item.id)) };
 			}
-			if (menu.id === 'transport-menu' && !capabilities.audioRecording) {
-				return { ...menu, items: menu.items.filter((item) => !String(item.id || '').includes('record')) };
-			}
 			if (menu.id !== 'view') return menu;
 			return {
 				...menu,

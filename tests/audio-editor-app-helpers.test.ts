@@ -45,10 +45,9 @@ test('meter settings normalize persisted values at the module boundary', () => {
 	assert.equal(productStorageKey('soundscaper-meter-v2', 'framescaper'), 'framescaper-meter-v2');
 });
 
-test('the application menubar keeps Transport reachable in canonical order', () => {
-	assert.ok(AUDACITY_MENU_ORDER.includes('transport-menu'));
-	assert.ok(AUDACITY_MENU_ORDER.indexOf('transport-menu') > AUDACITY_MENU_ORDER.indexOf('view'));
-	assert.ok(AUDACITY_MENU_ORDER.indexOf('transport-menu') < AUDACITY_MENU_ORDER.indexOf('tracks'));
+test('the application menubar omits the redundant playback and recording menu', () => {
+	assert.equal(AUDACITY_MENU_ORDER.includes('transport-menu'), false);
+	assert.ok(AUDACITY_MENU_ORDER.indexOf('tracks') > AUDACITY_MENU_ORDER.indexOf('view'));
 });
 
 test('floating panels are clamped to the visible workspace', () => {

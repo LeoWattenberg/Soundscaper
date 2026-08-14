@@ -8,7 +8,7 @@ import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
 import { createFramescaperVideoFinishingMenuItems } from './framescaper-video-finishing-menu.ts';
-import { createApplicationMenuProductItems, extendApplicationMenuProductPanelItem } from './application-menu-product-items.js';
+import { createApplicationMenuProductItems, extendApplicationMenuProductPanelItems } from './application-menu-product-items.js';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
@@ -78,11 +78,6 @@ export default function createApplicationMenus({
 	));
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
 	const preferences = snapshot.preferences;
-	const videoNavigation = snapshot.videoNavigation;
-	const videoNavigationBlocked = blocked || !project || !videoNavigation || videoNavigation.programEndFrame <= 0;
-	const shuttleLabel = (label, direction) => videoNavigation?.rate * direction > 0
-		? `${label} (${Math.abs(videoNavigation.rate)}×)`
-		: label;
 	const framescaperEditControls = createFramescaperEditControlMenuItems({
 		productId, project, selectedClipId: selectedClip?.id ?? null,
 		selectedTrackId: snapshot.selectedTrackId ?? null, editBlocked,
@@ -338,14 +333,15 @@ export default function createApplicationMenus({
 								disabled: !selectedAudioTrack,
 								onClick: actions.openEffects,
 							}
-							: extendApplicationMenuProductPanelItem(panelId, {
+							: extendApplicationMenuProductPanelItems(panelId, {
 								id: `panel-${panelId}`,
 								label: workspacePanelLabel(copy, panelId),
 								checked: panelId === 'project-bin'
 									? projectBinEffectivelyOpen
 									: preferences.workspace.panels[panelId].visible,
 								onClick: () => actions.togglePanel(panelId),
-							}, productItems)),
+							}, productItems))
+							.flat(),
 					],
 				},
 				{
@@ -393,29 +389,6 @@ export default function createApplicationMenus({
 				clipSelectionNavigationMenus.skip,
 				divider(),
 				{ id: 'fullscreen', label: copy.fullscreen, shortcut: 'F11', onClick: actions.fullscreen },
-			],
-		},
-		{
-			id: 'transport-menu',
-			label: copy.transport,
-			items: [
-				{ id: 'action://playback/play', label: copy.play, shortcut: 'Space', onClick: actions.playPause },
-				{ id: 'action://playback/stop', label: copy.stop, onClick: actions.stop },
-				divider(),
-				...(productId === 'framescaper' ? [{
-					id: 'video-navigation',
-					label: copy.videoNavigation,
-					disabled: videoNavigationBlocked,
-					items: [
-						{ id: 'video-navigation-previous-edit', label: copy.previousEdit, shortcut: 'Up', onClick: actions.previousVideoEdit },
-						{ id: 'video-navigation-reverse', label: shuttleLabel(copy.shuttleBackward, -1), shortcut: 'J', checked: videoNavigation?.rate < 0, onClick: actions.shuttleBackward },
-						{ id: 'video-navigation-stop', label: copy.shuttleStop, shortcut: 'K', checked: videoNavigation?.rate === 0, onClick: actions.shuttleStop },
-						{ id: 'video-navigation-forward', label: shuttleLabel(copy.shuttleForward, 1), shortcut: 'L', checked: videoNavigation?.rate > 0, onClick: actions.shuttleForward },
-						{ id: 'video-navigation-next-edit', label: copy.nextEdit, shortcut: 'Down', onClick: actions.nextVideoEdit },
-					],
-				}, divider()] : []),
-				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleLoopRegion, label: copy.loop, checked: Boolean(project?.loop?.enabled), onClick: actions.toggleLoop },
-				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.metronome, label: copy.metronome, checked: Boolean(snapshot.recordingOptions?.metronome), onClick: actions.toggleMetronome },
 			],
 		},
 		{

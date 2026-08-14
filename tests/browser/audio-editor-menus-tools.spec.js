@@ -293,6 +293,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await preferences.getByRole('tab', { name: /Appearance$/ }).click();
 		await preferences.getByRole('radio', { name: 'Dark', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 
 		await chooseCommandAction(page, editor, 'Help', 'Revert to factory settings');
