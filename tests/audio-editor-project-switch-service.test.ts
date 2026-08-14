@@ -359,6 +359,8 @@ test('new selected-schema projects use create-only initial publication', async (
 		fixture.events.filter((event) => event.startsWith('create-project:') || event.startsWith('save-project:')),
 		['create-project:created-1'],
 	);
+	assert.equal(fixture.createdProjects[0]?.revision, 0);
+	assert.equal(fixture.createdProjects[0]?.tracks[0]?.name, 'Track 1');
 });
 test('feature compatibility transiently bypasses affected audio effects before engine activation', async () => {
 	const fixture = createFixture({ audioEffects: false, videoEffects: false });

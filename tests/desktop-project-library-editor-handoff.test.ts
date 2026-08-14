@@ -212,7 +212,7 @@ test('source-free exact-current composed editor autosave hands off from Soundsca
 	await soundscaper.ready;
 	const created = exactProject(soundscaper.getSnapshot().project);
 	assertSourceFree(created);
-	assert.ok(created.revision > 0);
+	assert.equal(created.revision, 0, 'the canonical initial publication must remain a fresh project');
 	assert.ok(soundCommits.length > 0, 'controller creation must save through the shared repository');
 	assert.equal(soundHost.readCatalog().revision, 1);
 	assert.equal(exactProject(await soundService.readSharedProject(created.id)).revision, created.revision);

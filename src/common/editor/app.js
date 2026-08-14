@@ -617,7 +617,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const projectSaveService = createProjectSaveService({
 		state,
 		getProject: () => project,
-		hasHistory: () => Boolean(state.history),
+		hasHistory: () => Boolean(state.history), hasUnsavedProjectChanges: () => Boolean(project && sessionTab(project.id)?.dirty),
 		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
 		cloneProject: projectRuntime.cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),

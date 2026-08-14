@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { register } from 'node:module'
 import test, { type TestContext } from 'node:test'
 
 import {
@@ -21,11 +22,26 @@ import {
 import {
 	createSoundscaperDesktopProjectStoreV10Adapter,
 } from '../src/soundscaper/desktop-project-library-v10-store-adapter.ts'
+import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts'
 import { SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE } from '../src/soundscaper/editor-project-runtime-profile-v21.ts'
 import { createSoundscaperEditorProjectEnvironmentV21 } from '../src/soundscaper/editor-project-environment-v21.ts'
 import { createSoundscaperProjectStoreV21 } from '../src/soundscaper/editor-project-store-v21.ts'
-import { createSoundscaperProjectV21, type SoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts'
+import {
+	cloneSoundscaperProjectV21,
+	createSoundscaperProjectV21,
+	type SoundscaperProjectV21,
+} from '../src/soundscaper/editor-project-v21.ts'
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js'
+
+const assetLoader = `
+	export async function resolve(specifier, context, nextResolve) {
+		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
+			return { url: 'data:text/javascript,export default "mock-ffmpeg-asset"', shortCircuit: true };
+		}
+		return nextResolve(specifier, context);
+	}
+`
+register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url)
 
 const NOW = '2026-08-14T12:00:00.000Z'
 const PCM = canonicalPcm([0.25, -0.5])
@@ -63,6 +79,150 @@ test('renderer and store adapter preserve exact V21 production state and canonic
 	assert.equal(desktopStore.prepareProjectHandoff, undefined)
 })
 
+test('coalesced V21 autosave publishes only the latest higher revision through desktop V10', async (context) => {
+	const store = await durableStore(context)
+	const current = productionProject('soundscaper-coalesced-autosave')
+	const bridge = new BridgeFixture(current, PCM)
+	installBridge(context, bridge.api)
+	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
+		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
+	)
+	assert.ok(renderer)
+	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
+		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		{ localStore: store, desktopProjectLibrary: renderer },
+	)
+	await desktopStore.loadProject(String(current.id))
+
+	let project = revisedProject(current, 1, 'First coalesced edit', '2026-08-14T12:01:00.000Z')
+	const timers = new Map<number, () => void>()
+	const savedRevisions: number[] = []
+	const errors: unknown[] = []
+	let nextTimer = 0
+	const state = {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set<SoundscaperProjectV21>(),
+		saveQueue: Promise.resolve<unknown>(undefined),
+		saveState: 'saved',
+	}
+	const saves = createProjectSaveService({
+		state,
+		getProject: () => project,
+		hasHistory: () => true,
+		isReadOnly: () => false,
+		cloneProject: (value) => structuredClone(value),
+		admitProjectPublication: async () => undefined,
+		saveProject: async (snapshot) => {
+			savedRevisions.push(Number(snapshot.revision))
+			await desktopStore.saveProject(snapshot)
+		},
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: (projectId) => projectId === project.id,
+		hasSessionTab: () => true,
+		markProjectSaved: () => undefined,
+		publish: () => undefined,
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: (error) => { errors.push(error) },
+		scheduleTimer: (callback) => {
+			nextTimer += 1
+			timers.set(nextTimer, callback)
+			return nextTimer
+		},
+		clearTimer: (handle) => { timers.delete(handle) },
+	})
+
+	assert.equal(saves.scheduleAutosave(), true)
+	const supersededTimer = state.autosaveTimer
+	project = revisedProject(current, 2, 'Second coalesced edit', '2026-08-14T12:02:00.000Z')
+	assert.equal(saves.scheduleAutosave(), true)
+	assert.equal(timers.has(supersededTimer), false)
+	const latestTimer = timers.get(state.autosaveTimer)
+	assert.ok(latestTimer)
+	latestTimer()
+	await saves.drain()
+
+	assert.deepEqual(savedRevisions, [2])
+	assert.deepEqual(errors, [])
+	assert.equal(bridge.metadataRevision, 2, 'one publication advances metadata by one')
+	assert.equal(bridge.projectRevision(String(project.id)), 2)
+	assert.equal((await store.loadProject(String(project.id)))?.revision, 2)
+	assert.equal(state.saveState, 'saved')
+})
+
+test('desktop V10 reconciles an authoritative revision jump but refuses a local-ahead shadow', async (context) => {
+	const store = await durableStore(context)
+	const current = productionProject('soundscaper-authoritative-revision-jump')
+	const bridge = new BridgeFixture(current, PCM)
+	installBridge(context, bridge.api)
+	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
+		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
+	)
+	assert.ok(renderer)
+	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
+		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		{ localStore: store, desktopProjectLibrary: renderer },
+	)
+	await desktopStore.loadProject(String(current.id))
+	const authoritative = revisedProject(
+		current, 2, 'Authoritative coalesced revision', '2026-08-14T12:02:00.000Z',
+	)
+	bridge.replaceAuthoritative(authoritative)
+	assert.deepEqual(await desktopStore.loadProject(String(current.id)), authoritative)
+	assert.deepEqual(await store.loadProject(String(current.id)), authoritative)
+
+	const localAhead = revisedProject(
+		authoritative, 3, 'Unpublished local-ahead revision', '2026-08-14T12:03:00.000Z',
+	)
+	const saveIfCurrent = store.projectRepository.saveIfCurrent
+	assert.ok(saveIfCurrent)
+	assert.deepEqual(
+		await saveIfCurrent.call(store.projectRepository, authoritative, localAhead),
+		localAhead,
+	)
+	await assert.rejects(
+		desktopStore.loadProject(String(current.id)),
+		/strictly higher.*shadow revision/iu,
+	)
+	assert.deepEqual(await store.loadProject(String(current.id)), localAhead)
+	assert.equal(bridge.projectRevision(String(current.id)), 2)
+})
+
+test('desktop V10 revision jumps retain the exact local base digest compare-and-swap', async (context) => {
+	const store = await durableStore(context)
+	const current = productionProject('soundscaper-revision-jump-local-cas')
+	const bridge = new BridgeFixture(current, PCM)
+	installBridge(context, bridge.api)
+	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
+		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
+	)
+	assert.ok(renderer)
+	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
+		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		{ localStore: store, desktopProjectLibrary: renderer },
+	)
+	const loaded = cloneSoundscaperProjectV21(await desktopStore.loadProject(String(current.id)))
+	const divergent = revisedProject(
+		loaded, 0, 'Divergent local base', '2026-08-14T12:00:00.000Z',
+	)
+	const saveIfCurrent = store.projectRepository.saveIfCurrent
+	assert.ok(saveIfCurrent)
+	assert.deepEqual(await saveIfCurrent.call(store.projectRepository, loaded, divergent), divergent)
+	await assert.rejects(
+		desktopStore.saveProject(revisedProject(
+			loaded, 2, 'Rejected coalesced revision', '2026-08-14T12:02:00.000Z',
+		)),
+		/shadow failed.*compare-and-swap/iu,
+	)
+	assert.equal(bridge.metadataRevision, 1)
+	assert.equal(bridge.projectRevision(String(current.id)), 0)
+	assert.deepEqual(await store.loadProject(String(current.id)), divergent)
+})
+
 test('renderer refuses corrupt freeze PCM before publishing any V21 shadow or source', async (context) => {
 	const store = await durableStore(context)
 	const project = productionProject('soundscaper-renderer-corrupt')
@@ -97,6 +257,33 @@ test('V21 environment selects the admitted desktop renderer and main-first store
 	assert.deepEqual(await storedSamples(environment.store, 'derived:freeze-source'), [0.25, -0.5])
 })
 
+test('desktop V21 bootstrap publishes one canonical revision-zero project before readiness', async (context) => {
+	const bridge = new BridgeFixture(null, new Uint8Array())
+	installBridge(context, bridge.api)
+	const environment = await createSoundscaperEditorProjectEnvironmentV21({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	})
+	const { createSoundscaperAudioEditorControllerV21 } = await import(
+		'../src/soundscaper/editor-controller-v21.ts'
+	)
+	const controller = createSoundscaperAudioEditorControllerV21(environment)
+	context.after(async () => {
+		await controller.dispose()
+		await environment.close()
+	})
+
+	const ready = await controller.ready
+	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status))
+	assert.equal(ready.project?.revision, 0)
+	assert.equal(ready.project?.tracks[0]?.name, 'Track 1')
+	assert.equal(bridge.metadataRevision, 1)
+	assert.equal(bridge.publicationCount, 1, 'the bootstrap follow-up save must not republish revision zero')
+	assert.equal(bridge.projectRevision(String(ready.project?.id)), 0)
+})
+
 test('desktop adapter duplicates and deletes exact V21 projects while retaining shared freeze PCM', async (context) => {
 	const store = await durableStore(context)
 	const project = productionProject('soundscaper-desktop-lifecycle')
@@ -129,7 +316,8 @@ test('desktop adapter duplicates and deletes exact V21 projects while retaining 
 class BridgeFixture {
 	readonly api
 	#connected = false
-	#metadataRevision = 1
+	#metadataRevision: number
+	#publicationCount = 0
 	readonly #projects = new Map<string, SoundscaperProjectV21>()
 	readonly #bodies = new Map<string, Uint8Array>()
 	#active: Readonly<{ project: SoundscaperProjectV21; bodies: readonly Readonly<SoundscaperDesktopV10Body>[] }> | null = null
@@ -137,9 +325,12 @@ class BridgeFixture {
 	#offset = 0
 	#uploaded: Uint8Array<ArrayBufferLike> = new Uint8Array()
 
-	constructor(project: SoundscaperProjectV21, body: Uint8Array) {
-		this.#projects.set(String(project.id), structuredClone(project))
-		this.#bodies.set(String(project.id), body.slice())
+	constructor(project: SoundscaperProjectV21 | null, body: Uint8Array) {
+		this.#metadataRevision = project === null ? 0 : 1
+		if (project !== null) {
+			this.#projects.set(String(project.id), structuredClone(project))
+			this.#bodies.set(String(project.id), body.slice())
+		}
 		this.api = Object.freeze({
 			connect: async () => {
 				this.#connected = true
@@ -161,6 +352,7 @@ class BridgeFixture {
 				return body.slice(offset, offset + Number(request.length))
 			},
 			beginPublication: async (request: Record<string, unknown>) => {
+				this.#publicationCount += 1
 				assert.equal(request.expectedMetadataRevision, this.#metadataRevision)
 				const project = structuredClone(request.project) as SoundscaperProjectV21
 				const bodies = request.bodies as readonly Readonly<SoundscaperDesktopV10Body>[]
@@ -190,7 +382,9 @@ class BridgeFixture {
 			finishPublication: async () => {
 				assert.ok(this.#active)
 				this.#uploaded = join(this.#chunks)
-				assert.equal(digest(this.#uploaded), this.#active.bodies[0]!.sha256)
+				if (this.#active.bodies.length > 0) {
+					assert.equal(digest(this.#uploaded), this.#active.bodies[0]!.sha256)
+				}
 				this.#projects.set(String(this.#active.project.id), structuredClone(this.#active.project))
 				this.#bodies.set(String(this.#active.project.id), this.#uploaded.slice())
 				this.#metadataRevision += 1
@@ -238,6 +432,17 @@ class BridgeFixture {
 	}
 
 	get uploaded(): Uint8Array { return this.#uploaded.slice() }
+	get metadataRevision(): number { return this.#metadataRevision }
+	get publicationCount(): number { return this.#publicationCount }
+	replaceAuthoritative(project: SoundscaperProjectV21): void {
+		this.#projects.set(String(project.id), structuredClone(project))
+		this.#metadataRevision += 1
+	}
+	projectRevision(projectId: string): number | null {
+		return Number(this.#projects.get(projectId)?.revision ?? -1) < 0
+			? null
+			: Number(this.#projects.get(projectId)?.revision)
+	}
 }
 
 function bundle(project: SoundscaperProjectV21, metadataRevision: number) {
@@ -327,6 +532,21 @@ function productionState(project: SoundscaperProjectV21) {
 		mixer: project.mixer,
 		audioFreeze: (project.tracks[0] as Readonly<Record<string, unknown>>).audioFreeze,
 	}
+}
+
+function revisedProject(
+	project: SoundscaperProjectV21,
+	revision: number,
+	title: string,
+	updatedAt: string,
+): SoundscaperProjectV21 {
+	const next = structuredClone(project) as SoundscaperProjectV21 & {
+		revision: number; title: string; updatedAt: string;
+	}
+	next.revision = revision
+	next.title = title
+	next.updatedAt = updatedAt
+	return next
 }
 
 async function durableStore(context: TestContext) {

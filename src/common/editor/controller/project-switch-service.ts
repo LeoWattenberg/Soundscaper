@@ -50,19 +50,19 @@ export function createProjectSwitchService<
 
 	async function newProject(options: NewProjectOptions = {}): Promise<void> {
 		const title = String(options.title || runtime.copy.untitledProject).trim() || runtime.copy.untitledProject;
-		const nextProject = runtime.createProject({
-			title,
-			sampleRate: runtime.normalizeProjectSampleRate(options.sampleRate),
-		});
-		const track = runtime.createInitialAudioTrackCommand({
+		const trackCommand = runtime.createInitialAudioTrackCommand({
 			schemaVersion: 2,
 			type: 'audio',
 			name: `${runtime.copy.track} 1`,
 			armed: true,
 			height: 300,
 		});
-		const history = runtime.executeCommand(runtime.createHistory(nextProject), track);
-		await switchProject(history.present, { save: true, skipFlush: options.skipFlush });
+		const nextProject = runtime.createProject({
+			title,
+			sampleRate: runtime.normalizeProjectSampleRate(options.sampleRate),
+			tracks: [trackCommand.track],
+		});
+		await switchProject(nextProject, { save: true, skipFlush: options.skipFlush });
 		const firstAudioTrack = runtime.getProject()?.tracks.find((candidate) => candidate.type === 'audio');
 		if (firstAudioTrack) runtime.assignPreferredInputToTrack(firstAudioTrack.id);
 	}

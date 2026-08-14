@@ -87,6 +87,54 @@ test('Soundscaper main publishes, reopens, duplicates, reads freeze PCM, and del
 	await main.close();
 });
 
+test('Soundscaper main accepts a higher coalesced project revision under exact base CAS', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-main-jump-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const current = frozenProject('soundscaper-v21-main-jump', 'Soundscaper V21 current');
+	const main = await start(root, 'soundscaper-main-jump');
+	context.after(() => main.close());
+	const session = main.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
+	context.after(() => session.close());
+	const first = await publish(session, current, 0, null, PCM, '11'.repeat(24));
+	const expected = {
+		projectRevision: first.project.projectRevision,
+		projectSha256: first.project.sha256,
+	};
+	const coalesced = revise(current, 2, 'Soundscaper V21 coalesced');
+	const jumped = await publish(
+		session, coalesced, first.metadataRevision, expected, PCM, '12'.repeat(24),
+	);
+	assert.equal(jumped.metadataRevision, first.metadataRevision + 1);
+	assert.equal(jumped.project.projectRevision, 2);
+	assert.deepEqual(JSON.parse(jumped.document), coalesced);
+
+	const jumpedExpected = {
+		projectRevision: jumped.project.projectRevision,
+		projectSha256: jumped.project.sha256,
+	};
+	await assert.rejects(
+		publish(session, revise(coalesced, 2, 'Equal revision'), jumped.metadataRevision,
+			jumpedExpected, PCM, '13'.repeat(24)),
+		/strictly greater|higher project revision/iu,
+	);
+	await assert.rejects(
+		publish(session, revise(coalesced, 1, 'Lower revision'), jumped.metadataRevision,
+			jumpedExpected, PCM, '14'.repeat(24)),
+		/strictly greater|higher project revision/iu,
+	);
+	await assert.rejects(
+		publish(session, revise(coalesced, 3, 'Divergent base'), jumped.metadataRevision, {
+			...jumpedExpected,
+			projectSha256: 'ff'.repeat(32),
+		}, PCM, '15'.repeat(24)),
+		/compare-and-swap/iu,
+	);
+	const retained = await session.readProjectBundle(current.id);
+	assert.ok(retained);
+	assert.equal(retained.metadataRevision, jumped.metadataRevision);
+	assert.deepEqual(JSON.parse(retained.document), coalesced);
+});
+
 async function start(appDataPath: string, instanceId: string) {
 	return SoundscaperDesktopProjectLibraryV10Main.start({
 		appDataPath,
@@ -141,6 +189,19 @@ function frozenProject(id: string, title: string) {
 		id, title, now: NOW, sources: [source, derived], clips: [clip], tracks: [track],
 		sequences: [{ id: 'main-sequence', trackIds: [track.id] }], primarySequenceId: 'main-sequence',
 	});
+}
+
+function revise(
+	project: ReturnType<typeof frozenProject>,
+	revision: number,
+	title: string,
+): ReturnType<typeof frozenProject> {
+	return {
+		...structuredClone(project),
+		revision,
+		title,
+		updatedAt: `2026-08-14T12:${String(revision).padStart(2, '0')}:00.000Z`,
+	};
 }
 
 function canonicalPcm(samples: readonly number[]): Uint8Array {

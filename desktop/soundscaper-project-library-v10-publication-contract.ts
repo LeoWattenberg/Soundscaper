@@ -112,8 +112,8 @@ export function planSoundscaperDesktopProjectLibraryV10Publication(
 			|| current[0]!.sha256 !== expectedProject.projectSha256) {
 			throw new Error('Soundscaper V10 expected project failed compare-and-swap');
 		}
-		if (Number(project.revision) !== increment(expectedProject.projectRevision, 'project revision')) {
-			throw new Error('Soundscaper V10 publication project revision must advance by exactly one');
+		if (!isStrictlyHigherProjectRevision(project.revision, expectedProject.projectRevision)) {
+			throw new Error('Soundscaper V10 publication requires a strictly higher project revision');
 		}
 	}
 	const projectBytes = new TextEncoder().encode(document);
@@ -260,6 +260,12 @@ function nonNegativeInteger(value: unknown, label: string): number {
 		throw new RangeError(`Soundscaper V10 ${label} must be a non-negative safe integer`);
 	}
 	return value;
+}
+
+function isStrictlyHigherProjectRevision(nextValue: unknown, currentValue: unknown): boolean {
+	return typeof nextValue === 'number' && Number.isSafeInteger(nextValue)
+		&& typeof currentValue === 'number' && Number.isSafeInteger(currentValue)
+		&& nextValue > currentValue;
 }
 
 function increment(value: number, label: string): number {

@@ -69,6 +69,40 @@ test('project saves serialize queued snapshots and only publish the newest gener
 	assert.equal(state.pendingSaveSnapshots.size, 0);
 });
 
+test('clean projects do not emit equal-revision explicit or terminal saves', async () => {
+	const project: TestProject = { id: 'clean-project', revision: 0 };
+	const saved: TestProject[] = [];
+	const state = {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set<TestProject>(),
+		saveQueue: Promise.resolve<unknown>(undefined),
+		saveState: 'saved',
+	};
+	const service = createProjectSaveService({
+		state,
+		getProject: () => project,
+		hasHistory: () => true,
+		hasUnsavedProjectChanges: () => false,
+		isReadOnly: () => false,
+		cloneProject: (value) => ({ ...value }),
+		admitProjectPublication: async () => undefined,
+		saveProject: async (snapshot) => { saved.push(snapshot); },
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: () => true,
+		hasSessionTab: () => true,
+		markProjectSaved: () => undefined,
+		publish: () => undefined,
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: () => undefined,
+	});
+
+	assert.equal(service.flushProject(), undefined);
+	await service.terminalFlush();
+	assert.deepEqual(saved, []);
+});
+
 test('autosaves collect immutable deduplicated kindful roots when the queued write starts', async () => {
 	const project: TestProject = { id: 'project', revision: 1 };
 	let releaseQueue: () => void = () => undefined;

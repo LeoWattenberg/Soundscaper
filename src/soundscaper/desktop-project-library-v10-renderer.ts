@@ -222,7 +222,10 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 			if (Number(request.project.revision) !== 0) {
 				throw new Error('The desktop V10 absence witness can publish only fresh revision zero.')
 			}
-		} else if (Number(request.project.revision) !== witness.expectedProject.projectRevision + 1) {
+		} else if (!isStrictlyHigherProjectRevision(
+			request.project.revision,
+			witness.expectedProject.projectRevision,
+		)) {
 			throw new Error('The desktop V10 publication is stale against its private revision witness.')
 		}
 		try {
@@ -417,7 +420,7 @@ function assertLocalCas(
 	const snapshot = snapshotSoundscaperDesktopV10Project(profile, current)
 	if (Number(current.revision) !== request.expectedProject.projectRevision
 		|| snapshot.sha256 !== request.expectedProject.projectSha256
-		|| Number(request.project.revision) !== Number(current.revision) + 1) {
+		|| !isStrictlyHigherProjectRevision(request.project.revision, current.revision)) {
 		throw new Error('The V21 shadow failed the desktop publication compare-and-swap.')
 	}
 }
@@ -444,10 +447,16 @@ function shadowMode(
 	if (sameSoundscaperDesktopV10Project(current, project)) return 'same'
 	const revision = Number(current.revision)
 	if (String(current.id) !== String(project.id) || !Number.isSafeInteger(revision)
-		|| revision === Number.MAX_SAFE_INTEGER || Number(project.revision) !== revision + 1) {
-		throw new Error('Desktop reconciliation requires the exact next V21 shadow revision.')
+		|| !isStrictlyHigherProjectRevision(project.revision, revision)) {
+		throw new Error('Desktop reconciliation requires a strictly higher V21 shadow revision.')
 	}
 	return 'update'
+}
+
+function isStrictlyHigherProjectRevision(nextValue: unknown, currentValue: unknown): boolean {
+	return typeof nextValue === 'number' && Number.isSafeInteger(nextValue)
+		&& typeof currentValue === 'number' && Number.isSafeInteger(currentValue)
+		&& nextValue > currentValue
 }
 
 function assertShadowStore(value: unknown): asserts value is SoundscaperDesktopProjectLibraryV10ShadowStore {

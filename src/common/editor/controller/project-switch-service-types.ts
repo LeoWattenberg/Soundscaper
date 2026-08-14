@@ -120,7 +120,11 @@ export interface ProjectSwitchServiceRuntime<
 	readonly copy: ProjectLifecycleCopy;
 	readonly getProject: () => Project | null;
 	readonly setProject: (project: Project | null) => void;
-	readonly createProject: (options: Readonly<{ title: string; sampleRate: number }>) => Project;
+	readonly createProject: (options: Readonly<{
+		title: string;
+		sampleRate: number;
+		tracks?: Project['tracks'];
+	}>) => Project;
 	readonly normalizeProjectSampleRate: (sampleRate: unknown) => number;
 	readonly createInitialAudioTrackCommand: (options: Readonly<{
 		schemaVersion: 2;
@@ -128,7 +132,7 @@ export interface ProjectSwitchServiceRuntime<
 		name: string;
 		armed: true;
 		height: 300;
-	}>) => unknown;
+	}>) => Readonly<{ readonly track: Project['tracks'][number] }>;
 	readonly createHistory: (project: Project) => History;
 	readonly executeCommand: (history: History, command: unknown) => History;
 	readonly migrateProject: (value: unknown) => Readonly<{

@@ -19,6 +19,7 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly state: ProjectSaveState<Project>;
 	readonly getProject: () => Project | null;
 	readonly hasHistory: () => boolean;
+	readonly hasUnsavedProjectChanges?: () => boolean;
 	readonly isReadOnly: () => boolean;
 	readonly cloneProject: (project: Project) => Project;
 	readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
@@ -113,7 +114,8 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 
 	function flushCurrentProject(allowTerminal: boolean): Promise<unknown> | undefined {
 		if (suspended || (terminal && !allowTerminal)) return undefined;
-		if (!dependencies.hasHistory() || dependencies.isReadOnly()) {
+		if (!dependencies.hasHistory() || dependencies.isReadOnly()
+			|| dependencies.hasUnsavedProjectChanges?.() === false) {
 			cancelScheduled();
 			return undefined;
 		}

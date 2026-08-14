@@ -18,6 +18,7 @@ interface TestTrack {
 }
 interface TestProject extends ProjectLifecycleProject {
 	readonly title: string; readonly sampleRate: number;
+	readonly revision: number;
 	readonly tracks: readonly TestTrack[]; readonly clips: readonly Readonly<{ id: string }>[];
 	readonly schemaVersion?: number; readonly featureRequirements?: unknown;
 	readonly trackFolders?: readonly unknown[];
@@ -28,7 +29,7 @@ interface TestLock extends ProjectLifecycleLock { releases: number; }
 
 export function project(id: string, tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }]): TestProject {
 	return {
-		id, title: id, sampleRate: 48_000, tracks, clips: [], trackFolders: [], schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		id, title: id, sampleRate: 48_000, revision: 0, tracks, clips: [], trackFolders: [], schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: [] },
 	};
 }
@@ -65,6 +66,7 @@ export function createFixture(
 	const events: string[] = [];
 	const statuses: Array<readonly [string, string]> = [];
 	const assignedTracks: string[] = [];
+	const createdProjects: TestProject[] = [];
 	const revokedUrls: string[] = [];
 	const readOnlyUpdates: Array<Readonly<Record<string, unknown>>> = [];
 	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>();
@@ -145,17 +147,25 @@ export function createFixture(
 		},
 		getProject: () => currentProject,
 		setProject: (value: TestProject | null) => { currentProject = value; },
-		createProject: ({ title, sampleRate }: Readonly<{ title: string; sampleRate: number }>) => ({
-			id: `created-${++createdSequence}`, title, sampleRate, tracks: [], clips: [],
+		createProject: ({ title, sampleRate, tracks = [] }: Readonly<{
+			title: string; sampleRate: number; tracks?: readonly TestTrack[];
+		}>) => ({
+			id: `created-${++createdSequence}`, title, sampleRate, revision: 0, tracks, clips: [],
 		}),
 		normalizeProjectSampleRate: (value: unknown) => Number(value) || 48_000,
 		createInitialAudioTrackCommand: (options: Readonly<Record<string, unknown>>) => ({
-			...options, id: 'prepared-track',
+			type: 'track/add' as const,
+			track: { ...options, id: 'prepared-track' } as TestTrack,
 		}),
 		createHistory: (value: TestProject): TestHistory => ({ present: value }),
 		executeCommand: (history: TestHistory, command: unknown): TestHistory => {
-			const prepared = command as Readonly<{ id: string; type: string; name?: string }>;
-			return { present: { ...history.present, tracks: [...history.present.tracks, prepared] } };
+			const prepared = (command as Readonly<{
+				track: Readonly<{ id: string; type: string; name?: string }>;
+			}>).track;
+			return { present: {
+				...history.present, revision: history.present.revision + 1,
+				tracks: [...history.present.tracks, prepared],
+			} };
 		},
 		migrateProject: (value: unknown) => ({ project: value as TestProject, readOnly: migrationReadOnly }),
 		verifyProjectFallbackIntegrity: () => ({ assertCurrent() {} }),
@@ -229,6 +239,7 @@ export function createFixture(
 		...(options.createOnly ? {
 			createProjectIfAbsent: async (value: TestProject) => {
 				events.push(`create-project:${value.id}`);
+				createdProjects.push(structuredClone(value));
 				return value;
 			},
 		} : {}),
@@ -243,6 +254,7 @@ export function createFixture(
 	} satisfies ProjectSwitchServiceRuntime<TestProject, TestHistory>;
 	return {
 		assignedTracks,
+		createdProjects,
 		events,
 		initialLock,
 		lifetime,

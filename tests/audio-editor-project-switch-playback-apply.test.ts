@@ -246,7 +246,9 @@ test('project switching cancels signal-ignoring playback source readiness before
 		setProject: (candidate) => { currentProject = candidate; },
 		createProject: () => project('created-project'),
 		normalizeProjectSampleRate: (value) => Number(value) || 48_000,
-		createInitialAudioTrackCommand: () => Object.freeze({}),
+		createInitialAudioTrackCommand: () => Object.freeze({
+			track: Object.freeze({ id: 'initial-track', type: 'audio' }),
+		}),
 		createHistory: (candidate) => ({ present: candidate }),
 		executeCommand: (history) => history,
 		migrateProject: (value) => ({ project: value as TestProject, readOnly: false }),
