@@ -30,8 +30,10 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/assistance-sherpa-recognizer.js',
 		'desktop/assistance-speech-runtime.js',
 		'desktop/helper-contract.js',
+		'desktop/helper-job-grant.js',
 		'desktop/helper-probe-service.js',
 		'desktop/helper-supervisor.js',
+		'desktop/helper-wire-admission.js',
 		'desktop/linked-original-locator-validation.js',
 		'desktop/linked-video-locator-registry.js',
 		'desktop/linked-video-locator-store.js',
@@ -243,6 +245,13 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	for (const name of result.files) {
 		const source = await readFile(join(outputRoot, name), 'utf8');
 		assert.doesNotMatch(source, /from ['"].*\.ts['"]/u);
+	}
+	const packagedRuntimePrefix = './desktop/project-library-runtime/';
+	for (const [specifier, target] of Object.entries(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
+		assert.ok(target.startsWith(packagedRuntimePrefix),
+			`${specifier} must resolve inside the packaged desktop runtime`);
+		assert.ok(result.files.includes(target.slice(packagedRuntimePrefix.length)),
+			`${specifier} must resolve to a compiled desktop runtime member`);
 	}
 	assert.ok(result.files.includes('src/common/editor/project-v12-validation.js'));
 	assert.ok(result.files.includes('src/common/editor/track-folder-v12.js'));

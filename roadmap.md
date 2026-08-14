@@ -36,8 +36,8 @@ owning source of truth:
   [milestone-3 plan](docs/milestone-3-plan.md);
 - milestone-4 sequencing, automation/keyframe and mixer-graph decisions,
   and work packets: [milestone-4 plan](docs/milestone-4-plan.md);
-- milestone-5 sequencing, helper-contract and plug-in/codec decisions,
-  and work packets: [milestone-5 plan](docs/milestone-5-plan.md);
+- milestone-5 sequencing, helper-contract, and work packets:
+  [milestone-5 plan](docs/milestone-5-plan.md) and [5A pickup](docs/milestone-5a-soundscaper-native.md);
 - milestone-6 sequencing, delivery-model and interchange decisions, and
   work packets: [milestone-6 plan](docs/milestone-6-plan.md);
 - milestone-7 sequencing, runtime and model-catalog decisions, and work
@@ -185,7 +185,7 @@ Known architectural constraints that drive later work:
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **In progress — provisional candidates** | Complete automation, routing, compositing, captions, and finishing. |
-| 5. Electron-native services | **In progress — 5.0 foundation** | Add isolated native media, audio, render, and plug-in services. |
+| 5. Electron-native services | **In progress — 5A-0a local** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Planned** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **Blocked/Planned** | Add Framescaper recording, then MIDI after upstream design review. |
@@ -656,30 +656,27 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **In progress — the serialized 5.0 foundation is implemented:**
-helper contract v1, the supervised off-by-default native probe helper
-surface, its threat-model/security-matrix enactment, and the packaged
-staging fix. The 5A and 5B tracks remain planned and must not begin
-until every 5.0 acceptance check passes; native-OS-lab qualification
-remains open.
+**Status:** **In progress — 5A-0a implemented provisionally/local; 5A-0b next.**
+Packaged native-payload/process proof, real-time transport, product progress
+hookup, and native-lab qualification remain open.
 
 **Goal:** make Electron materially more capable without weakening the renderer
 sandbox or creating a second editor engine.
 
-Sequencing, the helper-contract and plug-in/codec decisions, their
-invariants, and the bounded work packets are owned by the
-[milestone-5 plan](docs/milestone-5-plan.md).
+The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared
+contract; the [milestone-5A pickup](docs/milestone-5a-soundscaper-native.md)
+owns Soundscaper readiness, architecture, and acceptance.
 
 ### Native service architecture
 
-- **Electron Enhanced — In progress:** versioned media, audio-device, render, and
-  plug-in helper processes with authenticated bounded IPC, explicit capabilities,
-  cancellation, heartbeats, and structured progress/errors. Contract v1 and
-  the read-only probe helper are implemented; further helper tiers are 5A/5B
-  scope.
-- **Electron Enhanced — Planned:** per-job CPU, memory, file, duration,
-  child-process, and network policy; helper failure cannot corrupt the last
-  project revision.
+- **Electron Enhanced — In progress:** contract v1 now has exact bounded,
+  direction-correct control admission, closed negotiated job/grant families,
+  quiescent cancellation, heartbeat generations, qualifying-fault quarantine,
+  and bounded monotonic progress. Task-coordinator/UI consumption is follow-on.
+- **Electron Enhanced — In progress:** the real off-by-default probe enforces
+  input, duration, concurrency, and RSS limits. Generic native payloads, a
+  packaged `utilityProcess` proof, durable quarantine, and direct real-time
+  transport remain 5A-0b/0c or later work. Helpers cannot publish revisions.
 - **Electron Only — Planned:** out-of-process effect plug-in scanning,
   descriptors, quarantine, and isolated hosting. Instrument-class exposure
   remains blocked until milestone 8B.
@@ -776,9 +773,9 @@ invariants, and the bounded work packets are owned by the
 
 **Depends on:** milestone 2. **Optional:** never blocks milestones 8 or 9.
 The assistance helper process is milestone-7-owned scope whose protocol is
-designed to converge with the future milestone-5 helper contract; milestone 5
-remains the owning contract for the general helper architecture, and its exit
-gate owns full qualification.
+required to conform to the now-enacted milestone-5 helper contract before it is
+wired into a packaged runtime; milestone 5 remains the owning contract for the
+general helper architecture, and its exit gate owns full qualification.
 
 Sequencing, the runtime and model-catalog decisions, the assistance-lifecycle
 invariants, and the bounded work packets are owned by the

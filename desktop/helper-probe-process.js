@@ -15,9 +15,10 @@
 import {
 	HELPER_CONTRACT_VERSION,
 	HELPER_HEARTBEAT_INTERVAL_MS,
-	HELPER_JOB_KINDS,
+	HELPER_PROBE_JOB_KINDS,
 	serializeHelperError,
 	validateHelperHostMessage,
+	validateHelperProcessMessage,
 } from '#desktop-runtime/helper-contract';
 
 export function createHelperProbeWorker({
@@ -37,12 +38,12 @@ export function createHelperProbeWorker({
 		send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'heartbeat', jobId: activeJob?.jobId ?? null });
 	}, heartbeatIntervalMs);
 	if (typeof heartbeat?.unref === 'function') heartbeat.unref();
-	send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'hello', kinds: [...HELPER_JOB_KINDS] });
+	send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'hello', kinds: [...HELPER_PROBE_JOB_KINDS] });
 
 	function send(message) {
 		if (disposed) return;
 		try {
-			post(message);
+			post(validateHelperProcessMessage(message));
 		} catch {
 			dispose(1);
 		}
@@ -66,10 +67,11 @@ export function createHelperProbeWorker({
 		if (message.type === 'cancel') {
 			const job = activeJob;
 			if (!job || job.jobId !== message.jobId) return;
-			job.cancelled = true;
-			job.cancel();
-			send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'cancelled', jobId: job.jobId });
-			activeJob = null;
+			void cancelJob(job);
+			return;
+		}
+		if (!HELPER_PROBE_JOB_KINDS.includes(message.kind)) {
+			dispose(1);
 			return;
 		}
 		if (activeJob) {
@@ -81,13 +83,28 @@ export function createHelperProbeWorker({
 			});
 			return;
 		}
-		const job = { jobId: message.jobId, cancelled: false, cancel: () => {} };
+		const job = { jobId: message.jobId, cancelled: false, cancelling: false, cancel: async () => {} };
 		activeJob = job;
-		const engine = runEngineJob({
-			kind: message.kind,
-			grant: message.grant,
-			resourcePolicy: message.resourcePolicy,
-		});
+		let engine;
+		try {
+			engine = runEngineJob({
+				kind: message.kind,
+				grant: message.grant,
+				resourcePolicy: message.resourcePolicy,
+				onProgress: (value) => {
+					if (job.cancelled || disposed || activeJob !== job) return;
+					send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'progress', jobId: job.jobId, value });
+				},
+			});
+		} catch {
+			dispose(1);
+			return;
+		}
+		if (!engine || typeof engine !== 'object' || typeof engine.cancel !== 'function'
+			|| typeof engine.completion?.then !== 'function') {
+			dispose(1);
+			return;
+		}
 		job.cancel = () => engine.cancel();
 		engine.completion.then(
 			(result) => {
@@ -97,6 +114,10 @@ export function createHelperProbeWorker({
 			},
 			(error) => {
 				if (job.cancelled || disposed || activeJob !== job) return;
+				if (error?.code === 'HELPER_ENGINE_PROTOCOL_VIOLATION') {
+					dispose(1);
+					return;
+				}
 				activeJob = null;
 				send({
 					contractVersion: HELPER_CONTRACT_VERSION,
@@ -108,11 +129,29 @@ export function createHelperProbeWorker({
 		);
 	}
 
+	async function cancelJob(job) {
+		if (job.cancelling || job !== activeJob) return;
+		job.cancelling = true;
+		job.cancelled = true;
+		try {
+			await job.cancel();
+		} catch {
+			// Without a completed engine cancellation, quiescence is unknown.
+			// Exit the containing utility process instead of acknowledging or
+			// admitting another worker that could overlap the old one.
+			dispose(1);
+			return;
+		}
+		if (disposed || activeJob !== job) return;
+		activeJob = null;
+		send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'cancelled', jobId: job.jobId });
+	}
+
 	function dispose(code) {
 		if (disposed) return;
 		disposed = true;
 		clearIntervalImpl(heartbeat);
-		activeJob?.cancel();
+		if (activeJob) void Promise.resolve(activeJob.cancel()).catch(() => undefined);
 		activeJob = null;
 		exit(code);
 	}
@@ -126,7 +165,7 @@ export function createHelperProbeWorker({
  * `terminate()` rather than a cooperative request.
  */
 export function createEngineThreadJobRunner({ engineModuleUrl, engineConfig, WorkerImpl }) {
-	return ({ grant, resourcePolicy }) => {
+	return ({ grant, resourcePolicy, onProgress = () => {} }) => {
 		const worker = new WorkerImpl(engineModuleUrl, {
 			workerData: { engineConfig, grant, resourcePolicy },
 		});
@@ -135,16 +174,64 @@ export function createEngineThreadJobRunner({ engineModuleUrl, engineConfig, Wor
 			settle = { resolve, reject };
 		});
 		let finished = false;
-		worker.once('message', (message) => {
+		let termination = null;
+		const terminate = () => {
+			if (termination) return termination;
+			try {
+				termination = Promise.resolve(worker.terminate()).then(() => undefined);
+			} catch (error) {
+				termination = Promise.reject(error);
+			}
+			return termination;
+		};
+		worker.on('message', (message) => {
+			if (finished) return;
+			if (message?.type === 'progress') {
+				const keys = Object.keys(message);
+				if (keys.length === 2 && keys.includes('type') && keys.includes('value')
+					&& (message.value === null || (typeof message.value === 'number'
+						&& Number.isFinite(message.value) && message.value >= 0 && message.value <= 1))) {
+					onProgress(message.value);
+					return;
+				}
+				finished = true;
+				void terminate().then(
+					() => settle.reject(engineProtocolViolation('The probe engine sent malformed progress.')),
+					(error) => settle.reject(error instanceof Error ? error : new Error(String(error))),
+				);
+				return;
+			}
+			let terminal;
+			try {
+				terminal = validateEngineTerminalMessage(message);
+			} catch (error) {
+				finished = true;
+				void terminate().then(
+					() => settle.reject(error),
+					(terminationError) => settle.reject(
+						terminationError instanceof Error ? terminationError : new Error(String(terminationError)),
+					),
+				);
+				return;
+			}
 			finished = true;
-			if (message && message.ok === true) settle.resolve(message.result);
-			else settle.reject(deserializeEngineError(message));
-			void worker.terminate();
+			void terminate().then(
+				() => {
+					if (terminal.ok === true) settle.resolve(terminal.result);
+					else settle.reject(deserializeEngineError(terminal));
+				},
+				(error) => settle.reject(error instanceof Error ? error : new Error(String(error))),
+			);
 		});
 		worker.once('error', (error) => {
 			if (finished) return;
 			finished = true;
-			settle.reject(error instanceof Error ? error : new Error(String(error)));
+			void terminate().then(
+				() => settle.reject(error instanceof Error ? error : new Error(String(error))),
+				(terminationError) => settle.reject(
+					terminationError instanceof Error ? terminationError : new Error(String(terminationError)),
+				),
+			);
 		});
 		worker.once('exit', (code) => {
 			if (finished) return;
@@ -154,11 +241,33 @@ export function createEngineThreadJobRunner({ engineModuleUrl, engineConfig, Wor
 		return Object.freeze({
 			completion,
 			cancel: () => {
+				if (finished) return termination ?? Promise.resolve();
 				finished = true;
-				void worker.terminate();
+				return terminate();
 			},
 		});
 	};
+}
+
+function validateEngineTerminalMessage(message) {
+	if (!message || typeof message !== 'object' || Array.isArray(message)) {
+		throw engineProtocolViolation('The probe engine sent a malformed terminal message.');
+	}
+	const keys = Object.keys(message);
+	if (message.ok === true && keys.length === 2 && keys.includes('ok') && keys.includes('result')) return message;
+	const errorKeys = ['ok', 'name', 'message', ...(message.code === undefined ? [] : ['code'])];
+	if (message.ok === false && keys.length === errorKeys.length && keys.every((key) => errorKeys.includes(key))
+		&& typeof message.name === 'string' && typeof message.message === 'string'
+		&& (message.code === undefined || typeof message.code === 'string')) {
+		return message;
+	}
+	throw engineProtocolViolation('The probe engine sent a malformed terminal message.');
+}
+
+function engineProtocolViolation(message) {
+	const error = new TypeError(message);
+	error.code = 'HELPER_ENGINE_PROTOCOL_VIOLATION';
+	return error;
 }
 
 function deserializeEngineError(message) {

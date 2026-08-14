@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
 	DESKTOP_VIDEO_TIMING_PROBE_MODE,
 	DESKTOP_VIDEO_TIMING_PROBE_PREFIX,
+	DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS,
 	createDesktopVideoTimingProbePlan,
 	encodeDesktopVideoTimingProbePlan,
 	validateDesktopVideoTimingProbeResult,
@@ -118,7 +119,7 @@ function run(binary, args) {
 		const timeout = setTimeout(() => {
 			child.kill();
 			reject(new Error('Packaged video timing-probe smoke timed out.'));
-		}, 100_000);
+		}, DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS + 10_000);
 		child.once('exit', (code) => {
 			clearTimeout(timeout);
 			resolvePromise({ code, output });

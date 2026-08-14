@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EventEmitter } from 'node:events';
 
+import { MAXIMUM_HELPER_WIRE_MESSAGE_BYTES } from '../desktop/helper-contract.ts';
 import {
 	createEngineThreadJobRunner,
 	createHelperProbeWorker,
@@ -44,6 +45,7 @@ function createControlHarness({ engine } = {}) {
 				completion,
 				cancel: () => {
 					record.cancelCalls += 1;
+					return Promise.resolve();
 				},
 			};
 		},
@@ -100,15 +102,76 @@ test('helper worker posts a structured error when the engine fails', async () =>
 	assert.equal(error.error.code, 'HELPER_GRANT_IDENTITY_MISMATCH');
 });
 
-test('helper worker acknowledges cancellation immediately and terminates the engine job', () => {
-	const { worker, posted, engineJobs } = createControlHarness();
+test('helper worker validates a result before it reaches the process post seam', async () => {
+	const { worker, posted, exits, engineJobs } = createControlHarness();
+	worker.handleMessage(structuredClone(JOB_MESSAGE));
+	engineJobs[0].record.settle.resolve({ payload: 'x'.repeat(MAXIMUM_HELPER_WIRE_MESSAGE_BYTES) });
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(exits, [1]);
+	assert.equal(posted.some((message) => message.type === 'result'), false,
+		'an oversized engine result must be refused before Electron clones it into main');
+});
+
+test('helper worker forwards bounded engine progress only for its active generation', async () => {
+	let reportProgress;
+	let finishCancellation;
+	const cancellation = new Promise((resolve) => {
+		finishCancellation = resolve;
+	});
+	const { worker, posted } = createControlHarness({
+		engine: ({ onProgress }) => {
+			reportProgress = onProgress;
+			return { completion: new Promise(() => {}), cancel: () => cancellation };
+		},
+	});
+	worker.handleMessage(structuredClone(JOB_MESSAGE));
+	for (const value of [0, null, 1]) reportProgress(value);
+	assert.deepEqual(posted.slice(-3).map((message) => message.value), [0, null, 1]);
+
+	worker.handleMessage({ contractVersion: 1, type: 'cancel', jobId: JOB_ID });
+	const beforeLateProgress = posted.length;
+	reportProgress(0.5);
+	assert.equal(posted.length, beforeLateProgress, 'a cancelling generation cannot publish late progress');
+	finishCancellation();
+	await new Promise((resolve) => setImmediate(resolve));
+});
+
+test('helper worker acknowledges cancellation only after engine quiescence and admits no overlap', async () => {
+	let finishCancellation;
+	let finishEngine;
+	const cancellation = new Promise((resolve) => {
+		finishCancellation = resolve;
+	});
+	const { worker, posted, engineJobs } = createControlHarness({
+		engine: () => {
+			const completion = new Promise((resolve) => {
+				finishEngine = resolve;
+			});
+			return {
+				completion,
+				cancel: () => cancellation,
+			};
+		},
+	});
 	worker.handleMessage(structuredClone(JOB_MESSAGE));
 	worker.handleMessage({ contractVersion: 1, type: 'cancel', jobId: JOB_ID });
-	assert.deepEqual(posted.at(-1), { contractVersion: 1, type: 'cancelled', jobId: JOB_ID });
-	assert.equal(engineJobs[0].record.cancelCalls, 1);
+	assert.notEqual(posted.at(-1).type, 'cancelled', 'acknowledgement must wait for worker termination');
+
+	const second = { ...structuredClone(JOB_MESSAGE), jobId: 'cd'.repeat(20) };
+	worker.handleMessage(second);
+	assert.equal(engineJobs.length, 1, 'a cancelling engine may not overlap a replacement job');
+	assert.equal(posted.at(-1).type, 'error');
+	assert.equal(posted.at(-1).jobId, second.jobId);
+
 	// A late engine settlement after cancellation must not resurrect the job.
-	engineJobs[0].record.settle.resolve({ probed: true });
+	finishEngine({ probed: true });
+	finishCancellation();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(posted.at(-1), { contractVersion: 1, type: 'cancelled', jobId: JOB_ID });
 	assert.notEqual(posted.at(-1).type, 'result');
+
+	worker.handleMessage(second);
+	assert.equal(engineJobs.length, 2, 'the next engine may start after cancellation quiesces');
 });
 
 test('helper worker fails closed on a host message that violates the contract', () => {
@@ -120,10 +183,61 @@ test('helper worker fails closed on a host message that violates the contract', 
 	assert.deepEqual(shutdown.exits, [0]);
 });
 
-test('engine thread runner resolves results, rejects crashes, and terminates on cancel', async () => {
+test('probe helper refuses a globally known job kind it did not advertise', () => {
+	const { worker, exits, engineJobs } = createControlHarness();
+	worker.handleMessage({
+		contractVersion: 1,
+		type: 'job',
+		jobId: JOB_ID,
+		kind: 'audio-device',
+		grant: {
+			backend: 'coreaudio',
+			deviceHandle: 'main-owned-default-device',
+			direction: 'duplex',
+			mode: 'shared',
+		},
+		resourcePolicy: {
+			maximumInputBytes: 1024 ** 3,
+			maximumJobDurationMs: 60_000,
+			maximumRssBytes: 1024 ** 3,
+			allowNetwork: false,
+			allowChildProcesses: false,
+			allowOutputFiles: false,
+		},
+	});
+	assert.equal(engineJobs.length, 0);
+	assert.deepEqual(exits, [1]);
+});
+
+test('helper worker contains synchronous engine startup and protocol failures', async () => {
+	const startup = createControlHarness({
+		engine: () => {
+			throw new Error('worker construction failed');
+		},
+	});
+	assert.doesNotThrow(() => startup.worker.handleMessage(structuredClone(JOB_MESSAGE)));
+	assert.deepEqual(startup.exits, [1]);
+
+	const protocolError = new TypeError('malformed worker output');
+	protocolError.code = 'HELPER_ENGINE_PROTOCOL_VIOLATION';
+	const protocol = createControlHarness({
+		engine: () => ({
+			completion: Promise.reject(protocolError),
+			cancel: () => Promise.resolve(),
+		}),
+	});
+	protocol.worker.handleMessage(structuredClone(JOB_MESSAGE));
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(protocol.exits, [1]);
+	assert.equal(protocol.posted.some((message) => message.type === 'error'), false,
+		'a worker protocol violation must exit so main records a qualifying helper fault');
+});
+
+test('engine thread runner resolves results, rejects crashes, and awaits termination on cancel', async () => {
 	class FakeWorker extends EventEmitter {
 		static instances = [];
 		terminations = 0;
+		termination = Promise.resolve(0);
 
 		constructor(moduleUrl, options) {
 			super();
@@ -134,7 +248,7 @@ test('engine thread runner resolves results, rejects crashes, and terminates on 
 
 		terminate() {
 			this.terminations += 1;
-			return Promise.resolve(0);
+			return this.termination;
 		}
 	}
 	const runner = createEngineThreadJobRunner({
@@ -149,6 +263,26 @@ test('engine thread runner resolves results, rejects crashes, and terminates on 
 	assert.deepEqual(await success.completion, { probed: true });
 	assert.equal(successWorker.terminations, 1, 'a settled engine thread is always terminated');
 
+	const progress = [];
+	const progressing = runner({
+		grant: JOB_MESSAGE.grant,
+		resourcePolicy: JOB_MESSAGE.resourcePolicy,
+		onProgress: (value) => progress.push(value),
+	});
+	const progressWorker = FakeWorker.instances.at(-1);
+	for (const value of [0, null, 1]) progressWorker.emit('message', { type: 'progress', value });
+	assert.deepEqual(progress, [0, null, 1]);
+	progressWorker.emit('message', { ok: true, result: 'done' });
+	assert.equal(await progressing.completion, 'done');
+
+	const malformedProgress = runner({ grant: JOB_MESSAGE.grant, resourcePolicy: JOB_MESSAGE.resourcePolicy });
+	const malformedProgressWorker = FakeWorker.instances.at(-1);
+	malformedProgressWorker.emit('message', { type: 'progress', value: 1.01 });
+	await assert.rejects(malformedProgress.completion, (error) => (
+		error.code === 'HELPER_ENGINE_PROTOCOL_VIOLATION' && /malformed progress/u.test(error.message)
+	));
+	assert.equal(malformedProgressWorker.terminations, 1);
+
 	const engineError = runner({ grant: JOB_MESSAGE.grant, resourcePolicy: JOB_MESSAGE.resourcePolicy });
 	FakeWorker.instances.at(-1).emit('message', {
 		ok: false, name: 'RangeError', message: 'bad media', code: 'HELPER_ENGINE_BINARY_MISMATCH',
@@ -162,6 +296,18 @@ test('engine thread runner resolves results, rejects crashes, and terminates on 
 	await assert.rejects(crashed.completion, /exited with code 134/u);
 
 	const cancelled = runner({ grant: JOB_MESSAGE.grant, resourcePolicy: JOB_MESSAGE.resourcePolicy });
-	cancelled.cancel();
+	let finishTermination;
+	FakeWorker.instances.at(-1).termination = new Promise((resolve) => {
+		finishTermination = resolve;
+	});
+	let quiesced = false;
+	const cancelling = cancelled.cancel().then(() => {
+		quiesced = true;
+	});
 	assert.equal(FakeWorker.instances.at(-1).terminations, 1, 'cancel must terminate the engine thread immediately');
+	await Promise.resolve();
+	assert.equal(quiesced, false, 'cancel must not settle before thread termination');
+	finishTermination(0);
+	await cancelling;
+	assert.equal(quiesced, true);
 });

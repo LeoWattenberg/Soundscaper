@@ -5,7 +5,7 @@ import { isAbsolute } from 'node:path';
 
 export const DESKTOP_VIDEO_TIMING_PROBE_MODE = 'video-timing-persistence-v1';
 export const DESKTOP_VIDEO_TIMING_PROBE_PREFIX = 'SOUNDSCAPER_DESKTOP_VIDEO_TIMING_PROBE';
-export const DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS = 90_000;
+export const DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS = 120_000;
 
 const MAXIMUM_PLAN_BYTES = 64 * 1024;
 const TOKEN = /^[a-f\d]{32}$/u;
@@ -36,8 +36,8 @@ const EXPECTED_FIXTURES = Object.freeze([
 const STORAGE_PROFILES = Object.freeze({
 	soundscaper: Object.freeze({
 		productId: 'soundscaper',
-		databaseName: 'kw-media-audio-editor',
-		opfsDirectoryName: 'audio-editor-sources',
+		databaseName: 'kw-media-soundscaper-editor-v21',
+		opfsDirectoryName: 'soundscaper-editor-v21-sources',
 	}),
 	framescaper: Object.freeze({
 		productId: 'framescaper',
@@ -150,17 +150,30 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 	if (!importButton || importButton.disabled) {
 		throw new Error('Desktop video timing-probe ordinary Import control is unavailable');
 	}
+	const activeProjectId = scope.document.querySelector('[data-project-id]')?.getAttribute('data-project-id') ?? null;
+	const publicationBefore = await publicationSnapshot(scope, plan.productId);
 	importButton.click();
 	const sourceNames = plan.fixtures.map(({ name }) => name);
 	const deadline = Date.now() + 75_000;
 	let fixtures = [];
+	let terminalStatus = null;
 	while (Date.now() < deadline) {
 		fixtures = await persistedTimingEvidence(scope, sourceNames);
 		if (fixtures.length === sourceNames.length) break;
+		const status = editor.querySelector('[data-status]');
+		if (status?.getAttribute('data-state') === 'error') {
+			terminalStatus = status.textContent || 'unknown error';
+			break;
+		}
 		await new Promise((resolve) => scope.setTimeout(resolve, 50));
 	}
 	if (fixtures.length !== sourceNames.length) {
-		throw new Error(`Desktop video timing-probe import did not persist both timing bodies: ${editor.querySelector('[data-status]')?.textContent || 'no status'}`);
+		const status = terminalStatus || editor.querySelector('[data-status]')?.textContent || 'no status';
+		const publicationAfter = await publicationSnapshot(scope, plan.productId);
+		const diagnostic = publicationDiagnostic(
+			activeProjectId, publicationBefore, publicationAfter, status,
+		);
+		throw new Error(`Desktop video timing-probe import did not persist both timing bodies: ${status}; publication diagnostic ${JSON.stringify(diagnostic)}`);
 	}
 	return {
 		schemaVersion: 1,
@@ -240,6 +253,52 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		return bytes;
 	}
 
+	async function publicationSnapshot(globalScope, productId) {
+		const bridge = productId === 'soundscaper'
+			? globalScope.soundscaperProjectLibraryDesktop?.v10
+			: globalScope.framescaperProjectLibraryDesktop?.v10;
+		if (typeof bridge?.listProjects !== 'function') return null;
+		try {
+			const snapshot = await bridge.listProjects();
+			return {
+				metadataRevision: Number.isSafeInteger(snapshot?.metadataRevision)
+					? snapshot.metadataRevision : null,
+				projects: Array.isArray(snapshot?.projects) ? snapshot.projects.slice(0, 32).map((project) => ({
+					id: typeof project?.id === 'string' ? project.id.slice(0, 256) : null,
+					revision: Number.isSafeInteger(project?.revision) ? project.revision : null,
+				})) : [],
+			};
+		} catch (error) {
+			const message = typeof error?.message === 'string' ? error.message : String(error);
+			return { error: message.slice(0, 512) };
+		}
+	}
+
+	function publicationDiagnostic(projectId, before, after, status) {
+		const prior = before?.projects?.find((project) => project.id === projectId) ?? null;
+		const current = after?.projects?.find((project) => project.id === projectId) ?? null;
+		const witnessFailure = /authoritative desktop V10 load witness/iu.test(status);
+		const stalePublication = /desktop V10 publication is stale/iu.test(status);
+		let classification = 'publication-state-unavailable';
+		if (before && after && !before.error && !after.error) {
+			if (!prior) classification = 'initial-save-missing';
+			else if (after.metadataRevision === before.metadataRevision
+				&& current?.revision === prior.revision) {
+				classification = stalePublication
+					? 'revision-jump-refused-before-first-import-publication'
+					: witnessFailure
+						? 'witness-missing-before-first-import-publication'
+						: 'no-import-publication-committed';
+			} else if (after.metadataRevision === before.metadataRevision + 1
+				&& current?.revision === prior.revision + 1) {
+				classification = witnessFailure
+					? 'witness-missing-after-one-import-publication'
+					: 'one-import-publication-committed';
+			} else classification = 'publication-revision-jump';
+		}
+		return { activeProjectId: projectId, classification, before, after };
+	}
+
 	function validateStorageProfile(value, productId) {
 		const fields = ['databaseName', 'opfsDirectoryName', 'productId'];
 		if (!value || typeof value !== 'object' || Array.isArray(value)
@@ -258,9 +317,9 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		const framescaper = productId === 'framescaper';
 		if ((!framescaper && productId !== 'soundscaper') || profile.productId !== productId
 			|| profile.databaseName !== (framescaper
-				? 'kw-media-framescaper-editor-v18' : 'kw-media-audio-editor')
+				? 'kw-media-framescaper-editor-v18' : 'kw-media-soundscaper-editor-v21')
 			|| profile.opfsDirectoryName !== (framescaper
-				? 'framescaper-editor-v18-sources' : 'audio-editor-sources')) {
+				? 'framescaper-editor-v18-sources' : 'soundscaper-editor-v21-sources')) {
 			throw new TypeError('Desktop video timing-probe storage profile does not match its product');
 		}
 		return Object.freeze(profile);

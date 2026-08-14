@@ -5,9 +5,14 @@ import test from 'node:test';
 
 import {
 	HELPER_CONTRACT_VERSION,
+	HELPER_JOB_DURATION_HARD_LIMITS,
+	HELPER_JOB_KINDS,
+	HELPER_PROBE_JOB_KINDS,
 	HELPER_RESOURCE_HARD_LIMITS,
+	MAXIMUM_HELPER_WIRE_MESSAGE_BYTES,
 	HelperContractViolationError,
 	deserializeHelperError,
+	helperJobGrantInputBytes,
 	normalizeHelperResourcePolicy,
 	serializeHelperError,
 	validateHelperHostMessage,
@@ -34,6 +39,39 @@ const VALID_JOB = Object.freeze({
 	},
 });
 
+const VALID_FUTURE_JOBS = Object.freeze([
+	{
+		...VALID_JOB,
+		kind: 'audio-device',
+		grant: {
+			backend: 'coreaudio',
+			deviceHandle: 'main-resolved-device-7',
+			direction: 'duplex',
+			mode: 'shared',
+		},
+	},
+	{
+		...VALID_JOB,
+		kind: 'plugin-scan',
+		grant: {
+			rootPath: '/Library/Audio/Plug-Ins/VST3',
+			format: 'vst3',
+			identity: { dev: 3, ino: 43 },
+		},
+	},
+	{
+		...VALID_JOB,
+		kind: 'plugin-host',
+		grant: {
+			binaryPath: '/Library/Audio/Plug-Ins/VST3/example.vst3',
+			binaryBytes: 4_096,
+			binarySha256: 'a'.repeat(64),
+			format: 'vst3',
+			identity: { dev: 3, ino: 44 },
+		},
+	},
+]);
+
 const VALID_HOST_MESSAGES = Object.freeze([
 	VALID_JOB,
 	{ contractVersion: 1, type: 'cancel', jobId: JOB_ID },
@@ -52,7 +90,7 @@ const VALID_PROCESS_MESSAGES = Object.freeze([
 ]);
 
 test('helper contract v1 accepts every well-formed wire message', () => {
-	for (const message of VALID_HOST_MESSAGES) {
+	for (const message of [...VALID_HOST_MESSAGES, ...VALID_FUTURE_JOBS]) {
 		const validated = validateHelperHostMessage(structuredClone(message));
 		assert.equal(validated.contractVersion, HELPER_CONTRACT_VERSION);
 		assert.equal(validated.type, message.type);
@@ -64,6 +102,62 @@ test('helper contract v1 accepts every well-formed wire message', () => {
 	}
 });
 
+test('helper contract v1 negotiates closed job families and kind-correlated main grants', () => {
+	assert.deepEqual(HELPER_JOB_KINDS, [
+		'probe-video-source', 'audio-device', 'plugin-scan', 'plugin-host',
+	]);
+	assert.deepEqual(HELPER_PROBE_JOB_KINDS, ['probe-video-source']);
+	const hello = validateHelperProcessMessage({
+		contractVersion: 1,
+		type: 'hello',
+		kinds: ['audio-device', 'plugin-host'],
+	});
+	assert.equal(hello.type, 'hello');
+	assert.deepEqual(hello.type === 'hello' ? hello.kinds : null, ['audio-device', 'plugin-host']);
+	assert.equal(helperJobGrantInputBytes('probe-video-source', VALID_JOB.grant), 1_024);
+	assert.equal(helperJobGrantInputBytes('audio-device', VALID_FUTURE_JOBS[0].grant), 0);
+	assert.equal(helperJobGrantInputBytes('plugin-scan', VALID_FUTURE_JOBS[1].grant), 0);
+	assert.equal(helperJobGrantInputBytes('plugin-host', VALID_FUTURE_JOBS[2].grant), 4_096);
+	assert.throws(() => helperJobGrantInputBytes('audio-device', VALID_JOB.grant), HelperContractViolationError);
+	assert.throws(() => helperJobGrantInputBytes(
+		'unknown-kind' as 'audio-device', VALID_FUTURE_JOBS[0].grant,
+	), (error: unknown) => error instanceof HelperContractViolationError && error.code === 'unknown-kind');
+
+	for (const value of [
+		{ ...VALID_FUTURE_JOBS[0], grant: VALID_FUTURE_JOBS[2].grant },
+		{ ...VALID_FUTURE_JOBS[0], grant: { ...VALID_FUTURE_JOBS[0].grant, mediaPath: '/not-admitted' } },
+		{ ...VALID_FUTURE_JOBS[0], grant: { ...VALID_FUTURE_JOBS[0].grant, deviceHandle: 'é'.repeat(513) } },
+		{ ...VALID_FUTURE_JOBS[0], grant: { ...VALID_FUTURE_JOBS[0].grant, deviceHandle: 'device\0tail' } },
+		{ ...VALID_FUTURE_JOBS[1], grant: { ...VALID_FUTURE_JOBS[1].grant, rootPath: 'relative/VST3' } },
+		{ ...VALID_FUTURE_JOBS[1], grant: { ...VALID_FUTURE_JOBS[1].grant, rootPath: `/${'é'.repeat(2_048)}` } },
+		{ ...VALID_FUTURE_JOBS[1], grant: { ...VALID_FUTURE_JOBS[1].grant, format: 'dll' } },
+		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, binarySha256: 'A'.repeat(64) } },
+		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, binaryPath: `/${'e'.repeat(4_097)}` } },
+	]) {
+		assert.throws(() => validateHelperHostMessage(value), (error: unknown) => (
+			error instanceof HelperContractViolationError && error.code === 'unsafe-grant'
+		));
+	}
+	assert.throws(() => validateHelperProcessMessage({
+		contractVersion: 1,
+		type: 'hello',
+		kinds: ['plugin-host', 'plugin-host'],
+	}), HelperContractViolationError);
+});
+
+test('helper contract v1 rejects every well-formed message in the wrong direction', () => {
+	for (const message of VALID_PROCESS_MESSAGES) {
+		assert.throws(() => validateHelperHostMessage(structuredClone(message)), (error: unknown) => (
+			error instanceof HelperContractViolationError && error.code === 'wrong-direction'
+		));
+	}
+	for (const message of VALID_HOST_MESSAGES) {
+		assert.throws(() => validateHelperProcessMessage(structuredClone(message)), (error: unknown) => (
+			error instanceof HelperContractViolationError && error.code === 'wrong-direction'
+		));
+	}
+});
+
 /**
  * The malformed-message discipline of quality-budget fixture
  * `m5-helper-fault-and-loopback-v1`: exactly 10,000 deterministic malformed
@@ -71,34 +165,43 @@ test('helper contract v1 accepts every well-formed wire message', () => {
  * nothing else. This suite runs in ordinary CI as correctness evidence; the
  * fixture's device-bound loopback half stays on the unprovisioned lab matrix.
  */
-test('helper contract v1 rejects 10,000 deterministic malformed messages with typed violations', () => {
-	const random = mulberry32(0x5001);
-	const cases = deterministicMalformedCases(random, 10_000);
+test('helper contract v1 rejects exactly 10,000 assigned-direction malformed cases', () => {
+	const cases = deterministicMalformedCases(10_000);
 	assert.equal(cases.length, 10_000);
-	let rejectedByBoth = 0;
 	for (const [index, malformed] of cases.entries()) {
-		let bothRejected = true;
-		for (const validate of [validateHelperHostMessage, validateHelperProcessMessage]) {
-			try {
-				validate(malformed.value);
-				// A mutation may land back on a valid shape — for example the
-				// result envelope's opaque payload — which is fine; it must
-				// simply never escape with an untyped throw.
-				bothRejected = false;
-			} catch (error) {
-				assert.ok(
-					error instanceof HelperContractViolationError,
-					`case ${String(index)} (${malformed.label}) must reject with a typed violation, saw ${String(error)}`,
-				);
-			}
-		}
-		if (bothRejected) rejectedByBoth += 1;
+		const validate = malformed.direction === 'host'
+			? validateHelperHostMessage
+			: validateHelperProcessMessage;
+		assert.throws(() => validate(malformed.value), (error: unknown) => (
+			error instanceof HelperContractViolationError
+		), `case ${String(index)} (${malformed.direction}: ${malformed.label}) must reject with a typed violation`);
 	}
-	assert.ok(rejectedByBoth >= 9_850,
-		`at least 9,850 of 10,000 mutations must be rejected by both directions, saw ${String(rejectedByBoth)}`);
 });
 
-test('helper contract v1 rejects oversized payloads with the typed oversized violation', () => {
+test('helper contract v1 applies the exact global envelope bound before family semantics', () => {
+	const resultBase = { contractVersion: 1, type: 'result', jobId: JOB_ID, result: '' };
+	const baseBytes = Buffer.byteLength(JSON.stringify(resultBase), 'utf8');
+	const atLimit = { ...resultBase, result: 'x'.repeat(MAXIMUM_HELPER_WIRE_MESSAGE_BYTES - baseBytes) };
+	assert.equal(Buffer.byteLength(JSON.stringify(atLimit), 'utf8'), MAXIMUM_HELPER_WIRE_MESSAGE_BYTES);
+	assert.equal(validateHelperProcessMessage(atLimit).type, 'result');
+	assert.throws(() => validateHelperProcessMessage({ ...atLimit, result: `${atLimit.result}x` }), (error: unknown) => (
+		error instanceof HelperContractViolationError && error.code === 'oversized'
+	));
+
+	for (const message of [...VALID_HOST_MESSAGES, ...VALID_PROCESS_MESSAGES]) {
+		const validate = VALID_HOST_MESSAGES.includes(message as never)
+			? validateHelperHostMessage
+			: validateHelperProcessMessage;
+		assert.throws(() => validate({ ...message, padding: 'x'.repeat(64 * 1024) }), (error: unknown) => (
+			error instanceof HelperContractViolationError && error.code === 'oversized'
+		), `oversized ${message.type} must fail at the global admission gate`);
+	}
+	assert.throws(() => validateHelperProcessMessage({
+		contractVersion: 1,
+		type: 'hello',
+		kinds: Array.from({ length: 8_000 }, () => 'not-a-kind'),
+	}), (error: unknown) => error instanceof HelperContractViolationError && error.code === 'oversized');
+
 	const oversizedCharacteristics = {
 		timingAsset: new Uint8Array(VIDEO_TIMING_ASSET_HEADER_BYTES),
 		nominalRate: { num: 30, den: 1 },
@@ -115,6 +218,67 @@ test('helper contract v1 rejects oversized payloads with the typed oversized vio
 	assert.throws(() => validateHelperProbeResult(oversizedAsset), (error: unknown) => (
 		error instanceof HelperContractViolationError && error.code === 'oversized'
 	));
+	assert.throws(() => validateHelperProcessMessage({
+		...resultBase,
+		result: { timingAsset: new Uint8Array(VIDEO_TIMING_ASSET_MAXIMUM_BYTES + 1) },
+	}), (error: unknown) => error instanceof HelperContractViolationError && error.code === 'oversized');
+});
+
+test('helper wire admission rejects hostile structured-clone shapes without invoking accessors', () => {
+	let invoked = false;
+	const accessor = { contractVersion: 1, type: 'shutdown' };
+	Object.defineProperty(accessor, 'payload', {
+		enumerable: true,
+		get() {
+			invoked = true;
+			return 'untrusted';
+		},
+	});
+	const symbolKey = { contractVersion: 1, type: 'shutdown', [Symbol('hidden')]: true };
+	const sparse = { contractVersion: 1, type: 'result', jobId: JOB_ID, result: new Array(2) };
+	const nonPlain = { contractVersion: 1, type: 'result', jobId: JOB_ID, result: new Date(0) };
+	const inherited = { contractVersion: 1, type: 'result', jobId: JOB_ID, result: Object.create({ inherited: true }) };
+	const unsupportedView = {
+		contractVersion: 1, type: 'result', jobId: JOB_ID, result: new Uint16Array(2),
+	};
+	const looseView = {
+		contractVersion: 1,
+		type: 'result',
+		jobId: JOB_ID,
+		result: new Uint8Array(new ArrayBuffer(64), 8, 32),
+	};
+	const unsupportedScalar = { contractVersion: 1, type: 'result', jobId: JOB_ID, result: 42n };
+	const cyclic: Record<string, unknown> = { contractVersion: 1, type: 'result', jobId: JOB_ID };
+	cyclic.result = cyclic;
+	let deeplyNested: unknown = null;
+	for (let depth = 0; depth < 128; depth += 1) deeplyNested = [deeplyNested];
+	const deepResult = { contractVersion: 1, type: 'result', jobId: JOB_ID, result: deeplyNested };
+	const sharedResult = typeof SharedArrayBuffer === 'function'
+		? {
+			contractVersion: 1,
+			type: 'result',
+			jobId: JOB_ID,
+			result: new Uint8Array(new SharedArrayBuffer(VIDEO_TIMING_ASSET_HEADER_BYTES)),
+		}
+		: null;
+	for (const [validate, value] of [
+		[validateHelperHostMessage, accessor],
+		[validateHelperHostMessage, symbolKey],
+		[validateHelperProcessMessage, sparse],
+		[validateHelperProcessMessage, nonPlain],
+		[validateHelperProcessMessage, inherited],
+		[validateHelperProcessMessage, unsupportedView],
+		[validateHelperProcessMessage, looseView],
+		[validateHelperProcessMessage, unsupportedScalar],
+		[validateHelperProcessMessage, cyclic],
+		[validateHelperProcessMessage, deepResult],
+		...(sharedResult ? [[validateHelperProcessMessage, sharedResult] as const] : []),
+	] as const) {
+		assert.throws(() => validate(value), (error: unknown) => (
+			error instanceof HelperContractViolationError && error.code === 'malformed'
+		));
+	}
+	assert.equal(invoked, false);
 });
 
 test('helper contract v1 validates probe results and preserves structured errors round trip', () => {
@@ -149,88 +313,88 @@ test('helper resource policy is lower-only against the hard limits', () => {
 		maximumInputBytes: HELPER_RESOURCE_HARD_LIMITS.maximumInputBytes,
 		maximumJobDurationMs: HELPER_RESOURCE_HARD_LIMITS.maximumJobDurationMs,
 		maximumRssBytes: HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes,
+		allowNetwork: false,
+		allowChildProcesses: false,
+		allowOutputFiles: false,
 	});
 	const lowered = normalizeHelperResourcePolicy({ maximumRssBytes: 512 * 1024 ** 2 });
 	assert.equal(lowered.maximumRssBytes, 512 * 1024 ** 2);
+	assert.equal(
+		normalizeHelperResourcePolicy(undefined, 'plugin-scan').maximumJobDurationMs,
+		HELPER_JOB_DURATION_HARD_LIMITS['plugin-scan'],
+	);
+	assert.ok(HELPER_JOB_DURATION_HARD_LIMITS['plugin-scan'] >= 30 * 60_000);
+	assert.equal(HELPER_JOB_DURATION_HARD_LIMITS['audio-device'], 24 * 60 * 60_000);
+	assert.equal(HELPER_JOB_DURATION_HARD_LIMITS['plugin-host'], 24 * 60 * 60_000);
+	assert.throws(() => normalizeHelperResourcePolicy({
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['probe-video-source'] + 1,
+	}, 'probe-video-source'), RangeError);
+	assert.equal(normalizeHelperResourcePolicy({
+		maximumJobDurationMs: 30 * 60_000,
+	}, 'plugin-scan').maximumJobDurationMs, 30 * 60_000);
+	assert.throws(() => validateHelperHostMessage({
+		...VALID_JOB,
+		resourcePolicy: { ...VALID_JOB.resourcePolicy, allowNetwork: true },
+	}), (error: unknown) => error instanceof HelperContractViolationError && error.code === 'malformed');
 	assert.throws(() => normalizeHelperResourcePolicy({ maximumRssBytes: HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes + 1 }), RangeError);
 	assert.throws(() => normalizeHelperResourcePolicy({ maximumJobDurationMs: 0 }), RangeError);
+	assert.throws(() => normalizeHelperResourcePolicy(undefined, 'unknown-kind' as 'audio-device'), RangeError);
 });
 
-type MalformedCase = Readonly<{ label: string; value: unknown }>;
+type MalformedCase = Readonly<{ direction: 'host' | 'process'; label: string; value: unknown }>;
 
-function deterministicMalformedCases(random: () => number, count: number): MalformedCase[] {
-	const bases: readonly Readonly<Record<string, unknown>>[] = [...VALID_HOST_MESSAGES, ...VALID_PROCESS_MESSAGES];
-	const junkValues: readonly unknown[] = [
-		null, undefined, 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, '', 'junk', true, false,
-		[], {}, { nested: true }, Symbol.iterator, () => {}, 9_007_199_254_740_993n < 0n ? null : 42n,
-	];
-	const badJobIds = ['', 'short', JOB_ID.toUpperCase(), `${JOB_ID}ff`, JOB_ID.slice(0, 39), 'zz'.repeat(20), 42, null];
-	const badPaths = ['relative/path.mp4', '../escape.mp4', '/media/../etc/passwd', '/media/\0.mp4', '', 'C:relative.mp4', `/${'a'.repeat(5_000)}.mp4`];
-	const cases: MalformedCase[] = [];
-	const pick = <T>(values: readonly T[]): T => values[Math.floor(random() * values.length)];
-	while (cases.length < count) {
-		const strategy = Math.floor(random() * 8);
-		const base = structuredClone(pick(bases)) as Record<string, unknown>;
+function deterministicMalformedCases(count: number): MalformedCase[] {
+	return Array.from({ length: count }, (_, index) => {
+		const direction = index % 2 === 0 ? 'host' as const : 'process' as const;
+		const ordinal = Math.floor(index / 2);
+		const strategy = ordinal % 10;
+		const base = structuredClone(direction === 'host'
+			? VALID_JOB
+			: VALID_PROCESS_MESSAGES[3]) as Record<string, unknown>;
 		if (strategy === 0) {
-			cases.push({ label: 'non-record root', value: pick(junkValues) });
-			continue;
+			return { direction, label: 'wrong direction', value: structuredClone(direction === 'host'
+				? VALID_PROCESS_MESSAGES[ordinal % VALID_PROCESS_MESSAGES.length]
+				: VALID_HOST_MESSAGES[ordinal % VALID_HOST_MESSAGES.length]) };
 		}
-		if (strategy === 1) {
-			const keys = Object.keys(base);
-			delete base[pick(keys)];
-			cases.push({ label: 'dropped key', value: base });
-			continue;
-		}
+		if (strategy === 1) return { direction, label: 'non-record root', value: ordinal };
 		if (strategy === 2) {
-			base[`extra_${String(Math.floor(random() * 1_000))}`] = pick(junkValues);
-			cases.push({ label: 'extra key', value: base });
-			continue;
+			delete base.type;
+			return { direction, label: 'dropped required key', value: base };
 		}
 		if (strategy === 3) {
-			base.contractVersion = pick([0, 2, -1, '1', null, 1.5]);
-			cases.push({ label: 'bad version', value: base });
-			continue;
+			base[`extra_${String(ordinal)}`] = true;
+			return { direction, label: 'extra key', value: base };
 		}
 		if (strategy === 4) {
-			base.type = pick(['spawn', 'exec', 'eval', '', 42, null, 'JOB']);
-			cases.push({ label: 'unknown type', value: base });
-			continue;
+			base.contractVersion = 2 + ordinal;
+			return { direction, label: 'unsupported version', value: base };
 		}
-		if (strategy === 5 && 'jobId' in base) {
-			base.jobId = pick(badJobIds);
-			cases.push({ label: 'bad job id', value: base });
-			continue;
+		if (strategy === 5) {
+			base.type = `unknown-${String(ordinal)}`;
+			return { direction, label: 'unknown type', value: base };
 		}
-		if (strategy === 6 && base.type === 'job') {
-			const grant = base.grant as Record<string, unknown>;
-			const field = Math.floor(random() * 3);
-			if (field === 0) grant.mediaPath = pick(badPaths);
-			else if (field === 1) grant.mediaBytes = pick([-1, 1.5, '10', null, Number.MAX_SAFE_INTEGER + 2]);
-			else grant.identity = pick([null, {}, { dev: 1 }, { dev: 1.5, ino: 2 }, { dev: 1, ino: 2, extra: 3 }]);
-			cases.push({ label: 'unsafe grant', value: base });
-			continue;
+		if (strategy === 6) {
+			base.jobId = `${JOB_ID.slice(1)}g`;
+			return { direction, label: 'bad job id', value: base };
 		}
-		if (strategy === 7 && base.type === 'job') {
-			const policy = base.resourcePolicy as Record<string, unknown>;
-			const key = pick(Object.keys(policy));
-			policy[key] = pick([0, -5, 1.25, Number.MAX_SAFE_INTEGER, '1024', null]);
-			cases.push({ label: 'bad resource policy', value: base });
-			continue;
+		if (strategy === 7) {
+			if (direction === 'host') base.kind = `unknown-${String(ordinal)}`;
+			else base.value = 2;
+			return { direction, label: 'invalid family value', value: base };
 		}
-		const keys = Object.keys(base);
-		const key = pick(keys);
-		base[key] = pick(junkValues);
-		cases.push({ label: `mutated ${key}`, value: base });
-	}
-	return cases;
-}
-
-function mulberry32(seed: number): () => number {
-	let state = seed >>> 0;
-	return () => {
-		state = (state + 0x6d2b79f5) >>> 0;
-		let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
-		mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
-		return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296;
-	};
+		if (strategy === 8) {
+			if (direction === 'host') {
+				(base.grant as Record<string, unknown>).mediaPath = `relative-${String(ordinal)}`;
+			} else {
+				base.value = Number.NaN;
+			}
+			return { direction, label: 'unsafe nested field', value: base };
+		}
+		if (direction === 'host') {
+			(base.resourcePolicy as Record<string, unknown>).maximumRssBytes = 0;
+		} else {
+			base.jobId = JOB_ID.toUpperCase();
+		}
+		return { direction, label: 'invalid lower-only value', value: base };
+	});
 }

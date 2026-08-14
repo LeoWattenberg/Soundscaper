@@ -378,6 +378,40 @@ test('direct-WAV lifecycle reports validation failures under its own bounded pre
 	assert.match(fixture.errors[0], new RegExp(`^${DESKTOP_DIRECT_WAV_SMOKE_PREFIX} failed:`, 'u'));
 });
 
+test('desktop smoke preserves a cross-realm renderer rejection message', async () => {
+	const plan = {
+		schemaVersion: 1,
+		mode: DIRECT_WAV_MODE,
+		productId: 'soundscaper',
+		token: DIRECT_WAV_TOKEN,
+	};
+	const fixture = probeFixture({
+		argv: [
+			'/opt/Soundscaper',
+			'--soundscaper-smoke',
+			`--soundscaper-smoke-mode=${DIRECT_WAV_MODE}`,
+			`--soundscaper-smoke-plan=${encodePlan(plan)}`,
+			'--soundscaper-smoke-app-data=/private/smoke-root',
+		],
+		executionError: Object.create(Object.freeze({
+			name: 'Error',
+			message: 'Renderer timing probe exposed its actual failure.',
+		})),
+		directWavTargetHarness: {
+			resolveSavePath: async () => null,
+			evidence: async () => validDesktopDirectWavNativeEvidence(),
+		},
+	});
+	fixture.probe.attach(fixture.window);
+
+	await fixture.probe.rendererReady();
+
+	assert.deepEqual(fixture.exits, [2]);
+	assert.deepEqual(fixture.errors, [
+		`${DESKTOP_DIRECT_WAV_SMOKE_PREFIX} failed: Renderer timing probe exposed its actual failure.`,
+	]);
+});
+
 function handoffPlan({
 	stage = 'publish',
 	productId = 'soundscaper',
@@ -477,13 +511,14 @@ function probeFixture({
 	appOrigin = 'soundscaper-app://bundle',
 	plan = null,
 	directWavTargetHarness = undefined,
+	executionError = undefined,
 }) {
 	const logs = [];
 	const errors = [];
 	const exits = [];
 	const evidenceCalls = [];
 	const scheduledDelays = [];
-	const window = fakeWindow(executionResult);
+	const window = fakeWindow(executionResult, executionError);
 	const target = plan?.target ?? handoffPlan().target;
 	const probe = createDesktopSmokeProbe({
 		argv,
@@ -528,7 +563,7 @@ function probeFixture({
 	return { errors, evidenceCalls, exits, logs, probe, scheduledDelays, window };
 }
 
-function fakeWindow(executionResult) {
+function fakeWindow(executionResult, executionError) {
 	const listeners = new Map();
 	const webContents = {
 		executions: [],
@@ -539,6 +574,7 @@ function fakeWindow(executionResult) {
 		async executeJavaScript(source, userGesture = false) {
 			this.executions.push(source);
 			this.userGestures.push(userGesture === true);
+			if (executionError !== undefined) throw executionError;
 			return structuredClone(executionResult);
 		},
 		async emit(name, ...args) {

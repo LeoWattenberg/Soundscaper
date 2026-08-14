@@ -209,12 +209,11 @@
 			"fingerprint": {
 				"windowsX64": null,
 				"windowsArm64": null,
-				"macosX64": null,
 				"macosArm64": null,
 				"linuxX64": null,
 				"linuxArm64": null
 			},
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/milestone-5a-soundscaper-native.md"]
 		},
 		{
 			"id": "capture-os-browser-lab-matrix",
@@ -958,7 +957,13 @@
 				"malformedCaseCount": 10000,
 				"loopbackDurationSeconds": 1800
 			},
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": [
+				"roadmap.md#5-electron-native-services-and-extensibility",
+				"docs/milestone-5a-soundscaper-native.md",
+				"tests/desktop-helper-contract.test.ts",
+				"tests/desktop-helper-supervisor.test.ts",
+				"tests/desktop-helper-probe-process.test.js"
+			]
 		},
 		{
 			"id": "m6-reference-master-suite-v1",
@@ -1233,7 +1238,13 @@
 				{ "metricId": "native.audioRoundTripLatencyP95Ms", "comparison": "lte", "value": 20, "unit": "ms" },
 				{ "metricId": "native.audioUnderrunFrames", "comparison": "eq", "value": 0, "unit": "frames" }
 			],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": [
+				"roadmap.md#5-electron-native-services-and-extensibility",
+				"docs/milestone-5a-soundscaper-native.md",
+				"tests/desktop-helper-contract.test.ts",
+				"tests/desktop-helper-supervisor.test.ts",
+				"tests/desktop-helper-probe-process.test.js"
+			]
 		},
 		{
 			"id": "m6-reference-master-delivery",

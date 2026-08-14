@@ -539,11 +539,12 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	assert.deepEqual(
 		Object.keys(bridge.v1).sort(),
 		[
-			'abortSharedSourceWrite', 'abortWrite', 'beginSharedSourceWrite', 'beginWrite',
+			'abortSharedSourceWrite', 'abortWrite', 'awaitVideoSourceProbe', 'beginSharedSourceWrite', 'beginVideoSourceProbe', 'beginWrite',
+			'cancelVideoSourceProbe',
 			'checkForUpdates', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'commitSharedProject',
 			'deleteSharedProject', 'editText', 'finishSharedSourceWrite', 'finishWrite',
 			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'onAssistanceInstallProgress', 'onCloseRequested', 'onFullscreenChanged',
-			'onMenuCommand', 'onOpenProject', 'openExternal', 'patchFinalPrefix', 'readSharedProject',
+			'onMenuCommand', 'onOpenProject', 'openExternal', 'patchFinalPrefix', 'probeHelperAvailability', 'readSharedProject',
 			'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'removeAssistanceModel', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose',
 			'setFullscreen', 'setLocale', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
 		].sort(),

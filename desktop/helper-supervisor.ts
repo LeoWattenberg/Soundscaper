@@ -22,7 +22,10 @@ import {
 	type HelperHostMessage,
 	type HelperProcessMessage,
 	deserializeHelperError,
+	helperJobGrantInputBytes,
 	normalizeHelperResourcePolicy,
+	validateHelperJobGrant,
+	validateHelperHostMessage,
 	validateHelperProcessMessage,
 } from './helper-contract.ts';
 
@@ -36,6 +39,8 @@ export interface HelperChannel {
 export type HelperFailureCause =
 	| 'binary-mismatch'
 	| 'handshake'
+	| 'invalid-request'
+	| 'unsupported-kind'
 	| 'heartbeat'
 	| 'malformed-message'
 	| 'job-mismatch'
@@ -65,9 +70,9 @@ export interface HelperSupervisorSnapshot {
 	readonly quarantined: boolean;
 }
 
-export interface HelperJobRequest {
-	readonly kind: HelperJobKind;
-	readonly grant: HelperJobGrant;
+export interface HelperJobRequest<Kind extends HelperJobKind = 'probe-video-source'> {
+	readonly kind: Kind;
+	readonly grant: HelperJobGrant<Kind>;
 	readonly resourcePolicy?: Partial<HelperJobResourcePolicy>;
 	readonly signal?: AbortSignal;
 	readonly onProgress?: (value: number | null) => void;
@@ -101,6 +106,8 @@ interface ActiveJob {
 	reject: (error: Error) => void;
 	settled: boolean;
 	cancelRequested: boolean;
+	progressPublished: boolean;
+	progressValue: number | null;
 	cancelDeadline: ReturnType<typeof setTimeout> | null;
 	durationDeadline: ReturnType<typeof setTimeout> | null;
 }
@@ -117,8 +124,10 @@ export class HelperSupervisor {
 	readonly #clearTimeout: typeof clearTimeout;
 	#channel: HelperChannel | null = null;
 	#channelReady = false;
+	#supportedKinds = new Set<HelperJobKind>();
 	#watchdog: ReturnType<typeof setTimeout> | null = null;
 	#job: ActiveJob | null = null;
+	#jobAdmissionPending = false;
 	#pendingHandshake: { resolve: () => void; reject: (error: Error) => void } | null = null;
 	#crashTimestamps: number[] = [];
 	#quarantined = false;
@@ -154,71 +163,108 @@ export class HelperSupervisor {
 		this.#quarantined = false;
 	}
 
-	async runJob(request: HelperJobRequest): Promise<unknown> {
-		if (this.#disposed) throw new HelperSupervisionError('disposed', 'The helper supervisor is disposed.');
+	async runJob<Kind extends HelperJobKind>(request: HelperJobRequest<Kind>): Promise<unknown> {
+		this.#assertNotDisposed();
 		if (this.#quarantined) {
 			throw new HelperSupervisionError('quarantined', 'The helper is quarantined after repeated crashes.');
 		}
-		if (this.#job) {
+		if (this.#job || this.#jobAdmissionPending) {
 			throw new HelperSupervisionError('helper-error',
 				`The helper admits at most ${HELPER_RESOURCE_HARD_LIMITS.maximumConcurrentJobs} concurrent job.`);
 		}
 		request.signal?.throwIfAborted();
-		const resourcePolicy = normalizeHelperResourcePolicy(request.resourcePolicy);
-		if (request.grant.mediaBytes > resourcePolicy.maximumInputBytes) {
+		let admittedGrant: HelperJobGrant<Kind>;
+		let resourcePolicy: HelperJobResourcePolicy;
+		let inputBytes: number;
+		try {
+			admittedGrant = validateHelperJobGrant(request.kind, request.grant);
+			resourcePolicy = normalizeHelperResourcePolicy(request.resourcePolicy, request.kind);
+			inputBytes = helperJobGrantInputBytes(request.kind, admittedGrant);
+		} catch (error) {
+			throw new HelperSupervisionError('invalid-request',
+				`The helper job failed contract admission: ${error instanceof Error ? error.message : String(error)}`);
+		}
+		if (inputBytes > resourcePolicy.maximumInputBytes) {
 			throw new HelperSupervisionError('resource-violation',
 				'The helper job input exceeds its admitted byte limit.');
 		}
-		await this.#ensureChannel();
-		request.signal?.throwIfAborted();
-		const jobId = this.#options.mintJobId();
-		return new Promise<unknown>((resolve, reject) => {
-			const job: ActiveJob = {
-				jobId,
-				resourcePolicy,
-				onProgress: request.onProgress,
-				signal: request.signal,
-				validateResult: request.validateResult,
-				resolve,
-				reject,
-				settled: false,
-				cancelRequested: false,
-				cancelDeadline: null,
-				durationDeadline: null,
-			};
-			if (request.signal) {
-				const listener = () => this.#requestCancel(job);
-				request.signal.addEventListener('abort', listener, { once: true });
-				(job as { abortListener?: () => void }).abortListener = listener;
+		this.#jobAdmissionPending = true;
+		try {
+			await this.#ensureChannel();
+			this.#assertNotDisposed();
+			request.signal?.throwIfAborted();
+			if (!this.#supportedKinds.has(request.kind)) {
+				throw new HelperSupervisionError('unsupported-kind',
+					`The helper did not negotiate support for job kind ${request.kind}.`);
 			}
-			this.#job = job;
-			job.durationDeadline = this.#armTimer(() => {
-				this.#failJob(job, new HelperSupervisionError('resource-violation',
-					'The helper job exceeded its admitted duration and was terminated.'), true);
-			}, resourcePolicy.maximumJobDurationMs);
+			const jobId = this.#options.mintJobId();
+			let admittedMessage: HelperHostMessage;
 			try {
-				this.#post({
+				admittedMessage = validateHelperHostMessage({
 					contractVersion: 1,
 					type: 'job',
 					jobId,
 					kind: request.kind,
-					grant: request.grant,
+					grant: admittedGrant,
 					resourcePolicy,
 				});
 			} catch (error) {
-				this.#failJob(job, new HelperSupervisionError('helper-error',
-					error instanceof Error ? error.message : String(error)), true);
+				throw new HelperSupervisionError('invalid-request',
+					`The helper job failed contract admission: ${error instanceof Error ? error.message : String(error)}`);
 			}
-		});
+			return new Promise<unknown>((resolve, reject) => {
+				const job: ActiveJob = {
+					jobId,
+					resourcePolicy,
+					onProgress: request.onProgress,
+					signal: request.signal,
+					validateResult: request.validateResult,
+					resolve,
+					reject,
+					settled: false,
+					cancelRequested: false,
+					progressPublished: false,
+					progressValue: null,
+					cancelDeadline: null,
+					durationDeadline: null,
+				};
+				if (request.signal) {
+					const listener = () => this.#requestCancel(job);
+					request.signal.addEventListener('abort', listener, { once: true });
+					(job as { abortListener?: () => void }).abortListener = listener;
+				}
+				this.#job = job;
+				job.durationDeadline = this.#armTimer(() => {
+					this.#failJob(job, new HelperSupervisionError('resource-violation',
+						'The helper job exceeded its admitted duration and was terminated.'), {
+						killChannel: true,
+						qualifyingFault: true,
+					});
+				}, resourcePolicy.maximumJobDurationMs);
+				try {
+					this.#postValidated(admittedMessage);
+				} catch (error) {
+					this.#failJob(job, new HelperSupervisionError('helper-error',
+						error instanceof Error ? error.message : String(error)), {
+						killChannel: true,
+						qualifyingFault: true,
+					});
+				}
+			});
+		} finally {
+			this.#jobAdmissionPending = false;
+		}
 	}
 
 	dispose(): void {
 		if (this.#disposed) return;
 		this.#disposed = true;
+		const disposed = new HelperSupervisionError('disposed', 'The helper supervisor is disposed.');
 		const job = this.#job;
-		if (job) {
-			this.#settleJob(job, new HelperSupervisionError('disposed', 'The helper supervisor is disposed.'));
-		}
+		if (job) this.#settleJob(job, disposed);
+		const handshake = this.#pendingHandshake;
+		this.#pendingHandshake = null;
+		handshake?.reject(disposed);
 		this.#teardownChannel();
 	}
 
@@ -232,20 +278,32 @@ export class HelperSupervisor {
 	}
 
 	async #ensureChannel(): Promise<void> {
+		this.#assertNotDisposed();
 		if (this.#channel && this.#channelReady) return;
 		if (this.#channel) throw new HelperSupervisionError('handshake', 'The helper is still starting.');
 		try {
 			await this.#options.verifyBinary();
 		} catch (error) {
+			this.#assertNotDisposed();
 			throw new HelperSupervisionError('binary-mismatch',
 				`The helper executable payload failed verification: ${error instanceof Error ? error.message : String(error)}`);
 		}
+		this.#assertNotDisposed();
 		let channel: HelperChannel;
 		try {
 			channel = await this.#options.spawn();
 		} catch (error) {
+			this.#assertNotDisposed();
 			throw new HelperSupervisionError('helper-exit',
 				`The helper process could not be spawned: ${error instanceof Error ? error.message : String(error)}`);
+		}
+		if (this.#disposed) {
+			try {
+				channel.kill();
+			} catch {
+				/* A process created after disposal is already outside supervision. */
+			}
+			this.#assertNotDisposed();
 		}
 		this.#channel = channel;
 		this.#channelReady = false;
@@ -255,6 +313,13 @@ export class HelperSupervisor {
 		await new Promise<void>((resolve, reject) => {
 			this.#pendingHandshake = { resolve, reject };
 		});
+		this.#assertNotDisposed();
+	}
+
+	#assertNotDisposed(): void {
+		if (this.#disposed) {
+			throw new HelperSupervisionError('disposed', 'The helper supervisor is disposed.');
+		}
 	}
 
 	#receive(channel: HelperChannel, message: unknown): void {
@@ -268,15 +333,32 @@ export class HelperSupervisor {
 				`The helper sent a message the contract rejects: ${violation}`));
 			return;
 		}
+		if (!this.#channelReady && validated.type !== 'hello') {
+			this.#crash(new HelperSupervisionError('handshake',
+				'The helper sent a process message before its handshake.'));
+			return;
+		}
 		this.#armWatchdog();
 		if (validated.type === 'hello') {
+			if (this.#channelReady || !this.#pendingHandshake) {
+				this.#crash(new HelperSupervisionError('handshake',
+					'The helper sent a duplicate or out-of-phase handshake.'));
+				return;
+			}
 			this.#channelReady = true;
+			this.#supportedKinds = new Set(validated.kinds);
 			const handshake = this.#pendingHandshake;
 			this.#pendingHandshake = null;
 			handshake?.resolve();
 			return;
 		}
 		if (validated.type === 'heartbeat') {
+			const expectedJobId = this.#job?.jobId ?? null;
+			if (validated.jobId !== expectedJobId) {
+				this.#crash(new HelperSupervisionError('job-mismatch',
+					'The helper heartbeat does not match the active job generation.'));
+				return;
+			}
 			this.#enforceResourcePolicy();
 			return;
 		}
@@ -287,19 +369,31 @@ export class HelperSupervisor {
 			return;
 		}
 		if (validated.type === 'progress') {
-			try {
-				job.onProgress?.(validated.value);
-			} catch {
-				/* Progress consumers cannot fail the job. */
-			}
+			this.#publishProgress(job, validated.value);
 			return;
 		}
 		if (validated.type === 'cancelled') {
+			if (!job.cancelRequested) {
+				this.#crash(new HelperSupervisionError('malformed-message',
+					'The helper acknowledged cancellation that the host did not request.'));
+				return;
+			}
 			this.#settleJob(job, new HelperSupervisionError('cancelled', 'The helper job was cancelled.'));
 			return;
 		}
+		if (job.cancelRequested) {
+			this.#crash(new HelperSupervisionError('malformed-message',
+				'The helper sent a terminal result before cancellation quiescence was acknowledged.'));
+			return;
+		}
 		if (validated.type === 'error') {
-			this.#settleJob(job, deserializeHelperError(validated.error));
+			const error = deserializeHelperError(validated.error);
+			if ((error as Error & { code?: string }).code === 'HELPER_ENGINE_PROTOCOL_VIOLATION') {
+				this.#crash(new HelperSupervisionError('malformed-message',
+					`The helper engine violated its process protocol: ${error.message}`));
+				return;
+			}
+			this.#settleJob(job, error);
 			return;
 		}
 		let result: unknown = validated.result;
@@ -320,13 +414,20 @@ export class HelperSupervisor {
 		job.cancelRequested = true;
 		try {
 			this.#post({ contractVersion: 1, type: 'cancel', jobId: job.jobId });
-		} catch {
-			this.#failJob(job, new HelperSupervisionError('cancelled', 'The helper job was cancelled.'), true);
+		} catch (error) {
+			this.#failJob(job, new HelperSupervisionError('helper-exit',
+				`The helper channel failed during cancellation: ${error instanceof Error ? error.message : String(error)}`), {
+				killChannel: true,
+				qualifyingFault: true,
+			});
 			return;
 		}
 		job.cancelDeadline = this.#armTimer(() => {
 			this.#failJob(job, new HelperSupervisionError('cancellation-timeout',
-				'The helper missed the cancellation acknowledgement budget and was terminated.'), true);
+				'The helper missed the cancellation acknowledgement budget and was terminated.'), {
+				killChannel: true,
+				qualifyingFault: true,
+			});
 		}, this.#cancellationBudgetMs);
 	}
 
@@ -336,7 +437,10 @@ export class HelperSupervisor {
 		const rss = this.#sampleRss();
 		if (rss !== null && rss > job.resourcePolicy.maximumRssBytes) {
 			this.#failJob(job, new HelperSupervisionError('resource-violation',
-				'The helper exceeded its admitted peak RSS and was terminated.'), true);
+				'The helper exceeded its admitted peak RSS and was terminated.'), {
+				killChannel: true,
+				qualifyingFault: true,
+			});
 		}
 	}
 
@@ -365,9 +469,31 @@ export class HelperSupervisor {
 		return this.#crashTimestamps.filter((timestamp) => timestamp > cutoff);
 	}
 
-	#failJob(job: ActiveJob, error: Error, killChannel: boolean): void {
-		if (killChannel) this.#teardownChannel();
+	#failJob(
+		job: ActiveJob,
+		error: Error,
+		options: Readonly<{ killChannel: boolean; qualifyingFault: boolean }>,
+	): void {
+		if (job.settled || job !== this.#job) return;
+		if (options.killChannel) this.#teardownChannel();
+		if (options.qualifyingFault) this.#recordCrash();
 		this.#settleJob(job, error);
+	}
+
+	#publishProgress(job: ActiveJob, value: number | null): void {
+		if (job.settled || job.cancelRequested || job !== this.#job) return;
+		if (value === null) {
+			if (job.progressPublished) return;
+		} else if (job.progressPublished && job.progressValue !== null && value <= job.progressValue) {
+			return;
+		}
+		job.progressPublished = true;
+		job.progressValue = value;
+		try {
+			job.onProgress?.(value);
+		} catch {
+			/* Progress consumers cannot fail the job. */
+		}
 	}
 
 	#settleJob(job: ActiveJob, error: Error | null, result?: unknown): void {
@@ -390,6 +516,10 @@ export class HelperSupervisor {
 	}
 
 	#post(message: HelperHostMessage): void {
+		this.#postValidated(validateHelperHostMessage(message));
+	}
+
+	#postValidated(message: HelperHostMessage): void {
 		const channel = this.#channel;
 		if (!channel) throw new HelperSupervisionError('helper-exit', 'The helper channel is closed.');
 		channel.postMessage(message);
@@ -399,6 +529,7 @@ export class HelperSupervisor {
 		const channel = this.#channel;
 		this.#channel = null;
 		this.#channelReady = false;
+		this.#supportedKinds.clear();
 		if (this.#watchdog) {
 			this.#clearTimeout(this.#watchdog);
 			this.#watchdog = null;

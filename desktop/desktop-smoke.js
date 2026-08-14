@@ -317,10 +317,9 @@ export function createDesktopSmokeProbe(options) {
 				return;
 			}
 			if (configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) {
+				const rendererExpression = `(${runDesktopVideoTimingProbeRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)}, ${JSON.stringify(videoTimingStorageProfile)})`;
 				const payload = validateDesktopVideoTimingProbeResult(
-					await attachedWindow.webContents.executeJavaScript(
-						`(${runDesktopVideoTimingProbeRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)}, ${JSON.stringify(videoTimingStorageProfile)})`, true,
-					),
+					await executeRendererSmoke(attachedWindow.webContents, rendererExpression, true),
 					plan,
 				);
 				log(`${DESKTOP_VIDEO_TIMING_PROBE_PREFIX} ${JSON.stringify(payload)}`);
@@ -574,6 +573,27 @@ function sha256(value) {
 	return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
+async function executeRendererSmoke(webContents, expression, userGesture = false) {
+	const envelope = await webContents.executeJavaScript(`(async () => {
+		try {
+			return { status: 'fulfilled', value: await (${expression}) };
+		} catch (error) {
+			const detail = typeof error?.message === 'string' ? error.message : String(error);
+			return { status: 'rejected', message: detail.slice(0, 2048) };
+		}
+	})()`, userGesture);
+	if (envelope?.status === 'rejected') {
+		throw new Error(typeof envelope.message === 'string' && envelope.message
+			? envelope.message
+			: 'Renderer smoke failed without diagnostic detail.');
+	}
+	if (envelope?.status !== 'fulfilled') throw new TypeError('Renderer smoke returned a malformed diagnostic envelope.');
+	return envelope.value;
+}
+
 function cleanError(error) {
-	return error instanceof Error ? error.message : String(error);
+	if (error instanceof Error) return error.message;
+	let message = null;
+	try { message = error?.message; } catch { /* Fall back to string coercion. */ }
+	return typeof message === 'string' ? message : String(error);
 }

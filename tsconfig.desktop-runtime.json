@@ -17,8 +17,10 @@
 	"include": [
 		"desktop/application-lifecycle.ts",
 		"desktop/helper-contract.ts",
+		"desktop/helper-job-grant.ts",
 		"desktop/helper-probe-service.ts",
 		"desktop/helper-supervisor.ts",
+		"desktop/helper-wire-admission.ts",
 		"desktop/assistance-main-ipc.ts",
 		"desktop/assistance-service.ts",
 		"desktop/assistance-sherpa-recognizer.ts",

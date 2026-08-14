@@ -7,10 +7,12 @@ import test from 'node:test';
 import { createDesktopSmokeProbe, parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 import {
 	DESKTOP_VIDEO_TIMING_PROBE_MODE,
+	DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS,
 	createDesktopVideoTimingProbeStorageProfile,
 	createDesktopVideoTimingProbePlan,
 	decodeDesktopVideoTimingProbePlan,
 	encodeDesktopVideoTimingProbePlan,
+	runDesktopVideoTimingProbeRendererSmoke,
 	validateDesktopVideoTimingProbeResult,
 } from '../desktop/video-timing-probe-smoke.js';
 import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-media.js';
@@ -18,11 +20,15 @@ import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-med
 const PRODUCT_ID = 'soundscaper';
 const TOKEN = '0123456789abcdef0123456789abcdef';
 
+test('packaged timing probe keeps startup margin outside its renderer deadlines', () => {
+	assert.equal(DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS, 120_000);
+});
+
 test('packaged timing-probe storage profiles preserve product-local isolation', () => {
 	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('soundscaper'), {
 		productId: 'soundscaper',
-		databaseName: 'kw-media-audio-editor',
-		opfsDirectoryName: 'audio-editor-sources',
+		databaseName: 'kw-media-soundscaper-editor-v21',
+		opfsDirectoryName: 'soundscaper-editor-v21-sources',
 	});
 	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('framescaper'), {
 		productId: 'framescaper',
@@ -79,6 +85,65 @@ test('packaged timing-probe result validates exact source and timing body SHA, t
 	);
 });
 
+test('timing probe identifies a revision jump before the first import publication', async (context) => {
+	let clockReads = 0;
+	context.mock.method(Date, 'now', () => (++clockReads < 5 ? clockReads : 100_000));
+	const status = {
+		state: 'success',
+		getAttribute(name) { return name === 'data-state' ? this.state : null; },
+		get textContent() { return this.state === 'error'
+			? 'The desktop V10 publication is stale against its private revision witness.'
+			: 'Ready'; },
+	};
+	const importButton = {
+		disabled: false,
+		click() { status.state = 'error'; },
+	};
+	const catalog = Object.freeze({
+		metadataRevision: 7,
+		projects: Object.freeze([Object.freeze({ id: 'project-1', revision: 0 })]),
+	});
+	const database = {
+		close() {},
+		transaction() {
+			return { objectStore: () => ({ getAll: () => successfulRequest([]) }) };
+		},
+	};
+	const editor = {
+		getAttribute: (name) => name === 'data-audio-editor-bound' ? 'true' : null,
+		querySelector: (selector) => selector === '[data-status]' ? status : null,
+	};
+	const scope = {
+		Blob,
+		document: {
+			querySelector(selector) {
+				if (selector === '[data-audio-editor]') return editor;
+				if (selector === '[data-project-bin-import] button') return importButton;
+				if (selector === '[data-project-id]') return { getAttribute: () => 'project-1' };
+				return null;
+			},
+			querySelectorAll: () => [],
+		},
+		indexedDB: { open: () => successfulRequest(database) },
+		setTimeout: (resolve) => { resolve(); },
+		soundscaperProjectLibraryDesktop: { v10: { listProjects: async () => catalog } },
+	};
+
+	await assert.rejects(
+		runDesktopVideoTimingProbeRendererSmoke(
+			scope,
+			timingPlan(),
+			createDesktopVideoTimingProbeStorageProfile('soundscaper'),
+		),
+		(error) => {
+			assert.match(error.message, /publication diagnostic/iu);
+			assert.match(error.message, /revision-jump-refused-before-first-import-publication/iu);
+			assert.match(error.message, /"metadataRevision":7/iu);
+			return true;
+		},
+	);
+});
+
 test('desktop smoke routing admits the ordinary media chooser once and emits only a validated result', async () => {
 	const plan = timingPlan();
 	const argv = [
@@ -106,7 +171,7 @@ test('desktop smoke routing admits the ordinary media chooser once and emits onl
 			once: () => undefined,
 			async executeJavaScript(source, userGesture) {
 				executions.push({ source, userGesture });
-				return structuredClone(timingResult(plan));
+				return { status: 'fulfilled', value: structuredClone(timingResult(plan)) };
 			},
 		},
 	};
@@ -116,7 +181,7 @@ test('desktop smoke routing admits the ordinary media chooser once and emits onl
 	await probe.rendererReady();
 	assert.equal(executions.length, 1);
 	assert.equal(executions[0].userGesture, true);
-	assert.ok(executions[0].source.endsWith(
+	assert.ok(executions[0].source.includes(
 		`, ${JSON.stringify(createDesktopVideoTimingProbeStorageProfile(PRODUCT_ID))})`,
 	));
 	assert.match(logs[0], /^SOUNDSCAPER_DESKTOP_VIDEO_TIMING_PROBE /u);
@@ -141,15 +206,48 @@ test('Framescaper packaged timing probe executes against the exact V18 storage p
 			once: () => undefined,
 			async executeJavaScript(source) {
 				executions.push(source);
-				return structuredClone(timingResult(plan));
+				return { status: 'fulfilled', value: structuredClone(timingResult(plan)) };
 			},
 		},
 	});
 	await probe.rendererReady();
 	assert.equal(executions.length, 1);
-	assert.ok(executions[0].endsWith(
+	assert.ok(executions[0].includes(
 		`, ${JSON.stringify(createDesktopVideoTimingProbeStorageProfile('framescaper'))})`,
 	));
+});
+
+test('packaged timing probe preserves renderer failure detail across the Electron boundary', async () => {
+	const plan = timingPlan();
+	const errors = [];
+	const exits = [];
+	const probe = createDesktopSmokeProbe({
+		argv: smokeArgv(plan),
+		appName: 'Soundscaper',
+		appOrigin: 'soundscaper-app://bundle',
+		productId: PRODUCT_ID,
+		exit: async (code) => { exits.push(code); },
+		log: () => undefined,
+		reportError: (message) => { errors.push(message); },
+		setTimeout: () => 1,
+		clearTimeout: () => undefined,
+	});
+	probe.attach({
+		webContents: {
+			once: () => undefined,
+			async executeJavaScript(source) {
+				assert.match(source, /error\?\.message/u);
+				return { status: 'rejected', message: 'The renderer timing import failed exactly here.' };
+			},
+		},
+	});
+
+	await probe.rendererReady();
+
+	assert.deepEqual(exits, [2]);
+	assert.deepEqual(errors, [
+		'SOUNDSCAPER_DESKTOP_VIDEO_TIMING_PROBE failed: The renderer timing import failed exactly here.',
+	]);
 });
 
 function timingPlan(productId = PRODUCT_ID) {
@@ -225,6 +323,14 @@ function timingBytes(fixture) {
 	}
 	assert.equal(createHash('sha256').update(bytes).digest('hex'), fixture.timingSha256);
 	return bytes;
+}
+
+function successfulRequest(result) {
+	return {
+		result,
+		set onsuccess(callback) { queueMicrotask(callback); },
+		set onerror(_callback) {},
+	};
 }
 
 function encode(value) {

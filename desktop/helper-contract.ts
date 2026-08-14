@@ -14,22 +14,48 @@ import {
 	VIDEO_TIMING_ASSET_HEADER_BYTES,
 	VIDEO_TIMING_ASSET_MAXIMUM_BYTES,
 } from '../src/common/editor/video-timing-asset-reference.ts';
+import {
+	HELPER_JOB_KINDS,
+	type HelperJobGrant,
+	type HelperJobKind,
+	validateHelperJobGrant,
+} from './helper-job-grant.ts';
+import {
+	HelperContractViolationError,
+	assertHelperWireEnvelope,
+} from './helper-wire-admission.ts';
+
+export {
+	HELPER_AUDIO_BACKENDS,
+	HELPER_JOB_KINDS,
+	HELPER_PLUGIN_FORMATS,
+	HELPER_PROBE_JOB_KINDS,
+	helperJobGrantInputBytes,
+	validateHelperJobGrant,
+} from './helper-job-grant.ts';
+export type {
+	AnyHelperJobGrant,
+	HelperAudioBackend,
+	HelperAudioDeviceJobGrant,
+	HelperFileIdentity,
+	HelperJobGrant,
+	HelperJobGrantByKind,
+	HelperJobKind,
+	HelperPluginFormat,
+	HelperPluginHostJobGrant,
+	HelperPluginScanJobGrant,
+	HelperProbeJobGrant,
+} from './helper-job-grant.ts';
+export {
+	HelperContractViolationError,
+	MAXIMUM_HELPER_WIRE_MESSAGE_BYTES,
+} from './helper-wire-admission.ts';
+export type { HelperContractViolationCode } from './helper-wire-admission.ts';
 
 export const HELPER_CONTRACT_VERSION = 1;
 
-export const HELPER_JOB_KINDS = Object.freeze(['probe-video-source'] as const);
-
-export type HelperJobKind = (typeof HELPER_JOB_KINDS)[number];
-
 /** Fixed-length lowercase-hex job identifier minted by the main process. */
 export const HELPER_JOB_ID_LENGTH = 40;
-
-/**
- * JSON-shaped wire content may not exceed this byte length; the one binary
- * payload the contract admits — an encoded timing asset — crosses as a
- * bounded byte array under its own persisted maximum, never as JSON.
- */
-export const MAXIMUM_HELPER_WIRE_MESSAGE_BYTES = 64 * 1024;
 
 /** Helpers must report liveness at least this often while alive. */
 export const HELPER_HEARTBEAT_INTERVAL_MS = 1_000;
@@ -40,7 +66,7 @@ export const HELPER_CRASH_DETECTION_MS = 2_000;
 /** Cancellation must be acknowledged within this budget (p95 ≤ 1000 ms). */
 export const HELPER_CANCELLATION_BUDGET_MS = 1_000;
 
-/** Hard lower-only ceilings for per-job resource policy. */
+/** Common hard lower-only ceilings; the legacy duration field is the probe ceiling. */
 export const HELPER_RESOURCE_HARD_LIMITS = Object.freeze({
 	maximumInputBytes: 4 * 1024 ** 3,
 	maximumJobDurationMs: 10 * 60 * 1_000,
@@ -48,52 +74,40 @@ export const HELPER_RESOURCE_HARD_LIMITS = Object.freeze({
 	maximumConcurrentJobs: 1,
 });
 
-export type HelperContractViolationCode =
-	| 'malformed'
-	| 'oversized'
-	| 'unsupported-version'
-	| 'unknown-kind'
-	| 'unsafe-grant';
-
-/** Typed rejection for any wire payload the contract refuses to trust. */
-export class HelperContractViolationError extends Error {
-	readonly code: HelperContractViolationCode;
-
-	constructor(code: HelperContractViolationCode, message: string) {
-		super(message);
-		this.name = 'HelperContractViolationError';
-		this.code = code;
-	}
-}
+export const HELPER_JOB_DURATION_HARD_LIMITS = Object.freeze({
+	'probe-video-source': 10 * 60_000,
+	'audio-device': 24 * 60 * 60_000,
+	'plugin-scan': 60 * 60_000,
+	'plugin-host': 24 * 60 * 60_000,
+} as const satisfies Readonly<Record<HelperJobKind, number>>);
 
 /**
- * The per-job capability grant. Paths are absolute, main-verified, and never
- * renderer-supplied; the grant names everything the helper may read for this
- * one job. Helpers have no output paths and no network authority in v1 —
- * both are deny-by-default and absent from the wire on purpose, so granting
- * them later is a deliberate contract revision.
+ * Per-job resource authority stays deny-only in v1. Omitting the booleans on
+ * an older probe message normalizes them to false; true is never admitted.
+ * Kind-aware duration ceilings keep probe work at ten minutes while allowing
+ * a bounded scan fixture and finite long-lived audio/host sessions.
  */
-export interface HelperJobGrant {
-	readonly mediaPath: string;
-	readonly mediaBytes: number;
-	/** Device/inode captured from main's own open handle; the helper must re-verify after reopening. */
-	readonly identity: Readonly<{ dev: number; ino: number }>;
-}
-
 export interface HelperJobResourcePolicy {
 	readonly maximumInputBytes: number;
 	readonly maximumJobDurationMs: number;
 	readonly maximumRssBytes: number;
+	readonly allowNetwork: false;
+	readonly allowChildProcesses: false;
+	readonly allowOutputFiles: false;
 }
 
-export interface HelperJobMessage {
+export interface HelperJobMessageFor<Kind extends HelperJobKind> {
 	readonly contractVersion: typeof HELPER_CONTRACT_VERSION;
 	readonly type: 'job';
 	readonly jobId: string;
-	readonly kind: HelperJobKind;
-	readonly grant: HelperJobGrant;
+	readonly kind: Kind;
+	readonly grant: HelperJobGrant<Kind>;
 	readonly resourcePolicy: HelperJobResourcePolicy;
 }
+
+export type HelperJobMessage = {
+	readonly [Kind in HelperJobKind]: HelperJobMessageFor<Kind>;
+}[HelperJobKind];
 
 export interface HelperCancelMessage {
 	readonly contractVersion: typeof HELPER_CONTRACT_VERSION;
@@ -174,8 +188,8 @@ const HEARTBEAT_KEYS = Object.freeze(['contractVersion', 'type', 'jobId']);
 const PROGRESS_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'value']);
 const RESULT_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'result']);
 const ERROR_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'error']);
-const GRANT_KEYS = Object.freeze(['mediaPath', 'mediaBytes', 'identity']);
 const POLICY_KEYS = Object.freeze(['maximumInputBytes', 'maximumJobDurationMs', 'maximumRssBytes']);
+const POLICY_DENY_KEYS = Object.freeze(['allowNetwork', 'allowChildProcesses', 'allowOutputFiles']);
 const WIRE_ERROR_KEYS = Object.freeze(['name', 'message', 'code']);
 
 export function assertHelperJobId(value: unknown): string {
@@ -187,11 +201,20 @@ export function assertHelperJobId(value: unknown): string {
 	return value;
 }
 
-export function normalizeHelperResourcePolicy(value?: Partial<HelperJobResourcePolicy>): HelperJobResourcePolicy {
+export function normalizeHelperResourcePolicy(
+	value?: Partial<HelperJobResourcePolicy>,
+	kind: HelperJobKind = 'probe-video-source',
+): HelperJobResourcePolicy {
+	if (!(HELPER_JOB_KINDS as readonly string[]).includes(kind)) {
+		throw new RangeError('Helper resource policy requires a known contract-v1 job kind.');
+	}
 	return Object.freeze({
 		maximumInputBytes: lowerOnlyLimit(value?.maximumInputBytes, HELPER_RESOURCE_HARD_LIMITS.maximumInputBytes, 'input bytes'),
-		maximumJobDurationMs: lowerOnlyLimit(value?.maximumJobDurationMs, HELPER_RESOURCE_HARD_LIMITS.maximumJobDurationMs, 'job duration'),
+		maximumJobDurationMs: lowerOnlyLimit(value?.maximumJobDurationMs, HELPER_JOB_DURATION_HARD_LIMITS[kind], 'job duration'),
 		maximumRssBytes: lowerOnlyLimit(value?.maximumRssBytes, HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes, 'peak RSS'),
+		allowNetwork: denyOnly(value?.allowNetwork, 'network'),
+		allowChildProcesses: denyOnly(value?.allowChildProcesses, 'child-process'),
+		allowOutputFiles: denyOnly(value?.allowOutputFiles, 'output-file'),
 	});
 }
 
@@ -201,8 +224,9 @@ export function normalizeHelperResourcePolicy(value?: Partial<HelperJobResourceP
  * byte bound, or fails the closed-key schema is rejected with a typed error.
  */
 export function validateHelperHostMessage(value: unknown): HelperHostMessage {
+	assertHelperWireEnvelope(value);
 	const record = wireRecord(value);
-	const type = versionedType(record, HOST_MESSAGE_TYPES);
+	const type = versionedType(record, HOST_MESSAGE_TYPES, PROCESS_MESSAGE_TYPES);
 	if (type === 'shutdown') {
 		exactWireKeys(record, SHUTDOWN_KEYS);
 		return Object.freeze({ contractVersion: HELPER_CONTRACT_VERSION, type });
@@ -225,18 +249,20 @@ export function validateHelperHostMessage(value: unknown): HelperHostMessage {
 		type: 'job',
 		jobId: assertHelperJobId(record.jobId),
 		kind: kind as HelperJobKind,
-		grant: validateHelperJobGrant(record.grant),
-		resourcePolicy: validateWirePolicy(record.resourcePolicy),
-	});
+		grant: validateHelperJobGrant(kind as HelperJobKind, record.grant),
+		resourcePolicy: validateWirePolicy(record.resourcePolicy, kind as HelperJobKind),
+	}) as HelperJobMessage;
 }
 
 export function validateHelperProcessMessage(value: unknown): HelperProcessMessage {
+	assertHelperWireEnvelope(value);
 	const record = wireRecord(value);
-	const type = versionedType(record, PROCESS_MESSAGE_TYPES);
+	const type = versionedType(record, PROCESS_MESSAGE_TYPES, HOST_MESSAGE_TYPES);
 	if (type === 'hello') {
 		exactWireKeys(record, HELLO_KEYS);
 		const kinds = record.kinds;
 		if (!Array.isArray(kinds) || kinds.length === 0
+			|| new Set(kinds).size !== kinds.length
 			|| kinds.some((kind) => typeof kind !== 'string' || !(HELPER_JOB_KINDS as readonly string[]).includes(kind))) {
 			throw new HelperContractViolationError('unknown-kind', 'A helper hello must announce only contract-v1 job kinds.');
 		}
@@ -310,37 +336,11 @@ export function deserializeHelperError(value: HelperWireError): Error {
 	return error;
 }
 
-function validateHelperJobGrant(value: unknown): HelperJobGrant {
+function validateWirePolicy(value: unknown, kind: HelperJobKind): HelperJobResourcePolicy {
 	const record = wireRecord(value);
-	exactWireKeys(record, GRANT_KEYS);
-	const mediaPath = record.mediaPath;
-	if (typeof mediaPath !== 'string' || mediaPath.length === 0 || mediaPath.length > 4_096
-		|| mediaPath.includes('\0')
-		|| !(mediaPath.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(mediaPath) || mediaPath.startsWith('\\\\'))
-		|| mediaPath.split(/[\\/]/u).includes('..')) {
-		throw new HelperContractViolationError('unsafe-grant', 'A helper media grant must be one absolute, traversal-free path.');
-	}
-	const mediaBytes = record.mediaBytes;
-	if (!Number.isSafeInteger(mediaBytes) || (mediaBytes as number) < 0) {
-		throw new HelperContractViolationError('unsafe-grant', 'A helper media grant must declare its byte length.');
-	}
-	const identity = wireRecord(record.identity);
-	if (Object.keys(identity).length !== 2
-		|| !Number.isSafeInteger(identity.dev) || !Number.isSafeInteger(identity.ino)) {
-		throw new HelperContractViolationError('unsafe-grant', 'A helper media grant must carry its captured file identity.');
-	}
-	return Object.freeze({
-		mediaPath,
-		mediaBytes: mediaBytes as number,
-		identity: Object.freeze({ dev: identity.dev as number, ino: identity.ino as number }),
-	});
-}
-
-function validateWirePolicy(value: unknown): HelperJobResourcePolicy {
-	const record = wireRecord(value);
-	exactWireKeys(record, POLICY_KEYS);
+	exactOptionalWireKeys(record, POLICY_KEYS, POLICY_DENY_KEYS);
 	try {
-		return normalizeHelperResourcePolicy(record as Partial<HelperJobResourcePolicy>);
+		return normalizeHelperResourcePolicy(record as Partial<HelperJobResourcePolicy>, kind);
 	} catch (error) {
 		throw new HelperContractViolationError('malformed', error instanceof Error ? error.message : String(error));
 	}
@@ -375,6 +375,7 @@ export interface HelperProbeResultPayload {
 const PROBE_RESULT_KEYS = Object.freeze(['timingAsset', 'nominalRate', 'characteristics']);
 
 export function validateHelperProbeResult(value: unknown): HelperProbeResultPayload {
+	assertHelperWireEnvelope(value);
 	const record = wireRecord(value);
 	exactWireKeys(record, PROBE_RESULT_KEYS);
 	const timingAsset = record.timingAsset;
@@ -391,15 +392,6 @@ export function validateHelperProbeResult(value: unknown): HelperProbeResultPayl
 		throw new HelperContractViolationError('malformed', 'A helper probe result must carry a positive rational rate.');
 	}
 	const characteristics = record.characteristics;
-	let serialized: string;
-	try {
-		serialized = JSON.stringify(characteristics) ?? 'null';
-	} catch {
-		throw new HelperContractViolationError('malformed', 'Helper probe characteristics must be JSON-serializable.');
-	}
-	if (byteLength(serialized) > MAXIMUM_HELPER_WIRE_MESSAGE_BYTES) {
-		throw new HelperContractViolationError('oversized', 'Helper probe characteristics exceed the contract byte bound.');
-	}
 	return Object.freeze({
 		timingAsset: new Uint8Array(timingAsset),
 		nominalRate: Object.freeze({ num: rate.num as number, den: rate.den as number }),
@@ -417,11 +409,15 @@ function wireRecord(value: unknown): Record<string, unknown> {
 function versionedType<Type extends string>(
 	record: Record<string, unknown>,
 	types: readonly Type[],
+	oppositeTypes: readonly string[],
 ): Type {
 	if (record.contractVersion !== HELPER_CONTRACT_VERSION) {
 		throw new HelperContractViolationError('unsupported-version', 'The helper contract version is unsupported.');
 	}
 	const type = record.type;
+	if (typeof type === 'string' && oppositeTypes.includes(type)) {
+		throw new HelperContractViolationError('wrong-direction', 'A helper wire message arrived in the wrong direction.');
+	}
 	if (typeof type !== 'string' || !(types as readonly string[]).includes(type)) {
 		throw new HelperContractViolationError('malformed', 'A known helper wire message type is required.');
 	}
@@ -435,6 +431,18 @@ function exactWireKeys(record: Record<string, unknown>, keys: readonly string[])
 	}
 }
 
+function exactOptionalWireKeys(
+	record: Record<string, unknown>,
+	required: readonly string[],
+	optional: readonly string[],
+): void {
+	const present = Object.keys(record);
+	if (required.some((key) => !present.includes(key))
+		|| present.some((key) => !required.includes(key) && !optional.includes(key))) {
+		throw new HelperContractViolationError('malformed', 'A helper wire record carries unsupported or missing keys.');
+	}
+}
+
 function lowerOnlyLimit(value: unknown, hardMaximum: number, label: string): number {
 	if (value === undefined) return hardMaximum;
 	if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > hardMaximum) {
@@ -443,16 +451,13 @@ function lowerOnlyLimit(value: unknown, hardMaximum: number, label: string): num
 	return value as number;
 }
 
-function bounded(value: string): string {
-	return value.length > 2_048 ? value.slice(0, 2_048) : value;
+function denyOnly(value: unknown, label: string): false {
+	if (value !== undefined && value !== false) {
+		throw new RangeError(`Helper ${label} authority is deny-only in contract v1.`);
+	}
+	return false;
 }
 
-function byteLength(value: string): number {
-	let bytes = 0;
-	for (let index = 0; index < value.length; index += 1) {
-		const code = value.codePointAt(index) as number;
-		if (code > 0xffff) index += 1;
-		bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
-	}
-	return bytes;
+function bounded(value: string): string {
+	return value.length > 2_048 ? value.slice(0, 2_048) : value;
 }
