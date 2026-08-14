@@ -124,6 +124,13 @@ function applyCommandTree(
 			PRODUCTION_HANDLERS['audio-freeze/remove'](draft, command);
 		} else {
 			PRODUCTION_HANDLERS['audio-freeze/commit'](draft, command);
+			// Committing removes the track's rack sidechain edges, and a lane can address
+			// an edge as well as an effect, so the surviving lanes are reconciled against
+			// the resulting graph exactly as the mixer commands do.
+			draft.automationLanes = reconcileLanesAfterInheritedCommand(
+				draft.automationLanes as readonly AutomationLaneV21[],
+				draft,
+			);
 		}
 		return finalizeIntermediate(draft, validateResult);
 	}

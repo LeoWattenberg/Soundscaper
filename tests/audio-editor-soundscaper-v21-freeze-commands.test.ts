@@ -130,6 +130,61 @@ test('a frozen track can be deleted, and its editable clips stay required until 
 	} as never), /must retain editable clips/iu);
 });
 
+test('committing a freeze drops lanes addressed to the sidechain edges it removes', () => {
+	const { project, freeze, digests, derivedSource, sourceContentIdentities } = fixture();
+	// A sidechain into the frozen track's rack, and a lane addressing that edge. Both
+	// are first-class: the routing editor authors sidechain edges and lanes may address
+	// an edge as well as an effect.
+	const sourced = applySoundscaperProjectCommandV21(project, {
+		type: 'track/add', track: createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+	} as never);
+	const sidechainId = 'sidechain:duck:voice:voice-fx';
+	const withSidechain = applySoundscaperProjectCommandV21(sourced, {
+		type: 'mixer-graph/set',
+		expected: sourced.mixer,
+		mixer: {
+			...sourced.mixer,
+			edges: [...sourced.mixer.edges, {
+				id: sidechainId, kind: 'sidechain',
+				source: { kind: 'track', id: 'music' },
+				destination: {
+					kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'voice-fx',
+				},
+				position: 'post-fader', level: 1, enabled: true, channelMap: [],
+			}],
+		},
+	} as never);
+	const withLane = applySoundscaperProjectCommandV21(withSidechain, {
+		type: 'automation-lane/set',
+		laneId: 'sidechain-level',
+		expected: null,
+		lane: {
+			id: 'sidechain-level',
+			address: { kind: 'edge', edgeId: sidechainId, parameterId: 'level' },
+			timebase: 'absolute-samples',
+			points: [{ id: 'start', position: 0, value: 1 }],
+			segments: [],
+		},
+	} as never);
+	assert.equal(withLane.automationLanes.some(({ id }) => id === 'sidechain-level'), true);
+
+	const installed = applySoundscaperProjectCommandV21(withLane, {
+		type: 'audio-freeze/install',
+		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
+		sourceContentIdentities,
+	} as never, { now: NOW });
+	// Commit removes the rack sidechain edges, so the lane addressing one has to go
+	// with them; leaving it dangling used to make the whole command fail validation.
+	const committed = applySoundscaperProjectCommandV21(installed, {
+		type: 'audio-freeze/commit',
+		trackId: 'voice', expectedFreeze: freeze, operationDigests: digests,
+		derivedSourceContentSha256: DERIVED_DIGEST,
+		derivedClip: committedClip(),
+	} as never);
+	assert.equal(committed.mixer.edges.some(({ id }) => id === sidechainId), false);
+	assert.equal(committed.automationLanes.some(({ id }) => id === 'sidechain-level'), false);
+});
+
 function fixture() {
 	const liveSource = createAudioSourceV10({
 		id: 'voice-live', storageKey: 'pcm:voice-live', frameCount: 512,
