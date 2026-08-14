@@ -24,6 +24,7 @@ const PUBLICATION_EVIDENCE = Object.freeze([
 	'src/common/editor/ffmpeg-video-output.ts',
 	'src/common/editor/ffmpeg.js',
 	'src/common/editor/controller/direct-video-export.ts',
+	'src/common/editor/controller/direct-video-plan-contract.ts',
 	'src/common/editor/controller/video-export-service.ts',
 	'src/common/editor/controller/video-rendered-fallback-export.ts',
 	'src/common/editor/file-service.js',
@@ -36,6 +37,7 @@ const PUBLICATION_EVIDENCE = Object.freeze([
 	'tests/audio-editor-ffmpeg-video-output.test.ts',
 	'tests/audio-editor-ffmpeg-idle.test.js',
 	'tests/audio-editor-export-direct-video.test.ts',
+	'tests/audio-editor-direct-video-keyframe-plan-v7.test.ts',
 	'tests/audio-editor-video-ffmpeg.test.js',
 	'tests/audio-editor-video-rendered-fallback-export.test.ts',
 	'tests/audio-editor-file-service.test.js',
@@ -48,6 +50,7 @@ const ROLLBACK_EVIDENCE = Object.freeze([
 	'src/common/editor/ffmpeg-video-output.ts',
 	'src/common/editor/ffmpeg.js',
 	'src/common/editor/controller/direct-video-export.ts',
+	'src/common/editor/controller/direct-video-plan-contract.ts',
 	'src/common/editor/controller/video-export-service.ts',
 	'src/common/editor/file-save-stream.ts',
 	'desktop/save-targets.js',
@@ -55,8 +58,54 @@ const ROLLBACK_EVIDENCE = Object.freeze([
 	'tests/audio-editor-ffmpeg-video-output.test.ts',
 	'tests/audio-editor-ffmpeg-idle.test.js',
 	'tests/audio-editor-export-direct-video.test.ts',
+	'tests/audio-editor-direct-video-keyframe-plan-v7.test.ts',
 	'tests/desktop-save-capacity.test.js',
 	'tests/desktop-save.test.js',
+]);
+
+const KEYED_PROJECT_EVIDENCE = Object.freeze([
+	'src/framescaper/editor-project-v20-profile.ts',
+	'src/framescaper/editor-project-v20-structural-admission.ts',
+	'src/framescaper/editor-project-v20-validation.ts',
+	'src/framescaper/editor-project-v20.ts',
+	'src/framescaper/editor-project-feature-requirements-v20.ts',
+	'tests/audio-editor-framescaper-project-v20-domain.test.ts',
+	'tests/audio-editor-framescaper-project-v20-feature-requirements.test.ts',
+	'tests/audio-editor-framescaper-project-v20-profile.test.ts',
+]);
+
+const KEYED_EXPORT_AUTHORITY_EVIDENCE = Object.freeze([
+	'src/common/editor/controller/product-video-export-strategy.ts',
+	'src/common/editor/controller/video-export-service.ts',
+	'src/common/editor/controller/video-export-timing.ts',
+	'src/common/editor/ui/video-keyframe-offline-video-export-sources.ts',
+	'src/common/editor/video-keyframe-export-inventory.ts',
+	'src/common/editor/video-keyframe-export-plan-v7.ts',
+	'src/common/editor/video-keyframe-export-presentation-authority.ts',
+	'src/framescaper/video-export-dispatch-v20.ts',
+	'src/framescaper/video-export-plan-v20.ts',
+	'src/framescaper/video-export-strategy-v20.ts',
+	'tests/audio-editor-product-video-export-strategy.test.ts',
+	'tests/audio-editor-video-export-timing-lifecycle.test.ts',
+	'tests/audio-editor-video-keyframe-offline-video-export.test.ts',
+	'tests/audio-editor-video-keyframe-export-plan-v7.test.ts',
+	'tests/audio-editor-framescaper-video-export-strategy-v20.test.ts',
+]);
+
+const KEYED_ENCODER_EVIDENCE = Object.freeze([
+	'patches/npm/@ffmpeg+ffmpeg+0.12.15.patch',
+	'src/common/editor/video-keyframe-encoder-admission.ts',
+	'src/common/editor/video-keyframe-encoder-stream.ts',
+	'src/common/editor/video-keyframe-audio-input.ts',
+	'src/common/editor/video-keyframe-video-container-stream.ts',
+	'src/common/editor/video-keyframe-video-encoder.ts',
+	'src/common/editor/video-keyframe-video-operation.ts',
+	'src/common/editor/video-keyframe-video-output.ts',
+	'src/common/editor/video-keyframe-video-sink.ts',
+	'tests/audio-editor-video-keyframe-av-encoder.test.ts',
+	'tests/audio-editor-video-keyframe-encoder-stream.test.ts',
+	'tests/audio-editor-video-keyframe-video-sink-encoder.test.ts',
+	'tests/browser/audio-editor-video-keyframe-video-encoder.spec.js',
 ]);
 
 test('exact direct MP4 and WebM publication has narrow capability and rollback controls', async () => {
@@ -146,6 +195,121 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	assert.match(
 		fallback.summary,
 		/exact schema 17.*relationship role.*target clip ID.*canonical native Blob.*sole video input.*project-video-render-v1.*selected target input.*video-clip-render-v1.*direct MP4\/WebM route.*legacy final-Blob route.*does not add codec qualification/isu,
+	);
+});
+
+test('dormant keyed V20 admission and encoding reuse the existing video publication authority', async () => {
+	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
+	const project = findControl(
+		matrix,
+		'external-project-document-validation',
+		'framescaper-v20-keyed-project-admission',
+	);
+	const authority = findControl(
+		matrix,
+		'external-project-document-validation',
+		'exact-v20-keyed-export-authority',
+	);
+	const encoder = findControl(
+		matrix,
+		'long-job-cancellation',
+		'bounded-keyed-rgba-av-encoding',
+	);
+	const publication = findControl(
+		matrix,
+		'desktop-write-path-capabilities',
+		'exact-direct-mp4-webm-video-save',
+	);
+	const rollback = findControl(
+		matrix,
+		'long-job-cancellation',
+		'direct-mp4-webm-video-save-rollback',
+	);
+
+	for (const [control, paths] of [
+		[project, KEYED_PROJECT_EVIDENCE],
+		[authority, KEYED_EXPORT_AUTHORITY_EVIDENCE],
+		[encoder, KEYED_ENCODER_EVIDENCE],
+	]) {
+		for (const path of paths) {
+			assert.ok(control.evidence.some((item) => item.path === path), path);
+			await access(new URL(`../${path}`, import.meta.url));
+		}
+	}
+	for (const path of [
+		'src/common/editor/video-keyframe-video-container-stream.ts',
+		'src/common/editor/video-keyframe-video-output.ts',
+		'src/framescaper/video-export-strategy-v20.ts',
+		'tests/audio-editor-video-keyframe-video-sink-encoder.test.ts',
+		'tests/audio-editor-framescaper-video-export-strategy-v20.test.ts',
+	]) {
+		assert.ok(publication.evidence.some((item) => item.path === path), path);
+		assert.ok(rollback.evidence.some((item) => item.path === path), path);
+	}
+
+	assert.match(
+		project.summary,
+		/exact.*V20.*process-local.*authority.*before.*traversal.*whole-document.*structural budget.*closed.*per-occurrence.*keyframe.*reserved.*requirement.*future.*opaque.*read-only/isu,
+	);
+	assert.match(
+		project.summary,
+		/dormant.*unselected.*does not activate.*capability.*browser route.*desktop route/isu,
+	);
+	assert.match(
+		authority.summary,
+		/canonical V20.*detached.*deep-frozen.*exact V17 playback projection.*rederive.*drift.*fallback-free/isu,
+	);
+	assert.match(
+		authority.summary,
+		/exact range.*active visible.*clip.*source.*rational.*canvas.*frame count.*version-7/isu,
+	);
+	assert.match(
+		authority.summary,
+		/active-source.*timing.*SHA-256.*before.*decode.*lease.*through.*encode.*publication cleanup/isu,
+	);
+	assert.match(
+		authority.summary,
+		/checks.*timing acquisition.*media authentication.*render.*encode.*output publication.*encoder cleanup.*always attempted.*preserves cleanup failures.*timing lease.*finally/isu,
+	);
+	assert.doesNotMatch(authority.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
+	assert.match(authority.summary, /dormant.*unselected.*neither activates.*capability.*route/isu);
+	assert.match(
+		encoder.summary,
+		/1,280.*720.*1 through 30.*2,000,000.*1 TiB/isu,
+	);
+	assert.match(encoder.summary, /two SharedArrayBuffer.*rings.*16 MiB/isu);
+	assert.match(encoder.summary, /float32 WAV.*2 GiB.*8,000 through 768,000/isu);
+	assert.match(
+		encoder.summary,
+		/MP4.*WebM.*SHA-256.*structurally.*second.*delivery pass.*TOCTOU/isu,
+	);
+	assert.match(
+		encoder.summary,
+		/generation.*currentness.*AbortSignal.*acquisition.*render.*encode.*output.*external operations/isu,
+	);
+	assert.match(
+		encoder.summary,
+		/cleanup.*always attempted.*aborts.*disposes.*both.*rings.*destination.*exactly once.*terminate/isu,
+	);
+	assert.match(encoder.summary, /preserves cleanup failures/iu);
+	assert.doesNotMatch(encoder.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
+	assert.match(
+		encoder.summary,
+		/dormant.*unselected.*does not qualify.*heap.*RSS.*GC.*CPU.*elapsed.*codec conformance.*reference scale/isu,
+	);
+	assert.match(publication.summary, /version-6.*or.*version-7.*keyed.*same.*video.*route/isu);
+	assert.match(rollback.summary, /version-7.*keyed.*generation.*container.*digest.*exactly once/isu);
+
+	assert.deepEqual(
+		matrix.publicationRouteQualification.routes
+			.filter(({ id }) => id.startsWith('video-'))
+			.map(({ id, controlId }) => [id, controlId]),
+		[
+			['video-browser-blob', 'bounded-browser-export-blob-publication'],
+			['video-direct-mp4', 'exact-direct-mp4-webm-video-save'],
+			['video-direct-webm', 'exact-direct-mp4-webm-video-save'],
+		],
+		'keyed V7 is a strategy within the three existing video publication routes',
 	);
 });
 

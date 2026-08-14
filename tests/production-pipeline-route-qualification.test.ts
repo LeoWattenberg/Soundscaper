@@ -107,6 +107,23 @@ test('browser audio and video publication use the shared admission boundary', as
 	assert.doesNotMatch(video, /new Blob\(\[encoded\.bytes\]/u);
 });
 
+test('dormant keyed V7 export reuses the frozen video Blob and direct route IDs', async () => {
+	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
+	const videoRoutes = matrix.publicationRouteQualification.routes
+		.filter(({ id }: RouteRecord) => id.startsWith('video-')) as RouteRecord[];
+
+	assert.deepEqual(videoRoutes.map(({ id }) => id), [
+		'video-browser-blob',
+		'video-direct-mp4',
+		'video-direct-webm',
+	]);
+	assert.equal(matrix.publicationRouteQualification.routes.length, 15);
+	const keyedControl = matrix.risks
+		.flatMap(({ currentControls }: { currentControls: Array<{ id: string }> }) => currentControls)
+		.find(({ id }: { id: string }) => id === 'exact-v20-keyed-export-authority');
+	assert.ok(keyedControl, 'the dormant keyed strategy must have separate authority evidence');
+});
+
 test('the threat model owns the route-level claim without promoting resource qualification', async () => {
 	const documentation = await readFile(
 		new URL('../docs/production-threat-model.md', import.meta.url),
