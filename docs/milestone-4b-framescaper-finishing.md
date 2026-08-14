@@ -27,16 +27,23 @@ stale-safe commands/history, clipboard V6 and edit-carrier preservation,
 current-format `.scape` preservation, the menu-opened keyframe editor, a shared
 lazy render-state provider, exact live WebGL preview evaluation, isolated V20
 browser storage/runtime composition, and a pre-I/O static-export refusal. Its
-dormant export path owns an immutable random-access frame source, exact VFR
-presentation authority, occurrence-scoped HTML-video seeking, a bounded
-offline WebGL RGBA renderer, the SharedArrayBuffer FFmpeg input device, and a
-generation-fenced browser encoder/output collector. Real Chromium witnesses
-cover seeking, WebGL orientation/composition, backpressure, and MP4 output.
-Both product profiles still advertise the capability as unavailable and V20 is
-not selected. Exact range/rational-rate acquisition, staged audio muxing,
-direct-file streaming, product export dispatch, activation-time
-security/quality registration, and final preview/export parity qualification
-remain open.
+dormant export path owns exact export-range and rational-rate timing authority,
+an immutable random-access frame source, exact CFR/VFR presentation authority,
+occurrence-scoped HTML-video seeking, a bounded offline WebGL RGBA renderer,
+linked A/V muxing, bounded SharedArrayBuffer FFmpeg inputs, and both Blob and
+direct-sink delivery. The V20 product export strategy and lifecycle acceptance,
+dormant security controls, semantic preview/offline parity collector, and
+provisional keyed quality registration have also landed. Real Chromium
+witnesses cover seeking, WebGL orientation/composition, backpressure, MP4
+output, and the dormant product lifecycle.
+
+4B-2 remains **In progress**. `reference-linux-gpu-01` is unprovisioned and
+qualification-ineligible, and there is no accepted external keyed-parity cohort
+or completed manual qualification. Both product profiles still advertise
+`videoKeyframes` as unavailable, the capability remains false, the browser App
+route remains V19, the packaged desktop route remains V18, and V20 is not
+selected. Capability/profile/App-route activation remains open and must not be
+inferred from the implemented dormant path or its provisional evidence.
 
 The project owner explicitly cleared the milestone-3 implementation sequencing
 gate for Framescaper 4B against the current maintained base. That clearance is
@@ -627,21 +634,34 @@ keyed clips lazily and resolves their composition and effect state from the
 actual program-preview sample through the exact visible-local mapping above;
 legacy clips do not enter that path, and invalid keyed state blanks the program
 preview with a localized error instead of rendering static state. Static export
-rejects animated state before media or FFmpeg I/O. Both product profiles still
-register `videoKeyframes` as known but unavailable, and the isolated V20
-browser environment and bootstrap remain unselected.
+rejects animated state before media or FFmpeg I/O.
 
-The dormant offline path now authenticates one bounded immutable project and
-active-source inventory, carries exact CFR/VFR presentation descriptors into
-occurrence-scoped HTML-video seek ports, renders each frame through the shared
-WebGL compositor into one reused RGBA allocation, and streams it through a
-fixed-capacity SharedArrayBuffer device to a generation-fenced FFmpeg
-operation. It cleans and revalidates every browser/runtime owner before
-returning bounded MP4/WebM bytes, with real Chromium witnesses for VFR seeking,
-orientation/composition, backpressure, and MP4 encoding. Capability
-availability must not flip until exact rational-rate and timing acquisition,
-linked-audio muxing, direct-file delivery, product dispatch, dedicated
-security/quality registration, and preview/export parity evidence land.
+The dormant offline path authenticates one bounded immutable project and
+active-source inventory, acquires one exact export range and reduced rational
+frame rate, and carries exact CFR/VFR presentation descriptors into
+occurrence-scoped HTML-video seek ports. It renders each frame through the
+shared WebGL compositor into one reused RGBA allocation, streams keyed RGBA and
+optional exact-range audio through bounded SharedArrayBuffer rings, muxes AAC
+for MP4 or Opus for WebM, and publishes through either bounded Blob collection
+or a structure- and digest-bound direct sink. Its version-7 plan and V20 product
+strategy retain project, source, timing, generation, currentness, and
+cancellation authority through encode and publication cleanup. Product-level
+browser acceptance covers edit/undo/redo/save/reopen, stale refusal, Blob and
+direct publication, cancellation, and cleanup while production gates stay
+untouched.
+
+Dormant security controls now register exact V20 admission, keyed export
+authority, bounded keyed RGBA/A/V encoding, Blob publication, direct MP4/WebM
+delivery, and rollback without activating a route. The semantic keyed parity
+collector compares preview and offline consumers with an independent oracle
+and rejects omissions, substitutions, fallbacks, or mutually wrong agreement;
+its quality workload is provisional correctness evidence only. Both product
+profiles still register `videoKeyframes` as known but unavailable, the browser
+App remains on V19, the packaged desktop remains on V18, and the isolated V20
+environment/bootstrap remain unselected. Capability availability must not flip
+until `reference-linux-gpu-01` is provisioned and eligible, an accepted external
+keyed-parity cohort and manual qualification exist, and the capability,
+profiles, and App routes are deliberately activated together.
 
 - **Outcome:** Add bounded keyframe curves to the numeric 4B-1 property IDs and
   registered video-effect parameters, with copy/paste, preset, and stale-safe
