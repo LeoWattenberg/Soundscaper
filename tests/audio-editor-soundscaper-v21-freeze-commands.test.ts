@@ -106,6 +106,30 @@ test('freeze commit is one undoable bake retaining strip/routing and retiring ef
 	assert.equal(freezeRequirements(undone.present).length, 1);
 });
 
+test('a frozen track can be deleted, and its editable clips stay required until it is', () => {
+	const { project, freeze, derivedSource, sourceContentIdentities } = fixture();
+	const installed = applySoundscaperProjectCommandV21(project, {
+		type: 'audio-freeze/install',
+		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
+		sourceContentIdentities,
+	} as never, { now: NOW });
+
+	// The freeze requirement names the frozen track, and it used to be renormalized
+	// against the post-command document before it could be re-derived, so removing the
+	// track was rejected for a fallback target the same command had just deleted.
+	const removed = applySoundscaperProjectCommandV21(installed, {
+		type: 'track/remove', trackId: 'voice',
+	} as never);
+	assert.deepEqual(removed.tracks.map(({ id }) => id), []);
+	assert.equal(freezeRequirements(removed).length, 0);
+
+	// Retaining the editable material is the freeze contract, so emptying the track is
+	// still refused - but by the invariant that owns it, not by requirement ordering.
+	assert.throws(() => applySoundscaperProjectCommandV21(installed, {
+		type: 'clip/remove-many', clipIds: ['voice-clip'], rippleMode: 'none',
+	} as never), /must retain editable clips/iu);
+});
+
 function fixture() {
 	const liveSource = createAudioSourceV10({
 		id: 'voice-live', storageKey: 'pcm:voice-live', frameCount: 512,

@@ -142,6 +142,11 @@ function applyCommandTree(
 	const commanded = cloneProject(projection as never) as unknown as Record<string, unknown>;
 	transaction.mutate(commanded, command);
 	stripLegacyMixerCommandTransients(commanded);
+	// The freeze requirement is re-derived from the resulting document below, so drop
+	// the inherited one before the draft is normalized. Otherwise a command that
+	// removes the frozen track is rejected for a fallback target it just deleted, and
+	// the track can never be deleted while it is frozen.
+	stripAudioFreezeRequirements(commanded);
 	preparePersistedProjectCommandDraft(commanded, project as unknown as Record<string, unknown>);
 	const elevated = elevateInheritedCommandResult(project, commanded, command, validateResult);
 	const result = command.type === 'track/add' && command.productionDuplicate
