@@ -72,6 +72,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-v10-database.js',
 		'desktop/project-library-v10-handshake-gate.js',
 		'desktop/project-library-v10-ipc.js',
+		'desktop/project-library-v10-lease-wait.js',
 		'desktop/project-library-v10-lifecycle-contract.js',
 		'desktop/project-library-v10-lifecycle-host.js',
 		'desktop/project-library-v10-main-channels.js',
