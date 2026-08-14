@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 interface TrackStructuralMenuCopy {
+	readonly muteAllTracks: string;
+	readonly unmuteAllTracks: string;
 	readonly alignTracks: string;
 	readonly alignEndToEnd: string;
 	readonly alignTogether: string;
@@ -17,6 +19,7 @@ interface TrackStructuralMenuItem {
 }
 
 export interface TrackStructuralMenuModel {
+	readonly muteItems: readonly TrackStructuralMenuItem[];
 	readonly alignMenu: TrackStructuralMenuItem;
 	readonly sortMenu: TrackStructuralMenuItem;
 }
@@ -34,6 +37,13 @@ export function createTrackStructuralOperationMenuModel(options: Readonly<{
 		Object.freeze({ id, label, disabled })
 	);
 	return Object.freeze({
+		// Mute all and unmute all act on the whole track collection, so the per-track
+		// overflow menu is not a home for them and they carry no default shortcut: the
+		// application menu is the only surface that makes them reachable.
+		muteItems: Object.freeze([
+			leaf('mute-all', options.copy.muteAllTracks, writeDisabled),
+			leaf('unmute-all', options.copy.unmuteAllTracks, writeDisabled),
+		]),
 		alignMenu: Object.freeze({
 			id: 'menu-align', label: options.copy.alignTracks,
 			items: Object.freeze([

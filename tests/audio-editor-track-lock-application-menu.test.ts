@@ -5,52 +5,17 @@ import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { materializeApplicationMenu } from '../src/common/editor/ui/application-menu-materialization.ts';
-import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from '../src/common/i18n/sequence-timing-copy.js';
 
-test('both products compose selected-track Lock and Unlock with exact update ports', () => {
-	for (const productId of ['soundscaper', 'framescaper'] as const) {
-		for (const type of ['audio', 'video', 'label'] as const) {
-			for (const locked of [false, true]) {
-				const calls: unknown[] = [];
-				const menus = createApplicationMenus(menuInput({
-					productId, type, locked, editBlocked: false,
-					actions: actionPorts({
-						setTrackLocked: (trackId: string, next: boolean) => {
-							calls.push({ trackId, locked: next });
-						},
-					}),
-				}));
-				const item = trackLockItem(menus);
-				assert.deepEqual({ id: item.id, label: item.label, disabled: item.disabled }, {
-					id: 'track-lock-toggle',
-					label: locked ? 'Unlock track' : 'Lock track',
-					disabled: false,
-				});
-				item.onClick?.();
-				assert.deepEqual(calls, [{ trackId: `${type}-track`, locked: !locked }]);
-			}
-		}
-	}
-});
-
-test('no selection and blocked editing retain one disabled Tracks-menu item', () => {
-	const actions = actionPorts({ setTrackLocked: () => assert.fail('disabled item dispatched') });
-	const missing = trackLockItem(createApplicationMenus(menuInput({
+test('the application menubar no longer duplicates the per-track lock command', () => {
+	const menus = createApplicationMenus(menuInput({
 		productId: 'soundscaper', type: 'audio', locked: false, editBlocked: false,
-		selectedTrackId: null, actions,
-	})));
-	assert.equal(missing.label, 'Lock track');
-	assert.equal(missing.disabled, true);
-	missing.onClick?.();
-
-	const blocked = trackLockItem(createApplicationMenus(menuInput({
-		productId: 'framescaper', type: 'video', locked: true, editBlocked: true, actions,
-	})));
-	assert.equal(blocked.label, 'Unlock track');
-	assert.equal(blocked.disabled, true);
-	blocked.onClick?.();
+		actions: actionPorts({}),
+	})) as readonly MenuItem[];
+	const tracks = menus.find(({ id }) => id === 'tracks');
+	assert.ok(tracks);
+	assert.equal(findMenuItemOrNull(tracks.items ?? [], 'track-lock-toggle'), null);
 });
 
 test('read-only projects retain Scape copy export while busy projects block it', () => {
@@ -76,35 +41,6 @@ test('read-only projects retain Scape copy export while busy projects block it',
 		}),
 		blocked: true,
 	})).disabled, true);
-});
-
-test('workspace runtime dispatches the existing exact track.update command port', () => {
-	const calls: unknown[] = [];
-	const input = menuInput({
-		productId: 'soundscaper', type: 'label', locked: false, editBlocked: false,
-		actions: actionPorts({}),
-	});
-	const runtime = new Proxy({
-		...input,
-		controller: {
-			actions: {
-				track: { update: (trackId: string, changes: unknown) => calls.push({ trackId, changes }) },
-			},
-		},
-		fileService: { isDesktop: false },
-		parityRuntime: { actions: null },
-		run: (operation: () => unknown) => operation(),
-	}, {
-		get(target, property, receiver) {
-			return Reflect.has(target, property)
-				? Reflect.get(target, property, receiver)
-				: () => undefined;
-		},
-	});
-	trackLockItem(createWorkspaceApplicationMenus(
-		runtime as unknown as Parameters<typeof createWorkspaceApplicationMenus>[0],
-	)).onClick?.();
-	assert.deepEqual(calls, [{ trackId: 'label-track', changes: { locked: true } }]);
 });
 
 test('shared track-lock copy is localized for both shipped locales', () => {
@@ -175,14 +111,6 @@ function findMenuItemOrNull(items: readonly MenuItem[], id: string): MenuItem | 
 		if (nested) return nested;
 	}
 	return null;
-}
-
-function trackLockItem(value: unknown): MenuItem {
-	const menus = value as readonly MenuItem[];
-	const tracks = menus.find(({ id }) => id === 'tracks');
-	const item = tracks?.items?.find(({ id }) => id === 'track-lock-toggle');
-	assert.ok(item);
-	return item;
 }
 
 function scapeSaveItem(value: unknown): MenuItem {

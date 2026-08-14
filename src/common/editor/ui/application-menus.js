@@ -390,8 +390,13 @@ export default function createApplicationMenus({
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },
 					],
 				},
+				// Nested sequences, multicamera, and the production track commands stay in
+				// this menu: the per-track overflow menu never carried them, so dropping
+				// them from here left them unreachable from any menu at all.
+				...productItems.tracks,
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
+				...structuralMenus.muteItems,
 				divider(),
 				{ id: 'mix', label: copy.mixMenu, items: [{
 					id: 'mixdown-to',

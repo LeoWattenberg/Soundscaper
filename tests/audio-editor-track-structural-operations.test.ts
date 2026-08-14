@@ -23,6 +23,7 @@ import { createTrackStructuralOperationMenuModel } from '../src/common/editor/ui
 test('the complete structural slice is reachable through opt-in track menus', () => {
 	const model = createTrackStructuralOperationMenuModel({
 		copy: {
+			muteAllTracks: 'Mute all tracks', unmuteAllTracks: 'Unmute all tracks',
 			alignTracks: 'Align content', alignEndToEnd: 'Align end to end', alignTogether: 'Align together',
 			sortTracks: 'Sort tracks', sortByTime: 'Sort by time', sortByName: 'Sort by name',
 		},
