@@ -96,7 +96,6 @@ export function buildProjectGraphV21(
 	const sampleRate = context.sampleRate || DEFAULT_SAMPLE_RATE;
 	const prepared = prepareProjectV21(project, includeMaster, sampleRate);
 	const { graph, tracks, plan } = prepared;
-	if (plan.pdcErrorSamples !== 0) throw new Error('The V21 mixer graph did not compile to exact PDC.');
 	const nodes: AudioNodeArray = [];
 	const sources = new Set<AudioScheduledSourceNode>();
 	const parameterRegistry = new ScheduledParameterRegistry();

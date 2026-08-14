@@ -103,6 +103,23 @@ function removeVideoEffect(project, command) {
 	const index = stack.findIndex((effect) => effect.id === command.effectId);
 	if (index < 0) throw new ReferenceError(`Unknown video effect: ${command.effectId}.`);
 	stack.splice(index, 1);
+	dropVideoKeyframeCurvesForEffect(project, command.clipId, command.effectId);
+}
+
+/**
+ * A keyframe curve can target an effect parameter, so removing the effect has to take
+ * its curves with it. Leaving them behind makes the document reference an effect that
+ * no longer exists, and the removal is rejected rather than the effect deleted.
+ */
+function dropVideoKeyframeCurvesForEffect(project, clipId, effectId) {
+	const clip = requireClip(project, clipId);
+	const keyframes = clip.videoKeyframes;
+	if (!keyframes || typeof keyframes !== 'object' || !Array.isArray(keyframes.curves)) return;
+	const curves = keyframes.curves.filter((curve) => !(
+		curve?.target?.kind === 'video-effect' && curve.target.effectId === effectId
+	));
+	if (curves.length === keyframes.curves.length) return;
+	clip.videoKeyframes = { ...keyframes, curves };
 }
 
 function reorderVideoEffect(project, command) {

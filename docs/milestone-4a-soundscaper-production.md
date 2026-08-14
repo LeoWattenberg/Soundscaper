@@ -483,7 +483,6 @@ interface ProjectPathPdcPlanV21 {
 	readonly latencyFrames: number;
 	readonly monitoringLatencyFrames: number;
 	readonly renderLatencyFrames: number;
-	readonly pdcErrorSamples: number;
 	automationLatencyFrames(address: unknown): number;
 }
 ```

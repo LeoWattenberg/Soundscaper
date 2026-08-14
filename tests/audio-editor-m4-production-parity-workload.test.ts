@@ -70,7 +70,6 @@ test('production PDC and gain scheduling plans are metric-sensitive', () => {
 	const fixture = createM4ProductionParityAudioFixture();
 	const plan = compileM4ProductionParityAudioPlan();
 	assert.equal(plan.pdcLatencyFrames, M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames);
-	assert.equal(plan.pdcErrorSamples, 0);
 	assert.deepEqual(plan.gainEvents.map(({ kind, value, time }) => ({
 		kind,
 		value,
@@ -119,7 +118,6 @@ test('the registered workload compiles a production V21 sidechain, send, and nes
 	assert.equal(plan.nodeOutputLatencyFrames.get('track:program'), 27);
 	assert.equal(plan.edgeCompensationFrames.get('fast-parent'), 10);
 	assert.equal(plan.latencyFrames, M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames);
-	assert.equal(plan.pdcErrorSamples, 0);
 });
 
 test('the browser collector delegates audio to the production graph and scheduler harness', async () => {

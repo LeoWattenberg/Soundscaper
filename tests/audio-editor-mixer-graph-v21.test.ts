@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+	MIXER_GRAPH_V21_MAX_ITEMS,
 	createDefaultMixerGraphV21,
 	normalizeMixerGraphV21,
 	validateMixerGraphV21,
@@ -191,6 +192,100 @@ function edge(
 	return { id, kind: 'assignment', source, destination, position: 'post-fader', level: 1,
 		enabled: true, channelMap: [], ...overrides };
 }
+
+test('channel maps are bounded by the destination width and the source width', () => {
+	const base = graphWithGroups();
+	const withMap = (id: string, channelMap: readonly number[]) => ({
+		...base,
+		edges: (base.edges as Readonly<Record<string, unknown>>[])
+			.map((candidate) => candidate.id === id ? { ...candidate, channelMap } : candidate),
+	});
+	const context = {
+		audioTracks: [{ id: 'voice' }, { id: 'music' }],
+		masterChannels: 2,
+		mixerNodeEffects: new Map([['dialogue', [{ id: 'dialogue-fx' }]]]),
+	};
+
+	// The map is destination-indexed, so its length answers to the destination and its
+	// entries answer to the source. A master destination declares a width like any other.
+	assert.equal(validateMixerGraphV21(withMap('stem-master', [0, 1]), context), true);
+	// An oversized map is authored state the product has shipped documents in, so only
+	// an authoring surface refuses it; the stored-document path keeps them openable.
+	assert.equal(validateMixerGraphV21(withMap('stem-master', [0, 1, 0, 1]), context), true);
+	const authoring = { ...context, strictChannelMapLength: true };
+	assert.throws(
+		() => validateMixerGraphV21(withMap('stem-master', [0, 1, 0, 1]), authoring),
+		/destination width/iu,
+	);
+	assert.throws(
+		() => validateMixerGraphV21(withMap('dialogue-stem', [0, 1, 0, 1]), authoring),
+		/destination width/iu,
+	);
+	// A disabled edge is never mapped by the runtime, so neither rule may reject it.
+	const disabled = {
+		...base,
+		edges: [...(base.edges as readonly unknown[]), {
+			...edge('inert', { kind: 'mixer-node', id: 'dialogue' }, { kind: 'master' }),
+			enabled: false, channelMap: [0, 1, 0, 1],
+		}],
+	};
+	assert.equal(validateMixerGraphV21(disabled, authoring), true);
+	assert.throws(
+		() => validateMixerGraphV21(withMap('dialogue-stem', [7, 0]), context),
+		/missing source channel/iu,
+	);
+	// A shorter map leaves the remaining destination channels silent, and -1 is the
+	// explicit silent entry, so neither may be rejected.
+	assert.equal(validateMixerGraphV21(withMap('stem-master', [0]), context), true);
+	assert.equal(validateMixerGraphV21(withMap('stem-master', [-1, 0]), context), true);
+	// An absent or malformed master width must skip the rule, never reject the document.
+	for (const masterChannels of [undefined, Number('nonsense'), 0]) {
+		assert.equal(
+			validateMixerGraphV21(withMap('stem-master', [0, 1, 0, 1]), {
+				...context, masterChannels, strictChannelMapLength: true,
+			}),
+			true,
+		);
+	}
+});
+
+test('the deepest admissible routing chain is decided, accepted and cyclic alike', () => {
+	// mixerGraphV21.edges is capped at MIXER_GRAPH_V21_MAX_ITEMS, so this is the longest
+	// chain any admissible document can express.
+	// Four fixed edges frame the chain, and the cyclic variant adds one more, so this
+	// is the deepest chain that leaves both variants inside the cap.
+	const depth = MIXER_GRAPH_V21_MAX_ITEMS - 4;
+	const nodes = Array.from({ length: depth }, (_value, index) => strip(`node-${String(index)}`));
+	const chain = nodes.slice(0, -1).map((node, index) => edge(
+		`link-${String(index)}`,
+		{ kind: 'mixer-node', id: node.id },
+		{ kind: 'mixer-node', id: `node-${String(index + 1)}` },
+	));
+	const acyclic = {
+		schemaVersion: 1,
+		groups: nodes, sends: [], cues: [], vcas: [],
+		outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
+		edges: [
+			edge('voice-head', { kind: 'track', id: 'voice' }, { kind: 'mixer-node', id: 'node-0' }),
+			edge('music-head', { kind: 'track', id: 'music' }, { kind: 'mixer-node', id: 'node-0' }),
+			...chain,
+			edge('tail-master', { kind: 'mixer-node', id: `node-${String(depth - 1)}` }, { kind: 'master' }),
+			edge('master-main', { kind: 'master' }, { kind: 'output', id: 'main' }),
+		],
+	};
+	const context = { audioTracks: [{ id: 'voice' }, { id: 'music' }], mixerNodeEffects: new Map() };
+	assert.equal(validateMixerGraphV21(acyclic, context), true);
+
+	const cyclic = {
+		...acyclic,
+		edges: [...acyclic.edges, edge(
+			'tail-head',
+			{ kind: 'mixer-node', id: `node-${String(depth - 1)}` },
+			{ kind: 'mixer-node', id: 'node-0' },
+		)],
+	};
+	assert.throws(() => validateMixerGraphV21(cyclic, context), /routing cycle/iu);
+});
 
 function graphWithGroups(): Readonly<Record<string, unknown>> {
 	return {

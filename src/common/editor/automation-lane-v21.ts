@@ -94,7 +94,7 @@ export function assertAutomationLaneIdentitiesUniqueV21(value: readonly unknown[
 	const laneIds = new Set<string>();
 	const addresses = new Set<string>();
 	for (const candidate of candidates) {
-		const lane = normalizeAutomationLaneV21(candidate);
+		const lane = persistedLane(candidate);
 		if (laneIds.has(lane.id)) throw new RangeError(`Automation lanes contain a duplicate lane ID: ${lane.id}.`);
 		laneIds.add(lane.id);
 		const address = canonicalParameterAddressKey(lane.address);
@@ -287,8 +287,21 @@ function assertValueInRange(value: number, minimum: number, maximum: number, nam
 	if (value < minimum || value > maximum) throw new RangeError(`${name} is outside its target range.`);
 }
 
-function normalizedLane(value: AutomationLaneV21): AutomationLaneV21 {
-	if (value && typeof value === 'object' && NORMALIZED_CURVES.has(value)) return value;
+/**
+ * Reuse an already-normalized lane, but only at persisted size. The normalized-curve
+ * cache is shared with capture normalization, whose cap is far higher, so a cached
+ * lane still has to clear the persisted point cap before the sweep may trust it.
+ */
+function persistedLane(value: unknown): AutomationLaneV21 {
+	if (value && typeof value === 'object' && NORMALIZED_CURVES.has(value)) {
+		const lane = value as AutomationLaneV21;
+		if (lane.points.length <= AUTOMATION_LANE_MAXIMUM_POINTS_V21) return lane;
+	}
+	return normalizeAutomationLaneV21(value);
+}
+
+function normalizedLane(value: unknown): AutomationLaneV21 {
+	if (value && typeof value === 'object' && NORMALIZED_CURVES.has(value)) return value as AutomationLaneV21;
 	return normalizeAutomationLaneV21(value);
 }
 

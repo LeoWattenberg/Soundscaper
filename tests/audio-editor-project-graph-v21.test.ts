@@ -211,7 +211,6 @@ test('V21 builds explicit nested routes, per-edge PDC, channel maps, VCA control
 			{ metering: false },
 		);
 
-		assert.equal(graph.pathPdcPlanV21?.pdcErrorSamples, 0);
 		assert.equal(graph.latencyFrames, 720);
 		assert.equal(projectGraphLatencyFrames(project), 720);
 		assert.equal(graph.pathPdcPlanV21?.edgeCompensationFrames.get('dry-to-child'), 480);

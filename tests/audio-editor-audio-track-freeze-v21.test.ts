@@ -372,6 +372,41 @@ test('lifecycle candidates reject stale admissions, descriptor mismatch, collisi
 	}), /range|start/iu);
 });
 
+test('rack automation digests are ordered by parameter address, not document position', () => {
+	const effects = [
+		{ id: 'fx-a', type: 'limiter', enabled: true, params: { threshold: -1, lookahead: 10 } },
+		{ id: 'fx-b', type: 'highpass', enabled: true, params: { frequency: 200 } },
+	];
+	const rackLane = (id: string, effectId: string, parameterId: string) => ({
+		id,
+		address: { kind: 'effect', strip: { kind: 'track', id: 'track-a' }, effectId, parameterId },
+		timebase: 'absolute-samples',
+		points: [{ id: `${id}-p`, position: 0, value: 1 }],
+		segments: [],
+	});
+	const first = rackLane('lane-1', 'fx-a', 'ceiling');
+	const second = rackLane('lane-2', 'fx-b', 'frequency');
+	const base = { ...digestInput(), track: { ...digestInput().track, effects } };
+	const ordered = computeAudioTrackFreezeDigestsV1({ ...base, automationLanes: [first, second] });
+	const reordered = computeAudioTrackFreezeDigestsV1({ ...base, automationLanes: [second, first] });
+
+	// Editing a lane moves it to the end of the document array, which must not make an
+	// otherwise untouched freeze look stale.
+	assert.equal(reordered.automationDigestSha256, ordered.automationDigestSha256);
+	assert.equal(reordered.freshnessDigestSha256, ordered.freshnessDigestSha256);
+
+	// Content still moves the digest, and a duplicated address is refused outright.
+	const changed = computeAudioTrackFreezeDigestsV1({
+		...base,
+		automationLanes: [{ ...first, points: [{ id: 'lane-1-p', position: 0, value: 0.5 }] }, second],
+	});
+	assert.notEqual(changed.automationDigestSha256, ordered.automationDigestSha256);
+	assert.throws(() => computeAudioTrackFreezeDigestsV1({
+		...base,
+		automationLanes: [first, { ...first, id: 'lane-3' }],
+	}), /duplicate address/iu);
+});
+
 function digestInput() {
 	const effects = [{
 		id: 'fx-a',

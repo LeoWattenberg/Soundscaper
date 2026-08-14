@@ -7,6 +7,7 @@ import {
 	AUTOMATION_LANE_MAXIMUM_POINTS_V21,
 	assertAutomationLaneIdentitiesUniqueV21,
 	evaluateAutomationLaneAtFrameV21,
+	normalizeAutomationLaneCaptureV21,
 	normalizeAutomationLaneV21,
 	resolveAutomationLanePointFramesV21,
 } from '../src/common/editor/automation-lane-v21.ts';
@@ -167,6 +168,30 @@ test('lane and point IDs and canonical parameter addresses have explicit uniquen
 	assert.throws(() => normalizeAutomationLaneV21(sampleLane({
 		points: [{ id: 'bad\u0000point', position: 0, value: 0 }], segments: [],
 	})), /control|formatting/iu);
+});
+
+test('the uniqueness sweep still enforces the persisted point cap on cached lanes', () => {
+	// Capture normalization shares the normalized-curve cache but admits far more
+	// points, so a cached capture lane must not reach persisted state through the sweep.
+	const lane = (count: number) => ({
+		id: 'g',
+		address: { kind: 'strip', strip: { kind: 'track', id: 't' }, parameterId: 'gain' },
+		timebase: 'absolute-samples',
+		points: Array.from({ length: count }, (_value, index) => ({
+			id: `p${String(index)}`, position: index, value: 0,
+		})),
+		segments: Array.from({ length: count - 1 }, () => ({ kind: 'hold' as const })),
+	});
+	const capture = normalizeAutomationLaneCaptureV21(lane(5_000));
+	assert.equal(capture.points.length, 5_000);
+	assert.throws(
+		() => assertAutomationLaneIdentitiesUniqueV21([capture]),
+		/1 through 4096/u,
+	);
+	assert.equal(
+		assertAutomationLaneIdentitiesUniqueV21([normalizeAutomationLaneV21(lane(4_096))]),
+		true,
+	);
 });
 
 test('closed hostile records, noncanonical time, malformed shapes, and descriptor violations reject inertly', () => {

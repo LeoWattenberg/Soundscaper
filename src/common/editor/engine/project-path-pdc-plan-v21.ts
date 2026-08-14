@@ -25,7 +25,6 @@ export interface ProjectPathPdcPlanV21 {
 	readonly latencyFrames: number
 	readonly monitoringLatencyFrames: number
 	readonly renderLatencyFrames: number
-	readonly pdcErrorSamples: number
 	automationLatencyFrames(address: unknown): number
 }
 
@@ -45,6 +44,7 @@ interface ProjectTrackV21 extends ProjectEffectHostV21 {
 
 interface ProjectForPdcV21 {
 	readonly sampleRate?: unknown
+	readonly masterChannels?: unknown
 	readonly tracks?: unknown
 	readonly master?: ProjectEffectHostV21
 	readonly mixer?: unknown
@@ -78,6 +78,7 @@ export function compileProjectPathPdcPlanV21(
 	validateMixerGraphV21(graph, {
 		audioTracks: tracks,
 		masterEffects,
+		masterChannels: Number(projectValue.masterChannels),
 		mixerNodeEffects: mixerNodeEffectsV21(graph),
 	})
 	const states = createVertexStates(graph, tracks, masterEffects, sampleRate)
@@ -111,7 +112,7 @@ export function compileProjectPathPdcPlanV21(
 		for (const edge of incoming) {
 			edgeCompensationFrames.set(
 				edge.id,
-				latency - (outputFrames.get(endpointKey(edge.source)) ?? 0),
+				exactCompensationFrames(latency - (outputFrames.get(endpointKey(edge.source)) ?? 0), edge.id),
 			)
 		}
 	}
@@ -125,16 +126,11 @@ export function compileProjectPathPdcPlanV21(
 		const sourceOutput = outputFrames.get(endpointKey(edge.source)) ?? 0
 		const destinationInput = inputFrames.get(destination) ?? 0
 		const effectPrefix = sidechainPrefix(edge, states)
-		edgeCompensationFrames.set(edge.id, Math.max(0, destinationInput + effectPrefix - sourceOutput))
+		edgeCompensationFrames.set(
+			edge.id,
+			exactCompensationFrames(destinationInput + effectPrefix - sourceOutput, edge.id),
+		)
 	}
-	const pdcErrorSamples = computePdcError(
-		graph,
-		states,
-		inputFrames,
-		outputFrames,
-		outputLatencyFrames,
-		edgeCompensationFrames,
-	)
 	const latencyFrames = Math.max(...outputLatencyFrames.values(), 0)
 	const freezeLatencyFramesByTrack = new Map<string, number>()
 	for (const track of tracks) {
@@ -156,7 +152,6 @@ export function compileProjectPathPdcPlanV21(
 		latencyFrames,
 		monitoringLatencyFrames: latencyFrames,
 		renderLatencyFrames: latencyFrames,
-		pdcErrorSamples,
 		automationLatencyFrames,
 	})
 }
@@ -297,24 +292,19 @@ function topologicalOrder(
 	return Object.freeze(result)
 }
 
-function computePdcError(
-	graph: MixerGraphV21,
-	states: ReadonlyMap<string, VertexState>,
-	inputFrames: ReadonlyMap<string, number>,
-	outputFrames: ReadonlyMap<string, number>,
-	outputLatencyFrames: ReadonlyMap<string, number>,
-	compensationFrames: ReadonlyMap<string, number>,
-): number {
-	let maximumError = 0
-	for (const edge of graph.edges) {
-		if (!edge.enabled) continue
-		const arrival = (outputFrames.get(endpointKey(edge.source)) ?? 0) + (compensationFrames.get(edge.id) ?? 0)
-		const target = edge.destination.kind === 'output'
-			? outputLatencyFrames.get(edge.destination.id) ?? 0
-			: (inputFrames.get(destinationVertex(edge)) ?? 0) + sidechainPrefix(edge, states)
-		maximumError = Math.max(maximumError, Math.abs(target - arrival))
+/**
+ * Admit only a compensation the routing solve can actually realize. Unreachable for a
+ * graph accepted by validateMixerGraphV21, because the topological solve raises every
+ * destination input to at least its source output. It replaces a self-comparison that
+ * recomputed its own inputs and so could only ever report zero: this fires at the
+ * moment of computation, so a future change to createDependencies fails loudly instead
+ * of silently misaligning audio.
+ */
+function exactCompensationFrames(frames: number, edgeId: string): number {
+	if (!Number.isSafeInteger(frames) || frames < 0) {
+		throw new TypeError(`PDC edge ${edgeId} requires impossible compensation`)
 	}
-	return maximumError
+	return frames
 }
 
 function createAutomationLatencyResolver(

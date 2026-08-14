@@ -79,6 +79,8 @@ export interface SoundscaperProductionDialogModel {
 	readonly selectedLaneId: string | null;
 	readonly selectedLaneText: string;
 	readonly selectedLaneParameter: SoundscaperProductionDialogParameter | null;
+	/** Projection context for converting a lane between the sample and beat timebases. */
+	readonly laneTimebase: Readonly<{ sampleRate: unknown; tempoMap: unknown }>;
 	readonly mixerGraphText: string;
 	readonly mixerCounts: SoundscaperProductionMixerCounts;
 	readonly operationsBlocked: boolean;
@@ -141,6 +143,12 @@ export function createSoundscaperProductionDialogModel(
 		selectedLaneId: selectedLane?.id ?? null,
 		selectedLaneText: selectedLane?.documentText ?? '',
 		selectedLaneParameter: selectedLane?.parameter ?? null,
+		// The automation editor converts lane positions between timebases, which is a
+		// tempo-map projection rather than a reinterpretation of the same number.
+		laneTimebase: Object.freeze({
+			sampleRate: Number(own(project, 'sampleRate')),
+			tempoMap: own(project, 'tempoMap'),
+		}),
 		mixerGraphText: safeDocumentText(mixer),
 		mixerCounts,
 		operationsBlocked: blockReason !== null,

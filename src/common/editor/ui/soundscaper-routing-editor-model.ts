@@ -12,6 +12,7 @@ import {
 	type MixerVcaV21,
 } from '../mixer-graph-v21.ts';
 import type { StripRef } from '../parameter-address.ts';
+import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 export type SoundscaperRoutingNodeCollection = 'groups' | 'sends' | 'cues';
@@ -139,16 +140,31 @@ function parseDocument(text: string): unknown {
 function validateGraph(projectValue: unknown, graph: MixerGraphV21): string | null {
 	try {
 		const project = record(projectValue);
+		// A track's channel width comes from its clip content, so resolve it here and
+		// let the graph rules check authored channel maps against the real source. The
+		// master width is the fallback the graph reconciler itself uses for a track with
+		// no clips, so resolving without it would reject the graph the product authored.
+		const trackWidths = resolveTerminalChannelWidths(
+			projectValue as never,
+			positiveInteger(own(record(projectValue), 'masterChannels'), 2),
+		).tracks;
 		const tracks = records(own(project, 'tracks'))
 			.filter((track) => own(track, 'type') === 'audio')
 			.flatMap((track) => {
 				const id = text(own(track, 'id'));
-				return id ? [Object.freeze({ id, effects: effectRecords(own(track, 'effects')) })] : [];
+				return id ? [Object.freeze({
+					id,
+					effects: effectRecords(own(track, 'effects')),
+					...(trackWidths.get(id) === undefined ? {} : { channelCount: trackWidths.get(id) }),
+				})] : [];
 			});
 		validateMixerGraphV21(graph, {
 			audioTracks: Object.freeze(tracks),
 			masterEffects: effectRecords(own(record(own(project, 'master')), 'effects')),
 			masterChannels: positiveInteger(own(project, 'masterChannels'), 2),
+			// An authoring draft may still be corrected, so oversized maps are refused here
+			// rather than after they have been stored.
+			strictChannelMapLength: true,
 			mixerNodeEffects: mixerNodeEffectsV21(graph),
 		});
 		return null;

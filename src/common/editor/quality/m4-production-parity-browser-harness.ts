@@ -14,7 +14,6 @@ export interface M4ProductionParityProductionPathEvidence {
 	readonly monitoring: boolean;
 	readonly scheduledClipCount: number;
 	readonly latencyFrames: number;
-	readonly pdcErrorSamples: number;
 	readonly programInputLatencyFrames: number;
 	readonly fastPathCompensationFrames: number;
 }
@@ -80,7 +79,6 @@ export async function renderM4ProductionParityProductionPath(
 				monitoring,
 				scheduledClipCount,
 				latencyFrames: graph.latencyFrames,
-				pdcErrorSamples: plan.pdcErrorSamples,
 				programInputLatencyFrames: plan.nodeInputLatencyFrames.get('track:program') ?? -1,
 				fastPathCompensationFrames: plan.edgeCompensationFrames.get('fast-parent') ?? -1,
 			}),

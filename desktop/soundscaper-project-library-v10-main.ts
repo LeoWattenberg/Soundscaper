@@ -31,6 +31,7 @@ import {
 import {
 	SoundscaperDesktopProjectLibraryV10TransferService,
 } from './soundscaper-project-library-v10-transfer-service.ts';
+import { acquireProjectLibraryV10LeaseWithWait } from './project-library-v10-lease-wait.ts';
 
 const START_FIELDS = ['appDataPath', 'owner', 'handshake'] as const;
 const LEASE_TTL_MS = 30_000;
@@ -121,7 +122,13 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 				appDataPath: options.appDataPath,
 			});
 			host.acceptHandshake(options.handshake);
-			lease = catalog.acquireLease({ ttlMs: LEASE_TTL_MS });
+			// A crashed owner leaves its lease unexpired, so wait it out rather than
+			// failing startup before any window exists.
+			const readyCatalog = catalog;
+			lease = await acquireProjectLibraryV10LeaseWithWait(
+				() => readyCatalog.acquireLease({ ttlMs: LEASE_TTL_MS }),
+				{ waitMs: LEASE_TTL_MS + 1_000 },
+			);
 			await recoverPending(database, catalog, host, lease);
 			const lifecycle = SoundscaperDesktopProjectLibraryV10LifecycleHost.create({
 				catalog,

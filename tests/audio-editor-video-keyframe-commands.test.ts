@@ -15,8 +15,11 @@ import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
 } from '../src/common/editor/video-clip-composition.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
+import { createEffectsVideoRuntimeHandlers } from '../src/common/editor/commands/effects-video-runtime.js';
 
 type DataRecord = Record<string, unknown>;
+
+const videoEffectHandlers = createEffectsVideoRuntimeHandlers();
 
 test('the context-free command snapshot is closed, detached, and deeply frozen', () => {
 	const expected = structuredClone(emptyKeyframes());
@@ -244,6 +247,31 @@ test('the runtime inspects clip collections and identities without invoking acce
 		)),
 		/unsupported field/iu,
 	);
+});
+
+test('removing a video effect takes its keyframe curves with it', () => {
+	// A curve may target an effect parameter, and the shipped keyframe dialog offers
+	// every effect parameter as an animation target, so deleting the effect has to
+	// drop its curves. Leaving them made the document reference a missing effect and
+	// the delete was rejected, so a keyframed effect could never be removed.
+	const project = projectFixture();
+	const clip = (project.clips as DataRecord[])[0]!;
+	clip.videoKeyframes = effectKeyframes('grade');
+	videoEffectHandlers['video-effect/remove'](project, {
+		type: 'video-effect/remove', clipId: 'video', effectId: 'grade',
+	});
+
+	assert.deepEqual(clip.videoEffects, []);
+	assert.deepEqual((clip.videoKeyframes as { curves: readonly unknown[] }).curves, []);
+
+	// A curve targeting something else is untouched, and so is the rest of the wire.
+	const kept = projectFixture();
+	const keptClip = (kept.clips as DataRecord[])[0]!;
+	keptClip.videoKeyframes = opacityKeyframes();
+	videoEffectHandlers['video-effect/remove'](kept, {
+		type: 'video-effect/remove', clipId: 'video', effectId: 'grade',
+	});
+	assert.deepEqual(keptClip.videoKeyframes, opacityKeyframes());
 });
 
 function projectFixture(): DataRecord {
