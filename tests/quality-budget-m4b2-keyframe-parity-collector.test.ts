@@ -35,7 +35,7 @@ test('complete keyed frames and dual-consumer ledgers pass only local dormant ad
 		requestedConsumerOperations: 24,
 		renderedConsumerOperations: 24,
 	});
-	assert.match(result.evaluation.failures.at(-1) ?? '', /not registered.*unprovisioned/iu);
+	assert.match(result.evaluation.failures.at(-1) ?? '', /registered provisionally.*unprovisioned/iu);
 });
 
 test('omission, substitution, and fallback remain distinct zero-count gates', () => {

@@ -162,6 +162,28 @@ unprovisioned. Packaging on hosted Windows, macOS, and Linux runners is valuable
 distribution evidence, but it cannot qualify real audio latency, camera,
 microphone, display-capture, or system-audio budgets without controlled devices.
 
+## Milestone 4B keyed render parity
+
+`m4b2-keyframe-render-parity` is registered only as a provisional correctness
+workload. Its deterministic 128x72 RGBA fixture evaluates hold, linear, eased,
+and Bezier opacity curves at exact segment starts, interiors, and ends. Each of
+the 12 operations must be rendered by both the preview and offline consumers;
+the collector independently recomputes their frame comparisons and requires a
+minimum SSIM of `0.98`, maximum normalized channel MAE of `6/255`, and exactly
+zero omitted, substituted, or fallback operations.
+
+Run the opt-in no-retry diagnostic with `node
+scripts/collect-m4b2-keyframe-parity-quality.mjs`. Local and hosted Playwright
+results are correctness evidence only. A passing collector run writes
+`pending-external`; a metric failure writes `failed`, and the collector refuses
+reference mode. The hosted Playwright environment is not qualification-eligible,
+while `reference-linux-gpu-01` remains unprovisioned with an empty fingerprint.
+
+The workload is absent from `qualification.qualifiedWorkloadIds`, and no
+accepted result cohort names it. Qualification remains unavailable until the
+reference GPU has a provisioned exact fingerprint and a separately reviewed,
+digest-bound accepted reference cohort has been retained.
+
 ## Fixtures and project sizes
 
 Small deterministic artifacts may be checked in with their byte length and

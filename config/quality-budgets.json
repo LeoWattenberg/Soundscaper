@@ -905,6 +905,51 @@
 			]
 		},
 		{
+			"id": "m4b2-keyframe-parity-rgba-v1",
+			"milestones": ["4"],
+			"status": "provisional",
+			"kind": "deterministic-keyed-preview-offline-rgba-parity",
+			"specification": {
+				"profile": "deterministic-keyframe-parity-v1",
+				"observationClass": "complete-keyed-rgba-consumer-ledger-v1",
+				"generatorRevision": 2,
+				"seed": 1801382864,
+				"width": 128,
+				"height": 72,
+				"sampleRate": 48000,
+				"frameRate": { "num": 12, "den": 1 },
+				"frameCount": 12,
+				"sourceByteLength": 442368,
+				"sourceSha256": "db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a",
+				"caseIds": ["opacity-hold", "opacity-linear", "opacity-eased", "opacity-bezier"],
+				"queryIds": ["start", "interior", "end"],
+				"evidenceClipIds": [
+					"m4b2-opacity-hold-clip",
+					"m4b2-opacity-linear-clip",
+					"m4b2-opacity-eased-clip",
+					"framescaper-v18-flat-clip-4f2ad5b3a72f098f3878c158c7025f70"
+				],
+				"presentationClasses": [
+					"authenticated-cfr-occurrence",
+					"authenticated-cfr-occurrence",
+					"authenticated-cfr-occurrence",
+					"authenticated-vfr-materialized-occurrence"
+				],
+				"localDiagnosticCommand": "node scripts/collect-m4b2-keyframe-parity-quality.mjs",
+				"qualificationPublication": "pending-external-only"
+			},
+			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes local and hosted correctness only, and its passing observations remain pending-external. No local or hosted result qualifies this workload until reference-linux-gpu-01 is provisioned and a separately reviewed accepted reference cohort is retained.",
+			"evidence": [
+				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
+				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
+				"scripts/collect-m4b2-keyframe-parity-quality.mjs",
+				"tests/audio-editor-m4b2-keyframe-parity-workload.test.ts",
+				"tests/helpers/m4b2-keyframe-parity-fixture.ts",
+				"tests/quality-budget-m4b2-keyframe-parity-collector.test.ts",
+				"tests/browser/audio-editor-m4b2-keyframe-parity.spec.js"
+			]
+		},
+		{
 			"id": "m5-helper-fault-and-loopback-v1",
 			"milestones": ["5"],
 			"status": "planned",
@@ -1147,6 +1192,29 @@
 				"scripts/collect-m4-production-parity-quality.mjs",
 				"tests/quality-budget-m4-production-parity-collector.test.ts",
 				"roadmap.md#4-parallel-production-surfaces"
+			]
+		},
+		{
+			"id": "m4b2-keyframe-render-parity",
+			"milestone": "4",
+			"status": "provisional",
+			"fixtureIds": ["m4b2-keyframe-parity-rgba-v1"],
+			"environmentIds": ["github-ubuntu-playwright-1.61.1", "reference-linux-gpu-01"],
+			"thresholds": [
+				{ "metricId": "keyframes.videoMinimumSsim", "comparison": "gte", "value": 0.98, "unit": "ratio" },
+				{ "metricId": "keyframes.videoMaximumChannelMae", "comparison": "lte", "value": 0.023529411764705882, "unit": "ratio" },
+				{ "metricId": "keyframes.omittedOperations", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "keyframes.substitutedOperations", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "keyframes.fallbackOperations", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": [
+				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
+				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
+				"scripts/collect-m4b2-keyframe-parity-quality.mjs",
+				"tests/audio-editor-m4b2-keyframe-parity-workload.test.ts",
+				"tests/helpers/m4b2-keyframe-parity-fixture.ts",
+				"tests/quality-budget-m4b2-keyframe-parity-collector.test.ts",
+				"tests/browser/audio-editor-m4b2-keyframe-parity.spec.js"
 			]
 		},
 		{

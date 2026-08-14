@@ -244,7 +244,7 @@ export function createPendingM4B2KeyframeParityResult(input) {
 			passed: false,
 			failures: Object.freeze([
 				...failures,
-				'Reference qualification is unavailable because the keyed workload is not registered and the host is unprovisioned.',
+				'Reference qualification is unavailable because the keyed workload is registered provisionally and the reference host is unprovisioned.',
 			]),
 		}),
 	});

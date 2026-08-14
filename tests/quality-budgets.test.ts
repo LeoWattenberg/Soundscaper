@@ -383,6 +383,57 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.equal(gpuEnvironment?.qualificationEligible, false);
 	assert.equal(gpuEnvironment?.rendererRequirement, 'hardware');
 	assert.ok(Object.values(gpuEnvironment?.fingerprint ?? {}).every((value) => value === null));
+	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.61.1');
+	assert.equal(hostedPlaywright?.status, 'active');
+	assert.equal(hostedPlaywright?.qualificationEligible, false);
+
+	const keyedFixture = fixtures.get('m4b2-keyframe-parity-rgba-v1');
+	const keyedWorkload = config.workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
+	const keyedEvidence = [
+		'src/common/editor/quality/m4b2-keyframe-parity-workload.ts',
+		'scripts/lib/m4b2-keyframe-parity-metrics.mjs',
+		'scripts/collect-m4b2-keyframe-parity-quality.mjs',
+		'tests/audio-editor-m4b2-keyframe-parity-workload.test.ts',
+		'tests/helpers/m4b2-keyframe-parity-fixture.ts',
+		'tests/quality-budget-m4b2-keyframe-parity-collector.test.ts',
+		'tests/browser/audio-editor-m4b2-keyframe-parity.spec.js',
+	];
+	assert.equal(keyedFixture?.status, 'provisional');
+	assert.equal(keyedFixture?.kind, 'deterministic-keyed-preview-offline-rgba-parity');
+	assert.deepEqual(keyedFixture?.specification, {
+		profile: 'deterministic-keyframe-parity-v1',
+		observationClass: 'complete-keyed-rgba-consumer-ledger-v1',
+		generatorRevision: 2, seed: 1_801_382_864, width: 128, height: 72,
+		sampleRate: 48_000, frameRate: { num: 12, den: 1 }, frameCount: 12,
+		sourceByteLength: 442_368,
+		sourceSha256: 'db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a',
+		caseIds: ['opacity-hold', 'opacity-linear', 'opacity-eased', 'opacity-bezier'],
+		queryIds: ['start', 'interior', 'end'],
+		evidenceClipIds: ['m4b2-opacity-hold-clip', 'm4b2-opacity-linear-clip',
+			'm4b2-opacity-eased-clip', 'framescaper-v18-flat-clip-4f2ad5b3a72f098f3878c158c7025f70'],
+		presentationClasses: ['authenticated-cfr-occurrence', 'authenticated-cfr-occurrence',
+			'authenticated-cfr-occurrence', 'authenticated-vfr-materialized-occurrence'],
+		localDiagnosticCommand: 'node scripts/collect-m4b2-keyframe-parity-quality.mjs',
+		qualificationPublication: 'pending-external-only',
+	});
+	assert.deepEqual(keyedFixture?.evidence, keyedEvidence);
+	assert.match(keyedFixture?.limitation ?? '', /correctness.*pending-external/iu);
+	assert.match(keyedFixture?.limitation ?? '', /provisioned.*accepted reference cohort/iu);
+	assert.equal(keyedWorkload?.status, 'provisional');
+	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
+	assert.deepEqual(keyedWorkload?.environmentIds,
+		['github-ubuntu-playwright-1.61.1', 'reference-linux-gpu-01']);
+	assert.deepEqual(keyedWorkload?.thresholds, [
+		{ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: 0.98, unit: 'ratio' },
+		{ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: 6 / 255, unit: 'ratio' },
+		{ metricId: 'keyframes.omittedOperations', comparison: 'eq', value: 0, unit: 'count' },
+		{ metricId: 'keyframes.substitutedOperations', comparison: 'eq', value: 0, unit: 'count' },
+		{ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0, unit: 'count' },
+	]);
+	assert.deepEqual(keyedWorkload?.evidence, keyedEvidence);
+	assert.equal(config.qualification.qualifiedWorkloadIds.includes(keyedWorkload?.id ?? ''), false);
+	assert.equal(JSON.stringify(config.qualification.acceptedResultCohorts)
+		.includes('m4b2-keyframe-render-parity'), false);
 
 	await assertEvidenceExists([
 		...config.environments.flatMap(({ evidence }) => evidence),
