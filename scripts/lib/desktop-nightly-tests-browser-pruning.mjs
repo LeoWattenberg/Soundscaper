@@ -32,6 +32,34 @@ export async function pruneFrameworkDevelopmentHeaders(root) {
 }
 
 /**
+ * The same raw build output ships text-based dylib stubs beside the framework
+ * binary — `JavaScriptCore.framework/Versions/A/JavaScriptCore.tbd`. A `.tbd` is a
+ * YAML description of exported symbols that only the linker reads, but `codesign`
+ * walking the framework treats one named after the framework as a subcomponent of
+ * it, finds a text file carrying no signature, and fails the whole bundle with
+ * "code object is not signed at all". Nothing loads a stub at runtime, so drop
+ * them here rather than teaching the signing walk to skip the browsers wholesale.
+ */
+export async function pruneFrameworkLinkerStubs(root) {
+	const doomed = [];
+	await visit(root, false);
+	for (const path of doomed) await rm(path);
+
+	async function visit(path, insideFramework) {
+		const metadata = await lstat(path);
+		if (metadata.isSymbolicLink() || !metadata.isDirectory()) return;
+		for (const entry of await readdir(path, { withFileTypes: true })) {
+			const child = join(path, entry.name);
+			if (entry.isDirectory()) {
+				await visit(child, insideFramework || entry.name.endsWith('.framework'));
+			} else if (insideFramework && entry.isFile() && entry.name.endsWith('.tbd')) {
+				doomed.push(child);
+			}
+		}
+	}
+}
+
+/**
  * electron-builder copies only files and symbolic links, creating destination
  * directories on demand as the parents of what it copies, so a directory whose
  * subtree holds nothing copyable never reaches the packaged application. Playwright's

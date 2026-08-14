@@ -310,6 +310,35 @@ test('nightly test staging drops framework headers no packaged browser reads', a
 	);
 });
 
+test('nightly test staging drops the framework linker stubs macOS signing refuses', async (context) => {
+	// codesign walks a framework and treats a .tbd sitting beside the binary as a
+	// subcomponent of it. A .tbd is a text symbol description only the linker reads, so
+	// it carries no signature, and the whole bundle failed with "code object is not
+	// signed at all" before the mac package could be produced.
+	const fixture = await createFixture(context);
+	await stageDesktopNightlyTests({
+		repositoryRoot: fixture.repositoryRoot,
+		outputRoot: fixture.outputRoot,
+		browserSourceRoot: fixture.browserSourceRoot,
+	});
+
+	const browsers = join(fixture.outputRoot, '.local-browsers');
+	await assert.rejects(
+		() => lstat(join(browsers, 'webkit-103/WebKit.framework/Versions/A/WebKit.tbd')),
+		/ENOENT/u,
+	);
+	assert.equal(
+		(await lstat(join(browsers, 'webkit-103/WebKit.framework/Versions/A/WebKit'))).isFile(),
+		true,
+		'the framework binary itself stays',
+	);
+	assert.equal(
+		(await lstat(join(browsers, 'webkit-103/keep.tbd'))).isFile(),
+		true,
+		'a stub outside a framework bundle is never walked as a subcomponent',
+	);
+});
+
 test('nightly test staging refuses destructive or self-referential paths', async (context) => {
 	const fixture = await createFixture(context);
 	for (const [outputRoot, browserSourceRoot] of [
@@ -415,6 +444,7 @@ async function createFixture(context) {
 	await writeFixtureFile(framework, 'Versions/A/Resources/Info.plist', 'fixture');
 	await writeFixtureFile(framework, 'Versions/A/Headers/WebKit.h', 'fixture');
 	await writeFixtureFile(framework, 'Versions/A/PrivateHeaders/VideoTarget.h', 'fixture');
+	await writeFixtureFile(framework, 'Versions/A/WebKit.tbd', 'fixture');
 	for (const hollow of ['Versions/A/Frameworks', 'Versions/A/Modules/nested']) {
 		await mkdir(join(framework, hollow), { recursive: true });
 	}
@@ -423,6 +453,7 @@ async function createFixture(context) {
 		await symlink(`Versions/Current/${name}`, join(framework, name));
 	}
 	await writeFixtureFile(browserSourceRoot, 'webkit-103/Headers/keep.h', 'fixture');
+	await writeFixtureFile(browserSourceRoot, 'webkit-103/keep.tbd', 'fixture');
 	return { temporaryRoot, repositoryRoot, outputRoot, browserSourceRoot };
 }
 

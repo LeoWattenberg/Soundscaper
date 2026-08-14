@@ -18,6 +18,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import {
 	pruneFrameworkDevelopmentHeaders,
+	pruneFrameworkLinkerStubs,
 	pruneUnpackableSymlinks,
 } from './desktop-nightly-tests-browser-pruning.mjs';
 
@@ -98,6 +99,7 @@ export async function stageDesktopNightlyTests({
 			excludedRootNames: new Set(['.links']),
 		});
 		await pruneFrameworkDevelopmentHeaders(join(temporaryOutput, '.local-browsers'));
+		await pruneFrameworkLinkerStubs(join(temporaryOutput, '.local-browsers'));
 		await pruneUnpackableSymlinks(join(temporaryOutput, '.local-browsers'));
 		await stageLicenses(root, temporaryOutput, runtimePackages);
 		await writeJson(join(temporaryOutput, 'package.json'), nightlyTestsPackage(projectPackage.version));
