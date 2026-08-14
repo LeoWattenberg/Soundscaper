@@ -3,6 +3,11 @@
 import React, { useEffect, useState } from 'react';
 
 import {
+	assertConvertedPositionsOrderedV21,
+	convertAutomationLanePositionV21,
+} from '../../automation-lane-timebase-v21.ts';
+
+import {
 	SOUNDSCAPER_AUTOMATION_MODES,
 	type SoundscaperAutomationMode,
 } from '../soundscaper-production-application-menu.ts';
@@ -102,7 +107,9 @@ export default function SoundscaperAutomationEditor({
 			<label className="kw-audio-editor-dialog__field">
 				<span>{copy.automationTimebase}</span>
 				<select disabled={!draft || !parameter || gestureActive} value={draft?.timebase ?? ''}
-					onChange={(event) => updateDraft((lane) => changeTimebase(lane, event.currentTarget.value))}>
+					onChange={(event) => updateDraft((lane) => changeTimebase(
+						lane, event.currentTarget.value, model.laneTimebase,
+					))}>
 					<option value="absolute-samples">{copy.automationSamples}</option>
 					<option value="musical-beats">{copy.automationBeats}</option>
 				</select>
@@ -218,21 +225,28 @@ function isRationalPosition(value: unknown): boolean {
 	}
 }
 
-function changeTimebase(lane: LaneDocument, value: string): void {
+function changeTimebase(
+	lane: LaneDocument,
+	value: string,
+	context: Readonly<{ sampleRate: unknown; tempoMap: unknown }>,
+): void {
 	if (value !== 'absolute-samples' && value !== 'musical-beats') {
 		throw new RangeError('The automation timebase is unsupported.');
 	}
 	if (lane.timebase === value) return;
-	const position = (candidate: unknown): number | { num: number; den: number } => {
-		if (value === 'musical-beats') {
-			if (!nonNegativeInteger(candidate)) throw new RangeError('An absolute position must be a non-negative integer.');
-			return { num: Number(candidate), den: 1 };
-		}
-		const rational = rationalPosition(candidate);
-		if (rational.den !== 1) throw new RangeError('Fractional beat positions require advanced canonical JSON conversion.');
-		return rational.num;
-	};
+	const from = lane.timebase === 'musical-beats' ? 'musical-beats' : 'absolute-samples';
+	// A sample frame and a beat are different coordinates, so the switch projects
+	// through the tempo map. Copying the number across would re-time every point.
+	const position = (candidate: unknown): number | { num: number; den: number } => (
+		convertAutomationLanePositionV21(candidate, from, value, {
+			sampleRate: Number(context.sampleRate),
+			...(context.tempoMap === undefined ? {} : { tempoMap: context.tempoMap as never }),
+		}) as number | { num: number; den: number }
+	);
 	for (const point of lane.points) point.position = position(point.position);
+	assertConvertedPositionsOrderedV21(
+		lane.points.map(({ position: converted }) => converted as never),
+	);
 	for (const segment of lane.segments) {
 		if (segment.kind !== 'bezier') continue;
 		for (const controlName of ['control1', 'control2']) {

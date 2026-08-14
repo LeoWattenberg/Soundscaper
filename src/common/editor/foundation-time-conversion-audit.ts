@@ -84,6 +84,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
+		id: 'automation-lane-timebase-conversion',
+		file: 'src/common/editor/automation-lane-timebase-v21.ts',
+		behavior: 'Switching a lane timebase projects each authored position through the tempo map once, exactly inverting a sample frame into its beat and resolving a beat back through the indexed projector that owns its rounding.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
 		id: 'automation-lane-interval-editing',
 		file: 'src/common/editor/automation-lane-interval-edit-v21.ts',
 		behavior: 'Musical automation interval edits exactly invert each conformed sample boundary once before applying the requested edit in the lane-owned beat domain.',
