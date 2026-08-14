@@ -51,11 +51,15 @@ interface SplitShape {
 }
 
 const ID_ENCODER = new TextEncoder();
+const NONCANONICAL_SPLICE_MESSAGE
+	= 'Automation ripple-delete cannot encode this discontinuous curve splice canonically.';
 
 /**
  * Replace one exact timeline interval in a lane. The removed interval is
  * discarded, the inserted interval holds the left boundary value, and the
  * surviving suffix moves as authored curve segments rather than sampled data.
+ * A deletion whose surviving boundary value differs keeps the authored shape
+ * until the sample before the splice, then holds that one sample.
  */
 export function replaceAutomationLaneTimelineIntervalV21(
 	laneValue: AutomationLaneV21,
@@ -78,19 +82,24 @@ export function replaceAutomationLaneTimelineIntervalV21(
 	if (edit.startFrame === edit.endFrame
 		&& compareFractions(startPosition, curve.points.at(-1)!.position) > 0) return laneValue;
 
+	const mint = createBoundaryIdMinter(lane.id, edit, curve.points);
 	const prefix = curvePrefixAt(
 		lane, curve, startPosition, edit.startFrame,
-		boundaryId(lane.id, edit, 'left'), sampleRate, options,
+		mint('left'), sampleRate, options,
 	);
 	const suffix = curveSuffixAt(
 		lane, curve, endPosition, edit.endFrame,
-		boundaryId(lane.id, edit, 'right'), sampleRate, options,
+		mint('right'), sampleRate, options,
 	);
 	const shift = subtractFractions(insertedEndPosition, endPosition);
 	const shiftedSuffix = shiftCurve(suffix, shift);
+	// The shoulder is resolved lazily: every accepted deletion would otherwise pay a
+	// second exact prefix split, and a lane whose bridge already holds must keep its
+	// existing result even when no shoulder position is representable.
 	const edited = edit.insertedDurationFrames === 0
-		? joinDeletedInterval(lane, edit, prefix, shiftedSuffix, startPosition)
-		: joinInsertedInterval(lane, edit, prefix, shiftedSuffix);
+		? joinDeletedInterval(edit, prefix, shiftedSuffix, startPosition, mint,
+			() => holdShoulderPrefix(lane, curve, edit, sampleRate, options, mint))
+		: joinInsertedInterval(prefix, shiftedSuffix, mint);
 	if (edited.points.length > AUTOMATION_LANE_MAXIMUM_POINTS_V21) {
 		throw new RangeError('An automation interval edit cannot exceed the 4096-point lane cap.');
 	}
@@ -168,15 +177,14 @@ function curveSuffixAt(
 }
 
 function joinInsertedInterval(
-	lane: AutomationLaneV21,
-	edit: AutomationLaneTimelineReplacementV21,
 	prefix: EditableCurve,
 	suffix: EditableCurve,
+	mint: (tag: string) => string,
 ): EditableCurve {
 	const left = [...prefix.points];
 	if (left.at(-1)!.id === suffix.points[0]!.id) {
 		left[left.length - 1] = {
-			...left.at(-1)!, id: boundaryId(lane.id, edit, 'insert-left'),
+			...left.at(-1)!, id: mint('insert-left'),
 		};
 	}
 	return {
@@ -186,11 +194,12 @@ function joinInsertedInterval(
 }
 
 function joinDeletedInterval(
-	lane: AutomationLaneV21,
 	edit: AutomationLaneTimelineReplacementV21,
 	prefix: EditableCurve,
 	suffix: EditableCurve,
 	position: ExactInterpolationFraction,
+	mint: (tag: string) => string,
+	shoulder: () => EditableCurve | null,
 ): EditableCurve {
 	const leftBoundary = prefix.points.at(-1)!;
 	const rightBoundary = suffix.points[0]!;
@@ -203,22 +212,58 @@ function joinDeletedInterval(
 		if (compareFractions(origin, position) === 0) return suffix;
 		return {
 			points: [{
-				id: boundaryId(lane.id, edit, 'origin'), position: origin,
+				id: mint('origin'), position: origin,
 				value: leftBoundary.value,
 			}, ...suffix.points],
 			segments: [{ kind: 'hold' }, ...suffix.segments],
 		};
 	}
 	const bridge = prefix.segments.at(-1)!;
-	if (leftBoundary.value !== rightBoundary.value && bridge.kind !== 'hold') {
-		throw new RangeError(
-			'Automation ripple-delete cannot encode this discontinuous curve splice canonically.',
-		);
-	}
-	return {
+	if (leftBoundary.value === rightBoundary.value || bridge.kind === 'hold') return {
 		points: [...prefix.points.slice(0, -1), ...suffix.points],
 		segments: [...prefix.segments, ...suffix.segments],
 	};
+	// The authored bridge cannot reach the surviving right boundary value, so keep the
+	// authored curve exact up to the sample before the splice and hold that one sample
+	// across the discontinuity the deletion created.
+	const shouldered = shoulder();
+	if (!shouldered || compareFractions(shouldered.points.at(-1)!.position, position) >= 0) {
+		throw new RangeError(NONCANONICAL_SPLICE_MESSAGE);
+	}
+	return {
+		points: [...shouldered.points, ...suffix.points],
+		segments: [...shouldered.segments, { kind: 'hold' }, ...suffix.segments],
+	};
+}
+
+/**
+ * The authored prefix curve up to the sample before a ripple-delete splice. The
+ * splice must carry the surviving right boundary value, so this shoulder confines
+ * the discontinuity the deletion created to one held sample instead of refusing.
+ * A musical lane whose preceding sample has no canonical rational beat position
+ * has no representable shoulder, and the caller refuses rather than approximating.
+ */
+function holdShoulderPrefix(
+	lane: AutomationLaneV21,
+	curve: EditableCurve,
+	edit: AutomationLaneTimelineReplacementV21,
+	sampleRate: number,
+	options: AutomationLaneFrameOptionsV21,
+	mint: (tag: string) => string,
+): EditableCurve | null {
+	if (edit.startFrame === 0) return null;
+	const frame = edit.startFrame - 1;
+	const position = positionAtFrame(lane, frame, sampleRate, options);
+	try {
+		publicFraction(position);
+		return curvePrefixAt(
+			lane, curve, position, frame,
+			mint('shoulder'), sampleRate, options,
+		);
+	} catch (error) {
+		if (error instanceof RangeError) return null;
+		throw error;
+	}
 }
 
 function splitShape(
@@ -460,6 +505,32 @@ function normalizedEdit(value: AutomationLaneTimelineReplacementV21): Automation
 	);
 	if (endFrame < startFrame) throw new RangeError('An automation edit range must be ordered.');
 	return { startFrame, endFrame, insertedDurationFrames };
+}
+
+/**
+ * Boundary IDs are derived from the edit alone, so repeating an identical ripple on a
+ * lane that still carries an earlier boundary point would mint a live ID a second
+ * time and the lane would be rejected for duplicate IDs. Disambiguate against the
+ * authored lane, and against IDs already issued for this edit.
+ */
+function createBoundaryIdMinter(
+	laneId: string,
+	edit: AutomationLaneTimelineReplacementV21,
+	points: readonly EditablePoint[],
+): (tag: string) => string {
+	const taken = new Set(points.map((point) => point.id));
+	return (tag: string): string => {
+		const base = boundaryId(laneId, edit, tag);
+		let candidate = base;
+		for (let index = 1; taken.has(candidate); index += 1) {
+			if (index > taken.size + 1) {
+				throw new RangeError('An automation interval edit could not mint a unique boundary ID.');
+			}
+			candidate = `${base}-${String(index)}`;
+		}
+		taken.add(candidate);
+		return candidate;
+	};
 }
 
 function boundaryId(

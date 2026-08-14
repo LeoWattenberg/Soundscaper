@@ -58,16 +58,94 @@ test('ripple delete evaluates both boundaries and preserves an exactly represent
 	assert.equal(valueAt(edited, 60), valueAt(lane, 100));
 });
 
-test('an unrepresentable discontinuous delete refuses without touching caller authority', () => {
+test('a discontinuous delete holds the sample before the splice instead of refusing', () => {
 	const lane = sampleLane([
 		{ id: 'start', position: 0, value: 0 },
 		{ id: 'end', position: 100, value: 1 },
 	], [{ kind: 'linear' }]);
+	const edited = replaceAutomationLaneTimelineIntervalV21(lane, {
+		startFrame: 20, endFrame: 60, insertedDurationFrames: 0,
+	}, { sampleRate: SAMPLE_RATE, tempoMap: TEMPO_MAP });
+
+	assert.deepEqual(edited.points.map(({ position }) => position), [0, 19, 20, 60]);
+	assert.deepEqual(edited.segments.map(({ kind }) => kind), ['linear', 'hold', 'linear']);
+	// The shoulder frame keeps the authored value and the splice carries the surviving
+	// right boundary, so the deletion's discontinuity occupies exactly one sample.
+	assert.equal(valueAt(edited, 19), valueAt(lane, 19));
+	assert.equal(valueAt(edited, 20), valueAt(lane, 60));
+	assert.equal(valueAt(edited, 60), valueAt(lane, 100));
+	// Re-anchoring the prefix span changes float rounding, so interior frames agree to
+	// within a few ULP at this fixture's 0..1 value scale rather than bit-exactly.
+	for (const frame of [1, 5, 10, 18]) {
+		assert.ok(Math.abs(valueAt(edited, frame) - valueAt(lane, frame)) <= 2e-15);
+	}
+});
+
+test('an eased discontinuous delete keeps exact Bezier subcurves either side of the held sample', () => {
+	const lane = sampleLane([
+		{ id: 'start', position: 0, value: 0 },
+		{ id: 'end', position: 100, value: 1 },
+	], [{ kind: 'eased' }]);
+	const edited = replaceAutomationLaneTimelineIntervalV21(lane, {
+		startFrame: 20, endFrame: 60, insertedDurationFrames: 0,
+	}, { sampleRate: SAMPLE_RATE, tempoMap: TEMPO_MAP });
+
+	assert.deepEqual(edited.points.map(({ position }) => position), [0, 19, 20, 60]);
+	assert.deepEqual(edited.segments.map(({ kind }) => kind), ['bezier', 'hold', 'bezier']);
+	assert.equal(valueAt(edited, 19), valueAt(lane, 19));
+	assert.equal(valueAt(edited, 20), valueAt(lane, 60));
+});
+
+test('a delete that cannot represent its shoulder position refuses transactionally', () => {
+	// At 137 bpm over 96 kHz the splice beat is canonical but the preceding sample
+	// resolves to 6575863/5760000, outside the shared rational denominator domain.
+	const tempoMap = Object.freeze({
+		mode: 'musical' as const,
+		events: Object.freeze([Object.freeze({
+			beat: Object.freeze({ num: 0, den: 1 }),
+			bpm: Object.freeze({ num: 137, den: 1 }),
+		})]),
+	});
+	const lane = normalizeAutomationLaneV21({
+		id: 'lane',
+		address: { kind: 'strip', strip: { kind: 'track', id: 'voice' }, parameterId: 'gain' },
+		timebase: 'musical-beats',
+		points: [
+			{ id: 'start', position: { num: 0, den: 1 }, value: 0 },
+			{ id: 'end', position: { num: 8, den: 1 }, value: 1 },
+		],
+		segments: [{ kind: 'linear' }],
+	});
 	const before = structuredClone(lane);
 	assert.throws(() => replaceAutomationLaneTimelineIntervalV21(lane, {
-		startFrame: 20, endFrame: 40, insertedDurationFrames: 0,
-	}, { sampleRate: SAMPLE_RATE, tempoMap: TEMPO_MAP }), /canonical|discontin|splice/iu);
+		startFrame: 48_000, endFrame: 96_000, insertedDurationFrames: 0,
+	}, { sampleRate: 96_000, tempoMap }), /canonical|discontin|splice/iu);
 	assert.deepEqual(lane, before);
+});
+
+test('deletes that already splice canonically are unchanged by the shoulder path', () => {
+	// Equal boundary values need no discontinuity, and startFrame 0 has no preceding
+	// sample; both must keep producing exactly the curve they produced before.
+	const symmetric = sampleLane([
+		{ id: 'start', position: 0, value: 0 },
+		{ id: 'peak', position: 40, value: 1 },
+		{ id: 'end', position: 80, value: 0 },
+	], [{ kind: 'linear' }, { kind: 'linear' }]);
+	const equalBoundaries = replaceAutomationLaneTimelineIntervalV21(symmetric, {
+		startFrame: 20, endFrame: 60, insertedDurationFrames: 0,
+	}, { sampleRate: SAMPLE_RATE, tempoMap: TEMPO_MAP });
+	assert.deepEqual(equalBoundaries.points.map(({ position }) => position), [0, 20, 40]);
+	assert.deepEqual(equalBoundaries.segments.map(({ kind }) => kind), ['linear', 'linear']);
+
+	const ramp = sampleLane([
+		{ id: 'start', position: 0, value: 0 },
+		{ id: 'end', position: 100, value: 1 },
+	], [{ kind: 'linear' }]);
+	const fromOrigin = replaceAutomationLaneTimelineIntervalV21(ramp, {
+		startFrame: 0, endFrame: 40, insertedDurationFrames: 0,
+	}, { sampleRate: SAMPLE_RATE, tempoMap: TEMPO_MAP });
+	assert.deepEqual(fromOrigin.points.map(({ position }) => position), [0, 60]);
+	assert.deepEqual(fromOrigin.segments.map(({ kind }) => kind), ['linear']);
 });
 
 test('musical lanes derive exact edit coordinates from the authoritative tempo map', () => {
@@ -136,6 +214,22 @@ test('eased segments split to exact-position Bezier subcurves at a non-symmetric
 		const editedFrame = frame <= 30 ? frame : frame + 10;
 		assert.ok(Math.abs(valueAt(edited, editedFrame) - valueAt(lane, frame)) <= 2e-15);
 	}
+});
+
+test('repeating an identical ripple does not remint a boundary ID that is still live', () => {
+	// Boundary IDs derive from the edit alone, so an identical range deleted twice with
+	// an intervening earlier delete would otherwise collide with its own earlier point.
+	let lane = sampleLane([
+		{ id: 'start', position: 0, value: 0 },
+		{ id: 'end', position: 200_000, value: 1 },
+	], [{ kind: 'linear' }]);
+	for (const [startFrame, endFrame] of [[100, 200], [10, 20], [100, 200], [10, 20], [100, 200]]) {
+		lane = replaceAutomationLaneTimelineIntervalV21(lane, {
+			startFrame: startFrame!, endFrame: endFrame!, insertedDurationFrames: 0,
+		}, { sampleRate: SAMPLE_RATE, tempoMap: TEMPO_MAP });
+	}
+	const ids = lane.points.map(({ id }) => id);
+	assert.equal(new Set(ids).size, ids.length);
 });
 
 test('a boundary split that would exceed the 4096-point wire cap refuses transactionally', () => {
