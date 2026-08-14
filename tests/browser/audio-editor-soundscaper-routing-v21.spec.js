@@ -72,14 +72,27 @@ test.describe('Soundscaper V21 structured routing editor', () => {
 		await vca.getByRole('checkbox', { name: /^Track:/u }).first().check();
 		await vca.getByRole('button', { name: 'Add VCA', exact: true }).click();
 
+		// The map is destination-indexed: entry i names the source channel feeding
+		// destination channel i. So reading channel 2 of a stereo track is a source error,
+		// and only a map longer than the destination is a destination error.
 		const badEdge = dialog.getByRole('form', { name: 'Add routing edge', exact: true });
 		await badEdge.getByRole('textbox', { name: 'Edge ID', exact: true }).fill('bad-map');
 		await badEdge.getByRole('combobox', { name: 'Destination endpoint', exact: true }).selectOption({ label: 'Group: Dialogue' });
 		await badEdge.getByRole('textbox', { name: /Channel map/u }).fill('0, 2');
 		await badEdge.getByRole('button', { name: 'Add routing edge', exact: true }).click();
-		await expect(dialog.getByRole('alert')).toContainText('channel map exceeds its destination width');
+		await expect(dialog.getByRole('alert')).toContainText('channel map reads a missing source channel');
 		await expect(dialog.getByRole('button', { name: 'Apply routing graph', exact: true })).toBeDisabled();
 		await dialog.getByRole('button', { name: 'Remove edge bad-map', exact: true }).click();
+		await expect(dialog.getByRole('alert')).toHaveCount(0);
+
+		const wideEdge = dialog.getByRole('form', { name: 'Add routing edge', exact: true });
+		await wideEdge.getByRole('textbox', { name: 'Edge ID', exact: true }).fill('wide-map');
+		await wideEdge.getByRole('combobox', { name: 'Destination endpoint', exact: true }).selectOption({ label: 'Group: Dialogue' });
+		await wideEdge.getByRole('textbox', { name: /Channel map/u }).fill('0, 1, 0, 1');
+		await wideEdge.getByRole('button', { name: 'Add routing edge', exact: true }).click();
+		await expect(dialog.getByRole('alert')).toContainText('channel map exceeds its destination width');
+		await expect(dialog.getByRole('button', { name: 'Apply routing graph', exact: true })).toBeDisabled();
+		await dialog.getByRole('button', { name: 'Remove edge wide-map', exact: true }).click();
 		await expect(dialog.getByRole('alert')).toHaveCount(0);
 
 		const edge = dialog.getByRole('form', { name: 'Add routing edge', exact: true });
