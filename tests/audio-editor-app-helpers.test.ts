@@ -46,8 +46,7 @@ test('meter settings normalize persisted values at the module boundary', () => {
 });
 
 test('the application menubar omits the redundant playback and recording menu', () => {
-	assert.equal(AUDACITY_MENU_ORDER.includes('transport-menu'), false);
-	assert.ok(AUDACITY_MENU_ORDER.indexOf('tracks') > AUDACITY_MENU_ORDER.indexOf('view'));
+	assert.deepEqual(AUDACITY_MENU_ORDER.slice(3, 5), ['view', 'tracks']);
 });
 
 test('floating panels are clamped to the visible workspace', () => {

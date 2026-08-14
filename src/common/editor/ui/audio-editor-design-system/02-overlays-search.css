@@ -147,11 +147,27 @@
 	display: contents;
 }
 
-#kw-audio-editor-design-system .audio-editor-track-menu.menu {
+#kw-audio-editor-design-system .audio-editor-track-menu.context-menu {
 	position: fixed !important;
 	z-index: var(--kw-editor-flyout-z) !important;
+	max-height: none;
+	overflow: visible;
+}
+
+#kw-audio-editor-design-system .audio-editor-track-menu.context-menu:not(:has(.context-menu-item-arrow)) {
 	max-height: var(--audio-editor-track-menu-max-height, none);
 	overflow-y: auto;
+}
+
+#kw-audio-editor-design-system .audio-editor-track-menu .context-menu-submenu {
+	min-width: 250px;
+	max-height: min(70dvh, 590px);
+	overflow-y: auto;
+}
+
+#kw-audio-editor-design-system .audio-editor-track-menu .context-menu-submenu:has(> .context-menu-item > .context-menu-item-content .context-menu-item-arrow) {
+	max-height: none;
+	overflow: visible;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-color-picker.context-menu {

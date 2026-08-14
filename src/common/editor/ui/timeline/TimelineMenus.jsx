@@ -1,7 +1,6 @@
 import {
 	ContextMenu,
 	ContextMenuItem,
-	Menu,
 	RulerFlyout,
 	TimelineRulerContextMenu,
 } from '@dilsonspickles/components';
@@ -74,6 +73,8 @@ export function TimelineMenus({
 	const trackMenuPlacement = trackMenu && menuTrack
 		? viewportMenuPlacement(trackMenu.anchor, trackMenuItems)
 		: null;
+	const trackMenuRect = trackMenuPlacement?.anchorEl?.getBoundingClientRect?.();
+	const trackMenuHasNestedItems = trackMenuItems.some((item) => item.items?.length);
 
 	return (
 			<TimelineOverlayPortal target={overlayTarget}>
@@ -162,13 +163,18 @@ export function TimelineMenus({
 					? { '--audio-editor-track-menu-max-height': `${trackMenuPlacement.maxHeight}px` }
 					: undefined}
 			>
-				<Menu
+				<ContextMenu
 					isOpen={Boolean(trackMenu && menuTrack)}
-					anchorEl={trackMenuPlacement?.anchorEl || null}
+					x={trackMenuRect?.left || 0}
+					y={trackMenuRect?.top || 0}
 					onClose={() => setTrackMenu(null)}
 					className="audio-editor-track-menu"
-					items={trackMenuItems}
-				/>
+					style={trackMenuPlacement && !trackMenuHasNestedItems
+						? { maxHeight: `${trackMenuPlacement.maxHeight}px`, overflowY: 'auto' }
+						: undefined}
+				>
+					{trackMenuItems.map((item, index) => renderTrackMenuItem(item, index, setTrackMenu))}
+				</ContextMenu>
 			</div>
 
 			<ContextMenu
@@ -362,4 +368,19 @@ export function TimelineMenus({
 			</ContextMenu>
 			</TimelineOverlayPortal>
 	);
+}
+
+function renderTrackMenuItem(item, index, setTrackMenu) {
+	if (item.divider) return <ContextMenuItem key={`divider-${index}`} isDivider />;
+	return <ContextMenuItem
+		key={item.id || `${item.label}-${index}`}
+		label={item.label}
+		checked={item.checked}
+		disabled={item.disabled}
+		onClick={item.onClick}
+		onClose={() => setTrackMenu(null)}
+		hasSubmenu={Boolean(item.items?.length)}
+	>
+		{item.items?.map((child, childIndex) => renderTrackMenuItem(child, childIndex, setTrackMenu))}
+	</ContextMenuItem>;
 }

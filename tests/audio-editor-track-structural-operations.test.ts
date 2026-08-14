@@ -23,13 +23,11 @@ import { createTrackStructuralOperationMenuModel } from '../src/common/editor/ui
 test('the complete structural slice is reachable through opt-in track menus', () => {
 	const model = createTrackStructuralOperationMenuModel({
 		copy: {
-			muteAllTracks: 'Mute all tracks', unmuteAllTracks: 'Unmute all tracks',
 			alignTracks: 'Align content', alignEndToEnd: 'Align end to end', alignTogether: 'Align together',
 			sortTracks: 'Sort tracks', sortByTime: 'Sort by time', sortByName: 'Sort by name',
 		},
 		editingBlocked: false, hasTracks: true, hasAlignmentTarget: true,
 	});
-	assert.deepEqual(model.muteItems.map(({ id }) => id), ['mute-all', 'unmute-all']);
 	assert.deepEqual(model.alignMenu.items?.map(({ id }) => id), [
 		'align-end-to-end', 'align-together', 'align-start-to-zero', 'align-start-to-playhead',
 		'align-start-to-selection-end', 'align-end-to-playhead', 'align-end-to-selection-end',

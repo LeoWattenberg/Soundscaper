@@ -56,6 +56,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		moveWorkspacePanel,
 		onError,
 		openEffects,
+		openTrackRate,
 		openProjectFile,
 		openSurface,
 		parityRuntime,
@@ -320,6 +321,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 						locale={locale}
 						copy={copy}
 						mobile={isCompact}
+						productId={productId}
+						capabilities={capabilities}
 						showArmControls={showArmControls}
 						displayAudioSupported={displayAudioSupported}
 						splitToolEnabled={uiFlags.splitTool}
@@ -338,6 +341,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 						}}
 						onRevealProjectBin={revealProjectBin}
 						onToggleArmControls={() => setShowArmControls((current) => !current)}
+						onOpenSurface={openSurface}
+						onOpenTrackRate={openTrackRate}
 						searchRevealRequest={timelineSearchReveal}
 						overlayTarget={editorOverlayTarget}
 					/>

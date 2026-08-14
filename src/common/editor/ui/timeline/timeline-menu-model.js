@@ -1,4 +1,9 @@
 import { AUDACITY_TRACK_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
+import { trackSourceChannelCount, trackSources } from '../application-menu-model.js';
+import { createFramescaperEditControlMenuItems } from '../framescaper-edit-control-menu-model.ts';
+import { createSoundscaperProductionApplicationMenuItems } from '../soundscaper-production-application-menu.ts';
+import { createTakeCompApplicationMenuItems } from '../take-comp-application-menu.ts';
+import { resolveSoundscaperFreezeStatus, selectedTrackAutomationLaneId } from '../workspace/useSoundscaperProductionWorkspace.ts';
 import { mediaTrackBlockBounds } from '../timeline-track-block-geometry.ts';
 import {
 	DEFAULT_WAVEFORM_RULER_STATE,
@@ -18,6 +23,10 @@ export function createTimelineMenuModel({
 	state,
 	model,
 	menuActions,
+	onOpenSurface,
+	onOpenTrackRate,
+	productId,
+	capabilities,
 }) {
 	const {
 		trackMenu,
@@ -86,6 +95,10 @@ export function createTimelineMenuModel({
 			onClick: () => run(() => controller.actions.trackFolders.wrapSelection([menuTrack.id])),
 		},
 	] : [];
+	const trackOverflowItems = menuTrack ? createTrackOverflowItems({
+		controller, project, track: menuTrack, copy, productId, capabilities,
+		mutationsBlocked, run, onOpenSurface, onOpenTrackRate,
+	}) : [];
 	const trackMenuItems = menuTrack ? [
 		...(menuTrack.type === 'audio' ? [
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.showArmControls, copy.showArmControls, {
@@ -98,22 +111,17 @@ export function createTimelineMenuModel({
 			disabled: mutationsBlocked || menuTrack.type !== 'audio',
 			onClick: () => run(() => controller.actions.track.duplicate(menuTrack.id)),
 		}, contextLocale, unavailableReason),
-		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveTop, copy.moveTrackTop, {
-			disabled: mutationsBlocked || menuTrackBlock?.start === 0,
-			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'top')),
-		}, contextLocale, unavailableReason),
-		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveUp, copy.moveTrackUp, {
-			disabled: mutationsBlocked || menuTrackBlock?.start === 0,
-			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'up')),
-		}, contextLocale, unavailableReason),
-		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveDown, copy.moveTrackDown, {
-			disabled: mutationsBlocked || menuTrackBlock?.end === project.tracks.length - 1,
-			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'down')),
-		}, contextLocale, unavailableReason),
-		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveBottom, copy.moveTrackBottom, {
-			disabled: mutationsBlocked || menuTrackBlock?.end === project.tracks.length - 1,
-			onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'bottom')),
-		}, contextLocale, unavailableReason),
+		{
+			id: 'move-track', label: copy.moveTrack, disabled: mutationsBlocked,
+			items: [
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveTop, copy.moveTrackTop, { disabled: mutationsBlocked || menuTrackBlock?.start === 0, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'top')) }, contextLocale, unavailableReason),
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveUp, copy.moveTrackUp, { disabled: mutationsBlocked || menuTrackBlock?.start === 0, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'up')) }, contextLocale, unavailableReason),
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveDown, copy.moveTrackDown, { disabled: mutationsBlocked || menuTrackBlock?.end === project.tracks.length - 1, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'down')) }, contextLocale, unavailableReason),
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.moveBottom, copy.moveTrackBottom, { disabled: mutationsBlocked || menuTrackBlock?.end === project.tracks.length - 1, onClick: () => run(() => moveMediaTrackBlock(controller, project.tracks, menuTrack.id, 'bottom')) }, contextLocale, unavailableReason),
+			].filter(Boolean),
+		},
+		...trackOverflowItems.shared,
+		...trackOverflowItems.display,
 		...(menuTrack.type === 'audio' ? [
 			{ divider: true, label: '' },
 			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.changeColor, copy.trackColor, {
@@ -128,18 +136,17 @@ export function createTimelineMenuModel({
 				},
 			}, contextLocale, unavailableReason),
 			{ divider: true, label: '' },
-			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.waveform, copy.waveformView, {
-				checked: menuTrack.displayMode === 'waveform',
-				onClick: () => run(() => controller.actions.track.setWaveformView(menuTrack.id)),
-			}, contextLocale, unavailableReason),
-			...(snapshot.capabilities?.audioSpectralEditing ? [manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.spectrogram, copy.spectrogramView, {
-				checked: menuTrack.displayMode === 'spectrogram',
-				onClick: () => run(() => controller.actions.track.setSpectrogramView(menuTrack.id)),
-			}, contextLocale, unavailableReason),
-			manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.multiview, copy.multiview, {
-				checked: menuTrack.displayMode === 'multiview',
-				onClick: () => run(() => controller.actions.track.setMultiView(menuTrack.id)),
-			}, contextLocale, unavailableReason)] : []),
+			{
+				id: 'track-display', label: copy.trackDisplay,
+				items: [
+					manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.waveform, copy.waveformView, { checked: menuTrack.displayMode === 'waveform', onClick: () => run(() => controller.actions.track.setWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
+					...(snapshot.capabilities?.audioSpectralEditing ? [
+						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.spectrogram, copy.spectrogramView, { checked: menuTrack.displayMode === 'spectrogram', onClick: () => run(() => controller.actions.track.setSpectrogramView(menuTrack.id)) }, contextLocale, unavailableReason),
+						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.multiview, copy.multiview, { checked: menuTrack.displayMode === 'multiview', onClick: () => run(() => controller.actions.track.setMultiView(menuTrack.id)) }, contextLocale, unavailableReason),
+					] : []),
+				].filter(Boolean),
+			},
+			...trackOverflowItems.audio,
 		] : []),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.decreaseHeight, copy.decreaseTrackHeight, {
 			disabled: mutationsBlocked,
@@ -221,5 +228,106 @@ export function createTimelineMenuModel({
 		outputMenuTarget,
 		outputMenuItems,
 		displayedLoop,
+	};
+}
+
+function createTrackOverflowItems({
+	controller, project, track, copy, productId, capabilities, mutationsBlocked, run, onOpenSurface, onOpenTrackRate,
+}) {
+	const audioTrack = track.type === 'audio' ? track : null;
+	const sources = trackSources(project, audioTrack);
+	const sourceRates = new Set(sources.map((source) => source.sampleRate));
+	const sourceFormats = new Set(sources.map((source) => source.sampleFormat));
+	const channelCount = trackSourceChannelCount(project, audioTrack);
+	const compatibleMonoTrack = channelCount === 1 && project.tracks.some((candidate) => (
+		candidate.id !== track.id && candidate.type === 'audio' && trackSourceChannelCount(project, candidate) === 1
+	));
+	const selectTrack = () => controller.actions.timeline.selectTrack(track.id);
+	const freezeActions = controller.actions.audioFreeze;
+	const production = createSoundscaperProductionApplicationMenuItems({
+		productId,
+		capabilities,
+		project,
+		selectedTrackId: track.id,
+		automationMode: controller.actions.audioAutomation?.getSnapshot?.().mode,
+		freezeStatus: resolveSoundscaperFreezeStatus(controller, project, track.id),
+		freezeActionsAvailable: ['freeze', 'refresh', 'unfreeze', 'commit'].every((name) => (
+			typeof freezeActions?.[name] === 'function'
+		)),
+		editingBlocked: mutationsBlocked,
+		readOnly: false,
+		copy,
+	}, {
+		open: (surface) => {
+			run(selectTrack);
+			onOpenSurface?.(`soundscaper-production:${surface}`);
+		},
+		setAutomationMode: (mode) => run(() => controller.actions.audioAutomation?.setMode(
+			mode,
+			selectedTrackAutomationLaneId(project, track.id),
+		)),
+		freeze: (operation, trackId) => run(() => freezeActions?.[operation]?.(trackId)),
+	});
+	const takeComp = createTakeCompApplicationMenuItems({
+		productId,
+		capability: capabilities?.takeComp === true,
+		project,
+		copy,
+		open: () => onOpenSurface?.('take-comp'),
+	});
+	const framescaperVisibility = createFramescaperEditControlMenuItems({
+		productId, project, selectedClipId: null, selectedTrackId: track.id, editBlocked: mutationsBlocked,
+		copy: { linkAudio: copy.linkAudio, unlinkAudio: copy.unlinkAudio, showVideo: copy.videoVisible, hideVideo: copy.videoHidden },
+	}, {
+		link: () => undefined,
+		unlink: () => undefined,
+		setVideoHidden: (trackId, hidden) => run(() => controller.actions.track.update(trackId, { hidden })),
+	}).visibility;
+	return {
+		display: framescaperVisibility ? [framescaperVisibility] : [],
+		shared: [
+			{
+				id: 'track-lock-toggle', label: track.locked ? copy.unlockTrack : copy.lockTrack,
+				disabled: mutationsBlocked,
+				onClick: () => run(() => controller.actions.track.update(track.id, { locked: !track.locked })),
+			},
+		],
+		audio: audioTrack ? [
+			...production.tracks,
+			...takeComp,
+			{
+				id: 'track-rate', label: copy.sampleRate, disabled: mutationsBlocked,
+				items: [44_100, 48_000, 88_200, 96_000, 192_000].map((sampleRate) => ({
+					id: `action://trackedit/track/change-rate?rate=${sampleRate}`,
+					label: `${sampleRate} Hz`, checked: sourceRates.size === 1 && sourceRates.has(sampleRate),
+					onClick: () => run(() => controller.actions.track.setRate(track.id, sampleRate)),
+				})).concat([{
+					id: 'track-change-rate-custom', label: copy.sampleRate,
+					disabled: mutationsBlocked,
+					onClick: () => onOpenTrackRate?.(track),
+				}]),
+			},
+			{
+				id: 'track-format', label: copy.sampleFormat, disabled: mutationsBlocked,
+				items: [
+					['int16', copy.sampleFormatPcm.replace('{bits}', '16')],
+					['int24', copy.sampleFormatPcm.replace('{bits}', '24')],
+					['float32', copy.sampleFormatFloat32],
+				].map(([sampleFormat, label]) => ({
+					id: `action://trackedit/track/change-format?format=${sampleFormat}`,
+					label, checked: sourceFormats.size === 1 && sourceFormats.has(sampleFormat),
+					onClick: () => run(() => controller.actions.track.setSampleFormat(track.id, sampleFormat)),
+				})),
+			},
+			{
+				id: 'track-channels', label: copy.trackChannels, disabled: mutationsBlocked,
+				items: [
+					{ id: 'track-make-stereo', label: copy.makeStereoTrack, disabled: !compatibleMonoTrack, onClick: () => run(() => controller.actions.track.makeStereo(track.id)) },
+					{ id: 'track-swap-channels', label: copy.swapStereoChannels, disabled: channelCount !== 2, onClick: () => run(() => controller.actions.track.swapChannels(track.id)) },
+					{ id: 'track-split-stereo-to-lr', label: copy.splitStereoLr, disabled: channelCount !== 2, onClick: () => run(() => controller.actions.track.splitStereoLR(track.id)) },
+					{ id: 'track-split-stereo-to-center', label: copy.splitStereoCenter, disabled: channelCount !== 2, onClick: () => run(() => controller.actions.track.splitStereoCenter(track.id)) },
+				],
+			},
+		] : [],
 	};
 }

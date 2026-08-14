@@ -35,6 +35,10 @@ export default function TimelineController({
 		onExportClip,
 		onRevealProjectBin,
 		onToggleArmControls,
+		onOpenSurface,
+		onOpenTrackRate,
+		productId,
+		capabilities,
 	} = actionInput;
 	const editBlock = selectAudioEditorEditBlock(snapshot);
 	const mutationsBlocked = editBlock.blocked;
@@ -118,6 +122,10 @@ export default function TimelineController({
 		state,
 		model,
 		menuActions,
+		onOpenSurface,
+		onOpenTrackRate,
+		productId,
+		capabilities,
 	});
 	const geometry = model;
 	const selection = {

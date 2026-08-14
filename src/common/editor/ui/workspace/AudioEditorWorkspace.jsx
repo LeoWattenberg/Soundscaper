@@ -547,6 +547,10 @@ export default function AudioEditorWorkspace({
 		nyquistTarget,
 		onError,
 		openEffects,
+		openTrackRate: (track) => {
+			setDialogValue(String(trackSourceRate(project, track, project?.sampleRate || 48_000)));
+			setDialog('track-rate');
+		},
 		openProjectFile,
 		openSurface,
 		parityRuntime,

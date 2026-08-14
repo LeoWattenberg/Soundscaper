@@ -44,12 +44,14 @@ test('take comp application menu is Soundscaper-only, capability-owned, and open
 		...context, project: { schemaVersion: 21 },
 	})[0]?.disabled, false);
 
-	const [menus, runtime, overlays] = await Promise.all([
+	const [menus, timelineMenus, runtime, overlays] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/application-menus.js', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/timeline/timeline-menu-model.js', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/workspace/workspace-application-menu-runtime.js', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx', import.meta.url), 'utf8'),
 	]);
-	assert.match(menus, /id: 'tracks'[\s\S]*createTakeCompApplicationMenuItems/u);
+	assert.doesNotMatch(menus, /createTakeCompApplicationMenuItems/u);
+	assert.match(timelineMenus, /createTakeCompApplicationMenuItems/u);
 	assert.match(runtime, /openTakeComp: \(\) => openSurface\('take-comp'\)/u);
 	assert.match(overlays, /capabilities\.takeComp && activeSurface === 'take-comp'/u);
 	assert.doesNotMatch(overlays, /capabilities\.takeComp && activeSurface !==/u);

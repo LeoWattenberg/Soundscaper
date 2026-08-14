@@ -313,7 +313,7 @@ function controllerAutomationMode(
 		: 'read';
 }
 
-function selectedTrackAutomationLaneId(
+export function selectedTrackAutomationLaneId(
 	projectValue: unknown,
 	selectedTrackId?: string | null,
 ): string | null {

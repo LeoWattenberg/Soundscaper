@@ -15,6 +15,8 @@ interface AudioEditorTimelineProps {
 	readonly mobile: boolean;
 	readonly showArmControls: boolean;
 	readonly displayAudioSupported: boolean;
+	readonly productId: string;
+	readonly capabilities: Readonly<Record<string, unknown>>;
 	readonly splitToolEnabled?: boolean;
 	readonly automationToolEnabled?: boolean;
 	readonly spectralBrushEnabled?: boolean;
@@ -25,6 +27,8 @@ interface AudioEditorTimelineProps {
 	readonly onExportClip?: (clipId: string) => void;
 	readonly onRevealProjectBin?: () => void;
 	readonly onToggleArmControls?: () => void;
+	readonly onOpenSurface?: (surface: string) => void;
+	readonly onOpenTrackRate?: (track: Readonly<Record<string, unknown>>) => void;
 	readonly searchRevealRequest?: TimelineSearchRevealRequest | null;
 	readonly overlayTarget?: Element | null;
 }
@@ -38,6 +42,8 @@ export default function AudioEditorTimeline({
 	mobile,
 	showArmControls,
 	displayAudioSupported,
+	productId,
+	capabilities,
 	splitToolEnabled = false,
 	automationToolEnabled = false,
 	spectralBrushEnabled = false,
@@ -48,6 +54,8 @@ export default function AudioEditorTimeline({
 	onExportClip,
 	onRevealProjectBin,
 	onToggleArmControls,
+	onOpenSurface,
+	onOpenTrackRate,
 	searchRevealRequest = null,
 	overlayTarget = null,
 }: AudioEditorTimelineProps) {
@@ -63,6 +71,10 @@ export default function AudioEditorTimeline({
 		onExportClip,
 		onRevealProjectBin,
 		onToggleArmControls,
+		onOpenSurface,
+		onOpenTrackRate,
+		productId,
+		capabilities,
 	};
 
 	return (

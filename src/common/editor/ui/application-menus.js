@@ -1,7 +1,7 @@
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
-import { EFFECT_MENU_GROUPS, audioEditorTrackBlockBounds, createSnapMenu, trackSourceChannelCount, trackSources } from './application-menu-model.js';
+import { EFFECT_MENU_GROUPS, createSnapMenu } from './application-menu-model.js';
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
 import { ANALYZER_PANEL_ID_SET, WORKSPACE_PANEL_IDS, workspacePanelLabel } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
@@ -9,11 +9,9 @@ import { createFramescaperEditControlMenuItems } from './framescaper-edit-contro
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
 import { createFramescaperVideoFinishingMenuItems } from './framescaper-video-finishing-menu.ts';
 import { createApplicationMenuProductItems, extendApplicationMenuProductPanelItems } from './application-menu-product-items.js';
-import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
-import { createTakeCompApplicationMenuItems } from './take-comp-application-menu.ts';
 import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
 export default function createApplicationMenus({
 	productId,
@@ -43,11 +41,6 @@ export default function createApplicationMenus({
 	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'audio' ? selectedTrack : null;
-	const selectedTrackBlock = selectedTrack ? audioEditorTrackBlockBounds(project.tracks, selectedTrack.id) : null;
-	const selectedAudioChannelCount = trackSourceChannelCount(project, selectedAudioTrack);
-	const selectedAudioSources = trackSources(project, selectedAudioTrack);
-	const selectedAudioSampleRates = new Set(selectedAudioSources.map((source) => source.sampleRate));
-	const selectedAudioSampleFormats = new Set(selectedAudioSources.map((source) => source.sampleFormat));
 	const selectedMixTrackIds = new Set((project?.selection?.trackIds || []).filter((trackId) => (
 		project?.tracks.some((track) => track.id === trackId && track.type === 'audio')
 	)));
@@ -55,9 +48,6 @@ export default function createApplicationMenus({
 	const mixableAudioSelected = project?.tracks.some((track) => (
 		track.type === 'audio' && selectedMixTrackIds.has(track.id) && track.clipIds.length
 	));
-	const compatibleMonoTracks = Boolean(selectedAudioChannelCount === 1 && project?.tracks.some((track) => (
-		track.id !== selectedAudioTrack.id && track.type === 'audio' && trackSourceChannelCount(project, track) === 1
-	)));
 	const selectedClipIds = project?.selection?.clipIds?.length
 		? project.selection.clipIds
 		: selectedClip ? [selectedClip.id] : [];
@@ -93,9 +83,6 @@ export default function createApplicationMenus({
 		copy, actions,
 	});
 	const productItems = createApplicationMenuProductItems({ productId, capabilities, project, snapshot, editBlocked, copy, actions });
-	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
-		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
-	}), { setTrackLocked: actions.setTrackLocked });
 	const clipSelectionNavigationMenus = createClipSelectionNavigationMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, blocked, copy }, actions);
 	const structuralMenus = createTrackStructuralOperationMenuModel({ copy, editingBlocked: editBlocked,
 		hasTracks: Boolean(project?.tracks.length),
@@ -403,73 +390,9 @@ export default function createApplicationMenus({
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },
 					],
 				},
-				...productItems.tracks,
-				...createTakeCompApplicationMenuItems({ productId, capability: Boolean(capabilities.takeComp), project, copy, open: actions.openTakeComp }),
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
-				trackLock.toggle,
-				...(framescaperEditControls.visibility ? [framescaperEditControls.visibility] : []),
-				{
-					id: 'move-track',
-					label: copy.moveTrack,
-					disabled: editBlocked || !selectedTrack,
-					items: [
-						{ id: 'track-move-top', label: copy.moveTrackTop, disabled: !selectedTrackBlock || selectedTrackBlock.start === 0, onClick: actions.moveTrackTop },
-						{ id: 'track-move-up', label: copy.moveTrackUp, disabled: !selectedTrackBlock || selectedTrackBlock.start === 0, onClick: actions.moveTrackUp },
-						{ id: 'track-move-down', label: copy.moveTrackDown, disabled: !selectedTrackBlock || selectedTrackBlock.end === project.tracks.length - 1, onClick: actions.moveTrackDown },
-						{ id: 'track-move-bottom', label: copy.moveTrackBottom, disabled: !selectedTrackBlock || selectedTrackBlock.end === project.tracks.length - 1, onClick: actions.moveTrackBottom },
-					],
-				},
-				{
-					id: 'track-display',
-					label: copy.trackDisplay,
-					disabled: !selectedAudioTrack,
-					items: [
-						{ id: 'action://trackedit/track-view-waveform', label: copy.waveformView, checked: selectedAudioTrack?.displayMode === 'waveform', onClick: () => actions.setTrackDisplay('waveform') },
-						{ id: 'action://trackedit/track-view-spectrogram', label: copy.spectrogramView, checked: selectedAudioTrack?.displayMode === 'spectrogram', onClick: () => actions.setTrackDisplay('spectrogram') },
-						{ id: 'action://trackedit/track-view-multi', label: copy.multiview, checked: selectedAudioTrack?.displayMode === 'multiview', onClick: () => actions.setTrackDisplay('multiview') },
-					],
-				},
-				{
-					id: 'track-rate',
-					label: copy.sampleRate,
-					disabled: editBlocked || !selectedAudioTrack,
-					items: [44_100, 48_000, 88_200, 96_000, 192_000].map((sampleRate) => ({
-						id: `action://trackedit/track/change-rate?rate=${sampleRate}`,
-						label: `${sampleRate} Hz`,
-						checked: selectedAudioSampleRates.size === 1 && selectedAudioSampleRates.has(sampleRate),
-						onClick: () => actions.setTrackRate(sampleRate),
-					})).concat([{ id: 'track-change-rate-custom', label: `${copy.sampleRate}`, onClick: actions.openTrackRate }]),
-				},
-				{
-					id: 'track-format',
-					label: copy.sampleFormat,
-					disabled: editBlocked || !selectedAudioTrack,
-					items: [
-						['int16', copy.sampleFormatPcm.replace('{bits}', '16')],
-						['int24', copy.sampleFormatPcm.replace('{bits}', '24')],
-						['float32', copy.sampleFormatFloat32],
-					].map(([sampleFormat, label]) => ({
-						id: `action://trackedit/track/change-format?format=${sampleFormat}`,
-						label,
-						checked: selectedAudioSampleFormats.size === 1 && selectedAudioSampleFormats.has(sampleFormat),
-						onClick: () => actions.setTrackSampleFormat(sampleFormat),
-					})),
-				},
-				{
-					id: 'track-channels',
-					label: copy.trackChannels,
-					disabled: editBlocked || !selectedAudioTrack,
-					items: [
-						{ id: 'track-make-stereo', label: copy.makeStereoTrack, disabled: !compatibleMonoTracks, onClick: actions.makeStereoTrack },
-						{ id: 'track-swap-channels', label: copy.swapStereoChannels, disabled: selectedAudioChannelCount !== 2, onClick: actions.swapTrackChannels },
-						{ id: 'track-split-stereo-to-lr', label: copy.splitStereoLr, disabled: selectedAudioChannelCount !== 2, onClick: actions.splitStereoLr },
-						{ id: 'track-split-stereo-to-center', label: copy.splitStereoCenter, disabled: selectedAudioChannelCount !== 2, onClick: actions.splitStereoCenter },
-					],
-				},
 				divider(),
-				{ id: 'mute-track', label: selectedAudioTrack?.mute ? copy.unmuteTrack : copy.muteTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.toggleTrackMute },
-				...structuralMenus.muteItems,
 				{ id: 'mix', label: copy.mixMenu, items: [{
 					id: 'mixdown-to',
 					label: copy.mixdownTo,
