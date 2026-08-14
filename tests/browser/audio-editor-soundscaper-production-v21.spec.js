@@ -324,7 +324,17 @@ test.describe('Soundscaper exact V21 production UI', () => {
 			readFrozenRawPcm(page, projectId, trackId),
 			readNativeFreezeObservation(page),
 		]);
-		const expectedFrameCount = FREEZE_INPUT_FRAMES + FREEZE_DELAY_FRAMES;
+		// Decoders disagree by a frame on the same encoded input - firefox returns 257
+		// frames where chromium returns 256 - so the fixture's frame count is a floor
+		// rather than an exact figure. Take the clip length from what was actually
+		// decoded: every invariant here is about the freeze range relative to the clip
+		// and its insert tail, not about the decoder agreeing on the clip's length.
+		expect(pcm.inputChannels).toHaveLength(1);
+		const input = pcm.inputChannels[0];
+		expect(input.length).toBeGreaterThanOrEqual(FREEZE_INPUT_FRAMES);
+		expect(input.length).toBeLessThanOrEqual(FREEZE_INPUT_FRAMES + 1);
+		const inputFrames = input.length;
+		const expectedFrameCount = inputFrames + FREEZE_DELAY_FRAMES;
 		expect(pcm.freeze).toMatchObject({
 			renderStartFrame: 0,
 			renderFrameCount: expectedFrameCount,
@@ -359,12 +369,9 @@ test.describe('Soundscaper exact V21 production UI', () => {
 			'kw-audio-delay',
 		]);
 
-		expect(pcm.inputChannels).toHaveLength(1);
-		expect(pcm.inputChannels[0]).toHaveLength(FREEZE_INPUT_FRAMES);
-		const input = pcm.inputChannels[0];
 		const expected = Array.from({ length: expectedFrameCount }, (_, frame) => Math.fround(
-			(frame < FREEZE_INPUT_FRAMES ? input[frame] * 0.5 : 0)
-			+ (frame >= FREEZE_DELAY_FRAMES && frame - FREEZE_DELAY_FRAMES < FREEZE_INPUT_FRAMES
+			(frame < inputFrames ? input[frame] * 0.5 : 0)
+			+ (frame >= FREEZE_DELAY_FRAMES && frame - FREEZE_DELAY_FRAMES < inputFrames
 				? input[frame - FREEZE_DELAY_FRAMES] * 0.5
 				: 0),
 		));
@@ -372,7 +379,7 @@ test.describe('Soundscaper exact V21 production UI', () => {
 			Math.abs(sample) > 0.000_001 ? [frame] : []
 		));
 		expect(inputNonZeroFrames[0]).toBe(0);
-		expect(inputNonZeroFrames.at(-1)).toBe(FREEZE_INPUT_FRAMES - 1);
+		expect(inputNonZeroFrames.at(-1)).toBe(inputFrames - 1);
 		expect(pcm.channels).toHaveLength(1);
 		for (const channel of pcm.channels) {
 			expect(channel).toHaveLength(expectedFrameCount);
