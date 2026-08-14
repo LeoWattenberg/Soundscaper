@@ -65,7 +65,7 @@ test('focused routing edits compile one full canonical graph while preserving un
 	assert.equal(createSoundscaperRoutingEditorModel(PROJECT, removed.text).graph?.vcas.length, 0);
 });
 
-test('routing cycle and destination-width channel-map errors are announced before project commit', () => {
+test('routing cycle and channel-map errors are announced before project commit', () => {
 	let draft = graphText({
 		...PROJECT.mixer,
 		groups: [strip('a', 'A', 2), strip('b', 'B', 2)],
@@ -81,12 +81,27 @@ test('routing cycle and destination-width channel-map errors are announced befor
 	assert.match(cycle.validationError ?? '', /routing cycle/u);
 	assert.equal(createSoundscaperRoutingEditorModel(PROJECT, cycle.text).canApply, false);
 
-	const invalidMap = editSoundscaperRoutingGraph(PROJECT, draft, {
+	// The map is destination-indexed, so reading source channel 2 of a stereo track is a
+	// source error, and a map longer than the destination is a destination error.
+	const missingSource = editSoundscaperRoutingGraph(PROJECT, draft, {
 		type: 'edge/set', previousId: null,
 		edge: edge('voice-bad-map', { kind: 'track', id: 'voice' }, { kind: 'mixer-node', id: 'a' }, [0, 2]),
 	});
-	assert.match(invalidMap.validationError ?? '', /channel map exceeds its destination width/u);
-	assert.equal(createSoundscaperRoutingEditorModel(PROJECT, invalidMap.text).canApply, false);
+	assert.match(missingSource.validationError ?? '', /channel map reads a missing source channel/u);
+	assert.equal(createSoundscaperRoutingEditorModel(PROJECT, missingSource.text).canApply, false);
+
+	const tooWide = editSoundscaperRoutingGraph(PROJECT, draft, {
+		type: 'edge/set', previousId: null,
+		edge: edge('voice-wide-map', { kind: 'track', id: 'voice' }, { kind: 'mixer-node', id: 'a' }, [0, 1, 0, 1]),
+	});
+	assert.match(tooWide.validationError ?? '', /channel map exceeds its destination width/u);
+	assert.equal(createSoundscaperRoutingEditorModel(PROJECT, tooWide.text).canApply, false);
+
+	const legal = editSoundscaperRoutingGraph(PROJECT, draft, {
+		type: 'edge/set', previousId: null,
+		edge: edge('voice-swap', { kind: 'track', id: 'voice' }, { kind: 'mixer-node', id: 'a' }, [1, 0]),
+	});
+	assert.equal(legal.validationError, null);
 });
 
 test('outputs remain explicit placeholders and become applicable only after they are routed', () => {

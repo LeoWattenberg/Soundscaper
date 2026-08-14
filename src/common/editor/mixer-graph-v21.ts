@@ -10,6 +10,7 @@ import {
 	type StripRef,
 } from './parameter-address.ts'
 import { snapshotInertJsonValue } from './inert-json-snapshot.ts'
+import { assertAcyclicRoutingV21 } from './routing-cycle-v21.ts'
 
 export const MIXER_GRAPH_V21_SCHEMA_VERSION = 1 as const
 export const MIXER_GRAPH_V21_MAX_ITEMS = 4096
@@ -85,9 +86,13 @@ export interface MixerGraphValidationContextV21 {
 	readonly audioTracks: readonly {
 		readonly id: string
 		readonly effects?: readonly { readonly id?: unknown }[]
+		/** Resolved from clip content by the caller. Absent means the width is unknown. */
+		readonly channelCount?: number
 	}[]
 	readonly masterEffects?: readonly { readonly id?: unknown }[]
 	readonly masterChannels?: number
+	/** Authoring surfaces only: reject a map longer than its declared destination. */
+	readonly strictChannelMapLength?: boolean
 	readonly mixerNodeEffects?: ReadonlyMap<string, readonly { readonly id?: unknown }[]>
 }
 
@@ -410,6 +415,21 @@ export function validateMixerGraphV21(
 		'master',
 	]
 	for (const vertex of vertices) adjacency.set(vertex, new Set<string>())
+	const masterWidth = Number.isSafeInteger(context.masterChannels) && (context.masterChannels as number) >= 1
+		? Math.min(context.masterChannels as number, 32)
+		: undefined
+	// A track's width follows its clip content rather than the graph document, so it is
+	// checked only when the caller resolved it. Callers that cannot are left with the
+	// weaker guarantee instead of a stored rule that a clip edit would invalidate.
+	const trackWidths = new Map(context.audioTracks.flatMap((track) => (
+		Number.isSafeInteger(track.channelCount) && (track.channelCount as number) >= 1
+			? [[track.id, Math.min(track.channelCount as number, 32)] as const]
+			: []
+	)))
+	const declaredWidth = (strip: StripRef): number | undefined => (
+		strip.kind === 'track' ? trackWidths.get(strip.id)
+			: strip.kind === 'master' ? masterWidth : nodeById.get(strip.id)?.channelCount
+	)
 	for (const edge of graph.edges) {
 		if (edgeIds.has(edge.id)) throw new TypeError(`duplicate mixer edge id: ${edge.id}`)
 		edgeIds.add(edge.id)
@@ -439,18 +459,27 @@ export function validateMixerGraphV21(
 				throw new TypeError(`mixer send edge ${edge.id} must target a mixer node`)
 			}
 		}
+		if (!edge.enabled) continue
+		// Only an edge the runtime actually maps. The map is destination-indexed: entry
+		// N names the source channel feeding destination channel N (see
+		// defaultMixerChannelMapV21 and applyChannelMap in engine/project-graph-v21.ts),
+		// so each side is bounded by its own axis rather than the other's.
 		const destinationChannels = edge.destination.kind === 'output'
 			? outputById.get(edge.destination.id)?.channelCount
-			: edge.destination.kind === 'mixer-node'
-				? nodeById.get(edge.destination.id)?.channelCount
-				: undefined
-		if (
-			destinationChannels !== undefined
-			&& edge.channelMap.some((channel) => channel >= destinationChannels)
-		) {
+			: edge.destination.kind === 'effect-sidechain'
+				? declaredWidth(edge.destination.strip)
+				: declaredWidth(edge.destination)
+		// A map longer than its destination is authored state the product has shipped
+		// documents in, so only an authoring surface rejects it; the stored-document
+		// path must keep those projects openable.
+		if (context.strictChannelMapLength === true
+			&& destinationChannels !== undefined && edge.channelMap.length > destinationChannels) {
 			throw new TypeError(`mixer edge ${edge.id} channel map exceeds its destination width`)
 		}
-		if (!edge.enabled) continue
+		const sourceChannels = declaredWidth(edge.source)
+		if (sourceChannels !== undefined && edge.channelMap.some((channel) => channel >= sourceChannels)) {
+			throw new TypeError(`mixer edge ${edge.id} channel map reads a missing source channel`)
+		}
 		const destination = destinationKey(edge.destination)
 		if (destination !== null) adjacency.get(source)?.add(destination)
 		if (edge.destination.kind === 'output' && edge.kind !== 'sidechain') {
@@ -462,17 +491,7 @@ export function validateMixerGraphV21(
 			throw new TypeError(`mixer output ${output.id} is unreachable`)
 		}
 	}
-	const visiting = new Set<string>()
-	const visited = new Set<string>()
-	const visit = (vertex: string): void => {
-		if (visiting.has(vertex)) throw new TypeError('mixer graph contains a routing cycle')
-		if (visited.has(vertex)) return
-		visiting.add(vertex)
-		for (const next of adjacency.get(vertex) ?? []) visit(next)
-		visiting.delete(vertex)
-		visited.add(vertex)
-	}
-	for (const vertex of vertices) visit(vertex)
+	assertAcyclicRoutingV21(vertices, adjacency, 'mixer graph contains a routing cycle')
 	const reachesOutput = (origin: string): boolean => {
 		const pending = [origin]
 		const seen = new Set<string>()
