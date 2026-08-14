@@ -9,6 +9,7 @@ import {
 	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
 import { normalizeAutomationLaneV21, type AutomationLaneV21 } from './automation-lane-v21.ts';
+import { canonicalParameterAddressKey } from './parameter-address.ts';
 
 export const AUDIO_TRACK_FREEZE_SCHEMA_VERSION_V1 = 1 as const;
 export const AUDIO_TRACK_FREEZE_CAPTURE_POSITION_V1 = 'post-insert-pre-strip' as const;
@@ -199,7 +200,7 @@ export function computeAudioTrackFreezeDigestsV1(value: AudioTrackFreezeDigestIn
 		field(input, 'automationLanes', 'audio track freeze digest input'),
 		'audio track freeze automation lanes', 0, 4_096,
 	).map((lane) => normalizeAutomationLaneV21(lane));
-	const effectAutomation = lanes.filter((lane) => laneTargetsRackEffect(lane, trackId, effectIds));
+	const effectAutomation = canonicalRackAutomation(lanes, trackId, effectIds);
 	const inputDigestSha256 = hashCanonical(Object.freeze([
 		'soundscaper.audio-freeze.input/v1', sampleRate,
 		Object.freeze([renderStartFrame, renderFrameCount]), trackId, Object.freeze(orderedInputs),
@@ -255,6 +256,33 @@ function laneTargetsRackEffect(lane: AutomationLaneV21, trackId: string, effectI
 	const { address } = lane;
 	return address.kind === 'effect' && address.strip.kind === 'track'
 		&& address.strip.id === trackId && effectIds.has(address.effectId);
+}
+
+/**
+ * Order this track's rack automation by parameter address rather than by document
+ * position. Lane arrays are reordered by ordinary editing, and a positional digest
+ * would report a freeze stale for automation whose content never changed.
+ */
+function canonicalRackAutomation(
+	lanes: readonly AutomationLaneV21[],
+	trackId: string,
+	effectIds: ReadonlySet<string>,
+): readonly AutomationLaneV21[] {
+	const byAddress = new Map<string, AutomationLaneV21>();
+	for (const lane of lanes) {
+		if (!laneTargetsRackEffect(lane, trackId, effectIds)) continue;
+		const key = canonicalParameterAddressKey(lane.address);
+		if (byAddress.has(key)) {
+			throw new RangeError(`The audio track rack automation contains duplicate address ${key}.`);
+		}
+		byAddress.set(key, lane);
+	}
+	// Explicit code-unit ordering only. A locale-sensitive or coercing comparator
+	// would make the digest depend on the host's collation.
+	const ordered = [...byAddress.keys()].sort((left, right) => (
+		left < right ? -1 : left > right ? 1 : 0
+	));
+	return Object.freeze(ordered.map((key) => byAddress.get(key)!));
 }
 
 function snapshotJson(value: unknown, name: string, budget: { remaining: number }, seen: Set<object>): unknown {
