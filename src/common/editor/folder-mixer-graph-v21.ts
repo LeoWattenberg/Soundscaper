@@ -76,8 +76,19 @@ export function reconcileFolderMixerGraphV21(
 		&& (!isCanonicalFolderAssignment(edge, authority) || desiredAssignmentIds.has(edge.id))
 	))
 	const retainedEdgeIds = new Set(edges.map(({ id }) => id))
+	const groupedTrackIds = new Set(edges.flatMap((edge) => (
+		edge.kind === 'assignment' && edge.enabled
+			&& edge.source.kind === 'track' && edge.destination.kind === 'mixer-node'
+			? [edge.source.id]
+			: []
+	)))
 	for (const assignment of desiredAssignments) {
-		if (!retainedEdgeIds.has(assignment.id)) edges.push(assignment)
+		if (retainedEdgeIds.has(assignment.id)) continue
+		// A track the user routed into a group already reaches the mix through it, so the
+		// folder fallback to master would double its signal rather than restore it.
+		if (assignment.source.kind === 'track' && assignment.destination.kind === 'master'
+			&& groupedTrackIds.has(assignment.source.id)) continue
+		edges.push(assignment)
 	}
 	const vcas = graph.vcas.map((vca) => Object.freeze({
 		...vca,
@@ -274,6 +285,12 @@ function isCanonicalFolderAssignment(
 ): boolean {
 	if (edge.kind !== 'assignment' || edge.destination.kind === 'effect-sidechain') return false
 	if (edge.source.kind === 'track' && authority.audioTrackIds.includes(edge.source.id)) {
+		// Folder authority owns a track's route to master or to a folder bus. A route to
+		// an ordinary group is the user's own mix routing, which the legacy mixer surface
+		// authors under this same identity, so claiming it would discard their assignment.
+		if (edge.destination.kind === 'mixer-node' && !authority.folderIds.has(edge.destination.id)) {
+			return false
+		}
 		return edge.id === folderAssignment(edge.source, edge.destination).id
 	}
 	if (edge.source.kind === 'mixer-node' && authority.folderIds.has(edge.source.id)) {
