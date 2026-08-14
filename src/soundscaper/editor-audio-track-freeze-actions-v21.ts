@@ -331,12 +331,17 @@ function freezeRenderProject(
 	} as never, masterChannels).tracks.get(trackId) ?? masterChannels;
 	return Object.freeze({
 		...project,
+		// The capture is pre-master, so the programme width is not the render width. Sizing
+		// the offline context from masterChannels downmixed a wide stem to the delivery
+		// width, and committing that render narrowed the track underneath every channel map
+		// already pointing at it, leaving a document that could not build a graph at all.
+		masterChannels: trackWidth,
 		tracks: Object.freeze([Object.freeze({ ...track, gain: 1, pan: 0, mute: false, solo: false })]),
 		clips: Object.freeze(clips),
 		sources: Object.freeze(sources),
 		automationLanes: Object.freeze(automationLanes),
 		trackFolders: Object.freeze([]),
-		mixer: createDefaultMixerGraphV21([{ id: trackId, channelCount: trackWidth }], masterChannels),
+		mixer: createDefaultMixerGraphV21([{ id: trackId, channelCount: trackWidth }], trackWidth),
 		master: Object.freeze({
 			...dataRecord(project.master, 'project.master'),
 			gain: 1, pan: 0, mute: false, solo: false, effectsActive: false, effects: Object.freeze([]),

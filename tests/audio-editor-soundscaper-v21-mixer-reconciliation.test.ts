@@ -206,3 +206,114 @@ test('a clip edit that narrows a track restates its send route with the master u
 	assert.equal(narrowed.masterChannels, 6);
 	assert.deepEqual(sendMap(narrowed), [0, 0, -1, -1, -1, -1]);
 });
+
+test('narrowing a key track restates the sidechain map it feeds', () => {
+	// A sidechain map is not covered by the canonical route convention: the routing
+	// editor lets its author type the edge ID. Its map was therefore left behind by every
+	// width change, so narrowing the key track pointed it at channels the source no
+	// longer had, and the engine refused to build the graph the document still validated.
+	const wide = (id: string, channelCount: number) => createAudioSourceV10({
+		id, storageKey: `pcm:${id}`, frameCount: 512, channelCount,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const take = (id: string, sourceId: string) => createAudioClipV10({
+		id, sourceId, title: id, timelineStartFrame: 0,
+		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
+	});
+	const base = createSoundscaperProjectV21({
+		id: 'sidechain-width', title: 'Sidechain width', now: NOW, masterChannels: 6,
+		sources: [wide('bed-live', 6), wide('key-live', 6)],
+		clips: [take('bed-clip', 'bed-live'), take('key-clip', 'key-live')],
+		tracks: [
+			createAudioTrackV10({
+				id: 'bed', name: 'Bed', clipIds: ['bed-clip'],
+				effects: [{ id: 'bed-comp', type: 'compressor', enabled: true, params: {} }],
+			}),
+			createAudioTrackV10({ id: 'key', name: 'Key', clipIds: ['key-clip'] }),
+		],
+		sequences: [{ id: 'main-sequence', trackIds: ['bed', 'key'] }],
+		primarySequenceId: 'main-sequence',
+	} as never);
+	const sidechainId = 'duck-the-bed';
+	const authored = applySoundscaperProjectCommandV21(base, {
+		type: 'mixer-graph/set', expected: base.mixer,
+		mixer: {
+			...base.mixer,
+			edges: [...base.mixer.edges, {
+				id: sidechainId, kind: 'sidechain',
+				source: { kind: 'track', id: 'key' },
+				destination: {
+					kind: 'effect-sidechain', strip: { kind: 'track', id: 'bed' }, effectId: 'bed-comp',
+				},
+				position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1, 2, 3, 4, 5],
+			}],
+		},
+	} as never);
+	const sidechainMap = (value: typeof authored) => value.mixer.edges
+		.find(({ id }) => id === sidechainId)?.channelMap;
+	assert.deepEqual(sidechainMap(authored), [0, 1, 2, 3, 4, 5]);
+
+	const narrowed = applySoundscaperProjectCommandV21(authored, {
+		type: 'batch', commands: [
+			{ type: 'source/add', source: wide('key-stereo', 2) },
+			{ type: 'clip/replace-source', clipId: 'key-clip', sourceId: 'key-stereo' },
+		],
+	} as AudioEditorCommand);
+	// The bed strip is still 6 wide, so the restated map is the stereo key spread into a
+	// 5.1 destination rather than a map reading four channels that no longer exist.
+	assert.deepEqual(sidechainMap(narrowed), [0, 1, -1, -1, -1, -1]);
+});
+
+test('a hand-shaped map is still preserved across a width change', () => {
+	// The shape test is what admits a sidechain for restatement, so it has to keep
+	// refusing a map its author actually shaped: only a map still matching the default
+	// for the widths it was built against is ours to move.
+	const source = createAudioSourceV10({
+		id: 'six', storageKey: 'pcm:six', frameCount: 512, channelCount: 6,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const base = createSoundscaperProjectV21({
+		id: 'hand-shaped', title: 'Hand shaped', now: NOW, masterChannels: 6,
+		sources: [source],
+		clips: [createAudioClipV10({
+			id: 'six-clip', sourceId: 'six', title: 'Six', timelineStartFrame: 0,
+			durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
+		})],
+		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['six-clip'] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
+		primarySequenceId: 'main-sequence',
+		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
+	} as never);
+	const swapped = [1, 0, 3, 2, 5, 4];
+	const authored = applySoundscaperProjectCommandV21(base, {
+		type: 'mixer-graph/set', expected: base.mixer,
+		mixer: {
+			...base.mixer,
+			edges: base.mixer.edges.map((edge) => edge.id === 'assignment:track:voice:master'
+				? { ...edge, id: 'hand-authored-swap', channelMap: swapped }
+				: edge),
+		},
+	} as never);
+
+	const mono = createAudioSourceV10({
+		id: 'one', storageKey: 'pcm:one', frameCount: 512, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const narrowed = applySoundscaperProjectCommandV21(authored, {
+		type: 'batch', commands: [
+			{ type: 'source/add', source: mono },
+			{ type: 'clip/remove-many', clipIds: ['six-clip'], rippleMode: 'none' },
+			{
+				type: 'clip/add', trackId: 'voice',
+				clip: createAudioClipV10({
+					id: 'one-clip', sourceId: 'one', title: 'One', timelineStartFrame: 0,
+					durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
+				}),
+			},
+		],
+	} as AudioEditorCommand);
+	assert.deepEqual(
+		narrowed.mixer.edges.find(({ id }) => id === 'hand-authored-swap')?.channelMap,
+		swapped,
+	);
+});

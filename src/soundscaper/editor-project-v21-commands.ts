@@ -124,9 +124,17 @@ function applyCommandTree(
 			PRODUCTION_HANDLERS['audio-freeze/remove'](draft, command);
 		} else {
 			PRODUCTION_HANDLERS['audio-freeze/commit'](draft, command);
-			// Committing removes the track's rack sidechain edges, and a lane can address
-			// an edge as well as an effect, so the surviving lanes are reconciled against
-			// the resulting graph exactly as the mixer commands do.
+			// Committing swaps the track's clips for the derived render, which is the one
+			// inherited command that can move a track's resolved width. Restating the graph
+			// first repairs any map left aimed at the pre-freeze width; the lane pass then
+			// runs against the resulting edge set, because committing also removes the
+			// track's rack sidechain edges and a lane can address an edge as well as an
+			// effect.
+			draft.mixer = reconcileGraphAfterInheritedCommand(
+				project,
+				dataRecord(draft.mixer, 'project.mixer'),
+				draft,
+			);
 			draft.automationLanes = reconcileLanesAfterInheritedCommand(
 				draft.automationLanes as readonly AutomationLaneV21[],
 				draft,
@@ -298,6 +306,15 @@ function reconcileGraphAfterInheritedCommand(
 		if (endpoint.kind === 'output') return widths.outputs.get(endpoint.id) ?? widths.master;
 		return widths.master;
 	};
+	// A sidechain feeds an effect hosted on a strip, so its destination width is that
+	// strip's - exactly what the engine resolves before it applies the map.
+	const endpointWidth = (
+		endpoint: MixerEdgeV21['destination'],
+		widths: ResolvedGraphWidthsV21,
+	): number => resolvedWidth(
+		endpoint.kind === 'effect-sidechain' ? endpoint.strip : endpoint,
+		widths,
+	);
 	const nextWidths: ResolvedGraphWidthsV21 = {
 		tracks: trackWidths, nodes: nodeWidths, outputs: outputWidths, master: masterChannels,
 	};
@@ -308,11 +325,21 @@ function reconcileGraphAfterInheritedCommand(
 	const edges = previous.edges.filter(edgeIsLive).map((edge) => {
 		const clone = structuredClone(edge);
 		// An empty map means the edge never declared one, so there is nothing to restate.
-		if (!canonicalRoute(clone) || clone.channelMap.length === 0) return clone;
+		if (clone.channelMap.length === 0) return clone;
+		const priorSource = resolvedWidth(clone.source, priorWidths);
+		const priorDestination = endpointWidth(clone.destination, priorWidths);
 		const sourceChannels = resolvedWidth(clone.source, nextWidths);
-		const destinationChannels = resolvedWidth(clone.destination, nextWidths);
-		if (sourceChannels === resolvedWidth(clone.source, priorWidths)
-			&& destinationChannels === resolvedWidth(clone.destination, priorWidths)) return clone;
+		const destinationChannels = endpointWidth(clone.destination, nextWidths);
+		if (sourceChannels === priorSource && destinationChannels === priorDestination) return clone;
+		// A route the product authored is ours to restate by its ID. A sidechain has no such
+		// convention - the routing editor lets its author type the ID - so fall back to the
+		// map's shape: one still matching the default for the widths it was built against
+		// was never hand-shaped, and leaving it behind a width change points it at channels
+		// the source no longer has. A genuinely hand-shaped map is still preserved.
+		if (!canonicalRoute(clone)
+			&& !sameChannelMap(clone.channelMap, defaultMixerChannelMapV21(priorSource, priorDestination))) {
+			return clone;
+		}
 		return {
 			...clone,
 			channelMap: defaultMixerChannelMapV21(sourceChannels, destinationChannels),
@@ -357,6 +384,10 @@ function canonicalRoute(edge: MixerEdgeV21): edge is MixerEdgeV21 & {
 } {
 	if (edge.destination.kind === 'effect-sidechain') return false;
 	return edge.id === `${edge.kind}:${endpointSegment(edge.source)}:${endpointSegment(edge.destination)}`;
+}
+
+function sameChannelMap(left: readonly number[], right: readonly number[]): boolean {
+	return left.length === right.length && left.every((channel, index) => channel === right[index]);
 }
 
 function endpointSegment(endpoint: CanonicalAssignmentEndpointV21): string {

@@ -8,6 +8,7 @@ import {
 } from './closed-domain-value.ts';
 import { normalizeAutomationLaneV21 } from './automation-lane-v21.ts';
 import { normalizeMixerGraphV21 } from './mixer-graph-v21.ts';
+import { resolveTerminalChannelWidths } from './terminal-channel-widths.ts';
 import {
 	classifyAudioTrackFreezeFreshnessV1,
 	normalizeAudioTrackFreezeDigestsV1,
@@ -79,7 +80,7 @@ export function installAudioTrackFreezeCandidateV21(
 		field(request, 'sourceContentIdentities', 'audio freeze install candidate'),
 	);
 	const derivedSource = normalizeDerivedSource(
-		field(request, 'derivedSource', 'audio freeze install candidate'), replacement, project,
+		field(request, 'derivedSource', 'audio freeze install candidate'), replacement, project, trackId,
 	);
 	const tracks = projectArray(project, 'tracks');
 	const sources = projectArray(project, 'sources');
@@ -281,7 +282,12 @@ function mixerWithoutCommittedRackSidechains(project: DataRecord, trackId: strin
 	return normalizeMixerGraphV21({ ...graph, edges });
 }
 
-function normalizeDerivedSource(value: unknown, freeze: AudioTrackFreezeV1, project: DataRecord): DataRecord {
+function normalizeDerivedSource(
+	value: unknown,
+	freeze: AudioTrackFreezeV1,
+	project: DataRecord,
+	trackId: string,
+): DataRecord {
 	const source = snapshotJsonRecord(value, 'audio freeze derived source');
 	assertNoDocumentBodyFields(source, 'audio freeze derived source');
 	if (source.id !== freeze.derivedSourceId) throw new RangeError('The derived source ID must match the freeze record.');
@@ -294,6 +300,18 @@ function normalizeDerivedSource(value: unknown, freeze: AudioTrackFreezeV1, proj
 	if (source.sampleRate !== sampleRate) throw new RangeError('The derived source sample rate must match the project.');
 	stableId(source.storageKey, 'derived source storage');
 	positiveSafeInteger(source.channelCount, 'derived source channelCount');
+	// A freeze substitutes for the live track, so it has to keep the track's width. A
+	// narrower render silently re-widths the track on commit and leaves every channel
+	// map already aimed at it reading channels the source no longer has.
+	const trackWidth = resolveTerminalChannelWidths(
+		project as never,
+		Number(project.masterChannels),
+	).tracks.get(trackId);
+	if (trackWidth !== undefined && source.channelCount !== trackWidth) {
+		throw new RangeError(
+			`The derived source must keep audio track ${trackId} at ${String(trackWidth)} channels.`,
+		);
+	}
 	return source;
 }
 

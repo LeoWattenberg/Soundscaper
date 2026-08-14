@@ -70,6 +70,11 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 		{ gain: renderTrack.gain, pan: renderTrack.pan, mute: renderTrack.mute, solo: renderTrack.solo },
 		{ gain: 1, pan: 0, mute: false, solo: false },
 	);
+	// The capture is pre-master, so the render is sized by the track, not by the
+	// programme. Sizing it from masterChannels re-widthed the track on commit and left
+	// every channel map aimed at it reading channels the frozen source no longer had.
+	assert.equal(current.masterChannels, 2);
+	assert.equal(renderCalls[0]!.project.masterChannels, 1);
 	assert.deepEqual(renderCalls[0]!.options, {
 		startFrame: 12, endFrame: 20, includeTail: 0, includeMaster: false,
 		includeTrackPan: false, respectMuteSolo: false, outputFrames: 8,

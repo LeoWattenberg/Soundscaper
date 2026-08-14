@@ -8,6 +8,7 @@ import {
 } from '../src/common/editor/audio-track-freeze-v21.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import { resolveTerminalChannelWidths } from '../src/common/editor/terminal-channel-widths.ts';
 import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
 import {
 	createSoundscaperProjectHistoryV21,
@@ -184,6 +185,107 @@ test('committing a freeze drops lanes addressed to the sidechain edges it remove
 	assert.equal(committed.mixer.edges.some(({ id }) => id === sidechainId), false);
 	assert.equal(committed.automationLanes.some(({ id }) => id === 'sidechain-level'), false);
 });
+
+test('a freeze cannot narrow a track underneath the channel maps already aimed at it', () => {
+	// A 5.1 stem in a stereo delivery, routed through a 6-wide bus. The offline renderer
+	// used to size its output from masterChannels, so committing that render dropped the
+	// track to 2 and left the bus map reading source channels 2-5, which no longer
+	// existed: the engine refused to build a graph and the project could not play at all.
+	const { project, freeze, digests, derivedSource, identities } = wideFixture();
+	assert.equal(width(project), 6);
+	assert.deepEqual(busMap(project), [0, 1, 2, 3, 4, 5]);
+
+	assert.throws(() => applySoundscaperProjectCommandV21(project, {
+		type: 'audio-freeze/install', trackId: 'stem', expectedFreeze: null,
+		replacementFreeze: freeze, derivedSource: { ...derivedSource, channelCount: 2 },
+		sourceContentIdentities: identities,
+	} as never, { now: NOW }), /must keep audio track stem at 6 channels/u);
+
+	const installed = applySoundscaperProjectCommandV21(project, {
+		type: 'audio-freeze/install', trackId: 'stem', expectedFreeze: null,
+		replacementFreeze: freeze, derivedSource, sourceContentIdentities: identities,
+	} as never, { now: NOW });
+	const committed = applySoundscaperProjectCommandV21(installed, {
+		type: 'audio-freeze/commit', trackId: 'stem', expectedFreeze: freeze,
+		operationDigests: digests, derivedSourceContentSha256: DERIVED_DIGEST,
+		derivedClip: createAudioClipV10({
+			id: 'stem-committed', sourceId: 'stem-freeze', title: 'Stem committed', anchor: 'sample',
+			timelineStartFrame: 0, durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
+		}),
+	} as never);
+
+	assert.equal(width(committed), 6);
+	// The map is destination-indexed, so every entry names a source channel that the
+	// frozen track must still have. This is exactly what the engine asserts before it
+	// builds the splitter for this edge.
+	assert.deepEqual(busMap(committed).filter((channel) => channel >= width(committed)), []);
+});
+
+function width(project: ReturnType<typeof createSoundscaperProjectV21>): number {
+	return resolveTerminalChannelWidths(project as never, project.masterChannels).tracks.get('stem') ?? 0;
+}
+
+function busMap(project: ReturnType<typeof createSoundscaperProjectV21>): readonly number[] {
+	return project.mixer.edges
+		.find(({ id }) => id === 'assignment:track:stem:mixer-node:stems')?.channelMap ?? [];
+}
+
+function wideFixture() {
+	const liveSource = createAudioSourceV10({
+		id: 'stem-live', storageKey: 'pcm:stem-live', frameCount: 512, contentSha256: LIVE_DIGEST,
+		channelCount: 6, sampleRate: 48_000, originalSampleRate: 48_000,
+		sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const liveClip = createAudioClipV10({
+		id: 'stem-clip', sourceId: 'stem-live', title: 'Stem', timelineStartFrame: 0,
+		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
+	});
+	const base = createSoundscaperProjectV21({
+		id: 'freeze-width-project', title: 'Freeze width project', now: NOW, masterChannels: 2,
+		sources: [liveSource], clips: [liveClip],
+		tracks: [createAudioTrackV10({ id: 'stem', name: 'Stem', clipIds: ['stem-clip'] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['stem'] }], primarySequenceId: 'main-sequence',
+	} as never);
+	const project = applySoundscaperProjectCommandV21(base, {
+		type: 'mixer-graph/set', expected: base.mixer,
+		mixer: {
+			...base.mixer,
+			groups: [{
+				id: 'stems', name: 'Stems', color: '', gain: 1, pan: 0, mute: false, solo: false,
+				collapsed: false, effectsActive: true, effects: [], channelCount: 6,
+			}],
+			edges: [
+				{
+					id: 'assignment:track:stem:mixer-node:stems', kind: 'assignment',
+					source: { kind: 'track', id: 'stem' }, destination: { kind: 'mixer-node', id: 'stems' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1, 2, 3, 4, 5],
+				},
+				{
+					id: 'assignment:mixer-node:stems:master', kind: 'assignment',
+					source: { kind: 'mixer-node', id: 'stems' }, destination: { kind: 'master' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1],
+				},
+				...base.mixer.edges.filter(({ source }) => source.kind === 'master'),
+			],
+		},
+	} as never);
+	const identities = Object.freeze([Object.freeze({ sourceId: 'stem-live', contentSha256: LIVE_DIGEST })]);
+	const digests = computeAudioTrackFreezeDigestsV1({
+		sampleRate: project.sampleRate, renderStartFrame: 0, renderFrameCount: 512,
+		track: project.tracks[0], clips: project.clips,
+		sourceContentIdentities: identities, automationLanes: project.automationLanes,
+	});
+	const freeze: AudioTrackFreezeV1 = {
+		schemaVersion: 1, derivedSourceId: 'stem-freeze', ...digests,
+		renderStartFrame: 0, renderFrameCount: 512, capturePosition: 'post-insert-pre-strip',
+	};
+	const derivedSource = createAudioSourceV10({
+		id: 'stem-freeze', storageKey: 'derived:stem-freeze', contentSha256: DERIVED_DIGEST,
+		frameCount: 512, channelCount: 6, sampleRate: 48_000, originalSampleRate: 48_000,
+		sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	return { project, freeze, digests, derivedSource, identities };
+}
 
 function fixture() {
 	const liveSource = createAudioSourceV10({
