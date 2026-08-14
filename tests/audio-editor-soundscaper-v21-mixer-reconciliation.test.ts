@@ -5,7 +5,11 @@ import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClipV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
+} from '../src/common/editor/project-v10.ts';
 import { createSoundscaperRoutingEditorModel } from '../src/common/editor/ui/soundscaper-routing-editor-model.ts';
 import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
@@ -150,4 +154,55 @@ test('the routing editor accepts the graph the product authored for a wide maste
 	);
 	assert.equal(model.validationError, null);
 	assert.equal(model.canApply, true);
+});
+
+test('a clip edit that narrows a track restates its send route with the master unchanged', () => {
+	// The trigger need not be a master width change: a track takes its width from clip
+	// content, so swapping a six-channel clip for a mono one narrows the source under
+	// an already-authored send map.
+	const six = createAudioSourceV10({
+		id: 'six', storageKey: 'pcm:six', frameCount: 512, channelCount: 6,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const sixClip = createAudioClipV10({
+		id: 'six-clip', sourceId: 'six', title: 'Six', timelineStartFrame: 0,
+		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
+	});
+	const project = createSoundscaperProjectV21({
+		id: 'clip-narrow', title: 'Clip narrow', now: NOW, masterChannels: 6,
+		sources: [six], clips: [sixClip],
+		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['six-clip'] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
+		primarySequenceId: 'main-sequence',
+		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
+	} as never);
+	const routed = applySoundscaperProjectCommandV21(project, {
+		type: 'batch', commands: [
+			{ type: 'mixer/bus-add', busType: 'send', bus: { id: 'verb', name: 'Verb' } },
+			{ type: 'mixer/route-update', trackId: 'voice', changes: { sends: { verb: 0.5 } } },
+		],
+	} as AudioEditorCommand);
+	const sendMap = (value: typeof routed) => value.mixer.edges
+		.find((edge) => edge.kind === 'send')?.channelMap;
+	assert.deepEqual(sendMap(routed), [0, 1, 2, 3, 4, 5]);
+
+	const mono = createAudioSourceV10({
+		id: 'one', storageKey: 'pcm:one', frameCount: 512, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const narrowed = applySoundscaperProjectCommandV21(routed, {
+		type: 'batch', commands: [
+			{ type: 'source/add', source: mono },
+			{ type: 'clip/remove-many', clipIds: ['six-clip'], rippleMode: 'none' },
+			{
+				type: 'clip/add', trackId: 'voice',
+				clip: createAudioClipV10({
+					id: 'one-clip', sourceId: 'one', title: 'One', timelineStartFrame: 0,
+					durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
+				}),
+			},
+		],
+	} as AudioEditorCommand);
+	assert.equal(narrowed.masterChannels, 6);
+	assert.deepEqual(sendMap(narrowed), [0, 0, -1, -1, -1, -1]);
 });
