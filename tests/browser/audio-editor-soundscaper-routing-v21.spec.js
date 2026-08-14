@@ -15,7 +15,7 @@ import {
 test.describe('Soundscaper V21 structured routing editor', () => {
 	registerAudioEditorHooks();
 
-	test('authors collections, endpoints, maps, and VCA membership as one full graph operation', async ({ page }) => {
+	test('authors collections, endpoints, maps, and VCA membership as one full graph operation', async ({ browserName, page }) => {
 		test.setTimeout(90_000);
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -48,10 +48,14 @@ test.describe('Soundscaper V21 structured routing editor', () => {
 		await expect(operationStatus).toHaveAttribute('aria-atomic', 'true');
 		await assertAccessibleBasics(dialog);
 		await page.emulateMedia({ forcedColors: 'active' });
-		await expect(dialog).toHaveCSS('forced-color-adjust', 'auto');
 		await expect(dialog).toHaveCSS('border-top-style', 'solid');
-		await expect(dialog.locator('[data-soundscaper-routing-editor="structured"]'))
-			.toHaveCSS('forced-color-adjust', 'auto');
+		// WebKit does not implement forced-color-adjust, so its computed value is
+		// empty there rather than the inherited 'auto'.
+		if (browserName !== 'webkit') {
+			await expect(dialog).toHaveCSS('forced-color-adjust', 'auto');
+			await expect(dialog.locator('[data-soundscaper-routing-editor="structured"]'))
+				.toHaveCSS('forced-color-adjust', 'auto');
+		}
 		await page.emulateMedia({ forcedColors: 'none' });
 		await assertNoSeriousAxeViolations(page, '[data-soundscaper-production-dialog]');
 

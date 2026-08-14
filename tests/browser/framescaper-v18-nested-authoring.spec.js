@@ -15,7 +15,7 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 test.describe('Framescaper selected-web nested-sequence authoring', () => {
 	registerAudioEditorHooks();
 
-	test('creates, places, moves, reopens, removes, and deletes through Tracks', async ({ page }) => {
+	test('creates, places, moves, reopens, removes, and deletes through Tracks', async ({ browserName, page }) => {
 		const errors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/framescaper/en/');
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
@@ -23,7 +23,7 @@ test.describe('Framescaper selected-web nested-sequence authoring', () => {
 		expect(projectId).toBeTruthy();
 
 		await nestedAction(page, editor, 'Create shared sequence');
-		await assertNestedMenuAccessibility(page, editor);
+		await assertNestedMenuAccessibility(page, editor, browserName);
 		await saveProject(page, editor);
 		await expect.poll(() => storedNestedState(page, projectId)).toMatchObject({
 			sequenceIds: ['main-sequence', 'shared-sequence-1'],
@@ -80,7 +80,7 @@ test.describe('Framescaper selected-web nested-sequence authoring', () => {
 	});
 });
 
-async function assertNestedMenuAccessibility(page, editor) {
+async function assertNestedMenuAccessibility(page, editor, browserName) {
 	await page.emulateMedia({ forcedColors: 'active' });
 	const tracks = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
 		.getByRole('menuitem', { name: 'Tracks', exact: true });
@@ -94,8 +94,12 @@ async function assertNestedMenuAccessibility(page, editor) {
 	await submenu.evaluate((element) => { element.id = 'framescaper-nested-accessibility-menu'; });
 	await assertAccessibleBasics(submenu);
 	await assertNoSeriousAxeViolations(page, '#framescaper-nested-accessibility-menu');
-	await expect(submenu.getByRole('menuitem', { name: /^Create shared sequence(?:\s|$)/u }))
-		.toHaveCSS('forced-color-adjust', 'auto');
+	// WebKit does not implement forced-color-adjust, so its computed value is
+	// empty there rather than the inherited 'auto'.
+	if (browserName !== 'webkit') {
+		await expect(submenu.getByRole('menuitem', { name: /^Create shared sequence(?:\s|$)/u }))
+			.toHaveCSS('forced-color-adjust', 'auto');
+	}
 	await page.keyboard.press('Escape');
 	await page.keyboard.press('Escape');
 	await page.emulateMedia({ forcedColors: 'none' });
